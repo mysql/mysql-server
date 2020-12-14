@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ void delete_queue(QUEUE *queue) {
 
 void queue_insert(QUEUE *queue, uchar *element) {
   uint idx, next;
-  DBUG_ASSERT(queue->elements < queue->max_elements);
+  assert(queue->elements < queue->max_elements);
   queue->root[0] = element;
   idx = ++queue->elements;
   /* max_at_top swaps the comparison if we want to order by desc */
@@ -199,7 +199,7 @@ void queue_insert(QUEUE *queue, uchar *element) {
 
 uchar *queue_remove(QUEUE *queue, uint idx) {
   uchar *element;
-  DBUG_ASSERT(idx < queue->max_elements);
+  assert(idx < queue->max_elements);
   element = queue->root[++idx]; /* Intern index starts from 1 */
   queue->root[idx] = queue->root[queue->elements--];
   _downheap(queue, idx);

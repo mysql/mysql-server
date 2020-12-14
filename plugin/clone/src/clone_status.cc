@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,8 +165,8 @@ void Table_pfs::init_state_names() {
       case STATE_FAILED:
         state_name = "Failed";
         break;
-      default:              /* purecov: inspected */
-        DBUG_ASSERT(false); /* purecov: inspected */
+      default:         /* purecov: inspected */
+        assert(false); /* purecov: inspected */
         state_name = nullptr;
     }
     ++index;
@@ -200,8 +200,8 @@ void Table_pfs::init_state_names() {
       case STAGE_RECOVERY:
         stage_name = "RECOVERY";
         break;
-      default:              /* purecov: inspected */
-        DBUG_ASSERT(false); /* purecov: inspected */
+      default:         /* purecov: inspected */
+        assert(false); /* purecov: inspected */
         stage_name = nullptr;
     }
     ++index;
@@ -349,7 +349,7 @@ int Status_pfs::rnd_init() {
 }
 
 int Status_pfs::read_column_value(PSI_field *field, uint32_t index) {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   PSI_uint int_value;
   PSI_ulonglong bigint_value;
 
@@ -409,8 +409,8 @@ int Status_pfs::read_column_value(PSI_field *field, uint32_t index) {
       mysql_pfscol_string->set_varchar_utf8(
           field, is_null ? nullptr : m_data.m_gtid_string.c_str());
     } break;
-    default:              /* purecov: inspected */
-      DBUG_ASSERT(false); /* purecov: inspected */
+    default:         /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
   return (0);
 }
@@ -626,7 +626,7 @@ int Progress_pfs::rnd_init() {
 }
 
 int Progress_pfs::read_column_value(PSI_field *field, uint32_t index) {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   PSI_uint int_value;
   PSI_ulonglong bigint_value;
 
@@ -694,8 +694,8 @@ int Progress_pfs::read_column_value(PSI_field *field, uint32_t index) {
       int_value.is_null = is_null;
       mysql_pfscol_int->set_unsigned(field, int_value);
       break;
-    default:              /* purecov: inspected */
-      DBUG_ASSERT(false); /* purecov: inspected */
+    default:         /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
   return (0);
 }

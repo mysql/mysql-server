@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -488,18 +488,18 @@ int Remote_clone_handler::run_clone_query(
     bool use_ssl) {
   int error = 0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("gr_run_clone_query_fail_once", {
     const char act[] =
         "now signal signal.run_clone_query_waiting wait_for "
         "signal.run_clone_query_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
 
     DBUG_SET("-d,gr_run_clone_query_fail_once");
 
     return 1;
   });
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   mysql_mutex_lock(&m_clone_query_lock);
   m_clone_query_session_id =
@@ -529,7 +529,7 @@ int Remote_clone_handler::kill_clone_query() {
   mysql_mutex_lock(&m_clone_query_lock);
 
   if (m_clone_query_status == CLONE_QUERY_EXECUTING) {
-    DBUG_ASSERT(m_clone_query_session_id != 0);
+    assert(m_clone_query_session_id != 0);
     Sql_service_command_interface *sql_command_interface =
         new Sql_service_command_interface();
     error = sql_command_interface->establish_session_connection(
@@ -650,20 +650,20 @@ bool Remote_clone_handler::evaluate_error_code(int) {
   return false;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void Remote_clone_handler::gr_clone_debug_point() {
   DBUG_EXECUTE_IF("gr_clone_process_before_execution", {
     const char act[] =
         "now signal signal.gr_clone_thd_paused wait_for "
         "signal.gr_clone_thd_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
   DBUG_EXECUTE_IF("gr_clone_before_applier_stop", {
     const char act[] = "now wait_for applier_stopped";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 [[noreturn]] void Remote_clone_handler::clone_thread_handle() {
   int error = 0;
@@ -763,9 +763,9 @@ void Remote_clone_handler::gr_clone_debug_point() {
       /* purecov: end */
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   gr_clone_debug_point();
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
   // Ignore any channel stop error and confirm channel is stopped or not.
   // Since we will clone next.
   applier_channel.stop_threads(false, true);
@@ -787,9 +787,9 @@ void Remote_clone_handler::gr_clone_debug_point() {
   stage_handler.set_stage(info_GR_STAGE_clone_execute.m_key, __FILE__, __LINE__,
                           number_servers, number_attempts);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   gr_clone_debug_point();
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   while (!empty_donor_list && !m_being_terminated) {
     stage_handler.set_completed_work(number_attempts);

@@ -307,7 +307,7 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   /* Component stop timeout on shutdown */
   ulong stop_wait_timeout;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool set_number_of_members_on_view_changed_to_10;
 #endif
 

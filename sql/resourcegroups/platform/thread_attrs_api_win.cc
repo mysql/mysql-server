@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,7 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
 }
 
 int thread_priority(my_thread_os_id_t thread_id) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -144,7 +144,7 @@ static inline int map_to_win_priority(int priority) {
 }
 
 bool set_thread_priority(int priority) {
-  DBUG_ASSERT(is_valid_thread_priority(priority));
+  assert(is_valid_thread_priority(priority));
 
   BOOL res =
       SetThreadPriority(GetCurrentThread(), map_to_win_priority(priority));
@@ -155,7 +155,7 @@ bool set_thread_priority(int priority) {
 bool set_thread_priority(int priority, my_thread_os_id_t thread_id) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(is_valid_thread_priority(priority));
+  assert(is_valid_thread_priority(priority));
   HANDLE handle;
   BOOL res = FALSE;
   handle = OpenThread(THREAD_QUERY_INFORMATION | THREAD_SET_INFORMATION, TRUE,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,11 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
+#include <assert.h>
 #include <cerrno>
 #include <cinttypes>
 #include <limits>
 #include <regex>
-#include "include/my_dbug.h"
 
 /*
  * +--------------------------------------+
@@ -58,7 +58,7 @@ Member_version convert_to_mysql_version(
     case Gcs_protocol_version::V4:
     case Gcs_protocol_version::V5:
       /* This should not happen... */
-      DBUG_ASSERT(false && "GCS protocol should have been V1 or V2");
+      assert(false && "GCS protocol should have been V1 or V2");
       break;
   }
   return Member_version(0x000000);
@@ -84,7 +84,7 @@ Gcs_protocol_version convert_to_gcs_protocol(
 
 static std::string const one_or_two_digit_number_regex = "([0-9]{1,2})";
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool is_one_or_two_digit_number(const std::string &s) {
   return std::regex_match(s, std::regex(one_or_two_digit_number_regex));
 }
@@ -100,7 +100,7 @@ bool valid_mysql_version_string(char const *version_str) {
 
 /* Requires that str is_one_or_two_digit_number. */
 static unsigned int convert_to_base_16_number(char const *const str) {
-  DBUG_ASSERT(is_one_or_two_digit_number(std::string(str)));
+  assert(is_one_or_two_digit_number(std::string(str)));
 
   int constexpr BASE_16 = 16;
   char *end = nullptr;
@@ -109,12 +109,12 @@ static unsigned int convert_to_base_16_number(char const *const str) {
   // Convert.
   auto converted_number = std::strtoumax(str, &end, BASE_16);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* Paranoid check; this should always be OK because
    * valid_mysqld_version_string is a precondition. */
   bool const would_overflow =
       (converted_number > std::numeric_limits<decltype(base_16_number)>::max());
-  DBUG_ASSERT(!would_overflow);
+  assert(!would_overflow);
 #endif
 
   base_16_number = static_cast<decltype(base_16_number)>(converted_number);
@@ -124,7 +124,7 @@ static unsigned int convert_to_base_16_number(char const *const str) {
 
 /* Requires that str be a valid_mysql_version_string. */
 Member_version convert_to_member_version(char const *str) {
-  DBUG_ASSERT(valid_mysql_version_string(str));
+  assert(valid_mysql_version_string(str));
 
   std::string version_str(str);
   Member_version version(0);

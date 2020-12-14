@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -86,11 +86,11 @@ static int audit_cache_clean_event_notify(MYSQL_THD thd,
     if (subclass == MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE ||
         subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME ||
         subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP) {
-#ifndef DBUG_OFF
-      // "user" variable is going to be unused when the DBUG_OFF is defined
+#ifndef NDEBUG
+      // "user" variable is going to be unused when the NDEBUG is defined
       auto user = authentication_event->user;
-      DBUG_ASSERT(user.str[user.length] == '\0');
-#endif  // DBUG_OFF
+      assert(user.str[user.length] == '\0');
+#endif  // NDEBUG
       sha256_password_cache->remove(authentication_event->user.str,
                                     authentication_event->host.str);
     }

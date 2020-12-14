@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ class Queue {
 
     if (first == nullptr) first = new_item;
     if (last != nullptr) {
-      DBUG_ASSERT(last->next == nullptr);
+      assert(last->next == nullptr);
       last->next = new_item;
     }
     new_item->previous = last;
@@ -141,8 +141,8 @@ class Queue {
   }
 
   bool is_empty() {
-    DBUG_ASSERT(((elements > 0) && (first != nullptr)) ||
-                ((elements == 0) || (first == nullptr)));
+    assert(((elements > 0) && (first != nullptr)) ||
+           ((elements == 0) || (first == nullptr)));
     return (elements == 0);
   }
 

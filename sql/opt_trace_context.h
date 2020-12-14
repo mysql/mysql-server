@@ -23,7 +23,8 @@
 #ifndef OPT_TRACE_CONTEXT_INCLUDED
 #define OPT_TRACE_CONTEXT_INCLUDED
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_inttypes.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "prealloced_array.h"
@@ -263,7 +264,7 @@ class Opt_trace_context {
   */
   void restore_I_S() {
     --I_S_disabled;
-    DBUG_ASSERT(I_S_disabled >= 0);
+    assert(I_S_disabled >= 0);
     if (unlikely(pimpl != nullptr)) pimpl->restore_I_S();
   }
 

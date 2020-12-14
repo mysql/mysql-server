@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ const String_type Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 bool Dictionary_impl::init(enum_dd_init_type dd_init) {
   if (dd_init == enum_dd_init_type::DD_INITIALIZE ||
       dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE) {
-    DBUG_ASSERT(!Dictionary_impl::s_instance);
+    assert(!Dictionary_impl::s_instance);
 
     if (Dictionary_impl::s_instance) return false; /* purecov: inspected */
 
@@ -214,8 +214,8 @@ uint Dictionary_impl::get_actual_dd_version(THD *thd) {
   uint version = 0;
   bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
       thd, "DD_VERSION", &version, &exists);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(exists);
+  assert(!error);
+  assert(exists);
   return version;
 }
 
@@ -232,8 +232,8 @@ uint Dictionary_impl::get_actual_I_S_version(THD *thd) {
   uint version = 0;
   bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
       thd, "IS_VERSION", &version, &exists);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(exists);
+  assert(!error);
+  assert(exists);
   return version;
 }
 
@@ -254,8 +254,8 @@ uint Dictionary_impl::get_actual_P_S_version(THD *thd) {
   uint version = 0;
   bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
       thd, "PS_VERSION", &version, &exists);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(exists);
+  assert(!error);
+  assert(exists);
   return version;
 }
 

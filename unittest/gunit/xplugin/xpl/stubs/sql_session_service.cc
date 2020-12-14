@@ -20,7 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
+#include <assert.h>
+// NOLINT(build/include_subdir)
 
 #include "mysql/service_srv_session.h"
 #include "unittest/gunit/xplugin/xpl/mock/srv_session_services.h"
@@ -34,7 +35,7 @@ int srv_session_init_thread(const void *plugin) {
   if (mock::Srv_session::m_srv_session)
     return mock::Srv_session::m_srv_session->init_session_thread(plugin);
 
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -44,14 +45,14 @@ void srv_session_deinit_thread() {
     return;
   }
 
-  DBUG_ASSERT(0);
+  assert(0);
 }
 
 MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *ctxt) {
   if (mock::Srv_session::m_srv_session)
     return mock::Srv_session::m_srv_session->open_session(error_cb, ctxt);
 
-  DBUG_ASSERT(0);
+  assert(0);
   return nullptr;
 }
 
@@ -59,7 +60,7 @@ int srv_session_close(MYSQL_SESSION session) {
   if (mock::Srv_session::m_srv_session)
     return mock::Srv_session::m_srv_session->close_session(session);
 
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -67,7 +68,7 @@ int srv_session_detach(MYSQL_SESSION session) {
   if (mock::Srv_session::m_srv_session)
     return mock::Srv_session::m_srv_session->detach_session(session);
 
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -75,7 +76,7 @@ int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *old_thd) {
   if (mock::Srv_session::m_srv_session)
     return mock::Srv_session::m_srv_session->attach_session(session, old_thd);
 
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -83,7 +84,7 @@ int srv_session_server_is_available() {
   if (mock::Srv_session::m_srv_session)
     return mock::Srv_session::m_srv_session->server_is_available();
 
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -91,7 +92,7 @@ int srv_session_server_is_available() {
 //
 
 MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION) {
-  DBUG_ASSERT(0);
+  assert(0);
   return nullptr;
 }
 
@@ -99,21 +100,21 @@ my_thread_id srv_session_info_get_session_id(MYSQL_SESSION session) {
   if (mock::Srv_session_info::m_srv_session_info)
     return mock::Srv_session_info::m_srv_session_info->get_session_id(session);
 
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 int srv_session_info_set_client_port(Srv_session *, uint16_t) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 int srv_session_info_set_connection_type(Srv_session *, enum_vio_type) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 int srv_session_info_killed(MYSQL_SESSION) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -248,7 +248,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param, char *word,
       }
       info->quot = nullptr;
       if (ftb_param->ftbe->up) {
-        DBUG_ASSERT(ftb_param->depth);
+        assert(ftb_param->depth);
         ftb_param->ftbe = ftb_param->ftbe->up;
         ftb_param->depth--;
         ftb_param->up_quot = nullptr;
@@ -282,7 +282,7 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
   MYSQL_FTPARSER_PARAM *param;
   MY_FTB_PARAM ftb_param;
   DBUG_TRACE;
-  DBUG_ASSERT(parser);
+  assert(parser);
 
   if (ftb->state != FTB::UNINITIALIZED) return 0;
   if (!(param = ftparser_call_initializer(ftb->info, ftb->keynr, 0))) return 1;
@@ -429,7 +429,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, bool init_search) {
     ftbw->key_root = info->lastpos;
     ftbw->keyinfo = &info->s->ft2_keyinfo;
     r = _mi_search_first(info, ftbw->keyinfo, ftbw->key_root);
-    DBUG_ASSERT(r == 0); /* found something */
+    assert(r == 0); /* found something */
     memcpy(lastkey_buf + off, info->lastkey, info->lastkey_length);
   }
   ftbw->docid[0] = info->lastpos;
@@ -524,8 +524,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
   ftb->info = info;
   ftb->keynr = keynr;
   ftb->charset = cs;
-  DBUG_ASSERT(keynr == NO_SUCH_KEY ||
-              cs == info->s->keyinfo[keynr].seg->charset);
+  assert(keynr == NO_SUCH_KEY || cs == info->s->keyinfo[keynr].seg->charset);
   ftb->with_scan = 0;
   ftb->lastpos = HA_OFFSET_ERROR;
   memset(&ftb->no_dupes, 0, sizeof(TREE));
@@ -653,7 +652,7 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
   MY_FTB_PHRASE_PARAM ftb_param;
   MYSQL_FTPARSER_PARAM *param;
   DBUG_TRACE;
-  DBUG_ASSERT(parser);
+  assert(parser);
 
   if (!(param = ftparser_call_initializer(ftb->info, ftb->keynr, 1))) return 0;
 

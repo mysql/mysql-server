@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,11 @@
 #ifndef PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_PROTOBUF_H_
 #define PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_PROTOBUF_H_
 
+#include <assert.h>
 #include <google/protobuf/wire_format_lite.h>
 #include <cassert>
 #include <cstdint>
 #include <string>
-
-#include "my_dbug.h"
 
 #include "plugin/x/protocol/encoders/encoding_primitives.h"
 
@@ -42,7 +41,7 @@ class Delayed_fixed_varuint32 {
   explicit Delayed_fixed_varuint32(uint8_t *&out) : m_out(out) { out += 5; }
 
   void encode(const uint32_t value) const {
-    DBUG_ASSERT(m_out);
+    assert(m_out);
     uint8_t *out = m_out;
     primitives::base::Varint_length<5>::encode(out, value);
   }
@@ -260,7 +259,7 @@ class Protobuf_encoder : public Primitives_encoder {
   */
   template <uint32_t field_id>
   void encode_field_enum(const int32_t value) {
-    DBUG_ASSERT(value >= 0);
+    assert(value >= 0);
 
     encode_const_var_uint<Helper::encode_field_tag(
         field_id, Helper::WireType::WIRETYPE_VARINT)>();

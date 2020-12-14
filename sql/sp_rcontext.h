@@ -23,10 +23,10 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/item.h"
@@ -241,7 +241,7 @@ class sp_rcontext {
   /// handler. This function must not be called for the EXIT handlers.
   uint get_last_handler_continue_ip() const {
     uint ip = m_activated_handlers.back()->continue_ip;
-    DBUG_ASSERT(ip != 0);
+    assert(ip != 0);
 
     return ip;
   }

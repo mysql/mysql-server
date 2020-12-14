@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,8 @@
 
 #include "plugin/x/src/xpl_regex.h"
 
+#include <assert.h>
 #include <memory>
-
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 namespace xpl {
 
@@ -33,7 +32,7 @@ Regex::Regex(const char *const pattern)
       m_pattern{icu::RegexPattern::compile(
           icu::UnicodeString::fromUTF8(pattern), UREGEX_CASE_INSENSITIVE,
           m_parse_error, m_status)} {
-  DBUG_ASSERT(U_SUCCESS(m_status));
+  assert(U_SUCCESS(m_status));
 }
 
 /* Initializing RegexMatcher object with RegexPattern

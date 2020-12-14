@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -270,7 +270,7 @@ int _mi_write_blob_record(MI_INFO *info, const uchar *record) {
       info, rec_buff + ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER), record);
   DBUG_PRINT("info",
              ("reclength: %lu  reclength2: %lu", reclength, reclength2));
-  DBUG_ASSERT(reclength2 <= reclength);
+  assert(reclength2 <= reclength);
   error = write_dynamic_record(
       info, rec_buff + ALIGN_SIZE(MI_MAX_DYN_BLOCK_HEADER), reclength2);
   my_free(rec_buff);

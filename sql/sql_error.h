@@ -23,6 +23,7 @@
 #ifndef SQL_ERROR_H
 #define SQL_ERROR_H
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -32,7 +33,7 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 #include "sql/sql_list.h"
@@ -349,7 +350,7 @@ class Diagnostics_area {
     in a custom format. One example is COM_STMT_PREPARE.
   */
   void disable_status() {
-    DBUG_ASSERT(m_status == DA_EMPTY);
+    assert(m_status == DA_EMPTY);
     m_status = DA_DISABLED;
   }
 
@@ -373,32 +374,32 @@ class Diagnostics_area {
   enum_diagnostics_status status() const { return m_status; }
 
   const char *message_text() const {
-    DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK);
+    assert(m_status == DA_ERROR || m_status == DA_OK);
     return m_message_text;
   }
 
   uint mysql_errno() const {
-    DBUG_ASSERT(m_status == DA_ERROR);
+    assert(m_status == DA_ERROR);
     return m_mysql_errno;
   }
 
   const char *returned_sqlstate() const {
-    DBUG_ASSERT(m_status == DA_ERROR);
+    assert(m_status == DA_ERROR);
     return m_returned_sqlstate;
   }
 
   ulonglong affected_rows() const {
-    DBUG_ASSERT(m_status == DA_OK);
+    assert(m_status == DA_OK);
     return m_affected_rows;
   }
 
   ulonglong last_insert_id() const {
-    DBUG_ASSERT(m_status == DA_OK);
+    assert(m_status == DA_OK);
     return m_last_insert_id;
   }
 
   uint last_statement_cond_count() const {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
+    assert(m_status == DA_OK || m_status == DA_EOF);
     return m_last_statement_cond_count;
   }
 

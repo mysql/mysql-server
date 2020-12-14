@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@
   Worth to note:
   - File descriptors used here are located in a range that is not compatible
   with CRT on purpose. Attempt to use a file descriptor from Windows CRT library
-  range in my_win_* function will be punished with DBUG_ASSERT()
+  range in my_win_* function will be punished with assert()
 
   - File streams (FILE *) are actually from the C runtime. The routines provided
   here are useful only in scenarios that use low-level IO with my_win_fileno()
@@ -121,11 +121,11 @@ class WindowsErrorGuard {
     // explicitly, and then we do not want to overwrite errno with
     // success.
     if (errno == 0) {
-      DBUG_ASSERT(le != ERROR_SUCCESS);
+      assert(le != ERROR_SUCCESS);
       my_osmaperr(le);
     }
 
-    DBUG_ASSERT(errno != 0);
+    assert(errno != 0);
     set_my_errno(errno);
   }  // ~WindowsErrorGuard()
 };
@@ -140,7 +140,7 @@ using HandleInfoVector = std::vector<HandleInfo, HandleInfoAllocator>;
 HandleInfoVector *hivp = nullptr;
 
 size_t ToIndex(File fd) {
-  DBUG_ASSERT(fd >= MY_FILE_MIN);
+  assert(fd >= MY_FILE_MIN);
   return fd - MY_FILE_MIN;
 }
 int ToDescr(size_t hi) { return hi + MY_FILE_MIN; }
@@ -165,7 +165,7 @@ HandleInfo GetHandleInfo(File fd) {
 }
 
 File RegisterHandle(HANDLE handle, int oflag) {
-  DBUG_ASSERT(handle != 0);
+  assert(handle != 0);
   HandleInfoVector &hiv = *hivp;
 
   MUTEX_LOCK(g, &THR_LOCK_open);
@@ -186,7 +186,7 @@ HandleInfo UnregisterHandle(File fd) {
   HandleInfoVector &hiv = *hivp;
   size_t hi = ToIndex(fd);
   MUTEX_LOCK(g, &THR_LOCK_open);
-  DBUG_ASSERT(IsValidIndex(hi));
+  assert(IsValidIndex(hi));
   HandleInfo unreg = hiv[hi];
   hiv[hi] = {};
   return unreg;
@@ -231,7 +231,7 @@ File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
   DBUG_TRACE;
   WindowsErrorGuard weg;
   if (check_if_legal_filename(path)) {
-    DBUG_ASSERT(GetLastError() == ERROR_SUCCESS);
+    assert(GetLastError() == ERROR_SUCCESS);
     errno = EACCES;
     return -1;
   }
@@ -329,7 +329,7 @@ File my_win_sopen(const char *path, int oflag, int shflag, int pmode) {
   int mask;
   if (oflag & _O_CREAT) {
     _umask((mask = _umask(0)));
-    DBUG_ASSERT(errno == 0);
+    assert(errno == 0);
     if (!((pmode & ~mask) & _S_IWRITE)) fileattrib = FILE_ATTRIBUTE_READONLY;
   }
 
@@ -757,7 +757,7 @@ int my_win_fclose(FILE *stream) {
 */
 FILE *my_win_freopen(const char *path, const char *mode, FILE *stream) {
   DBUG_TRACE;
-  DBUG_ASSERT(path && stream);
+  assert(path && stream);
   WindowsErrorGuard weg;
 
   /* Services don't have stdout/stderr on Windows, so _fileno returns -1. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -356,7 +356,7 @@ class Shared_dictionary_cache {
 
   template <typename T>
   void dump() const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     fprintf(stderr, "================================\n");
     fprintf(stderr, "Shared dictionary cache\n");
     m_map<T>()->dump();

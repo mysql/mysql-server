@@ -39,7 +39,7 @@ typedef Mem_root_array<Key_use> Key_use_array;
 
 extern const char *lock_descriptions[TL_WRITE_ONLY + 1];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void print_where(const THD *thd, const Item *cond, const char *info,
                  enum_query_type query_type);
 void TEST_join(JOIN *join);

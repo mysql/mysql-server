@@ -508,7 +508,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                       std::vector<NdbDictionary::ForeignKey> *);
   bool has_fk_dependency(NdbDictionary::Dictionary *dict,
                          const NdbDictionary::Column *) const;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool check_default_values() const;
 #endif
   int get_metadata(Ndb *ndb, const char *dbname, const char *tabname,

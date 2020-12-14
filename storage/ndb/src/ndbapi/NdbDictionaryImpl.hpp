@@ -1451,7 +1451,7 @@ public:
   
   int init(NdbDictionaryImpl *dict, NdbTableImpl &tab) const override {
     DBUG_ENTER("InitIndex::init");
-    DBUG_ASSERT(tab.m_indexType != NdbDictionary::Object::TypeUndefined);
+    assert(tab.m_indexType != NdbDictionary::Object::TypeUndefined);
     /**
      * Create index impl
      */

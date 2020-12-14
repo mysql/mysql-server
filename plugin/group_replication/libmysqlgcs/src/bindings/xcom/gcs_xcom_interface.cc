@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1353,7 +1353,7 @@ void do_cb_xcom_receive_data(synode_no message_id,
   Gcs_xcom_communication *xcom_communication =
       static_cast<Gcs_xcom_communication *>(
           intf->get_communication_session(*destination));
-  DBUG_ASSERT(xcom_communication != nullptr);
+  assert(xcom_communication != nullptr);
 
   auto packet =
       Gcs_packet::make_incoming_packet(std::move(data), size, message_id,

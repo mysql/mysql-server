@@ -628,7 +628,7 @@ AsyncFile::closeReq(Request *request)
     if (!no_write) syncReq(request);
   }
   int r = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!m_file.is_open())
   {
     DEBUG(ndbout_c("close on already closed file"));

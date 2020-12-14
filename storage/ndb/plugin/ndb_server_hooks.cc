@@ -34,7 +34,7 @@
 bool Ndb_server_hooks::register_server_hooks(hook_t *before_connections_hook,
                                              hook_t *dd_upgrade_hook) {
   // Only allow one server_started hook to be installed
-  DBUG_ASSERT(!m_server_state_observer);
+  assert(!m_server_state_observer);
 
   Ndb_plugin_reference ndbcluster_plugin;
 
@@ -70,7 +70,7 @@ bool Ndb_server_hooks::register_server_hooks(hook_t *before_connections_hook,
 
 bool Ndb_server_hooks::register_applier_start(hook_t *hook_func) {
   // Only allow one applier_start hook to be installed
-  DBUG_ASSERT(!m_binlog_relay_io_observer);
+  assert(!m_binlog_relay_io_observer);
 
   Ndb_plugin_reference ndbcluster_plugin;
 

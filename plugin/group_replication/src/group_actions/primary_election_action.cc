@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -216,7 +216,7 @@ Primary_election_action::execute_action(
 
   DBUG_EXECUTE_IF("group_replication_block_primary_action_validation", {
     const char act[] = "now wait_for signal.primary_action_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   stage_handler->set_completed_work(1);
@@ -484,7 +484,7 @@ int Primary_election_action::after_view_change(
           new_invoking_member->get_gcs_member_id().get_member_id());
     } else {
       /* purecov: begin inspected */
-      DBUG_ASSERT(proposed_primary.empty());
+      assert(proposed_primary.empty());
       *skip_primary_election = false;
       if (PRIMARY_ELECTION_ACTION_PRIMARY_SWITCH == action_execution_mode) {
         proposed_primary.assign(appointed_primary_uuid);
@@ -519,8 +519,7 @@ int Primary_election_action::after_view_change(
     Group_member_info *member_info =
         group_member_mgr->get_primary_member_info();
     if (member_info == nullptr || is_appointed_primary_leaving) {
-      DBUG_ASSERT(appointed_primary_gcs_id.empty() ||
-                  is_appointed_primary_leaving);
+      assert(appointed_primary_gcs_id.empty() || is_appointed_primary_leaving);
       *skip_primary_election = false;
       std::string new_primary("");
       if (PRIMARY_ELECTION_ACTION_PRIMARY_SWITCH == action_execution_mode) {

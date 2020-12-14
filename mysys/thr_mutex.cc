@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,12 @@
 
 #include "thr_mutex.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "my_dbug.h"
 #include "my_thread_local.h"
 
 #if defined(SAFE_MUTEX)
@@ -54,7 +54,7 @@ void safe_mutex_global_init(void) { safe_mutex_inited = true; }
 
 int safe_mutex_init(safe_mutex_t *mp, const native_mutexattr_t *attr,
                     const char *file, uint line) {
-  DBUG_ASSERT(safe_mutex_inited);
+  assert(safe_mutex_inited);
   memset(mp, 0, sizeof(*mp));
   native_mutex_init(&mp->global, MY_MUTEX_INIT_ERRCHK);
   native_mutex_init(&mp->mutex, attr);
@@ -82,7 +82,7 @@ int safe_mutex_lock(safe_mutex_t *mp, bool try_lock, const char *file,
       native_mutex_unlock(&mp->global);
       return EBUSY;
     } else if (my_thread_equal(my_thread_self(), mp->thread)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       fprintf(stderr,
               "safe_mutex: Trying to lock mutex at %s, line %d, when the"
               " mutex was already locked at %s, line %d in thread T@%u\n",

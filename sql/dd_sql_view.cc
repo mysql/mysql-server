@@ -334,7 +334,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
                                    std::vector<TABLE_LIST *> *views_list,
                                    bool commit_dd_changes) {
   DBUG_TRACE;
-  DBUG_ASSERT(!views_list->empty());
+  assert(!views_list->empty());
 
   // Acquire lock on all the views.
   MDL_request_list mdl_requests;
@@ -565,7 +565,7 @@ static bool open_views_and_update_metadata(
     if (thd->dd_client()->acquire_for_modification(view->db, view->table_name,
                                                    &new_view))
       return true;
-    DBUG_ASSERT(new_view != nullptr);
+    assert(new_view != nullptr);
     bool res = dd::update_view(thd, new_view, view);
 
     if (commit_dd_changes) {
@@ -625,7 +625,7 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
       retval = is_non_dictionary_or_temp_table();
       break;
     case SQLCOM_ALTER_TABLE: {
-      DBUG_ASSERT(thd->lex->alter_info);
+      assert(thd->lex->alter_info);
 
       // Alter operations which affects view column metadata.
       const uint alter_operations =
@@ -748,7 +748,7 @@ bool update_referencing_views_metadata(
     const char *new_table_name, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
   DBUG_TRACE;
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   bool error = update_referencing_views_metadata(
       thd, table->get_db_name(), table->get_table_name(), new_db,
@@ -767,7 +767,7 @@ bool update_referencing_views_metadata(
     THD *thd, const char *db_name, const char *table_name,
     bool commit_dd_changes, Uncommitted_tables_guard *uncommitted_tables) {
   DBUG_TRACE;
-  DBUG_ASSERT(db_name && table_name);
+  assert(db_name && table_name);
 
   bool error = update_referencing_views_metadata(
       thd, db_name, table_name, nullptr, nullptr, commit_dd_changes,
@@ -777,7 +777,7 @@ bool update_referencing_views_metadata(
 
 bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   DBUG_TRACE;
-  DBUG_ASSERT(spname);
+  assert(spname);
 
   /*
     Updates to view metatdata for DDL on stored routines does not include

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ bool Check_constraints::check_constraint_exists(
       create_key_by_check_constraint_name(schema_id, check_cons_name.c_str()));
 
   Raw_table *table = trx.otx.get_table(instance().name());
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   // Find record by the object-key.
   std::unique_ptr<Raw_record> record;

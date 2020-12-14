@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ static const char *MSGS_TO_CLIENT = "../share/messages_to_clients.txt";
 static const char *DATADIRECTORY = "../share/";
 static const char *selftest_dir = nullptr;
 bool selftest_flag = false;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static const char *default_dbug_option = "d:t:O,/tmp/comp_err.trace";
 #endif
 
@@ -179,7 +179,7 @@ using err_range = std::pair<uint, uint>;
 std::set<err_range> reserved_sections;
 
 static struct my_option my_long_options[] = {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
@@ -1021,7 +1021,7 @@ static struct message *find_message(struct errors *err, const char *lang,
 
     if (!strcmp(tmp->lang_short_name, lang)) return tmp;
     if (!strcmp(tmp->lang_short_name, default_language)) {
-      DBUG_ASSERT(tmp->text[0] != 0);
+      assert(tmp->text[0] != 0);
       return_val = tmp;
     }
   }
@@ -1086,7 +1086,7 @@ static ha_checksum checksum_format_specifier(const char *msg) {
             "Still inside formatspecifier after end of string"
             " in'%s'\n",
             msg);
-    DBUG_ASSERT(start == nullptr);
+    assert(start == nullptr);
   }
 
   /* Add number of format specifiers to checksum as extra safeguard */
@@ -1115,7 +1115,7 @@ static int check_message_format(struct errors *err, const char *mess) {
   if ((err->msg).empty()) return 0; /* No previous message to compare against */
 
   first = err->msg.begin();
-  DBUG_ASSERT(first != nullptr);
+  assert(first != nullptr);
 
   if (checksum_format_specifier(first->text) !=
       checksum_format_specifier(mess)) {

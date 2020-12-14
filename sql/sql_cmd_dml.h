@@ -23,7 +23,8 @@
 #ifndef SQL_CMD_DML_INCLUDED
 #define SQL_CMD_DML_INCLUDED
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/sql_cmd.h"
 #include "sql/sql_prepare.h"
 
@@ -107,7 +108,7 @@ class Sql_cmd_dml : public Sql_cmd {
           - Check empty query expression for INSERT
   */
   bool is_empty_query() const {
-    DBUG_ASSERT(is_prepared());
+    assert(is_prepared());
     return m_empty_query;
   }
 

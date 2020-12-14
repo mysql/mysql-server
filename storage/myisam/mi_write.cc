@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,7 +345,7 @@ static int w_search(MI_INFO *info, MI_KEYDEF *keyinfo, uint comp_flag,
             _mi_ck_real_write_btree(info, keyinfo, key, 0, &root, comp_flag);
         _mi_dpointer(info, keypos + HA_FT_WLEN, root);
         subkeys--; /* should there be underflow protection ? */
-        DBUG_ASSERT(subkeys < 0);
+        assert(subkeys < 0);
         ft_intXstore(keypos, subkeys);
         if (!error)
           error =
@@ -420,7 +420,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
   t_length = (*keyinfo->pack_key)(
       keyinfo, nod_flag, (key_pos == endpos ? (uchar *)nullptr : key_pos),
       prev_key, prev_key, key, &s_temp);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (key_pos != anc_buff + 2 + nod_flag &&
       (keyinfo->flag & (HA_BINARY_PACK_KEY | HA_PACK_KEY))) {
     DBUG_DUMP("prev_key", (uchar *)key_buff, _mi_keylength(keyinfo, key_buff));
@@ -464,10 +464,10 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
       const uchar *a = key, *b = anc_buff + 2 + nod_flag;
       uint blen, ft2len = info->s->ft2_keyinfo.keylength;
       /* the very first key on the page is always unpacked */
-      DBUG_ASSERT((*b & 128) == 0);
+      assert((*b & 128) == 0);
       blen = *b++;
       uint alen = get_key_length(&a);
-      DBUG_ASSERT(info->ft1_to_ft2 == nullptr);
+      assert(info->ft1_to_ft2 == nullptr);
       if (alen == blen && ha_compare_text(keyinfo->seg->charset, a, alen, b,
                                           blen, false) == 0) {
         /* yup. converting */
@@ -871,8 +871,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("cache_size: %lu", cache_size));
 
-  DBUG_ASSERT(!info->bulk_insert &&
-              (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT));
+  assert(!info->bulk_insert &&
+         (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT));
 
   mi_clear_all_keys_active(key_map);
   for (i = total_keylength = num_keys = 0; i < share->base.keys; i++) {

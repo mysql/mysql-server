@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -304,7 +304,7 @@ struct Client_Share {
         m_protocol_version(CLONE_PROTOCOL_VERSION) {
     m_storage_vec.reserve(MAX_CLONE_STORAGE_ENGINE);
     m_threads.resize(m_max_concurrency);
-    DBUG_ASSERT(m_max_concurrency > 0);
+    assert(m_max_concurrency > 0);
     m_stat.init_target();
   }
 
@@ -402,7 +402,7 @@ class Client {
 
   /** @return maximum concurrency for current clone operation. */
   uint32_t get_max_concurrency() const {
-    DBUG_ASSERT(m_share->m_max_concurrency > 0);
+    assert(m_share->m_max_concurrency > 0);
     return (m_share->m_max_concurrency);
   }
 
@@ -464,7 +464,7 @@ class Client {
   @param[out]	loc_len	locator length in bytes
   @return storage locator */
   const uchar *get_locator(uint index, uint &loc_len) const {
-    DBUG_ASSERT(index < m_share->m_storage_vec.size());
+    assert(index < m_share->m_storage_vec.size());
 
     loc_len = m_share->m_storage_vec[index].m_loc_len;
     return (m_share->m_storage_vec[index].m_loc);
@@ -500,7 +500,7 @@ class Client {
 
     /* Maximum number of workers are fixed. */
     if (num_workers + 1 > get_max_concurrency()) {
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       return;
     }
 

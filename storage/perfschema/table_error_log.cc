@@ -44,9 +44,10 @@
 
 #include "storage/perfschema/table_error_log.h"
 
+#include <assert.h>
 #include "lex_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -165,7 +166,7 @@ bool PFS_key_error_log_prio::match(const log_sink_pfs_event *row) {
     case HA_READ_AFTER_KEY:
       return (cmp > 0);
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
   }
 }
@@ -243,7 +244,7 @@ int table_error_log::index_init(uint idx, bool sorted MY_ATTRIBUTE((unused))) {
       result = PFS_NEW(PFS_index_error_log_by_subsys);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   m_opened_index = result;
@@ -287,7 +288,7 @@ int table_error_log::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -327,7 +328,7 @@ int table_error_log::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

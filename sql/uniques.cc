@@ -176,9 +176,9 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   org_max_rows = max_rows = param->max_rows;
 
   /* The following will fire if there is not enough space in sort_buffer */
-  DBUG_ASSERT(maxcount != 0);
+  assert(maxcount != 0);
 
-  DBUG_ASSERT(param->unique_buff != nullptr);
+  assert(param->unique_buff != nullptr);
 
   cmp = param->compare;
   first_cmp_arg = &param->cmp_context;
@@ -768,7 +768,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
     top->set_max_keys(max_key_count_per_piece);
     bytes_read = uniq_read_to_buffer(file, top, &uniq_param);
     if (bytes_read == (uint)(-1)) goto end;
-    DBUG_ASSERT(bytes_read);
+    assert(bytes_read);
     queue.push(top);
   }
   top = queue.top();
@@ -894,7 +894,7 @@ bool Unique::get(TABLE *table) {
 
   if (my_b_tell(&file) == 0) {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    DBUG_ASSERT(table->unique_result.sorted_result == nullptr);
+    assert(table->unique_result.sorted_result == nullptr);
     table->unique_result.sorted_result.reset(
         (uchar *)my_malloc(key_memory_Filesort_info_record_pointers,
                            size * tree.elements_in_tree, MYF(0)));
@@ -914,7 +914,7 @@ bool Unique::get(TABLE *table) {
   bool error = true;
 
   /* Open cached file if it isn't open */
-  DBUG_ASSERT(table->unique_result.io_cache == nullptr);
+  assert(table->unique_result.io_cache == nullptr);
   outfile = table->unique_result.io_cache = (IO_CACHE *)my_malloc(
       key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE), MYF(MY_ZEROFILL));
 

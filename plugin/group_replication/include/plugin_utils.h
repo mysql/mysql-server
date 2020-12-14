@@ -499,8 +499,8 @@ class Wait_ticket {
 
   void clear() {
     mysql_mutex_lock(&lock);
-    DBUG_ASSERT(false == blocked);
-    DBUG_ASSERT(false == waiting);
+    assert(false == blocked);
+    assert(false == waiting);
 
     for (typename std::map<K, CountDownLatch *>::iterator it = map.begin();
          it != map.end(); ++it)
@@ -666,11 +666,11 @@ class Wait_ticket {
     while (!map.empty()) {
       struct timespec abstime;
       set_timespec(&abstime, 1);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       int error =
 #endif
           mysql_cond_timedwait(&cond, &lock, &abstime);
-      DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+      assert(error == ETIMEDOUT || error == 0);
       if (timeout >= 1) {
         timeout = timeout - 1;
       } else if (!map.empty()) {
@@ -699,7 +699,7 @@ class Shared_writelock {
       : shared_write_lock(arg), write_lock_in_use(false) {
     DBUG_TRACE;
 
-    DBUG_ASSERT(arg != nullptr);
+    assert(arg != nullptr);
 
     mysql_mutex_init(key_GR_LOCK_write_lock_protection, &write_lock,
                      MY_MUTEX_INIT_FAST);
@@ -732,7 +732,7 @@ class Shared_writelock {
     mysql_mutex_lock(&write_lock);
     DBUG_EXECUTE_IF("group_replication_continue_kill_pending_transaction", {
       const char act[] = "now SIGNAL signal.gr_applier_early_failure";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
     while (write_lock_in_use == true)
       mysql_cond_wait(&write_lock_protection, &write_lock);

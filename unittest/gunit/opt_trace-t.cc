@@ -648,7 +648,7 @@ void open_object(uint count, Opt_trace_context *trace, bool simulate_oom) {
   open_object(count, trace, simulate_oom);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 /// Test reaction to out-of-memory condition in trace buffer
 TEST_F(TraceContentTest, OOMinBuffer) {
@@ -734,7 +734,7 @@ TEST_F(TraceContentTest, OOMinPurge) {
   EXPECT_FALSE(oom);
 }
 
-#endif  // !DBUG_OFF
+#endif  // !NDEBUG
 
 /** Test filtering by feature */
 TEST_F(TraceContentTest, FilteringByFeature) {

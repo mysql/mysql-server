@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ const String_type Properties_impl::raw_string() const {
 
   // Iterate over all valid map entries.
   for (auto &it : m_map) {
-    DBUG_ASSERT(valid_key(it.first));
+    assert(valid_key(it.first));
     if (valid_key(it.first)) {
       escape(&str, it.first);
       str.append("=");
@@ -74,16 +74,16 @@ const String_type Properties_impl::raw_string() const {
 }
 
 bool Properties_impl::get(const String_type &key, String_type *value) const {
-  DBUG_ASSERT(value != nullptr);
+  assert(value != nullptr);
   if (!valid_key(key)) {
     LogErr(WARNING_LEVEL, ER_INVALID_PROPERTY_KEY, key.c_str());
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   const_iterator it = m_map.find(key);
   if (it == m_map.end()) {
     // Key is not present.
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     return true;
   }
   *value = it->second;
@@ -93,7 +93,7 @@ bool Properties_impl::get(const String_type &key, String_type *value) const {
 bool Properties_impl::set(const String_type &key, const String_type &value) {
   if (!valid_key(key)) {
     LogErr(WARNING_LEVEL, ER_INVALID_PROPERTY_KEY, key.c_str());
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   if (!key.empty()) m_map[key] = value;
@@ -102,7 +102,7 @@ bool Properties_impl::set(const String_type &key, const String_type &value) {
 
 bool Properties_impl::insert_values(const Properties &properties) {
   // The precondition is that this object is empty
-  DBUG_ASSERT(empty());
+  assert(empty());
   std::copy_if(properties.begin(), properties.end(),
                std::inserter(m_map, m_map.begin()),
                [&](const Map::value_type &p) { return valid_key(p.first); });
@@ -111,7 +111,7 @@ bool Properties_impl::insert_values(const Properties &properties) {
 
 bool Properties_impl::insert_values(const String_type &raw_string) {
   // The precondition is that this object is empty
-  DBUG_ASSERT(empty());
+  assert(empty());
 
   /*
     Parse string and set key values. In the 'eat_pairs()' function,

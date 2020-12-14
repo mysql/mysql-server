@@ -94,7 +94,7 @@ class XRow_encoder_base {
   }
 
   void field_bit(const char *const value, size_t length) {
-    DBUG_ASSERT(length <= 8);
+    assert(length <= 8);
     ++m_fields;
 
     uint64_t binary_value = 0;

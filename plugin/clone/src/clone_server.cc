@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ Server::Server(THD *thd, MYSQL_SOCKET socket)
 }
 
 Server::~Server() {
-  DBUG_ASSERT(!m_storage_initialized);
+  assert(!m_storage_initialized);
   m_copy_buff.free();
   m_res_buff.free();
 }
@@ -93,7 +93,7 @@ int Server::clone() {
 
     if (done || err != 0) {
       if (m_storage_initialized) {
-        DBUG_ASSERT(err != 0);
+        assert(err != 0);
         /* Don't abort clone if worker thread fails during attach. */
         int in_err = (command == COM_ATTACH) ? 0 : err;
 
@@ -102,7 +102,7 @@ int Server::clone() {
       }
       /* Release if we have acquired backup lock */
       if (m_acquired_backup_lock) {
-        DBUG_ASSERT(m_is_master);
+        assert(m_is_master);
         mysql_service_mysql_backup_lock->release(get_thd());
       }
       break;
@@ -144,8 +144,8 @@ int Server::send_status(int err) {
 int Server::init_storage(Ha_clone_mode mode, uchar *com_buf, size_t com_len) {
   auto thd = get_thd();
 
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(!m_pfs_initialized);
+  assert(thd != nullptr);
+  assert(!m_pfs_initialized);
 
   auto err = deserialize_init_buffer(com_buf, com_len);
 
@@ -691,14 +691,14 @@ int Server_Cbk::buffer_cbk(uchar *from_buffer, uint buf_len) {
 
 /* purecov: begin deadcode */
 int Server_Cbk::apply_file_cbk(Ha_clone_file to_file MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);
+  assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);
 }
 
 int Server_Cbk::apply_buffer_cbk(uchar *&to_buffer MY_ATTRIBUTE((unused)),
                                  uint &len MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);
+  assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);
 }

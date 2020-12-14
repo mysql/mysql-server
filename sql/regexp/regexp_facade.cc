@@ -98,7 +98,7 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
                                        length, source_charset, &errors);
 
     if (errors > 0) return true;
-    DBUG_ASSERT(converted_size % sizeof(UChar) == 0);
+    assert(converted_size % sizeof(UChar) == 0);
     out->resize(converted_size / sizeof(UChar));
     return false;
   }
@@ -106,7 +106,7 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
   // However: val_str() may ignore the input argument,
   // and return a pointer to some other buffer.
   if (!is_aligned_to(s->ptr(), alignof(UChar))) {
-    DBUG_ASSERT(s != &aligned_str);
+    assert(s != &aligned_str);
     aligned_str.copy(*s);
     s = &aligned_str;
   }

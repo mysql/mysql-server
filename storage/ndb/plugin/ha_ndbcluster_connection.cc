@@ -161,7 +161,7 @@ static int get_processinfo_port() {
 
   if (!opt_disable_networking) {
     port = report_port ? report_port : mysqld_port;
-    DBUG_ASSERT(port);
+    assert(port);
   }
   return port;
 }
@@ -363,7 +363,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
         return -1;
       }
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       char buf[1024];
       DBUG_PRINT("info", ("NDBCLUSTER storage engine not started, "
@@ -373,7 +373,7 @@ int ndbcluster_connect(int (*connect_callback)(void),
     }
 #endif
   } else {
-    DBUG_ASSERT(res == -1);
+    assert(res == -1);
     DBUG_PRINT("error", ("permanent error"));
     ndb_log_error("error (%u) %s", g_ndb_cluster_connection->get_latest_error(),
                   g_ndb_cluster_connection->get_latest_error_msg());

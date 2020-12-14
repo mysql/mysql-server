@@ -476,11 +476,11 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
         lex_mi.until_after_gaps = true;
         break;
       case CHANNEL_UNTIL_VIEW_ID:
-        DBUG_ASSERT((thread_mask & SLAVE_SQL) && connection_info->view_id);
+        assert((thread_mask & SLAVE_SQL) && connection_info->view_id);
         lex_mi.view_id = connection_info->view_id;
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 
@@ -645,7 +645,7 @@ class Kill_binlog_dump : public Do_THD_Impl {
   void operator()(THD *thd_to_kill) override {
     if (thd_to_kill->get_command() == COM_BINLOG_DUMP ||
         thd_to_kill->get_command() == COM_BINLOG_DUMP_GTID) {
-      DBUG_ASSERT(thd_to_kill != current_thd);
+      assert(thd_to_kill != current_thd);
       MUTEX_LOCK(thd_data_lock, &thd_to_kill->LOCK_thd_data);
       thd_to_kill->duplicate_slave_id = true;
       thd_to_kill->awake(THD::KILL_CONNECTION);
@@ -712,7 +712,7 @@ bool channel_is_active(const char *channel,
     case CHANNEL_APPLIER_THREAD:
       return thread_mask & SLAVE_SQL;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   return false;
 }
@@ -828,7 +828,7 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
   last_gno = mi->rli->get_gtid_set()->get_last_gno(sidno);
   sid_lock->unlock();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   const Gtid_set *retrieved_gtid_set = mi->rli->get_gtid_set();
   char *retrieved_gtid_set_string = nullptr;
   sid_lock->wrlock();
@@ -1123,7 +1123,7 @@ bool channel_is_stopping(const char *channel,
       is_stopping = likely(mi->rli->atomic_is_stopping);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   channel_map.unlock();

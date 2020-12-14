@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,10 @@
 #ifndef PLUGIN_X_SRC_MQ_NOTICE_CONFIGURATION_H_
 #define PLUGIN_X_SRC_MQ_NOTICE_CONFIGURATION_H_
 
+#include <assert.h>
 #include <array>
 #include <map>
 #include <string>
-
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/interface/notice_configuration.h"
 #include "plugin/x/src/ngs/notice_descriptor.h"
@@ -75,7 +74,7 @@ class Notice_configuration : public iface::Notice_configuration {
 
   void set_notice(const Notice_type notice_type,
                   const bool should_be_enabled) override {
-    DBUG_ASSERT(notice_type != Notice_type::k_last_element);
+    assert(notice_type != Notice_type::k_last_element);
     m_notices[static_cast<int32_t>(notice_type)] = should_be_enabled;
 
     for (size_t i = 0; i < m_notices.size(); ++i) {

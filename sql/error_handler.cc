@@ -229,7 +229,7 @@ bool Strict_error_handler::handle_condition(
 Functional_index_error_handler::Functional_index_error_handler(
     const Field *field, THD *thd)
     : m_thd(thd), m_pop_error_handler(false), m_force_error_code(-1) {
-  DBUG_ASSERT(field != nullptr);
+  assert(field != nullptr);
 
   if (field->is_field_for_functional_index()) {
     m_thd->push_internal_handler(this);
@@ -263,7 +263,7 @@ Functional_index_error_handler::Functional_index_error_handler(
       m_thd(thd),
       m_pop_error_handler(false),
       m_force_error_code(-1) {
-  DBUG_ASSERT(field != nullptr);
+  assert(field != nullptr);
 
   if (is_field_for_functional_index(field)) {
     m_thd->push_internal_handler(this);
@@ -329,7 +329,7 @@ static bool report_error(THD *thd, int error_code,
 bool Functional_index_error_handler::handle_condition(
     THD *, uint sql_errno, const char *,
     Sql_condition::enum_severity_level *level, const char *) {
-  DBUG_ASSERT(!m_functional_index_name.empty());
+  assert(!m_functional_index_name.empty());
   uint res_errno = 0;
   bool print_row = false;
 

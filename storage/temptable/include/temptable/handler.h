@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -560,9 +560,9 @@ class Handler : public ::handler {
 };
 
 inline void Handler::opened_table_validate() {
-  DBUG_ASSERT(m_opened_table != nullptr);
-  DBUG_ASSERT(handler::table != nullptr);
-  DBUG_ASSERT(m_opened_table->mysql_table_share() == handler::table->s);
+  assert(m_opened_table != nullptr);
+  assert(handler::table != nullptr);
+  assert(m_opened_table->mysql_table_share() == handler::table->s);
 }
 
 inline bool Handler::is_field_type_fixed_size(const Field &mysql_field) const {

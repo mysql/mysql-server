@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,13 @@
 
 #include "storage/perfschema/table_binary_log_transaction_compression_stats.h"
 
+#include <assert.h>
 #include <cmath>
 
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "sql/binlog/global.h"
 #include "sql/binlog/monitoring/context.h"
 #include "sql/field.h"
@@ -269,7 +270,7 @@ int table_binary_log_transaction_compression_stats::read_row_values(
           set_field_timestamp(f, last_trx_timestamp);
           break;
         default:
-          DBUG_ASSERT(false); /* purecov: inspected */
+          assert(false); /* purecov: inspected */
       }
     }
   }

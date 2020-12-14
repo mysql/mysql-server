@@ -292,7 +292,7 @@ bool all_tables_not_ok(THD *thd, TABLE_LIST *tables) {
 inline bool check_database_filters(THD *thd, const char *db,
                                    enum_sql_command sql_cmd) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd->slave_thread);
+  assert(thd->slave_thread);
   if (!db) return true;
   Rpl_filter *rpl_filter = thd->rli_slave->rpl_filter;
 
@@ -335,7 +335,7 @@ inline bool check_database_filters(THD *thd, const char *db,
 
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables) {
   for (TABLE_LIST *table = tables; table; table = table->next_global) {
-    DBUG_ASSERT(table->db && table->table_name);
+    assert(table->db && table->table_name);
     /*
       Update on performance_schema and temp tables are allowed
       in readonly mode.
@@ -1069,12 +1069,12 @@ bool sqlcom_can_generate_row_events(enum enum_sql_command command) {
 }
 
 bool is_update_query(enum enum_sql_command command) {
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  assert(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
 }
 
 bool is_explainable_query(enum enum_sql_command command) {
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  assert(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_CAN_BE_EXPLAINED) != 0;
 }
 
@@ -1084,7 +1084,7 @@ bool is_explainable_query(enum enum_sql_command command) {
   @return true if writing is allowed
 */
 bool is_log_table_write_query(enum enum_sql_command command) {
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  assert(command >= 0 && command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
 }
 
@@ -1208,7 +1208,7 @@ bool do_command(THD *thd) {
   enum enum_server_command command;
   COM_DATA com_data;
   DBUG_TRACE;
-  DBUG_ASSERT(thd->is_classic_protocol());
+  assert(thd->is_classic_protocol());
 
   /*
     indicator of uninitialized lex => normal flow of errors handling
@@ -1267,12 +1267,12 @@ bool do_command(THD *thd) {
   thd->m_server_idle = false;
 
   if (rc) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char desc[VIO_DESCRIPTION_SIZE];
     vio_description(net->vio, desc);
     DBUG_PRINT("info", ("Got error %d reading command from socket %s",
                         net->error, desc));
-#endif  // DBUG_OFF
+#endif  // NDEBUG
     /* Instrument this broken statement as "statement/com/error" */
     thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
         thd->m_statement_psi, com_statement_info[COM_END].m_key);
@@ -1280,7 +1280,7 @@ bool do_command(THD *thd) {
     /* Check if we can continue without closing the connection */
 
     /* The error must be set. */
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     thd->send_statement_status();
 
     /* Mark the statement completed. */
@@ -1297,17 +1297,17 @@ bool do_command(THD *thd) {
     goto out;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("Command on %s = %d (%s)", desc, command,
                       command_name[command].str));
-#endif  // DBUG_OFF
+#endif  // NDEBUG
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
                       (int)thd->get_protocol_classic()->get_packet_length(),
                       thd->get_protocol_classic()->get_raw_packet(), command));
   if (thd->get_protocol_classic()->bad_packet)
-    DBUG_ASSERT(0);  // Should be caught earlier
+    assert(0);  // Should be caught earlier
 
   // Reclaim some memory
   thd->get_protocol_classic()->get_output_packet()->shrink(
@@ -1323,8 +1323,8 @@ bool do_command(THD *thd) {
 
 out:
   /* The statement instrumentation must be closed in all cases. */
-  DBUG_ASSERT(thd->m_digest == nullptr);
-  DBUG_ASSERT(thd->m_statement_psi == nullptr);
+  assert(thd->m_digest == nullptr);
+  assert(thd->m_statement_psi == nullptr);
   return return_value;
 }
 
@@ -1797,7 +1797,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       break;
     }
     case COM_QUERY: {
-      DBUG_ASSERT(thd->m_digest == nullptr);
+      assert(thd->m_digest == nullptr);
       thd->m_digest = &thd->m_digest_state;
       thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
@@ -2013,7 +2013,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       thd->lex->cleanup(thd, true);
       /* No need to rollback statement transaction, it's not started. */
-      DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+      assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
       thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
@@ -2071,7 +2071,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       thd->mdl_context.release_transactional_locks();
       if (check_global_access(thd, RELOAD_ACL)) break;
       query_logger.general_log_print(thd, command, NullS);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool debug_simulate = false;
       DBUG_EXECUTE_IF("simulate_detached_thread_refresh",
                       debug_simulate = true;);
@@ -2212,8 +2212,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   }
 
 done:
-  DBUG_ASSERT(thd->open_tables == nullptr ||
-              (thd->locked_tables_mode == LTM_LOCK_TABLES));
+  assert(thd->open_tables == nullptr ||
+         (thd->locked_tables_mode == LTM_LOCK_TABLES));
 
   /* Finalize server status flags after executing a command. */
   thd->update_slow_query_status();
@@ -2222,7 +2222,7 @@ done:
 
   /* After sending response, switch to clone protocol */
   if (clone_cmd != nullptr) {
-    DBUG_ASSERT(command == COM_CLONE);
+    assert(command == COM_CLONE);
     error = clone_cmd->execute_server(thd);
   }
 
@@ -2367,7 +2367,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   switch (schema_table_idx) {
     case SCH_TMP_TABLE_COLUMNS:
     case SCH_TMP_TABLE_KEYS: {
-      DBUG_ASSERT(table_ident);
+      assert(table_ident);
       TABLE_LIST **query_tables_last = lex->query_tables_last;
       if ((schema_query_block = lex->new_empty_query_block()) == nullptr)
         return 1; /* purecov: inspected */
@@ -2616,7 +2616,7 @@ err:
   trans_rollback(thd);
   /* Close tables and release metadata locks. */
   close_thread_tables(thd);
-  DBUG_ASSERT(!thd->locked_tables_mode);
+  assert(!thd->locked_tables_mode);
   thd->mdl_context.release_transactional_locks();
   return true;
 }
@@ -2709,14 +2709,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
   TABLE_LIST *all_tables;
   // keep GTID violation state in order to roll it back on statement failure
   bool gtid_consistency_violation_state = thd->has_gtid_consistency_violation;
-  DBUG_ASSERT(query_block->master_query_expression() == lex->unit);
+  assert(query_block->master_query_expression() == lex->unit);
   DBUG_TRACE;
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
-  DBUG_ASSERT(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
-              lex->sql_command == SQLCOM_EXPLAIN_OTHER);
+  assert(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
+         lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
-  DBUG_ASSERT(!thd->m_transactional_ddl.inited() ||
-              thd->in_active_multi_stmt_transaction());
+  assert(!thd->m_transactional_ddl.inited() ||
+         thd->in_active_multi_stmt_transaction());
 
   /*
     If there is a CREATE TABLE...START TRANSACTION command which
@@ -2743,7 +2743,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     the next statement transaction rollback request should be fulfilled
     already.
   */
-  DBUG_ASSERT(!thd->transaction_rollback_request || thd->in_sub_stmt);
+  assert(!thd->transaction_rollback_request || thd->in_sub_stmt);
   /*
     In many cases first table of main Query_block have special meaning =>
     check that it is first table in global list and relink it first in
@@ -2756,8 +2756,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
 
     Because of above in place where should be at least one table in most
     outer Query_block we have following check:
-    DBUG_ASSERT(first_table == all_tables);
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
+    assert(first_table == all_tables);
+    assert(first_table == all_tables && first_table != 0);
   */
   lex->first_lists_tables_same();
   /* should be assigned after making first tables same */
@@ -2961,8 +2961,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
   if (lex->m_sql_cmd && lex->m_sql_cmd->owner())
     lex->m_sql_cmd->owner()->trace_parameter_types();
 
-  DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
-                  Transaction_ctx::STMT) == false);
+  assert(thd->get_transaction()->cannot_safely_rollback(
+             Transaction_ctx::STMT) == false);
 
   switch (gtid_pre_statement_checks(thd)) {
     case GTID_STATEMENT_EXECUTE:
@@ -2993,9 +2993,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
       Note that this should never happen inside of stored functions
       or triggers as all such statements prohibited there.
     */
-    DBUG_ASSERT(!thd->in_sub_stmt);
+    assert(!thd->in_sub_stmt);
     /* Statement transaction still should not be started. */
-    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+    assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
 
     /*
       Implicit commit is not allowed with an active XA transaction.
@@ -3022,7 +3022,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     return 1;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (lex->sql_command != SQLCOM_SET_OPTION)
     DEBUG_SYNC(thd, "before_execute_sql_command");
 #endif
@@ -3360,7 +3360,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       break;
     }
     case SQLCOM_RENAME_TABLE: {
-      DBUG_ASSERT(first_table == all_tables && first_table != nullptr);
+      assert(first_table == all_tables && first_table != nullptr);
       TABLE_LIST *table;
       for (table = first_table; table; table = table->next_local->next_local) {
         if (check_access(thd, ALTER_ACL | DROP_ACL, table->db,
@@ -3394,7 +3394,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       break;
     }
     case SQLCOM_CHECKSUM: {
-      DBUG_ASSERT(first_table == all_tables && first_table != nullptr);
+      assert(first_table == all_tables && first_table != nullptr);
       if (check_table_access(thd, SELECT_ACL, all_tables, false, UINT_MAX,
                              false))
         goto error; /* purecov: inspected */
@@ -3416,13 +3416,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_ASSIGN_TO_KEYCACHE:
     case SQLCOM_PRELOAD_KEYS:
     case SQLCOM_LOAD: {
-      DBUG_ASSERT(first_table == all_tables && first_table != nullptr);
-      DBUG_ASSERT(lex->m_sql_cmd != nullptr);
+      assert(first_table == all_tables && first_table != nullptr);
+      assert(lex->m_sql_cmd != nullptr);
       res = lex->m_sql_cmd->execute(thd);
       break;
     }
     case SQLCOM_DROP_TABLE: {
-      DBUG_ASSERT(first_table == all_tables && first_table != nullptr);
+      assert(first_table == all_tables && first_table != nullptr);
       if (!lex->drop_temporary) {
         if (check_table_access(thd, DROP_ACL, all_tables, false, UINT_MAX,
                                false))
@@ -3476,13 +3476,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
       }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       /*
         Makes server crash when executing SET SESSION debug = 'd,crash_now';
         See mysql-test/include/dbug_crash[_all].inc
       */
       const bool force_server_crash_dbug = false;
-      DBUG_EXECUTE_IF("crash_now", DBUG_ASSERT(force_server_crash_dbug););
+      DBUG_EXECUTE_IF("crash_now", assert(force_server_crash_dbug););
       DBUG_EXECUTE_IF("crash_now_safe", DBUG_SUICIDE(););
 #endif
 
@@ -3491,8 +3491,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_SET_PASSWORD: {
       List<set_var_base> *lex_var_list = &lex->var_list;
 
-      DBUG_ASSERT(lex_var_list->elements == 1);
-      DBUG_ASSERT(all_tables == nullptr);
+      assert(lex_var_list->elements == 1);
+      assert(all_tables == nullptr);
       Userhostpassword_list generated_passwords;
       if (!(res = sql_set_variables(thd, lex_var_list, false))) {
         List_iterator_fast<set_var_base> it(*lex_var_list);
@@ -3632,7 +3632,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_CREATE_EVENT:
     case SQLCOM_ALTER_EVENT:
       do {
-        DBUG_ASSERT(lex->event_parse_data);
+        assert(lex->event_parse_data);
         if (lex->table_or_sp_used()) {
           my_error(ER_NOT_SUPPORTED_YET, MYF(0),
                    "Usage of subqueries or stored "
@@ -3665,7 +3665,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
             break;
           }
           default:
-            DBUG_ASSERT(0);
+            assert(0);
         }
         DBUG_PRINT("info", ("DDL error code=%d", res));
         if (!res && !thd->killed) my_ok(thd);
@@ -3809,7 +3809,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
                          ER_WARN_HOSTNAME_WONT_WORK,
                          ER_THD(thd, ER_WARN_HOSTNAME_WONT_WORK));
           // Are we trying to change a password of another user
-          DBUG_ASSERT(user->host.str != nullptr);
+          assert(user->host.str != nullptr);
 
           /*
             GRANT/REVOKE PROXY has the target user as a first entry in the list.
@@ -3974,8 +3974,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
       my_ok(thd);
       break;
     case SQLCOM_COMMIT: {
-      DBUG_ASSERT(thd->lock == nullptr ||
-                  thd->locked_tables_mode == LTM_LOCK_TABLES);
+      assert(thd->lock == nullptr ||
+             thd->locked_tables_mode == LTM_LOCK_TABLES);
       bool tx_chain =
           (lex->tx_chain == TVL_YES ||
            (thd->variables.completion_type == 1 && lex->tx_chain != TVL_NO));
@@ -3998,8 +3998,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
       break;
     }
     case SQLCOM_ROLLBACK: {
-      DBUG_ASSERT(thd->lock == nullptr ||
-                  thd->locked_tables_mode == LTM_LOCK_TABLES);
+      assert(thd->lock == nullptr ||
+             thd->locked_tables_mode == LTM_LOCK_TABLES);
       bool tx_chain =
           (lex->tx_chain == TVL_YES ||
            (thd->variables.completion_type == 1 && lex->tx_chain != TVL_NO));
@@ -4038,9 +4038,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
       uint namelen;
       char *name;
 
-      DBUG_ASSERT(lex->sphead != nullptr);
-      DBUG_ASSERT(
-          lex->sphead->m_db.str); /* Must be initialized in the parser */
+      assert(lex->sphead != nullptr);
+      assert(lex->sphead->m_db.str); /* Must be initialized in the parser */
       /*
         Verify that the database name is allowed, optionally
         lowercase it.
@@ -4092,7 +4091,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
                 creation of routine and implicit GRANT parts of one fully atomic
                 statement.
         */
-        DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+        assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
         close_thread_tables(thd);
         /*
           Check if invoker exists on slave, then use invoker privilege to
@@ -4142,7 +4141,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
           Restore current user with GLOBAL_ACL privilege of SQL thread
         */
         if (restore_backup_context) {
-          DBUG_ASSERT(thd->slave_thread == 1);
+          assert(thd->slave_thread == 1);
           thd->security_context()->restore_security_context(thd, backup);
         }
         my_ok(thd);
@@ -4243,7 +4242,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
               dropping of routine and implicit REVOKE parts of one fully atomic
               statement.
       */
-      DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+      assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
 
       if (sp_result != SP_DOES_NOT_EXISTS && sp_automatic_privileges &&
@@ -4300,7 +4299,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_CREATE_TRIGGER:
     case SQLCOM_DROP_TRIGGER: {
       /* Conditionally writes to binlog. */
-      DBUG_ASSERT(lex->m_sql_cmd != nullptr);
+      assert(lex->m_sql_cmd != nullptr);
       static_cast<Sql_cmd_ddl_trigger_common *>(lex->m_sql_cmd)
           ->set_table(all_tables);
 
@@ -4320,7 +4319,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_HA_OPEN:
     case SQLCOM_HA_READ:
     case SQLCOM_HA_CLOSE:
-      DBUG_ASSERT(first_table == all_tables && first_table != nullptr);
+      assert(first_table == all_tables && first_table != nullptr);
       /* fall through */
     case SQLCOM_CREATE_SERVER:
     case SQLCOM_CREATE_RESOURCE_GROUP:
@@ -4403,7 +4402,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_RESTART_SERVER:
     case SQLCOM_CREATE_SRS:
     case SQLCOM_DROP_SRS: {
-      DBUG_ASSERT(lex->m_sql_cmd != nullptr);
+      assert(lex->m_sql_cmd != nullptr);
 
       res = lex->m_sql_cmd->execute(thd);
 
@@ -4425,10 +4424,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
         /* If it is an empty lex_user update it with current user */
         if (!tmp_user->host.str && !tmp_user->user.str) {
           /* set user information as of the current user */
-          DBUG_ASSERT(sctx->priv_host().str);
+          assert(sctx->priv_host().str);
           tmp_user->host.str = sctx->priv_host().str;
           tmp_user->host.length = strlen(sctx->priv_host().str);
-          DBUG_ASSERT(sctx->user().str);
+          assert(sctx->user().str);
           tmp_user->user.str = sctx->user().str;
           tmp_user->user.length = strlen(sctx->user().str);
         }
@@ -4521,7 +4520,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       break;
     }
     default:
-      DBUG_ASSERT(0); /* Impossible */
+      assert(0); /* Impossible */
       my_ok(thd);
       break;
   }
@@ -4553,8 +4552,8 @@ finish:
     thd->query_plan.set_query_plan(SQLCOM_END, nullptr, false);
   }
 
-  DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
-              thd->in_multi_stmt_transaction_mode());
+  assert(!thd->in_active_multi_stmt_transaction() ||
+         thd->in_multi_stmt_transaction_mode());
 
   if (!thd->in_sub_stmt) {
     mysql_audit_notify(thd,
@@ -4592,7 +4591,7 @@ finish:
   // Rollback any item transformations made during optimization and execution
   thd->rollback_item_tree_changes();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (lex->sql_command != SQLCOM_SET_OPTION && !thd->in_sub_stmt)
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
@@ -4607,7 +4606,7 @@ finish:
     thd->mdl_context.release_transactional_locks();
   } else if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END)) {
     /* No transaction control allowed in sub-statements. */
-    DBUG_ASSERT(!thd->in_sub_stmt);
+    assert(!thd->in_sub_stmt);
     /* If commit fails, we should be able to reset the OK status. */
     thd->get_stmt_da()->set_overwrite_status(true);
     /* Commit the normal transaction if one is active. */
@@ -4726,7 +4725,7 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, YYLTYPE **yyls,
                    ulong *yystacksize) {
   Yacc_state *state = &current_thd->m_parser_state->m_yacc;
   ulong old_info = 0;
-  DBUG_ASSERT(state);
+  assert(state);
   if ((uint)*yystacksize >= MY_YACC_MAX) return true;
   if (!state->yacc_yyvs) old_info = *yystacksize;
   *yystacksize = set_zone((*yystacksize) * 2, MY_YACC_INIT, MY_YACC_MAX);
@@ -4781,8 +4780,8 @@ void THD::reset_for_next_command() {
   // function and move it to the proper file. /Matz
   THD *thd = this;
   DBUG_TRACE;
-  DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
-  DBUG_ASSERT(!thd->in_sub_stmt);
+  assert(!thd->sp_runtime_ctx); /* not for substatements of routines */
+  assert(!thd->in_sub_stmt);
   thd->reset_item_list();
   /*
     Those two lines below are theoretically unneeded as
@@ -4812,7 +4811,7 @@ void THD::reset_for_next_command() {
     thd->get_transaction()->reset_unsafe_rollback_flags(
         Transaction_ctx::SESSION);
   }
-  DBUG_ASSERT(thd->security_context() == &thd->m_main_security_ctx);
+  assert(thd->security_context() == &thd->m_main_security_ctx);
   thd->thread_specific_used = false;
 
   if (opt_bin_log) {
@@ -4851,7 +4850,7 @@ void THD::reset_for_next_command() {
     a grant/revoke or flush.
   */
   thd->security_context()->checkout_access_maps();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   thd->set_tmp_table_seq_id(1);
 #endif
 }
@@ -5023,7 +5022,7 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
     thd->m_statement_psi = MYSQL_REFINE_STATEMENT(
         thd->m_statement_psi, sql_statement_info[SQLCOM_END].m_key);
 
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     DBUG_PRINT("info",
                ("Command aborted. Fatal_error: %d", thd->is_fatal_error()));
   }
@@ -5034,7 +5033,7 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
   thd->lex->destroy();
   thd->end_statement();
   thd->cleanup_after_query();
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
 
   DEBUG_SYNC(thd, "query_rewritten");
 }
@@ -5056,7 +5055,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
   DBUG_TRACE;
 
-  DBUG_ASSERT(thd->slave_thread);
+  assert(thd->slave_thread);
 
   Parser_state parser_state;
   if (parser_state.init(thd, thd->query().str, thd->query().length) == 0) {
@@ -5124,8 +5123,7 @@ bool Alter_info::add_field(
     dd::Column::enum_hidden_type hidden, bool is_array) {
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
   DBUG_TRACE;
-  DBUG_ASSERT(!is_array ||
-              hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
+  assert(!is_array || hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
 
   LEX_CSTRING field_name_cstr = {field_name->str, field_name->length};
 
@@ -5173,8 +5171,8 @@ bool Alter_info::add_field(
           my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
           return true;
         }
-        DBUG_ASSERT(dynamic_cast<Item_func_true *>(func) ||
-                    dynamic_cast<Item_func_false *>(func));
+        assert(dynamic_cast<Item_func_true *>(func) ||
+               dynamic_cast<Item_func_false *>(func));
         default_value = new Item_int(func->val_int());
         if (default_value == nullptr) return true;
       } else if (func->functype() != Item_func::NOW_FUNC ||
@@ -5358,7 +5356,7 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
   Query_block *select = this;
   Query_expression *unit;
   do {
-    DBUG_ASSERT(select->first_execution);
+    assert(select->first_execution);
     unit = select->master_query_expression();
     if (!(wc = unit->m_with_clause)) continue;
     if (wc->lookup(tl, &cte)) return true;
@@ -5387,7 +5385,7 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
   } else if (cte->make_subquery_node(thd, &node))
     return true; /* purecov: inspected */
   // We imitate derived tables as much as possible.
-  DBUG_ASSERT(parsing_place == CTX_NONE && linkage != GLOBAL_OPTIONS_TYPE);
+  assert(parsing_place == CTX_NONE && linkage != GLOBAL_OPTIONS_TYPE);
   parsing_place = CTX_DERIVED;
   node->m_is_derived_table = true;
   auto wc_save = wc->enter_parsing_definition(tl);
@@ -5403,7 +5401,7 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
   thd->lex->push_context(unit->outer_query_block()
                              ? &unit->outer_query_block()->context
                              : nullptr);
-  DBUG_ASSERT(thd->lex->will_contextualize);
+  assert(thd->lex->will_contextualize);
   if (node->contextualize(pc)) return true;
 
   thd->lex->pop_context();
@@ -5420,7 +5418,7 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
   Query_expression *node_query_expression =
       node->value()->master_query_expression();
   *table_name = Table_ident(node_query_expression);
-  DBUG_ASSERT(table_name->is_derived_table());
+  assert(table_name->is_derived_table());
   tl->db = table_name->db.str;
   tl->db_length = table_name->db.length;
   return false;
@@ -5428,7 +5426,7 @@ bool Query_block::find_common_table_expr(THD *thd, Table_ident *table_name,
 
 bool PT_with_clause::lookup(TABLE_LIST *tl, PT_common_table_expr **found) {
   *found = nullptr;
-  DBUG_ASSERT(tl->query_block != nullptr);
+  assert(tl->query_block != nullptr);
   /*
     If right_bound!=NULL, it means we are currently parsing the
     definition of CTE 'right_bound' and this definition contains
@@ -5568,7 +5566,7 @@ TABLE_LIST *Query_block::add_table_to_list(
   LEX *lex = thd->lex;
   DBUG_TRACE;
 
-  DBUG_ASSERT(table_name != nullptr);
+  assert(table_name != nullptr);
   // A derived table has no table name, only an alias.
   if (!(table_options & TL_OPTION_ALIAS) && !table_name->is_derived_table()) {
     Ident_name_check ident_check_status =
@@ -5847,7 +5845,7 @@ TABLE_LIST *Query_block::end_nested_join() {
   NESTED_JOIN *nested_join;
   DBUG_TRACE;
 
-  DBUG_ASSERT(embedding);
+  assert(embedding);
   ptr = embedding;
   join_list = ptr->join_list;
   embedding = ptr->embedding;
@@ -5995,7 +5993,7 @@ void Query_block::set_lock_for_tables(thr_lock_type lock_type) {
 bool Query_expression::add_fake_query_block(THD *thd) {
   Query_block *first_qb = first_query_block();
   DBUG_TRACE;
-  DBUG_ASSERT(!fake_query_block);
+  assert(!fake_query_block);
 
   if (!(fake_query_block = thd->lex->new_empty_query_block()))
     return true; /* purecov: inspected */
@@ -6191,11 +6189,10 @@ class Kill_non_super_conn : public Do_THD_Impl {
 
  public:
   Kill_non_super_conn(THD *thd) : m_client_thd(thd) {
-    DBUG_ASSERT(
-        m_client_thd->security_context()->check_access(SUPER_ACL) ||
-        m_client_thd->security_context()
-            ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-            .first);
+    assert(m_client_thd->security_context()->check_access(SUPER_ACL) ||
+           m_client_thd->security_context()
+               ->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+               .first);
   }
 
   void operator()(THD *thd_to_kill) override {
@@ -6323,7 +6320,7 @@ Comp_creator *comp_eq_creator(bool invert) {
 }
 
 Comp_creator *comp_equal_creator(bool invert MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(!invert);  // Function never called with true.
+  assert(!invert);  // Function never called with true.
   return &equal_creator;
 }
 
@@ -6724,9 +6721,9 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
                Object_creation_ctx *creation_ctx) {
   DBUG_TRACE;
   bool ret_value;
-  DBUG_ASSERT(thd->m_parser_state == nullptr);
+  assert(thd->m_parser_state == nullptr);
   // TODO fix to allow parsing gcol exprs after main query.
-  //  DBUG_ASSERT(thd->lex->m_sql_cmd == NULL);
+  //  assert(thd->lex->m_sql_cmd == NULL);
 
   /* Backup creation context. */
 
@@ -6844,8 +6841,8 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
     handler might be for other errors than parsing one).
   */
 
-  DBUG_ASSERT(!mysql_parse_status || (mysql_parse_status && thd->is_error()) ||
-              (mysql_parse_status && thd->get_internal_handler()));
+  assert(!mysql_parse_status || (mysql_parse_status && thd->is_error()) ||
+         (mysql_parse_status && thd->get_internal_handler()));
 
   /* Reset parser state. */
 
@@ -6863,7 +6860,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
     /*
       On parsing success, record the digest in the performance schema.
     */
-    DBUG_ASSERT(thd->m_digest != nullptr);
+    assert(thd->m_digest != nullptr);
     MYSQL_DIGEST_END(parser_state->m_digest_psi,
                      &thd->m_digest->m_digest_storage);
   }

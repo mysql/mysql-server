@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,12 +21,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "plugin/semisync/semisync_slave.h"
@@ -60,7 +60,7 @@ static int repl_semi_reset_slave(Binlog_relay_IO_param *) {
 static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
   MYSQL *mysql = param->mysql;
   MYSQL_RES *res = nullptr;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MYSQL_ROW row = nullptr;
 #endif
   const char *query;
@@ -79,15 +79,15 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
       return 1;
     }
   } else {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     row =
 #endif
         mysql_fetch_row(res);
   }
 
-  DBUG_ASSERT(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
-              strtoul(row[0], nullptr, 10) == 0 ||
-              strtoul(row[0], nullptr, 10) == 1);
+  assert(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
+         strtoul(row[0], nullptr, 10) == 0 ||
+         strtoul(row[0], nullptr, 10) == 1);
 
   if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE) {
     /* Master does not support semi-sync */

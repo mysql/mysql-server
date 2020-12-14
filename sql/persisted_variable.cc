@@ -24,6 +24,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +38,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_default.h"  // check_file_permissions
 #include "my_getopt.h"
 #include "my_io.h"
@@ -242,12 +243,12 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 
   if (!datadir) {
     // mysql_real_data_home must be initialized at this point
-    DBUG_ASSERT(mysql_real_data_home[0]);
+    assert(mysql_real_data_home[0]);
     /*
       mysql_home_ptr should also be initialized at this point.
       See calculate_mysql_home_from_my_progname() for details
     */
-    DBUG_ASSERT(mysql_home_ptr && mysql_home_ptr[0]);
+    assert(mysql_home_ptr && mysql_home_ptr[0]);
     convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
     (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
                        mysql_home_ptr);
@@ -276,7 +277,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   Return a singleton object
 */
 Persisted_variables_cache *Persisted_variables_cache::get_instance() {
-  DBUG_ASSERT(m_instance != nullptr);
+  assert(m_instance != nullptr);
   return m_instance;
 }
 
@@ -828,11 +829,11 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     if (it != m_persist_variables.end()) {
       /* persisted variable is found */
       sysvar->set_source(enum_variable_source::PERSISTED);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool source_truncated =
 #endif
           sysvar->set_source_name(m_persist_filename.c_str());
-      DBUG_ASSERT(!source_truncated);
+      assert(!source_truncated);
       sysvar->set_timestamp(it->timestamp);
       if (sysvar->set_user(it->user.c_str()))
         LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_USER_TRUNCATED,

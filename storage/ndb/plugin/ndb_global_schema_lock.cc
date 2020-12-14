@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -278,7 +278,7 @@ static NdbTransaction *gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
       return nullptr;
     }
 
-    DBUG_ASSERT(trans->getNdbError().status == NdbError::TemporaryError);
+    assert(trans->getNdbError().status == NdbError::TemporaryError);
     if (!retry) {
       ndb_error = trans->getNdbError();
       ndb->closeTransaction(trans);
@@ -290,7 +290,7 @@ static NdbTransaction *gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   }
 
   // This should be unreachable code
-  DBUG_ASSERT(false);
+  assert(false);
   return nullptr;
 }
 
@@ -353,13 +353,13 @@ static int ndbcluster_global_schema_lock(THD *thd,
     if (thd_ndb->global_schema_lock_trans)
       thd_ndb->global_schema_lock_trans->refresh();
     else
-      DBUG_ASSERT(thd_ndb->global_schema_lock_error != 0);
+      assert(thd_ndb->global_schema_lock_error != 0);
     thd_ndb->global_schema_lock_count++;
     DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                         thd_ndb->global_schema_lock_count));
     return 0;
   }
-  DBUG_ASSERT(thd_ndb->global_schema_lock_count == 0);
+  assert(thd_ndb->global_schema_lock_count == 0);
   thd_ndb->global_schema_lock_count = 1;
   thd_ndb->global_schema_lock_error = 0;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
@@ -401,7 +401,7 @@ static int ndbcluster_global_schema_lock(THD *thd,
    */
   if (ndb_error.code != 4009)  // No cluster connection
   {
-    DBUG_ASSERT(thd_ndb->global_schema_lock_count == 1);
+    assert(thd_ndb->global_schema_lock_count == 1);
     // This reset triggers the special case in ndbcluster_global_schema_unlock()
     thd_ndb->global_schema_lock_count = 0;
   }
@@ -444,7 +444,7 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool record_gsl) {
     // the exact same error code is returned. Thus it's impossible to know
     // that there is actually no need to call unlock. Fix by allowing unlock
     // without doing anything since the trans is already closed.
-    DBUG_ASSERT(thd_ndb->global_schema_lock_trans == NULL);
+    assert(thd_ndb->global_schema_lock_trans == NULL);
     thd_ndb->global_schema_lock_count++;
   }
 
@@ -452,15 +452,15 @@ static int ndbcluster_global_schema_unlock(THD *thd, bool record_gsl) {
   DBUG_TRACE;
   NdbTransaction *trans = thd_ndb->global_schema_lock_trans;
   // Don't allow decrementing from zero
-  DBUG_ASSERT(thd_ndb->global_schema_lock_count > 0);
+  assert(thd_ndb->global_schema_lock_count > 0);
   thd_ndb->global_schema_lock_count--;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                       thd_ndb->global_schema_lock_count));
-  DBUG_ASSERT(ndb != NULL);
+  assert(ndb != NULL);
   if (ndb == NULL) {
     return 0;
   }
-  DBUG_ASSERT(trans != NULL || thd_ndb->global_schema_lock_error != 0);
+  assert(trans != NULL || thd_ndb->global_schema_lock_error != 0);
   if (thd_ndb->global_schema_lock_count != 0) {
     return 0;
   }
@@ -609,7 +609,7 @@ bool Ndb_global_schema_lock_guard::try_lock(void) {
 
 bool Ndb_global_schema_lock_guard::unlock() {
   // This function should only be called in conjunction with try_lock()
-  DBUG_ASSERT(m_try_locked);
+  assert(m_try_locked);
 
   Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
   if (unlikely(thd_ndb == nullptr)) {

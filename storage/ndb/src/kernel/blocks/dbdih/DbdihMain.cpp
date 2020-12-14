@@ -24924,7 +24924,7 @@ void Dbdih::initRestartInfo(Signal* signal)
   } while (nodePtr.i != RNIL);
 
   Uint32 startGci = 1;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #ifdef NDB_USE_GET_ENV
   {
     char envBuf[256];

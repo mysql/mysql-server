@@ -347,7 +347,7 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
   if (parse_data->check_parse_data(thd)) return true;
 
   /* At create, one of them must be set */
-  DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
+  assert(parse_data->expression || parse_data->execute_at);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, nullptr, nullptr,
                    false, false))
@@ -399,7 +399,7 @@ bool Events::create_event(THD *thd, Event_parse_data *parse_data,
 
   // Binlog the create event.
   {
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
     String log_query;
     if (create_query_string(thd, &log_query)) {
       LogErr(ERROR_LEVEL, ER_EVENT_ERROR_CREATING_QUERY_TO_WRITE_TO_BINLOG);
@@ -549,7 +549,7 @@ bool Events::update_event(THD *thd, Event_parse_data *parse_data,
 
   /* Binlog the alter event. */
   {
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
     if (new_dbname) thd->add_to_binlog_accessed_dbs(new_dbname->str);
@@ -649,7 +649,7 @@ bool Events::drop_event(THD *thd, LEX_CSTRING dbname, LEX_CSTRING name,
 
   // Binlog the drop event.
   {
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
     if (write_bin_log(thd, true, thd->query().str, thd->query().length,
@@ -937,8 +937,8 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
-  DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
-              opt_event_scheduler == Events::EVENTS_OFF);
+  assert(opt_event_scheduler == Events::EVENTS_ON ||
+         opt_event_scheduler == Events::EVENTS_OFF);
 
   if (!(event_queue = new Event_queue) ||
       !(scheduler = new Event_scheduler(event_queue))) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,22 +141,22 @@ class Ndb_item {
   ~Ndb_item() {}
 
   Field *get_field() const {
-    DBUG_ASSERT(type == NDB_FIELD);
+    assert(type == NDB_FIELD);
     return value.field;
   }
 
   int get_field_no() const {
-    DBUG_ASSERT(type == NDB_FIELD);
+    assert(type == NDB_FIELD);
     return value.column_no;
   }
 
   NDB_FUNC_TYPE get_func_type() const {
-    DBUG_ASSERT(type == NDB_FUNCTION);
+    assert(type == NDB_FUNCTION);
     return value.func_type;
   }
 
   int get_argument_count() const {
-    DBUG_ASSERT(type == NDB_FUNCTION);
+    assert(type == NDB_FUNCTION);
     return value.arg_count;
   }
 
@@ -172,7 +172,7 @@ class Ndb_item {
   }
 
   const Item *get_item() const {
-    DBUG_ASSERT(this->type == NDB_VALUE);
+    assert(this->type == NDB_VALUE);
     return value.item;
   }
 
@@ -243,13 +243,13 @@ class Ndb_item {
 
   static NDB_FUNC_TYPE negate(NDB_FUNC_TYPE fun) {
     uint i = (uint)fun;
-    DBUG_ASSERT(fun == func_map[i].func);
+    assert(fun == func_map[i].func);
     return func_map[i].neg_func;
   }
 
   static NDB_FUNC_TYPE swap(NDB_FUNC_TYPE fun) {
     uint i = (uint)fun;
-    DBUG_ASSERT(fun == func_map[i].func);
+    assert(fun == func_map[i].func);
     return func_map[i].swap_func;
   }
 
@@ -629,7 +629,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
             // Only BETWEEN/IN can be rewritten.
             // If we add support for rewrite of others, handling must be added
             // above
-            DBUG_ASSERT(false);
+            assert(false);
             context->supported = false;
             return;
         }
@@ -684,13 +684,13 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
             also catch the INT_, STRING_, REAL_, DECIMAL_ and VARBIN_ITEM,
             as well as any CACHE_ITEM and FIELD_ITEM referring 'other' tables.
           */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           String str;
           item->print(current_thd, &str, QT_ORDINARY);
 #endif
           if (item->is_bool_func()) {
             // Item is a boolean func, (e.g. an EQ_FUNC)
-            DBUG_ASSERT(item->result_type() == INT_RESULT);
+            assert(item->result_type() == INT_RESULT);
             DBUG_PRINT("info",
                        ("BOOLEAN 'VALUE' expression: '%s'", str.c_ptr_safe()));
             ndb_item = new (*THR_MALLOC) Ndb_item(item);
@@ -722,14 +722,14 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
             // handle both an Item and any expression of the specific type.
             //
             // Assert that any such Items are of the expected RESULT_ type:
-            DBUG_ASSERT(item->type() != Item::INT_ITEM ||
-                        item->result_type() == INT_RESULT);
-            DBUG_ASSERT(item->type() != Item::REAL_ITEM ||
-                        item->result_type() == REAL_RESULT);
-            DBUG_ASSERT(item->type() != Item::DECIMAL_ITEM ||
-                        item->result_type() == DECIMAL_RESULT);
-            DBUG_ASSERT(item->type() != Item::STRING_ITEM ||
-                        item->result_type() == STRING_RESULT);
+            assert(item->type() != Item::INT_ITEM ||
+                   item->result_type() == INT_RESULT);
+            assert(item->type() != Item::REAL_ITEM ||
+                   item->result_type() == REAL_RESULT);
+            assert(item->type() != Item::DECIMAL_ITEM ||
+                   item->result_type() == DECIMAL_RESULT);
+            assert(item->type() != Item::STRING_ITEM ||
+                   item->result_type() == STRING_RESULT);
 
             switch (item->result_type()) {
               case INT_RESULT:
@@ -821,13 +821,13 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 break;
 
               default:
-                DBUG_ASSERT(false);
+                assert(false);
                 context->supported = false;
                 break;
             }
           }
           if (context->supported) {
-            DBUG_ASSERT(ndb_item != nullptr);
+            assert(ndb_item != nullptr);
             context->items.push_back(ndb_item);
           }
 
@@ -872,11 +872,11 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 type != MYSQL_TYPE_LONG_BLOB && type != MYSQL_TYPE_BLOB &&
                 type != MYSQL_TYPE_JSON && type != MYSQL_TYPE_GEOMETRY) {
               // Found a Field_item of a supported type. and from 'this' table
-              DBUG_ASSERT(context->table == field->table);
+              assert(context->table == field->table);
 
               const NdbDictionary::Column *col =
                   context->ndb_table->getColumn(field->field_name);
-              DBUG_ASSERT(col);
+              assert(col);
               ndb_item = new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
 
               /*
@@ -961,7 +961,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                       context->expect(Item::INT_ITEM);
                       break;
                     default:
-                      DBUG_ASSERT(false);
+                      assert(false);
                       break;
                   }
                 }
@@ -1225,7 +1225,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
           case Item::VARBIN_ITEM:
           case Item::DECIMAL_ITEM:
           case Item::CACHE_ITEM:
-            DBUG_ASSERT(false);  // Expression folded under 'used_tables'
+            assert(false);  // Expression folded under 'used_tables'
             // Fall through
           default:
             DBUG_PRINT("info",
@@ -1236,7 +1236,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
       }
 
       if (context->supported) {
-        DBUG_ASSERT(ndb_item != nullptr);
+        assert(ndb_item != nullptr);
         context->items.push_back(ndb_item);
       }
     }
@@ -1359,7 +1359,7 @@ static int create_and_conditions(Item_cond *cond, List<Item> pushed_list,
 static int create_or_conditions(Item_cond *cond, List<Item> pushed_list,
                                 List<Item> remainder_list, Item *&pushed_cond,
                                 Item *&remainder_cond) {
-  DBUG_ASSERT(pushed_list.elements == cond->argument_list()->elements);
+  assert(pushed_list.elements == cond->argument_list()->elements);
 
   if (remainder_list.is_empty()) {
     // Entire cond pushed, no remainder
@@ -1445,7 +1445,7 @@ static List<const Ndb_item> cond_push_boolean_term(
       }
       DBUG_PRINT("info", ("COND_AND_FUNC, end"));
     } else {
-      DBUG_ASSERT(cond->functype() == Item_func::COND_OR_FUNC);
+      assert(cond->functype() == Item_func::COND_OR_FUNC);
       DBUG_PRINT("info", ("COND_OR_FUNC"));
 
       List_iterator<Item> li(*cond->argument_list());
@@ -1498,7 +1498,7 @@ static List<const Ndb_item> cond_push_boolean_term(
 
       if (func_trig->get_trig_type() ==
           Item_func_trig_cond::IS_NOT_NULL_COMPL) {
-        DBUG_ASSERT(item_func->argument_count() == 1);
+        assert(item_func->argument_count() == 1);
         Item *cond_arg = item_func->arguments()[0];
         Item *remainder = nullptr;
         List<const Ndb_item> code = cond_push_boolean_term(
@@ -1535,7 +1535,7 @@ static List<const Ndb_item> cond_push_boolean_term(
     {
       pushed_cond = term;
       remainder_cond = nullptr;
-      DBUG_ASSERT(!context.items.is_empty());
+      assert(!context.items.is_empty());
       return context.items;
     }
     context.items.destroy_elements();
@@ -1596,7 +1596,7 @@ int ha_ndbcluster_cond::use_cond_push(const Item *&pushed_cond,
       return ret;
     } else {
       // Success, save the generated code.
-      DBUG_ASSERT(code.getWordsUsed() > 0);
+      assert(code.getWordsUsed() > 0);
       m_scan_filter_code.copy(code);
     }
   }
@@ -1616,7 +1616,7 @@ int ha_ndbcluster_cond::build_cond_push() {
       return ret;
     } else {
       // Success, keep the generated code.
-      DBUG_ASSERT(code.getWordsUsed() > 0);
+      assert(code.getWordsUsed() > 0);
       m_scan_filter_code.copy(code);
     }
   }
@@ -1656,8 +1656,8 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
             else if (b->type == NDB_FIELD)
               field2 = b;
           } else {
-            DBUG_ASSERT(a->type == NDB_VALUE);
-            DBUG_ASSERT(b->type == NDB_FIELD);
+            assert(a->type == NDB_VALUE);
+            assert(b->type == NDB_FIELD);
             field1 = b;
             value = a;
           }
@@ -1674,7 +1674,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
 
       if (value != nullptr) {
         const Item *item = value->get_item();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         if (!item->basic_const_item()) {
           String expr;
           String buf, *val = const_cast<Item *>(item)->val_str(&buf);
@@ -1842,7 +1842,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
           return 0;
         }
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           return 1;
       }
 
@@ -1854,8 +1854,8 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
                           field1->pack_length()) == -1)
             return 1;
         } else {
-          DBUG_ASSERT(field2 != nullptr);
-          DBUG_ASSERT(ndbd_support_column_cmp(
+          assert(field2 != nullptr);
+          assert(ndbd_support_column_cmp(
               get_thd_ndb(current_thd)->ndb->getMinDbNodeVersion()));
           if (filter->cmp(cond, field1->get_field_no(),
                           field2->get_field_no()) == -1)
@@ -1863,9 +1863,9 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
         }
       } else  // [NOT] LIKE
       {
-        DBUG_ASSERT(cond == NdbScanFilter::COND_LIKE ||
-                    cond == NdbScanFilter::COND_NOT_LIKE);
-        DBUG_ASSERT(field1 == a && value == b);
+        assert(cond == NdbScanFilter::COND_LIKE ||
+               cond == NdbScanFilter::COND_NOT_LIKE);
+        assert(field1 == a && value == b);
 
         char buff[MAX_FIELD_WIDTH];
         String str(buff, sizeof(buff), field1->get_field_charset());
@@ -1932,7 +1932,7 @@ int ha_ndbcluster_cond::build_scan_filter_group(
       case NDB_VALUE: {
         // (Boolean-)VALUE known at generate
         const Item *item = ndb_item->get_item();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         String str;
         item->print(current_thd, &str, QT_ORDINARY);
 #endif
@@ -1965,7 +1965,7 @@ int ha_ndbcluster_cond::build_scan_filter_group(
         break;
       default: {
         DBUG_PRINT("info", ("Illegal scan filter"));
-        DBUG_ASSERT(false);
+        assert(false);
         return 1;
       }
     }
@@ -2024,7 +2024,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
     const key_range *end_key) {
   DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     DBUG_PRINT("info",
                ("key parts:%u length:%u", key_info->user_defined_key_parts,
@@ -2050,7 +2050,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
               key_range has no count of parts so must test byte length.
               But this is not the place for following assert.
             */
-            // DBUG_ASSERT(ptr - key->key == key->length);
+            // assert(ptr - key->key == key->length);
             break;
           }
           key_part++;
@@ -2133,7 +2133,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
 
     DBUG_PRINT("info", ("Unknown hash index scan"));
     // Catch new cases when optimizer changes
-    DBUG_ASSERT(false);
+    assert(false);
   } while (0);
 
   return 0;

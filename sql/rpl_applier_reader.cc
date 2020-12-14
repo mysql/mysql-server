@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,13 +60,13 @@ class Rpl_applier_reader::Stage_controller {
   }
 
   void lock() {
-    DBUG_ASSERT(m_state == INACTIVE);
+    assert(m_state == INACTIVE);
     mysql_mutex_lock(m_mutex);
     m_state = LOCKED;
   }
 
   void enter_stage() {
-    DBUG_ASSERT(m_state == LOCKED);
+    assert(m_state == LOCKED);
     m_thd->ENTER_COND(m_cond, m_mutex, &m_new_stage, &m_old_stage);
     m_state = IN_STAGE;
   }
@@ -133,7 +133,7 @@ bool Rpl_applier_reader::open(const char **errmsg) {
   m_reading_active_log = m_rli->relay_log.is_active(m_linfo.log_file_name);
   ret = false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   debug_print_next_event_positions();
 #endif
 err:
@@ -161,7 +161,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
   DBUG_EXECUTE_IF("block_applier_updates", {
     const char act[] =
         "now SIGNAL applier_read_blocked WAIT_FOR resume_applier_read";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
   DBUG_EXECUTE_IF("force_sql_thread_error", return nullptr;);
 
@@ -170,7 +170,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
     while (true) {
       if (sql_slave_killed(m_rli->info_thd, m_rli)) return nullptr;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       debug_print_next_event_positions();
 #endif
 
@@ -298,7 +298,7 @@ bool Rpl_applier_reader::wait_for_new_event() {
 
   // re-acquire data lock since we released it earlier
   mysql_mutex_lock(&m_rli->data_lock);
-  DBUG_ASSERT(ret == 0 || is_timeout(ret));
+  assert(ret == 0 || is_timeout(ret));
   return ret != 0 && !is_timeout(ret);
 }
 
@@ -498,7 +498,7 @@ void Rpl_applier_reader::disable_relay_log_space_limit_if_needed() {
   mysql_mutex_unlock(&m_rli->log_space_lock);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void Rpl_applier_reader::debug_print_next_event_positions() {
   DBUG_PRINT(
       "info",
@@ -512,13 +512,13 @@ void Rpl_applier_reader::debug_print_next_event_positions() {
                       m_relaylog_file_reader.position(),
                       m_rli->get_event_relay_log_pos()));
 
-  DBUG_ASSERT(m_relaylog_file_reader.position() >= BIN_LOG_HEADER_SIZE);
-  DBUG_ASSERT(m_relaylog_file_reader.position() ==
-                  m_rli->get_event_relay_log_pos() ||
-              (m_rli->is_parallel_exec() ||
-               // TODO: double check that this is safe:
-               (m_rli->info_thd != nullptr &&
-                m_rli->info_thd->variables.binlog_trx_compression)));
+  assert(m_relaylog_file_reader.position() >= BIN_LOG_HEADER_SIZE);
+  assert(m_relaylog_file_reader.position() ==
+             m_rli->get_event_relay_log_pos() ||
+         (m_rli->is_parallel_exec() ||
+          // TODO: double check that this is safe:
+          (m_rli->info_thd != nullptr &&
+           m_rli->info_thd->variables.binlog_trx_compression)));
 
   DBUG_PRINT(
       "info",

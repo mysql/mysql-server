@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ int ename_index_init(PSI_table_handle *handle, uint idx,
       *index = (PSI_index_handle *)i;
     } break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return 0;
@@ -173,7 +173,7 @@ int ename_index_read(PSI_index_handle *index, PSI_key_reader *reader,
       table_svc->read_key_string(reader, &i->m_emp_fname, find_flag);
     } break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -193,7 +193,7 @@ int ename_index_next(PSI_table_handle *handle) {
       i = (Ename_index_by_emp_fname *)&h->m_emp_fname_index;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -238,7 +238,7 @@ int ename_read_column_value(PSI_table_handle *handle, PSI_field *field,
                                             h->current_row.l_name_length);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -308,7 +308,7 @@ int ename_write_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_varchar_utf8(field, (char *)l_name, l_name_length);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -322,7 +322,7 @@ int ename_update_row_values(PSI_table_handle *handle) {
 
   Ename_Record *cur = &ename_records_array[h->m_pos.get_index()];
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_ename_records_array);
   if (is_duplicate(&h->current_row, h->m_pos.get_index()))
@@ -355,7 +355,7 @@ int ename_update_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_varchar_utf8(field, (char *)l_name, l_name_length);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -368,7 +368,7 @@ int ename_delete_row_values(PSI_table_handle *handle) {
 
   Ename_Record *cur = &ename_records_array[h->m_pos.get_index()];
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_ename_records_array);
   cur->m_exist = false;

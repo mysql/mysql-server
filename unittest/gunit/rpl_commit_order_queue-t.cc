@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ TEST_F(Rpl_commit_order_queue_test, Simulate_mts) {
   for (auto n_wrk = 0; n_wrk != total_workers; ++n_wrk) {
     threads.emplace_back(
         [&](cs::apply::Commit_order_queue::value_type worker_id) -> void {
-          DBUG_ASSERT(worker_id != cs::apply::Commit_order_queue::NO_WORKER);
+          assert(worker_id != cs::apply::Commit_order_queue::NO_WORKER);
 
           for (; transactions > 0;) {
             if (scheduled[worker_id].m_stage ==

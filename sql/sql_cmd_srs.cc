@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ static bool srs_is_used(gis::srid_t srid, THD *thd) {
 }
 
 bool Sql_cmd_create_srs::fill_srs(dd::Spatial_reference_system *srs) {
-  DBUG_ASSERT(m_srs_name.str != nullptr);
+  assert(m_srs_name.str != nullptr);
   srs->set_name(m_srs_name.str);
 
   if (m_organization.str != nullptr) {
@@ -123,7 +123,7 @@ bool Sql_cmd_create_srs::fill_srs(dd::Spatial_reference_system *srs) {
   else
     srs->set_description(nullptr);
 
-  DBUG_ASSERT(m_definition.str != nullptr);
+  assert(m_definition.str != nullptr);
   srs->set_definition(m_definition.str);
 
   return static_cast<dd::Spatial_reference_system_impl *>(srs)
@@ -177,7 +177,7 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
   dd::cache::Dictionary_client *dd_client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
   auto rollback_guard = create_scope_guard([thd]() {
-    if (rollback(thd)) DBUG_ASSERT(false); /* purecov: deadcode */
+    if (rollback(thd)) assert(false); /* purecov: deadcode */
   });
   Srs_fetcher fetcher(thd);
   dd::Spatial_reference_system *srs = nullptr;
@@ -201,7 +201,7 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
 
     const dd::Spatial_reference_system *old_srs = nullptr;
     if (fetcher.acquire(m_srid, &old_srs)) return true; /* purecov: inspected */
-    DBUG_ASSERT(old_srs != nullptr);
+    assert(old_srs != nullptr);
     if (srs_is_used(m_srid, thd) && !old_srs->can_be_modified_to(*srs)) {
       my_error(ER_CANT_MODIFY_SRS_USED_BY_COLUMN, MYF(0), m_srid);
       return true;
@@ -247,7 +247,7 @@ bool Sql_cmd_drop_srs::execute(THD *thd) {
   dd::cache::Dictionary_client *dd_client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
   auto rollback_guard = create_scope_guard([thd]() {
-    if (rollback(thd)) DBUG_ASSERT(false); /* purecov: deadcode */
+    if (rollback(thd)) assert(false); /* purecov: deadcode */
   });
   Srs_fetcher fetcher(thd);
   dd::Spatial_reference_system *srs = nullptr;

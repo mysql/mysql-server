@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -331,7 +331,7 @@ static int initialize_table_share(PFS_engine_table_share *share,
  * @param share share to be destroyed.
  */
 static void destroy_table_share(PFS_engine_table_share *share) {
-  DBUG_ASSERT(share);
+  assert(share);
 
   thr_lock_delete(share->m_thr_lock_ptr);
   delete share->m_table_def;
@@ -366,8 +366,8 @@ static int pfs_add_tables_v1(PFS_engine_table_share_proxy **st_share_list,
    */
   for (uint i = 0; i < share_list_count; i++) {
     temp_st_share = st_share_list[i];
-    DBUG_ASSERT(temp_st_share && temp_st_share->m_table_name &&
-                temp_st_share->m_table_name_length > 0);
+    assert(temp_st_share && temp_st_share->m_table_name &&
+           temp_st_share->m_table_name_length > 0);
 
     /* If table already exists either in
      * - Native PFS tables list
@@ -459,8 +459,8 @@ static int pfs_delete_tables_v1(PFS_engine_table_share_proxy **st_share_list,
   /* Check if any of the table, in the list, doesn't exist. */
   for (uint i = 0; i < share_list_count; i++) {
     PFS_engine_table_share_proxy *temp_st_share = st_share_list[i];
-    DBUG_ASSERT(temp_st_share && temp_st_share->m_table_name &&
-                temp_st_share->m_table_name_length > 0);
+    assert(temp_st_share && temp_st_share->m_table_name &&
+           temp_st_share->m_table_name_length > 0);
 
     /* Search table share for the table in other list (including purgatory) */
     PFS_engine_table_share *temp_share =
@@ -1265,7 +1265,7 @@ bool match_key_string_v1(bool record_null, const char *record_string_value,
 }
 
 void init_pfs_plugin_table() {
-  DBUG_ASSERT(!plugin_table_service_initialized);
+  assert(!plugin_table_service_initialized);
 
   /* Asserts that ERRORS defined in pfs_plugin_table_service.h are in
      accordance with ERRORS defined in my_base.h

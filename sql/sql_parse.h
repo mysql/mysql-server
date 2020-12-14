@@ -59,7 +59,7 @@ extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern void turn_parser_debug_on();
 #endif
 

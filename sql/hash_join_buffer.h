@@ -240,7 +240,7 @@ class HashJoinRowBuffer {
   hash_map_iterator end() const { return m_hash_map->end(); }
 
   LinkedImmutableString LastRowStored() const {
-    DBUG_ASSERT(Initialized());
+    assert(Initialized());
     return m_last_row_stored;
   }
 

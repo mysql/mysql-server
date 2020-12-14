@@ -184,7 +184,7 @@ class SEL_ROOT {
     Note that almost all SEL_ROOTs are created on the MEM_ROOT,
     so this destructor will only rarely be called.
   */
-  ~SEL_ROOT() { DBUG_ASSERT(use_count == 0); }
+  ~SEL_ROOT() { assert(use_count == 0); }
 
   /**
     Returns true iff we have a single node that has no max nor min.
@@ -586,7 +586,7 @@ class SEL_ARG {
   SEL_ROOT *release_next_key_part() {
     SEL_ROOT *ret = next_key_part;
     if (next_key_part) {
-      DBUG_ASSERT(next_key_part->use_count > 0);
+      assert(next_key_part->use_count > 0);
       --next_key_part->use_count;
     }
     next_key_part = nullptr;
@@ -724,8 +724,7 @@ class SEL_ARG {
                      spatial index specific scan functions.
   */
   void set_gis_index_read_function(const enum ha_rkey_function rkey_func) {
-    DBUG_ASSERT(rkey_func >= HA_READ_MBR_CONTAIN &&
-                rkey_func <= HA_READ_MBR_EQUAL);
+    assert(rkey_func >= HA_READ_MBR_CONTAIN && rkey_func <= HA_READ_MBR_EQUAL);
     min_flag = GEOM_FLAG;
     rkey_func_flag = rkey_func;
     max_flag = NO_MAX_RANGE;
@@ -809,7 +808,7 @@ class SEL_ARG {
                                uint *cur_min_flag, uchar **cur_max_key,
                                uint *cur_max_flag, int *min_part,
                                int *max_part) {
-    DBUG_ASSERT(next_key_part);
+    assert(next_key_part);
     const bool asc = next_key_part->root->is_ascending;
     if (!get_min_flag()) {
       if (asc)
@@ -837,7 +836,7 @@ class SEL_ARG {
 
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root, SEL_ARG *key, SEL_ARG *par);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   friend int test_rb_tree(SEL_ARG *element, SEL_ARG *parent);
 #endif
   SEL_ARG *first();
@@ -1010,7 +1009,7 @@ class SEL_TREE {
   SEL_ROOT *release_key(int index) {
     SEL_ROOT *ret = keys[index];
     if (keys[index]) {
-      DBUG_ASSERT(keys[index]->use_count > 0);
+      assert(keys[index]->use_count > 0);
       --keys[index]->use_count;
     }
     keys[index] = nullptr;

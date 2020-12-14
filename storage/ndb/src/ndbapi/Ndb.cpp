@@ -466,7 +466,7 @@ Ndb::computeHash(Uint32 *retval,
       partcols[j++] = cols[i];
     }
   }
-  DBUG_ASSERT(j == parts);
+  assert(j == parts);
 
   for (Uint32 i = 0; i<parts; i++)
   {
@@ -1850,7 +1850,7 @@ error_handler:
     theError.code = tConnection->theError.code;
   if (theError.code == 0 && tOperation != NULL)
     theError.code = tOperation->theError.code;
-  DBUG_ASSERT(theError.code != 0);
+  assert(theError.code != 0);
 
   NdbError savedError;
   savedError = theError;

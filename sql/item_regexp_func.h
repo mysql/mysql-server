@@ -58,11 +58,12 @@
   it be done more rarely? On session close?
 */
 
+#include <assert.h>
 #include <unicode/uregex.h>
 
 #include <string>
 
-#include "my_dbug.h"      // DBUG_ASSERT
+// assert
 #include "my_inttypes.h"  // MY_INT32_NUM_DECIMAL_DIGITS
 #include "sql/item_cmpfunc.h"
 #include "sql/item_strfunc.h"
@@ -157,7 +158,7 @@ class Item_func_regexp : public Item_func {
 
  protected:
   String *convert_int_to_str(String *str) {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     longlong nr = val_int();
     if (null_value) return nullptr;
     str->set_int(nr, unsigned_flag, collation.collation);
@@ -165,7 +166,7 @@ class Item_func_regexp : public Item_func {
   }
 
   my_decimal *convert_int_to_decimal(my_decimal *value) {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     longlong nr = val_int();
     if (null_value) return nullptr; /* purecov: inspected */
     int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, value);
@@ -173,12 +174,12 @@ class Item_func_regexp : public Item_func {
   }
 
   double convert_int_to_real() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return val_int();
   }
 
   double convert_str_to_real() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     int err_not_used;
     const char *end_not_used;
     String *res = val_str(&str_value);
@@ -188,7 +189,7 @@ class Item_func_regexp : public Item_func {
   }
 
   longlong convert_str_to_int() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     int err;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0;

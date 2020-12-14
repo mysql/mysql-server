@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_CC_INCLUDED
 
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,11 +26,11 @@
 
 #include "unittest/gunit/fake_costmodel.h"
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "m_string.h"
-#include "my_dbug.h"
 
 class THD;
 struct TABLE;
@@ -50,7 +50,7 @@ const double SE_cost_constants::IO_BLOCK_READ_COST = 1.0;
 const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
     const TABLE *) const {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
   return nullptr;
 }
 /* purecov: end */
@@ -59,7 +59,7 @@ const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
 cost_constant_error SE_cost_constants::set(const LEX_CSTRING &, const double,
                                            bool) {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
   return COST_CONSTANT_OK;
 }
 /* purecov: end */
@@ -67,14 +67,14 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &, const double,
 /* purecov: begin inspected */
 Cost_model_se_info::~Cost_model_se_info() {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
 }
 /* purecov: end */
 
 /* purecov: begin inspected */
 Cost_model_constants::~Cost_model_constants() {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
 }
 /* purecov: end */
 
@@ -82,7 +82,7 @@ Cost_model_constants::~Cost_model_constants() {
 uint Cost_model_constants::find_handler_slot_from_name(
     THD *, const LEX_CSTRING &) const {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
   return 0;
 }
 /* purecov: end */

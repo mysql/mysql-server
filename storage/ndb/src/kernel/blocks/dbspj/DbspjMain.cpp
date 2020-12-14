@@ -2745,7 +2745,7 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       {
         if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
         {
-          DBUG_ASSERT(treeNodePtr.p->m_node_no <= 31);
+          assert(treeNodePtr.p->m_node_no <= 31);
           activeMask |= (1 << treeNodePtr.p->m_node_no);
         }
       }
@@ -7128,7 +7128,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       {
         jam();
         DEBUG("Key contain NULL values, ignoring it");
-        DBUG_ASSERT((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
+        assert((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
         // Ignore this request as 'NULL == <column>' will never give a match
         releaseSection(keyPtrI);
         return;  // Bailout, SCANREQ would have returned 0 rows anyway

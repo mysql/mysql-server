@@ -241,7 +241,7 @@ TYPED_TEST(STLAllocTestInt, SimpleList) {
   EXPECT_EQ(0U, l2.size());
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 TYPED_TEST(STLAllocTestInt, OutOfMemory) {
   vector<int, TypeParam> v1(this->allocator);
   v1.reserve(10);

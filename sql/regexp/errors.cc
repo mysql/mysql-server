@@ -29,10 +29,10 @@
 
 #include "errors.h"
 
+#include <assert.h>
 #include <cstddef>
 #include <unordered_map>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"     // MYF
 #include "my_sys.h"          // my_error
 #include "mysqld_error.h"    // Error codes
@@ -88,7 +88,7 @@ bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
       release builds, we just get e.g. "Got error 'U_REGEX_TIME_OUT' from
       regexp".
     */
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_REGEXP_ERROR, MYF(0), u_errorName(status));
     return true;
   }

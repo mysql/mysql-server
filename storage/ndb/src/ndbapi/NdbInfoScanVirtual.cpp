@@ -701,7 +701,7 @@ public:
         param_type = "string";
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         param_type = "unknown";
         break;
     }
@@ -899,7 +899,7 @@ class BackupIdTable : public VirtualTable
     // Primary key committed read of the "backup id" row
     if (op->readTuple(NdbOperation::LM_CommittedRead) != 0 ||
         op->equal("SYSKEY_0", NDB_BACKUP_SEQUENCE) != 0) { // Primary key
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
     }
 
@@ -910,7 +910,7 @@ class BackupIdTable : public VirtualTable
     if ((nextid = op->getValue("NEXTID")) == nullptr ||
         (frag = op->getValue(NdbDictionary::Column::FRAGMENT)) == nullptr ||
         (row = op->getValue(NdbDictionary::Column::ROWID)) == nullptr) {
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
     }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -133,8 +133,8 @@ DEFINE_BOOL_METHOD(mysql_query_attributes_imp::get_type,
                     enum enum_field_types *out_type)) {
   mysql_query_attributes::iterator *iter_ptr =
       reinterpret_cast<mysql_query_attributes::iterator *>(iter);
-  DBUG_ASSERT(iter_ptr);
-  DBUG_ASSERT(iter_ptr->get_current());
+  assert(iter_ptr);
+  assert(iter_ptr->get_current());
   *out_type = iter_ptr->get_current()->type;
   return true;
 }
@@ -143,7 +143,7 @@ DEFINE_BOOL_METHOD(mysql_query_attributes_imp::next,
                    (mysqlh_query_attributes_iterator iter)) {
   mysql_query_attributes::iterator *iter_ptr =
       reinterpret_cast<mysql_query_attributes::iterator *>(iter);
-  DBUG_ASSERT(iter_ptr);
+  assert(iter_ptr);
   return iter_ptr->next();
 }
 
@@ -152,9 +152,9 @@ DEFINE_BOOL_METHOD(mysql_query_attributes_imp::get_name,
                     my_h_string *out_name_handle)) {
   mysql_query_attributes::iterator *iter_ptr =
       reinterpret_cast<mysql_query_attributes::iterator *>(iter);
-  DBUG_ASSERT(iter_ptr);
-  DBUG_ASSERT(iter_ptr->get_current());
-  DBUG_ASSERT(iter_ptr->get_current()->name);
+  assert(iter_ptr);
+  assert(iter_ptr->get_current());
+  assert(iter_ptr->get_current()->name);
 
   if (!iter_ptr->get_current()->name) return true;
 
@@ -179,8 +179,8 @@ DEFINE_BOOL_METHOD(mysql_query_attributes_imp::isnull_get,
                    (mysqlh_query_attributes_iterator iter, bool *out_null)) {
   mysql_query_attributes::iterator *iter_ptr =
       reinterpret_cast<mysql_query_attributes::iterator *>(iter);
-  DBUG_ASSERT(iter_ptr);
-  DBUG_ASSERT(iter_ptr->get_current());
+  assert(iter_ptr);
+  assert(iter_ptr->get_current());
   *out_null = iter_ptr->get_current()->null_bit != 0;
   return false;
 }
@@ -308,9 +308,8 @@ static String *query_parameter_val_str(const PS_PARAM *param,
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP: {
       MYSQL_TIME tm;
-      DBUG_ASSERT(param->length == 0 || param->length == 4 ||
-                  param->length == 7 || param->length == 11 ||
-                  param->length == 13);
+      assert(param->length == 0 || param->length == 4 || param->length == 7 ||
+             param->length == 11 || param->length == 13);
       if (param->length >= 4) {
         const uchar *to = param->value;
 
@@ -400,9 +399,9 @@ DEFINE_BOOL_METHOD(mysql_query_attributes_imp::string_get,
                     my_h_string *out_string_value)) {
   mysql_query_attributes::iterator *iter_ptr =
       reinterpret_cast<mysql_query_attributes::iterator *>(iter);
-  DBUG_ASSERT(iter_ptr);
+  assert(iter_ptr);
   const PS_PARAM *param = iter_ptr->get_current();
-  DBUG_ASSERT(param);
+  assert(param);
   String *str = query_parameter_val_str(param, iter_ptr->get_thd()->charset());
   *out_string_value = reinterpret_cast<my_h_string>(str);
   return false;

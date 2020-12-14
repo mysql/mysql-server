@@ -87,12 +87,12 @@ void Item_row::illegal_method_call(
     const char *method MY_ATTRIBUTE((unused))) const {
   DBUG_TRACE;
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
-  DBUG_ASSERT(0);
+  assert(0);
   my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
 }
 
 bool Item_row::fix_fields(THD *thd, Item **) {
-  DBUG_ASSERT(fixed == 0);
+  assert(fixed == 0);
   null_value = false;
   set_nullable(false);
   bool types_assigned = true;
@@ -161,7 +161,7 @@ void Item_row::fix_after_pullout(Query_block *parent_query_block,
 }
 
 bool Item_row::propagate_type(THD *thd, const Type_properties &type) {
-  DBUG_ASSERT(data_type() == MYSQL_TYPE_INVALID);
+  assert(data_type() == MYSQL_TYPE_INVALID);
   for (uint i = 0; i < arg_count; i++) {
     if (items[i]->data_type() == MYSQL_TYPE_INVALID &&
         items[i]->propagate_type(thd, type))

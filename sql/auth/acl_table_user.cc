@@ -455,7 +455,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   Acl_table_user_writer_status err_return_value;
 
   DBUG_TRACE;
-  DBUG_ASSERT(assert_acl_cache_write_lock(m_thd));
+  assert(assert_acl_cache_write_lock(m_thd));
 
   /* Setup the table for writing */
   if (setup_table(error, builtin_plugin)) {
@@ -536,7 +536,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
       if (table_intact.check(m_table, ACL_TABLES::TABLE_USER)) return true;
 
       m_table->use_all_columns();
-      DBUG_ASSERT(m_combo->host.str != nullptr);
+      assert(m_combo->host.str != nullptr);
       m_table->field[m_table_schema->host_idx()]->store(
           m_combo->host.str, m_combo->host.length, system_charset_info);
       m_table->field[m_table_schema->user_idx()]->store(
@@ -546,10 +546,10 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
 
       error = m_table->file->ha_index_read_idx_map(
           m_table->record[0], 0, user_key, HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-      DBUG_ASSERT(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_user_table_1",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
@@ -607,7 +607,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           return true;
         }
         restore_record(m_table, s->default_values);
-        DBUG_ASSERT(m_combo->host.str != nullptr);
+        assert(m_combo->host.str != nullptr);
         m_table->field[m_table_schema->host_idx()]->store(
             m_combo->host.str, m_combo->host.length, system_charset_info);
         m_table->field[m_table_schema->user_idx()]->store(
@@ -670,11 +670,11 @@ Acl_table_op_status Acl_table_user_writer::finish_operation(
   switch (m_operation) {
     case Acl_table_operation::OP_INSERT: {
       out_error = m_table->file->ha_write_row(m_table->record[0]);  // insert
-      DBUG_ASSERT(out_error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  out_error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  out_error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(out_error != HA_ERR_FOUND_DUPP_KEY);
+      assert(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             out_error != HA_ERR_LOCK_DEADLOCK);
+      assert(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             out_error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_user_table_3",
                       out_error = HA_ERR_LOCK_DEADLOCK;);
       if (out_error) {
@@ -694,11 +694,11 @@ Acl_table_op_status Acl_table_user_writer::finish_operation(
       if (compare_records(m_table)) {
         out_error = m_table->file->ha_update_row(m_table->record[1],
                                                  m_table->record[0]);
-        DBUG_ASSERT(out_error != HA_ERR_FOUND_DUPP_KEY);
-        DBUG_ASSERT(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    out_error != HA_ERR_LOCK_DEADLOCK);
-        DBUG_ASSERT(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    out_error != HA_ERR_LOCK_WAIT_TIMEOUT);
+        assert(out_error != HA_ERR_FOUND_DUPP_KEY);
+        assert(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               out_error != HA_ERR_LOCK_DEADLOCK);
+        assert(m_table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               out_error != HA_ERR_LOCK_WAIT_TIMEOUT);
         DBUG_EXECUTE_IF("wl7158_replace_user_table_2",
                         out_error = HA_ERR_LOCK_DEADLOCK;);
         if (out_error && out_error != HA_ERR_RECORD_IS_THE_SAME) {
@@ -1101,7 +1101,7 @@ bool Acl_table_user_writer::update_password_require_current() {
         if (m_operation == Acl_table_operation::OP_INSERT) fld->set_null();
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
     }
   } else {
     my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_require_current",
@@ -2083,7 +2083,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
   acl_table::Acl_table_user_writer_status return_value;
 
   DBUG_TRACE;
-  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+  assert(assert_acl_cache_write_lock(thd));
 
   return_value = user_table.driver();
 
@@ -2165,7 +2165,7 @@ bool read_user_table(THD *thd, TABLE *table) {
 */
 bool replace_user_metadata(THD *thd, const std::string &json_blob,
                            bool expect_text, TABLE *user_table) {
-  DBUG_ASSERT(!thd->is_error());
+  assert(!thd->is_error());
   Json_dom_ptr json_dom;
   Json_wrapper json_wrapper;
   if (user_table->field[MYSQL_USER_FIELD_USER_ATTRIBUTES]->type() !=

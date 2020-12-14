@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@ const Keywords &Keywords::instance() {
 
 Keywords::Keywords() {
   const size_t MAX_WORD_SIZE = 128;
-#ifndef DBUG_OFF
-  for (auto x : keyword_list) DBUG_ASSERT(strlen(x.word) < MAX_WORD_SIZE);
+#ifndef NDEBUG
+  for (auto x : keyword_list) assert(strlen(x.word) < MAX_WORD_SIZE);
 #endif
 
   Stringstream_type ss;

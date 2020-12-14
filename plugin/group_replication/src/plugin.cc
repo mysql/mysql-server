@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
 #endif
 
@@ -236,7 +236,7 @@ int plugin_group_replication_set_retrieved_certification_info(void *info) {
 }
 
 rpl_sidno get_group_sidno() {
-  DBUG_ASSERT(lv.group_sidno > 0);
+  assert(lv.group_sidno > 0);
   return lv.group_sidno;
 }
 
@@ -328,11 +328,11 @@ bool initiate_wait_on_start_process() {
   // block the thread
   lv.online_wait_mutex->start_waitlock();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_wait_thread_for_server_online", {
     const char act[] =
         "now wait_for signal.continue_applier_thread NO_CLEAR_EVENT";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
   return lv.abort_wait_on_start_process;
@@ -439,7 +439,7 @@ int plugin_group_replication_start(char **error_message) {
   DBUG_EXECUTE_IF("group_replication_wait_on_start", {
     const char act[] =
         "now signal signal.start_waiting wait_for signal.start_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   if (plugin_is_group_replication_running()) {
@@ -540,7 +540,7 @@ int plugin_group_replication_start(char **error_message) {
 
   check_deprecated_variables();
 
-  DBUG_ASSERT(transactions_latch->empty());
+  assert(transactions_latch->empty());
 
   // Reset previous ERROR state causes.
   lv.error_state_due_to_error_during_autorejoin = false;
@@ -676,7 +676,7 @@ int initialize_plugin_and_join(
     const char act[] =
         "now signal signal.group_join_waiting "
         "wait_for signal.continue_group_join";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   if ((error = start_group_communication())) {
@@ -722,7 +722,7 @@ err:
       const char act[] =
           "now signal signal.wait_leave_process "
           "wait_for signal.continue_leave_process";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
     auto modules_to_terminate = gr_modules::all_modules;
@@ -742,7 +742,7 @@ err:
                           super_read_only_mode);
     }
 
-    DBUG_ASSERT(transactions_latch->empty());
+    assert(transactions_latch->empty());
     // Inform the transaction observer that we won't apply any further backlog
     // (because we are erroring out).
     if (primary_election_handler) {
@@ -836,7 +836,7 @@ int configure_group_member_manager() {
         ov.advertise_recovery_endpoints_var);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_skip_encode_default_table_encryption", {
     local_member_info->skip_encode_default_table_encryption = true;
   });
@@ -1077,7 +1077,7 @@ int plugin_group_replication_stop(char **error_message) {
     const char act[] =
         "now signal signal.stopping_before_leave_the_group "
         "wait_for signal.resume_stop_before_leave_the_group";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   // wait for all transactions waiting for certification
@@ -1327,7 +1327,7 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
 
   DBUG_EXECUTE_IF("group_replication_after_recovery_module_terminated", {
     const char act[] = "now wait_for signal.termination_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   /*
@@ -1446,9 +1446,9 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     blocked_transaction_handler = nullptr;
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   if (modules_to_terminate[gr_modules::CERTIFICATION_LATCH])
-    DBUG_ASSERT(transactions_latch->empty());
+    assert(transactions_latch->empty());
 #endif
 
   /*
@@ -2434,8 +2434,8 @@ static int check_if_server_properly_configured() {
   }
 
   lv.gr_lower_case_table_names = startup_pre_reqs.lower_case_table_names;
-  DBUG_ASSERT(lv.gr_lower_case_table_names <= 2);
-#ifndef DBUG_OFF
+  assert(lv.gr_lower_case_table_names <= 2);
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names", {
     lv.gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
   });
@@ -2869,7 +2869,7 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var, void *var_ptr,
         recovery_module->set_recovery_tls_ciphersuites(new_option_val);
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      assert(0); /* purecov: inspected */
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -3178,10 +3178,10 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *, void *save,
   lv.force_members_running = true;
   mysql_mutex_unlock(&lv.force_members_running_mutex);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_wait_on_check_force_members", {
     const char act[] = "now wait_for waiting";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
 

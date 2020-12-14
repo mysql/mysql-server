@@ -920,7 +920,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
   const uchar *packet_position = (uchar *)packet;
   size_t packet_bytes_todo = packet_length;
 
-  DBUG_ASSERT(!thd->status_var_aggregated);
+  assert(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log = opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
@@ -971,7 +971,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
       nullptr /*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 
-  DBUG_ASSERT(!thd->status_var_aggregated);
+  assert(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log = opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
@@ -1190,7 +1190,7 @@ end:
     which informs plugins.
   */
   if (unlock_global_read_lock) {
-    DBUG_ASSERT(thd->global_read_lock.is_acquired());
+    assert(thd->global_read_lock.is_acquired());
     thd->global_read_lock.unlock_global_read_lock(thd);
   }
 

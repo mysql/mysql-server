@@ -209,7 +209,7 @@ bool records_are_comparable(const TABLE *table) {
    @return false otherwise.
 */
 bool compare_records(const TABLE *table) {
-  DBUG_ASSERT(records_are_comparable(table));
+  assert(records_are_comparable(table));
 
   if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0) {
     /*
@@ -268,7 +268,7 @@ bool Sql_cmd_update::make_base_table_fields(THD *thd,
                                             mem_root_deque<Item *> *items) {
   for (auto it = items->begin(); it != items->end(); ++it) {
     Item *item = *it;
-    DBUG_ASSERT(!item->hidden);
+    assert(!item->hidden);
 
     // Save original item for privilege checking
     original_fields.push_back(item);
@@ -278,14 +278,14 @@ bool Sql_cmd_update::make_base_table_fields(THD *thd,
       result_field on Item_ref which refer on this field
     */
     Item_field *const base_table_field = item->field_for_view_update();
-    DBUG_ASSERT(base_table_field != nullptr);
+    assert(base_table_field != nullptr);
 
     Item_field *const cloned_field = new Item_field(thd, base_table_field);
     if (cloned_field == nullptr) return true; /* purecov: inspected */
 
     *it = cloned_field;
     // WL#6570 remove-after-qa
-    DBUG_ASSERT(thd->stmt_arena->is_regular() || !thd->lex->is_exec_started());
+    assert(thd->stmt_arena->is_regular() || !thd->lex->is_exec_started());
   }
   return false;
 }
@@ -338,7 +338,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   TABLE_LIST *const update_table_ref = table_list->updatable_base_table();
   TABLE *const table = update_table_ref->table;
 
-  DBUG_ASSERT(table->pos_in_table_list == update_table_ref);
+  assert(table->pos_in_table_list == update_table_ref);
 
   const bool transactional_table = table->file->has_transactions();
 
@@ -367,7 +367,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   bool no_rows = limit == 0;
 
   THD::killed_state killed_status = THD::NOT_KILLED;
-  DBUG_ASSERT(CountHiddenFields(query_block->fields) == 0);
+  assert(CountHiddenFields(query_block->fields) == 0);
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &query_block->fields,
                    update_value_list);
   if (update.add_function_default_columns(table, table->write_set)) return true;
@@ -711,7 +711,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         }
 
         while (!(error = iterator->Read()) && !thd->killed) {
-          DBUG_ASSERT(!thd->is_error());
+          assert(!thd->is_error());
           thd->inc_examined_row_count(1);
 
           if (qep_tab.condition() != nullptr) {
@@ -836,7 +836,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           continue;
         }
       }
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
 
       if (table->file->was_semi_consistent_read())
         /*
@@ -979,7 +979,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
              dup_key_found)) {
           if (error) {
             /* purecov: begin inspected */
-            DBUG_ASSERT(false);
+            assert(false);
             /*
               The handler should not report error of duplicate keys if they
               are ignored. This is a requirement on batching handlers.
@@ -1006,7 +1006,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
 
       thd->get_stmt_da()->inc_current_row_for_condition();
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       if (thd->is_error()) {
         error = 1;
         break;
@@ -1091,9 +1091,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
     }
   }
-  DBUG_ASSERT(
-      transactional_table || updated_rows == 0 ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(transactional_table || updated_rows == 0 ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
   // If LAST_INSERT_ID(X) was used, report X
   const ulonglong id = thd->arg_of_last_insert_id_function
@@ -1115,10 +1114,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
   thd->current_found_rows = found_rows;
 
-  DBUG_ASSERT(CountHiddenFields(*update_value_list) == 0);
+  assert(CountHiddenFields(*update_value_list) == 0);
 
   // Following test is disabled, as we get RQG errors that are hard to debug
-  // DBUG_ASSERT((error >= 0) == thd->is_error());
+  // assert((error >= 0) == thd->is_error());
   return error >= 0 || thd->is_error();
 }
 
@@ -1358,7 +1357,7 @@ bool should_switch_to_multi_table_if_subqueries(const THD *thd,
   handler *h = t->file;
   // Secondary engine is never the target of updates here (updates are done
   // to the primary engine and then propagated):
-  DBUG_ASSERT((h->ht->flags & HTON_IS_SECONDARY_ENGINE) == 0);
+  assert((h->ht->flags & HTON_IS_SECONDARY_ENGINE) == 0);
   // LIMIT, ORDER BY and read-before-write removal are not supported in
   // multi-table UPDATE/DELETE.
   if (select->is_ordered() || select->has_limit() ||
@@ -1394,8 +1393,8 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   const bool using_lock_tables = thd->locked_tables_mode != LTM_NONE;
 
-  DBUG_ASSERT(select->fields.size() == select->num_visible_fields());
-  DBUG_ASSERT(select->num_visible_fields() == update_value_list->size());
+  assert(select->fields.size() == select->num_visible_fields());
+  assert(select->num_visible_fields() == update_value_list->size());
 
   Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
 
@@ -1516,7 +1515,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   uint update_table_count_local = my_count_bits(tables_for_update);
 
-  DBUG_ASSERT(update_table_count_local > 0);
+  assert(update_table_count_local > 0);
 
   /*
     Some tables may be marked for update, even though they have no columns
@@ -1608,7 +1607,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
         Last argument routine_modifies_data for read_lock_type_for_table()
         is ignored, as prelocking placeholder will never be set here.
       */
-      DBUG_ASSERT(tl->prelocking_placeholder == false);
+      assert(tl->prelocking_placeholder == false);
       tl->set_lock({read_lock_type_for_table(thd, lex, tl, true), THR_DEFAULT});
       /* Update TABLE::lock_type accordingly. */
       if (!tl->is_placeholder() && !using_lock_tables)
@@ -1645,7 +1644,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   /* check single table update for view compound from several tables */
   for (TABLE_LIST *tl = table_list; tl; tl = tl->next_local) {
     if (tl->is_merged()) {
-      DBUG_ASSERT(tl->is_view_or_derived());
+      assert(tl->is_view_or_derived());
       TABLE_LIST *for_update = nullptr;
       if (tl->check_single_table(&for_update, tables_for_update)) {
         my_error(ER_VIEW_MULTIUPDATE, MYF(0), tl->db, tl->table_name);
@@ -1675,8 +1674,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
       return true;
   }
 
-  DBUG_ASSERT(select->having_cond() == nullptr &&
-              select->group_list.elements == 0);
+  assert(select->having_cond() == nullptr && select->group_list.elements == 0);
 
   if (select->has_ft_funcs() && setup_ftfuncs(thd, select))
     return true; /* purecov: inspected */
@@ -1700,7 +1698,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
   select->master_query_expression()->set_prepared();
 
-  DBUG_ASSERT(CountHiddenFields(*update_value_list) == 0);
+  assert(CountHiddenFields(*update_value_list) == 0);
 
   return false;
 }
@@ -1801,7 +1799,7 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
   values_for_table = thd->mem_root->ArrayAlloc<List_item *>(update_table_count);
   if (values_for_table == nullptr) return true;
 
-  DBUG_ASSERT(update_operations == nullptr);
+  assert(update_operations == nullptr);
   update_operations =
       (COPY_INFO **)thd->mem_calloc(sizeof(COPY_INFO *) * update_table_count);
 
@@ -1864,7 +1862,7 @@ bool Query_result_update::prepare(THD *thd, const mem_root_deque<Item *> &,
     }
   }
 
-  DBUG_ASSERT(!thd->is_error());
+  assert(!thd->is_error());
   return false;
 }
 
@@ -1920,7 +1918,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
       return !is_key_used(table, join_tab->ref().key, table->write_set);
     case JT_RANGE:
     case JT_INDEX_MERGE:
-      DBUG_ASSERT(join_tab->quick() != nullptr);
+      assert(join_tab->quick() != nullptr);
       // When scanning a range, it's possible to read a row twice if it moves
       // within the range:
       if (join_tab->quick()->is_keys_used(table->write_set)) return false;
@@ -1928,14 +1926,14 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
       // has a clustered primary key, modifying that key might affect the
       // functioning of the the secondary key(s), so fall through to check that.
     case JT_ALL:
-      DBUG_ASSERT(join_tab->type() != JT_ALL || join_tab->quick() == nullptr);
+      assert(join_tab->type() != JT_ALL || join_tab->quick() == nullptr);
       // If using the clustered key under the cover:
       if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
           table->s->primary_key < MAX_KEY)
         return !is_key_used(table, table->s->primary_key, table->write_set);
       return true;
     case JT_INDEX_SCAN:
-      DBUG_ASSERT(false);  // cannot happen, due to "no_keyread" instruction.
+      assert(false);  // cannot happen, due to "no_keyread" instruction.
     default:
       break;  // Avoid compiler warning
   }
@@ -2000,7 +1998,7 @@ bool Query_result_update::optimize() {
     return true; /* purecov: inspected */
 
   /* Any update has at least one pair (field, value) */
-  DBUG_ASSERT(!fields->empty());
+  assert(!fields->empty());
 
   // Allocate temporary table structs per execution (they use the mem_root)
   tmp_table_param = new (thd->mem_root) Temp_table_param[update_table_count];
@@ -2041,7 +2039,7 @@ bool Query_result_update::optimize() {
       */
       if (update_tables->next_local) {
         // Verify it's not used
-        DBUG_ASSERT(bitmap_is_clear_all(&main_table->tmp_set));
+        assert(bitmap_is_clear_all(&main_table->tmp_set));
         for (uint i = 1; i < join->tables; ++i) {
           JOIN_TAB *tab = join->best_ref[i];
           if (!tab->position()) continue;
@@ -2227,7 +2225,7 @@ bool Query_result_update::start_execution(THD *thd) {
 }
 
 void Query_result_update::cleanup(THD *thd) {
-  DBUG_ASSERT(CountHiddenFields(*values) == 0);
+  assert(CountHiddenFields(*values) == 0);
   for (TABLE_LIST *tr = update_tables; tr != nullptr; tr = tr->next_local) {
     tr->table = nullptr;
   }
@@ -2248,9 +2246,8 @@ void Query_result_update::cleanup(THD *thd) {
   }
   tmp_table_param = nullptr;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;  // Restore this setting
-  DBUG_ASSERT(
-      trans_safe || updated_rows == 0 ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(trans_safe || updated_rows == 0 ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
   if (update_operations != nullptr)
     for (uint i = 0; i < update_table_count; i++) destroy(update_operations[i]);
@@ -2451,7 +2448,7 @@ void Query_result_update::abort_result_set(THD *thd) {
   */
 
   if (!trans_safe) {
-    DBUG_ASSERT(
+    assert(
         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
     if (!update_completed && update_table_count > 1) {
       /* @todo: Add warning here */
@@ -2476,9 +2473,8 @@ void Query_result_update::abort_result_set(THD *thd) {
                               false, errcode);
     }
   }
-  DBUG_ASSERT(
-      trans_safe || updated_rows == 0 ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(trans_safe || updated_rows == 0 ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 }
 
 bool Query_result_update::do_updates(THD *thd) {
@@ -2791,9 +2787,8 @@ bool Query_result_update::send_eof(THD *thd) {
       }
     }
   }
-  DBUG_ASSERT(
-      trans_safe || updated_rows == 0 ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(trans_safe || updated_rows == 0 ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
   if (local_error != 0)
     error_handled = true;  // to force early leave from ::send_error()

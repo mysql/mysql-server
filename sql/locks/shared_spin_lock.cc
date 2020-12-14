@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,9 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::Guard::operator*() {
 
 lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::acquire(
     enum_lock_acquisition acquisition, bool try_and_fail) {
-  DBUG_ASSERT(this->m_acquisition == enum_lock_acquisition::SL_NO_ACQUISITION);
-  DBUG_ASSERT(acquisition == enum_lock_acquisition::SL_SHARED ||
-              acquisition == enum_lock_acquisition::SL_EXCLUSIVE);
+  assert(this->m_acquisition == enum_lock_acquisition::SL_NO_ACQUISITION);
+  assert(acquisition == enum_lock_acquisition::SL_SHARED ||
+         acquisition == enum_lock_acquisition::SL_EXCLUSIVE);
 
   this->m_acquisition = acquisition;
 
@@ -126,7 +126,7 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::try_exclusive() {
 
 lock::Shared_spin_lock &lock::Shared_spin_lock::release_shared() {
   auto found = lock::Shared_spin_lock::acquired_spins().find(this);
-  DBUG_ASSERT(this->is_shared_acquisition());
+  assert(this->is_shared_acquisition());
   if (!this->is_shared_acquisition()) {
     // shared spin lock not acquired by thread
     return (*this); /* purecov: inspected */
@@ -141,7 +141,7 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::release_shared() {
 
 lock::Shared_spin_lock &lock::Shared_spin_lock::release_exclusive() {
   auto found = lock::Shared_spin_lock::acquired_spins().find(this);
-  DBUG_ASSERT(this->is_exclusive_acquisition());
+  assert(this->is_exclusive_acquisition());
   if (!this->is_exclusive_acquisition()) {
     // exclusive spin lock not acquired by thread
     return (*this); /* purecov: inspected */

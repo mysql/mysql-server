@@ -103,7 +103,7 @@ void Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc) {
         my_error(ER_EVENT_CANNOT_ALTER_IN_THE_PAST, MYF(0));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
 
     do_not_create = true;
@@ -171,7 +171,7 @@ int Event_parse_data::init_execute_at(THD *thd) {
   /* no starts and/or ends in case of execute_at */
   DBUG_PRINT("info", ("starts_null && ends_null should be 1 is %d",
                       (starts_null && ends_null)));
-  DBUG_ASSERT(starts_null && ends_null);
+  assert(starts_null && ends_null);
 
   if ((item_execute_at->get_date(&ltime, TIME_NO_ZERO_DATE))) goto wrong_value;
 
@@ -282,7 +282,7 @@ int Event_parse_data::init_interval(THD *thd) {
       expression = interval_tmp.minute * 60 + interval_tmp.second;
       break;
     case INTERVAL_LAST:
-      DBUG_ASSERT(0);
+      assert(0);
     default:; /* these are the microsec stuff */
   }
   if (interval_tmp.neg || expression == 0 ||
@@ -463,7 +463,7 @@ bool Event_parse_data::check_parse_data(THD *thd) {
 void Event_parse_data::init_definer(THD *thd) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(thd->lex->definer);
+  assert(thd->lex->definer);
 
   const char *definer_user = thd->lex->definer->user.str;
   const char *definer_host = thd->lex->definer->host.str;

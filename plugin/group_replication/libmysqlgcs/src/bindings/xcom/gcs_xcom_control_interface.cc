@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2167,7 +2167,7 @@ void Gcs_suspicions_manager::run_process_suspicions(bool lock) {
                                                     nodes_to_remove);
       }
     } else if (force_remove) {
-      DBUG_ASSERT(!m_is_killer_node);
+      assert(!m_is_killer_node);
       MYSQL_GCS_LOG_TRACE("process_suspicions: Expelling myself!");
       bool const removed = m_proxy->xcom_remove_node(*m_my_info, m_gid_hash);
       if (!removed) {

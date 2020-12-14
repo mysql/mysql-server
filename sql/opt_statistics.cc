@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,11 @@
 
 #include "sql/opt_statistics.h"
 
+#include <assert.h>
 #include <algorithm>
 
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_macros.h"
 #include "sql/handler.h"
 #include "sql/key.h"    // rec_per_key_t, KEY
@@ -58,9 +59,9 @@ using std::max;
 
 rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
                                 uint used_keyparts) {
-  DBUG_ASSERT(used_keyparts >= 1);
-  DBUG_ASSERT(used_keyparts <= key->actual_key_parts);
-  DBUG_ASSERT(!key->has_records_per_key(used_keyparts - 1));
+  assert(used_keyparts >= 1);
+  assert(used_keyparts <= key->actual_key_parts);
+  assert(!key->has_records_per_key(used_keyparts - 1));
 
   const ha_rows table_rows = table->file->stats.records;
 
@@ -111,7 +112,7 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
         rec_per_key = rec_per_key_first;  // Non-unique index
     }
 
-    DBUG_ASSERT(rec_per_key >= rec_per_key_all);
+    assert(rec_per_key >= rec_per_key_all);
   }
 
   return rec_per_key;

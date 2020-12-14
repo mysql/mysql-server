@@ -191,7 +191,7 @@ int Rpl_filter::copy_global_replication_filters() {
   bool need_unlock = false;
 
   /* Assert that it is not self copy. */
-  DBUG_ASSERT(this != &rpl_global_filter);
+  assert(this != &rpl_global_filter);
 
   /* Check if the source is empty. */
   if (rpl_global_filter.is_empty()) return 0;
@@ -275,7 +275,7 @@ int Rpl_filter::copy_global_replication_filters() {
                                         rpl_global_filter.wild_do_table_inited);
     if (res != 0) goto err;
 
-    DBUG_ASSERT(!wild_do_table.empty());
+    assert(!wild_do_table.empty());
 
     wild_do_table_inited = true;
     table_rules_on = true;
@@ -292,7 +292,7 @@ int Rpl_filter::copy_global_replication_filters() {
                     res = 1;);
     if (res != 0) goto err;
 
-    DBUG_ASSERT(!wild_ignore_table.empty());
+    assert(!wild_ignore_table.empty());
 
     wild_ignore_table_inited = true;
     table_rules_on = true;
@@ -1341,7 +1341,7 @@ void Sql_cmd_change_repl_filter::set_filter_value(
       break;
     default:
       /* purecov: begin deadcode */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
       /* purecov: end */
   }

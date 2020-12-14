@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 // This code can be used only in debug builds.
-#error You cannot use test trace plugin when DBUG_OFF is defined. \
+#error You cannot use test trace plugin when NDEBUG is defined. \
        Test trace plugin will work in debug builds only.
 #else
 
@@ -45,12 +45,13 @@
   then the plugin will crash if an invalid trace event was reported to it.
 */
 
+#include <assert.h>
 #include <ctype.h>  /* isprint() */
 #include <stdio.h>  /* snprintf() */
 #include <string.h> /* memset() */
 
 #include "my_byteorder.h"
-#include "my_dbug.h"
+
 #include "mysql.h"
 #include "mysql_trace.h"
 
@@ -432,7 +433,7 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
       if (data && data->next_stage != stage) {
         LOG(("wrong stage, expected: %s",
              protocol_stage_name(data->next_stage)));
-        if (opt_crash) DBUG_ASSERT(0);
+        if (opt_crash) assert(0);
       }
   }
 
@@ -561,7 +562,7 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
     PROTOCOL_STAGE_LIST(check)
     default:
       LOG(("invalid stage %d", stage));
-      if (opt_crash) DBUG_ASSERT(0);
+      if (opt_crash) assert(0);
   }
 
   // Disable invalid event check in certain cases.
@@ -588,7 +589,7 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
 
   if (check) {
     LOG(("invalid event detected"));
-    if (opt_crash) DBUG_ASSERT(0);
+    if (opt_crash) assert(0);
   }
 
   return 0;
@@ -1310,4 +1311,4 @@ int check_event_DISCONNECTED(MYSQL *, struct st_trace_data *, enum trace_event,
 
 }  // namespace test_trace
 
-#endif  // #if defined(DBUG_OFF)
+#endif  // #if defined(NDEBUG)

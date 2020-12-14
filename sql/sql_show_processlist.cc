@@ -117,7 +117,7 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
     Default Info field length is 100. Verbose field length is limited to the
     size of the INFO columns in the Performance Schema.
   */
-  DBUG_ASSERT(PROCESS_LIST_WIDTH == 100);
+  assert(PROCESS_LIST_WIDTH == 100);
   if (verbose) {
     if (lex_string_strmake(thd->mem_root, &info_len, "1024", 4)) return true;
   } else {

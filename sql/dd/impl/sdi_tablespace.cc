@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ namespace {
 
 using DC = dd::cache::Dictionary_client;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 const char *ge_type(const dd::Table &) { return "TABLE"; }
 
 const char *ge_type(const dd::Index &) { return "INDEX"; }
@@ -65,7 +65,7 @@ const char *ge_type(const dd::Index &) { return "INDEX"; }
 const char *ge_type(const dd::Partition &) { return "PARTITION"; }
 
 const char *ge_type(const dd::Partition_index &) { return "PARTITION_INDEX"; }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 /**
    Traverses Table object with sub objects. Returns when the first

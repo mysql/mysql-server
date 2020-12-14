@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <mysql.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "plugin/rewriter/rewriter_plugin.h"
@@ -45,7 +45,7 @@ bool load_rewrite_rules_init(UDF_INIT *, UDF_ARGS *, char *message) {
 
 char *load_rewrite_rules(UDF_INIT *, UDF_ARGS *, char *, unsigned long *length,
                          unsigned char *is_null, unsigned char *) {
-  DBUG_ASSERT(get_rewriter_plugin_info() != nullptr);
+  assert(get_rewriter_plugin_info() != nullptr);
   const char *message = nullptr;
   if (refresh_rules_table()) {
     message = "Loading of some rule(s) failed.";

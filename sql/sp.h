@@ -23,6 +23,7 @@
 #ifndef _SP_H_
 #define _SP_H_
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <string>
@@ -30,7 +31,7 @@
 #include "field_types.h"
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/item.h"     // Item::Type
@@ -301,11 +302,11 @@ class Sroutine_hash_entry {
   }
 
   const char *part_mdl_key() {
-    DBUG_ASSERT(!use_normalized_key());
+    assert(!use_normalized_key());
     return (char *)m_key + 1;
   }
   size_t part_mdl_key_length() {
-    DBUG_ASSERT(!use_normalized_key());
+    assert(!use_normalized_key());
     return m_key_length - 1U;
   }
 
@@ -362,8 +363,8 @@ inline bool sp_add_own_used_routine(Query_tables_list *prelocking_ctx,
                                     Query_arena *arena,
                                     Sroutine_hash_entry::entry_type type,
                                     sp_name *sp_name) {
-  DBUG_ASSERT(type == Sroutine_hash_entry::FUNCTION ||
-              type == Sroutine_hash_entry::PROCEDURE);
+  assert(type == Sroutine_hash_entry::FUNCTION ||
+         type == Sroutine_hash_entry::PROCEDURE);
 
   return sp_add_used_routine(
       prelocking_ctx, arena, type, sp_name->m_db.str, sp_name->m_db.length,

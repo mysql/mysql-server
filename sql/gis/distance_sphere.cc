@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,12 @@
 #include "sql/gis/distance_sphere.h"
 #include "sql/gis/distance_sphere_functor.h"
 
+#include <assert.h>
 #include <boost/geometry.hpp>
 #include <cmath>      // std::isinf, M_PI
 #include <stdexcept>  // std::overflow_error
 
-#include "my_dbug.h"                                // DBUG_ASSERT
+// assert
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/functor.h"     // gis::Functor, gis::not_implemented_exception
 #include "sql/gis/geometries.h"  // gis::{Geometry{,_type}, Coordinate_system}
@@ -146,13 +147,12 @@ bool distance_sphere(const dd::Spatial_reference_system *srs,
                      const char *func_name, double sphere_radius,
                      double *result, bool *result_null) noexcept {
   try {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
-    DBUG_ASSERT(!srs || srs->is_cartesian() || srs->is_geographic());
-    DBUG_ASSERT(!srs || srs->is_cartesian() == (g1->coordinate_system() ==
-                                                Coordinate_system::kCartesian));
-    DBUG_ASSERT(!srs ||
-                srs->is_geographic() == (g1->coordinate_system() ==
-                                         Coordinate_system::kGeographic));
+    assert(g1->coordinate_system() == g2->coordinate_system());
+    assert(!srs || srs->is_cartesian() || srs->is_geographic());
+    assert(!srs || srs->is_cartesian() == (g1->coordinate_system() ==
+                                           Coordinate_system::kCartesian));
+    assert(!srs || srs->is_geographic() == (g1->coordinate_system() ==
+                                            Coordinate_system::kGeographic));
 
     *result_null = false;
 

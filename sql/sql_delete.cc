@@ -406,7 +406,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   }
 
   // Reaching here only when table must be accessed
-  DBUG_ASSERT(!no_rows);
+  assert(!no_rows);
 
   {
     ha_rows rows;
@@ -448,7 +448,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     unique_ptr_destroy_only<RowIterator> iterator;
     if (need_sort) {
-      DBUG_ASSERT(usable_index == MAX_KEY);
+      assert(usable_index == MAX_KEY);
 
       if (qep_tab.condition() != nullptr) {
         path = NewFilterAccessPath(thd, path, qep_tab.condition());
@@ -508,12 +508,12 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
         qep_tab.quick()->index != MAX_KEY)
       read_removal = table->check_read_removal(qep_tab.quick()->index);
 
-    DBUG_ASSERT(limit > 0);
+    assert(limit > 0);
 
     // The loop that reads rows and delete those that qualify
 
     while (!(error = iterator->Read()) && !thd->killed) {
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       thd->inc_examined_row_count(1);
 
       if (qep_tab.condition() != nullptr) {
@@ -529,7 +529,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
         }
       }
 
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       if (has_before_triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, false)) {
@@ -593,7 +593,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   }  // End of scope for Modification_plan
 
 cleanup:
-  DBUG_ASSERT(!lex->is_explain());
+  assert(!lex->is_explain());
 
   if (!transactional_table && deleted_rows > 0)
     thd->get_transaction()->mark_modified_non_trans_table(
@@ -624,9 +624,8 @@ cleanup:
       }
     }
   }
-  DBUG_ASSERT(
-      transactional_table || deleted_rows == 0 ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(transactional_table || deleted_rows == 0 ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
   if (error < 0) {
     my_ok(thd, deleted_rows);
     DBUG_PRINT("info", ("%ld records deleted", (long)deleted_rows));
@@ -704,7 +703,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     }
 
     // A view must be merged, and thus cannot have a TABLE
-    DBUG_ASSERT(!table_ref->is_view() || table_ref->table == nullptr);
+    assert(!table_ref->is_view() || table_ref->table == nullptr);
 
     // Cannot delete from a storage engine that does not support delete.
     TABLE_LIST *base_table = table_ref->updatable_base_table();
@@ -753,16 +752,15 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     return true;
 
   // Enable the following code if allowing LIMIT with multi-table DELETE
-  DBUG_ASSERT(sql_command_code() == SQLCOM_DELETE ||
-              select->select_limit == nullptr);
+  assert(sql_command_code() == SQLCOM_DELETE ||
+         select->select_limit == nullptr);
 
   lex->allow_sum_func = 0;
 
   if (select->setup_conds(thd)) return true;
 
-  DBUG_ASSERT(select->having_cond() == nullptr &&
-              select->group_list.elements == 0 &&
-              select->offset_limit == nullptr);
+  assert(select->having_cond() == nullptr && select->group_list.elements == 0 &&
+         select->offset_limit == nullptr);
 
   if (select->resolve_limits(thd)) return true; /* purecov: inspected */
 
@@ -773,7 +771,7 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
     tables.table = table_list->table;
     tables.alias = table_list->alias;
 
-    DBUG_ASSERT(!select->group_list.elements);
+    assert(!select->group_list.elements);
     if (select->setup_base_ref_items(thd)) return true; /* purecov: inspected */
     if (setup_order(thd, select->base_ref_items, &tables, &select->fields,
                     select->order_list.first))
@@ -1022,7 +1020,7 @@ bool Query_result_delete::send_data(THD *thd, const mem_root_deque<Item *> &) {
 
     TABLE *const table = join->qep_tab[i].table();
 
-    DBUG_ASSERT(immediate || table == tables[unique_counter]);
+    assert(immediate || table == tables[unique_counter]);
 
     /*
       If not doing immediate deletion, increment unique_counter and assign
@@ -1113,7 +1111,7 @@ void Query_result_delete::abort_result_set(THD *thd) {
     // Execute the recorded do_deletes() and write info into the error log
     delete_error = 1;
     send_eof(thd);
-    DBUG_ASSERT(error_handled);
+    assert(error_handled);
     return;
   }
 
@@ -1140,7 +1138,7 @@ void Query_result_delete::abort_result_set(THD *thd) {
 
 int Query_result_delete::do_deletes(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(!delete_completed);
+  assert(!delete_completed);
 
   delete_completed = true;  // Mark operation as complete
   if (found_rows == 0) return 0;

@@ -783,7 +783,7 @@ class Opt_trace_struct {
   Opt_trace_stmt *stmt;  ///< Trace owning the structure
   /// Key if the structure is the value of a key/value pair, NULL otherwise
   const char *saved_key;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Fixed-length prefix of previous key in this structure, if this structure
      is an object. Serves to detect when adding two same consecutive keys to

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,7 @@ bool Foreign_keys::check_foreign_key_exists(THD *thd, Object_id schema_id,
       create_key_by_foreign_key_name(schema_id, foreign_key_name.c_str()));
 
   Raw_table *table = trx.otx.get_table(instance().name());
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   // Find record by the object-key.
   std::unique_ptr<Raw_record> record;

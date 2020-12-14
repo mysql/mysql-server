@@ -106,7 +106,7 @@ class EQRefIterator final : public TableRowIterator {
   // since it (by definition) can never scan more than one row. Normally,
   // we should not get this (for nested loop joins, PFS batch mode is not
   // enabled if the innermost iterator is an EQRefIterator); however,
-  // we cannot DBUG_ASSERT(false), since it could happen if we only have
+  // we cannot assert(false), since it could happen if we only have
   // a single table. Thus, just ignore the call should it happen.
   void StartPSIBatchMode() override {}
 

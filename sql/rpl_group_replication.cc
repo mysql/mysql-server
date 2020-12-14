@@ -183,7 +183,7 @@ int group_replication_start(char **error_message, THD *thd) {
         // So by now START GR command should fail if running or stop should have
         // cleared credentials. Post UNINSTALL we should not reach here.
         /* purecov: begin inspected */
-        DBUG_ASSERT(false);
+        assert(false);
         result = 2;
         goto err;
         /* purecov: end */
@@ -498,7 +498,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
                                       size_t *length) {
   Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::WRITE_LOCK);
 
-  DBUG_ASSERT(global_gtid_mode.get() != Gtid_mode::OFF);
+  assert(global_gtid_mode.get() != Gtid_mode::OFF);
 
   const Gtid_set *executed_gtids = gtid_state->get_executed_gtids();
   *length = executed_gtids->get_encoded_length();
@@ -510,7 +510,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
   return false;
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 char *encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length) {
   /* No sid_lock because this is a completely local object. */
   Sid_map sid_map(nullptr);
@@ -536,7 +536,7 @@ void global_thd_manager_remove_thd(THD *thd) {
 bool is_gtid_committed(const Gtid &gtid) {
   Checkable_rwlock::Guard g(*global_sid_lock, Checkable_rwlock::READ_LOCK);
 
-  DBUG_ASSERT(global_gtid_mode.get() != Gtid_mode::OFF);
+  assert(global_gtid_mode.get() != Gtid_mode::OFF);
 
   gtid_state->lock_sidno(gtid.sidno);
   bool result = gtid_state->is_executed(gtid);

@@ -23,12 +23,12 @@
 #ifndef DD__COLUMN_IMPL_INCLUDED
 #define DD__COLUMN_IMPL_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <memory>  // std::unique_ptr
 #include <new>
 
-#include "my_dbug.h"
 #include "nullable.h"
 #include "sql/dd/impl/properties_impl.h"           // Properties_impl
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
@@ -430,8 +430,8 @@ class Column_impl : public Entity_object_impl, public Column {
   Column_type_element *add_element() override;
 
   const Column_type_element_collection &elements() const override {
-    DBUG_ASSERT(type() == enum_column_types::ENUM ||
-                type() == enum_column_types::SET);
+    assert(type() == enum_column_types::ENUM ||
+           type() == enum_column_types::SET);
     return m_elements;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020 Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,8 @@ class MDL_context_backup_manager::MDL_context_backup
   MDL_context_backup() { m_context.init(this); }
 
   ~MDL_context_backup() override {
-    DBUG_ASSERT(!m_context.has_locks(MDL_EXPLICIT));
-    DBUG_ASSERT(!m_context.has_locks(MDL_STATEMENT));
+    assert(!m_context.has_locks(MDL_EXPLICIT));
+    assert(!m_context.has_locks(MDL_STATEMENT));
 
     m_context.release_transactional_locks();
     m_context.destroy();
@@ -132,7 +132,7 @@ bool MDL_context_backup_manager::init() {
 }
 
 MDL_context_backup_manager &MDL_context_backup_manager::instance() {
-  DBUG_ASSERT(m_single != nullptr);
+  assert(m_single != nullptr);
   return *m_single;
 }
 
@@ -167,7 +167,7 @@ bool MDL_context_backup_manager::create_backup(const MDL_context *context,
       In other words, it mustn't be present any element for specified xid
       when this method called. Check that this invariant is satisfied.
     */
-    DBUG_ASSERT(!check_key_exist(key_obj));
+    assert(!check_key_exist(key_obj));
 
     std::unique_ptr<MDL_context_backup> element(new (std::nothrow)
                                                     MDL_context_backup());

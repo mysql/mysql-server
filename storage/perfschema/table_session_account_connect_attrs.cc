@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_session_account_connect_attrs.h"
 
+#include <assert.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "sql/plugin_table.h"
 
 THR_LOCK table_session_account_connect_attrs::m_table_lock;
@@ -81,7 +81,7 @@ bool table_session_account_connect_attrs::thread_fits(PFS_thread *thread) {
   }
 
   /* The thread we compare to, by definition, has some instrumentation. */
-  DBUG_ASSERT(thread != nullptr);
+  assert(thread != nullptr);
 
   uint username_length = current_thread->m_username_length;
   uint hostname_length = current_thread->m_hostname_length;

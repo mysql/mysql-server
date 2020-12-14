@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,7 +41,7 @@ Index::Index(const Table &table, const KEY &mysql_index)
     : m_number_of_indexed_columns(mysql_index.user_defined_key_parts),
       m_table(table),
       m_mysql_index(&mysql_index) {
-  DBUG_ASSERT(m_number_of_indexed_columns <= m_indexed_columns.size());
+  assert(m_number_of_indexed_columns <= m_indexed_columns.size());
 
   /* Re-construction of the array with proper initialization. */
   for (size_t i = 0; i < m_number_of_indexed_columns; ++i) {
@@ -53,7 +53,7 @@ Index::Index(const Table &table, const KEY &mysql_index)
 }
 
 Index::~Index() {
-  DBUG_ASSERT(m_number_of_indexed_columns <= m_indexed_columns.size());
+  assert(m_number_of_indexed_columns <= m_indexed_columns.size());
 
   /* No need to call m_indexed_columns destructors manually,
    * the std::array will do that. */

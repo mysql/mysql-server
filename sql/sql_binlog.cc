@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ void mysql_client_binlog_statement(THD *thd) {
     goto end;
   }
 
-  DBUG_ASSERT(rli->belongs_to_client());
+  assert(rli->belongs_to_client());
 
   for (char const *strptr = thd->lex->binlog_stmt_arg.str;
        strptr <
@@ -209,8 +209,8 @@ void mysql_client_binlog_statement(THD *thd) {
     } else if (bytes_decoded == 0)
       break;  // If no bytes where read, the string contained only whitespace
 
-    DBUG_ASSERT(bytes_decoded > 0);
-    DBUG_ASSERT(endptr > strptr);
+    assert(bytes_decoded > 0);
+    assert(endptr > strptr);
     coded_len -= endptr - strptr;
     strptr = endptr;
 

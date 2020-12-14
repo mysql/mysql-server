@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,9 @@
 
 #include "sql/gis/geometries.h"
 
+#include <assert.h>
 #include <utility>  // std::swap
 
-#include "my_dbug.h"
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/geometry_visitor.h"
 
@@ -71,12 +71,12 @@ bool Cartesian_linestring::accept(Geometry_visitor *v) {
 }
 
 void Cartesian_linestring::push_back(const Point &pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kCartesian);
+  assert(pt.coordinate_system() == Coordinate_system::kCartesian);
   m_points.push_back(static_cast<const Cartesian_point &>(pt));
 }
 
 void Cartesian_linestring::push_back(Point &&pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kCartesian);
+  assert(pt.coordinate_system() == Coordinate_system::kCartesian);
   m_points.push_back(static_cast<Cartesian_point &&>(pt));
 }
 
@@ -93,12 +93,12 @@ bool Geographic_linestring::accept(Geometry_visitor *v) {
 }
 
 void Geographic_linestring::push_back(const Point &pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kGeographic);
+  assert(pt.coordinate_system() == Coordinate_system::kGeographic);
   m_points.push_back(static_cast<const Geographic_point &>(pt));
 }
 
 void Geographic_linestring::push_back(Point &&pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kGeographic);
+  assert(pt.coordinate_system() == Coordinate_system::kGeographic);
   m_points.push_back(static_cast<Geographic_point &&>(pt));
 }
 
@@ -135,7 +135,7 @@ bool Cartesian_polygon::accept(Geometry_visitor *v) {
 }
 
 void Cartesian_polygon::push_back(const Linearring &lr) {
-  DBUG_ASSERT(lr.coordinate_system() == Coordinate_system::kCartesian);
+  assert(lr.coordinate_system() == Coordinate_system::kCartesian);
   if (m_exterior_ring.empty() && m_interior_rings.empty())
     m_exterior_ring = static_cast<const Cartesian_linearring &>(lr);
   else
@@ -143,7 +143,7 @@ void Cartesian_polygon::push_back(const Linearring &lr) {
 }
 
 void Cartesian_polygon::push_back(Linearring &&lr) {
-  DBUG_ASSERT(lr.coordinate_system() == Coordinate_system::kCartesian);
+  assert(lr.coordinate_system() == Coordinate_system::kCartesian);
   if (m_exterior_ring.empty() && m_interior_rings.empty())
     m_exterior_ring = static_cast<Cartesian_linearring &&>(lr);
   else
@@ -194,7 +194,7 @@ Cartesian_polygon::const_interior_rings() const {
 #endif  // IN_DOXYGEN
 
 void Geographic_polygon::push_back(const Linearring &lr) {
-  DBUG_ASSERT(lr.coordinate_system() == Coordinate_system::kGeographic);
+  assert(lr.coordinate_system() == Coordinate_system::kGeographic);
   if (m_exterior_ring.empty() && m_interior_rings.empty())
     m_exterior_ring = static_cast<const Geographic_linearring &>(lr);
   else
@@ -202,7 +202,7 @@ void Geographic_polygon::push_back(const Linearring &lr) {
 }
 
 void Geographic_polygon::push_back(Linearring &&lr) {
-  DBUG_ASSERT(lr.coordinate_system() == Coordinate_system::kGeographic);
+  assert(lr.coordinate_system() == Coordinate_system::kGeographic);
   if (m_exterior_ring.empty() && m_interior_rings.empty())
     m_exterior_ring = static_cast<Geographic_linearring &&>(lr);
   else
@@ -277,7 +277,7 @@ Cartesian_geometrycollection::Cartesian_geometrycollection(
             *static_cast<Cartesian_multipolygon *>(g)));
         break;
       default:
-        DBUG_ASSERT(false); /* purecov: inspected */
+        assert(false); /* purecov: inspected */
     }
   }
 }
@@ -324,7 +324,7 @@ void Cartesian_geometrycollection::push_back(const Geometry &g) {
           static_cast<const Cartesian_multipolygon &>(g)));
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -359,7 +359,7 @@ void Cartesian_geometrycollection::push_back(Geometry &&g) {
           static_cast<Cartesian_multipolygon &&>(g)));
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -402,7 +402,7 @@ Geographic_geometrycollection::Geographic_geometrycollection(
             *static_cast<Geographic_multipolygon *>(g)));
         break;
       default:
-        DBUG_ASSERT(false); /* purecov: inspected */
+        assert(false); /* purecov: inspected */
     }
   }
 }
@@ -449,7 +449,7 @@ void Geographic_geometrycollection::push_back(const Geometry &g) {
           static_cast<const Geographic_multipolygon &>(g)));
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -484,7 +484,7 @@ void Geographic_geometrycollection::push_back(Geometry &&g) {
           static_cast<Geographic_multipolygon &&>(g)));
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -503,12 +503,12 @@ bool Cartesian_multipoint::accept(Geometry_visitor *v) {
 }
 
 void Cartesian_multipoint::push_back(const Geometry &pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kCartesian);
+  assert(pt.coordinate_system() == Coordinate_system::kCartesian);
   m_points.push_back(static_cast<const Cartesian_point &>(pt));
 }
 
 void Cartesian_multipoint::push_back(Geometry &&pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kCartesian);
+  assert(pt.coordinate_system() == Coordinate_system::kCartesian);
   m_points.push_back(static_cast<Cartesian_point &&>(pt));
 }
 
@@ -525,12 +525,12 @@ bool Geographic_multipoint::accept(Geometry_visitor *v) {
 }
 
 void Geographic_multipoint::push_back(const Geometry &pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kGeographic);
+  assert(pt.coordinate_system() == Coordinate_system::kGeographic);
   m_points.push_back(static_cast<const Geographic_point &>(pt));
 }
 
 void Geographic_multipoint::push_back(Geometry &&pt) {
-  DBUG_ASSERT(pt.coordinate_system() == Coordinate_system::kGeographic);
+  assert(pt.coordinate_system() == Coordinate_system::kGeographic);
   m_points.push_back(static_cast<Geographic_point &&>(pt));
 }
 
@@ -548,12 +548,12 @@ bool Cartesian_multilinestring::accept(Geometry_visitor *v) {
 }
 
 void Cartesian_multilinestring::push_back(const Geometry &ls) {
-  DBUG_ASSERT(ls.coordinate_system() == Coordinate_system::kCartesian);
+  assert(ls.coordinate_system() == Coordinate_system::kCartesian);
   m_linestrings.push_back(static_cast<const Cartesian_linestring &>(ls));
 }
 
 void Cartesian_multilinestring::push_back(Geometry &&ls) {
-  DBUG_ASSERT(ls.coordinate_system() == Coordinate_system::kCartesian);
+  assert(ls.coordinate_system() == Coordinate_system::kCartesian);
   m_linestrings.push_back(static_cast<Cartesian_linestring &&>(ls));
 }
 
@@ -571,12 +571,12 @@ bool Geographic_multilinestring::accept(Geometry_visitor *v) {
 }
 
 void Geographic_multilinestring::push_back(const Geometry &ls) {
-  DBUG_ASSERT(ls.coordinate_system() == Coordinate_system::kGeographic);
+  assert(ls.coordinate_system() == Coordinate_system::kGeographic);
   m_linestrings.push_back(static_cast<const Geographic_linestring &>(ls));
 }
 
 void Geographic_multilinestring::push_back(Geometry &&ls) {
-  DBUG_ASSERT(ls.coordinate_system() == Coordinate_system::kGeographic);
+  assert(ls.coordinate_system() == Coordinate_system::kGeographic);
   m_linestrings.push_back(static_cast<Geographic_linestring &&>(ls));
 }
 
@@ -593,12 +593,12 @@ bool Cartesian_multipolygon::accept(Geometry_visitor *v) {
 }
 
 void Cartesian_multipolygon::push_back(const Geometry &py) {
-  DBUG_ASSERT(py.coordinate_system() == Coordinate_system::kCartesian);
+  assert(py.coordinate_system() == Coordinate_system::kCartesian);
   m_polygons.push_back(static_cast<const Cartesian_polygon &>(py));
 }
 
 void Cartesian_multipolygon::push_back(Geometry &&py) {
-  DBUG_ASSERT(py.coordinate_system() == Coordinate_system::kCartesian);
+  assert(py.coordinate_system() == Coordinate_system::kCartesian);
   m_polygons.push_back(static_cast<Cartesian_polygon &&>(py));
 }
 
@@ -615,12 +615,12 @@ bool Geographic_multipolygon::accept(Geometry_visitor *v) {
 }
 
 void Geographic_multipolygon::push_back(const Geometry &py) {
-  DBUG_ASSERT(py.coordinate_system() == Coordinate_system::kGeographic);
+  assert(py.coordinate_system() == Coordinate_system::kGeographic);
   m_polygons.push_back(static_cast<const Geographic_polygon &>(py));
 }
 
 void Geographic_multipolygon::push_back(Geometry &&py) {
-  DBUG_ASSERT(py.coordinate_system() == Coordinate_system::kGeographic);
+  assert(py.coordinate_system() == Coordinate_system::kGeographic);
   m_polygons.push_back(static_cast<Geographic_polygon &&>(py));
 }
 
@@ -644,7 +644,7 @@ const char *type_to_name(Geometry_type type) {
       return "MULTIPOLYGON";
     default:
       /* purecov: begin inspected */
-      DBUG_ASSERT(false);
+      assert(false);
       return "UNKNOWN";
       /* purecov: end */
   }

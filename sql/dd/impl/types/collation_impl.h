@@ -97,7 +97,7 @@ class Collation_impl : public Entity_object_impl, public Collation {
   /////////////////////////////////////////////////////////////////////////
 
   virtual void set_pad_attribute(enum_pad_attribute pad_attribute) {
-    DBUG_ASSERT(pad_attribute != PA_UNDEFINED);
+    assert(pad_attribute != PA_UNDEFINED);
     m_pad_attribute = pad_attribute;
   }
 

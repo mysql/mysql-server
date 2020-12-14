@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,8 @@
 
 #include "plugin/group_replication/include/compatibility_module.h"
 
+#include <assert.h>
 #include <stddef.h>
-
-#include "my_dbug.h"
 
 Compatibility_module::Compatibility_module() : local_version(nullptr) {}
 
@@ -50,7 +49,7 @@ void Compatibility_module::add_incompatibility(Member_version &from,
 void Compatibility_module::add_incompatibility(Member_version &from,
                                                Member_version &to_min,
                                                Member_version &to_max) {
-  DBUG_ASSERT(to_min.get_version() <= to_max.get_version());
+  assert(to_min.get_version() <= to_max.get_version());
   this->incompatibilities.insert(std::make_pair(
       from.get_version(),
       std::make_pair(to_min.get_version(), to_max.get_version())));

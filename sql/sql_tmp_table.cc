@@ -237,7 +237,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table) {
                        item->unsigned_flag);
       break;
     case STRING_RESULT:
-      DBUG_ASSERT(item->collation.collation);
+      assert(item->collation.collation);
 
       /*
         DATE/TIME, GEOMETRY and JSON fields have STRING_RESULT result type.
@@ -257,7 +257,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table) {
     case ROW_RESULT:
     default:
       // This case should never be choosen
-      DBUG_ASSERT(0);
+      assert(0);
       new_field = nullptr;
       break;
   }
@@ -416,7 +416,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         Field *sp_result_field = item_func_sp->get_sp_result_field();
 
         if (make_copy_field) {
-          DBUG_ASSERT(item_func_sp->get_result_field());
+          assert(item_func_sp->get_result_field());
           *from_field = item_func_sp->get_result_field();
         } else {
           copy_func->push_back(Func_ptr(item));
@@ -473,7 +473,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         if (make_copy_field || (copy_result_field && !is_wf))  // (2)
         {
           *from_field = item->get_tmp_table_field();
-          DBUG_ASSERT(*from_field);
+          assert(*from_field);
         }
 
         result = create_tmp_field_from_item(item, table);
@@ -490,7 +490,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
           table, thd->is_strict_mode());
       break;
     default:  // Doesn't have to be stored
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -600,7 +600,7 @@ uint Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS = 0;
   storage engines.
 */
 void init_cache_tmp_engine_properties() {
-  DBUG_ASSERT(!current_thd);
+  assert(!current_thd);
   THD *thd = new THD();
   thd->thread_stack = pointer_cast<char *>(&thd);
   thd->store_globals();
@@ -621,7 +621,7 @@ void get_max_key_and_part_length(uint *max_key_length,
                                  uint *max_key_part_length,
                                  uint *max_key_parts) {
   // Make sure these cached properties are initialized.
-  DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH);
+  assert(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH);
 
   *max_key_length =
       std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH,
@@ -1019,7 +1019,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         !save_sum_fields) { /* Can't calc group yet */
       Item_sum *sum_item = down_cast<Item_sum *>(item);
       for (uint i = 0; i < sum_item->argument_count(); i++) {
-        DBUG_ASSERT(!distinct);
+        assert(!distinct);
         Item *arg = sum_item->get_arg(i);
         if (!arg->const_item()) {
           Field *new_field = create_tmp_field(
@@ -1095,7 +1095,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
       }
 
       if (new_field == nullptr) {
-        DBUG_ASSERT(thd->is_fatal_error());
+        assert(thd->is_fatal_error());
         return nullptr;  // Got OOM
       }
       /*
@@ -1173,7 +1173,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     }
   }  // end of for
 
-  DBUG_ASSERT(field_count >= fieldnr);
+  assert(field_count >= fieldnr);
 
   reg_field[fieldnr] = nullptr;
   *blob_field = 0;  // End marker
@@ -1200,7 +1200,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     // Let each group expression know the column which materializes its value
     for (ORDER *cur_group = group; cur_group; cur_group = cur_group->next) {
       Field *field = (*cur_group->item)->get_tmp_table_field();
-      DBUG_ASSERT(field->table == table);
+      assert(field->table == table);
       cur_group->field_in_tmp_table = field;
 
       if ((*cur_group->item)->max_char_length() > CONVERT_IF_BIGGER_TO_BLOB)
@@ -1325,7 +1325,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field) {
       /* purecov: begin inspected */
-      DBUG_ASSERT(thd->is_fatal_error());
+      assert(thd->is_fatal_error());
       return nullptr;  // Got OOM
                        /* purecov: end */
     }
@@ -1379,7 +1379,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
   uchar *pos = table->record[0] + share->null_bytes;
   null_count = (share->blob_fields == 0) ? 1 : 0;
   hidden_field_count = param->hidden_field_count;
-  DBUG_ASSERT((uint)hidden_field_count <= share->fields);
+  assert((uint)hidden_field_count <= share->fields);
   for (uint i = 0; i < share->fields; i++) {
     Field *field = table->field[i];
 
@@ -1409,7 +1409,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
   if (!use_packed_rows) share->db_create_options &= ~HA_OPTION_PACK_RECORD;
 
   param->func_count = param->items_to_copy->size();
-  DBUG_ASSERT(param->func_count <= copy_func_count);  // Used <= allocated
+  assert(param->func_count <= copy_func_count);  // Used <= allocated
   sort_copy_func(thd->lex->current_query_block(), param->items_to_copy);
   uchar *bitmaps = static_cast<uchar *>(
       share->mem_root.Alloc(bitmap_buffer_size(field_count + 1) * 3));
@@ -1625,7 +1625,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   uint i;
 
   DBUG_TRACE;
-  DBUG_ASSERT(!sjtbl || !sjtbl->is_confluent);
+  assert(!sjtbl || !sjtbl->is_confluent);
 
   DBUG_EXECUTE_IF("create_duplicate_weedout_tmp_table_error", {
     my_error(ER_UNKNOWN_ERROR, MYF(0));
@@ -1661,7 +1661,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     Field_longlong *field_ll = new (&share->mem_root)
         Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field_ll) {
-      DBUG_ASSERT(thd->is_fatal_error());
+      assert(thd->is_fatal_error());
       goto err;  // Got OOM
     }
     // Mark hash_field as NOT NULL
@@ -1981,7 +1981,7 @@ static bool use_tmp_disk_storage_engine(
       return true;
     }
   } else {
-    DBUG_ASSERT(mem_engine == TMP_TABLE_TEMPTABLE);
+    assert(mem_engine == TMP_TABLE_TEMPTABLE);
   }
 
   /* User said the result would be big, so may not fit in memory */
@@ -2016,7 +2016,7 @@ bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
                              bool force_disk_table, bool schema_table) {
   TABLE_SHARE *share = table->s;
 
-  DBUG_ASSERT(table->file == nullptr);
+  assert(table->file == nullptr);
 
   if (share->db_plugin == nullptr) {
     handlerton *hton;
@@ -2047,12 +2047,12 @@ bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
           hton = temptable_hton;
           break;
         case TMP_TABLE_MEMORY:
-          DBUG_ASSERT(!table->pos_in_table_list ||
-                      !table->pos_in_table_list->schema_table);
+          assert(!table->pos_in_table_list ||
+                 !table->pos_in_table_list->schema_table);
           hton = heap_hton;
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           hton = nullptr;
           break;
       }
@@ -2060,7 +2060,7 @@ bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
 
     share->db_plugin = ha_lock_engine(nullptr, hton);
   }
-  DBUG_ASSERT(share->db_plugin != nullptr);
+  assert(share->db_plugin != nullptr);
 
   table->file = get_new_handler(share, false, thd->mem_root, share->db_type());
   if (table->file == nullptr) return true;
@@ -2135,10 +2135,10 @@ static bool alloc_record_buffers(TABLE *table) {
 }
 
 bool open_tmp_table(TABLE *table) {
-  DBUG_ASSERT(table->s->ref_count() == 1 ||        // not shared, or:
-              table->s->db_type() == heap_hton ||  // using right engines
-              table->s->db_type() == temptable_hton ||
-              table->s->db_type() == innodb_hton);
+  assert(table->s->ref_count() == 1 ||        // not shared, or:
+         table->s->db_type() == heap_hton ||  // using right engines
+         table->s->db_type() == temptable_hton ||
+         table->s->db_type() == innodb_hton);
 
   int error;
   if ((error = table->file->ha_open(table, table->s->table_name.str, O_RDWR,
@@ -2251,7 +2251,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
   } else if (table->s->db_type() == temptable_hton) {
     trace_tmp.add_alnum("location", "TempTable");
   } else {
-    DBUG_ASSERT(s->db_type() == heap_hton);
+    assert(s->db_type() == heap_hton);
     trace_tmp.add_alnum("location", "memory (heap)")
         .add("row_limit_estimate", s->max_rows);
   }
@@ -2275,10 +2275,10 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
 
 bool instantiate_tmp_table(THD *thd, TABLE *table) {
   TABLE_SHARE *const share = table->s;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (uint i = 0; i < share->fields; i++)
-    DBUG_ASSERT(table->field[i]->gcol_info == nullptr &&
-                table->field[i]->stored_in_db);
+    assert(table->field[i]->gcol_info == nullptr &&
+           table->field[i]->stored_in_db);
 #endif
   thd->inc_status_created_tmp_tables();
 
@@ -2351,9 +2351,9 @@ void close_tmp_table(THD *thd, TABLE *entry) {
 
   if (!entry->has_storage_handler()) return;
 
-  DBUG_ASSERT(entry->has_storage_handler() && entry->s->ref_count() > 0 &&
-              entry->s->tmp_handler_count <= entry->s->ref_count());
-  DBUG_ASSERT(entry->mem_root.allocated_size() == 0);
+  assert(entry->has_storage_handler() && entry->s->ref_count() > 0 &&
+         entry->s->tmp_handler_count <= entry->s->ref_count());
+  assert(entry->mem_root.allocated_size() == 0);
 
   filesort_free_buffers(entry, true);
 
@@ -2390,9 +2390,9 @@ void free_tmp_table(TABLE *entry) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", entry->alias));
 
-  DBUG_ASSERT(!entry->is_created() && !entry->has_storage_handler() &&
-              entry->s->db_plugin == nullptr && entry->s->ref_count() > 0 &&
-              entry->s->tmp_handler_count == 0);
+  assert(!entry->is_created() && !entry->has_storage_handler() &&
+         entry->s->db_plugin == nullptr && entry->s->ref_count() > 0 &&
+         entry->s->tmp_handler_count == 0);
 
   /*
     In create_tmp_table(), the share's memroot is allocated inside own_root
@@ -2468,7 +2468,7 @@ void free_tmp_table(TABLE *entry) {
 bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
                              bool ignore_last_dup, bool *is_duplicate) {
   int write_err = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const uint initial_handler_count = wtable->s->tmp_handler_count;
   bool rows_on_disk = false;
 #endif
@@ -2503,7 +2503,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
   TABLE_SHARE *const old_share = wtable->s;
   const plugin_ref old_plugin = old_share->db_plugin;
   TABLE_SHARE share = std::move(*old_share);
-  DBUG_ASSERT(share.ha_share == nullptr);
+  assert(share.ha_share == nullptr);
 
   share.db_plugin = ha_lock_engine(thd, innodb_hton);
 
@@ -2522,7 +2522,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
         }
         ++i;
       }
-      DBUG_ASSERT(found >= 0);
+      assert(found >= 0);
       if (found > 0)
         // 'wtable' is at position 'found', move it to 0 to convert it first
         std::swap(cte->tmp_tables[0], cte->tmp_tables[found]);
@@ -2544,7 +2544,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       table = wtable;
     }
 
-    DBUG_ASSERT(table->mem_root.allocated_size() == 0);
+    assert(table->mem_root.allocated_size() == 0);
     table->mem_root.Clear();
 
     // Set up a partial copy of the table.
@@ -2599,7 +2599,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
           Opt_trace_context *trace = &thd->opt_trace;
           Opt_trace_object wrapper(trace);
           Opt_trace_object convert(trace, "converting_tmp_table_to_ondisk");
-          DBUG_ASSERT(error == HA_ERR_RECORD_FILE_FULL);
+          assert(error == HA_ERR_RECORD_FILE_FULL);
           convert.add_alnum("cause", "memory_table_size_exceeded");
           trace_tmp_table(trace, &new_table);
         }
@@ -2641,7 +2641,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
         }
 
         (void)table->file->ha_rnd_end();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         rows_on_disk = true;
 #endif
       }
@@ -2665,7 +2665,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
           substitute_recursive_reference(). So, we know the disk-based rows
           already exist at this point.
         */
-        DBUG_ASSERT(rows_on_disk);
+        assert(rows_on_disk);
         (void)table->file->ha_rnd_end();
         rec_ref_w_open_cursor = true;
       }
@@ -2695,8 +2695,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     table->no_rows = new_table.no_rows;
     table->record[0] = new_table.record[0];
     table->record[1] = new_table.record[1];
-    DBUG_ASSERT(table->mem_root.allocated_size() == 0);
-    DBUG_ASSERT(new_table.mem_root.allocated_size() == 0);
+    assert(table->mem_root.allocated_size() == 0);
+    assert(new_table.mem_root.allocated_size() == 0);
     table->mem_root = std::move(new_table.mem_root);
 
     /*
@@ -2712,7 +2712,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
     /* Update quick select, if any. */
     if (tab && tab->quick()) {
-      DBUG_ASSERT(table->pos_in_table_list->uses_materialization());
+      assert(table->pos_in_table_list->uses_materialization());
       tab->quick()->set_handler(table->file);
     }
 
@@ -2753,7 +2753,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     it, and so do their table->file: everything is consistent.
   */
 
-  DBUG_ASSERT(initial_handler_count == wtable->s->tmp_handler_count);
+  assert(initial_handler_count == wtable->s->tmp_handler_count);
 
   if (save_proc_info)
     thd_proc_info(thd, (!strcmp(save_proc_info, "Copying to tmp table")
@@ -2789,7 +2789,7 @@ err_after_proc_info:
 void encode_innodb_position(uchar *rowid_bytes,
                             uint length MY_ATTRIBUTE((unused)),
                             ha_rows row_num) {
-  DBUG_ASSERT(length == 6);
+  assert(length == 6);
   for (int i = 0; i < 6; i++)
     rowid_bytes[i] = (uchar)(row_num >> ((5 - i) * 8));
 }
@@ -2810,7 +2810,7 @@ void encode_innodb_position(uchar *rowid_bytes,
   order.
 */
 bool reposition_innodb_cursor(TABLE *table, ha_rows row_num) {
-  DBUG_ASSERT(table->s->db_type() == innodb_hton);
+  assert(table->s->db_type() == innodb_hton);
   if (table->file->ha_rnd_init(false)) return true; /* purecov: inspected */
   // Per the explanation above, the wanted InnoDB row has PK=row_num.
   uchar rowid_bytes[6];

@@ -22,9 +22,10 @@
 
 #include "sql/parse_tree_partitions.h"
 
+#include <assert.h>
 #include "m_ctype.h"
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -196,8 +197,7 @@ bool PT_part_values_in_list::contextualize(Partition_parse_context *pc) {
 }
 
 bool PT_part_definition::contextualize(Partition_parse_context *pc) {
-  DBUG_ASSERT(pc->current_partition == nullptr &&
-              pc->curr_part_elem == nullptr);
+  assert(pc->current_partition == nullptr && pc->curr_part_elem == nullptr);
 
   if (super::contextualize(pc)) return true;
 
@@ -268,7 +268,7 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
       if (opt_part_values->contextualize(&ppc)) return true;
     } break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       error(&ppc, pos, ER_THD(pc->thd, ER_UNKNOWN_ERROR));
       return true;
   }

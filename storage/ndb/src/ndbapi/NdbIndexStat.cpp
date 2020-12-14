@@ -602,7 +602,7 @@ NdbIndexStat::query_stat(const Range& range_f, Stat& stat_f)
   NdbIndexStatImpl::Bound& bound2 =
     *(NdbIndexStatImpl::Bound*)bound2_f.m_impl;
   NdbIndexStatImpl::Range range(bound1, bound2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const uint sz = 8000;
   char buf[sz];
   DBUG_PRINT("index_stat", ("lo: %s", bound1.m_bound.print(buf, sz)));
@@ -649,7 +649,7 @@ NdbIndexStat::get_rir(const Stat& stat_f, double* rir)
     x = 1.0;
   require(rir != 0);
   *rir = x;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rir);
 #endif
@@ -680,7 +680,7 @@ NdbIndexStat::get_rpk_pruned(const Stat& stat_f,
     double fragments = stat.m_value.m_num_fragments;
     *rpk = factor * x / fragments;
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rpk);
 #endif
@@ -715,7 +715,7 @@ NdbIndexStat::get_rpk(const Stat& stat_f,
     *rpk = x;
     require(stat.m_value.m_unq_factor[k] > 0);
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rpk);
 #endif

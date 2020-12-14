@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,8 +215,8 @@ Partition_index_impl *Partition_index_impl::clone(
     const Partition_index_impl &other, Partition_impl *partition) {
   Index *dstix = (*partition->table_impl()
                        .indexes())[other.m_index->ordinal_position() - 1];
-  DBUG_ASSERT(dstix->ordinal_position() == other.m_index->ordinal_position() &&
-              dstix->name() == other.m_index->name());
+  assert(dstix->ordinal_position() == other.m_index->ordinal_position() &&
+         dstix->name() == other.m_index->name());
   return new Partition_index_impl(other, partition, dstix);
 }
 

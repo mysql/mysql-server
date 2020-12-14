@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,7 +232,7 @@ typedef enum enum_before_commit_test_cases {
   INVALID_CERTIFICATION_OUTCOME
 } before_commit_test_cases;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static int before_commit_tests(Trans_param *param,
                                before_commit_test_cases test_case) {
   rpl_sid fake_sid;
@@ -325,7 +325,7 @@ static int trans_before_rollback(Trans_param *) {
 static int trans_after_commit(Trans_param *) {
   DBUG_EXECUTE_IF("group_replication_before_commit_hook_wait", {
     const char act[] = "now wait_for continue_commit";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   trans_after_commit_call++;
@@ -595,7 +595,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
   size_t length;
   get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *encoded_gtid_executed_string =
       encoded_gtid_set_to_string(encoded_gtid_executed, length);
 #endif
@@ -603,7 +603,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
   if (thread_attr != nullptr && hostname != nullptr && uuid != nullptr &&
       port > 0 && startup_pre_reqs.gtid_mode == 3 && server_engine_ready &&
       encoded_gtid_executed != nullptr
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       && encoded_gtid_executed_string != nullptr
 #endif
   )
@@ -615,7 +615,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
         "requirements:"
         " failed to invoke group_replication_priv.h exported functions");
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   my_free(encoded_gtid_executed_string);
 #endif
   my_free(encoded_gtid_executed);
@@ -633,51 +633,51 @@ int validate_plugin_server_requirements(Trans_param *param) {
 
 int test_channel_service_interface_initialization() {
   int error = initialize_channel_service_interface();
-  DBUG_ASSERT(error);
+  assert(error);
   return error;
 }
 
 int test_channel_service_interface() {
   // The initialization method should return OK
   int error = initialize_channel_service_interface();
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Test channel creation
   char interface_channel[] = "example_channel";
   Channel_creation_info info;
   initialize_channel_creation_info(&info);
   error = channel_create(interface_channel, &info);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert the channel exists
   bool exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(exists);
+  assert(exists);
 
   // Check that a non existing channel is declared as such
   char dummy_channel[] = "dummy_channel";
   exists = channel_is_active(dummy_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(!exists);
+  assert(!exists);
 
   // Test that we cannot create a empty named channel (the default channel)
   char empty_interface_channel[] = "";
   initialize_channel_creation_info(&info);
   error = channel_create(empty_interface_channel, &info);
-  DBUG_ASSERT(error == RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR);
+  assert(error == RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR);
 
   // Start the applier thread (since it does not need an external server)
   Channel_connection_info connection_info;
   initialize_channel_connection_info(&connection_info);
   error = channel_start(interface_channel, &connection_info,
                         CHANNEL_APPLIER_THREAD, true);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert that the applier thread is running
   bool running = channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
-  DBUG_ASSERT(running);
+  assert(running);
 
   // Wait for execution of events (none in this case so it should return OK)
   error = channel_wait_until_apply_queue_applied(interface_channel, 100000);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Get the last delivered gno (should be 0)
   rpl_sid fake_sid;
@@ -685,91 +685,91 @@ int test_channel_service_interface() {
                  binary_log::Uuid::TEXT_LENGTH);
   rpl_sidno fake_sidno = get_sidno_from_global_sid_map(fake_sid);
   rpl_gno gno = channel_get_last_delivered_gno(interface_channel, fake_sidno);
-  DBUG_ASSERT(gno == 0);
+  assert(gno == 0);
 
   // Check that for non existing channels it returns the corresponding error
   gno = channel_get_last_delivered_gno(dummy_channel, fake_sidno);
-  DBUG_ASSERT(gno == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+  assert(gno == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
 
   // Extract the applier id
   long unsigned int *applier_id = nullptr;
   channel_get_thread_id(interface_channel, CHANNEL_APPLIER_THREAD, &applier_id);
-  DBUG_ASSERT(*applier_id > 0);
+  assert(*applier_id > 0);
   my_free(applier_id);
 
-  DBUG_ASSERT(binlog_relay_applier_stop_call == 0);
+  assert(binlog_relay_applier_stop_call == 0);
 
   // Stop the channel applier
   error = channel_stop(interface_channel, 3, 10000);
-  DBUG_ASSERT(!error);
+  assert(!error);
   // Repeat the stop to check it goes ok
   error = channel_stop(interface_channel, 3, 10000);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
-  DBUG_ASSERT(binlog_relay_applier_stop_call > 0);
-  DBUG_ASSERT(!thread_aborted);
+  assert(binlog_relay_applier_stop_call > 0);
+  assert(!thread_aborted);
 
   // Assert that the applier thread is not running
   running = channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
-  DBUG_ASSERT(!running);
+  assert(!running);
 
   // Purge the channel and assert all is OK
   error = channel_purge_queue(interface_channel, true);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert the channel is not there.
   exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(!exists);
+  assert(!exists);
 
   // Check that a queue in an empty channel will fail.
   char empty_event[] = "";
   error = channel_queue_packet(dummy_channel, empty_event, 0);
-  DBUG_ASSERT(error);
+  assert(error);
 
   // Test a multi thread channel
   info.channel_mts_parallel_type = CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
   info.channel_mts_parallel_workers = 3;
 
   error = channel_create(interface_channel, &info);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert the channel exists
   exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(exists);
+  assert(exists);
 
   error = channel_start(interface_channel, &connection_info,
                         CHANNEL_APPLIER_THREAD, true);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Extract the applier ids
   applier_id = nullptr;
   int num_appliers = channel_get_thread_id(interface_channel,
                                            CHANNEL_APPLIER_THREAD, &applier_id);
-  DBUG_ASSERT(num_appliers == 4);
+  assert(num_appliers == 4);
 
   unsigned long thread_id = 0;
   for (int i = 0; i < num_appliers; i++) {
     thread_id = applier_id[i];
-    DBUG_ASSERT(thread_id > 0);
+    assert(thread_id > 0);
   }
   my_free(applier_id);
 
   // Stop the channel applier
   error = channel_stop(interface_channel, 3, 10000);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Purge the channel and assert all is OK
   error = channel_purge_queue(interface_channel, true);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert the channel is not there.
   exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(!exists);
+  assert(!exists);
 
   // Test the method to extract credentials - first a non existing channel
   std::string username, password;
   error = channel_get_credentials(dummy_channel, username, password);
-  DBUG_ASSERT(error == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+  assert(error == RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
 
   // Now get channel credentials, after setting them
 
@@ -779,12 +779,12 @@ int test_channel_service_interface() {
   info.user = dummy_user;
   info.password = dummy_pass;
   error = channel_create(interface_channel, &info);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   error = channel_get_credentials(interface_channel, username, password);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(strcmp(dummy_user, username.c_str()) == 0);
-  DBUG_ASSERT(strcmp(dummy_pass, password.c_str()) == 0);
+  assert(!error);
+  assert(strcmp(dummy_user, username.c_str()) == 0);
+  assert(strcmp(dummy_pass, password.c_str()) == 0);
 
   return (error && exists && running && gno && num_appliers && thread_id);
 }
@@ -792,45 +792,45 @@ int test_channel_service_interface() {
 int test_channel_service_interface_io_thread() {
   // The initialization method should return OK
   int error = initialize_channel_service_interface();
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   char interface_channel[] = "example_channel";
 
   // Assert the channel exists
   bool exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(exists);
+  assert(exists);
 
   // Assert that the receiver is running
   bool running = channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
-  DBUG_ASSERT(running);
+  assert(running);
 
   // Extract the receiver id
   long unsigned int *thread_id = nullptr;
   int num_threads = channel_get_thread_id(interface_channel,
                                           CHANNEL_RECEIVER_THREAD, &thread_id);
-  DBUG_ASSERT(num_threads == 1);
-  DBUG_ASSERT(*thread_id > 0);
+  assert(num_threads == 1);
+  assert(*thread_id > 0);
   my_free(thread_id);
 
   // Get the I/O thread retrieved GTID set
   char *retrieved_gtid_set;
   error =
       channel_get_retrieved_gtid_set(interface_channel, &retrieved_gtid_set);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(strlen(retrieved_gtid_set) > 0);
+  assert(!error);
+  assert(strlen(retrieved_gtid_set) > 0);
   my_free(retrieved_gtid_set);
 
   // Check that the applier thread is waiting for events to be queued.
   int is_waiting = channel_is_applier_waiting(interface_channel);
-  DBUG_ASSERT(is_waiting == 1);
+  assert(is_waiting == 1);
 
   // Stop the channel
   error = channel_stop(interface_channel, 3, 10000);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert that the receiver thread is not running
   running = channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
-  DBUG_ASSERT(!running);
+  assert(!running);
 
   return (error && exists && running && num_threads && is_waiting);
 }
@@ -838,14 +838,14 @@ int test_channel_service_interface_io_thread() {
 bool test_channel_service_interface_is_io_stopping() {
   // The initialization method should return OK
   int error = initialize_channel_service_interface();
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Initialize the channel to be used with the channel service interface
   char interface_channel[] = "example_channel";
   Channel_creation_info info;
   initialize_channel_creation_info(&info);
   error = channel_create(interface_channel, &info);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Reset the I/O stop counter
   binlog_relay_thread_stop_call = 0;
@@ -853,57 +853,57 @@ bool test_channel_service_interface_is_io_stopping() {
   // Unregister the thread stop hook
   error = unregister_binlog_relay_io_observer(&relay_io_observer,
                                               (void *)plugin_info_ptr);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Start the I/O thread
   Channel_connection_info connection_info;
   initialize_channel_connection_info(&connection_info);
   error = channel_start(interface_channel, &connection_info,
                         CHANNEL_RECEIVER_THREAD, true);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert the channel exists
   bool exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(exists);
+  assert(exists);
 
   // Wait until I/O thread reached the error and is going to stop
   DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
     const char act[] =
         "now "
         "WAIT_FOR reached_stopping_io_thread";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   // Register the thread stop hook again
   error = register_binlog_relay_io_observer(&relay_io_observer,
                                             (void *)plugin_info_ptr);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert that the receiver is stopping
   bool io_stopping =
       channel_is_stopping(interface_channel, CHANNEL_RECEIVER_THREAD);
-  DBUG_ASSERT(io_stopping);
+  assert(io_stopping);
 
   // Assert that the receiver is running
   bool io_running =
       channel_is_active(interface_channel, CHANNEL_RECEIVER_THREAD);
-  DBUG_ASSERT(io_running);
+  assert(io_running);
 
   // Signal to make the MTR test case to start monitoring the I/O thread
   DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
     const char act[] =
         "now "
         "SIGNAL reached_io_thread_started";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
     const char act[] = "now SIGNAL continue_to_stop_io_thread";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   // The plug-in has missed the stop
-  DBUG_ASSERT(binlog_relay_thread_stop_call == 0);
+  assert(binlog_relay_thread_stop_call == 0);
 
   return (error | exists | io_stopping | io_running);
 }
@@ -911,74 +911,74 @@ bool test_channel_service_interface_is_io_stopping() {
 bool test_channel_service_interface_is_sql_stopping() {
   // The initialization method should return OK
   int error = initialize_channel_service_interface();
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Initialize the channel to be used with the channel service interface
   char interface_channel[] = "example_channel";
   Channel_creation_info info;
   initialize_channel_creation_info(&info);
   error = channel_create(interface_channel, &info);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert the channel exists
   bool exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(exists);
+  assert(exists);
 
   // Unregister the thread stop hook
   error = unregister_binlog_relay_io_observer(&relay_io_observer,
                                               (void *)plugin_info_ptr);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Start the I/O thread
   Channel_connection_info connection_info;
   initialize_channel_connection_info(&connection_info);
   error = channel_start(interface_channel, &connection_info,
                         CHANNEL_RECEIVER_THREAD, true);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Start the SQL thread
   error = channel_start(interface_channel, &connection_info,
                         CHANNEL_APPLIER_THREAD, true);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Wait until SQL thread reached the error and is going to stop
   DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
     const char act[] =
         "now "
         "WAIT_FOR reached_stopping_sql_thread";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   // Register the thread stop hook again
   error = register_binlog_relay_io_observer(&relay_io_observer,
                                             (void *)plugin_info_ptr);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert that the applier is stopping
   bool sql_stopping =
       channel_is_stopping(interface_channel, CHANNEL_APPLIER_THREAD);
-  DBUG_ASSERT(sql_stopping);
+  assert(sql_stopping);
 
   // Assert that the applier is running
   bool sql_running =
       channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
-  DBUG_ASSERT(sql_running);
+  assert(sql_running);
 
   // Signal to make the MTR test case to start monitoring the SQL thread
   DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
     const char act[] =
         "now "
         "SIGNAL reached_sql_thread_started";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
     const char act[] = "now SIGNAL continue_to_stop_sql_thread";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   // The plug-in has missed the stop
-  DBUG_ASSERT(binlog_relay_applier_stop_call == 0);
+  assert(binlog_relay_applier_stop_call == 0);
 
   return (error | exists | sql_stopping | sql_running);
 }
@@ -986,7 +986,7 @@ bool test_channel_service_interface_is_sql_stopping() {
 bool test_channel_service_interface_relay_log_renamed() {
   // The initialization method should return OK
   int error = initialize_channel_service_interface();
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Initialize the channel to be used with the channel service interface
   char interface_channel[] = "example_channel";
@@ -998,11 +998,11 @@ bool test_channel_service_interface_relay_log_renamed() {
   info.hostname = channel_hostname;
   info.user = channel_user;
   error = channel_create(interface_channel, &info);
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   // Assert the channel exists
   bool exists = channel_is_active(interface_channel, CHANNEL_NO_THD);
-  DBUG_ASSERT(exists);
+  assert(exists);
 
   // Start the SQL thread
   Channel_connection_info connection_info;
@@ -1013,14 +1013,14 @@ bool test_channel_service_interface_relay_log_renamed() {
   if (error) {
     THD *thd = current_thd;
     thd->clear_error();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     const char act[] = "now SIGNAL reached_sql_thread_startup_failed";
-    DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 #endif
   } else {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     const char act[] = "now SIGNAL reached_sql_thread_started";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
 #endif
   }
 
@@ -1032,15 +1032,15 @@ bool test_server_count_transactions() {
   my_service<SERVICE_TYPE(mysql_ongoing_transactions_query)> service(
       "mysql_ongoing_transactions_query", reg_srv);
 
-  DBUG_ASSERT(service.is_valid());
+  assert(service.is_valid());
 
   unsigned long *ids = NULL;
   unsigned long size = 0;
   bool error = service->get_ongoing_server_transactions(&ids, &size);
-  DBUG_ASSERT(!error);
+  assert(!error);
   fprintf(stderr, "[DEBUG:] Counting transactions! %lu \n", size);
 
-  DBUG_ASSERT(size == 3);
+  assert(size == 3);
 
   my_free(ids);
 

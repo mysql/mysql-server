@@ -27,11 +27,12 @@
 
 #include "storage/perfschema/pfs_instr.h"
 
+#include <assert.h>
 #include <string.h>
 #include <atomic>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "sql/mysqld.h"  // get_thd_status_var
@@ -112,7 +113,7 @@ int init_instruments(const PFS_global_param *param) {
   uint index;
 
   /* Make sure init_event_name_sizing is called */
-  DBUG_ASSERT(wait_class_max != 0);
+  assert(wait_class_max != 0);
 
   file_handle_max = param->m_file_handle_sizing;
   file_handle_full = false;
@@ -262,9 +263,9 @@ static const uchar *filename_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_file *file;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_file *const *>(entry);
-  DBUG_ASSERT(typed_entry != nullptr);
+  assert(typed_entry != nullptr);
   file = *typed_entry;
-  DBUG_ASSERT(file != nullptr);
+  assert(file != nullptr);
   *length = file->m_filename_length;
   result = file->m_filename;
   return reinterpret_cast<const uchar *>(result);
@@ -338,7 +339,7 @@ PFS_mutex *create_mutex(PFS_mutex_class *klass, const void *identity) {
   @param pfs                          the mutex to destroy
 */
 void destroy_mutex(PFS_mutex *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   PFS_mutex_class *klass = pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
   klass->m_mutex_stat.aggregate(&pfs->m_mutex_stat);
@@ -387,7 +388,7 @@ PFS_rwlock *create_rwlock(PFS_rwlock_class *klass, const void *identity) {
   @param pfs                          the rwlock to destroy
 */
 void destroy_rwlock(PFS_rwlock *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   PFS_rwlock_class *klass = pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
   klass->m_rwlock_stat.aggregate(&pfs->m_rwlock_stat);
@@ -430,7 +431,7 @@ PFS_cond *create_cond(PFS_cond_class *klass, const void *identity) {
   @param pfs                          the condition to destroy
 */
 void destroy_cond(PFS_cond *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   PFS_cond_class *klass = pfs->m_class;
   /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
   klass->m_cond_stat.aggregate(&pfs->m_cond_stat);
@@ -736,15 +737,15 @@ PFS_metadata_lock *sanitize_metadata_lock(PFS_metadata_lock *unsafe) {
   @param pfs                          the thread to destroy
 */
 void destroy_thread(PFS_thread *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   pfs->reset_session_connect_attrs();
   pfs->m_thd = nullptr;
 
   if (pfs->m_account != nullptr) {
     pfs->m_account->release();
     pfs->m_account = nullptr;
-    DBUG_ASSERT(pfs->m_user == nullptr);
-    DBUG_ASSERT(pfs->m_host == nullptr);
+    assert(pfs->m_user == nullptr);
+    assert(pfs->m_host == nullptr);
   } else {
     if (pfs->m_user != nullptr) {
       pfs->m_user->release();
@@ -822,9 +823,9 @@ char *normalize_filename(const char *filename, uint name_len, char *buffer,
   char safe_buffer[FN_REFLEN];
   const char *safe_filename;
 
-  DBUG_ASSERT(filename != NULL);
-  DBUG_ASSERT(buffer != NULL);
-  DBUG_ASSERT(buffer_len >= FN_REFLEN);
+  assert(filename != NULL);
+  assert(buffer != NULL);
+  assert(buffer_len >= FN_REFLEN);
 
   if (name_len >= FN_REFLEN) {
     /*
@@ -909,7 +910,7 @@ char *normalize_filename(const char *filename, uint name_len, char *buffer,
 */
 PFS_file *find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
                               const char *filename, uint len, bool create) {
-  DBUG_ASSERT(klass != nullptr || !create);
+  assert(klass != nullptr || !create);
 
   PFS_file *pfs;
   char buffer[FN_REFLEN];
@@ -1004,8 +1005,8 @@ search:
   @return a file instance or nullptr
 */
 PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
-  DBUG_ASSERT(thread != nullptr);
-  DBUG_ASSERT(old_name != nullptr);
+  assert(thread != nullptr);
+  assert(old_name != nullptr);
 
   uint old_length = (uint)strlen(old_name);
   char buffer[FN_REFLEN];
@@ -1056,9 +1057,9 @@ PFS_file *start_file_rename(PFS_thread *thread, const char *old_name) {
 */
 int end_file_rename(PFS_thread *thread, PFS_file *pfs, const char *new_name,
                     int rename_result) {
-  DBUG_ASSERT(thread != nullptr);
-  DBUG_ASSERT(pfs != nullptr);
-  DBUG_ASSERT(new_name != nullptr);
+  assert(thread != nullptr);
+  assert(pfs != nullptr);
+  assert(new_name != nullptr);
 
   uint new_length = (uint)strlen(new_name);
   const char *filename;
@@ -1133,7 +1134,7 @@ PFS_file *find_file(PFS_thread *thread, PFS_file_class *klass,
   @param pfs                          the file to release
 */
 void release_file(PFS_file *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   pfs->m_file_stat.m_open_count--;
 }
 
@@ -1146,7 +1147,7 @@ void delete_file_name(PFS_thread *thread, PFS_file *pfs) {
   if (thread == nullptr || pfs == nullptr) return;
 
   LF_PINS *pins = get_filename_hash_pins(thread);
-  DBUG_ASSERT(pins != nullptr);
+  assert(pins != nullptr);
 
   lf_hash_delete(&filename_hash, pins, pfs->m_filename, pfs->m_filename_length);
 }
@@ -1158,8 +1159,8 @@ void delete_file_name(PFS_thread *thread, PFS_file *pfs) {
   @param delete_name                  if true, delete the filename from the hash
 */
 void destroy_file(PFS_thread *thread, PFS_file *pfs, bool delete_name) {
-  DBUG_ASSERT(thread != nullptr);
-  DBUG_ASSERT(pfs != nullptr);
+  assert(thread != nullptr);
+  assert(pfs != nullptr);
   PFS_file_class *klass = pfs->m_class;
 
   /* Aggregate to FILE_SUMMARY_BY_EVENT_NAME */
@@ -1250,8 +1251,8 @@ void PFS_table::sanitized_aggregate_lock(void) {
 void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
                                   PFS_table_stat *table_stat,
                                   PFS_table_share *table_share) {
-  DBUG_ASSERT(table_stat != nullptr);
-  DBUG_ASSERT(table_share != nullptr);
+  assert(table_stat != nullptr);
+  assert(table_share != nullptr);
 
   uint key_count = sanitize_index_count(table_share->m_key_count);
 
@@ -1259,7 +1260,7 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
   PFS_table_io_stat *from_stat;
   uint index;
 
-  DBUG_ASSERT(key_count <= MAX_INDEXES);
+  assert(key_count <= MAX_INDEXES);
 
   /* Aggregate stats for each index, if any */
   for (index = 0; index < key_count; index++) {
@@ -1305,8 +1306,8 @@ void PFS_table::safe_aggregate_io(const TABLE_SHARE *optional_server_share,
 
 void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
                                     PFS_table_share *table_share) {
-  DBUG_ASSERT(table_stat != nullptr);
-  DBUG_ASSERT(table_share != nullptr);
+  assert(table_stat != nullptr);
+  assert(table_share != nullptr);
 
   PFS_table_lock_stat *from_stat = &table_stat->m_lock_stat;
 
@@ -1326,7 +1327,7 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
   @param pfs                          the table to destroy
 */
 void destroy_table(PFS_table *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   pfs->m_share->dec_refcount();
   global_table_container.deallocate(pfs);
 }
@@ -1391,7 +1392,7 @@ PFS_socket *create_socket(PFS_socket_class *klass, const my_socket *fd,
   @param pfs                          the socket to destroy
 */
 void destroy_socket(PFS_socket *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   PFS_socket_class *klass = pfs->m_class;
 
   /* Aggregate to SOCKET_SUMMARY_BY_EVENT_NAME */
@@ -1453,7 +1454,7 @@ PFS_metadata_lock *create_metadata_lock(void *identity, const MDL_key *mdl_key,
 }
 
 void destroy_metadata_lock(PFS_metadata_lock *pfs) {
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   global_mdl_container.deallocate(pfs);
 }
 
@@ -1642,8 +1643,8 @@ void aggregate_all_statements(PFS_statement_stat *from_array,
 
 void aggregate_all_transactions(PFS_transaction_stat *from_array,
                                 PFS_transaction_stat *to_array) {
-  DBUG_ASSERT(from_array != nullptr);
-  DBUG_ASSERT(to_array != nullptr);
+  assert(from_array != nullptr);
+  assert(to_array != nullptr);
 
   if (from_array->count() > 0) {
     to_array->aggregate(from_array);
@@ -1654,9 +1655,9 @@ void aggregate_all_transactions(PFS_transaction_stat *from_array,
 void aggregate_all_transactions(PFS_transaction_stat *from_array,
                                 PFS_transaction_stat *to_array_1,
                                 PFS_transaction_stat *to_array_2) {
-  DBUG_ASSERT(from_array != nullptr);
-  DBUG_ASSERT(to_array_1 != nullptr);
-  DBUG_ASSERT(to_array_2 != nullptr);
+  assert(from_array != nullptr);
+  assert(to_array_1 != nullptr);
+  assert(to_array_2 != nullptr);
 
   if (from_array->count() > 0) {
     to_array_1->aggregate(from_array);
@@ -1667,8 +1668,8 @@ void aggregate_all_transactions(PFS_transaction_stat *from_array,
 
 void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array) {
-  DBUG_ASSERT(from_array != nullptr);
-  DBUG_ASSERT(to_array != nullptr);
+  assert(from_array != nullptr);
+  assert(to_array != nullptr);
 
   if (from_array->count() > 0) {
     to_array->aggregate(from_array);
@@ -1679,9 +1680,9 @@ void aggregate_all_errors(PFS_error_stat *from_array,
 void aggregate_all_errors(PFS_error_stat *from_array,
                           PFS_error_stat *to_array_1,
                           PFS_error_stat *to_array_2) {
-  DBUG_ASSERT(from_array != nullptr);
-  DBUG_ASSERT(to_array_1 != nullptr);
-  DBUG_ASSERT(to_array_2 != nullptr);
+  assert(from_array != nullptr);
+  assert(to_array_1 != nullptr);
+  assert(to_array_2 != nullptr);
 
   if (from_array->count() > 0) {
     to_array_1->aggregate(from_array);
@@ -2284,9 +2285,9 @@ void clear_thread_account(PFS_thread *thread) {
 }
 
 void set_thread_account(PFS_thread *thread) {
-  DBUG_ASSERT(thread->m_account == nullptr);
-  DBUG_ASSERT(thread->m_user == nullptr);
-  DBUG_ASSERT(thread->m_host == nullptr);
+  assert(thread->m_account == nullptr);
+  assert(thread->m_user == nullptr);
+  assert(thread->m_host == nullptr);
 
   thread->m_account = find_or_create_account(
       thread, thread->m_username, thread->m_username_length, thread->m_hostname,

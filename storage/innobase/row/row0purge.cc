@@ -194,8 +194,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_lo
         const char act[] =
             "now SIGNAL pessimistic_row_purge_clust_pause WAIT_FOR "
             "pessimistic_row_purge_clust_continue";
-        DBUG_ASSERT(opt_debug_sync_timeout > 0);
-        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        assert(opt_debug_sync_timeout > 0);
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     });
 

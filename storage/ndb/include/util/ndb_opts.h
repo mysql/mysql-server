@@ -51,7 +51,7 @@ OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
 OPT_EXTERN(int, opt_connect_retry_delay,NONE);
 OPT_EXTERN(int, opt_connect_retries,NONE);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 OPT_EXTERN(const char *,opt_debug,= 0);
 #endif
 
@@ -110,7 +110,7 @@ OPT_EXTERN(const char *,opt_debug,= 0);
      (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0, GET_INT, \
      REQUIRED_ARG, 12, 0, INT_MAX, 0, 0, 0}
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define NDB_STD_OPTS(prog_name) \
   { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
     (uchar**) &opt_debug, (uchar**) &opt_debug, \

@@ -1840,7 +1840,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     *trace += StringPrintf("Final cost is %.1f.\n", root_path->cost);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   WalkAccessPaths(root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
                   [&](const AccessPath *path, const JOIN *) {
                     assert(path->cost >= path->init_cost);

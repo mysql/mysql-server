@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,11 @@
 #ifndef PLUGIN_X_SRC_CAPABILITIES_SET_VARIABLE_ADAPTOR_H_
 #define PLUGIN_X_SRC_CAPABILITIES_SET_VARIABLE_ADAPTOR_H_
 
+#include <assert.h>
 #include <cassert>
 #include <string>
 #include <vector>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/src/helper/string_case.h"
 #include "plugin/x/src/variables/set_variable.h"
 
@@ -41,7 +41,7 @@ class Set_variable_adaptor {
   Set_variable_adaptor(const Set_variable &variable,
                        const std::initializer_list<Enum> &label_map)
       : m_variable{variable}, m_label_map{label_map} {
-    DBUG_ASSERT(m_variable.get_labels_count() == label_map.size());
+    assert(m_variable.get_labels_count() == label_map.size());
   }
 
   bool is_allowed_value(const std::string &val) const {

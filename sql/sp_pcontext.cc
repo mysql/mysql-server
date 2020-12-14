@@ -22,16 +22,17 @@
 
 #include "sql/sp_pcontext.h"
 
+#include <assert.h>
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"
 
 bool sp_condition_value::equals(const sp_condition_value *cv) const {
-  DBUG_ASSERT(cv);
+  assert(cv);
 
   if (this == cv) return true;
 
@@ -97,7 +98,7 @@ void sp_handler::print(String *str) const {
       break;
     default:
       // The handler type must be either CONTINUE or EXIT.
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   print_conditions(str);

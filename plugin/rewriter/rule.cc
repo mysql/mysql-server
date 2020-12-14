@@ -24,11 +24,11 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <string>
 #include <vector>
 
-#include "my_dbug.h"
 #include "mysqld_error.h"
 #include "plugin/rewriter/query_builder.h"
 #include "plugin/rewriter/services.h"
@@ -78,7 +78,7 @@ class Parse_error_recorder : public services::Condition_handler {
     @retval false We don't handle the error.
   */
   bool handle(int sql_errno, const char *, const char *message) override {
-    DBUG_ASSERT(message != nullptr);
+    assert(message != nullptr);
     if (m_message.empty()) m_message.assign(message);
     switch (sql_errno) {
       case ER_PARSE_ERROR:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ static bool timer_notify(THD_timer_info *thd_timer) {
   Find_thd_with_id find_thd_with_id(thd_timer->thread_id);
   THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
 
-  DBUG_ASSERT(!thd_timer->destroy || !thd_timer->thread_id);
+  assert(!thd_timer->destroy || !thd_timer->thread_id);
   /*
     Statement might have finished while the timer notification
     was being delivered. If this is the case, the timer object
@@ -161,7 +161,7 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
   if (thd_timer == nullptr && (thd_timer = thd_timer_create()) == nullptr)
     return nullptr;
 
-  DBUG_ASSERT(!thd_timer->destroy && !thd_timer->thread_id);
+  assert(!thd_timer->destroy && !thd_timer->thread_id);
 
   /* Mark the notification as pending. */
   thd_timer->thread_id = thd->thread_id();
@@ -189,10 +189,10 @@ THD_timer_info *thd_timer_set(THD *thd, THD_timer_info *thd_timer,
 
 static bool reap_timer(THD_timer_info *thd_timer, bool pending) {
   /* Cannot be tagged for destruction. */
-  DBUG_ASSERT(!thd_timer->destroy);
+  assert(!thd_timer->destroy);
 
   /* If not pending, timer hasn't fired. */
-  DBUG_ASSERT(pending || thd_timer->thread_id);
+  assert(pending || thd_timer->thread_id);
 
   /*
     The timer object can be reused if the timer was stopped before

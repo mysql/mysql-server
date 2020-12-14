@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
   DBUG_TRACE;
 
   Create_field *return_field = &sp->m_return_field_def;
-  DBUG_ASSERT(return_field != nullptr);
+  assert(return_field != nullptr);
 
   // Set result data type.
   sf->set_result_data_type(get_new_field_type(return_field->sql_type));
@@ -121,7 +121,7 @@ static void fill_dd_function_return_type(THD *thd, sp_head *sp, Function *sf) {
       numeric_precision)
     sf->set_result_numeric_scale(scale);
   else
-    DBUG_ASSERT(sf->is_result_numeric_scale_null());
+    assert(sf->is_result_numeric_scale_null());
 
   uint dt_precision = 0;
   if (get_field_datetime_precision(return_field, &dt_precision) == false)
@@ -181,7 +181,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   if (!get_field_numeric_scale(field, &scale))
     param->set_numeric_scale(scale);
   else
-    DBUG_ASSERT(param->is_numeric_scale_null());
+    assert(param->is_numeric_scale_null());
 
   uint dt_precision = 0;
   if (get_field_datetime_precision(field, &dt_precision) == false)
@@ -195,8 +195,8 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
 
   // Set elements of enum or set data type.
   if (field->interval) {
-    DBUG_ASSERT(field->sql_type == MYSQL_TYPE_ENUM ||
-                field->sql_type == MYSQL_TYPE_SET);
+    assert(field->sql_type == MYSQL_TYPE_ENUM ||
+           field->sql_type == MYSQL_TYPE_SET);
 
     const char **pos = field->interval->type_names;
     for (uint i = 0; *pos != nullptr; pos++, i++) {
@@ -247,7 +247,7 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
 
   // Fill parameter information of the stored routine.
   sp_pcontext *sp_root_parsing_ctx = sp->get_root_parsing_context();
-  DBUG_ASSERT(sp_root_parsing_ctx != nullptr);
+  assert(sp_root_parsing_ctx != nullptr);
   for (uint i = 0; i < sp_root_parsing_ctx->context_var_count(); i++) {
     sp_variable *sp_var = sp_root_parsing_ctx->find_variable(i);
     Create_field *field_def = &sp_var->field_def;
@@ -271,8 +271,8 @@ static bool fill_routine_parameters_info(THD *thd, sp_head *sp,
         mode = Parameter::PM_INOUT;
         break;
       default:
-        DBUG_ASSERT(false); /* purecov: deadcode */
-        return true;        /* purecov: deadcode */
+        assert(false); /* purecov: deadcode */
+        return true;   /* purecov: deadcode */
     }
     param->set_mode(mode);
 
@@ -338,8 +338,8 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
       daccess = Routine::SDA_MODIFIES_SQL_DATA;
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: deadcode */
-      return true;        /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
+      return true;   /* purecov: deadcode */
   }
   routine->set_sql_data_access(daccess);
 
@@ -356,8 +356,8 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
       sec_type = View::ST_INVOKER;
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: deadcode */
-      return true;        /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
+      return true;   /* purecov: deadcode */
   }
   routine->set_security_type(sec_type);
 
@@ -377,7 +377,7 @@ static bool fill_dd_routine_info(THD *thd, const dd::Schema &schema,
   // Set schema collation id.
   const CHARSET_INFO *db_cs = nullptr;
   if (get_default_db_collation(schema, &db_cs)) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     return true;
   }
   if (db_cs == nullptr) db_cs = thd->collation();
@@ -453,8 +453,8 @@ bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
         sec_type = View::ST_INVOKER;
         break;
       default:
-        DBUG_ASSERT(false); /* purecov: deadcode */
-        return true;        /* purecov: deadcode */
+        assert(false); /* purecov: deadcode */
+        return true;   /* purecov: deadcode */
     }
 
     routine->set_security_type(sec_type);
@@ -477,8 +477,8 @@ bool alter_routine(THD *thd, Routine *routine, st_sp_chistics *chistics) {
         daccess = Routine::SDA_MODIFIES_SQL_DATA;
         break;
       default:
-        DBUG_ASSERT(false); /* purecov: deadcode */
-        return true;        /* purecov: deadcode */
+        assert(false); /* purecov: deadcode */
+        return true;   /* purecov: deadcode */
     }
     routine->set_sql_data_access(daccess);
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ static void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_desc.trace";
 #endif
   if (opts.handle_options())

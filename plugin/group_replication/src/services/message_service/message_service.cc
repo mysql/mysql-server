@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,7 @@ void Message_service_handler::dispatcher() {
 
     DBUG_EXECUTE_IF("group_replication_message_service_hold_messages", {
       const char act[] = "now wait_for signal.notification_continue";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
     if (pop_failed || service_message == nullptr) break;

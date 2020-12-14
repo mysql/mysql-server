@@ -252,9 +252,9 @@ void MDL_thread::run() {
 typedef MDLTest MDLDeathTest;
 
 /*
-  Verifies that we die with a DBUG_ASSERT if we destry a non-empty MDL_context.
+  Verifies that we die with a assert if we destry a non-empty MDL_context.
  */
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(MDLDeathTest, DieWhenMTicketsNonempty) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   MDL_REQUEST_INIT(&m_request, MDL_key::TABLE, db_name, table_name1, MDL_SHARED,
@@ -265,7 +265,7 @@ TEST_F(MDLDeathTest, DieWhenMTicketsNonempty) {
                ".*Assertion.*m_ticket_store.*is_empty.*");
   m_mdl_context.release_transactional_locks();
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 /*
   The most basic test: just construct and destruct our test fixture.
@@ -3947,8 +3947,8 @@ TEST_F(MDLHtonNotifyTest, NotifyLockTypes) {
   EXPECT_EQ(1U, post_release_count());
 
   // There are no other lock types!
-  DBUG_ASSERT(static_cast<uint>(MDL_EXCLUSIVE) + 1 ==
-              static_cast<uint>(MDL_TYPE_END));
+  assert(static_cast<uint>(MDL_EXCLUSIVE) + 1 ==
+         static_cast<uint>(MDL_TYPE_END));
 }
 
 /**
@@ -4290,11 +4290,11 @@ class MDLKeyTest : public ::testing::Test {
 typedef MDLKeyTest MDLKeyDeathTest;
 
 /*
-  Verifies that debug build dies with a DBUG_ASSERT if we try to construct
+  Verifies that debug build dies with a assert if we try to construct
   MDL_key with too long database or object names.
 */
 
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
 
@@ -4317,7 +4317,7 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
   EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
                ".*Assertion.*strlen.*");
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 /*
   Verifies that for production build we allow construction of
@@ -4325,7 +4325,7 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong) {
   truncated.
 */
 
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 TEST_F(MDLKeyTest, TruncateTooLongNames) {
   /* We need a name which is longer than NAME_LEN = 64*3 = 192.*/
   const char *too_long_name =
@@ -4418,6 +4418,6 @@ static void BM_FindTicket(size_t num_iterations) {
 
 BENCHMARK(BM_FindTicket)
 
-#endif  // defined(DBUG_OFF)
+#endif  // defined(NDEBUG)
 
 }  // namespace mdl_unittest

@@ -38,12 +38,12 @@ Ndb::checkFailedNode()
 
   DBUG_PRINT("enter", ("theNoOfDBnodes: %d", tNoOfDbNodes));
 
-  DBUG_ASSERT(tNoOfDbNodes < MAX_NDB_NODES);
+  assert(tNoOfDbNodes < MAX_NDB_NODES);
   for (Uint32 i = 0; i < tNoOfDbNodes; i++){
     const NodeId node_id = theDBnodes[i];
     DBUG_PRINT("info", ("i: %d, node_id: %d", i, node_id));
     
-    DBUG_ASSERT(node_id < MAX_NDB_NODES);    
+    assert(node_id < MAX_NDB_NODES);    
     if (the_release_ind[node_id] == 1){
 
       /**

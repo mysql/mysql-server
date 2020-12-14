@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ int my_decimal::check_result(uint mask, int result) const {
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
   return result;
@@ -329,7 +329,7 @@ void my_decimal_trim(ulong *precision, uint *scale) {
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* routines for debugging print */
 
 #define DIG_PER_DEC1 9
@@ -365,4 +365,4 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val) {
   return buff;
 }
 
-#endif /*DBUG_OFF*/
+#endif /*NDEBUG*/

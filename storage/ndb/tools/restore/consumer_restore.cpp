@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4797,7 +4797,7 @@ void BackupRestore::cback_logentry(int result, restore_callback_t *cb)
   m_ndb->closeTransaction(cb->connection);
   cb->connection = NULL;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* Test retry path */
   if ((m_logCount % 100000) == 3)
   {

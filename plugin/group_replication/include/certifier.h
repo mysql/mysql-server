@@ -23,6 +23,7 @@
 #ifndef CERTIFIER_INCLUDE
 #define CERTIFIER_INCLUDE
 
+#include <assert.h>
 #include <mysql/group_replication_priv.h>
 #include <list>
 #include <map>
@@ -30,7 +31,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "plugin/group_replication/include/certifier_stats_interface.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
@@ -72,7 +72,7 @@ class Gtid_set_ref : public Gtid_set {
     @return the number of references
   */
   size_t unlink() {
-    DBUG_ASSERT(reference_counter > 0);
+    assert(reference_counter > 0);
     return --reference_counter;
   }
 
@@ -551,7 +551,7 @@ class Certifier : public Certifier_interface {
   int64 parallel_applier_last_committed_global;
   int64 parallel_applier_sequence_number;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   bool certifier_garbage_collection_block;
   bool same_member_message_discarded;
 #endif

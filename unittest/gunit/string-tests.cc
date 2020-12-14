@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ TEST(StringDeathTest, AppendEmptyString) {
   tbl_name.append('.');
   tbl_name.append(String(table_name, system_charset_info));
   // We now have eight characters, c_ptr() is not safe.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*m_alloced_length >= .*");
 #endif
   EXPECT_STREQ("aaaaaaa.", tbl_name.c_ptr_safe());

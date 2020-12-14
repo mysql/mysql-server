@@ -1217,7 +1217,7 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   /**
    * Reset error.code on execute
    */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
 #endif

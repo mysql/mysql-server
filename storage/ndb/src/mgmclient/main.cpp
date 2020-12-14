@@ -139,7 +139,7 @@ int main(int argc, char** argv){
   opts.set_usage_funcs(short_usage_sub);
 
   int ho_error;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_mgm.trace";
 #endif
   if ((ho_error = opts.handle_options()))

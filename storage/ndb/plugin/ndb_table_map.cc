@@ -79,7 +79,7 @@ uint Ndb_table_map::get_field_for_column(uint colId) const {
   if (m_trivial) return colId;
 
   const int fieldId = m_map_by_col[colId];
-  DBUG_ASSERT(fieldId >= 0);  // We do not expect any non-final hidden columns
+  assert(fieldId >= 0);  // We do not expect any non-final hidden columns
   return (uint)fieldId;
 }
 
@@ -144,14 +144,14 @@ bool Ndb_table_map::have_physical_blobs(const TABLE *table) {
     if (field->is_flag_set(BLOB_FLAG)) {
       // Double check that TABLE_SHARE thinks that table had some
       // blobs(physical or not)
-      DBUG_ASSERT(table->s->blob_fields > 0);
+      assert(table->s->blob_fields > 0);
       return true;
     }
   }
   return false;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void Ndb_table_map::print_record(const TABLE *table, const uchar *record) {
   for (uint j = 0; j < table->s->fields; j++) {
     char buf[40];

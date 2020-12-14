@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ void StopBenchmarkTiming() {
 void SetBytesProcessed(size_t bytes) { bytes_processed = bytes; }
 
 void internal_do_microbenchmark(const char *name, void (*func)(size_t)) {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   printf(
       "WARNING: Running microbenchmark in debug mode. "
       "Timings will be misleading.\n");

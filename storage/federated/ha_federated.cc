@@ -1407,7 +1407,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
     prepare_for_next_key_part:
       if (store_length >= length) break;
       DBUG_PRINT("info", ("remainder %d", remainder));
-      DBUG_ASSERT(remainder > 1);
+      assert(remainder > 1);
       length -= store_length;
       /*
         For nullable columns, null-byte is already skipped before, that is
@@ -1565,7 +1565,7 @@ int ha_federated::open(const char *name, int, uint, const dd::Table *) {
   if (!(share = get_share(name, table))) return 1;
   thr_lock_data_init(&share->lock, &lock, nullptr);
 
-  DBUG_ASSERT(mysql == nullptr);
+  assert(mysql == nullptr);
 
   ref_length = sizeof(MYSQL_RES *) + sizeof(MYSQL_ROW_OFFSET);
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
@@ -2339,7 +2339,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   String sql_query(sql_query_buffer, sizeof(sql_query_buffer), &my_charset_bin);
   DBUG_TRACE;
 
-  DBUG_ASSERT(!(start_key == nullptr && end_key == nullptr));
+  assert(!(start_key == nullptr && end_key == nullptr));
 
   sql_query.length(0);
   sql_query.append(share->select_query);
@@ -2540,7 +2540,7 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result) {
 void ha_federated::position(const uchar *record MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(stored_result);
+  assert(stored_result);
 
   position_called = true;
   /* Store result set address. */
@@ -2568,7 +2568,7 @@ int ha_federated::rnd_pos(uchar *buf, uchar *pos) {
 
   /* Get stored result set. */
   memcpy(&result, pos, sizeof(MYSQL_RES *));
-  DBUG_ASSERT(result);
+  assert(result);
   /* Set data cursor position. */
   memcpy(&result->data_cursor, pos + sizeof(MYSQL_RES *),
          sizeof(MYSQL_ROW_OFFSET));
@@ -2923,7 +2923,7 @@ int ha_federated::real_connect() {
   */
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  DBUG_ASSERT(mysql == nullptr);
+  assert(mysql == nullptr);
 
   if (!(mysql = mysql_init(nullptr))) {
     remote_error_number = HA_ERR_OUT_OF_MEM;

@@ -633,7 +633,7 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
                        branch_type, attrId1, attrId2, label));
   const Interpreter::BinaryCondition cond =
     (Interpreter::BinaryCondition)branch_type;
-  DBUG_ASSERT(cond != Interpreter::LIKE && cond != Interpreter::NOT_LIKE);
+  assert(cond != Interpreter::LIKE && cond != Interpreter::NOT_LIKE);
 
   if (unlikely(m_table_impl == NULL))
     /* NdbInterpretedCode instruction requires that table is set */

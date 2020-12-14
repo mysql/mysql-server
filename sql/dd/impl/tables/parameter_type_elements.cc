@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,9 @@
 
 #include "sql/dd/impl/tables/parameter_type_elements.h"
 
+#include <assert.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "sql/dd/impl/raw/object_keys.h"       // Parent_id_range_key
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
@@ -49,7 +49,7 @@ Parameter_type_elements::Parameter_type_elements() {
   // If it's changed, the corresponding column length must be
   // increased, but this must be treated as a DD table upgrade
   // requiring special care.
-  DBUG_ASSERT(MAX_INTERVAL_VALUE_LENGTH <= 255);
+  assert(MAX_INTERVAL_VALUE_LENGTH <= 255);
 
   // Leave room for four bytes per character, which is used
   // by e.g. utf8mb4, i.e. 255 * 4 = 1020 bytes.

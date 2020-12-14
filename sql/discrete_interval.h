@@ -145,7 +145,7 @@ class Discrete_intervals_list {
       // first element, not on heap, should not be delete-d; start with next:
       for (Discrete_interval *i = head->next; i;) {
 #ifdef DISCRETE_INTERVAL_LIST_HAS_MAX_ONE_ELEMENT
-        DBUG_ASSERT(0);
+        assert(0);
 #endif
         Discrete_interval *next = i->next;
         delete i;

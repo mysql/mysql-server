@@ -95,7 +95,7 @@ static ulonglong dd_get_old_view_check_type(dd::View::enum_check_option type) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view check option.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return VIEW_CHECK_NONE;
   /* purecov: end */
@@ -116,7 +116,7 @@ static dd::View::enum_check_option dd_get_new_view_check_type(ulonglong type) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view check option.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return dd::View::CO_NONE;
   /* purecov: end */
@@ -137,7 +137,7 @@ static enum enum_view_algorithm dd_get_old_view_algorithm_type(
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view algorithm.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return VIEW_ALGORITHM_UNDEFINED;
   /* purecov: end */
@@ -158,7 +158,7 @@ static dd::View::enum_algorithm dd_get_new_view_algorithm_type(
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view algorithm.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return dd::View::VA_UNDEFINED;
   /* purecov: end */
@@ -179,7 +179,7 @@ static ulonglong dd_get_old_view_security_type(
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view security type.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return VIEW_SUID_DEFAULT;
   /* purecov: end */
@@ -200,7 +200,7 @@ static dd::View::enum_security_type dd_get_new_view_security_type(
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, "view security type.");
-  DBUG_ASSERT(false);
+  assert(false);
 
   return dd::View::ST_DEFAULT;
   /* purecov: end */
@@ -450,7 +450,7 @@ static void fill_dd_view_routines(View *view_obj,
       We should get only stored functions here, as procedures are not directly
       used by views, and thus not stored as dependencies.
     */
-    DBUG_ASSERT(rt->type() == Sroutine_hash_entry::FUNCTION);
+    assert(rt->type() == Sroutine_hash_entry::FUNCTION);
 
     // view routine catalog
     view_sf_obj->set_routine_catalog(Dictionary_impl::default_catalog_name());
@@ -649,13 +649,13 @@ bool read_view(TABLE_LIST *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
   // Get view_client_cs_name. Note that this is the character set name.
   CHARSET_INFO *collation =
       dd_get_mysql_charset(view_obj.client_collation_id());
-  DBUG_ASSERT(collation);
+  assert(collation);
   view->view_client_cs_name.length = strlen(collation->csname);
   view->view_client_cs_name.str = strdup_root(mem_root, collation->csname);
 
   // Get view_connection_cl_name. Note that this is the collation name.
   collation = dd_get_mysql_charset(view_obj.connection_collation_id());
-  DBUG_ASSERT(collation);
+  assert(collation);
   view->view_connection_cl_name.length = strlen(collation->name);
   view->view_connection_cl_name.str = strdup_root(mem_root, collation->name);
 

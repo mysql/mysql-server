@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ class Ndb_table_guard {
   void init(const char *dbname, const char *tabname) {
     DBUG_TRACE;
     /* Don't allow init() if already initialized */
-    DBUG_ASSERT(m_ndbtab == nullptr);
+    assert(m_ndbtab == nullptr);
 
     // Change to the database where the table should be found
     Ndb_dbname_guard dbname_guard(m_ndb, dbname);
@@ -111,16 +111,16 @@ class Ndb_table_guard {
     }
 
     DBUG_PRINT("info", ("ndbtab: %p", m_ndbtab));
-    DBUG_ASSERT(m_invalidate == 0);
+    assert(m_invalidate == 0);
     return;
   }
 
   void reinit(const char *dbname, const char *table_name) {
     DBUG_TRACE;
     /* Don't allow reinit() if not initialized already */
-    DBUG_ASSERT(m_ndbtab != nullptr);
+    assert(m_ndbtab != nullptr);
     // Table name argument of reinit must match already loaded table
-    DBUG_ASSERT(strcmp(m_ndbtab->getName(), table_name) == 0);
+    assert(strcmp(m_ndbtab->getName(), table_name) == 0);
     deinit();
     init(dbname, table_name);
   }

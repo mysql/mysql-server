@@ -22,12 +22,13 @@
 
 #include "sql/dd/impl/raw/object_keys.h"
 
+#include <assert.h>
 #include <new>
 #include <sstream>
 
 #include "m_ctype.h"
 #include "my_base.h"  // HA_WHOLE_KEY
-#include "my_dbug.h"
+
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/impl/raw/raw_key.h"              // dd::Raw_key
 #include "sql/dd/impl/raw/raw_table.h"            // dd::Raw_table
@@ -48,13 +49,13 @@ Raw_key *Primary_id_key::create_access_key(Raw_table *db_table) const {
   // It is 0 for any DD-table (PK-Index is the 1st index on a DD-table).
   const int ID_INDEX_NO =
       static_cast<int>(Object_table_impl::Common_index::PK_ID);
-  DBUG_ASSERT(ID_INDEX_NO == 0);
+  assert(ID_INDEX_NO == 0);
 
   // Positional index of PK-object-id-column.
   // It is 0 for any DD-table (object-id is the 1st column on a DD-table).
   const int ID_COLUMN_NO =
       static_cast<int>(Object_table_impl::Common_field::ID);
-  DBUG_ASSERT(ID_COLUMN_NO == 0);
+  assert(ID_COLUMN_NO == 0);
 
   TABLE *t = db_table->get_table();
 
@@ -130,7 +131,7 @@ Raw_key *Global_name_key::create_access_key(Raw_table *db_table) const {
   const int NAME_INDEX_NO =
       static_cast<int>(Object_table_impl::Common_index::UK_NAME);
 
-  DBUG_ASSERT(NAME_INDEX_NO == 1);
+  assert(NAME_INDEX_NO == 1);
 
   TABLE *t = db_table->get_table();
 
@@ -164,7 +165,7 @@ Raw_key *Item_name_key::create_access_key(Raw_table *db_table) const {
   const int NAME_INDEX_NO =
       static_cast<int>(Object_table_impl::Common_index::UK_NAME);
 
-  DBUG_ASSERT(NAME_INDEX_NO == 1);
+  assert(NAME_INDEX_NO == 1);
 
   TABLE *t = db_table->get_table();
 

@@ -23,6 +23,7 @@
 #ifndef MEMORY_UNIQUE_PTR_INCLUDED
 #define MEMORY_UNIQUE_PTR_INCLUDED
 
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -32,7 +33,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"  // my_malloc
 #include "sql/memory/aligned_atomic.h"  // memory::cache_line_size
@@ -525,21 +526,21 @@ void memory::PFS_allocator<T>::deallocate(T *p, std::size_t) noexcept {
 template <typename T>
 template <class U, class... Args>
 void memory::PFS_allocator<T>::construct(U *p, Args &&... args) {
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
   try {
     ::new ((void *)p) U(std::forward<Args>(args)...);
   } catch (...) {
-    DBUG_ASSERT(false);  // Constructor should not throw an exception.
+    assert(false);  // Constructor should not throw an exception.
   }
 }
 
 template <typename T>
 void memory::PFS_allocator<T>::destroy(T *p) {
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
   try {
     p->~T();
   } catch (...) {
-    DBUG_ASSERT(false);  // Destructor should not throw an exception
+    assert(false);  // Destructor should not throw an exception
   }
 }
 

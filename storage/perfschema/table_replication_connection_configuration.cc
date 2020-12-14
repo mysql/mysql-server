@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -185,7 +185,7 @@ int table_replication_connection_configuration::rnd_pos(const void *pos) {
 int table_replication_connection_configuration::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_rpl_connection_config *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_connection_config);
   m_opened_index = result;
   m_index = result;
@@ -220,7 +220,7 @@ int table_replication_connection_configuration::index_next(void) {
 int table_replication_connection_configuration::make_row(Master_info *mi) {
   const char *temp_store;
 
-  DBUG_ASSERT(mi != nullptr);
+  assert(mi != nullptr);
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
@@ -330,7 +330,7 @@ int table_replication_connection_configuration::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   DBUG_TRACE;
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (Field *f = nullptr; (f = *fields); fields++) {
@@ -430,7 +430,7 @@ int table_replication_connection_configuration::read_row_values(
           set_field_enum(f, m_row.source_connection_auto_failover);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -479,7 +479,7 @@ static void update_record(uchar *record) {
 static struct my_option my_long_options[] = {
     {"checksum", 'c', "Undocumented", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
      0, 0},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"debug", '#', "Undocumented", 0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
      0, 0},
 #endif

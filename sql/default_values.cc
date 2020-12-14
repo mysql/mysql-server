@@ -22,6 +22,7 @@
 
 #include "sql/default_values.h"
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -29,7 +30,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compare.h"
-#include "my_dbug.h"
+
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
@@ -73,7 +74,7 @@ static size_t column_pack_length(const dd::Column &col_obj) {
 
   if (col_obj.type() == dd::enum_column_types::BIT) {
     if (col_obj.options().get("treat_bit_as_char", &treat_bit_as_char))
-      DBUG_ASSERT(false); /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
   }
   return calc_pack_length(col_type, col_obj.char_length(),
                           col_obj.elements_count(), treat_bit_as_char,
@@ -102,7 +103,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
   bool pack_record;
   if (table.options().get("pack_record", &pack_record)) return true;
 
-  DBUG_ASSERT(share);
+  assert(share);
   share->fields = 0;
   share->null_fields = 0;
   share->reclength = 0;
@@ -163,7 +164,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
 static void set_pack_record_and_unused_preamble_bits(bool pack_record,
                                                      ulong preamble_bits,
                                                      uchar *default_values) {
-  DBUG_ASSERT(default_values);
+  assert(default_values);
 
   // Set first bit if the HA_OPTION_PACK_RECORD is not set.
   if (!pack_record) *default_values |= 1;
@@ -200,7 +201,7 @@ bool prepare_default_value(THD *thd, uchar *buf, TABLE *table,
 
   if (field.constant_default) {
     // Pointless to store the value of a function as it may not be constant.
-    DBUG_ASSERT(field.constant_default->type() != Item::FUNC_ITEM);
+    assert(field.constant_default->type() != Item::FUNC_ITEM);
     type_conversion_status res =
         field.constant_default->save_in_field(regfield, true);
     if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
@@ -216,7 +217,7 @@ bool prepare_default_value(THD *thd, uchar *buf, TABLE *table,
       // user-configurable settings.
       goto err;
     }
-    DBUG_ASSERT(!thd->is_error());
+    assert(!thd->is_error());
   } else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
              (field.flags & NOT_NULL_FLAG)) {
     regfield->set_notnull();
@@ -262,7 +263,7 @@ err:
 bool prepare_default_value_buffer_and_table_share(THD *thd,
                                                   const dd::Table &table,
                                                   TABLE_SHARE *share) {
-  DBUG_ASSERT(share);
+  assert(share);
 
   // Get the handler temporarily, needed to get minimal record length as
   // well as extra record length.

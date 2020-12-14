@@ -112,9 +112,9 @@ class Hint_scanner {
 
   template <hint_lex_char_classes Quote>
   int scan_quoted() {
-    DBUG_ASSERT(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE ||
-                Quote == HINT_CHR_QUOTE);
-    DBUG_ASSERT(*ptr == '`' || *ptr == '"' || *ptr == '\'');
+    assert(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE ||
+           Quote == HINT_CHR_QUOTE);
+    assert(*ptr == '`' || *ptr == '"' || *ptr == '\'');
 
     const bool is_ident = (Quote == HINT_CHR_BACKQUOTE) ||
                           (is_ansi_quotes && Quote == HINT_CHR_DOUBLEQUOTE);
@@ -162,7 +162,7 @@ class Hint_scanner {
                                       thd->charset()))
                 return HINT_ERROR;  // OOM etc.
             } else {
-              DBUG_ASSERT(0 < double_separators && double_separators < yyleng);
+              assert(0 < double_separators && double_separators < yyleng);
               s.length = yyleng - double_separators;
               s.str = static_cast<char *>(thd->alloc(s.length));
               if (s.str == nullptr) return HINT_ERROR;  // OOM
@@ -199,7 +199,7 @@ class Hint_scanner {
   }
 
   int scan_multiplier_or_ident() {
-    DBUG_ASSERT(peek_class() == HINT_CHR_IDENT);
+    assert(peek_class() == HINT_CHR_IDENT);
     switch (peek_byte()) {
       case 'K':
       case 'M':
@@ -262,7 +262,7 @@ class Hint_scanner {
               keyword string since symbol array is a global constant).
             */
             yytext = symbol->name;
-            DBUG_ASSERT(yyleng == symbol->length);
+            assert(yyleng == symbol->length);
 
             return symbol->tok;
           }
@@ -318,12 +318,12 @@ class Hint_scanner {
   }
 
   bool eof() const {
-    DBUG_ASSERT(ptr <= input_buf_end);
+    assert(ptr <= input_buf_end);
     return ptr >= input_buf_end;
   }
 
   char peek_byte() const {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     return *ptr;
   }
 
@@ -332,19 +332,19 @@ class Hint_scanner {
   }
 
   hint_lex_char_classes peek_class2() const {
-    DBUG_ASSERT(ptr + 1 <= input_buf_end);
+    assert(ptr + 1 <= input_buf_end);
     return ptr + 1 >= input_buf_end ? HINT_CHR_EOF
                                     : char_classes[static_cast<uchar>(ptr[1])];
   }
 
   void skip_newline() {
-    DBUG_ASSERT(!eof() && peek_byte() == '\n');
+    assert(!eof() && peek_byte() == '\n');
     skip_byte();
     lineno++;
   }
 
   uchar get_byte() {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     char ret = *ptr;
     yyleng++;
     ptr++;
@@ -352,7 +352,7 @@ class Hint_scanner {
   }
 
   void skip_byte() {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     yyleng++;
     ptr++;
   }
@@ -403,7 +403,7 @@ class Hint_scanner {
 
   template <hint_lex_char_classes Separator>
   void compact(LEX_STRING *to, const char *from, size_t len, size_t doubles) {
-    DBUG_ASSERT(doubles > 0);
+    assert(doubles > 0);
 
     size_t d = doubles;
     char *t = to->str;
@@ -411,14 +411,14 @@ class Hint_scanner {
       switch (char_classes[(uchar)*s]) {
         case HINT_CHR_MB: {
           size_t hint_len = my_ismbchar(cs, s, end);
-          DBUG_ASSERT(hint_len > 1);
+          assert(hint_len > 1);
           memcpy(t, s, hint_len);
           t += hint_len;
           s += hint_len;
         }
           continue;
         case Separator:
-          DBUG_ASSERT(char_classes[(uchar)*s] == Separator);
+          assert(char_classes[(uchar)*s] == Separator);
           *t++ = *s++;
           s++;  // skip the 2nd separator
           d--;
@@ -429,14 +429,14 @@ class Hint_scanner {
           }
           continue;
         case HINT_CHR_EOF:
-          DBUG_ASSERT(0);
+          assert(0);
           to->length = 0;
           return;
         default:
           *t++ = *s++;
       }
     }
-    DBUG_ASSERT(0);
+    assert(0);
     to->length = 0;
     return;
   }

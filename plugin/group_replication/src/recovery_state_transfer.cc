@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,7 +177,7 @@ void Recovery_state_transfer::initialize_group_info() {
 void Recovery_state_transfer::update_group_membership(bool update_donor) {
   DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mysql_mutex_assert_owner(&donor_selection_lock);
 #endif
 
@@ -388,7 +388,7 @@ int Recovery_state_transfer::establish_donor_connection() {
         const char act[] =
             "now signal signal.connection_attempt_3 wait_for "
             "signal.reset_recovery_retry_count_done";
-        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     };);
     // max number of retries reached, abort
@@ -540,13 +540,13 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
       const char act[] =
           "now "
           "WAIT_FOR reached_stopping_io_thread";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
     DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
       const char act[] =
           "now "
           "WAIT_FOR reached_stopping_sql_thread";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
 
     /*
@@ -582,11 +582,11 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
 
   DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
     const char act[] = "now SIGNAL continue_to_stop_io_thread";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
   DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
     const char act[] = "now SIGNAL continue_to_stop_sql_thread";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   if (error) {

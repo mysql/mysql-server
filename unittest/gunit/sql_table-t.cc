@@ -135,7 +135,7 @@ TEST_F(SqlTableTest, FileNameToTableName) {
   size_t name_length;
   name_length = filename_to_tablename(test_filename, test_tablename,
                                       sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                           ,
                                       true
 #endif
@@ -145,7 +145,7 @@ TEST_F(SqlTableTest, FileNameToTableName) {
   // This one used to fail if compiled with -DHAVE_VALGRIND
   name_length =
       filename_to_tablename(foo.str, test_tablename, sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                                          ,
                             true
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,10 @@
 #ifndef PFS_STAT_H
 #define PFS_STAT_H
 
+#include <assert.h>
 #include <algorithm>
 #include <atomic>
 
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "my_systime.h"
 #include "sql/sql_const.h"
@@ -505,7 +505,7 @@ struct PFS_error_single_stat {
         break;
       default:
         /* It must not be reached. */
-        DBUG_ASSERT(0);
+        assert(0);
         break;
     }
   }
@@ -596,7 +596,7 @@ struct PFS_error_stat {
       return;
     }
 
-    DBUG_ASSERT(error_index < m_max_errors);
+    assert(error_index < m_max_errors);
     m_stat[error_index].aggregate(stat);
   }
 
@@ -757,7 +757,7 @@ struct PFS_table_stat {
     PFS_table_io_stat *to_stat_last;
     const PFS_table_io_stat *from_stat;
 
-    DBUG_ASSERT(key_count <= MAX_INDEXES);
+    assert(key_count <= MAX_INDEXES);
 
     /* Aggregate stats for each index, if any */
     to_stat = &m_index_stat[0];
@@ -786,7 +786,7 @@ struct PFS_table_stat {
     PFS_table_io_stat *stat;
     PFS_table_io_stat *stat_last;
 
-    DBUG_ASSERT(key_count <= MAX_INDEXES);
+    assert(key_count <= MAX_INDEXES);
 
     /* Sum stats for each index, if any */
     stat = &m_index_stat[0];

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@ Transaction_with_guarantee_message::Transaction_with_guarantee_message(
     enum_group_replication_consistency_level consistency_level)
     : Transaction_message_interface(CT_TRANSACTION_WITH_GUARANTEE_MESSAGE),
       m_consistency_level(consistency_level) {
-  DBUG_ASSERT(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+  assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
 }
 
 Transaction_with_guarantee_message::~Transaction_with_guarantee_message() {}
@@ -70,7 +70,7 @@ void Transaction_with_guarantee_message::decode_payload(
   decode_payload_item_char(&slider, &payload_item_type, &consistency_level_aux);
   m_consistency_level = static_cast<enum_group_replication_consistency_level>(
       consistency_level_aux);
-  DBUG_ASSERT(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+  assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
 }
 /* purecov: end */
 
@@ -92,7 +92,7 @@ Transaction_with_guarantee_message::decode_and_get_consistency_level(
   enum_group_replication_consistency_level consistency_level =
       static_cast<enum_group_replication_consistency_level>(
           consistency_level_aux);
-  DBUG_ASSERT(consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+  assert(consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
 
   return consistency_level;
 }

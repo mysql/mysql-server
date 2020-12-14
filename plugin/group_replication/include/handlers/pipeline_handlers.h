@@ -23,9 +23,9 @@
 #ifndef PIPELINE_HANDLERS_INCLUDED
 #define PIPELINE_HANDLERS_INCLUDED
 
+#include <assert.h>
 #include <mysql/group_replication_priv.h>
 
-#include "my_dbug.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/pipeline_interfaces.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
@@ -120,7 +120,7 @@ class Handler_applier_configuration_action : public Pipeline_action {
         applier_shutdown_timeout(plugin_shutdown_timeout),
         group_sidno(group_sidno),
         initialization_conf(true) {
-    DBUG_ASSERT(applier_name != nullptr);
+    assert(applier_name != nullptr);
   }
 
   /**

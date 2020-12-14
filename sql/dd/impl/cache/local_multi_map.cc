@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
 
 #include "sql/dd/cache/local_multi_map.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/dd/cache/multi_map_base.h"
 #include "sql/dd/impl/cache/cache_element.h"  // Cache_element
 #include "sql/dd/impl/tables/character_sets.h"
@@ -55,11 +56,11 @@ namespace cache {
 // Put a new element into the map.
 template <typename T>
 void Local_multi_map<T>::put(Cache_element<T> *element) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // The new object instance may not be present in the map.
   Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
-  DBUG_ASSERT(!e);
+  assert(!e);
 
   // Get all keys that were created within the element.
   const typename T::Id_key *id_key = element->id_key();
@@ -67,13 +68,12 @@ void Local_multi_map<T>::put(Cache_element<T> *element) {
   const typename T::Aux_key *aux_key = element->aux_key();
 
   // There must be at least one key.
-  DBUG_ASSERT(id_key || name_key || aux_key);
+  assert(id_key || name_key || aux_key);
 
   // None of the keys may exist.
-  DBUG_ASSERT(
-      (!id_key || !m_map<typename T::Id_key>()->is_present(*id_key)) &&
-      (!name_key || !m_map<typename T::Name_key>()->is_present(*name_key)) &&
-      (!aux_key || !m_map<typename T::Aux_key>()->is_present(*aux_key)));
+  assert((!id_key || !m_map<typename T::Id_key>()->is_present(*id_key)) &&
+         (!name_key || !m_map<typename T::Name_key>()->is_present(*name_key)) &&
+         (!aux_key || !m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Add the keys and the element to the maps.
@@ -83,11 +83,11 @@ void Local_multi_map<T>::put(Cache_element<T> *element) {
 // Remove an element from the map.
 template <typename T>
 void Local_multi_map<T>::remove(Cache_element<T> *element) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // The object must be present.
   Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
-  DBUG_ASSERT(e);
+  assert(e);
 
   // Get all keys that were created within the element.
   const typename T::Id_key *id_key = element->id_key();
@@ -95,10 +95,9 @@ void Local_multi_map<T>::remove(Cache_element<T> *element) {
   const typename T::Aux_key *aux_key = element->aux_key();
 
   // All non-null keys must exist.
-  DBUG_ASSERT(
-      (!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
-      (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
-      (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
+  assert((!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
+         (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
+         (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Remove the keys and the element from the maps.
@@ -110,8 +109,8 @@ template <typename T>
 void Local_multi_map<T>::erase() {
   typename Multi_map_base<T>::Const_iterator it;
   for (it = begin(); it != end();) {
-    DBUG_ASSERT(it->second);
-    DBUG_ASSERT(it->second->object());
+    assert(it->second);
+    assert(it->second->object());
 
     // Make sure we handle iterator invalidation: Increment
     // before erasing.
@@ -128,7 +127,7 @@ void Local_multi_map<T>::erase() {
 /* purecov: begin inspected */
 template <typename T>
 void Local_multi_map<T>::dump() const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   fprintf(stderr, "  --------------------------------\n");
   fprintf(stderr, "  Local multi map for '%s'\n",
           T::DD_table::instance().name().c_str());

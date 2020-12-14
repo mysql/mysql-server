@@ -88,7 +88,7 @@ const char *lock_descriptions[TL_WRITE_ONLY + 1] = {
     /* TL_WRITE                   */ "High priority write lock",
     /* TL_WRITE_ONLY              */ "Highest priority write lock"};
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 void print_where(const THD *thd, const Item *cond, const char *info,
                  enum_query_type query_type) {
@@ -108,7 +108,7 @@ void print_where(const THD *thd, const Item *cond, const char *info,
 void TEST_join(JOIN *join) {
   uint i, ref;
   DBUG_TRACE;
-  DBUG_ASSERT(!join->join_tab);
+  assert(!join->join_tab);
   /*
     Assemble results of all the calls to full_name() first,
     in order not to garble the tabular output below.
@@ -154,7 +154,7 @@ void TEST_join(JOIN *join) {
   DBUG_UNLOCK_FILE;
 }
 
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 void print_keyuse_array(Opt_trace_context *trace,
                         const Key_use_array *keyuse_array) {
@@ -185,7 +185,7 @@ void print_keyuse_array(Opt_trace_context *trace,
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* purecov: begin inspected */
 
 /**
@@ -272,7 +272,7 @@ void print_plan(JOIN *join, uint idx, double record_count, double read_time,
   DBUG_UNLOCK_FILE;
 }
 
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 struct TABLE_LOCK_INFO {
   my_thread_id thread_id;
@@ -302,7 +302,7 @@ class DL_commpare {
   }
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #ifdef EXTRA_DEBUG_DUMP_TABLE_LISTS
 
 /*

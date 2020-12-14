@@ -58,7 +58,7 @@ namespace dd {
 template <typename T>
 T &Collection<T>::Collection_iterator::operator*() {
   // Dereferencing an invalid iterator is prohibited.
-  DBUG_ASSERT(m_current != m_array->end());
+  assert(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
   m_current_obj = *m_current;
@@ -69,7 +69,7 @@ template <typename T>
 const typename Collection<T>::abstract_type *&
 Collection<T>::Collection_const_iterator::operator*() {
   // Dereferencing an invalid iterator is prohibited.
-  DBUG_ASSERT(m_current != m_array->end());
+  assert(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
   m_current_obj = *m_current;
@@ -126,9 +126,9 @@ bool Collection<T>::restore_items(Parent_item *parent,
 
   // NOTE: if this assert is firing, that means the table was not registered
   // for that transaction. Use Open_dictionary_tables_ctx::register_tables().
-  DBUG_ASSERT(table);
+  assert(table);
 
-  DBUG_ASSERT(empty());
+  assert(empty());
 
   std::unique_ptr<Object_key> key_holder(key);
 
@@ -255,7 +255,7 @@ bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
 
 template <typename T>
 const typename Collection<T>::abstract_type *Collection<T>::at(size_t n) const {
-  DBUG_ASSERT(n < size());
+  assert(n < size());
   return m_items[n];
 }
 

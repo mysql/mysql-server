@@ -886,7 +886,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
     }
     if (ndb_socket_valid(sockfd))
       break;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       DBUG_PRINT("error",("Unable to connect with connect string: %s",
 			 cfg.makeConnectString(buf,sizeof(buf))));

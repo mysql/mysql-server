@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ bool Wkb_visitor::visit_enter(Linestring *ls) {
       m_wkb_current_position += sizeof(double);
     }
   }
-  DBUG_ASSERT(m_wkb + m_wkb_size >= m_wkb_current_position);
+  assert(m_wkb + m_wkb_size >= m_wkb_current_position);
   return true;
 }
 
@@ -87,7 +87,7 @@ bool Wkb_visitor::visit_enter(Polygon *py) {
       }
     }
   }
-  DBUG_ASSERT(m_wkb + m_wkb_size >= m_wkb_current_position);
+  assert(m_wkb + m_wkb_size >= m_wkb_current_position);
   return true;
 }
 
@@ -98,7 +98,7 @@ bool Wkb_visitor::visit_enter(Geometrycollection *gc) {
   m_wkb_current_position += sizeof(std::uint32_t);
   int4store(m_wkb_current_position, gc->size());
   m_wkb_current_position += sizeof(std::uint32_t);
-  DBUG_ASSERT(m_wkb + m_wkb_size >= m_wkb_current_position);
+  assert(m_wkb + m_wkb_size >= m_wkb_current_position);
   return false;
 }
 
@@ -120,7 +120,7 @@ bool Wkb_visitor::visit(Point *pt) {
     float8store(m_wkb_current_position, pt->y());
     m_wkb_current_position += sizeof(double);
   }
-  DBUG_ASSERT(m_wkb + m_wkb_size >= m_wkb_current_position);
+  assert(m_wkb + m_wkb_size >= m_wkb_current_position);
   return false;
 }
 

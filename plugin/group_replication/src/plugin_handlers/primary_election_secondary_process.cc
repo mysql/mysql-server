@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ int Primary_election_secondary_process::launch_secondary_election_process(
   mysql_mutex_lock(&election_lock);
 
   // Callers should ensure the process is terminated
-  DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+  assert(election_process_thd_state.is_thread_dead());
   if (election_process_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&election_lock); /* purecov: inspected */
     return 2;                           /* purecov: inspected */
@@ -299,7 +299,7 @@ bool Primary_election_secondary_process::kill_read_mode_query() {
   mysql_mutex_assert_owner(&election_lock);
 
   if (is_read_mode_set == SECONDARY_ELECTION_READ_MODE_BEING_SET) {
-    DBUG_ASSERT(read_mode_session_id != 0);
+    assert(read_mode_session_id != 0);
     Sql_service_command_interface *sql_command_interface =
         new Sql_service_command_interface();
     error = sql_command_interface->establish_session_connection(
@@ -456,7 +456,7 @@ int Primary_election_secondary_process::terminate_election_process(bool wait) {
       mysql_cond_wait(&election_cond, &election_lock);
     }
 
-    DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+    assert(election_process_thd_state.is_thread_dead());
   }
   mysql_mutex_unlock(&election_lock);
 

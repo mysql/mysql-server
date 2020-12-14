@@ -95,7 +95,7 @@ static bool acquire_mdl_for_backup(THD *thd, enum_mdl_type mdl_type,
                                    ulong lock_wait_timeout) {
   MDL_request mdl_request;
 
-  DBUG_ASSERT(mdl_type == MDL_SHARED || mdl_type == MDL_INTENTION_EXCLUSIVE);
+  assert(mdl_type == MDL_SHARED || mdl_type == MDL_INTENTION_EXCLUSIVE);
 
   MDL_REQUEST_INIT(&mdl_request, MDL_key::BACKUP_LOCK, "", "", mdl_type,
                    mdl_duration);

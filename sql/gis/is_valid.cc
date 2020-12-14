@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -94,11 +94,11 @@ bool Is_valid::eval(const Geographic_geometrycollection &g) const {
 bool is_valid(const dd::Spatial_reference_system *srs, const Geometry *g,
               const char *func_name, bool *is_valid) noexcept {
   try {
-    DBUG_ASSERT(srs == nullptr ||
-                ((srs->is_cartesian() &&
-                  g->coordinate_system() == Coordinate_system::kCartesian) ||
-                 (srs->is_geographic() &&
-                  g->coordinate_system() == Coordinate_system::kGeographic)));
+    assert(srs == nullptr ||
+           ((srs->is_cartesian() &&
+             g->coordinate_system() == Coordinate_system::kCartesian) ||
+            (srs->is_geographic() &&
+             g->coordinate_system() == Coordinate_system::kGeographic)));
     if (g->is_empty()) {
       *is_valid = true;
       return false;

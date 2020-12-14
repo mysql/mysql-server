@@ -83,7 +83,7 @@ PFS_engine_table *table_user_defined_functions::create(
   table_user_defined_functions *t = new table_user_defined_functions();
   if (t != nullptr) {
     THD *thd = current_thd;
-    DBUG_ASSERT(thd != nullptr);
+    assert(thd != nullptr);
     t->materialize(thd);
   }
   return t;
@@ -122,8 +122,8 @@ void table_user_defined_functions::materialize(THD *thd) {
   uint size;
   struct udf_materialize_state_s state;
 
-  DBUG_ASSERT(m_all_rows == nullptr);
-  DBUG_ASSERT(m_row_count == 0);
+  assert(m_all_rows == nullptr);
+  assert(m_row_count == 0);
 
   udf_hash_rlock();
 
@@ -174,13 +174,13 @@ int table_user_defined_functions::make_row(const udf_func *entry,
       (uint)std::min(sizeof(row->m_name) - 1, entry->name.length);
   memcpy(row->m_name, entry->name.str, row->m_name_length);
 
-  DBUG_ASSERT(entry->returns >= 0);
-  DBUG_ASSERT(entry->returns < 5);
+  assert(entry->returns >= 0);
+  assert(entry->returns < 5);
   row->m_return_type = return_types[entry->returns];
   row->m_return_type_length = return_type_lengths[entry->returns];
 
-  DBUG_ASSERT(entry->type > 0);
-  DBUG_ASSERT(entry->type < 3);
+  assert(entry->type > 0);
+  assert(entry->type < 3);
   row->m_type = udf_types[entry->type];
   row->m_type_length = udf_type_lengths[entry->type];
 
@@ -221,7 +221,7 @@ int table_user_defined_functions::rnd_next(void) {
 
 int table_user_defined_functions::rnd_pos(const void *pos) {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_row_count);
+  assert(m_pos.m_index < m_row_count);
   m_row = &m_all_rows[m_pos.m_index];
   return 0;
 }
@@ -234,7 +234,7 @@ int table_user_defined_functions::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_user_defined_functions_by_name);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -264,10 +264,10 @@ int table_user_defined_functions::read_row_values(TABLE *table,
                                                   bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -294,7 +294,7 @@ int table_user_defined_functions::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row->m_usage_count);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

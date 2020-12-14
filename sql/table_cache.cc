@@ -98,7 +98,7 @@ void Table_cache::check_unused() {
     while ((entry = it++)) {
       /* We must not have TABLEs in the free list that have their file closed.
        */
-      DBUG_ASSERT(entry->db_stat && entry->file);
+      assert(entry->db_stat && entry->file);
 
       if (entry->in_use)
         DBUG_PRINT("error", ("Used table is in share's list of unused tables"));
@@ -129,7 +129,7 @@ void Table_cache::free_all_unused_tables() {
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Print debug information for the contents of the table cache.
 */
@@ -295,14 +295,14 @@ void Table_cache_manager::free_table(THD *thd MY_ATTRIBUTE((unused)),
       Table_cache_element::TABLE_list::Iterator it(cache_el[i]->free_tables);
       TABLE *table;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (remove_type == TDC_RT_REMOVE_ALL)
-        DBUG_ASSERT(cache_el[i]->used_tables.is_empty());
+        assert(cache_el[i]->used_tables.is_empty());
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
                remove_type == TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE) {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
         while ((table = it2++)) {
-          if (table->in_use != thd) DBUG_ASSERT(0);
+          if (table->in_use != thd) assert(0);
         }
       }
 #endif
@@ -324,7 +324,7 @@ void Table_cache_manager::free_all_unused_tables() {
     m_table_cache[i].free_all_unused_tables();
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Print debug information for the contents of all table cache instances.
 */

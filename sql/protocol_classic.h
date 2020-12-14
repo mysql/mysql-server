@@ -62,7 +62,7 @@ class Protocol_classic : public Protocol {
   String convert;
   uint field_pos;
   bool send_metadata;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   enum enum_field_types *field_types;
   uint count;
 #endif

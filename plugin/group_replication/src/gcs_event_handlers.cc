@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ Plugin_gcs_events_handler::Plugin_gcs_events_handler(
       new std::set<Group_member_info *, Group_member_info_pointer_comparator>();
   this->joiner_compatibility_status = new st_compatibility_types(INCOMPATIBLE);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   set_number_of_members_on_view_changed_to_10 = false;
   DBUG_EXECUTE_IF(
       "group_replication_set_number_of_members_on_view_changed_to_10",
@@ -463,7 +463,7 @@ void Plugin_gcs_events_handler::on_suspicions(
   if (members.empty() && unreachable.empty())  // nothing to do
     return;                                    /* purecov: inspected */
 
-  DBUG_ASSERT(members.size() >= unreachable.size());
+  assert(members.size() >= unreachable.size());
 
   std::vector<Gcs_member_identifier> tmp_unreachable(unreachable);
   std::vector<Gcs_member_identifier>::const_iterator mit;
@@ -621,7 +621,7 @@ void Plugin_gcs_events_handler::on_view_changed(
   std::string suggested_primary("");
   // Was member expelled from the group due to network failures?
   if (this->was_member_expelled_from_group(new_view)) {
-    DBUG_ASSERT(is_leaving);
+    assert(is_leaving);
     group_events_observation_manager->after_view_change(
         new_view.get_joined_members(), new_view.get_leaving_members(),
         new_view.get_members(), is_leaving, &skip_election, &election_mode,
@@ -829,7 +829,7 @@ int Plugin_gcs_events_handler::update_group_info_manager(
   temporary_states->clear();
 
 err:
-  DBUG_ASSERT(temporary_states->size() == 0);
+  assert(temporary_states->size() == 0);
   return error;
 }
 
@@ -1312,7 +1312,7 @@ int Plugin_gcs_events_handler::check_group_compatibility(
 /*
   Check if group size did reach the maximum number of members.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (set_number_of_members_on_view_changed_to_10) number_of_members = 10;
 #endif
   if (number_of_members > 9) {

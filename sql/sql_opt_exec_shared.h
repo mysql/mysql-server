@@ -28,8 +28,9 @@
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
+#include <assert.h>
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "sql/item.h"
 
 class JOIN;
@@ -158,7 +159,7 @@ struct TABLE_REF {
   */
 
   bool has_guarded_conds() const {
-    DBUG_ASSERT(key_parts == 0 || cond_guards != nullptr);
+    assert(key_parts == 0 || cond_guards != nullptr);
 
     for (uint i = 0; i < key_parts; i++) {
       if (cond_guards[i]) return true;
@@ -259,11 +260,11 @@ class QEP_shared {
   JOIN *join() const { return m_join; }
   void set_join(JOIN *j) { m_join = j; }
   plan_idx idx() const {
-    DBUG_ASSERT(m_idx >= 0);  // Index must be valid
+    assert(m_idx >= 0);  // Index must be valid
     return m_idx;
   }
   void set_idx(plan_idx i) {
-    DBUG_ASSERT(m_idx == NO_PLAN_IDX);  // Index should not change in lifetime
+    assert(m_idx == NO_PLAN_IDX);  // Index should not change in lifetime
     m_idx = i;
   }
   TABLE *table() const { return m_table; }
@@ -474,7 +475,7 @@ class QEP_shared_owner {
   /// Instructs to share the QEP_shared with another owner
   void share_qs(QEP_shared_owner *other) { other->set_qs(m_qs); }
   void set_qs(QEP_shared *q) {
-    DBUG_ASSERT(!m_qs);
+    assert(!m_qs);
     m_qs = q;
   }
 

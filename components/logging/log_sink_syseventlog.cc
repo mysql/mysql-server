@@ -365,7 +365,7 @@ static int var_update_fac(char *fac) {
     make facility
   */
 
-  DBUG_ASSERT(fac != nullptr);
+  assert(fac != nullptr);
 
   log_syslog_find_facility(fac, &rsf);
 
@@ -429,7 +429,7 @@ static int sysvar_check_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   if (proposed_value == nullptr) return true;
 
-  DBUG_ASSERT(proposed_value[value_len] == '\0');
+  assert(proposed_value[value_len] == '\0');
 
   if (var_check_tag(proposed_value) != 0)  // no complaints?
     return true;
@@ -477,7 +477,7 @@ static int sysvar_install_tag(void) {
 
   values_tag.def_val = const_cast<char *>("");
 
-  DBUG_ASSERT(buffer_tag == nullptr);
+  assert(buffer_tag == nullptr);
 
   if (mysql_service_component_sys_variable_register->register_variable(
           MY_NAME, OPT_TAG, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
@@ -561,7 +561,7 @@ static int sysvar_check_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   if (proposed_value == nullptr) return true;
 
-  DBUG_ASSERT(proposed_value[value_len] == '\0');
+  assert(proposed_value[value_len] == '\0');
 
   if (var_check_fac(proposed_value) != 0)  // if value is invalid, bail
     return true;

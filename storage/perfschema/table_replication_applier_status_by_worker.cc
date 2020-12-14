@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,11 @@
 
 #include "storage/perfschema/table_replication_applier_status_by_worker.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
@@ -340,7 +341,7 @@ int table_replication_applier_status_by_worker::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_rpl_applier_status_by_worker_by_thread);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   m_opened_index = result;
@@ -424,8 +425,8 @@ int table_replication_applier_status_by_worker::make_row(Master_info *mi) {
   m_row.thread_id = 0;
   m_row.thread_id_is_null = true;
 
-  DBUG_ASSERT(mi != nullptr);
-  DBUG_ASSERT(mi->rli != nullptr);
+  assert(mi != nullptr);
+  assert(mi->rli != nullptr);
 
   mysql_mutex_lock(&mi->rli->data_lock);
 
@@ -565,7 +566,7 @@ int table_replication_applier_status_by_worker::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -655,7 +656,7 @@ int table_replication_applier_status_by_worker::read_row_values(
           set_field_timestamp(f, m_row.applying_trx_last_retry_timestamp);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

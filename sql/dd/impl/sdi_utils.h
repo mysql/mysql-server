@@ -23,17 +23,18 @@
 #ifndef DD__SDI_UTILS_INCLUDED
 #define DD__SDI_UTILS_INCLUDED
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/current_thd.h"     // inline_current_thd
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/error_handler.h"   // Internal_error_handler
 #include "sql/mdl.h"             // MDL_request
 #include "sql/sql_class.h"       // THD
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define ENTITY_FMT "(%s, %llu)"
 #define ENTITY_VAL(obj) (obj).name().c_str(), (obj).id()
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /**
   @file
@@ -55,11 +56,10 @@ namespace sdi_utils {
   @return same as argument passed in
  */
 inline bool checked_return(bool ret) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   THD *cthd = current_thd;
-  DBUG_ASSERT(!ret || cthd->is_system_thread() || cthd->is_error() ||
-              cthd->killed);
-#endif /*!DBUG_OFF*/
+  assert(!ret || cthd->is_system_thread() || cthd->is_error() || cthd->killed);
+#endif /*!NDEBUG*/
   return ret;
 }
 
@@ -89,7 +89,7 @@ inline bool mdl_lock(THD *thd, MDL_key::enum_mdl_namespace ns,
 
 template <typename T>
 const T &ptr_as_cref(const T *p) {
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
   return *p;
 }
 

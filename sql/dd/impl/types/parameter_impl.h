@@ -23,12 +23,12 @@
 #ifndef DD__PARAMETER_IMPL_INCLUDED
 #define DD__PARAMETER_IMPL_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <memory>  // std::unique_ptr
 #include <new>
 
-#include "my_dbug.h"
 #include "sql/dd/impl/properties_impl.h"  // dd::Properties_imp
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
@@ -253,8 +253,8 @@ class Parameter_impl : public Entity_object_impl, public Parameter {
   Parameter_type_element *add_element() override;
 
   const Parameter_type_element_collection &elements() const override {
-    DBUG_ASSERT(data_type() == enum_column_types::ENUM ||
-                data_type() == enum_column_types::SET);
+    assert(data_type() == enum_column_types::ENUM ||
+           data_type() == enum_column_types::SET);
     return m_elements;
   }
 

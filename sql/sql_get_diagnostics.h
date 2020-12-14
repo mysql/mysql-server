@@ -23,7 +23,8 @@
 #ifndef SQL_GET_DIAGNOSTICS_H
 #define SQL_GET_DIAGNOSTICS_H
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_sqlcommand.h"
 #include "sql/sql_cmd.h"  // Sql_cmd
 
@@ -103,7 +104,7 @@ class Diagnostics_information {
     Diagnostics_information objects are allocated in thd->mem_root.
     Do not rely on the destructor for any cleanup.
   */
-  virtual ~Diagnostics_information() { DBUG_ASSERT(false); }
+  virtual ~Diagnostics_information() { assert(false); }
 
   /**
     Evaluate a diagnostics information item in a specific context.
@@ -160,7 +161,7 @@ class Diagnostics_information_item {
     Diagnostics_information_item objects are allocated in thd->mem_root.
     Do not rely on the destructor for any cleanup.
   */
-  virtual ~Diagnostics_information_item() { DBUG_ASSERT(false); }
+  virtual ~Diagnostics_information_item() { assert(false); }
 
  private:
   /** The target variable that will receive the value of this item. */

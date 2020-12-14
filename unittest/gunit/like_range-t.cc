@@ -20,10 +20,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <gtest/gtest.h>
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 
@@ -83,7 +84,7 @@ class LikeRangeTest : public ::testing::TestWithParam<const char *> {
     MY_CHARSET_LOADER loader;
     my_charset_loader_init_mysys(&loader);
     m_charset = my_collation_get_by_name(&loader, GetParam(), MYF(0));
-    DBUG_ASSERT(m_charset);
+    assert(m_charset);
   }
   CHARSET_INFO *m_charset;
 };

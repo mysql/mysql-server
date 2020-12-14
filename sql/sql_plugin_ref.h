@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ struct st_plugin_int {
   conditionally defined plugin_ref type
 */
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 typedef struct st_plugin_int *plugin_ref;
 
 inline st_mysql_plugin *plugin_decl(st_plugin_int *ref) { return ref->plugin; }

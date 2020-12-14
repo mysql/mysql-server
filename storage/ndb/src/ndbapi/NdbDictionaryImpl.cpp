@@ -1188,7 +1188,7 @@ NdbTableImpl::setDbSchema(const char * db, const char * schema)
 const BaseString NdbTableImpl::get_internal_name_prefix(const char *name) {
   DBUG_TRACE;
   // Function should only be called with both internal and external name set
-  DBUG_ASSERT(m_internalName.length() && m_externalName.length());
+  assert(m_internalName.length() && m_externalName.length());
 
   // Get prefix, first part of internal name minus length of external name
   BaseString prefixed_name = m_internalName.substr(
@@ -1342,7 +1342,7 @@ public:
 
     // The third part is packed length and should be equal to the
     // packed data length minus header length
-    DBUG_ASSERT(uint4korr(header + 8) == (Uint32)pack_length - BLOB_HEADER_SZ);
+    assert(uint4korr(header + 8) == (Uint32)pack_length - BLOB_HEADER_SZ);
 
     return true; // OK
   }
@@ -1480,7 +1480,7 @@ public:
      }
      // Check that the uncompressed length returned by uncompress()
      // matches the value in the header
-     DBUG_ASSERT(uncompressed_len == orglen);
+     assert(uncompressed_len == orglen);
  
      *unpack_data= data;
      *unpack_len=  orglen;
@@ -3857,7 +3857,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   } 
   else
   {
-    DBUG_ASSERT(impl->m_fragmentCount > 0);
+    assert(impl->m_fragmentCount > 0);
   }
   free(tableDesc);
   DBUG_RETURN(0);
@@ -5135,8 +5135,8 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
 {
   int res;
   DBUG_ENTER("NdbDictionaryImpl::dropTableGlobal");
-  DBUG_ASSERT(impl.m_status != NdbDictionary::Object::New);
-  DBUG_ASSERT(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
+  assert(impl.m_status != NdbDictionary::Object::New);
+  assert(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
 
   List list;
   if ((res = listDependentObjects(list, impl.m_id)) == -1){
@@ -5777,7 +5777,7 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
   }
   // Calling getIndex() without tableName will return nullptr, this means
   // that tableName must be set at this point
-  DBUG_ASSERT(tableName);
+  assert(tableName);
 
   int ret = dropIndex(*idx, tableName, ignoreFKs);
   // If index stored in cache is incompatible with the one in the kernel,
@@ -10126,7 +10126,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
     fk.ChildColumns[i] = src.m_child_columns[i];
   fk.ChildColumnsLength = 4 * src.m_child_columns.size(); // bytes :(
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     char buf[2048];
     ndbout_print(fk, buf, sizeof(buf));

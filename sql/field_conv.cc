@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
   Functions to copy data to or from fields.
 */
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -34,7 +35,7 @@
 #include "my_byteorder.h"
 #include "my_compare.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -135,7 +136,7 @@ type_conversion_status set_field_to_null(Field *field) {
       my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
       return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
-  DBUG_ASSERT(false);  // impossible
+  assert(false);  // impossible
 
   my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;  // to avoid compiler's warning
@@ -235,7 +236,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
       my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
       return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
-  DBUG_ASSERT(false);  // impossible
+  assert(false);  // impossible
   my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
@@ -497,7 +498,7 @@ static void do_expand_string(Copy_field *, const Field *from_field,
 */
 static void copy_field_varstring(Field_varstring *const to,
                                  const Field_varstring *const from) {
-  DBUG_ASSERT(from->get_length_bytes() == to->get_length_bytes());
+  assert(from->get_length_bytes() == to->get_length_bytes());
 
   size_t bytes_to_copy;
   const CHARSET_INFO *const from_cs = from->charset();
@@ -738,7 +739,7 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
     }
   }
   /* Eq fields */
-  DBUG_ASSERT(m_to_field->pack_length() == m_from_field->pack_length());
+  assert(m_to_field->pack_length() == m_from_field->pack_length());
   return do_field_eq;
 }
 

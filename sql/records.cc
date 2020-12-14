@@ -155,7 +155,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                                      bool count_examined_rows) {
   // If only 'table' is given, assume no quick, no condition.
   if (table != nullptr && qep_tab != nullptr) {
-    DBUG_ASSERT(table == qep_tab->table());
+    assert(table == qep_tab->table());
   } else if (table == nullptr) {
     table = qep_tab->table();
   }
@@ -182,7 +182,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
     bool count_examined_rows) {
   unique_ptr_destroy_only<RowIterator> iterator;
 
-  DBUG_ASSERT(!(table && qep_tab));
+  assert(!(table && qep_tab));
   if (!table) table = qep_tab->table();
   empty_record(table);
 
@@ -200,7 +200,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
       The Unique class never puts its results into table->sort's
       Filesort_buffer.
     */
-    DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
+    assert(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
     iterator = NewIterator<SortBufferIndirectIterator>(
         thd, Mem_root_array<TABLE *>{table}, &table->unique_result,
@@ -390,7 +390,7 @@ bool FollowTailIterator::Init() {
   empty_record(table());
 
   // BeginMaterialization() must be called before this.
-  DBUG_ASSERT(m_stored_rows != nullptr);
+  assert(m_stored_rows != nullptr);
 
   /*
     Only attempt to allocate a record buffer the first time the handler is

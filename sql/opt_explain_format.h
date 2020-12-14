@@ -28,13 +28,14 @@
   EXPLAIN FORMAT=@<format@> @<command@>.
 */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstring>
 
 #include "my_alloc.h"  // MEM_ROOT
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/parse_tree_node_base.h"
@@ -175,7 +176,7 @@ class qep_row {
       nil = false;
     }
     T get() const {
-      DBUG_ASSERT(!nil);
+      assert(!nil);
       return value;
     }
   };

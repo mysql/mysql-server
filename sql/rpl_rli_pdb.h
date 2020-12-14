@@ -55,7 +55,7 @@ class Rpl_info_handler;
 class Slave_worker;
 struct TABLE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern ulong w_rr;
 #endif
 /**
@@ -130,7 +130,7 @@ struct Slave_job_group {
         done(other.done.load()),
         shifted(other.shifted),
         ts(other.ts),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         notified(other.notified),
 #endif
         last_committed(other.last_committed),
@@ -155,7 +155,7 @@ struct Slave_job_group {
     done.store(other.done.load());
     shifted = other.shifted;
     ts = other.ts;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified = other.notified;
 #endif
     last_committed = other.last_committed;
@@ -196,7 +196,7 @@ struct Slave_job_group {
   std::atomic<int32> done;  // Flag raised by W,  read and reset by Coordinator
   ulong shifted;            // shift the last CP bitmap at receiving a new CP
   time_t ts;  // Group's timestampt to update Seconds_behind_master
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool notified{false};  // to debug group_master_log_name change notification
 #endif
   /* Clock-based scheduler requirement: */
@@ -246,7 +246,7 @@ struct Slave_job_group {
     checkpoint_seqno = (uint)-1;
     done = 0;
     ts = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified = false;
 #endif
     last_committed = SEQ_UNINIT;
@@ -360,7 +360,7 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool count_done(Relay_log_info *rli);
 #endif
 
@@ -373,7 +373,7 @@ class Slave_committed_queue : public circular_buffer_queue<Slave_job_group> {
      in the circular buffer dyn-array
   */
   Slave_job_group *get_job_group(ulong ind) {
-    DBUG_ASSERT(ind < size);
+    assert(ind < size);
     return &m_Q[ind];
   }
 
@@ -419,7 +419,7 @@ template <typename Element_type>
 ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   ulong ret;
   if (avail == size) {
-    DBUG_ASSERT(avail == m_Q.size());
+    assert(avail == m_Q.size());
     return (ulong)-1;
   }
 
@@ -437,10 +437,9 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item) {
   // post-boundary cond
   if (avail == entry) avail = size;
 
-  DBUG_ASSERT(avail == entry || len == (avail >= entry)
-                  ? (avail - entry)
-                  : (size + avail - entry));
-  DBUG_ASSERT(avail != entry);
+  assert(avail == entry || len == (avail >= entry) ? (avail - entry)
+                                                   : (size + avail - entry));
+  assert(avail != entry);
 
   return ret;
 }
@@ -457,7 +456,7 @@ template <typename Element_type>
 ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
   ulong ret;
   if (entry == size) {
-    DBUG_ASSERT(len == 0);
+    assert(len == 0);
     return (ulong)-1;
   }
 
@@ -472,10 +471,9 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
   // post boundary cond
   if (avail == entry) entry = size;
 
-  DBUG_ASSERT(
-      entry == size ||
-      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
+  assert(entry == size ||
+         (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  assert(avail != entry);
 
   return ret;
 }
@@ -483,7 +481,7 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item) {
 template <typename Element_type>
 ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
   if (entry == size) {
-    DBUG_ASSERT(len == 0);
+    assert(len == 0);
     return (ulong)-1;
   }
 
@@ -494,10 +492,9 @@ ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item) {
   // post boundary cond
   if (avail == entry) entry = size;
 
-  DBUG_ASSERT(
-      entry == size ||
-      (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
+  assert(entry == size ||
+         (len == (avail >= entry) ? (avail - entry) : (size + avail - entry)));
+  assert(avail != entry);
 
   return avail;
 }
@@ -538,7 +535,7 @@ class Slave_worker : public Relay_log_info {
   Prealloced_array<db_worker_hash_entry *, SLAVE_INIT_DBS_IN_GROUP>
       curr_group_exec_parts;  // Current Group Executed Partitions
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool curr_group_seen_sequence_number;  // is set to true about starts_group()
 #endif
   ulong id;  // numberic identifier of the Worker
@@ -659,7 +656,7 @@ class Slave_worker : public Relay_log_info {
     to be called from Relay_log_info and Slave_worker pre_commit() methods.
   */
   bool commit_positions() override {
-    DBUG_ASSERT(current_event);
+    assert(current_event);
 
     return commit_positions(
         current_event, c_rli->gaq->get_job_group(current_event->mts_group_idx),
@@ -801,12 +798,11 @@ class Slave_worker : public Relay_log_info {
                                      get_master_server_version());
     }
     if (rli_description_event) {
-      DBUG_ASSERT(rli_description_event->atomic_usage_counter > 0);
+      assert(rli_description_event->atomic_usage_counter > 0);
 
       if (--rli_description_event->atomic_usage_counter == 0) {
         /* The being deleted by Worker FD can't be the latest one */
-        DBUG_ASSERT(rli_description_event !=
-                    c_rli->get_rli_description_event());
+        assert(rli_description_event != c_rli->get_rli_description_event());
 
         delete rli_description_event;
       }

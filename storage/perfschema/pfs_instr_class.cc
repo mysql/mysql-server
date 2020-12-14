@@ -27,13 +27,14 @@
 
 #include "storage/perfschema/pfs_instr_class.h"
 
+#include <assert.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
 
 #include "lex_string.h"
 #include "lf.h"
-#include "my_dbug.h"
+
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
@@ -441,9 +442,9 @@ static const uchar *table_share_hash_get_key(const uchar *entry,
   const PFS_table_share *share;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_table_share *const *>(entry);
-  DBUG_ASSERT(typed_entry != nullptr);
+  assert(typed_entry != nullptr);
   share = *typed_entry;
-  DBUG_ASSERT(share != nullptr);
+  assert(share != nullptr);
   *length = share->m_key.m_key_length;
   result = &share->m_key.m_hash_key[0];
   return reinterpret_cast<const uchar *>(result);
@@ -496,8 +497,8 @@ static void set_table_share_key(PFS_table_share_key *key, bool temporary,
                                 size_t schema_name_length,
                                 const char *table_name,
                                 size_t table_name_length) {
-  DBUG_ASSERT(schema_name_length <= NAME_LEN);
-  DBUG_ASSERT(table_name_length <= NAME_LEN);
+  assert(schema_name_length <= NAME_LEN);
+  assert(table_name_length <= NAME_LEN);
   char *saved_schema_name;
   char *saved_table_name;
 
@@ -574,7 +575,7 @@ void PFS_table_share::destroy_lock_stat() {
   @return a table share index
 */
 PFS_table_share_index *PFS_table_share::find_index_stat(uint index) const {
-  DBUG_ASSERT(index <= MAX_INDEXES);
+  assert(index <= MAX_INDEXES);
 
   return this->m_race_index_stat[index].load();
 }
@@ -587,7 +588,7 @@ PFS_table_share_index *PFS_table_share::find_index_stat(uint index) const {
 */
 PFS_table_share_index *PFS_table_share::find_or_create_index_stat(
     const TABLE_SHARE *server_share, uint index) {
-  DBUG_ASSERT(index <= MAX_INDEXES);
+  assert(index <= MAX_INDEXES);
 
   /* (1) Atomic Load */
   PFS_table_share_index *pfs = this->m_race_index_stat[index].load();
@@ -699,7 +700,7 @@ int init_table_share_index_stat(uint index_stat_sizing) {
 */
 PFS_table_share_index *create_table_share_index_stat(
     const TABLE_SHARE *server_share, uint server_index) {
-  DBUG_ASSERT((server_share != nullptr) || (server_index == MAX_INDEXES));
+  assert((server_share != nullptr) || (server_index == MAX_INDEXES));
 
   PFS_table_share_index *pfs = nullptr;
   pfs_dirty_state dirty_state;
@@ -953,7 +954,7 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
                              uint name_length, int flags, int volatility,
                              const char *documentation,
                              PFS_class_type class_type) {
-  DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
+  assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
   strncpy(klass->m_name, name, name_length);
   klass->m_name_length = name_length;
@@ -1012,7 +1013,7 @@ static void configure_instr_class(PFS_instr_class *entry) {
     entry = &ARRAY[INDEX];                                             \
     if ((entry->m_name_length == NAME_LENGTH) &&                       \
         (strncmp(entry->m_name, NAME, NAME_LENGTH) == 0)) {            \
-      DBUG_ASSERT(entry->m_flags == info->m_flags);                    \
+      assert(entry->m_flags == info->m_flags);                         \
       return (INDEX + 1);                                              \
     }                                                                  \
   }
@@ -1147,8 +1148,8 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
                                PSI_FLAG_RWLOCK_PR);
 
     /* One of rwlock, prlock, sxlock */
-    DBUG_ASSERT(((info->m_flags & PSI_FLAG_RWLOCK_SX) == 0) ||
-                ((info->m_flags & PSI_FLAG_RWLOCK_PR) == 0));
+    assert(((info->m_flags & PSI_FLAG_RWLOCK_SX) == 0) ||
+           ((info->m_flags & PSI_FLAG_RWLOCK_PR) == 0));
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
@@ -1850,7 +1851,7 @@ void PFS_table_share::sum_io(PFS_single_stat *result, uint key_count) {
   uint index;
   PFS_table_share_index *stat;
 
-  DBUG_ASSERT(key_count <= MAX_INDEXES);
+  assert(key_count <= MAX_INDEXES);
 
   /* Sum stats for each index, if any */
   for (index = 0; index < key_count; index++) {
@@ -1891,7 +1892,7 @@ void PFS_table_share::aggregate_lock(void) {
 }
 
 void release_table_share(PFS_table_share *pfs) {
-  DBUG_ASSERT(pfs->get_refcount() > 0);
+  assert(pfs->get_refcount() > 0);
   pfs->dec_refcount();
 }
 

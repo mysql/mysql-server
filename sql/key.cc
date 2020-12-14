@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -497,8 +497,8 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
 */
 int key_cmp2(KEY_PART_INFO *key_part, const uchar *key1, uint key1_length,
              const uchar *key2, uint key2_length MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(key_part && key1 && key2);
-  DBUG_ASSERT((key1_length == key2_length) && key1_length != 0);
+  assert(key_part && key1 && key2);
+  assert((key1_length == key2_length) && key1_length != 0);
   uint store_length;
 
   /* Compare all the subkeys (if it is a composite key) */
@@ -590,8 +590,8 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
   DBUG_TRACE;
 
   /* Assert that at least the first key part is read. */
-  DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
-                            key_info->key_part->field->field_index()));
+  assert(bitmap_is_set(key_info->table->read_set,
+                       key_info->key_part->field->field_index()));
   /* loop over all given keys */
   do {
     key_parts = key_info->user_defined_key_parts;

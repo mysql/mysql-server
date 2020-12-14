@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -27,7 +28,6 @@
 #include <string>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/opt_range.h"
 #include "sql/opt_range_internal.h"
@@ -316,7 +316,7 @@ Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
       break;
     default:
       result = nullptr;
-      DBUG_ASSERT(false);
+      assert(false);
       return result;
   }
   Item *itm = static_cast<Item *>(result);

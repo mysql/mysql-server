@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,14 @@
 #ifndef DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 #define DD_CACHE__DICTIONARY_CLIENT_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "object_registry.h"  // Object_registry
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
@@ -189,7 +190,7 @@ class Dictionary_client {
     template <typename T>
     void auto_release(Cache_element<T> *element) {
       // Catch situations where we do not use a non-default releaser.
-      DBUG_ASSERT(m_prev != nullptr);
+      assert(m_prev != nullptr);
       m_release_registry.put(element);
     }
 
@@ -364,21 +365,21 @@ class Dictionary_client {
 
   template <typename T>
   void auto_delete(T *object) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Make sure we do not sign up a shared object for auto delete.
     Cache_element<typename T::Cache_partition> *element = nullptr;
     m_registry_committed.get(
         static_cast<const typename T::Cache_partition *>(object), &element);
-    DBUG_ASSERT(element == nullptr);
+    assert(element == nullptr);
 
     // Make sure we do not sign up an uncommitted object for auto delete.
     m_registry_uncommitted.get(
         static_cast<const typename T::Cache_partition *>(object), &element);
-    DBUG_ASSERT(element == nullptr);
+    assert(element == nullptr);
 
     // We must require a top level non-default releaser to ensure a
     // predictable life span of the objects.
-    DBUG_ASSERT(m_current_releaser != &m_default_releaser);
+    assert(m_current_releaser != &m_default_releaser);
 #endif
 
     m_uncached_objects.push_back(object);
@@ -393,12 +394,12 @@ class Dictionary_client {
 
   template <typename T>
   void no_auto_delete(T *object) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Make sure the object has been registered as uncommitted.
     Cache_element<typename T::Cache_partition> *element = nullptr;
     m_registry_uncommitted.get(
         static_cast<const typename T::Cache_partition *>(object), &element);
-    DBUG_ASSERT(element != nullptr);
+    assert(element != nullptr);
 #endif
     m_uncached_objects.erase(std::remove(m_uncached_objects.begin(),
                                          m_uncached_objects.end(), object),

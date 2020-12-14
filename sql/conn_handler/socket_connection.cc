@@ -1365,7 +1365,7 @@ Channel_info *Mysqld_socket_listener::listen_for_connection_event() {
     When poll/select returns control flow then at least one ready server socket
     must exist. Check that get_ready_socket() returns a valid socket.
   */
-  DBUG_ASSERT(listen_socket != nullptr);
+  assert(listen_socket != nullptr);
   MYSQL_SOCKET connect_sock;
 #ifdef HAVE_SETNS
   /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include "plugin/x/src/view_statement_builder.h"
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
+#include <assert.h>
 
 #include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/xpl_error.h"
@@ -97,7 +97,7 @@ void View_statement_builder::add_algorithm(const Algorithm &algorithm) const {
       break;
 
     default:
-      DBUG_ASSERT("Unknown ALGORITHM type");
+      assert("Unknown ALGORITHM type");
   }
 }
 
@@ -114,7 +114,7 @@ void View_statement_builder::add_sql_security(
       break;
 
     default:
-      DBUG_ASSERT("Unknown SECURITY type");
+      assert("Unknown SECURITY type");
   }
 }
 
@@ -132,7 +132,7 @@ void View_statement_builder::add_check_option(
       break;
 
     default:
-      DBUG_ASSERT("Unknown CHECK type");
+      assert("Unknown CHECK type");
   }
   m_builder.put(" CHECK OPTION");
 }

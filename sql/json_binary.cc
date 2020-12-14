@@ -348,7 +348,7 @@ static bool is_too_big_for_json(size_t offset_or_size, bool large) {
 static enum_serialization_result append_key_entries(const Json_object *object,
                                                     String *dest, size_t offset,
                                                     bool large) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const std::string *prev_key = nullptr;
 #endif
 
@@ -358,7 +358,7 @@ static enum_serialization_result append_key_entries(const Json_object *object,
     const std::string *key = &it->first;
     size_t len = key->length();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Check that the DOM returns the keys in the correct order.
     if (prev_key) {
       assert(prev_key->length() <= len);

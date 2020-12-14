@@ -381,8 +381,7 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
     If neither STARTS and ENDS is set, then both fields are empty.
     Hence, if execute_at is empty there is an error.
   */
-  DBUG_ASSERT(
-      !(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
+  assert(!(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
 
   if (!m_expression && !m_execute_at_null)
     m_execute_at = event_obj.execute_at();
@@ -478,7 +477,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("start: %lu  now: %lu", (long)start, (long)time_now));
 
-  DBUG_ASSERT(start <= time_now);
+  assert(start <= time_now);
 
   longlong months = 0, seconds = 0;
 
@@ -524,7 +523,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
       return true;
       break;
     case INTERVAL_LAST:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   DBUG_PRINT("info",
              ("seconds: %ld  months: %ld", (long)seconds, (long)months));
@@ -565,7 +564,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
         then next_time was set, but perhaps to the value that is less
         then time_now.  See below for elaboration.
       */
-      DBUG_ASSERT(negative || next_time > 0);
+      assert(negative || next_time > 0);
 
       /*
         If local_now < local_start, i.e. STARTS time is in the future
@@ -654,7 +653,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
     }
   }
 
-  DBUG_ASSERT(time_now < next_time);
+  assert(time_now < next_time);
 
   *next = next_time;
 
@@ -1104,7 +1103,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   {
     sp_head *sphead = thd->lex->sphead;
 
-    DBUG_ASSERT(sphead);
+    assert(sphead);
 
     if (thd->enable_slow_log) sphead->m_flags |= sp_head::LOG_SLOW_STATEMENTS;
     sphead->m_flags |= sp_head::LOG_GENERAL_LOG;

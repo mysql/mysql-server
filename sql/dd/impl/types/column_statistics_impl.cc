@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/impl/types/column_statistics_impl.h"
 
+#include <assert.h>
 #include <string.h>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
@@ -31,7 +32,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"  // STRING_WITH_LEN
-#include "my_dbug.h"
+
 #include "mysql_com.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"                       // current_thd
@@ -64,7 +65,7 @@ String_type Column_statistics::create_name(const String_type &schema_name,
     Lookups in the dictionary is always done using the name, so this should
     ensure that we always get back our object.
   */
-  DBUG_ASSERT(column_name.length() <= NAME_LEN);
+  assert(column_name.length() <= NAME_LEN);
   char lowercase_name[NAME_LEN + 1];  // Max column length name + \0
   memcpy(lowercase_name, column_name.c_str(), column_name.length() + 1);
   my_casedn_str(system_charset_info, lowercase_name);
@@ -84,7 +85,7 @@ void Column_statistics::create_mdl_key(const String_type &schema_name,
     Lookups in MDL is always done using this method, so this should
     ensure that we always have consistent locks.
   */
-  DBUG_ASSERT(column_name.length() <= NAME_LEN);
+  assert(column_name.length() <= NAME_LEN);
   char lowercase_name[NAME_LEN + 1];  // Max column length name + \0
   memcpy(lowercase_name, column_name.c_str(), column_name.length() + 1);
   my_casedn_str(system_charset_info, lowercase_name);

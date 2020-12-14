@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "plugin/x/client/authentication/password_hasher.h"
 
+#include <assert.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 #include <sys/types.h>
@@ -32,7 +33,6 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/client/authentication/mysql41_hash.h"
 
 #define PVERSION41_CHAR '*'
@@ -125,7 +125,7 @@ bool check_scramble_mysql41_hash(const std::string &scramble_arg,
   char buf[MYSQL41_HASH_SIZE];
   uint8_t hash_stage2_reassured[MYSQL41_HASH_SIZE];
 
-  DBUG_ASSERT(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
+  assert(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
   /* create key to encrypt scramble */
   compute_mysql41_hash_multi(
       reinterpret_cast<uint8_t *>(buf), message.c_str(), message.size(),
@@ -150,7 +150,7 @@ std::string scramble(const std::string &message, const std::string &password) {
 
   result.at(SCRAMBLE_LENGTH - 1) = '\0';
 
-  DBUG_ASSERT(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
+  assert(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
 
   /* Two stage SHA1 hash of the pwd */
   compute_two_stage_mysql41_hash(password,

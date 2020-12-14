@@ -23,12 +23,13 @@
 #ifndef PARSE_TREE_HELPERS_INCLUDED
 #define PARSE_TREE_HELPERS_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
 #include <new>
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "mysql_time.h"
 #include "sql/item.h"
@@ -68,27 +69,27 @@ class Parse_tree_item : public Item {
 
   enum Type type() const override { return INVALID_ITEM; }
   double val_real() override {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
   longlong val_int() override {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
   String *val_str(String *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr;
   }
   bool get_date(MYSQL_TIME *, uint) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
   bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
 };
@@ -137,7 +138,7 @@ class PT_item_list : public Parse_tree_node {
   }
 
   Item *pop_front() {
-    DBUG_ASSERT(!is_empty());
+    assert(!is_empty());
     Item *ret = value.front();
     value.pop_front();
     return ret;

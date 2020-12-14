@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 
 #include "storage/perfschema/table_os_global_by_type.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -217,7 +217,7 @@ int table_os_global_by_type::rnd_pos(const void *pos) {
 
 int table_os_global_by_type::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_os_global_by_type *result;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_os_global_by_type);
   m_opened_index = result;
   m_index = result;
@@ -329,7 +329,7 @@ int table_os_global_by_type::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -362,7 +362,7 @@ int table_os_global_by_type::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, m_row.m_stat.m_max);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

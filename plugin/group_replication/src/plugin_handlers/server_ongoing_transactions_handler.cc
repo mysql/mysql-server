@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ Server_ongoing_transactions_handler::~Server_ongoing_transactions_handler() {
   SERVICE_TYPE(registry) *registry = nullptr;
   if (!registry_module ||
       !(registry = registry_module->get_registry_handle())) {
-    DBUG_ASSERT(0); /* purecov: inspected */
+    assert(0); /* purecov: inspected */
     return;
   }
   registry->release(generic_service);

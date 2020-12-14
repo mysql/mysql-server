@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno) {
 enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
                                                my_thread_id owner) {
   DBUG_TRACE;
-  DBUG_ASSERT(gtid.sidno <= get_max_sidno());
+  assert(gtid.sidno <= get_max_sidno());
   Node *n =
       (Node *)my_malloc(key_memory_Sid_map_Node, sizeof(Node), MYF(MY_WME));
   if (n == nullptr) RETURN_REPORTED_ERROR;
@@ -86,7 +86,7 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
 void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner) {
   DBUG_TRACE;
   // printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
-  // DBUG_ASSERT(contains_gtid(sidno, gno)); // allow group not owned
+  // assert(contains_gtid(sidno, gno)); // allow group not owned
   malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *hash =
       get_hash(gtid.sidno);
   auto it_range = hash->equal_range(gtid.gno);

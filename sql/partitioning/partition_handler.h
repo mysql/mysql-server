@@ -25,6 +25,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
@@ -34,7 +35,7 @@
 #include "my_base.h"  // ha_rows.
 #include "my_bitmap.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -141,12 +142,12 @@ class Partition_share : public Handler_share {
 
   /** lock mutex protecting auto increment value next_auto_inc_val. */
   inline void lock_auto_inc() {
-    DBUG_ASSERT(auto_inc_mutex);
+    assert(auto_inc_mutex);
     mysql_mutex_lock(auto_inc_mutex);
   }
   /** unlock mutex protecting auto increment value next_auto_inc_val. */
   inline void unlock_auto_inc() {
-    DBUG_ASSERT(auto_inc_mutex);
+    assert(auto_inc_mutex);
     mysql_mutex_unlock(auto_inc_mutex);
   }
   /**
@@ -415,7 +416,7 @@ class Partition_helper {
       @retval true  failure.
   */
   bool init_partitioning(MEM_ROOT *mem_root MY_ATTRIBUTE((unused))) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     m_key_not_found_partitions.bitmap = nullptr;
 #endif
     return false;
@@ -893,7 +894,7 @@ class Partition_helper {
   */
   virtual ha_checksum checksum_in_part(
       uint part_id MY_ATTRIBUTE((unused))) const {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
   /**

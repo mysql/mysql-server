@@ -412,7 +412,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
     are used and from propagate_type() otherwise.
   */
   virtual bool resolve_type_inner(THD *) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
   bool propagate_type(THD *thd, const Type_properties &type) override;
@@ -522,7 +522,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
   }
 
   bool has_timestamp_args() {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
       if (args[i]->type() == Item::FIELD_ITEM &&
           args[i]->data_type() == MYSQL_TYPE_TIMESTAMP)
@@ -532,7 +532,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
   }
 
   bool has_date_args() {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
       if (args[i]->type() == Item::FIELD_ITEM &&
           (args[i]->data_type() == MYSQL_TYPE_DATE ||
@@ -543,7 +543,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
   }
 
   bool has_time_args() {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
       if (args[i]->type() == Item::FIELD_ITEM &&
           (args[i]->data_type() == MYSQL_TYPE_TIME ||
@@ -554,7 +554,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
   }
 
   bool has_datetime_args() {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     for (uint i = 0; i < arg_count; i++) {
       if (args[i]->type() == Item::FIELD_ITEM &&
           args[i]->data_type() == MYSQL_TYPE_DATETIME)
@@ -726,7 +726,7 @@ class Item_real_func : public Item_func {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *decimal_value) override;
   longlong val_int() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return llrint_with_overflow_check(val_real());
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
@@ -843,15 +843,15 @@ class Item_func_num1 : public Item_func_numhybrid {
   void fix_num_length_and_dec() override;
   void set_numeric_type() override;
   String *str_op(String *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr;
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
   bool time_op(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
 };
@@ -872,15 +872,15 @@ class Item_num_op : public Item_func_numhybrid {
 
   void set_numeric_type() override;
   String *str_op(String *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr;
   }
   bool date_op(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
   bool time_op(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
 };
@@ -958,7 +958,7 @@ class Item_func_connection_id final : public Item_int_func {
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **ref) override;
   longlong val_int() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return value;
   }
   bool check_function_as_value_generator(uchar *checker_args) override {
@@ -1647,7 +1647,7 @@ class Item_func_bit_length final : public Item_func_length {
  public:
   Item_func_bit_length(const POS &pos, Item *a) : Item_func_length(pos, a) {}
   longlong val_int() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return Item_func_length::val_int() * 8;
   }
   const char *func_name() const override { return "bit_length"; }
@@ -2120,7 +2120,7 @@ class Item_udf_func : public Item_func {
       Item_func::update_used_tables();
 
     not_null_tables_cache = 0;
-    DBUG_ASSERT(!null_on_null);  // no need to update not_null_tables_cache
+    assert(!null_on_null);  // no need to update not_null_tables_cache
   }
   void cleanup() override;
   Item_result result_type() const override { return udf.result_type(); }
@@ -2145,7 +2145,7 @@ class Item_func_udf_float final : public Item_udf_func {
   Item_func_udf_float(const POS &pos, udf_func *udf_arg, PT_item_list *opt_list)
       : Item_udf_func(pos, udf_arg, opt_list) {}
   longlong val_int() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (longlong)rint(Item_func_udf_float::val_real());
   }
   my_decimal *val_decimal(my_decimal *dec_buf) override {
@@ -3330,11 +3330,11 @@ class Item_user_var_as_out_param : public Item {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *decimal_buffer) override;
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return true;
   }
   bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return true;
   }
 
@@ -3502,7 +3502,7 @@ class Item_func_match final : public Item_real_func {
   bool eq(const Item *, bool binary_cmp) const override;
   /* The following should be safe, even if we compare doubles */
   longlong val_int() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return val_real() != 0.0;
   }
   double val_real() override;
@@ -3527,8 +3527,8 @@ class Item_func_match final : public Item_real_func {
      @return Number of matching rows in result
    */
   ulonglong get_count() {
-    DBUG_ASSERT(ft_handler);
-    DBUG_ASSERT(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
+    assert(ft_handler);
+    assert(table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT);
 
     return ((FT_INFO_EXT *)ft_handler)
         ->could_you->count_matches((FT_INFO_EXT *)ft_handler);
@@ -3541,13 +3541,13 @@ class Item_func_match final : public Item_real_func {
      @return false otherwise
    */
   bool ordered_result() {
-    DBUG_ASSERT(!master);
+    assert(!master);
     if (hints->get_flags() & FT_SORTED) return true;
 
     if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
 
-    DBUG_ASSERT(ft_handler);
+    assert(ft_handler);
     return ((FT_INFO_EXT *)ft_handler)->could_you->get_flags() &
            FTS_ORDERED_RESULT;
   }
@@ -3559,7 +3559,7 @@ class Item_func_match final : public Item_real_func {
      @return false otherwise
    */
   bool docid_in_result() {
-    DBUG_ASSERT(ft_handler);
+    assert(ft_handler);
 
     if ((table_ref->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
       return false;
@@ -3599,7 +3599,7 @@ class Item_func_match final : public Item_real_func {
      @return pointer to Ft_hints object
   */
   Ft_hints *get_hints() {
-    DBUG_ASSERT(!master);
+    assert(!master);
     return hints;
   }
 
@@ -3610,7 +3610,7 @@ class Item_func_match final : public Item_real_func {
      @param value_arg  comparison operation value
   */
   void set_hints_op(enum ft_operation type, double value_arg) {
-    DBUG_ASSERT(!master);
+    assert(!master);
     hints->set_hint_op(type, value_arg);
   }
 
@@ -3626,7 +3626,7 @@ class Item_func_match final : public Item_real_func {
      @return false otherwise
   */
   bool can_skip_ranking() {
-    DBUG_ASSERT(!master);
+    assert(!master);
     return (!(hints->get_flags() & FT_SORTED) &&  // FT_SORTED is no set
             used_in_where_only &&                 // MATCH result is not used
                                                   // in expression
@@ -3639,7 +3639,7 @@ class Item_func_match final : public Item_real_func {
      @param val true if the function is a simple expression, false otherwise
   */
   void set_simple_expression(bool val) {
-    DBUG_ASSERT(!master);
+    assert(!master);
     simple_expression = val;
   }
 
@@ -3650,7 +3650,7 @@ class Item_func_match final : public Item_real_func {
      @return false otherwise
   */
   bool is_simple_expression() {
-    DBUG_ASSERT(!master);
+    assert(!master);
     return simple_expression;
   }
 
@@ -3694,7 +3694,7 @@ class Item_func_match final : public Item_real_func {
     // Only Boolean search may support non_indexed columns
     if (!(flags & FT_BOOL)) return false;
 
-    DBUG_ASSERT(tr && tr->file);
+    assert(tr && tr->file);
 
     // Assume that if extended fulltext API is not supported,
     // non-indexed columns are allowed.  This will be true for MyISAM.

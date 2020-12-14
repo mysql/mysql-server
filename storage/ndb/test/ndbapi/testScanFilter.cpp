@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -654,14 +654,14 @@ bool check_one_tuple(int tuple_no, char *str, int len)
     char letter = *(str + i);
     if(check_op(letter))    //push
     {
-      DBUG_ASSERT(pop_op < RECURSIVE_LEVEL*2);
+      assert(pop_op < RECURSIVE_LEVEL*2);
       stack_op[pop_op].type = letter;
       stack_op[pop_op].num = 0;
       pop_op++;
     }
     if(check_col(letter))   //push
     {
-      DBUG_ASSERT(pop_col < RECURSIVE_LEVEL*COL_TST*2);
+      assert(pop_col < RECURSIVE_LEVEL*COL_TST*2);
       stack_col[pop_col] = check_col_equal_one(tuple_no, get_column_id(letter));  
       pop_col++;
       stack_op[pop_op-1].num += 1;
@@ -829,7 +829,7 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
     m = rec[5]->u_32_value();
     n = rec[6]->u_32_value();
     res[32*i+16*j+8*k+4*l+2*m+n] = true;
-    DBUG_ASSERT(rec[COL_ONE]->u_32_value() == 1);
+    assert(rec[COL_ONE]->u_32_value() == 1);
   }
 	  
   delete filter;

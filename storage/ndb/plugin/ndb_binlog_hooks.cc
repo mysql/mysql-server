@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 bool Ndb_binlog_hooks::register_hooks(
     after_reset_master_hook_t *after_reset_master) {
   // Only allow hooks to be installed once
-  DBUG_ASSERT(!m_binlog_transmit_observer);
+  assert(!m_binlog_transmit_observer);
 
   // Resolve pointer to the ndbcluster plugin
   Ndb_plugin_reference ndbcluster_plugin;

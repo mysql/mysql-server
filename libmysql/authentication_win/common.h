@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ void set_log_level(unsigned int);
   to fprintf() (see error_log_vprint() function).
 */
 
-#if defined(DEBUG_ERROR_LOG) && defined(DBUG_OFF)
+#if defined(DEBUG_ERROR_LOG) && defined(NDEBUG)
 #define ERROR_LOG(Level, Msg) \
   do {                        \
   } while (0)
@@ -96,7 +96,7 @@ const char *get_last_error_message(Error_message_buf);
   unless the dbug library implementation is used or debug messages are disabled.
 */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 #define DBUG_PRINT_DO(Keyword, Msg)            \
   do {                                         \
@@ -137,15 +137,6 @@ inline void debug_msg(const char *fmt, ...) {
 
 #undef DBUG_RETURN
 #define DBUG_RETURN(X) return (X)
-
-#undef DBUG_ASSERT
-#ifndef DBUG_OFF
-#define DBUG_ASSERT(X) assert(X)
-#else
-#define DBUG_ASSERT(X) \
-  do {                 \
-  } while (0)
-#endif
 
 #undef DBUG_DUMP
 #define DBUG_DUMP(A, B, C) \
@@ -243,7 +234,7 @@ class Sid {
 
   operator PSID() const { return (PSID)m_data->User.Sid; }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
  private:
   char *m_as_string;  ///< Cached string representation of the SID.

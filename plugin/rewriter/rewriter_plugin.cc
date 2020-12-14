@@ -24,6 +24,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <stddef.h>
@@ -33,7 +34,7 @@
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -255,7 +256,7 @@ static bool reload(MYSQL_THD thd) {
   } catch (const std::bad_alloc &) {
     errcode = ER_REWRITER_OOM;
   }
-  DBUG_ASSERT(errcode != 0);
+  assert(errcode != 0);
   LogPluginErr(ERROR_LEVEL, errcode);
   return true;
 }
@@ -318,7 +319,7 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
 static int rewrite_query_notify(
     MYSQL_THD thd, mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
     const void *event) {
-  DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
+  assert(event_class == MYSQL_AUDIT_PARSE_CLASS);
 
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ int heap_write(HP_INFO *info, const uchar *record) {
   uchar *pos;
   HP_SHARE *share = info->s;
   DBUG_TRACE;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (info->mode & O_RDONLY) {
     set_my_errno(EACCES);
     return EACCES;
@@ -68,7 +68,7 @@ int heap_write(HP_INFO *info, const uchar *record) {
   info->current_ptr = pos;
   info->current_hash_ptr = nullptr;
   info->update |= HA_STATE_AKTIV;
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
   if (share->auto_key) heap_update_auto_increment(info, record);

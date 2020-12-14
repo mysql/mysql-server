@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -655,7 +655,7 @@ static void debug_sync_emergency_disable(void) {
 
 void debug_sync_init_thread(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (opt_debug_sync_timeout) {
     thd->debug_sync_control = (st_debug_sync_control *)my_malloc(
@@ -673,7 +673,7 @@ void debug_sync_init_thread(THD *thd) {
 
 void debug_sync_claim_memory_ownership(THD *thd, bool claim) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   st_debug_sync_control *ds_control = thd->debug_sync_control;
 
@@ -701,7 +701,7 @@ void debug_sync_claim_memory_ownership(THD *thd, bool claim) {
 
 void debug_sync_end_thread(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (thd->debug_sync_control) {
     st_debug_sync_control *ds_control = thd->debug_sync_control;
@@ -749,15 +749,15 @@ void debug_sync_end_thread(THD *thd) {
 
 static char *debug_sync_bmove_len(char *to, char *to_end, const char *from,
                                   size_t length) {
-  DBUG_ASSERT(to);
-  DBUG_ASSERT(to_end);
-  DBUG_ASSERT(!length || from);
+  assert(to);
+  assert(to_end);
+  assert(!length || from);
   length = std::min(length, size_t(to_end - to));
   memcpy(to, from, length);
   return (to + length);
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 /**
   Create a string that describes an action.
@@ -771,12 +771,12 @@ static void debug_sync_action_string(char *result, uint size,
                                      st_debug_sync_action *action) {
   char *wtxt = result;
   char *wend = wtxt + size - 1; /* Allow emergency '\0'. */
-  DBUG_ASSERT(result);
-  DBUG_ASSERT(action);
+  assert(result);
+  assert(action);
 
   /* If an execute count is present, signal or wait_for are needed too. */
-  DBUG_ASSERT(!action->execute || action->signal.length() ||
-              action->wait_for.length());
+  assert(!action->execute || action->signal.length() ||
+         action->wait_for.length());
 
   if (action->execute) {
     if (action->signal.length()) {
@@ -820,7 +820,7 @@ static void debug_sync_print_actions(THD *thd) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   uint idx;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (!ds_control) return;
 
@@ -834,7 +834,7 @@ static void debug_sync_print_actions(THD *thd) {
   }
 }
 
-#endif /* !defined(DBUG_OFF) */
+#endif /* !defined(NDEBUG) */
 
 /**
   Find a debug sync action.
@@ -860,9 +860,9 @@ static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
   int high;
   int mid;
   int diff;
-  DBUG_ASSERT(actionarr);
-  DBUG_ASSERT(dsp_name);
-  DBUG_ASSERT(name_len);
+  assert(actionarr);
+  assert(dsp_name);
+  assert(name_len);
 
   low = 0;
   high = quantity;
@@ -902,8 +902,8 @@ static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
 static void debug_sync_reset(THD *thd) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(ds_control);
+  assert(thd);
+  assert(ds_control);
 
   /* Remove all actions of this thread. */
   ds_control->ds_active = 0;
@@ -931,10 +931,10 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
                                      st_debug_sync_action *action) {
   uint dsp_idx = static_cast<uint>(action - ds_control->ds_action);
   DBUG_TRACE;
-  DBUG_ASSERT(ds_control);
-  DBUG_ASSERT(ds_control == current_thd->debug_sync_control);
-  DBUG_ASSERT(action);
-  DBUG_ASSERT(dsp_idx < ds_control->ds_active);
+  assert(ds_control);
+  assert(ds_control == current_thd->debug_sync_control);
+  assert(action);
+  assert(dsp_idx < ds_control->ds_active);
 
   /* Decrement the number of currently active actions. */
   ds_control->ds_active--;
@@ -988,25 +988,25 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   st_debug_sync_action *action;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(dsp_name);
-  DBUG_ASSERT(name_len);
-  DBUG_ASSERT(ds_control);
+  assert(thd);
+  assert(dsp_name);
+  assert(name_len);
+  assert(ds_control);
   DBUG_PRINT("debug_sync", ("sync_point: '%.*s'", (int)name_len, dsp_name));
   DBUG_PRINT("debug_sync", ("active: %u  allocated: %u", ds_control->ds_active,
                             ds_control->ds_allocated));
 
   /* There cannot be more active actions than allocated. */
-  DBUG_ASSERT(ds_control->ds_active <= ds_control->ds_allocated);
+  assert(ds_control->ds_active <= ds_control->ds_allocated);
   /* If there are active actions, the action array must be present. */
-  DBUG_ASSERT(!ds_control->ds_active || ds_control->ds_action);
+  assert(!ds_control->ds_active || ds_control->ds_action);
 
   /* Try to reuse existing action if there is one for this sync point. */
   if (ds_control->ds_active &&
       (action = debug_sync_find(ds_control->ds_action, ds_control->ds_active,
                                 dsp_name, name_len))) {
     /* Reuse an already active sync point action. */
-    DBUG_ASSERT((uint)(action - ds_control->ds_action) < ds_control->ds_active);
+    assert((uint)(action - ds_control->ds_action) < ds_control->ds_active);
     DBUG_PRINT("debug_sync", ("reuse action idx: %ld",
                               (long)(action - ds_control->ds_action)));
   } else {
@@ -1051,8 +1051,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
     }
     action->need_sort = true;
   }
-  DBUG_ASSERT(action >= ds_control->ds_action);
-  DBUG_ASSERT(action < ds_control->ds_action + ds_control->ds_active);
+  assert(action >= ds_control->ds_action);
+  assert(action < ds_control->ds_action + ds_control->ds_active);
   DBUG_PRINT("debug_sync", ("action: %p  array: %p  count: %u", action,
                             ds_control->ds_action, ds_control->ds_active));
 
@@ -1097,9 +1097,9 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   bool is_dsp_now = false;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(action);
-  DBUG_ASSERT(ds_control);
+  assert(thd);
+  assert(action);
+  assert(ds_control);
 
   action->activation_count = max(action->hit_limit, action->execute);
   if (!action->activation_count) {
@@ -1258,9 +1258,9 @@ static inline const char *get_token_end_ptr(const char *ptr) {
 
 static char *debug_sync_token(char **token_p, size_t *token_length_p,
                               char *ptr) {
-  DBUG_ASSERT(token_p);
-  DBUG_ASSERT(token_length_p);
-  DBUG_ASSERT(ptr);
+  assert(token_p);
+  assert(token_length_p);
+  assert(ptr);
 
   /* Skip leading space */
   ptr = const_cast<char *>(skip_whitespace(ptr));
@@ -1322,8 +1322,8 @@ static char *debug_sync_number(ulong *number_p, char *actstrptr) {
   char *ept;
   char *token;
   size_t token_length;
-  DBUG_ASSERT(number_p);
-  DBUG_ASSERT(actstrptr);
+  assert(number_p);
+  assert(actstrptr);
 
   /* Get token from string. */
   if (!(ptr = debug_sync_token(&token, &token_length, actstrptr))) goto end;
@@ -1374,8 +1374,8 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
   char *token;
   size_t token_length = 0;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(action_str);
+  assert(thd);
+  assert(action_str);
 
   /*
     Get debug sync point name. Or a special command.
@@ -1421,7 +1421,7 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
     Check for pseudo actions first. Start with actions that work on
     an existing action.
   */
-  DBUG_ASSERT(action);
+  assert(action);
 
   /*
     Try TEST.
@@ -1746,21 +1746,21 @@ static inline void clear_signal_event(const std::string *signal_name) {
 */
 
 static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const char *dsp_name = action->sync_point.c_ptr();
   const char *sig_emit = action->signal.c_ptr();
   const char *sig_wait = action->wait_for.c_ptr();
 #endif
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(action);
+  assert(thd);
+  assert(action);
   DBUG_PRINT("debug_sync",
              ("sync_point: '%s'  activation_count: %lu  hit_limit: %lu  "
               "execute: %lu  timeout: %lu  signal: '%s'  wait_for: '%s'",
               dsp_name, action->activation_count, action->hit_limit,
               action->execute, action->timeout, sig_emit, sig_wait));
 
-  DBUG_ASSERT(action->activation_count);
+  assert(action->activation_count);
   action->activation_count--;
 
   if (action->execute) {
@@ -1919,10 +1919,10 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   st_debug_sync_action *action;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(sync_point_name);
-  DBUG_ASSERT(name_len);
-  DBUG_ASSERT(ds_control);
+  assert(thd);
+  assert(sync_point_name);
+  assert(name_len);
+  assert(ds_control);
   DBUG_PRINT("debug_sync_point", ("hit: '%s'", sync_point_name));
 
   /* Statistics. */
@@ -1971,8 +1971,8 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
   bool rc;
   char *value;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
-  DBUG_ASSERT(action_str);
+  assert(thd);
+  assert(action_str);
 
   value = strmake_root(thd->mem_root, action_str, len);
   rc = debug_sync_eval_action(thd, value);
@@ -1983,7 +1983,7 @@ void conditional_sync_point(std::string name) {
   DBUG_EXECUTE_IF(("syncpoint_" + name).c_str(), {
     std::string act =
         "now SIGNAL reached_" + name + " WAIT_FOR continue_" + name;
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, act.c_str(), act.length()));
+    assert(!debug_sync_set_action(current_thd, act.c_str(), act.length()));
   });
 }
 

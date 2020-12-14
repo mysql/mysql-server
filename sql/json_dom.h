@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 #include <iterator>
 #include <map>
@@ -35,7 +36,7 @@
 
 #include "field_types.h"  // enum_field_types
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_time.h"  // my_time_flags_t
 #include "mysql/mysql_lex_string.h"
@@ -636,7 +637,7 @@ class Json_array final : public Json_container {
     @return the value at index
   */
   Json_dom *operator[](size_t index) const {
-    DBUG_ASSERT(m_v[index]->parent() == this);
+    assert(m_v[index]->parent() == this);
     return m_v[index].get();
   }
 
@@ -1300,7 +1301,7 @@ class Json_wrapper {
     If is_dom() returns false, the result of calling this function is undefined.
   */
   const Json_dom *get_dom() const {
-    DBUG_ASSERT(m_is_dom);
+    assert(m_is_dom);
     return m_dom_value;
   }
 
@@ -1310,7 +1311,7 @@ class Json_wrapper {
     undefined.
   */
   const json_binary::Value &get_binary_value() const {
-    DBUG_ASSERT(!m_is_dom);
+    assert(!m_is_dom);
     return m_value;
   }
 

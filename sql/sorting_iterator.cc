@@ -225,8 +225,8 @@ int SortFileIterator<Packed_addon_fields>::Read() {
     // First read length of the record.
     if (my_b_read(m_io_cache, destination, len_sz)) return -1;
     uint res_length = Addon_fields::read_addon_length(destination);
-    DBUG_ASSERT(res_length > len_sz);
-    DBUG_ASSERT(m_sort->using_addon_fields());
+    assert(res_length > len_sz);
+    assert(m_sort->using_addon_fields());
 
     // Then read the rest of the record.
     if (my_b_read(m_io_cache, destination + len_sz, res_length - len_sz))
@@ -332,7 +332,7 @@ SortBufferIndirectIterator::SortBufferIndirectIterator(
 
 SortBufferIndirectIterator::~SortBufferIndirectIterator() {
   m_sort_result->sorted_result.reset();
-  DBUG_ASSERT(!m_sort_result->sorted_result_in_fsbuf);
+  assert(!m_sort_result->sorted_result_in_fsbuf);
   m_sort_result->sorted_result_in_fsbuf = false;
 
   for (TABLE *table : m_tables) {
@@ -496,10 +496,10 @@ bool SortingIterator::Init() {
     m_sort_result.io_cache =
         nullptr;  // The result iterator has taken ownership.
   } else {
-    DBUG_ASSERT(m_sort_result.has_result_in_memory());
+    assert(m_sort_result.has_result_in_memory());
     if (m_fs_info.using_addon_fields()) {
       DBUG_PRINT("info", ("using SortBufferIterator"));
-      DBUG_ASSERT(m_sort_result.sorted_result_in_fsbuf);
+      assert(m_sort_result.sorted_result_in_fsbuf);
       if (m_fs_info.addon_fields->using_packed_addons())
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_buffer_packed_addons)
@@ -536,7 +536,7 @@ bool SortingIterator::Init() {
 */
 
 int SortingIterator::DoSort() {
-  DBUG_ASSERT(m_sort_result.io_cache == nullptr);
+  assert(m_sort_result.io_cache == nullptr);
   m_sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));

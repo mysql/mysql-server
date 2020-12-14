@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -283,7 +283,7 @@ void Prepare_command_handler::send_notices(const Prepared_stmt_info *stmt_info,
 
 ngs::Error_code Prepare_command_handler::execute_cursor_open(const Open &msg) {
   m_session->update_status(&ngs::Common_status_variables::m_cursor_open);
-  DBUG_ASSERT(msg.stmt().type() == Open::OneOfMessage::PREPARE_EXECUTE);
+  assert(msg.stmt().type() == Open::OneOfMessage::PREPARE_EXECUTE);
 
   const auto cursor_id = msg.cursor_id();
   const auto client_statement_id = msg.stmt().prepare_execute().stmt_id();
@@ -387,7 +387,7 @@ ngs::Error_code Prepare_command_handler::execute_cursor_fetch_impl(
 
   const auto prep_stmt_info =
       get_stmt_if_allocated(cursor_info->m_client_stmt_id);
-  DBUG_ASSERT(nullptr != prep_stmt_info);
+  assert(nullptr != prep_stmt_info);
   const auto server_stmt_id = prep_stmt_info->m_server_stmt_id;
   auto error = m_session->data_context().fetch_cursor(
       server_stmt_id, fetch_rows, &cursor_info->m_resultset);

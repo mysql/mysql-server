@@ -168,15 +168,14 @@ class Opt_trace_context;
 */
 
 TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     We're adding a clone; if another clone has been opened before, it was not
     aware of the new one, so perhaps the storage engine has not set up the
     necessary logic to share data among clones. Check that no clone is open:
   */
   Derived_refs_iterator it(tmp_tables[0]);
-  while (TABLE *t = it.get_next())
-    DBUG_ASSERT(!t->is_created() && !t->materialized);
+  while (TABLE *t = it.get_next()) assert(!t->is_created() && !t->materialized);
 #endif
   TABLE *first = tmp_tables[0]->table;
   // Allocate clone on the memory root of the TABLE_SHARE.
@@ -200,7 +199,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
                                 DELAYED_OPEN,
                             0, t, false, nullptr))
     return nullptr; /* purecov: inspected */
-  DBUG_ASSERT(t->s == first->s && t != first && t->file != first->file);
+  assert(t->s == first->s && t != first && t->file != first->file);
   t->s->increment_ref_count();
 
   // In case this clone is used to fill the materialized table:
@@ -230,7 +229,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
 bool Common_table_expr::substitute_recursive_reference(THD *thd,
                                                        Query_block *sl) {
   TABLE_LIST *tl = sl->recursive_reference;
-  DBUG_ASSERT(tl != nullptr && tl->table == nullptr);
+  assert(tl != nullptr && tl->table == nullptr);
   TABLE *t = clone_tmp_table(thd, tl);
   if (t == nullptr) return true; /* purecov: inspected */
   // Eliminate the dummy unit:
@@ -291,19 +290,19 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   if (!is_view_or_derived() || is_merged() || is_table_function()) return false;
 
   // Dummy derived tables for recursive references disappear before this stage
-  DBUG_ASSERT(this != query_block->recursive_reference);
+  assert(this != query_block->recursive_reference);
 
   if (is_derived() && derived->m_lateral_deps)
     query_block->end_lateral_table = this;
 
   Context_handler ctx_handler(thd);
 
-#ifndef DBUG_OFF  // CTEs, derived tables can have outer references
+#ifndef NDEBUG    // CTEs, derived tables can have outer references
   if (is_view())  // but views cannot.
     for (Query_block *sl = derived->first_query_block(); sl;
          sl = sl->next_query_block()) {
       // Make sure there are no outer references
-      DBUG_ASSERT(sl->context.outer_context == nullptr);
+      assert(sl->context.outer_context == nullptr);
     }
 #endif
 
@@ -395,7 +394,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
       return true;
     }
     derived->first_recursive = last_non_recursive->next_query_block();
-    DBUG_ASSERT(derived->is_recursive());
+    assert(derived->is_recursive());
   }
 
   DEBUG_SYNC(thd, "derived_not_set");
@@ -522,7 +521,7 @@ static void swap_column_names_of_unit_and_tmp_table(
 */
 
 Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
-  DBUG_ASSERT(derived->is_prepared());
+  assert(derived->is_prepared());
 
   // Set up for parsing item
   LEX *const old_lex = thd->lex;
@@ -625,7 +624,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
 {
   DBUG_TRACE;
 
-  DBUG_ASSERT(is_view_or_derived() && !is_merged() && table == nullptr);
+  assert(is_view_or_derived() && !is_merged() && table == nullptr);
 
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
@@ -747,7 +746,7 @@ bool Query_expression::check_materialized_derived_query_blocks(THD *thd_arg) {
 bool TABLE_LIST::setup_table_function(THD *thd) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(is_table_function());
+  assert(is_table_function());
 
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
@@ -1303,7 +1302,7 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
 
   Query_expression *const unit = derived_query_expression();
 
-  DBUG_ASSERT(unit && !unit->is_optimized());
+  assert(unit && !unit->is_optimized());
 
   if (!table->has_storage_handler()) {
     Derived_refs_iterator ref_it(this);
@@ -1348,8 +1347,8 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
   DBUG_TRACE;
 
   // @todo: Be able to assert !table->is_created() as well
-  DBUG_ASSERT((is_table_function() || derived_query_expression()) &&
-              uses_materialization() && table);
+  assert((is_table_function() || derived_query_expression()) &&
+         uses_materialization() && table);
 
   if (!table->is_created()) {
     Derived_refs_iterator it(this);
@@ -1373,11 +1372,11 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
       At this point, JT_CONST derived tables should be null rows. Otherwise
       they would have been materialized already.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (table != nullptr) {
       QEP_TAB *tab = table->reginfo.qep_tab;
-      DBUG_ASSERT(tab == nullptr || tab->type() != JT_CONST ||
-                  table->has_null_row());
+      assert(tab == nullptr || tab->type() != JT_CONST ||
+             table->has_null_row());
     }
 #endif
     return false;
@@ -1407,8 +1406,8 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
 
 bool TABLE_LIST::materialize_derived(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-  DBUG_ASSERT(table && table->is_created() && !table->materialized);
+  assert(is_view_or_derived() && uses_materialization());
+  assert(table && table->is_created() && !table->materialized);
 
   Derived_refs_iterator it(this);
   while (TABLE *t = it.get_next())
@@ -1429,7 +1428,7 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
   */
   Query_expression *const unit = derived_query_expression();
   if (unit->is_recursive()) {
-    DBUG_ASSERT(table->s->primary_key == MAX_KEY);
+    assert(table->s->primary_key == MAX_KEY);
   }
 
   if (table->hash_field) {
@@ -1468,6 +1467,6 @@ bool TABLE_LIST::materialize_derived(THD *thd) {
 */
 
 void TABLE_LIST::cleanup_derived(THD *thd) {
-  DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+  assert(is_view_or_derived() && uses_materialization());
   derived_query_expression()->cleanup(thd, false);
 }

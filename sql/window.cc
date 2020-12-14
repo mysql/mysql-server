@@ -142,15 +142,15 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
         the peers, but it's irrelevant: what matters is the frame's set, not
         the peer set in itself).
       */
-      DBUG_ASSERT(!wfs->framing());
+      assert(!wfs->framing());
       m_needs_peerset = true;
     }
     if (reqs.needs_last_peer_in_frame) {
-      DBUG_ASSERT(wfs->framing());
+      assert(wfs->framing());
       m_needs_last_peer_in_frame = true;
     }
     if (wfs->needs_card()) {
-      DBUG_ASSERT(!wfs->framing());
+      assert(!wfs->framing());
       m_needs_card = true;
     }
     m_opt_first_row |= reqs.opt_first_row;
@@ -200,7 +200,7 @@ static Item_cache *make_result_item(Item *value) {
         result = new Item_cache_str(value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   result->setup(value);
@@ -221,12 +221,12 @@ static ORDER *elt(const SQL_I_List<ORDER> &list, uint i) {
     if (i-- == 0) return o;
     o = o->next;
   }
-  DBUG_ASSERT(false);
+  assert(false);
   return nullptr;
 }
 
 bool Window::setup_range_expressions(THD *thd) {
-  DBUG_ASSERT(m_frame->m_query_expression == WFU_RANGE);
+  assert(m_frame->m_query_expression == WFU_RANGE);
   const PT_order_list *o = effective_order_by();
 
   if (o == nullptr) {
@@ -339,7 +339,7 @@ bool Window::setup_range_expressions(THD *thd) {
           Item *cmp_arg;
           if (border_type == WBT_VALUE_PRECEDING ||
               border_type == WBT_VALUE_FOLLOWING) {
-            DBUG_ASSERT(i == 0);  // only one expr allowed with WBT_VALUE_*
+            assert(i == 0);  // only one expr allowed with WBT_VALUE_*
             cmp_arg = border->build_addop(
                 value, border_type == WBT_VALUE_PRECEDING, asc, this);
             if (cmp_arg == nullptr) return true;
@@ -434,7 +434,7 @@ ORDER *Window::sorting_order(THD *thd, bool implicitly_grouped) {
 }
 
 bool Window::resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window) {
-  DBUG_ASSERT(thd->lex->current_query_block()->first_execution);
+  assert(thd->lex->current_query_block()->first_execution);
 
   if (!(*m_window)->is_reference()) {
     (*m_window)->m_functions.push_back(wf);
@@ -542,7 +542,7 @@ bool Window::before_or_after_frame(bool before) {
     If multiple ORDER BY expressions: only CURRENT ROW need be considered
     since infinity handled above.
   */
-  DBUG_ASSERT(
+  assert(
       border_type == WBT_CURRENT_ROW ||
       (m_order_by_items.elements == 1 && (border_type == WBT_VALUE_PRECEDING ||
                                           border_type == WBT_VALUE_FOLLOWING)));
@@ -552,8 +552,8 @@ bool Window::before_or_after_frame(bool before) {
   uint i = 0, j = 0;
   Item_func *comparator = m_comparators[border_type][!before];
   Item_func *inv_comparator = m_inverse_comparators[border_type][!before];
-  DBUG_ASSERT(comparator->functype() == Item_func::COND_OR_FUNC);
-  DBUG_ASSERT(inv_comparator->functype() == Item_func::COND_OR_FUNC);
+  assert(comparator->functype() == Item_func::COND_OR_FUNC);
+  assert(inv_comparator->functype() == Item_func::COND_OR_FUNC);
 
   // fix_items will have flattened the OR tree into a single multi-arg OR
   List<Item> &args = *down_cast<Item_cond_or *>(comparator)->argument_list();
@@ -619,7 +619,7 @@ bool Window::before_or_after_frame(bool before) {
     Item *to_update = func->arguments()[1];
     if (border_type == WBT_CURRENT_ROW) {
     } else {
-      DBUG_ASSERT(i == 1);
+      assert(i == 1);
       Item_func *addop = down_cast<Item_func *>(func->arguments()[1]);
       to_update = addop->arguments()[0];
     }
@@ -697,7 +697,7 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
                                      mem_root_deque<Item *> *fields, ORDER *o,
                                      bool partition_order) {
   DBUG_TRACE;
-  DBUG_ASSERT(o);
+  assert(o);
 
   const char *sav_where = thd->where;
   thd->where = partition_order ? "window partition by" : "window order by";
@@ -803,10 +803,9 @@ bool Window::check_constant_bound(THD *thd, PT_border *border) {
       For RANGE frames, resolving is already done in setup_range_expressions,
       so we need a test
     */
-    DBUG_ASSERT(
-        ((*border_ptr)->fixed && m_frame->m_query_expression == WFU_RANGE) ||
-        ((!(*border_ptr)->fixed || (*border_ptr)->basic_const_item()) &&
-         m_frame->m_query_expression == WFU_ROWS));
+    assert(((*border_ptr)->fixed && m_frame->m_query_expression == WFU_RANGE) ||
+           ((!(*border_ptr)->fixed || (*border_ptr)->basic_const_item()) &&
+            m_frame->m_query_expression == WFU_ROWS));
 
     if (!(*border_ptr)->fixed && (*border_ptr)->fix_fields(thd, border_ptr))
       return true;
@@ -887,7 +886,7 @@ bool Window::check_border_sanity1(THD *thd) {
         }
         break;
       case WFU_GROUPS:
-        DBUG_ASSERT(false);  // not yet implemented
+        assert(false);  // not yet implemented
         break;
     }
   }
@@ -944,7 +943,7 @@ bool Window::check_border_sanity2(THD *thd) {
         }
         break;
       case WFU_GROUPS:
-        DBUG_ASSERT(false);  // not yet implemented
+        assert(false);  // not yet implemented
         break;
     }
   }
@@ -978,8 +977,8 @@ class AdjacencyList {
     @param depends_on the window referenced
   */
   void add(uint wno, uint depends_on) {
-    DBUG_ASSERT(wno <= m_card && depends_on <= m_card);
-    DBUG_ASSERT(m_list[wno] == UNUSED);
+    assert(wno <= m_card && depends_on <= m_card);
+    assert(m_list[wno] == UNUSED);
     m_list[wno] = depends_on;
   }
 
@@ -990,7 +989,7 @@ class AdjacencyList {
     @returns the out degree
   */
   uint out_degree(uint wno) {
-    DBUG_ASSERT(wno <= m_card);
+    assert(wno <= m_card);
     return m_list[wno] == UNUSED ? 0 : 1;
   }
 
@@ -1001,7 +1000,7 @@ class AdjacencyList {
     @returns the in degree
   */
   uint in_degree(uint wno) {
-    DBUG_ASSERT(wno <= m_card);
+    assert(wno <= m_card);
     uint degree = 0;  // a priori
 
     for (auto i : Bounds_checked_array<uint>(m_list, m_card)) {
@@ -1034,7 +1033,7 @@ class AdjacencyList {
       completed.insert(i);
 
       for (uint dep = m_list[i]; dep != UNUSED; dep = m_list[dep]) {
-        DBUG_ASSERT(dep <= m_card);
+        assert(dep <= m_card);
         if (visited.count(dep) != 0) return true;  // found circularity
         visited.insert(dep);
         completed.insert(dep);
@@ -1068,7 +1067,7 @@ void Window::eliminate_unused_objects(THD *thd, List<Window> &windows) {
           for (const Window *w_a = w2->m_ancestor; w_a != nullptr;
                w_a = w_a->m_ancestor) {
             // Can't inherit from unnamed window:
-            DBUG_ASSERT(w_a->m_name != nullptr);
+            assert(w_a->m_name != nullptr);
 
             if (my_strcasecmp(system_charset_info, w1->printable_name(),
                               w_a->printable_name()) == 0) {
@@ -1110,7 +1109,7 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
                             mem_root_deque<Item *> *fields,
                             List<Window> &windows) {
   // Only possible at resolution time.
-  DBUG_ASSERT(thd->lex->current_query_block()->first_execution);
+  assert(thd->lex->current_query_block()->first_execution);
   /*
     We can encounter aggregate functions in the ORDER BY and PARTITION clauses
     of window function, so make sure we allow it:
@@ -1242,7 +1241,7 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
         border type now that we know what we inherit (not known before binding
         above).
       */
-      DBUG_ASSERT(w->m_frame->m_query_expression == WFU_RANGE);
+      assert(w->m_frame->m_query_expression == WFU_RANGE);
       w->m_frame->m_to->m_border_type = WBT_CURRENT_ROW;
     }
 
@@ -1337,7 +1336,7 @@ bool Window::setup_windows2(THD *thd, List<Window> &windows) {
 }
 
 bool Window::make_special_rows_cache(THD *thd, TABLE *out_tbl) {
-  DBUG_ASSERT(m_special_rows_cache_max_length == 0);
+  assert(m_special_rows_cache_max_length == 0);
   // Each row may come either from frame buffer or out-table
   size_t l = std::max((needs_buffering() ? m_frame_buffer->s->reclength : 0),
                       out_tbl->s->reclength);

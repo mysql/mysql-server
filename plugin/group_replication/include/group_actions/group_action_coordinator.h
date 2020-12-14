@@ -130,7 +130,7 @@ class Group_action_coordinator : public Group_event_observer {
   */
   void set_stop_wait_timeout(ulong timeout);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Flag for cases where we don't have debug execution tools
     Can be an enum if other cases emerge

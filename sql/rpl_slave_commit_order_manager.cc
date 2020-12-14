@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,8 @@ void Commit_order_manager::register_trx(Slave_worker *worker) {
                       (int)worker->info_thd->thread_id()));
 
   /* only transition allowed: FINISHED -> REGISTERED */
-  DBUG_ASSERT(this->m_workers[worker->id].m_stage ==
-              cs::apply::Commit_order_queue::enum_worker_stage::FINISHED);
+  assert(this->m_workers[worker->id].m_stage ==
+         cs::apply::Commit_order_queue::enum_worker_stage::FINISHED);
   this->m_workers[worker->id].m_stage =
       cs::apply::Commit_order_queue::enum_worker_stage::REGISTERED;
   this->m_workers.push(worker->id);
@@ -112,7 +112,7 @@ bool Commit_order_manager::wait_on_graph(Slave_worker *worker) {
         return false;
       case MDL_wait::WS_EMPTY:
         /* purecov: begin inspected */
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
         /* purecov: end */
       case MDL_wait::TIMEOUT:
@@ -264,14 +264,14 @@ void Commit_order_manager::finish_one(Slave_worker *worker) {
 
   if (this->m_workers[worker->id].m_stage ==
       cs::apply::Commit_order_queue::enum_worker_stage::WAITED) {
-    DBUG_ASSERT(this->m_workers.front() == worker->id);
-    DBUG_ASSERT(!this->m_workers.is_empty());
+    assert(this->m_workers.front() == worker->id);
+    assert(!this->m_workers.is_empty());
 
     auto this_seq_nr{0};
     auto this_worker{cs::apply::Commit_order_queue::NO_WORKER};
     std::tie(this_worker, this_seq_nr) = this->m_workers.pop();
     auto next_seq_nr = this_seq_nr + 1;
-    DBUG_ASSERT(worker->id == this_worker);
+    assert(worker->id == this_worker);
 
     auto next_worker = this->m_workers.front();
     if (next_worker !=
@@ -348,7 +348,7 @@ void Commit_order_manager::report_deadlock(Slave_worker *worker) {
   worker->report_commit_order_deadlock();
   DBUG_EXECUTE_IF("rpl_fake_cod_deadlock", {
     const char act[] = "now signal reported_deadlock";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
   this->m_workers[worker->id].m_mdl_context->m_wait.set_status(
       MDL_wait::VICTIM);
@@ -356,7 +356,7 @@ void Commit_order_manager::report_deadlock(Slave_worker *worker) {
 
 bool Commit_order_manager::wait(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (has_commit_order_manager(thd)) {
     /*
@@ -376,7 +376,7 @@ bool Commit_order_manager::wait(THD *thd) {
 
 void Commit_order_manager::wait_and_finish(THD *thd, bool error) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (has_commit_order_manager(thd)) {
     /*
@@ -420,7 +420,7 @@ void Commit_order_manager::unset_rollback_status() {
 
 bool Commit_order_manager::get_rollback_status(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
   if (has_commit_order_manager(thd)) {
     /*
       We only care about read/write transactions and those that
@@ -436,7 +436,7 @@ bool Commit_order_manager::get_rollback_status(THD *thd) {
 
 void Commit_order_manager::finish_one(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
   if (has_commit_order_manager(thd)) {
     /*
       We only care about read/write transactions and those that
@@ -484,7 +484,7 @@ bool Commit_order_manager::visit_lock_graph(
     this->m_workers.freeze();
 
     for (auto w : this->m_workers) {
-      DBUG_ASSERT(w != nullptr);
+      assert(w != nullptr);
       if (w->m_worker_id == src_worker_id) break;
       if (w->m_stage ==
           cs::apply::Commit_order_queue::enum_worker_stage::REQUESTED_GRANT)

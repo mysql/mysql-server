@@ -110,7 +110,7 @@ LocalDictCache::drop(const BaseString& name){
   assert(!is_ndb_blob_table(name.c_str()));
   Ndb_local_table_info *info=
       m_tableHash.deleteKey(name.c_str(), name.length());
-  DBUG_ASSERT(info != 0);
+  assert(info != 0);
   Ndb_local_table_info::destroy(info);
 }
 

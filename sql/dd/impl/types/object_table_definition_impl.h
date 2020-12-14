@@ -23,11 +23,11 @@
 #ifndef DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 #define DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 
+#include <assert.h>
 #include <map>
 #include <memory>
 #include <vector>
 
-#include "my_dbug.h"
 #include "sql/dd/string_type.h"                    // dd::String_type
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/mysqld.h"                            // lower_case_table_names
@@ -77,7 +77,7 @@ class Object_table_definition_impl : public Object_table_definition {
       case Label::ELEMENT:
         return "elem";
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return "";
     }
   }
@@ -107,10 +107,10 @@ class Object_table_definition_impl : public Object_table_definition {
                    const String_type &element_definition,
                    Element_numbers *element_numbers,
                    Element_definitions *element_definitions) {
-    DBUG_ASSERT(element_numbers != nullptr && element_definitions != nullptr &&
-                element_numbers->find(element_name) == element_numbers->end() &&
-                element_definitions->find(element_number) ==
-                    element_definitions->end());
+    assert(element_numbers != nullptr && element_definitions != nullptr &&
+           element_numbers->find(element_name) == element_numbers->end() &&
+           element_definitions->find(element_number) ==
+               element_definitions->end());
 
     (*element_numbers)[element_name] = element_number;
     (*element_definitions)[element_number] = element_definition;
@@ -118,7 +118,7 @@ class Object_table_definition_impl : public Object_table_definition {
 
   int element_number(const String_type &element_name,
                      const Element_numbers &element_numbers) const {
-    DBUG_ASSERT(element_numbers.find(element_name) != element_numbers.end());
+    assert(element_numbers.find(element_name) != element_numbers.end());
     return element_numbers.find(element_name)->second;
   }
 

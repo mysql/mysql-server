@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,7 @@ int table_replication_group_members::rnd_pos(const void *pos) {
   }
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < get_row_count());
+  assert(m_pos.m_index < get_row_count());
   return make_row(m_pos.m_index);
 }
 
@@ -230,7 +230,7 @@ int table_replication_group_members::read_row_values(TABLE *table,
                                                      bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -263,7 +263,7 @@ int table_replication_group_members::read_row_values(TABLE *table,
                               m_row.member_version_length);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

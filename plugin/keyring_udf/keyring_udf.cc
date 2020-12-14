@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ static bool get_current_user(std::string *current_user) {
     return true;
 
   if (user.length) current_user->append(user.str, user.length);
-  DBUG_ASSERT(host.length);
+  assert(host.length);
   current_user->append("@").append(host.str, host.length);
 
   return false;

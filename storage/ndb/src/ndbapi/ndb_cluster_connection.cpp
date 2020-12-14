@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1506,7 +1506,7 @@ void Ndb_cluster_connection_impl::connect_thread()
       break;
     if (r == -1) {
       printf("Ndb_cluster_connection::connect_thread error\n");
-      DBUG_ASSERT(false);
+      assert(false);
       m_run_connect_thread= 0;
     }
   } while (m_run_connect_thread);

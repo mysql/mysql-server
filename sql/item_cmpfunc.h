@@ -25,6 +25,7 @@
 
 /* compare and test functions */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstring>
@@ -33,7 +34,7 @@
 #include "field_types.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
@@ -236,7 +237,7 @@ class Arg_comparator {
     Set correct cmp_context if items would be compared as INTs.
   */
   inline void set_cmp_context_for_datetime() {
-    DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
+    assert(func == &Arg_comparator::compare_datetime);
     if ((*left)->is_temporal()) (*left)->cmp_context = INT_RESULT;
     if ((*right)->is_temporal()) (*right)->cmp_context = INT_RESULT;
   }
@@ -415,7 +416,7 @@ class Item_func_truth final : public Item_bool_func {
       case BOOL_NOT_FALSE:
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
     }
   }
   Item_func_truth(Item *a, Bool_test truth_test)
@@ -428,7 +429,7 @@ class Item_func_truth final : public Item_bool_func {
       case BOOL_NOT_FALSE:
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
     }
   }
   void apply_is_true() override {
@@ -551,7 +552,7 @@ class Equal_creator : public Linear_comp_creator {
  public:
   const char *symbol(bool invert MY_ATTRIBUTE((unused))) const override {
     // This will never be called with true.
-    DBUG_ASSERT(!invert);
+    assert(!invert);
     return "<=>";
   }
 
@@ -865,7 +866,7 @@ class Item_func_trig_cond final : public Item_bool_func {
   }
   void add_trig_func_tables() {
     if (trig_type == IS_NOT_NULL_COMPL || trig_type == FOUND_MATCH) {
-      DBUG_ASSERT(m_join != nullptr);
+      assert(m_join != nullptr);
       // Make this function dependent on the inner tables
       used_tables_cache |= get_inner_tables();
     } else if (trig_type == OUTER_FIELD_IS_NOT_NULL) {
@@ -2111,11 +2112,11 @@ class in_row final : public in_vector {
     tmp->set_comparator(col, comparator);
   }
   Item_basic_constant *create_item(MEM_ROOT *) const override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   void value_to_item(uint, Item_basic_constant *) const override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
  private:
@@ -2311,15 +2312,15 @@ class Item_cond : public Item_bool_func {
   Item_cond(List<Item> &nlist)
       : Item_bool_func(), list(nlist), abort_on_null(false) {}
   bool add(Item *item) {
-    DBUG_ASSERT(item);
+    assert(item);
     return list.push_back(item);
   }
   bool add_at_head(Item *item) {
-    DBUG_ASSERT(item);
+    assert(item);
     return list.push_front(item);
   }
   void add_at_head(List<Item> *nlist) {
-    DBUG_ASSERT(nlist->elements);
+    assert(nlist->elements);
     list.prepend(nlist);
   }
 
@@ -2470,7 +2471,7 @@ class Item_equal final : public Item_bool_func {
     // Multiple equality nodes (Item_equal) should have been
     // converted back to simple equalities (Item_func_eq) by
     // substitute_for_best_equal_field before cast nodes are injected.
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 

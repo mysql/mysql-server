@@ -28,8 +28,9 @@
 
 #include "storage/perfschema/pfs_user.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_buffer_container.h"
@@ -68,9 +69,9 @@ static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_user *user;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_user *const *>(entry);
-  DBUG_ASSERT(typed_entry != nullptr);
+  assert(typed_entry != nullptr);
   user = *typed_entry;
-  DBUG_ASSERT(user != nullptr);
+  assert(user != nullptr);
   *length = user->m_key.m_key_length;
   result = user->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -109,7 +110,7 @@ static LF_PINS *get_user_hash_pins(PFS_thread *thread) {
 
 static void set_user_key(PFS_user_key *key, const char *user,
                          uint user_length) {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
+  assert(user_length <= USERNAME_LENGTH);
 
   char *ptr = &key->m_hash_key[0];
   if (user_length > 0) {
@@ -285,7 +286,7 @@ static void purge_user(PFS_thread *thread, PFS_user *user) {
   entry = reinterpret_cast<PFS_user **>(lf_hash_search(
       &user_hash, pins, user->m_key.m_hash_key, user->m_key.m_key_length));
   if (entry && (entry != MY_LF_ERRPTR)) {
-    DBUG_ASSERT(*entry == user);
+    assert(*entry == user);
     if (user->get_refcount() == 0) {
       lf_hash_delete(&user_hash, pins, user->m_key.m_hash_key,
                      user->m_key.m_key_length);

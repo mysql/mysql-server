@@ -189,7 +189,7 @@ class Opt_trace_stmt {
 
   void assert_current_struct(
       const Opt_trace_struct *s MY_ATTRIBUTE((unused))) const {
-    DBUG_ASSERT(current_struct == s);
+    assert(current_struct == s);
   }
 
   /// @see Opt_trace_context::missing_privilege()
@@ -272,7 +272,7 @@ void Opt_trace_struct::do_construct(Opt_trace_context *ctx,
 
   DBUG_PRINT("opt", ("%s: starting struct", key));
   stmt = ctx->get_current_stmt_in_gen();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   previous_key[0] = 0;
 #endif
   has_disabled_I_S = !ctx->feature_enabled(feature);
@@ -284,7 +284,7 @@ void Opt_trace_struct::do_construct(Opt_trace_context *ctx,
 
 void Opt_trace_struct::do_destruct() {
   DBUG_PRINT("opt", ("%s: ending struct", saved_key));
-  DBUG_ASSERT(started);
+  assert(started);
   stmt->close_struct(saved_key, has_disabled_I_S,
                      closing_bracket(requires_key));
   started = false;
@@ -292,7 +292,7 @@ void Opt_trace_struct::do_destruct() {
 
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, const char *val,
                                            size_t val_length, bool escape) {
-  DBUG_ASSERT(started);
+  assert(started);
   DBUG_PRINT("opt", ("%s: \"%.*s\"", key, (int)val_length, val));
   stmt->add(key, val, val_length, true, escape);
   return *this;
@@ -305,7 +305,7 @@ LEX_CSTRING bool_as_text[] = {{STRING_WITH_LEN("false")},
 }  // namespace
 
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, bool val) {
-  DBUG_ASSERT(started);
+  assert(started);
   DBUG_PRINT("opt", ("%s: %d", key, (int)val));
   const LEX_CSTRING *text = &bool_as_text[val];
   stmt->add(key, text->str, text->length, false, false);
@@ -313,7 +313,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, bool val) {
 }
 
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, longlong val) {
-  DBUG_ASSERT(started);
+  assert(started);
   char buf[22];  // 22 is enough for digits of a 64-bit int
   llstr(val, buf);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
@@ -322,7 +322,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, longlong val) {
 }
 
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, ulonglong val) {
-  DBUG_ASSERT(started);
+  assert(started);
   char buf[22];
   ullstr(val, buf);
   DBUG_PRINT("opt", ("%s: %s", key, buf));
@@ -331,7 +331,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, ulonglong val) {
 }
 
 Opt_trace_struct &Opt_trace_struct::do_add(const char *key, double val) {
-  DBUG_ASSERT(started);
+  assert(started);
   // The buffer must be big enough to hold six digits of precision, sign,
   // decimal point and exponent.
   char buf[sizeof("-1.23456e+308")];
@@ -342,7 +342,7 @@ Opt_trace_struct &Opt_trace_struct::do_add(const char *key, double val) {
 }
 
 Opt_trace_struct &Opt_trace_struct::do_add_null(const char *key) {
-  DBUG_ASSERT(started);
+  assert(started);
   DBUG_PRINT("opt", ("%s: null", key));
   stmt->add(key, STRING_WITH_LEN("null"), false, false);
   return *this;
@@ -380,7 +380,7 @@ Opt_trace_struct &Opt_trace_struct::do_add_utf8_table(const TABLE_LIST *tl) {
 }
 
 const char *Opt_trace_struct::check_key(const char *key) {
-  DBUG_ASSERT(started);
+  assert(started);
   //  User should always add to the innermost open object, not outside.
   stmt->assert_current_struct(this);
   bool has_key = key != nullptr;
@@ -390,12 +390,12 @@ const char *Opt_trace_struct::check_key(const char *key) {
     has_key = !has_key;
   }
   if (has_key) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     /*
       Check that we're not having two identical consecutive keys in one
       object; though the real restriction should not have 'consecutive'.
     */
-    DBUG_ASSERT(strncmp(previous_key, key, sizeof(previous_key) - 1) != 0);
+    assert(strncmp(previous_key, key, sizeof(previous_key) - 1) != 0);
     strncpy(previous_key, key, sizeof(previous_key) - 1);
     previous_key[sizeof(previous_key) - 1] = 0;
 #endif
@@ -415,12 +415,12 @@ Opt_trace_stmt::Opt_trace_stmt(Opt_trace_context *ctx_arg)
       unknown_key_count(0) {
   // Trace is always in UTF8. This is the only charset which JSON accepts.
   trace_buffer.set_charset(system_charset_info);
-  DBUG_ASSERT(system_charset_info == &my_charset_utf8_general_ci);
+  assert(system_charset_info == &my_charset_utf8_general_ci);
 }
 
 void Opt_trace_stmt::end() {
-  DBUG_ASSERT(stack_of_current_structs.size() == 0);
-  DBUG_ASSERT(I_S_disabled >= 0);
+  assert(stack_of_current_structs.size() == 0);
+  assert(I_S_disabled >= 0);
   ended = true;
   /*
     Because allocation is done in big chunks, buffer->Ptr[str_length]
@@ -451,7 +451,7 @@ void Opt_trace_stmt::set_allowed_mem_size(size_t size) {
 void Opt_trace_stmt::set_query(const char *query, size_t length,
                                const CHARSET_INFO *charset) {
   // Should be called only once per statement.
-  DBUG_ASSERT(query_buffer.ptr() == nullptr);
+  assert(query_buffer.ptr() == nullptr);
   query_buffer.set_charset(charset);
   if (!support_I_S()) {
     /*
@@ -541,7 +541,7 @@ void Opt_trace_stmt::close_struct(const char *saved_key, bool has_disabled_I_S,
 }
 
 void Opt_trace_stmt::separator() {
-  DBUG_ASSERT(support_I_S());
+  assert(support_I_S());
   // Put a comma first, if we have already written an object at this level.
   if (current_struct != nullptr) {
     if (!current_struct->set_not_empty()) trace_buffer.append(',');
@@ -803,9 +803,9 @@ Opt_trace_context::~Opt_trace_context() {
     /* There may well be some few ended traces left: */
     purge_stmts(true);
     /* All should have moved to 'del' list: */
-    DBUG_ASSERT(pimpl->all_stmts_for_I_S.size() == 0);
+    assert(pimpl->all_stmts_for_I_S.size() == 0);
     /* All of 'del' list should have been deleted: */
-    DBUG_ASSERT(pimpl->all_stmts_to_del.size() == 0);
+    assert(pimpl->all_stmts_to_del.size() == 0);
     delete pimpl;
   }
 }
@@ -868,7 +868,7 @@ bool Opt_trace_context::start(bool support_I_S_arg,
     */
   }
 
-  DBUG_EXECUTE_IF("no_new_opt_trace_stmt", DBUG_ASSERT(0););
+  DBUG_EXECUTE_IF("no_new_opt_trace_stmt", assert(0););
 
   if (pimpl == nullptr &&
       ((pimpl = new_nothrow_w_my_error<Opt_trace_context_impl>()) == nullptr))
@@ -946,13 +946,13 @@ bool Opt_trace_context::start(bool support_I_S_arg,
     return false;
   err:
     delete stmt;
-    DBUG_ASSERT(0);
+    assert(0);
     return true;
   }
 }
 
 void Opt_trace_context::end() {
-  DBUG_ASSERT(I_S_disabled >= 0);
+  assert(I_S_disabled >= 0);
   if (likely(pimpl == nullptr)) return;
   if (pimpl->current_stmt_in_gen != nullptr) {
     pimpl->current_stmt_in_gen->end();
@@ -990,7 +990,7 @@ void Opt_trace_context::end() {
     */
     purge_stmts(false);
   } else
-    DBUG_ASSERT(pimpl->stack_of_current_stmts.size() == 0);
+    assert(pimpl->stack_of_current_stmts.size() == 0);
 }
 
 bool Opt_trace_context::support_I_S() const {
@@ -1045,7 +1045,7 @@ void Opt_trace_context::purge_stmts(bool purge_all) {
   /* Examine list of "to be freed" traces and free what can be */
   for (idx = (pimpl->all_stmts_to_del.size() - 1); idx >= 0; idx--) {
     Opt_trace_stmt *stmt = pimpl->all_stmts_to_del.at(idx);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool skip_del = false;
     DBUG_EXECUTE_IF("opt_trace_oom_in_purge", skip_del = true;);
 #else
@@ -1147,7 +1147,7 @@ const Opt_trace_stmt *Opt_trace_context::get_next_stmt_for_I_S(
     p = nullptr;
   else {
     p = pimpl->all_stmts_for_I_S.at(*got_so_far);
-    DBUG_ASSERT(p != nullptr);
+    assert(p != nullptr);
     (*got_so_far)++;
   }
   return p;

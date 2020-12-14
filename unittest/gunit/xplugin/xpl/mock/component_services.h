@@ -25,10 +25,11 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SERVICES_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SERVICES_H_
 
+#include <assert.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
+// NOLINT(build/include_subdir)
 #include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/service_plugin_registry.h"
 
@@ -39,7 +40,7 @@ namespace mock {
 class Mysql_plugin_registry {
  public:
   Mysql_plugin_registry() {
-    DBUG_ASSERT(nullptr == m_mysql_plugin_registry);
+    assert(nullptr == m_mysql_plugin_registry);
     m_mysql_plugin_registry = this;
   }
   ~Mysql_plugin_registry() { m_mysql_plugin_registry = nullptr; }
@@ -53,7 +54,7 @@ class Mysql_plugin_registry {
 class Service_registry {
  public:
   Service_registry() {
-    DBUG_ASSERT(m_this == nullptr);
+    assert(m_this == nullptr);
     m_this = this;
   }
   ~Service_registry() { m_this = nullptr; }
@@ -86,7 +87,7 @@ class Service_registry {
 class Service_admin_session {
  public:
   Service_admin_session() {
-    DBUG_ASSERT(m_this == nullptr);
+    assert(m_this == nullptr);
     m_this = this;
   }
   ~Service_admin_session() { m_this = nullptr; }

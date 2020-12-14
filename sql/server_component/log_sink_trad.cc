@@ -62,7 +62,7 @@ static ulonglong log_sink_trad_last = 0;
 static inline ssize_t parse_trad_field(const char *parse_from,
                                        const char **token_end,
                                        const char *buf_end) {
-  DBUG_ASSERT(token_end != nullptr);
+  assert(token_end != nullptr);
   *token_end = (const char *)memchr(parse_from, ' ', buf_end - parse_from);
   return (*token_end == nullptr) ? -1 : (*token_end - parse_from);
 }
@@ -207,7 +207,7 @@ int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
             of its message.
           */
           if ((nl = (const char *)memchr(msg, '\n', msg_len)) != nullptr) {
-            DBUG_ASSERT(line_buffer == nullptr);
+            assert(line_buffer == nullptr);
 
             if (line_buffer != nullptr) my_free(line_buffer);
 

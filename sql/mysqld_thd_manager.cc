@@ -164,12 +164,12 @@ Global_THD_manager::Global_THD_manager()
 Global_THD_manager::~Global_THD_manager() {
   thread_ids.erase_unique(reserved_thread_id);
   for (int i = 0; i < NUM_PARTITIONS; i++) {
-    DBUG_ASSERT(thd_list[i].empty());
+    assert(thd_list[i].empty());
     mysql_mutex_destroy(&LOCK_thd_list[i]);
     mysql_mutex_destroy(&LOCK_thd_remove[i]);
     mysql_cond_destroy(&COND_thd_list[i]);
   }
-  DBUG_ASSERT(thread_ids.empty());
+  assert(thread_ids.empty());
   mysql_mutex_destroy(&LOCK_thread_ids);
 }
 
@@ -191,7 +191,7 @@ void Global_THD_manager::destroy_instance() {
 void Global_THD_manager::add_thd(THD *thd) {
   DBUG_PRINT("info", ("Global_THD_manager::add_thd %p", thd));
   // Should have an assigned ID before adding to the list.
-  DBUG_ASSERT(thd->thread_id() != reserved_thread_id);
+  assert(thd->thread_id() != reserved_thread_id);
   const int partition = thd_partition(thd->thread_id());
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);
   // Technically it is not supported to compare pointers, but it works.
@@ -199,7 +199,7 @@ void Global_THD_manager::add_thd(THD *thd) {
       thd_list[partition].insert_unique(thd);
   if (insert_result.second) ++atomic_global_thd_count;
   // Adding the same THD twice is an error.
-  DBUG_ASSERT(insert_result.second);
+  assert(insert_result.second);
 }
 
 void Global_THD_manager::remove_thd(THD *thd) {
@@ -208,7 +208,7 @@ void Global_THD_manager::remove_thd(THD *thd) {
   MUTEX_LOCK(lock_remove, &LOCK_thd_remove[partition]);
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);
 
-  DBUG_ASSERT(unit_test || thd->release_resources_done());
+  assert(unit_test || thd->release_resources_done());
 
   /*
     Used by binlog_reset_master.  It would be cleaner to use
@@ -220,7 +220,7 @@ void Global_THD_manager::remove_thd(THD *thd) {
   const size_t num_erased = thd_list[partition].erase_unique(thd);
   if (num_erased == 1) --atomic_global_thd_count;
   // Removing a THD that was never added is an error.
-  DBUG_ASSERT(1 == num_erased);
+  assert(1 == num_erased);
   mysql_cond_broadcast(&COND_thd_list[partition]);
 }
 
@@ -240,11 +240,11 @@ void Global_THD_manager::release_thread_id(my_thread_id thread_id) {
   const size_t num_erased MY_ATTRIBUTE((unused)) =
       thread_ids.erase_unique(thread_id);
   // Assert if the ID was not found in the list.
-  DBUG_ASSERT(1 == num_erased);
+  assert(1 == num_erased);
 }
 
 void Global_THD_manager::set_thread_id_counter(my_thread_id new_id) {
-  DBUG_ASSERT(unit_test == true);
+  assert(unit_test == true);
   MUTEX_LOCK(lock, &LOCK_thread_ids);
   thread_id_counter = new_id;
 }

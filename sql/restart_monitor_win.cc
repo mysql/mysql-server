@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,13 @@
 
 #include "restart_monitor_win.h"
 
+#include <assert.h>
 #include <windows.h>
 #include <memory>
 #include <vector>
 
 #include <shellapi.h>  // windows.h needs to be included before this header
 
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld.h"
 #include "sql/log.h"  // sql_print_*
@@ -254,7 +254,7 @@ void signal_event(Signal_type signal_type) {
 */
 
 static HANDLE get_service_status_pipe_in_mysqld() {
-  DBUG_ASSERT(!is_mysqld_monitor());
+  assert(!is_mysqld_monitor());
 
   if (client_service_status_pipe != nullptr) return client_service_status_pipe;
   while (1) {
@@ -278,7 +278,7 @@ static HANDLE get_service_status_pipe_in_mysqld() {
 */
 
 void close_service_status_pipe_in_mysqld() {
-  DBUG_ASSERT(!is_mysqld_monitor());
+  assert(!is_mysqld_monitor());
 
   if (client_service_status_pipe != nullptr)
     CloseHandle(client_service_status_pipe);
@@ -291,7 +291,7 @@ void close_service_status_pipe_in_mysqld() {
 */
 
 static bool setup_service_status_pipe_in_monitor() {
-  DBUG_ASSERT(is_mysqld_monitor());
+  assert(is_mysqld_monitor());
 
   initialize_events();
 
@@ -321,7 +321,7 @@ static bool setup_service_status_pipe_in_monitor() {
 */
 
 static void close_service_status_pipe_in_monitor() {
-  DBUG_ASSERT(is_mysqld_monitor());
+  assert(is_mysqld_monitor());
 
   DisconnectNamedPipe(service_status_pipe);
   CloseHandle(service_status_pipe);

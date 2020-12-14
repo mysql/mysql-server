@@ -2,7 +2,7 @@
 #define FAKE_KEY_INCLUDED
 
 /*
-   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,9 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <gtest/gtest.h>
 
-#include "my_dbug.h"
 #include "sql/key.h"  // KEY
 
 /**
@@ -89,8 +89,8 @@ class Fake_KEY : public KEY {
   */
   void init(unsigned int user_defined_key_parts_arg,
             unsigned int actual_key_parts_arg, bool unique) {
-    DBUG_ASSERT(user_defined_key_parts_arg > 0);
-    DBUG_ASSERT(actual_key_parts_arg > 0);
+    assert(user_defined_key_parts_arg > 0);
+    assert(actual_key_parts_arg > 0);
 
     flags = 0;
     if (unique) flags |= HA_NOSAME;

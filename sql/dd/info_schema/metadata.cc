@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ class Update_context {
         m_thd->dd_client()->acquire(INFORMATION_SCHEMA_NAME.str, &m_schema_obj))
       m_schema_obj = nullptr;
 
-    DBUG_ASSERT(m_schema_obj);
+    assert(m_schema_obj);
   }
 
   ~Update_context() {
@@ -263,7 +263,7 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
 
   // Store the metadata into DD
   if (thd->dd_client()->store(view_obj.get())) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return (true);
   }
 
@@ -285,7 +285,7 @@ bool store_in_dd(THD *thd, Update_context *ctx, ST_SCHEMA_TABLE *schema_table,
 
 static bool store_plugin_metadata(THD *thd, plugin_ref plugin,
                                   Update_context *ctx) {
-  DBUG_ASSERT(plugin && ctx);
+  assert(plugin && ctx);
 
   // Store in DD tables.
   st_plugin_int *pi = plugin_ref_to_int(plugin);
@@ -577,7 +577,7 @@ bool initialize(THD *thd, bool non_dd_based_system_view) {
   Disable_autocommit_guard autocommit_guard(thd);
 
   dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
 
   if (!non_dd_based_system_view) {
     if (dd::info_schema::create_system_views(thd) ||
@@ -639,7 +639,7 @@ bool update_I_S_metadata(THD *thd) {
 bool store_dynamic_plugin_I_S_metadata(THD *thd, st_plugin_int *plugin_int) {
   plugin_ref plugin = plugin_int_to_ref(plugin_int);
   Update_context ctx(thd, false);
-  DBUG_ASSERT(plugin_int->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN);
+  assert(plugin_int->plugin->type == MYSQL_INFORMATION_SCHEMA_PLUGIN);
 
   return store_plugin_metadata(thd, plugin, &ctx);
 }
@@ -666,12 +666,12 @@ bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name) {
                                 &at))
     return (true);
 
-  DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW);
+  assert(at->type() == dd::enum_table_type::SYSTEM_VIEW);
 
   // Remove view from DD tables.
   Implicit_substatement_state_guard substatement_guard(thd);
   if (thd->dd_client()->drop(at)) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return (true);
   }
 

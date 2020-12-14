@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,8 +45,8 @@ namespace ndb_dummy_ts {
   @retval		true		failure
 */
 static bool sdi_create(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);  // Never called
-  return false;        // Success
+  assert(false);  // Never called
+  return false;   // Success
 }
 
 /**
@@ -57,8 +57,8 @@ static bool sdi_create(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
   @retval		true		failure
 */
 static bool sdi_drop(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);  // Never called
-  return false;        // Success
+  assert(false);  // Never called
+  return false;   // Success
 }
 
 /**
@@ -71,8 +71,8 @@ static bool sdi_drop(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
 static bool sdi_get_keys(const dd::Tablespace &tablespace
                              MY_ATTRIBUTE((unused)),
                          sdi_vector_t &vector MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);  // Never called
-  return false;        // Success
+  assert(false);  // Never called
+  return false;   // Success
 }
 
 /** Retrieve SDI from tablespace
@@ -88,8 +88,8 @@ static bool sdi_get(const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
                     const sdi_key_t *sdi_key MY_ATTRIBUTE((unused)),
                     void *sdi MY_ATTRIBUTE((unused)),
                     uint64 *sdi_len MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(false);  // Never called
-  return false;        // Success
+  assert(false);  // Never called
+  return false;   // Success
 }
 
 /** Insert/Update SDI in tablespace

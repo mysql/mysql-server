@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -30,6 +30,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
@@ -39,7 +40,7 @@
 #include "m_ctype.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_uctype.h"  // IWYU pragma: keep
@@ -4976,7 +4977,7 @@ Pointee *add_with_saturate(Pointee *ptr, Offset offset) {
 
 static size_t my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend,
                                               size_t nweights) {
-  DBUG_ASSERT(str && str <= strend);
+  assert(str && str <= strend);
   strend = std::min(
       strend, add_with_saturate(add_with_saturate(str, nweights), nweights));
 
@@ -5010,7 +5011,7 @@ static size_t my_strxfrm_pad_nweights_unicode(uchar *str, uchar *strend,
 
 static size_t my_strxfrm_pad_unicode(uchar *str, uchar *strend) {
   uchar *str0 = str;
-  DBUG_ASSERT(str && str <= strend);
+  assert(str && str <= strend);
   for (; str < strend;) {
     *str++ = 0x00;
     if (str < strend) *str++ = 0x20;
@@ -5033,7 +5034,7 @@ static inline size_t my_strnxfrm_unicode_tmpl(const CHARSET_INFO *cs,
   uchar *dst0 = dst;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  DBUG_ASSERT(src);
+  assert(src);
 
   // We manually hoist this if test out of the loop; seemingly GCC
   // (at least 6.1.1) isn't smart enough to do it on its own.
@@ -5137,8 +5138,8 @@ size_t my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs, uchar *dst,
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
 
-  DBUG_ASSERT(src);
-  DBUG_ASSERT(cs->state & MY_CS_BINSORT);
+  assert(src);
+  assert(cs->state & MY_CS_BINSORT);
 
   for (; dst < de && nweights; nweights--) {
     int res;
@@ -5351,7 +5352,7 @@ static size_t my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  assert(src != dst || cs->caseup_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -5400,7 +5401,7 @@ static size_t my_caseup_str_utf8(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->caseup_multiply == 1);
+  assert(cs->caseup_multiply == 1);
 
   while (*src && (srcres = my_mb_wc_utf8_no_range(&wc, (uchar *)src)) > 0) {
     my_toupper_utf8mb3(uni_plane, &wc);
@@ -5418,7 +5419,7 @@ static size_t my_casedn_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  assert(src != dst || cs->casedn_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -5436,7 +5437,7 @@ static size_t my_casedn_str_utf8(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->casedn_multiply == 1);
+  assert(cs->casedn_multiply == 1);
 
   while (*src && (srcres = my_mb_wc_utf8_no_range(&wc, (uchar *)src)) > 0) {
     my_tolower_utf8mb3(uni_plane, &wc);
@@ -7337,7 +7338,7 @@ static size_t my_caseup_utf8mb4(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  assert(src != dst || cs->caseup_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8mb4(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -7404,7 +7405,7 @@ static size_t my_caseup_str_utf8mb4(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->caseup_multiply == 1);
+  assert(cs->caseup_multiply == 1);
 
   while (*src &&
          (srcres = my_mb_wc_utf8mb4_no_range(cs, &wc, (uchar *)src)) > 0) {
@@ -7423,7 +7424,7 @@ static size_t my_casedn_utf8mb4(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  assert(src != dst || cs->casedn_multiply == 1);
 
   while ((src < srcend) &&
          (srcres = my_mb_wc_utf8mb4(&wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -7441,7 +7442,7 @@ static size_t my_casedn_str_utf8mb4(const CHARSET_INFO *cs, char *src) {
   int srcres, dstres;
   char *dst = src, *dst0 = src;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  DBUG_ASSERT(cs->casedn_multiply == 1);
+  assert(cs->casedn_multiply == 1);
 
   while (*src &&
          (srcres = my_mb_wc_utf8mb4_no_range(cs, &wc, (uchar *)src)) > 0) {

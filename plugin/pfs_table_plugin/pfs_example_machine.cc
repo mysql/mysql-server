@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ int machine_read_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->set_field_integer(field, h->current_row.employee_number);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -208,7 +208,7 @@ int machine_write_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_integer(field, &h->current_row.employee_number);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -221,7 +221,7 @@ int machine_update_row_values(PSI_table_handle *handle) {
 
   Machine_Record *cur = &machine_records_vector[h->m_pos.get_index()];
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_machine_records_array);
   copy_record(cur, &h->current_row);
@@ -251,7 +251,7 @@ int machine_update_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_integer(field, &h->current_row.employee_number);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -264,7 +264,7 @@ int machine_delete_row_values(PSI_table_handle *handle) {
 
   Machine_Record *cur = &machine_records_vector.at(h->m_pos.get_index());
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_machine_records_array);
   cur->m_exist = false;

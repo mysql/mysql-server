@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@
 #ifndef DD__BOOTSTRAP_CTX_INCLUDED
 #define DD__BOOTSTRAP_CTX_INCLUDED
 
+#include <assert.h>
 #include <set>
 
-#include "my_dbug.h"                      // DBUG_ASSERT
 #include "my_inttypes.h"                  // uint
 #include "mysql_version.h"                // MYSQL_VERSION_ID
 #include "sql/dd/dd_version.h"            // DD_VERSION
@@ -127,15 +127,15 @@ class DD_bootstrap_ctx {
   uint get_actual_I_S_version() const { return m_actual_I_S_version; }
 
   void set_dd_upgrade_done() {
-    DBUG_ASSERT(m_did_dd_upgrade_from == 0);
-    DBUG_ASSERT(is_dd_upgrade());
+    assert(m_did_dd_upgrade_from == 0);
+    assert(is_dd_upgrade());
     m_did_dd_upgrade_from = m_actual_dd_version;
   }
 
   bool dd_upgrade_done() const { return m_did_dd_upgrade_from != 0; }
 
   void set_I_S_upgrade_done() {
-    DBUG_ASSERT(m_did_I_S_upgrade_from == 0);
+    assert(m_did_I_S_upgrade_from == 0);
     m_did_I_S_upgrade_from = m_actual_I_S_version;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ std::pair<bool, std::vector<Gcs_packet>> Gcs_message_stage::apply(
 
   /* Save the packet payload size before this stage is applied. */
   auto &dynamic_header = packet.get_current_dynamic_header();
-  DBUG_ASSERT(dynamic_header.get_stage_code() == get_stage_code());
+  assert(dynamic_header.get_stage_code() == get_stage_code());
   dynamic_header.set_payload_length(packet.get_payload_length());
 
   /* Transform the packet payload according to the specific stage logic. */
@@ -74,8 +74,8 @@ end:
 
 std::pair<Gcs_pipeline_incoming_result, Gcs_packet> Gcs_message_stage::revert(
     Gcs_packet &&packet) {
-  DBUG_ASSERT(packet.get_current_dynamic_header().get_stage_code() ==
-              get_stage_code());
+  assert(packet.get_current_dynamic_header().get_stage_code() ==
+         get_stage_code());
   auto result =
       std::make_pair(Gcs_pipeline_incoming_result::ERROR, Gcs_packet());
   Gcs_pipeline_incoming_result error_code;
@@ -200,7 +200,7 @@ std::pair<bool, std::vector<Gcs_packet>> Gcs_message_pipeline::process_outgoing(
     goto end;
     /* purecov: end */
   }
-  DBUG_ASSERT(original_payload_size == buffer_size);
+  assert(original_payload_size == buffer_size);
 
   /* The packet is ready, send it through the pipeline. */
   result = apply_stages(std::move(packet), stages_to_apply);
@@ -213,7 +213,7 @@ std::pair<bool, std::vector<Stage_code>>
 Gcs_message_pipeline::get_stages_to_apply(
     Gcs_protocol_version const &pipeline_version,
     uint64_t const &original_payload_size) const {
-  DBUG_ASSERT(retrieve_pipeline(pipeline_version) != nullptr);
+  assert(retrieve_pipeline(pipeline_version) != nullptr);
   bool constexpr ERROR = true;
   bool constexpr OK = false;
   auto result = std::make_pair(ERROR, std::vector<Stage_code>());
@@ -223,7 +223,7 @@ Gcs_message_pipeline::get_stages_to_apply(
   stages_to_apply.reserve(all_stages.size());
 
   for (auto const &stage_code : all_stages) {
-    DBUG_ASSERT(retrieve_stage(stage_code) != nullptr);
+    assert(retrieve_stage(stage_code) != nullptr);
     Gcs_message_stage const &stage = *retrieve_stage(stage_code);
 
     if (stage.is_enabled()) {
@@ -294,7 +294,7 @@ std::pair<bool, std::vector<Gcs_packet>> Gcs_message_pipeline::apply_stages(
   packets_out.push_back(std::move(packet));
 
   for (auto const &stage_code : stages) {
-    DBUG_ASSERT(retrieve_stage(stage_code) != nullptr);
+    assert(retrieve_stage(stage_code) != nullptr);
     Gcs_message_stage &stage = *retrieve_stage(stage_code);
 
     bool failure;
@@ -369,8 +369,7 @@ end:
 std::pair<Gcs_pipeline_incoming_result, Gcs_packet>
 Gcs_message_pipeline::revert_stage(Gcs_packet &&packet,
                                    Stage_code const &stage_code) const {
-  DBUG_ASSERT(stage_code ==
-              packet.get_current_dynamic_header().get_stage_code());
+  assert(stage_code == packet.get_current_dynamic_header().get_stage_code());
   auto result =
       std::make_pair(Gcs_pipeline_incoming_result::ERROR, Gcs_packet());
 
@@ -426,7 +425,7 @@ bool Gcs_message_pipeline::register_pipeline(
    The clean up method should be called if the pipeline needs to be
    reconfigured.
    */
-  DBUG_ASSERT(m_pipelines.size() == 0);
+  assert(m_pipelines.size() == 0);
 
   /*
    Store the identifier of all handlers already registered.

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020 Oracle and/or its affiliates.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ void handle_gis_exception(const char *funcname) {
     int er_variant;
     switch (e.srs_type()) {
       default:
-        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+        assert(false);  // C++11 woes. /* purecov: inspected */
       case gis::not_implemented_exception::kCartesian:
         er_variant = ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS;
         break;

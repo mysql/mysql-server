@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ static void group_replication_get_write_concurrency_deinit(UDF_INIT *) {
 static long long group_replication_get_write_concurrency(UDF_INIT *, UDF_ARGS *,
                                                          unsigned char *is_null,
                                                          unsigned char *error) {
-  DBUG_ASSERT(member_online_with_majority());
+  assert(member_online_with_majority());
   uint32_t write_concurrency = 0;
   gcs_module->get_write_concurrency(write_concurrency);
   *is_null = 0;  // result is not null
@@ -173,8 +173,8 @@ static char *group_replication_set_write_concurrency(UDF_INIT *, UDF_ARGS *args,
                                                      unsigned char *error) {
   /* According to sql/udf_example.cc, result has at least 255 bytes */
   unsigned long constexpr max_safe_length = 255;
-  DBUG_ASSERT(member_online_with_majority());
-  DBUG_ASSERT(user_has_gr_admin_privilege().status == privilege_status::ok);
+  assert(member_online_with_majority());
+  assert(user_has_gr_admin_privilege().status == privilege_status::ok);
   *is_null = 0;  // result is not null
   *error = 0;
   bool throw_error = false;

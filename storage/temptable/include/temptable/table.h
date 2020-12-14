@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -190,7 +190,7 @@ inline const Index &Table::index(size_t i) const {
 }
 
 inline const Column &Table::column(size_t i) const {
-  DBUG_ASSERT(i < m_columns.size());
+  assert(i < m_columns.size());
   return m_columns[i];
 }
 
@@ -198,16 +198,16 @@ inline const Storage &Table::rows() const { return m_rows; }
 
 inline void Table::row(const Storage::Iterator &pos,
                        unsigned char *mysql_row) const {
-  DBUG_ASSERT(m_mysql_row_length == m_mysql_table_share->rec_buff_length);
+  assert(m_mysql_row_length == m_mysql_table_share->rec_buff_length);
 
   const Storage::Element *storage_element = *pos;
 
   if (m_all_columns_are_fixed_size) {
-    DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
+    assert(m_rows.element_size() == m_mysql_row_length);
 
     memcpy(mysql_row, storage_element, m_mysql_row_length);
   } else {
-    DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
+    assert(m_rows.element_size() == sizeof(Row));
 
     const Row *row = static_cast<const Row *>(storage_element);
     row->copy_to_mysql_row(m_columns, mysql_row, m_mysql_row_length);

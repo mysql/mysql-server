@@ -23,12 +23,13 @@
 
 #define RPL_TRX_TRACKING_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 #include <atomic>
 #include <map>
 
 #include "libbinlogevents/include/binlog_event.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 
 class THD;
@@ -68,7 +69,7 @@ class Logical_clock {
     the assignement.
   */
   void update_offset(int64 new_offset) {
-    DBUG_ASSERT(offset <= new_offset);
+    assert(offset <= new_offset);
 
     offset = new_offset;
   }

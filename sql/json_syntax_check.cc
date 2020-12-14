@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
+#include <assert.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/error/error.h>
 #include <rapidjson/memorystream.h>
@@ -31,7 +32,6 @@
 #include <string>
 #include <utility>
 
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 
@@ -89,7 +89,7 @@ bool check_json_depth(size_t depth) {
 
 std::pair<std::string, size_t> get_error_from_reader(
     const rapidjson::Reader &reader) {
-  DBUG_ASSERT(reader.GetParseErrorCode() != rapidjson::kParseErrorNone);
+  assert(reader.GetParseErrorCode() != rapidjson::kParseErrorNone);
   return std::make_pair(
       std::string(rapidjson::GetParseError_En(reader.GetParseErrorCode())),
       reader.GetErrorOffset());

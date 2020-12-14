@@ -27,9 +27,10 @@
 
 #include "storage/perfschema/pfs_setup_actor.h"
 
+#include <assert.h>
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "storage/perfschema/pfs.h"
@@ -67,9 +68,9 @@ static const uchar *setup_actor_hash_get_key(const uchar *entry,
   const PFS_setup_actor *setup_actor;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_setup_actor *const *>(entry);
-  DBUG_ASSERT(typed_entry != nullptr);
+  assert(typed_entry != nullptr);
   setup_actor = *typed_entry;
-  DBUG_ASSERT(setup_actor != nullptr);
+  assert(setup_actor != nullptr);
   *length = setup_actor->m_key.m_key_length;
   result = setup_actor->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -111,8 +112,8 @@ static void set_setup_actor_key(PFS_setup_actor_key *key, const char *user,
                                 uint user_length, const char *host,
                                 uint host_length, const char *role,
                                 uint role_length) {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
-  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+  assert(user_length <= USERNAME_LENGTH);
+  assert(host_length <= HOSTNAME_LENGTH);
 
   char *ptr = &key->m_hash_key[0];
   memcpy(ptr, user, user_length);

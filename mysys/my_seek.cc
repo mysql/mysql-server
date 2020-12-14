@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
   /*
       Make sure we are using a valid file descriptor!
   */
-  DBUG_ASSERT(fd != -1);
+  assert(fd != -1);
   const int64_t newpos =
 #if defined(_WIN32)
       my_win_lseek(fd, pos, whence);
@@ -85,14 +85,14 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags) {
     }
     return MY_FILEPOS_ERROR;
   }
-  DBUG_ASSERT(newpos >= 0);
+  assert(newpos >= 0);
   return newpos;
 }
 
 /* Tell current position of file */
 my_off_t my_tell(File fd, myf MyFlags) {
   DBUG_TRACE;
-  DBUG_ASSERT(fd >= 0);
+  assert(fd >= 0);
 
   const int64_t pos =
 #if defined(HAVE_TELL) && !defined(_WIN32)
@@ -108,6 +108,6 @@ my_off_t my_tell(File fd, myf MyFlags) {
 
     return MY_FILEPOS_ERROR;
   }
-  DBUG_ASSERT(pos >= 0);
+  assert(pos >= 0);
   return pos;
 }

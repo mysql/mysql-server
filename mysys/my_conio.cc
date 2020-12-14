@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,9 @@
 
 #ifdef _WIN32
 
+#include <assert.h>
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysys_priv.h"
 
@@ -90,7 +91,7 @@ char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf,
 
   HANDLE console = GetStdHandle(STD_INPUT_HANDLE);
 
-  DBUG_ASSERT(mbbufsize > 0); /* Need space for at least trailing '\0' */
+  assert(mbbufsize > 0); /* Need space for at least trailing '\0' */
   GetConsoleMode(console, &console_mode);
   SetConsoleMode(
       console, ENABLE_LINE_INPUT | ENABLE_PROCESSED_INPUT | ENABLE_ECHO_INPUT);
@@ -121,7 +122,7 @@ char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf,
                        nchars * sizeof(wchar_t), &my_charset_utf16le_bin,
                        &dummy_errors);
 
-  DBUG_ASSERT(mblen < mbbufsize); /* Safety */
+  assert(mblen < mbbufsize); /* Safety */
   mbbuf[mblen] = 0;
   return mbbuf;
 }
@@ -169,7 +170,7 @@ static size_t my_mbstou16s(const CHARSET_INFO *cs, const uchar *from,
   outp:
     if ((cnvres = (*wc_mb)(to_cs, wc, (uchar *)to, (uchar *)to_end)) > 0) {
       /* We can never convert only a part of wchar_t */
-      DBUG_ASSERT((cnvres % sizeof(wchar_t)) == 0);
+      assert((cnvres % sizeof(wchar_t)) == 0);
       /* cnvres returns number of bytes, convert to number of wchar_t's */
       to += cnvres / sizeof(wchar_t);
     } else if (cnvres == MY_CS_ILUNI && wc != '?') {
@@ -267,7 +268,7 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *argc,
     len = my_convert(av[i], alloced_len, cs, (const char *)wargs[i],
                      arg_len * sizeof(wchar_t), &my_charset_utf16le_bin,
                      &dummy_errors);
-    DBUG_ASSERT(len < alloced_len);
+    assert(len < alloced_len);
     av[i][len] = '\0';
   }
   *argv = av;

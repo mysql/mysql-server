@@ -250,7 +250,7 @@ const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
 
   For using this feature in test case, we add the option in debug code.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool opt_build_completion_hash = false;
 #endif
 
@@ -1685,7 +1685,7 @@ static struct my_option my_long_options[] = {
     {"compress", 'C', "Use compression in server/client protocol.",
      &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
      0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -1916,7 +1916,7 @@ static struct my_option my_long_options[] = {
      "password sandbox mode.",
      &opt_connect_expired_password, &opt_connect_expired_password, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"build-completion-hash", 0,
      "Build completion hash even when it is in batch mode. It is used for "
      "test purpose, so it is just built when DEBUG is on.",
@@ -2047,8 +2047,8 @@ bool get_one_option(int optid,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -2397,7 +2397,7 @@ static COMMANDS *find_command(char *name) {
   char *end;
   DBUG_TRACE;
 
-  DBUG_ASSERT(name != nullptr);
+  assert(name != nullptr);
   DBUG_PRINT("enter", ("name: '%s'", name));
 
   while (my_isspace(charset_info, *name)) name++;
@@ -2830,7 +2830,7 @@ static void build_completion_hash(bool rehash, bool write_info) {
   int i, j, num_fields;
   DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!opt_build_completion_hash)
 #endif
   {
@@ -3724,9 +3724,9 @@ static int get_result_width(MYSQL_RES *result) {
   MYSQL_FIELD *field;
   MYSQL_FIELD_OFFSET offset;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   offset = mysql_field_tell(result);
-  DBUG_ASSERT(offset == 0);
+  assert(offset == 0);
 #else
   offset = 0;
 #endif

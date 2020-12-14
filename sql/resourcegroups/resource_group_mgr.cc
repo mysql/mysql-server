@@ -100,7 +100,7 @@ Resource_group_mgr *Resource_group_mgr::instance() {
   // Created during server startup. So no locking required.
   if (m_instance == nullptr) {
     m_instance = new (std::nothrow) Resource_group_mgr;
-    DBUG_ASSERT(m_instance != nullptr);
+    assert(m_instance != nullptr);
   }
   return m_instance;
 }
@@ -213,7 +213,7 @@ static bool deserialize_resource_groups(THD *thd) {
 
 Resource_group *Resource_group_mgr::deserialize_resource_group(
     const dd::Resource_group *resource_group) {
-  DBUG_ASSERT(m_resource_group_support);
+  assert(m_resource_group_support);
 
   LEX_CSTRING name_cstr = to_lex_cstring(resource_group->name().c_str());
   auto cpu_id_mask = resource_group->cpu_id_mask();
@@ -419,7 +419,7 @@ bool Resource_group_mgr::init() {
 
 bool Resource_group_mgr::move_resource_group(Resource_group *from_res_grp,
                                              Resource_group *to_res_grp) {
-  DBUG_ASSERT(m_resource_group_support);
+  assert(m_resource_group_support);
 
   if (to_res_grp == nullptr) to_res_grp = m_usr_default_resource_group;
 
@@ -462,7 +462,7 @@ Resource_group *Resource_group_mgr::get_resource_group(
     const std::string &resource_group_name) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_resource_group_support);
+  assert(m_resource_group_support);
 
   Resource_group *resource_group = nullptr;
 
@@ -478,7 +478,7 @@ Resource_group *Resource_group_mgr::get_resource_group(
 bool Resource_group_mgr::add_resource_group(
     std::unique_ptr<Resource_group> resource_group_ptr) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_resource_group_support);
+  assert(m_resource_group_support);
 
   mysql_rwlock_wrlock(&m_map_rwlock);
   m_resource_group_hash->emplace(resource_group_ptr->name(),
@@ -489,7 +489,7 @@ bool Resource_group_mgr::add_resource_group(
 
 void Resource_group_mgr::remove_resource_group(const std::string &name) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_resource_group_support);
+  assert(m_resource_group_support);
 
   mysql_rwlock_wrlock(&m_map_rwlock);
   m_resource_group_hash->erase(name);
@@ -500,7 +500,7 @@ Resource_group *Resource_group_mgr::create_and_add_in_resource_group_hash(
     const LEX_CSTRING &name, Type type, bool enabled,
     std::unique_ptr<std::vector<Range>> vcpu_range_vector, int priority) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_resource_group_support);
+  assert(m_resource_group_support);
 
   auto resource_group_ptr =
       new (std::nothrow) Resource_group(std::string(name.str), type, enabled);
@@ -520,7 +520,7 @@ Resource_group *Resource_group_mgr::create_and_add_in_resource_group_hash(
   return resource_group_ptr;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 bool Resource_group_mgr::disable_pfs_notification() {
   if (!m_resource_group_support || m_notify_svc == nullptr) return false;
 
@@ -592,14 +592,14 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
       res_grp_name[0] = '\0';
       return false;
     }
-    DBUG_ASSERT(*dest_res_grp != nullptr);
+    assert(*dest_res_grp != nullptr);
     switched = mgr_instance->move_resource_group(*src_res_grp, *dest_res_grp);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     DBUG_EXECUTE_IF("pause_after_rg_switch", {
       const char act[] =
           "now SIGNAL execute_pfs_select "
           "WAIT_FOR signal_to_continue";
-      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);
   }
 

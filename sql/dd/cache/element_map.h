@@ -23,11 +23,11 @@
 #ifndef DD_CACHE__ELEMENT_MAP_INCLUDED
 #define DD_CACHE__ELEMENT_MAP_INCLUDED
 
+#include <assert.h>
 #include <cstddef>  // size_t
 #include <map>      // std::map
 #include <set>      // std::set
 
-#include "my_dbug.h"
 #include "sql/malloc_allocator.h"  // Malloc_allocator.
 #include "sql/psi_memory_key.h"    // key_memory_DD_cache_infrastructure
 
@@ -151,12 +151,12 @@ class Element_map {
   */
 
   void get(const K &key, E **element) const {
-    DBUG_ASSERT(element);
+    assert(element);
     typename Element_map_type::const_iterator it = m_map.find(key);
     if (it == m_map.end())
       *element = nullptr;
     else {
-      DBUG_ASSERT(it->second);
+      assert(it->second);
       *element = it->second;
     }
   }
@@ -171,8 +171,8 @@ class Element_map {
   */
 
   void put(const K &key, E *element) {
-    DBUG_ASSERT(element);
-    DBUG_ASSERT(m_map.find(key) == m_map.end());
+    assert(element);
+    assert(m_map.find(key) == m_map.end());
     m_map.insert(typename Element_map_type::value_type(key, element));
   }
 
@@ -187,7 +187,7 @@ class Element_map {
   */
 
   void remove(const K &key) {
-    DBUG_ASSERT(m_map.find(key) != m_map.end());
+    assert(m_map.find(key) != m_map.end());
     m_map.erase(key);
   }
 
@@ -211,7 +211,7 @@ class Element_map {
   */
 
   void set_missed(const K &key) {
-    DBUG_ASSERT(m_missed.find(key) == m_missed.end());
+    assert(m_missed.find(key) == m_missed.end());
     m_missed.insert(key);
   }
 
@@ -224,7 +224,7 @@ class Element_map {
   */
 
   void set_miss_handled(const K &key) {
-    DBUG_ASSERT(m_missed.find(key) != m_missed.end());
+    assert(m_missed.find(key) != m_missed.end());
     m_missed.erase(key);
   }
 
@@ -237,7 +237,7 @@ class Element_map {
 
   /* purecov: begin inspected */
   void dump() const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     Const_iterator it;
     for (it = m_map.begin(); it != m_map.end(); it++) it->second->dump();
 #endif

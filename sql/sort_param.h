@@ -23,12 +23,13 @@
 #ifndef SORT_PARAM_INCLUDED
 #define SORT_PARAM_INCLUDED
 
+#include <assert.h>
 #include <algorithm>
 
 #include "field_types.h"   // enum_field_types
 #include "my_base.h"       // ha_rows
 #include "my_byteorder.h"  // uint4korr
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_io.h"      // mysql_com.h needs my_socket
 #include "mysql_com.h"  // Item_result
@@ -131,7 +132,7 @@ class Addon_fields {
         m_addon_buf(nullptr),
         m_addon_buf_length(0),
         m_using_packed_addons(false) {
-    DBUG_ASSERT(!arr.is_null());
+    assert(!arr.is_null());
   }
 
   Sort_addon_field *begin() { return m_field_descriptors.begin(); }
@@ -141,7 +142,7 @@ class Addon_fields {
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
     if (m_addon_buf != nullptr) {
-      DBUG_ASSERT(m_addon_buf_length == sz);
+      assert(m_addon_buf_length == sz);
       return m_addon_buf;
     }
     m_addon_buf = static_cast<uchar *>((*THR_MALLOC)->Alloc(sz));
@@ -361,8 +362,8 @@ class Sort_param {
 
   /// Are we packing the "addon fields"?
   bool using_packed_addons() const {
-    DBUG_ASSERT(m_using_packed_addons == (addon_fields != nullptr &&
-                                          addon_fields->using_packed_addons()));
+    assert(m_using_packed_addons ==
+           (addon_fields != nullptr && addon_fields->using_packed_addons()));
     return m_using_packed_addons;
   }
 

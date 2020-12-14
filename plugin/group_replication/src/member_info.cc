@@ -63,7 +63,7 @@ Group_member_info::Group_member_info(
       primary_election_running(false),
       recovery_endpoints(recovery_endpoints_arg ? recovery_endpoints_arg
                                                 : "DEFAULT"),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       skip_encode_default_table_encryption(false),
 #endif
       psi_mutex_key(psi_mutex_key_arg) {
@@ -101,7 +101,7 @@ Group_member_info::Group_member_info(Group_member_info &other)
       group_action_running(other.is_group_action_running()),
       primary_election_running(other.is_primary_election_running()),
       recovery_endpoints(other.get_recovery_endpoints()),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       skip_encode_default_table_encryption(false),
 #endif
       psi_mutex_key(other.psi_mutex_key) {
@@ -122,7 +122,7 @@ Group_member_info::Group_member_info(const uchar *data, size_t len,
       group_action_running(false),
       primary_election_running(false),
       recovery_endpoints("DEFAULT"),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       skip_encode_default_table_encryption(false),
 #endif
       psi_mutex_key(psi_mutex_key_arg) {
@@ -261,7 +261,7 @@ void Group_member_info::encode_payload(
 
   uint16 lower_case_table_names_aux =
       static_cast<uint16>(lower_case_table_names);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (lower_case_table_names != SKIP_ENCODING_LOWER_CASE_TABLE_NAMES)
 #endif
     encode_payload_item_int2(buffer, PIT_LOWER_CASE_TABLE_NAME,
@@ -280,7 +280,7 @@ void Group_member_info::encode_payload(
                            is_election_running_aux);
 
   char default_table_encryption_aux = default_table_encryption ? '1' : '0';
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!skip_encode_default_table_encryption)
 #endif
     encode_payload_item_char(buffer, PIT_DEFAULT_TABLE_ENCRYPTION,
@@ -1199,7 +1199,7 @@ bool Group_member_info_manager::get_primary_member_uuid(
   for (it = members->begin(); it != members->end(); it++) {
     Group_member_info *info = (*it).second;
     if (info->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
-      DBUG_ASSERT(primary_member_uuid.empty());
+      assert(primary_member_uuid.empty());
       primary_member_uuid = info->get_uuid();
     }
   }
@@ -1226,7 +1226,7 @@ Group_member_info *Group_member_info_manager::get_primary_member_info() {
   }
   mysql_mutex_unlock(&update_lock);
 
-  DBUG_ASSERT(member_copy == nullptr || member_copy->in_primary_mode());
+  assert(member_copy == nullptr || member_copy->in_primary_mode());
 
   return member_copy;
 }

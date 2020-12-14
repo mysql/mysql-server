@@ -94,7 +94,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
     return true;
 
   /* also check the table to be exchanged with the partition */
-  DBUG_ASSERT(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
+  assert(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
@@ -108,7 +108,7 @@ bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd) {
     return true;
 
   /* Not allowed with EXCHANGE PARTITION */
-  DBUG_ASSERT(!create_info.data_file_name && !create_info.index_file_name);
+  assert(!create_info.data_file_name && !create_info.index_file_name);
 
   thd->enable_slow_log = opt_log_slow_admin_statements;
   return exchange_partition(thd, first_table, &alter_info);
@@ -196,7 +196,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
       return true;
     }
     // Should not happen, we know the table exists and can be opened.
-    DBUG_ASSERT(part_table_def != nullptr);
+    assert(part_table_def != nullptr);
   }
 
   bool metadata_equal = false;
@@ -254,8 +254,8 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     return true;
   }
-  DBUG_ASSERT(table->s->db_create_options == part_table->s->db_create_options);
-  DBUG_ASSERT(table->s->db_options_in_use == part_table->s->db_options_in_use);
+  assert(table->s->db_create_options == part_table->s->db_create_options);
+  assert(table->s->db_options_in_use == part_table->s->db_options_in_use);
 
   if (table_create_info.avg_row_length != part_create_info.avg_row_length) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "AVG_ROW_LENGTH");
@@ -315,7 +315,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   uint table_counter;
   DBUG_TRACE;
-  DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
+  assert(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
   /* Don't allow to exchange with log table */
   swap_table_list = table_list->next_local;
@@ -368,7 +368,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
   }
 
   if (swap_part_id == NOT_A_PARTITION_ID) {
-    DBUG_ASSERT(part_table->part_info->is_sub_partitioned());
+    assert(part_table->part_info->is_sub_partitioned());
     my_error(ER_PARTITION_INSTEAD_OF_SUBPARTITION, MYF(0));
     return true;
   }
@@ -434,7 +434,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     return true;
 
   /* Tables were successfully opened above. */
-  DBUG_ASSERT(part_table_def != nullptr && swap_table_def != nullptr);
+  assert(part_table_def != nullptr && swap_table_def != nullptr);
 
   if (part_table_def->options().exists("secondary_engine") ||
       swap_table_def->options().exists("secondary_engine")) {
@@ -539,7 +539,7 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
 bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd) {
   bool res;
   DBUG_TRACE;
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_analyze_table::execute(thd);
 
@@ -549,7 +549,7 @@ bool Sql_cmd_alter_table_analyze_partition::execute(THD *thd) {
 bool Sql_cmd_alter_table_check_partition::execute(THD *thd) {
   bool res;
   DBUG_TRACE;
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_check_table::execute(thd);
 
@@ -559,7 +559,7 @@ bool Sql_cmd_alter_table_check_partition::execute(THD *thd) {
 bool Sql_cmd_alter_table_optimize_partition::execute(THD *thd) {
   bool res;
   DBUG_TRACE;
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_optimize_table::execute(thd);
 
@@ -569,7 +569,7 @@ bool Sql_cmd_alter_table_optimize_partition::execute(THD *thd) {
 bool Sql_cmd_alter_table_repair_partition::execute(THD *thd) {
   bool res;
   DBUG_TRACE;
-  DBUG_ASSERT(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
+  assert(m_alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION);
 
   res = Sql_cmd_repair_table::execute(thd);
 
@@ -584,10 +584,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   Partition_handler *part_handler = nullptr;
   handlerton *hton;
   DBUG_TRACE;
-  DBUG_ASSERT((m_alter_info->flags & (Alter_info::ALTER_ADMIN_PARTITION |
-                                      Alter_info::ALTER_TRUNCATE_PARTITION)) ==
-              (Alter_info::ALTER_ADMIN_PARTITION |
-               Alter_info::ALTER_TRUNCATE_PARTITION));
+  assert((m_alter_info->flags & (Alter_info::ALTER_ADMIN_PARTITION |
+                                 Alter_info::ALTER_TRUNCATE_PARTITION)) ==
+         (Alter_info::ALTER_ADMIN_PARTITION |
+          Alter_info::ALTER_TRUNCATE_PARTITION));
 
   /* Fix the lock types (not the same as ordinary ALTER TABLE). */
   first_table->set_lock({TL_WRITE, THR_DEFAULT});
@@ -649,7 +649,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     return true;
 
   /* Table was successfully opened above. */
-  DBUG_ASSERT(table_def != nullptr);
+  assert(table_def != nullptr);
 
   if (table_def->options().exists("secondary_engine")) {
     /* Truncate operation is not allowed for tables with secondary engine
@@ -718,7 +718,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
 
         part_handler = table.file->get_partition_handler();
         // We succeeded obtaining Partition_hanlder earlier.
-        DBUG_ASSERT(part_handler != nullptr);
+        assert(part_handler != nullptr);
 
         if (!error && (error = part_handler->truncate_partition(table_def))) {
           table.file->print_error(error, MYF(0));

@@ -462,9 +462,9 @@ bool Query_result_export::send_data(THD *thd,
           so we have to use mbmaxlenlen == 2 here, which is only true
           for gb18030 currently.
         */
-        DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
-                    my_mbmaxlenlen(character_set_client) == 2 ||
-                    !character_set_client->escape_with_backslash_is_dangerous);
+        assert(character_set_client->mbmaxlen == 2 ||
+               my_mbmaxlenlen(character_set_client) == 2 ||
+               !character_set_client->escape_with_backslash_is_dangerous);
         for (start = pos = res->ptr(), end = pos + used_length; pos != end;
              pos++) {
           bool need_escape = false;
@@ -508,7 +508,7 @@ bool Query_result_export::send_data(THD *thd,
             mbcharlen is equal to 2, because there are no
             character sets with mbmaxlen longer than 2
             and with escape_with_backslash_is_dangerous set.
-            DBUG_ASSERT before the loop makes that sure.
+            assert before the loop makes that sure.
 
             But gb18030 is an exception. First of all, 2-byte codes
             would be affected by the issue above without doubt.
@@ -538,9 +538,9 @@ bool Query_result_export::send_data(THD *thd,
             an ASCII char when we read it, which is correct.
           */
 
-          DBUG_ASSERT(in_escapable_4_bytes >= 0);
+          assert(in_escapable_4_bytes >= 0);
           if (in_escapable_4_bytes > 0) {
-            DBUG_ASSERT(check_following_byte);
+            assert(check_following_byte);
             /* We should escape or not escape all the 4 bytes. */
             need_escape = escape_4_bytes;
           } else if (NEED_ESCAPING(*pos)) {
@@ -595,7 +595,7 @@ bool Query_result_export::send_data(THD *thd,
         }
 
         /* Assert that no escape mode is active here */
-        DBUG_ASSERT(in_escapable_4_bytes == 0);
+        assert(in_escapable_4_bytes == 0);
 
         if (my_b_write(&cache, pointer_cast<const uchar *>(start),
                        (uint)(pos - start)))

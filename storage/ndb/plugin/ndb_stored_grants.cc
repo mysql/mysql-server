@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020 Oracle and/or its affiliates.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -285,7 +285,7 @@ void ThreadContext::deserialize_users(std::string &str) {
 
 /* returns false on success */
 bool ThreadContext::exec_sql(const std::string &statement) {
-  DBUG_ASSERT(m_closed);
+  assert(m_closed);
   uint ignore_mysql_errors[1] = {0};  // Don't ignore any errors
   MYSQL_LEX_STRING sql_text = {const_cast<char *>(statement.c_str()),
                                statement.length()};
@@ -523,7 +523,7 @@ const NdbError *ThreadContext::write_snapshot(NdbTransaction *tx) {
 
     if (tx->execute(NoCommit)) return &tx->getNdbError();
 
-    DBUG_ASSERT(m_read_keys.size() == m_grant_count.size());
+    assert(m_read_keys.size() == m_grant_count.size());
     for (size_t i = 0; i < m_read_keys.size(); i++) {
       unsigned int n_stored_grants;
       const NdbError &op_error = read_ops[i]->getNdbError();
@@ -610,7 +610,7 @@ void ThreadContext::drop_user(std::string user, bool is_revoke) {
 int ThreadContext::drop_users(ChangeNotice *notice,
                               const Mem_root_array<std::string> &list) {
   for (std::string user : list) {
-    DBUG_ASSERT(local_granted_users.count(user));
+    assert(local_granted_users.count(user));
     drop_user(user, (notice->get_operation() != SQLCOM_DROP_USER));
   }
   return list.size();
@@ -658,7 +658,7 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
 
   /* Locate the part between DEFAULT ROLE and REQUIRE */
   size_t require_pos = statement.find("REQUIRE ", default_role_pos + 14);
-  DBUG_ASSERT(require_pos != std::string::npos);
+  assert(require_pos != std::string::npos);
   size_t role_clause_len = require_pos - default_role_pos;
 
   /*  Set default role. The role has not yet been granted, so this statement
@@ -710,7 +710,7 @@ void ThreadContext::apply_current_snapshot() {
         break;
       default:
         /* These records should have come from a bounded index scan */
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }  // switch()
   }    // for()
@@ -753,8 +753,8 @@ void ThreadContext::write_status_message_to_server_log() {
    Return the number of elements in m_statement_users.
 */
 int ThreadContext::get_user_lists_for_statement(ChangeNotice *notice) {
-  DBUG_ASSERT(m_statement_users.size() == 0);
-  DBUG_ASSERT(m_intersection.size() == 0);
+  assert(m_statement_users.size() == 0);
+  assert(m_intersection.size() == 0);
 
   for (const ChangeNotice::User &notice_user : notice->get_user_list()) {
     std::string user;

@@ -122,14 +122,14 @@ void Regexp_engine::AppendHead(size_t size) {
   // This won't be written to in case of errors.
   int32_t text_length32 = 0;
   auto text = uregex_getText(m_re, &text_length32, &m_error_code);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   size_t text_length = text_length32;
 #endif
 
   // We make sure we are not in an error state before we start copying.
   if (m_error_code != U_ZERO_ERROR) return;
 
-  DBUG_ASSERT(size <= text_length);
+  assert(size <= text_length);
   if (m_replace_buffer.size() < size) m_replace_buffer.resize(size);
   std::copy(text, text + size, &m_replace_buffer.at(0));
   m_replace_buffer_pos = size;

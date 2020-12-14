@@ -81,7 +81,7 @@ class Rpl_info : public Slave_reporting_capability {
   std::atomic<uint> slave_running;
   std::atomic<ulong> slave_run_id;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int events_until_exit;
 #endif
 

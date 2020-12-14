@@ -1199,7 +1199,7 @@ static void check_command_args(struct st_command *command, char *arguments,
         break;
 
       default:
-        DBUG_ASSERT("Unknown argument type");
+        assert("Unknown argument type");
         break;
     }
 
@@ -1563,7 +1563,7 @@ static void cleanup_and_exit(int exit_code) {
         break;
       default:
         printf("unknown exit code: %d\n", exit_code);
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 
@@ -2187,7 +2187,7 @@ static void check_result() {
   const char *mess = "Result content mismatch\n";
 
   DBUG_TRACE;
-  DBUG_ASSERT(result_file_name);
+  assert(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
 
   /*
@@ -2428,7 +2428,7 @@ void var_set(const char *var_name, const char *var_name_end,
       v->str_val_len = std::strlen(v->str_val);
     }
     /* setenv() expects \0-terminated strings */
-    DBUG_ASSERT(v->name[v->name_len] == 0);
+    assert(v->name[v->name_len] == 0);
     setenv(v->name, v->str_val, 1);
   }
 }
@@ -3280,7 +3280,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 #ifdef WIN32
       // Replace CRLF char with LF.
       // See bug#22608247 and bug#22811243
-      DBUG_ASSERT(!std::strcmp(mode, "rb"));
+      assert(!std::strcmp(mode, "rb"));
       replace_crlf_with_lf(buf);
 #endif
       if (trace_exec) {
@@ -5732,7 +5732,7 @@ static bool check_and_filter_once_property(DYNAMIC_STRING ds_property,
 
     // Filter out the keyword and save only the warnings.
     std::size_t position = warn_argument->find(" ONCE");
-    DBUG_ASSERT(position != std::string::npos);
+    assert(position != std::string::npos);
     warn_argument->erase(position, 5);
     return true;
   }
@@ -7498,7 +7498,7 @@ static struct my_option my_long_options[] = {
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"database", 'D', "Database to use.", &opt_db, &opt_db, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -7674,7 +7674,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
   switch (optid) {
     case '#':
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
       debug_check_flag = true;
 #endif
@@ -7689,7 +7689,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
         argument = buff;
       }
       fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
-      DBUG_ASSERT(cur_file == file_stack && cur_file->file == nullptr);
+      assert(cur_file == file_stack && cur_file->file == nullptr);
       if (!(cur_file->file = fopen(buff, "rb")))
         die("Could not open '%s' for reading, errno: %d", buff, errno);
       cur_file->file_name = my_strdup(PSI_NOT_INSTRUMENTED, buff, MYF(MY_FAE));
@@ -7711,8 +7711,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -8332,7 +8332,7 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
   // If one day we will support execution of multi-statements
   // through PS API we should not issue SHOW WARNINGS until
   // we have not read all results.
-  DBUG_ASSERT(!mysql_more_results(mysql));
+  assert(!mysql_more_results(mysql));
 
   MYSQL_RES *warn_res;
   if (mysql_real_query_wrapper(mysql, "SHOW WARNINGS", 13))
@@ -8461,7 +8461,7 @@ static void run_query_normal(struct st_connection *cn,
   }
 
   // Successful and there are no more results.
-  DBUG_ASSERT(error == -1);
+  assert(error == -1);
 
   // If we come here the query is both executed and read successfully.
   handle_no_error(command);
@@ -10414,7 +10414,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
       DBUG_PRINT("exit", ("Found end of from string"));
       return;
     }
-    DBUG_ASSERT(from <= str + len);
+    assert(from <= str + len);
     start = from;
     rep_pos = rep;
   }

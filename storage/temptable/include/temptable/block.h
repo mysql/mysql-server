@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -299,19 +299,19 @@ static inline void deallocate_from(Source src, size_t size,
 inline Block::Block() noexcept {}
 
 inline Block::Block(Chunk chunk) noexcept : Header(chunk.block()) {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
 }
 
 inline Block::Block(size_t size, Source memory_source)
     : Block(allocate_from(memory_source, Block::aligned_size(size)),
             memory_source, Block::aligned_size(size)) {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
 }
 
 inline Block::Block(uint8_t *block_memory, Source block_memory_type,
                     size_t block_size) noexcept
     : Header(block_memory, block_memory_type, block_size) {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
 
   /* Prevent writes to the memory which we took from the OS but still have
    * not shipped outside of the Allocator. This will also prevent reads, but
@@ -333,8 +333,8 @@ inline bool Block::operator!=(const Block &other) const {
 }
 
 inline Chunk Block::allocate(size_t chunk_size) noexcept {
-  DBUG_ASSERT(!is_empty());
-  DBUG_ASSERT(can_accommodate(chunk_size));
+  assert(!is_empty());
+  assert(can_accommodate(chunk_size));
 
   const size_t chunk_size_aligned = Block::aligned_size(chunk_size);
 
@@ -356,7 +356,7 @@ inline Chunk Block::allocate(size_t chunk_size) noexcept {
 }
 
 inline size_t Block::deallocate(Chunk chunk, size_t chunk_size) noexcept {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   DBUG_PRINT("temptable_allocator",
              ("deallocate from block: size=%zu, from_block=(%s), chunk_data=%p",
               chunk_size, to_string().c_str(), chunk.data()));
@@ -370,8 +370,8 @@ inline size_t Block::deallocate(Chunk chunk, size_t chunk_size) noexcept {
 }
 
 inline void Block::destroy() noexcept {
-  DBUG_ASSERT(!is_empty());
-  DBUG_ASSERT(Header::number_of_used_chunks() == 0);
+  assert(!is_empty());
+  assert(Header::number_of_used_chunks() == 0);
   DBUG_PRINT("temptable_allocator",
              ("destroying the block: (%s)", to_string().c_str()));
 
@@ -385,36 +385,36 @@ inline bool Block::is_empty() const {
 }
 
 inline bool Block::can_accommodate(size_t n_bytes) const {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
 
   const size_t n_bytes_aligned = Block::aligned_size(n_bytes);
   const size_t block_size = Header::block_size();
   const size_t first_pristine_offset = Header::first_pristine_offset();
-  DBUG_ASSERT(first_pristine_offset <=
-              std::numeric_limits<decltype(block_size)>::max() -
-                  Chunk::size_hint(n_bytes_aligned));
+  assert(first_pristine_offset <=
+         std::numeric_limits<decltype(block_size)>::max() -
+             Chunk::size_hint(n_bytes_aligned));
 
   return first_pristine_offset + Chunk::size_hint(n_bytes_aligned) <=
          block_size;
 }
 
 inline Source Block::type() const {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   return Header::memory_source_type();
 }
 
 inline size_t Block::size() const {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   return Header::block_size();
 }
 
 inline size_t Block::number_of_used_chunks() const {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   return Header::number_of_used_chunks();
 }
 
 inline std::string Block::to_string() const {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   std::stringstream s;
   s << "address=" << static_cast<void *>(Header::block_address())
     << ", size=" << Header::block_size()
@@ -425,7 +425,7 @@ inline std::string Block::to_string() const {
 
 inline bool Block::is_rightmost_chunk(const Chunk &chunk,
                                       size_t size_bytes) const {
-  DBUG_ASSERT(!is_empty());
+  assert(!is_empty());
   return chunk.offset() + size_bytes == Header::first_pristine_offset();
 }
 

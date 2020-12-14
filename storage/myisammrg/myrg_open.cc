@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
                                                 key_parts * sizeof(long),
                                             MYF(MY_WME | MY_ZEROFILL))))
         goto err;
-      DBUG_ASSERT(files);
+      assert(files);
       m_info->open_tables = (MYRG_TABLE *)(m_info + 1);
       m_info->rec_per_key_part = (ulong *)(m_info->open_tables + files);
       m_info->tables = files;

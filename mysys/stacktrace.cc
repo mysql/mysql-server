@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -350,13 +350,13 @@ static void get_symbol_path(char *path, size_t size) {
   HANDLE hSnap;
   char *envvar;
   char *p;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   static char pdb_debug_dir[MAX_PATH + 7];
 #endif
 
   path[0] = '\0';
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Add "debug" subdirectory of the application directory, sometimes PDB will
     placed here by installation.

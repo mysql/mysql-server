@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,13 @@
 
 #include "sql/sql_bootstrap.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <string.h>
 
 #include "map_helpers.h"
 
 #include "m_string.h"
-#include "my_dbug.h"
 
 void bootstrap_parser_position::init() {
   m_line = 0;
@@ -165,7 +165,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
         case IN_DASH_DASH_COMMENT:
         case IN_POUND_COMMENT:
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           state->m_last_error = READ_BOOTSTRAP_ERROR;
           return READ_BOOTSTRAP_ERROR;
       };
@@ -231,7 +231,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
         state->m_current_line++;
         /* This is not a generic client, use either ';' or '$$' as delimiter. */
         state->m_last_error = READ_BOOTSTRAP_DELIMITER;
-        DBUG_ASSERT(false);
+        assert(false);
         return READ_BOOTSTRAP_DELIMITER;
       }
     }
@@ -335,7 +335,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
         (state->m_code_state == IN_DASH_DASH_COMMENT)) {
       /* Since we processed a full line, the comment ends. */
       state->m_code_state = NORMAL;
-      DBUG_ASSERT(!found_delimiter);
+      assert(!found_delimiter);
     }
 
     /* Append the current line to a multi line query. If the new line will make
@@ -378,7 +378,7 @@ int read_bootstrap_query(char *query, size_t *query_length, MYSQL_FILE *input,
       if (remaining_line_index < len) {
         const char *remaining_line = &line[remaining_line_index];
         size_t remaining_len = len - remaining_line_index;
-        DBUG_ASSERT(remaining_len + 1 < MAX_BOOTSTRAP_LINE_SIZE);
+        assert(remaining_len + 1 < MAX_BOOTSTRAP_LINE_SIZE);
         /* Unput a partial line, including a terminating '\0' */
         memcpy(state->m_unget_buffer.get(), remaining_line, remaining_len + 1);
         state->m_unget_buffer_length = remaining_len;

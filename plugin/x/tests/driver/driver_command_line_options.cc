@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -243,9 +243,9 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
     } else if (check_arg(argv, i, "--mysql41-auth", nullptr)) {
       m_connection_options.auth_methods.push_back("MYSQL41");
     } else if (check_arg_with_value(argv, i, "--debug", nullptr, value)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       DBUG_PUSH(value);
-#endif  // DBUG_OFF
+#endif  // NDEBUG
     } else if (check_arg_with_value(argv, i, "--sql", nullptr, value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--execute", "-e", value)) {

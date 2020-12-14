@@ -2,7 +2,7 @@
 #define RECORD_BUFFER_INCLUDED
 
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <assert.h>
 #include "my_base.h"  // ha_rows
-#include "my_dbug.h"
 
 /**
   This class represents a buffer that can be used for multi-row reads. It is
@@ -105,7 +105,7 @@ class Record_buffer {
     @return the @c uchar buffer that holds the specified record
   */
   uchar *record(ha_rows pos) const {
-    DBUG_ASSERT(pos < max_records());
+    assert(pos < max_records());
     return m_buffer + m_record_size * pos;
   }
 
@@ -114,7 +114,7 @@ class Record_buffer {
     @return the @c uchar buffer of the added record
   */
   uchar *add_record() {
-    DBUG_ASSERT(m_count < max_records());
+    assert(m_count < max_records());
     return record(m_count++);
   }
 
@@ -122,7 +122,7 @@ class Record_buffer {
     Remove the record that was last added to the buffer.
   */
   void remove_last() {
-    DBUG_ASSERT(m_count > 0);
+    assert(m_count > 0);
     --m_count;
   }
 

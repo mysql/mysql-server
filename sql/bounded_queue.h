@@ -110,19 +110,19 @@ class Bounded_queue {
       Sort_param::make_sortkey() instead for the case of fixed-length records,
       but this is much simpler.
      */
-    DBUG_ASSERT(m_element_size < 0xFFFFFFFF);
+    assert(m_element_size < 0xFFFFFFFF);
     const uint element_size = m_element_size + 1;
 
     if (m_queue.size() == m_queue.capacity()) {
       const Key_type &pq_top = m_queue.top();
       const uint MY_ATTRIBUTE((unused)) rec_sz =
           m_sort_param->make_sortkey(pq_top, element_size, opaque);
-      DBUG_ASSERT(rec_sz <= m_element_size);
+      assert(rec_sz <= m_element_size);
       m_queue.update_top();
     } else {
       const uint MY_ATTRIBUTE((unused)) rec_sz = m_sort_param->make_sortkey(
           m_sort_keys[m_queue.size()], element_size, opaque);
-      DBUG_ASSERT(rec_sz <= m_element_size);
+      assert(rec_sz <= m_element_size);
       m_queue.push(m_sort_keys[m_queue.size()]);
     }
   }

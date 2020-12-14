@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,12 @@
 
 #include "plugin/x/src/query_string_builder.h"
 
+#include <assert.h>
 #include <cstdint>
 
 #include <mutex>  // NOLINT(build/c++11)
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
-#include "my_sys.h"   // escape_string_for_mysql NOLINT(build/include_subdir)
+#include "my_sys.h"  // escape_string_for_mysql NOLINT(build/include_subdir)
 #include "mysql/plugin.h"
 
 namespace xpl {
@@ -44,7 +44,7 @@ void Query_string_builder::init_charset() {
 Query_string_builder::Query_string_builder(size_t reserve)
     : m_in_quoted(false), m_in_identifier(false) {
   std::call_once(m_charset_initialized, init_charset);
-  DBUG_ASSERT(m_charset != nullptr);
+  assert(m_charset != nullptr);
 
   m_str.reserve(reserve);
 }

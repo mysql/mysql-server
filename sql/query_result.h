@@ -23,6 +23,7 @@
 #ifndef QUERY_RESULT_INCLUDED
 #define QUERY_RESULT_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>
@@ -31,7 +32,7 @@
 #include "mem_root_deque.h"
 #include "my_base.h"
 #include "my_compiler.h"  // MY_ATTRIBUTE
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
@@ -151,7 +152,7 @@ class Query_result {
     @returns true if error
   */
   virtual bool reset() {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
   /**
@@ -166,7 +167,7 @@ class Query_result {
   /// @returns Pointer to count of rows retained by this result.
   virtual const ha_rows *row_count() const /* purecov: inspected */
   {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   } /* purecov: inspected */
 
@@ -185,7 +186,7 @@ class Query_result {
     @return   true if "on the fly"
   */
   virtual bool immediate_update(TABLE_LIST *t MY_ATTRIBUTE((unused))) const {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 };
@@ -241,7 +242,7 @@ class Query_result_to_file : public Query_result_interceptor {
       : Query_result_interceptor(), exchange(ex), file(-1), row_count(0L) {
     path[0] = 0;
   }
-  ~Query_result_to_file() override { DBUG_ASSERT(file < 0); }
+  ~Query_result_to_file() override { assert(file < 0); }
 
   bool needs_file_privilege() const override { return true; }
 

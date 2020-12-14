@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,8 @@
 
 #include "storage/ndb/plugin/ndb_mi.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"
 #include "sql/rpl_rli.h"
@@ -50,7 +51,7 @@ class Multisource_info_guard {
   Master_info *get_default_mi() const {
     Master_info *default_mi = channel_map.get_default_channel_mi();
     // There should always be a default Master_info at this point
-    DBUG_ASSERT(default_mi);
+    assert(default_mi);
     return default_mi;
   }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 // Implements the functions declared in ndb_dd_schema.h
 #include "storage/ndb/plugin/ndb_dd_schema.h"
 
+#include "my_dbug.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/types/schema.h"
 
@@ -45,7 +46,7 @@ bool ndb_dd_schema_get_counter_and_nodeid(const dd::Schema *schema,
       schema->se_private_data().get(ndb_counter_key, &counter)) {
     DBUG_PRINT("error", ("Schema definition has an invalid value for '%s'",
                          ndb_counter_key));
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -53,7 +54,7 @@ bool ndb_dd_schema_get_counter_and_nodeid(const dd::Schema *schema,
       schema->se_private_data().get(ndb_node_id_key, &node_id)) {
     DBUG_PRINT("error", ("Schema definition has an invalid value for '%s'",
                          ndb_node_id_key));
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,7 @@ static void log_builtins_filter_rule_remove(log_filter_ruleset *ruleset,
                                             int elem) {
   size_t rn;
 
-  DBUG_ASSERT(ruleset->count > 0);
+  assert(ruleset->count > 0);
 
   log_builtins_filter_rule_free(&ruleset->rule[elem]);
 
@@ -293,9 +293,9 @@ static void log_builtins_filter_ruleset_free(log_filter_ruleset **ruleset) {
 static void log_builtins_filter_set_defaults(log_filter_ruleset *ruleset) {
   log_filter_rule *r;
 
-  DBUG_ASSERT(ruleset != nullptr);
+  assert(ruleset != nullptr);
 
-  DBUG_ASSERT(!log_filter_ruleset_full(ruleset));
+  assert(!log_filter_ruleset_full(ruleset));
 
   // failsafe: simple built-in filter may not drop "System" or "Error" messages
   r = log_builtins_filter_rule_init(ruleset);
@@ -529,7 +529,7 @@ static log_filter_match log_filter_try_match(log_item *li,
     "rule" and "right in the comparison."
   */
 
-  DBUG_ASSERT(ri != nullptr);
+  assert(ri != nullptr);
 
   /*
     If there is no match, the only valid scenarios are "success"
@@ -624,7 +624,7 @@ static log_filter_match log_filter_try_match(log_item *li,
         // unknown comparison type
       default:
         e = LOG_FILTER_MATCH_COMPARATOR_UNKNOWN; /* purecov: inspected */
-        DBUG_ASSERT(false);
+        assert(false);
     }  // comparator switch
   }    // class mismatch?
 
@@ -646,7 +646,7 @@ int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll) {
   int processed = 0;
   log_filter_match cond_result;
 
-  DBUG_ASSERT(filter_inited);
+  assert(filter_inited);
 
   if (ruleset == nullptr) return 0; /* purecov: inspected */
 

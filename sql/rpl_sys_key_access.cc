@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ int Rpl_sys_key_access::init(TABLE *table, enum_key_type ktype) {
 
     case enum_key_type::RND_POS:
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   return m_error;
@@ -145,7 +145,7 @@ int Rpl_sys_key_access::next() {
 
     case enum_key_type::RND_POS:
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   return m_error;

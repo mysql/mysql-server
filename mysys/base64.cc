@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include "base64.h"
 
+#include <assert.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -35,7 +36,6 @@
 #include <sys/types.h>
 
 #include "my_config.h"
-#include "my_dbug.h"
 
 /**
   @file mysys/base64.cc
@@ -255,7 +255,7 @@ static inline bool my_base64_decoder_getch(MY_BASE64_DECODER *decoder) {
   {
     if (decoder->mark) {
       /* If we have scanned '=' already, then only '=' is valid */
-      DBUG_ASSERT(decoder->state == 3);
+      assert(decoder->state == 3);
       decoder->error = 1;
       decoder->src--;
       return true; /* expected '=', but encoding character found */
@@ -283,7 +283,7 @@ static inline bool my_base64_decoder_getch(MY_BASE64_DECODER *decoder) {
       break;
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return true; /* Wrong state, should not happen */
   }
 

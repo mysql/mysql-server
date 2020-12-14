@@ -166,7 +166,7 @@ real_main(int argc, char** argv)
 
   opts.set_usage_funcs(short_usage_sub);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndbd.trace";
 #endif
 

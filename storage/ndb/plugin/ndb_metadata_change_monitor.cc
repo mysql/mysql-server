@@ -485,7 +485,7 @@ void Ndb_metadata_change_monitor::do_run() {
   Thread_handle_guard thd_guard;
   THD *thd = thd_guard.get_thd();
   if (thd == nullptr) {
-    DBUG_ASSERT(false);
+    assert(false);
     log_error("Failed to allocate THD");
     return;
   }
@@ -504,7 +504,7 @@ void Ndb_metadata_change_monitor::do_run() {
     Thd_ndb_guard thd_ndb_guard(thd);
     const Thd_ndb *thd_ndb = thd_ndb_guard.get_thd_ndb();
     if (thd_ndb == nullptr) {
-      DBUG_ASSERT(false);
+      assert(false);
       log_error("Failed to allocate Thd_ndb");
       return;
     }

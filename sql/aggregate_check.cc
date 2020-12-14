@@ -29,13 +29,14 @@
 
 #include "sql/aggregate_check.h"
 
+#include <assert.h>
 #include <cstdio>
 #include <initializer_list>
 #include <utility>
 
 #include "mem_root_deque.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
@@ -112,7 +113,7 @@ bool Distinct_check::check_query(THD *thd) {
        ++number_in_list, order = order->next) {
     if (order->in_field_list)  // is in SELECT list
       continue;
-    DBUG_ASSERT((*order->item)->fixed);
+    assert((*order->item)->fixed);
     uint counter;
     enum_resolution_type resolution;
     /*
@@ -188,7 +189,7 @@ bool Group_check::check_query(THD *thd) {
   }
 
   // Aggregate without GROUP BY has no ORDER BY at this stage
-  DBUG_ASSERT(!(select->is_implicitly_grouped() && select->is_ordered()));
+  assert(!(select->is_implicitly_grouped() && select->is_ordered()));
   // Validate ORDER BY list
   if (order) {
     number_in_list = 1;
@@ -264,7 +265,7 @@ err:
    list.
 */
 bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
-  DBUG_ASSERT(!is_child());
+  assert(!is_child());
   if (!in_select_list) {
     uint counter;
     enum_resolution_type resolution;
@@ -588,7 +589,7 @@ Item *Group_check::select_expression(uint idx) {
       --idx;
     }
   }
-  DBUG_ASSERT(false);
+  assert(false);
   return nullptr;
 }
 
@@ -684,7 +685,7 @@ bool Group_check::is_in_fd(Item *item) {
     return group_in_fd == ~0ULL;
   }
 
-  DBUG_ASSERT(local_column(item));
+  assert(local_column(item));
   Used_tables ut(select);
   (void)item->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&ut));
@@ -743,8 +744,8 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       we have this->fd={v1.a}, and we search if v1.b is FD on v1.a. We'll look
       if t1.a*2 is FD on t1.a.
     */
-    DBUG_ASSERT(static_cast<const Item_ref *>(item)->ref_type() ==
-                Item_ref::VIEW_REF);
+    assert(static_cast<const Item_ref *>(item)->ref_type() ==
+           Item_ref::VIEW_REF);
     /*
       Refuse RAND_TABLE_BIT because:
       - FDs in a view are those of the underlying query expression.
@@ -763,7 +764,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       derived_table_ref field to Item_view_ref objects and use it here.
     */
     TABLE_LIST *const tl = item->cached_table;
-    DBUG_ASSERT(tl->is_view_or_derived());
+    assert(tl->is_view_or_derived());
     /*
       We might find expression-based FDs in the result of the view's query
       expression; but if this view is on the weak side of an outer join,
@@ -798,9 +799,9 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
     TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
     if (item_field->field->is_gcol())  // Generated column
     {
-      DBUG_ASSERT(!tl->uses_materialization());
+      assert(!tl->uses_materialization());
       Item *const expr = item_field->field->gcol_info->expr_item;
-      DBUG_ASSERT(expr->fixed);
+      assert(expr->fixed);
       Used_tables ut(select);
       item_field->used_tables_for_level(pointer_cast<uchar *>(&ut));
       const bool weak_side_upwards = tl->is_inner_table_of_outer_join();
@@ -1032,7 +1033,7 @@ void Group_check::analyze_scalar_eq(Item *cond, Item *left_item,
         This may be constant=right_item and thus not be an NFFD, but WHERE is
         exterior to join nests so propagation is not needed.
       */
-      DBUG_ASSERT(!weak_side_upwards);  // cannot be inner join
+      assert(!weak_side_upwards);  // cannot be inner join
       add_to_fd(right_item, true);
     } else {
       // Outer join. So condition must be deterministic.
@@ -1131,7 +1132,7 @@ void Group_check::find_fd_in_joined_table(
         outer join nest or to WHERE. So this assertion should hold.
         Thus, used_tables are weak tables.
       */
-      DBUG_ASSERT(table->outer_join);
+      assert(table->outer_join);
       /*
         We might find equality-based FDs in the result of this outer join; but
         if this outer join is itself on the weak side of a parent outer join,

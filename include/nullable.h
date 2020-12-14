@@ -2,7 +2,7 @@
 #define NULLABLE_INCLUDED
 
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
   @file include/nullable.h
 */
 
-#include "my_dbug.h"
+#include <assert.h>
 
 namespace Mysql {
 
@@ -86,7 +86,7 @@ class Nullable {
     returns false.
   */
   const T_value &value() const {
-    DBUG_ASSERT(this->m_has_value);
+    assert(this->m_has_value);
     return this->m_value;
   }
 

@@ -22,6 +22,7 @@
 
 #include "sql/sql_cursor.h"
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <algorithm>
@@ -31,7 +32,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql_com.h"
@@ -218,7 +219,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   } else {
     result_materialize =
         down_cast<Query_result_materialize *>(sql_cmd->query_result());
-    DBUG_ASSERT(sql_cmd->query_result() == result_materialize);
+    assert(sql_cmd->query_result() == result_materialize);
     result_materialize->set_result(result);
   }
 
@@ -318,8 +319,7 @@ int Materialized_cursor::send_result_set_metadata(
       return true;
     }
 
-    DBUG_ASSERT(CountVisibleFields(send_result_set_metadata) ==
-                item_list.size());
+    assert(CountVisibleFields(send_result_set_metadata) == item_list.size());
 
     /*
       Unless we preserve the original metadata, it will be lost,
@@ -356,7 +356,7 @@ int Materialized_cursor::send_result_set_metadata(
 
   thd->swap_query_arena(backup_arena, &m_arena);
 
-  DBUG_ASSERT(!thd->is_error());
+  assert(!thd->is_error());
 
   return false;
 }
@@ -449,7 +449,7 @@ void Materialized_cursor::close() {
 }
 
 Materialized_cursor::~Materialized_cursor() {
-  DBUG_ASSERT(!is_open());
+  assert(!is_open());
   if (table != nullptr) free_tmp_table(table);
 }
 
@@ -464,7 +464,7 @@ bool Query_result_materialize::prepare(THD *thd,
 
   if (result->prepare(thd, fields, u)) return true;
 
-  DBUG_ASSERT(table == nullptr && materialized_cursor == nullptr);
+  assert(table == nullptr && materialized_cursor == nullptr);
 
   materialized_cursor = new (thd->mem_root) Materialized_cursor(result);
   if (materialized_cursor == nullptr) return true;

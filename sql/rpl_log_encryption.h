@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -289,7 +289,7 @@ class Rpl_encryption {
     binlog_rotate_encryption_master_key_at_startup.
   */
   bool m_rotate_at_startup = false;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     This variable is only used to assert that enable(), disable() and
     get_master_key() functions are called only after initialize() was called.

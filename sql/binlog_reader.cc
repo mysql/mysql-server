@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ void Default_binlog_event_allocator::deallocate(unsigned char *ptr) {
   my_free(ptr);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
   /*
     Corrupt the event.
@@ -56,7 +56,7 @@ static void debug_corrupt_event(unsigned char *buffer, unsigned int event_len) {
         DBUG_PRINT("info", ("Corrupt the event on position %d", cor_pos));
       });
 }
-#endif  // ifdef DBUG_OFF
+#endif  // ifdef NDEBUG
 
 Binlog_event_data_istream::Binlog_event_data_istream(
     Binlog_read_error *error, Basic_istream *istream,
@@ -77,7 +77,7 @@ bool Binlog_event_data_istream::fill_event_data(
           m_event_length - LOG_EVENT_MINIMAL_HEADER_LEN))
     return true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   debug_corrupt_event(event_data, m_event_length);
 #endif
 
@@ -116,7 +116,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
   DBUG_TRACE;
 
-  DBUG_ASSERT(fde != nullptr);
+  assert(fde != nullptr);
   DBUG_PRINT("info", ("binlog_version: %d", fde->binlog_version));
   DBUG_DUMP("data", buffer, event_len);
 
@@ -164,7 +164,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
             ? fde->footer()->checksum_alg
             : Log_event_footer::get_checksum_alg(buf, event_len);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   binary_log_debug::debug_checksum_test =
       DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 #endif
@@ -201,7 +201,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
   switch (event_type) {
     case binary_log::QUERY_EVENT:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       binary_log_debug::debug_query_mts_corrupt_db_names =
           DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
 #endif

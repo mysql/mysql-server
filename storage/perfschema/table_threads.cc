@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,10 @@
 
 #include "storage/perfschema/table_threads.h"
 
+#include <assert.h>
 #include "lex_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -201,7 +202,7 @@ int table_threads::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_threads_by_resource_group);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   m_opened_index = result;
@@ -352,7 +353,7 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
   int len = 0;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 2);
+  assert(table->s->null_bytes == 2);
   buf[0] = 0;
   buf[1] = 0;
 
@@ -476,7 +477,7 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -519,7 +520,7 @@ int table_threads::update_row_values(TABLE *table, const unsigned char *,
         case 17: /* RESOURCE_GROUP */
           return HA_ERR_WRONG_COMMAND;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

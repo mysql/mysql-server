@@ -1,7 +1,7 @@
 #ifndef THR_MUTEX_INCLUDED
 #define THR_MUTEX_INCLUDED
 
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,10 +40,11 @@
        See include/mysql/psi/mysql_thread.h
 */
 
+#include <assert.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_thread.h"
@@ -146,16 +147,16 @@ int safe_mutex_unlock(safe_mutex_t *mp, const char *file, uint line);
 int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line);
 
 static inline void safe_mutex_assert_owner(safe_mutex_t *mp) {
-  DBUG_ASSERT(mp != nullptr);
+  assert(mp != nullptr);
   native_mutex_lock(&mp->global);
-  DBUG_ASSERT(mp->count > 0 && my_thread_equal(my_thread_self(), mp->thread));
+  assert(mp->count > 0 && my_thread_equal(my_thread_self(), mp->thread));
   native_mutex_unlock(&mp->global);
 }
 
 static inline void safe_mutex_assert_not_owner(safe_mutex_t *mp) {
-  DBUG_ASSERT(mp != nullptr);
+  assert(mp != nullptr);
   native_mutex_lock(&mp->global);
-  DBUG_ASSERT(!mp->count || !my_thread_equal(my_thread_self(), mp->thread));
+  assert(!mp->count || !my_thread_equal(my_thread_self(), mp->thread));
   native_mutex_unlock(&mp->global);
 }
 #endif /* SAFE_MUTEX */
@@ -167,7 +168,7 @@ static inline int my_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr
 #endif
 ) {
 #ifdef SAFE_MUTEX
-  DBUG_ASSERT(mp != nullptr);
+  assert(mp != nullptr);
   mp->m_u.m_safe_ptr = (safe_mutex_t *)malloc(sizeof(safe_mutex_t));
   return safe_mutex_init(mp->m_u.m_safe_ptr, attr, file, line);
 #else
@@ -182,8 +183,8 @@ static inline int my_mutex_lock(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
-  DBUG_ASSERT(mp != nullptr);
-  DBUG_ASSERT(mp->m_u.m_safe_ptr != nullptr);
+  assert(mp != nullptr);
+  assert(mp->m_u.m_safe_ptr != nullptr);
   return safe_mutex_lock(mp->m_u.m_safe_ptr, false, file, line);
 #else
   return native_mutex_lock(&mp->m_u.m_native);
@@ -197,8 +198,8 @@ static inline int my_mutex_trylock(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
-  DBUG_ASSERT(mp != nullptr);
-  DBUG_ASSERT(mp->m_u.m_safe_ptr != nullptr);
+  assert(mp != nullptr);
+  assert(mp->m_u.m_safe_ptr != nullptr);
   return safe_mutex_lock(mp->m_u.m_safe_ptr, true, file, line);
 #else
   return native_mutex_trylock(&mp->m_u.m_native);
@@ -212,8 +213,8 @@ static inline int my_mutex_unlock(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
-  DBUG_ASSERT(mp != nullptr);
-  DBUG_ASSERT(mp->m_u.m_safe_ptr != nullptr);
+  assert(mp != nullptr);
+  assert(mp->m_u.m_safe_ptr != nullptr);
   return safe_mutex_unlock(mp->m_u.m_safe_ptr, file, line);
 #else
   return native_mutex_unlock(&mp->m_u.m_native);
@@ -227,8 +228,8 @@ static inline int my_mutex_destroy(my_mutex_t *mp
 #endif
 ) {
 #ifdef SAFE_MUTEX
-  DBUG_ASSERT(mp != nullptr);
-  DBUG_ASSERT(mp->m_u.m_safe_ptr != nullptr);
+  assert(mp != nullptr);
+  assert(mp->m_u.m_safe_ptr != nullptr);
   int rc = safe_mutex_destroy(mp->m_u.m_safe_ptr, file, line);
   free(mp->m_u.m_safe_ptr);
   mp->m_u.m_safe_ptr = nullptr;

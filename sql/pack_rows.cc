@@ -187,7 +187,7 @@ static size_t CalculateColumnStorageSize(const Column &column) {
     case MYSQL_TYPE_INVALID:      // Should not occur
     case MYSQL_TYPE_TYPED_ARRAY:  // Type only used for replication
     {
-      DBUG_ASSERT(false);
+      assert(false);
       return 0;
     }
   }
@@ -232,12 +232,12 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
   } else {
     // If the table doesn't have any blob columns, we expect that the caller
     // already has reserved enough space in the provided buffer.
-    DBUG_ASSERT(buffer->alloced_length() >= ComputeRowSizeUpperBound(tables));
+    assert(buffer->alloced_length() >= ComputeRowSizeUpperBound(tables));
   }
 
   char *dptr = pointer_cast<char *>(
       StoreFromTableBuffersRaw(tables, pointer_cast<uchar *>(buffer->ptr())));
-  DBUG_ASSERT(dptr <= buffer->ptr() + buffer->alloced_length());
+  assert(dptr <= buffer->ptr() + buffer->alloced_length());
   const size_t actual_length = dptr - buffer->ptr();
   buffer->length(actual_length);
   return false;

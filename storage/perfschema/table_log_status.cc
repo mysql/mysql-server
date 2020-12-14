@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,7 @@ static bool iter_storage_engines_register(THD *, plugin_ref plugin, void *arg) {
   handlerton *hton = plugin_data<handlerton *>(plugin);
   bool result = false;
 
-  DBUG_ASSERT(plugin_state(plugin) == PLUGIN_IS_READY);
+  assert(plugin_state(plugin) == PLUGIN_IS_READY);
 
   /* The storage engine must implement all three functions to be supported */
   if (hton->lock_hton_log && hton->unlock_hton_log &&
@@ -316,7 +316,7 @@ int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
                                       bool read_all MY_ATTRIBUTE((unused))) {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -335,7 +335,7 @@ int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
           set_field_json(f, &m_row.w_storage_engines);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

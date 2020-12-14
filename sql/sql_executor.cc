@@ -148,7 +148,7 @@ string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
   string ret;
 
   if (ref.keypart_hash != nullptr) {
-    DBUG_ASSERT(!include_nulls);
+    assert(!include_nulls);
     ret = key->key_part[0].field->field_name;
     ret += "=hash(";
     for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
@@ -175,7 +175,7 @@ string RefToString(const TABLE_REF &ref, const KEY *key, bool include_nulls) {
       // index. Instead, print out the indexed expression.
       ret += ItemToString(field->gcol_info->expr_item);
     } else {
-      DBUG_ASSERT(!field->is_hidden_by_system());
+      assert(!field->is_hidden_by_system());
       ret += field->field_name;
     }
     ret += "=";
@@ -227,7 +227,7 @@ bool JOIN::create_intermediate_table(
   tmp_table_param.using_outer_summary_function =
       tab->tmp_table_param->using_outer_summary_function;
 
-  DBUG_ASSERT(tab->idx() > 0);
+  assert(tab->idx() > 0);
   tab->set_table(table);
 
   /**
@@ -375,7 +375,7 @@ void JOIN::optimize_distinct() {
   /* Optimize "select distinct b from t1 order by key_part_1 limit #" */
   if (!order.empty() && skip_sort_order) {
     /* Should already have been optimized away */
-    DBUG_ASSERT(m_ordered_index_usage == ORDERED_INDEX_ORDER_BY);
+    assert(m_ordered_index_usage == ORDERED_INDEX_ORDER_BY);
     if (m_ordered_index_usage == ORDERED_INDEX_ORDER_BY) {
       order.clean();
     }
@@ -587,7 +587,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
   Temp_table_param *const tmp_tbl = tab->tmp_table_param;
   uint phase = tab->ref_item_slice;
   const char *description = nullptr;
-  DBUG_ASSERT(table);
+  assert(table);
 
   if (table->group && tmp_tbl->sum_func_count &&
       !tmp_tbl->precomputed_group_by) {
@@ -595,13 +595,13 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
       Note for MyISAM tmp tables: if uniques is true keys won't be
       created.
     */
-    DBUG_ASSERT(phase < REF_SLICE_WIN_1);
+    assert(phase < REF_SLICE_WIN_1);
     if (table->s->keys) {
       description = "continuously_update_group_row";
       tab->op_type = QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE;
     }
   } else if (join->streaming_aggregation && !tmp_tbl->precomputed_group_by) {
-    DBUG_ASSERT(phase < REF_SLICE_WIN_1);
+    assert(phase < REF_SLICE_WIN_1);
     description = "write_group_row_when_complete";
     DBUG_PRINT("info", ("Using end_write_group"));
     tab->op_type = QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE;
@@ -715,8 +715,8 @@ static size_t record_prefix_size(const TABLE *table) {
   was not attempted allocated
 */
 bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
-  DBUG_ASSERT(table->file->inited);
-  DBUG_ASSERT(table->file->ha_get_record_buffer() == nullptr);
+  assert(table->file->inited);
+  assert(table->file->ha_get_record_buffer() == nullptr);
 
   // Skip temporary tables, those with no estimates, or if we don't
   // expect multiple rows.
@@ -733,8 +733,7 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
       Assume that the existing buffer has the shape we want. That is, the
       record size shouldn't change for a table during execution.
     */
-    DBUG_ASSERT(table->m_record_buffer.record_size() ==
-                record_prefix_size(table));
+    assert(table->m_record_buffer.record_size() == record_prefix_size(table));
     table->m_record_buffer.reset();
     table->file->ha_set_record_buffer(&table->m_record_buffer);
     return false;
@@ -988,7 +987,7 @@ enum CallingContext {
  */
 void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param) {
-  DBUG_ASSERT(param->items_to_copy == nullptr);
+  assert(param->items_to_copy == nullptr);
 
   // All fields are to be copied.
   Func_ptr_array *copy_func =
@@ -1176,8 +1175,8 @@ static void MarkUnhandledDuplicates(SJ_TMP_TABLE *weedout,
                                     plan_idx weedout_start,
                                     plan_idx weedout_end,
                                     qep_tab_map *unhandled_duplicates) {
-  DBUG_ASSERT(weedout_start >= 0);
-  DBUG_ASSERT(weedout_end >= 0);
+  assert(weedout_start >= 0);
+  assert(weedout_end >= 0);
 
   qep_tab_map weedout_range = TablesBetween(weedout_start, weedout_end);
   if (weedout->is_confluent) {
@@ -1384,7 +1383,7 @@ static Substructure FindSubstructure(
       // outer join contained in this semijoin, e.g. A LEFT JOIN B LEFT JOIN C
       // where the combination B-C is _also_ the right side of a semijoin.
       // The join optimizer should not produce this.
-      DBUG_ASSERT(false);
+      assert(false);
     }
   }
 
@@ -1394,7 +1393,7 @@ static Substructure FindSubstructure(
   // (C has first match back to A). Verify that it cannot happen.
   if (is_semijoin) {
     for (plan_idx i = this_idx; i < semijoin_end; ++i) {
-      DBUG_ASSERT(qep_tabs[i].last_inner() < semijoin_end);
+      assert(qep_tabs[i].last_inner() < semijoin_end);
     }
   }
 
@@ -1409,11 +1408,11 @@ static Substructure FindSubstructure(
     is_outer_join = false;
   }
   if (is_semijoin && is_outer_join) {
-    DBUG_ASSERT(outer_join_end > semijoin_end);
+    assert(outer_join_end > semijoin_end);
     is_semijoin = false;
   }
 
-  DBUG_ASSERT(is_semijoin + is_outer_join + is_weedout <= 1);
+  assert(is_semijoin + is_outer_join + is_weedout <= 1);
 
   if (is_semijoin) {
     *substructure_end = semijoin_end;
@@ -1640,7 +1639,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
         /*reject_multiple_rows=*/false);
     EstimateMaterializeCost(table_path);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Make sure we clear this table out when the join is reset,
     // since its contents may depend on outer expressions.
     bool found = false;
@@ -1650,7 +1649,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
         break;
       }
     }
-    DBUG_ASSERT(found);
+    assert(found);
 #endif
   } else {
     table_path = qep_tab->access_path();
@@ -1708,7 +1707,7 @@ void SetCostOnNestedLoopAccessPath(const Cost_model_server &cost_model,
     outer = path->nested_loop_semijoin_with_duplicate_removal().outer;
     inner = path->nested_loop_semijoin_with_duplicate_removal().inner;
   } else {
-    DBUG_ASSERT(path->type == AccessPath::NESTED_LOOP_JOIN);
+    assert(path->type == AccessPath::NESTED_LOOP_JOIN);
     outer = path->nested_loop_join().outer;
     inner = path->nested_loop_join().inner;
   }
@@ -2268,9 +2267,8 @@ static AccessPath *ConnectJoins(
     vector<PendingCondition> *pending_join_conditions,
     qep_tab_map *unhandled_duplicates,
     table_map *conditions_depend_on_outer_tables) {
-  DBUG_ASSERT(last_idx > first_idx);
-  DBUG_ASSERT((pending_conditions == nullptr) ==
-              (pending_invalidators == nullptr));
+  assert(last_idx > first_idx);
+  assert((pending_conditions == nullptr) == (pending_invalidators == nullptr));
   AccessPath *path = nullptr;
 
   // A special case: If we are at the top but the first table is an outer
@@ -2395,7 +2393,7 @@ static AccessPath *ConnectJoins(
         // enable antijoin optimizations if we are not already on the right
         // (inner) side of another outer join. Otherwise, we would cause the
         // higher-up outer join to create NULL rows where there should be none.
-        DBUG_ASSERT(substructure != Substructure::SEMIJOIN);
+        assert(substructure != Substructure::SEMIJOIN);
         join_type =
             (pending_conditions == nullptr) ? JoinType::ANTI : JoinType::OUTER;
 
@@ -2419,7 +2417,7 @@ static AccessPath *ConnectJoins(
              it != subtree_pending_conditions.end();) {
           if (it->table_index_to_attach_to == int(i) &&
               it->cond->item_name.ptr() == antijoin_null_cond) {
-            DBUG_ASSERT(nullptr != dynamic_cast<Item_func_false *>(it->cond));
+            assert(nullptr != dynamic_cast<Item_func_false *>(it->cond));
             join_type = JoinType::ANTI;
             it = subtree_pending_conditions.erase(it);
           } else {
@@ -2432,7 +2430,7 @@ static AccessPath *ConnectJoins(
              it != subtree_pending_join_conditions.end();) {
           if (it->table_index_to_attach_to == int(i) &&
               it->cond->item_name.ptr() == antijoin_null_cond) {
-            DBUG_ASSERT(nullptr != dynamic_cast<Item_func_false *>(it->cond));
+            assert(nullptr != dynamic_cast<Item_func_false *>(it->cond));
             join_type = JoinType::ANTI;
             it = subtree_pending_join_conditions.erase(it);
           } else {
@@ -2451,7 +2449,7 @@ static AccessPath *ConnectJoins(
       // If the entire slice is an outer join, we've solved that in a more
       // roundabout way; see is_top_level_outer_join above.
       if (path == nullptr) {
-        DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
+        assert(substructure == Substructure::SEMIJOIN);
         add_limit_1 = true;
       }
 
@@ -2479,7 +2477,7 @@ static AccessPath *ConnectJoins(
       if (i != first_idx && qep_tabs[i - 1].do_loosescan() &&
           qep_tabs[i - 1].match_tab != i - 1) {
         QEP_TAB *prev_qep_tab = &qep_tabs[i - 1];
-        DBUG_ASSERT(path != nullptr);
+        assert(path != nullptr);
 
         KEY *key = prev_qep_tab->table()->key_info + prev_qep_tab->index();
         if (substructure == Substructure::SEMIJOIN) {
@@ -2496,7 +2494,7 @@ static AccessPath *ConnectJoins(
           // join (and any associated filtering), which is the safe option --
           // and in this case, it's no slower, since we'll be having a LIMIT 1
           // inserted anyway.
-          DBUG_ASSERT(substructure == Substructure::OUTER_JOIN);
+          assert(substructure == Substructure::OUTER_JOIN);
           remove_duplicates_loose_scan = true;
 
           path = CreateNestedLoopAccessPath(thd, path, subtree_path, join_type,
@@ -2505,7 +2503,7 @@ static AccessPath *ConnectJoins(
                                         path);
         }
       } else if (path == nullptr) {
-        DBUG_ASSERT(substructure == Substructure::SEMIJOIN);
+        assert(substructure == Substructure::SEMIJOIN);
         path = subtree_path;
       } else if (((UseHashJoin(qep_tab) &&
                    !PushedJoinRejectsHashJoin(qep_tab->join(), left_tables,
@@ -2753,7 +2751,7 @@ static AccessPath *ConnectJoins(
       // Inner join this table to the existing tree.
       // Inner joins are always left-deep, so we can just attach the tables as
       // we find them.
-      DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
+      assert(qep_tab->last_inner() == NO_PLAN_IDX);
 
       if (is_bka) {
         path = CreateBKAAccessPath(thd, qep_tab->join(), path, left_tables,
@@ -2785,16 +2783,16 @@ static AccessPath *ConnectJoins(
     // If we have any predicates that should be above an outer join,
     // send them upwards.
     for (PendingCondition &cond : predicates_above_join) {
-      DBUG_ASSERT(pending_conditions != nullptr);
+      assert(pending_conditions != nullptr);
       pending_conditions->push_back(cond);
     }
   }
   if (is_top_level_outer_join) {
     // We can't have any invalidators here, because there's no later table
     // to invalidate.
-    DBUG_ASSERT(top_level_pending_invalidators.empty());
+    assert(top_level_pending_invalidators.empty());
 
-    DBUG_ASSERT(last_idx == qep_tabs[first_idx].last_inner() + 1);
+    assert(last_idx == qep_tabs[first_idx].last_inner() + 1);
     path = FinishPendingOperations(
         thd, path, /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
         top_level_pending_conditions, top_level_pending_invalidators,
@@ -2804,7 +2802,7 @@ static AccessPath *ConnectJoins(
 }
 
 void JOIN::create_access_paths() {
-  DBUG_ASSERT(m_root_access_path == nullptr);
+  assert(m_root_access_path == nullptr);
 
   AccessPath *path = create_root_access_path_for_join();
   path = attach_access_paths_for_having_and_limit(path);
@@ -3032,8 +3030,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         path = NewFilterAccessPath(thd, path, qep_tab->having);
       }
     } else {
-      DBUG_ASSERT(qep_tab->op_type == QEP_TAB::OT_MATERIALIZE ||
-                  qep_tab->op_type == QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
+      assert(qep_tab->op_type == QEP_TAB::OT_MATERIALIZE ||
+             qep_tab->op_type == QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
 
       // If we don't need the row IDs, and don't have some sort of deduplication
       // (e.g. for GROUP BY) on the table, filesort can take in the data
@@ -3114,10 +3112,10 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   }
   if (do_aggregate) {
     // Aggregate as we go, with output into a special slice of the same table.
-    DBUG_ASSERT(streaming_aggregation || tmp_table_param.precomputed_group_by);
-#ifndef DBUG_OFF
+    assert(streaming_aggregation || tmp_table_param.precomputed_group_by);
+#ifndef NDEBUG
     for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
-      DBUG_ASSERT(qep_tab->op_type != QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
+      assert(qep_tab->op_type != QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
     }
 #endif
     if (!tmp_table_param.precomputed_group_by) {
@@ -3325,7 +3323,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   TABLE *table = tab->table();
   THD *const thd = tab->join()->thd;
   table->const_table = true;
-  DBUG_ASSERT(!thd->is_error());
+  assert(!thd->is_error());
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE) {
     const enum_sql_command sql_command = tab->join()->thd->lex->sql_command;
@@ -3383,7 +3381,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
 
   if (tab->join_cond() && !table->has_null_row()) {
     // We cannot handle outer-joined tables with expensive join conditions here:
-    DBUG_ASSERT(!tab->join_cond()->is_expensive());
+    assert(!tab->join_cond()->is_expensive());
     if (tab->join_cond()->val_int() == 0) table->set_null_row();
   }
 
@@ -3442,7 +3440,7 @@ static int read_system(TABLE *table) {
       by a null-extended row. Restore the row from the saved copy.
       @note this branch is currently unused.
     */
-    DBUG_ASSERT(false);
+    assert(false);
     table->set_found_row();
     restore_record(table, record[1]);
   }
@@ -3509,7 +3507,7 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
         pass, find the row again to update it).
         For update_row() or position() to work, the cursor must still be
         positioned on the row; it is logical and some engines
-        enforce it (see DBUG_ASSERT(m_table) in ha_perfschema::position()).
+        enforce it (see assert(m_table) in ha_perfschema::position()).
         So we do not close it. It will be closed by JOIN::cleanup().
       */
     }
@@ -3565,7 +3563,7 @@ EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
 
 bool EQRefIterator::Init() {
   if (!table()->file->inited) {
-    DBUG_ASSERT(!m_use_order);  // Don't expect sort req. for single row.
+    assert(!m_use_order);  // Don't expect sort req. for single row.
     int error = table()->file->ha_index_init(m_ref->key, m_use_order);
     if (error) {
       PrintError(error);
@@ -3657,7 +3655,7 @@ int EQRefIterator::Read() {
     m_ref->use_count = 1;
     table()->save_null_flags();
   } else if (table()->has_row()) {
-    DBUG_ASSERT(!table()->has_null_row());
+    assert(!table()->has_null_row());
     table()->restore_null_flags();
     m_ref->use_count++;
   }
@@ -3678,7 +3676,7 @@ int EQRefIterator::Read() {
 */
 
 void EQRefIterator::UnlockRow() {
-  DBUG_ASSERT(m_ref->use_count);
+  assert(m_ref->use_count);
   if (m_ref->use_count) m_ref->use_count--;
 }
 
@@ -3693,7 +3691,7 @@ PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table,
       m_examined_rows(examined_rows) {}
 
 bool PushedJoinRefIterator::Init() {
-  DBUG_ASSERT(!m_use_order);  // Pushed child can't be sorted
+  assert(!m_use_order);  // Pushed child can't be sorted
 
   if (!table()->file->inited) {
     int error = table()->file->ha_index_init(m_ref->key, m_use_order);
@@ -3847,7 +3845,7 @@ int RefIterator<true>::Read() {  // Reverse read.
       to read to the beginning of the index if no qualifying record is
       found.
      */
-    DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+    assert(table()->file->pushed_idx_cond == nullptr);
     int error = table()->file->ha_index_prev(table()->record[0]);
     if (error) {
       return HandleError(error);
@@ -3906,7 +3904,7 @@ bool DynamicRangeIterator::Init() {
   if (thd()->is_error())  // @todo consolidate error reporting of
                           // test_quick_select
     return true;
-  DBUG_ASSERT(old_qck == nullptr || old_qck != qck);
+  assert(old_qck == nullptr || old_qck != qck);
   m_qep_tab->set_quick(qck);
 
   /*
@@ -4119,7 +4117,7 @@ AlternativeIterator::AlternativeIterator(
       m_applicable_cond_guards.push_back(cond_guard);
     }
   }
-  DBUG_ASSERT(!m_applicable_cond_guards.empty());
+  assert(!m_applicable_cond_guards.empty());
 
   add_virtual_gcol_base_cols(table, thd->mem_root, &m_table_scan_read_set);
 }
@@ -4144,22 +4142,21 @@ bool AlternativeIterator::Init() {
 }
 
 AccessPath *QEP_TAB::access_path() {
-  DBUG_ASSERT(table());
+  assert(table());
   // Only some access methods support reversed access:
-  DBUG_ASSERT(!m_reversed_access || type() == JT_REF ||
-              type() == JT_INDEX_SCAN);
+  assert(!m_reversed_access || type() == JT_REF || type() == JT_INDEX_SCAN);
   TABLE_REF *used_ref = nullptr;
   AccessPath *path = nullptr;
 
   const TABLE *pushed_root = table()->file->member_of_pushed_join();
   const bool is_pushed_child = (pushed_root && pushed_root != table());
   // A 'pushed_child' has to be a REF type
-  DBUG_ASSERT(!is_pushed_child || type() == JT_REF || type() == JT_EQ_REF);
+  assert(!is_pushed_child || type() == JT_REF || type() == JT_EQ_REF);
 
   switch (type()) {
     case JT_REF:
       if (is_pushed_child) {
-        DBUG_ASSERT(!m_reversed_access);
+        assert(!m_reversed_access);
         path = NewPushedJoinRefAccessPath(join()->thd, table(), &ref(),
                                           use_order(), /*is_unique=*/false,
                                           /*count_examined_rows=*/true);
@@ -4218,7 +4215,7 @@ AccessPath *QEP_TAB::access_path() {
       }
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -4259,7 +4256,7 @@ AccessPath *QEP_TAB::access_path() {
     for (unsigned key_part_idx = 0; key_part_idx < used_ref->key_parts;
          ++key_part_idx) {
       if (used_ref->cond_guards[key_part_idx] != nullptr) {
-        DBUG_ASSERT(!is_pushed_child);
+        assert(!is_pushed_child);
         // At least one condition guard is relevant, so we need to use
         // the AlternativeIterator.
         AccessPath *table_scan_path = NewTableScanAccessPath(
@@ -4341,7 +4338,7 @@ ulonglong get_exact_record_count(QEP_TAB *qep_tab, uint table_count,
 }
 
 static bool cmp_field_value(Field *field, ptrdiff_t diff) {
-  DBUG_ASSERT(field);
+  assert(field);
   /*
     Records are different when:
     1) NULL flags aren't the same
@@ -4487,7 +4484,7 @@ static ulonglong unique_hash_group(ORDER *group) {
 
   for (ORDER *ord = group; ord; ord = ord->next) {
     Field *field = ord->field_in_tmp_table;
-    DBUG_ASSERT(field);
+    assert(field);
     unique_hash(field, &crc);
   }
 
@@ -4595,8 +4592,8 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
   TABLE *const t = w->frame_buffer();
   uchar *record = t->record[0];
 
-  DBUG_ASSERT(rowno != Window::FBC_FIRST_IN_NEXT_PARTITION);
-  DBUG_ASSERT(t->is_created());
+  assert(rowno != Window::FBC_FIRST_IN_NEXT_PARTITION);
+  assert(t->is_created());
 
   if (!t->file->inited) {
     /*
@@ -4643,7 +4640,7 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
     if (create_ondisk_from_heap(thd, t, error, true, &is_duplicate))
       return true;
 
-    DBUG_ASSERT(t->s->db_type() == innodb_hton);
+    assert(t->s->db_type() == innodb_hton);
     if (t->file->ha_rnd_init(true)) return true; /* purecov: inspected */
 
     if (!w->m_frame_buffer_positions.empty()) {
@@ -4780,7 +4777,7 @@ bool buffer_windowing_record(THD *thd, Temp_table_param *param,
   minimize positioning work.
 */
 static bool read_frame_buffer_row(int64 rowno, Window *w,
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                   bool for_nth_value)
 #else
                                   bool for_nth_value MY_ATTRIBUTE((unused)))
@@ -4824,17 +4821,17 @@ static bool read_frame_buffer_row(int64 rowno, Window *w,
       If we have just switched to INNODB due to MEM overflow, a rescan is
       required, so skip assert if we have INNODB.
     */
-    DBUG_ASSERT(w->frame_buffer()->s->db_type()->db_type == DB_TYPE_INNODB ||
-                cnt <= 1 ||
-                // unless we have a frame beyond the current row, 1. time
-                // in which case we need to do some scanning...
-                (w->last_row_output() == 0 &&
-                 w->frame()->m_from->m_border_type == WBT_VALUE_FOLLOWING) ||
-                // or unless we are search for NTH_VALUE, which can be in the
-                // middle of a frame, and with RANGE frames it can jump many
-                // positions from one frame to the next with optimized eval
-                // strategy
-                for_nth_value);
+    assert(w->frame_buffer()->s->db_type()->db_type == DB_TYPE_INNODB ||
+           cnt <= 1 ||
+           // unless we have a frame beyond the current row, 1. time
+           // in which case we need to do some scanning...
+           (w->last_row_output() == 0 &&
+            w->frame()->m_from->m_border_type == WBT_VALUE_FOLLOWING) ||
+           // or unless we are search for NTH_VALUE, which can be in the
+           // middle of a frame, and with RANGE frames it can jump many
+           // positions from one frame to the next with optimized eval
+           // strategy
+           for_nth_value);
 
     for (int i = 0; i < cnt; i++) {
       error = t->file->ha_rnd_next(t->record[0]);
@@ -4848,7 +4845,7 @@ static bool read_frame_buffer_row(int64 rowno, Window *w,
   return false;
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 inline static void dbug_allow_write_all_columns(
     Temp_table_param *param, std::map<TABLE *, my_bitmap_map *> &map) {
   for (auto &copy_field : param->copy_fields) {
@@ -4906,12 +4903,12 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("rowno: %" PRId64 " reason: %d fno: %d", rowno,
                        static_cast<int>(reason), fno));
-  DBUG_ASSERT(reason == Window_retrieve_cached_row_reason::MISC_POSITIONS ||
-              fno == 0);
+  assert(reason == Window_retrieve_cached_row_reason::MISC_POSITIONS ||
+         fno == 0);
 
   uchar *fb_rec = w->frame_buffer()->record[0];
 
-  DBUG_ASSERT(rowno != 0);
+  assert(rowno != 0);
 
   /*
     If requested row is the last we fetched from FB and copied to OUT, we
@@ -4929,7 +4926,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
     do_fetch = w->row_has_fields_in_out_table() != w->last_rowno_in_cache();
     if (do_fetch) w->restore_special_record(rowno, fb_rec);
   } else {
-    DBUG_ASSERT(reason != Window_retrieve_cached_row_reason::WONT_UPDATE_HINT);
+    assert(reason != Window_retrieve_cached_row_reason::WONT_UPDATE_HINT);
     do_fetch = w->row_has_fields_in_out_table() != rowno;
 
     if (do_fetch &&
@@ -4951,7 +4948,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
   Temp_table_param *const fb_info = w->frame_buffer_param();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /*
     Since we are copying back a row from the frame buffer to the input table's
     buffer, we will be copying into fields that are not necessarily marked as
@@ -4970,7 +4967,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
   */
   bool rc = copy_fields(fb_info, thd, true);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   dbug_restore_all_columns(saved_map);
 #endif
 
@@ -4994,7 +4991,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 void Window::save_special_record(uint64 special_rowno, TABLE *t) {
   DBUG_PRINT("info", ("save_special_record: %" PRIu64, special_rowno));
   size_t l = t->s->reclength;
-  DBUG_ASSERT(m_special_rows_cache_max_length >= l);  // check room.
+  assert(m_special_rows_cache_max_length >= l);  // check room.
   // From negative enum, get proper array index:
   int idx = FBC_FIRST_KEY - special_rowno;
   m_special_rows_cache_length[idx] = l;
@@ -5202,7 +5199,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   const bool range_optimizable = w.optimizable_range_aggregates();
 
   // These three strategies are mutually exclusive:
-  DBUG_ASSERT((static_aggregate + row_optimizable + range_optimizable) <= 1);
+  assert((static_aggregate + row_optimizable + range_optimizable) <= 1);
 
   /**
     We need to evaluate FIRST_VALUE, or optimized MIN/MAX
@@ -5284,7 +5281,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
     */
     upper_limit = INT64_MAX;
   } else {
-    DBUG_ASSERT(f->m_query_expression == WFU_ROWS);
+    assert(f->m_query_expression == WFU_ROWS);
     bool lower_within_limits = true;
     // Determine lower border, handle wraparound for unsigned value:
     int64 border =
@@ -5321,7 +5318,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         lower_limit = 1;
         break;
       case WBT_UNBOUNDED_FOLLOWING:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
 
@@ -5360,7 +5357,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           upper_limit = INT64_MAX;  // need whole partition
           break;
         case WBT_UNBOUNDED_PRECEDING:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
     }
@@ -5752,7 +5749,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
     if (range_to_current_row && current_row >= prev_first_rowno_in_frame &&
         current_row <= prev_last_rowno_in_frame) {
       // Peer set should already have been determined:
-      DBUG_ASSERT(w.last_rowno_in_peerset() >= current_row);
+      assert(w.last_rowno_in_peerset() >= current_row);
       have_peers_current_row = true;
     } else {
       /**
@@ -5772,9 +5769,8 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           need to recompute FIRST_VALUE, it's same as for previous row.
           So we just have to accumulate new rows.
         */
-        DBUG_ASSERT(current_row > prev_last_rowno_in_frame &&
-                    lower_limit == 1 && prev_first_rowno_in_frame == 1 &&
-                    found_first);
+        assert(current_row > prev_last_rowno_in_frame && lower_limit == 1 &&
+               prev_first_rowno_in_frame == 1 && found_first);
       } else {
         for (rowno = lower_limit;
              (rowno <= upper &&
@@ -5913,7 +5909,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
       }
 
       if (w.before_frame() && empty) {
-        DBUG_ASSERT(!row_added && !found_first);
+        assert(!row_added && !found_first);
         // This row's value is too low to fit in frame. We already had an empty
         // set of frame rows when evaluating for the previous row, and the set
         // is still empty.  So, we can move the possible boundaries for the
@@ -5935,8 +5931,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
       if (found_first && !have_nth_value.m_offsets.empty()) {
         // frame is non-empty, so we might find NTH_VALUE
-        DBUG_ASSERT(w.first_rowno_in_range_frame() <=
-                    w.last_rowno_in_range_frame());
+        assert(w.first_rowno_in_range_frame() <= w.last_rowno_in_range_frame());
         int fno = 0;
         for (auto nth : have_nth_value.m_offsets) {
           const int64 row_to_get =
@@ -5956,7 +5951,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
       // We have empty frame, maintain invariant
       if (!found_first) {
-        DBUG_ASSERT(!row_added);
+        assert(!row_added);
         w.set_first_rowno_in_range_frame(w.last_rowno_in_range_frame() + 1);
       }
     }
@@ -6235,7 +6230,7 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
     } else if ((field = item->get_tmp_table_field())) {
       if (item->type() == Item::SUM_FUNC_ITEM && field->table->group) {
         new_item = down_cast<Item_sum *>(item)->result_item(field);
-        DBUG_ASSERT(new_item != nullptr);
+        assert(new_item != nullptr);
       } else {
         new_item = new (thd->mem_root) Item_field(field);
         if (new_item == nullptr) return true;
@@ -6252,7 +6247,7 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
         down_cast<Item_field *>(new_item)->set_orig_table_name(
             orig_field->orig_table_name());
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (!new_item->item_name.is_set()) {
         char buff[256];
         String str(buff, sizeof(buff), &my_charset_bin);
@@ -6497,7 +6492,7 @@ bool JOIN::clear_fields(table_map *save_nullinfo) {
         @see JOIN::clear_fields().
 */
 void JOIN::restore_fields(table_map save_nullinfo) {
-  DBUG_ASSERT(save_nullinfo);
+  assert(save_nullinfo);
 
   for (uint tableno = 0; tableno < primary_tables; tableno++) {
     QEP_TAB *const tab = qep_tab + tableno;

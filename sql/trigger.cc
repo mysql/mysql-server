@@ -23,13 +23,14 @@
 
 #include "sql/trigger.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <atomic>
 
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
@@ -230,7 +231,7 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
   const CHARSET_INFO *default_db_cl = nullptr;
 
   if (get_default_db_collation(thd, subject_table->s->db.str, &default_db_cl)) {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    assert(thd->is_error() || thd->killed);
     return nullptr;
   }
 
@@ -261,7 +262,7 @@ Trigger *Trigger::create_from_parser(THD *thd, TABLE *subject_table,
   LEX_CSTRING definer_user, definer_host;
 
   /* SUID trigger is only supported (DEFINER is specified by the user). */
-  DBUG_ASSERT(lex->definer != nullptr);
+  assert(lex->definer != nullptr);
   definer_user = lex->definer->user;
   definer_host = lex->definer->host;
 
@@ -547,7 +548,7 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
 
   // Ensure that lex.sp_head is NULL in case of parse errors.
 
-  DBUG_ASSERT(!parse_error || (parse_error && lex.sphead == nullptr));
+  assert(!parse_error || (parse_error && lex.sphead == nullptr));
 
   // That's it in case of parse error.
 
@@ -591,19 +592,19 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
     set_trigger_def_utf8(trigger_def_utf8);
 
     // Set correct m_event and m_action_time.
-    DBUG_ASSERT(m_event == TRG_EVENT_MAX);
-    DBUG_ASSERT(m_action_time == TRG_ACTION_MAX);
+    assert(m_event == TRG_EVENT_MAX);
+    assert(m_action_time == TRG_ACTION_MAX);
 
     m_event = lex.sphead->m_trg_chistics.event;
     m_action_time = lex.sphead->m_trg_chistics.action_time;
   }
 
-  DBUG_ASSERT(m_event == lex.sphead->m_trg_chistics.event);
-  DBUG_ASSERT(m_action_time == lex.sphead->m_trg_chistics.action_time);
+  assert(m_event == lex.sphead->m_trg_chistics.event);
+  assert(m_action_time == lex.sphead->m_trg_chistics.action_time);
 
   // Take ownership of SP object.
 
-  DBUG_ASSERT(!m_sp);
+  assert(!m_sp);
 
   m_sp = lex.sphead;
   lex.sphead = nullptr; /* Prevent double cleanup. */
@@ -618,14 +619,14 @@ bool Trigger::parse(THD *thd, bool is_upgrade) {
                  0,  // MODIFIED timestamp (not used for triggers)
                  &lex.sp_chistics, m_sql_mode);
 
-  DBUG_ASSERT(!m_sp->get_creation_ctx());
+  assert(!m_sp->get_creation_ctx());
   m_sp->set_creation_ctx(creation_ctx);
 
   /*
     construct_definer_value() that is called from the constructor of
     class Trigger guarantees that the definer has not empty value.
   */
-  DBUG_ASSERT(m_definer.length);
+  assert(m_definer.length);
 
   // Set the definer attribute in SP.
   m_sp->set_definer(m_definer.str, m_definer.length);

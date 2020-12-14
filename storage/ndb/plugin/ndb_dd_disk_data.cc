@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ void ndb_dd_disk_data_set_object_type(dd::Properties &se_private_data,
     type_str = "logfile_group";
   } else {
     // Should never reach here
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   DBUG_PRINT("enter", ("object_type: %s", type_str.c_str()));
@@ -130,7 +130,7 @@ bool ndb_dd_disk_data_get_object_type(const dd::Properties &se_private_data,
     type = object_type::LOGFILE_GROUP;
   } else {
     // Should never reach here
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 

@@ -3374,7 +3374,7 @@ ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
   ibool no_counter;
   /* Read the settable global variable ibuf_use only once in
   this function, so that we will have a consistent view of it. */
-  DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
+  assert(innodb_change_buffering <= IBUF_USE_ALL);
   ibuf_use_t use = static_cast<ibuf_use_t>(innodb_change_buffering);
 
   DBUG_TRACE;

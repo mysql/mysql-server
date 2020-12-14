@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/dynamic_privilege.h>
 #include <mysql/plugin_audit.h>
@@ -39,7 +40,7 @@
 #include "m_string.h"
 #include "map_helpers.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_systime.h"  // TIMEOUT_INF, Timeout_type
@@ -446,7 +447,7 @@ static int version_token_check(
   const uchar *command = (const uchar *)event_general->general_command.str;
   size_t length = event_general->general_command.length;
 
-  DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
+  assert(event_class == MYSQL_AUDIT_GENERAL_CLASS);
 
   switch (event_general->event_subclass) {
     case MYSQL_AUDIT_GENERAL_LOG: {

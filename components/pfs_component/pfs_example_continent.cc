@@ -20,9 +20,9 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <cstring>
 
-#include "my_dbug.h"
 #include "pfs_example_continent.h"
 
 /* Global share pointer for a table */
@@ -127,7 +127,7 @@ int continent_index_init(PSI_table_handle *handle, unsigned int idx, bool,
       *index = (PSI_index_handle *)i;
     } break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -145,7 +145,7 @@ int continent_index_read(PSI_index_handle *index, PSI_key_reader *reader,
                                                       find_flag);
     } break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -162,7 +162,7 @@ int continent_index_next(PSI_table_handle *handle) {
       i = (Continent_index_by_name *)&h->m_index;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -200,7 +200,7 @@ int continent_read_column_value(PSI_table_handle *handle, PSI_field *field,
           field, h->current_row.name, h->current_row.name_length);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 

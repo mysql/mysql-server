@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ int heap_rfirst(HP_INFO *info, uchar *record, int inx) {
       set_my_errno(HA_ERR_END_OF_FILE);
       return my_errno();
     }
-    DBUG_ASSERT(0); /* TODO fix it */
+    assert(0); /* TODO fix it */
     info->current_record = 0;
     info->current_hash_ptr = nullptr;
     info->update = HA_STATE_PREV_FOUND;

@@ -212,7 +212,7 @@ static uint find_time_range(my_time_t t, const my_time_t *range_boundaries,
   /*
     Function will work without this assertion but result would be meaningless.
   */
-  DBUG_ASSERT(higher_bound > 0 && t >= range_boundaries[0]);
+  assert(higher_bound > 0 && t >= range_boundaries[0]);
 
   /*
     Do binary search for minimal interval which contain t. We preserve:
@@ -341,7 +341,7 @@ static void gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t sec_in_utc,
   @return A value compatible with a 64 bit Unix timestamp.
 */
 static int64_t sec_since_epoch64(const MYSQL_TIME &mt) {
-  DBUG_ASSERT(mt.month > 0 && mt.month < 13);
+  assert(mt.month > 0 && mt.month < 13);
   // The year can be negative wrt to the epoch, hence the cast to signed.
   auto year = static_cast<int64_t>(mt.year);
   int64_t days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
@@ -375,12 +375,12 @@ static int64_t sec_since_epoch64(const MYSQL_TIME &mt) {
 static my_time_t sec_since_epoch(int year, int mon, int mday, int hour, int min,
                                  int sec) {
   /* Guard against my_time_t overflow(on system with 32 bit my_time_t) */
-  DBUG_ASSERT(!(year == TIMESTAMP_MAX_YEAR && mon == 1 && mday > 17));
+  assert(!(year == TIMESTAMP_MAX_YEAR && mon == 1 && mday > 17));
   /*
     It turns out that only whenever month is normalized or unnormalized
     plays role.
   */
-  DBUG_ASSERT(mon > 0 && mon < 13);
+  assert(mon > 0 && mon < 13);
   long days = year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
               LEAPS_THRU_END_OF(year - 1) - LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
   days += mon_starts[isleap(year)][mon - 1];
@@ -511,7 +511,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
                             t->minute, saved_seconds ? 0 : t->second);
 
   /* We have at least one range */
-  DBUG_ASSERT(sp->revcnt >= 1);
+  assert(sp->revcnt >= 1);
 
   if (local_t < sp->revts[0] || local_t > sp->revts[sp->revcnt]) {
     /*
@@ -634,7 +634,7 @@ bool convert_time_zone_displacement(const Time_zone *tz, MYSQL_TIME *mt) {
   }
 
   *mt = out;
-  DBUG_ASSERT(mt->time_type == MYSQL_TIMESTAMP_DATETIME);
+  assert(mt->time_type == MYSQL_TIMESTAMP_DATETIME);
   return false;
 }
 
@@ -799,7 +799,7 @@ void Time_zone_utc::gmt_sec_to_TIME(MYSQL_TIME *tmp, my_time_t t) const {
 */
 const String *Time_zone_utc::get_name() const {
   /* Should be never called */
-  DBUG_ASSERT(0);
+  assert(0);
   return nullptr;
 }
 
@@ -1404,7 +1404,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
       HA_ERR_LOCK_WAIT_TIMEOUT/HA_ERR_LOCK_DEADLOCK on return from read
       from storage engine.
     */
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
 #ifdef EXTRA_DEBUG
     /*
       Most probably user has mistyped time zone name, so no need to bark here
@@ -1434,7 +1434,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
                                        table->field[0]->field_ptr(),
                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   if (res) {
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
 
     LogErr(ERROR_LEVEL, ER_TZ_CANT_FIND_DESCRIPTION_FOR_TIME_ZONE_ID, tzid);
     goto end;
@@ -1502,7 +1502,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
 #endif
 
     /* ttid is increasing because we are reading using index */
-    DBUG_ASSERT(ttid >= tmp_tz_info.typecnt);
+    assert(ttid >= tmp_tz_info.typecnt);
 
     tmp_tz_info.typecnt = ttid + 1;
 
@@ -1511,7 +1511,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   }
 
   if (res != HA_ERR_END_OF_FILE) {
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
     LogErr(ERROR_LEVEL, ER_TZ_TRANSITION_TYPE_TABLE_LOAD_ERROR);
     goto end;
   }
@@ -1561,7 +1561,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
     for example UTC have no transitons.
   */
   if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND) {
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT && res != HA_ERR_LOCK_DEADLOCK);
     LogErr(ERROR_LEVEL, ER_TZ_TRANSITION_TABLE_LOAD_ERROR);
     goto end;
   }

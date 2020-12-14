@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ std::unique_ptr<Geometry> Transform::operator()(const Geometry &g) const {
 
 std::unique_ptr<Geometry> Transform::eval(const Geometry &g) const {
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw not_implemented_exception::for_non_projected(g);
   /* purecov: end */
 }
@@ -85,7 +85,7 @@ std::unique_ptr<Geometry> Transform::eval(const Geographic_point &g) const {
     }
   }
   /* purceov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw std::exception();
   /* purceov: end */
 }
@@ -107,7 +107,7 @@ std::unique_ptr<Geometry> Transform::eval(
     }
   }
   /* purceov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw std::exception();
   /* purceov: end */
 }
@@ -128,7 +128,7 @@ std::unique_ptr<Geometry> Transform::eval(const Geographic_polygon &g) const {
     }
   }
   /* purceov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw std::exception();
   /* purceov: end */
 }
@@ -154,7 +154,7 @@ std::unique_ptr<Geometry> Transform::eval(
     }
   }
   /* purceov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw std::exception();
   /* purceov: end */
 }
@@ -176,7 +176,7 @@ std::unique_ptr<Geometry> Transform::eval(
     }
   }
   /* purceov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw std::exception();
   /* purceov: end */
 }
@@ -198,7 +198,7 @@ std::unique_ptr<Geometry> Transform::eval(
     }
   }
   /* purceov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw std::exception();
   /* purceov: end */
 }
@@ -220,7 +220,7 @@ std::unique_ptr<Geometry> Transform::eval(
     }
   }
   /* purceov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   throw std::exception();
   /* purceov: end */
 }
@@ -245,12 +245,12 @@ bool transform(const dd::Spatial_reference_system *source_srs,
     }
 
     if (source_proj.size() == 0) {
-      DBUG_ASSERT(source_srs->is_projected());
+      assert(source_srs->is_projected());
       my_error(ER_TRANSFORM_SOURCE_SRS_NOT_SUPPORTED, MYF(0), source_srs->id());
       return true;
     }
     if (target_proj.size() == 0) {
-      DBUG_ASSERT(target_srs->is_projected());
+      assert(target_srs->is_projected());
       my_error(ER_TRANSFORM_TARGET_SRS_NOT_SUPPORTED, MYF(0), target_srs->id());
       return true;
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "storage/perfschema/table_status_by_thread.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -173,7 +173,7 @@ int table_status_by_thread::rnd_pos(const void *pos) {
   }
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < global_thread_container.get_row_count());
+  assert(m_pos.m_index_1 < global_thread_container.get_row_count());
 
   PFS_thread *pfs_thread = global_thread_container.get(m_pos.m_index_1);
 
@@ -197,7 +197,7 @@ int table_status_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   new (m_context) table_status_by_thread_context(status_version, false);
 
   PFS_index_status_by_thread *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_status_by_thread);
   m_opened_index = result;
   m_index = result;
@@ -273,7 +273,7 @@ int table_status_by_thread::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -290,7 +290,7 @@ int table_status_by_thread::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

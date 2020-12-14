@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,14 +47,14 @@ int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     /* split won't be necessary */
     if (nod_flag) {
       /* save key */
-      DBUG_ASSERT(_mi_kpos(nod_flag, key) < info->state->key_file_length);
+      assert(_mi_kpos(nod_flag, key) < info->state->key_file_length);
       memcpy(rt_PAGE_END(page_buf), key - nod_flag, key_length + nod_flag);
       page_size += key_length + nod_flag;
     } else {
       /* save key */
-      DBUG_ASSERT(_mi_dpos(info, nod_flag,
-                           key + key_length + info->s->base.rec_reflength) <
-                  info->state->data_file_length + info->s->base.pack_reclength);
+      assert(_mi_dpos(info, nod_flag,
+                      key + key_length + info->s->base.rec_reflength) <
+             info->state->data_file_length + info->s->base.pack_reclength);
       memcpy(rt_PAGE_END(page_buf), key,
              key_length + info->s->base.rec_reflength);
       page_size += key_length + info->s->base.rec_reflength;

@@ -633,14 +633,14 @@ TEST_F(GroupTest, Group_containers) {
       if (verbose) {
         printf("======== stage=%d combination=%d ========\n", stage_i,
                combination_i);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         printf("group log state:\n");
         group_log_state.print();
         printf("trx cache:\n");
         trx_cache.print(sid_maps[0]);
         printf("stmt cache:\n");
         stmt_cache.print(sid_maps[0]);
-#endif  // ifdef DBUG_OFF
+#endif  // ifdef NDEBUG
       }
 
       Gtid_set ended_groups(sid_maps[0]);
@@ -765,12 +765,12 @@ TEST_F(GroupTest, Group_containers) {
           }
         }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         if (verbose) {
           printf("stmt_cache:\n");
           stmt_cache.print(sid_maps[0]);
         }
-#endif  // ifndef DBUG_OFF
+#endif  // ifndef NDEBUG
         if (!stmt_cache.is_empty())
           gtid_flush_group_cache(
               thd, &lock, &group_log_state, nullptr /*group log*/, &stmt_cache,
@@ -784,7 +784,7 @@ TEST_F(GroupTest, Group_containers) {
           // execute a COMMIT statement
           thd->variables.gtid_has_ongoing_super_group = 0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           if (verbose) {
             printf("trx_cache:\n");
             trx_cache.print(sid_maps[0]);
@@ -794,7 +794,7 @@ TEST_F(GroupTest, Group_containers) {
                 trx_cache.is_empty(), trx_cache.get_n_subgroups(),
                 trx_contains_logged_subgroup);
           }
-#endif  // ifndef DBUG_OFF
+#endif  // ifndef NDEBUG
 
           if (!trx_cache.is_empty())
             gtid_flush_group_cache(

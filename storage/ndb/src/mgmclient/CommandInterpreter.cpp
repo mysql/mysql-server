@@ -2121,7 +2121,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
       const char *str= ndb_mgm_get_event_severity_string(enabled[i].category);
       if (str == 0)
       {
-	DBUG_ASSERT(false);
+	assert(false);
 	continue;
       }
       if(enabled[i].value)

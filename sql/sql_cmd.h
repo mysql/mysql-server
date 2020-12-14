@@ -28,7 +28,8 @@
 #ifndef SQL_CMD_INCLUDED
 #define SQL_CMD_INCLUDED
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_sqlcommand.h"
 #include "sql/select_lex_visitor.h"
 
@@ -100,7 +101,7 @@ class Sql_cmd {
   virtual bool prepare(THD *) {
     // Default behavior for a statement is to have no preparation code.
     /* purecov: begin inspected */
-    DBUG_ASSERT(!is_prepared());
+    assert(!is_prepared());
     set_prepared();
     return false;
     /* purecov: end */
@@ -122,7 +123,7 @@ class Sql_cmd {
 
   /// Set the owning prepared statement
   void set_owner(Prepared_statement *stmt) {
-    DBUG_ASSERT(!m_part_of_sp);
+    assert(!m_part_of_sp);
     m_owner = stmt;
   }
 
@@ -134,7 +135,7 @@ class Sql_cmd {
     multiple times, the first execute() call will also prepare it.
   */
   void set_as_part_of_sp() {
-    DBUG_ASSERT(!m_part_of_sp && m_owner == nullptr);
+    assert(!m_part_of_sp && m_owner == nullptr);
     m_part_of_sp = true;
   }
   /// @returns true if statement is part of a stored procedure
@@ -146,7 +147,7 @@ class Sql_cmd {
   /// @return true if implemented as single table plan, DML statement only
   virtual bool is_single_table_plan() const {
     /* purecov: begin inspected */
-    DBUG_ASSERT(is_dml());
+    assert(is_dml());
     return false;
     /* purecov: end */
   }
@@ -171,7 +172,7 @@ class Sql_cmd {
     secondary storage engine until it is reprepared.
   */
   void disable_secondary_storage_engine() {
-    DBUG_ASSERT(m_secondary_engine == nullptr);
+    assert(m_secondary_engine == nullptr);
     m_secondary_engine_enabled = false;
   }
 
@@ -188,7 +189,7 @@ class Sql_cmd {
     tables in a secondary engine.
   */
   void use_secondary_storage_engine(const handlerton *hton) {
-    DBUG_ASSERT(m_secondary_engine_enabled);
+    assert(m_secondary_engine_enabled);
     m_secondary_engine = hton;
   }
 
@@ -229,7 +230,7 @@ class Sql_cmd {
       simply destroyed instead.
       Do not rely on the destructor for any cleanup.
     */
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   /// Set this statement as prepared

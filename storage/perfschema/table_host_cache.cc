@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 
 #include "storage/perfschema/table_host_cache.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -117,7 +118,7 @@ PFS_engine_table *table_host_cache::create(PFS_engine_table_share *) {
   table_host_cache *t = new table_host_cache();
   if (t != nullptr) {
     THD *thd = current_thd;
-    DBUG_ASSERT(thd != nullptr);
+    assert(thd != nullptr);
     t->materialize(thd);
   }
   return t;
@@ -155,8 +156,8 @@ void table_host_cache::materialize(THD *thd) {
   row_host_cache *rows;
   row_host_cache *row;
 
-  DBUG_ASSERT(m_all_rows == nullptr);
-  DBUG_ASSERT(m_row_count == 0);
+  assert(m_all_rows == nullptr);
+  assert(m_row_count == 0);
 
   hostname_cache_lock();
 
@@ -264,7 +265,7 @@ int table_host_cache::rnd_next(void) {
 
 int table_host_cache::rnd_pos(const void *pos) {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_row_count);
+  assert(m_pos.m_index < m_row_count);
   m_row = &m_all_rows[m_pos.m_index];
   return 0;
 }
@@ -280,7 +281,7 @@ int table_host_cache::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_host_cache_by_host);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -312,10 +313,10 @@ int table_host_cache::read_row_values(TABLE *table, unsigned char *buf,
                                       Field **fields, bool read_all) {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -423,7 +424,7 @@ int table_host_cache::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

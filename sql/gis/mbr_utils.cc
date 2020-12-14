@@ -44,7 +44,7 @@ namespace bg = boost::geometry;
 namespace gis {
 
 bool mbrs_are_equal(Box const &mbr1, Box const &mbr2) {
-  DBUG_ASSERT(mbr1.coordinate_system() == mbr2.coordinate_system());
+  assert(mbr1.coordinate_system() == mbr2.coordinate_system());
   switch (mbr1.coordinate_system()) {
     case Coordinate_system::kCartesian:
       return bg::equals(*down_cast<const Cartesian_box *>(&mbr1),
@@ -53,8 +53,8 @@ bool mbrs_are_equal(Box const &mbr1, Box const &mbr2) {
       return bg::equals(*down_cast<const Geographic_box *>(&mbr1),
                         *down_cast<const Geographic_box *>(&mbr2));
   }
-  DBUG_ASSERT(false); /* purecov: inspected */
-  return false;       /* purecov: inspected */
+  assert(false); /* purecov: inspected */
+  return false;  /* purecov: inspected */
 }
 
 bool mbr_is_empty(Box const &mbr) {
@@ -148,7 +148,7 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
                          geom_mbr);
             break;
           case Geometry_type::kGeometry:
-            DBUG_ASSERT(false);
+            assert(false);
             throw new std::exception();
         }
 
@@ -171,7 +171,7 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
       bg::envelope(*down_cast<const Cartesian_multipolygon *>(g), *mbr);
       break;
     case Geometry_type::kGeometry:
-      DBUG_ASSERT(false);
+      assert(false);
       throw new std::exception();
       break;
   }
@@ -233,7 +233,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
                          geom_mbr, strategy);
             break;
           case Geometry_type::kGeometry:
-            DBUG_ASSERT(false);
+            assert(false);
             throw new std::exception();
         }
 
@@ -258,7 +258,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
                    strategy);
       break;
     case Geometry_type::kGeometry:
-      DBUG_ASSERT(false);
+      assert(false);
       throw new std::exception();
       break;
   }

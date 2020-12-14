@@ -30,12 +30,12 @@
   sql_{insert, update}.{h,cc}
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "my_base.h"    // ha_rows
 #include "my_bitmap.h"  // MY_BITMAP
-#include "my_dbug.h"
 
 class Item;
 struct TABLE;
@@ -180,7 +180,7 @@ class COPY_INFO {
         escape_char(0),
         last_errno(0),
         update_values(nullptr) {
-    DBUG_ASSERT(optype == INSERT_OPERATION);
+    assert(optype == INSERT_OPERATION);
   }
 
   /**
@@ -218,7 +218,7 @@ class COPY_INFO {
         escape_char(escape_character),
         last_errno(0),
         update_values(nullptr) {
-    DBUG_ASSERT(optype == INSERT_OPERATION);
+    assert(optype == INSERT_OPERATION);
   }
 
   /**
@@ -243,7 +243,7 @@ class COPY_INFO {
         escape_char(0),
         last_errno(0),
         update_values(values) {
-    DBUG_ASSERT(optype == UPDATE_OPERATION);
+    assert(optype == UPDATE_OPERATION);
   }
 
   operation_type get_operation_type() const { return m_optype; }
@@ -304,7 +304,7 @@ class COPY_INFO {
      invoking this function.
   */
   bool function_defaults_apply(const TABLE *) const {
-    DBUG_ASSERT(m_function_default_columns != nullptr);
+    assert(m_function_default_columns != nullptr);
     return !bitmap_is_clear_all(m_function_default_columns);
   }
 
@@ -313,7 +313,7 @@ class COPY_INFO {
     that may set the column.
   */
   bool function_defaults_apply_on_columns(MY_BITMAP *map) {
-    DBUG_ASSERT(m_function_default_columns != nullptr);
+    assert(m_function_default_columns != nullptr);
     return bitmap_is_overlapping(m_function_default_columns, map);
   }
 

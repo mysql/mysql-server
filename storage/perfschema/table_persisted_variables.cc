@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ int table_persisted_variables::rnd_pos(const void *pos) {
   }
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_sysvar_cache.size());
+  assert(m_pos.m_index < m_sysvar_cache.size());
 
   if (m_sysvar_cache.is_materialized()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
@@ -173,7 +173,7 @@ int table_persisted_variables::index_init(uint idx MY_ATTRIBUTE((unused)),
   new (m_context) table_persisted_variables_context(hash_version, false);
 
   PFS_index_persisted_variables *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_persisted_variables);
   m_opened_index = result;
   m_index = result;
@@ -223,7 +223,7 @@ int table_persisted_variables::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -237,7 +237,7 @@ int table_persisted_variables::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

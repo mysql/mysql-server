@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,14 +41,14 @@ void Group_action_diagnostics::set_execution_message_level(
 
 void Group_action_diagnostics::set_execution_message(
     enum_action_result_level level, std::string &message) {
-  DBUG_ASSERT(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
+  assert(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
   log_message.assign(message);
   message_level = level;
 }
 
 void Group_action_diagnostics::set_execution_message(
     enum_action_result_level level, const char *message) {
-  DBUG_ASSERT(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
+  assert(level != GROUP_ACTION_LOG_INFO || warning_message.empty());
   log_message.assign(message);
   message_level = level;
 }

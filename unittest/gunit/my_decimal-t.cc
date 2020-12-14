@@ -260,7 +260,7 @@ TEST_F(DecimalTest, NegativeZeroAdd) {
   my_decimal sum;
   EXPECT_EQ(E_DEC_OK, decimal_add(&d1, &d2, &sum));
   EXPECT_TRUE(sum.sign());
-  // This one will DBUG_ASSERT
+  // This one will assert
   // EXPECT_EQ(0, my_decimal_cmp(&sum, &decimal_zero));
 }
 

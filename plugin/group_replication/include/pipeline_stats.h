@@ -550,7 +550,7 @@ class Pipeline_member_stats {
   */
   uint64 get_stamp();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void debug(const char *member, int64 quota_size, int64 quota_used);
 #endif
 

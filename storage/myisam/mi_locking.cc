@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,7 @@ void mi_get_status(void *param, int concurrent_insert) {
              ("key_file: %ld  data_file: %ld  concurrent_insert: %d",
               (long)info->s->state.state.key_file_length,
               (long)info->s->state.state.data_file_length, concurrent_insert));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (info->state->key_file_length > info->s->state.state.key_file_length ||
       info->state->data_file_length > info->s->state.state.data_file_length)
     DBUG_PRINT("warning", ("old info:  key_file: %ld  data_file: %ld",
@@ -287,7 +287,7 @@ void mi_update_status(void *param) {
     (This is enforced by thr_multi_lock.c)
   */
   if (info->state == &info->save_state) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PRINT("info", ("updating status:  key_file: %ld  data_file: %ld",
                         (long)info->state->key_file_length,
                         (long)info->state->data_file_length));

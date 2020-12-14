@@ -775,8 +775,8 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
   view v;
 
   for (size_t i = 0; i < num_lookups; i++) {  // create hard-coded tables
-    DBUG_ASSERT(i == 0 || /* assert that list is alphabetized */
-                strcmp(l.lookup_table_name, lookups[i].lookup_table_name) < 0);
+    assert(i == 0 || /* assert that list is alphabetized */
+           strcmp(l.lookup_table_name, lookups[i].lookup_table_name) < 0);
     l = lookups[i];
 
     /* Create lookup table */
@@ -786,7 +786,7 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
   }
 
   for (size_t i = 0; i < num_views; i++) {  // create views
-    DBUG_ASSERT(i == 0 || strcmp(v.view_name, views[i].view_name) < 0);
+    assert(i == 0 || strcmp(v.view_name, views[i].view_name) < 0);
     v = views[i];
 
     /* Create the view */

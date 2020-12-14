@@ -25,6 +25,7 @@
 
 /* Function items used by mysql */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <algorithm>
@@ -32,7 +33,7 @@
 
 #include "field_types.h"  // MYSQL_TYPE_DATETIME
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
@@ -167,7 +168,7 @@ class Item_func_month final : public Item_func {
   }
   longlong val_int() override;
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return (double)Item_func_month::val_int();
   }
   String *val_str(String *str) override {
@@ -391,11 +392,11 @@ class Item_func_weekday : public Item_func {
   }
   longlong val_int() override;
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return static_cast<double>(val_int());
   }
   String *val_str(String *str) override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     str->set(val_int(), &my_charset_bin);
     return null_value ? nullptr : str;
   }
@@ -578,11 +579,11 @@ class Item_temporal_func : public Item_func {
     return tmp_table_field_from_field_type(table, false);
   }
   uint time_precision() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return decimals;
   }
   uint datetime_precision() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return decimals;
   }
   void print(const THD *thd, String *str,
@@ -622,7 +623,7 @@ class Item_temporal_hybrid_func : public Item_str_func {
       or using collation.collation when VARCHAR
       (which is fixed from @collation_connection in resolve_type()).
     */
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return data_type() == MYSQL_TYPE_STRING ? collation.collation
                                             : &my_charset_bin;
   }
@@ -683,7 +684,7 @@ class Item_date_func : public Item_temporal_func {
   enum Functype functype() const override { return DATE_FUNC; }
   bool resolve_type(THD *) override { return false; }
   my_decimal *val_decimal(my_decimal *decimal_value) override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return val_decimal_from_date(decimal_value);
   }
   // All date functions must implement get_date()
@@ -741,7 +742,7 @@ class Item_datetime_func : public Item_temporal_func {
   longlong val_int() override { return val_int_from_datetime(); }
   longlong val_date_temporal() override;
   my_decimal *val_decimal(my_decimal *decimal_value) override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return val_decimal_from_date(decimal_value);
   }
   bool get_time(MYSQL_TIME *ltime) override {
@@ -783,7 +784,7 @@ class Item_time_func : public Item_temporal_func {
   }
   double val_real() override { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return val_decimal_from_time(decimal_value);
   }
   longlong val_int() override { return val_int_from_time(); }
@@ -816,7 +817,7 @@ class MYSQL_TIME_cache {
     Store MYSQL_TIME representation into the given MYSQL_TIME variable.
   */
   void get_TIME(MYSQL_TIME *ltime) const {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     *ltime = time;
   }
 
@@ -864,7 +865,7 @@ class MYSQL_TIME_cache {
     Return number of decimal digits.
   */
   uint8 decimals() const {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     return dec;
   }
 
@@ -872,7 +873,7 @@ class MYSQL_TIME_cache {
     Return packed representation.
   */
   longlong val_packed() const {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     return time_packed;
   }
   /**
@@ -891,7 +892,7 @@ class MYSQL_TIME_cache {
     Return pointer to MYSQL_TIME representation.
   */
   MYSQL_TIME *get_TIME_ptr() {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     return &time;
   }
   /**
@@ -924,15 +925,15 @@ class Item_date_literal final : public Item_date_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   longlong val_date_temporal() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.get_date(ltime, fuzzy_date);
   }
   String *val_str(String *str) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_str(str);
   }
   bool resolve_type(THD *) override { return false; }
@@ -940,7 +941,7 @@ class Item_date_literal final : public Item_date_func {
   bool basic_const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
-  void cleanup() override { DBUG_ASSERT(marker == MARKER_NONE); }
+  void cleanup() override { assert(marker == MARKER_NONE); }
   bool eq(const Item *item, bool binary_cmp) const override;
 };
 
@@ -965,15 +966,15 @@ class Item_time_literal final : public Item_time_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   longlong val_time_temporal() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_packed();
   }
   bool get_time(MYSQL_TIME *ltime) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.get_time(ltime);
   }
   String *val_str(String *str) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_str(str);
   }
   bool resolve_type(THD *) override { return false; }
@@ -981,7 +982,7 @@ class Item_time_literal final : public Item_time_func {
   bool basic_const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
-  void cleanup() override { DBUG_ASSERT(marker == MARKER_NONE); }
+  void cleanup() override { assert(marker == MARKER_NONE); }
   bool eq(const Item *item, bool binary_cmp) const override;
 };
 
@@ -1009,15 +1010,15 @@ class Item_datetime_literal final : public Item_datetime_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   longlong val_date_temporal() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.get_date(ltime, fuzzy_date);
   }
   String *val_str(String *str) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_str(str);
   }
   bool resolve_type(THD *) override { return false; }
@@ -1025,7 +1026,7 @@ class Item_datetime_literal final : public Item_datetime_func {
   bool basic_const_item() const override { return true; }
   table_map used_tables() const override { return 0; }
   table_map not_null_tables() const override { return used_tables(); }
-  void cleanup() override { DBUG_ASSERT(marker == MARKER_NONE); }
+  void cleanup() override { assert(marker == MARKER_NONE); }
   bool eq(const Item *item, bool binary_cmp) const override;
 };
 

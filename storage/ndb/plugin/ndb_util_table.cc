@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,7 +119,7 @@ bool Ndb_util_table::exists() const {
 
 bool Ndb_util_table::open(bool reload_table) {
   if (unlikely(reload_table)) {
-    DBUG_ASSERT(m_table_guard.get_table() != nullptr);
+    assert(m_table_guard.get_table() != nullptr);
     // Reload the table definition from NDB dictionary
     m_table_guard.invalidate();
     m_table_guard.reinit(m_db_name.c_str(), m_table_name.c_str());
@@ -251,7 +251,7 @@ bool Ndb_util_table::define_indexes(unsigned int) const {
 bool Ndb_util_table::create_index(const NdbDictionary::Index &idx) const {
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
   const NdbDictionary::Table *table = get_table();
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
   if (dict->createIndex(idx, *table) != 0) {
     push_ndb_error_warning(dict->getNdbError());
     push_warning("Failed to create index '%s'", idx.getName());
@@ -267,7 +267,7 @@ bool Ndb_util_table::create_primary_ordered_index() const {
   index.setLogging(false);
 
   const NdbDictionary::Table *table = get_table();
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   for (int i = 0; i < table->getNoOfPrimaryKeys(); i++) {
     index.addColumnName(table->getPrimaryKey(i));
@@ -328,7 +328,7 @@ bool Ndb_util_table::create(bool is_upgrade) {
   NdbDictionary::Table new_table(m_table_name.c_str());
 
   unsigned mysql_version = MYSQL_VERSION_ID;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (m_table_name == "ndb_schema" &&
       DBUG_EVALUATE_IF("ndb_schema_skip_create_schema_op_id", true, false)) {
     push_warning("Creating table definition without schema_op_id column");
@@ -369,8 +369,8 @@ bool Ndb_util_table::upgrade() {
 std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
   DBUG_TRACE;
   // Function should be called only on a varbinary column
-  DBUG_ASSERT(ndbRecAttr->getType() == NdbDictionary::Column::Varbinary ||
-              ndbRecAttr->getType() == NdbDictionary::Column::Longvarbinary);
+  assert(ndbRecAttr->getType() == NdbDictionary::Column::Varbinary ||
+         ndbRecAttr->getType() == NdbDictionary::Column::Longvarbinary);
 
   const char *value_start;
   size_t value_length;
@@ -383,18 +383,18 @@ std::string Ndb_util_table::unpack_varbinary(NdbRecAttr *ndbRecAttr) {
 void Ndb_util_table::pack_varbinary(const char *column_name, const char *src,
                                     char *dst) const {
   // The table has to be loaded before this function is called
-  DBUG_ASSERT(get_table() != nullptr);
+  assert(get_table() != nullptr);
   // The type of column should be VARBINARY
-  DBUG_ASSERT(check_column_varbinary(column_name));
+  assert(check_column_varbinary(column_name));
   ndb_pack_varchar(get_column(column_name), 0, src, std::strlen(src), dst);
 }
 
 std::string Ndb_util_table::unpack_varbinary(const char *column_name,
                                              const char *packed_str) const {
   // The table has to be loaded before this function is called
-  DBUG_ASSERT(get_table() != nullptr);
+  assert(get_table() != nullptr);
   // The type of column should be VARBINARY
-  DBUG_ASSERT(check_column_varbinary(column_name));
+  assert(check_column_varbinary(column_name));
   const char *unpacked_str;
   size_t unpacked_str_length;
   ndb_unpack_varchar(get_column(column_name), 0, &unpacked_str,
@@ -421,7 +421,7 @@ bool Ndb_util_table::unpack_blob_not_null(NdbBlob *ndb_blob_handle,
   if (ndb_blob_handle->readData(read_buf.get(), read_len) != 0) {
     return false;
   }
-  DBUG_ASSERT(blob_len == read_len);  // Assert that all has been read
+  assert(blob_len == read_len);  // Assert that all has been read
   blob_value->assign(read_buf.get(), read_len);
 
   DBUG_PRINT("unpack_blob", ("str: '%s'", blob_value->c_str()));
@@ -430,9 +430,9 @@ bool Ndb_util_table::unpack_blob_not_null(NdbBlob *ndb_blob_handle,
 
 int Ndb_util_table::get_column_num(const char *col_name) const {
   const NdbDictionary::Table *tab = get_table();
-  DBUG_ASSERT(tab != nullptr);
+  assert(tab != nullptr);
   const NdbDictionary::Column *column = tab->getColumn(col_name);
-  DBUG_ASSERT(column != nullptr);
+  assert(column != nullptr);
   return column->getColumnNo();
 }
 
@@ -440,7 +440,7 @@ bool Ndb_util_table::delete_all_rows() {
   DBUG_TRACE;
 
   const NdbDictionary::Table *ndb_table = get_table();
-  DBUG_ASSERT(ndb_table != nullptr);
+  assert(ndb_table != nullptr);
 
   NdbError ndb_err;
   Ndb *ndb = m_thd_ndb->ndb;
@@ -534,7 +534,7 @@ bool Util_table_creator::install_in_DD(bool reinstall) {
                                                 table_version)) {
       ndb_log_error("Failed to extract id and version from '%s' table",
                     m_name.c_str());
-      DBUG_ASSERT(false);
+      assert(false);
       // Continue and force removal of table definition
       reinstall = true;
     }

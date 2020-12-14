@@ -55,7 +55,7 @@ void Open_dictionary_tables_ctx::add_table(const String_type &name) {
 bool Open_dictionary_tables_ctx::open_tables() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(!m_tables.empty());
+  assert(!m_tables.empty());
 
   Object_table_map::iterator it = m_tables.begin();
   Object_table_map::iterator it_next = m_tables.begin();
@@ -116,8 +116,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
     (as we do not aim to replicate exact IDs in the data-dictionary).
   */
   for (TABLE_LIST *t = table_list; t; t = t->next_global) {
-    DBUG_ASSERT(t->table->file->ha_table_flags() &
-                HA_ATTACHABLE_TRX_COMPATIBLE);
+    assert(t->table->file->ha_table_flags() & HA_ATTACHABLE_TRX_COMPATIBLE);
     if (t->table->file->ha_extra(HA_EXTRA_NO_AUTOINC_LOCKING)) return true;
   }
 
@@ -179,8 +178,8 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
     mode. This means that all DDL statements using Update_dictionary_tables_ctx
     to update data-dictionary need to turn off @@autocommit for its duration.
   */
-  DBUG_ASSERT((m_thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) &&
-              !(m_thd->variables.option_bits & OPTION_AUTOCOMMIT));
+  assert((m_thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) &&
+         !(m_thd->variables.option_bits & OPTION_AUTOCOMMIT));
 
   // Store current intervals.
   m_thd->auto_inc_intervals_in_cur_stmt_for_binlog.swap(

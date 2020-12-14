@@ -196,7 +196,7 @@ bool Create_field::init(
 
   DBUG_TRACE;
 
-  DBUG_ASSERT(!(has_explicit_collation && fld_charset == nullptr));
+  assert(!(has_explicit_collation && fld_charset == nullptr));
 
   field = nullptr;
   field_name = fld_name;
@@ -266,7 +266,7 @@ bool Create_field::init(
   // Initialize data for a virtual field or default value expression
   if (gcol_info || m_default_val_expr) {
     if (gcol_info) {
-      DBUG_ASSERT(gcol_info->expr_item);
+      assert(gcol_info->expr_item);
       stored_in_db = gcol_info->get_field_stored();
 
       /*
@@ -472,7 +472,7 @@ bool Create_field::init(
           and 19 as length of 4.1 compatible representation.  Silently
           shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
         */
-        DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
+        assert(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
         if (m_max_display_width_in_codepoints !=
             UINT_MAX) /* avoid overflow; is safe because of min() */
           m_max_display_width_in_codepoints =
@@ -513,7 +513,7 @@ bool Create_field::init(
       break;
     }
     case MYSQL_TYPE_VAR_STRING:
-      DBUG_ASSERT(0); /* Impossible. */
+      assert(0); /* Impossible. */
       break;
     case MYSQL_TYPE_BIT: {
       if (!display_width_in_codepoints) {
@@ -529,7 +529,7 @@ bool Create_field::init(
     }
     case MYSQL_TYPE_DECIMAL:
     default:
-      DBUG_ASSERT(0); /* Was obsolete */
+      assert(0); /* Was obsolete */
   }
 
   if (!(flags & BLOB_FLAG) &&
@@ -557,9 +557,9 @@ bool Create_field::init(
     can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at the
     same time.
   */
-  DBUG_ASSERT(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
-                               Field::GENERATED_FROM_EXPRESSION)) != 0 &&
-                (auto_flags & Field::NEXT_NUMBER) != 0));
+  assert(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
+                          Field::GENERATED_FROM_EXPRESSION)) != 0 &&
+           (auto_flags & Field::NEXT_NUMBER) != 0));
 
   return false; /* success */
 }
@@ -586,7 +586,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   DBUG_PRINT("enter", ("sql_type: %d, length: %u", sql_type_arg, length_arg));
 
   /* Init members needed for correct execution of make_field(). */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const uint32 FIELDFLAG_MAX_DEC = 31;
 #endif
 
@@ -600,11 +600,11 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
       break;
 
     case MYSQL_TYPE_NEWDECIMAL:
-      DBUG_ASSERT(decimals_arg <= DECIMAL_MAX_SCALE);
+      assert(decimals_arg <= DECIMAL_MAX_SCALE);
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
-      DBUG_ASSERT(decimals_arg <= FIELDFLAG_MAX_DEC);
+      assert(decimals_arg <= FIELDFLAG_MAX_DEC);
       decimals = decimals_arg;
       break;
 
@@ -626,8 +626,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
 
 size_t Create_field::max_display_width_in_codepoints() const {
   if (sql_type == MYSQL_TYPE_ENUM || sql_type == MYSQL_TYPE_SET) {
-    DBUG_ASSERT(interval != nullptr);
-    DBUG_ASSERT(charset != nullptr);
+    assert(interval != nullptr);
+    assert(charset != nullptr);
 
     size_t max_display_width_in_codepoints = 0;
     for (size_t i = 0; i < interval->count; i++) {
@@ -679,7 +679,7 @@ size_t Create_field::max_display_width_in_bytes() const {
   // max_display_width_in_codepoints() will return 1073741823 (truncated from
   // 1073741823.75), and multiplying that by four again will give 4294967292
   // which is the wrong result.
-  DBUG_ASSERT(charset != nullptr);
+  assert(charset != nullptr);
   if (is_numeric_type(sql_type) || is_temporal_real_type(sql_type) ||
       sql_type == MYSQL_TYPE_YEAR || sql_type == MYSQL_TYPE_BIT) {
     // Numeric types, temporal types, YEAR or BIT are never multi-byte.
@@ -724,7 +724,7 @@ size_t Create_field::pack_length(bool dont_override) const {
                                                       : interval->count);
     }
     case MYSQL_TYPE_NEWDECIMAL: {
-      DBUG_ASSERT(decimals <= DECIMAL_MAX_SCALE);
+      assert(decimals <= DECIMAL_MAX_SCALE);
       uint precision = my_decimal_length_to_precision(
           max_display_width_in_bytes(), decimals, (flags & UNSIGNED_FLAG));
       precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));

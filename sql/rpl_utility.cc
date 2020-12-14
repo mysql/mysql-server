@@ -233,7 +233,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
                                  Relay_log_info *rli, uint16 mflags,
                                  int *order_var) {
   DBUG_TRACE;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char field_type_buf[MAX_FIELD_WIDTH];
   String field_type(field_type_buf, sizeof(field_type_buf), &my_charset_latin1);
   field->sql_type(field_type);
@@ -334,7 +334,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
             *order_var = 1;  // Always require lossy conversions
           else
             *order_var = compare_lengths(field, source_type, metadata);
-          DBUG_ASSERT(*order_var != 0);
+          assert(*order_var != 0);
           return is_conversion_ok(*order_var);
         }
 
@@ -361,7 +361,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
         case MYSQL_TYPE_LONG:
         case MYSQL_TYPE_LONGLONG:
           *order_var = compare_lengths(field, source_type, metadata);
-          DBUG_ASSERT(*order_var != 0);
+          assert(*order_var != 0);
           return is_conversion_ok(*order_var);
 
         default:
@@ -469,7 +469,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
     corresponding check for SQL statements), thus 'false' in the call below.
     Also sserting that this is not a DD system thread.
   */
-  DBUG_ASSERT(!thd->is_dd_system_thread());
+  assert(!thd->is_dd_system_thread());
   const dd::Dictionary *dictionary = dd::get_dictionary();
   if (dictionary && !dictionary->is_dd_table_access_allowed(
                         false, false, table->s->db.str, table->s->db.length,
@@ -502,7 +502,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
                            " field '%s' can be converted - order: %d",
                            static_cast<long unsigned int>(col),
                            field->field_name, order));
-      DBUG_ASSERT(order >= -1 && order <= 1);
+      assert(order >= -1 && order <= 1);
 
       /*
         If order is not 0, a conversion is required, so we need to set
@@ -527,8 +527,8 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
                  ("Checking column %lu -"
                   " field '%s' can not be converted",
                   static_cast<long unsigned int>(col), field->field_name));
-      DBUG_ASSERT(col < size() && col < table->s->fields);
-      DBUG_ASSERT(table->s->db.str && table->s->table_name.str);
+      assert(col < size() && col < table->s->fields);
+      assert(table->s->db.str && table->s->table_name.str);
       const char *db_name = table->s->db.str;
       const char *tbl_name = table->s->table_name.str;
       char source_buf[MAX_FIELD_WIDTH];
@@ -568,7 +568,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (tmp_table) {
     for (unsigned int col = 0; col < tmp_table->s->fields; ++col)
       if (tmp_table->field[col]) {
@@ -855,7 +855,7 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
       m_field_metadata[i] = pack.second.first;
       m_is_array[i] = pack.second.second;
       index += pack.first;
-      DBUG_ASSERT(index <= metadata_size);
+      assert(index <= metadata_size);
     }
   }
   if (m_size && null_bitmap) memcpy(m_null_bits, null_bitmap, (m_size + 7) / 8);
@@ -863,7 +863,7 @@ table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
 
 table_def::~table_def() {
   my_free(m_memory);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   m_type = nullptr;
   m_size = 0;
 #endif
@@ -1003,7 +1003,7 @@ HASH_ROW_ENTRY *Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols) {
 
 bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
   DBUG_TRACE;
-  DBUG_ASSERT(*entry);
+  assert(*entry);
 
   if (*entry == nullptr) return true;
 
@@ -1044,7 +1044,7 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
 
 bool Hash_slave_rows::del(HASH_ROW_ENTRY *entry) {
   DBUG_TRACE;
-  DBUG_ASSERT(entry);
+  assert(entry);
 
   erase_specific_element(&m_hash, entry->preamble->hash_value, entry);
   return false;
@@ -1123,7 +1123,7 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
           crc = checksum_crc32(crc, f->field_ptr(), f->data_length());
           break;
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       String tmp;
       f->val_str(&tmp);
       DBUG_PRINT("debug", ("make_hash_entry: hash after field %s=%s: %u",
@@ -1170,7 +1170,7 @@ bool Deferred_log_events::is_empty() { return m_array.empty(); }
 bool Deferred_log_events::execute(Relay_log_info *rli) {
   bool res = false;
 
-  DBUG_ASSERT(rli->deferred_events_collecting);
+  assert(rli->deferred_events_collecting);
 
   rli->deferred_events_collecting = false;
   for (Log_event **it = m_array.begin(); !res && it != m_array.end(); ++it) {

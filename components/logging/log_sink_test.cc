@@ -379,70 +379,70 @@ done:
 static int test_builtins() {
   int ret = 0;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   // test classifiers
-  DBUG_ASSERT(log_bi->item_numeric_class(LOG_INTEGER));
-  DBUG_ASSERT(log_bi->item_numeric_class(LOG_FLOAT));
-  DBUG_ASSERT(!log_bi->item_numeric_class(LOG_LEX_STRING));
-  DBUG_ASSERT(!log_bi->item_numeric_class(LOG_CSTRING));
+  assert(log_bi->item_numeric_class(LOG_INTEGER));
+  assert(log_bi->item_numeric_class(LOG_FLOAT));
+  assert(!log_bi->item_numeric_class(LOG_LEX_STRING));
+  assert(!log_bi->item_numeric_class(LOG_CSTRING));
 
-  DBUG_ASSERT(!log_bi->item_string_class(LOG_INTEGER));
-  DBUG_ASSERT(!log_bi->item_string_class(LOG_FLOAT));
-  DBUG_ASSERT(log_bi->item_string_class(LOG_LEX_STRING));
-  DBUG_ASSERT(log_bi->item_string_class(LOG_CSTRING));
+  assert(!log_bi->item_string_class(LOG_INTEGER));
+  assert(!log_bi->item_string_class(LOG_FLOAT));
+  assert(log_bi->item_string_class(LOG_LEX_STRING));
+  assert(log_bi->item_string_class(LOG_CSTRING));
 
   // test functions for wellknowns
   int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
-  DBUG_ASSERT(LOG_ITEM_LOG_LABEL == log_bi->wellknown_get_type(wellknown));
+  assert(LOG_ITEM_LOG_LABEL == log_bi->wellknown_get_type(wellknown));
 
   wellknown = log_bi->wellknown_by_type(LOG_ITEM_GEN_INTEGER);
   const char *wk = log_bi->wellknown_get_name(wellknown);
-  DBUG_ASSERT(LOG_ITEM_TYPE_RESERVED ==
-              log_bi->wellknown_by_name(wk, log_bs->length(wk)));
+  assert(LOG_ITEM_TYPE_RESERVED ==
+         log_bi->wellknown_by_name(wk, log_bs->length(wk)));
 #endif
 
   // make a bag, then create a couple of key/value pairs on it
   log_line *ll = log_bi->line_init();
-  DBUG_ASSERT(ll != nullptr);
+  assert(ll != nullptr);
   if (ll == nullptr) return 1;
-  DBUG_ASSERT(log_bi->line_item_count(ll) == 0);
+  assert(log_bi->line_item_count(ll) == 0);
 
   log_item_data *d = log_bi->line_item_set(ll, LOG_ITEM_LOG_LABEL);
-  DBUG_ASSERT(d != nullptr);
-  DBUG_ASSERT(log_bi->line_item_count(ll) == 1);
+  assert(d != nullptr);
+  assert(log_bi->line_item_count(ll) == 1);
 
   log_item_data *d1 = log_bi->line_item_set(ll, LOG_ITEM_SQL_ERRCODE);
   ret += log_bi->item_set_int(d1, ER_PARSER_TRACE) ? 1 : 0;
-  DBUG_ASSERT(ret == 0);
-  DBUG_ASSERT(d1 != nullptr);
-  DBUG_ASSERT(log_bi->line_item_count(ll) == 2);
+  assert(ret == 0);
+  assert(d1 != nullptr);
+  assert(log_bi->line_item_count(ll) == 2);
 
   // setters (woof)
   ret += log_bi->item_set_float(d, 3.1415926927) ? 1 : 0;
-  DBUG_ASSERT(ret == 0);
+  assert(ret == 0);
 
   ret += log_bi->item_set_int(d, 31415926927) ? 1 : 0;
-  DBUG_ASSERT(ret == 0);
+  assert(ret == 0);
 
   ret += log_bi->item_set_cstring(d, "pi==3.14") ? 1 : 0;
-  DBUG_ASSERT(ret == 0);
+  assert(ret == 0);
 
   ret += log_bi->item_set_lexstring(d, "pi", 2) ? 1 : 0;
-  DBUG_ASSERT(ret == 0);
+  assert(ret == 0);
 
   // get our item from the bag
   log_item_iter *it;
   log_item *li;
 
   it = log_bi->line_item_iter_acquire(ll);
-  DBUG_ASSERT(it != nullptr);
+  assert(it != nullptr);
 
   li = log_bi->line_item_iter_first(it);
-  DBUG_ASSERT(li != nullptr);
+  assert(li != nullptr);
 
   // break item, then detect brokeness
   li->item_class = LOG_FLOAT;
-  DBUG_ASSERT(log_bi->item_inconsistent(li) < 0);
+  assert(log_bi->item_inconsistent(li) < 0);
 
   // release iter
   log_bi->line_item_iter_release(it);
@@ -666,16 +666,16 @@ static void banner() {
       .message("using LogEvent() object in external service");
 
   // built-in API test: test "well-known" lookups
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   {
     int wellknown = log_bi->wellknown_by_type(LOG_ITEM_LOG_LABEL);
     const char *label_key = log_bi->wellknown_get_name(wellknown);
     int wellagain =
         log_bi->wellknown_by_name(label_key, log_bs->length(label_key));
 
-    DBUG_ASSERT(wellknown == wellagain);
+    assert(wellknown == wellagain);
 
-    DBUG_ASSERT(LOG_ITEM_TYPE_NOT_FOUND == log_bi->wellknown_by_name("", 0));
+    assert(LOG_ITEM_TYPE_NOT_FOUND == log_bi->wellknown_by_name("", 0));
   }
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,12 @@
 
 #include "sql/sql_locale.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -2865,7 +2866,7 @@ MY_LOCALE *my_locale_by_number(uint number) {
   if (number >= array_elements(my_locales) - 1) return nullptr;
   locale = my_locales[number];
   // Check that locale is on its correct position in the array
-  DBUG_ASSERT(locale == my_locales[locale->number]);
+  assert(locale == my_locales[locale->number]);
   return locale;
 }
 
@@ -2885,7 +2886,7 @@ MY_LOCALE *my_locale_by_name(THD *thd, const char *name, size_t length) {
 
   if ((locale = my_locale_by_name(my_locales, name, length))) {
     // Check that locale is on its correct position in the array
-    DBUG_ASSERT(locale == my_locales[locale->number]);
+    assert(locale == my_locales[locale->number]);
     return locale;
   } else if ((locale =
                   my_locale_by_name(my_locales_deprecated, name, length))) {

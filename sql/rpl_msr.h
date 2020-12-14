@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,10 +156,10 @@ class Multisource_info {
       This class should be a singleton.
       The assert below is to prevent it to be instantiated more than once.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     static int instance_count = 0;
     instance_count++;
-    DBUG_ASSERT(instance_count == 1);
+    assert(instance_count == 1);
 #endif
     current_mi_count = 0;
     default_channel_mi = nullptr;
@@ -287,9 +287,9 @@ class Multisource_info {
       }
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (Source_IO_monitor::get_instance().is_monitoring_process_running()) {
-      DBUG_ASSERT(count > 0);
+      assert(count > 0);
     }
 #endif
 

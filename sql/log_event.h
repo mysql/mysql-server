@@ -149,13 +149,13 @@ int ignored_error_code(int err_code);
    @param COND   Condition to check
    @param ERRNO  Error number to return in non-debug builds
 */
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
   do {                                      \
     if (!(COND)) return ERRNO;              \
   } while (0)
 #else
-#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) DBUG_ASSERT(COND)
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) assert(COND)
 #endif
 
 #define LOG_EVENT_OFFSET 4
@@ -1135,8 +1135,8 @@ class Log_event {
     be the applier.
   */
   virtual void set_mts_isolate_group() {
-    DBUG_ASSERT(ends_group() || get_type_code() == binary_log::QUERY_EVENT ||
-                get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
+    assert(ends_group() || get_type_code() == binary_log::QUERY_EVENT ||
+           get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
     common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
   }
 
@@ -2434,7 +2434,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
 
 #ifndef MYSQL_SERVER
   table_def *create_table_def() {
-    DBUG_ASSERT(m_colcnt > 0);
+    assert(m_colcnt > 0);
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
@@ -2629,7 +2629,7 @@ class Rows_applier_psi_stage {
 
     /* Estimate if need be. */
     if (estimated == 0) {
-      DBUG_ASSERT(cursor > begin);
+      assert(cursor > begin);
       ulonglong avg_row_change_size = (cursor - begin) / m_n_rows_applied;
       estimated = (end - begin) / avg_row_change_size;
       mysql_stage_set_work_estimated(m_progress, estimated);
@@ -3486,7 +3486,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    DBUG_ASSERT(message == nullptr && message_length == 0);
+    assert(message == nullptr && message_length == 0);
     return;
   }
 
@@ -3499,7 +3499,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    DBUG_ASSERT(message == nullptr && message_length == 0);
+    assert(message == nullptr && message_length == 0);
     if (!(message = (char *)my_malloc(key_memory_Incident_log_event_message,
                                       msg.length + 1, MYF(MY_WME)))) {
       // The allocation failed. Mark this binlog event as invalid.

@@ -168,7 +168,7 @@ bool Query_result_union::create_result_table(
     visible_fields.push_back(item);
   }
 
-  DBUG_ASSERT(table == nullptr);
+  assert(table == nullptr);
   tmp_table_param = Temp_table_param();
   count_field_types(thd_arg->lex->current_query_block(), &tmp_table_param,
                     visible_fields, false, true);
@@ -245,8 +245,8 @@ class Query_result_union_direct final : public Query_result_union {
   bool change_query_result(THD *thd, Query_result *new_result) override;
   uint field_count(const mem_root_deque<Item *> &) const override {
     // Only called for top-level Query_results, usually Query_result_send
-    DBUG_ASSERT(false); /* purecov: inspected */
-    return 0;           /* purecov: inspected */
+    assert(false); /* purecov: inspected */
+    return 0;      /* purecov: inspected */
   }
   bool postponed_prepare(THD *thd,
                          const mem_root_deque<Item *> &types) override;
@@ -280,8 +280,8 @@ class Query_result_union_direct final : public Query_result_union {
   bool flush() override { return false; }
   bool check_simple_query_block() const override {
     // Only called for top-level Query_results, usually Query_result_send
-    DBUG_ASSERT(false); /* purecov: inspected */
-    return false;       /* purecov: inspected */
+    assert(false); /* purecov: inspected */
+    return false;  /* purecov: inspected */
   }
   void abort_result_set(THD *thd) override {
     result->abort_result_set(thd); /* purecov: inspected */
@@ -334,7 +334,7 @@ class Change_current_query_block {
 bool Query_expression::prepare_fake_query_block(THD *thd_arg) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(thd_arg->lex->current_query_block() == fake_query_block);
+  assert(thd_arg->lex->current_query_block() == fake_query_block);
 
   // The UNION result table is input table for this query block
   fake_query_block->table_list.link_in_list(&result_table_list,
@@ -372,11 +372,11 @@ bool Query_expression::prepare_fake_query_block(THD *thd_arg) {
   if (fake_query_block->base_ref_items.is_null())
     fake_query_block->n_child_sum_items += fake_query_block->n_sum_items;
 
-  DBUG_ASSERT(fake_query_block->with_wild == 0 &&
-              fake_query_block->master_query_expression() == this &&
-              !fake_query_block->group_list.elements &&
-              fake_query_block->where_cond() == nullptr &&
-              fake_query_block->having_cond() == nullptr);
+  assert(fake_query_block->with_wild == 0 &&
+         fake_query_block->master_query_expression() == this &&
+         !fake_query_block->group_list.elements &&
+         fake_query_block->where_cond() == nullptr &&
+         fake_query_block->having_cond() == nullptr);
 
   if (fake_query_block->prepare(thd_arg, nullptr)) return true;
 
@@ -413,7 +413,7 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
                                ulonglong removed_options) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(!is_prepared());
+  assert(!is_prepared());
   Change_current_query_block save_query_block(thd);
 
   Query_result *tmp_result;
@@ -530,10 +530,10 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
           been fixed yet. An Item_type_holder must be created based on a fixed
           Item, so use the inner Item instead.
         */
-        DBUG_ASSERT(item_tmp->fixed ||
-                    (item_tmp->type() == Item::REF_ITEM &&
-                     down_cast<Item_ref *>(item_tmp)->ref_type() ==
-                         Item_ref::OUTER_REF));
+        assert(item_tmp->fixed ||
+               (item_tmp->type() == Item::REF_ITEM &&
+                down_cast<Item_ref *>(item_tmp)->ref_type() ==
+                    Item_ref::OUTER_REF));
         if (!item_tmp->fixed) item_tmp = item_tmp->real_item();
 
         auto holder = new Item_type_holder(thd, item_tmp);
@@ -637,7 +637,7 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
       Prepared_stmt_arena_holder ps_arena_holder(thd);
       if (table->fill_item_list(&item_list))
         return true; /* purecov: inspected */
-      DBUG_ASSERT(CountVisibleFields(item_list) == item_list.size());
+      assert(CountVisibleFields(item_list) == item_list.size());
     } else {
       /*
         We're in execution of a prepared statement or stored procedure:
@@ -665,7 +665,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
                                 bool create_iterators) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(is_prepared() && !is_optimized());
+  assert(is_prepared() && !is_optimized());
 
   Change_current_query_block save_query_block(thd);
 
@@ -739,12 +739,12 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
       subquery execution rather than EXPLAIN line production. In order
       to reset them back, we re-do all of the actions (yes it is ugly).
     */
-    DBUG_ASSERT(fake_query_block->with_wild == 0 &&
-                fake_query_block->master_query_expression() == this &&
-                !fake_query_block->group_list.elements &&
-                fake_query_block->get_table_list() == &result_table_list &&
-                fake_query_block->where_cond() == nullptr &&
-                fake_query_block->having_cond() == nullptr);
+    assert(fake_query_block->with_wild == 0 &&
+           fake_query_block->master_query_expression() == this &&
+           !fake_query_block->group_list.elements &&
+           fake_query_block->get_table_list() == &result_table_list &&
+           fake_query_block->where_cond() == nullptr &&
+           fake_query_block->having_cond() == nullptr);
 
     if (fake_query_block->optimize(thd)) return true;
   } else if (saved_fake_query_block != nullptr) {
@@ -783,7 +783,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
   } else {
     // Recursive CTEs expect to see the rows in the result table immediately
     // after writing them.
-    DBUG_ASSERT(!is_recursive());
+    assert(!is_recursive());
     create_access_paths(thd);
   }
 
@@ -795,7 +795,7 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
     //
     // TODO(sgunders): See if we can do away with the engine concept
     // altogether, now that there's much less execution logic in them.
-    DBUG_ASSERT(!unfinished_materialization());
+    assert(!unfinished_materialization());
     item->create_iterators(thd);
     if (m_root_access_path == nullptr) {
       return false;
@@ -847,13 +847,13 @@ Query_expression::setup_materialization(THD *thd, TABLE *dst_table,
                ->next_query_block()) {  // Termination condition at end of loop.
     JOIN *join = select->join;
     MaterializePathParameters::QueryBlock query_block;
-    DBUG_ASSERT(join && join->is_optimized());
-    DBUG_ASSERT(join->root_access_path() != nullptr);
+    assert(join && join->is_optimized());
+    assert(join->root_access_path() != nullptr);
     ConvertItemsToCopy(*join->fields, dst_table->visible_field_ptr(),
                        &join->tmp_table_param);
 
     query_block.subquery_path = join->root_access_path();
-    DBUG_ASSERT(query_block.subquery_path != nullptr);
+    assert(query_block.subquery_path != nullptr);
     query_block.select_number = select->select_number;
     query_block.join = join;
     query_block.disable_deduplication_by_hash_field =
@@ -878,7 +878,7 @@ Query_expression::setup_materialization(THD *thd, TABLE *dst_table,
 void Query_expression::create_access_paths(THD *thd) {
   if (is_simple()) {
     JOIN *join = first_query_block()->join;
-    DBUG_ASSERT(join && join->is_optimized());
+    assert(join && join->is_optimized());
     m_root_access_path = join->root_access_path();
     return;
   }
@@ -965,7 +965,7 @@ void Query_expression::create_access_paths(THD *thd) {
     for (Query_block *select = first_union_all; select != nullptr;
          select = select->next_query_block()) {
       JOIN *join = select->join;
-      DBUG_ASSERT(join && join->is_optimized());
+      assert(join && join->is_optimized());
       ConvertItemsToCopy(*join->fields, tmp_table->visible_field_ptr(),
                          &join->tmp_table_param);
       AppendPathParameters param;
@@ -978,12 +978,12 @@ void Query_expression::create_access_paths(THD *thd) {
     }
   }
 
-  DBUG_ASSERT(!union_all_sub_paths->empty());
+  assert(!union_all_sub_paths->empty());
   if (union_all_sub_paths->size() == 1) {
     m_root_access_path = (*union_all_sub_paths)[0].path;
   } else {
     // Just append all the UNION ALL sub-blocks.
-    DBUG_ASSERT(streaming_allowed);
+    assert(streaming_allowed);
     m_root_access_path = NewAppendAccessPath(thd, union_all_sub_paths);
   }
 
@@ -1008,18 +1008,17 @@ void Query_expression::create_access_paths(THD *thd) {
 bool Query_expression::explain(THD *explain_thd, const THD *query_thd) {
   DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Query_block *lex_select_save = query_thd->lex->current_query_block();
 #endif
   Explain_format *fmt = explain_thd->lex->explain_format;
   const bool other = (query_thd != explain_thd);
   bool ret = false;
 
-  DBUG_ASSERT(other || is_optimized() ||
-              outer_query_block()->is_empty_query() ||
-              // @todo why is this necessary?
-              outer_query_block()->join == nullptr ||
-              outer_query_block()->join->zero_result_cause);
+  assert(other || is_optimized() || outer_query_block()->is_empty_query() ||
+         // @todo why is this necessary?
+         outer_query_block()->join == nullptr ||
+         outer_query_block()->join->zero_result_cause);
 
   if (fmt->begin_context(CTX_UNION)) return true;
 
@@ -1036,7 +1035,7 @@ bool Query_expression::explain(THD *explain_thd, const THD *query_thd) {
                                       CTX_UNION_RESULT);
   }
   if (!other)
-    DBUG_ASSERT(current_thd->lex->current_query_block() == lex_select_save);
+    assert(current_thd->lex->current_query_block() == lex_select_save);
 
   if (ret) return true;
   fmt->end_context(CTX_UNION);
@@ -1146,7 +1145,7 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
 
   mem_root_deque<Item *> *fields = get_field_list();
   Query_result *query_result = this->query_result();
-  DBUG_ASSERT(query_result != nullptr);
+  assert(query_result != nullptr);
 
   if (query_result->start_execution(thd)) return true;
 
@@ -1273,11 +1272,11 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
 
 bool Query_expression::execute(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(is_optimized());
+  assert(is_optimized());
 
   if (is_executed() && !uncacheable) return false;
 
-  DBUG_ASSERT(!unfinished_materialization());
+  assert(!unfinished_materialization());
 
   /*
     Even if we return "true" the statement might continue
@@ -1299,7 +1298,7 @@ bool Query_expression::execute(THD *thd) {
 void Query_expression::cleanup(THD *thd, bool full) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(thd == current_thd);
+  assert(thd == current_thd);
 
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) return;
 
@@ -1344,7 +1343,7 @@ void Query_expression::destroy() {
     - It does not handle the case where a UNIT is optimized with error
       and not cleaned.
   */
-  DBUG_ASSERT(!is_optimized() || cleaned == UC_CLEAN);
+  assert(!is_optimized() || cleaned == UC_CLEAN);
 
   for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block())
     sl->destroy();
@@ -1359,9 +1358,9 @@ void Query_expression::destroy() {
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void Query_expression::assert_not_fully_clean() {
-  DBUG_ASSERT(cleaned < UC_CLEAN);
+  assert(cleaned < UC_CLEAN);
   Query_block *sl = first_query_block();
   for (;;) {
     if (!sl) {
@@ -1443,7 +1442,7 @@ size_t Query_expression::num_visible_fields() const {
 */
 
 mem_root_deque<Item *> *Query_expression::get_field_list() {
-  DBUG_ASSERT(is_optimized());
+  assert(is_optimized());
 
   if (fake_query_block != nullptr) {
     return fake_query_block->join->fields;
@@ -1516,7 +1515,7 @@ static void destroy_materialized(TABLE_LIST *list) {
     }
     if (tl->table == nullptr) continue;  // Not materialized
 
-    DBUG_ASSERT(tl->schema_table == nullptr);
+    assert(tl->schema_table == nullptr);
     if (tl->is_view_or_derived() || tl->is_recursive_reference() ||
         tl->schema_table || tl->is_table_function()) {
       free_tmp_table(tl->table);
@@ -1534,7 +1533,7 @@ static void destroy_materialized(TABLE_LIST *list) {
 void Query_block::cleanup(THD *thd, bool full) {
   if (join) {
     if (full) {
-      DBUG_ASSERT(join->query_block == this);
+      assert(join->query_block == this);
       join->destroy();
       ::destroy(join);
       join = nullptr;

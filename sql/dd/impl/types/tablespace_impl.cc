@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include "sql/dd/impl/types/tablespace_impl.h"
 #include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // DD_bootstrap_ctx
 
+#include <assert.h>
 #include <algorithm>
 #include <atomic>
 #include <functional>
@@ -67,7 +68,7 @@
 #include "sql/strfunc.h"    // casedn
 
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"  // ER_*
@@ -177,14 +178,14 @@ bool Tablespace_impl::restore_attributes(const Raw_record &r) {
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_impl::store_attributes(Raw_record *r) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (my_strcasecmp(system_charset_info, "InnoDB", m_engine.c_str()) == 0) {
     /* Innodb can request for space rename during upgrade when options are not
     upgraded yet. */
-    DBUG_ASSERT(m_options.exists("encryption") ||
-                bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade());
+    assert(m_options.exists("encryption") ||
+           bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade());
   } else {
-    DBUG_ASSERT(!m_options.exists("encryption"));
+    assert(!m_options.exists("encryption"));
   }
 #endif
 
@@ -261,15 +262,15 @@ bool Tablespace_impl::is_empty(THD *thd, bool *empty) const {
   Transaction_ro trx(thd, ISO_READ_COMMITTED);
   trx.otx.register_tables<Abstract_table>();
   Raw_table *table = trx.otx.get_table<Abstract_table>();
-  DBUG_ASSERT(table);
+  assert(table);
 
   std::unique_ptr<Raw_record_set> rs;
   if (trx.otx.open_tables() || table->open_record_set(object_key.get(), rs)) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
-  DBUG_ASSERT(empty);
+  assert(empty);
   *empty = (rs->current_record() == nullptr);
 
   return false;
@@ -355,7 +356,7 @@ namespace {
 /* purecov: begin inspected */
 template <typename PT>
 PT &ref(PT *tp) {
-  DBUG_ASSERT(tp != nullptr);
+  assert(tp != nullptr);
   return *tp;
 }
 /* purecov: end */

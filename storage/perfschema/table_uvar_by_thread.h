@@ -28,11 +28,12 @@
   Table USER_VARIABLES_BY_THREAD (declarations).
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "prealloced_array.h"
@@ -80,7 +81,7 @@ class User_variables {
   void materialize(PFS_thread *pfs, THD *thd);
 
   bool is_materialized(PFS_thread *pfs) {
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
     if (m_pfs != pfs) {
       return false;
     }

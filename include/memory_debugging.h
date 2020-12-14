@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@
 
 #endif
 
-#if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
+#if !defined(NDEBUG) || defined(HAVE_VALGRIND)
 
 /**
   Put bad content in memory to be sure it will segfault if dereferenced.

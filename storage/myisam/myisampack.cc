@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,7 +184,7 @@ static int save_state_mrg(File file, PACK_MRG_INFO *isam_file,
 static int mrg_close(PACK_MRG_INFO *mrg);
 static int mrg_rrnd(PACK_MRG_INFO *info, uchar *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count);
 #endif
 
@@ -269,7 +269,7 @@ static struct my_option my_long_options[] = {
     {"character-sets-dir", OPT_CHARSETS_DIR_MP,
      "Directory where character sets are.", &charsets_dir, &charsets_dir,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
@@ -1803,7 +1803,7 @@ static char *bindigits(ulonglong value, uint bits) {
   char *ptr = digits;
   uint idx = bits;
 
-  DBUG_ASSERT(idx < sizeof(digits));
+  assert(idx < sizeof(digits));
   while (idx) *(ptr++) = '0' + ((char)(value >> (--idx)) & (char)1);
   *ptr = '\0';
   return digits;
@@ -1829,7 +1829,7 @@ static char *hexdigits(ulonglong value) {
   char *ptr = digits;
   uint idx = 2 * sizeof(value); /* Two hex digits per byte. */
 
-  DBUG_ASSERT(idx < sizeof(digits));
+  assert(idx < sizeof(digits));
   while (idx) {
     if ((*(ptr++) = '0' + ((char)(value >> (4 * (--idx))) & (char)0xf)) > '9')
       *(ptr - 1) += 'a' - '9' - 1;
@@ -2625,8 +2625,8 @@ static void end_file_buffer(void) { my_free(file_buffer.buffer); }
 /* output `bits` low bits of `value' */
 
 static void write_bits(ulonglong value, uint bits) {
-  DBUG_ASSERT(((bits < 8 * sizeof(value)) && !(value >> bits)) ||
-              (bits == 8 * sizeof(value)));
+  assert(((bits < 8 * sizeof(value)) && !(value >> bits)) ||
+         (bits == 8 * sizeof(value)));
 
   if ((file_buffer.bits -= (int)bits) >= 0) {
     file_buffer.bitbucket |= value << file_buffer.bits;
@@ -2794,7 +2794,7 @@ static int mrg_close(PACK_MRG_INFO *mrg) {
   return error;
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 /*
   Fake the counts to get big Huffman codes.
 

@@ -236,7 +236,7 @@ static void append_wild(char *to, char *end, const char *wild) {
 **************************************************************************/
 
 void STDCALL mysql_debug(const char *debug MY_ATTRIBUTE((unused))) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char *env;
   if (debug) {
     DBUG_PUSH(debug);
@@ -1230,7 +1230,7 @@ void set_stmt_error(MYSQL_STMT *stmt, int errcode, const char *sqlstate,
                     const char *err) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d '%s'", errcode, ER_CLIENT(errcode)));
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
 
   if (err == nullptr) err = ER_CLIENT(errcode);
 
@@ -1250,7 +1250,7 @@ void set_stmt_errmsg(MYSQL_STMT *stmt, NET *net) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("error: %d/%s '%s'", net->last_errno, net->sqlstate,
                        net->last_error));
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
 
   stmt->last_errno = net->last_errno;
   if (net->last_error[0] != '\0') my_stpcpy(stmt->last_error, net->last_error);
@@ -1525,7 +1525,7 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
   MEM_ROOT *fields_mem_root = &stmt->extension->fields_mem_root;
   MYSQL *mysql = stmt->mysql;
 
-  DBUG_ASSERT(stmt->field_count);
+  assert(stmt->field_count);
 
   free_root(fields_mem_root, MYF(0));
 
@@ -1783,7 +1783,7 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
         return true;
 
       if (is_data_packet) {
-        DBUG_ASSERT(stmt->result.rows == 0);
+        assert(stmt->result.rows == 0);
         prev_ptr = &stmt->result.data;
         if (add_binary_row(net, stmt, pkt_len, &prev_ptr)) return true;
       } else {
@@ -2538,7 +2538,7 @@ bool STDCALL mysql_stmt_send_long_data(MYSQL_STMT *stmt, uint param_number,
                                        const char *data, ulong length) {
   MYSQL_BIND *param;
   DBUG_TRACE;
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
   DBUG_PRINT("enter", ("param no: %d  data: %p, length : %ld", param_number,
                        data, length));
 
@@ -3495,7 +3495,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_BIT:
-      DBUG_ASSERT(param->buffer_length != 0);
+      assert(param->buffer_length != 0);
       param->fetch_result = fetch_result_bin;
       break;
     case MYSQL_TYPE_VAR_STRING:
@@ -3504,7 +3504,7 @@ static bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field) {
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_JSON:
-      DBUG_ASSERT(param->buffer_length != 0);
+      assert(param->buffer_length != 0);
       param->fetch_result = fetch_result_str;
       break;
     default:
@@ -3664,8 +3664,8 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row) {
     Precondition: if stmt->field_count is zero or row is NULL, read_row_*
     function must return no data.
   */
-  DBUG_ASSERT(stmt->field_count);
-  DBUG_ASSERT(row);
+  assert(stmt->field_count);
+  assert(row);
 
   if (!stmt->bind_result_done) {
     /* If output parameters were not bound we should just return success */
@@ -3822,7 +3822,7 @@ int cli_read_binary_rows(MYSQL_STMT *stmt) {
    We could have read one row in execute() due to the lack of a cursor,
    but one at most.
   */
-  DBUG_ASSERT(result->rows <= 1);
+  assert(result->rows <= 1);
   if (result->rows == 1) prev_ptr = &result->data->next;
 
   while ((pkt_len = cli_safe_read(mysql, &is_data_packet)) != packet_error) {
@@ -3890,7 +3890,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data) {
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
   uchar *row = (uchar *)data->data;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uchar *row_end = row + data->length;
 #endif
 
@@ -3903,7 +3903,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data) {
       field = stmt->fields;
        my_bind < end; my_bind++, field++) {
     if (!(*null_ptr & bit)) (*my_bind->skip_result)(my_bind, field, &row);
-    DBUG_ASSERT(row <= row_end);
+    assert(row <= row_end);
     if (!((bit <<= 1) & 255)) {
       bit = 1; /* To next uchar */
       null_ptr++;
@@ -3992,8 +3992,8 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt) {
   }
 
   /* Assert that if there was a cursor, all rows have been fetched */
-  DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY ||
-              (mysql->server_status & SERVER_STATUS_LAST_ROW_SENT));
+  assert(mysql->status != MYSQL_STATUS_READY ||
+         (mysql->server_status & SERVER_STATUS_LAST_ROW_SENT));
 
   if (stmt->update_max_length) {
     MYSQL_ROWS *cur = result->data;
@@ -4204,7 +4204,7 @@ bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt) {
 
 bool STDCALL mysql_stmt_reset(MYSQL_STMT *stmt) {
   DBUG_TRACE;
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
   if (!stmt->mysql) {
     /* mysql can be reset in mysql_close called from mysql_reconnect */
     set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate, nullptr);

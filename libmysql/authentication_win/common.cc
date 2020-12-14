@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ int opt_auth_win_log_level = 2;
 */
 
 Connection::Connection(MYSQL_PLUGIN_VIO *vio) : m_vio(vio), m_error(0) {
-  DBUG_ASSERT(vio);
+  assert(vio);
 }
 
 /**
@@ -80,7 +80,7 @@ int Connection::write(const Blob &blob) {
   m_error =
       m_vio->write_packet(m_vio, blob.ptr(), static_cast<int>(blob.len()));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (m_error) DBUG_PRINT("error", ("vio write error %d", m_error));
 #endif
 
@@ -124,7 +124,7 @@ Blob Connection::read() {
 
 Sid::Sid(const wchar_t *account_name)
     : m_data(NULL)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       ,
       m_as_string(NULL)
 #endif
@@ -138,7 +138,7 @@ Sid::Sid(const wchar_t *account_name)
                                &domain_size, &m_type);
 
   if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID buffer size, "
                          "LookupAccountName() failed with error %X (%s)",
@@ -157,7 +157,7 @@ Sid::Sid(const wchar_t *account_name)
                                domain, &domain_size, &m_type);
 
   if (!success || !is_valid()) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID of '%S', "
                          "LookupAccountName() failed with error %X (%s)",
@@ -188,7 +188,7 @@ end:
 
 Sid::Sid(HANDLE token)
     : m_data(NULL)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       ,
       m_as_string(NULL)
 #endif
@@ -200,7 +200,7 @@ Sid::Sid(HANDLE token)
 
   success = GetTokenInformation(token, TokenUser, NULL, 0, &req_size);
   if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID buffer size, "
                          "GetTokenInformation() failed with error %X (%s)",
@@ -215,7 +215,7 @@ Sid::Sid(HANDLE token)
   if (!success || !is_valid()) {
     delete[] m_data;
     m_data = NULL;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (!success) {
       Error_message_buf error_buf;
       DBUG_PRINT("error", ("Could not read SID from security token, "
@@ -228,7 +228,7 @@ Sid::Sid(HANDLE token)
 
 Sid::~Sid() {
   if (m_data) delete[] m_data;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (m_as_string) LocalFree(m_as_string);
 #endif
 }
@@ -238,7 +238,7 @@ bool Sid::is_valid(void) const {
   return m_data && m_data->User.Sid && IsValidSid(m_data->User.Sid);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 /**
   Produces string representation of the SID.
@@ -256,7 +256,7 @@ const char *Sid::as_string() {
     bool success = ConvertSidToStringSid(m_data->User.Sid, &m_as_string);
 
     if (!success) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       Error_message_buf error_buf;
       DBUG_PRINT("error", ("Could not get textual representation of a SID, "
                            "ConvertSidToStringSid() failed with error %X (%s)",
@@ -294,7 +294,7 @@ UPN::UPN() : m_buf(NULL) {
 
   if (!GetUserNameExW(NameUserPrincipal, buf1, (PULONG)&m_len)) {
     if (GetLastError()) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       Error_message_buf error_buf;
       DBUG_PRINT("note", ("When determining UPN"
                           ", GetUserNameEx() failed with error %X (%s)",
@@ -377,7 +377,7 @@ char *wchar_to_utf8(const wchar_t *string, size_t *len) {
 
   // res is 0 which indicates error
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Error_message_buf error_buf;
   DBUG_PRINT("error",
              ("Could not convert string '%S' to utf8"
@@ -386,7 +386,7 @@ char *wchar_to_utf8(const wchar_t *string, size_t *len) {
 #endif
 
   // Let's check our assumption about sufficient buffer size
-  DBUG_ASSERT(ERROR_INSUFFICIENT_BUFFER != GetLastError());
+  assert(ERROR_INSUFFICIENT_BUFFER != GetLastError());
 
   return NULL;
 }
@@ -439,7 +439,7 @@ wchar_t *utf8_to_wchar(const char *string, size_t *len) {
 
   // error in MultiByteToWideChar()
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Error_message_buf error_buf;
   DBUG_PRINT("error", ("Could not convert UPN from UTF-8"
                        ", MultiByteToWideChar() failed with error %X (%s)",
@@ -447,7 +447,7 @@ wchar_t *utf8_to_wchar(const char *string, size_t *len) {
 #endif
 
   // Let's check our assumption about sufficient buffer size
-  DBUG_ASSERT(ERROR_INSUFFICIENT_BUFFER != GetLastError());
+  assert(ERROR_INSUFFICIENT_BUFFER != GetLastError());
 
   return NULL;
 }

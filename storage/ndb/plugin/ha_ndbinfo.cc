@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -289,7 +289,7 @@ static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
   BaseString msg;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s, fatal: %d", ndb_tab->getName(), fatal));
-  DBUG_ASSERT(format != NULL);
+  assert(format != NULL);
 
   va_list args;
   char explanation[128];
@@ -341,7 +341,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
       return EROFS;  // Read only fs
     }
     // Find any commands that does not allow open readonly
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   if (opt_ndbinfo_offline || ndbcluster_is_disabled()) {
@@ -485,7 +485,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
       }
       default:
         // Should not happen
-        DBUG_ASSERT(false);
+        assert(false);
         return 0;
     }
   }
@@ -729,7 +729,7 @@ static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
     return 0;
   }
 
-  DBUG_ASSERT(db);
+  assert(db);
   if (strcmp(db, opt_ndbinfo_dbname)) return 0;  // Only hide files in "our" db
 
   /* Hide all files that start with "our" prefix */

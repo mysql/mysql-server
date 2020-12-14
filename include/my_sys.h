@@ -974,7 +974,7 @@ extern void set_psi_tls_channel_service(void *psi);
 */
 
 // True if the temporary file of binlog cache is encrypted.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern bool binlog_cache_temporary_file_is_encrypted;
 #endif
 

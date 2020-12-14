@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,10 @@
 #ifndef MEMORY_ALIGNED_ATOMIC_H
 #define MEMORY_ALIGNED_ATOMIC_H
 
+#include <assert.h>
 #include <atomic>
 #include <cmath>
 #include <cstddef>
-
-#include "my_dbug.h"
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -324,14 +323,14 @@ memory::Aligned_atomic<T> &memory::Aligned_atomic<T>::operator=(
 
 template <typename T>
 memory::Aligned_atomic<T> &memory::Aligned_atomic<T>::operator=(T rhs) {
-  DBUG_ASSERT(this->m_underlying != nullptr);
+  assert(this->m_underlying != nullptr);
   this->m_underlying->store(rhs, std::memory_order_seq_cst);
   return (*this);
 }
 
 template <typename T>
 memory::Aligned_atomic<T>::operator T() const {
-  DBUG_ASSERT(this->m_underlying != nullptr);
+  assert(this->m_underlying != nullptr);
   return this->m_underlying->load(std::memory_order_relaxed);
 }
 
@@ -358,13 +357,13 @@ bool memory::Aligned_atomic<T>::operator!=(T rhs) const {
 
 template <typename T>
 std::atomic<T> *memory::Aligned_atomic<T>::operator->() const {
-  DBUG_ASSERT(this->m_underlying != nullptr);
+  assert(this->m_underlying != nullptr);
   return this->m_underlying;
 }
 
 template <typename T>
 std::atomic<T> &memory::Aligned_atomic<T>::operator*() const {
-  DBUG_ASSERT(this->m_underlying != nullptr);
+  assert(this->m_underlying != nullptr);
   return *this->m_underlying;
 }
 

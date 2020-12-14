@@ -23,6 +23,7 @@
 #ifndef FAKE_TABLE_H
 #define FAKE_TABLE_H
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <ostream>
@@ -33,7 +34,7 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
@@ -210,7 +211,7 @@ class Fake_TABLE : public TABLE {
   Fake_TABLE(int column_count, bool cols_nullable)
       : table_share(column_count),
         mock_handler(&fake_handlerton, &table_share) {
-    DBUG_ASSERT(static_cast<size_t>(column_count) <= sizeof(int) * 8);
+    assert(static_cast<size_t>(column_count) <= sizeof(int) * 8);
     initialize();
     for (int i = 0; i < column_count; ++i) {
       std::stringstream str;

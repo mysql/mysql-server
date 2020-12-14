@@ -393,7 +393,7 @@ TEST(SdiTest, Tablespace_API) {
   api_test(ts);
 }
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 TEST(SdiTest, Serialization_perf) {
   std::unique_ptr<dd::Table> t(dd::create_object<dd::Table>());
   FANOUT = 20;
@@ -404,7 +404,7 @@ TEST(SdiTest, Serialization_perf) {
     EXPECT_GT(sdi.size(), 100000u);
   }
 }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 TEST(SdiTest, CharPromotion) {
   signed char x = 127;

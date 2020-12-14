@@ -1215,7 +1215,7 @@ NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 
 void NdbQueryBuilderImpl::setErrorCode(int aErrorCode)
 { 
-  DBUG_ASSERT(aErrorCode != 0);
+  assert(aErrorCode != 0);
   m_error.code = aErrorCode;
   m_hasError = true;
 }
@@ -1579,7 +1579,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
   }
   else
   {
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   memcpy (dst, m_value, len);

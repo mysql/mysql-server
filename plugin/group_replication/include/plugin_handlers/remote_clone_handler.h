@@ -272,13 +272,13 @@ class Remote_clone_handler : public Group_event_observer {
   */
   bool evaluate_error_code(int error_code);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Function for debug points
     @note this function can have a parameter for different debug points
   */
   void gr_clone_debug_point();
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   // Settings to fall back to recovery
   /** The group to which the recovering member belongs */

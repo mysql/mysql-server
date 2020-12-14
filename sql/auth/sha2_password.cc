@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -600,10 +600,10 @@ bool Caching_sha2_password::generate_fast_digest(
     const std::string &plaintext_password, sha2_cache_entry &digest,
     unsigned int pos) {
   DBUG_TRACE;
-  DBUG_ASSERT(pos < MAX_PASSWORDS);
+  assert(pos < MAX_PASSWORDS);
   SHA256_digest sha256_digest;
   unsigned char digest_buffer[CACHING_SHA2_DIGEST_LENGTH];
-  DBUG_ASSERT(sizeof(digest.digest_buffer[pos]) == sizeof(digest_buffer));
+  assert(sizeof(digest.digest_buffer[pos]) == sizeof(digest_buffer));
 
   if (sha256_digest.update_digest(plaintext_password.c_str(),
                                   plaintext_password.length()) ||
@@ -658,7 +658,7 @@ bool Caching_sha2_password::generate_sha2_multi_hash(const std::string &source,
     case Digest_info::SHA256_DIGEST: {
       char buffer[CRYPT_MAX_PASSWORD_SIZE + 1];
       memset(buffer, 0, sizeof(buffer));
-      DBUG_ASSERT(source.length() <= CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
+      assert(source.length() <= CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
       my_crypt_genhash(buffer, CRYPT_MAX_PASSWORD_SIZE, source.c_str(),
                        source.length(), random.c_str(), nullptr, &iterations);
 
@@ -671,7 +671,7 @@ bool Caching_sha2_password::generate_sha2_multi_hash(const std::string &source,
       break;
     }
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       return true;
   }
   return false;
@@ -1274,8 +1274,8 @@ static int compare_caching_sha2_password_with_hash(
   sha2_password::Digest_info digest_type;
   size_t iterations;
 
-  DBUG_ASSERT(cleartext_length <=
-              sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
+  assert(cleartext_length <=
+         sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
   if (cleartext_length >
       sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
     return -1;
@@ -1391,7 +1391,7 @@ static int sha2_cache_cleaner_notify(MYSQL_THD, mysql_event_class_t event_class,
     if (subclass == MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE ||
         subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME ||
         subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP) {
-      DBUG_ASSERT(
+      assert(
           authentication_event->user.str[authentication_event->user.length] ==
           '\0');
       std::string authorization_id;

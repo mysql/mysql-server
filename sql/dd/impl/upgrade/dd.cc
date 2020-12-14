@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 #include "sql/dd/impl/bootstrap/bootstrapper.h"
 #include "sql/dd/impl/utils.h"
 
+#include <assert.h>
 #include <set>
 
-#include "my_dbug.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
@@ -74,7 +74,7 @@ bool create_temporary_schemas(THD *thd, Object_id *mysql_schema_id,
   const dd::Schema *schema = nullptr;
   std::stringstream ss;
 
-  DBUG_ASSERT(target_table_schema_name != nullptr);
+  assert(target_table_schema_name != nullptr);
   *target_table_schema_name = String_type("");
   ss << "dd_upgrade_targets_" << MYSQL_VERSION_ID;
   String_type tmp_schema_name_base{ss.str().c_str()};
@@ -156,22 +156,22 @@ bool create_temporary_schemas(THD *thd, Object_id *mysql_schema_id,
       schema == nullptr)
     return true;
 
-  DBUG_ASSERT(mysql_schema_id != nullptr);
+  assert(mysql_schema_id != nullptr);
   *mysql_schema_id = schema->id();
-  DBUG_ASSERT(*mysql_schema_id == 1);
+  assert(*mysql_schema_id == 1);
 
   if (thd->dd_client()->acquire(*target_table_schema_name, &schema) ||
       schema == nullptr)
     return true;
 
-  DBUG_ASSERT(target_table_schema_id != nullptr);
+  assert(target_table_schema_id != nullptr);
   *target_table_schema_id = schema->id();
 
   if (thd->dd_client()->acquire(actual_table_schema_name, &schema) ||
       schema == nullptr)
     return true;
 
-  DBUG_ASSERT(actual_table_schema_id != nullptr);
+  assert(actual_table_schema_id != nullptr);
   *actual_table_schema_id = schema->id();
 
   return false;
@@ -193,8 +193,8 @@ void establish_table_name_sets(std::set<String_type> *create_set,
       are either new tables in the target version, or they replace an
       existing table in the actual version.
   */
-  DBUG_ASSERT(create_set != nullptr && create_set->empty());
-  DBUG_ASSERT(remove_set != nullptr && remove_set->empty());
+  assert(create_set != nullptr && create_set->empty());
+  assert(remove_set != nullptr && remove_set->empty());
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
     if (is_non_inert_dd_or_ddse_table((*it)->property())) {
@@ -203,7 +203,7 @@ void establish_table_name_sets(std::set<String_type> *create_set,
         downgrade is the only situation where an Object_table may not exist,
         but minor upgrade will never enter this code path.
       */
-      DBUG_ASSERT((*it)->entity() != nullptr);
+      assert((*it)->entity() != nullptr);
 
       String_type target_ddl_statement("");
       const Object_table_definition *target_table_def =
@@ -618,9 +618,9 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
     the previous one.
   */
   auto migrate_table = [&](const String_type &name, const String_type &stmt) {
-    DBUG_ASSERT(create_set.find(name) != create_set.end());
+    assert(create_set.find(name) != create_set.end());
     /* A table must be migrated only once. */
-    DBUG_ASSERT(migrated_set.find(name) == migrated_set.end());
+    assert(migrated_set.find(name) == migrated_set.end());
     migrated_set.insert(name);
     if (dd::execute_query(thd, stmt)) {
       return dd::end_transaction(thd, true);

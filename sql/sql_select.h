@@ -27,12 +27,13 @@
   @file sql/sql_select.h
 */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <climits>
 
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
@@ -901,13 +902,13 @@ bool and_conditions(Item **e1, Item *e2);
   @return the new AND item
 */
 static inline Item *and_items(Item *cond, Item *item) {
-  DBUG_ASSERT(item != nullptr);
+  assert(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 
 /// A variant of the above, guaranteed to return Item_bool_func.
 static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item) {
-  DBUG_ASSERT(item != nullptr);
+  assert(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ class Key_part_spec {
   uint get_prefix_length() const { return m_prefix_length; }
 
   Item *get_expression() const {
-    DBUG_ASSERT(has_expression());
+    assert(has_expression());
     return m_expression;
   }
 

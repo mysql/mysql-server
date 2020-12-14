@@ -28,11 +28,12 @@
 
 #include "sql_chars.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 
 static void hint_lex_init_maps(CHARSET_INFO *cs,
@@ -46,7 +47,7 @@ static void hint_lex_init_maps(CHARSET_INFO *cs,
     else if (my_isdigit(cs, i))
       hint_map[i] = HINT_CHR_DIGIT;
     else if (my_isspace(cs, i)) {
-      DBUG_ASSERT(!my_ismb1st(cs, i));
+      assert(!my_ismb1st(cs, i));
       hint_map[i] = HINT_CHR_SPACE;
     } else
       hint_map[i] = HINT_CHR_CHAR;

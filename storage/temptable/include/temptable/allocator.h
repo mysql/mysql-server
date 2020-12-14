@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,7 +57,7 @@ struct MemoryMonitor {
      * [in] Number of bytes.
      * @return Heap-memory consumption after increase. */
     static size_t increase(size_t bytes) {
-      DBUG_ASSERT(ram <= std::numeric_limits<decltype(bytes)>::max() - bytes);
+      assert(ram <= std::numeric_limits<decltype(bytes)>::max() - bytes);
       return ram.fetch_add(bytes) + bytes;
     }
     /** Log decrements of heap-memory consumption.
@@ -65,7 +65,7 @@ struct MemoryMonitor {
      * [in] Number of bytes.
      * @return Heap-memory consumption after decrease. */
     static size_t decrease(size_t bytes) {
-      DBUG_ASSERT(ram >= bytes);
+      assert(ram >= bytes);
       return ram.fetch_sub(bytes) - bytes;
     }
     /** Get heap-memory threshold level. Level is defined by this Allocator.
@@ -84,7 +84,7 @@ struct MemoryMonitor {
      * [in] Number of bytes.
      * @return MMAP-memory consumption after increase. */
     static size_t increase(size_t bytes) {
-      DBUG_ASSERT(mmap <= std::numeric_limits<decltype(bytes)>::max() - bytes);
+      assert(mmap <= std::numeric_limits<decltype(bytes)>::max() - bytes);
       return mmap.fetch_add(bytes) + bytes;
     }
     /** Log decrements of MMAP-backed memory consumption.
@@ -92,7 +92,7 @@ struct MemoryMonitor {
      * [in] Number of bytes.
      * @return MMAP-memory consumption after decrease. */
     static size_t decrease(size_t bytes) {
-      DBUG_ASSERT(mmap >= bytes);
+      assert(mmap >= bytes);
       return mmap.fetch_sub(bytes) - bytes;
     }
     /** Get MMAP-backed memory threshold level. Level is defined by this
@@ -463,7 +463,7 @@ inline bool Allocator<T, AllocationScheme>::operator!=(
 
 template <class T, class AllocationScheme>
 inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
-  DBUG_ASSERT(n_elements <= std::numeric_limits<size_type>::max() / sizeof(T));
+  assert(n_elements <= std::numeric_limits<size_type>::max() / sizeof(T));
   DBUG_EXECUTE_IF("temptable_allocator_oom", throw Result::OUT_OF_MEM;);
   DBUG_EXECUTE_IF("temptable_allocator_record_file_full",
                   throw Result::RECORD_FILE_FULL;);
@@ -498,14 +498,14 @@ inline T *Allocator<T, AllocationScheme>::allocate(size_t n_elements) {
 
   T *chunk_data =
       reinterpret_cast<T *>(block->allocate(n_bytes_requested).data());
-  DBUG_ASSERT(reinterpret_cast<uintptr_t>(chunk_data) % alignof(T) == 0);
+  assert(reinterpret_cast<uintptr_t>(chunk_data) % alignof(T) == 0);
   return chunk_data;
 }
 
 template <class T, class AllocationScheme>
 inline void Allocator<T, AllocationScheme>::deallocate(T *chunk_data,
                                                        size_t n_elements) {
-  DBUG_ASSERT(reinterpret_cast<uintptr_t>(chunk_data) % alignof(T) == 0);
+  assert(reinterpret_cast<uintptr_t>(chunk_data) % alignof(T) == 0);
 
   if (chunk_data == nullptr) {
     return;
@@ -520,7 +520,7 @@ inline void Allocator<T, AllocationScheme>::deallocate(T *chunk_data,
     if (m_shared_block && (block == *m_shared_block)) {
       // Do nothing. Keep the last block alive.
     } else {
-      DBUG_ASSERT(m_state->number_of_blocks > 0);
+      assert(m_state->number_of_blocks > 0);
       if (block.type() == Source::RAM) {
         MemoryMonitor::RAM::decrease(block.size());
       } else {

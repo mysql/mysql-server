@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,15 +38,15 @@ Communication_protocol_action::~Communication_protocol_action() {}
 // Group_action implementation
 void Communication_protocol_action::get_action_message(
     Group_action_message **message) {
-  DBUG_ASSERT(m_gcs_protocol != Gcs_protocol_version::UNKNOWN);
+  assert(m_gcs_protocol != Gcs_protocol_version::UNKNOWN);
   *message = new Group_action_message(m_gcs_protocol);
 }
 
 int Communication_protocol_action::process_action_message(
     Group_action_message &message, const std::string &) {
-  DBUG_ASSERT(m_gcs_protocol == Gcs_protocol_version::UNKNOWN ||
-              m_gcs_protocol == message.get_gcs_protocol());
-  DBUG_ASSERT(!m_protocol_change_done.valid());
+  assert(m_gcs_protocol == Gcs_protocol_version::UNKNOWN ||
+         m_gcs_protocol == message.get_gcs_protocol());
+  assert(!m_protocol_change_done.valid());
 
   int constexpr SUCCESS = 0;
   int constexpr FAILURE = 1;

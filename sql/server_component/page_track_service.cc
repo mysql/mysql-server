@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ DEFINE_METHOD(int, Page_track_implementation::start,
     return (ER_SPECIFIC_ACCESS_DENIED_ERROR);
   }
 
-  DBUG_ASSERT(se_type == PAGE_TRACK_SE_INNODB);
+  assert(se_type == PAGE_TRACK_SE_INNODB);
 
   enum legacy_db_type db_type;
 
@@ -59,7 +59,7 @@ DEFINE_METHOD(int, Page_track_implementation::stop,
     return (ER_SPECIFIC_ACCESS_DENIED_ERROR);
   }
 
-  DBUG_ASSERT(se_type == PAGE_TRACK_SE_INNODB);
+  assert(se_type == PAGE_TRACK_SE_INNODB);
 
   enum legacy_db_type db_type = DB_TYPE_UNKNOWN;
 
@@ -81,7 +81,7 @@ DEFINE_METHOD(int, Page_track_implementation::purge,
     return (ER_SPECIFIC_ACCESS_DENIED_ERROR);
   }
 
-  DBUG_ASSERT(se_type == PAGE_TRACK_SE_INNODB);
+  assert(se_type == PAGE_TRACK_SE_INNODB);
 
   enum legacy_db_type db_type = DB_TYPE_UNKNOWN;
 
@@ -104,7 +104,7 @@ DEFINE_METHOD(int, Page_track_implementation::get_page_ids,
     return (ER_SPECIFIC_ACCESS_DENIED_ERROR);
   }
 
-  DBUG_ASSERT(se_type == PAGE_TRACK_SE_INNODB);
+  assert(se_type == PAGE_TRACK_SE_INNODB);
 
   enum legacy_db_type db_type = DB_TYPE_UNKNOWN;
 
@@ -127,7 +127,7 @@ DEFINE_METHOD(int, Page_track_implementation::get_num_page_ids,
     return (ER_SPECIFIC_ACCESS_DENIED_ERROR);
   }
 
-  DBUG_ASSERT(se_type == PAGE_TRACK_SE_INNODB);
+  assert(se_type == PAGE_TRACK_SE_INNODB);
 
   enum legacy_db_type db_type = DB_TYPE_UNKNOWN;
 
@@ -149,7 +149,7 @@ DEFINE_METHOD(int, Page_track_implementation::get_status,
     return (ER_SPECIFIC_ACCESS_DENIED_ERROR);
   }
 
-  DBUG_ASSERT(se_type == PAGE_TRACK_SE_INNODB);
+  assert(se_type == PAGE_TRACK_SE_INNODB);
 
   *initial_start_id = 0;
   *last_start_id = 0;

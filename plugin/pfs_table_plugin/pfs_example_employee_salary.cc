@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ int esalary_read_column_value(PSI_table_handle *handle, PSI_field *field,
                                 h->current_row.e_tob_length);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -210,7 +210,7 @@ int esalary_write_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_time(field, tob_val, tob_len);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -223,7 +223,7 @@ int esalary_update_row_values(PSI_table_handle *handle) {
 
   Esalary_Record *cur = &esalary_records_vector[h->m_pos.get_index()];
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_esalary_records_array);
   copy_record(cur, &h->current_row);
@@ -254,7 +254,7 @@ int esalary_update_column_value(PSI_table_handle *handle, PSI_field *field,
       table_svc->get_field_time(field, tob_val, tob_len);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -267,7 +267,7 @@ int esalary_delete_row_values(PSI_table_handle *handle) {
 
   Esalary_Record *cur = &esalary_records_vector.at(h->m_pos.get_index());
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   mysql_mutex_lock(&LOCK_esalary_records_array);
   cur->m_exist = false;

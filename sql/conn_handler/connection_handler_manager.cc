@@ -24,9 +24,9 @@
 
 #include "sql/conn_handler/connection_handler_manager.h"
 
+#include <assert.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -156,7 +156,7 @@ bool Connection_handler_manager::init() {
       connection_handler = new (std::nothrow) One_thread_connection_handler();
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   if (connection_handler == nullptr) {
@@ -227,8 +227,7 @@ void Connection_handler_manager::reset_max_used_connections() {
 void Connection_handler_manager::load_connection_handler(
     Connection_handler *conn_handler) {
   // We don't support loading more than one dynamic connection handler
-  DBUG_ASSERT(Connection_handler_manager::thread_handling !=
-              SCHEDULER_TYPES_COUNT);
+  assert(Connection_handler_manager::thread_handling != SCHEDULER_TYPES_COUNT);
   m_saved_connection_handler = m_connection_handler;
   m_saved_thread_handling = Connection_handler_manager::thread_handling;
   m_connection_handler = conn_handler;
@@ -237,7 +236,7 @@ void Connection_handler_manager::load_connection_handler(
 }
 
 bool Connection_handler_manager::unload_connection_handler() {
-  DBUG_ASSERT(m_saved_connection_handler != nullptr);
+  assert(m_saved_connection_handler != nullptr);
   if (m_saved_connection_handler == nullptr) return true;
   delete m_connection_handler;
   m_connection_handler = m_saved_connection_handler;
@@ -283,7 +282,7 @@ void increment_aborted_connects() {
 
 int my_connection_handler_set(Connection_handler_functions *chf,
                               THD_event_functions *tef) {
-  DBUG_ASSERT(chf != nullptr && tef != nullptr);
+  assert(chf != nullptr && tef != nullptr);
   if (chf == nullptr || tef == nullptr) return 1;
 
   Plugin_connection_handler *conn_handler =

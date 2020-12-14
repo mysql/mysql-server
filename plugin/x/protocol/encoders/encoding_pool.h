@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ class Encoding_pool {
       --m_pages;
       m_pool.deallocate(page);
     }
-    DBUG_ASSERT(0 == m_pages);
+    assert(0 == m_pages);
   }
 
   Page *alloc_page() {

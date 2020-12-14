@@ -162,7 +162,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
         Open interval is not used if the search key involves the last keypart,
         and it would not work.
       */
-      DBUG_ASSERT(prefix_len < ref->key_length);
+      assert(prefix_len < ref->key_length);
       error = table->file->ha_index_read_map(
           table->record[0], ref->key_buff,
           make_prev_keypart_map(ref->key_parts), HA_READ_AFTER_KEY);
@@ -185,7 +185,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
           */
           (error == HA_ERR_KEY_NOT_FOUND ||
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len))) {
-        DBUG_ASSERT(item_field->field->is_nullable());
+        assert(item_field->field->is_nullable());
         error = table->file->ha_index_read_map(
             table->record[0], ref->key_buff,
             make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
@@ -480,7 +480,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
               in-memory table with one row, it will have been read and closed
               again. In such a case, the OUTER_REF_TABLE_BIT is no longer set.
             */
-            DBUG_ASSERT(!table->file->inited);
+            assert(!table->file->inited);
 
             /*
               Look for a partial key that can be used for optimization.
@@ -509,8 +509,8 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
               We may not need all columns of read_set, neither all columns of
               the index.
             */
-            DBUG_ASSERT(table->read_set == &table->def_read_set);
-            DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
+            assert(table->read_set == &table->def_read_set);
+            assert(bitmap_is_clear_all(&table->tmp_set));
             table->read_set = &table->tmp_set;
             table->mark_columns_used_by_index_no_reset(ref.key, table->read_set,
                                                        ref.key_parts);
@@ -1017,7 +1017,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
             ref->key_buff[ref->key_length] = 1;
             ref->key_length += part->store_length;
             ref->key_parts++;
-            DBUG_ASSERT(ref->key_parts == jdx + 1);
+            assert(ref->key_parts == jdx + 1);
             *range_fl &= ~NO_MIN_RANGE;
             *range_fl |= NEAR_MIN;  // Open interval
           }
@@ -1113,8 +1113,8 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
     case Item_func::MULT_EQUAL_FUNC:
     case Item_func::ISNULL_FUNC:
       break;
-    default:               // Keep compiler happy
-      DBUG_ASSERT(false);  // Impossible
+    default:          // Keep compiler happy
+      assert(false);  // Impossible
       break;
   }
   return false;

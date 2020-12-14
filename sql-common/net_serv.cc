@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -709,12 +709,12 @@ static int begin_packet_write_state(NET *net, uchar command,
 
     /* Make sure we sent entire packets. */
     if (total_len > 0) {
-      DBUG_ASSERT(packet_size == MAX_PACKET_LENGTH);
+      assert(packet_size == MAX_PACKET_LENGTH);
     }
   }
 
   /* Make sure we don't have anything left to send. */
-  DBUG_ASSERT(total_len == 0);
+  assert(total_len == 0);
 
   net_async->async_write_vector_size = (vec - net_async->async_write_vector);
   net_async->async_write_vector_current = 0;
@@ -819,7 +819,7 @@ net_async_status net_write_command_nonblocking(NET *net, uchar command,
       }
       return NET_ASYNC_NOT_READY;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       *res = true;
       return NET_ASYNC_COMPLETE;
   }
@@ -1429,8 +1429,8 @@ static bool net_read_packet_header(NET *net) {
 
   if (server_extension != nullptr && server_extension->m_user_data != nullptr) {
     void *user_data = server_extension->m_user_data;
-    DBUG_ASSERT(server_extension->m_before_header != nullptr);
-    DBUG_ASSERT(server_extension->m_after_header != nullptr);
+    assert(server_extension->m_before_header != nullptr);
+    assert(server_extension->m_after_header != nullptr);
 
     server_extension->m_before_header(net, user_data, count);
     rc = net_read_raw_loop(net, count);
@@ -1456,7 +1456,7 @@ static bool net_read_packet_header(NET *net) {
 #if !defined(MYSQL_SERVER)
     DBUG_PRINT("info", ("pkt_nr %u net->pkt_nr %u", pkt_nr, net->pkt_nr));
     if (net->pkt_nr == 1) {
-      DBUG_ASSERT(net->where_b == 0);
+      assert(net->where_b == 0);
       /*
         Server may have sent an error before it received our new command.
         Perhaps due to wait_timeout.
@@ -1485,7 +1485,7 @@ static bool net_read_packet_header(NET *net) {
     */
     my_message_local(ERROR_LEVEL, EE_PACKETS_OUT_OF_ORDER, (uint)pkt_nr,
                      net->pkt_nr);
-    DBUG_ASSERT(pkt_nr == net->pkt_nr);
+    assert(pkt_nr == net->pkt_nr);
 #endif
     return true;
   }
@@ -1595,7 +1595,7 @@ static net_async_status net_read_data_nonblocking(NET *net, size_t count,
       return NET_ASYNC_COMPLETE;
     default:
       /* error, sure wish we could log something here */
-      DBUG_ASSERT(false);
+      assert(false);
       net_async->async_bytes_wanted = 0;
       net_async->async_operation = NET_ASYNC_OP_IDLE;
       *err_ptr = true;
@@ -1638,7 +1638,7 @@ static net_async_status net_read_packet_header_nonblocking(NET *net,
     */
     fprintf(stderr, "Error: packets out of order (found %u, expected %u)\n",
             (uint)pkt_nr, net->pkt_nr);
-    DBUG_ASSERT(pkt_nr == net->pkt_nr);
+    assert(pkt_nr == net->pkt_nr);
 #endif
     *err_ptr = true;
     return NET_ASYNC_COMPLETE;
@@ -1690,8 +1690,8 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret) {
           read unallocated or uninitialized memory. The right-hand expression
           must match the size of the buffer allocated in net_realloc().
         */
-        DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
-                    net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE + 1);
+        assert(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
+               net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE + 1);
         async_packet_uncompressed_length =
             uint3korr(net->buff + net->where_b + NET_HEADER_SIZE);
       }
@@ -1826,7 +1826,7 @@ begin:
           multi_byte_packet on. Thus there shall never be a non-zero
           first_packet_offset here.
         */
-        DBUG_ASSERT(first_packet_offset == 0);
+        assert(first_packet_offset == 0);
         /* Remove packet header for second packet */
         memmove(net->buff + start_of_packet,
                 net->buff + start_of_packet + NET_HEADER_SIZE,
@@ -1939,7 +1939,7 @@ static ulong net_read_update_offsets(NET *net, size_t start_of_packet,
 static net_async_status net_read_compressed_nonblocking(NET *net,
                                                         ulong *len_ptr) {
   DBUG_TRACE;
-  DBUG_ASSERT(net->compress);
+  assert(net->compress);
   ulong &len = *len_ptr;
 
   /* Maintain the local states to read the multipacket asynchronously */
@@ -1997,7 +1997,7 @@ static net_async_status net_read_compressed_nonblocking(NET *net,
 static net_async_status net_read_uncompressed_nonblocking(NET *net,
                                                           ulong *len_ptr) {
   DBUG_TRACE;
-  DBUG_ASSERT(!net->compress);
+  assert(!net->compress);
   ulong &len = *len_ptr;
 
   // Maintain the local states
@@ -2054,8 +2054,8 @@ static size_t net_read_packet(NET *net, size_t *complen) {
       The right-hand expression
       must match the size of the buffer allocated in net_realloc().
     */
-    DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + 3 <=
-                net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE);
+    assert(net->where_b + NET_HEADER_SIZE + 3 <=
+           net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE);
 
     /*
       If the packet is compressed then complen > 0 and contains the
@@ -2123,7 +2123,7 @@ net_async_status my_net_read_nonblocking(NET *net, ulong *len_ptr) {
 */
 static void net_read_uncompressed_packet(NET *net, size_t &len) {
   size_t complen;
-  DBUG_ASSERT(!net->compress);
+  assert(!net->compress);
   len = net_read_packet(net, &complen);
   if (len == MAX_PACKET_LENGTH) {
     /* First packet of a multi-packet.  Concatenate the packets */
@@ -2149,7 +2149,7 @@ static void net_read_compressed_packet(NET *net, size_t &len) {
   size_t first_packet_offset;
   size_t buf_length;
   uint multi_byte_packet = 0;
-  DBUG_ASSERT(net->compress);
+  assert(net->compress);
   net_read_init_offsets(net, start_of_packet, first_packet_offset,
                         multi_byte_packet, buf_length);
   for (;;) {

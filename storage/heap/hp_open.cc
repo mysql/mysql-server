@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
   info->mode = mode;
   info->current_record = (ulong)~0L; /* No current record */
   info->lastinx = info->errkey = -1;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   info->opt_flag = READ_CHECK_USED; /* Check when changing */
 #endif
   DBUG_PRINT("exit", ("heap: %p  reclength: %d  records_in_block: %d", info,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
     case INFORMATION_LEVEL:
       break;
     default:
-      DBUG_ASSERT(0);  // should not come here
+      assert(0);  // should not come here
       // don't crash production builds, just do nothing
       mysql_mutex_unlock(&err_lock);
       return;
@@ -183,7 +183,7 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
                err_code);
 
   // we shouldn't really use client error codes here, so bomb out in debug mode
-  // DBUG_ASSERT(err_code >= ER_SERVER_RANGE_START);
+  // assert(err_code >= ER_SERVER_RANGE_START);
 }
 
 Slave_reporting_capability::~Slave_reporting_capability() {

@@ -27,9 +27,10 @@
 
 #include "storage/perfschema/table_processlist.h"
 
+#include <assert.h>
 #include "lex_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
@@ -139,7 +140,7 @@ int table_processlist::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_processlist_by_processlist_id);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
   m_opened_index = result;
   m_index = result;
@@ -319,7 +320,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -387,7 +388,7 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

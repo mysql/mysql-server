@@ -28,8 +28,9 @@
 
 #include "storage/perfschema/pfs_host.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "sql/mysqld.h"  // global_status_var
 #include "storage/perfschema/pfs.h"
@@ -69,9 +70,9 @@ static const uchar *host_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_host *host;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_host *const *>(entry);
-  DBUG_ASSERT(typed_entry != nullptr);
+  assert(typed_entry != nullptr);
   host = *typed_entry;
-  DBUG_ASSERT(host != nullptr);
+  assert(host != nullptr);
   *length = host->m_key.m_key_length;
   result = host->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -110,7 +111,7 @@ static LF_PINS *get_host_hash_pins(PFS_thread *thread) {
 
 static void set_host_key(PFS_host_key *key, const char *host,
                          uint host_length) {
-  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+  assert(host_length <= HOSTNAME_LENGTH);
 
   char *ptr = &key->m_hash_key[0];
   if (host_length > 0) {
@@ -336,7 +337,7 @@ static void purge_host(PFS_thread *thread, PFS_host *host) {
   entry = reinterpret_cast<PFS_host **>(lf_hash_search(
       &host_hash, pins, host->m_key.m_hash_key, host->m_key.m_key_length));
   if (entry && (entry != MY_LF_ERRPTR)) {
-    DBUG_ASSERT(*entry == host);
+    assert(*entry == host);
     if (host->get_refcount() == 0) {
       lf_hash_delete(&host_hash, pins, host->m_key.m_hash_key,
                      host->m_key.m_key_length);

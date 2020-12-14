@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "storage/innobase/include/fts0tokenize.h"
@@ -53,7 +53,7 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
   int ret = 0;
   bool is_first = true;
 
-  DBUG_ASSERT(cs->mbminlen == 1);
+  assert(cs->mbminlen == 1);
 
   start = const_cast<char *>(doc);
   next = start;
@@ -104,8 +104,8 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
     case MYSQL_FTPARSER_FULL_BOOLEAN_INFO:
     case MYSQL_FTPARSER_WITH_STOPWORDS:
       if (n_chars > 0 && is_first) {
-        DBUG_ASSERT(next > start);
-        DBUG_ASSERT(n_chars < ngram_token_size);
+        assert(next > start);
+        assert(n_chars < ngram_token_size);
 
         ret = param->mysql_add_word(param, start, next - start, bool_info);
       }
@@ -157,9 +157,9 @@ static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
   int token_size;
   int ret = 0;
 
-  DBUG_ASSERT(bool_info->type == FT_TOKEN_WORD);
-  DBUG_ASSERT(bool_info->quot == nullptr);
-  DBUG_ASSERT(cs->mbminlen == 1);
+  assert(bool_info->type == FT_TOKEN_WORD);
+  assert(bool_info->quot == nullptr);
+  assert(cs->mbminlen == 1);
 
   /* Convert rules:
   1. if term with wildcard and term length is less than ngram_token_size,
@@ -184,7 +184,7 @@ static int ngram_term_convert(MYSQL_FTPARSER_PARAM *param, const char *token,
     bool_info->type = FT_TOKEN_RIGHT_PAREN;
     ret = param->mysql_add_word(param, nullptr, 0, bool_info);
 
-    DBUG_ASSERT(bool_info->quot == nullptr);
+    assert(bool_info->quot == nullptr);
     bool_info->type = FT_TOKEN_WORD;
   }
 
@@ -225,8 +225,8 @@ static int ngram_parser_parse(MYSQL_FTPARSER_PARAM *param) {
             /* Term serach */
             ret = ngram_term_convert(param, reinterpret_cast<char *>(word.pos),
                                      word.len, &bool_info);
-            DBUG_ASSERT(bool_info.quot == nullptr);
-            DBUG_ASSERT(bool_info.type == FT_TOKEN_WORD);
+            assert(bool_info.quot == nullptr);
+            assert(bool_info.type == FT_TOKEN_WORD);
           }
         } else {
           ret = param->mysql_add_word(param, reinterpret_cast<char *>(word.pos),

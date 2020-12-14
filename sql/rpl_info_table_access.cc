@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
             binary_log::QUERY_EVENT &&
         !static_cast<Query_log_event *>(thd->rli_slave->current_event)
              ->has_ddl_committed) {
-      DBUG_ASSERT(thd->lex->sql_command == SQLCOM_END);
+      assert(thd->lex->sql_command == SQLCOM_END);
       DBUG_SUICIDE();
     }
   });

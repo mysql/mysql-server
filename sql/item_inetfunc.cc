@@ -55,8 +55,8 @@ static const char HEX_DIGITS[] = "0123456789abcdef";
 ///////////////////////////////////////////////////////////////////////////
 
 longlong Item_func_inet_aton::val_int() {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
 
   uint byte_result = 0;
@@ -126,8 +126,8 @@ err:
 ///////////////////////////////////////////////////////////////////////////
 
 String *Item_func_inet_ntoa::val_str(String *str) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
   ulonglong n = (ulonglong)args[0]->val_int();
 
@@ -190,7 +190,7 @@ String *Item_func_inet_ntoa::val_str(String *str) {
 */
 
 longlong Item_func_inet_bool_base::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   if (args[0]->result_type() != STRING_RESULT)  // String argument expected
     return 0;
@@ -219,8 +219,8 @@ longlong Item_func_inet_bool_base::val_int() {
 */
 
 String *Item_func_inet_str_base::val_str_ascii(String *buffer) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
   String *arg_str;
 
@@ -499,7 +499,7 @@ static bool str_to_ipv6(const char *str, int str_length,
       group_value <<= 4;
       group_value |= hdp - HEX_DIGITS;
 
-      DBUG_ASSERT(group_value <= 0xffff);
+      assert(group_value <= 0xffff);
 
       ++chars_in_group;
     }

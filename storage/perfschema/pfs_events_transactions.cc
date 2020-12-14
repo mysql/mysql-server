@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,12 @@
 
 #include "storage/perfschema/pfs_events_transactions.h"
 
+#include <assert.h>
 #include <atomic>
 
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysql/plugin.h"
 #include "storage/perfschema/pfs_account.h"
@@ -110,7 +111,7 @@ void insert_events_transactions_history(PFS_thread *thread,
     return;
   }
 
-  DBUG_ASSERT(thread->m_transactions_history != nullptr);
+  assert(thread->m_transactions_history != nullptr);
 
   uint index = thread->m_transactions_history_index;
 
@@ -142,7 +143,7 @@ void insert_events_transactions_history_long(
     return;
   }
 
-  DBUG_ASSERT(events_transactions_history_long_array != nullptr);
+  assert(events_transactions_history_long_array != nullptr);
 
   uint index = events_transactions_history_long_index.m_u32++;
 
@@ -251,7 +252,7 @@ bool xid_printable(PSI_xid *xid, size_t offset, size_t length) {
     return false;
   }
 
-  DBUG_ASSERT(offset + length <= MYSQL_XIDDATASIZE);
+  assert(offset + length <= MYSQL_XIDDATASIZE);
 
   unsigned char *c = (unsigned char *)&xid->data + offset;
 

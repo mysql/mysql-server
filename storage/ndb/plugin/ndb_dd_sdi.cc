@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ typedef rapidjson::PrettyWriter<dd::RJ_StringBuffer, dd::RJ_Encoding,
                                 dd::RJ_Encoding, dd::RJ_Allocator, 0>
     PrettyWriter;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /*
   @brief minify a JSON formatted SDI. Remove whitespace and other
   useless data.
@@ -97,9 +97,9 @@ dd::sdi_t ndb_dd_sdi_prettify(dd::sdi_t sdi) {
 
 static bool check_sdi_compatibility(const dd::RJ_Document &doc) {
   // Check mysql_version_id
-  DBUG_ASSERT(doc.HasMember("mysqld_version_id"));
+  assert(doc.HasMember("mysqld_version_id"));
   const dd::RJ_Value &mysqld_version_id = doc["mysqld_version_id"];
-  DBUG_ASSERT(mysqld_version_id.IsUint64());
+  assert(mysqld_version_id.IsUint64());
   if (mysqld_version_id.GetUint64() > std::uint64_t(MYSQL_VERSION_ID)) {
     // Cannot deserialize SDIs from newer versions
     my_error(ER_IMP_INCOMPATIBLE_MYSQLD_VERSION, MYF(0),
@@ -118,10 +118,10 @@ bool ndb_dd_sdi_deserialize(THD *thd, const dd::sdi_t &sdi, dd::Table *table) {
 
 dd::sdi_t ndb_dd_sdi_serialize(THD *thd, const dd::Table &table,
                                const dd::String_type &schema_name) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Verify that dd::serialize generates SDI in minimzed format
   dd::sdi_t sdi = dd::serialize(thd, table, schema_name);
-  DBUG_ASSERT(minify(sdi) == sdi);
+  assert(minify(sdi) == sdi);
 #endif
   return dd::serialize(thd, table, schema_name);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,19 +58,19 @@ bool IO_CACHE_ostream::close() {
 }
 
 bool IO_CACHE_ostream::seek(my_off_t offset) {
-  DBUG_ASSERT(my_b_inited(&m_io_cache));
+  assert(my_b_inited(&m_io_cache));
   return reinit_io_cache(&m_io_cache, WRITE_CACHE, offset, false, true);
 }
 
 bool IO_CACHE_ostream::write(const unsigned char *buffer, my_off_t length) {
-  DBUG_ASSERT(my_b_inited(&m_io_cache));
+  assert(my_b_inited(&m_io_cache));
   DBUG_EXECUTE_IF("simulate_ostream_write_failure", return true;);
   return my_b_safe_write(&m_io_cache, buffer, length);
 }
 
 bool IO_CACHE_ostream::truncate(my_off_t offset) {
-  DBUG_ASSERT(my_b_inited(&m_io_cache));
-  DBUG_ASSERT(m_io_cache.file != -1);
+  assert(my_b_inited(&m_io_cache));
+  assert(m_io_cache.file != -1);
 
   if (my_chsize(m_io_cache.file, offset, 0, MYF(MY_WME))) return true;
 
@@ -79,12 +79,12 @@ bool IO_CACHE_ostream::truncate(my_off_t offset) {
 }
 
 bool IO_CACHE_ostream::flush() {
-  DBUG_ASSERT(my_b_inited(&m_io_cache));
+  assert(my_b_inited(&m_io_cache));
   return flush_io_cache(&m_io_cache);
 }
 
 bool IO_CACHE_ostream::sync() {
-  DBUG_ASSERT(my_b_inited(&m_io_cache));
+  assert(my_b_inited(&m_io_cache));
   return mysql_file_sync(m_io_cache.file, MYF(MY_WME)) != 0;
 }
 

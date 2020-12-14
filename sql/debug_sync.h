@@ -1,7 +1,7 @@
 #ifndef DEBUG_SYNC_INCLUDED
 #define DEBUG_SYNC_INCLUDED
 
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,10 +71,10 @@ extern void conditional_sync_point(std::string name);
   This macro simplifies when a DBUG_EXECUTE_IF will generate a given
   signal and then will wait for another signal to continue.
 */
-#define DBUG_SIGNAL_WAIT_FOR(T, A, B, C)                          \
-  DBUG_EXECUTE_IF(A, {                                            \
-    const char act[] = "now SIGNAL " B " WAIT_FOR " C;            \
-    DBUG_ASSERT(!debug_sync_set_action(T, STRING_WITH_LEN(act))); \
+#define DBUG_SIGNAL_WAIT_FOR(T, A, B, C)                     \
+  DBUG_EXECUTE_IF(A, {                                       \
+    const char act[] = "now SIGNAL " B " WAIT_FOR " C;       \
+    assert(!debug_sync_set_action(T, STRING_WITH_LEN(act))); \
   };)
 
 /**

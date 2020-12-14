@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ struct Buffer {
   @return error if allocation fails. */
   int allocate(size_t length) {
     if (m_length >= length) {
-      DBUG_ASSERT(m_buffer != nullptr);
+      assert(m_buffer != nullptr);
       return (0);
     }
 
@@ -269,7 +269,7 @@ struct Data_Link {
   correct handle type.
   @return clone buffer */
   Buffer *get_buffer() {
-    DBUG_ASSERT(m_type == CLONE_HANDLE_BUFFER);
+    assert(m_type == CLONE_HANDLE_BUFFER);
     return (&m_buffer);
   }
 
@@ -287,7 +287,7 @@ struct Data_Link {
   correct handle type.
   @return clone file */
   File *get_file() {
-    DBUG_ASSERT(m_type == CLONE_HANDLE_FILE);
+    assert(m_type == CLONE_HANDLE_FILE);
     return (&m_file);
   }
 

@@ -473,7 +473,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
               return true;
             break;
           default:
-            DBUG_ASSERT(0);  // never should happened
+            assert(0);  // never should happened
         }
       } else {
         ptr = line;

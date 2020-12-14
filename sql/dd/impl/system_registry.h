@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef DD__SYSTEM_REGISTRY_INCLUDED
 #define DD__SYSTEM_REGISTRY_INCLUDED
 
+#include <assert.h>
 #include <stdio.h>
 #include <map>
 #include <new>
@@ -30,7 +31,6 @@
 #include <utility>
 #include <vector>
 
-#include "my_dbug.h"
 #include "mysqld_error.h"        // ER_NO_SYSTEM_TABLE_...
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/dd/types/object_table.h"
@@ -83,7 +83,7 @@ class Entity_element {
 
   const P *property_ptr() const { return &m_property; }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const {
     fprintf(stderr, "Key= '%s.%s', property= '%s'\n", m_key.first.c_str(),
             m_key.second.c_str(), F(m_property));
@@ -163,7 +163,7 @@ class Entity_registry {
            P property, T *entity) {
     // Create a new key and make sure it does not already exist.
     K key(schema_name, entity_name);
-    DBUG_ASSERT(m_entity_map.find(key) == m_entity_map.end());
+    assert(m_entity_map.find(key) == m_entity_map.end());
 
     // Create a new entity wrapper element. The wrapper will be owned by the
     // entity map and deleted along with it.
@@ -308,7 +308,7 @@ class Entity_registry {
     return current;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const {
     // List the entities in the order they were inserted.
     for (Const_iterator it = begin(); it != end(); ++it) (*it)->dump();
@@ -385,7 +385,7 @@ class System_tables {
         type == Types::PFS || type == Types::SYSTEM)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
 
-    DBUG_ASSERT(false);
+    assert(false);
     return ER_NO_SYSTEM_TABLE_ACCESS_FOR_TABLE;
   }
 
@@ -435,7 +435,7 @@ class System_tables {
     return m_registry.next(current, type);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const { m_registry.dump(); }
 #endif
 };
@@ -520,7 +520,7 @@ class System_views {
     return m_registry.next(current, type);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const { m_registry.dump(); }
 #endif
 };
@@ -591,7 +591,7 @@ class System_tablespaces {
     return m_registry.next(current, type);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dump() const { m_registry.dump(); }
 #endif
 };

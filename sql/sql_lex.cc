@@ -282,8 +282,8 @@ void Lex_input_stream::reset(const char *buffer, size_t length) {
 */
 
 void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr) {
-  DBUG_ASSERT(begin_ptr);
-  DBUG_ASSERT(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
+  assert(begin_ptr);
+  assert(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
 
   size_t body_utf8_length =
       (m_buf_length / thd->variables.character_set_client->mbminlen) *
@@ -318,8 +318,8 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr) {
 */
 
 void Lex_input_stream::body_utf8_append(const char *ptr, const char *end_ptr) {
-  DBUG_ASSERT(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
-  DBUG_ASSERT(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
+  assert(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
+  assert(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
 
   if (!m_body_utf8) return;
 
@@ -397,8 +397,8 @@ void Lex_input_stream::reduce_digest_token(uint token_left, uint token_right) {
 void LEX::assert_ok_set_current_query_block() {
   // (2) Only owning thread could change m_current_query_block
   // (1) bypass for bootstrap and "new THD"
-  DBUG_ASSERT(!current_thd || !thd ||  //(1)
-              thd == current_thd);     //(2)
+  assert(!current_thd || !thd ||  //(1)
+         thd == current_thd);     //(2)
 }
 
 LEX::~LEX() {
@@ -514,7 +514,7 @@ bool lex_start(THD *thd) {
   thd->init_cost_model();
 
   const bool status = lex->new_top_level_query();
-  DBUG_ASSERT(lex->current_query_block() == nullptr);
+  assert(lex->current_query_block() == nullptr);
   lex->m_current_query_block = lex->query_block;
 
   lex->m_IS_table_stats.invalidate_cache();
@@ -660,7 +660,7 @@ Query_block *LEX::new_query(Query_block *curr_query_block) {
       - subqueries in INSERT ... ON DUPLICATE KEY UPDATE clauses,
         when the outer query expression is a UNION.
     */
-    DBUG_ASSERT(select->context.outer_context == nullptr);
+    assert(select->context.outer_context == nullptr);
   } else {
     select->context.outer_context = outer_context;
   }
@@ -690,7 +690,7 @@ Query_block *LEX::new_union_query(Query_block *curr_query_block,
                                   bool distinct) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(unit != nullptr && query_block != nullptr);
+  assert(unit != nullptr && query_block != nullptr);
 
   // Is this the outer-most query expression?
   bool const outer_most = curr_query_block->master_query_expression() == unit;
@@ -747,10 +747,10 @@ bool LEX::new_top_level_query() {
   DBUG_TRACE;
 
   // Assure that the LEX does not contain any query expression already
-  DBUG_ASSERT(unit == nullptr && query_block == nullptr);
+  assert(unit == nullptr && query_block == nullptr);
 
   // Check for the special situation when using INTO OUTFILE and LOAD DATA.
-  DBUG_ASSERT(result == nullptr);
+  assert(result == nullptr);
 
   query_block = new_query(nullptr);
   if (query_block == nullptr) return true; /* purecov: inspected */
@@ -783,8 +783,8 @@ void LEX::new_static_query(Query_expression *sel_query_expression,
 
   reset();
 
-  DBUG_ASSERT(unit == nullptr && query_block == nullptr &&
-              current_query_block() == nullptr);
+  assert(unit == nullptr && query_block == nullptr &&
+         current_query_block() == nullptr);
 
   select->parent_lex = this;
 
@@ -918,7 +918,7 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function) {
 */
 
 bool is_keyword(const char *name, size_t len) {
-  DBUG_ASSERT(len != 0);
+  assert(len != 0);
   return Lex_hash::sql_keywords.get_hash_symbol(name, len) != nullptr;
 }
 
@@ -933,7 +933,7 @@ bool is_keyword(const char *name, size_t len) {
 */
 
 bool is_lex_native_function(const LEX_STRING *name) {
-  DBUG_ASSERT(name != nullptr);
+  assert(name != nullptr);
   return Lex_hash::sql_keywords_and_funcs.get_hash_symbol(
              name->str, (uint)name->length) != nullptr;
 }
@@ -1029,7 +1029,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
       /* Extract the text from the token */
       str += pre_skip;
       end -= post_skip;
-      DBUG_ASSERT(end >= str);
+      assert(end >= str);
 
       if (!(start =
                 static_cast<char *>(lip->m_thd->alloc((uint)(end - str) + 1))))
@@ -1096,7 +1096,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
 }
 
 uint Lex_input_stream::get_lineno(const char *raw_ptr) const {
-  DBUG_ASSERT(m_buf <= raw_ptr && raw_ptr <= m_end_of_query);
+  assert(m_buf <= raw_ptr && raw_ptr <= m_end_of_query);
   if (!(m_buf <= raw_ptr && raw_ptr <= m_end_of_query)) return 1;
 
   uint ret = 1;
@@ -1218,8 +1218,8 @@ static inline uint int_token(const char *str, uint length) {
 static bool consume_comment(Lex_input_stream *lip,
                             int remaining_recursions_permitted) {
   // only one level of nested comments are allowed
-  DBUG_ASSERT(remaining_recursions_permitted == 0 ||
-              remaining_recursions_permitted == 1);
+  assert(remaining_recursions_permitted == 0 ||
+         remaining_recursions_permitted == 1);
   uchar c;
   while (!lip->eof()) {
     c = lip->yyGet();
@@ -2102,7 +2102,7 @@ Query_expression::Query_expression(enum_parsing_context parsing_context)
       break;
     default:
       /* Subquery can't happen outside of those ^. */
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       break;
   }
 }
@@ -2187,7 +2187,7 @@ void Query_expression::exclude_level() {
   while (sl) {
     // Exclusion can only be done prior to optimization or if the subquery is
     // already executed because it might not be using any tables (const item).
-    DBUG_ASSERT(sl->join == nullptr || is_executed());
+    assert(sl->join == nullptr || is_executed());
     if (sl->join != nullptr) sl->join->destroy();
 
     Query_block *next_query_block = sl->next_query_block();
@@ -2338,7 +2338,7 @@ void Query_block::make_active_options(ulonglong added_options,
 
 void Query_block::mark_as_dependent(Query_block *last, bool aggregate) {
   // The top level query block cannot be dependent, so do not go above this:
-  DBUG_ASSERT(last != nullptr);
+  assert(last != nullptr);
 
   /*
     Mark all selects from resolved to 1 before select where was
@@ -2655,7 +2655,7 @@ typedef Prealloced_array<TABLE_LIST *, 8> Table_array;
 static void print_table_array(const THD *thd, String *str,
                               const Table_array &tables,
                               enum_query_type query_type) {
-  DBUG_ASSERT(!tables.empty());
+  assert(!tables.empty());
 
   Table_array::const_iterator it = tables.begin();
   bool first = true;
@@ -3084,9 +3084,8 @@ bool Query_block::print_error(const THD *thd, String *str) {
     completely cleaned till the end of the query. This is valid only for
     explainable commands.
   */
-  DBUG_ASSERT(
-      !(master_query_expression()->cleaned == Query_expression::UC_CLEAN &&
-        is_explainable_query(thd->lex->sql_command)));
+  assert(!(master_query_expression()->cleaned == Query_expression::UC_CLEAN &&
+           is_explainable_query(thd->lex->sql_command)));
   return false;
 }
 
@@ -3680,7 +3679,7 @@ bool LEX::need_correct_ident() {
 
 bool LEX::copy_db_to(char const **p_db, size_t *p_db_length) const {
   if (sphead) {
-    DBUG_ASSERT(sphead->m_db.str && sphead->m_db.length);
+    assert(sphead->m_db.str && sphead->m_db.length);
     /*
       It is safe to assign the string by-pointer, both sphead and
       its statements reside in the same memory root.
@@ -3820,7 +3819,7 @@ void Query_expression::renumber_selects(LEX *lex) {
   @returns false if success, true if error (out of memory)
 */
 bool Query_expression::save_cmd_properties(THD *thd) {
-  DBUG_ASSERT(is_prepared());
+  assert(is_prepared());
   for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block())
     if (sl->save_cmd_properties(thd)) return true;
 
@@ -4210,7 +4209,7 @@ bool LEX::locate_var_assignment(const Name_string &name) {
 */
 bool Query_block::save_order_properties(THD *thd, SQL_I_List<ORDER> *list,
                                         Group_list_ptrs **list_ptrs) {
-  DBUG_ASSERT(*list_ptrs == nullptr);
+  assert(*list_ptrs == nullptr);
   void *mem = thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
   if (mem == nullptr) return true;
   Group_list_ptrs *p = new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
@@ -4232,9 +4231,9 @@ bool Query_block::save_order_properties(THD *thd, SQL_I_List<ORDER> *list,
   @returns false if success, true if error (out of memory)
 */
 bool Query_block::save_properties(THD *thd) {
-  DBUG_ASSERT(first_execution);
+  assert(first_execution);
   first_execution = false;
-  DBUG_ASSERT(!thd->stmt_arena->is_regular());
+  assert(!thd->stmt_arena->is_regular());
   if (thd->stmt_arena->is_regular()) return false;
   if (group_list.first &&
       save_order_properties(thd, &group_list, &group_list_ptrs))
@@ -4285,7 +4284,7 @@ enum_explain_type Query_block::type() {
         Query_expression::include_down() does.
 */
 void Query_block::include_down(LEX *lex, Query_expression *outer) {
-  DBUG_ASSERT(slave == nullptr);
+  assert(slave == nullptr);
 
   if ((next = outer->slave)) next->prev = &next;
   prev = &outer->slave;
@@ -4422,7 +4421,7 @@ bool Query_block::get_optimizable_conditions(THD *thd, Item **new_where,
     join->optimized is true => conditions are ready for reading.
     So if we are here, this should hold:
   */
-  DBUG_ASSERT(!(join && join->is_optimized()));
+  assert(!(join && join->is_optimized()));
   if (m_where_cond && !thd->stmt_arena->is_regular()) {
     *new_where = m_where_cond->copy_andor_structure(thd);
     if (!*new_where) return true;
@@ -4567,11 +4566,10 @@ bool Query_block::validate_outermost_option(LEX *lex,
 */
 
 bool Query_block::validate_base_options(LEX *lex, ulonglong options_arg) const {
-  DBUG_ASSERT(
-      !(options_arg &
-        ~(SELECT_STRAIGHT_JOIN | SELECT_HIGH_PRIORITY | SELECT_DISTINCT |
-          SELECT_ALL | SELECT_SMALL_RESULT | SELECT_BIG_RESULT |
-          OPTION_BUFFER_RESULT | OPTION_FOUND_ROWS | OPTION_SELECT_FOR_SHOW)));
+  assert(!(options_arg & ~(SELECT_STRAIGHT_JOIN | SELECT_HIGH_PRIORITY |
+                           SELECT_DISTINCT | SELECT_ALL | SELECT_SMALL_RESULT |
+                           SELECT_BIG_RESULT | OPTION_BUFFER_RESULT |
+                           OPTION_FOUND_ROWS | OPTION_SELECT_FOR_SHOW)));
 
   if (options_arg & SELECT_DISTINCT && options_arg & SELECT_ALL) {
     my_error(ER_WRONG_USAGE, MYF(0), "ALL", "DISTINCT");
@@ -4612,7 +4610,7 @@ static bool walk_join_condition(mem_root_deque<TABLE_LIST *> *tables,
 }
 
 void Query_expression::accumulate_used_tables(table_map map) {
-  DBUG_ASSERT(outer_query_block());
+  assert(outer_query_block());
   if (item)
     item->accumulate_used_tables(map);
   else if (m_lateral_deps)
@@ -4620,7 +4618,7 @@ void Query_expression::accumulate_used_tables(table_map map) {
 }
 
 enum_parsing_context Query_expression::place() const {
-  DBUG_ASSERT(outer_query_block());
+  assert(outer_query_block());
   if (item != nullptr) return item->place();
   return CTX_DERIVED;
 }
@@ -4747,7 +4745,7 @@ void Query_block::restore_cmd_properties() {
     tbl->restore_properties();
     tbl->table->m_record_buffer = Record_buffer{0, 0, nullptr};
   }
-  DBUG_ASSERT(join == nullptr);
+  assert(join == nullptr);
 
   // Restore GROUP BY list
   if (group_list_ptrs && group_list_ptrs->size() > 0) {
@@ -4887,7 +4885,7 @@ bool LEX::make_sql_cmd(Parse_tree_root *parse_tree) {
   m_sql_cmd = parse_tree->make_cmd(thd);
   if (m_sql_cmd == nullptr) return true;
 
-  DBUG_ASSERT(m_sql_cmd->sql_command_code() == sql_command);
+  assert(m_sql_cmd->sql_command_code() == sql_command);
 
   return false;
 }
@@ -5029,7 +5027,7 @@ void binlog_unsafe_map_init() {
 
 void LEX::set_secondary_engine_execution_context(
     Secondary_engine_execution_context *context) {
-  DBUG_ASSERT(m_secondary_engine_context == nullptr || context == nullptr);
+  assert(m_secondary_engine_context == nullptr || context == nullptr);
   ::destroy(m_secondary_engine_context);
   m_secondary_engine_context = context;
 }

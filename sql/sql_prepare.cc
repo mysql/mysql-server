@@ -569,7 +569,7 @@ static void set_param_datetime(Item_param *param, uchar **pos, ulong len) {
   enum_mysql_timestamp_type type = MYSQL_TIMESTAMP_DATETIME;
   uchar *to = *pos;
 
-  DBUG_ASSERT(len == 0 || len == 4 || len == 7 || len == 11 || len == 13);
+  assert(len == 0 || len == 4 || len == 7 || len == 11 || len == 13);
   if (len < 4) {
     set_zero_time(&tm, MYSQL_TIMESTAMP_DATETIME);
   } else {
@@ -777,8 +777,7 @@ bool Prepared_statement::insert_params(String *query, PS_PARAM *parameters) {
       }
 
       // Pinning of data types only implemented for integers
-      DBUG_ASSERT(!param->is_type_pinned() ||
-                  param->result_type() == INT_RESULT);
+      assert(!param->is_type_pinned() || param->result_type() == INT_RESULT);
 
       if (param->is_type_pinned()) {
         // Accept string values from client
@@ -1058,7 +1057,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt, TABLE_LIST *tables,
   THD *thd = stmt->thd;
   set_var_base *var;
   DBUG_TRACE;
-  DBUG_ASSERT(stmt->m_arena.is_stmt_prepare());
+  assert(stmt->m_arena.is_stmt_prepare());
 
   if (tables &&
       check_table_access(thd, SELECT_ACL, tables, false, UINT_MAX, false))
@@ -1172,7 +1171,7 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
 
 static bool mysql_test_create_view(Prepared_statement *stmt) {
   DBUG_TRACE;
-  DBUG_ASSERT(stmt->m_arena.is_stmt_prepare());
+  assert(stmt->m_arena.is_stmt_prepare());
 
   THD *thd = stmt->thd;
   LEX *lex = stmt->lex;
@@ -1247,7 +1246,7 @@ err:
 
 bool Prepared_statement::prepare_query() {
   DBUG_TRACE;
-  DBUG_ASSERT(lex == thd->lex);  // set_n_backup_active_arena() guarantees that
+  assert(lex == thd->lex);  // set_n_backup_active_arena() guarantees that
   Query_block *query_block = lex->query_block;
   enum enum_sql_command sql_command = lex->sql_command;
   int res = 0;
@@ -1541,7 +1540,7 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
                          Prepared_statement *stmt) {
   DBUG_TRACE;
   DBUG_PRINT("prep_query", ("%s", query));
-  DBUG_ASSERT(stmt != nullptr);
+  assert(stmt != nullptr);
 
   bool switch_protocol = thd->is_classic_protocol();
   if (switch_protocol) {
@@ -1642,7 +1641,7 @@ bool mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
       break;
     }
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return true;
   }
   return false;
@@ -1713,7 +1712,7 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len) {
         NULL value of variable checked early as entry->value so here
         we can't get NULL in normal conditions
       */
-      DBUG_ASSERT(!is_var_null);
+      assert(!is_var_null);
       if (!var_value) goto end;
     } else {
       mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -2026,7 +2025,7 @@ void mysqld_stmt_close(THD *thd, Prepared_statement *stmt) {
     The only way currently a statement can be deallocated when it's
     in use is from within Dynamic SQL.
   */
-  DBUG_ASSERT(!stmt->is_in_use());
+  assert(!stmt->is_in_use());
   MYSQL_DESTROY_PS(stmt->m_prepared_stmt);
   stmt->deallocate();
   query_logger.general_log_print(thd, thd->get_command(), NullS);
@@ -2185,7 +2184,7 @@ bool Reprepare_observer::report_error(THD *thd) {
 bool ask_to_reprepare(THD *thd) {
   Reprepare_observer *reprepare_observer = thd->get_reprepare_observer();
   if (reprepare_observer != nullptr && reprepare_observer->report_error(thd)) {
-    DBUG_ASSERT(thd->is_error());
+    assert(thd->is_error());
     return true;
   }
   return false;
@@ -2359,7 +2358,7 @@ Prepared_statement::~Prepared_statement() {
   */
   m_arena.free_items();
   if (lex) {
-    DBUG_ASSERT(lex->sphead == nullptr);
+    assert(lex->sphead == nullptr);
     lex_end(lex);
     destroy(lex->result);
     lex->destroy();
@@ -2548,7 +2547,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
     If called from a stored procedure, ensure that we won't rollback
     external changes when cleaning up after validation.
   */
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
 
   /*
     Marker used to release metadata locks acquired while the prepared
@@ -2576,14 +2575,14 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
     if (lex->opt_hints_global && lex->opt_hints_global->sys_var_hint)
       lex->opt_hints_global->sys_var_hint->restore_vars(thd);
   }
-  DBUG_ASSERT(error || !thd->is_error());
+  assert(error || !thd->is_error());
 
   /*
     Currently CREATE PROCEDURE/TRIGGER/EVENT are prohibited in prepared
     statements: ensure we have no memory leak here if by someone tries
     to PREPARE stmt FROM "CREATE PROCEDURE ..."
   */
-  DBUG_ASSERT(lex->sphead == nullptr || error != 0);
+  assert(lex->sphead == nullptr || error != 0);
   /* The order is important */
   lex->cleanup(thd, true);
 
@@ -2600,7 +2599,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
     Once dynamic SQL is allowed as substatements the below if-statement
     has to be adjusted to not do rollback in substatement.
   */
-  DBUG_ASSERT(!thd->in_sub_stmt);
+  assert(!thd->in_sub_stmt);
   if (thd->transaction_rollback_request) {
     trans_rollback_implicit(thd);
     thd->mdl_context.release_transactional_locks();
@@ -2755,7 +2754,7 @@ bool Prepared_statement::check_parameter_types() {
   for (Item_param **it = param_array; it < end; ++it) {
     Item_param *const item = *it;
 
-    DBUG_ASSERT(item->param_state() != Item_param::NO_VALUE);
+    assert(item->param_state() != Item_param::NO_VALUE);
 
     /*
       - An inherited type is always accepted, it is like a dynamic cast and
@@ -2829,7 +2828,7 @@ bool Prepared_statement::check_parameter_types() {
           Parameters of type DECIMAL have large precisions, so they can
           also accomodate any integer values, both signed and unsigned.
         */
-        DBUG_ASSERT(item->decimal_precision() - item->decimals >= 20);
+        assert(item->decimal_precision() - item->decimals >= 20);
         if (item->param_state() != Item_param::INT_VALUE &&
             item->param_state() != Item_param::DECIMAL_VALUE)
           return false;
@@ -2888,7 +2887,7 @@ bool Prepared_statement::check_parameter_types() {
         break;
       case INVALID_RESULT:
       case ROW_RESULT:
-        DBUG_ASSERT(false);
+        assert(false);
     }
   }
 
@@ -2935,7 +2934,7 @@ bool Prepared_statement::execute_loop(String *expanded_query,
     return true;
   }
 
-  DBUG_ASSERT(!thd->get_stmt_da()->is_set());
+  assert(!thd->get_stmt_da()->is_set());
 
   if (unlikely(!thd->security_context()->account_is_locked() &&
                thd->security_context()->password_expired() &&
@@ -2956,7 +2955,7 @@ bool Prepared_statement::execute_loop(String *expanded_query,
   // Note: this is not possible in current code base, hence the assert.
   if (m_active_protocol != nullptr &&
       m_active_protocol != thd->get_protocol()) {
-    DBUG_ASSERT(false);
+    assert(false);
     if (reprepare()) return true;
   }
 
@@ -2966,11 +2965,11 @@ reexecute:
     allocated items when cleaning up after validation of the prepared
     statement.
   */
-  DBUG_ASSERT(thd->item_list() == nullptr);
+  assert(thd->item_list() == nullptr);
 
   if (!check_parameter_types()) {
     // Only one reprepare is required in case of parameter mismatch
-    DBUG_ASSERT(!reprepared_for_types);
+    assert(!reprepared_for_types);
     reprepared_for_types = true;
     if (reprepare()) return true;
     goto reexecute;
@@ -3002,7 +3001,7 @@ reexecute:
     // If we have an error due to a metadata change, reprepare the
     // statement and execute it again.
     if (reprepare_observer.is_invalidated()) {
-      DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
+      assert(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
 
       if ((reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS) &&
           DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
@@ -3027,10 +3026,10 @@ reexecute:
       if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE ||
           (err_seen == ER_NEED_REPREPARE &&
            reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)) {
-        DBUG_ASSERT((thd->secondary_engine_optimization() ==
-                     Secondary_engine_optimization::PRIMARY_TENTATIVELY) ||
-                    err_seen == ER_NEED_REPREPARE);
-        DBUG_ASSERT(!lex->unit->is_executed());
+        assert((thd->secondary_engine_optimization() ==
+                Secondary_engine_optimization::PRIMARY_TENTATIVELY) ||
+               err_seen == ER_NEED_REPREPARE);
+        assert(!lex->unit->is_executed());
         thd->clear_error();
         if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE)
           thd->set_secondary_engine_optimization(
@@ -3057,7 +3056,7 @@ reexecute:
         error = reprepare();
         if (!error) {
           // The reprepared statement should not use a secondary engine.
-          DBUG_ASSERT(!lex->m_sql_cmd->using_secondary_storage_engine());
+          assert(!lex->m_sql_cmd->using_secondary_storage_engine());
           lex->m_sql_cmd->disable_secondary_storage_engine();
         }
       }
@@ -3185,7 +3184,7 @@ bool Prepared_statement::reprepare() {
     A new parameter array was created by prepare(). Make sure it contains the
     same values as the original array.
   */
-  DBUG_ASSERT(param_count == copy.param_count);
+  assert(param_count == copy.param_count);
   swap_parameter_array(param_array, copy.param_array, param_count);
 
   /*
@@ -3283,7 +3282,7 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   // Need a new cursor, if requested
   std::swap(cursor, copy->cursor);
 
-  DBUG_ASSERT(thd == copy->thd);
+  assert(thd == copy->thd);
 }
 
 /**
@@ -3362,7 +3361,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
     If the free_list is not empty, we'll wrongly free some externally
     allocated items when cleaning up after execution of this statement.
   */
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
 
   /*
    The only case where we should have items in the thd->m_item_list is
@@ -3434,9 +3433,9 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
       if (result != nullptr) {
         m_active_protocol = thd->get_protocol();
         if (thd->is_classic_protocol())
-          DBUG_ASSERT(dynamic_cast<Query_fetch_protocol_binary *>(result));
+          assert(dynamic_cast<Query_fetch_protocol_binary *>(result));
         else
-          DBUG_ASSERT(dynamic_cast<Query_result_send *>(result));
+          assert(dynamic_cast<Query_result_send *>(result));
       } else if (thd->is_classic_protocol())
         result = new (m_arena.mem_root) Query_fetch_protocol_binary(thd);
       else
@@ -3875,7 +3874,7 @@ bool Protocol_local::send_ok(uint, uint, ulonglong, ulonglong, const char *) {
 bool Protocol_local::send_eof(uint, uint) {
   Ed_result_set *ed_result_set;
 
-  DBUG_ASSERT(m_rset);
+  assert(m_rset);
   m_current_row = nullptr;
 
   ed_result_set = new (&m_rset_root)
@@ -3930,7 +3929,7 @@ void Protocol_local::start_row() {
   DBUG_TRACE;
 
   if (m_send_metadata) return;
-  DBUG_ASSERT(alloc_root_inited(&m_rset_root));
+  assert(alloc_root_inited(&m_rset_root));
 
   /* Start a new row. */
   m_current_row =
@@ -3945,7 +3944,7 @@ bool Protocol_local::end_row() {
   DBUG_TRACE;
   if (m_send_metadata) return false;
 
-  DBUG_ASSERT(m_rset);
+  assert(m_rset);
   opt_add_row_to_rset();
   m_current_row = nullptr;
 

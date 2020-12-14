@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,13 @@
 
 #include "sql/opt_hints.h"
 
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <algorithm>
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_table_map.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
@@ -191,7 +192,7 @@ void Opt_hints::check_unresolved(THD *thd) {
 PT_hint *Opt_hints_global::get_complex_hints(opt_hints_enum type) {
   if (type == MAX_EXEC_TIME_HINT_ENUM) return max_exec_time;
 
-  DBUG_ASSERT(0);
+  assert(0);
   return nullptr;
 }
 
@@ -217,7 +218,7 @@ PT_hint *Opt_hints_qb::get_complex_hints(opt_hints_enum type) {
 
   if (type == SUBQUERY_HINT_ENUM) return subquery_hint;
 
-  DBUG_ASSERT(0);
+  assert(0);
   return nullptr;
 }
 
@@ -363,7 +364,7 @@ static table_map get_other_dep(opt_hints_enum type, table_map hint_tab_map,
     case JOIN_ORDER_HINT_ENUM:
       return 0;  // No additional dependencies
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return 0;
@@ -578,7 +579,7 @@ bool is_compound_hint(opt_hints_enum type_arg) {
 }
 
 PT_hint *Opt_hints_table::get_complex_hints(opt_hints_enum type) {
-  DBUG_ASSERT(is_compound_hint(type));
+  assert(is_compound_hint(type));
   return get_compound_key_hint(type)->get_pt_hint();
 }
 
@@ -810,9 +811,9 @@ void Sys_var_hint::restore_vars(THD *thd) {
       /*
         There should be no error since original value is restored.
       */
-#ifndef DBUG_OFF
-      DBUG_ASSERT(!var->check(thd));
-      DBUG_ASSERT(!var->update(thd));
+#ifndef NDEBUG
+      assert(!var->check(thd));
+      assert(!var->update(thd));
 #else
       (void)var->check(thd);
       (void)var->update(thd);
@@ -849,7 +850,7 @@ void Sys_var_hint::print(const THD *thd, String *str) {
 
 static bool get_hint_state(Opt_hints *hint, Opt_hints *parent_hint,
                            opt_hints_enum type_arg, bool *ret_val) {
-  DBUG_ASSERT(parent_hint);
+  assert(parent_hint);
 
   if (opt_hint_info[type_arg].switch_hint) {
     if (hint && hint->is_specified(type_arg)) {
@@ -939,7 +940,7 @@ bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge) {
   bool force_index_merge = hint_table_state(
       table->in_use, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
   if (force_index_merge) {
-    DBUG_ASSERT(table->pos_in_table_list->opt_hints_table);
+    assert(table->pos_in_table_list->opt_hints_table);
     Opt_hints_table *table_hints = table->pos_in_table_list->opt_hints_table;
     /*
       If INDEX_MERGE hint is used without only specified index,

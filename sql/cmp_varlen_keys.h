@@ -23,10 +23,10 @@
 #ifndef CMP_VARLEN_KEYS_INCLUDED
 #define CMP_VARLEN_KEYS_INCLUDED
 
+#include <assert.h>
 #include <stdio.h>
 #include <functional>
 
-#include "my_dbug.h"
 #include "sql/sort_param.h"
 #include "sql/sql_array.h"
 
@@ -63,8 +63,8 @@ inline bool cmp_varlen_keys(
       }
     }
     if (sort_field.is_varlen) {
-      DBUG_ASSERT(uint4korr(kp1) >= 4);
-      DBUG_ASSERT(uint4korr(kp2) >= 4);
+      assert(uint4korr(kp1) >= 4);
+      assert(uint4korr(kp2) >= 4);
 
       kp1_len = uint4korr(kp1) - 4;
       kp1 += 4;

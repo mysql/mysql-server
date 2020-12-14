@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 
 #include "storage/perfschema/pfs_variable.h"
 
+#include <assert.h>
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -32,7 +33,7 @@
   @file storage/perfschema/pfs_variable.cc
   Performance schema system variable and status variable (implementation).
 */
-#include "my_dbug.h"
+
 #include "my_macros.h"
 #include "my_sys.h"
 #include "sql/current_thd.h"
@@ -91,7 +92,7 @@ PFS_system_variable_cache::PFS_system_variable_cache(bool external_init)
 */
 bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
                                                     bool strict) {
-  DBUG_ASSERT(!m_initialized);
+  assert(!m_initialized);
   m_query_scope = scope;
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
@@ -173,7 +174,7 @@ int PFS_system_variable_cache::do_materialize_global(void) {
   for (Show_var_array::iterator show_var = m_show_var_array.begin();
        show_var->value && (show_var != m_show_var_array.end()); show_var++) {
     sys_var *value = (sys_var *)show_var->value;
-    DBUG_ASSERT(value);
+    assert(value);
 
     /* Match the system variable scope to the target scope. */
     if (match_scope(value->scope())) {
@@ -291,7 +292,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   mysql_mutex_lock(&LOCK_plugin_delete);
 
   /* The SHOW_VAR array must be initialized externally. */
-  DBUG_ASSERT(m_initialized);
+  assert(m_initialized);
 
   /* Use a temporary mem_root to avoid depleting THD mem_root. */
   if (m_use_mem_root) {
@@ -345,7 +346,7 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread,
   mysql_mutex_lock(&LOCK_plugin_delete);
 
   /* The SHOW_VAR array must be initialized externally. */
-  DBUG_ASSERT(m_initialized);
+  assert(m_initialized);
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(pfs_thread)) != nullptr) {
@@ -631,7 +632,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   }
 
   enum_mysql_show_type show_var_type = show_var->type;
-  DBUG_ASSERT(show_var_type == SHOW_SYS);
+  assert(show_var_type == SHOW_SYS);
   THD *current_thread = current_thd;
 
   m_name = show_var->name;
@@ -645,7 +646,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   mysql_mutex_lock(&LOCK_global_system_variables);
 
   sys_var *system_var = (sys_var *)show_var->value;
-  DBUG_ASSERT(system_var != nullptr);
+  assert(system_var != nullptr);
   m_charset = system_var->charset(target_thd);
   m_type = system_var->show_type();
   m_scope = system_var->scope();
@@ -693,7 +694,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
   mysql_mutex_lock(&LOCK_global_system_variables);
 
   sys_var *system_var = (sys_var *)show_var->value;
-  DBUG_ASSERT(system_var != nullptr);
+  assert(system_var != nullptr);
   m_charset = system_var->charset(target_thd);
   m_type = system_var->show_type();
   m_scope = system_var->scope();
@@ -870,8 +871,8 @@ bool PFS_status_variable_cache::match_scope(SHOW_SCOPE variable_scope,
   Return true if variable should be filtered.
 */
 bool PFS_status_variable_cache::filter_by_name(const SHOW_VAR *show_var) {
-  DBUG_ASSERT(show_var);
-  DBUG_ASSERT(show_var->name);
+  assert(show_var);
+  assert(show_var->name);
 
   if (show_var->type == SHOW_ARRAY) {
     /* The SHOW_ARRAY name is the prefix for the variables in the sub array. */
@@ -984,7 +985,7 @@ bool PFS_status_variable_cache::filter_show_var(const SHOW_VAR *show_var,
 */
 bool PFS_status_variable_cache::init_show_var_array(enum_var_type scope,
                                                     bool strict) {
-  DBUG_ASSERT(!m_initialized);
+  assert(!m_initialized);
 
   /* Resize if necessary. */
   m_show_var_array.reserve(all_status_vars.size() + 1);
@@ -1058,7 +1059,7 @@ char *PFS_status_variable_cache::make_show_var_name(const char *prefix,
                                                     const char *name,
                                                     char *name_buf,
                                                     size_t buf_len) {
-  DBUG_ASSERT(name_buf != nullptr);
+  assert(name_buf != nullptr);
   char *prefix_end = name_buf;
 
   if (prefix && *prefix) {
@@ -1179,7 +1180,7 @@ int PFS_status_variable_cache::do_materialize_global(void) {
 */
 int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
   int ret = 1;
-  DBUG_ASSERT(unsafe_thd != nullptr);
+  assert(unsafe_thd != nullptr);
 
   m_unsafe_thd = unsafe_thd;
   m_materialized = false;
@@ -1228,7 +1229,7 @@ int PFS_status_variable_cache::do_materialize_all(THD *unsafe_thd) {
 */
 int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
   int ret = 1;
-  DBUG_ASSERT(unsafe_thd != nullptr);
+  assert(unsafe_thd != nullptr);
 
   m_unsafe_thd = unsafe_thd;
   m_materialized = false;
@@ -1277,7 +1278,7 @@ int PFS_status_variable_cache::do_materialize_session(THD *unsafe_thd) {
 */
 int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   int ret = 1;
-  DBUG_ASSERT(pfs_thread != nullptr);
+  assert(pfs_thread != nullptr);
 
   m_pfs_thread = pfs_thread;
   m_materialized = false;
@@ -1289,7 +1290,7 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   }
 
   /* The SHOW_VAR array must be initialized externally. */
-  DBUG_ASSERT(m_initialized);
+  assert(m_initialized);
 
   /* Get and lock a validated THD from the thread manager. */
   if ((m_safe_thd = get_THD(pfs_thread)) != nullptr) {
@@ -1321,7 +1322,7 @@ int PFS_status_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   NOTE: Requires that init_show_var_array() has already been called.
 */
 int PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client) {
-  DBUG_ASSERT(pfs_client != nullptr);
+  assert(pfs_client != nullptr);
   System_status_var status_totals;
 
   m_pfs_client = pfs_client;
@@ -1334,7 +1335,7 @@ int PFS_status_variable_cache::do_materialize_client(PFS_client *pfs_client) {
   }
 
   /* The SHOW_VAR array must be initialized externally. */
-  DBUG_ASSERT(m_initialized);
+  assert(m_initialized);
 
   /*
     Generate status totals from active threads and from totals aggregated
@@ -1524,7 +1525,7 @@ void reset_pfs_status_stats() {
 */
 void system_variable_warning(void) {
   THD *thd = current_thd;
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
   push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
   push_warning(thd, ER_SYSVAR_CHANGE_DURING_QUERY);
 }
@@ -1535,7 +1536,7 @@ void system_variable_warning(void) {
 */
 void status_variable_warning(void) {
   THD *thd = current_thd;
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
   push_warning(thd, ER_WARN_TOO_FEW_RECORDS);
   push_warning(thd, ER_GLOBSTAT_CHANGE_DURING_QUERY);
 }

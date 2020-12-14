@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,9 +100,8 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
   if (ptr == nullptr) return my_malloc(key, size, flags);
 
   old_mh = USER_TO_HEADER(ptr);
-  DBUG_ASSERT((old_mh->m_key == key) ||
-              (old_mh->m_key == PSI_NOT_INSTRUMENTED));
-  DBUG_ASSERT(old_mh->m_magic == MAGIC);
+  assert((old_mh->m_key == key) || (old_mh->m_key == PSI_NOT_INSTRUMENTED));
+  assert(old_mh->m_magic == MAGIC);
 
   old_size = old_mh->m_size;
 
@@ -110,14 +109,13 @@ void *my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags) {
 
   new_ptr = my_malloc(key, size, flags);
   if (likely(new_ptr != nullptr)) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     my_memory_header *new_mh = USER_TO_HEADER(new_ptr);
 #endif
 
-    DBUG_ASSERT((new_mh->m_key == key) ||
-                (new_mh->m_key == PSI_NOT_INSTRUMENTED));
-    DBUG_ASSERT(new_mh->m_magic == MAGIC);
-    DBUG_ASSERT(new_mh->m_size == size);
+    assert((new_mh->m_key == key) || (new_mh->m_key == PSI_NOT_INSTRUMENTED));
+    assert(new_mh->m_magic == MAGIC);
+    assert(new_mh->m_size == size);
 
     min_size = (old_size < size) ? old_size : size;
     memcpy(new_ptr, ptr, min_size);
@@ -134,7 +132,7 @@ void my_claim(const void *ptr, bool claim) {
   if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(const_cast<void *>(ptr));
-  DBUG_ASSERT(mh->m_magic == MAGIC);
+  assert(mh->m_magic == MAGIC);
   mh->m_key =
       PSI_MEMORY_CALL(memory_claim)(mh->m_key, mh->m_size, &mh->m_owner, claim);
 }
@@ -145,7 +143,7 @@ void my_free(void *ptr) {
   if (ptr == nullptr) return;
 
   mh = USER_TO_HEADER(ptr);
-  DBUG_ASSERT(mh->m_magic == MAGIC);
+  assert(mh->m_magic == MAGIC);
   PSI_MEMORY_CALL(memory_free)(mh->m_key, mh->m_size, mh->m_owner);
   /* Catch double free */
   mh->m_magic = 0xDEAD;
@@ -239,10 +237,9 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
   DBUG_PRINT("my", ("ptr: %p  size: %lu  my_flags: %d", oldpoint, (ulong)size,
                     my_flags));
 
-  DBUG_ASSERT(size > 0);
+  assert(size > 0);
   /* These flags are mutually exclusive. */
-  DBUG_ASSERT(
-      !((my_flags & MY_FREE_ON_ERROR) && (my_flags & MY_HOLD_ON_ERROR)));
+  assert(!((my_flags & MY_FREE_ON_ERROR) && (my_flags & MY_HOLD_ON_ERROR)));
   DBUG_EXECUTE_IF("simulate_out_of_memory", point = NULL; goto end;);
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
     return my_raw_malloc(size, my_flags);
@@ -251,7 +248,7 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
 #else
   point = realloc(oldpoint, size);
 #endif
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 end:
 #endif
   if (point == NULL) {

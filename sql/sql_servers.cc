@@ -396,7 +396,7 @@ static bool close_cached_connection_tables(THD *thd,
   TABLE_LIST tmp, *tables = nullptr;
   bool result = false;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   mysql_mutex_lock(&LOCK_open);
 

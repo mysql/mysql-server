@@ -68,8 +68,8 @@ bool Thd_ndb::recycle_ndb(void) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("ndb: %p", ndb));
 
-  DBUG_ASSERT(global_schema_lock_trans == NULL);
-  DBUG_ASSERT(trans == NULL);
+  assert(global_schema_lock_trans == NULL);
+  assert(trans == NULL);
 
   delete ndb;
   if ((ndb = new Ndb(connection, "")) == NULL) {
@@ -139,7 +139,7 @@ bool Thd_ndb::check_trans_option(Trans_options option) const {
 }
 
 void Thd_ndb::set_trans_option(Trans_options option) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (check_trans_option(TRANS_TRANSACTIONS_OFF))
     DBUG_PRINT("info", ("Disabling transactions"));
   if (check_trans_option(TRANS_INJECTED_APPLY_STATUS))
@@ -171,7 +171,7 @@ static void push_condition(THD *thd,
 static void push_condition(THD *thd,
                            Sql_condition::enum_severity_level severity,
                            uint code, const char *fmt, va_list args) {
-  DBUG_ASSERT(fmt);
+  assert(fmt);
 
   // Assemble the message
   char msg_buf[512];
@@ -233,7 +233,7 @@ Ndb_DDL_transaction_ctx *Thd_ndb::get_ddl_transaction_ctx(
 }
 
 void Thd_ndb::clear_ddl_transaction_ctx() {
-  DBUG_ASSERT(m_ddl_ctx != nullptr);
+  assert(m_ddl_ctx != nullptr);
   delete m_ddl_ctx;
   m_ddl_ctx = nullptr;
 }

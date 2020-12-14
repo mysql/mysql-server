@@ -45,6 +45,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <mysql/components/component_implementation.h>
@@ -75,7 +76,7 @@
 */
 #include "lex_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -173,12 +174,10 @@ static void report_memory_accounting_error(const char *api_name,
       size, klass->m_name, old_thread->m_thread_internal_id,
       old_thread->m_class->m_name);
 
-  DBUG_ASSERT(strcmp(new_thread->m_class->m_name, "thread/sql/event_worker") !=
-              0);
-  DBUG_ASSERT(
-      strcmp(new_thread->m_class->m_name, "thread/sql/event_scheduler") != 0);
-  DBUG_ASSERT(
-      strcmp(new_thread->m_class->m_name, "thread/sql/one_connection") != 0);
+  assert(strcmp(new_thread->m_class->m_name, "thread/sql/event_worker") != 0);
+  assert(strcmp(new_thread->m_class->m_name, "thread/sql/event_scheduler") !=
+         0);
+  assert(strcmp(new_thread->m_class->m_name, "thread/sql/one_connection") != 0);
 }
 #endif /* PFS_PARANOID */
 
@@ -2264,8 +2263,8 @@ static int build_prefix(const LEX_CSTRING *prefix, const char *category,
   size_t len;                                                                  \
   size_t full_length;                                                          \
                                                                                \
-  DBUG_ASSERT(category != nullptr);                                            \
-  DBUG_ASSERT(info != nullptr);                                                \
+  assert(category != nullptr);                                                 \
+  assert(info != nullptr);                                                     \
   if (unlikely(                                                                \
           build_prefix(&PREFIX, category, formatted_name, &prefix_length)) ||  \
       !pfs_initialized) {                                                      \
@@ -2274,8 +2273,8 @@ static int build_prefix(const LEX_CSTRING *prefix, const char *category,
   }                                                                            \
                                                                                \
   for (; count > 0; count--, info++) {                                         \
-    DBUG_ASSERT(info->m_key != nullptr);                                       \
-    DBUG_ASSERT(info->m_name != nullptr);                                      \
+    assert(info->m_key != nullptr);                                            \
+    assert(info->m_name != nullptr);                                           \
     len = strlen(info->m_name);                                                \
     full_length = prefix_length + len;                                         \
     if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH)) {                     \
@@ -2319,8 +2318,8 @@ void pfs_register_rwlock_v2(const char *category, PSI_rwlock_info_v1 *info,
   size_t len;
   size_t full_length;
 
-  DBUG_ASSERT(category != nullptr);
-  DBUG_ASSERT(info != nullptr);
+  assert(category != nullptr);
+  assert(info != nullptr);
   if (build_prefix(&prlock_instrument_prefix, category, pr_formatted_name,
                    &pr_prefix_length) ||
       build_prefix(&rwlock_instrument_prefix, category, rw_formatted_name,
@@ -2335,8 +2334,8 @@ void pfs_register_rwlock_v2(const char *category, PSI_rwlock_info_v1 *info,
   }
 
   for (; count > 0; count--, info++) {
-    DBUG_ASSERT(info->m_key != nullptr);
-    DBUG_ASSERT(info->m_name != nullptr);
+    assert(info->m_key != nullptr);
+    assert(info->m_name != nullptr);
     len = strlen(info->m_name);
 
     if (info->m_flags & PSI_FLAG_RWLOCK_SX) {
@@ -2415,8 +2414,8 @@ void pfs_register_stage_v1(const char *category, PSI_stage_info_v1 **info_array,
   size_t full_length;
   PSI_stage_info_v1 *info;
 
-  DBUG_ASSERT(category != nullptr);
-  DBUG_ASSERT(info_array != nullptr);
+  assert(category != nullptr);
+  assert(info_array != nullptr);
   if (unlikely(build_prefix(&stage_instrument_prefix, category, formatted_name,
                             &prefix_length)) ||
       !pfs_initialized) {
@@ -2428,8 +2427,8 @@ void pfs_register_stage_v1(const char *category, PSI_stage_info_v1 **info_array,
 
   for (; count > 0; count--, info_array++) {
     info = *info_array;
-    DBUG_ASSERT(info != nullptr);
-    DBUG_ASSERT(info->m_name != nullptr);
+    assert(info != nullptr);
+    assert(info->m_name != nullptr);
     len = strlen(info->m_name);
     full_length = prefix_length + len;
     if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH)) {
@@ -2452,8 +2451,8 @@ void pfs_register_statement_v2(const char *category, PSI_statement_info *info,
   size_t len;
   size_t full_length;
 
-  DBUG_ASSERT(category != nullptr);
-  DBUG_ASSERT(info != nullptr);
+  assert(category != nullptr);
+  assert(info != nullptr);
   if (unlikely(build_prefix(&statement_instrument_prefix, category,
                             formatted_name, &prefix_length)) ||
       !pfs_initialized) {
@@ -2464,7 +2463,7 @@ void pfs_register_statement_v2(const char *category, PSI_statement_info *info,
   }
 
   for (; count > 0; count--, info++) {
-    DBUG_ASSERT(info->m_name != nullptr);
+    assert(info->m_name != nullptr);
     len = strlen(info->m_name);
     full_length = prefix_length + len;
     if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH)) {
@@ -2513,7 +2512,7 @@ PSI_mutex *pfs_init_mutex_v1(PSI_mutex_key key, const void *identity) {
 void pfs_destroy_mutex_v1(PSI_mutex *mutex) {
   PFS_mutex *pfs = reinterpret_cast<PFS_mutex *>(mutex);
 
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
 
   destroy_mutex(pfs);
 }
@@ -2545,7 +2544,7 @@ PSI_rwlock *pfs_init_rwlock_v2(PSI_rwlock_key key, const void *identity) {
 void pfs_destroy_rwlock_v2(PSI_rwlock *rwlock) {
   PFS_rwlock *pfs = reinterpret_cast<PFS_rwlock *>(rwlock);
 
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
 
   destroy_rwlock(pfs);
 }
@@ -2577,7 +2576,7 @@ PSI_cond *pfs_init_cond_v1(PSI_cond_key key, const void *identity) {
 void pfs_destroy_cond_v1(PSI_cond *cond) {
   PFS_cond *pfs = reinterpret_cast<PFS_cond *>(cond);
 
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
 
   destroy_cond(pfs);
 }
@@ -2694,7 +2693,7 @@ PSI_table *pfs_rebind_table_v1(PSI_table_share *share, const void *identity,
                                PSI_table *table) {
   PFS_table *pfs = reinterpret_cast<PFS_table *>(table);
   if (likely(pfs != nullptr)) {
-    DBUG_ASSERT(pfs->m_thread_owner == nullptr);
+    assert(pfs->m_thread_owner == nullptr);
 
     if (unlikely(!pfs->m_share->m_enabled)) {
       destroy_table(pfs);
@@ -2786,7 +2785,7 @@ PSI_socket *pfs_init_socket_v1(PSI_socket_key key, const my_socket *fd,
 void pfs_destroy_socket_v1(PSI_socket *socket) {
   PFS_socket *pfs = reinterpret_cast<PFS_socket *>(socket);
 
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
 
   destroy_socket(pfs);
 }
@@ -3063,9 +3062,9 @@ void pfs_set_thread_user_vc(const char *user, int user_len) {
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  DBUG_ASSERT((user != nullptr) || (user_len == 0));
-  DBUG_ASSERT(user_len >= 0);
-  DBUG_ASSERT((uint)user_len <= sizeof(pfs->m_username));
+  assert((user != nullptr) || (user_len == 0));
+  assert(user_len >= 0);
+  assert((uint)user_len <= sizeof(pfs->m_username));
 
   if (unlikely(pfs == nullptr)) {
     return;
@@ -3115,11 +3114,11 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
   pfs_dirty_state dirty_state;
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  DBUG_ASSERT((user != nullptr) || (user_len == 0));
-  DBUG_ASSERT(user_len >= 0);
-  DBUG_ASSERT((uint)user_len <= sizeof(pfs->m_username));
-  DBUG_ASSERT((host != nullptr) || (host_len == 0));
-  DBUG_ASSERT(host_len >= 0);
+  assert((user != nullptr) || (user_len == 0));
+  assert(user_len >= 0);
+  assert((uint)user_len <= sizeof(pfs->m_username));
+  assert((host != nullptr) || (host_len == 0));
+  assert(host_len >= 0);
 
   host_len = min<size_t>(host_len, sizeof(pfs->m_hostname));
 
@@ -3172,9 +3171,9 @@ void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,
 void pfs_set_thread_db_vc(const char *db, int db_len) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  DBUG_ASSERT((db != nullptr) || (db_len == 0));
-  DBUG_ASSERT(db_len >= 0);
-  DBUG_ASSERT((uint)db_len <= sizeof(pfs->m_dbname));
+  assert((db != nullptr) || (db_len == 0));
+  assert(db_len >= 0);
+  assert((uint)db_len <= sizeof(pfs->m_dbname));
 
   if (likely(pfs != nullptr)) {
     pfs_dirty_state dirty_state;
@@ -3194,8 +3193,8 @@ void pfs_set_thread_db_vc(const char *db, int db_len) {
 void pfs_set_thread_command_vc(int command) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  DBUG_ASSERT(command >= 0);
-  DBUG_ASSERT(command <= (int)COM_END);
+  assert(command >= 0);
+  assert(command <= (int)COM_END);
 
   if (likely(pfs != nullptr)) {
     pfs->m_command = command;
@@ -3209,8 +3208,8 @@ void pfs_set_thread_command_vc(int command) {
 void pfs_set_connection_type_vc(opaque_vio_type conn_type) {
   PFS_thread *pfs = my_thread_get_THR_PFS();
 
-  DBUG_ASSERT(conn_type >= FIRST_VIO_TYPE);
-  DBUG_ASSERT(conn_type <= LAST_VIO_TYPE);
+  assert(conn_type >= FIRST_VIO_TYPE);
+  assert(conn_type <= LAST_VIO_TYPE);
 
   if (likely(pfs != nullptr)) {
     pfs->m_connection_type = static_cast<enum_vio_type>(conn_type);
@@ -3330,7 +3329,7 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
   pfs_optimistic_state lock;
   pfs_optimistic_state session_lock;
 
-  DBUG_ASSERT(thread_attrs != nullptr);
+  assert(thread_attrs != nullptr);
 
   static_assert(PSI_NAME_LEN == NAME_LEN, "");
   static_assert(PSI_USERNAME_LENGTH == USERNAME_LENGTH, "");
@@ -3353,25 +3352,25 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
   thread_attrs->m_user_data = pfs->m_user_data;
   thread_attrs->m_system_thread = pfs->m_system_thread;
 
-  DBUG_ASSERT(pfs->m_sock_addr_len <= sizeof(PSI_thread_attrs::m_sock_addr));
+  assert(pfs->m_sock_addr_len <= sizeof(PSI_thread_attrs::m_sock_addr));
   thread_attrs->m_sock_addr_length = pfs->m_sock_addr_len;
   if (thread_attrs->m_sock_addr_length > 0) {
     memcpy(&thread_attrs->m_sock_addr, &pfs->m_sock_addr, pfs->m_sock_addr_len);
   }
 
-  DBUG_ASSERT(pfs->m_username_length <= sizeof(PSI_thread_attrs::m_username));
+  assert(pfs->m_username_length <= sizeof(PSI_thread_attrs::m_username));
   thread_attrs->m_username_length = pfs->m_username_length;
   if (pfs->m_username_length > 0) {
     memcpy(thread_attrs->m_username, pfs->m_username, pfs->m_username_length);
   }
 
-  DBUG_ASSERT(pfs->m_hostname_length <= sizeof(PSI_thread_attrs::m_hostname));
+  assert(pfs->m_hostname_length <= sizeof(PSI_thread_attrs::m_hostname));
   thread_attrs->m_hostname_length = pfs->m_hostname_length;
   if (pfs->m_hostname_length > 0) {
     memcpy(thread_attrs->m_hostname, pfs->m_hostname, pfs->m_hostname_length);
   }
 
-  DBUG_ASSERT(pfs->m_groupname_length <= sizeof(PSI_thread_attrs::m_groupname));
+  assert(pfs->m_groupname_length <= sizeof(PSI_thread_attrs::m_groupname));
   thread_attrs->m_groupname_length = pfs->m_groupname_length;
   if (pfs->m_groupname_length > 0) {
     memcpy(thread_attrs->m_groupname, pfs->m_groupname,
@@ -3525,12 +3524,12 @@ PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
                                           PSI_mutex_operation op,
                                           const char *src_file, uint src_line) {
   PFS_mutex *pfs_mutex = reinterpret_cast<PFS_mutex *>(mutex);
-  DBUG_ASSERT((int)op >= 0);
-  DBUG_ASSERT((uint)op < array_elements(mutex_operation_map));
-  DBUG_ASSERT(state != nullptr);
+  assert((int)op >= 0);
+  assert((uint)op < array_elements(mutex_operation_map));
+  assert(state != nullptr);
 
-  DBUG_ASSERT(pfs_mutex != nullptr);
-  DBUG_ASSERT(pfs_mutex->m_class != nullptr);
+  assert(pfs_mutex != nullptr);
+  assert(pfs_mutex->m_class != nullptr);
 
   /* The caller checks for m_enabled. */
 #if 0
@@ -3618,27 +3617,26 @@ static PSI_rwlock_locker *pfs_start_rwlock_wait_v2(
     PSI_rwlock_locker_state *state, PSI_rwlock *rwlock, PSI_rwlock_operation op,
     const char *src_file, uint src_line) {
   PFS_rwlock *pfs_rwlock = reinterpret_cast<PFS_rwlock *>(rwlock);
-  DBUG_ASSERT(static_cast<int>(op) >= 0);
-  DBUG_ASSERT(static_cast<uint>(op) < array_elements(rwlock_operation_map));
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(pfs_rwlock != nullptr);
-  DBUG_ASSERT(pfs_rwlock->m_class != nullptr);
+  assert(static_cast<int>(op) >= 0);
+  assert(static_cast<uint>(op) < array_elements(rwlock_operation_map));
+  assert(state != nullptr);
+  assert(pfs_rwlock != nullptr);
+  assert(pfs_rwlock->m_class != nullptr);
 
   /* Operations supported for READ WRITE LOCK */
 
-  DBUG_ASSERT(pfs_rwlock->m_class->is_shared_exclusive() ||
-              (op == PSI_RWLOCK_READLOCK) || (op == PSI_RWLOCK_WRITELOCK) ||
-              (op == PSI_RWLOCK_TRYREADLOCK) ||
-              (op == PSI_RWLOCK_TRYWRITELOCK));
+  assert(pfs_rwlock->m_class->is_shared_exclusive() ||
+         (op == PSI_RWLOCK_READLOCK) || (op == PSI_RWLOCK_WRITELOCK) ||
+         (op == PSI_RWLOCK_TRYREADLOCK) || (op == PSI_RWLOCK_TRYWRITELOCK));
 
   /* Operations supported for SHARED EXCLUSIVE LOCK */
 
-  DBUG_ASSERT(
-      !pfs_rwlock->m_class->is_shared_exclusive() ||
-      (op == PSI_RWLOCK_SHAREDLOCK) || (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK) ||
-      (op == PSI_RWLOCK_EXCLUSIVELOCK) || (op == PSI_RWLOCK_TRYSHAREDLOCK) ||
-      (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
-      (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
+  assert(!pfs_rwlock->m_class->is_shared_exclusive() ||
+         (op == PSI_RWLOCK_SHAREDLOCK) ||
+         (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK) ||
+         (op == PSI_RWLOCK_EXCLUSIVELOCK) || (op == PSI_RWLOCK_TRYSHAREDLOCK) ||
+         (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
+         (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
 
   /* The caller checks for m_enabled. */
 #if 0
@@ -3723,9 +3721,8 @@ PSI_rwlock_locker *pfs_start_rwlock_rdwait_v2(PSI_rwlock_locker_state *state,
                                               PSI_rwlock_operation op,
                                               const char *src_file,
                                               uint src_line) {
-  DBUG_ASSERT((op == PSI_RWLOCK_READLOCK) || (op == PSI_RWLOCK_TRYREADLOCK) ||
-              (op == PSI_RWLOCK_SHAREDLOCK) ||
-              (op == PSI_RWLOCK_TRYSHAREDLOCK));
+  assert((op == PSI_RWLOCK_READLOCK) || (op == PSI_RWLOCK_TRYREADLOCK) ||
+         (op == PSI_RWLOCK_SHAREDLOCK) || (op == PSI_RWLOCK_TRYSHAREDLOCK));
 
   return pfs_start_rwlock_wait_v2(state, rwlock, op, src_file, src_line);
 }
@@ -3735,11 +3732,11 @@ PSI_rwlock_locker *pfs_start_rwlock_wrwait_v2(PSI_rwlock_locker_state *state,
                                               PSI_rwlock_operation op,
                                               const char *src_file,
                                               uint src_line) {
-  DBUG_ASSERT((op == PSI_RWLOCK_WRITELOCK) || (op == PSI_RWLOCK_TRYWRITELOCK) ||
-              (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK) ||
-              (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
-              (op == PSI_RWLOCK_EXCLUSIVELOCK) ||
-              (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
+  assert((op == PSI_RWLOCK_WRITELOCK) || (op == PSI_RWLOCK_TRYWRITELOCK) ||
+         (op == PSI_RWLOCK_SHAREDEXCLUSIVELOCK) ||
+         (op == PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK) ||
+         (op == PSI_RWLOCK_EXCLUSIVELOCK) ||
+         (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
 
   return pfs_start_rwlock_wait_v2(state, rwlock, op, src_file, src_line);
 }
@@ -3764,11 +3761,11 @@ PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
     in start_cond_wait_v1() and end_cond_wait_v1().
   */
   PFS_cond *pfs_cond = reinterpret_cast<PFS_cond *>(cond);
-  DBUG_ASSERT(static_cast<int>(op) >= 0);
-  DBUG_ASSERT(static_cast<uint>(op) < array_elements(cond_operation_map));
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(pfs_cond != nullptr);
-  DBUG_ASSERT(pfs_cond->m_class != nullptr);
+  assert(static_cast<int>(op) >= 0);
+  assert(static_cast<uint>(op) < array_elements(cond_operation_map));
+  assert(state != nullptr);
+  assert(pfs_cond != nullptr);
+  assert(pfs_cond->m_class != nullptr);
 
   /* The caller checks for m_enabled. */
 #if 0
@@ -3875,7 +3872,7 @@ static inline PFS_TL_LOCK_TYPE lock_flags_to_lock_type(uint flags) {
     case TL_WRITE_DEFAULT:
     case TL_WRITE_CONCURRENT_DEFAULT:
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   /* Dead code */
@@ -3883,7 +3880,7 @@ static inline PFS_TL_LOCK_TYPE lock_flags_to_lock_type(uint flags) {
 }
 
 static inline PFS_TL_LOCK_TYPE external_lock_flags_to_lock_type(uint flags) {
-  DBUG_ASSERT(flags == F_RDLCK || flags == F_WRLCK);
+  assert(flags == F_RDLCK || flags == F_WRLCK);
   return (flags == F_RDLCK ? PFS_TL_READ_EXTERNAL : PFS_TL_WRITE_EXTERNAL);
 }
 
@@ -3896,12 +3893,12 @@ PSI_table_locker *pfs_start_table_io_wait_v1(PSI_table_locker_state *state,
                                              PSI_table_io_operation op,
                                              uint index, const char *src_file,
                                              uint src_line) {
-  DBUG_ASSERT(static_cast<int>(op) >= 0);
-  DBUG_ASSERT(static_cast<uint>(op) < array_elements(table_io_operation_map));
-  DBUG_ASSERT(state != nullptr);
+  assert(static_cast<int>(op) >= 0);
+  assert(static_cast<uint>(op) < array_elements(table_io_operation_map));
+  assert(state != nullptr);
   PFS_table *pfs_table = reinterpret_cast<PFS_table *>(table);
-  DBUG_ASSERT(pfs_table != nullptr);
-  DBUG_ASSERT(pfs_table->m_share != nullptr);
+  assert(pfs_table != nullptr);
+  assert(pfs_table->m_share != nullptr);
 
   if (!pfs_table->m_io_enabled) {
     return nullptr;
@@ -3991,13 +3988,13 @@ PSI_table_locker *pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
                                                ulong op_flags,
                                                const char *src_file,
                                                uint src_line) {
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT((op == PSI_TABLE_LOCK) || (op == PSI_TABLE_EXTERNAL_LOCK));
+  assert(state != nullptr);
+  assert((op == PSI_TABLE_LOCK) || (op == PSI_TABLE_EXTERNAL_LOCK));
 
   PFS_table *pfs_table = reinterpret_cast<PFS_table *>(table);
 
-  DBUG_ASSERT(pfs_table != nullptr);
-  DBUG_ASSERT(pfs_table->m_share != nullptr);
+  assert(pfs_table != nullptr);
+  assert(pfs_table->m_share != nullptr);
 
   if (!pfs_table->m_lock_enabled) {
     return nullptr;
@@ -4026,10 +4023,10 @@ PSI_table_locker *pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
       break;
     default:
       lock_type = PFS_TL_READ;
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
-  DBUG_ASSERT((uint)lock_type < array_elements(table_lock_operation_map));
+  assert((uint)lock_type < array_elements(table_lock_operation_map));
 
   uint flags;
   ulonglong timer_start = 0;
@@ -4109,9 +4106,9 @@ PSI_table_locker *pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
 PSI_file_locker *pfs_get_thread_file_name_locker_vc(
     PSI_file_locker_state *state, PSI_file_key key, PSI_file_operation op,
     const char *name, const void *) {
-  DBUG_ASSERT(static_cast<int>(op) >= 0);
-  DBUG_ASSERT(static_cast<uint>(op) < array_elements(file_operation_map));
-  DBUG_ASSERT(state != nullptr);
+  assert(static_cast<int>(op) >= 0);
+  assert(static_cast<uint>(op) < array_elements(file_operation_map));
+  assert(state != nullptr);
 
   if (!flag_global_instrumentation) {
     return nullptr;
@@ -4219,14 +4216,14 @@ PSI_file_locker *pfs_get_thread_file_name_locker_vc(
 PSI_file_locker *pfs_get_thread_file_stream_locker_vc(
     PSI_file_locker_state *state, PSI_file *file, PSI_file_operation op) {
   PFS_file *pfs_file = reinterpret_cast<PFS_file *>(file);
-  DBUG_ASSERT(static_cast<int>(op) >= 0);
-  DBUG_ASSERT(static_cast<uint>(op) < array_elements(file_operation_map));
-  DBUG_ASSERT(state != nullptr);
+  assert(static_cast<int>(op) >= 0);
+  assert(static_cast<uint>(op) < array_elements(file_operation_map));
+  assert(state != nullptr);
 
   if (unlikely(pfs_file == nullptr)) {
     return nullptr;
   }
-  DBUG_ASSERT(pfs_file->m_class != nullptr);
+  assert(pfs_file->m_class != nullptr);
   PFS_file_class *klass = pfs_file->m_class;
 
   /*
@@ -4316,9 +4313,9 @@ PSI_file_locker *pfs_get_thread_file_stream_locker_vc(
 PSI_file_locker *pfs_get_thread_file_descriptor_locker_vc(
     PSI_file_locker_state *state, File file, PSI_file_operation op) {
   int index = static_cast<int>(file);
-  DBUG_ASSERT(static_cast<int>(op) >= 0);
-  DBUG_ASSERT(static_cast<uint>(op) < array_elements(file_operation_map));
-  DBUG_ASSERT(state != nullptr);
+  assert(static_cast<int>(op) >= 0);
+  assert(static_cast<uint>(op) < array_elements(file_operation_map));
+  assert(state != nullptr);
 
   if (unlikely((index < 0) || (index >= file_handle_max))) {
     return nullptr;
@@ -4335,7 +4332,7 @@ PSI_file_locker *pfs_get_thread_file_descriptor_locker_vc(
     return nullptr;
   }
 
-  DBUG_ASSERT(pfs_file->m_class != nullptr);
+  assert(pfs_file->m_class != nullptr);
   PFS_file_class *klass = pfs_file->m_class;
 
   /*
@@ -4446,13 +4443,13 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
                                             PSI_socket_operation op,
                                             size_t count, const char *src_file,
                                             uint src_line) {
-  DBUG_ASSERT(static_cast<int>(op) >= 0);
-  DBUG_ASSERT(static_cast<uint>(op) < array_elements(socket_operation_map));
-  DBUG_ASSERT(state != nullptr);
+  assert(static_cast<int>(op) >= 0);
+  assert(static_cast<uint>(op) < array_elements(socket_operation_map));
+  assert(state != nullptr);
   PFS_socket *pfs_socket = reinterpret_cast<PFS_socket *>(socket);
 
-  DBUG_ASSERT(pfs_socket != nullptr);
-  DBUG_ASSERT(pfs_socket->m_class != nullptr);
+  assert(pfs_socket != nullptr);
+  assert(pfs_socket->m_class != nullptr);
 
   /* The caller checks for m_enabled. */
 #if 0
@@ -4563,7 +4560,7 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state *state,
 void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
   PFS_mutex *pfs_mutex = reinterpret_cast<PFS_mutex *>(mutex);
 
-  DBUG_ASSERT(pfs_mutex != nullptr);
+  assert(pfs_mutex != nullptr);
 
   /*
     Note that this code is still protected by the instrumented mutex,
@@ -4607,10 +4604,10 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
 void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
                           PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
   PFS_rwlock *pfs_rwlock = reinterpret_cast<PFS_rwlock *>(rwlock);
-  DBUG_ASSERT(pfs_rwlock != nullptr);
-  DBUG_ASSERT(pfs_rwlock == sanitize_rwlock(pfs_rwlock));
-  DBUG_ASSERT(pfs_rwlock->m_class != nullptr);
-  DBUG_ASSERT(pfs_rwlock->m_lock.is_populated());
+  assert(pfs_rwlock != nullptr);
+  assert(pfs_rwlock == sanitize_rwlock(pfs_rwlock));
+  assert(pfs_rwlock->m_class != nullptr);
+  assert(pfs_rwlock->m_lock.is_populated());
 
   /*
     Note that this code is still protected by the instrumented rwlock,
@@ -4688,7 +4685,7 @@ void pfs_signal_cond_v1(PSI_cond *cond MY_ATTRIBUTE((unused))) {
 #ifdef PFS_LATER
   PFS_cond *pfs_cond = reinterpret_cast<PFS_cond *>(cond);
 
-  DBUG_ASSERT(pfs_cond != nullptr);
+  assert(pfs_cond != nullptr);
 
   pfs_cond->m_cond_stat.m_signal_count++;
 #endif
@@ -4702,7 +4699,7 @@ void pfs_broadcast_cond_v1(PSI_cond *cond MY_ATTRIBUTE((unused))) {
 #ifdef PFS_LATER
   PFS_cond *pfs_cond = reinterpret_cast<PFS_cond *>(cond);
 
-  DBUG_ASSERT(pfs_cond != nullptr);
+  assert(pfs_cond != nullptr);
 
   pfs_cond->m_cond_stat.m_broadcast_count++;
 #endif
@@ -4714,7 +4711,7 @@ void pfs_broadcast_cond_v1(PSI_cond *cond MY_ATTRIBUTE((unused))) {
 */
 PSI_idle_locker *pfs_start_idle_wait_v1(PSI_idle_locker_state *state,
                                         const char *src_file, uint src_line) {
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   if (!flag_global_instrumentation) {
     return nullptr;
@@ -4738,7 +4735,7 @@ PSI_idle_locker *pfs_start_idle_wait_v1(PSI_idle_locker_state *state,
     state->m_thread = reinterpret_cast<PSI_thread *>(pfs_thread);
     flags = STATE_FLAG_THREAD;
 
-    DBUG_ASSERT(pfs_thread->m_events_statements_count == 0);
+    assert(pfs_thread->m_events_statements_count == 0);
 
     if (global_idle_class.m_timed) {
       timer_start = get_idle_timer();
@@ -4797,7 +4794,7 @@ PSI_idle_locker *pfs_start_idle_wait_v1(PSI_idle_locker_state *state,
 void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
   PSI_idle_locker_state *state =
       reinterpret_cast<PSI_idle_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
 
@@ -4824,7 +4821,7 @@ void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
     if (flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -4837,7 +4834,7 @@ void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 
@@ -4857,13 +4854,13 @@ void pfs_end_idle_wait_v1(PSI_idle_locker *locker) {
 void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
   PSI_mutex_locker_state *state =
       reinterpret_cast<PSI_mutex_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
 
   PFS_mutex *mutex = reinterpret_cast<PFS_mutex *>(state->m_mutex);
-  DBUG_ASSERT(mutex != nullptr);
+  assert(mutex != nullptr);
   PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
 
   uint flags = state->m_flags;
@@ -4890,8 +4887,8 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
     event_name_array = thread->write_instr_class_waits_stats();
     uint index = mutex->m_class->m_event_name_index;
 
-    DBUG_ASSERT(index <= wait_class_max);
-    DBUG_ASSERT(sanitize_thread(thread) != nullptr);
+    assert(index <= wait_class_max);
+    assert(sanitize_thread(thread) != nullptr);
 
     if (flags & STATE_FLAG_TIMED) {
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME (timed) */
@@ -4904,7 +4901,7 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
     if (flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -4916,7 +4913,7 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 }
@@ -4928,13 +4925,13 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
 void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
   PSI_rwlock_locker_state *state =
       reinterpret_cast<PSI_rwlock_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
 
   PFS_rwlock *rwlock = reinterpret_cast<PFS_rwlock *>(state->m_rwlock);
-  DBUG_ASSERT(rwlock != nullptr);
+  assert(rwlock != nullptr);
 
   if (state->m_flags & STATE_FLAG_TIMED) {
     timer_end = get_wait_timer();
@@ -4965,7 +4962,7 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
 
   if (state->m_flags & STATE_FLAG_THREAD) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    DBUG_ASSERT(thread != nullptr);
+    assert(thread != nullptr);
 
     PFS_single_stat *event_name_array;
     event_name_array = thread->write_instr_class_waits_stats();
@@ -4982,7 +4979,7 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
     if (state->m_flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -4994,7 +4991,7 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 }
@@ -5006,13 +5003,13 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
 void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
   PSI_rwlock_locker_state *state =
       reinterpret_cast<PSI_rwlock_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
 
   PFS_rwlock *rwlock = reinterpret_cast<PFS_rwlock *>(state->m_rwlock);
-  DBUG_ASSERT(rwlock != nullptr);
+  assert(rwlock != nullptr);
   PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
 
   if (state->m_flags & STATE_FLAG_TIMED) {
@@ -5058,7 +5055,7 @@ void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
     if (state->m_flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -5070,7 +5067,7 @@ void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 }
@@ -5082,7 +5079,7 @@ void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
 void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
   PSI_cond_locker_state *state =
       reinterpret_cast<PSI_cond_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
@@ -5102,7 +5099,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
 
   if (state->m_flags & STATE_FLAG_THREAD) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    DBUG_ASSERT(thread != nullptr);
+    assert(thread != nullptr);
 
     PFS_single_stat *event_name_array;
     event_name_array = thread->write_instr_class_waits_stats();
@@ -5119,7 +5116,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
     if (state->m_flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -5131,7 +5128,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 }
@@ -5143,19 +5140,19 @@ void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int) {
 void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
   PSI_table_locker_state *state =
       reinterpret_cast<PSI_table_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
 
   PFS_table *table = reinterpret_cast<PFS_table *>(state->m_table);
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   PFS_single_stat *stat;
   PFS_table_io_stat *table_io_stat;
 
-  DBUG_ASSERT((state->m_index < table->m_share->m_key_count) ||
-              (state->m_index == MAX_INDEXES));
+  assert((state->m_index < table->m_share->m_key_count) ||
+         (state->m_index == MAX_INDEXES));
 
   table_io_stat = &table->m_table_stat.m_index_stat[state->m_index];
   table_io_stat->m_has_data = true;
@@ -5174,7 +5171,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
       stat = &table_io_stat->m_delete;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       stat = nullptr;
       break;
   }
@@ -5191,7 +5188,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
 
   if (flags & STATE_FLAG_THREAD) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    DBUG_ASSERT(thread != nullptr);
+    assert(thread != nullptr);
 
     PFS_single_stat *event_name_array;
     event_name_array = thread->write_instr_class_waits_stats();
@@ -5210,7 +5207,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
     if (flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -5223,7 +5220,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 
@@ -5237,13 +5234,13 @@ void pfs_end_table_io_wait_v1(PSI_table_locker *locker, ulonglong numrows) {
 void pfs_end_table_lock_wait_v1(PSI_table_locker *locker) {
   PSI_table_locker_state *state =
       reinterpret_cast<PSI_table_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
 
   PFS_table *table = reinterpret_cast<PFS_table *>(state->m_table);
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   PFS_single_stat *stat =
       &table->m_table_stat.m_lock_stat.m_stat[state->m_index];
@@ -5260,7 +5257,7 @@ void pfs_end_table_lock_wait_v1(PSI_table_locker *locker) {
 
   if (flags & STATE_FLAG_THREAD) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    DBUG_ASSERT(thread != nullptr);
+    assert(thread != nullptr);
 
     PFS_single_stat *event_name_array;
     event_name_array = thread->write_instr_class_waits_stats();
@@ -5279,7 +5276,7 @@ void pfs_end_table_lock_wait_v1(PSI_table_locker *locker) {
     if (flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -5291,7 +5288,7 @@ void pfs_end_table_lock_wait_v1(PSI_table_locker *locker) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 
@@ -5321,7 +5318,7 @@ void pfs_start_file_open_wait_vc(PSI_file_locker *locker, const char *src_file,
 PSI_file *pfs_end_file_open_wait_vc(PSI_file_locker *locker, void *result) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   switch (state->m_operation) {
     case PSI_FILE_STAT:
@@ -5342,7 +5339,7 @@ PSI_file *pfs_end_file_open_wait_vc(PSI_file_locker *locker, void *result) {
       }
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -5361,7 +5358,7 @@ void pfs_end_file_open_wait_and_bind_to_descriptor_vc(PSI_file_locker *locker,
   int index = (int)file;
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   if (index >= 0) {
     PFS_file_class *klass = reinterpret_cast<PFS_file_class *>(state->m_class);
@@ -5392,10 +5389,10 @@ void pfs_end_file_open_wait_and_bind_to_descriptor_vc(PSI_file_locker *locker,
 */
 void pfs_end_temp_file_open_wait_and_bind_to_descriptor_vc(
     PSI_file_locker *locker, File file, const char *filename) {
-  DBUG_ASSERT(filename != nullptr);
+  assert(filename != nullptr);
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   /* Set filename that was generated during creation of temporary file. */
   state->m_name = filename;
@@ -5416,7 +5413,7 @@ void pfs_start_file_wait_vc(PSI_file_locker *locker, size_t count,
   ulonglong timer_start = 0;
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   uint flags = state->m_flags;
 
@@ -5428,7 +5425,7 @@ void pfs_start_file_wait_vc(PSI_file_locker *locker, size_t count,
   if (flags & STATE_FLAG_EVENT) {
     PFS_events_waits *wait =
         reinterpret_cast<PFS_events_waits *>(state->m_wait);
-    DBUG_ASSERT(wait != nullptr);
+    assert(wait != nullptr);
 
     wait->m_timer_start = timer_start;
     wait->m_source_file = src_file;
@@ -5444,7 +5441,7 @@ void pfs_start_file_wait_vc(PSI_file_locker *locker, size_t count,
 void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
   PFS_file *file = reinterpret_cast<PFS_file *>(state->m_file);
   PFS_file_class *klass = reinterpret_cast<PFS_file_class *>(state->m_class);
   PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
@@ -5491,7 +5488,7 @@ void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
       byte_stat = &file_stat->m_io_stat.m_misc;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       byte_stat = nullptr;
       break;
   }
@@ -5508,7 +5505,7 @@ void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
   }
 
   if (flags & STATE_FLAG_THREAD) {
-    DBUG_ASSERT(thread != nullptr);
+    assert(thread != nullptr);
 
     PFS_single_stat *event_name_array;
     event_name_array = thread->write_instr_class_waits_stats();
@@ -5525,7 +5522,7 @@ void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
     if (state->m_flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_number_of_bytes = bytes;
@@ -5542,7 +5539,7 @@ void pfs_end_file_wait_vc(PSI_file_locker *locker, size_t byte_count) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   }
 }
@@ -5555,7 +5552,7 @@ void pfs_start_file_close_wait_vc(PSI_file_locker *locker, const char *src_file,
                                   uint src_line) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   switch (state->m_operation) {
     case PSI_FILE_DELETE:
@@ -5566,7 +5563,7 @@ void pfs_start_file_close_wait_vc(PSI_file_locker *locker, const char *src_file,
       /* state->m_file was set in get_thread_file_descriptor_locker() */
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -5582,7 +5579,7 @@ void pfs_start_file_close_wait_vc(PSI_file_locker *locker, const char *src_file,
 void pfs_end_file_close_wait_vc(PSI_file_locker *locker, int rc) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
   PFS_file *file = reinterpret_cast<PFS_file *>(state->m_file);
 
   pfs_end_file_wait_vc(locker, 0);
@@ -5597,7 +5594,7 @@ void pfs_end_file_close_wait_vc(PSI_file_locker *locker, int rc) {
       case PSI_FILE_CLOSE:
         if (file != nullptr) {
           if (file->m_temporary) {
-            DBUG_ASSERT(file->m_file_stat.m_open_count <= 1);
+            assert(file->m_file_stat.m_open_count <= 1);
             destroy_file(thread, file, false);
           } else {
             release_file(file);
@@ -5615,7 +5612,7 @@ void pfs_end_file_close_wait_vc(PSI_file_locker *locker, int rc) {
         }
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -5632,7 +5629,7 @@ void pfs_start_file_rename_wait_vc(PSI_file_locker *locker,
                                    const char *src_file, uint src_line) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
   /*
@@ -5655,8 +5652,8 @@ void pfs_end_file_rename_wait_vc(PSI_file_locker *locker,
                                  int rc) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(state->m_operation == PSI_FILE_RENAME);
+  assert(state != nullptr);
+  assert(state->m_operation == PSI_FILE_RENAME);
 
   PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
   PFS_file *file = reinterpret_cast<PFS_file *>(state->m_file);
@@ -5858,8 +5855,8 @@ void pfs_end_stage_v1() {
 PSI_statement_locker *pfs_get_thread_statement_locker_v2(
     PSI_statement_locker_state *state, PSI_statement_key key,
     const void *charset, PSI_sp_share *sp_share) {
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(charset != nullptr);
+  assert(state != nullptr);
+  assert(charset != nullptr);
   if (!flag_global_instrumentation) {
     return nullptr;
   }
@@ -6053,11 +6050,11 @@ PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
   if (state == nullptr) {
     return nullptr;
   }
-  DBUG_ASSERT(state->m_class != nullptr);
+  assert(state->m_class != nullptr);
   PFS_statement_class *klass;
   /* Only refine statements for mutable instrumentation */
   klass = reinterpret_cast<PFS_statement_class *>(state->m_class);
-  DBUG_ASSERT(klass->is_mutable());
+  assert(klass->is_mutable());
   klass = find_statement_class(key);
 
   uint flags = state->m_flags;
@@ -6066,7 +6063,7 @@ PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
     /* pop statement stack */
     if (flags & STATE_FLAG_THREAD) {
       PFS_thread *pfs_thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-      DBUG_ASSERT(pfs_thread != nullptr);
+      assert(pfs_thread != nullptr);
       if (pfs_thread->m_events_statements_count > 0) {
         pfs_thread->m_events_statements_count--;
       }
@@ -6083,7 +6080,7 @@ PSI_statement_locker *pfs_refine_statement_v2(PSI_statement_locker *locker,
   if (flags & STATE_FLAG_EVENT) {
     PFS_events_statements *pfs =
         reinterpret_cast<PFS_events_statements *>(state->m_statement);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
 
     /* mutate EVENTS_STATEMENTS_CURRENT.EVENT_NAME */
     pfs->m_class = klass;
@@ -6098,7 +6095,7 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
                             uint db_len, const char *src_file, uint src_line) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   uint flags = state->m_flags;
   ulonglong timer_start = 0;
@@ -6109,7 +6106,7 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
   }
 
   static_assert(PSI_SCHEMA_NAME_LEN == NAME_LEN, "");
-  DBUG_ASSERT(db_len <= sizeof(state->m_schema_name));
+  assert(db_len <= sizeof(state->m_schema_name));
 
   if (db_len > 0) {
     memcpy(state->m_schema_name, db, db_len);
@@ -6119,13 +6116,13 @@ void pfs_start_statement_v2(PSI_statement_locker *locker, const char *db,
   if (flags & STATE_FLAG_EVENT) {
     PFS_events_statements *pfs =
         reinterpret_cast<PFS_events_statements *>(state->m_statement);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
 
     pfs->m_timer_start = timer_start;
     pfs->m_source_file = src_file;
     pfs->m_source_line = src_line;
 
-    DBUG_ASSERT(db_len <= sizeof(pfs->m_current_schema_name));
+    assert(db_len <= sizeof(pfs->m_current_schema_name));
     if (db_len > 0) {
       memcpy(pfs->m_current_schema_name, db, db_len);
     }
@@ -6141,7 +6138,7 @@ void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
                                uint text_len) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   if (state->m_discarded) {
     return;
@@ -6157,13 +6154,13 @@ void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
   if (state->m_flags & STATE_FLAG_EVENT) {
     PFS_events_statements *pfs =
         reinterpret_cast<PFS_events_statements *>(state->m_statement);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
 
     pfs->m_sqltext_length = text_len;
     pfs->m_sqltext_truncated = state->m_query_sample_truncated;
     pfs->m_sqltext_cs_number = state->m_cs_number;
     if (text_len) {
-      DBUG_ASSERT(pfs->m_sqltext != nullptr);
+      assert(pfs->m_sqltext != nullptr);
       memcpy(pfs->m_sqltext, text, text_len);
     }
   }
@@ -6184,7 +6181,7 @@ void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
   if (state->m_flags & STATE_FLAG_EVENT) {                               \
     PFS_events_statements *pfs;                                          \
     pfs = reinterpret_cast<PFS_events_statements *>(state->m_statement); \
-    DBUG_ASSERT(pfs != nullptr);                                         \
+    assert(pfs != nullptr);                                              \
     pfs->ATTR = VALUE;                                                   \
   }                                                                      \
   return;
@@ -6202,7 +6199,7 @@ void pfs_set_statement_text_v2(PSI_statement_locker *locker, const char *text,
   if (state->m_flags & STATE_FLAG_EVENT) {                               \
     PFS_events_statements *pfs;                                          \
     pfs = reinterpret_cast<PFS_events_statements *>(state->m_statement); \
-    DBUG_ASSERT(pfs != nullptr);                                         \
+    assert(pfs != nullptr);                                              \
     pfs->ATTR += VALUE;                                                  \
   }                                                                      \
   return;
@@ -6220,7 +6217,7 @@ void pfs_set_statement_query_id_v2(PSI_statement_locker *locker,
   if (state->m_flags & STATE_FLAG_EVENT) {
     PFS_events_statements *pfs;
     pfs = reinterpret_cast<PFS_events_statements *>(state->m_statement);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
     pfs->m_statement_id = query_id;
   }
   return;
@@ -6306,8 +6303,8 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
   Diagnostics_area *da = reinterpret_cast<Diagnostics_area *>(stmt_da);
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(da != nullptr);
+  assert(state != nullptr);
+  assert(da != nullptr);
 
   if (state->m_discarded) {
     return;
@@ -6315,7 +6312,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
 
   PFS_statement_class *klass =
       reinterpret_cast<PFS_statement_class *>(state->m_class);
-  DBUG_ASSERT(klass != nullptr);
+  assert(klass != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
@@ -6340,7 +6337,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
 
   if (flags & STATE_FLAG_THREAD) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    DBUG_ASSERT(thread != nullptr);
+    assert(thread != nullptr);
     event_name_array = thread->write_instr_class_statements_stats();
     /* Aggregate to EVENTS_STATEMENTS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat = &event_name_array[index];
@@ -6360,7 +6357,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
     if (flags & STATE_FLAG_EVENT) {
       PFS_events_statements *pfs =
           reinterpret_cast<PFS_events_statements *>(state->m_statement);
-      DBUG_ASSERT(pfs != nullptr);
+      assert(pfs != nullptr);
 
       pfs_dirty_state dirty_state;
       thread->m_stmt_lock.allocated_to_dirty(&dirty_state);
@@ -6403,7 +6400,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
         insert_events_statements_history_long(pfs);
       }
 
-      DBUG_ASSERT(thread->m_events_statements_count > 0);
+      assert(thread->m_events_statements_count > 0);
       thread->m_events_statements_count--;
       thread->m_stmt_lock.dirty_to_allocated(&dirty_state);
     }
@@ -6504,7 +6501,7 @@ void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da) {
         /* Get exclusive access otherwise abort. */
         if (digest_stat->inc_sample_ref() == 0) {
           digest_stat->set_sample_timer_wait(wait_time);
-          DBUG_ASSERT(digest_stat->m_query_sample != nullptr);
+          assert(digest_stat->m_query_sample != nullptr);
           memcpy(digest_stat->m_query_sample, state->m_query_sample,
                  state->m_query_sample_length);
           digest_stat->m_query_sample_length = state->m_query_sample_length;
@@ -6693,7 +6690,7 @@ static inline enum_object_type sp_type_to_object_type(uint sp_type) {
     case enum_sp_type::EVENT:
       return OBJECT_TYPE_EVENT;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       /* Dead code */
       return NO_OBJECT_TYPE;
   }
@@ -6734,7 +6731,7 @@ static void pfs_release_sp_share_v2(PSI_sp_share *) {
 
 static PSI_sp_locker *pfs_start_sp_v2(PSI_sp_locker_state *state,
                                       PSI_sp_share *sp_share) {
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
   if (!flag_global_instrumentation) {
     return nullptr;
   }
@@ -6772,7 +6769,7 @@ static PSI_sp_locker *pfs_start_sp_v2(PSI_sp_locker_state *state,
 
 static void pfs_end_sp_v2(PSI_sp_locker *locker) {
   PSI_sp_locker_state *state = reinterpret_cast<PSI_sp_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end;
   ulonglong wait_time;
@@ -6814,7 +6811,7 @@ PSI_transaction_locker *pfs_get_thread_transaction_locker_v1(
     PSI_transaction_locker_state *state, const void *xid,
     const ulonglong *trxid, int isolation_level, bool read_only,
     bool autocommit) {
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   if (!flag_global_instrumentation) {
     return nullptr;
@@ -6904,7 +6901,7 @@ void pfs_start_transaction_v1(PSI_transaction_locker *locker,
                               const char *src_file, uint src_line) {
   PSI_transaction_locker_state *state =
       reinterpret_cast<PSI_transaction_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   uint flags = state->m_flags;
   ulonglong timer_start = 0;
@@ -6917,7 +6914,7 @@ void pfs_start_transaction_v1(PSI_transaction_locker *locker,
   if (flags & STATE_FLAG_EVENT) {
     PFS_events_transactions *pfs =
         reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
 
     pfs->m_timer_start = timer_start;
     pfs->m_source_file = src_file;
@@ -6932,14 +6929,14 @@ void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
                                  const void *sid, const void *gtid_spec) {
   PSI_transaction_locker_state *state =
       reinterpret_cast<PSI_transaction_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(sid != nullptr);
-  DBUG_ASSERT(gtid_spec != nullptr);
+  assert(state != nullptr);
+  assert(sid != nullptr);
+  assert(gtid_spec != nullptr);
 
   if (state->m_flags & STATE_FLAG_EVENT) {
     PFS_events_transactions *pfs =
         reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
     pfs->m_sid = *static_cast<const rpl_sid *>(sid);
     pfs->m_gtid_spec = *static_cast<const Gtid_specification *>(gtid_spec);
   }
@@ -6949,13 +6946,13 @@ void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker, const void *xid,
                                 int xa_state) {
   PSI_transaction_locker_state *state =
       reinterpret_cast<PSI_transaction_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   if (state->m_flags & STATE_FLAG_EVENT) {
     PFS_events_transactions *pfs =
         reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
-    DBUG_ASSERT(pfs != nullptr);
-    DBUG_ASSERT(xid != nullptr);
+    assert(pfs != nullptr);
+    assert(xid != nullptr);
 
     pfs->m_xid = *static_cast<const PSI_xid *>(xid);
     pfs->m_xa_state = (enum_xa_transaction_state)xa_state;
@@ -6968,12 +6965,12 @@ void pfs_set_transaction_xa_state_v1(PSI_transaction_locker *locker,
                                      int xa_state) {
   PSI_transaction_locker_state *state =
       reinterpret_cast<PSI_transaction_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   if (state->m_flags & STATE_FLAG_EVENT) {
     PFS_events_transactions *pfs =
         reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
 
     pfs->m_xa_state = (enum_xa_transaction_state)xa_state;
     pfs->m_xa = true;
@@ -6983,16 +6980,16 @@ void pfs_set_transaction_xa_state_v1(PSI_transaction_locker *locker,
 
 void pfs_set_transaction_trxid_v1(PSI_transaction_locker *locker,
                                   const ulonglong *trxid) {
-  DBUG_ASSERT(trxid != nullptr);
+  assert(trxid != nullptr);
 
   PSI_transaction_locker_state *state =
       reinterpret_cast<PSI_transaction_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   if (state->m_flags & STATE_FLAG_EVENT) {
     PFS_events_transactions *pfs =
         reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
-    DBUG_ASSERT(pfs != nullptr);
+    assert(pfs != nullptr);
 
     if (pfs->m_trxid == 0) {
       pfs->m_trxid = *trxid;
@@ -7010,7 +7007,7 @@ void pfs_set_transaction_trxid_v1(PSI_transaction_locker *locker,
   if (state->m_flags & STATE_FLAG_EVENT) {                                   \
     PFS_events_transactions *pfs;                                            \
     pfs = reinterpret_cast<PFS_events_transactions *>(state->m_transaction); \
-    DBUG_ASSERT(pfs != nullptr);                                             \
+    assert(pfs != nullptr);                                                  \
     pfs->ATTR += VALUE;                                                      \
   }                                                                          \
   return;
@@ -7033,7 +7030,7 @@ void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
 void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit) {
   PSI_transaction_locker_state *state =
       reinterpret_cast<PSI_transaction_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
@@ -7048,7 +7045,7 @@ void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit) {
 
   if (flags & STATE_FLAG_THREAD) {
     PFS_thread *pfs_thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    DBUG_ASSERT(pfs_thread != nullptr);
+    assert(pfs_thread != nullptr);
 
     /* Aggregate to EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME */
     stat =
@@ -7058,7 +7055,7 @@ void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit) {
     if (flags & STATE_FLAG_EVENT) {
       PFS_events_transactions *pfs =
           reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
-      DBUG_ASSERT(pfs != nullptr);
+      assert(pfs != nullptr);
 
       /* events_transactions_current may have been cleared while the transaction
        * was active */
@@ -7116,10 +7113,10 @@ void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit) {
 void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count) {
   PSI_socket_locker_state *state =
       reinterpret_cast<PSI_socket_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   PFS_socket *socket = reinterpret_cast<PFS_socket *>(state->m_socket);
-  DBUG_ASSERT(socket != nullptr);
+  assert(socket != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
@@ -7153,7 +7150,7 @@ void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count) {
       byte_stat = &socket->m_socket_stat.m_io_stat.m_misc;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       byte_stat = nullptr;
       break;
   }
@@ -7173,10 +7170,10 @@ void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count) {
   /* Aggregate to EVENTS_WAITS_HISTORY and EVENTS_WAITS_HISTORY_LONG */
   if (flags & STATE_FLAG_EVENT) {
     PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-    DBUG_ASSERT(thread != nullptr);
+    assert(thread != nullptr);
     PFS_events_waits *wait =
         reinterpret_cast<PFS_events_waits *>(state->m_wait);
-    DBUG_ASSERT(wait != nullptr);
+    assert(wait != nullptr);
 
     wait->m_timer_end = timer_end;
     wait->m_end_event_id = thread->m_event_id;
@@ -7190,17 +7187,17 @@ void pfs_end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count) {
     }
     thread->m_events_waits_current--;
 
-    DBUG_ASSERT(wait == thread->m_events_waits_current);
+    assert(wait == thread->m_events_waits_current);
   }
 }
 
 void pfs_set_socket_state_v1(PSI_socket *socket, PSI_socket_state state) {
-  DBUG_ASSERT((state == PSI_SOCKET_STATE_IDLE) ||
-              (state == PSI_SOCKET_STATE_ACTIVE));
+  assert((state == PSI_SOCKET_STATE_IDLE) ||
+         (state == PSI_SOCKET_STATE_ACTIVE));
   PFS_socket *pfs = reinterpret_cast<PFS_socket *>(socket);
-  DBUG_ASSERT(pfs != nullptr);
-  DBUG_ASSERT(pfs->m_idle || (state == PSI_SOCKET_STATE_IDLE));
-  DBUG_ASSERT(!pfs->m_idle || (state == PSI_SOCKET_STATE_ACTIVE));
+  assert(pfs != nullptr);
+  assert(pfs->m_idle || (state == PSI_SOCKET_STATE_IDLE));
+  assert(!pfs->m_idle || (state == PSI_SOCKET_STATE_ACTIVE));
   pfs->m_idle = (state == PSI_SOCKET_STATE_IDLE);
 }
 
@@ -7210,7 +7207,7 @@ void pfs_set_socket_state_v1(PSI_socket *socket, PSI_socket_state state) {
 void pfs_set_socket_info_v1(PSI_socket *socket, const my_socket *fd,
                             const struct sockaddr *addr, socklen_t addr_len) {
   PFS_socket *pfs = reinterpret_cast<PFS_socket *>(socket);
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
 
   if (fd != nullptr) {
     pfs->m_fd = (my_socket)*fd;
@@ -7231,7 +7228,7 @@ void pfs_set_socket_info_v1(PSI_socket *socket, const my_socket *fd,
 */
 void pfs_set_socket_thread_owner_v1(PSI_socket *socket) {
   PFS_socket *pfs_socket = reinterpret_cast<PFS_socket *>(socket);
-  DBUG_ASSERT(pfs_socket != nullptr);
+  assert(pfs_socket != nullptr);
   PFS_thread *pfs_thread = my_thread_get_THR_PFS();
   pfs_socket->m_thread_owner = pfs_thread;
 
@@ -7247,7 +7244,7 @@ void pfs_set_socket_thread_owner_v1(PSI_socket *socket) {
 struct PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker) {
   PSI_statement_locker_state *statement_state;
   statement_state = reinterpret_cast<PSI_statement_locker_state *>(locker);
-  DBUG_ASSERT(statement_state != nullptr);
+  assert(statement_state != nullptr);
 
   if (statement_state->m_discarded) {
     return nullptr;
@@ -7264,8 +7261,8 @@ void pfs_digest_end_v2(PSI_digest_locker *locker,
                        const sql_digest_storage *digest) {
   PSI_statement_locker_state *state;
   state = reinterpret_cast<PSI_statement_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(digest != nullptr);
+  assert(state != nullptr);
+  assert(digest != nullptr);
 
   if (state->m_discarded) {
     return;
@@ -7285,10 +7282,10 @@ void pfs_digest_end_v2(PSI_digest_locker *locker,
 
     if ((state->m_flags & req_flags) == req_flags) {
       PFS_thread *thread = reinterpret_cast<PFS_thread *>(state->m_thread);
-      DBUG_ASSERT(thread != nullptr);
+      assert(thread != nullptr);
       PFS_events_statements *pfs =
           reinterpret_cast<PFS_events_statements *>(state->m_statement);
-      DBUG_ASSERT(pfs != nullptr);
+      assert(pfs != nullptr);
 
       pfs_dirty_state dirty_state;
       thread->m_stmt_lock.allocated_to_dirty(&dirty_state);
@@ -7342,7 +7339,7 @@ void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
                                   PSI_prepared_stmt *ps) {
   PSI_statement_locker_state *state =
       reinterpret_cast<PSI_statement_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   state->m_parent_prepared_stmt = ps;
   state->m_in_prepare = false;
@@ -7370,7 +7367,7 @@ void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
                                    const char *text, uint text_len) {
   PFS_prepared_stmt *pfs_prepared_stmt =
       reinterpret_cast<PFS_prepared_stmt *>(prepared_stmt);
-  DBUG_ASSERT(pfs_prepared_stmt != nullptr);
+  assert(pfs_prepared_stmt != nullptr);
 
   uint max_len = COL_INFO_SIZE;
   if (text_len > max_len) {
@@ -7391,7 +7388,7 @@ int pfs_set_thread_connect_attrs_vc(const char *buffer, uint length,
                                     const void *from_cs) {
   PFS_thread *thd = my_thread_get_THR_PFS();
 
-  DBUG_ASSERT(buffer != nullptr);
+  assert(buffer != nullptr);
 
   if (likely(thd != nullptr) && session_connect_attrs_size_per_thread > 0) {
     pfs_dirty_state dirty_state;
@@ -7505,7 +7502,7 @@ void pfs_register_memory_vc(const char *category, PSI_memory_info_v1 *info,
 PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
                                    PSI_thread **owner) {
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
-  DBUG_ASSERT(owner_thread != nullptr);
+  assert(owner_thread != nullptr);
 
   if (!flag_global_instrumentation) {
     *owner_thread = nullptr;
@@ -7570,7 +7567,7 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
 PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
                                      size_t new_size, PSI_thread **owner) {
   PFS_thread **owner_thread_hdl = reinterpret_cast<PFS_thread **>(owner);
-  DBUG_ASSERT(owner != nullptr);
+  assert(owner != nullptr);
 
   PFS_memory_class *klass = find_memory_class(key);
   if (klass == nullptr) {
@@ -7647,7 +7644,7 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
 PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
                                    PSI_thread **owner, bool claim) {
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
-  DBUG_ASSERT(owner_thread != nullptr);
+  assert(owner_thread != nullptr);
 
   PFS_memory_class *klass = find_memory_class(key);
   if (klass == nullptr) {
@@ -7718,7 +7715,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
       }
 
       /* 3: verify owner was X. */
-      DBUG_ASSERT(old_thread == new_thread);
+      assert(old_thread == new_thread);
     }
 
     *owner_thread = nullptr;
@@ -7730,7 +7727,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
     */
 
     /* verify owner was null. */
-    DBUG_ASSERT(old_thread == nullptr);
+    assert(old_thread == nullptr);
 
     if (flag_global_instrumentation && klass->m_enabled &&
         flag_thread_instrumentation && (new_thread != nullptr)) {
@@ -7822,7 +7819,7 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
 void pfs_unlock_table_v1(PSI_table *table) {
   PFS_table *pfs_table = reinterpret_cast<PFS_table *>(table);
 
-  DBUG_ASSERT(pfs_table != nullptr);
+  assert(pfs_table != nullptr);
 
   pfs_table->m_internal_lock = PFS_TL_NONE;
   return;
@@ -7860,13 +7857,13 @@ PSI_metadata_lock *pfs_create_metadata_lock_v1(
 void pfs_set_metadata_lock_status_v1(PSI_metadata_lock *lock,
                                      opaque_mdl_status mdl_status) {
   PFS_metadata_lock *pfs = reinterpret_cast<PFS_metadata_lock *>(lock);
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   pfs->m_mdl_status = mdl_status;
 }
 
 void pfs_destroy_metadata_lock_v1(PSI_metadata_lock *lock) {
   PFS_metadata_lock *pfs = reinterpret_cast<PFS_metadata_lock *>(lock);
-  DBUG_ASSERT(pfs != nullptr);
+  assert(pfs != nullptr);
   destroy_metadata_lock(pfs);
 }
 
@@ -7874,8 +7871,8 @@ PSI_metadata_locker *pfs_start_metadata_wait_v1(
     PSI_metadata_locker_state *state, PSI_metadata_lock *lock,
     const char *src_file, uint src_line) {
   PFS_metadata_lock *pfs_lock = reinterpret_cast<PFS_metadata_lock *>(lock);
-  DBUG_ASSERT(state != nullptr);
-  DBUG_ASSERT(pfs_lock != nullptr);
+  assert(state != nullptr);
+  assert(pfs_lock != nullptr);
 
   if (!pfs_lock->m_enabled) {
     return nullptr;
@@ -7956,7 +7953,7 @@ PSI_metadata_locker *pfs_start_metadata_wait_v1(
 void pfs_end_metadata_wait_v1(PSI_metadata_locker *locker, int) {
   PSI_metadata_locker_state *state =
       reinterpret_cast<PSI_metadata_locker_state *>(locker);
-  DBUG_ASSERT(state != nullptr);
+  assert(state != nullptr);
 
   ulonglong timer_end = 0;
   ulonglong wait_time = 0;
@@ -7985,7 +7982,7 @@ void pfs_end_metadata_wait_v1(PSI_metadata_locker *locker, int) {
     if (flags & STATE_FLAG_EVENT) {
       PFS_events_waits *wait =
           reinterpret_cast<PFS_events_waits *>(state->m_wait);
-      DBUG_ASSERT(wait != nullptr);
+      assert(wait != nullptr);
 
       wait->m_timer_end = timer_end;
       wait->m_end_event_id = thread->m_event_id;
@@ -7997,7 +7994,7 @@ void pfs_end_metadata_wait_v1(PSI_metadata_locker *locker, int) {
       }
       thread->m_events_waits_current--;
 
-      DBUG_ASSERT(wait == thread->m_events_waits_current);
+      assert(wait == thread->m_events_waits_current);
     }
   } else {
     if (flags & STATE_FLAG_TIMED) {
@@ -8014,7 +8011,7 @@ void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation) {
   PFS_error_stat *stat;
   uint error_stat_index;
 
-  DBUG_ASSERT(error_num != 0);
+  assert(error_num != 0);
 
   if (!flag_global_instrumentation) {
     return;
@@ -8062,7 +8059,7 @@ void pfs_log_error_v1(uint error_num, PSI_error_operation error_operation) {
 }
 
 void pfs_register_data_lock_v1(PSI_engine_data_lock_inspector *inspector) {
-  DBUG_ASSERT(g_data_lock_inspector_count < COUNT_DATA_LOCK_ENGINES);
+  assert(g_data_lock_inspector_count < COUNT_DATA_LOCK_ENGINES);
 
   g_data_lock_inspector[g_data_lock_inspector_count] = inspector;
   g_data_lock_inspector_count++;
@@ -8075,7 +8072,7 @@ void pfs_unregister_data_lock_v1(
     - there is only one engine exposing data locks (innodb)
     - the innodb engine is never unloaded.
   */
-  DBUG_ASSERT(false);
+  assert(false);
 
 #ifdef LATER
   for (unsigned int i = 0; i < COUNT_DATA_LOCK_ENGINES; i++) {

@@ -133,7 +133,7 @@ struct my_command_data {
 
 /* mysql_config_editor utility options. */
 static struct my_option my_program_long_options[] = {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else

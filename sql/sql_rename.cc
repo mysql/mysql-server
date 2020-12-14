@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -372,7 +372,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list) {
     for (ren_table = table_list; ren_table;
          ren_table = ren_table->next_local->next_local) {
       TABLE_LIST *new_table = ren_table->next_local;
-      DBUG_ASSERT(new_table);
+      assert(new_table);
 
       uncommitted_tables.add_table(ren_table);
       uncommitted_tables.add_table(new_table);
@@ -562,7 +562,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
     old_alias = ren_table->alias;
     new_alias = new_table_alias;
   }
-  DBUG_ASSERT(new_alias);
+  assert(new_alias);
 
   // Fail if the target table already exists
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -614,8 +614,8 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
         return true;
 
       // The below code assumes that only SE capable of atomic DDL support FK.
-      DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) ||
-                  (hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+      assert(!(hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) ||
+             (hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
       /*
         If we are performing rename with intermediate commits then
@@ -624,7 +624,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
         acquire locks on parent and child tables relies on this
         invariant.
       */
-      DBUG_ASSERT(!(*int_commit_done) || fk_invalidator->is_empty());
+      assert(!(*int_commit_done) || fk_invalidator->is_empty());
 
       // Find if table uses general tablespace and is it encrypted.
       bool is_general_tablespace = false;
@@ -639,7 +639,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
           from_table->options().exists("encrypt_type")) {
         dd::String_type et;
         (void)from_table->options().get("encrypt_type", &et);
-        DBUG_ASSERT(et.empty() == false);
+        assert(et.empty() == false);
         is_table_encrypted = is_encrypted(et);
       }
 
@@ -852,7 +852,7 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
       break;
     }
     default:
-      DBUG_ASSERT(false); /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
   }
 
   // Now, we know that rename succeeded, and can log the schema access

@@ -27,6 +27,7 @@
   @file include/prealloced_array.h
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <algorithm>
 #include <new>
@@ -34,7 +35,7 @@
 #include <utility>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
@@ -217,12 +218,12 @@ class Prealloced_array {
   size_t size() const { return m_size; }
 
   Element_type &at(size_t n) {
-    DBUG_ASSERT(n < size());
+    assert(n < size());
     return m_array_ptr[n];
   }
 
   const Element_type &at(size_t n) const {
-    DBUG_ASSERT(n < size());
+    assert(n < size());
     return m_array_ptr[n];
   }
 
@@ -331,7 +332,7 @@ class Prealloced_array {
     container size by one. This destroys the removed element.
    */
   void pop_back() {
-    DBUG_ASSERT(!empty());
+    assert(!empty());
     if (!Has_trivial_destructor) back().~Element_type();
     m_size -= 1;
   }
@@ -452,7 +453,7 @@ class Prealloced_array {
     move-assignable.
   */
   iterator erase(const_iterator position) {
-    DBUG_ASSERT(position != end());
+    assert(position != end());
     return erase(position - begin());
   }
 
@@ -460,7 +461,7 @@ class Prealloced_array {
     Removes a single element from the array.
   */
   iterator erase(size_t ix) {
-    DBUG_ASSERT(ix < size());
+    assert(ix < size());
     iterator pos = begin() + ix;
     if (pos + 1 != end()) std::move(pos + 1, end(), pos);
     pop_back();

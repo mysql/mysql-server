@@ -173,11 +173,11 @@ int Delegate::unlock() {
     if (m_spin_lock.is_exclusive_acquisition())
       m_spin_lock.release_exclusive();
     else {
-      DBUG_ASSERT(m_spin_lock.is_shared_acquisition());
+      assert(m_spin_lock.is_shared_acquisition());
       m_spin_lock.release_shared();
     }
   } else {
-    DBUG_ASSERT(m_acquired_locks.load() < 0);
+    assert(m_acquired_locks.load() < 0);
     m_acquired_locks -= DELEGATE_OS_LOCK;
     result = mysql_rwlock_unlock(&lock);
   }
@@ -957,7 +957,7 @@ int Binlog_storage_delegate::after_sync(THD *thd, const char *log_file,
   Binlog_storage_param param;
   param.server_id = thd->server_id;
 
-  DBUG_ASSERT(log_pos != 0);
+  assert(log_pos != 0);
   int ret = 0;
   FOREACH_OBSERVER(ret, after_sync, (&param, log_file, log_pos));
 
@@ -1344,7 +1344,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
 
       for (TABLE_LIST *table = all_tables; table && !stop_db_check;
            table = table->next_global) {
-        DBUG_ASSERT(table->db && table->table_name);
+        assert(table->db && table->table_name);
 
         if (is_perfschema_db(table->db, table->db_length))
           is_perf_schema_table = true;
@@ -1370,8 +1370,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   }
 
   if (hold_command) {
-    DBUG_EXECUTE_IF("launch_hook_trans_begin_assert_if_hold",
-                    { DBUG_ASSERT(0); };);
+    DBUG_EXECUTE_IF("launch_hook_trans_begin_assert_if_hold", { assert(0); };);
 
     PSI_stage_info old_stage;
     thd->enter_stage(&stage_hook_begin_trans, &old_stage, __func__, __FILE__,

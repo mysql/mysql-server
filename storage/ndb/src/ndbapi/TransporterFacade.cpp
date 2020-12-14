@@ -207,7 +207,7 @@ setSignalLog(){
   } else if(tmp !=0){
     if (strcmp(tmp, "-") == 0)
         signalLogger.setOutputStream(stdout);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     else if (strcmp(tmp, "+") == 0)
         signalLogger.setOutputStream(DBUG_FILE);
 #endif

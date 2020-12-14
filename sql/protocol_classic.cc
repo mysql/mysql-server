@@ -613,9 +613,9 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err) {
   bool error;
   DBUG_TRACE;
 
-  DBUG_ASSERT(!thd->sp_runtime_ctx);
-  DBUG_ASSERT(sql_errno);
-  DBUG_ASSERT(err);
+  assert(!thd->sp_runtime_ctx);
+  assert(sql_errno);
+  assert(err);
 
   DBUG_PRINT("enter", ("sql_errno: %d  err: %s", sql_errno, err));
 
@@ -651,7 +651,7 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err) {
 bool net_send_error(NET *net, uint sql_errno, const char *err) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_errno && err);
+  assert(sql_errno && err);
 
   DBUG_PRINT("enter", ("sql_errno: %d  err: %s", sql_errno, err));
 
@@ -1275,7 +1275,7 @@ uchar *net_store_data(uchar *to, const uchar *from, size_t length) {
 void Protocol_classic::init(THD *thd_arg) {
   m_thd = thd_arg;
   packet = &m_thd->packet;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   field_types = nullptr;
 #endif
 }
@@ -1365,7 +1365,7 @@ void Protocol_classic::claim_memory_ownership(bool claim) {
 }
 
 void Protocol_classic::end_net() {
-  DBUG_ASSERT(m_thd->net.buff);
+  assert(m_thd->net.buff);
   net_end(&m_thd->net);
   m_thd->net.vio = nullptr;
 }
@@ -1403,7 +1403,7 @@ String *Protocol_classic::get_output_packet() { return &m_thd->packet; }
 int Protocol_classic::read_packet() {
   input_packet_length = my_net_read(&m_thd->net);
   if (input_packet_length != packet_error) {
-    DBUG_ASSERT(!m_thd->net.error);
+    assert(!m_thd->net.error);
     bad_packet = false;
     input_raw_packet = m_thd->net.read_pos;
     return 0;
@@ -2807,7 +2807,7 @@ static bool parse_query_bind_params(
   if (out_parameter_count)
     DBUG_PRINT("info", ("param count %ul", (uint)*out_parameter_count));
   if (receive_named_params && out_parameter_count) {
-    DBUG_ASSERT(*out_parameter_count == param_count);
+    assert(*out_parameter_count == param_count);
     *out_parameter_count = param_count;  // dummy: keep compiler happy
   }
   *inout_read_pos = read_pos;
@@ -2991,7 +2991,7 @@ int Protocol_classic::get_command(COM_DATA *com_data,
 
   if (*cmd >= COM_END) *cmd = COM_END;  // Wrong command
 
-  DBUG_ASSERT(input_packet_length);
+  assert(input_packet_length);
   // Skip 'command'
   input_packet_length--;
   input_raw_packet++;
@@ -3082,7 +3082,7 @@ bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
   }
   DBUG_EXECUTE_IF("send_large_column_count_in_metadata",
                   num_cols = num_cols_arg;);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     field_types will be filled only if we send metadata.
     Set it to NULL if we skip resultset metadata to avoid
@@ -3250,7 +3250,7 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
   const CHARSET_INFO *cs = system_charset_info;
   const CHARSET_INFO *thd_charset = m_thd->variables.character_set_results;
 
-  DBUG_ASSERT(field->type != MYSQL_TYPE_BOOL);
+  assert(field->type != MYSQL_TYPE_BOOL);
 
   /* Keep things compatible for old clients */
   if (field->type == MYSQL_TYPE_VARCHAR) field->type = MYSQL_TYPE_VAR_STRING;
@@ -3331,7 +3331,7 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
   }
   packet->length((uint)(pos - packet->ptr()));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   field_types[count++] = field->type;
 #endif
   return false;
@@ -3394,14 +3394,14 @@ int Protocol_classic::shutdown(bool) {
 bool Protocol_classic::store_string(const char *from, size_t length,
                                     const CHARSET_INFO *fromcs) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_BIT ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
-              field_types[field_pos] == MYSQL_TYPE_JSON ||
-              (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
-               field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_DECIMAL ||
+         field_types[field_pos] == MYSQL_TYPE_BIT ||
+         field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL ||
+         field_types[field_pos] == MYSQL_TYPE_NEWDATE ||
+         field_types[field_pos] == MYSQL_TYPE_JSON ||
+         (field_types[field_pos] >= MYSQL_TYPE_ENUM &&
+          field_types[field_pos] <= MYSQL_TYPE_GEOMETRY));
   field_pos++;
   // result_cs is nullptr when client issues SET character_set_results=NULL
   if (result_cs != nullptr && !my_charset_same(fromcs, result_cs) &&
@@ -3445,26 +3445,26 @@ static bool store_integer(int64 value, bool unsigned_flag, uint32 zerofill,
 
 bool Protocol_text::store_tiny(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_TINY);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_TINY);
   field_pos++;
   return store_integer(from, false, zerofill, packet);
 }
 
 bool Protocol_text::store_short(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_YEAR ||
-              field_types[field_pos] == MYSQL_TYPE_SHORT);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_YEAR ||
+         field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
   return store_integer(from, false, zerofill, packet);
 }
 
 bool Protocol_text::store_long(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_INT24 ||
-              field_types[field_pos] == MYSQL_TYPE_LONG);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_INT24 ||
+         field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
   return store_integer(from, false, zerofill, packet);
 }
@@ -3472,16 +3472,16 @@ bool Protocol_text::store_long(longlong from, uint32 zerofill) {
 bool Protocol_text::store_longlong(longlong from, bool unsigned_flag,
                                    uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_LONGLONG);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_LONGLONG);
   field_pos++;
   return store_integer(from, unsigned_flag, zerofill, packet);
 }
 
 bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_NEWDECIMAL);
   field_pos++;
 
   // Lengths less than 251 bytes are encoded in a single byte. See
@@ -3503,7 +3503,7 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   // decimal2string() can only fail with E_DEC_TRUNCATED or E_DEC_OVERFLOW.
   // Since it was given a buffer with the maximum length of a DECIMAL,
   // truncation and overflow should never happen.
-  DBUG_ASSERT(error == E_DEC_OK);
+  assert(error == E_DEC_OK);
 
   // Store the actual length, and update the length of packet.
   *pos = string_length;
@@ -3554,8 +3554,8 @@ static bool store_floating_point(double value, uint32 decimals, uint32 zerofill,
 
 bool Protocol_text::store_float(float from, uint32 decimals, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_FLOAT);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
   return store_floating_point(from, decimals, zerofill, MY_GCVT_ARG_FLOAT,
                               packet);
@@ -3564,8 +3564,8 @@ bool Protocol_text::store_float(float from, uint32 decimals, uint32 zerofill) {
 bool Protocol_text::store_double(double from, uint32 decimals,
                                  uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_DOUBLE);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_DOUBLE);
   field_pos++;
   return store_floating_point(from, decimals, zerofill, MY_GCVT_ARG_DOUBLE,
                               packet);
@@ -3593,8 +3593,8 @@ static bool store_temporal(ToString to_string, String *packet) {
 
 bool Protocol_text::store_datetime(const MYSQL_TIME &tm, uint decimals) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              is_temporal_type_with_date_and_time(field_types[field_pos]));
+  assert(send_metadata || field_types == nullptr ||
+         is_temporal_type_with_date_and_time(field_types[field_pos]));
   field_pos++;
   return store_temporal(
       [&tm, decimals](char *to) {
@@ -3605,8 +3605,8 @@ bool Protocol_text::store_datetime(const MYSQL_TIME &tm, uint decimals) {
 
 bool Protocol_text::store_date(const MYSQL_TIME &tm) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_DATE);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
   return store_temporal([&tm](char *to) { return my_date_to_str(tm, to); },
                         packet);
@@ -3614,8 +3614,8 @@ bool Protocol_text::store_date(const MYSQL_TIME &tm) {
 
 bool Protocol_text::store_time(const MYSQL_TIME &tm, uint decimals) {
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(send_metadata || field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_TIME);
+  assert(send_metadata || field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
   return store_temporal(
       [&tm, decimals](char *to) { return my_time_to_str(tm, to, decimals); },
@@ -3775,8 +3775,7 @@ bool Protocol_binary::store_tiny(longlong from, uint32 zerofill) {
   if (send_metadata) return Protocol_text::store_tiny(from, zerofill);
   char buff[1];
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_TINY);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_TINY);
   field_pos++;
   buff[0] = (uchar)from;
   return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
@@ -3785,9 +3784,8 @@ bool Protocol_binary::store_tiny(longlong from, uint32 zerofill) {
 bool Protocol_binary::store_short(longlong from, uint32 zerofill) {
   if (send_metadata) return Protocol_text::store_short(from, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_YEAR ||
-              field_types[field_pos] == MYSQL_TYPE_SHORT);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_YEAR ||
+         field_types[field_pos] == MYSQL_TYPE_SHORT);
   field_pos++;
   char *to = packet->prep_append(2, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to) return true;
@@ -3798,9 +3796,8 @@ bool Protocol_binary::store_short(longlong from, uint32 zerofill) {
 bool Protocol_binary::store_long(longlong from, uint32 zerofill) {
   if (send_metadata) return Protocol_text::store_long(from, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_INT24 ||
-              field_types[field_pos] == MYSQL_TYPE_LONG);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_INT24 ||
+         field_types[field_pos] == MYSQL_TYPE_LONG);
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to) return true;
@@ -3813,8 +3810,8 @@ bool Protocol_binary::store_longlong(longlong from, bool unsigned_flag,
   if (send_metadata)
     return Protocol_text::store_longlong(from, unsigned_flag, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_LONGLONG);
+  assert(field_types == nullptr ||
+         field_types[field_pos] == MYSQL_TYPE_LONGLONG);
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to) return true;
@@ -3827,8 +3824,7 @@ bool Protocol_binary::store_float(float from, uint32 decimals,
   if (send_metadata)
     return Protocol_text::store_float(from, decimals, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_FLOAT);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_FLOAT);
   field_pos++;
   char *to = packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to) return true;
@@ -3841,8 +3837,7 @@ bool Protocol_binary::store_double(double from, uint32 decimals,
   if (send_metadata)
     return Protocol_text::store_double(from, decimals, zerofill);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_DOUBLE);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_DOUBLE);
   field_pos++;
   char *to = packet->prep_append(8, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to) return true;
@@ -3854,8 +3849,8 @@ bool Protocol_binary::store_datetime(const MYSQL_TIME &tm, uint precision) {
   if (send_metadata) return Protocol_text::store_datetime(tm, precision);
 
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              is_temporal_type_with_date_and_time(field_types[field_pos]));
+  assert(field_types == nullptr ||
+         is_temporal_type_with_date_and_time(field_types[field_pos]));
   field_pos++;
 
   size_t length;
@@ -3890,15 +3885,14 @@ bool Protocol_binary::store_datetime(const MYSQL_TIME &tm, uint precision) {
   if (pos == end) return false;  // No microseconds.
 
   int4store(pos, tm.second_part);
-  DBUG_ASSERT(pos + 4 == end);
+  assert(pos + 4 == end);
   return false;
 }
 
 bool Protocol_binary::store_date(const MYSQL_TIME &tm) {
   if (send_metadata) return Protocol_text::store_date(tm);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_DATE);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_DATE);
   field_pos++;
 
   if (tm.year == 0 && tm.month == 0 && tm.day == 0) {
@@ -3918,8 +3912,7 @@ bool Protocol_binary::store_date(const MYSQL_TIME &tm) {
 bool Protocol_binary::store_time(const MYSQL_TIME &tm, uint precision) {
   if (send_metadata) return Protocol_text::store_time(tm, precision);
   // field_types check is needed because of the embedded protocol
-  DBUG_ASSERT(field_types == nullptr ||
-              field_types[field_pos] == MYSQL_TYPE_TIME);
+  assert(field_types == nullptr || field_types[field_pos] == MYSQL_TYPE_TIME);
   field_pos++;
 
   size_t length;
@@ -3951,7 +3944,7 @@ bool Protocol_binary::store_time(const MYSQL_TIME &tm, uint precision) {
   if (pos == end) return false;  // no second part
 
   int4store(pos, tm.second_part);
-  DBUG_ASSERT(pos + 4 == end);
+  assert(pos + 4 == end);
   return false;
 }
 

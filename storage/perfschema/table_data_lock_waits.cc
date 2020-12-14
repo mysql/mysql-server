@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -259,7 +259,7 @@ int table_data_lock_waits::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_data_lock_waits_by_blocking_thread_id);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -281,7 +281,7 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
   }
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -325,7 +325,7 @@ int table_data_lock_waits::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulonglong(f, (intptr)m_row->m_blocking_identity);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

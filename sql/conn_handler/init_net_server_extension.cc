@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,12 @@
 
 #include "sql/conn_handler/init_net_server_extension.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "lex_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_socket_bits.h"
 #include "mysql/components/services/psi_statement_bits.h"
@@ -52,7 +53,7 @@ static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
                                   void *user_data, size_t /* unused: count */) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
 
   if (thd->m_server_idle) {
     /*
@@ -72,7 +73,7 @@ static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
                                  bool rc) {
   THD *thd;
   thd = static_cast<THD *>(user_data);
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
 
   if (thd->m_server_idle) {
     /*
@@ -89,7 +90,7 @@ static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
     MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
 
     if (!rc) {
-      DBUG_ASSERT(thd->m_statement_psi == nullptr);
+      assert(thd->m_statement_psi == nullptr);
       thd->m_statement_psi = MYSQL_START_STATEMENT(
           &thd->m_statement_state, stmt_info_new_packet.m_key, thd->db().str,
           thd->db().length, thd->charset(), nullptr);

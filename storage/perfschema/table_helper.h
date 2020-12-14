@@ -29,11 +29,12 @@
   Helpers to implement a performance schema table.
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "storage/perfschema/digest.h"
 #include "storage/perfschema/pfs_column_types.h"
@@ -725,7 +726,7 @@ struct PFS_stat_row {
         set_field_ulonglong(f, m_max);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
     }
   }
 };

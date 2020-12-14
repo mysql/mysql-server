@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_variables_info.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -127,7 +127,7 @@ int table_variables_info::rnd_next(void) {
 
 int table_variables_info::rnd_pos(const void *pos) {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_sysvarinfo_cache.size());
+  assert(m_pos.m_index < m_sysvarinfo_cache.size());
 
   if (m_sysvarinfo_cache.is_materialized()) {
     const System_variable *system_var = m_sysvarinfo_cache.get(m_pos.m_index);
@@ -175,7 +175,7 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -225,7 +225,7 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
           break;
 
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

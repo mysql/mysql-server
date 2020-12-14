@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/item_geofunc_relchecks_bgwrap.h"
 
+#include <assert.h>
 #include <algorithm>
 #include <boost/concept/usage.hpp>
 #include <boost/geometry/algorithms/equals.hpp>
@@ -33,7 +34,6 @@
 #include <boost/geometry/strategies/strategies.hpp>
 #include <utility>
 
-#include "my_dbug.h"
 #include "sql/item_geofunc_internal.h"
 #include "sql/spatial.h"
 
@@ -66,7 +66,7 @@ int BG_wrap<Geom_types>::point_within_geometry(Geometry *g1, Geometry *g2,
   else if (gt2 == Geometry::wkb_multilinestring)
     BGCALL(result, within, Point, g1, Multilinestring, g2, pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -164,7 +164,7 @@ int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
     */
     result = multipoint_within_geometry_internal(mpts, mls);
   } else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -272,7 +272,7 @@ int BG_wrap<Geom_types>::linestring_within_geometry(Geometry *g1, Geometry *g2,
   else if (gt2 == Geometry::wkb_multilinestring)
     BGCALL(result, within, Linestring, g1, Multilinestring, g2, pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -296,7 +296,7 @@ int BG_wrap<Geom_types>::multilinestring_within_geometry(Geometry *g1,
     BGCALL(result, within, Multilinestring, g1, Multilinestring, g2,
            pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -316,7 +316,7 @@ int BG_wrap<Geom_types>::polygon_within_geometry(Geometry *g1, Geometry *g2,
            gt2 == Geometry::wkb_multilinestring)
     return 0;
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -337,7 +337,7 @@ int BG_wrap<Geom_types>::multipolygon_within_geometry(Geometry *g1,
            gt2 == Geometry::wkb_multilinestring)
     return 0;
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -455,7 +455,7 @@ int BG_wrap<Geom_types>::multipoint_disjoint_geometry(Geometry *g1,
       result = multipoint_disjoint_multi_geometry(mpts1, mls);
     } break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -560,7 +560,7 @@ int BG_wrap<Geom_types>::linestring_disjoint_geometry(Geometry *g1,
   else if (gt2 == Geometry::wkb_multipolygon)
     BGCALL(result, disjoint, Linestring, g1, Multipolygon, g2, pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
   return result;
 }
 
@@ -597,7 +597,7 @@ int BG_wrap<Geom_types>::multilinestring_disjoint_geometry(Geometry *g1,
     BGCALL(result, disjoint, Multilinestring, g1, Multipolygon, g2,
            pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -644,7 +644,7 @@ int BG_wrap<Geom_types>::point_disjoint_geometry(Geometry *g1, Geometry *g2,
       BGCALL(result, disjoint, Point, g1, Multilinestring, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -686,7 +686,7 @@ int BG_wrap<Geom_types>::polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
       BGCALL(result, disjoint, Polygon, g1, Multilinestring, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -730,7 +730,7 @@ int BG_wrap<Geom_types>::multipolygon_disjoint_geometry(Geometry *g1,
              pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -769,7 +769,7 @@ int BG_wrap<Geom_types>::point_intersects_geometry(Geometry *g1, Geometry *g2,
       BGCALL(result, intersects, Point, g1, Multipolygon, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -823,7 +823,7 @@ int BG_wrap<Geom_types>::linestring_intersects_geometry(Geometry *g1,
   else if (gt2 == Geometry::wkb_multipolygon)
     BGCALL(result, intersects, Linestring, g1, Multipolygon, g2, pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -860,7 +860,7 @@ int BG_wrap<Geom_types>::multilinestring_intersects_geometry(
     BGCALL(result, intersects, Multilinestring, g1, Multipolygon, g2,
            pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   return result;
 }
@@ -901,7 +901,7 @@ int BG_wrap<Geom_types>::polygon_intersects_geometry(Geometry *g1, Geometry *g2,
       BGCALL(result, intersects, Polygon, g1, Multilinestring, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -947,7 +947,7 @@ int BG_wrap<Geom_types>::multipolygon_intersects_geometry(Geometry *g1,
              pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -983,7 +983,7 @@ int BG_wrap<Geom_types>::linestring_crosses_geometry(Geometry *g1, Geometry *g2,
       BGCALL(result, crosses, Linestring, g1, Multipolygon, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -1023,7 +1023,7 @@ int BG_wrap<Geom_types>::multilinestring_crosses_geometry(Geometry *g1,
              pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -1083,7 +1083,7 @@ int BG_wrap<Geom_types>::multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
       result = (has_in && has_out);
     } break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -1194,7 +1194,7 @@ int BG_wrap<Geom_types>::point_touches_geometry(Geometry *g1, Geometry *g2,
       BGCALL(result, touches, Point, g1, Multipolygon, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -1266,7 +1266,7 @@ int BG_wrap<Geom_types>::linestring_touches_geometry(Geometry *g1, Geometry *g2,
       BGCALL(result, touches, Linestring, g1, Multipolygon, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -1312,7 +1312,7 @@ int BG_wrap<Geom_types>::multilinestring_touches_geometry(Geometry *g1,
              pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -1355,7 +1355,7 @@ int BG_wrap<Geom_types>::polygon_touches_geometry(Geometry *g1, Geometry *g2,
           g2, g1, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -1399,7 +1399,7 @@ int BG_wrap<Geom_types>::multipolygon_touches_geometry(Geometry *g1,
              pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 

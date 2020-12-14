@@ -513,8 +513,8 @@ void log_item_free(log_item *li) {
       my_free(const_cast<char *>(li->data.data_string.str));
     else if (li->item_class == LOG_BUFFER) /* purecov: begin inspected */
       my_free(const_cast<char *>(li->data.data_buffer.str));
-    else                  // free() is only defined on string and buffer
-      DBUG_ASSERT(false); /* purecov: end */
+    else             // free() is only defined on string and buffer
+      assert(false); /* purecov: end */
   }
 
   li->alloc = LOG_ITEM_FREE_NONE;
@@ -602,7 +602,7 @@ log_item_type_mask log_line_item_types_seen(log_line *ll,
   @param         elem  index of the key/value pair to release
 */
 void log_line_item_free(log_line *ll, size_t elem) {
-  DBUG_ASSERT(ll->count > 0);
+  assert(ll->count > 0);
   log_item_free(&(ll->item[elem]));
 }
 
@@ -629,7 +629,7 @@ void log_line_item_free_all(log_line *ll) {
   @param         elem  index of the key/value pair to release
 */
 void log_line_item_remove(log_line *ll, int elem) {
-  DBUG_ASSERT(ll->count > 0);
+  assert(ll->count > 0);
 
   log_line_item_free(ll, elem);
 
@@ -787,7 +787,7 @@ log_item_data *log_item_set_with_key(log_item *li, log_item_type t,
     li->key = key;
   } else {
     li->key = log_item_wellknown_keys[c].name;
-    DBUG_ASSERT((alloc & LOG_ITEM_FREE_KEY) == 0);
+    assert((alloc & LOG_ITEM_FREE_KEY) == 0);
   }
 
   // If we accept a C-string as input, it'll become a Lex string internally
@@ -796,9 +796,9 @@ log_item_data *log_item_set_with_key(log_item *li, log_item_type t,
 
   li->type = t;
 
-  DBUG_ASSERT(
-      ((alloc & LOG_ITEM_FREE_VALUE) == 0) || (li->item_class == LOG_CSTRING) ||
-      (li->item_class == LOG_LEX_STRING) || (li->item_class == LOG_BUFFER));
+  assert(((alloc & LOG_ITEM_FREE_VALUE) == 0) ||
+         (li->item_class == LOG_CSTRING) ||
+         (li->item_class == LOG_LEX_STRING) || (li->item_class == LOG_BUFFER));
 
   return &li->data;
 }
@@ -928,7 +928,7 @@ const char *log_label_from_prio(int prio) {
     case INFORMATION_LEVEL:
       return "Note";
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       return "";
   }
 }
@@ -1053,7 +1053,7 @@ int log_line_submit(log_line *ll) {
       int n = log_line_index_by_type(ll, LOG_ITEM_SYS_ERRNO);
       log_item_data *d = log_line_item_set(ll, LOG_ITEM_SYS_STRERROR);
 
-      DBUG_ASSERT(n >= 0);
+      assert(n >= 0);
 
       en = (int)ll->item[n].data.data_integer;
       my_strerror(strerr_buf, sizeof(strerr_buf), en);
@@ -1080,7 +1080,7 @@ int log_line_submit(log_line *ll) {
       int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
       const char *es;
 
-      DBUG_ASSERT(n >= 0);
+      assert(n >= 0);
 
       ec = (int)ll->item[n].data.data_integer;
       if ((ec != 0) && ((es = mysql_errno_to_symbol(ec)) != nullptr)) {
@@ -1097,11 +1097,11 @@ int log_line_submit(log_line *ll) {
       int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRSYMBOL);
       int ec;
 
-      DBUG_ASSERT(n >= 0);
+      assert(n >= 0);
 
       es = ll->item[n].data.data_string.str;
 
-      DBUG_ASSERT(es != nullptr);
+      assert(es != nullptr);
 
       if ((ec = mysql_symbol_to_errno(es)) > 0) {
         log_item_data *d = log_line_item_set(ll, LOG_ITEM_SQL_ERRCODE);
@@ -1118,10 +1118,10 @@ int log_line_submit(log_line *ll) {
 
       if (n < 0) {
         n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRSYMBOL);
-        DBUG_ASSERT(n >= 0);
+        assert(n >= 0);
 
         es = ll->item[n].data.data_string.str;
-        DBUG_ASSERT(es != nullptr);
+        assert(es != nullptr);
 
         ec = mysql_symbol_to_errno(es);
       } else
@@ -1241,7 +1241,7 @@ int log_line_submit(log_line *ll) {
       mysql_rwlock_unlock(&THR_LOCK_log_stack);
     }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     /*
       Assert that we're not given anything but server error-log codes
       or global error codes (shared between MySQL server and clients).
@@ -1253,8 +1253,8 @@ int log_line_submit(log_line *ll) {
       int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
       if (n >= 0) {
         int ec = (int)ll->item[n].data.data_integer;
-        DBUG_ASSERT((ec < 1) || (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
-                    (ec >= ER_SERVER_RANGE_START));
+        assert((ec < 1) || (ec >= EE_ERROR_FIRST && ec <= EE_ERROR_LAST) ||
+               (ec >= ER_SERVER_RANGE_START));
       }
     }
 #endif
@@ -1326,7 +1326,7 @@ int make_iso8601_timestamp(char *buf, ulonglong utime,
              (unsigned int)((tim / (60 * 60)) % 100),
              (unsigned int)((tim / 60) % 60));
   } else {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   len = snprintf(buf, iso8601_size, "%04d-%02d-%02dT%02d:%02d:%02d.%06lu%s",
@@ -1376,8 +1376,8 @@ ulonglong iso8601_timestamp_to_microseconds(const char *timestamp, size_t len) {
 static ssize_t log_builtins_stack_get_service_from_var(const char **s,
                                                        const char **e,
                                                        char *d) {
-  DBUG_ASSERT(s != nullptr);
-  DBUG_ASSERT(e != nullptr);
+  assert(s != nullptr);
+  assert(e != nullptr);
 
   // proceed to next service (skip whitespace, and the delimiter once defined)
   while (isspace(**s) || ((*d != '\0') && (**s == *d))) (*s)++;
@@ -1442,7 +1442,7 @@ void log_service_cache_entry_free::operator()(
 
   if (sce->name != nullptr) my_free(sce->name);
 
-  DBUG_ASSERT(sce->opened == 0);
+  assert(sce->opened == 0);
 
   if (sce->service != nullptr) srv_registry->release(sce->service);
 
@@ -1500,7 +1500,7 @@ static log_service_cache_entry *log_service_cache_entry_new(const char *name,
 static int log_service_get_characteristics(my_h_service service) {
   SERVICE_TYPE(log_service) * ls;
 
-  DBUG_ASSERT(service != nullptr);
+  assert(service != nullptr);
 
   ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(service);
 
@@ -1531,7 +1531,7 @@ log_service_instance *log_service_instance_new(log_service_cache_entry *sce,
     memset(lsi, 0, sizeof(log_service_instance));
     lsi->sce = sce;
 
-    DBUG_ASSERT(sce != nullptr);
+    assert(sce != nullptr);
 
     if (lsi->sce->service != nullptr) {
       SERVICE_TYPE(log_service) *ls = nullptr;
@@ -1698,7 +1698,7 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
     sce = key_and_value.second.get();
     sce->requested = 0;
 
-    DBUG_ASSERT(check_only || (sce->opened == 0));
+    assert(check_only || (sce->opened == 0));
   }
 
   sce = nullptr;
@@ -1804,7 +1804,7 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
         if (log_service_instances == nullptr)
           log_service_instances = lsi_new;
         else {
-          DBUG_ASSERT(lsi != nullptr);
+          assert(lsi != nullptr);
           lsi->next = lsi_new;
         }
 
@@ -1951,7 +1951,7 @@ int log_builtins_exit() {
 int log_builtins_init() {
   int rr = 0;
 
-  DBUG_ASSERT(!log_builtins_inited);
+  assert(!log_builtins_inited);
 
   // Reset flag. This is *also* set on definition, this is intentional.
   log_buffering_flushworthy = false;
@@ -1989,8 +1989,8 @@ int log_builtins_init() {
       log_builtins_inited = true;
       return 0;
     } else {
-      rr = -5;            /* purecov: inspected */
-      DBUG_ASSERT(false); /* purecov: inspected */
+      rr = -5;       /* purecov: inspected */
+      assert(false); /* purecov: inspected */
     }
   }
 
@@ -2407,8 +2407,8 @@ DEFINE_METHOD(log_item_iter *, log_builtins_imp::line_item_iter_acquire,
 */
 DEFINE_METHOD(void, log_builtins_imp::line_item_iter_release,
               (log_item_iter * it)) {
-  DBUG_ASSERT(it != nullptr);
-  DBUG_ASSERT(it->ll != nullptr);
+  assert(it != nullptr);
+  assert(it->ll != nullptr);
 
   it->ll = nullptr;
 }
@@ -2422,8 +2422,8 @@ DEFINE_METHOD(void, log_builtins_imp::line_item_iter_release,
 */
 DEFINE_METHOD(log_item *, log_builtins_imp::line_item_iter_first,
               (log_item_iter * it)) {
-  DBUG_ASSERT(it != nullptr);
-  DBUG_ASSERT(it->ll != nullptr);
+  assert(it != nullptr);
+  assert(it->ll != nullptr);
 
   if (it->ll->count < 1) return nullptr;
 
@@ -2441,9 +2441,9 @@ DEFINE_METHOD(log_item *, log_builtins_imp::line_item_iter_first,
 // Call to function through pointer to incorrect function type
 DEFINE_METHOD(log_item *, log_builtins_imp::line_item_iter_next,
               (log_item_iter * it)) {
-  DBUG_ASSERT(it != nullptr);
-  DBUG_ASSERT(it->ll != nullptr);
-  DBUG_ASSERT(it->index >= 0);
+  assert(it != nullptr);
+  assert(it->ll != nullptr);
+  assert(it->index >= 0);
 
   it->index++;
 
@@ -2461,9 +2461,9 @@ DEFINE_METHOD(log_item *, log_builtins_imp::line_item_iter_next,
 */
 DEFINE_METHOD(log_item *, log_builtins_imp::line_item_iter_current,
               (log_item_iter * it)) {
-  DBUG_ASSERT(it != nullptr);
-  DBUG_ASSERT(it->ll != nullptr);
-  DBUG_ASSERT(it->index >= 0);
+  assert(it != nullptr);
+  assert(it->ll != nullptr);
+  assert(it->index >= 0);
 
   if (it->index >= it->ll->count) return nullptr;
 
@@ -2556,7 +2556,7 @@ DEFINE_METHOD(int, log_builtins_imp::sanitize, (log_item * li)) {
   char *out_start = nullptr, *out_write;
   int nuls_found = 0;
 
-  DBUG_ASSERT((li != nullptr) && (li->item_class == LOG_LEX_STRING));
+  assert((li != nullptr) && (li->item_class == LOG_LEX_STRING));
 
   // find out how many \0 to escape
   for (in_read = in_start, len = in_len;
@@ -3101,7 +3101,7 @@ DEFINE_METHOD(log_service_error, log_builtins_syseventlog_imp::open,
     case -2:
       return LOG_SERVICE_NOTHING_DONE;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   return LOG_SERVICE_MISC_ERROR; /* purecov: end */

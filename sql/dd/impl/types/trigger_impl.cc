@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -241,8 +241,8 @@ void Trigger::create_mdl_key(const String_type &schema_name,
 #ifndef DEBUG_OFF
   // Make sure schema name is lowercased when lower_case_table_names == 2.
   if (lower_case_table_names == 2)
-    DBUG_ASSERT(is_string_in_lowercase(schema_name,
-                                       tables::Schemata::name_collation()));
+    assert(is_string_in_lowercase(schema_name,
+                                  tables::Schemata::name_collation()));
 #endif
 
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,9 +231,9 @@ Gcs_message_stage_split_v2::apply_transformation(Gcs_packet &&packet) {
   /* Calculate number of fragments we will produce. */
   unsigned long long max_nr_fragments =
       (original_payload_length + m_split_threshold - 1) / m_split_threshold;
-  DBUG_ASSERT(max_nr_fragments < std::numeric_limits<unsigned int>::max());
+  assert(max_nr_fragments < std::numeric_limits<unsigned int>::max());
   auto nr_fragments = static_cast<unsigned int>(max_nr_fragments);
-  DBUG_ASSERT(nr_fragments >= 1);
+  assert(nr_fragments >= 1);
 
   if (nr_fragments == 1) {
     apply_transformation_single_fragment(packet);
@@ -249,7 +249,7 @@ Gcs_message_stage_split_v2::apply_transformation(Gcs_packet &&packet) {
 
 void Gcs_message_stage_split_v2::apply_transformation_single_fragment(
     Gcs_packet &packet) const {
-  DBUG_ASSERT(packet.get_payload_length() <= m_split_threshold);
+  assert(packet.get_payload_length() <= m_split_threshold);
 
   /*
    Populate the stage header.
@@ -491,7 +491,7 @@ bool Gcs_message_stage_split_v2::is_final_fragment(
 
   auto packets_per_source_it =
       m_packets_per_source.find(fragment_header.get_sender_id());
-  DBUG_ASSERT(packets_per_source_it != m_packets_per_source.end());
+  assert(packets_per_source_it != m_packets_per_source.end());
 
   Gcs_packets_per_content const &packets_per_content =
       packets_per_source_it->second;
@@ -517,7 +517,7 @@ end:
 
 Gcs_packets_list Gcs_message_stage_split_v2::get_fragments(
     Gcs_split_header_v2 const &fragment_header) {
-  DBUG_ASSERT(fragment_header.get_num_messages() > 1);
+  assert(fragment_header.get_num_messages() > 1);
   auto packets_per_source_it =
       m_packets_per_source.find(fragment_header.get_sender_id());
 
@@ -534,7 +534,7 @@ Gcs_packets_list Gcs_message_stage_split_v2::get_fragments(
 
 std::pair<bool, Gcs_packet> Gcs_message_stage_split_v2::reassemble_fragments(
     Gcs_packets_list &fragments) const {
-  DBUG_ASSERT(fragments.size() > 0);
+  assert(fragments.size() > 0);
   bool constexpr ERROR = true;
   bool constexpr OK = false;
   auto result = std::make_pair(ERROR, Gcs_packet());
@@ -638,7 +638,7 @@ bool Gcs_message_stage_split_v2::insert_fragment(Gcs_packet &&packet) {
   /* Get the table with fragments from sender. */
   auto packets_per_source_it =
       m_packets_per_source.find(header.get_sender_id());
-  DBUG_ASSERT(packets_per_source_it != m_packets_per_source.end());
+  assert(packets_per_source_it != m_packets_per_source.end());
 
   /*
    Insert this fragment into the list of fragments of the packet.
@@ -674,7 +674,7 @@ bool Gcs_message_stage_split_v2::insert_fragment(Gcs_packet &&packet) {
   // Insert the fragment into the list.
   fragment_list = &packets_per_content_it->second;
   fragment_list->push_back(std::move(packet));
-  DBUG_ASSERT(fragment_list->size() < header.get_num_messages());
+  assert(fragment_list->size() < header.get_num_messages());
 
   result = OK;
 

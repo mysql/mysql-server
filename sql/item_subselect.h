@@ -25,6 +25,7 @@
 
 /* subselect Item */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>
@@ -33,7 +34,7 @@
 
 #include "field_types.h"  // enum_field_types
 #include "my_alloc.h"     // Destroy_only
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "my_time.h"
@@ -223,7 +224,7 @@ class Item_subselect : public Item_result_field {
   bool clean_up_after_removal(uchar *arg) override;
 
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "subselect";
   }
 
@@ -746,7 +747,7 @@ class SubqueryWithResult {
   enum_field_types field_type() const { return res_field_type; }
   bool may_be_null() const { return maybe_null; }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      @returns the internal Item. Defined only in debug builds, because should
      be used only for debug asserts.

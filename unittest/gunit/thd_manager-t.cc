@@ -265,7 +265,7 @@ TEST_F(ThreadManagerTest, ThreadID) {
   thd_manager->release_thread_id(UINT_MAX32);
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 TEST_F(ThreadManagerTest, ThreadIDDeathTest) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   my_thread_id thread_id = thd_manager->get_new_thread_id();

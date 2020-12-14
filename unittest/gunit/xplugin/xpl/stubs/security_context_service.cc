@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,50 +20,51 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "mysql/plugin.h"
 #include "mysql/service_security_context.h"
 
 my_svc_bool thd_get_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT *) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT,
                                   MYSQL_SECURITY_CONTEXT *) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT, const char *,
                                     const char *, const char *, const char *) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT, const char *,
                                         void *) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
 my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT, const char *,
                                         void *) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }

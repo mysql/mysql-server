@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ Length::Length(double major, double minor)
 double Length::operator()(const Geometry &g1) const { return apply(*this, g1); }
 
 double Length::eval(const Geometry &) const {
-  DBUG_ASSERT(false); /* purecov: inspected */
+  assert(false); /* purecov: inspected */
   throw std::exception();
 }
 
@@ -75,11 +75,11 @@ double Length::eval(const Cartesian_multilinestring &g1) const {
 bool length(const dd::Spatial_reference_system *srs, const Geometry *g1,
             double *length, bool *null) noexcept {
   try {
-    DBUG_ASSERT(srs == nullptr ||
-                ((srs->is_cartesian() &&
-                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
-                 (srs->is_geographic() &&
-                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+    assert(srs == nullptr ||
+           ((srs->is_cartesian() &&
+             g1->coordinate_system() == Coordinate_system::kCartesian) ||
+            (srs->is_geographic() &&
+             g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty()))) return false;
 

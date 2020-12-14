@@ -24,6 +24,7 @@
 
 #include "sql/sql_call.h"
 
+#include <assert.h>
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -32,7 +33,7 @@
 
 #include "lex_string.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin_audit.h"
@@ -167,7 +168,7 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
             return true;
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
     arg_no++;
@@ -238,7 +239,7 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
   thd->server_status &= ~bits_to_be_cleared;
 
   if (result) {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    assert(thd->is_error() || thd->killed);
     return true;  // Substatement should already have sent error
   }
 

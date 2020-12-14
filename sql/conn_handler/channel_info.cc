@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ THD *Channel_info::create_thd() {
 
 void Channel_info::send_error_and_close_channel(uint errorcode, int error,
                                                 bool senderror) {
-  DBUG_ASSERT(errorcode != 0);
+  assert(errorcode != 0);
   if (!errorcode) return;
 
   char error_message_buff[MYSQL_ERRMSG_SIZE];

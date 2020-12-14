@@ -88,7 +88,7 @@ Dynamic_privilege_register *get_dynamic_privilege_register(void) {
 bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
   DBUG_TRACE;
   bool error = false;
-  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+  assert(assert_acl_cache_write_lock(thd));
   Acl_table_intact table_intact(thd);
 
   if (table_intact.check(tablelst[0].table, ACL_TABLES::TABLE_DYNAMIC_PRIV))

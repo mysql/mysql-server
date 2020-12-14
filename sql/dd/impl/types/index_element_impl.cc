@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -195,8 +195,8 @@ Index_element_impl *Index_element_impl::clone(const Index_element_impl &other,
                                               Index_impl *index) {
   Column *dstcol =
       (*index->table_impl().columns())[other.column().ordinal_position() - 1];
-  DBUG_ASSERT(dstcol->ordinal_position() == other.column().ordinal_position() &&
-              dstcol->name() == other.column().name());
+  assert(dstcol->ordinal_position() == other.column().ordinal_position() &&
+         dstcol->name() == other.column().name());
   return new Index_element_impl(other, index, dstcol);
 }
 

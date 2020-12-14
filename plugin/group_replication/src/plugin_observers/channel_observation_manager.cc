@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ Channel_observation_manager *
 Channel_observation_manager_list::get_channel_observation_manager(
     uint position) {
   DBUG_TRACE;
-  DBUG_ASSERT(position < channel_observation_manager.size());
+  assert(position < channel_observation_manager.size());
   std::list<Channel_observation_manager *>::const_iterator cit =
       channel_observation_manager.begin();
   std::advance(cit, position);
@@ -112,7 +112,7 @@ Channel_observation_manager::~Channel_observation_manager() {
 std::list<Channel_state_observer *>
     &Channel_observation_manager::get_channel_state_observers() {
   DBUG_TRACE;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   channel_list_lock->assert_some_lock();
 #endif
   return channel_observers;

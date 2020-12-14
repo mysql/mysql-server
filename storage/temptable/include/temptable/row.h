@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -382,9 +382,9 @@ f7  | .   | from above (8/8)
 #ifndef TEMPTABLE_ROW_H
 #define TEMPTABLE_ROW_H
 
+#include <assert.h>
 #include <algorithm>
 
-#include "my_dbug.h"
 #include "sql/field.h"
 #include "storage/temptable/include/temptable/allocator.h"
 #include "storage/temptable/include/temptable/cell.h"
@@ -450,7 +450,7 @@ class Row {
       /** [in,out] Seconds row to swap. */
       Row &r2);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Compare to another row. Used by Table::update() and Table::remove() to
    * double check that the row which is passed as "old row" indeed equals to
    * the row pointed to by the specified position.
@@ -467,7 +467,7 @@ class Row {
       /** [in] List of MySQL column definitions,
        * used for querying metadata. */
       Field **mysql_fields);
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
  private:
   /** Get a pointer to the cells array. Only defined if
@@ -540,15 +540,15 @@ inline Cell Row::cell(const Column &column, size_t i) const {
 }
 
 inline Cell *Row::cells() const {
-  DBUG_ASSERT(!m_data_is_in_mysql_memory);
-  DBUG_ASSERT(m_ptr != nullptr);
+  assert(!m_data_is_in_mysql_memory);
+  assert(m_ptr != nullptr);
   return reinterpret_cast<Cell *>(m_ptr + sizeof(size_t));
 }
 
 inline Cell Row::cell_in_row(size_t i) const { return cells()[i]; }
 
 inline Cell Row::cell_in_mysql_memory(const Column &column) const {
-  DBUG_ASSERT(m_data_is_in_mysql_memory);
+  assert(m_data_is_in_mysql_memory);
 
   const bool is_null = column.read_is_null(m_ptr);
   const uint32_t data_length = column.read_user_data_length(m_ptr);
@@ -558,8 +558,8 @@ inline Cell Row::cell_in_mysql_memory(const Column &column) const {
 }
 
 inline size_t Row::buf_length() const {
-  DBUG_ASSERT(!m_data_is_in_mysql_memory);
-  DBUG_ASSERT(m_ptr != nullptr);
+  assert(!m_data_is_in_mysql_memory);
+  assert(m_ptr != nullptr);
   return *reinterpret_cast<size_t *>(m_ptr);
 }
 

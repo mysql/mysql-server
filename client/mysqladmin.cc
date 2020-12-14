@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,7 +184,7 @@ static struct my_option my_long_options[] = {
      "Number of iterations to make. This works with -i (--sleep) only.",
      &nr_iterations, &nr_iterations, nullptr, GET_UINT, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -330,8 +330,8 @@ bool get_one_option(int optid,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -881,7 +881,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           return -1;
         }
 
-        DBUG_ASSERT(mysql_num_rows(res) < MAX_MYSQL_VAR);
+        assert(mysql_num_rows(res) < MAX_MYSQL_VAR);
 
         if (!opt_vertical)
           print_header(res);

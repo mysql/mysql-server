@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ bool foreign_key_prefix(const Key_spec *a, const Key_spec *b) {
 }
 
 bool Key_part_spec::resolve_expression(THD *thd) {
-  DBUG_ASSERT(has_expression());
+  assert(has_expression());
   if (get_expression()->fixed) {
     return false;
   }

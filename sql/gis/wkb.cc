@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ class Wkb_parser {
   THD *m_thd;
 
   double transform_x(double x) {
-    DBUG_ASSERT(!std::isnan(x));
+    assert(!std::isnan(x));
     switch (m_coordinate_system) {
       case Coordinate_system::kCartesian:
         // The on-disk and in-memory format is x in SRS direction and unit.
@@ -132,16 +132,16 @@ class Wkb_parser {
         x *= m_angular_unit;    // Convert to radians
         break;
       default:
-        DBUG_ASSERT(false); /* purecov: inspected */
+        assert(false); /* purecov: inspected */
         break;
     }
 
-    DBUG_ASSERT(!std::isnan(x));
+    assert(!std::isnan(x));
     return x;
   }
 
   double transform_y(double y) {
-    DBUG_ASSERT(!std::isnan(y));
+    assert(!std::isnan(y));
     switch (m_coordinate_system) {
       case Coordinate_system::kCartesian:
         // The on-disk and in-memory format is y in SRS direction and unit.
@@ -153,11 +153,11 @@ class Wkb_parser {
         y *= m_angular_unit;  // Convert to radians
         break;
       default:
-        DBUG_ASSERT(false); /* purecov: inspected */
+        assert(false); /* purecov: inspected */
         break;
     }
 
-    DBUG_ASSERT(!std::isnan(y));
+    assert(!std::isnan(y));
     return y;
   }
 
@@ -414,7 +414,7 @@ std::unique_ptr<Geometry> parse_wkb(THD *thd,
       res = true;
     }
   } else {
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     return std::unique_ptr<Geometry>();
   }
 

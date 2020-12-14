@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,7 @@ bool update_system_tables(THD *thd) {
 
       const Object_table *table_def = System_tables::instance()->find_table(
           MYSQL_SCHEMA_NAME.str, it->first);
-      DBUG_ASSERT(table_def);
+      assert(table_def);
 
       std::unique_ptr<dd::Properties> tbl_props(
           Properties::parse_properties(tbl_prop_str));
@@ -172,7 +172,7 @@ bool update_system_tables(THD *thd) {
 
 // Create a DD table using the target table definition.
 bool create_target_table(THD *thd, const Object_table *object_table) {
-  DBUG_ASSERT(object_table != nullptr);
+  assert(object_table != nullptr);
 
   /*
    The target table definition may not be present if the table
@@ -184,9 +184,9 @@ bool create_target_table(THD *thd, const Object_table *object_table) {
   const Object_table_definition *target_table_def =
       object_table->target_table_definition();
 
-  DBUG_ASSERT(target_table_def != nullptr);
+  assert(target_table_def != nullptr);
   target_ddl_statement = target_table_def->get_ddl();
-  DBUG_ASSERT(!target_ddl_statement.empty());
+  assert(!target_ddl_statement.empty());
 
   return dd::execute_query(thd, target_ddl_statement);
 }
@@ -200,7 +200,7 @@ bool create_actual_table(THD *thd, const Object_table *object_table) {
     case, we just skip them.
   */
   if (object_table == nullptr) {
-    DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade());
+    assert(bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade());
     return false;
   }
 
@@ -216,7 +216,7 @@ bool create_actual_table(THD *thd, const Object_table *object_table) {
   if (actual_table_def == nullptr) return false;
 
   actual_ddl_statement = actual_table_def->get_ddl();
-  DBUG_ASSERT(!actual_ddl_statement.empty());
+  assert(!actual_ddl_statement.empty());
 
   return dd::execute_query(thd, actual_ddl_statement);
 }
@@ -389,7 +389,7 @@ bool flush_meta_data(THD *thd) {
           (*it)->property() == System_tables::Types::SYSTEM)
         continue;
 
-      DBUG_ASSERT((*it)->entity()->name() == (*clone_it)->name());
+      assert((*it)->entity()->name() == (*clone_it)->name());
 
       // We must set the ID to INVALID to let the object get an auto inc ID.
       (*clone_it)->set_id(INVALID_OBJECT_ID);
@@ -455,8 +455,8 @@ bool flush_meta_data(THD *thd) {
         thd, static_cast<Tablespace *>(dd_tspace_clone.get()));
 
     // Make sure the IDs after storing are as expected.
-    DBUG_ASSERT(dd_schema_clone->id() == 1);
-    DBUG_ASSERT(dd_tspace_clone->id() == 1);
+    assert(dd_schema_clone->id() == 1);
+    assert(dd_tspace_clone->id() == 1);
 
     /*
       Finally, we update the core registry of the DD tables. This must be
@@ -472,7 +472,7 @@ bool flush_meta_data(THD *thd) {
           (*it)->property() == System_tables::Types::SYSTEM)
         continue;
 
-      DBUG_ASSERT((*it)->entity()->name() == (*table_it)->name());
+      assert((*it)->entity()->name() == (*table_it)->name());
       dd::cache::Storage_adapter::instance()->core_drop(
           thd, static_cast<const Table *>(*table_it));
     }
@@ -488,7 +488,7 @@ bool flush_meta_data(THD *thd) {
         continue;
 
       if ((*it)->property() == System_tables::Types::CORE) {
-        DBUG_ASSERT((*it)->entity()->name() == (*clone_it)->name());
+        assert((*it)->entity()->name() == (*clone_it)->name());
         dd::cache::Storage_adapter::instance()->core_store(
             thd, static_cast<Table *>((*clone_it).get()));
       }
@@ -659,15 +659,15 @@ bool verify_contents(THD *thd) {
   Object_id dd_schema_id =
       cache::Storage_adapter::instance()->core_get_id<Schema>(schema_key);
 
-  DBUG_ASSERT(dd_schema_id == MYSQL_SCHEMA_DD_ID);
+  assert(dd_schema_id == MYSQL_SCHEMA_DD_ID);
   if (dd_schema_id == INVALID_OBJECT_ID) {
     LogErr(ERROR_LEVEL, ER_DD_SCHEMA_NOT_FOUND, MYSQL_SCHEMA_NAME.str);
     return dd::end_transaction(thd, true);
   }
-  DBUG_ASSERT(cache::Storage_adapter::instance()->core_size<Schema>() == 1);
+  assert(cache::Storage_adapter::instance()->core_size<Schema>() == 1);
 
   // Verify that the core DD tables are present.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   size_t n_core_tables = 0;
 #endif
   for (System_tables::Const_iterator it =
@@ -677,7 +677,7 @@ bool verify_contents(THD *thd) {
     // Skip extraneous tables for minor downgrade.
     if ((*it)->entity() == nullptr) continue;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     n_core_tables++;
 #endif
 
@@ -686,15 +686,15 @@ bool verify_contents(THD *thd) {
     Object_id dd_table_id =
         cache::Storage_adapter::instance()->core_get_id<Table>(table_key);
 
-    DBUG_ASSERT(dd_table_id != INVALID_OBJECT_ID);
+    assert(dd_table_id != INVALID_OBJECT_ID);
     if (dd_table_id == INVALID_OBJECT_ID) {
       LogErr(ERROR_LEVEL, ER_DD_TABLE_NOT_FOUND,
              (*it)->entity()->name().c_str());
       return dd::end_transaction(thd, true);
     }
   }
-  DBUG_ASSERT(cache::Storage_adapter::instance()->core_size<Abstract_table>() ==
-              n_core_tables);
+  assert(cache::Storage_adapter::instance()->core_size<Abstract_table>() ==
+         n_core_tables);
 
   // Verify that the dictionary tablespace is present and that its id == 1.
   Tablespace::Name_key tspace_key;
@@ -702,12 +702,12 @@ bool verify_contents(THD *thd) {
   Object_id dd_tspace_id =
       cache::Storage_adapter::instance()->core_get_id<Tablespace>(tspace_key);
 
-  DBUG_ASSERT(dd_tspace_id == MYSQL_TABLESPACE_DD_ID);
+  assert(dd_tspace_id == MYSQL_TABLESPACE_DD_ID);
   if (dd_tspace_id == INVALID_OBJECT_ID) {
     LogErr(ERROR_LEVEL, ER_DD_TABLESPACE_NOT_FOUND, MYSQL_TABLESPACE_NAME.str);
     return dd::end_transaction(thd, true);
   }
-  DBUG_ASSERT(cache::Storage_adapter::instance()->core_size<Tablespace>() == 1);
+  assert(cache::Storage_adapter::instance()->core_size<Tablespace>() == 1);
 
   return dd::end_transaction(thd, false);
 }
@@ -866,7 +866,7 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
           dd::execute_query(thd, "ALTER SCHEMA schema_read_only READ ONLY=1") ||
           dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
           dd::execute_query(thd, "DROP SCHEMA schema_read_only"))
-          DBUG_ASSERT(false););
+          assert(false););
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
 
@@ -887,7 +887,7 @@ bool initialize(THD *thd) {
   Disable_autocommit_guard autocommit_guard(thd);
 
   Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /*
@@ -900,7 +900,7 @@ bool initialize(THD *thd) {
       initialize_dictionary(thd, false, d))
     return true;
 
-  DBUG_ASSERT(d->get_target_dd_version() == d->get_actual_dd_version(thd));
+  assert(d->get_target_dd_version() == d->get_actual_dd_version(thd));
   LogErr(INFORMATION_LEVEL, ER_DD_VERSION_INSTALLED,
          d->get_target_dd_version());
   return false;
@@ -923,7 +923,7 @@ bool restart(THD *thd) {
   Disable_autocommit_guard autocommit_guard(thd);
 
   Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   store_predefined_tablespace_metadata(thd);
@@ -945,7 +945,7 @@ bool restart(THD *thd) {
           dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
           dd::execute_query(thd, "DROP SCHEMA schema_read_only") ||
           dd::execute_query(thd, "CREATE TABLE IF NOT EXISTS S.restart(i INT)"))
-          DBUG_ASSERT(false););
+          assert(false););
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
   LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND, d->get_actual_dd_version(thd));
@@ -992,9 +992,9 @@ bool setup_dd_objects_and_collations(THD *thd) {
   Disable_autocommit_guard autocommit_guard(thd);
 
   Dictionary_impl *d = dd::Dictionary_impl::instance();
-  DBUG_ASSERT(d);
+  assert(d);
 
-  DBUG_ASSERT(d->get_target_dd_version() == d->get_actual_dd_version(thd));
+  assert(d->get_target_dd_version() == d->get_actual_dd_version(thd));
 
   /*
     In this context, we initialize the target tables directly since this
@@ -1168,7 +1168,7 @@ bool initialize_dd_properties(THD *thd) {
       if (!bootstrap::DD_bootstrap_ctx::instance().supported_server_version()) {
         LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_VERSION_NOT_SUPPORTED,
                actual_server_version);
-        DBUG_ASSERT(false);
+        assert(false);
         return true;
       }
     }
@@ -1215,8 +1215,8 @@ bool initialize_dd_properties(THD *thd) {
       LogErr(INFORMATION_LEVEL, ER_SERVER_UPGRADE_FROM_VERSION,
              upgraded_server_version, MYSQL_VERSION_ID);
     }
-    DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade() ||
-                bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade());
+    assert(bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade() ||
+           bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade());
   }
 
   /*
@@ -1356,7 +1356,7 @@ bool sync_meta_data(THD *thd) {
             thd, tspace_key, ISO_READ_COMMITTED, true, &tmp_tspace))
       return dd::end_transaction(thd, true);
 
-    DBUG_ASSERT(tmp_schema != nullptr && tmp_tspace != nullptr);
+    assert(tmp_schema != nullptr && tmp_tspace != nullptr);
     std::unique_ptr<Schema> persisted_dd_schema(
         const_cast<Schema *>(tmp_schema));
     std::unique_ptr<Tablespace> persisted_dd_tspace(
@@ -1432,8 +1432,8 @@ bool sync_meta_data(THD *thd) {
         thd, persisted_dd_tspace.get());
 
     // Make sure the IDs after storing are as expected.
-    DBUG_ASSERT(persisted_dd_schema->id() == 1);
-    DBUG_ASSERT(persisted_dd_tspace->id() == 1);
+    assert(persisted_dd_schema->id() == 1);
+    assert(persisted_dd_tspace->id() == 1);
 
     /*
       Finally, we update the core registry of the DD tables. This must be
@@ -1449,7 +1449,7 @@ bool sync_meta_data(THD *thd) {
         version we are upgrading from.
       */
       if ((*table_it) != nullptr) {
-        DBUG_ASSERT((*it)->entity()->name() == (*table_it)->name());
+        assert((*it)->entity()->name() == (*table_it)->name());
         dd::cache::Storage_adapter::instance()->core_drop(thd, *table_it);
       }
     }
@@ -1575,7 +1575,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
         This will not be called for minor downgrade, so all tables
         will have a corresponding Object_table.
       */
-      DBUG_ASSERT((*it)->entity() != nullptr);
+      assert((*it)->entity() != nullptr);
       const Object_table_definition *table_def =
           (*it)->entity()->target_table_definition();
 
@@ -1615,7 +1615,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
         return dd::end_transaction(thd, true);
 
       // All non-abandoned tables should have a table object present.
-      DBUG_ASSERT(dd_table != nullptr);
+      assert(dd_table != nullptr);
 
       std::unique_ptr<dd::Properties> tbl_props(
           dd::Properties::parse_properties(""));
@@ -1805,7 +1805,7 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Debug code to make sure that after updating version numbers, regardless
     of the type of initialization, restart or upgrade, the server version
@@ -1813,9 +1813,9 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
     version number.
   */
   uint version = 0;
-  DBUG_ASSERT(ddse->dict_get_server_version != nullptr);
-  DBUG_ASSERT(!ddse->dict_get_server_version(&version));
-  DBUG_ASSERT(version == MYSQL_VERSION_ID);
+  assert(ddse->dict_get_server_version != nullptr);
+  assert(!ddse->dict_get_server_version(&version));
+  assert(version == MYSQL_VERSION_ID);
 #endif
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(

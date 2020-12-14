@@ -22,7 +22,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file storage/temptable/src/block.cc */
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "my_psi_config.h"
 #include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_memory.h"
@@ -80,12 +81,12 @@ void Block_PSI_track_logical_allocation(size_t size) {
 #ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
   PSI_thread *owner_thread;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   PSI_memory_key key =
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
       PSI_MEMORY_CALL(memory_alloc)(mem_key_logical, size, &owner_thread);
 
-  DBUG_ASSERT(key == mem_key_logical || key == PSI_NOT_INSTRUMENTED);
+  assert(key == mem_key_logical || key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
 }
 
@@ -102,11 +103,11 @@ void Block_PSI_track_physical_ram_allocation(size_t size) {
 #ifdef TEMPTABLE_PFS_MEMORY
   const PSI_memory_key psi_key = mem_key_physical_ram;
   PSI_thread *owner_thread;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   PSI_memory_key got_key =
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
       PSI_MEMORY_CALL(memory_alloc)(psi_key, size, &owner_thread);
-  DBUG_ASSERT(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
+  assert(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 
@@ -122,11 +123,11 @@ void Block_PSI_track_physical_disk_allocation(size_t size) {
 #ifdef TEMPTABLE_PFS_MEMORY
   const PSI_memory_key psi_key = mem_key_physical_disk;
   PSI_thread *owner_thread;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   PSI_memory_key got_key =
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
       PSI_MEMORY_CALL(memory_alloc)(psi_key, size, &owner_thread);
-  DBUG_ASSERT(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
+  assert(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 

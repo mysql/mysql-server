@@ -33,6 +33,7 @@
 
 #include "sql/sql_const_folding.h"
 
+#include <assert.h>
 #include <float.h>                         // DBL_MAX, FLT_MAX
 #include <stdint.h>                        // UINT64_MAX
 #include <sys/types.h>                     // uint
@@ -40,7 +41,7 @@
 #include <utility>                         // swap
 #include "decimal.h"                       // E_DEC_FATAL_ERROR
 #include "field_types.h"                   // MYSQL_TYPE_DATE
-#include "my_dbug.h"                       // DBUG_ASSERT
+                                           // assert
 #include "my_decimal.h"                    // my_decimal, my_decimal_cmp
 #include "my_inttypes.h"                   // longlong, ulonglong
 #include "my_time.h"                       // TIME_to_longlong_datetime_packed
@@ -271,19 +272,19 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         */
         my_decimal n;
         err = int2my_decimal(E_DEC_FATAL_ERROR, 0, false, &n);
-        DBUG_ASSERT(err == 0);
-        DBUG_ASSERT(my_decimal_cmp(&n, &dec) == 0);
+        assert(err == 0);
+        assert(my_decimal_cmp(&n, &dec) == 0);
         if (v > 0) {
           // underflow on the positive side
           String s("0.1", thd->charset());
           err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
                                s.charset(), &dec);
-          DBUG_ASSERT(err == 0);
+          assert(err == 0);
         } else {
           String s("-0.1", thd->charset());
           err = str2my_decimal(E_DEC_FATAL_ERROR, s.ptr(), s.length(),
                                s.charset(), &dec);
-          DBUG_ASSERT(err == 0);
+          assert(err == 0);
         }
       }
       d = &dec;
@@ -358,7 +359,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       // special treatment below
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 
   switch (f->field->type()) {
@@ -427,7 +428,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       }
     } break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 
   return false;
@@ -480,7 +481,7 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
     case INT_RESULT: {
       my_decimal tmp;
       const auto *const d = (*const_val)->val_decimal(&tmp);
-      DBUG_ASSERT(decimal_actual_fraction(d) == 0);
+      assert(decimal_actual_fraction(d) == 0);
       const int actual_intg = decimal_intg(d);
 
       if (actual_intg > f_intg) {  // overflow
@@ -521,7 +522,7 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
         *negative = v < 0;
         my_decimal tmp;
         err = longlong2decimal(0, &tmp);
-        DBUG_ASSERT(err == 0);
+        assert(err == 0);
 
         widen_fraction(f_frac, &tmp);
         const auto new_dec = new (thd->mem_root) Item_decimal(&tmp);
@@ -625,7 +626,7 @@ static bool analyze_real_field_constant(THD *thd, Item_field *f,
       */
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       break;
   }
 
@@ -699,7 +700,7 @@ static bool analyze_year_field_constant(THD *thd, Item **const_val,
       allowed year values have been typed as MYSQL_TYPE_YEAR, cf.
       convert_constant_item called during type resolution.
     */
-    DBUG_ASSERT((*const_val)->result_type() == INT_RESULT);
+    assert((*const_val)->result_type() == INT_RESULT);
     const longlong year = (*const_val)->val_int();
 
     if (year == 0)
@@ -747,7 +748,7 @@ static bool analyze_year_field_constant(THD *thd, Item **const_val,
       }
     } break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       break;
   }
   return false;
@@ -1435,7 +1436,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
       if (func_type == Item_func::MULT_EQUAL_FUNC && (*retcond != nullptr)) {
         // The constant may have been modified, update the multi-equal
         const auto equal = down_cast<Item_equal *>(func);
-        DBUG_ASSERT(equal->m_const_folding[1] != nullptr);  // the constant
+        assert(equal->m_const_folding[1] != nullptr);  // the constant
         equal->set_const(equal->m_const_folding[1]);
       }
       break;

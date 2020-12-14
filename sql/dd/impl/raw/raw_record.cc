@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ bool Raw_record::store_ref_id(int field_no, Object_id id) {
   set_null(field_no, false);
   type_conversion_status rc = field(field_no)->store(id, true);
 
-  DBUG_ASSERT(rc == TYPE_OK);
+  assert(rc == TYPE_OK);
   return rc != TYPE_OK;
 }
 
@@ -155,7 +155,7 @@ bool Raw_record::store(int field_no, const String_type &s, bool is_null) {
   type_conversion_status rc =
       field(field_no)->store(s.c_str(), s.length(), system_charset_info);
 
-  DBUG_ASSERT(rc == TYPE_OK);
+  assert(rc == TYPE_OK);
   return rc != TYPE_OK;
 }
 
@@ -168,7 +168,7 @@ bool Raw_record::store(int field_no, ulonglong ull, bool is_null) {
 
   type_conversion_status rc = field(field_no)->store(ull, true);
 
-  DBUG_ASSERT(rc == TYPE_OK);
+  assert(rc == TYPE_OK);
   return rc != TYPE_OK;
 }
 
@@ -181,7 +181,7 @@ bool Raw_record::store(int field_no, longlong ll, bool is_null) {
 
   type_conversion_status rc = field(field_no)->store(ll, false);
 
-  DBUG_ASSERT(rc == TYPE_OK);
+  assert(rc == TYPE_OK);
   return rc != TYPE_OK;
 }
 
@@ -270,7 +270,7 @@ timeval Raw_record::read_timestamp(int field_no) const {
   int warnings = 0;
   timeval tv;
   if (field(field_no)->get_timestamp(&tv, &warnings)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return {0, 0};
   }
   return tv;

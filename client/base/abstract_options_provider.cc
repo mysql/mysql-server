@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,13 @@
 
 #include "client/base/abstract_options_provider.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
 
 #include "client/base/i_options_provider.h"
-#include "my_dbug.h"
+
 #include "my_getopt.h"
 
 using std::map;
@@ -133,7 +134,7 @@ Abstract_options_provider::~Abstract_options_provider() {
 
 void Abstract_options_provider::set_option_changed_listener(
     I_option_changed_listener *listener) {
-  DBUG_ASSERT(this->m_option_changed_listener == nullptr);
+  assert(this->m_option_changed_listener == nullptr);
   this->m_option_changed_listener = listener;
 }
 

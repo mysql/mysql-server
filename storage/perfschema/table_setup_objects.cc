@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,9 @@
 
 #include "storage/perfschema/table_setup_objects.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -170,7 +171,7 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
           timed_value = (enum_yes_no)get_field_enum(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -252,7 +253,7 @@ int table_setup_objects::rnd_pos(const void *pos) {
 
 int table_setup_objects::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_setup_objects *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_setup_objects);
   m_opened_index = result;
   m_index = result;
@@ -303,7 +304,7 @@ int table_setup_objects::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -335,7 +336,7 @@ int table_setup_objects::read_row_values(TABLE *table, unsigned char *buf,
           set_field_enum(f, (*m_row.m_timed_ptr) ? ENUM_YES : ENUM_NO);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -373,7 +374,7 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
           *m_row.m_timed_ptr = (value == ENUM_YES) ? true : false;
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,10 @@
 */
 
 #if defined(_WIN32)
+#include <assert.h>
 #include <errno.h>
 #include <windows.h> /* Timer Queue and IO completion port functions */
 
-#include "my_dbug.h"
 #include "my_sys.h"    /* my_message_local */
 #include "my_thread.h" /* my_thread_init, my_thread_end */
 #include "my_timer.h"  /* my_timer_t */
@@ -59,7 +59,7 @@ HANDLE timer_queue = 0;
 static void CALLBACK timer_callback_function(
     PVOID timer_data, BOOLEAN timer_or_wait_fired MY_ATTRIBUTE((unused))) {
   my_timer_t *timer = (my_timer_t *)timer_data;
-  DBUG_ASSERT(timer != NULL);
+  assert(timer != NULL);
   timer->id.timer_state = TIMER_EXPIRED;
   PostQueuedCompletionStatus(io_compl_port, 0, (ULONG_PTR)timer, 0);
 }
@@ -106,8 +106,8 @@ static int delete_timer(my_timer_t *timer, int *state) {
   int ret_val;
   int retry_count = 3;
 
-  DBUG_ASSERT(timer != 0);
-  DBUG_ASSERT(timer_queue != 0);
+  assert(timer != 0);
+  assert(timer_queue != 0);
 
   if (state != NULL) *state = 0;
 
@@ -263,7 +263,7 @@ void my_timer_deinitialize() {
 }
 
 int my_timer_create(my_timer_t *timer) {
-  DBUG_ASSERT(timer_queue != 0);
+  assert(timer_queue != 0);
   timer->id.timer_handle = 0;
   return 0;
 }
@@ -278,8 +278,8 @@ int my_timer_create(my_timer_t *timer) {
           On error, -1.
 */
 int my_timer_set(my_timer_t *timer, unsigned long time) {
-  DBUG_ASSERT(timer != NULL);
-  DBUG_ASSERT(timer_queue != 0);
+  assert(timer != NULL);
+  assert(timer_queue != 0);
 
   /**
     If timer set previously is expired then it will not be
@@ -309,7 +309,7 @@ int my_timer_set(my_timer_t *timer, unsigned long time) {
           On error,  -1.
 */
 int my_timer_cancel(my_timer_t *timer, int *state) {
-  DBUG_ASSERT(state != NULL);
+  assert(state != NULL);
 
   return delete_timer(timer, state);
 }

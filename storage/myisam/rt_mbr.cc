@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,11 @@
 
 #include "storage/myisam/rt_mbr.h"
 
+#include <assert.h>
 #include <algorithm>
 
 #include "my_byteorder.h"
-#include "my_dbug.h"
+
 #include "my_double2ulonglong.h"
 #include "my_macros.h"
 #include "storage/myisam/myisamdef.h"
@@ -52,7 +53,7 @@
     if (DISJOINT_CMP(amin, amax, bmin, bmax)) return 1;  \
   } else /* if unknown comparison operator */            \
   {                                                      \
-    DBUG_ASSERT(0);                                      \
+    assert(0);                                           \
   }
 
 #define RT_CMP_KORR(type, korr_func, len, nextflag) \

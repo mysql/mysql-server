@@ -198,7 +198,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 
 bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
   DBUG_TRACE;
-  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+  assert(assert_acl_cache_write_lock(thd));
   unique_ptr_destroy_only<RowIterator> iterator;
   TABLE *roles_edges_table = tablelst[0].table;
   TABLE *default_role_table = tablelst[1].table;

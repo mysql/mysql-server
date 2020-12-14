@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -39,7 +39,7 @@ bool resource_group_exists(dd::cache::Dictionary_client *dd_client,
                            const String_type &resource_group_name,
                            bool *exists) {
   DBUG_TRACE;
-  DBUG_ASSERT(exists);
+  assert(exists);
 
   const dd::Resource_group *resource_group_ptr = nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);

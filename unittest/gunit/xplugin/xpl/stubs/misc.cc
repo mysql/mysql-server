@@ -20,6 +20,7 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <atomic>
@@ -27,7 +28,7 @@
 #include <memory>
 
 #include "my_config.h"  // NOLINT(build/include_subdir)
-#include "my_dbug.h"    // NOLINT(build/include_subdir)
+                        // NOLINT(build/include_subdir)
 #include "mysql/service_plugin_registry.h"
 #include "violite.h"  // NOLINT(build/include_subdir)
 
@@ -51,7 +52,7 @@ bool opt_initialize = false;
 
 int ip_to_hostname(struct sockaddr_storage *, const char *, char **,
                    uint32_t *) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 1;
 }
 

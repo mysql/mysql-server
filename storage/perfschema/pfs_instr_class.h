@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,12 +25,13 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <sys/types.h>
 #include <atomic>
 
 #include "lf.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql_com.h" /* NAME_LEN */
 #include "mysqld_error.h"
@@ -196,7 +197,7 @@ struct PFS_instr_class {
       flags that are not supported for this instrument.
       To fix it, clean up the instrumented code.
     */
-    DBUG_ASSERT(valid_flags == m_flags);
+    assert(valid_flags == m_flags);
     m_flags = valid_flags;
   }
 

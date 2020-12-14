@@ -23,9 +23,10 @@
 #ifndef PARSE_TREE_HANDLER_INCLUDED
 #define PARSE_TREE_HANDLER_INCLUDED
 
+#include <assert.h>
 #include "lex_string.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "parse_tree_nodes.h"
 #include "sql/sql_handler.h"  // Sql_cmd_handler_open
 
@@ -109,7 +110,7 @@ class PT_handler_index_scan final : public PT_handler_read_base {
       : super(table, opt_where_clause, opt_limit_clause),
         m_index(index.str),
         m_direction(direction) {
-    DBUG_ASSERT(direction != enum_ha_read_modes::RKEY);
+    assert(direction != enum_ha_read_modes::RKEY);
   }
 
   Sql_cmd *make_cmd(THD *thd) override;

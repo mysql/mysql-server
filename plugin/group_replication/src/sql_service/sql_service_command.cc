@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ Sql_service_command_interface::~Sql_service_command_interface() {
 int Sql_service_command_interface::establish_session_connection(
     enum_plugin_con_isolation isolation_param, const char *user,
     void *plugin_pointer) {
-  DBUG_ASSERT(m_server_interface == nullptr);
+  assert(m_server_interface == nullptr);
 
   int error = 0;
   connection_thread_isolation = isolation_param;
@@ -99,7 +99,7 @@ bool Sql_service_command_interface::is_session_valid() {
 
 bool Sql_service_command_interface::is_session_killed() {
   DBUG_ENTER("Sql_service_command_interface::is_session_killed");
-  DBUG_ASSERT(m_server_interface != nullptr);
+  assert(m_server_interface != nullptr);
   if (m_server_interface->is_session_killed(m_server_interface->get_session()))
     DBUG_RETURN(true);
   DBUG_RETURN(false);
@@ -153,18 +153,18 @@ long Sql_service_commands::internal_set_super_read_only(
   DBUG_EXECUTE_IF("group_replication_read_mode_error", { return 1; });
   DBUG_EXECUTE_IF("group_replication_skip_read_mode", { return 0; });
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   long srv_err = sql_interface->execute_query("SET GLOBAL super_read_only= 1;");
   LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_ON);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (srv_err == 0) {
     long err;
     err =
         sql_interface->execute_query("SELECT @@GLOBAL.super_read_only", &rset);
 
-    DBUG_ASSERT(err || (!err && rset.get_rows() > 0 && rset.getLong(0) == 1));
+    assert(err || (!err && rset.get_rows() > 0 && rset.getLong(0) == 1));
   }
 #endif
 
@@ -191,20 +191,20 @@ long Sql_service_commands::internal_reset_super_read_only(
     Sql_service_interface *sql_interface, void *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
 
   const char *query = "SET GLOBAL super_read_only= 0";
   long srv_err = sql_interface->execute_query(query);
   LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (srv_err == 0) {
     long err;
     query = "SELECT @@GLOBAL.super_read_only";
     err = sql_interface->execute_query(query, &rset);
 
-    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
+    assert(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
   }
 #endif
   return srv_err;
@@ -229,7 +229,7 @@ long Sql_service_commands::internal_reset_read_only(
     Sql_service_interface *sql_interface, void *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
 
@@ -237,13 +237,13 @@ long Sql_service_commands::internal_reset_read_only(
   long srv_err = sql_interface->execute_query(query);
   LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_SUPER_READ_OFF);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (srv_err == 0) {
     long err;
     query = "SELECT @@GLOBAL.read_only";
     err = sql_interface->execute_query(query, &rset);
 
-    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
+    assert(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
   }
 #endif
 
@@ -254,7 +254,7 @@ long Sql_service_commands::internal_kill_session(
     Sql_service_interface *sql_interface, void *session_id) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   long srv_err = 0;
@@ -311,7 +311,7 @@ long Sql_service_commands::internal_get_server_super_read_only(
     Sql_service_interface *sql_interface, void *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   long server_super_read_only = -1;
@@ -345,7 +345,7 @@ long Sql_service_commands::internal_get_server_read_only(
     Sql_service_interface *sql_interface, void *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   Sql_resultset rset;
   longlong server_read_only = -1;
@@ -381,7 +381,7 @@ long Sql_service_commands::internal_get_server_gtid_executed(
     Sql_service_interface *sql_interface, void *gtid_executed_arg) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   std::string *gtid_executed = static_cast<std::string *>(gtid_executed_arg);
 
@@ -417,7 +417,7 @@ long Sql_service_commands::internal_get_server_gtid_purged(
     Sql_service_interface *sql_interface, void *gtid_purged_arg) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   std::string *gtid_purged = static_cast<std::string *>(gtid_purged_arg);
 
@@ -437,7 +437,7 @@ long Sql_service_command_interface::wait_for_server_gtid_executed(
   long error = 0;
 
   /* No support for this method on thread isolation mode */
-  DBUG_ASSERT(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
+  assert(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD) {
     error = sql_service_commands.internal_wait_for_server_gtid_executed(
@@ -452,7 +452,7 @@ long Sql_service_commands::internal_wait_for_server_gtid_executed(
     int timeout) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   DBUG_EXECUTE_IF("sql_int_wait_for_gtid_executed_no_timeout",
                   { timeout = 0; });
@@ -487,7 +487,7 @@ long Sql_service_commands::internal_set_persist_only_variable(
   std::pair<std::string, std::string> *variable_args =
       (std::pair<std::string, std::string> *)var_args;
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   std::string query = "SET PERSIST_ONLY ";
   query.append(variable_args->first);
@@ -555,7 +555,7 @@ long Sql_service_commands::internal_clone_server(
     Sql_service_interface *sql_interface, void *var_args) {
   DBUG_ENTER("Sql_service_commands::internal_clone_server");
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   std::tuple<std::string, std::string, std::string, std::string, bool,
              std::string *> *variable_args =
@@ -648,7 +648,7 @@ long Sql_service_commands::internal_execute_query(
     Sql_service_interface *sql_interface, void *var_args) {
   DBUG_ENTER("Sql_service_commands::internal_execute_query");
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   std::pair<std::string, std::string *> *variable_args =
       static_cast<std::pair<std::string, std::string *> *>(var_args);
@@ -707,7 +707,7 @@ long Sql_service_commands::internal_execute_conditional_query(
     Sql_service_interface *sql_interface, void *var_args) {
   DBUG_ENTER("Sql_service_commands::internal_execute_conditional_query");
 
-  DBUG_ASSERT(sql_interface != nullptr);
+  assert(sql_interface != nullptr);
 
   std::tuple<std::string, bool *, std::string *> *variable_args =
       static_cast<std::tuple<std::string, bool *, std::string *> *>(var_args);
@@ -876,7 +876,7 @@ int Session_plugin_thread::terminate_session_thread() {
 
     struct timespec abstime;
     set_timespec(&abstime, 1);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error =
 #endif
         mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
@@ -887,10 +887,10 @@ int Session_plugin_thread::terminate_session_thread() {
       mysql_mutex_unlock(&m_run_lock);
       return 1;
     }
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!m_session_thread_state.is_running());
+  assert(!m_session_thread_state.is_running());
 
   while (!this->incoming_methods->empty()) {
     st_session_method *method = nullptr;

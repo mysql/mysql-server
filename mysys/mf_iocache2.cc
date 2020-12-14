@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -285,7 +285,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char *fmt, va_list args) {
       By this point, *fmt must be a percent;  Keep track of this location and
       skip over the percent character.
     */
-    DBUG_ASSERT(*fmt == '%');
+    assert(*fmt == '%');
     backtrack = fmt;
     fmt++;
 

@@ -589,7 +589,7 @@ static struct my_option my_long_options[] = {
     {"csv", OPT_SLAP_CSV,
      "Generate CSV output to named file or to stdout if no file is named.",
      nullptr, nullptr, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -751,8 +751,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -1761,12 +1761,12 @@ extern "C" void *run_task(void *p) {
           Just in case someone runs this under an experimental engine we don't
           want a crash so the if() is placed here.
         */
-        DBUG_ASSERT(primary_keys_number_of);
+        assert(primary_keys_number_of);
         if (primary_keys_number_of) {
           key_val = (unsigned int)(random() % primary_keys_number_of);
           key = primary_keys[key_val];
 
-          DBUG_ASSERT(key);
+          assert(key);
 
           length = snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'",
                             (int)ptr->length, ptr->string, key);

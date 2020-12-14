@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ static bool run_hton_clone_begin(THD *thd, plugin_ref plugin, void *arg) {
     myclone::Locator loc = {hton, nullptr, 0};
     uint32_t task_id = 0;
 
-    DBUG_ASSERT(clone_arg->m_mode == HA_CLONE_MODE_START);
+    assert(clone_arg->m_mode == HA_CLONE_MODE_START);
 
     clone_arg->m_err = hton->clone_interface.clone_begin(
         hton, thd, loc.m_loc, loc.m_loc_len, task_id, clone_arg->m_type,
@@ -90,7 +90,7 @@ static bool run_hton_clone_begin(THD *thd, plugin_ref plugin, void *arg) {
 int hton_clone_begin(THD *thd, Storage_Vector &clone_loc_vec,
                      Task_Vector &task_vec, Ha_clone_type clone_type,
                      Ha_clone_mode clone_mode) {
-  DBUG_ASSERT(task_vec.empty());
+  assert(task_vec.empty());
   /* If Storage locators are empty, construct them here. */
   if (clone_loc_vec.empty()) {
     myclone::Hton clone_args;
@@ -112,19 +112,19 @@ int hton_clone_begin(THD *thd, Storage_Vector &clone_loc_vec,
   for (auto &loc_iter : clone_loc_vec) {
     uint32_t task_id = 0;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     Ha_clone_flagset flags;
 
     loc_iter.m_hton->clone_interface.clone_capability(flags);
 
     /* TODO: Skip adding task if SE doesn't support */
     if (clone_mode == HA_CLONE_MODE_ADD_TASK) {
-      DBUG_ASSERT(flags[HA_CLONE_MULTI_TASK]);
+      assert(flags[HA_CLONE_MULTI_TASK]);
     }
 
     /* TODO: Stop and start if restart not supported */
     if (clone_mode == HA_CLONE_MODE_RESTART) {
-      DBUG_ASSERT(flags[HA_CLONE_RESTART]);
+      assert(flags[HA_CLONE_RESTART]);
     }
 #endif
     auto err = loc_iter.m_hton->clone_interface.clone_begin(
@@ -146,7 +146,7 @@ int hton_clone_copy(THD *thd, Storage_Vector &clone_loc_vec,
   uint index = 0;
 
   for (auto &loc_iter : clone_loc_vec) {
-    DBUG_ASSERT(index < task_vec.size());
+    assert(index < task_vec.size());
     clone_cbk->set_loc_index(index);
 
     auto err = loc_iter.m_hton->clone_interface.clone_copy(
@@ -167,7 +167,7 @@ int hton_clone_end(THD *thd, Storage_Vector &clone_loc_vec,
   uint index = 0;
 
   for (auto &loc_iter : clone_loc_vec) {
-    DBUG_ASSERT(index < task_vec.size());
+    assert(index < task_vec.size());
     auto err = loc_iter.m_hton->clone_interface.clone_end(
         loc_iter.m_hton, thd, loc_iter.m_loc, loc_iter.m_loc_len,
         task_vec[index], in_err);
@@ -195,7 +195,7 @@ static bool run_hton_clone_apply_begin(THD *thd, plugin_ref plugin, void *arg) {
     myclone::Locator loc = {hton, nullptr, 0};
     uint32_t task_id = 0;
 
-    DBUG_ASSERT(clone_arg->m_mode == HA_CLONE_MODE_VERSION);
+    assert(clone_arg->m_mode == HA_CLONE_MODE_VERSION);
 
     clone_arg->m_err = hton->clone_interface.clone_apply_begin(
         hton, thd, loc.m_loc, loc.m_loc_len, task_id, clone_arg->m_mode,
@@ -217,7 +217,7 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
   /* If Storage locators are empty, construct them here. */
   auto add_task = task_vec.empty();
 
-  DBUG_ASSERT(clone_mode == HA_CLONE_MODE_RESTART || task_vec.empty());
+  assert(clone_mode == HA_CLONE_MODE_RESTART || task_vec.empty());
 
   if (clone_loc_vec.empty()) {
     myclone::Hton clone_args;
@@ -241,19 +241,19 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
   for (auto &loc_iter : clone_loc_vec) {
     uint32_t task_id = 0;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     Ha_clone_flagset flags;
 
     loc_iter.m_hton->clone_interface.clone_capability(flags);
 
     /* TODO: Skip adding task if SE doesn't support */
     if (clone_mode == HA_CLONE_MODE_ADD_TASK) {
-      DBUG_ASSERT(flags[HA_CLONE_MULTI_TASK]);
+      assert(flags[HA_CLONE_MULTI_TASK]);
     }
 
     /* TODO: Stop and start if restart no supported */
     if (clone_mode == HA_CLONE_MODE_RESTART) {
-      DBUG_ASSERT(flags[HA_CLONE_RESTART]);
+      assert(flags[HA_CLONE_RESTART]);
     }
 #endif
     auto err = loc_iter.m_hton->clone_interface.clone_apply_begin(
@@ -268,7 +268,7 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
       task_vec.push_back(task_id);
     }
 
-    DBUG_ASSERT(task_vec[loop_index] == task_id);
+    assert(task_vec[loop_index] == task_id);
     ++loop_index;
   }
 
@@ -277,11 +277,11 @@ int hton_clone_apply_begin(THD *thd, const char *clone_data_dir,
 
 int hton_clone_apply_error(THD *thd, Storage_Vector &clone_loc_vec,
                            Task_Vector &task_vec, int in_err) {
-  DBUG_ASSERT(in_err != 0);
+  assert(in_err != 0);
 
   uint index = 0;
   for (auto &loc_iter : clone_loc_vec) {
-    DBUG_ASSERT(index < task_vec.size());
+    assert(index < task_vec.size());
     auto err = loc_iter.m_hton->clone_interface.clone_apply(
         loc_iter.m_hton, thd, loc_iter.m_loc, loc_iter.m_loc_len,
         task_vec[index], in_err, nullptr);
@@ -303,7 +303,7 @@ int hton_clone_apply_end(THD *thd, Storage_Vector &clone_loc_vec,
     after initialization */
     uint32_t task_id = 0;
     if (!task_vec.empty()) {
-      DBUG_ASSERT(index < task_vec.size());
+      assert(index < task_vec.size());
       task_id = task_vec[index];
     }
     auto err = loc_iter.m_hton->clone_interface.clone_apply_end(

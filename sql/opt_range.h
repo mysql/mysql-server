@@ -357,7 +357,7 @@ class QUICK_SELECT_I {
       other Error
   */
   virtual int init_ror_merged_scan(bool reuse_handler MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
+    assert(0);
     return 1;
   }
 
@@ -404,7 +404,7 @@ class QUICK_SELECT_I {
     Table record buffer used by this quick select.
   */
   uchar *record;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Print quick select information to DBUG_FILE. Caller is responsible
     for locking DBUG_FILE before this call and unlocking it afterwards.
@@ -533,7 +533,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   bool is_agg_loose_index_scan() const override { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;
   void add_info_string(String *str) override;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg) override;
@@ -625,7 +625,7 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   ~QUICK_INDEX_MERGE_SELECT() override;
 
   int init() override;
-  void need_sorted_output() override { DBUG_ASSERT(false); /* Can't do it */ }
+  void need_sorted_output() override { assert(false); /* Can't do it */ }
   int reset(void) override;
   int get_next() override;
   bool reverse_sorted() const override { return false; }
@@ -637,7 +637,7 @@ class QUICK_INDEX_MERGE_SELECT : public QUICK_SELECT_I {
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;
   void add_info_string(String *str) override;
   bool is_keys_used(const MY_BITMAP *fields) override;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
 
@@ -708,7 +708,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   ~QUICK_ROR_INTERSECT_SELECT() override;
 
   int init() override;
-  void need_sorted_output() override { DBUG_ASSERT(false); /* Can't do it */ }
+  void need_sorted_output() override { assert(false); /* Can't do it */ }
   int reset(void) override;
   int get_next() override;
   bool reverse_sorted() const override { return false; }
@@ -720,7 +720,7 @@ class QUICK_ROR_INTERSECT_SELECT : public QUICK_SELECT_I {
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;
   void add_info_string(String *str) override;
   bool is_keys_used(const MY_BITMAP *fields) override;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
   int init_ror_merged_scan(bool reuse_handler) override;
@@ -795,7 +795,7 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
   ~QUICK_ROR_UNION_SELECT() override;
 
   int init() override;
-  void need_sorted_output() override { DBUG_ASSERT(false); /* Can't do it */ }
+  void need_sorted_output() override { assert(false); /* Can't do it */ }
   int reset(void) override;
   int get_next() override;
   bool reverse_sorted() const override { return false; }
@@ -807,7 +807,7 @@ class QUICK_ROR_UNION_SELECT : public QUICK_SELECT_I {
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;
   void add_info_string(String *str) override;
   bool is_keys_used(const MY_BITMAP *fields) override;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
 
@@ -967,7 +967,7 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   bool is_loose_index_scan() const override { return true; }
   bool is_agg_loose_index_scan() const override { return is_agg_distinct(); }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
   bool is_agg_distinct() const { return have_agg_distinct; }
@@ -1115,7 +1115,7 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
     return has_aggregate_function;
   }
   void add_keys_and_lengths(String *key_names, String *used_lengths) override;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose) override;
 #endif
   void get_fields_used(MY_BITMAP *used_fields) override {

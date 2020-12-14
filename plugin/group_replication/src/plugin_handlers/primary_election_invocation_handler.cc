@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,8 +249,8 @@ int Primary_election_handler::internal_primary_election(
     secondary_election_handler.terminate_election_process();
   }
 
-  DBUG_ASSERT(!primary_election_handler.is_election_process_running() ||
-              primary_election_handler.is_election_process_terminating());
+  assert(!primary_election_handler.is_election_process_running() ||
+         primary_election_handler.is_election_process_terminating());
 
   /** Wait for an old process to end*/
   if (primary_election_handler.is_election_process_terminating())
@@ -338,7 +338,7 @@ bool Primary_election_handler::pick_primary_member(
   DBUG_TRACE;
 
   bool am_i_leaving = true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int n = 0;
 #endif
   Group_member_info *the_primary = nullptr;
@@ -363,15 +363,15 @@ bool Primary_election_handler::pick_primary_member(
    2. Check if I am leaving the group or not.
    */
   for (it = all_members_info->begin(); it != all_members_info->end(); it++) {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(n <= 1);
+#ifndef NDEBUG
+    assert(n <= 1);
 #endif
 
     Group_member_info *member = *it;
     if (local_member_info->in_primary_mode() && the_primary == nullptr &&
         member->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY) {
       the_primary = member;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       n++;
 #endif
     }
@@ -402,7 +402,7 @@ bool Primary_election_handler::pick_primary_member(
            it != lowest_version_end && the_primary == nullptr; it++) {
         Group_member_info *member_info = *it;
 
-        DBUG_ASSERT(member_info);
+        assert(member_info);
         if (member_info && member_info->get_recovery_status() ==
                                Group_member_info::MEMBER_ONLINE)
           the_primary = member_info;

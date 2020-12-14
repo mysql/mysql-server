@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ bool trans_check_state(THD *thd) {
     Always commit statement transaction before manipulating with
     the normal one.
   */
-  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+  assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
 
   if (unlikely(thd->in_sub_stmt)) {
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
@@ -131,7 +131,7 @@ bool trans_begin(THD *thd, uint flags) {
 
   thd->locked_tables_list.unlock_locked_tables(thd);
 
-  DBUG_ASSERT(!thd->locked_tables_mode);
+  assert(!thd->locked_tables_mode);
 
   if (thd->in_multi_stmt_transaction_mode() ||
       (thd->variables.option_bits & OPTION_TABLE_LOCK)) {
@@ -154,8 +154,8 @@ bool trans_begin(THD *thd, uint flags) {
   thd->mdl_context.release_transactional_locks();
 
   // The RO/RW options are mutually exclusive.
-  DBUG_ASSERT(!((flags & MYSQL_START_TRANS_OPT_READ_ONLY) &&
-                (flags & MYSQL_START_TRANS_OPT_READ_WRITE)));
+  assert(!((flags & MYSQL_START_TRANS_OPT_READ_ONLY) &&
+           (flags & MYSQL_START_TRANS_OPT_READ_WRITE)));
   if (flags & MYSQL_START_TRANS_OPT_READ_ONLY) {
     thd->tx_read_only = true;
     if (tst) tst->set_read_flags(thd, TX_READ_ONLY);
@@ -176,7 +176,7 @@ bool trans_begin(THD *thd, uint flags) {
   }
 
   DBUG_EXECUTE_IF("dbug_set_high_prio_trx", {
-    DBUG_ASSERT(thd->tx_priority == 0);
+    assert(thd->tx_priority == 0);
     thd->tx_priority = 1;
   });
 
@@ -267,7 +267,7 @@ bool trans_commit(THD *thd, bool ignore_global_read_lock) {
   thd->lex->start_transaction_opt = 0;
 
   /* The transaction should be marked as complete in P_S. */
-  DBUG_ASSERT(thd->m_transaction_psi == nullptr);
+  assert(thd->m_transaction_psi == nullptr);
 
   thd->tx_priority = 0;
 
@@ -324,9 +324,9 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock) {
     by asserting that conditions that are checked in the former function are
     true.
   */
-  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-              !thd->in_sub_stmt &&
-              !thd->get_transaction()->xid_state()->check_in_xa(false));
+  assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+         !thd->in_sub_stmt &&
+         !thd->get_transaction()->xid_state()->check_in_xa(false));
 
   if (thd->in_multi_stmt_transaction_mode() ||
       (thd->variables.option_bits & OPTION_TABLE_LOCK)) {
@@ -348,7 +348,7 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock) {
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
 
   /* The transaction should be marked as complete in P_S. */
-  DBUG_ASSERT(thd->m_transaction_psi == nullptr);
+  assert(thd->m_transaction_psi == nullptr);
 
   /*
     Upon implicit commit, reset the current transaction
@@ -408,7 +408,7 @@ bool trans_rollback(THD *thd) {
   thd->lex->start_transaction_opt = 0;
 
   /* The transaction should be marked as complete in P_S. */
-  DBUG_ASSERT(thd->m_transaction_psi == nullptr);
+  assert(thd->m_transaction_psi == nullptr);
 
   thd->tx_priority = 0;
 
@@ -456,8 +456,8 @@ bool trans_rollback_implicit(THD *thd) {
     Don't perform rollback in the middle of sub-statement, wait till
     its end.
   */
-  DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-              !thd->in_sub_stmt);
+  assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+         !thd->in_sub_stmt);
 
   thd->server_status &=
       ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
@@ -467,9 +467,9 @@ bool trans_rollback_implicit(THD *thd) {
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
 
   /* Rollback should clear transaction_rollback_request flag. */
-  DBUG_ASSERT(!thd->transaction_rollback_request);
+  assert(!thd->transaction_rollback_request);
   /* The transaction should be marked as complete in P_S. */
-  DBUG_ASSERT(thd->m_transaction_psi == nullptr);
+  assert(thd->m_transaction_psi == nullptr);
 
   trans_track_end_trx(thd);
 
@@ -518,13 +518,13 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock) {
     a savepoint for each nested statement, and release the
     savepoint when statement has succeeded.
   */
-  DBUG_ASSERT(!thd->in_sub_stmt);
+  assert(!thd->in_sub_stmt);
 
   /*
     Some code in MYSQL_BIN_LOG::commit and ha_commit_low() is not safe
     for attachable transactions.
   */
-  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
+  assert(!thd->is_attachable_ro_transaction_active());
 
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
@@ -539,8 +539,8 @@ bool trans_commit_stmt(THD *thd, bool ignore_global_read_lock) {
             thd))
       LogErr(WARNING_LEVEL, ER_TRX_GTID_COLLECT_REJECT);
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
-  DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
-              thd->m_transaction_psi == nullptr);
+  assert(thd->in_active_multi_stmt_transaction() ||
+         thd->m_transaction_psi == nullptr);
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 
@@ -564,13 +564,13 @@ bool trans_rollback_stmt(THD *thd) {
     a savepoint for each nested statement, and release the
     savepoint when statement has succeeded.
   */
-  DBUG_ASSERT(!thd->in_sub_stmt);
+  assert(!thd->in_sub_stmt);
 
   /*
     Some code in MYSQL_BIN_LOG::rollback and ha_rollback_low() is not safe
     for attachable transactions.
   */
-  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
+  assert(!thd->is_attachable_ro_transaction_active());
 
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
@@ -612,10 +612,10 @@ bool trans_rollback_stmt(THD *thd) {
   if (is_atomic_ddl_commit_on_slave(thd)) thd->rli_slave->post_rollback();
 
   /* In autocommit=1 mode the transaction should be marked as complete in P_S */
-  DBUG_ASSERT(thd->in_active_multi_stmt_transaction() ||
-              thd->m_transaction_psi == nullptr ||
-              /* Todo: BUG#20488921 is in the way. */
-              DBUG_EVALUATE_IF("simulate_xa_commit_log_failure", true, false));
+  assert(thd->in_active_multi_stmt_transaction() ||
+         thd->m_transaction_psi == nullptr ||
+         /* Todo: BUG#20488921 is in the way. */
+         DBUG_EVALUATE_IF("simulate_xa_commit_log_failure", true, false));
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 
@@ -639,23 +639,23 @@ bool trans_commit_attachable(THD *thd) {
   int res = 0;
 
   /* This function only handles attachable transactions. */
-  DBUG_ASSERT(thd->is_attachable_ro_transaction_active());
+  assert(thd->is_attachable_ro_transaction_active());
 
   /*
     Since the attachable transaction is AUTOCOMMIT we only need to commit
     statement transaction.
   */
-  DBUG_ASSERT(!thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+  assert(!thd->get_transaction()->is_active(Transaction_ctx::SESSION));
 
   /* Attachable transactions should not do anything unsafe. */
-  DBUG_ASSERT(
+  assert(
       !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
 
   if (thd->get_transaction()->is_active(Transaction_ctx::STMT)) {
     res = ha_commit_attachable(thd);
   }
 
-  DBUG_ASSERT(thd->m_transaction_psi == nullptr);
+  assert(thd->m_transaction_psi == nullptr);
 
   thd->get_transaction()->reset(Transaction_ctx::STMT);
 
@@ -703,7 +703,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name) {
   {
     newsv = *sv;
     if (ha_release_savepoint(thd, *sv)) {
-      DBUG_ASSERT(thd->is_error() || thd->is_killed());
+      assert(thd->is_error() || thd->is_killed());
       return true;
     }
     *sv = (*sv)->prev;

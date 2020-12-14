@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ bool Rotate_innodb_master_key::execute() {
   if (acquire_shared_global_read_lock(m_thd,
                                       m_thd->variables.lock_wait_timeout)) {
     // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
@@ -121,13 +121,13 @@ bool Rotate_innodb_master_key::execute() {
                                     true) ||
       acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
     // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
   if (hton->rotate_encryption_master_key()) {
     /* SE should have raised error */
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
@@ -179,13 +179,13 @@ bool Innodb_redo_log::execute() {
   if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
                                     true) ||
       acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
   if (hton->redo_log_set_state(m_thd, m_enable)) {
     /* SE should have raised error */
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 

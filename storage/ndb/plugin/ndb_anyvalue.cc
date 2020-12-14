@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ extern ulong opt_server_id_mask;
 
 /* Next reserved code : 0x8000007c */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void dbug_ndbcluster_anyvalue_set_userbits(Uint32 &anyValue) {
   /*
      Set userData part of AnyValue (if there is one) to

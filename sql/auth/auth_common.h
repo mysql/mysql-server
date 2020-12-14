@@ -23,6 +23,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -35,7 +36,7 @@
 
 #include "lex_string.h"
 #include "my_command.h"
-#include "my_dbug.h"
+
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "mysql_com.h"  // USERNAME_LENGTH
@@ -429,7 +430,7 @@ class User_table_current_schema : public User_table_schema {
   uint user_idx() override { return MYSQL_USER_FIELD_USER; }
   // not available
   uint password_idx() override {
-    DBUG_ASSERT(0);
+    assert(0);
     return MYSQL_USER_FIELD_COUNT;
   }
   uint select_priv_idx() override { return MYSQL_USER_FIELD_SELECT_PRIV; }
@@ -873,7 +874,7 @@ bool check_global_access(THD *thd, ulong want_access);
 /* sql_user_table */
 void commit_and_close_mysql_tables(THD *thd);
 bool is_acl_table_name(const char *name);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 bool is_acl_table(const TABLE *table);
 #endif
 

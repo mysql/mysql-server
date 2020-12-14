@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ Geometry *Difference::operator()(const Geometry *g1, const Geometry *g2) const {
 }
 
 Geometry *Difference::eval(const Geometry *g1, const Geometry *g2) const {
-  DBUG_ASSERT(false);
+  assert(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 

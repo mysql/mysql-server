@@ -371,7 +371,7 @@ class base_list_iterator {
   inline void rewind(void) { el = &list->first; }
   inline void *replace(void *element) {  // Return old element
     void *tmp = current->info;
-    DBUG_ASSERT(current->info != nullptr);
+    assert(current->info != nullptr);
     current->info = element;
     return tmp;
   }
@@ -482,14 +482,14 @@ class List : public base_list {
   }
 
   T *operator[](uint index) const {
-    DBUG_ASSERT(index < elements);
+    assert(index < elements);
     list_node *current = first;
     for (uint i = 0; i < index; ++i) current = current->next;
     return static_cast<T *>(current->info);
   }
 
   void replace(uint index, T *new_value) {
-    DBUG_ASSERT(index < elements);
+    assert(index < elements);
     list_node *current = first;
     for (uint i = 0; i < index; ++i) current = current->next;
     current->info = new_value;
@@ -548,7 +548,7 @@ class List : public base_list {
     // If the list overlaps another list, last isn't actually
     // the last element, and if so, we'd give a different result from
     // List_iterator_fast.
-    DBUG_ASSERT((*last)->next == &end_of_list);
+    assert((*last)->next == &end_of_list);
 
     return iterator(*last);
   }
@@ -556,12 +556,12 @@ class List : public base_list {
   using const_iterator = List_STL_Iterator<const T>;
   const_iterator begin() const { return const_iterator(first); }
   const_iterator end() const {
-    DBUG_ASSERT((*last)->next == &end_of_list);
+    assert((*last)->next == &end_of_list);
     return const_iterator(*last);
   }
   const_iterator cbegin() const { return const_iterator(first); }
   const_iterator cend() const {
-    DBUG_ASSERT((*last)->next == &end_of_list);
+    assert((*last)->next == &end_of_list);
     return const_iterator(*last);
   }
 };
@@ -764,7 +764,7 @@ class base_ilist {
   */
 
   void move_elements_to(base_ilist *new_owner) {
-    DBUG_ASSERT(new_owner->is_empty());
+    assert(new_owner->is_empty());
     new_owner->first = first;
     new_owner->sentinel = sentinel;
     clear();

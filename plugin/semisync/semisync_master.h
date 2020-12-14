@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 #ifndef SEMISYNC_MASTER_H
 #define SEMISYNC_MASTER_H
 
+#include <assert.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
@@ -191,7 +191,7 @@ class TranxNodeAllocator {
     }
 
     /* Node does not find should never happen */
-    DBUG_ASSERT(0);
+    assert(0);
     return 1;
   }
 

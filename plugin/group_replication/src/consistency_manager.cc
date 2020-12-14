@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,8 +45,8 @@ Transaction_consistency_info::Transaction_consistency_info(
       m_transaction_prepared_locally(local_transaction),
       m_transaction_prepared_remotely(false) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
-  DBUG_ASSERT(nullptr != m_members_that_must_prepare_the_transaction);
+  assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+  assert(nullptr != m_members_that_must_prepare_the_transaction);
   DBUG_PRINT(
       "info",
       ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
@@ -101,7 +101,7 @@ int Transaction_consistency_info::after_applier_prepare(
     my_thread_id thread_id,
     Group_member_info::Group_member_status member_status) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
+  assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
   /*
     Update thread_id with applier worker id in order to allow it to
     be resumed once all prepared messages are delivered.
@@ -131,7 +131,7 @@ int Transaction_consistency_info::after_applier_prepare(
             "signal.after_before_message_send_after_applier_prepare_waiting "
             "wait_for "
             "signal.after_before_message_send_after_applier_prepare_continue";
-        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       };);
 
   DBUG_EXECUTE_IF(
@@ -141,7 +141,7 @@ int Transaction_consistency_info::after_applier_prepare(
             "signal.after_supress_message_send_after_applier_prepare_waiting "
             "wait_for "
             "signal.after_supress_message_send_after_applier_prepare_continue";
-        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
         return 0;
       };);
 
@@ -233,10 +233,10 @@ Transaction_consistency_manager::Transaction_consistency_manager()
 }
 
 Transaction_consistency_manager::~Transaction_consistency_manager() {
-  DBUG_ASSERT(m_map.empty());
-  DBUG_ASSERT(m_prepared_transactions_on_my_applier.empty());
-  DBUG_ASSERT(m_new_transactions_waiting.empty());
-  DBUG_ASSERT(m_delayed_view_change_events.empty());
+  assert(m_map.empty());
+  assert(m_prepared_transactions_on_my_applier.empty());
+  assert(m_new_transactions_waiting.empty());
+  assert(m_delayed_view_change_events.empty());
   delete m_map_lock;
   delete m_prepared_transactions_on_my_applier_lock;
 }
@@ -267,8 +267,8 @@ void Transaction_consistency_manager::clear() {
 int Transaction_consistency_manager::after_certification(
     Transaction_consistency_info *transaction_info) {
   DBUG_TRACE;
-  DBUG_ASSERT(transaction_info->get_consistency_level() >=
-              GROUP_REPLICATION_CONSISTENCY_AFTER);
+  assert(transaction_info->get_consistency_level() >=
+         GROUP_REPLICATION_CONSISTENCY_AFTER);
   int error = 0;
   Transaction_consistency_manager_key key(transaction_info->get_sidno(),
                                           transaction_info->get_gno());
@@ -368,7 +368,7 @@ int Transaction_consistency_manager::after_applier_prepare(
     const char act[] =
         "now signal signal.after_applier_prepare_waiting wait_for "
         "signal.after_applier_prepare_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   if (!transaction_prepared_remotely &&
@@ -593,9 +593,8 @@ int Transaction_consistency_manager::transaction_begin_sync_before_execution(
         MY_ATTRIBUTE((unused)),
     ulong timeout) const {
   DBUG_TRACE;
-  DBUG_ASSERT(GROUP_REPLICATION_CONSISTENCY_BEFORE == consistency_level ||
-              GROUP_REPLICATION_CONSISTENCY_BEFORE_AND_AFTER ==
-                  consistency_level);
+  assert(GROUP_REPLICATION_CONSISTENCY_BEFORE == consistency_level ||
+         GROUP_REPLICATION_CONSISTENCY_BEFORE_AND_AFTER == consistency_level);
   DBUG_PRINT("info", ("thread_id: %d; consistency_level: %d", thread_id,
                       consistency_level));
 
@@ -777,7 +776,7 @@ int Transaction_consistency_manager::remove_prepared_transaction(
         m_prepared_transactions_on_my_applier.front();
 
     if (0 == next_prepared.first && 0 == next_prepared.second) {
-      DBUG_ASSERT(!m_new_transactions_waiting.empty());
+      assert(!m_new_transactions_waiting.empty());
       // This is a new transaction waiting, lets wake it up.
       m_prepared_transactions_on_my_applier.pop_front();
       my_thread_id waiting_thread_id = m_new_transactions_waiting.front();
@@ -796,7 +795,7 @@ int Transaction_consistency_manager::remove_prepared_transaction(
         /* purecov: end */
       }
     } else if (-1 == next_prepared.first && -1 == next_prepared.second) {
-      DBUG_ASSERT(!m_delayed_view_change_events.empty());
+      assert(!m_delayed_view_change_events.empty());
       /*
         This is a view change that was waiting for prepared
         transactions completion, now it is time to log it.

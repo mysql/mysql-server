@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,28 +52,28 @@ class TablesContainedIn {
     iterator(const JOIN *join, qep_tab_map map)
         : m_join(join), m_bits_left(map) {}
     bool operator==(const iterator &other) const {
-      DBUG_ASSERT(m_join == other.m_join);
+      assert(m_join == other.m_join);
       return m_bits_left == other.m_bits_left;
     }
     bool operator!=(const iterator &other) const {
-      DBUG_ASSERT(m_join == other.m_join);
+      assert(m_join == other.m_join);
       return m_bits_left != other.m_bits_left;
     }
     QEP_TAB *operator*() const {
       // Find the QEP_TAB that corresponds to the lowest set bit.
-      DBUG_ASSERT(m_bits_left != 0);
+      assert(m_bits_left != 0);
 #ifdef _MSC_VER
       unsigned long idx;
       _BitScanForward64(&idx, m_bits_left);
 #else
       size_t idx = ffsll(m_bits_left) - 1;
 #endif
-      DBUG_ASSERT(idx < m_join->tables);
+      assert(idx < m_join->tables);
       return &m_join->qep_tab[idx];
     }
     iterator &operator++() {
       // Clear the lowest set bit.
-      DBUG_ASSERT(m_bits_left != 0);
+      assert(m_bits_left != 0);
       m_bits_left &= (m_bits_left - 1);
       return *this;
     }

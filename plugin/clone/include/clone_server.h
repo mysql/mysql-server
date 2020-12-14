@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ class Server {
   @param[out]	loc_len	locator length in bytes
   @return storage locator */
   const uchar *get_locator(uint index, uint &loc_len) const {
-    DBUG_ASSERT(index < m_storage_vec.size());
+    assert(index < m_storage_vec.size());
     loc_len = m_storage_vec[index].m_loc_len;
     return (m_storage_vec[index].m_loc);
   }
@@ -84,7 +84,7 @@ class Server {
       return (nullptr);
 
     } else {
-      DBUG_ASSERT(m_copy_buff.m_length >= len);
+      assert(m_copy_buff.m_length >= len);
       return (m_copy_buff.m_buffer);
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,7 +156,7 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname) {
   // See comments regarding l_c_t_n in migrate_all_frm_to_dd().
   if (lower_case_table_names == 0)
     // Supported only for case sensitive file systems.
-    DBUG_ASSERT(!lower_case_file_system);
+    assert(!lower_case_file_system);
   else if (lower_case_table_names == 1) {
     // Supported for any file system. All names must be in lower case.
     if (!is_string_in_lowercase(schema_name, system_charset_info)) {
@@ -166,9 +166,9 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname) {
     }
   } else if (lower_case_table_names == 2)
     // Supported only for case insensitive file systems.
-    DBUG_ASSERT(lower_case_file_system);
+    assert(lower_case_file_system);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   // Disable autocommit option
   Disable_autocommit_guard autocommit_guard(thd);

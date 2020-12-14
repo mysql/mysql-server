@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
       term solution to allow SRS data to be entered by INSERT statements
       instead of CREATE statements.
     */
-    DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_SERVER_INITIALIZE);
+    assert(thd->system_thread == SYSTEM_THREAD_SERVER_INITIALIZE);
 
     /*
       The server must avoid logging compiled statements into the binary log
@@ -166,7 +166,7 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
       statement from an init file, we must make sure that the thread type is
       set to the appropriate value.
     */
-    DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_INIT_FILE);
+    assert(thd->system_thread == SYSTEM_THREAD_INIT_FILE);
 
     File_command_iterator file_iter(args->m_file_name, args->m_file,
                                     mysql_file_fgets_fn);
@@ -274,12 +274,12 @@ static int process_iterator(THD *thd, Command_iterator *it,
       Make sure bootstrap statements do not change binlog options.
       Currently enforced for compiled in statements.
     */
-    DBUG_ASSERT(
+    assert(
         !enforce_invariants ||
         (saved_option_bits == (thd->variables.option_bits & invariant_bits)));
 
-    DBUG_ASSERT(!enforce_invariants ||
-                (saved_sql_log_bin == thd->variables.sql_log_bin));
+    assert(!enforce_invariants ||
+           (saved_sql_log_bin == thd->variables.sql_log_bin));
   }
 
   it->end();
@@ -411,7 +411,7 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
   my_thread_attr_getstacksize(&thr_attr, &stacksize);
   if (stacksize < my_thread_stack_size) {
     if (0 != my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size)) {
-      DBUG_ASSERT(false);
+      assert(false);
     }
   }
 

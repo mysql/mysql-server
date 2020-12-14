@@ -302,7 +302,7 @@ class Relay_log_info : public Rpl_info {
     clients.
   */
   inline bool belongs_to_client() {
-    DBUG_ASSERT(info_thd);
+    assert(info_thd);
     return !info_thd->slave_thread;
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
@@ -796,7 +796,7 @@ class Relay_log_info : public Rpl_info {
 
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno) {
     get_sid_lock()->assert_some_lock();
-    DBUG_ASSERT(sidno <= get_sid_map()->get_max_sidno());
+    assert(sidno <= get_sid_map()->get_max_sidno());
     gtid_set->ensure_sidno(sidno);
     gtid_set->_add_gtid(sidno, gno);
   }
@@ -1038,7 +1038,7 @@ class Relay_log_info : public Rpl_info {
 
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var,
                       TABLE **conv_table_var) const {
-    DBUG_ASSERT(tabledef_var && conv_table_var);
+    assert(tabledef_var && conv_table_var);
     for (TABLE_LIST *ptr = tables_to_lock; ptr != nullptr;
          ptr = ptr->next_global)
       if (ptr->table == table_arg) {
@@ -1327,7 +1327,7 @@ class Relay_log_info : public Rpl_info {
   inline bool is_parallel_exec() const {
     bool ret = (slave_parallel_workers > 0) && !is_mts_recovery();
 
-    DBUG_ASSERT(!ret || !workers.empty());
+    assert(!ret || !workers.empty());
 
     return ret;
   }
@@ -2148,7 +2148,7 @@ inline bool is_committed_ddl(Log_event *ev) {
                 DDL query-log-event, otherwise returns false.
 */
 inline bool is_atomic_ddl_commit_on_slave(THD *thd) {
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   Relay_log_info *rli = thd->rli_slave;
 

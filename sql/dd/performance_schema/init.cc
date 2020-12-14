@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ bool check_perf_schema_has_correct_version(THD *thd) {
   // Stop if P_S version is same.
   uint actual_version = d->get_actual_P_S_version(thd);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Unknown version of the current server PS schema. It is used for tests.
   const uint UNKNOWN_P_S_VERSION = -1;
 #endif
@@ -150,7 +150,7 @@ bool create_pfs_tables(THD *thd) {
       break;
     }
 
-    DBUG_ASSERT(!exists);
+    assert(!exists);
 
     const Object_table_definition *table_def = nullptr;
     if (exists ||
@@ -326,7 +326,7 @@ bool init_pfs_tables(enum_dd_init_type init_type) {
     return ::bootstrap::run_bootstrap_thread(nullptr, nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_RESTART);
   else {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 }

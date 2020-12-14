@@ -130,7 +130,7 @@ static ulonglong log_sink_buffer_last = 0;
 static bool log_line_duplicate(log_line *dst, log_line *src) {
   int c;
 
-  DBUG_ASSERT((dst != nullptr) && (src != nullptr));
+  assert((dst != nullptr) && (src != nullptr));
 
   *dst = *src;
 
@@ -566,7 +566,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   */
 
   if (local_head != nullptr) {
-    DBUG_ASSERT(local_tail != nullptr);
+    assert(local_tail != nullptr);
 
     /*
       Append global list to end of local list. If global list is still

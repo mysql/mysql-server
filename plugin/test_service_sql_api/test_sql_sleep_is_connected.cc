@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -68,7 +68,7 @@ struct Callback_data {
 
 static int sql_start_result_metadata(void *, uint, uint,
                                      const CHARSET_INFO *
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                          resultcs
 #endif
 ) {

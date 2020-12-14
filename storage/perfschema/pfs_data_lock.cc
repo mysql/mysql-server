@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,8 @@
 
 #include "storage/perfschema/pfs_data_lock.h"
 
+#include <assert.h>
 #include <stddef.h>
-
-#include "my_dbug.h"
 
 /* clang-format off */
 /**
@@ -277,7 +276,7 @@ void PFS_data_lock_container::add_lock_row(
   if (engine_lock_id != nullptr) {
     size_t len = engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_engine_lock_id)) {
-      DBUG_ASSERT(false);
+      assert(false);
       len = sizeof(row.m_hidden_pk.m_engine_lock_id);
     }
     if (len > 0) {
@@ -346,7 +345,7 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
       This row existed, before a call to ::shrink().
       The caller should not ask for it again.
     */
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 
@@ -447,7 +446,7 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
   if (requesting_engine_lock_id != nullptr) {
     size_t len = requesting_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_requesting_engine_lock_id)) {
-      DBUG_ASSERT(false);
+      assert(false);
       len = sizeof(row.m_hidden_pk.m_requesting_engine_lock_id);
     }
     if (len > 0) {
@@ -467,7 +466,7 @@ void PFS_data_lock_wait_container::add_lock_wait_row(
   if (blocking_engine_lock_id != nullptr) {
     size_t len = blocking_engine_lock_id_length;
     if (len > sizeof(row.m_hidden_pk.m_blocking_engine_lock_id)) {
-      DBUG_ASSERT(false);
+      assert(false);
       len = sizeof(row.m_hidden_pk.m_blocking_engine_lock_id);
     }
     if (len > 0) {
@@ -507,7 +506,7 @@ row_data_lock_wait *PFS_data_lock_wait_container::get_row(size_t index) {
       This row existed, before a call to ::shrink().
       The caller should not ask for it again.
     */
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 

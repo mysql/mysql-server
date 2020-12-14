@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ int get_old_status(Event::enum_event_status event_status) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event_parse_data::DISABLED;
   /* purecov: end deadcode */
@@ -87,7 +87,7 @@ static Event::enum_event_status get_enum_event_status(int event_status) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event::ES_DISABLED;
   /* purecov: end deadcode */
@@ -103,7 +103,7 @@ int get_old_on_completion(Event::enum_on_completion on_completion) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event_parse_data::ON_COMPLETION_DROP;
   /* purecov: end deadcode */
@@ -129,7 +129,7 @@ static Event::enum_on_completion get_on_completion(int on_completion) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event::OC_DROP;
   /* purecov: end deadcode */
@@ -181,7 +181,7 @@ interval_type get_old_interval_type(Event::enum_interval_field interval_field) {
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return INTERVAL_YEAR;
   /* purecov: end deadcode */
@@ -240,12 +240,12 @@ static Event::enum_interval_field get_enum_interval_field(
     case INTERVAL_SECOND_MICROSECOND:
       return Event::IF_SECOND_MICROSECOND;
     case INTERVAL_LAST:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   /* purecov: begin deadcode */
   LogErr(ERROR_LEVEL, ER_DD_FAILSAFE, failsafe_object);
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Event::IF_YEAR;
   /* purecov: end deadcode */
@@ -326,7 +326,7 @@ static void set_event_attributes(THD *thd, const dd::Schema &schema,
     event->set_execute_at_null(false);
     event->set_execute_at(event_data->execute_at);
   } else
-    DBUG_ASSERT(is_update);
+    assert(is_update);
 
   if (event_data->comment.str != nullptr)
     event->set_comment(String_type(event_data->comment.str));

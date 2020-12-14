@@ -1,6 +1,6 @@
 #ifndef SQL_GIS_FUNCTOR_H_INCLUDED
 #define SQL_GIS_FUNCTOR_H_INCLUDED
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -36,11 +36,12 @@
 ///
 /// @see distance_functor.h
 
+#include <assert.h>
 #include <exception>  // std::exception
 #include <sstream>    // std::stringstream
 #include <string>     // std::string
 
-#include "my_dbug.h"             // DBUG_ASSERT
+// assert
 #include "sql/gis/geometries.h"  // gis::{Geometry{,_type}, Coordinate_system}
 #include "sql/gis/geometries_cs.h"  // gis::{Cartesian_*, Geographic_*}
 #include "template_utils.h"         // down_cast
@@ -99,7 +100,7 @@ class not_implemented_exception : public std::exception {
 
   not_implemented_exception(Srs_type srs_type, const Geometry &g1,
                             const Geometry &g2) {
-    DBUG_ASSERT(g1.coordinate_system() == g2.coordinate_system());
+    assert(g1.coordinate_system() == g2.coordinate_system());
     m_srs_type = srs_type;
     std::stringstream ss;
     ss << type_to_name(g1.type()) << ", " << type_to_name(g2.type());
@@ -122,7 +123,7 @@ class not_implemented_exception : public std::exception {
   static not_implemented_exception for_non_projected(const Geometry &g) {
     switch (g.coordinate_system()) {
       default:
-        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+        assert(false);  // C++11 woes. /* purecov: inspected */
       case Coordinate_system::kCartesian:
         return not_implemented_exception(kCartesian, g);
       case Coordinate_system::kGeographic:
@@ -134,7 +135,7 @@ class not_implemented_exception : public std::exception {
                                                      const Geometry &g2) {
     switch (g1.coordinate_system()) {
       default:
-        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+        assert(false);  // C++11 woes. /* purecov: inspected */
       case Coordinate_system::kCartesian:
         return not_implemented_exception(kCartesian, g1, g2);
       case Coordinate_system::kGeographic:
@@ -168,7 +169,7 @@ class Functor {
  protected:
   template <typename F>
   static inline T apply(F &f, const Geometry *g1, const Geometry *g2) {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    assert(g1->coordinate_system() == g2->coordinate_system());
     switch (g1->coordinate_system()) {
       case Coordinate_system::kCartesian:
         switch (g1->type()) {
@@ -197,7 +198,7 @@ class Functor {
                 return f.eval(down_cast<const Cartesian_point *>(g1),
                               down_cast<const Cartesian_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kLinestring:
@@ -225,7 +226,7 @@ class Functor {
                 return f.eval(down_cast<const Cartesian_linestring *>(g1),
                               down_cast<const Cartesian_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kPolygon:
@@ -253,7 +254,7 @@ class Functor {
                 return f.eval(down_cast<const Cartesian_polygon *>(g1),
                               down_cast<const Cartesian_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kGeometrycollection:
@@ -287,7 +288,7 @@ class Functor {
                     down_cast<const Cartesian_geometrycollection *>(g1),
                     down_cast<const Cartesian_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kMultipoint:
@@ -315,7 +316,7 @@ class Functor {
                 return f.eval(down_cast<const Cartesian_multipoint *>(g1),
                               down_cast<const Cartesian_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kMultilinestring:
@@ -343,7 +344,7 @@ class Functor {
                 return f.eval(down_cast<const Cartesian_multilinestring *>(g1),
                               down_cast<const Cartesian_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kMultipolygon:
@@ -371,11 +372,11 @@ class Functor {
                 return f.eval(down_cast<const Cartesian_multipolygon *>(g1),
                               down_cast<const Cartesian_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           default:
-            DBUG_ASSERT(false); /* purecov: inspected */
+            assert(false); /* purecov: inspected */
             throw not_implemented_exception::for_non_projected(*g1, *g2);
         }  // switch (g1->type())
       case Coordinate_system::kGeographic:
@@ -406,7 +407,7 @@ class Functor {
                 return f.eval(down_cast<const Geographic_point *>(g1),
                               down_cast<const Geographic_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kLinestring:
@@ -435,7 +436,7 @@ class Functor {
                 return f.eval(down_cast<const Geographic_linestring *>(g1),
                               down_cast<const Geographic_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kPolygon:
@@ -464,7 +465,7 @@ class Functor {
                 return f.eval(down_cast<const Geographic_polygon *>(g1),
                               down_cast<const Geographic_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kGeometrycollection:
@@ -498,7 +499,7 @@ class Functor {
                     down_cast<const Geographic_geometrycollection *>(g1),
                     down_cast<const Geographic_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kMultipoint:
@@ -527,7 +528,7 @@ class Functor {
                 return f.eval(down_cast<const Geographic_multipoint *>(g1),
                               down_cast<const Geographic_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kMultilinestring:
@@ -556,7 +557,7 @@ class Functor {
                 return f.eval(down_cast<const Geographic_multilinestring *>(g1),
                               down_cast<const Geographic_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           case Geometry_type::kMultipolygon:
@@ -585,16 +586,16 @@ class Functor {
                 return f.eval(down_cast<const Geographic_multipolygon *>(g1),
                               down_cast<const Geographic_multipolygon *>(g2));
               default:
-                DBUG_ASSERT(false); /* purecov: inspected */
+                assert(false); /* purecov: inspected */
                 throw not_implemented_exception::for_non_projected(*g1, *g2);
             }
           default:
-            DBUG_ASSERT(false); /* purecov: inspected */
+            assert(false); /* purecov: inspected */
             throw not_implemented_exception::for_non_projected(*g1, *g2);
         }  // switch (g1->type())
     }      // switch (g1->coordinate_system())
 
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     throw not_implemented_exception::for_non_projected(*g1, *g2);
   }
 };
@@ -636,7 +637,7 @@ class Unary_functor {
           case Geometry_type::kMultipolygon:
             return f.eval(down_cast<const Cartesian_multipolygon &>(g));
           default:
-            DBUG_ASSERT(false); /* purecov: inspected */
+            assert(false); /* purecov: inspected */
             // We don't know here whether the geometry is Cartesan or projected.
             // Assume Cartesian. This is dead code anyway.
             throw not_implemented_exception::for_non_projected(g);
@@ -659,14 +660,14 @@ class Unary_functor {
           case Geometry_type::kMultipolygon:
             return f.eval(down_cast<const Geographic_multipolygon &>(g));
           default:
-            DBUG_ASSERT(false); /* purecov: inspected */
+            assert(false); /* purecov: inspected */
             // We don't know here whether the geometry is Cartesan or projected.
             // Assume Cartesian. This is dead code anyway.
             throw not_implemented_exception::for_non_projected(g);
         }
       }
     }
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     // We don't know here whether the geometry is Cartesan or projected.
     // Assume Cartesian. This is dead code anyway.
     throw not_implemented_exception::for_non_projected(g);

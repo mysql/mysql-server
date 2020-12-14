@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -289,7 +289,7 @@ inline size_t Indexed_cells::number_of_cells() const {
 }
 
 inline void Indexed_cells::number_of_cells(size_t n) {
-  DBUG_ASSERT(n <= m_number_of_cells);
+  assert(n <= m_number_of_cells);
 
   m_number_of_cells = static_cast<decltype(m_number_of_cells)>(n);
 }

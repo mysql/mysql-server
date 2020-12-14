@@ -22,8 +22,9 @@
 
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 
+#include <assert.h>
 #include "m_string.h"  // STRING_WITH_LEN
-#include "my_dbug.h"
+
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_func.h"
@@ -226,7 +227,7 @@ Item *Select_lex_builder::prepare_equal_item(const LEX_CSTRING &field_name,
 
 // Add a WHERE clause condition to Select_lex_builder.
 bool Select_lex_builder::add_condition(Item *a) {
-  DBUG_ASSERT(a != nullptr);
+  assert(a != nullptr);
 
   /* ... WHERE cond ... */
   if (m_where_clause == nullptr) {

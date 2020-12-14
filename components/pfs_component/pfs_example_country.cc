@@ -20,9 +20,9 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <cstring>
 
-#include "my_dbug.h"
 #include "pfs_example_country.h"
 
 PFS_engine_table_share_proxy country_st_share;
@@ -160,7 +160,7 @@ int country_index_init(PSI_table_handle *handle, unsigned int idx, bool,
       *index = (PSI_index_handle *)i;
     } break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -180,7 +180,7 @@ int country_index_read(PSI_index_handle *index, PSI_key_reader *reader,
           reader, &i->m_continent_name, find_flag);
     } break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -197,7 +197,7 @@ int country_index_next(PSI_table_handle *handle) {
       i = (Country_index_by_name *)&h->m_index;
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -252,7 +252,7 @@ int country_read_column_value(PSI_table_handle *handle, PSI_field *field,
           field, h->current_row.growth_factor);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -333,7 +333,7 @@ int country_write_column_value(PSI_table_handle *handle, PSI_field *field,
           field, &h->current_row.growth_factor);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
@@ -347,7 +347,7 @@ int country_update_row_values(PSI_table_handle *handle) {
 
   Country_record *cur = &country_records_array[h->m_pos.get_index()];
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   native_mutex_lock(&LOCK_country_records_array);
   if (is_duplicate(&h->current_row, h->m_pos.get_index()))
@@ -390,7 +390,7 @@ int country_update_column_value(PSI_table_handle *handle, PSI_field *field,
           field, &h->current_row.growth_factor);
       break;
     default: /* We should never reach here */
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return 0;
@@ -402,7 +402,7 @@ int country_delete_row_values(PSI_table_handle *handle) {
 
   Country_record *cur = &country_records_array[h->m_pos.get_index()];
 
-  DBUG_ASSERT(cur->m_exist == true);
+  assert(cur->m_exist == true);
 
   native_mutex_lock(&LOCK_country_records_array);
   cur->m_exist = false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1187,7 +1187,7 @@ int _mi_read_rnd_pack_record(MI_INFO *info, uchar *buf, my_off_t filepos,
     b_type = _mi_pack_get_block_info(info, &info->bit_buff, &block_info,
                                      &info->rec_buff, info->dfile, filepos);
   if (b_type) goto err; /* Error code is already set */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (block_info.rec_len > share->max_pack_length) {
     set_my_errno(HA_ERR_WRONG_IN_RECORD);
     goto err;
@@ -1384,7 +1384,7 @@ bool _mi_memmap_file(MI_INFO *info) {
 }
 
 void _mi_unmap_file(MI_INFO *info) {
-  DBUG_ASSERT(info->s->options & HA_OPTION_COMPRESS_RECORD);
+  assert(info->s->options & HA_OPTION_COMPRESS_RECORD);
 
   (void)my_munmap((char *)info->s->file_map, (size_t)info->s->mmaped_length);
 
@@ -1446,7 +1446,7 @@ static int _mi_read_rnd_mempack_record(
             info, &info->bit_buff, &block_info, &info->rec_buff,
             (uchar *)(start = share->file_map + filepos))))
     goto err;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (block_info.rec_len > info->s->max_pack_length) {
     set_my_errno(HA_ERR_WRONG_IN_RECORD);
     goto err;
@@ -1478,7 +1478,7 @@ uint save_pack_length(uint version, uchar *block_buff, ulong length) {
   *(uchar *)block_buff = 255;
   if (version == 1) /* old format */
   {
-    DBUG_ASSERT(length <= 0xFFFFFF);
+    assert(length <= 0xFFFFFF);
     int3store(block_buff + 1, (ulong)length);
     return 4;
   } else {

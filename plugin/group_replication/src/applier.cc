@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,7 +222,7 @@ void Applier_module::set_applier_thread_context() {
 
   DBUG_EXECUTE_IF("group_replication_applier_thread_init_wait", {
     const char act[] = "now wait_for signal.gr_applier_init_signal";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   applier_thd = thd;
@@ -334,7 +334,7 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
 
   DBUG_EXECUTE_IF("group_replication_before_apply_data_packet", {
     const char act[] = "now wait_for continue_apply";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   while ((payload != payload_end) && !error) {
@@ -378,7 +378,7 @@ int Applier_module::apply_single_primary_action_packet(
       certifier->disable_conflict_detection();
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      assert(0); /* purecov: inspected */
   }
 
   return error;
@@ -518,7 +518,7 @@ int Applier_module::applier_thread_handle() {
         this->incoming->pop();
         break;
       default:
-        DBUG_ASSERT(0); /* purecov: inspected */
+        assert(0); /* purecov: inspected */
     }
 
     delete packet;
@@ -566,7 +566,7 @@ end:
 
   DBUG_EXECUTE_IF("applier_thd_timeout", {
     const char act[] = "now wait_for signal.applier_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   stage_handler.end_stage();
@@ -699,7 +699,7 @@ int Applier_module::terminate_applier_thread() {
     */
     struct timespec abstime;
     set_timespec(&abstime, (stop_wait_timeout == 1 ? 1 : 2));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error =
 #endif
         mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
@@ -713,10 +713,10 @@ int Applier_module::terminate_applier_thread() {
       mysql_mutex_unlock(&run_lock);
       return 1;
     }
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!applier_thd_state.is_running());
+  assert(!applier_thd_state.is_running());
 
 delete_pipeline:
 
@@ -947,7 +947,7 @@ int Applier_module::intersect_group_executed_sets(
     }
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *executed_set_string;
   output_set->to_string(&executed_set_string);
   DBUG_PRINT("info", ("View change GTID information: output_set: %s",

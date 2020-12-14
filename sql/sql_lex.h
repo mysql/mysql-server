@@ -945,27 +945,27 @@ class Query_expression {
   bool add_fake_query_block(THD *thd);
   bool prepare_fake_query_block(THD *thd);
   void set_prepared() {
-    DBUG_ASSERT(!is_prepared());
+    assert(!is_prepared());
     prepared = true;
   }
   void set_optimized() {
-    DBUG_ASSERT(is_prepared() && !is_optimized());
+    assert(is_prepared() && !is_optimized());
     optimized = true;
   }
   void set_executed() {
-    // DBUG_ASSERT(is_prepared() && is_optimized() && !is_executed());
-    DBUG_ASSERT(is_prepared() && is_optimized());
+    // assert(is_prepared() && is_optimized() && !is_executed());
+    assert(is_prepared() && is_optimized());
     executed = true;
   }
   /// Reset this query expression for repeated evaluation within same execution
   void reset_executed() {
-    DBUG_ASSERT(is_prepared() && is_optimized());
+    assert(is_prepared() && is_optimized());
     executed = false;
   }
   /// Clear execution state, needed before new execution of prepared statement
   void clear_execution() {
     // Cannot be enforced when called from Prepared_statement::execute():
-    // DBUG_ASSERT(is_prepared());
+    // assert(is_prepared());
     optimized = false;
     executed = false;
     cleaned = UC_DIRTY;
@@ -1027,7 +1027,7 @@ class Query_expression {
   void set_explain_marker(THD *thd, enum_parsing_context m);
   void set_explain_marker_from(THD *thd, const Query_expression *u);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Asserts that none of {this unit and its children units} is fully cleaned
      up.
@@ -1122,14 +1122,14 @@ class Query_block {
     DBUG_EXECUTE_IF("no_const_tables", options_arg |= OPTION_NO_CONST_TABLES;);
 
     // Make sure we do not overwrite options by accident
-    DBUG_ASSERT(m_base_options == 0 && m_active_options == 0);
+    assert(m_base_options == 0 && m_active_options == 0);
     m_base_options = options_arg;
     m_active_options = options_arg;
   }
 
   /// Add base options to a query block, also update active options
   void add_base_options(ulonglong options) {
-    DBUG_ASSERT(first_execution);
+    assert(first_execution);
     m_base_options |= options;
     m_active_options |= options;
   }
@@ -1140,7 +1140,7 @@ class Query_block {
     cannot override removed base options.
   */
   void remove_base_options(ulonglong options) {
-    DBUG_ASSERT(first_execution);
+    assert(first_execution);
     m_base_options &= ~options;
     m_active_options &= ~options;
   }
@@ -1421,7 +1421,7 @@ class Query_block {
   void set_lock_for_tables(thr_lock_type lock_type);
 
   inline void init_order() {
-    DBUG_ASSERT(order_list.elements == 0);
+    assert(order_list.elements == 0);
     order_list.elements = 0;
     order_list.first = nullptr;
     order_list.next = &order_list.first;
@@ -1710,7 +1710,7 @@ class Query_block {
   /// Set query block as returning no data
   /// @todo This may also be set when we have an always false WHERE clause
   void set_empty_query() {
-    DBUG_ASSERT(join == nullptr);
+    assert(join == nullptr);
     m_empty_query = true;
   }
   /*
@@ -2736,7 +2736,7 @@ class Query_tables_list {
   */
   inline void set_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) {
     DBUG_TRACE;
-    DBUG_ASSERT(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
+    assert(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
     binlog_stmt_flags |= (1U << unsafe_type);
     return;
   }
@@ -2751,7 +2751,7 @@ class Query_tables_list {
   */
   inline void set_stmt_unsafe_flags(uint32 flags) {
     DBUG_TRACE;
-    DBUG_ASSERT((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
+    assert((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
     binlog_stmt_flags |= flags;
     return;
   }
@@ -2834,7 +2834,7 @@ class Query_tables_list {
     STMT_ACCESS_TABLE_COUNT
   };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   static inline const char *stmt_accessed_table_string(
       enum_stmt_accessed_table accessed_table) {
     switch (accessed_table) {
@@ -2864,7 +2864,7 @@ class Query_tables_list {
         break;
       case STMT_ACCESS_TABLE_COUNT:
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         break;
     }
     MY_ASSERT_UNREACHABLE();
@@ -2900,8 +2900,7 @@ class Query_tables_list {
   inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
     DBUG_TRACE;
 
-    DBUG_ASSERT(accessed_table >= 0 &&
-                accessed_table < STMT_ACCESS_TABLE_COUNT);
+    assert(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
     stmt_accessed_table_flag |= (1U << accessed_table);
 
     return;
@@ -2920,8 +2919,7 @@ class Query_tables_list {
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
     DBUG_TRACE;
 
-    DBUG_ASSERT(accessed_table >= 0 &&
-                accessed_table < STMT_ACCESS_TABLE_COUNT);
+    assert(accessed_table >= 0 && accessed_table < STMT_ACCESS_TABLE_COUNT);
 
     return (stmt_accessed_table_flag & (1U << accessed_table)) != 0;
   }
@@ -2956,7 +2954,7 @@ class Query_tables_list {
 
       unsafe = (binlog_unsafe_map[stmt_accessed_table_flag] & condition);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       DBUG_PRINT("LEX::is_mixed_stmt_unsafe",
                  ("RESULT %02X %02X %02X\n", condition,
                   binlog_unsafe_map[stmt_accessed_table_flag],
@@ -3151,7 +3149,7 @@ class Lex_input_stream {
     @param n number of bytes to accept.
   */
   void skip_binary(int n) {
-    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
+    assert(m_ptr + n <= m_end_of_query);
     if (m_echo) {
       memcpy(m_cpp_ptr, m_ptr, n);
       m_cpp_ptr += n;
@@ -3164,7 +3162,7 @@ class Lex_input_stream {
     @return the next character to parse.
   */
   unsigned char yyGet() {
-    DBUG_ASSERT(m_ptr <= m_end_of_query);
+    assert(m_ptr <= m_end_of_query);
     char c = *m_ptr++;
     if (m_echo) *m_cpp_ptr++ = c;
     return c;
@@ -3180,7 +3178,7 @@ class Lex_input_stream {
     Look at the next character to parse, but do not accept it.
   */
   unsigned char yyPeek() const {
-    DBUG_ASSERT(m_ptr <= m_end_of_query);
+    assert(m_ptr <= m_end_of_query);
     return m_ptr[0];
   }
 
@@ -3189,7 +3187,7 @@ class Lex_input_stream {
     @param n offset of the character to look up
   */
   unsigned char yyPeekn(int n) const {
-    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
+    assert(m_ptr + n <= m_end_of_query);
     return m_ptr[n];
   }
 
@@ -3207,7 +3205,7 @@ class Lex_input_stream {
     Accept a character, by advancing the input stream.
   */
   void yySkip() {
-    DBUG_ASSERT(m_ptr <= m_end_of_query);
+    assert(m_ptr <= m_end_of_query);
     if (m_echo)
       *m_cpp_ptr++ = *m_ptr++;
     else
@@ -3219,7 +3217,7 @@ class Lex_input_stream {
     @param n the number of characters to accept.
   */
   void yySkipn(int n) {
-    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
+    assert(m_ptr + n <= m_end_of_query);
     if (m_echo) {
       memcpy(m_cpp_ptr, m_ptr, n);
       m_cpp_ptr += n;
@@ -3315,7 +3313,7 @@ class Lex_input_stream {
       The assumption is that the lexical analyser is always 1 character ahead,
       which the -1 account for.
     */
-    DBUG_ASSERT(m_ptr > m_tok_start);
+    assert(m_ptr > m_tok_start);
     return (uint)((m_ptr - m_tok_start) - 1);
   }
 
@@ -3647,7 +3645,7 @@ struct LEX : public Query_tables_list {
   */
   void assert_ok_set_current_query_block();
   inline void set_current_query_block(Query_block *select) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     assert_ok_set_current_query_block();
 #endif
     m_current_query_block = select;
@@ -4225,7 +4223,7 @@ struct LEX : public Query_tables_list {
     */
     if (query_block == all_query_blocks_list &&
         (sroutines == nullptr || sroutines->empty())) {
-      DBUG_ASSERT(!all_query_blocks_list->next_select_in_list());
+      assert(!all_query_blocks_list->next_select_in_list());
       return true;
     }
     return false;
@@ -4577,7 +4575,7 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
 inline void assert_consistent_hidden_flags(
     const mem_root_deque<Item *> &fields MY_ATTRIBUTE((unused)),
     Item *item MY_ATTRIBUTE((unused)), bool hidden MY_ATTRIBUTE((unused))) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (std::find(fields.begin(), fields.end(), item) != fields.end()) {
     // The item is already in the list, so we can't add it
     // with a different value for hidden.

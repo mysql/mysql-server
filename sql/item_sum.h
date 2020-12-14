@@ -25,6 +25,7 @@
 
 /* classes for sum functions */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <climits>
@@ -40,7 +41,7 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
@@ -604,8 +605,8 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     Item_field *item = new Item_field(field);
     if (item == nullptr) return nullptr;
     // Aggregated fields have no reference to an underlying table
-    DBUG_ASSERT(item->orig_db_name() == nullptr &&
-                item->orig_table_name() == nullptr);
+    assert(item->orig_db_name() == nullptr &&
+           item->orig_table_name() == nullptr);
     // Break the connection to the original field since this is an aggregation
     item->set_orig_field_name(nullptr);
     return item;
@@ -972,7 +973,7 @@ class Item_sum_num : public Item_sum {
   }
   bool fix_fields(THD *, Item **) override;
   longlong val_int() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return llrint_with_overflow_check(val_real()); /* Real as default */
   }
   String *val_str(String *str) override;
@@ -1003,7 +1004,7 @@ class Item_sum_int : public Item_sum_num {
   }
 
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return static_cast<double>(val_int());
   }
   String *val_str(String *str) override;
@@ -1182,7 +1183,7 @@ class Item_avg_field : public Item_sum_num_field {
   String *val_str(String *) override;
   bool resolve_type(THD *) override { return false; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "avg_field";
   }
 };
@@ -1204,7 +1205,7 @@ class Item_sum_bit_field : public Item_sum_hybrid_field {
   bool get_time(MYSQL_TIME *ltime) override;
   enum Type type() const override { return FIELD_BIT_ITEM; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "sum_bit_field";
   }
 };
@@ -1367,7 +1368,7 @@ class Item_variance_field : public Item_sum_num_field {
   }
   bool resolve_type(THD *) override { return false; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "variance_field";
   }
   bool check_function_as_value_generator(uchar *args) override {
@@ -1497,7 +1498,7 @@ class Item_std_field final : public Item_variance_field {
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return REAL_RESULT; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "std_field";
   }
   bool check_function_as_value_generator(uchar *args) override {
@@ -1821,8 +1822,8 @@ class Item_sum_bit : public Item_sum {
        This constructor should only be called during the Optimize stage.
        Asserting that the item was not evaluated yet.
     */
-    DBUG_ASSERT(item->value_buff.length() == 1);
-    DBUG_ASSERT(item->bits == item->reset_bits);
+    assert(item->value_buff.length() == 1);
+    assert(item->bits == item->reset_bits);
   }
 
   Item *result_item(Field *) override {
@@ -1950,7 +1951,7 @@ class Item_udf_sum : public Item_sum {
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   bool fix_fields(THD *thd, Item **ref) override {
-    DBUG_ASSERT(fixed == 0);
+    assert(fixed == 0);
 
     if (init_sum_func_check(thd)) return true;
 
@@ -1977,7 +1978,7 @@ class Item_sum_udf_float final : public Item_udf_sum {
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
       : Item_udf_sum(thd, item) {}
   longlong val_int() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (longlong)rint(Item_sum_udf_float::val_real());
   }
   double val_real() override;
@@ -2005,7 +2006,7 @@ class Item_sum_udf_int final : public Item_udf_sum {
       : Item_udf_sum(thd, item) {}
   longlong val_int() override;
   double val_real() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (double)Item_sum_udf_int::val_int();
   }
   String *val_str(String *str) override;
@@ -2150,7 +2151,7 @@ class Item_func_group_concat final : public Item_sum {
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat() override {
-    DBUG_ASSERT(original != nullptr || unique_filter == nullptr);
+    assert(original != nullptr || unique_filter == nullptr);
   }
 
   bool itemize(Parse_context *pc, Item **res) override;
@@ -2162,8 +2163,8 @@ class Item_func_group_concat final : public Item_sum {
   Field *make_string_field(TABLE *table_arg) const override;
   void clear() override;
   bool add() override;
-  void reset_field() override { DBUG_ASSERT(0); }   // not used
-  void update_field() override { DBUG_ASSERT(0); }  // not used
+  void reset_field() override { assert(0); }   // not used
+  void update_field() override { assert(0); }  // not used
   bool fix_fields(THD *, Item **) override;
   bool setup(THD *thd) override;
   void make_unique() override;
@@ -2229,10 +2230,10 @@ class Item_non_framing_wf : public Item_sum {
     return get_time_from_numeric(ltime);
   }
 
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -2570,10 +2571,10 @@ class Item_first_last_value : public Item_sum {
   bool get_time(MYSQL_TIME *ltime) override;
   bool val_json(Json_wrapper *wr) override;
 
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -2640,10 +2641,10 @@ class Item_nth_value : public Item_sum {
   bool get_time(MYSQL_TIME *ltime) override;
   bool val_json(Json_wrapper *wr) override;
 
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -2729,11 +2730,11 @@ class Item_rollup_sum_switcher final : public Item_sum {
   enum Sumfunctype real_sum_func() const override {
     return ROLLUP_SUM_SWITCHER_FUNC;
   }
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   void clear() override;
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 

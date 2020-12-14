@@ -548,7 +548,7 @@ TEST_F(ItemTest, OutOfMemory) {
   Item_int *item = new Item_int(42);
   EXPECT_NE(nullptr, item);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   // Setting debug flags triggers enter/exit trace, so redirect to /dev/null.
   DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
 

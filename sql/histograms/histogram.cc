@@ -162,7 +162,7 @@ static Value_map_type field_type_to_value_map_type(
 
   // All cases should be handled, so this should not be hit.
   /* purecov: begin inspected */
-  DBUG_ASSERT(false);
+  assert(false);
   return Value_map_type::INVALID;
   /* purecov: end */
 }
@@ -269,8 +269,8 @@ bool Histogram::histogram_to_json(Json_object *json_object) const {
     return true; /* purecov: inspected */
 
   // Sampling rate
-  DBUG_ASSERT(get_sampling_rate() >= 0.0);
-  DBUG_ASSERT(get_sampling_rate() <= 1.0);
+  assert(get_sampling_rate() >= 0.0);
+  assert(get_sampling_rate() <= 1.0);
   const Json_double sampling_rate(get_sampling_rate());
   if (json_object->add_clone(sampling_rate_str(), &sampling_rate))
     return true; /* purecov: inspected */
@@ -282,8 +282,8 @@ bool Histogram::histogram_to_json(Json_object *json_object) const {
     return true; /* purecov: inspected */
 
   // Fraction of NULL values.
-  DBUG_ASSERT(get_null_values_fraction() >= 0.0);
-  DBUG_ASSERT(get_null_values_fraction() <= 1.0);
+  assert(get_null_values_fraction() >= 0.0);
+  assert(get_null_values_fraction() <= 1.0);
   const Json_double null_values(get_null_values_fraction());
   if (json_object->add_clone(null_values_str(), &null_values))
     return true; /* purecov: inspected */
@@ -297,8 +297,8 @@ bool Histogram::histogram_to_json(Json_object *json_object) const {
 
 double Histogram::get_null_values_fraction() const {
   if (m_null_values_fraction != INVALID_NULL_VALUES_FRACTION) {
-    DBUG_ASSERT(m_null_values_fraction >= 0.0);
-    DBUG_ASSERT(m_null_values_fraction <= 1.0);
+    assert(m_null_values_fraction >= 0.0);
+    assert(m_null_values_fraction <= 1.0);
   }
 
   return m_null_values_fraction;
@@ -339,20 +339,20 @@ Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
   }
 
   // We should not have a nullptr at this point.
-  DBUG_ASSERT(histogram != nullptr);
+  assert(histogram != nullptr);
 
   // Verify that the original number of buckets specified is set.
-  DBUG_ASSERT(histogram->get_num_buckets_specified() == num_buckets);
+  assert(histogram->get_num_buckets_specified() == num_buckets);
 
   // Verify that we haven't created more buckets than requested.
-  DBUG_ASSERT(histogram->get_num_buckets() <= num_buckets);
+  assert(histogram->get_num_buckets() <= num_buckets);
 
   // Ensure that the character set is set.
-  DBUG_ASSERT(histogram->get_character_set() != nullptr);
+  assert(histogram->get_character_set() != nullptr);
 
   // Check that the fraction of NULL values has been set properly.
-  DBUG_ASSERT(histogram->get_null_values_fraction() >= 0.0);
-  DBUG_ASSERT(histogram->get_null_values_fraction() <= 1.0);
+  assert(histogram->get_null_values_fraction() >= 0.0);
+  assert(histogram->get_null_values_fraction() <= 1.0);
 
   return histogram;
 }
@@ -543,7 +543,7 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom, double *out) {
 
 template <>
 bool Histogram::extract_json_dom_value(const Json_dom *json_dom, String *out) {
-  DBUG_ASSERT(get_character_set() != nullptr);
+  assert(get_character_set() != nullptr);
   if (json_dom->json_type() != enum_json_type::J_OPAQUE)
     return true; /* purecov: deadcode */
   const Json_opaque *json_opaque = down_cast<const Json_opaque *>(json_dom);
@@ -556,8 +556,8 @@ bool Histogram::extract_json_dom_value(const Json_dom *json_dom, String *out) {
   */
   char *value_dup_data = value.dup(get_mem_root());
   if (value_dup_data == nullptr) {
-    DBUG_ASSERT(false); /* purecov: deadcode */
-    return true;        // OOM
+    assert(false); /* purecov: deadcode */
+    return true;   // OOM
   }
 
   out->set(value_dup_data, value.length(), value.charset());
@@ -617,7 +617,7 @@ static bool covered_by_single_part_index(const THD *thd, const Field *field) {
   Key_map possible_keys;
   possible_keys.merge(field->table->s->usable_indexes(thd));
   possible_keys.intersect(field->key_start);
-  DBUG_ASSERT(field->table->s->keys <= possible_keys.length());
+  assert(field->table->s->keys <= possible_keys.length());
   for (uint i = 0; i < field->table->s->keys; ++i) {
     if (possible_keys.is_set(i) &&
         field->table->s->key_info[i].user_defined_key_parts == 1 &&
@@ -693,7 +693,7 @@ static bool prepare_value_maps(
         break;
       }
       case histograms::Value_map_type::INVALID: {
-        DBUG_ASSERT(false); /* purecov: deadcode */
+        assert(false); /* purecov: deadcode */
         return true;
       }
     }
@@ -724,9 +724,9 @@ static bool fill_value_maps(
     const std::vector<Field *, Histogram_key_allocator<Field *>> &fields,
     double sample_percentage, const TABLE *table,
     value_map_collection &value_maps) {
-  DBUG_ASSERT(sample_percentage > 0.0);
-  DBUG_ASSERT(sample_percentage <= 100.0);
-  DBUG_ASSERT(fields.size() == value_maps.size());
+  assert(sample_percentage > 0.0);
+  assert(sample_percentage <= 100.0);
+  assert(fields.size() == value_maps.size());
 
   std::random_device rd;
   std::uniform_int_distribution<int> dist;
@@ -838,7 +838,7 @@ static bool fill_value_maps(
           break;
         }
         case histograms::Value_map_type::INVALID: {
-          DBUG_ASSERT(false); /* purecov: deadcode */
+          assert(false); /* purecov: deadcode */
           break;
         }
       }
@@ -859,7 +859,7 @@ static bool fill_value_maps(
   // Close the handler
   handler_guard.commit();
   if (table->file->ha_sample_end(scan_ctx)) {
-    DBUG_ASSERT(false); /* purecov: deadcode */
+    assert(false); /* purecov: deadcode */
     return true;
   }
 
@@ -871,14 +871,14 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(thd->dd_client());
 
   // Read only should have been stopped at an earlier stage.
-  DBUG_ASSERT(!check_readonly(thd, false));
-  DBUG_ASSERT(!thd->tx_read_only);
+  assert(!check_readonly(thd, false));
+  assert(!thd->tx_read_only);
 
-  DBUG_ASSERT(results.empty());
-  DBUG_ASSERT(!columns.empty());
+  assert(results.empty());
+  assert(!columns.empty());
 
   // Only one table should be specified in ANALYZE TABLE .. UPDATE HISTOGRAM
-  DBUG_ASSERT(table->next_local == nullptr);
+  assert(table->next_local == nullptr);
 
   if (table->table != nullptr && table->table->s->tmp_table != NO_TMP_TABLE) {
     /*
@@ -898,7 +898,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
   Disable_autocommit_guard autocommit_guard(thd);
   auto tables_guard = create_scope_guard([thd]() {
     if (trans_rollback_stmt(thd) || trans_rollback(thd))
-      DBUG_ASSERT(false); /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
     close_thread_tables(thd);
   });
 
@@ -913,7 +913,7 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
     return true;
   }
 
-  DBUG_ASSERT(table->table != nullptr);
+  assert(table->table != nullptr);
   TABLE *tbl = table->table;
 
   if (tbl->s->encrypt_type.length > 0 &&
@@ -1266,7 +1266,7 @@ bool rename_histograms(THD *thd, const char *old_schema_name,
   }
 
   if (table_def == nullptr) {
-    DBUG_ASSERT(false); /* purecov: deadcode */
+    assert(false); /* purecov: deadcode */
     return false;
   }
 
@@ -1283,7 +1283,7 @@ bool find_histogram(THD *thd, const std::string &schema_name,
                     const std::string &table_name,
                     const std::string &column_name,
                     const Histogram **histogram) {
-  DBUG_ASSERT(*histogram == nullptr);
+  assert(*histogram == nullptr);
 
   if (schema_name == "mysql" || table_name == "column_statistics") return false;
 
@@ -1315,7 +1315,7 @@ double Histogram::get_less_than_selectivity_dispatcher(const T &value) const {
     }
   }
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return 0.0;
   /* purecov: end deadcode */
 }
@@ -1335,7 +1335,7 @@ double Histogram::get_greater_than_selectivity_dispatcher(
     }
   }
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return 0.0;
   /* purecov: end deadcode */
 }
@@ -1354,7 +1354,7 @@ double Histogram::get_equal_to_selectivity_dispatcher(const T &value) const {
     }
   }
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return 0.0;
   /* purecov: end deadcode */
 }
@@ -1378,7 +1378,7 @@ static bool get_temporal(Item *item, Value_map_type preferred_type,
         break;
       default:
         /* purecov: begin deadcode */
-        DBUG_ASSERT(0);
+        assert(0);
         break;
         /* purecov: end deadcode */
     }
@@ -1398,7 +1398,7 @@ double Histogram::apply_operator(const enum_operator op, const T &value) const {
       return get_equal_to_selectivity_dispatcher(value);
     default:
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return 1.0;
       /* purecov: end deadcode */
   }
@@ -1410,7 +1410,7 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
   switch (this->get_data_type()) {
     case Value_map_type::INVALID: {
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return true;
       /* purecov: end deadcode */
     }
@@ -1435,7 +1435,7 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
       return false;
     }
     case Value_map_type::ENUM: {
-      DBUG_ASSERT(typelib != nullptr);
+      assert(typelib != nullptr);
 
       longlong value;
       if (item->data_type() == MYSQL_TYPE_VARCHAR) {
@@ -1460,7 +1460,7 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
       return true; /* purecov: deadcode */
     }
     case Value_map_type::SET: {
-      DBUG_ASSERT(typelib != nullptr);
+      assert(typelib != nullptr);
 
       longlong value;
       if (item->data_type() == MYSQL_TYPE_VARCHAR) {
@@ -1524,7 +1524,7 @@ bool Histogram::get_selectivity_dispatcher(Item *item, const enum_operator op,
   }
 
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return true;
   /* purecov: end deadcode */
 }
@@ -1539,7 +1539,7 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
     case enum_operator::LESS_THAN_OR_EQUAL:
     case enum_operator::GREATER_THAN_OR_EQUAL:
     case enum_operator::NOT_EQUALS_TO:
-      DBUG_ASSERT(item_count == 2);
+      assert(item_count == 2);
       /*
         Verify that one side of the predicate is a column/field, and that the
         other side is a constant value.
@@ -1576,7 +1576,7 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
       break;
     case enum_operator::BETWEEN:
     case enum_operator::NOT_BETWEEN:
-      DBUG_ASSERT(item_count == 3);
+      assert(item_count == 3);
 
       if (items[0]->type() != Item::FIELD_ITEM || !items[1]->const_item() ||
           !items[2]->const_item()) {
@@ -1585,7 +1585,7 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
       break;
     case enum_operator::IN_LIST:
     case enum_operator::NOT_IN_LIST:
-      DBUG_ASSERT(item_count >= 2);
+      assert(item_count >= 2);
 
       if (items[0]->type() != Item::FIELD_ITEM)
         return true; /* purecov: deadcode */
@@ -1597,11 +1597,11 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
       break;
     case enum_operator::IS_NULL:
     case enum_operator::IS_NOT_NULL:
-      DBUG_ASSERT(item_count == 1);
+      assert(item_count == 1);
       if (items[0]->type() != Item::FIELD_ITEM) return true;
   }
 
-  DBUG_ASSERT(items[0]->type() == Item::FIELD_ITEM);
+  assert(items[0]->type() == Item::FIELD_ITEM);
 
   const TYPELIB *typelib = nullptr;
   const Item_field *item_field = down_cast<const Item_field *>(items[0]);
@@ -1747,7 +1747,7 @@ bool Histogram::get_selectivity(Item **items, size_t item_count,
   }
 
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return true;
   /* purecov: end deadcode */
 }

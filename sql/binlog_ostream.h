@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "sql/rpl_log_encryption.h"
 
 // True if binlog cache is reset.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern bool binlog_cache_is_reset;
 #endif
 
@@ -177,7 +177,7 @@ class Binlog_cache_storage : public Basic_ostream {
   void close();
 
   bool write(const unsigned char *buffer, my_off_t length) override {
-    DBUG_ASSERT(m_pipeline_head != nullptr);
+    assert(m_pipeline_head != nullptr);
     return m_pipeline_head->write(buffer, length);
   }
   /**

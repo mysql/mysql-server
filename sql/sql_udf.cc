@@ -219,7 +219,7 @@ void udf_read_functions_table() {
   char db[] = "mysql"; /* A subject to casednstr, can't be constant */
 
   if (initialized) {
-    DBUG_ASSERT("wrong init order: reading UDFs from the table twice");
+    assert("wrong init order: reading UDFs from the table twice");
     return;
   }
 
@@ -383,7 +383,7 @@ static void udf_hash_delete(udf_func *udf) {
 
   const auto it = udf_hash->find(to_string(udf->name));
   if (it == udf_hash->end()) {
-    DBUG_ASSERT(false);
+    assert(false);
     return;
   }
 
@@ -511,7 +511,7 @@ static bool udf_end_transaction(THD *thd, bool rollback, udf_func *udf,
   bool rollback_transaction = thd->transaction_rollback_request || rollback;
   udf_func *u_f = nullptr;
 
-  DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
+  assert(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
   if (!rollback_transaction && insert_udf) {
     udf->name.str = strdup_root(&mem, udf->name.str);
@@ -534,7 +534,7 @@ static bool udf_end_transaction(THD *thd, bool rollback, udf_func *udf,
     CREATE/DROP UDF operations must acquire IX Backup Lock in order
     to be mutually exclusive with LOCK INSTANCE FOR BACKUP.
   */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE));
 
   /*
@@ -604,7 +604,7 @@ bool mysql_create_function(THD *thd, udf_func *udf) {
   }
 
   /* must not be dynamically registered */
-  DBUG_ASSERT(udf->dl);
+  assert(udf->dl);
 
   /*
     Ensure that the .dll doesn't have a path
@@ -831,8 +831,8 @@ bool mysql_drop_function(THD *thd, const LEX_STRING *udf_name) {
 bool mysql_udf_registration_imp::udf_register_inner(udf_func *ufunc) {
   mysql_rwlock_wrlock(&THR_LOCK_udf);
 
-  DBUG_ASSERT(ufunc->dl == nullptr);
-  DBUG_ASSERT(ufunc->dlhandle == nullptr);
+  assert(ufunc->dl == nullptr);
+  assert(ufunc->dlhandle == nullptr);
 
   auto res = udf_hash->emplace(to_string(ufunc->name), ufunc);
   if (!res.second)

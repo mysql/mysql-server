@@ -75,7 +75,7 @@ static Item *change_truth_value_of_condition(Parse_context *pc, Item *expr,
     case Item::BOOL_NOT_FALSE:
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
   // Ensure that all incomplete predicates are made complete:
   if (!expr->is_bool_func()) {
@@ -264,7 +264,7 @@ bool PTI_function_call_generic_ident_sys::itemize(Parse_context *pc,
       *res = Create_udf_func::s_singleton.create(thd, udf, opt_udf_expr_list);
     } else {
       builder = find_qualified_function_builder(thd);
-      DBUG_ASSERT(builder);
+      assert(builder);
       *res = builder->create_func(thd, ident, opt_udf_expr_list);
     }
   }
@@ -294,7 +294,7 @@ bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res) {
   if (sp_check_name(&func)) return true;
 
   Create_qfunc *builder = find_qualified_function_builder(pc->thd);
-  DBUG_ASSERT(builder);
+  assert(builder);
   *res = builder->create(pc->thd, db, func, true, opt_expr_list);
   return *res == nullptr || (*res)->itemize(pc, res);
 }
@@ -303,7 +303,7 @@ bool PTI_text_literal_nchar_string::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res)) return true;
 
   uint repertoire = is_7bit ? MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
-  DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
+  assert(my_charset_is_ascii_based(national_charset_info));
   init(literal.str, literal.length, national_charset_info, DERIVATION_COERCIBLE,
        repertoire);
   return false;
@@ -360,7 +360,7 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
   if (pctx && (spv = pctx->find_variable(ident.str, ident.length, false))) {
     sp_head *sp = lex->sphead;
 
-    DBUG_ASSERT(sp);
+    assert(sp);
 
     /* We're compiling a stored procedure and found a variable */
     if (!lex->parsing_options.allows_variable) {
@@ -431,8 +431,8 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
       return true;
     }
 
-    DBUG_ASSERT(!new_row || (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
-                             sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+    assert(!new_row || (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+                        sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
     const bool read_only =
         !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
     Item_trigger_field *trg_fld = new (pc->mem_root)
@@ -440,7 +440,7 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
                            SELECT_ACL, read_only);
     if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
       return true;
-    DBUG_ASSERT(trg_fld->type() == TRIGGER_FIELD_ITEM);
+    assert(trg_fld->type() == TRIGGER_FIELD_ITEM);
 
     /*
       Let us add this item to list of all Item_trigger_field objects
@@ -508,7 +508,7 @@ bool PTI_text_literal_concat::itemize(Parse_context *pc, Item **res) {
   Item *tmp_head;
   if (super::itemize(pc, res) || head->itemize(pc, &tmp_head)) return true;
 
-  DBUG_ASSERT(tmp_head->type() == STRING_ITEM);
+  assert(tmp_head->type() == STRING_ITEM);
   Item_string *head_str = down_cast<Item_string *>(tmp_head);
   head_str->append(literal.str, literal.length);
   if ((head_str->collation.repertoire & MY_REPERTOIRE_EXTENDED) == 0) {
@@ -699,7 +699,7 @@ bool PTI_limit_option_param_marker::itemize(Parse_context *pc, Item **res) {
     parameter with "this" pointer of Item_param object, so we can skip
     the check and the assignment.
   */
-  DBUG_ASSERT(tmp_param == param_marker);
+  assert(tmp_param == param_marker);
 
   *res = param_marker;
   return false;
@@ -718,9 +718,9 @@ bool PTI_context::itemize(Parse_context *pc, Item **res) {
   }
 
   // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(pc->select->parsing_place == m_parsing_place);
+  assert(pc->select->parsing_place == m_parsing_place);
   pc->select->parsing_place = CTX_NONE;
-  DBUG_ASSERT(expr != nullptr);
+  assert(expr != nullptr);
   expr->apply_is_true();
 
   *res = expr;

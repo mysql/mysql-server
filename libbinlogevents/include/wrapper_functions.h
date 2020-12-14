@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,12 +53,12 @@ extern PSI_memory_key key_memory_log_event;
 
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 #include "my_dbug.h"
 
 #ifdef HAVE_MYSYS
-#define BAPI_ASSERT(x) DBUG_ASSERT(x)
+#define BAPI_ASSERT(x) assert(x)
 #define BAPI_PRINT(name, params) DBUG_PRINT(name, params)
 #define BAPI_ENTER(x) DBUG_ENTER(x)
 #define BAPI_RETURN(x) DBUG_RETURN(x)

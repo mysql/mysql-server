@@ -33,6 +33,7 @@
 
 #include "sql/sql_time.h"
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -41,7 +42,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_macros.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -440,7 +441,7 @@ bool datetime_with_no_zero_in_date_to_timeval(const MYSQL_TIME *ltime,
                                               int *warnings) {
   if (!ltime->month) /* Zero date */
   {
-    DBUG_ASSERT(!ltime->year && !ltime->day);
+    assert(!ltime->year && !ltime->day);
     if (non_zero_time(*ltime)) {
       /*
         Return error for zero date with non-zero time, e.g.:
@@ -570,7 +571,7 @@ const char *get_date_time_format_str(const Known_date_time_format *format,
     case MYSQL_TIMESTAMP_TIME:
       return format->time_format;
     default:
-      DBUG_ASSERT(0);  // Impossible
+      assert(0);  // Impossible
       return nullptr;
   }
 }
@@ -747,7 +748,7 @@ my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
       TIME_from_longlong_datetime_packed(&ltime, packed_value);
       return date2my_decimal(&ltime, dec);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       ulonglong2decimal(0, dec);
       return dec;
   }

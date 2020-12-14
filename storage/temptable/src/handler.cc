@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -108,15 +108,15 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
                     HA_CREATE_INFO *, dd::Table *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(mysql_table != nullptr);
-  DBUG_ASSERT(mysql_table->s != nullptr);
-  DBUG_ASSERT(mysql_table->field != nullptr);
-  DBUG_ASSERT(table_name != nullptr);
+  assert(mysql_table != nullptr);
+  assert(mysql_table->s != nullptr);
+  assert(mysql_table->field != nullptr);
+  assert(table_name != nullptr);
 
   bool all_columns_are_fixed_size = true;
   for (uint i = 0; i < mysql_table->s->fields; ++i) {
     Field *mysql_field = mysql_table->field[i];
-    DBUG_ASSERT(mysql_field != nullptr);
+    assert(mysql_field != nullptr);
     if (!is_field_type_fixed_size(*mysql_field)) {
       all_columns_are_fixed_size = false;
       break;
@@ -151,7 +151,7 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
 int Handler::delete_table(const char *table_name, const dd::Table *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(table_name != nullptr);
+  assert(table_name != nullptr);
 
   Result ret;
 
@@ -184,11 +184,11 @@ int Handler::delete_table(const char *table_name, const dd::Table *) {
 int Handler::open(const char *table_name, int, uint, const dd::Table *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_opened_table == nullptr);
-  DBUG_ASSERT(table_name != nullptr);
-  DBUG_ASSERT(!m_rnd_iterator_is_positioned);
-  DBUG_ASSERT(!m_index_cursor.is_positioned());
-  DBUG_ASSERT(handler::active_index == MAX_KEY);
+  assert(m_opened_table == nullptr);
+  assert(table_name != nullptr);
+  assert(!m_rnd_iterator_is_positioned);
+  assert(!m_index_cursor.is_positioned());
+  assert(handler::active_index == MAX_KEY);
 
   Result ret;
 
@@ -214,7 +214,7 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
 int Handler::close() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_opened_table != nullptr);
+  assert(m_opened_table != nullptr);
 
   m_opened_table = nullptr;
 
@@ -267,7 +267,7 @@ int Handler::rnd_next(uchar *mysql_row) {
       ret = Result::END_OF_FILE;
     }
   } else {
-    DBUG_ASSERT(m_rnd_iterator != rows.end());
+    assert(m_rnd_iterator != rows.end());
     Storage::Element *previous = *m_rnd_iterator;
     ++m_rnd_iterator;
     if (m_rnd_iterator != rows.end()) {
@@ -364,7 +364,7 @@ int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
 
   handler::ha_statistic_increment(&System_status_var::ha_read_key_count);
 
-  DBUG_ASSERT(handler::active_index < m_opened_table->number_of_indexes());
+  assert(handler::active_index < m_opened_table->number_of_indexes());
 
   Result ret = Result::UNSUPPORTED;
 
@@ -496,7 +496,7 @@ Result Handler::index_next_conditional(uchar *mysql_row,
 
   opened_table_validate();
 
-  DBUG_ASSERT(m_index_cursor.is_positioned());
+  assert(m_index_cursor.is_positioned());
 
   Result ret;
 
@@ -510,8 +510,8 @@ Result Handler::index_next_conditional(uchar *mysql_row,
     } else {
       Indexed_cells indexed_cells_previous = m_index_cursor.indexed_cells();
       /* Lower the number of cells to what was given to `index_read()`. */
-      DBUG_ASSERT(m_index_read_number_of_cells <=
-                  indexed_cells_previous.number_of_cells());
+      assert(m_index_read_number_of_cells <=
+             indexed_cells_previous.number_of_cells());
       indexed_cells_previous.number_of_cells(m_index_read_number_of_cells);
 
       ++m_index_cursor;
@@ -578,7 +578,7 @@ int Handler::index_prev(uchar *mysql_row) {
 
   opened_table_validate();
 
-  DBUG_ASSERT(m_index_cursor.is_positioned());
+  assert(m_index_cursor.is_positioned());
 
   handler::ha_statistic_increment(&System_status_var::ha_read_prev_count);
 
@@ -629,10 +629,10 @@ void Handler::position(const uchar *) {
   Storage::Element *row;
 
   if (m_rnd_iterator_is_positioned) {
-    DBUG_ASSERT(!m_index_cursor.is_positioned());
+    assert(!m_index_cursor.is_positioned());
     row = *m_rnd_iterator;
   } else {
-    DBUG_ASSERT(m_index_cursor.is_positioned());
+    assert(m_index_cursor.is_positioned());
     row = m_index_cursor.row();
   }
 
@@ -663,10 +663,10 @@ int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
   Storage::Element *target_row;
 
   if (m_rnd_iterator_is_positioned) {
-    DBUG_ASSERT(!m_index_cursor.is_positioned());
+    assert(!m_index_cursor.is_positioned());
     target_row = *m_rnd_iterator;
   } else {
-    DBUG_ASSERT(m_index_cursor.is_positioned());
+    assert(m_index_cursor.is_positioned());
     target_row = m_index_cursor.row();
   }
 
@@ -681,7 +681,7 @@ int Handler::delete_row(const uchar *mysql_row) {
 
   opened_table_validate();
 
-  DBUG_ASSERT(m_rnd_iterator_is_positioned);
+  assert(m_rnd_iterator_is_positioned);
 
   ha_statistic_increment(&System_status_var::ha_delete_count);
 
@@ -859,7 +859,7 @@ uint Handler::max_supported_key_part_length(
 ha_rows Handler::estimate_rows_upper_bound() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_opened_table != nullptr);
+  assert(m_opened_table != nullptr);
 
   const ha_rows n = m_opened_table->number_of_rows();
 
@@ -899,7 +899,7 @@ double Handler::read_time(uint, uint, ha_rows rows) {
 int Handler::disable_indexes(uint mode) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_opened_table != nullptr);
+  assert(m_opened_table != nullptr);
 
   Result ret;
 

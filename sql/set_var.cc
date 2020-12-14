@@ -96,7 +96,7 @@ bool get_sysvar_source(const char *name, uint length,
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
   /* system_variable_hash should have been initialized. */
-  DBUG_ASSERT(get_system_variable_hash() != nullptr);
+  assert(get_system_variable_hash() != nullptr);
   std::string str(name, length);
   sysvar = find_or_nullptr(*get_system_variable_hash(), str);
 
@@ -116,7 +116,7 @@ int sys_var_init() {
   DBUG_TRACE;
 
   /* Must be already initialized. */
-  DBUG_ASSERT(system_charset_info != nullptr);
+  assert(system_charset_info != nullptr);
 
   system_variable_hash = new collation_unordered_map<string, sys_var *>(
       system_charset_info, PSI_INSTRUMENT_ME);
@@ -252,11 +252,11 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
     in the first (PARSE_EARLY) stage.
     See handle_options() for details.
   */
-  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+  assert(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
   name.str = name_arg;  // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length = strlen(name_arg);  // and so does this.
-  DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
+  assert(name.length <= NAME_CHAR_LEN);
 
   memset(&option, 0, sizeof(option));
   option.name = name_arg;
@@ -471,7 +471,7 @@ Item *sys_var::copy_value(THD *thd) {
       return new Item_float(*pointer_cast<const double *>(val_ptr),
                             DECIMAL_NOT_SPECIFIED);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   return nullptr;
 }
@@ -669,8 +669,8 @@ ulonglong get_system_variable_hash_version(void) {
 */
 bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
                         enum enum_var_type query_scope, bool strict) {
-  DBUG_ASSERT(show_var_array != nullptr);
-  DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
+  assert(show_var_array != nullptr);
+  assert(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
   int count = system_variable_hash->size();
 
   /* Resize array if necessary. */

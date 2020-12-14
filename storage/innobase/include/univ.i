@@ -192,7 +192,7 @@ command. */
 #define UNIV_DEBUG_VALGRIND
 #endif /* HAVE_VALGRIND */
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #undef UNIV_DEBUG
 #elif !defined UNIV_DEBUG
 #define UNIV_DEBUG

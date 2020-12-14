@@ -724,7 +724,7 @@ static void short_usage_sub(void)
 static bool
 get_one_option(int optid, const struct my_option *opt, char *argument)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_restore.trace";
 #endif
   ndb_std_get_one_option(optid, opt, argument);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ template <typename T, typename CLOS>
 bool examine_each(Upgrade_error_counter *error_count,
                   std::vector<const T *> *list, CLOS &&clos) {
   for (const T *item : *list) {
-    DBUG_ASSERT(item != nullptr);
+    assert(item != nullptr);
     clos(item);
     if (error_count->has_too_many_errors()) return true;
   }
@@ -471,7 +471,7 @@ bool fix_mysql_tables(THD *thd) {
           dd::execute_query(thd, "CREATE TABLE schema_read_only.t(i INT)") ||
           dd::execute_query(thd, "DROP SCHEMA schema_read_only") ||
           dd::execute_query(thd, "CREATE TABLE IF NOT EXISTS S.upgrade(i INT)"))
-          DBUG_ASSERT(false););
+          assert(false););
 
   if (ignore_error_and_execute(thd, "USE mysql")) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR);
@@ -627,7 +627,7 @@ bool do_server_upgrade_checks(THD *thd) {
         ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
     handlerton *hton =
         (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
-    DBUG_ASSERT(hton != nullptr && hton->get_tablespace_type);
+    assert(hton != nullptr && hton->get_tablespace_type);
 
     /*
       Get hold of all tablespaces, keep the non-implicit InnoDB spaces

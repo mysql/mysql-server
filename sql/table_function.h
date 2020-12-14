@@ -23,10 +23,10 @@
 #ifndef TABLE_FUNCTION_INCLUDED
 #define TABLE_FUNCTION_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 #include <array>  // std::array
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/create_field.h"
@@ -92,7 +92,7 @@ class Table_function {
       field with given index
   */
   Field *get_field(uint i) {
-    DBUG_ASSERT(i < table->s->fields);
+    assert(i < table->s->fields);
     return table->field[i];
   }
   /**

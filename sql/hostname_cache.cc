@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -320,7 +320,7 @@ static void add_hostname_impl(const char *ip_string, const char *hostname,
       hostname_cache_by_ip->erase(hostname_cache_lru->front()->ip_key);
       hostname_cache_lru->pop_front();
     }
-    DBUG_ASSERT(hostname_cache_lru->size() < hostname_cache_max_size);
+    assert(hostname_cache_lru->size() < hostname_cache_max_size);
     hostname_cache_lru->emplace_front(entry);
     hostname_cache_by_ip->emplace(entry->ip_key, hostname_cache_lru->begin());
   }
@@ -929,7 +929,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
       err_status = vio_get_normalized_ip_string(addr_info->ai_addr,
                                                 addr_info->ai_addrlen,
                                                 ip_buffer, sizeof(ip_buffer));
-      DBUG_ASSERT(!err_status);
+      assert(!err_status);
     }
 
     DBUG_PRINT("info", ("  - '%s'", ip_buffer));
@@ -965,13 +965,13 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
          addr_info = addr_info->ai_next) {
       char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool err_status =
 #endif
           vio_get_normalized_ip_string(addr_info->ai_addr,
                                        addr_info->ai_addrlen, ip_buffer,
                                        sizeof(ip_buffer));
-      DBUG_ASSERT(!err_status);
+      assert(!err_status);
 
       LogErr(INFORMATION_LEVEL, ER_ADDRESSES_FOR_HOSTNAME_LIST_ITEM, ip_buffer);
     }

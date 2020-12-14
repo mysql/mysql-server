@@ -64,14 +64,14 @@ Cost_constant_cache::Cost_constant_cache()
 
 Cost_constant_cache::~Cost_constant_cache() {
   // Verify that close has been called
-  DBUG_ASSERT(current_cost_constants == nullptr);
-  DBUG_ASSERT(m_inited == false);
+  assert(current_cost_constants == nullptr);
+  assert(m_inited == false);
 }
 
 void Cost_constant_cache::init() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_inited == false);
+  assert(m_inited == false);
 
   // Initialize the mutex that is used for protecting the cost constants
   mysql_mutex_init(key_LOCK_cost_const, &LOCK_cost_const, MY_MUTEX_INIT_FAST);
@@ -88,7 +88,7 @@ void Cost_constant_cache::init() {
 void Cost_constant_cache::close() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_inited);
+  assert(m_inited);
 
   if (m_inited == false) return; /* purecov: inspected */
 
@@ -109,7 +109,7 @@ void Cost_constant_cache::close() {
 
 void Cost_constant_cache::reload() {
   DBUG_TRACE;
-  DBUG_ASSERT(m_inited = true);
+  assert(m_inited = true);
 
   // Create cost constants from the constants defined in the source code
   Cost_model_constants *cost_constants = create_defaults();
@@ -181,7 +181,7 @@ static void report_server_cost_warnings(const LEX_CSTRING &cost_name,
              value);
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -220,7 +220,7 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
              cost_name.str, se_name.str, storage_category, value);
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
   }
 }
 
@@ -386,7 +386,7 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
 
   // Create and initialize a new THD.
   THD *thd = new THD;
-  DBUG_ASSERT(thd);
+  assert(thd);
   thd->thread_stack = pointer_cast<char *>(&thd);
   thd->store_globals();
   lex_start(thd);
@@ -397,8 +397,8 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
       tables[0].next_name_resolution_table = &tables[1];
 
   if (!open_and_lock_tables(thd, tables, MYSQL_LOCK_IGNORE_TIMEOUT)) {
-    DBUG_ASSERT(tables[0].table != nullptr);
-    DBUG_ASSERT(tables[1].table != nullptr);
+    assert(tables[0].table != nullptr);
+    assert(tables[1].table != nullptr);
 
     // Read the server constants table
     read_server_cost_constants(thd, tables[0].table, cost_constants);
@@ -435,7 +435,7 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
 }
 
 void init_optimizer_cost_module(bool enable_plugins) {
-  DBUG_ASSERT(cost_constant_cache == nullptr);
+  assert(cost_constant_cache == nullptr);
   cost_constant_cache = new Cost_constant_cache();
   cost_constant_cache->init();
   /*

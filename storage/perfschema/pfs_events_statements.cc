@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,12 @@
 
 #include "storage/perfschema/pfs_events_statements.h"
 
+#include <assert.h>
 #include <atomic>
 
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "storage/perfschema/pfs_account.h"
 #include "storage/perfschema/pfs_buffer_container.h"
@@ -180,7 +181,7 @@ void insert_events_statements_history(PFS_thread *thread,
     return;
   }
 
-  DBUG_ASSERT(thread->m_statements_history != nullptr);
+  assert(thread->m_statements_history != nullptr);
 
   uint index = thread->m_statements_history_index;
 
@@ -211,7 +212,7 @@ void insert_events_statements_history_long(PFS_events_statements *statement) {
     return;
   }
 
-  DBUG_ASSERT(events_statements_history_long_array != nullptr);
+  assert(events_statements_history_long_array != nullptr);
 
   uint index = events_statements_history_long_index.m_u32++;
 

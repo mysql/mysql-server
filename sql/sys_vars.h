@@ -196,9 +196,9 @@ class Sys_var_integer : public sys_var {
           // Do not set global_var for Sys_var_keycache objects
           if (offset >= 0) global_var(T) = def_val;
 
-          DBUG_ASSERT(size == sizeof(T)); DBUG_ASSERT(min_val < max_val);
-          DBUG_ASSERT(min_val <= def_val); DBUG_ASSERT(max_val >= def_val);
-          DBUG_ASSERT(block_size > 0); DBUG_ASSERT(def_val % block_size == 0);}
+          assert(size == sizeof(T)); assert(min_val < max_val);
+          assert(min_val <= def_val); assert(max_val >= def_val);
+          assert(block_size > 0); assert(def_val % block_size == 0);}
 bool do_check(THD *thd, set_var *var) override {
   bool fixed = false;
   longlong v;
@@ -388,8 +388,8 @@ class Sys_var_enum : public Sys_var_typelib {
                         on_update_func, substitute, parse_flag) {
     option.var_type = GET_ENUM;
     global_var(ulong) = def_val;
-    DBUG_ASSERT(def_val < typelib.count);
-    DBUG_ASSERT(size == sizeof(ulong));
+    assert(def_val < typelib.count);
+    assert(size == sizeof(ulong));
   }
   bool session_update(THD *thd, set_var *var) override {
     session_var(thd, ulong) =
@@ -440,8 +440,8 @@ class Sys_var_bool : public Sys_var_typelib {
                         on_check_func, on_update_func, substitute, parse_flag) {
     option.var_type = GET_BOOL;
     global_var(bool) = def_val;
-    DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(bool));
+    assert(getopt.arg_type == OPT_ARG || getopt.id == -1);
+    assert(size == sizeof(bool));
   }
   bool session_update(THD *thd, set_var *var) override {
     session_var(thd, bool) =
@@ -556,8 +556,8 @@ class Sys_var_multi_enum : public sys_var {
         aliases(aliases_arg),
         command_line_no_value(command_line_no_value_arg) {
     for (alias_count = 0; aliases[alias_count].alias; alias_count++)
-      DBUG_ASSERT(aliases[alias_count].number < value_count);
-    DBUG_ASSERT(def_val < alias_count);
+      assert(aliases[alias_count].number < value_count);
+    assert(def_val < alias_count);
 
     option.var_type = GET_STR;
     option.value = &command_line_value;
@@ -565,8 +565,8 @@ class Sys_var_multi_enum : public sys_var {
 
     global_var(ulong) = aliases[def_val].number;
 
-    DBUG_ASSERT(getopt.arg_type == OPT_ARG || getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(ulong));
+    assert(getopt.arg_type == OPT_ARG || getopt.id == -1);
+    assert(size == sizeof(ulong));
   }
 
   /**
@@ -657,7 +657,7 @@ class Sys_var_multi_enum : public sys_var {
   }
   bool session_update(THD *, set_var *) override {
     DBUG_TRACE;
-    DBUG_ASSERT(0);
+    assert(0);
     /*
     Currently not used: uncomment if this class is used as a base for
     a session variable.
@@ -669,7 +669,7 @@ class Sys_var_multi_enum : public sys_var {
   }
   bool global_update(THD *, set_var *) override {
     DBUG_TRACE;
-    DBUG_ASSERT(0);
+    assert(0);
     /*
     Currently not used: uncomment if this some inheriting class does
     not override..
@@ -682,13 +682,13 @@ class Sys_var_multi_enum : public sys_var {
   }
   void session_save_default(THD *, set_var *) override {
     DBUG_TRACE;
-    DBUG_ASSERT(0);
+    assert(0);
     /*
     Currently not used: uncomment if this class is used as a base for
     a session variable.
 
     int value= find_value((char *)option.def_value);
-    DBUG_ASSERT(value != -1);
+    assert(value != -1);
     var->save_result.ulonglong_value= value;
     */
     return;
@@ -696,7 +696,7 @@ class Sys_var_multi_enum : public sys_var {
   void global_save_default(THD *, set_var *var) override {
     DBUG_TRACE;
     int value = find_value((char *)option.def_value);
-    DBUG_ASSERT(value != -1);
+    assert(value != -1);
     var->save_result.ulonglong_value = value;
     return;
   }
@@ -706,7 +706,7 @@ class Sys_var_multi_enum : public sys_var {
 
   const uchar *session_value_ptr(THD *, THD *, LEX_STRING *) override {
     DBUG_TRACE;
-    DBUG_ASSERT(0);
+    assert(0);
     /*
     Currently not used: uncomment if this class is used as a base for
     a session variable.
@@ -766,7 +766,7 @@ class Sys_var_charptr : public sys_var {
     is_os_charset = is_os_charset_arg == IN_FS_CHARSET;
     option.var_type = (flags & ALLOCATED) ? GET_STR_ALLOC : GET_STR;
     global_var(const char *) = def_val;
-    DBUG_ASSERT(size == sizeof(char *));
+    assert(size == sizeof(char *));
   }
 
   void cleanup() override {
@@ -875,21 +875,21 @@ class Sys_var_proxy_user : public sys_var {
     option.var_type = GET_STR;
   }
   bool do_check(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool session_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool global_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
-  void session_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
-  void global_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
+  void session_save_default(THD *, set_var *) override { assert(false); }
+  void global_save_default(THD *, set_var *) override { assert(false); }
   void saved_value_to_string(THD *, set_var *, char *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
   bool check_update_type(Item_result) override { return true; }
 
@@ -944,7 +944,7 @@ class Sys_var_lexstring : public Sys_var_charptr {
                         binlog_status_arg, on_check_func, on_update_func,
                         substitute) {
     global_var(LEX_STRING).length = strlen(def_val);
-    DBUG_ASSERT(size == sizeof(LEX_STRING));
+    assert(size == sizeof(LEX_STRING));
     *const_cast<SHOW_TYPE *>(&show_val_type) = SHOW_LEX_STRING;
   }
   bool global_update(THD *thd, set_var *var) override {
@@ -954,7 +954,7 @@ class Sys_var_lexstring : public Sys_var_charptr {
   }
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   @@session.dbug and @@global.dbug variables.
 
@@ -1070,7 +1070,7 @@ class Sys_var_keycache : public Sys_var_ulonglong {
     option.var_type |= GET_ASK_ADDR;
     option.value = (uchar **)1;  // crash me, please
     keycache_var(dflt_key_cache, off) = def_val;
-    DBUG_ASSERT(scope() == GLOBAL);
+    assert(scope() == GLOBAL);
   }
   bool global_update(THD *thd, set_var *var) override {
     ulonglong new_value = var->save_result.ulonglong_value;
@@ -1147,10 +1147,10 @@ class Sys_var_double : public sys_var {
     option.min_value = (longlong)getopt_double2ulonglong(min_val);
     option.max_value = (longlong)getopt_double2ulonglong(max_val);
     global_var(double) = getopt_ulonglong2double(option.def_value);
-    DBUG_ASSERT(min_val <= max_val);
-    DBUG_ASSERT(min_val <= def_val);
-    DBUG_ASSERT(max_val >= def_val);
-    DBUG_ASSERT(size == sizeof(double));
+    assert(min_val <= max_val);
+    assert(min_val <= def_val);
+    assert(max_val >= def_val);
+    assert(size == sizeof(double));
   }
   bool do_check(THD *thd, set_var *var) override {
     bool fixed;
@@ -1274,11 +1274,11 @@ class Sys_var_flagset : public Sys_var_typelib {
                         on_update_func, substitute) {
     option.var_type = GET_FLAGSET;
     global_var(ulonglong) = def_val;
-    DBUG_ASSERT(typelib.count > 1);
-    DBUG_ASSERT(typelib.count <= 65);
-    DBUG_ASSERT(def_val < MAX_SET(typelib.count));
-    DBUG_ASSERT(strcmp(values[typelib.count - 1], "default") == 0);
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    assert(typelib.count > 1);
+    assert(typelib.count <= 65);
+    assert(def_val < MAX_SET(typelib.count));
+    assert(strcmp(values[typelib.count - 1], "default") == 0);
+    assert(size == sizeof(ulonglong));
   }
   bool do_check(THD *thd, set_var *var) override {
     char buff[STRING_BUFFER_USUAL_SIZE];
@@ -1374,10 +1374,10 @@ class Sys_var_set : public Sys_var_typelib {
                         on_update_func, substitute) {
     option.var_type = GET_SET;
     global_var(ulonglong) = def_val;
-    DBUG_ASSERT(typelib.count > 0);
-    DBUG_ASSERT(typelib.count <= 64);
-    DBUG_ASSERT(def_val < MAX_SET(typelib.count));
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    assert(typelib.count > 0);
+    assert(typelib.count <= 64);
+    assert(def_val < MAX_SET(typelib.count));
+    assert(size == sizeof(ulonglong));
   }
   bool do_check(THD *, set_var *var) override {
     char buff[STRING_BUFFER_USUAL_SIZE];
@@ -1478,8 +1478,8 @@ class Sys_var_plugin : public sys_var {
                 parse_flag),
         plugin_type(plugin_type_arg) {
     option.var_type = GET_STR;
-    DBUG_ASSERT(size == sizeof(plugin_ref));
-    DBUG_ASSERT(getopt.id == -1);  // force NO_CMD_LINE
+    assert(size == sizeof(plugin_ref));
+    assert(getopt.id == -1);  // force NO_CMD_LINE
   }
   bool do_check(THD *thd, set_var *var) override {
     char buff[STRING_BUFFER_USUAL_SIZE];
@@ -1540,7 +1540,7 @@ class Sys_var_plugin : public sys_var {
     else {
       plugin = my_plugin_lock_by_name(thd, pname, plugin_type);
     }
-    DBUG_ASSERT(plugin);
+    assert(plugin);
 
     var->save_result.plugin = my_plugin_lock(thd, &plugin);
   }
@@ -1583,7 +1583,7 @@ class Sys_var_debug_sync : public sys_var {
                 getopt.arg_type, SHOW_CHAR, (intptr)def_val, lock,
                 binlog_status_arg, on_check_func, on_update_func, substitute,
                 parse_flag) {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
+    assert(scope() == ONLY_SESSION);
     option.var_type = GET_NO_ARG;
   }
   bool do_check(THD *thd, set_var *var) override {
@@ -1601,23 +1601,23 @@ class Sys_var_debug_sync : public sys_var {
     return debug_sync_update(thd, var->save_result.string_value.str);
   }
   bool global_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   void session_save_default(THD *, set_var *var) override {
     var->save_result.string_value.str = const_cast<char *>("");
     var->save_result.string_value.length = 0;
   }
-  void global_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
+  void global_save_default(THD *, set_var *) override { assert(false); }
   void saved_value_to_string(THD *, set_var *, char *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
   const uchar *session_value_ptr(THD *running_thd, THD *,
                                  LEX_STRING *) override {
     return debug_sync_value_ptr(running_thd);
   }
   const uchar *global_value_ptr(THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   bool check_update_type(Item_result type) override {
@@ -1671,8 +1671,8 @@ class Sys_var_bit : public Sys_var_typelib {
     reverse_semantics = my_count_bits(bitmask_arg) > 1;
     bitmask = reverse_semantics ? ~bitmask_arg : bitmask_arg;
     set(global_var_ptr(), def_val);
-    DBUG_ASSERT(getopt.id == -1);  // force NO_CMD_LINE
-    DBUG_ASSERT(size == sizeof(ulonglong));
+    assert(getopt.id == -1);  // force NO_CMD_LINE
+    assert(size == sizeof(ulonglong));
   }
   bool session_update(THD *thd, set_var *var) override {
     set(session_var_ptr(thd), var->save_result.ulonglong_value);
@@ -1742,22 +1742,22 @@ class Sys_var_session_special : public Sys_var_ulonglong {
                           substitute),
         read_func(read_func_arg),
         update_func(update_func_arg) {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
-    DBUG_ASSERT(getopt.id == -1);  // NO_CMD_LINE, because the offset is fake
+    assert(scope() == ONLY_SESSION);
+    assert(getopt.id == -1);  // NO_CMD_LINE, because the offset is fake
   }
   bool session_update(THD *thd, set_var *var) override {
     return update_func(thd, var);
   }
   bool global_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   void session_save_default(THD *, set_var *var) override {
     var->value = nullptr;
   }
-  void global_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
+  void global_save_default(THD *, set_var *) override { assert(false); }
   void saved_value_to_string(THD *, set_var *, char *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
   const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
                                  LEX_STRING *) override {
@@ -1765,7 +1765,7 @@ class Sys_var_session_special : public Sys_var_ulonglong {
     return (uchar *)&running_thd->sys_var_tmp.ulonglong_value;
   }
   const uchar *global_value_ptr(THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 };
@@ -1794,22 +1794,22 @@ class Sys_var_session_special_double : public Sys_var_double {
                        on_check_func, nullptr, substitute),
         read_func(read_func_arg),
         update_func(update_func_arg) {
-    DBUG_ASSERT(scope() == ONLY_SESSION);
-    DBUG_ASSERT(getopt.id == -1);  // NO_CMD_LINE, because the offset is fake
+    assert(scope() == ONLY_SESSION);
+    assert(getopt.id == -1);  // NO_CMD_LINE, because the offset is fake
   }
   bool session_update(THD *thd, set_var *var) override {
     return update_func(thd, var);
   }
   bool global_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   void session_save_default(THD *, set_var *var) override {
     var->value = nullptr;
   }
-  void global_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
+  void global_save_default(THD *, set_var *) override { assert(false); }
   void saved_value_to_string(THD *, set_var *, char *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
   const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
                                  LEX_STRING *) override {
@@ -1817,7 +1817,7 @@ class Sys_var_session_special_double : public Sys_var_double {
     return (uchar *)&running_thd->sys_var_tmp.double_value;
   }
   const uchar *global_value_ptr(THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 };
@@ -1845,31 +1845,31 @@ class Sys_var_have : public sys_var {
       : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
                 getopt.arg_type, SHOW_CHAR, 0, lock, binlog_status_arg,
                 on_check_func, on_update_func, substitute, parse_flag) {
-    DBUG_ASSERT(scope() == GLOBAL);
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(lock == nullptr);
-    DBUG_ASSERT(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
-    DBUG_ASSERT(is_readonly());
-    DBUG_ASSERT(on_update == nullptr);
-    DBUG_ASSERT(size == sizeof(enum SHOW_COMP_OPTION));
+    assert(scope() == GLOBAL);
+    assert(getopt.id == -1);
+    assert(lock == nullptr);
+    assert(binlog_status_arg == VARIABLE_NOT_IN_BINLOG);
+    assert(is_readonly());
+    assert(on_update == nullptr);
+    assert(size == sizeof(enum SHOW_COMP_OPTION));
   }
   bool do_check(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool session_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool global_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   void session_save_default(THD *, set_var *) override {}
   void global_save_default(THD *, set_var *) override {}
   void saved_value_to_string(THD *, set_var *, char *) override {}
   const uchar *session_value_ptr(THD *, THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   const uchar *global_value_ptr(THD *, LEX_STRING *) override {
@@ -1951,8 +1951,8 @@ class Sys_var_struct : public sys_var {
       thus all struct command-line options should be added manually
       to my_long_options in mysqld.cc
     */
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(void *));
+    assert(getopt.id == -1);
+    assert(size == sizeof(void *));
   }
   bool do_check(THD *, set_var *) override { return false; }
   bool session_update(THD *thd, set_var *var) override {
@@ -2013,8 +2013,8 @@ class Sys_var_tz : public sys_var {
                 getopt.arg_type, SHOW_CHAR, (intptr)def_val, lock,
                 binlog_status_arg, on_check_func, on_update_func, substitute,
                 parse_flag) {
-    DBUG_ASSERT(getopt.id == -1);
-    DBUG_ASSERT(size == sizeof(Time_zone *));
+    assert(getopt.id == -1);
+    assert(size == sizeof(Time_zone *));
     option.var_type = GET_STR;
   }
   bool do_check(THD *thd, set_var *var) override {
@@ -2146,12 +2146,12 @@ class Sys_var_gtid_next : public sys_var {
                 getopt.arg_type, SHOW_CHAR, (intptr)def_val, lock,
                 binlog_status_arg, on_check_func, on_update_func, substitute,
                 parse_flag) {
-    DBUG_ASSERT(size == sizeof(Gtid_specification));
+    assert(size == sizeof(Gtid_specification));
   }
   bool session_update(THD *thd, set_var *var) override;
 
   bool global_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   void session_save_default(THD *, set_var *var) override {
@@ -2161,9 +2161,9 @@ class Sys_var_gtid_next : public sys_var {
     var->save_result.string_value.length = ptr ? strlen(ptr) : 0;
     return;
   }
-  void global_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
+  void global_save_default(THD *, set_var *) override { assert(false); }
   void saved_value_to_string(THD *, set_var *, char *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
   bool do_check(THD *, set_var *) override { return false; }
   bool check_update_type(Item_result type) override {
@@ -2181,7 +2181,7 @@ class Sys_var_gtid_next : public sys_var {
     return (uchar *)ret;
   }
   const uchar *global_value_ptr(THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 };
@@ -2207,12 +2207,12 @@ class Sys_var_gtid_set : public sys_var {
                 getopt.arg_type, SHOW_CHAR, (intptr)def_val, lock,
                 binlog_status_arg, on_check_func, on_update_func, substitute,
                 parse_flag) {
-    DBUG_ASSERT(size == sizeof(Gtid_set_or_null));
+    assert(size == sizeof(Gtid_set_or_null));
   }
   bool session_update(THD *thd, set_var *var);
 
   bool global_update(THD *thd, set_var *var) {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   void session_save_default(THD *thd, set_var *var) {
@@ -2224,8 +2224,8 @@ class Sys_var_gtid_set : public sys_var {
     global_sid_lock->unlock();
     return;
   }
-  void global_save_default(THD *thd, set_var *var) { DBUG_ASSERT(false); }
-  void saved_value_to_string(THD *, set_var *, char *) { DBUG_ASSERT(false); }
+  void global_save_default(THD *thd, set_var *var) { assert(false); }
+  void saved_value_to_string(THD *, set_var *, char *) { assert(false); }
   bool do_check(THD *thd, set_var *var) {
     DBUG_TRACE;
     String str;
@@ -2234,7 +2234,7 @@ class Sys_var_gtid_set : public sys_var {
       var->save_result.string_value.str = NULL;
       return false;
     }
-    DBUG_ASSERT(res->ptr() != NULL);
+    assert(res->ptr() != NULL);
     var->save_result.string_value.str = thd->strmake(res->ptr(), res->length());
     if (var->save_result.string_value.str == NULL) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // thd->strmake failed
@@ -2262,7 +2262,7 @@ class Sys_var_gtid_set : public sys_var {
     return (uchar *)buf;
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
-    DBUG_ASSERT(false);
+    assert(false);
     return NULL;
   }
 };
@@ -2285,36 +2285,36 @@ class Sys_var_charptr_func : public sys_var {
                 nullptr /*polylock*/, VARIABLE_NOT_IN_BINLOG,
                 nullptr /*on_check_func*/, nullptr /*on_update_func*/,
                 nullptr /*substitute*/, PARSE_NORMAL /*parse_flag*/) {
-    DBUG_ASSERT(flag_arg == sys_var::GLOBAL || flag_arg == sys_var::SESSION ||
-                flag_arg == sys_var::ONLY_SESSION);
+    assert(flag_arg == sys_var::GLOBAL || flag_arg == sys_var::SESSION ||
+           flag_arg == sys_var::ONLY_SESSION);
   }
   bool session_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool global_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
-  void session_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
-  void global_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
+  void session_save_default(THD *, set_var *) override { assert(false); }
+  void global_save_default(THD *, set_var *) override { assert(false); }
   void saved_value_to_string(THD *, set_var *, char *) override {
-    DBUG_ASSERT(false);
+    assert(false);
   }
   bool do_check(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool check_update_type(Item_result) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   const uchar *session_value_ptr(THD *, THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   const uchar *global_value_ptr(THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 };
@@ -2359,11 +2359,11 @@ class Sys_var_gtid_purged : public sys_var {
                 parse_flag) {}
 
   bool session_update(THD *, set_var *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 
-  void session_save_default(THD *, set_var *) override { DBUG_ASSERT(false); }
+  void session_save_default(THD *, set_var *) override { assert(false); }
 
   bool global_update(THD *thd, set_var *var) override;
 
@@ -2422,7 +2422,7 @@ class Sys_var_gtid_purged : public sys_var {
   }
 
   const uchar *session_value_ptr(THD *, THD *, LEX_STRING *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
 };
@@ -2442,7 +2442,7 @@ class Sys_var_gtid_owned : Sys_var_charptr_func {
     if (target_thd->owned_gtid.sidno == 0)
       return (uchar *)running_thd->mem_strdup("");
     else if (target_thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS) {
-      DBUG_ASSERT(gtid_state->get_anonymous_ownership_count() > 0);
+      assert(gtid_state->get_anonymous_ownership_count() > 0);
       return (uchar *)running_thd->mem_strdup("ANONYMOUS");
     } else if (target_thd->owned_gtid.sidno == THD::OWNED_SIDNO_GTID_SET) {
 #ifdef HAVE_GTID_NEXT_LIST
@@ -2455,7 +2455,7 @@ class Sys_var_gtid_owned : Sys_var_charptr_func {
       } else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
 #else
-      DBUG_ASSERT(0);
+      assert(0);
 #endif
     } else {
       buf = (char *)running_thd->alloc(Gtid::MAX_TEXT_LENGTH + 1);

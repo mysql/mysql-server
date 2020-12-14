@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,10 @@
 #define MYSQL_SERVER 1
 #include "storage/heap/ha_heap.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 
-#include "my_dbug.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_psi_config.h"
@@ -256,7 +256,7 @@ int ha_heap::delete_row(const uchar *buf) {
 int ha_heap::index_read_map(uchar *buf, const uchar *key,
                             key_part_map keypart_map,
                             enum ha_rkey_function find_flag) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error = heap_rkey(file, buf, active_index, key, keypart_map, find_flag);
 
@@ -265,7 +265,7 @@ int ha_heap::index_read_map(uchar *buf, const uchar *key,
 
 int ha_heap::index_read_last_map(uchar *buf, const uchar *key,
                                  key_part_map keypart_map) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error =
       heap_rkey(file, buf, active_index, key, keypart_map, HA_READ_PREFIX_LAST);
@@ -281,28 +281,28 @@ int ha_heap::index_read_idx_map(uchar *buf, uint index, const uchar *key,
 }
 
 int ha_heap::index_next(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   int error = heap_rnext(file, buf);
   return error;
 }
 
 int ha_heap::index_prev(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_prev_count);
   int error = heap_rprev(file, buf);
   return error;
 }
 
 int ha_heap::index_first(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_first_count);
   int error = heap_rfirst(file, buf, active_index);
   return error;
 }
 
 int ha_heap::index_last(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error = heap_rlast(file, buf, active_index);
   return error;
@@ -479,7 +479,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *, THR_LOCK_DATA **to,
     as they don't have properly initialized THR_LOCK and THR_LOCK_DATA
     structures.
   */
-  DBUG_ASSERT(!single_instance);
+  assert(!single_instance);
   if (lock_type != TL_IGNORE && file->lock.type == TL_UNLOCK)
     file->lock.type = lock_type;
   *to++ = &file->lock;
@@ -520,7 +520,7 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
   if (stats.records <= 1) return stats.records;
 
   /* Assert that info() did run. We need current statistics here. */
-  DBUG_ASSERT(key_stat_version == file->s->key_stat_version);
+  assert(key_stat_version == file->s->key_stat_version);
   const ha_rows rec_in_range = static_cast<ha_rows>(
       key->records_per_key(key->user_defined_key_parts - 1));
   return rec_in_range;
@@ -566,7 +566,7 @@ static int heap_prepare_hp_create_info(TABLE *table_arg, bool single_instance,
         mem_per_row += sizeof(TREE_ELEMENT) + pos->key_length + sizeof(char *);
         break;
       default:
-        DBUG_ASSERT(0);  // cannot happen
+        assert(0);  // cannot happen
     }
 
     for (; key_part != key_part_end; key_part++, seg++) {
@@ -637,7 +637,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
   int error;
   bool created;
   HP_CREATE_INFO hp_create_info;
-  DBUG_ASSERT(!single_instance);
+  assert(!single_instance);
 
   error = heap_prepare_hp_create_info(table_arg, false, false, &hp_create_info);
   if (error == 0) {
@@ -646,7 +646,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
                                          : 0);
     error = heap_create(name, &hp_create_info, &internal_share, &created);
     my_free(hp_create_info.keydef);
-    DBUG_ASSERT(file == nullptr);
+    assert(file == nullptr);
   }
 
   return (error);

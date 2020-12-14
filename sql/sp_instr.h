@@ -23,6 +23,7 @@
 #ifndef _SP_INSTR_H_
 #define _SP_INSTR_H_
 
+#include <assert.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
@@ -32,7 +33,7 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -549,7 +550,7 @@ class sp_instr_set : public sp_lex_instr {
 
   bool on_after_expr_parsing(THD *thd) override {
     m_value_item = thd->lex->query_block->single_visible_field();
-    DBUG_ASSERT(m_value_item != nullptr);
+    assert(m_value_item != nullptr);
 
     return false;
   }
@@ -681,7 +682,7 @@ class sp_instr_freturn : public sp_lex_instr {
 
   bool on_after_expr_parsing(THD *thd) override {
     m_expr_item = thd->lex->query_block->single_visible_field();
-    DBUG_ASSERT(m_expr_item != nullptr);
+    assert(m_expr_item != nullptr);
     return false;
   }
 
@@ -756,7 +757,7 @@ class sp_instr_jump : public sp_instr, public sp_branch_instr {
 
   void backpatch(uint dest) override {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
-    DBUG_ASSERT(m_dest == 0);
+    assert(m_dest == 0);
     m_dest = dest;
   }
 
@@ -840,7 +841,7 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
 
   void backpatch(uint dest) override {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
-    DBUG_ASSERT(m_dest == 0);
+    assert(m_dest == 0);
     m_dest = dest;
   }
 
@@ -894,7 +895,7 @@ class sp_instr_jump_if_not : public sp_lex_branch_instr {
 
   bool on_after_expr_parsing(THD *thd) override {
     m_expr_item = thd->lex->query_block->single_visible_field();
-    DBUG_ASSERT(m_expr_item != nullptr);
+    assert(m_expr_item != nullptr);
     return false;
   }
 
@@ -967,7 +968,7 @@ class sp_instr_set_case_expr : public sp_lex_branch_instr {
 
   bool on_after_expr_parsing(THD *thd) override {
     m_expr_item = thd->lex->query_block->single_visible_field();
-    DBUG_ASSERT(m_expr_item != nullptr);
+    assert(m_expr_item != nullptr);
     return false;
   }
 
@@ -1099,7 +1100,7 @@ class sp_instr_hpush_jump : public sp_instr_jump {
   /////////////////////////////////////////////////////////////////////////
 
   void backpatch(uint dest) override {
-    DBUG_ASSERT(!m_dest || !m_opt_hpop);
+    assert(!m_dest || !m_opt_hpop);
     if (!m_dest)
       m_dest = dest;
     else

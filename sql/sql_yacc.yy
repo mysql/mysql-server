@@ -259,7 +259,7 @@ int yylex(void *yylval, void *yythd);
   } while(0)
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define YYDEBUG 1
 #else
 #define YYDEBUG 0
@@ -294,13 +294,13 @@ void MYSQLerror(YYLTYPE *location, THD *thd, Parse_tree_root **, const char *s)
     my_error(ER_DA_OOM, MYF(0));
   } else {
     // Find omitted error messages in the generated file (sql_yacc.cc) and fix:
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_UNKNOWN_ERROR, MYF(0));
   }
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void turn_parser_debug_on()
 {
   /*
@@ -2509,7 +2509,7 @@ change:
               Clear LEX_MASTER_INFO struct. repl_ignore_server_ids is cleared
               in THD::cleanup_after_query. So it is guaranteed to be empty here.
             */
-            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.empty());
+            assert(Lex->mi.repl_ignore_server_ids.empty());
             lex->mi.set_unspecified();
           }
           source_defs opt_channel
@@ -2521,7 +2521,7 @@ change:
           {
             THD *thd= YYTHD;
             LEX* lex= thd->lex;
-            DBUG_ASSERT(!lex->m_sql_cmd);
+            assert(!lex->m_sql_cmd);
             lex->sql_command = SQLCOM_CHANGE_REPLICATION_FILTER;
             lex->m_sql_cmd= NEW_PTN Sql_cmd_change_repl_filter();
             if (lex->m_sql_cmd == NULL)
@@ -2543,42 +2543,42 @@ filter_def:
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_DO_DB);
           }
         | REPLICATE_IGNORE_DB EQ opt_filter_db_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_IGNORE_DB);
           }
         | REPLICATE_DO_TABLE EQ opt_filter_table_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_DO_TABLE);
           }
         | REPLICATE_IGNORE_TABLE EQ opt_filter_table_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_IGNORE_TABLE);
           }
         | REPLICATE_WILD_DO_TABLE EQ opt_filter_string_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_WILD_DO_TABLE);
           }
         | REPLICATE_WILD_IGNORE_TABLE EQ opt_filter_string_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3,
                                              OPT_REPLICATE_WILD_IGNORE_TABLE);
           }
@@ -2586,7 +2586,7 @@ filter_def:
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_REWRITE_DB);
           }
         ;
@@ -4270,7 +4270,7 @@ sp_decl:
             LEX *cursor_lex= Lex;
             sp_head *sp= cursor_lex->sphead;
 
-            DBUG_ASSERT(cursor_lex->sql_command == SQLCOM_SELECT);
+            assert(cursor_lex->sql_command == SQLCOM_SELECT);
 
             if (cursor_lex->result)
             {
@@ -4872,7 +4872,7 @@ sp_proc_stmt_statement:
               instructions for them were already added during processing
               of "set" rule.
             */
-            DBUG_ASSERT((lex->sql_command != SQLCOM_SET_OPTION &&
+            assert((lex->sql_command != SQLCOM_SET_OPTION &&
                          lex->sql_command != SQLCOM_SET_PASSWORD) ||
                         lex->var_list.is_empty());
             if (lex->sql_command != SQLCOM_SET_OPTION &&
@@ -17730,17 +17730,17 @@ vcpu_num_or_range:
             auto cpu_id= my_strtoull($1.str, nullptr, 10);
             $$.start= $$.end=
               static_cast<resourcegroups::platform::cpu_id_t>(cpu_id);
-            DBUG_ASSERT($$.start == cpu_id); // truncation check
+            assert($$.start == cpu_id); // truncation check
           }
         | NUM '-' NUM
           {
             auto start= my_strtoull($1.str, nullptr, 10);
             $$.start= static_cast<resourcegroups::platform::cpu_id_t>(start);
-            DBUG_ASSERT($$.start == start); // truncation check
+            assert($$.start == start); // truncation check
 
             auto end= my_strtoull($3.str, nullptr, 10);
             $$.end= static_cast<resourcegroups::platform::cpu_id_t>(end);
-            DBUG_ASSERT($$.end == end); // truncation check
+            assert($$.end == end); // truncation check
           }
         ;
 

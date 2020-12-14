@@ -5284,7 +5284,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	  break;
         }
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       else
       {
         switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
@@ -6616,7 +6616,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
             } 
           } 
           i_group++; 
-          DBUG_ASSERT(i_group <= replicas); 
+          assert(i_group <= replicas); 
           if (i_group == replicas) 
           { 
             unsigned c= 0; 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -25,7 +25,8 @@ TempTable Column implementation. */
 
 #include "storage/temptable/include/temptable/column.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/field.h"
 #include "sql/key.h"
 #include "sql/table.h"
@@ -42,13 +43,13 @@ Column::Column(const unsigned char *mysql_row,
    * later used to get the user data inside our own copy of a row in
    * `m_mysql_row` which is neither record[0] nor record[1]. */
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   const unsigned char *field_ptr = mysql_field.field_ptr();
   const size_t mysql_row_length = mysql_table.s->rec_buff_length;
 
-  DBUG_ASSERT(field_ptr >= mysql_row);
-  DBUG_ASSERT(field_ptr < mysql_row + mysql_row_length);
-#endif /* DBUG_OFF */
+  assert(field_ptr >= mysql_row);
+  assert(field_ptr < mysql_row + mysql_row_length);
+#endif /* NDEBUG */
 
   size_t data_offset;
 
@@ -57,8 +58,8 @@ Column::Column(const unsigned char *mysql_row,
   if (m_is_blob) {
     auto &blob_field = static_cast<const Field_blob &>(mysql_field);
 
-    DBUG_ASSERT(blob_field.pack_length_no_ptr() <=
-                std::numeric_limits<decltype(m_length_bytes_size)>::max());
+    assert(blob_field.pack_length_no_ptr() <=
+           std::numeric_limits<decltype(m_length_bytes_size)>::max());
 
     m_length_bytes_size = blob_field.pack_length_no_ptr();
     m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
@@ -70,8 +71,8 @@ Column::Column(const unsigned char *mysql_row,
   } else if (mysql_field.type() == MYSQL_TYPE_VARCHAR) {
     auto &varstring_field = static_cast<const Field_varstring &>(mysql_field);
 
-    DBUG_ASSERT(varstring_field.get_length_bytes() <=
-                std::numeric_limits<decltype(m_length_bytes_size)>::max());
+    assert(varstring_field.get_length_bytes() <=
+           std::numeric_limits<decltype(m_length_bytes_size)>::max());
 
     m_length_bytes_size = varstring_field.get_length_bytes();
     m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
@@ -82,8 +83,8 @@ Column::Column(const unsigned char *mysql_row,
     m_length = mysql_field.data_length();
     data_offset = static_cast<size_t>(mysql_field.field_ptr() - mysql_row);
   }
-  DBUG_ASSERT(data_offset <=
-              std::numeric_limits<decltype(m_user_data_offset)>::max());
+  assert(data_offset <=
+         std::numeric_limits<decltype(m_user_data_offset)>::max());
   m_user_data_offset = static_cast<decltype(m_user_data_offset)>(data_offset);
 
   m_nullable = mysql_field.is_nullable();
@@ -91,7 +92,7 @@ Column::Column(const unsigned char *mysql_row,
 
   if (m_nullable) {
     m_null_byte_offset = mysql_field.null_offset(mysql_row);
-    DBUG_ASSERT(m_null_byte_offset < mysql_row_length);
+    assert(m_null_byte_offset < mysql_row_length);
   } else {
     m_null_byte_offset = 0;
   }

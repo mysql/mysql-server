@@ -166,14 +166,14 @@ bool Triggers::get_trigger_table_id(THD *thd, Object_id schema_id,
   trx.otx.register_tables<dd::Table>();
   if (trx.otx.open_tables()) return true;
 
-  DBUG_ASSERT(oid != nullptr);
+  assert(oid != nullptr);
   *oid = INVALID_OBJECT_ID;
 
   const std::unique_ptr<Object_key> key(
       create_key_by_trigger_name(schema_id, trigger_name.c_str()));
 
   Raw_table *table = trx.otx.get_table(instance().name());
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   // Find record by the object-key.
   std::unique_ptr<Raw_record> record;

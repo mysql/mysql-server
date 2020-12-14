@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ static bool notify(SvcTypes svc_type, Notification_context &ctx) {
       svc_name = Registry_module_interface::SVC_NAME_STATUS;
       break;
     default:
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       /* production builds default to membership */
       svc_name = Registry_module_interface::SVC_NAME_MEMBERSHIP;
       notify_func_ptr = notify_group_membership;

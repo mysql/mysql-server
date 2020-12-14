@@ -59,7 +59,7 @@ class Spatial_reference_system;
 
 bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type) {
   DBUG_TRACE;
-  DBUG_ASSERT(srid != 0);
+  assert(srid != 0);
 
   char id_str[11];  // uint32 => max 10 digits + \0
   longlong10_to_str(srid, id_str, 10);
@@ -97,7 +97,7 @@ bool Srs_fetcher::acquire_for_modification(gis::srid_t srid,
 }
 
 bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists) {
-  DBUG_ASSERT(exists);
+  assert(exists);
   std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
       new dd::cache::Dictionary_client::Auto_releaser(thd->dd_client()));
   Srs_fetcher fetcher(thd);
@@ -206,7 +206,7 @@ bool linear_areal_intersect_infinite(Geometry *g1, Geometry *g2,
                               g2->get_flags(), g2->get_srid());
       res = bg::is_valid(mplgn);
     } else
-      DBUG_ASSERT(false);
+      assert(false);
 
     return res;
   }
@@ -329,7 +329,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_st_union *ifsu,
       min corner point have greater coordinates than the max corner point,
       the box isn't valid and the rtree can be empty.
      */
-    DBUG_ASSERT(rtree_result.size() != 0);
+    assert(rtree_result.size() != 0);
 
     // Sort rtree_result by Rtree_entry::second in order to make
     // components in fixed order.
@@ -495,7 +495,7 @@ inline void reassemble_geometry(Geometry *g) {
 template <typename BG_geotype>
 bool post_fix_result(BG_result_buf_mgr *resbuf_mgr, BG_geotype &geout,
                      String *res) {
-  DBUG_ASSERT(geout.has_geom_header_space());
+  assert(geout.has_geom_header_space());
   reassemble_geometry(&geout);
 
   // Such objects returned by BG never have overlapped components.

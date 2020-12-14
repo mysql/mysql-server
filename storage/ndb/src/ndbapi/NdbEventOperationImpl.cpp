@@ -4117,7 +4117,7 @@ Gci_container::add_gci_op(Gci_op g)
       m_gci_op_alloc = n;
     }
     assert(m_gci_op_count < m_gci_op_alloc);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     i = m_gci_op_count;
 #endif
     m_gci_op_list[m_gci_op_count++] = g;
@@ -4262,7 +4262,7 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   
   assert(m_ndb->theImpl->m_ev_op == 0 || m_ndb->theImpl->m_ev_op->m_prev == 0);
   
-  DBUG_ASSERT(op->m_ref_count > 0);
+  assert(op->m_ref_count > 0);
   // remove user reference
   // added in createEventOperation
   // user error to use reference after this

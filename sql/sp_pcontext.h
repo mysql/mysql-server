@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,13 @@
 #ifndef _SP_PCONTEXT_H_
 #define _SP_PCONTEXT_H_
 
+#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "field_types.h"  // enum_field_types
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "mysql_com.h"
 #include "sql/create_field.h"    // Create_field
 #include "sql/mem_root_array.h"  // Mem_root_array
@@ -150,7 +151,7 @@ class sp_condition_value {
   }
 
   sp_condition_value(enum_type _type) : type(_type) {
-    DBUG_ASSERT(type != ERROR_CODE && type != SQLSTATE);
+    assert(type != ERROR_CODE && type != SQLSTATE);
   }
 
   /// Print a condition_value in human-readable form.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ static bool s_zero_copy = false;
 
 /** Check and assert that file is a HANDLE */
 #define CLONE_OS_CHECK_FILE(file) \
-  DBUG_ASSERT(file.type == Ha_clone_file::FILE_HANDLE)
+  assert(file.type == Ha_clone_file::FILE_HANDLE)
 
 /** Implement read for Windows
 @param[in]	file	file descriptor
@@ -53,7 +53,7 @@ static bool s_zero_copy = false;
 @param[in]	buf_len	length of buffer in bytes
 @return error code */
 static ssize_t os_read(Ha_clone_file file, uchar *buffer, uint buf_len) {
-  DBUG_ASSERT(file.type == Ha_clone_file::FILE_HANDLE);
+  assert(file.type == Ha_clone_file::FILE_HANDLE);
 
   auto file_hdl = static_cast<HANDLE>(file.file_handle);
 
@@ -81,7 +81,7 @@ static ssize_t os_read(Ha_clone_file file, uchar *buffer, uint buf_len) {
 @param[in]	buf_len	length of buffer in bytes
 @return error code */
 static ssize_t os_write(Ha_clone_file file, uchar *buffer, uint buf_len) {
-  DBUG_ASSERT(file.type == Ha_clone_file::FILE_HANDLE);
+  assert(file.type == Ha_clone_file::FILE_HANDLE);
   auto file_hdl = static_cast<HANDLE>(file.file_handle);
 
   DWORD bytes_written;
@@ -104,8 +104,7 @@ static ssize_t os_write(Ha_clone_file file, uchar *buffer, uint buf_len) {
 static bool s_zero_copy = true;
 
 /** Check and assert that file is a descriptor */
-#define CLONE_OS_CHECK_FILE(file) \
-  DBUG_ASSERT(file.type == Ha_clone_file::FILE_DESC)
+#define CLONE_OS_CHECK_FILE(file) assert(file.type == Ha_clone_file::FILE_DESC)
 
 /** Map to read system call for non-windows platforms. */
 #define os_read(file, buffer, len) read(file.file_desc, buffer, len)
@@ -160,7 +159,7 @@ int clone_os_copy_file_to_buf(Ha_clone_file from_file, uchar *&to_buffer,
   CLONE_OS_CHECK_FILE(from_file);
 
   /* Assert buffer alignment to CLONE_OS_ALIGN[4K] for O_DIRECT */
-  DBUG_ASSERT(to_buffer == clone_os_align(to_buffer));
+  assert(to_buffer == clone_os_align(to_buffer));
 
   auto len_left = length;
 
@@ -209,7 +208,7 @@ int clone_os_copy_file_to_file(Ha_clone_file from_file, Ha_clone_file to_file,
 
     auto actual_size = static_cast<uint>(ret_size);
 
-    DBUG_ASSERT(length >= actual_size);
+    assert(length >= actual_size);
     length -= actual_size;
   }
 
@@ -230,7 +229,7 @@ int clone_os_copy_file_to_file(Ha_clone_file from_file, Ha_clone_file to_file,
   }
 
   /* Assert buffer alignment to CLONE_OS_ALIGN for O_DIRECT */
-  DBUG_ASSERT(buffer == clone_os_align(buffer));
+  assert(buffer == clone_os_align(buffer));
 
   while (length > 0) {
     auto request_size = (length > buff_len) ? buff_len : length;
@@ -247,7 +246,7 @@ int clone_os_copy_file_to_file(Ha_clone_file from_file, Ha_clone_file to_file,
       return (error);
     }
 
-    DBUG_ASSERT(length >= actual_size);
+    assert(length >= actual_size);
     length -= actual_size;
 
     request_size = actual_size;
@@ -290,7 +289,7 @@ int clone_os_copy_buf_to_file(uchar *from_buffer, Ha_clone_file to_file,
 
     auto actual_size = static_cast<uint>(ret_size);
 
-    DBUG_ASSERT(length >= actual_size);
+    assert(length >= actual_size);
 
     length -= actual_size;
     from_buffer += actual_size;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,10 +23,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/row.cc
 TempTable Row implementation. */
 
+#include <assert.h>
 #include <cstring>
 #include <utility>
 
-#include "my_dbug.h"
 #include "sql/field.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/allocator.h"
@@ -39,7 +39,7 @@ TempTable Row implementation. */
 
 namespace temptable {
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 int Row::compare(const Row &lhs, const Row &rhs, const Columns &columns,
                  Field **mysql_fields) {
   for (size_t i = 0; i < columns.size(); ++i) {
@@ -56,11 +56,11 @@ int Row::compare(const Row &lhs, const Row &rhs, const Columns &columns,
 
   return 0;
 }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 Result Row::copy_to_own_memory(const Columns &columns,
                                size_t mysql_row_length) const {
-  DBUG_ASSERT(m_data_is_in_mysql_memory);
+  assert(m_data_is_in_mysql_memory);
 
   const unsigned char *mysql_row = m_ptr;
 
@@ -93,7 +93,7 @@ Result Row::copy_to_own_memory(const Columns &columns,
     const uint32_t data_length = column.read_user_data_length(mysql_row);
 
     if (data_length > 0) {
-      DBUG_ASSERT(buf_is_inside_another(data_ptr, data_length, m_ptr, buf_len));
+      assert(buf_is_inside_another(data_ptr, data_length, m_ptr, buf_len));
 
       column.read_user_data(data_ptr, data_length, mysql_row, mysql_row_length);
     }
@@ -110,7 +110,7 @@ Result Row::copy_to_own_memory(const Columns &columns,
 
 void Row::copy_to_mysql_row(const Columns &columns, unsigned char *mysql_row,
                             size_t mysql_row_length) const {
-  DBUG_ASSERT(!m_data_is_in_mysql_memory);
+  assert(!m_data_is_in_mysql_memory);
 
   for (size_t i = 0; i < columns.size(); ++i) {
     const Column &column = columns[i];

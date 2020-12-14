@@ -178,7 +178,7 @@ bool Item_func_regexp_instr::resolve_type(THD *thd) {
 
 longlong Item_func_regexp_instr::val_int() {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   Nullable<int> pos = position();
   Nullable<int> occ = occurrence();
   Nullable<int> retopt = return_option();
@@ -197,7 +197,7 @@ longlong Item_func_regexp_instr::val_int() {
 
 longlong Item_func_regexp_like::val_int() {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   if (set_pattern()) {
     return error_int();
@@ -250,7 +250,7 @@ bool Item_func_regexp_replace::resolve_type(THD *thd) {
 }
 
 String *Item_func_regexp_replace::val_str(String *buf) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   Nullable<int> pos = position();
   Nullable<int> occ = occurrence();
@@ -282,7 +282,7 @@ bool Item_func_regexp_substr::resolve_type(THD *thd) {
 }
 
 String *Item_func_regexp_substr::val_str(String *buf) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   Nullable<int> pos = position();
   Nullable<int> occ = occurrence();
 

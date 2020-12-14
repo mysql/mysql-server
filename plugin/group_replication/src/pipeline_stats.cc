@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,7 +348,7 @@ Pipeline_stats_member_collector::~Pipeline_stats_member_collector() {
 
 void Pipeline_stats_member_collector::increment_transactions_waiting_apply() {
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
-  DBUG_ASSERT(m_transactions_waiting_apply.load() >= 0);
+  assert(m_transactions_waiting_apply.load() >= 0);
   ++m_transactions_waiting_apply;
   mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
@@ -356,7 +356,7 @@ void Pipeline_stats_member_collector::increment_transactions_waiting_apply() {
 void Pipeline_stats_member_collector::decrement_transactions_waiting_apply() {
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
   if (m_transactions_waiting_apply.load() > 0) --m_transactions_waiting_apply;
-  DBUG_ASSERT(m_transactions_waiting_apply.load() >= 0);
+  assert(m_transactions_waiting_apply.load() >= 0);
   mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
 
@@ -457,8 +457,8 @@ void Pipeline_stats_member_collector::
 
 uint64 Pipeline_stats_member_collector::
     get_transactions_waiting_certification_during_recovery() {
-  DBUG_ASSERT(m_transactions_delivered_during_recovery.load() >=
-              m_transactions_certified_during_recovery.load());
+  assert(m_transactions_delivered_during_recovery.load() >=
+         m_transactions_certified_during_recovery.load());
   return m_transactions_delivered_during_recovery.load() -
          m_transactions_certified_during_recovery.load();
 }
@@ -697,7 +697,7 @@ Flow_control_mode Pipeline_member_stats::get_flow_control_mode() {
 
 uint64 Pipeline_member_stats::get_stamp() { return m_stamp; }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void Pipeline_member_stats::debug(const char *member, int64 quota_size,
                                   int64 quota_used) {
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_STATS_INFO, member,
@@ -884,7 +884,7 @@ void Flow_control_module::flow_control_step(
         quota_size =
             (quota_size - extra_quota > 1) ? quota_size - extra_quota : 1;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_FLOW_CONTROL_STATS,
                      quota_size, get_flow_control_period_var(),
                      num_writing_members, num_non_recovering_members,
@@ -916,7 +916,7 @@ void Flow_control_module::flow_control_step(
       break;
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   // compute applier rate during recovery
@@ -954,7 +954,7 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
   */
   if (it->second.is_flow_control_needed()) {
     ++m_holds_in_period;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     it->second.debug(it->first.c_str(), m_quota_size.load(),
                      m_quota_used.load());
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ static inline Trigger::enum_event_type get_dd_event_type(
     to add an assert to catch violation of this invariant just in case.
   */
 
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Trigger::enum_event_type::ET_INSERT;
 }
@@ -103,7 +103,7 @@ static inline Trigger::enum_action_timing get_dd_action_timing(
     (TRG_ACTION_BEFORE, TRG_ACTION_AFTER), it's allowable to add an assert
     to catch violation of this invariant just in case.
   */
-  DBUG_ASSERT(false);
+  assert(false);
 
   return Trigger::enum_action_timing::AT_BEFORE;
 }
@@ -196,7 +196,7 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
     return true;
   }
 
-  DBUG_ASSERT(new_table != nullptr);
+  assert(new_table != nullptr);
 
   Trigger *dd_trig_obj;
 
@@ -212,7 +212,7 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
       for referenced trigger name must return NOT NULL pointer. Therefore
       it just added assert to check this invariant.
     */
-    DBUG_ASSERT(referenced_trg != nullptr);
+    assert(referenced_trg != nullptr);
     if (ordering_clause == TRG_ORDER_FOLLOWS)
       dd_trig_obj = new_table->add_trigger_following(
           referenced_trg, get_dd_action_timing(new_trigger),
@@ -253,7 +253,7 @@ static enum_trigger_event_type convert_event_type_from_dd(
     case dd::Trigger::enum_event_type::ET_DELETE:
       return TRG_EVENT_DELETE;
   };
-  DBUG_ASSERT(false);
+  assert(false);
   return TRG_EVENT_MAX;
 }
 
@@ -273,7 +273,7 @@ static enum_trigger_action_time_type convert_action_time_from_dd(
     case dd::Trigger::enum_action_timing::AT_AFTER:
       return TRG_ACTION_AFTER;
   }
-  DBUG_ASSERT(false);
+  assert(false);
   return TRG_ACTION_MAX;
 }
 

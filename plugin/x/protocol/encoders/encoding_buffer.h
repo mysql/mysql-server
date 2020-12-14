@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,12 @@
 #ifndef PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_BUFFER_H_
 #define PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_BUFFER_H_
 
+#include <assert.h>
 #include <cassert>
 #include <cstdint>
 #include <vector>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
+// NOLINT(build/include_subdir)
 
 #include "plugin/x/protocol/encoders/encoding_pool.h"
 #include "plugin/x/src/ngs/protocol/page_pool.h"
@@ -43,9 +44,9 @@ class Encoding_buffer final {
  public:
   explicit Encoding_buffer(Encoding_pool *local_pool)
       : m_local_pool(local_pool) {
-    DBUG_ASSERT(k_page_size ==
-                static_cast<uint32_t>(
-                    local_pool->get_pool()->get_config()->m_page_size));
+    assert(k_page_size ==
+           static_cast<uint32_t>(
+               local_pool->get_pool()->get_config()->m_page_size));
     m_front = m_current = m_local_pool->alloc_page();
   }
   ~Encoding_buffer() { remove_page_list(m_front); }
@@ -82,7 +83,7 @@ class Encoding_buffer final {
 
       // Page size limits the number of bytes that
       // user can acquire in single call
-      DBUG_ASSERT(m_current->is_at_least(size));
+      assert(m_current->is_at_least(size));
       return true;
     }
 

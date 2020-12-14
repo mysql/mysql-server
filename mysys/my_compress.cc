@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ uchar *zstd_compress_alloc(mysql_zstd_compress_context *comp_ctx,
 
 static bool zstd_uncompress(mysql_zstd_compress_context *comp_ctx,
                             uchar *packet, size_t len, size_t *complen) {
-  DBUG_ASSERT(comp_ctx != nullptr);
+  assert(comp_ctx != nullptr);
   size_t zstd_res;
   void *compbuf;
 
@@ -304,7 +304,7 @@ uchar *my_compress_alloc(mysql_compress_context *comp_ctx, const uchar *packet,
     return nullptr;
   }
 
-  DBUG_ASSERT(comp_ctx->algorithm == enum_compression_algorithm::MYSQL_ZLIB);
+  assert(comp_ctx->algorithm == enum_compression_algorithm::MYSQL_ZLIB);
   return zlib_compress_alloc(&comp_ctx->u.zlib_ctx, packet, len, complen);
 }
 
@@ -324,7 +324,7 @@ uchar *my_compress_alloc(mysql_compress_context *comp_ctx, const uchar *packet,
 bool my_uncompress(mysql_compress_context *comp_ctx, uchar *packet, size_t len,
                    size_t *complen) {
   DBUG_ENTER("my_uncompress");
-  DBUG_ASSERT(comp_ctx != nullptr);
+  assert(comp_ctx != nullptr);
 
   if (*complen) /* If compressed */
   {
@@ -356,7 +356,7 @@ unsigned int mysql_default_compression_level(
     case MYSQL_ZSTD:
       return 3;
     default:
-      DBUG_ASSERT(0);  // should not reach here.
-      return 0;        // To make compiler happy.
+      assert(0);  // should not reach here.
+      return 0;   // To make compiler happy.
   }
 }

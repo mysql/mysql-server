@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,git
@@ -50,8 +50,8 @@ int Plugin_stage_monitor_handler::terminate_stage_monitor() {
 
   SERVICE_TYPE(registry) *registry = nullptr;
   if (!(registry = get_plugin_registry())) {
-    DBUG_ASSERT(0); /* purecov: inspected */
-    return 1;       /* purecov: inspected */
+    assert(0); /* purecov: inspected */
+    return 1;  /* purecov: inspected */
   }
   registry->release(generic_service);
 
@@ -61,7 +61,7 @@ int Plugin_stage_monitor_handler::terminate_stage_monitor() {
 int Plugin_stage_monitor_handler::initialize_stage_monitor() {
   MUTEX_LOCK(lock, &stage_monitor_lock);
 
-  DBUG_ASSERT(!service_running);
+  assert(!service_running);
 
   SERVICE_TYPE(registry) *registry = nullptr;
   if (!(registry = get_plugin_registry())) {

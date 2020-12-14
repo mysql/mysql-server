@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ int mi_preload(MI_INFO *info, ulonglong key_map, bool ignore_leaves) {
     return 0;
 
   /* Preload into a non initialized key cache should never happen. */
-  DBUG_ASSERT(share->key_cache->key_cache_inited);
+  assert(share->key_cache->key_cache_inited);
 
   block_length = keyinfo[0].block_length;
 

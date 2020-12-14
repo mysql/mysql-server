@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,7 @@ int Handshake_client::write_packet(Blob &data) {
     */
     unsigned block_count = data.len() / 512 + ((data.len() % 512) ? 1 : 0);
 
-#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+#if !defined(NDEBUG) && defined(WINAUTH_USE_DBUG_LIB)
 
     /*
       For testing purposes, use wrong block count to see how server
@@ -165,7 +165,7 @@ int Handshake_client::write_packet(Blob &data) {
 
 #endif
 
-    DBUG_ASSERT(block_count < (unsigned)0x100);
+    assert(block_count < (unsigned)0x100);
     saved_byte = data[254];
     data[254] = block_count;
 
@@ -210,7 +210,7 @@ int Handshake_client::write_packet(Blob &data) {
 */
 
 Blob Handshake_client::process_data(const Blob &data) {
-#if !defined(DBUG_OFF) && defined(WINAUTH_USE_DBUG_LIB)
+#if !defined(NDEBUG) && defined(WINAUTH_USE_DBUG_LIB)
   /*
     Code for testing the logic for sending the first client payload.
 
@@ -437,7 +437,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   // Create connection object.
 
   Connection con(vio);
-  DBUG_ASSERT(!con.error());
+  assert(!con.error());
 
   // Read initial packet from server containing service name.
 
@@ -459,7 +459,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
     return CR_ERROR;
   }
 
-  DBUG_ASSERT(!hndshk.error());
+  assert(!hndshk.error());
 
   /*
     Read and process packets from server until handshake is complete.
@@ -469,7 +469,7 @@ int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   */
   if (hndshk.packet_processing_loop()) return CR_ERROR;
 
-  DBUG_ASSERT(!hndshk.error() && hndshk.is_complete());
+  assert(!hndshk.error() && hndshk.is_complete());
 
   return CR_OK;
 }

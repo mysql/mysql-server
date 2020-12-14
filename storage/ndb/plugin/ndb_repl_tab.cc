@@ -258,7 +258,7 @@ int Ndb_rep_tab_reader::scan_candidates(Ndb *ndb,
       /* Compare row to searchkey to get quality of match */
       int match_quality =
           Ndb_rep_tab_key::get_match_quality(&searchkey, &row.key);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       {
         row.null_terminate_strings();
 

@@ -25,10 +25,11 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SRV_SESSION_SERVICES_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SRV_SESSION_SERVICES_H_
 
+#include <assert.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_dbug.h"          // NOLINT(build/include_subdir)
+// NOLINT(build/include_subdir)
 #include "my_thread_local.h"  // NOLINT(build/include_subdir)
 #include "mysql/service_srv_session_bits.h"
 
@@ -46,7 +47,7 @@ namespace mock {
 class Srv_session {
  public:
   Srv_session() {
-    DBUG_ASSERT(nullptr == m_srv_session);
+    assert(nullptr == m_srv_session);
     m_srv_session = this;
   }
   ~Srv_session() { m_srv_session = nullptr; }
@@ -67,7 +68,7 @@ class Srv_session {
 class Srv_session_info {
  public:
   Srv_session_info() {
-    DBUG_ASSERT(nullptr == m_srv_session_info);
+    assert(nullptr == m_srv_session_info);
     m_srv_session_info = this;
   }
   ~Srv_session_info() { m_srv_session_info = nullptr; }

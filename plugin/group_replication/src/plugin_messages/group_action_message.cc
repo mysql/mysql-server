@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,14 +93,13 @@ void Group_action_message::decode_payload(const unsigned char *buffer,
     switch (payload_item_type) {
       case PIT_ACTION_PRIMARY_ELECTION_UUID:
         if (slider + payload_item_length <= end) {
-          DBUG_ASSERT(ACTION_PRIMARY_ELECTION_MESSAGE == group_action_type);
+          assert(ACTION_PRIMARY_ELECTION_MESSAGE == group_action_type);
           primary_election_uuid.assign(slider, slider + payload_item_length);
           slider += payload_item_length;
         }
         break;
       case PIT_ACTION_SET_COMMUNICATION_PROTOCOL_VERSION:
-        DBUG_ASSERT(ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE ==
-                    group_action_type);
+        assert(ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE == group_action_type);
         if (slider + payload_item_length <= end) {
           gcs_protocol = static_cast<Gcs_protocol_version>(uint2korr(slider));
           slider += payload_item_length;
@@ -153,12 +152,12 @@ Group_action_message::get_action_type(const uchar *buffer) {
 }
 
 const std::string &Group_action_message::get_primary_to_elect_uuid() {
-  DBUG_ASSERT(ACTION_PRIMARY_ELECTION_MESSAGE == group_action_type);
+  assert(ACTION_PRIMARY_ELECTION_MESSAGE == group_action_type);
   return primary_election_uuid;
 }
 
 const Gcs_protocol_version &Group_action_message::get_gcs_protocol() {
-  DBUG_ASSERT(ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE == group_action_type &&
-              gcs_protocol != Gcs_protocol_version::UNKNOWN);
+  assert(ACTION_SET_COMMUNICATION_PROTOCOL_MESSAGE == group_action_type &&
+         gcs_protocol != Gcs_protocol_version::UNKNOWN);
   return gcs_protocol;
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -225,7 +225,7 @@ int table_replication_asynchronous_connection_failover::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   DBUG_TRACE;
   PFS_index_rpl_async_conn_failover *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_async_conn_failover);
   m_opened_index = result;
   m_index = result;
@@ -298,7 +298,7 @@ int table_replication_asynchronous_connection_failover::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   DBUG_TRACE;
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (Field *f = nullptr; (f = *fields); fields++) {
@@ -324,7 +324,7 @@ int table_replication_asynchronous_connection_failover::read_row_values(
           set_field_char_utf8(f, m_row.managed_name, m_row.managed_name_length);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

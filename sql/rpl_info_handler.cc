@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
 
 #include "sql/rpl_info_handler.h"
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/rpl_info_values.h"  // Rpl_info_values
 
 bool operator!(Rpl_info_handler::enum_field_get_status status) {
@@ -72,7 +73,7 @@ const char *Rpl_info_handler::get_rpl_info_type_str() {
       return "TABLE";
   }
 
-  DBUG_ASSERT(0);
+  assert(0);
   return "";
 }
 

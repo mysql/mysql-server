@@ -23,13 +23,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>
 #include <vector>
 
 #include "field_types.h"  // MYSQL_TYPE_BLOB
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -863,7 +864,7 @@ class Item_func_spatial_decomp : public Item_geometry_func {
       case SP_EXTERIORRING:
         return "st_exteriorring";
       default:
-        DBUG_ASSERT(0);  // Should never happened
+        assert(0);  // Should never happened
         return "spatial_decomp_unknown";
     }
   }
@@ -893,7 +894,7 @@ class Item_func_spatial_decomp_n : public Item_geometry_func {
       case SP_INTERIORRINGN:
         return "st_interiorringn";
       default:
-        DBUG_ASSERT(0);  // Should never happened
+        assert(0);  // Should never happened
         return "spatial_decomp_n_unknown";
     }
   }

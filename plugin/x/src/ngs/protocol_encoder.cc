@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -316,7 +316,7 @@ static std::string get_name(const xpl::iface::Frame_type type) {
       return "session_variable_changed";
 
     default:
-      DBUG_ASSERT(0 && "This shouldn't happen.");
+      assert(0 && "This shouldn't happen.");
       return "unknown";
   }
 }

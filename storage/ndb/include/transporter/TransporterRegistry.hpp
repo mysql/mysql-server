@@ -414,7 +414,7 @@ public:
    * correct.
    */
   Uint64 get_total_max_send_buffer() {
-    DBUG_ASSERT(m_total_max_send_buffer > 0);
+    assert(m_total_max_send_buffer > 0);
     return m_total_max_send_buffer;
   } 
 

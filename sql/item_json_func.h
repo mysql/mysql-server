@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>
@@ -31,7 +32,7 @@
 #include <utility>  // std::forward
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
@@ -1030,27 +1031,27 @@ class Item_func_array_cast final : public Item_func {
   // Regular val_x() funcs shouldn't be called
   /* purecov: begin inspected */
   longlong val_int() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return 0;
   }
   String *val_str(String *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   double val_real() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return 0;
   }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   /* purecov: end */

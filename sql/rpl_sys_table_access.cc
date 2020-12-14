@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ void Rpl_sys_table_access::before_open(THD *) {
 }
 
 bool Rpl_sys_table_access::open(enum thr_lock_type lock_type) {
-  DBUG_ASSERT(nullptr == m_thd);
+  assert(nullptr == m_thd);
   m_current_thd = current_thd;
   m_thd = create_thd();
   if (m_thd == nullptr) {

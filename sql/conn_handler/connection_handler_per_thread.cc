@@ -119,7 +119,7 @@ void Per_thread_connection_handler::init() {
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache);
   waiting_channel_info_list = new (std::nothrow) std::list<Channel_info *>;
-  DBUG_ASSERT(waiting_channel_info_list != nullptr);
+  assert(waiting_channel_info_list != nullptr);
 }
 
 void Per_thread_connection_handler::destroy() {
@@ -153,7 +153,7 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
       before picking another session in the thread cache.
     */
     DBUG_POP();
-    DBUG_ASSERT(!_db_is_pushed_());
+    assert(!_db_is_pushed_());
 
     // Block pthread
     blocked_pthread_count++;
@@ -172,7 +172,7 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
         waiting_channel_info_list->pop_front();
         DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
       } else {
-        DBUG_ASSERT(0);  // We should not get here.
+        assert(0);  // We should not get here.
       }
     }
   }
@@ -409,9 +409,9 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
   error =
       mysql_thread_create(key_thread_one_connection, &id, &connection_attrib,
                           handle_connection, (void *)channel_info);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 handle_error:
-#endif  // !DBUG_OFF
+#endif  // !NDEBUG
 
   if (error) {
     connection_errors_internal++;

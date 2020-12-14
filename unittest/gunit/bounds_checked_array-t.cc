@@ -66,7 +66,7 @@ TEST_F(BoundsCheckedArray, Empty) {
   EXPECT_EQ(pi, int_array.array());
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef BoundsCheckedArray BoundsCheckedArrayDeathTest;
@@ -109,7 +109,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResizeAssign) {
                             ".*Assertion .*n < m_size.*");
 }
 
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
 TEST_F(BoundsCheckedArray, Indexing) {
   int_array = Int_array(c_array, c_array_size);

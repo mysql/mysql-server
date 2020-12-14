@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,7 @@ bool retrieve_foreign_key_list_from_ndb(NdbDictionary::Dictionary *dict,
     NdbDictionary::ForeignKey fk;
     if (dict->getForeignKey(fk, element.name) != 0) {
       // Could not find the listed fk
-      DBUG_ASSERT(false);
+      assert(false);
       DBUG_PRINT("error",
                  ("Failed to retrieve the foreign key '%s'", element.name));
       return false;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,22 +158,22 @@ Async_conn_failover_manager::do_auto_conn_failover(Master_info *mi,
     mi->reset_failover_list_position();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (mi->get_failover_list_position() == 0) {
     DBUG_EXECUTE_IF("async_conn_failover_wait_new_sender", {
       const char act[] =
           "now SIGNAL wait_for_new_sender_selection "
           "WAIT_FOR continue_connect_new_sender";
-      DBUG_ASSERT(source_conn_detail_list.size() == 3UL);
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(source_conn_detail_list.size() == 3UL);
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
     DBUG_EXECUTE_IF("async_conn_failover_wait_new_4sender", {
       const char act[] =
           "now SIGNAL wait_for_new_4sender_selection "
           "WAIT_FOR continue_connect_new_4sender";
-      DBUG_ASSERT(source_conn_detail_list.size() == 4UL);
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(source_conn_detail_list.size() == 4UL);
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
   }
 #endif
@@ -228,10 +228,10 @@ bool Async_conn_failover_manager::set_channel_conn_details(
   */
   lock_slave_threads(mi);
 
-  DBUG_ASSERT(!host.empty());
+  assert(!host.empty());
   strmake(mi->host, host.c_str(), sizeof(mi->host) - 1);
 
-  DBUG_ASSERT(port);
+  assert(port);
   mi->port = port;
 
   if (!network_namespace.empty())

@@ -23,6 +23,7 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
+#include <assert.h>
 #include <mysql/components/services/pfs_plugin_table_service.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -31,7 +32,7 @@
 
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -121,7 +122,7 @@ class PFS_engine_table {
 
   virtual int index_init(uint idx MY_ATTRIBUTE((unused)),
                          bool sorted MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_UNSUPPORTED;
   }
 

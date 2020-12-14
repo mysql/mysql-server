@@ -502,10 +502,11 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/item.h"
@@ -657,7 +658,7 @@ class Group_check : public Item_tree_walker {
         whole_tables_fd(0),
         recheck_nullable_keys(0),
         mat_tables(root) {
-    DBUG_ASSERT(table);
+    assert(table);
   }
   bool check_expression(THD *thd, Item *expr, bool in_select_list);
   /// Shortcut for common use of Item::local_column()

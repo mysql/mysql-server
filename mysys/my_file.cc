@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ uint SetOsLimitMaxOpenFiles(uint max_file_limit) {
     return existing.rlim_cur; /* Use original value */
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Read back new value to check "what we got". Seems overly
   // pessimistic to assume that a successful setrlimit did not
   // actually set the requested values.
@@ -113,13 +113,13 @@ uint SetOsLimitMaxOpenFiles(uint max_file_limit) {
                 strerror(errno), errno));
     return max_file_limit;
   }
-  DBUG_ASSERT(readback.rlim_cur == request.rlim_cur &&
-              readback.rlim_max == readback.rlim_max);
-#endif /* DBUG_OFF */
+  assert(readback.rlim_cur == request.rlim_cur &&
+         readback.rlim_max == readback.rlim_max);
+#endif /* NDEBUG */
   return request.rlim_cur;
 #else  /* not defined(_WIN32) */
   // We don't know the limit.
-  DBUG_ASSERT(max_file_limit <= OS_FILE_LIMIT);
+  assert(max_file_limit <= OS_FILE_LIMIT);
   return max_file_limit;
 #endif /* not defined _WIN32 */
 }
@@ -189,7 +189,7 @@ namespace file_info {
    @param type_of_file tag indicating how the fd was created
  */
 void RegisterFilename(File fd, const char *file_name, OpenType type_of_file) {
-  DBUG_ASSERT(fd > -1);
+  assert(fd > -1);
   FileInfoVector &fiv = *fivp;
   MUTEX_LOCK(g, &THR_LOCK_open);
   if (static_cast<size_t>(fd) >= fiv.size()) {

@@ -29,7 +29,7 @@
 #include <functional>  // std::function
 
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "my_io.h"
 #include "my_sqlcommand.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -71,7 +71,7 @@ class Alter_drop {
 
   Alter_drop(drop_type par_type, const char *par_name)
       : name(par_name), type(par_type) {
-    DBUG_ASSERT(par_name != nullptr);
+    assert(par_name != nullptr);
   }
 };
 
@@ -192,7 +192,7 @@ class Alter_constraint_enforcement {
   Alter_constraint_enforcement(Type par_type, const char *par_name,
                                bool par_is_enforced)
       : name(par_name), type(par_type), is_enforced(par_is_enforced) {
-    DBUG_ASSERT(par_name != nullptr);
+    assert(par_name != nullptr);
   }
 };
 
@@ -538,7 +538,7 @@ class Alter_table_ctx {
      @return path to the original table.
   */
   const char *get_path() const {
-    DBUG_ASSERT(!tmp_table);
+    assert(!tmp_table);
     return path;
   }
 
@@ -587,7 +587,7 @@ class Alter_table_ctx {
   char new_path[FN_REFLEN + 1];
   char tmp_path[FN_REFLEN + 1];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Indicates that we are altering temporary table. Used only in asserts. */
   bool tmp_table;
 #endif

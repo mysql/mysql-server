@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,11 @@
 
 #include "storage/perfschema/table_replication_applier_filters.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
@@ -185,7 +186,7 @@ int table_replication_applier_filters::read_row_values(TABLE *table,
   }
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -212,7 +213,7 @@ int table_replication_applier_filters::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row.counter);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

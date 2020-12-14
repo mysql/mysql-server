@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ cs::apply::Commit_order_queue::Node::reset_commit_sequence_nr() {
       return ticket_nr;
     std::this_thread::yield();
   }
-  DBUG_ASSERT(false);
+  assert(false);
   return NO_SEQUENCE_NR;
 }
 
@@ -130,7 +130,7 @@ cs::apply::Commit_order_queue::Commit_order_queue(size_t n_workers)
 cs::apply::Commit_order_queue::Node &cs::apply::Commit_order_queue::operator[](
     value_type id) {
   auto idx = static_cast<size_t>(id);
-  DBUG_ASSERT(idx < this->m_workers.size());
+  assert(idx < this->m_workers.size());
   return this->m_workers[idx];
 }
 
@@ -164,14 +164,12 @@ void cs::apply::Commit_order_queue::push(value_type index) {
   lock::Shared_spin_lock::Guard push_sentry{
       this->m_push_pop_lock,
       lock::Shared_spin_lock::enum_lock_acquisition::SL_SHARED};
-  DBUG_ASSERT(this->m_workers[index].m_commit_sequence_nr ==
-              Node::NO_SEQUENCE_NR);
+  assert(this->m_workers[index].m_commit_sequence_nr == Node::NO_SEQUENCE_NR);
   this->m_workers[index].m_commit_sequence_nr->store(
       this->m_commit_sequence_generator->fetch_add(1));
   this->m_commit_queue << index;
-  DBUG_ASSERT(
-      this->m_commit_queue.get_state() !=
-      Commit_order_queue::queue_type::enum_queue_state::NO_SPACE_AVAILABLE);
+  assert(this->m_commit_queue.get_state() !=
+         Commit_order_queue::queue_type::enum_queue_state::NO_SPACE_AVAILABLE);
   this->m_commit_queue.clear_state();
 }
 

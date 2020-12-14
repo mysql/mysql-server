@@ -195,7 +195,7 @@ bool Sql_cmd_handler_open::execute(THD *thd) {
     right from the start as open_tables() can't handle properly
     back-off for such locks.
   */
-  DBUG_ASSERT(tables->table == nullptr);
+  assert(tables->table == nullptr);
   new (hash_tables) TABLE_LIST(db, tables->db_length, name,
                                tables->table_name_length, alias, MDL_SHARED);
 
@@ -240,7 +240,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
 
   DBUG_TRACE;
 
-  DBUG_ASSERT(!thd->locked_tables_mode);
+  assert(!thd->locked_tables_mode);
 
   /*
     Save and reset the open_tables list so that open_tables() won't
@@ -258,7 +258,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
     'hash_tables->table' must be NULL, unless there is pre-opened
     temporary table. open_tables() will set it if successful.
   */
-  DBUG_ASSERT(!hash_tables->table || is_temporary_table(hash_tables));
+  assert(!hash_tables->table || is_temporary_table(hash_tables));
 
   error = open_tables(thd, &hash_tables, &counter, 0);
 
@@ -280,7 +280,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
       If called for re-open, no need to rollback either,
       it will be done at statement end.
     */
-    DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
+    assert(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
     close_thread_tables(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     thd->set_open_tables(backup_open_tables);
@@ -303,8 +303,8 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *hash_tables) {
     was opened for HANDLER as it is used to link them together
     (see thd->temporary_tables).
   */
-  DBUG_ASSERT(hash_tables->table->next == nullptr ||
-              hash_tables->table->s->tmp_table);
+  assert(hash_tables->table->next == nullptr ||
+         hash_tables->table->s->tmp_table);
   /*
     If it's a temp table, don't reset table->query_id as the table is
     being used by this handler. For non-temp tables we use this flag
@@ -497,7 +497,7 @@ retry:
         This is implicit and obscure, since HANDLER position is lost in the
         process, but it's the legacy server behaviour we should preserve.
       */
-      DBUG_ASSERT(error && !thd->is_error());
+      assert(error && !thd->is_error());
       mysql_ha_close_table(thd, hash_tables);
       goto retry;
     }
@@ -508,8 +508,8 @@ retry:
   /* save open_tables state */
   backup_open_tables = thd->open_tables;
   /* Always a one-element list, see mysql_ha_open(). */
-  DBUG_ASSERT(hash_tables->table->next == nullptr ||
-              hash_tables->table->s->tmp_table);
+  assert(hash_tables->table->next == nullptr ||
+         hash_tables->table->s->tmp_table);
   /*
     mysql_lock_tables() needs thd->open_tables to be set correctly to
     be able to handle aborts properly.
@@ -517,7 +517,7 @@ retry:
   thd->set_open_tables(hash_tables->table);
 
   /* Re-use Sql_handler_lock_error instance which was initialized earlier. */
-  DBUG_ASSERT(!sql_handler_lock_error.need_reopen());
+  assert(!sql_handler_lock_error.need_reopen());
   thd->push_internal_handler(&sql_handler_lock_error);
 
   lock = mysql_lock_tables(thd, &thd->open_tables, 1, 0);
@@ -528,19 +528,19 @@ retry:
     object with another one (reopen it). This is no longer the case
     with new MDL.
   */
-  DBUG_ASSERT(hash_tables->table == thd->open_tables);
+  assert(hash_tables->table == thd->open_tables);
   /* Restore previous context. */
   thd->set_open_tables(backup_open_tables);
 
   if (sql_handler_lock_error.need_reopen()) {
-    DBUG_ASSERT(!lock && !thd->is_error());
+    assert(!lock && !thd->is_error());
     /*
       Always close statement transaction explicitly,
       so that the engine doesn't have to count locks.
       There should be no need to perform transaction
       rollback due to deadlock.
     */
-    DBUG_ASSERT(!thd->transaction_rollback_request);
+    assert(!thd->transaction_rollback_request);
     trans_rollback_stmt(thd);
     thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
     mysql_ha_close_table(thd, hash_tables);
@@ -622,7 +622,7 @@ retry:
         if (m_key_name) {
           if (table->file->inited == handler::INDEX) {
             /* Check if we read from the same index. */
-            DBUG_ASSERT((uint)keyno == table->file->get_index());
+            assert((uint)keyno == table->file->get_index());
             error = table->file->ha_index_next(table->record[0]);
             break;
           }
@@ -649,9 +649,9 @@ retry:
         mode = enum_ha_read_modes::RNEXT;
         break;
       case enum_ha_read_modes::RPREV:
-        DBUG_ASSERT(m_key_name != nullptr);
+        assert(m_key_name != nullptr);
         /* Check if we read from the same index. */
-        DBUG_ASSERT((uint)keyno == table->file->get_index());
+        assert((uint)keyno == table->file->get_index());
         if (table->file->inited == handler::INDEX) {
           error = table->file->ha_index_prev(table->record[0]);
           break;
@@ -659,7 +659,7 @@ retry:
         /* else fall through, for more info, see comment before 'case RFIRST'.
          */
       case enum_ha_read_modes::RLAST:
-        DBUG_ASSERT(m_key_name != nullptr);
+        assert(m_key_name != nullptr);
         if (!(error = table->file->ha_index_or_rnd_end()) &&
             !(error = table->file->ha_index_init(keyno, true)))
           error = table->file->ha_index_last(table->record[0]);
@@ -667,11 +667,11 @@ retry:
         break;
       case enum_ha_read_modes::RNEXT_SAME:
         /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
-        DBUG_ASSERT(table->file->inited == handler::INDEX);
+        assert(table->file->inited == handler::INDEX);
         error = table->file->ha_index_next_same(table->record[0], key, key_len);
         break;
       case enum_ha_read_modes::RKEY: {
-        DBUG_ASSERT(m_key_name != nullptr);
+        assert(m_key_name != nullptr);
         KEY *keyinfo = table->key_info + keyno;
         KEY_PART_INFO *key_part = keyinfo->key_part;
         if (m_key_expr->size() > keyinfo->user_defined_key_parts) {
@@ -835,7 +835,7 @@ void mysql_ha_rm_tables(THD *thd, TABLE_LIST *tables) {
   TABLE_LIST *hash_tables, *next;
   DBUG_TRACE;
 
-  DBUG_ASSERT(tables);
+  assert(tables);
 
   hash_tables = mysql_ha_find(thd, tables);
 

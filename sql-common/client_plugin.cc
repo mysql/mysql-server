@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,8 +150,8 @@ static int is_not_initialized(MYSQL *mysql, const char *name) {
 static struct st_mysql_client_plugin *find_plugin(const char *name, int type) {
   struct st_client_plugin_int *p;
 
-  DBUG_ASSERT(initialized);
-  DBUG_ASSERT(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
+  assert(initialized);
+  assert(type >= 0 && type < MYSQL_CLIENT_MAX_PLUGINS);
   if (type < 0 || type >= MYSQL_CLIENT_MAX_PLUGINS) return nullptr;
 
   for (p = plugin_list[type]; p; p = p->next) {
@@ -179,7 +179,7 @@ static struct st_mysql_client_plugin *do_add_plugin(
   struct st_client_plugin_int plugin_int, *p;
   char errbuf[1024];
 
-  DBUG_ASSERT(initialized);
+  assert(initialized);
 
   plugin_int.plugin = plugin;
   plugin_int.dlhandle = dlhandle;

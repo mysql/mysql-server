@@ -662,10 +662,9 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
-  DBUG_ASSERT(
-      table->file->has_transactions() ||
-      !(info.stats.copied || info.stats.deleted) ||
-      thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+  assert(table->file->has_transactions() ||
+         !(info.stats.copied || info.stats.deleted) ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   return error;
 }
@@ -790,7 +789,7 @@ bool Sql_cmd_load_table::read_fixed_length(THD *thd, COPY_INFO &info,
         There is no variables in fields_vars list in this format so
         this conversion is safe (no need to check for STRING_ITEM).
       */
-      DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+      assert(item->real_item()->type() == Item::FIELD_ITEM);
       Item_field *sql_field = static_cast<Item_field *>(item->real_item());
       Field *field = sql_field->field;
       if (field == table->next_number_field)
@@ -983,8 +982,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
             field->set_null();
           }
         } else if (item->type() == Item::STRING_ITEM) {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)
               ->set_null_value(read_info.read_charset);
         }
@@ -1000,8 +998,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
           table->autoinc_field_has_explicit_non_null_value = true;
         field->store((char *)pos, length, read_info.read_charset);
       } else if (item->type() == Item::STRING_ITEM) {
-        DBUG_ASSERT(nullptr !=
-                    dynamic_cast<Item_user_var_as_out_param *>(item));
+        assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
         ((Item_user_var_as_out_param *)item)
             ->set_value((char *)pos, length, read_info.read_charset);
       }
@@ -1047,8 +1044,7 @@ bool Sql_cmd_load_table::read_sep_field(THD *thd, COPY_INFO &info,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         } else if (item->type() == Item::STRING_ITEM) {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)
               ->set_null_value(read_info.read_charset);
         }
@@ -1150,7 +1146,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
     xmlit.rewind();
     XML_TAG *tag = nullptr;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PRINT("read_xml_field", ("skip_lines=%d", (int)skip_lines));
     while ((tag = xmlit++)) {
       DBUG_PRINT("read_xml_field", ("got tag:%i '%s' '%s'", tag->level,
@@ -1206,8 +1202,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
         } else {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
         }
         continue;
@@ -1220,8 +1215,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
           table->autoinc_field_has_explicit_non_null_value = true;
         field->store(tag->value.ptr(), tag->value.length(), cs);
       } else {
-        DBUG_ASSERT(nullptr !=
-                    dynamic_cast<Item_user_var_as_out_param *>(item));
+        assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
         ((Item_user_var_as_out_param *)item)
             ->set_value(tag->value.ptr(), tag->value.length(), cs);
       }
@@ -1252,8 +1246,7 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
                               ER_THD(thd, ER_WARN_TOO_FEW_RECORDS),
                               thd->get_stmt_da()->current_row_for_condition());
         } else {
-          DBUG_ASSERT(nullptr !=
-                      dynamic_cast<Item_user_var_as_out_param *>(item));
+          assert(nullptr != dynamic_cast<Item_user_var_as_out_param *>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
         }
       }
@@ -1425,7 +1418,7 @@ READ_INFO::~READ_INFO() {
       if (chr1 != my_b_EOF) {                           \
         len = my_mbcharlen_2((cs), (chr), chr1);        \
         /* Character is gb18030 or invalid (len = 0) */ \
-        DBUG_ASSERT(len == 0 || len == 2 || len == 4);  \
+        assert(len == 0 || len == 2 || len == 4);       \
       }                                                 \
       if (len != 0) PUSH(chr1);                         \
     }                                                   \
@@ -1898,7 +1891,7 @@ int READ_INFO::read_cdata(String *val, bool *have_cdata) {
     /* Check for CDATA tail "]]>" */
     if (tail[0] == ']' && tail[1] == ']' && tail[2] == '>') {
       /* Cut last two characters ("]]") which were appended to val. */
-      DBUG_ASSERT(val->length() >= 2);
+      assert(val->length() >= 2);
       val->length(val->length() - 2);
 
       *have_cdata = true;
@@ -1912,7 +1905,7 @@ int READ_INFO::read_cdata(String *val, bool *have_cdata) {
   }
 
   /* Didn't find CDATA tail "]]>", the last character read must be my_b_EOF. */
-  DBUG_ASSERT(tail[2] == my_b_EOF);
+  assert(tail[2] == my_b_EOF);
   *have_cdata = false;
   return my_b_EOF;
 }

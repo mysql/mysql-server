@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ Debug_options::Debug_options(Abstract_program *program) : m_program(program) {
 }
 
 void Debug_options::create_options() {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   this->create_new_disabled_option(
           "debug", "This is a non-debug version. Catch this and exit.")
       ->set_short_character('#');

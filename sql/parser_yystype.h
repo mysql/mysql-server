@@ -23,12 +23,13 @@
 #ifndef PARSER_YYSTYPE_INCLUDED
 #define PARSER_YYSTYPE_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
 
 #include "field_types.h"
 #include "lex_string.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_time.h"      // interval_type
 #include "mysql_time.h"
@@ -291,7 +292,7 @@ class Enum_parser {
   ///
   /// @note The wrapped value must be assigned.
   Enum get() const {
-    DBUG_ASSERT(is_set());
+    assert(is_set());
     return m_enum;
   }
 

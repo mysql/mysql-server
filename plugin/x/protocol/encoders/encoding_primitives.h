@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,10 @@
 #ifndef PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_PRIMITIVES_H_
 #define PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_PRIMITIVES_H_
 
+#include <assert.h>
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
-
-#include "my_dbug.h"
 
 #include "plugin/x/protocol/encoders/encoding_buffer.h"
 #include "plugin/x/protocol/encoders/encoding_primitives_base.h"
@@ -64,21 +63,21 @@ class Primitives_encoder {
   }
 
   void encode_fixedvar32_uint32(const uint32_t value) {
-    DBUG_ASSERT(value < (1 << (4 * 7)));
+    assert(value < (1 << (4 * 7)));
 
     using Varint_length_value_length = primitives::base::Varint_length<4>;
     Varint_length_value_length::encode(m_page->m_current_data, value);
   }
 
   void encode_fixedvar16_uint32(const uint32_t value) {
-    DBUG_ASSERT(value < (1 << (2 * 7)));
+    assert(value < (1 << (2 * 7)));
 
     using Varint_length_value_length = primitives::base::Varint_length<2>;
     Varint_length_value_length::encode(m_page->m_current_data, value);
   }
 
   void encode_fixedvar8_uint8(const uint8_t value) {
-    DBUG_ASSERT(value < (1 << (7)));
+    assert(value < (1 << (7)));
 
     using Varint_length_value_length = primitives::base::Varint_length<1>;
     Varint_length_value_length::encode(m_page->m_current_data, value);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,7 +147,7 @@ int validate_local_params(THD *thd) {
 
   if (is_exception || val <= 0) {
     /* purecov: begin deadcode */
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Error extracting integer value for"
              "'max_allowed_packet' configuration");
@@ -382,7 +382,7 @@ static int plugin_clone_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
   mysql_statement_register(clone_plugin_name, clone_stmts, count);
 
   /* Set the statement key values */
-  DBUG_ASSERT(count >= 3);
+  assert(count >= 3);
   clone_stmt_local_key = clone_stmts[0].m_key;
   clone_stmt_client_key = clone_stmts[1].m_key;
   clone_stmt_server_key = clone_stmts[2].m_key;
@@ -432,7 +432,7 @@ static int plugin_clone_local(THD *thd, const char *data_dir) {
   myclone::Server server(thd, MYSQL_INVALID_SOCKET);
 
   /* Update session and statement PFS keys */
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
   mysql_service_clone_protocol->mysql_clone_start_statement(
       thd, PSI_NOT_INSTRUMENTED, clone_stmt_local_key);
 
@@ -466,7 +466,7 @@ static int plugin_clone_remote_client(THD *thd, const char *remote_host,
                                      remote_passwd, data_dir, ssl_mode);
 
   /* Update session and statement PFS keys */
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
 
   mysql_service_clone_protocol->mysql_clone_start_statement(
       thd, PSI_NOT_INSTRUMENTED, clone_stmt_client_key);

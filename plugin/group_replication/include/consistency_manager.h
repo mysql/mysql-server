@@ -34,7 +34,6 @@
 #include <map>
 #include <utility>
 
-#include "my_dbug.h"
 #include "plugin/group_replication/include/hold_transactions.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/pipeline_interfaces.h"

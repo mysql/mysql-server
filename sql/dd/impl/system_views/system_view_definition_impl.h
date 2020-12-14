@@ -83,9 +83,8 @@ class System_view_select_definition_impl : public System_view_definition_impl {
                          const String_type &field_definition,
                          bool add_quotes = false) {
     // Make sure the field_number and field_name are not added twise.
-    DBUG_ASSERT(m_field_numbers.find(field_name) == m_field_numbers.end() &&
-                m_field_definitions.find(field_number) ==
-                    m_field_definitions.end());
+    assert(m_field_numbers.find(field_name) == m_field_numbers.end() &&
+           m_field_definitions.find(field_number) == m_field_definitions.end());
 
     // Store the field number.
     m_field_numbers[field_name] = field_number;
@@ -96,7 +95,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
       ss << " * ";
     } else {
       if (add_quotes) {
-        DBUG_ASSERT(field_definition.find('\'') == String_type::npos);
+        assert(field_definition.find('\'') == String_type::npos);
         ss << '\'' << field_definition << '\'';
       } else
         ss << field_definition;
@@ -155,7 +154,7 @@ class System_view_select_definition_impl : public System_view_definition_impl {
     @return Integer representing position of column in projection list.
   */
   virtual int field_number(const String_type &field_name) const {
-    DBUG_ASSERT(m_field_numbers.find(field_name) != m_field_numbers.end());
+    assert(m_field_numbers.find(field_name) != m_field_numbers.end());
     return m_field_numbers.find(field_name)->second;
   }
 
@@ -252,7 +251,7 @@ class System_view_union_definition_impl : public System_view_definition_impl {
     Stringstream_type ss;
     bool first_query_block = true;
     // Union definition must have minimum two SELECTs.
-    DBUG_ASSERT(m_selects.size() >= 2);
+    assert(m_selects.size() >= 2);
 
     for (auto &select : m_selects) {
       if (first_query_block) {

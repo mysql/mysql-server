@@ -1879,7 +1879,7 @@ dberr_t srv_start(bool create_new_db) {
   size_t dirnamelen;
   unsigned i = 0;
 
-  DBUG_ASSERT(srv_dict_metadata == nullptr);
+  assert(srv_dict_metadata == nullptr);
   /* Reset the start state. */
   srv_start_state = SRV_START_STATE_NONE;
 

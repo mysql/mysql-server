@@ -95,8 +95,8 @@ NDB_SHARE *NDB_SHARE::create(const char *key) {
 
   share->op = 0;
 
-#ifndef DBUG_OFF
-  DBUG_ASSERT(share->m_use_count == 0);
+#ifndef NDEBUG
+  assert(share->m_use_count == 0);
   share->refs = new Ndb_share_references();
 #endif
 
@@ -114,9 +114,9 @@ void NDB_SHARE::destroy(NDB_SHARE *share) {
 
   teardown_conflict_fn(g_ndb, share->m_cfn_share);
 
-#ifndef DBUG_OFF
-  DBUG_ASSERT(share->m_use_count == 0);
-  DBUG_ASSERT(share->refs->check_empty());
+#ifndef NDEBUG
+  assert(share->m_use_count == 0);
+  assert(share->refs->check_empty());
   delete share->refs;
 #endif
 
@@ -365,9 +365,9 @@ NDB_SHARE *NDB_SHARE::acquire_reference_on_existing(NDB_SHARE *share,
   mysql_mutex_lock(&shares_mutex);
 
   // Should already be referenced
-  DBUG_ASSERT(share->use_count() > 0);
+  assert(share->use_count() > 0);
   // Number of references should match use_count
-  DBUG_ASSERT(share->use_count() == share->refs->size());
+  assert(share->use_count() == share->refs->size());
 
   share->increment_use_count();
   share->refs_insert(reference);
@@ -414,7 +414,7 @@ void NDB_SHARE::release_reference(NDB_SHARE *share, const char *reference) {
   mysql_mutex_unlock(&shares_mutex);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 bool NDB_SHARE::Ndb_share_references::check_empty() const {
   if (size() == 0) {
@@ -476,13 +476,13 @@ void NDB_SHARE::debug_print(std::string &out,
      << "  state: " << share_state_string() << ", " << line_separator
      << "  op: " << op << ", " << line_separator;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   std::string refs_string;
   refs->debug_print(refs_string, line_separator);
   ss << refs_string.c_str();
 
   // There should be as many refs as the use_count says
-  DBUG_ASSERT(use_count() == refs->size());
+  assert(use_count() == refs->size());
 #endif
 
   ss << "}";
@@ -551,10 +551,10 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
   ndb_shares->emplace(NDB_SHARE::key_get_key(new_key), share);
 
   // Make sure that NDB_SHARE with old key does not exist
-  DBUG_ASSERT(find_or_nullptr(*ndb_shares, NDB_SHARE::key_get_key(old_key)) ==
-              nullptr);
+  assert(find_or_nullptr(*ndb_shares, NDB_SHARE::key_get_key(old_key)) ==
+         nullptr);
   // Make sure that NDB_SHARE with new key does exist
-  DBUG_ASSERT(find_or_nullptr(*ndb_shares, NDB_SHARE::key_get_key(new_key)));
+  assert(find_or_nullptr(*ndb_shares, NDB_SHARE::key_get_key(new_key)));
 
   DBUG_PRINT("info", ("setting db and table_name to point at new key"));
   share->db = NDB_SHARE::key_get_db_name(share->key);
@@ -636,7 +636,7 @@ void NDB_SHARE::deinitialize() {
 
    public:
     Debug_require(bool val) : m_required_val(val) {}
-    ~Debug_require() { DBUG_ASSERT(m_required_val); }
+    ~Debug_require() { assert(m_required_val); }
   } shares_remaining(ndb_shares->empty() && dropped_shares.empty());
 
   // Drop remaining open shares, drop one NDB_SHARE after the other
@@ -674,8 +674,8 @@ void NDB_SHARE::release_extra_share_references() {
       The share kept by the server has not been freed, free it
       Will also take it out of _open_tables list
     */
-    DBUG_ASSERT(share->use_count() > 0);
-    DBUG_ASSERT(share->state != NSS_DROPPED);
+    assert(share->use_count() > 0);
+    assert(share->state != NSS_DROPPED);
     NDB_SHARE::mark_share_dropped_impl(&share);
   }
   mysql_mutex_unlock(&shares_mutex);
@@ -711,7 +711,7 @@ void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   // The NDB_SHARE should not have any event operations, those
   // should have been removed already _before_ marking the NDB_SHARE
   // as dropped.
-  DBUG_ASSERT(share->op == nullptr);
+  assert(share->op == nullptr);
 
   if (share->state == NSS_DROPPED) {
     // The NDB_SHARE was already marked as dropped
@@ -743,7 +743,7 @@ void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   // to keep track of it until all references has been released
   dropped_shares.emplace(share);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   std::string s;
   share->debug_print(s, "\n");
   std::cerr << "dropped_share: " << s << std::endl;
@@ -772,7 +772,7 @@ void NDB_SHARE::mark_share_dropped_and_release(NDB_SHARE *share,
   mysql_mutex_unlock(&shares_mutex);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void NDB_SHARE::dbg_check_shares_update() {
   ndb_log_info("dbug_check_shares open:");
   for (const auto &key_and_value : *ndb_shares) {

@@ -22,6 +22,7 @@
 
 #include "sql/bka_iterator.h"
 
+#include <assert.h>
 #include <math.h>
 #include <string.h>
 #include <sys/types.h>
@@ -34,7 +35,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -87,8 +88,8 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
           mrr_bytes_needed_for_single_inner_row),
       m_mrr_iterator(mrr_iterator),
       m_join_type(join_type) {
-  DBUG_ASSERT(m_outer_input != nullptr);
-  DBUG_ASSERT(m_inner_input != nullptr);
+  assert(m_outer_input != nullptr);
+  assert(m_inner_input != nullptr);
 
   m_mrr_bytes_needed_per_row =
       lrint(mrr_bytes_needed_for_single_inner_row *
@@ -188,7 +189,7 @@ int BKAIterator::ReadOuterRows() {
 
   // If we had no rows at all, we're done.
   if (m_rows.empty()) {
-    DBUG_ASSERT(!m_has_row_from_previous_batch);
+    assert(!m_has_row_from_previous_batch);
     m_state = State::END_OF_ROWS;
     return -1;
   }
@@ -199,8 +200,8 @@ int BKAIterator::ReadOuterRows() {
   if (m_bytes_used + mrr_buffer_size >= m_max_memory_available) {
     // Even if it will take us over budget, DS-MRR needs space for at least
     // one row to work.
-    DBUG_ASSERT(m_rows.size() ==
-                1);  // Otherwise, we would have stopped reading rows earlier.
+    assert(m_rows.size() ==
+           1);  // Otherwise, we would have stopped reading rows earlier.
     if (m_bytes_used + m_mrr_bytes_needed_for_single_inner_row >=
         m_max_memory_available) {
       mrr_buffer_size = m_mrr_bytes_needed_for_single_inner_row;
@@ -213,7 +214,7 @@ int BKAIterator::ReadOuterRows() {
     mrr_buffer_size = std::min(mrr_buffer_size * 2 + 16384,
                                m_max_memory_available - m_bytes_used);
   }
-  DBUG_ASSERT(mrr_buffer_size >= m_mrr_bytes_needed_for_single_inner_row);
+  assert(mrr_buffer_size >= m_mrr_bytes_needed_for_single_inner_row);
 
   // Ask the MRR iterator to do the actual read.
   m_mrr_iterator->set_rows(m_rows.begin(), m_rows.end());
@@ -241,7 +242,7 @@ void BKAIterator::BatchFinished() {
     m_state = State::END_OF_ROWS;
   } else {
     BeginNewBatch();
-    DBUG_ASSERT(m_state == State::NEED_OUTER_ROWS);
+    assert(m_state == State::NEED_OUTER_ROWS);
   }
 }
 
@@ -352,13 +353,13 @@ bool MultiRangeRowIterator::Init() {
     seq_funcs.skip_record = MultiRangeRowIterator::MrrSkipRecordCallbackThunk;
   }
   if (m_match_flag_buffer != nullptr) {
-    DBUG_ASSERT(NeedMatchFlags(m_join_type));
+    assert(NeedMatchFlags(m_join_type));
 
     // Reset all the match flags.
     memset(m_match_flag_buffer, 0,
            BytesNeededForMatchFlags(std::distance(m_begin, m_end)));
   } else {
-    DBUG_ASSERT(!NeedMatchFlags(m_join_type));
+    assert(!NeedMatchFlags(m_join_type));
   }
 
   /**

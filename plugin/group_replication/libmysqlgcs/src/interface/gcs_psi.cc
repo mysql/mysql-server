@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -188,7 +188,7 @@ int psi_report_mem_alloc(size_t size) {
     return 0;
   }
   /* This instrument is flagged global, so there should be no thread owner. */
-  DBUG_ASSERT(owner == nullptr);
+  assert(owner == nullptr);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
   current_count += size;
   return 1;
@@ -213,4 +213,4 @@ void psi_report_mem_free(size_t size, int is_instrumented) {
   we have allocated data that has not been deallocated (or has not been
   reported as deallocated).
 */
-void psi_report_cache_shutdown() { DBUG_ASSERT(current_count == 0); }
+void psi_report_cache_shutdown() { assert(current_count == 0); }

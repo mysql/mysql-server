@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -27,9 +27,10 @@ header. */
 #ifndef TEMPTABLE_HEADER_H
 #define TEMPTABLE_HEADER_H
 
+#include <assert.h>
 #include <cstddef>  // size_t
 #include <cstdint>  // uint8_t, uintptr_t
-#include "my_dbug.h"
+
 #include "storage/temptable/include/temptable/memutils.h"  // Source
 
 namespace temptable {
@@ -171,9 +172,9 @@ class Header {
 inline Header::Header() noexcept : Header(nullptr) {}
 
 inline Header::Header(uint8_t *block_memory) noexcept : m_offset(block_memory) {
-  DBUG_ASSERT(reinterpret_cast<Header::metadata_type>(m_offset) %
-                  alignof(Header::metadata_type) ==
-              0);
+  assert(reinterpret_cast<Header::metadata_type>(m_offset) %
+             alignof(Header::metadata_type) ==
+         0);
 }
 
 inline Header::Header(uint8_t *block_memory, Source block_memory_type,
@@ -215,7 +216,7 @@ inline size_t Header::increment_number_of_used_chunks(size_t chunk_size) {
 
 inline size_t Header::decrement_number_of_used_chunks(size_t chunk_size,
                                                       bool rightmost_chunk) {
-  DBUG_ASSERT(*block_number_of_used_chunks_ptr(m_offset) > 0);
+  assert(*block_number_of_used_chunks_ptr(m_offset) > 0);
   if (--*block_number_of_used_chunks_ptr(m_offset) == 0) {
     /* If we are freeing the leftmost chunk in this block, then
      * first_pristine_offset mark can be reset, so that the memory region

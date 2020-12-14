@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ void Ndb_component::set_server_started() {
   mysql_mutex_lock(&m_start_stop_mutex);
 
   // Can only transition to "server started" once
-  DBUG_ASSERT(m_server_started == false);
+  assert(m_server_started == false);
   m_server_started = true;
 
   mysql_cond_signal(&m_start_stop_cond);

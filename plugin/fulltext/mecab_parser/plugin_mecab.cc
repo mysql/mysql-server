@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,14 @@ MY_COMPILER_DIAGNOSTIC_PUSH()
 // include/mecab.h:1384:22: warning: empty paragraph passed to '@param' command
 // [-Wdocumentation]
 MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdocumentation")
+#include <assert.h>
 #include <mecab.h>
 MY_COMPILER_DIAGNOSTIC_POP()
 #include <string>
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
-#include "my_dbug.h"
+
 #include "mysqld_error.h"
 #include "storage/innobase/include/fts0tokenize.h"
 
@@ -232,7 +233,7 @@ static int mecab_parse(MeCab::Lattice *mecab_lattice,
     bool_info->type = FT_TOKEN_RIGHT_PAREN;
     ret = param->mysql_add_word(param, NULL, 0, bool_info);
 
-    DBUG_ASSERT(bool_info->quot == NULL);
+    assert(bool_info->quot == NULL);
     bool_info->type = FT_TOKEN_WORD;
   }
 
@@ -274,7 +275,7 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
     return (1);
   }
 
-  DBUG_ASSERT(param->cs->mbminlen == 1);
+  assert(param->cs->mbminlen == 1);
 
   /* Create mecab lattice for parsing */
   mecab_lattice = mecab_model->createLattice();
@@ -285,7 +286,7 @@ static int mecab_parser_parse(MYSQL_FTPARSER_PARAM *param) {
 
   /* Allocate a new string with '\0' in the end to avoid
   valgrind error "Invalid read of size 1" in mecab. */
-  DBUG_ASSERT(param->length >= 0);
+  assert(param->length >= 0);
   int doc_length = param->length;
   char *doc = reinterpret_cast<char *>(malloc(doc_length + 1));
 

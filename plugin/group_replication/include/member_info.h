@@ -66,7 +66,7 @@
   lower_case_table_names value is not known.
 */
 #define DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES 65540
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define SKIP_ENCODING_LOWER_CASE_TABLE_NAMES 65541
 #endif
 
@@ -585,7 +585,7 @@ class Group_member_info : public Plugin_gcs_message {
   bool group_action_running;
   bool primary_election_running;
   std::string recovery_endpoints;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
  public:
   bool skip_encode_default_table_encryption;
 #endif

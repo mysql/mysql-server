@@ -23,10 +23,10 @@
 #ifndef SQL_INSERT_INCLUDED
 #define SQL_INSERT_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/current_thd.h"
@@ -136,9 +136,9 @@ are found inside the COPY_INFO.
              (target_columns == nullptr || !target_columns->empty()), duplic),
         update(COPY_INFO::UPDATE_OPERATION, update_fields, update_values),
         insert_into_view(table_list_par && table_list_par->is_view()) {
-    DBUG_ASSERT(target_or_source_columns != nullptr);
-    DBUG_ASSERT(target_columns == target_or_source_columns ||
-                target_columns == nullptr);
+    assert(target_or_source_columns != nullptr);
+    assert(target_columns == target_or_source_columns ||
+           target_columns == nullptr);
   }
 
  public:

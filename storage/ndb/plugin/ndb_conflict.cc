@@ -550,7 +550,7 @@ int ExceptionsTableWriter::writeRow(
        "(%u)",
        op_type, m_op_type_pos, conflict_cause, m_conflict_cause_pos,
        orig_transid, m_orig_transid_pos));
-  DBUG_ASSERT(write_set != NULL);
+  assert(write_set != NULL);
   assert(err.code == 0);
   const uchar *rowPtr = (op_type == DELETE_ROW) ? oldRowPtr : newRowPtr;
 
@@ -644,7 +644,7 @@ int ExceptionsTableWriter::writeRow(
       int nkey = m_pk_cols;
       int k;
       for (k = 0; k < nkey; k++) {
-        DBUG_ASSERT(rowPtr != NULL);
+        assert(rowPtr != NULL);
         if (m_key_data_pos[k] != -1) {
           const uchar *data = (const uchar *)NdbDictionary::getValuePtr(
               keyRecord, (const char *)rowPtr, m_key_attrids[k]);
@@ -665,7 +665,7 @@ int ExceptionsTableWriter::writeRow(
         const uchar *default_value = (const uchar *)col->getDefaultValue();
         DBUG_PRINT("info", ("Checking column %s(%i)%s", col->getName(), i,
                             (default_value) ? ", has default value" : ""));
-        DBUG_ASSERT(rowPtr != NULL);
+        assert(rowPtr != NULL);
         if (m_data_pos[i] != -1) {
           const uchar *row_vPtr = NULL;
           switch (m_column_version[i]) {
@@ -1674,23 +1674,23 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
     r = code->load_const_u32(RegOldValue, old_value_32);
   else
     r = code->load_const_u64(RegOldValue, old_value_64);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->read_attr(RegCurrentValue, resolve_column);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   /*
    * if RegOldValue == RegCurrentValue goto label_0
    * else raise error for this row
    */
   r = code->branch_eq(RegOldValue, RegCurrentValue, label_0);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->interpret_exit_nok(ERROR_CONFLICT_FN_VIOLATION);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->def_label(label_0);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->interpret_exit_ok();
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->finalise();
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   return r;
 }
 
@@ -1743,23 +1743,23 @@ static int row_conflict_fn_max_update_only(
     r = code->load_const_u32(RegNewValue, new_value_32);
   else
     r = code->load_const_u64(RegNewValue, new_value_64);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->read_attr(RegCurrentValue, resolve_column);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   /*
    * if RegNewValue > RegCurrentValue goto label_0
    * else raise error for this row
    */
   r = code->branch_gt(RegNewValue, RegCurrentValue, label_0);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->interpret_exit_nok(ERROR_CONFLICT_FN_VIOLATION);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->def_label(label_0);
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->interpret_exit_ok();
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   r = code->finalise();
-  DBUG_ASSERT(r == 0);
+  assert(r == 0);
   return r;
 }
 

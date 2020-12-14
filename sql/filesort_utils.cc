@@ -54,8 +54,8 @@ namespace {
   See the accompanying unit tests, which measure various implementations.
  */
 inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len) {
-  DBUG_ASSERT(s1 != nullptr);
-  DBUG_ASSERT(s2 != nullptr);
+  assert(s1 != nullptr);
+  assert(s2 != nullptr);
   for (size_t i = 0; i < len; ++i) {
     if (s1[i] != s2[i]) return s1[i] < s2[i];
   }
@@ -280,12 +280,12 @@ void Filesort_buffer::reset() {
   }
 
   if (m_blocks.empty()) {
-    DBUG_ASSERT(m_next_rec_ptr == nullptr);
-    DBUG_ASSERT(m_current_block_end == nullptr);
-    DBUG_ASSERT(m_current_block_size == 0);
+    assert(m_next_rec_ptr == nullptr);
+    assert(m_current_block_end == nullptr);
+    assert(m_current_block_size == 0);
   } else {
     m_next_rec_ptr = m_blocks[0].get();
-    DBUG_ASSERT(m_current_block_end == m_next_rec_ptr + m_current_block_size);
+    assert(m_current_block_end == m_next_rec_ptr + m_current_block_size);
   }
   m_space_used_other_blocks = 0;
 }
@@ -323,7 +323,7 @@ bool Filesort_buffer::preallocate_records(size_t num_records) {
     Bounds_checked_array<uchar> ptr =
         get_next_record_pointer(m_max_record_length);
     (void)ptr;
-    DBUG_ASSERT(ptr.array() != nullptr);
+    assert(ptr.array() != nullptr);
     commit_used_memory(m_max_record_length);
   }
   return false;

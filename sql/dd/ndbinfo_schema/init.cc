@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,10 @@
 
 #include "sql/dd/ndbinfo_schema/init.h"
 
+#include <assert.h>
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "mysql/components/services/log_builtins.h"  // LogErr
 #include "mysql/thread_type.h"
 #include "mysql_version.h"
@@ -110,7 +111,7 @@ static bool initialize_ndbinfo(THD *thd) {
   // If ndbinfo is present, it should have been initialized
   handlerton *hton = plugin_data<handlerton *>(plugin);
   if (!(hton && hton->dict_init)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 

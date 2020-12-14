@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,9 +47,9 @@ Gtid_mode::value_type Gtid_mode::get() const {
   return (value_type)m_atomic_mode.load(std::memory_order_acquire);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 const char *Gtid_mode::get_string() const { return to_string(get()); }
-#endif  // ifndef DBUG_OFF
+#endif  // ifndef NDEBUG
 
 std::pair<bool, Gtid_mode::value_type> Gtid_mode::from_string(
     const std::string s) {
@@ -72,7 +72,7 @@ std::ostream &operator<<(std::ostream &oss, Gtid_mode::value_type const &mode) {
   return oss;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 std::ostream &operator<<(std::ostream &oss, Gtid_mode const &mode) {
   oss << mode.get_string();
   return oss;

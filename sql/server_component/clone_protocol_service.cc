@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Create and set PFS thread key */
   if (thread_key != PSI_NOT_INSTRUMENTED) {
-    DBUG_ASSERT(thd_created);
+    assert(thd_created);
     if (thd_created) {
       PSI_THREAD_CALL(set_thread)(thd->get_psi());
     }
@@ -82,7 +82,7 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 }
 
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD * thd)) {
-  DBUG_ASSERT(thd->m_statement_psi == nullptr);
+  assert(thd->m_statement_psi == nullptr);
 
   my_thread_end();
   thd->set_psi(nullptr);
@@ -401,7 +401,7 @@ DEFINE_METHOD(int, mysql_clone_send_command,
     err = ER_QUERY_INTERRUPTED;
   }
 
-  DBUG_ASSERT(err != 0);
+  assert(err != 0);
   return err;
 }
 
@@ -611,7 +611,7 @@ DEFINE_METHOD(int, mysql_clone_send_response,
 
   int err = static_cast<int>(net->last_errno);
 
-  DBUG_ASSERT(err != 0);
+  assert(err != 0);
   return err;
 }
 
@@ -661,7 +661,7 @@ DEFINE_METHOD(int, mysql_clone_send_error,
     return static_cast<int>(net->last_errno);
   }
 
-  DBUG_ASSERT(!is_fatal);
+  assert(!is_fatal);
 
   /* Clean error in THD */
   thd->clear_error();

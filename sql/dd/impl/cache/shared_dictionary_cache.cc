@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,9 @@
 
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"
 
+#include <assert.h>
 #include <atomic>
 
-#include "my_dbug.h"
 #include "sql/dd/impl/cache/shared_multi_map.h"
 #include "sql/dd/impl/cache/storage_adapter.h"  // Storage_adapter
 #include "sql/mysqld.h"
@@ -91,7 +91,7 @@ template <typename K, typename T>
 bool Shared_dictionary_cache::get(THD *thd, const K &key,
                                   Cache_element<T> **element) {
   bool error = false;
-  DBUG_ASSERT(element);
+  assert(element);
   if (m_map<T>()->get(key, element)) {
     // Handle cache miss.
     const T *new_object = nullptr;
@@ -109,10 +109,9 @@ template <typename K, typename T>
 bool Shared_dictionary_cache::get_uncached(THD *thd, const K &key,
                                            enum_tx_isolation isolation,
                                            const T **object) const {
-  DBUG_ASSERT(object);
+  assert(object);
   bool error = Storage_adapter::get(thd, key, isolation, false, object);
-  DBUG_ASSERT(!error || thd->is_system_thread() || thd->killed ||
-              thd->is_error());
+  assert(!error || thd->is_system_thread() || thd->killed || thd->is_error());
 
   return error;
 }
@@ -120,7 +119,7 @@ bool Shared_dictionary_cache::get_uncached(THD *thd, const K &key,
 // Add an object to the shared cache.
 template <typename T>
 void Shared_dictionary_cache::put(const T *object, Cache_element<T> **element) {
-  DBUG_ASSERT(object);
+  assert(object);
   // Cast needed to help the compiler choose the correct template instance..
   m_map<T>()->put(static_cast<const typename T::Id_key *>(nullptr), object,
                   element);

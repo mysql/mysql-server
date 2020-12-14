@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ enum_tx_isolation thd_get_trx_isolation(const THD *thd) {
 const CHARSET_INFO *thd_charset(THD *thd) { return (thd->charset()); }
 
 LEX_CSTRING thd_query_unsafe(THD *thd) {
-  DBUG_ASSERT(current_thd == thd);
+  assert(current_thd == thd);
   return thd->query();
 }
 
@@ -264,8 +264,8 @@ bool is_mysql_datadir_path(const char *path) {
 }
 
 int mysql_tmpfile_path(const char *path, const char *prefix) {
-  DBUG_ASSERT(path != nullptr);
-  DBUG_ASSERT((strlen(path) + strlen(prefix)) <= FN_REFLEN);
+  assert(path != nullptr);
+  assert((strlen(path) + strlen(prefix)) <= FN_REFLEN);
 
   char filename[FN_REFLEN];
   int mode = O_CREAT | O_EXCL | O_RDWR;
@@ -278,13 +278,13 @@ int mysql_tmpfile_path(const char *path, const char *prefix) {
 }
 
 bool thd_is_bootstrap_thread(THD *thd) {
-  DBUG_ASSERT(thd);
+  assert(thd);
   return (thd->is_bootstrap_system_thread() &&
           !thd->is_init_file_system_thread());
 }
 
 bool thd_is_dd_update_stmt(const THD *thd) {
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
 
   /*
     OPTION_DD_UPDATE_CONTEXT flag is set when thread switches context to

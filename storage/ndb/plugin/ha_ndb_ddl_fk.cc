@@ -289,14 +289,14 @@ class Fk_util {
                     const char *mock_name) const {
     DBUG_TRACE;
     DBUG_PRINT("enter", ("mock_name '%s'", mock_name));
-    DBUG_ASSERT(is_mock_name(mock_name));
+    assert(is_mock_name(mock_name));
     NdbDictionary::Dictionary *dict = ndb->getDictionary();
 
     // Load up the mock table
     Ndb_table_guard mock_tab(ndb, db_name, mock_name);
     if (!mock_tab.get_table()) {
       error(dict, "Failed to load the listed mock table '%s'", mock_name);
-      DBUG_ASSERT(false);
+      assert(false);
       return;
     }
 
@@ -395,7 +395,7 @@ class Fk_util {
       NdbDictionary::ForeignKey fk;
       if (dict->getForeignKey(fk, element.name) != 0) {
         // Could not find the listed fk
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
 
@@ -466,7 +466,7 @@ class Fk_util {
       // Create new mock
       if (!create(dict, mock_name, child_name, col_names, col_types)) {
         error(dict, "Failed to create mock parent table '%s", mock_name);
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
       }
 
@@ -604,7 +604,7 @@ class Fk_util {
 
     DBUG_TRACE;
     DBUG_PRINT("enter", ("mock_name: %s", mock_name));
-    DBUG_ASSERT(is_mock_name(mock_name));
+    assert(is_mock_name(mock_name));
 
     if (mock_tab.setName(mock_name)) {
       return false;
@@ -618,14 +618,14 @@ class Fk_util {
       const char *col_name = col_names[i];
       DBUG_PRINT("info", ("name: %s", col_name));
       if (mock_col.setName(col_name)) {
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
       }
 
       const NDBCOL *col = col_types[i];
       if (!col) {
         // Internal error, the two lists should be same size
-        DBUG_ASSERT(col);
+        assert(col);
         return false;
       }
 
@@ -675,7 +675,7 @@ class Fk_util {
       NdbDictionary::ForeignKey fk;
       if (dict->getForeignKey(fk, element.name) != 0) {
         // Could not find the listed fk
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
 
@@ -702,14 +702,14 @@ class Fk_util {
         // Could not open the mock table
         DBUG_PRINT("error",
                    ("Could not open the listed mock table, ignore it"));
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
 
       if (dict->dropTableGlobal(*mocktab_g.get_table()) != 0) {
         DBUG_PRINT("error", ("Failed to drop the mock table '%s'",
                              mocktab_g.get_table()->getName()));
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
       info("Dropped mock table '%s' - referencing table dropped", table_name);
@@ -766,7 +766,7 @@ class Fk_util {
     NdbDictionary::ForeignKey fk;
     if (dict->getForeignKey(fk, fk_name) != 0) {
       error(dict, "Could not find fk '%s'", fk_name);
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
     }
 
@@ -781,7 +781,7 @@ class Fk_util {
         const int drop_flags = NDBDICT::DropTableCascadeConstraints;
         if (dict->dropTableGlobal(*mocktab_g.get_table(), drop_flags) != 0) {
           error(dict, "Failed to drop fk mock table '%s'", parent_name);
-          DBUG_ASSERT(false);
+          assert(false);
           return false;
         }
         // table and fk dropped
@@ -789,7 +789,7 @@ class Fk_util {
       } else {
         warn("Could not open the fk mock table '%s', ignoring it...",
              parent_name);
-        DBUG_ASSERT(false);
+        assert(false);
         // fallthrough and try to drop only the fk,
       }
     }
@@ -815,7 +815,7 @@ class Fk_util {
     NdbDictionary::Dictionary::List table_list;
     if (dict->listObjects(table_list, NdbDictionary::Object::UserTable, true) !=
         0) {
-      DBUG_ASSERT(false);
+      assert(false);
       return;
     }
 
@@ -823,7 +823,7 @@ class Fk_util {
       const NdbDictionary::Dictionary::List::Element &el =
           table_list.elements[i];
 
-      DBUG_ASSERT(el.type == NdbDictionary::Object::UserTable);
+      assert(el.type == NdbDictionary::Object::UserTable);
 
       // Check if table is in same database as the potential new parent
       if (strcmp(new_parent_db, el.database) != 0) {
@@ -1371,7 +1371,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
             "INTERNAL ERROR: Could not find created mock table '%s'",
             mock_name);
         // Internal error, should be able to load the just created mock table
-        DBUG_ASSERT(parent_tab.get_table());
+        assert(parent_tab.get_table());
         return err_default;
       }
     }
@@ -1415,7 +1415,7 @@ int ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, const char *dbname,
       for (unsigned i = 0; parentcols[i] != 0; i++) {
         if (parentcols[i]->isBindable(*childcols[i]) == -1) {
           // Should never happen thanks to SQL-layer doing compatibility check.
-          DBUG_ASSERT(0);
+          assert(0);
           push_warning_printf(
               thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
               "Parent column %s.%s is incompatible with child column %s.%s in "
@@ -1678,7 +1678,7 @@ int ha_ndbcluster::inplace__drop_fks(THD *thd, Ndb *ndb, const char *dbname,
 
   Ndb_table_guard srctab(ndb, dbname, tabname);
   if (srctab.get_table() == 0) {
-    DBUG_ASSERT(false);  // Why ??
+    assert(false);  // Why ??
     return 0;
   }
 
@@ -1727,7 +1727,7 @@ int ha_ndbcluster::inplace__drop_fks(THD *thd, Ndb *ndb, const char *dbname,
         we should not come here unless there is some bug and data-dictionary
         and NDB internal structures got out of sync.
       */
-      DBUG_ASSERT(false);
+      assert(false);
       my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_item->name);
       return ER_CANT_DROP_FIELD_OR_KEY;
     }
@@ -1772,7 +1772,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
         thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
         "INTERNAL ERROR: Could not find created child table '%s'", tab_name);
     // Internal error, should be able to load the just created child table
-    DBUG_ASSERT(table);
+    assert(table);
     return err_default;
   }
 
@@ -1803,7 +1803,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
               thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
               "Child table %s has no column referred by the FK %s",
               table->getName(), fk.getName());
-          DBUG_ASSERT(ndbcol);
+          assert(ndbcol);
           return err_default;
         }
         child_cols[pos++] = ndbcol;
@@ -1816,7 +1816,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
         find_matching_index(dict, table, child_cols, child_primary_key);
 
     if (!child_primary_key && child_index == 0) {
-      DBUG_ASSERT(false);
+      assert(false);
       my_error(ER_FK_NO_INDEX_CHILD, MYF(0), fk.getName(), table->getName());
       return err_default;
     }
@@ -1841,7 +1841,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
                 thd, Sql_condition::SL_WARNING, ER_CANNOT_ADD_FOREIGN,
                 "parent table %s has no column referred by the FK %s",
                 table->getName(), fk.getName());
-            DBUG_ASSERT(ndbcol);
+            assert(ndbcol);
             return err_default;
           }
           parent_cols[pos++] = ndbcol;
@@ -1854,7 +1854,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
           find_matching_index(dict, table, parent_cols, parent_primary_key);
 
       if (!parent_primary_key && parent_index == 0) {
-        DBUG_ASSERT(false);
+        assert(false);
         my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(), table->getName());
         return err_default;
       }
@@ -1907,7 +1907,7 @@ int ha_ndbcluster::recreate_fk_for_truncate(THD *thd, Ndb *ndb,
 
   if (resolve_mock_tables) {
     // Should happen only when the foreign key checks option is disabled
-    DBUG_ASSERT(thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS));
+    assert(thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS));
     // The table was a parent in atleast one foreign key relationship that was
     // not self referencing. Update all foreign key definitions referencing the
     // table by resolving all the mock tables based on it.

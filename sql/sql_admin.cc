@@ -101,7 +101,7 @@
 
 bool Column_name_comparator::operator()(const String *lhs,
                                         const String *rhs) const {
-  DBUG_ASSERT(lhs->charset()->number == rhs->charset()->number);
+  assert(lhs->charset()->number == rhs->charset()->number);
   return sortcmp(lhs, rhs, lhs->charset()) < 0;
 }
 
@@ -196,7 +196,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!ext || !ext[0] || !ext[1]) goto end;  // No data file
 
   /* A MERGE table must not come here. */
-  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
+  assert(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   /*
     Storage engines supporting atomic DDL do not come here either.
@@ -206,7 +206,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     to table re-creation in SE needs to be adjusted to at least
     commit the transaction.
   */
-  DBUG_ASSERT(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
+  assert(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -478,7 +478,7 @@ static Check_result check_for_upgrade(THD *thd, dd::String_type &sname,
   if (dc->acquire(sname, tname, &t)) {
     return {true, HA_ADMIN_FAILED};
   }
-  DBUG_ASSERT(t != nullptr);
+  assert(t != nullptr);
 
   if (is_checked_for_upgrade(*t)) {
     DBUG_PRINT("admin", ("Table %s (%llu) already checked for upgrade, "
@@ -906,7 +906,7 @@ static bool mysql_admin_table(
           require upgrade. So we don't need to pre-open them before calling
           mysql_recreate_table().
         */
-        DBUG_ASSERT(!table->table->s->tmp_table);
+        assert(!table->table->s->tmp_table);
 
         trans_rollback_stmt(thd);
         trans_rollback(thd);
@@ -1181,7 +1181,7 @@ static bool mysql_admin_table(
         protocol->store(operator_name, system_charset_info);
         if (result_code)  // either mysql_recreate_table or analyze failed
         {
-          DBUG_ASSERT(thd->is_error() || thd->killed);
+          assert(thd->is_error() || thd->killed);
           if (thd->is_error()) {
             Diagnostics_area *da = thd->get_stmt_da();
             if (!thd->get_protocol()->connection_alive()) {
@@ -1254,7 +1254,7 @@ static bool mysql_admin_table(
           tables will not create pre 5.0 decimal types. Hence, control should
           never reach here.
         */
-        DBUG_ASSERT(false);
+        assert(false);
 
         char buf[MYSQL_ERRMSG_SIZE];
         size_t length;
@@ -1433,7 +1433,7 @@ bool Sql_cmd_load_index::preload_keys(THD *thd, TABLE_LIST *tables) {
 }
 
 bool Sql_cmd_analyze_table::set_histogram_fields(List<String> *fields) {
-  DBUG_ASSERT(m_histogram_fields.empty());
+  assert(m_histogram_fields.empty());
 
   List_iterator<String> it(*fields);
   String *field;
@@ -1450,7 +1450,7 @@ bool Sql_cmd_analyze_table::set_histogram_fields(List<String> *fields) {
 bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
                                                      TABLE_LIST *table) {
   // This should not be empty here.
-  DBUG_ASSERT(!get_histogram_fields().empty());
+  assert(!get_histogram_fields().empty());
 
   histograms::results_map results;
   bool res = false;
@@ -1498,7 +1498,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
           }
           break;
         case Histogram_command::NONE:
-          DBUG_ASSERT(false); /* purecov: deadcode */
+          assert(false); /* purecov: deadcode */
           break;
       }
 
@@ -1679,7 +1679,7 @@ class Alter_instance_reload_tls : public Alter_instance {
       case Ssl_acceptor_context_type::context_last:
         // Fall through
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
     }
     if (error != SSL_INITERR_NOERROR) {
@@ -1749,7 +1749,7 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
       alter_instance = new Innodb_redo_log(thd, false);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");
       return true;
   }
@@ -1812,7 +1812,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
     return true;
   }
 
-  DBUG_ASSERT(m_clone == nullptr);
+  assert(m_clone == nullptr);
   m_clone = clone_plugin_lock(thd, &m_plugin);
 
   if (m_clone == nullptr) {
@@ -1821,7 +1821,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
   }
 
   if (is_local()) {
-    DBUG_ASSERT(!is_replace);
+    assert(!is_replace);
     auto err = m_clone->clone_local(thd, m_data_dir.str);
     clone_plugin_unlock(thd, m_plugin);
 
@@ -1833,7 +1833,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
     return false;
   }
 
-  DBUG_ASSERT(!is_local());
+  assert(!is_local());
 
   enum mysql_ssl_mode ssl_mode = SSL_MODE_DISABLED;
 
@@ -1842,7 +1842,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
   } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
     ssl_mode = SSL_MODE_REQUIRED;
   } else {
-    DBUG_ASSERT(thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED);
+    assert(thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED);
     ssl_mode = SSL_MODE_PREFERRED;
   }
 
@@ -1899,8 +1899,8 @@ bool Sql_cmd_clone::execute(THD *thd) {
 
 bool Sql_cmd_clone::load(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_clone == nullptr);
-  DBUG_ASSERT(!is_local());
+  assert(m_clone == nullptr);
+  assert(!is_local());
 
   auto sctx = thd->security_context();
 
@@ -1922,7 +1922,7 @@ bool Sql_cmd_clone::load(THD *thd) {
 
 bool Sql_cmd_clone::execute_server(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(!is_local());
+  assert(!is_local());
 
   bool ret = false;
   auto net = thd->get_protocol_classic()->get_net();

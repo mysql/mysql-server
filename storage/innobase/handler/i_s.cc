@@ -2985,7 +2985,7 @@ static int i_s_fts_index_table_fill_one_index(
   int ret = 0;
 
   DBUG_TRACE;
-  DBUG_ASSERT(!dict_index_is_online_ddl(index));
+  assert(!dict_index_is_online_ddl(index));
 
   heap = mem_heap_create(1024);
 
@@ -3260,7 +3260,7 @@ static int i_s_fts_config_fill(
 
   if (!ib_vector_is_empty(user_table->fts->indexes)) {
     index = (dict_index_t *)ib_vector_getp_const(user_table->fts->indexes, 0);
-    DBUG_ASSERT(!dict_index_is_online_ddl(index));
+    assert(!dict_index_is_online_ddl(index));
   }
 
   while (fts_config_key[i]) {

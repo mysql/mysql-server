@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,13 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "lex_string.h"
 #include "m_ctype.h" /* my_charset_utf8_bin */
 #include "m_string.h"
-#include "my_dbug.h" /* DBUG_ASSERT */
+/* assert */
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin.h"
@@ -130,7 +131,7 @@ int my_calculate_password_strength(const char *password,
                                    unsigned int password_len) {
   int res = 0;
   unsigned int strength;
-  DBUG_ASSERT(password != nullptr);
+  assert(password != nullptr);
 
   my_h_service h_pv_svc = nullptr;
   SERVICE_TYPE(validate_password) * ret;

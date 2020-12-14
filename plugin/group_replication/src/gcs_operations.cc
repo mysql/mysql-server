@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,7 +69,7 @@ int Gcs_operations::initialize() {
   leave_coordination_leaving = false;
   leave_coordination_left = false;
 
-  DBUG_ASSERT(gcs_interface == nullptr);
+  assert(gcs_interface == nullptr);
   if ((gcs_interface = Gcs_interface_factory::get_interface_implementation(
            gcs_engine)) == nullptr) {
     /* purecov: begin inspected */

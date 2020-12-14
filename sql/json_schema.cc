@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
+#include <assert.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/error.h>
 #include <rapidjson/memorystream.h>
@@ -34,7 +35,7 @@
 #include <utility>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -61,7 +62,7 @@ static bool parse_json_schema(const char *json_schema_str,
                               size_t json_schema_length,
                               const char *function_name,
                               rapidjson::Document *schema_document) {
-  DBUG_ASSERT(schema_document != nullptr);
+  assert(schema_document != nullptr);
 
   // Check if the JSON schema is valid. Invalid JSON would be caught by
   // rapidjson::Document::Parse, but it will not catch documents that are too
@@ -79,7 +80,7 @@ static bool parse_json_schema(const char *json_schema_str,
           .HasParseError()) {
     // The document should already be valid, since is_valid_json_syntax
     // succeeded.
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 

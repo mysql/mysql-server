@@ -26,10 +26,11 @@
 
 ///////////////////////////////////////////////////////////////////////////
 
+#include <assert.h>
 #include <string.h>
 
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"                        // MYSQL_ERRMSG_SIZE
@@ -99,14 +100,14 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
                         bool old_row_is_record1);
 
   Trigger_chain *get_triggers(int event, int action_time) {
-    DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
-    DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
   }
 
   const Trigger_chain *get_triggers(int event, int action_time) const {
-    DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
-    DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
   }
 

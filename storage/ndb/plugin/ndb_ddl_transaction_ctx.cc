@@ -47,7 +47,7 @@ bool Ndb_DDL_transaction_ctx::rollback_create_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 2);
+  assert(ddl_info.size() == 2);
   const char *db_name = ddl_info[0].c_str();
   const char *table_name = ddl_info[1].c_str();
 
@@ -97,7 +97,7 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 7);
+  assert(ddl_info.size() == 7);
   const char *old_db_name = ddl_info[0].c_str();
   const char *old_table_name = ddl_info[1].c_str();
   const char *new_db_name = ddl_info[2].c_str();
@@ -159,7 +159,7 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
           ndb_final_rename_stmt->get_info();
 
       /* Extract info and use them to set the rename_table_impl parameters */
-      DBUG_ASSERT(final_rename_ddl_info.size() == 7);
+      assert(final_rename_ddl_info.size() == 7);
       std::string final_db_name = final_rename_ddl_info[2];
       std::string final_table_name = final_rename_ddl_info[3];
       if ((final_db_name.compare(old_db_name) != 0) ||
@@ -250,7 +250,7 @@ bool Ndb_DDL_transaction_ctx::update_table_id_and_version_in_DD(
 bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
     const Ndb_DDL_stmt &ddl_stmt) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status != DDL_IN_PROGRESS);
+  assert(m_ddl_status != DDL_IN_PROGRESS);
 
   if (m_ddl_status == DDL_COMMITED) {
     /* DDL committed. Nothing to do */
@@ -297,7 +297,7 @@ void Ndb_DDL_transaction_ctx::log_drop_temp_table(
 bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
     const Ndb_DDL_stmt &ddl_stmt) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status != DDL_IN_PROGRESS);
+  assert(m_ddl_status != DDL_IN_PROGRESS);
 
   if (m_ddl_status == DDL_ROLLED_BACK) {
     /* DDL was rollbacked. Nothing to do */
@@ -309,13 +309,13 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 2);
+  assert(ddl_info.size() == 2);
   const char *db_name = ddl_info[0].c_str();
   const char *table_name = ddl_info[1].c_str();
 
   /* Verify that the table is a table with temporary name. */
   if (!ndb_name_is_temp(table_name)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -404,7 +404,7 @@ Ndb_DDL_transaction_ctx::retrieve_copy_alter_final_rename_stmt() {
 
 void Ndb_DDL_transaction_ctx::commit() {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status == DDL_IN_PROGRESS);
+  assert(m_ddl_status == DDL_IN_PROGRESS);
   /* The schema changes would have been already committed internally to the NDB
      by the respective handler functions that made the change. So just update
      the status of the DDL and make note of the latest stmt on which the
@@ -415,7 +415,7 @@ void Ndb_DDL_transaction_ctx::commit() {
 
 bool Ndb_DDL_transaction_ctx::rollback() {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status == DDL_IN_PROGRESS);
+  assert(m_ddl_status == DDL_IN_PROGRESS);
 
   bool result = true;
   m_ddl_status = DDL_ROLLED_BACK;
@@ -435,7 +435,7 @@ bool Ndb_DDL_transaction_ctx::rollback() {
         break;
       default:
         result = false;
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -448,7 +448,7 @@ bool Ndb_DDL_transaction_ctx::run_post_ddl_hooks() {
     /* Nothing to run */
     return true;
   }
-  DBUG_ASSERT(m_ddl_status == DDL_COMMITED || m_ddl_status == DDL_ROLLED_BACK);
+  assert(m_ddl_status == DDL_COMMITED || m_ddl_status == DDL_ROLLED_BACK);
   bool result = true;
   for (auto it = m_executed_ddl_stmts.begin(); it != m_executed_ddl_stmts.end();
        ++it) {

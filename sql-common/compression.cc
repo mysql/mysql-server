@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,8 +95,7 @@ bool validate_compression_attributes(
     std::string algorithm_names,
     std::string channel_name MY_ATTRIBUTE((unused)), bool ignore_errors) {
   DBUG_TRACE;
-  DBUG_ASSERT(algorithm_names.length() <
-              COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE);
+  assert(algorithm_names.length() < COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE);
   std::vector<std::string> algorithm_name_list;
 
   parse_compression_algorithms_list(algorithm_names, algorithm_name_list);

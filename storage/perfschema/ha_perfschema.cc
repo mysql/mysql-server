@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1552,7 +1552,7 @@ int ha_perfschema::write_row(uchar *buf) {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  DBUG_ASSERT(m_table_share);
+  assert(m_table_share);
   if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
   }
@@ -1581,7 +1581,7 @@ int ha_perfschema::update_row(const uchar *old_data, uchar *new_data) {
     return 0;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_update_count);
   int result = m_table->update_row(table, old_data, new_data, table->field);
   return result;
@@ -1593,7 +1593,7 @@ int ha_perfschema::delete_row(const uchar *buf) {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_delete_count);
   int result = m_table->delete_row(table, buf, table->field);
   return result;
@@ -1603,8 +1603,8 @@ int ha_perfschema::rnd_init(bool scan) {
   int result;
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != nullptr);
+  assert(m_table_share);
+  assert(m_table_share->m_open_table != nullptr);
 
   stats.records = 0;
   if (m_table == nullptr) {
@@ -1623,7 +1623,7 @@ int ha_perfschema::rnd_init(bool scan) {
 
 int ha_perfschema::rnd_end(void) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   delete m_table;
   m_table = nullptr;
   return 0;
@@ -1635,7 +1635,7 @@ int ha_perfschema::rnd_next(uchar *buf) {
     return HA_ERR_END_OF_FILE;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   int result = m_table->rnd_next();
@@ -1651,7 +1651,7 @@ int ha_perfschema::rnd_next(uchar *buf) {
 void ha_perfschema::position(const uchar *) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   m_table->get_position(ref);
 }
 
@@ -1661,7 +1661,7 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos) {
     return HA_ERR_END_OF_FILE;
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_read_rnd_count);
   int result = m_table->rnd_pos(pos);
   if (result == 0) {
@@ -1672,7 +1672,7 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos) {
 
 int ha_perfschema::info(uint flag) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_table_share);
+  assert(m_table_share);
   if (flag & HA_STATUS_VARIABLE) {
     stats.records = m_table_share->get_row_count();
   }
@@ -1694,7 +1694,7 @@ int ha_perfschema::delete_all_rows(void) {
     return 0;
   }
 
-  DBUG_ASSERT(m_table_share);
+  assert(m_table_share);
   if (m_table_share->m_delete_all_rows) {
     result = m_table_share->m_delete_all_rows();
   } else {
@@ -1729,8 +1729,8 @@ int ha_perfschema::rename_table(const char *, const char *, const dd::Table *,
 int ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *,
                           dd::Table *) {
   DBUG_TRACE;
-  DBUG_ASSERT(table_arg);
-  DBUG_ASSERT(table_arg->s);
+  assert(table_arg);
+  assert(table_arg->s);
   lock_pfs_external_table_shares();
   if (find_table_share(table_arg->s->db.str, table_arg->s->table_name.str)) {
     /*
@@ -1812,8 +1812,8 @@ int ha_perfschema::index_init(uint idx, bool sorted) {
   int result;
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != nullptr);
+  assert(m_table_share);
+  assert(m_table_share->m_open_table != nullptr);
 
   if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
@@ -1834,8 +1834,8 @@ int ha_perfschema::index_init(uint idx, bool sorted) {
 
 int ha_perfschema::index_end() {
   DBUG_TRACE;
-  DBUG_ASSERT(m_table);
-  DBUG_ASSERT(active_index != MAX_KEY);
+  assert(m_table);
+  assert(active_index != MAX_KEY);
   delete m_table;
   m_table = nullptr;
   active_index = MAX_KEY;
@@ -1854,8 +1854,8 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
     return HA_ERR_END_OF_FILE;
   }
 
-  DBUG_ASSERT(m_table_share);
-  DBUG_ASSERT(m_table_share->m_open_table != nullptr);
+  assert(m_table_share);
+  assert(m_table_share->m_open_table != nullptr);
 
   if (m_table == nullptr) {
     m_table = m_table_share->m_open_table(m_table_share);
@@ -1863,12 +1863,12 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
     m_table->reset_position();
   }
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
 
-  DBUG_ASSERT(table != nullptr);
-  DBUG_ASSERT(table->s != nullptr);
-  DBUG_ASSERT(table->s->key_info != nullptr);
+  assert(table != nullptr);
+  assert(table->s != nullptr);
+  assert(table->s->key_info != nullptr);
   KEY *key_infos = table->s->key_info;
 
   int result =
@@ -1892,7 +1892,7 @@ int ha_perfschema::index_next(uchar *buf) {
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
 
   int result = m_table->index_next();
   if (result == 0) {
@@ -1913,7 +1913,7 @@ int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
-  DBUG_ASSERT(m_table);
+  assert(m_table);
 
   int result = m_table->index_next_same(key, keylen);
   if (result == 0) {
@@ -1924,7 +1924,7 @@ int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
 }
 
 bool ha_perfschema::is_executed_by_slave() const {
-  DBUG_ASSERT(table != nullptr);
-  DBUG_ASSERT(table->in_use != nullptr);
+  assert(table != nullptr);
+  assert(table->in_use != nullptr);
   return table->in_use->slave_thread;
 }

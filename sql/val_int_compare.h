@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@
 #ifndef VAL_INT_COMPARE_INCLUDED
 #define VAL_INT_COMPARE_INCLUDED
 
+#include <assert.h>
 #include <functional>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 
 /**
@@ -41,7 +41,7 @@ class Integer_value {
   constexpr bool is_unsigned() const { return m_unsigned_flag; }
 
   ulonglong val_unsigned() const {
-    DBUG_ASSERT(!is_negative());
+    assert(!is_negative());
     return static_cast<ulonglong>(m_val);
   }
 

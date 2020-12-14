@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,13 +51,13 @@ void Ndb_create_helper::check_warnings_and_error() const {
       case Sql_condition::SL_WARNING:
         DBUG_PRINT("info", ("Found warning"));
         // Warnings should come before errors
-        DBUG_ASSERT(!have_error);
+        assert(!have_error);
         have_warning = true;
         break;
       case Sql_condition::SL_ERROR:
         DBUG_PRINT("info", ("Found error"));
         // There should not be more than one error
-        DBUG_ASSERT(!have_error);
+        assert(!have_error);
         have_error = true;
         error_code = cond->mysql_errno();
         break;
@@ -67,13 +67,13 @@ void Ndb_create_helper::check_warnings_and_error() const {
         break;
       default:
         // There are no other severities
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
 
   // Check that an error has been set
-  if (!have_error) DBUG_ASSERT(have_error);
+  if (!have_error) assert(have_error);
 
   // Check that a warning which describes the failure has been set
   // in addition to the error message
@@ -86,7 +86,7 @@ void Ndb_create_helper::check_warnings_and_error() const {
         DBUG_PRINT("info", ("Allowing error %u without warning", error_code));
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -126,7 +126,7 @@ int Ndb_create_helper::failed_warning_already_pushed() const {
   // Check that warning describing the problem has already been pushed
   if (!have_warning()) {
     // Crash in debug compile
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   return set_create_table_error();
@@ -157,7 +157,7 @@ int Ndb_create_helper::failed_missing_create_option(
 
 int Ndb_create_helper::failed_illegal_create_option(const char *reason) const {
   // The format string does not allow the reason to be longer than 64 bytes
-  DBUG_ASSERT(strlen(reason) < 64);
+  assert(strlen(reason) < 64);
   my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), "ndbcluster", reason);
   check_warnings_and_error();
   // The error has now been reported, return an error code which

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,11 @@
 
 #include "sql/histograms/value_map.h"
 
+#include <assert.h>
 #include <algorithm>
 #include <new>
 #include <string>  // std::string
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_time.h"
@@ -49,11 +49,11 @@ template <>
 bool Histogram_comparator::operator()(const String &lhs,
                                       const String &rhs) const {
   // The collation MUST be the same
-  DBUG_ASSERT(lhs.charset()->number == rhs.charset()->number);
+  assert(lhs.charset()->number == rhs.charset()->number);
 
   // The number of characters should already be limited.
-  DBUG_ASSERT(lhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
-  DBUG_ASSERT(rhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
+  assert(lhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
+  assert(rhs.numchars() <= HISTOGRAM_MAX_COMPARE_LENGTH);
 
   return sortcmp(&lhs, &rhs, lhs.charset()) < 0;
 }
@@ -135,7 +135,7 @@ template <class T>
 bool Value_map<T>::insert(typename value_map_type::const_iterator begin,
                           typename value_map_type::const_iterator end) {
   try {
-    DBUG_ASSERT(m_value_map.empty());
+    assert(m_value_map.empty());
     m_value_map.insert(begin, end);
   } catch (const std::bad_alloc &) {
     // Out of memory.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,8 +24,8 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include "my_byteorder.h"
-#include "my_dbug.h"
 
 namespace skip_trailing_space_unittest {
 
@@ -48,7 +48,7 @@ const uchar *skip_trailing_orig(const uchar *ptr, size_t len) {
     const uchar *start_words = (const uchar *)(intptr)(
         (((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
 
-    DBUG_ASSERT(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
+    assert(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
     if (end_words > ptr) {
       while (end > end_words && end[-1] == 0x20) end--;
       if (end[-1] == 0x20 && start_words < end_words)
@@ -83,7 +83,7 @@ const uchar *skip_trailing_4byte(const uchar *ptr, size_t len) {
     const uchar *start_words = (const uchar *)(intptr)(
         (((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
 
-    DBUG_ASSERT(end_words > ptr);
+    assert(end_words > ptr);
     {
       while (end > end_words && end[-1] == 0x20) end--;
       if (end[-1] == 0x20 && start_words < end_words)
@@ -106,7 +106,7 @@ const uchar *skip_trailing_8byte(const uchar *ptr, size_t len) {
     const uchar *start_words =
         (const uchar *)(longlong)((((ulonglong)(longlong)ptr) + 8 - 1) / 8 * 8);
 
-    DBUG_ASSERT(end_words > ptr);
+    assert(end_words > ptr);
     {
       while (end > end_words && end[-1] == 0x20) end--;
       if (end[-1] == 0x20 && start_words < end_words)

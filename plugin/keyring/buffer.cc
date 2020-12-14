@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,9 @@
 
 #include "plugin/keyring/buffer.h"
 
+#include <assert.h>
 #include <memory>
 
-#include "my_dbug.h"
 #include "plugin/keyring/common/keyring_key.h"
 
 namespace keyring {
@@ -34,7 +34,7 @@ void Buffer::free() {
     data = nullptr;
   }
   mark_as_empty();
-  DBUG_ASSERT(size == 0 && position == 0);
+  assert(size == 0 && position == 0);
 }
 
 bool Buffer::get_next_key(IKey **key) {
@@ -43,7 +43,7 @@ bool Buffer::get_next_key(IKey **key) {
   std::unique_ptr<Key> key_ptr(new Key());
   size_t number_of_bytes_read_from_buffer = 0;
   if (data == nullptr) {
-    DBUG_ASSERT(size == 0);
+    assert(size == 0);
     return true;
   }
   if (key_ptr->load_from_buffer(
@@ -58,8 +58,8 @@ bool Buffer::get_next_key(IKey **key) {
 bool Buffer::has_next_key() { return position < size; }
 
 void Buffer::reserve(size_t memory_size) {
-  DBUG_ASSERT(memory_size % sizeof(size_t) ==
-              0);  // make sure size is sizeof(size_t) aligned
+  assert(memory_size % sizeof(size_t) ==
+         0);  // make sure size is sizeof(size_t) aligned
   free();
   data = reinterpret_cast<uchar *>(
       new size_t[memory_size / sizeof(size_t)]);  // force size_t alignment

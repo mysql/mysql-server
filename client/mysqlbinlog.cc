@@ -225,8 +225,8 @@ class Database_rewrite {
     Rewrite_result rewrite_transaction_payload(
         unsigned char *buffer, std::size_t buffer_capacity,
         binary_log::Format_description_event const &fde) {
-      DBUG_ASSERT(buffer[EVENT_TYPE_OFFSET] ==
-                  binary_log::TRANSACTION_PAYLOAD_EVENT);
+      assert(buffer[EVENT_TYPE_OFFSET] ==
+             binary_log::TRANSACTION_PAYLOAD_EVENT);
       binary_log::Transaction_payload_event tpe((const char *)buffer, &fde);
 
       auto orig_payload{tpe.get_payload()};
@@ -504,7 +504,7 @@ class Database_rewrite {
     dbname_ptr = the_buffer + offset_dbname;
     memcpy(dbname_ptr, to.c_str(), to.size());
 
-    DBUG_ASSERT(to.size() < UINT8_MAX);
+    assert(to.size() < UINT8_MAX);
     dbname_len_ptr = the_buffer + offset_dbname_len;
     *dbname_len_ptr = (char)to.size();
 
@@ -602,7 +602,7 @@ class Database_rewrite {
                              size_t data_size,
                              binary_log::Format_description_event const &fde,
                              bool skip_transaction_payload_event = false) {
-    DBUG_ASSERT(buffer_capacity >= data_size);
+    assert(buffer_capacity >= data_size);
     auto event_type = (Log_event_type)buffer[EVENT_TYPE_OFFSET];
     if (m_dict.empty() || !is_rewrite_needed_for_event(event_type))
       return Rewrite_result{buffer, buffer_capacity, data_size, false};
@@ -698,7 +698,7 @@ static uint opt_protocol = 0;
 static uint opt_compress = 0;
 static FILE *result_file;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static const char *default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[] = {"mysqlbinlog", "client", nullptr};
@@ -1814,7 +1814,7 @@ static struct my_option my_long_options[] = {
      "it can be applied to a new database",
      &rewrite, &rewrite, nullptr, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, nullptr,
      0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -2174,7 +2174,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
                                char *argument) {
   bool tty_password = false;
   switch (optid) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     case '#':
       DBUG_PUSH(argument ? argument : default_dbug_option);
       break;
@@ -2213,8 +2213,8 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -2383,7 +2383,7 @@ static Exit_status dump_single_log(PRINT_EVENT_INFO *print_event_info,
       rc = dump_remote_log_entries(print_event_info, logname);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return rc;
@@ -2925,7 +2925,7 @@ class Stdin_binlog_istream : public Basic_seekable_istream,
   }
 
   bool seek(my_off_t position) override {
-    DBUG_ASSERT(position > m_position);
+    assert(position > m_position);
     if (Stdin_istream::skip(position - m_position)) {
       error("Failed to skip %llu bytes from stdin", position - m_position);
       return true;
@@ -2937,7 +2937,7 @@ class Stdin_binlog_istream : public Basic_seekable_istream,
   /* purecov: begin inspected */
   /** Stdin has no length. It should never be called. */
   my_off_t length() override {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
   /* purecov: end */

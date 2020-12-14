@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ The ideas is to have a method per file/context, like slave, master, gtid, etc
 #ifndef RPL_DEBUG_POINTS_H
 #define RPL_DEBUG_POINTS_H
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 #include "my_dbug.h"
 
@@ -125,7 +125,7 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
                            THD *thd = nullptr) {
   if (!thd) thd = current_thd;
 
-  DBUG_ASSERT(opt_debug_sync_timeout > 0);
+  assert(opt_debug_sync_timeout > 0);
 
   std::string debug_point_string{""};
 
@@ -271,11 +271,11 @@ void rpl_slave_debug_point(enum_rpl_slave_debug_point point_id,
     }
   }
 
-  DBUG_ASSERT(!debug_point_string.empty());
-  DBUG_ASSERT(!debug_sync_set_action(thd, debug_point_string.c_str(),
-                                     debug_point_string.length()));
+  assert(!debug_point_string.empty());
+  assert(!debug_sync_set_action(thd, debug_point_string.c_str(),
+                                debug_point_string.length()));
 }
 
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 #endif /* RPL_DEBUG_POINTS_H */

@@ -24,10 +24,10 @@
 #ifndef WINDOWS_INCLUDED
 #define WINDOWS_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 #include <cstring>  // std::memcpy
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
@@ -736,7 +736,7 @@ class Window {
         p = w->m_partition_by;
       } else {
         /* See #setup_windows for checking */
-        DBUG_ASSERT(w->m_partition_by == nullptr);
+        assert(w->m_partition_by == nullptr);
       }
       w = w->m_ancestor;
     }

@@ -23,6 +23,7 @@
 #ifndef PARSE_TREE_NODES_INCLUDED
 #define PARSE_TREE_NODES_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
 
 #include <cctype>  // std::isspace
@@ -33,7 +34,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bit.h"  // is_single_bit
-#include "my_dbug.h"
+
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -538,10 +539,9 @@ class PT_joined_table : public PT_table_reference {
     static_assert(is_single_bit(JTT_LEFT), "not a single bit");
     static_assert(is_single_bit(JTT_RIGHT), "not a single bit");
 
-    DBUG_ASSERT(type == JTT_INNER || type == JTT_STRAIGHT_INNER ||
-                type == JTT_NATURAL_INNER || type == JTT_NATURAL_LEFT ||
-                type == JTT_NATURAL_RIGHT || type == JTT_LEFT ||
-                type == JTT_RIGHT);
+    assert(type == JTT_INNER || type == JTT_STRAIGHT_INNER ||
+           type == JTT_NATURAL_INNER || type == JTT_NATURAL_LEFT ||
+           type == JTT_NATURAL_RIGHT || type == JTT_LEFT || type == JTT_RIGHT);
   }
 
   /**
@@ -555,7 +555,7 @@ class PT_joined_table : public PT_table_reference {
 
   /// Adds the table reference as the right-hand side of this join.
   void add_rhs(PT_table_reference *table) {
-    DBUG_ASSERT(tab2_node == nullptr);
+    assert(tab2_node == nullptr);
     tab2_node = table;
   }
 
@@ -1231,7 +1231,7 @@ class PT_select_var : public Parse_tree_node {
 
   virtual bool is_local() const { return false; }
   virtual uint get_offset() const {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 };
@@ -1241,7 +1241,7 @@ class PT_select_sp_var : public PT_select_var {
 
   uint offset;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Routine to which this Item_splocal belongs. Used for checking if correct
     runtime context is used for variable handling.
@@ -1286,7 +1286,7 @@ class PT_border : public Parse_tree_node {
   ///< For unbounded border
   PT_border(enum_window_border_type type)
       : m_border_type(type), m_date_time(false) {
-    DBUG_ASSERT(type != WBT_VALUE_PRECEDING && type != WBT_VALUE_FOLLOWING);
+    assert(type != WBT_VALUE_PRECEDING && type != WBT_VALUE_FOLLOWING);
   }
 
   ///< For bounded non-temporal border, e.g. 2 PRECEDING: 'value' is 2.
@@ -1408,7 +1408,7 @@ class PT_query_specification : public PT_query_primary {
         opt_group_clause(opt_group_clause_arg),
         opt_having_clause(opt_having_clause_arg),
         opt_window_clause(opt_window_clause_arg) {
-    DBUG_ASSERT(implicit_from_clause ? from_clause.empty() : true);
+    assert(implicit_from_clause ? from_clause.empty() : true);
   }
 
   PT_query_specification(
@@ -1788,7 +1788,7 @@ class PT_delete final : public Parse_tree_root {
 
  private:
   bool is_multitable() const {
-    DBUG_ASSERT((table_ident != nullptr) ^ (table_list.size() > 0));
+    assert((table_ident != nullptr) ^ (table_list.size() > 0));
     return table_ident == nullptr;
   }
 
@@ -1849,7 +1849,7 @@ class PT_insert_values_list : public Parse_tree_node {
   }
 
   virtual mem_root_deque<List_item *> &get_many_values() {
-    DBUG_ASSERT(is_contextualized());
+    assert(is_contextualized());
     return many_values;
   }
 };
@@ -1899,17 +1899,16 @@ class PT_insert final : public Parse_tree_root {
         opt_on_duplicate_column_list(opt_on_duplicate_column_list_arg),
         opt_on_duplicate_value_list(opt_on_duplicate_value_list_arg) {
     // REPLACE statement can't have IGNORE flag:
-    DBUG_ASSERT(!is_replace || !ignore);
+    assert(!is_replace || !ignore);
     // REPLACE statement can't have ON DUPLICATE KEY UPDATE clause:
-    DBUG_ASSERT(!is_replace || opt_on_duplicate_column_list == nullptr);
+    assert(!is_replace || opt_on_duplicate_column_list == nullptr);
     // INSERT/REPLACE ... SELECT can't have VALUES clause:
-    DBUG_ASSERT((row_value_list != nullptr) ^
-                (insert_query_expression != nullptr));
+    assert((row_value_list != nullptr) ^ (insert_query_expression != nullptr));
     // ON DUPLICATE KEY UPDATE: column and value arrays must have same sizes:
-    DBUG_ASSERT((opt_on_duplicate_column_list == nullptr &&
-                 opt_on_duplicate_value_list == nullptr) ||
-                (opt_on_duplicate_column_list->elements() ==
-                 opt_on_duplicate_value_list->elements()));
+    assert((opt_on_duplicate_column_list == nullptr &&
+            opt_on_duplicate_value_list == nullptr) ||
+           (opt_on_duplicate_column_list->elements() ==
+            opt_on_duplicate_value_list->elements()));
   }
 
   Sql_cmd *make_cmd(THD *thd) override;
@@ -2084,7 +2083,7 @@ class PT_key_part_specification : public Parse_tree_node {
     @returns The indexed expression
   */
   Item *get_expression() const {
-    DBUG_ASSERT(has_expression());
+    assert(has_expression());
     return m_expression;
   }
 
@@ -2116,7 +2115,7 @@ class PT_key_part_specification : public Parse_tree_node {
     @returns The column that this key part points to.
   */
   LEX_CSTRING get_column_name() const {
-    DBUG_ASSERT(!has_expression());
+    assert(!has_expression());
     return m_column_name;
   }
 
@@ -2508,7 +2507,7 @@ class PT_ternary_create_table_option : public PT_create_table_option {
       case Ternary_option::DEFAULT:
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
     }
     pc->create_info->used_fields |= Property_flag;
     return false;
@@ -2685,7 +2684,7 @@ class PT_create_stats_stable_pages : public PT_create_table_option {
     @param value       Nunber of pages, 1@<=N@<=65535.
   */
   explicit PT_create_stats_stable_pages(value_t value) : value(value) {
-    DBUG_ASSERT(value != 0 && value <= 0xFFFF);
+    assert(value != 0 && value <= 0xFFFF);
   }
   /**
     Constructor for the DEFAULT number of pages
@@ -2730,7 +2729,7 @@ class PT_create_table_default_charset : public PT_create_table_option {
  public:
   explicit PT_create_table_default_charset(const CHARSET_INFO *value)
       : value(value) {
-    DBUG_ASSERT(value != nullptr);
+    assert(value != nullptr);
   }
 
   bool contextualize(Table_ddl_parse_context *pc) override;
@@ -2744,7 +2743,7 @@ class PT_create_table_default_collation : public PT_create_table_option {
  public:
   explicit PT_create_table_default_collation(const CHARSET_INFO *value)
       : value(value) {
-    DBUG_ASSERT(value != nullptr);
+    assert(value != nullptr);
   }
 
   bool contextualize(Table_ddl_parse_context *pc) override;
@@ -2891,8 +2890,7 @@ class PT_set_role : public Parse_tree_root {
   explicit PT_set_role(role_enum role_type,
                        const List<LEX_USER> *opt_except_roles = nullptr)
       : sql_cmd(role_type, opt_except_roles) {
-    DBUG_ASSERT(role_type == role_enum::ROLE_ALL ||
-                opt_except_roles == nullptr);
+    assert(role_type == role_enum::ROLE_ALL || opt_except_roles == nullptr);
   }
   explicit PT_set_role(const List<LEX_USER> *roles) : sql_cmd(roles) {}
 
@@ -3452,7 +3450,7 @@ class PT_show_grants final : public PT_show_base {
                  const List<LEX_USER> *opt_using_users)
       : PT_show_base(pos, SQLCOM_SHOW_GRANTS),
         sql_cmd(opt_for_user, opt_using_users) {
-    DBUG_ASSERT(opt_using_users == nullptr || opt_for_user != nullptr);
+    assert(opt_using_users == nullptr || opt_for_user != nullptr);
   }
 
   Sql_cmd *make_cmd(THD *thd) override;
@@ -4253,7 +4251,7 @@ class PT_alter_table_partition_list_or_all
       : super(alter_info_flag), m_opt_partition_list(opt_partition_list) {}
 
   bool contextualize(Table_ddl_parse_context *pc) override {
-    DBUG_ASSERT(pc->alter_info->partition_names.is_empty());
+    assert(pc->alter_info->partition_names.is_empty());
     if (m_opt_partition_list == nullptr)
       pc->alter_info->flags |= Alter_info::ALTER_ALL_PARTITION;
     else
@@ -5171,9 +5169,9 @@ class PT_load_table final : public Parse_tree_root {
               opt_set_exprs ? &opt_set_exprs->value : nullptr,
               opt_set_expr_strings),
         m_lock_type(lock_type) {
-    DBUG_ASSERT((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
-    DBUG_ASSERT(opt_set_fields == nullptr ||
-                opt_set_fields->value.size() == opt_set_exprs->value.size());
+    assert((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
+    assert(opt_set_fields == nullptr ||
+           opt_set_fields->value.size() == opt_set_exprs->value.size());
   }
 
   Sql_cmd *make_cmd(THD *thd) override;

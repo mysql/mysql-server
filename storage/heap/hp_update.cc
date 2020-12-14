@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new) {
   memcpy(pos, heap_new, (size_t)share->reclength);
   if (++(share->records) == share->blength) share->blength += share->blength;
 
-#if !defined(DBUG_OFF) && defined(EXTRA_HEAP_DEBUG)
+#if !defined(NDEBUG) && defined(EXTRA_HEAP_DEBUG)
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
   if (auto_key_changed) heap_update_auto_increment(info, heap_new);

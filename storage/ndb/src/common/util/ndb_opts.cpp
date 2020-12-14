@@ -112,7 +112,7 @@ ndb_std_get_one_option(int optid, const struct my_option *opt, char *argument)
     return ndb_option::get_one_option(optid, opt, argument);
   }
   switch (optid) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   case '#':
     if (!opt_debug)
       opt_debug= "d:t";
@@ -133,7 +133,7 @@ ndb_std_get_one_option(int optid, const struct my_option *opt, char *argument)
 extern "C"
 void ndb_std_print_version()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const char *suffix= "-debug";
 #else
   const char *suffix= "";

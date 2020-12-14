@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ Rpl_async_conn_failover_table_operations::add_source(
     const std::string &channel, const std::string &host, uint port,
     const std::string &network_namespace, uint weight) {
   DBUG_TRACE;
-  DBUG_ASSERT(network_namespace.empty());
+  assert(network_namespace.empty());
 
   std::vector<uint> field_index{0, 1, 2, 3, 4, 5};
   std::vector<std::string> field_name{
@@ -73,7 +73,7 @@ Rpl_async_conn_failover_table_operations::add_managed(
     const std::string &managed_name, uint primary_weight,
     uint secondary_weight) {
   DBUG_TRACE;
-  DBUG_ASSERT(network_namespace.empty());
+  assert(network_namespace.empty());
 
   std::stringstream json_str;
   json_str << "{\"Primary_weight\": " << primary_weight
@@ -135,7 +135,7 @@ Rpl_async_conn_failover_table_operations::delete_source(
     const std::string &channel, const std::string &host, uint port,
     const std::string &network_namespace) {
   DBUG_TRACE;
-  DBUG_ASSERT(network_namespace.empty());
+  assert(network_namespace.empty());
 
   std::vector<uint> field_index{0, 1, 2, 3, 5};
   std::vector<std::string> field_name{"channel", "host", "port",

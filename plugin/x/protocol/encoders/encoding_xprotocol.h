@@ -177,9 +177,9 @@ class XProtocol_encoder : public Protobuf_encoder {
         encode_field_fixed_uint32<tags::Compression::uncompressed_size>();
     begin_delimited_field<tags::Compression::payload>(&result.m_payload);
 
-    DBUG_ASSERT(to_compress->m_current == to_compress->m_front);
-    DBUG_ASSERT(to_compress->m_current->m_begin_data ==
-                to_compress->m_current->m_current_data);
+    assert(to_compress->m_current == to_compress->m_front);
+    assert(to_compress->m_current->m_begin_data ==
+           to_compress->m_current->m_current_data);
     result.m_compressed_buffer = m_buffer;
     result.m_compression_type = type;
     // Reset buffer, and initialize the 'handy' data hold inside

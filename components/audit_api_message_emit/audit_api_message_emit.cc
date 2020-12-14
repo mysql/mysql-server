@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   will receive this event.
 */
 
+#include <assert.h>
 #include <ctype.h>
-#include <my_dbug.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
@@ -41,7 +41,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/udf_registration.h>
 #include <mysql/service_plugin_registry.h>
 #include <mysql_com.h>
-#include "template_utils.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,6 +51,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <map>
 #include <memory>
 #include <string>
+#include "my_compiler.h"
 #include "template_utils.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
@@ -251,7 +251,7 @@ static int arg_check(IError_handler &handler, unsigned int arg_count,
   bool res[2];
   bool result = false;
 
-  DBUG_ASSERT(array_elements(res) >= arg_def_size);
+  assert(array_elements(res) >= arg_def_size);
 
   /*
     Check, whether provided argument count matches expected argument count.

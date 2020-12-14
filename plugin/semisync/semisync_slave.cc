@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,8 +110,8 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql, const char *binlog_filename,
 
   DBUG_EXECUTE_IF("rpl_semisync_before_send_ack", {
     const char act[] = "now SIGNAL sending_ack WAIT_FOR continue";
-    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(opt_debug_sync_timeout > 0);
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   /* Prepare the buffer of the reply. */

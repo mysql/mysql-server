@@ -23,10 +23,10 @@
 #ifndef TC_LOG_H
 #define TC_LOG_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"  // my_msync
@@ -227,7 +227,7 @@ class TC_LOG_MMAP : public TC_LOG {
     /* searching for an empty slot */
     while (*p->ptr) {
       p->ptr++;
-      DBUG_ASSERT(p->ptr < p->end);  // because p->free > 0
+      assert(p->ptr < p->end);  // because p->free > 0
     }
 
     /* found! store xid there and mark the page dirty */

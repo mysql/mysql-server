@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,7 +150,7 @@ bool Table_partitions::get_partition_table_id(THD *thd,
                                               Object_id *oid) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(oid);
+  assert(oid);
   *oid = INVALID_OBJECT_ID;
 
   Transaction_ro trx(thd, ISO_READ_COMMITTED);
@@ -161,7 +161,7 @@ bool Table_partitions::get_partition_table_id(THD *thd,
       create_se_private_key(engine, se_private_id));
 
   Raw_table *t = trx.otx.get_table(instance().name());
-  DBUG_ASSERT(t);
+  assert(t);
 
   // Find record by the object-key.
   std::unique_ptr<Raw_record> r;

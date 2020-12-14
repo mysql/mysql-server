@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,13 +38,13 @@ class RWLock {
 
   bool rlock() {
     const auto result = mysql_rwlock_rdlock(&m_rwlock);
-    DBUG_ASSERT(EDEADLK != result);
+    assert(EDEADLK != result);
     return 0 == result;
   }
 
   bool wlock() {
     auto result = mysql_rwlock_wrlock(&m_rwlock);
-    DBUG_ASSERT(EDEADLK != result);
+    assert(EDEADLK != result);
     return 0 == result;
   }
 

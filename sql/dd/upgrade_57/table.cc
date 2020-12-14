@@ -348,11 +348,11 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
     return true;
 
   if (trg.definitions.is_empty()) {
-    DBUG_ASSERT(trg.sql_modes.is_empty());
-    DBUG_ASSERT(trg.definers_list.is_empty());
-    DBUG_ASSERT(trg.client_cs_names.is_empty());
-    DBUG_ASSERT(trg.connection_cl_names.is_empty());
-    DBUG_ASSERT(trg.db_cl_names.is_empty());
+    assert(trg.sql_modes.is_empty());
+    assert(trg.definers_list.is_empty());
+    assert(trg.client_cs_names.is_empty());
+    assert(trg.connection_cl_names.is_empty());
+    assert(trg.db_cl_names.is_empty());
     return false;
   }
 
@@ -776,7 +776,7 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire(view_ref->db, &schema)) return true;
-  DBUG_ASSERT(schema != nullptr);  // Should be impossible during upgrade.
+  assert(schema != nullptr);  // Should be impossible during upgrade.
 
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
@@ -1163,7 +1163,7 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
       */
       if (t->get_event() < t_type ||
           (t->get_event() == t_type && t->get_action_time() < t_time)) {
-        DBUG_ASSERT(false);
+        assert(false);
         LogErr(ERROR_LEVEL, ER_TRG_WRONG_ORDER, t->get_db_name().str,
                t->get_trigger_name().str, schema_name.c_str(),
                table_name.c_str());
@@ -1925,13 +1925,13 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
         hence, we do not need to check this issue at the SQL layer.
 
         See also the corresponding check in migrate_schema_to_dd(). We do
-        not repeat the DBUG_ASSERTS here, but check only if l_c_t_n = 1.
+        not repeat the assertS here, but check only if l_c_t_n = 1.
         Additionally, we do the check below only once, hence the test for
         is_fix_view_cols_and_deps = false.
       */
       if (!is_fix_view_cols_and_deps && lower_case_table_names == 1) {
         // Already checked schema name while migrating schema meta data.
-        DBUG_ASSERT(is_string_in_lowercase(schema_name, system_charset_info));
+        assert(is_string_in_lowercase(schema_name, system_charset_info));
         // Upper case table names break invariant when l_c_t_n = 1.
         if (!is_string_in_lowercase(table_name, system_charset_info)) {
           LogErr(ERROR_LEVEL, ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED,

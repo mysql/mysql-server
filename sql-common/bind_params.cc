@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,8 +189,8 @@ static void net_store_datetime(NET *net, MYSQL_TIME *tm) {
   int4store(pos + 7, static_cast<std::uint32_t>(tm->second_part));
   if (tm->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
     int tzd = tm->time_zone_displacement;
-    DBUG_ASSERT(tzd % SECS_PER_MIN == 0);
-    DBUG_ASSERT(std::abs(tzd) <= MAX_TIME_ZONE_HOURS * SECS_PER_HOUR);
+    assert(tzd % SECS_PER_MIN == 0);
+    assert(std::abs(tzd) <= MAX_TIME_ZONE_HOURS * SECS_PER_HOUR);
     int2store(pos + 11, static_cast<std::uint16_t>(tzd / SECS_PER_MIN));
     length_byte = 13;
   } else if (tm->second_part)
@@ -312,7 +312,7 @@ bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
   unsigned char *null_pos;
   DBUG_TRACE;
 
-  DBUG_ASSERT(net->vio);
+  assert(net->vio);
   net_clear(net, true); /* Sets net->write_pos */
 
   if (send_named_params) {
@@ -322,7 +322,7 @@ bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
     net->write_pos = to;
 
     /* also send the number of parameter data sets */
-    DBUG_ASSERT(n_param_sets == 1);  // reserved for now
+    assert(n_param_sets == 1);  // reserved for now
     if (send_parameter_set_count) {
       my_realloc_str(net, net_length_size(n_param_sets));
       to = net_store_length(net->write_pos, n_param_sets);

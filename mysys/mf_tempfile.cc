@@ -64,7 +64,7 @@
 
 static void encode_crockford_base32(uint64_t val_to_encode, char *to,
                                     size_t encode_len) {
-  DBUG_ASSERT(encode_len < 14);
+  assert(encode_len < 14);
   // Using Douglas Crockford's base 32 encoding to reduce confusion
   // between similar letters/numbers and avoid accidental obscenities.
   // See https://www.crockford.com/base32.html
@@ -72,7 +72,7 @@ static void encode_crockford_base32(uint64_t val_to_encode, char *to,
   // Encode just the least significant encode_len * 5 bits of val_to_encode,
   // starting from the most significant 5 bits
   const auto BITS_PER_CHAR = 5;
-  DBUG_ASSERT(encode_len * BITS_PER_CHAR < 64);
+  assert(encode_len * BITS_PER_CHAR < 64);
   for (size_t i = encode_len; i--;) {
     to[i] = crockford_base32[(val_to_encode >> BITS_PER_CHAR * i) % 32];
   }
@@ -84,7 +84,7 @@ On success, the to buffer contains 16 chars of an encoded UUID and a null
 terminator, so the to_len must be at least 17.
 */
 static bool get_encoded_uuid_excluding_mac(char *to, size_t to_len) {
-  DBUG_ASSERT(to_len >= 17);
+  assert(to_len >= 17);
   if (to_len < 17) {
     return false;
   }

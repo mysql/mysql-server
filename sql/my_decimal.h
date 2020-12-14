@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,13 +35,14 @@
   Most function are just inline wrappers around library calls
 */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <algorithm>
 
 #include "decimal.h"
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 
@@ -95,13 +96,13 @@ class my_decimal : public decimal_t {
   To catch them, we allocate dummy fields around the buffer,
   and test that their values do not change.
  */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int foo1;
 #endif
 
   decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int foo2;
   static const int test_value = 123;
 #endif
@@ -109,7 +110,7 @@ class my_decimal : public decimal_t {
  public:
   my_decimal(const my_decimal &rhs) : decimal_t(rhs) {
     rhs.sanity_check();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     foo1 = test_value;
     foo2 = test_value;
 #endif
@@ -128,7 +129,7 @@ class my_decimal : public decimal_t {
   }
 
   void init() {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     foo1 = test_value;
     foo2 = test_value;
 #endif
@@ -142,14 +143,14 @@ class my_decimal : public decimal_t {
 
   my_decimal() { init(); }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ~my_decimal() { sanity_check(); }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   void sanity_check() const {
-    DBUG_ASSERT(foo1 == test_value);
-    DBUG_ASSERT(foo2 == test_value);
-    DBUG_ASSERT(buf == buffer);
+    assert(foo1 == test_value);
+    assert(foo2 == test_value);
+    assert(buf == buffer);
   }
 
   bool sign() const { return decimal_t::sign; }
@@ -167,7 +168,7 @@ class my_decimal : public decimal_t {
 #endif
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void print_decimal(const my_decimal *dec);
 void print_decimal_buff(const my_decimal *dec, const uchar *ptr, int length);
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val);
@@ -181,8 +182,7 @@ bool str_set_decimal(uint mask, const my_decimal *val, String *str,
 extern my_decimal decimal_zero;
 
 inline void max_my_decimal(my_decimal *to, int precision, int frac) {
-  DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
-              (frac <= DECIMAL_MAX_SCALE));
+  assert((precision <= DECIMAL_MAX_PRECISION) && (frac <= DECIMAL_MAX_SCALE));
   max_decimal(precision, frac, to);
 }
 
@@ -209,7 +209,7 @@ inline int check_result_and_overflow(uint mask, int result, my_decimal *val) {
 inline uint my_decimal_length_to_precision(uint length, uint scale,
                                            bool unsigned_flag) {
   /* Precision can't be negative thus ignore unsigned_flag when length is 0. */
-  DBUG_ASSERT(length || !scale);
+  assert(length || !scale);
   uint retval =
       (uint)(length - (scale > 0 ? 1 : 0) - (unsigned_flag || !length ? 0 : 1));
   return retval;
@@ -222,7 +222,7 @@ inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
     When precision is 0 it means that original length was also 0. Thus
     unsigned_flag is ignored in this case.
   */
-  DBUG_ASSERT(precision || !scale);
+  assert(precision || !scale);
   uint32 retval = (uint32)(precision + (scale > 0 ? 1 : 0) +
                            (unsigned_flag || !precision ? 0 : 1));
   return retval;
@@ -234,7 +234,7 @@ inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
     When precision is 0 it means that original length was also 0. Thus
     unsigned_flag is ignored in this case.
   */
-  DBUG_ASSERT(precision || !scale);
+  assert(precision || !scale);
   precision = std::min(precision, uint(DECIMAL_MAX_PRECISION));
   return my_decimal_precision_to_length_no_truncation(precision, scale,
                                                       unsigned_flag);

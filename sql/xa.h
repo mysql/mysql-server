@@ -259,7 +259,7 @@ typedef struct xid_t {
   const char *get_data() const { return data; }
 
   void set_data(const void *v, long l) {
-    DBUG_ASSERT(l <= XIDDATASIZE);
+    assert(l <= XIDDATASIZE);
     memcpy(data, v, l);
   }
 
@@ -315,7 +315,7 @@ typedef struct xid_t {
     return serialize_xid(buf, formatID, gtrid_length, bqual_length, data);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Get printable XID value.
 
@@ -451,7 +451,7 @@ class XID_STATE {
   }
 
   void start_normal_xa(const XID *xid) {
-    DBUG_ASSERT(m_xid.is_null());
+    assert(m_xid.is_null());
     xa_state = XA_ACTIVE;
     m_xid.set(xid);
     in_recovery = false;

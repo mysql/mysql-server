@@ -323,7 +323,7 @@ class FakeSingleRowIterator final : public RowIterator {
   }
 
   void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
-    DBUG_ASSERT(!is_null_row);
+    assert(!is_null_row);
   }
 
   void UnlockRow() override {}
@@ -352,7 +352,7 @@ class UnqualifiedCountIterator final : public RowIterator {
 
   int Read() override;
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool) override { assert(false); }
 
   void UnlockRow() override {}
 
@@ -383,7 +383,7 @@ class ZeroRowsIterator final : public RowIterator {
   int Read() override { return -1; }
 
   void SetNullRowFlag(bool is_null_row) override {
-    DBUG_ASSERT(m_child_iterator != nullptr);
+    assert(m_child_iterator != nullptr);
     m_child_iterator->SetNullRowFlag(is_null_row);
   }
 
@@ -416,7 +416,7 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
 
   int Read() override;
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool) override { assert(false); }
 
   void UnlockRow() override {}
 
@@ -519,7 +519,7 @@ class TableValueConstructorIterator final : public RowIterator {
   bool Init() override;
   int Read() override;
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool) override { assert(false); }
 
   void UnlockRow() override {}
 

@@ -23,6 +23,7 @@
 #ifndef PARSE_TREE_COL_ATTRS_INCLUDED
 #define PARSE_TREE_COL_ATTRS_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>  // ulong, uint. TODO: replace with cstdint
 
 #include <type_traits>
@@ -34,7 +35,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql_com.h"
@@ -232,7 +233,7 @@ class PT_check_constraint_column_attr : public PT_column_attr_base {
 
   bool add_check_constraints(
       Sql_check_constraint_spec_list *check_const_list) override {
-    DBUG_ASSERT(check_const_list != nullptr);
+    assert(check_const_list != nullptr);
     return (check_const_list->push_back(&col_cc_spec));
   }
 
@@ -284,7 +285,7 @@ class PT_collate_column_attr : public PT_column_attr_base {
  public:
   explicit PT_collate_column_attr(const POS &pos, const CHARSET_INFO *collation)
       : m_pos(pos), m_collation(collation) {
-    DBUG_ASSERT(m_collation != nullptr);
+    assert(m_collation != nullptr);
   }
 
   bool apply_collation(Column_parse_context *pc, const CHARSET_INFO **to,
@@ -568,7 +569,7 @@ class PT_numeric_type : public PT_type {
         length(length),
         dec(dec),
         options(options) {
-    DBUG_ASSERT((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
+    assert((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
 
     if (type_arg != Numeric_type::DECIMAL && dec != nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING,
@@ -587,7 +588,7 @@ class PT_numeric_type : public PT_type {
         length(length),
         dec(nullptr),
         options(options) {
-    DBUG_ASSERT((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
+    assert((options & ~(UNSIGNED_FLAG | ZEROFILL_FLAG)) == 0);
 
     if (length != nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING,
@@ -650,7 +651,7 @@ class PT_char_type : public PT_type {
         length(length),
         charset(charset),
         force_binary(force_binary) {
-    DBUG_ASSERT(charset == nullptr || !force_binary);
+    assert(charset == nullptr || !force_binary);
   }
   PT_char_type(Char_type char_type, const CHARSET_INFO *charset,
                bool force_binary = false)
@@ -690,7 +691,7 @@ class PT_blob_type : public PT_type {
         length(nullptr),
         charset(charset),
         force_binary(force_binary) {
-    DBUG_ASSERT(charset == nullptr || !force_binary);
+    assert(charset == nullptr || !force_binary);
   }
   explicit PT_blob_type(const char *length)
       : PT_type(MYSQL_TYPE_BLOB),
@@ -822,7 +823,7 @@ class PT_enum_type_tmpl : public PT_type {
         interval_list(interval_list),
         charset(charset),
         force_binary(force_binary) {
-    DBUG_ASSERT(charset == nullptr || !force_binary);
+    assert(charset == nullptr || !force_binary);
   }
 
   const CHARSET_INFO *get_charset() const override { return charset; }

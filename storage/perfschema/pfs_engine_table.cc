@@ -481,12 +481,12 @@ bool PFS_table_context::initialize(void) {
   if (m_restore) {
     /* Restore context from TLS. */
     PFS_table_context *context = THR_PFS_contexts[m_thr_key];
-    DBUG_ASSERT(context != nullptr);
+    assert(context != nullptr);
 
     if (context) {
       m_last_version = context->m_current_version;
       m_map = context->m_map;
-      DBUG_ASSERT(m_map_size == context->m_map_size);
+      assert(m_map_size == context->m_map_size);
       m_map_size = context->m_map_size;
       m_word_size = context->m_word_size;
     }
@@ -905,21 +905,21 @@ int PFS_engine_table::update_row_values(TABLE *, const unsigned char *,
 int PFS_engine_table::index_read(KEY *key_infos, uint index, const uchar *key,
                                  uint key_len,
                                  enum ha_rkey_function find_flag) {
-  // DBUG_ASSERT(m_index != NULL);
+  // assert(m_index != NULL);
   if (m_index == nullptr) {
     return HA_ERR_END_OF_FILE;
   }
 
   // FIXME: Unclear what to do here
-  DBUG_ASSERT(find_flag != HA_READ_PREFIX_LAST);
-  DBUG_ASSERT(find_flag != HA_READ_PREFIX_LAST_OR_PREV);
+  assert(find_flag != HA_READ_PREFIX_LAST);
+  assert(find_flag != HA_READ_PREFIX_LAST_OR_PREV);
 
   // No GIS here
-  DBUG_ASSERT(find_flag != HA_READ_MBR_CONTAIN);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_INTERSECT);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_WITHIN);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_DISJOINT);
-  DBUG_ASSERT(find_flag != HA_READ_MBR_EQUAL);
+  assert(find_flag != HA_READ_MBR_CONTAIN);
+  assert(find_flag != HA_READ_MBR_INTERSECT);
+  assert(find_flag != HA_READ_MBR_WITHIN);
+  assert(find_flag != HA_READ_MBR_DISJOINT);
+  assert(find_flag != HA_READ_MBR_EQUAL);
 
   KEY *key_info = key_infos + index;
   m_index->set_key_info(key_info);
@@ -1013,7 +1013,7 @@ static bool allow_drop_schema_privilege() {
     return false;
   }
 
-  DBUG_ASSERT(thd->lex != nullptr);
+  assert(thd->lex != nullptr);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
       (thd->lex->sql_command != SQLCOM_GRANT) &&
       (thd->lex->sql_command != SQLCOM_DROP_TABLE)) {
@@ -1098,7 +1098,7 @@ static bool allow_drop_table_privilege() {
     return false;
   }
 
-  DBUG_ASSERT(thd->lex != nullptr);
+  assert(thd->lex != nullptr);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
       (thd->lex->sql_command != SQLCOM_GRANT)) {
     return false;
@@ -1273,8 +1273,8 @@ ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
 #define READ_INT_COMMON(DS, KT, DT, KORR)                                \
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {  \
     size_t data_size = DS;                                               \
-    DBUG_ASSERT(m_remaining_key_part_info->type == KT);                  \
-    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);   \
+    assert(m_remaining_key_part_info->type == KT);                       \
+    assert(m_remaining_key_part_info->store_length >= data_size);        \
     isnull = false;                                                      \
     if (m_remaining_key_part_info->field->is_nullable()) {               \
       if (m_remaining_key[0]) {                                          \
@@ -1291,7 +1291,7 @@ ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
     *value = data;                                                       \
     return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT); \
   }                                                                      \
-  DBUG_ASSERT(m_remaining_key_len == 0);                                 \
+  assert(m_remaining_key_len == 0);                                      \
   return HA_READ_INVALID
 
 enum ha_rkey_function PFS_key_reader::read_int8(enum ha_rkey_function find_flag,
@@ -1350,8 +1350,8 @@ enum ha_rkey_function PFS_key_reader::read_timestamp(
   struct timeval tm;
 
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
-    DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
+    assert(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
+    assert(m_remaining_key_part_info->store_length >= data_size);
     isnull = false;
     if (m_remaining_key_part_info->field->is_nullable()) {
       if (m_remaining_key[0]) {
@@ -1369,7 +1369,7 @@ enum ha_rkey_function PFS_key_reader::read_timestamp(
     *value = data;
     return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
   }
-  DBUG_ASSERT(m_remaining_key_len == 0);
+  assert(m_remaining_key_len == 0);
   return HA_READ_INVALID;
 }
 
@@ -1389,7 +1389,7 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     size_t data_offset = 2;
     isnull = false;
     if (m_remaining_key_part_info->field->is_nullable()) {
-      DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
+      assert(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;
       data_offset++;
@@ -1398,15 +1398,14 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
       }
     }
 
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
-                m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT2);
+    assert(m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT1 ||
+           m_remaining_key_part_info->type == HA_KEYTYPE_VARTEXT2);
 
-    DBUG_ASSERT(data_offset <= m_remaining_key_len);
+    assert(data_offset <= m_remaining_key_len);
     size_t string_len = uint2korr(m_remaining_key + length_offset);
-    DBUG_ASSERT(data_offset + string_len <=
-                m_remaining_key_part_info->store_length);
-    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_len);
-    DBUG_ASSERT(string_len <= buffer_capacity);
+    assert(data_offset + string_len <= m_remaining_key_part_info->store_length);
+    assert(data_offset + string_len <= m_remaining_key_len);
+    assert(string_len <= buffer_capacity);
 
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
@@ -1422,7 +1421,7 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
   }
 
-  DBUG_ASSERT(m_remaining_key_len == 0);
+  assert(m_remaining_key_len == 0);
   return HA_READ_INVALID;
 }
 
@@ -1436,13 +1435,13 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
       - followed by data
       - Length determined by key definition
     */
-    DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_TEXT);
+    assert(m_remaining_key_part_info->type == HA_KEYTYPE_TEXT);
 
     size_t length_offset = 0;
     size_t data_offset = 0;
     isnull = false;
     if (m_remaining_key_part_info->field->is_nullable()) {
-      DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
+      assert(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;
       data_offset++;
@@ -1451,12 +1450,11 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
       }
     }
 
-    DBUG_ASSERT(data_offset <= m_remaining_key_len);
+    assert(data_offset <= m_remaining_key_len);
     size_t string_len = m_remaining_key_part_info->length;
-    DBUG_ASSERT(data_offset + string_len <=
-                m_remaining_key_part_info->store_length);
-    DBUG_ASSERT(data_offset + string_len <= m_remaining_key_len);
-    DBUG_ASSERT(string_len <= buffer_capacity);
+    assert(data_offset + string_len <= m_remaining_key_part_info->store_length);
+    assert(data_offset + string_len <= m_remaining_key_len);
+    assert(string_len <= buffer_capacity);
 
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
@@ -1479,7 +1477,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
     return ((m_remaining_key_len == 0) ? find_flag : HA_READ_KEY_EXACT);
   }
 
-  DBUG_ASSERT(m_remaining_key_len == 0);
+  assert(m_remaining_key_len == 0);
   return HA_READ_INVALID;
 }
 
@@ -1488,32 +1486,32 @@ void PFS_engine_index::read_key(const uchar *key, uint key_len,
   PFS_key_reader reader(m_key_info, key, key_len);
 
   if (m_key_ptr_1 != nullptr) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[0].field->field_name,
-                                  m_key_ptr_1->m_name) == 0);
+    assert(native_strcasecmp(m_key_info->key_part[0].field->field_name,
+                             m_key_ptr_1->m_name) == 0);
     m_key_ptr_1->read(reader, find_flag);
   }
 
   if (m_key_ptr_2 != nullptr) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[1].field->field_name,
-                                  m_key_ptr_2->m_name) == 0);
+    assert(native_strcasecmp(m_key_info->key_part[1].field->field_name,
+                             m_key_ptr_2->m_name) == 0);
     m_key_ptr_2->read(reader, find_flag);
   }
 
   if (m_key_ptr_3 != nullptr) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[2].field->field_name,
-                                  m_key_ptr_3->m_name) == 0);
+    assert(native_strcasecmp(m_key_info->key_part[2].field->field_name,
+                             m_key_ptr_3->m_name) == 0);
     m_key_ptr_3->read(reader, find_flag);
   }
 
   if (m_key_ptr_4 != nullptr) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[3].field->field_name,
-                                  m_key_ptr_4->m_name) == 0);
+    assert(native_strcasecmp(m_key_info->key_part[3].field->field_name,
+                             m_key_ptr_4->m_name) == 0);
     m_key_ptr_4->read(reader, find_flag);
   }
 
   if (m_key_ptr_5 != nullptr) {
-    DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[4].field->field_name,
-                                  m_key_ptr_5->m_name) == 0);
+    assert(native_strcasecmp(m_key_info->key_part[4].field->field_name,
+                             m_key_ptr_5->m_name) == 0);
     m_key_ptr_5->read(reader, find_flag);
   }
 

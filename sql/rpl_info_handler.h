@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -441,7 +441,7 @@ class Rpl_info_handler {
 
 bool operator!(Rpl_info_handler::enum_field_get_status status);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern ulong w_rr;
 extern uint mts_debug_concurrent_access;
 #endif

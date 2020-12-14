@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_socket_summary_by_event_name.h"
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -157,7 +157,7 @@ int table_socket_summary_by_event_name::rnd_pos(const void *pos) {
 int table_socket_summary_by_event_name::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_socket_summary_by_event_name *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_socket_summary_by_event_name);
   m_opened_index = result;
   m_index = result;
@@ -205,7 +205,7 @@ int table_socket_summary_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -284,7 +284,7 @@ int table_socket_summary_by_event_name::read_row_values(TABLE *table,
           break;
 
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
     }  // if

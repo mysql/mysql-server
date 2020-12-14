@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,11 @@
 
 #include "storage/perfschema/pfs_timer.h"
 
+#include <assert.h>
 #include <math.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_rdtsc.h"
 #include "mysqld_error.h"
 #include "sql/log.h" /* log_errlog */
@@ -191,13 +191,13 @@ ulong time_normalizer::bucket_index(ulonglong t) {
   ulong mid;
   ulong high = NUMBER_OF_BUCKETS;
 
-  DBUG_ASSERT(m_bucket_timer[low] <= t);
-  DBUG_ASSERT(t <= m_bucket_timer[high]);
+  assert(m_bucket_timer[low] <= t);
+  assert(t <= m_bucket_timer[high]);
 
   do {
     mid = (low + high) / 2;
-    DBUG_ASSERT(low < mid);
-    DBUG_ASSERT(mid < high);
+    assert(low < mid);
+    assert(mid < high);
     if (t < m_bucket_timer[mid]) {
       high = mid;
     } else {
@@ -205,8 +205,8 @@ ulong time_normalizer::bucket_index(ulonglong t) {
     }
   } while (low + 1 < high);
 
-  DBUG_ASSERT(m_bucket_timer[low] <= t);
-  DBUG_ASSERT((t < m_bucket_timer[high]) || (high == NUMBER_OF_BUCKETS));
+  assert(m_bucket_timer[low] <= t);
+  assert((t < m_bucket_timer[high]) || (high == NUMBER_OF_BUCKETS));
 
   return low;
 }

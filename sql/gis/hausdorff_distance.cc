@@ -136,12 +136,12 @@ bool hausdorff_distance(const dd::Spatial_reference_system *srs,
                         const char *func_name, double *hausdorff_distance,
                         bool *is_null) noexcept {
   try {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
-    DBUG_ASSERT(srs == nullptr ||
-                ((srs->is_cartesian() &&
-                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
-                 (srs->is_geographic() &&
-                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+    assert(g1->coordinate_system() == g2->coordinate_system());
+    assert(srs == nullptr ||
+           ((srs->is_cartesian() &&
+             g1->coordinate_system() == Coordinate_system::kCartesian) ||
+            (srs->is_geographic() &&
+             g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*is_null = (g1->is_empty() || g2->is_empty()))) return false;
 

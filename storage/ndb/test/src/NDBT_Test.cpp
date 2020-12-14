@@ -1561,7 +1561,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   Ndb_opts opts(argc, _argv, my_long_options, load_default_groups);
   opts.set_usage_funcs(short_usage_sub);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:i:F:L";
 #endif
   if (opts.handle_options())

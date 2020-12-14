@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ Ndb *check_ndb_in_thd(THD *thd, bool validate_ndb) {
     if (!thd_ndb->recycle_ndb()) return NULL;
   }
 
-  DBUG_ASSERT(thd_ndb->is_slave_thread() == thd->slave_thread);
+  assert(thd_ndb->is_slave_thread() == thd->slave_thread);
 
   return thd_ndb->ndb;
 }

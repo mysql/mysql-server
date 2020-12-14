@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,9 +44,8 @@
   std sorting functions instead of this.
 */
 
+#include <assert.h>
 #include <queue>
-
-#include "my_dbug.h"
 
 /**
  Sorts the elements in the range [first,last) into ascending order
@@ -121,7 +120,7 @@ void merge_sort(Element_type **first, Element_type **last, Comp_func comp) {
   Element_type **cur2 = middle;
 
   for (uint i = 0; i < elements; i++) {
-    DBUG_ASSERT(cur1 < middle || cur2 < last);
+    assert(cur1 < middle || cur2 < last);
 
     if (cur1 == middle)
       merged.push(*cur2++);

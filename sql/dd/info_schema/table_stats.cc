@@ -427,7 +427,7 @@ ulonglong Table_statistics::get_stat(ha_statistics &stat,
       return (stat.check_time);
 
     default:
-      DBUG_ASSERT(!"Should not hit here");
+      assert(!"Should not hit here");
   }
 
   return 0;
@@ -534,7 +534,7 @@ ulonglong Table_statistics::read_stat_from_SE(
   ulonglong return_value = 0;
 
   DBUG_EXECUTE_IF("information_schema_fetch_table_stats",
-                  DBUG_ASSERT(strncmp(table_name_ptr.ptr(), "fts", 3)););
+                  assert(strncmp(table_name_ptr.ptr(), "fts", 3)););
 
   // No engines implement these statistics retrieval. We always return zero.
   if (stype == enum_table_stats_type::CHECK_TIME ||
@@ -575,7 +575,7 @@ ulonglong Table_statistics::read_stat_from_SE(
         dd::Properties::parse_properties(
             tbl_se_private_data ? tbl_se_private_data : ""));
 
-    DBUG_ASSERT(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
+    assert(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
 
     //
     // Read statistics from SE
@@ -749,7 +749,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   lex->sql_command = old_lex->sql_command;
 
   if (open_result) {
-    DBUG_ASSERT(thd->is_error() || thd->is_killed());
+    assert(thd->is_error() || thd->is_killed());
 
     if (thd->is_error()) {
       /*
@@ -786,7 +786,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
         table_list->table->file->get_partition_handler();
     if (partition_name && part_handler) {
       partition_info *part_info = table_list->table->part_info;
-      DBUG_ASSERT(part_info);
+      assert(part_info);
 
       uint part_id;
       if (part_info->get_part_elem(partition_name, &part_id) &&
@@ -889,7 +889,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.item_list() == nullptr);
+  assert(i_s_arena.item_list() == nullptr);
   thd->free_items();
 
   /*

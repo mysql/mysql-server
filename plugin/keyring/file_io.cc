@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "my_config.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <mysql/psi/mysql_file.h>
 #include <stdarg.h>
@@ -31,7 +32,6 @@
 #include <sstream>
 #include <utility>
 
-#include "my_dbug.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"
 #include "sql/current_thd.h"
@@ -45,7 +45,7 @@ bool is_super_user() {
   MYSQL_SECURITY_CONTEXT sec_ctx;
   my_svc_bool has_super_privilege = false;
 
-  DBUG_ASSERT(thd != nullptr);
+  assert(thd != nullptr);
 
   if (thd == nullptr || thd_get_security_context(thd, &sec_ctx) ||
       security_context_get_option(sec_ctx, "privilege_super",
@@ -187,7 +187,7 @@ bool File_io::truncate(File file, myf myFlags) {
 #elif defined(HAVE_FTRUNCATE)
   if (ftruncate(file, (off_t)0) && (myFlags & MY_WME)) {
 #else
-  DBUG_ASSERT(0);
+  assert(0);
 #endif
     std::stringstream error_message;
     error_message << "Could not truncate file " << my_filename(file)
@@ -200,7 +200,7 @@ bool File_io::truncate(File file, myf myFlags) {
     return true;
   }
   //#else
-  //  DBUG_ASSERT(0);
+  //  assert(0);
   //#endif
   return false;
 }  // namespace keyring

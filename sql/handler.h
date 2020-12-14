@@ -3448,7 +3448,7 @@ class Cost_estimate {
 
   /// Multiply io, cpu and import costs by parameter
   void multiply(double m) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
 
     io_cost *= m;
     cpu_cost *= m;
@@ -3457,7 +3457,7 @@ class Cost_estimate {
   }
 
   Cost_estimate &operator+=(const Cost_estimate &other) {
-    DBUG_ASSERT(!is_max_cost() && !other.is_max_cost());
+    assert(!is_max_cost() && !other.is_max_cost());
 
     io_cost += other.io_cost;
     cpu_cost += other.cpu_cost;
@@ -3477,7 +3477,7 @@ class Cost_estimate {
   Cost_estimate operator-(const Cost_estimate &other) {
     Cost_estimate result;
 
-    DBUG_ASSERT(!other.is_max_cost());
+    assert(!other.is_max_cost());
 
     result.io_cost = io_cost - other.io_cost;
     result.cpu_cost = cpu_cost - other.cpu_cost;
@@ -3496,25 +3496,25 @@ class Cost_estimate {
 
   /// Add to IO cost
   void add_io(double add_io_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     io_cost += add_io_cost;
   }
 
   /// Add to CPU cost
   void add_cpu(double add_cpu_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     cpu_cost += add_cpu_cost;
   }
 
   /// Add to import cost
   void add_import(double add_import_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     import_cost += add_import_cost;
   }
 
   /// Add to memory cost
   void add_mem(double add_mem_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     mem_cost += add_mem_cost;
   }
 };
@@ -4376,11 +4376,11 @@ class handler {
   }
 
   virtual ~handler(void) {
-    DBUG_ASSERT(m_psi == nullptr);
-    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
-    DBUG_ASSERT(m_psi_locker == nullptr);
-    DBUG_ASSERT(m_lock_type == F_UNLCK);
-    DBUG_ASSERT(inited == NONE);
+    assert(m_psi == nullptr);
+    assert(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+    assert(m_psi_locker == nullptr);
+    assert(m_lock_type == F_UNLCK);
+    assert(inited == NONE);
   }
 
   /**
@@ -5032,7 +5032,7 @@ class handler {
     @retval  >0          Error code
   */
   virtual int exec_bulk_update(uint *dup_key_found MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -5047,7 +5047,7 @@ class handler {
     @retval >0            Error code
   */
   virtual int end_bulk_delete() {
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -5153,7 +5153,7 @@ class handler {
   */
   virtual int rnd_pos_by_record(uchar *record) {
     int error;
-    DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+    assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
 
     error = ha_rnd_init(false);
     if (error != 0) return error;
@@ -5223,7 +5223,7 @@ class handler {
   virtual int info(uint flag) = 0;
   virtual uint32 calculate_key_hash_value(
       Field **field_array MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
   /**
@@ -5284,7 +5284,7 @@ class handler {
     @see HA_READ_BEFORE_WRITE_REMOVAL
   */
   virtual bool start_read_removal(void) {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
 
@@ -5294,7 +5294,7 @@ class handler {
     @see HA_READ_BEFORE_WRITE_REMOVAL
   */
   virtual ha_rows end_read_removal(void) {
-    DBUG_ASSERT(0);
+    assert(0);
     return (ha_rows)0;
   }
 
@@ -5584,7 +5584,7 @@ class handler {
   */
   virtual const Item *cond_push(const Item *cond,
                                 bool other_tbls_ok MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(pushed_cond == nullptr);
+    assert(pushed_cond == nullptr);
     return cond;
   }
 
@@ -6228,7 +6228,7 @@ class handler {
      upon the table.
   */
   virtual int repair(THD *, HA_CHECK_OPT *) {
-    DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
+    assert(!(ha_table_flags() & HA_CAN_REPAIR));
     return HA_ADMIN_NOT_IMPLEMENTED;
   }
   virtual void start_bulk_insert(ha_rows) {}
@@ -6296,7 +6296,7 @@ class handler {
    */
   virtual int load_table(const TABLE &table MY_ATTRIBUTE((unused))) {
     /* purecov: begin inspected */
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
     /* purecov: end */
   }
@@ -6317,7 +6317,7 @@ class handler {
                            const char *table_name MY_ATTRIBUTE((unused)),
                            bool error_if_not_loaded MY_ATTRIBUTE((unused))) {
     /* purecov: begin inspected */
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
     /* purecov: end */
   }
@@ -6357,7 +6357,7 @@ class handler {
   virtual int bulk_update_row(const uchar *old_data MY_ATTRIBUTE((unused)),
                               uchar *new_data MY_ATTRIBUTE((unused)),
                               uint *dup_key_found MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -6698,7 +6698,7 @@ class DsMrr_impl {
       internally created temporary tables).
     */
     if (h2) reset();
-    DBUG_ASSERT(h2 == nullptr);
+    assert(h2 == nullptr);
   }
 
  private:
@@ -6736,7 +6736,7 @@ class DsMrr_impl {
   */
 
   void init(TABLE *table_arg) {
-    DBUG_ASSERT(table_arg != nullptr);
+    assert(table_arg != nullptr);
     table = table_arg;
   }
 
@@ -6805,7 +6805,7 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
 inline handlerton *get_default_handlerton(THD *thd, handlerton *hton) {
   if (!hton) {
     hton = ha_checktype(thd, DB_TYPE_UNKNOWN, false, false);
-    DBUG_ASSERT(hton);
+    assert(hton);
   }
   return hton;
 }

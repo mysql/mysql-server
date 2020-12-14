@@ -90,11 +90,11 @@ class Ndb_dbname_guard {
     // Change back to saved database name
     if (m_ndb->setDatabaseName(m_save_dbname.c_str())) {
       // Failed to restore old database name
-      DBUG_ASSERT(false);
+      assert(false);
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
      @brief Check that database name has been set on the Ndb object.
 

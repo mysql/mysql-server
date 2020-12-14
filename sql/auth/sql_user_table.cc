@@ -509,7 +509,7 @@ void commit_and_close_mysql_tables(THD *thd) {
     trans_rollback_stmt(thd);
     trans_rollback_implicit(thd);
   } else {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool res =
 #endif
         /*
@@ -519,7 +519,7 @@ void commit_and_close_mysql_tables(THD *thd) {
           close_mysql_tables() we need to do implicit commit here.
         */
         trans_commit_stmt(thd) || trans_commit_implicit(thd);
-    DBUG_ASSERT(res == false);
+    assert(res == false);
   }
 
   close_mysql_tables(thd);
@@ -645,13 +645,13 @@ static bool acl_end_trans_and_close_tables(THD *thd,
     It is safe to do so since ACL statement always do implicit commit at the
     end of statement.
   */
-  DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
+  assert(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
   /*
     ACL DDL operations must acquire IX Backup Lock in order to be mutually
     exclusive with LOCK INSTANCE FOR BACKUP.
   */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE));
 
   if (rollback_transaction) {
@@ -710,7 +710,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             bool write_to_binlog) {            /* = true */
   bool result = false;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
   result = thd->is_error() || extra_error || thd->transaction_rollback_request;
   /* Write to binlog and textlogs only if there is no error */
   if (!result) {
@@ -843,7 +843,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
   DBUG_TRACE;
-  DBUG_ASSERT(initialized);
+  assert(initialized);
   if (table_intact.check(table, ACL_TABLES::TABLE_DB)) return -1;
 
   /* Check if there is such a user in user table in memory? */
@@ -862,10 +862,10 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
            table->key_info->key_length);
   error = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_db_table_1", error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
@@ -904,32 +904,32 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     /* update old existing row */
     if (rights) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_db_table_2",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else /* must have been a revoke of all privileges */
     {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_db_table_3",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) goto table_error; /* purecov: deadcode */
     }
   } else if (rights) {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_db_table_4", error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
       if (!table->file->is_ignorable_error(error))
@@ -980,7 +980,7 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   Acl_table_intact table_intact(thd);
 
   DBUG_TRACE;
-  DBUG_ASSERT(initialized);
+  assert(initialized);
   if (table_intact.check(table, ACL_TABLES::TABLE_PROXIES_PRIV)) return -1;
 
   /* Check if there is such a user in user table in memory? */
@@ -1009,10 +1009,10 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
 
   error = table->file->ha_index_read_map(table->record[0], user_key,
                                          HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_2",
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -1040,31 +1040,31 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     /* update old existing row */
     if (!revoke_grant) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_3",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_4",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) goto table_error;
     }
   } else {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_proxies_priv_table_5",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1177,10 +1177,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
 
     error = table->file->ha_index_read_map(table->record[0], user_key,
                                            HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_column_table_2",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1219,11 +1219,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
       GRANT_COLUMN *grant_column;
       if (privileges) {
         error = table->file->ha_update_row(table->record[1], table->record[0]);
-        DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_DEADLOCK);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_WAIT_TIMEOUT);
+        assert(error != HA_ERR_FOUND_DUPP_KEY);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_DEADLOCK);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_WAIT_TIMEOUT);
         DBUG_EXECUTE_IF("wl7158_replace_column_table_3",
                         error = HA_ERR_LOCK_DEADLOCK;);
         if (error && error != HA_ERR_RECORD_IS_THE_SAME) {
@@ -1233,10 +1233,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         }
       } else {
         error = table->file->ha_delete_row(table->record[1]);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_DEADLOCK);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_WAIT_TIMEOUT);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_DEADLOCK);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_WAIT_TIMEOUT);
         DBUG_EXECUTE_IF("wl7158_replace_column_table_4",
                         error = HA_ERR_LOCK_DEADLOCK;);
         if (error) {
@@ -1253,11 +1253,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
     {
       GRANT_COLUMN *grant_column;
       error = table->file->ha_write_row(table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_column_table_5",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
@@ -1283,11 +1283,11 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
     error = table->file->ha_index_read_map(table->record[0], user_key,
                                            (key_part_map)15, HA_READ_KEY_EXACT);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_column_table_6",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -1320,10 +1320,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         if (privileges) {
           error =
               table->file->ha_update_row(table->record[1], table->record[0]);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_DEADLOCK);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_WAIT_TIMEOUT);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_DEADLOCK);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_WAIT_TIMEOUT);
           if (error &&
               error != HA_ERR_RECORD_IS_THE_SAME) { /* purecov: deadcode */
             acl_print_ha_error(error);              // deadcode
@@ -1333,10 +1333,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
           if (grant_column) grant_column->rights = privileges;  // Update hash
         } else {
           error = table->file->ha_delete_row(table->record[1]);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_DEADLOCK);
-          DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                      error != HA_ERR_LOCK_WAIT_TIMEOUT);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_DEADLOCK);
+          assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+                 error != HA_ERR_LOCK_WAIT_TIMEOUT);
           DBUG_EXECUTE_IF("wl7158_replace_column_table_7",
                           error = HA_ERR_LOCK_DEADLOCK;);
           if (error) {
@@ -1350,10 +1350,10 @@ int replace_column_table(THD *thd, GRANT_TABLE *g_t, TABLE *table,
         }
       }
       error = table->file->ha_index_next(table->record[0]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_column_table_8",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) {
@@ -1432,10 +1432,10 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
            table->key_info->key_length);
   error = table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_table_table_1",
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -1481,29 +1481,29 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
   if (old_row_exists) {
     if (store_table_rights || store_col_rights) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_table_table_2",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       if (error) goto table_error; /* purecov: deadcode */
     }
   } else {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_table_table_3",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (!table->file->is_ignorable_error(error)) goto table_error;
@@ -1594,10 +1594,10 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   error = table->file->ha_index_read_idx_map(table->record[0], 0,
                                              table->field[0]->field_ptr(),
                                              HA_WHOLE_KEY, HA_READ_KEY_EXACT);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_DEADLOCK);
-  DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-              error != HA_ERR_LOCK_WAIT_TIMEOUT);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_DEADLOCK);
+  assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+         error != HA_ERR_LOCK_WAIT_TIMEOUT);
   DBUG_EXECUTE_IF("wl7158_replace_routine_table_1",
                   error = HA_ERR_LOCK_DEADLOCK;);
   if (error) {
@@ -1638,31 +1638,31 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name, TABLE *table,
   if (old_row_exists) {
     if (store_proc_rights) {
       error = table->file->ha_update_row(table->record[1], table->record[0]);
-      DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(error != HA_ERR_FOUND_DUPP_KEY);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_routine_table_2",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error && error != HA_ERR_RECORD_IS_THE_SAME) goto table_error;
     } else {
       error = table->file->ha_delete_row(table->record[1]);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_DEADLOCK);
-      DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                  error != HA_ERR_LOCK_WAIT_TIMEOUT);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_DEADLOCK);
+      assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+             error != HA_ERR_LOCK_WAIT_TIMEOUT);
       DBUG_EXECUTE_IF("wl7158_replace_routine_table_3",
                       error = HA_ERR_LOCK_DEADLOCK;);
       if (error) goto table_error;
     }
   } else {
     error = table->file->ha_write_row(table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_replace_routine_table_4",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (!table->file->is_ignorable_error(error)) goto table_error;
@@ -2039,11 +2039,11 @@ static int modify_grant_table(TABLE *table, Field *host_field,
     user_field->store(user_to->user.str, user_to->user.length,
                       system_charset_info);
     error = table->file->ha_update_row(table->record[1], table->record[0]);
-    DBUG_ASSERT(error != HA_ERR_FOUND_DUPP_KEY);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(error != HA_ERR_FOUND_DUPP_KEY);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_modify_grant_table_1",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error && error != HA_ERR_RECORD_IS_THE_SAME)
@@ -2053,10 +2053,10 @@ static int modify_grant_table(TABLE *table, Field *host_field,
   } else {
     /* delete */
     error = table->file->ha_delete_row(table->record[0]);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_modify_grant_table_2",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) acl_print_ha_error(error);
@@ -2127,10 +2127,10 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
 
     error = table->file->ha_index_read_idx_map(
         table->record[0], 0, user_key, (key_part_map)3, HA_READ_KEY_EXACT);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_DEADLOCK);
-    DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                error != HA_ERR_LOCK_WAIT_TIMEOUT);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_DEADLOCK);
+    assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+           error != HA_ERR_LOCK_WAIT_TIMEOUT);
     DBUG_EXECUTE_IF("wl7158_handle_grant_table_1",
                     error = HA_ERR_LOCK_DEADLOCK;);
     if (error) {
@@ -2167,10 +2167,10 @@ int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
 #endif
       while (true) {
         error = table->file->ha_rnd_next(table->record[0]);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_DEADLOCK);
-        DBUG_ASSERT(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
-                    error != HA_ERR_LOCK_WAIT_TIMEOUT);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_DEADLOCK);
+        assert(table->file->ht->db_type == DB_TYPE_NDBCLUSTER ||
+               error != HA_ERR_LOCK_WAIT_TIMEOUT);
         DBUG_EXECUTE_IF("wl7158_handle_grant_table_3",
                         error = HA_ERR_LOCK_DEADLOCK;);
         if (error) {
@@ -2267,7 +2267,7 @@ bool is_acl_table_name(const char *name) {
   return false;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Check if given TABLE* is a ACL table name.
 

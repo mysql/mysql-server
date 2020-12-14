@@ -4240,7 +4240,7 @@ const char *get_mlog_string(mlog_id_t type) {
       return ("MLOG_TEST");
   }
 
-  DBUG_ASSERT(0);
+  assert(0);
 
   return (nullptr);
 }

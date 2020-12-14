@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,14 +37,14 @@ bool Object_table_definition_impl::s_dd_tablespace_encrypted = false;
 void Object_table_definition_impl::get_element_properties(
     dd::Properties *properties, const Element_numbers &element_numbers,
     const Element_definitions &element_defs) const {
-  DBUG_ASSERT(properties != nullptr);
-  DBUG_ASSERT(element_numbers.size() == element_defs.size());
+  assert(properties != nullptr);
+  assert(element_numbers.size() == element_defs.size());
   int count = 0;
   for (auto it : element_numbers) {
     std::unique_ptr<Properties> element(Properties::parse_properties(""));
     Element_definitions::const_iterator element_def =
         element_defs.find(it.second);
-    DBUG_ASSERT(element_def != element_defs.end());
+    assert(element_def != element_defs.end());
     element->set(key(Label::LABEL), it.first);
     element->set(key(Label::POSITION), it.second);
     element->set(key(Label::DEFINITION), element_def->second);
@@ -58,8 +58,8 @@ void Object_table_definition_impl::get_element_properties(
 bool Object_table_definition_impl::set_element_properties(
     const String_type &prop_str, Element_numbers *element_numbers,
     Element_definitions *element_defs) {
-  DBUG_ASSERT(element_numbers != nullptr);
-  DBUG_ASSERT(element_defs != nullptr);
+  assert(element_numbers != nullptr);
+  assert(element_defs != nullptr);
   std::unique_ptr<Properties> properties(
       Properties::parse_properties(prop_str));
   /*
@@ -90,7 +90,7 @@ void Object_table_definition_impl::add_sql_mode_field(
   ulonglong all_sql_mode_mask = MODE_LAST - 1;
   sql_mode_quoted_string_representation(current_thd, all_sql_mode_mask,
                                         &sql_mode);
-  DBUG_ASSERT(sql_mode.str);
+  assert(sql_mode.str);
   dd::String_type sql_modes_in_string(sql_mode.str, sql_mode.length);
   add_field(field_number, field_name,
             "sql_mode SET(" + sql_modes_in_string + ") NOT NULL");
@@ -139,7 +139,7 @@ String_type Object_table_definition_impl::get_ddl() const {
 
 void Object_table_definition_impl::store_into_properties(
     Properties *table_def_properties) const {
-  DBUG_ASSERT(table_def_properties != nullptr);
+  assert(table_def_properties != nullptr);
   table_def_properties->set(key(Label::NAME), m_table_name);
 
   Properties *field_props = Properties::parse_properties("");

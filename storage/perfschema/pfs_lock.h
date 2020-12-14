@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,8 @@
   Performance schema internal locks (declarations).
 */
 
+#include <assert.h>
 #include <atomic>
-
-#include "my_dbug.h"
 
 /* to cause bugs, testing */
 // #define MEM(X) std::memory_order_relaxed
@@ -223,7 +222,7 @@ struct pfs_lock {
   void allocated_to_dirty(pfs_dirty_state *copy_ptr) {
     uint32 copy = copy_version_state();
     /* Make sure the record was ALLOCATED. */
-    DBUG_ASSERT((copy & STATE_MASK) == PFS_LOCK_ALLOCATED);
+    assert((copy & STATE_MASK) == PFS_LOCK_ALLOCATED);
     /* Keep the same version, set the DIRTY state */
     uint32 new_val = (copy & VERSION_MASK) + PFS_LOCK_DIRTY;
     /* We own the record, no need to use compare and swap. */
@@ -240,7 +239,7 @@ struct pfs_lock {
   */
   void dirty_to_allocated(const pfs_dirty_state *copy) {
     /* Make sure the record was DIRTY. */
-    DBUG_ASSERT((copy->m_version_state & STATE_MASK) == PFS_LOCK_DIRTY);
+    assert((copy->m_version_state & STATE_MASK) == PFS_LOCK_DIRTY);
     /* Increment the version, set the ALLOCATED state */
     uint32 new_val = (copy->m_version_state & VERSION_MASK) + VERSION_INC +
                      PFS_LOCK_ALLOCATED;
@@ -282,7 +281,7 @@ struct pfs_lock {
   */
   void dirty_to_free(const pfs_dirty_state *copy) {
     /* Make sure the record was DIRTY. */
-    DBUG_ASSERT((copy->m_version_state & STATE_MASK) == PFS_LOCK_DIRTY);
+    assert((copy->m_version_state & STATE_MASK) == PFS_LOCK_DIRTY);
     /* Keep the same version, set the FREE state */
     uint32 new_val = (copy->m_version_state & VERSION_MASK) + PFS_LOCK_FREE;
 
@@ -301,7 +300,7 @@ struct pfs_lock {
     */
     uint32 copy = copy_version_state();
     /* Make sure the record was ALLOCATED. */
-    DBUG_ASSERT(((copy & STATE_MASK) == PFS_LOCK_ALLOCATED));
+    assert(((copy & STATE_MASK) == PFS_LOCK_ALLOCATED));
     /* Keep the same version, set the FREE state */
     uint32 new_val = (copy & VERSION_MASK) + PFS_LOCK_FREE;
 

@@ -37,6 +37,7 @@
   SortingIterator is also a composite iterator, but is defined in its own file.
  */
 
+#include <assert.h>
 #include <stdio.h>
 
 #include <algorithm>
@@ -46,7 +47,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_table_map.h"
 #include "prealloced_array.h"
 #include "sql/hash_join_buffer.h"
@@ -126,7 +127,7 @@ class LimitOffsetIterator final : public RowIterator {
         m_reject_multiple_rows(reject_multiple_rows),
         m_skipped_rows(skipped_rows) {
     if (count_all_rows) {
-      DBUG_ASSERT(m_skipped_rows != nullptr);
+      assert(m_skipped_rows != nullptr);
     }
   }
 
@@ -320,13 +321,13 @@ class NestedLoopIterator final : public RowIterator {
         m_source_inner(move(source_inner)),
         m_join_type(join_type),
         m_pfs_batch_mode(pfs_batch_mode) {
-    DBUG_ASSERT(m_source_outer != nullptr);
-    DBUG_ASSERT(m_source_inner != nullptr);
+    assert(m_source_outer != nullptr);
+    assert(m_source_inner != nullptr);
 
     // Batch mode makes no sense for anti- or semijoins, since they should only
     // be reading one row.
     if (join_type == JoinType::ANTI || join_type == JoinType::SEMI) {
-      DBUG_ASSERT(!pfs_batch_mode);
+      assert(!pfs_batch_mode);
     }
   }
 

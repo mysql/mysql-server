@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -804,7 +804,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   THD *thd;
 
   DBUG_TRACE;
-  DBUG_ASSERT(table_share == table->s);
+  assert(table_share == table->s);
 
   if (m_part_info == nullptr) {
     /* Must be during ::clone()! */
@@ -941,7 +941,7 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   m_prebuilt->default_rec = table->s->default_values;
   ut_ad(m_prebuilt->default_rec);
 
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
   m_prebuilt->m_mysql_table = table;
   m_prebuilt->m_mysql_handler = this;
 
@@ -2020,8 +2020,8 @@ int ha_innopart::read_range_next_in_part(uint part, uchar *record) {
 int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
                              int sampling_seed,
                              enum_sampling_method sampling_method) {
-  DBUG_ASSERT(table_share->is_missing_primary_key() ==
-              m_prebuilt->clust_index_was_generated);
+  assert(table_share->is_missing_primary_key() ==
+         m_prebuilt->clust_index_was_generated);
 
   ut_ad(sampling_percentage >= 0.0);
   ut_ad(sampling_percentage <= 100.0);
@@ -2112,8 +2112,8 @@ int ha_innopart::sample_end(void *scan_ctx) {
 @return error number or 0. */
 int ha_innopart::rnd_init_in_part(uint part_id, bool scan) {
   DBUG_TRACE;
-  DBUG_ASSERT(table_share->is_missing_primary_key() ==
-              m_prebuilt->clust_index_was_generated);
+  assert(table_share->is_missing_primary_key() ==
+         m_prebuilt->clust_index_was_generated);
 
   int err = change_active_index(part_id, table_share->primary_key);
 
@@ -2212,8 +2212,8 @@ was positioned the last time.
 @param[in]	record	Record to position for. */
 void ha_innopart::position_in_last_part(uchar *ref_arg, const uchar *record) {
   DBUG_TRACE;
-  DBUG_ASSERT(table_share->is_missing_primary_key() ==
-              m_prebuilt->clust_index_was_generated);
+  assert(table_share->is_missing_primary_key() ==
+         m_prebuilt->clust_index_was_generated);
 
   if (m_prebuilt->clust_index_was_generated) {
     /* No primary key was defined for the table and we
@@ -4219,7 +4219,7 @@ Only useful when position is based on primary key
 int ha_innopart::rnd_pos_by_record(uchar *record) {
   int error;
   DBUG_TRACE;
-  DBUG_ASSERT(ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+  assert(ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
   /* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
   /* Set m_last_part correctly. */
   if (unlikely(get_part_for_delete(record, m_table->record[0], m_part_info,

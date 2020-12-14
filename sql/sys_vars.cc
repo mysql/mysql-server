@@ -155,7 +155,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
                                ptrdiff_t offset MY_ATTRIBUTE((unused)),
                                ulonglong new_value) {
   bool error = false;
-  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
+  assert(offset == offsetof(KEY_CACHE, param_buff_size));
 
   if (new_value == 0) {
     if (key_cache == dflt_key_cache) {
@@ -204,7 +204,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
 static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
                                   ulonglong new_value) {
   bool error = false;
-  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
+  assert(offset != offsetof(KEY_CACHE, param_buff_size));
 
   keycache_var(key_cache, offset) = new_value;
 
@@ -235,7 +235,7 @@ static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
  */
 static bool check_session_admin_or_replication_applier(
     sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *setv) {
-  DBUG_ASSERT(self->scope() != sys_var::GLOBAL);
+  assert(self->scope() != sys_var::GLOBAL);
   Security_context *sctx = thd->security_context();
   if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
       !sctx->has_global_grant(STRING_WITH_LEN("REPLICATION_APPLIER")).first &&
@@ -272,8 +272,8 @@ static bool check_session_admin_or_replication_applier(
  */
 static bool check_session_admin(sys_var *self MY_ATTRIBUTE((unused)), THD *thd,
                                 set_var *setv) {
-  DBUG_ASSERT(self->scope() !=
-              sys_var::GLOBAL);  // don't abuse check_session_admin()
+  assert(self->scope() !=
+         sys_var::GLOBAL);  // don't abuse check_session_admin()
   Security_context *sctx = thd->security_context();
   if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
       !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
@@ -1556,7 +1556,7 @@ static bool master_info_repository_check(sys_var *self, THD *thd,
 }
 
 static const char *repository_names[] = {"FILE", "TABLE",
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                          "DUMMY",
 #endif
                                          nullptr};
@@ -1912,7 +1912,7 @@ static Sys_var_charptr Sys_datadir(
     READ_ONLY NON_PERSIST GLOBAL_VAR(mysql_real_data_home_ptr),
     CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(mysql_real_data_home));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static Sys_var_dbug Sys_dbug("debug", "Debug log", sys_var::SESSION,
                              CMD_LINE(OPT_ARG, '#'), DEFAULT(""),
                              NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -2812,7 +2812,7 @@ static Sys_var_ulonglong Sys_max_heap_table_size(
     VALID_RANGE(16384, (ulonglong) ~(intptr)0), DEFAULT(16 * 1024 * 1024),
     BLOCK_SIZE(1024));
 
-// relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
+// relies on assert(sizeof(my_thread_id) == 4);
 static Sys_var_uint Sys_pseudo_thread_id(
     "pseudo_thread_id", "This variable is for internal server use",
     SESSION_ONLY(pseudo_thread_id), NO_CMD_LINE, VALID_RANGE(0, UINT_MAX32),
@@ -3938,9 +3938,9 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var) {
     binlog_checksum_options =
         static_cast<ulong>(var->save_result.ulonglong_value);
   }
-  DBUG_ASSERT(binlog_checksum_options == var->save_result.ulonglong_value);
-  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset ==
-              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  assert(binlog_checksum_options == var->save_result.ulonglong_value);
+  assert(mysql_bin_log.checksum_alg_reset ==
+         binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
 
   if (check_purge) mysql_bin_log.purge();
@@ -3956,8 +3956,8 @@ bool Sys_var_gtid_next::session_update(THD *thd, set_var *var) {
   char *res = nullptr;
   if (!var->value) {
     // set session gtid_next= default
-    DBUG_ASSERT(var->save_result.string_value.str);
-    DBUG_ASSERT(var->save_result.string_value.length);
+    assert(var->save_result.string_value.str);
+    assert(var->save_result.string_value.length);
     res = var->save_result.string_value.str;
   } else if (var->value->val_str(&str))
     res = var->value->val_str(&str)->c_ptr_safe();
@@ -4112,7 +4112,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
   int lock_count = 4;
 
   auto old_gtid_mode = global_gtid_mode.get();
-  DBUG_ASSERT(new_gtid_mode <= Gtid_mode::ON);
+  assert(new_gtid_mode <= Gtid_mode::ON);
 
   DBUG_PRINT("info", ("old_gtid_mode=%d new_gtid_mode=%d", old_gtid_mode,
                       new_gtid_mode));
@@ -4223,8 +4223,8 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
 
   // Can't set GTID_MODE != ON when group replication is enabled.
   if (is_group_replication_running()) {
-    DBUG_ASSERT(old_gtid_mode == Gtid_mode::ON);
-    DBUG_ASSERT(new_gtid_mode == Gtid_mode::ON_PERMISSIVE);
+    assert(old_gtid_mode == Gtid_mode::ON);
+    assert(new_gtid_mode == Gtid_mode::ON_PERMISSIVE);
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), Gtid_mode::to_string(new_gtid_mode),
              "group replication requires @@GLOBAL.GTID_MODE=ON");
     goto err;
@@ -4327,8 +4327,8 @@ end:
 
   ret = false;
 err:
-  DBUG_ASSERT(lock_count >= 0);
-  DBUG_ASSERT(lock_count <= 4);
+  assert(lock_count >= 0);
+  assert(lock_count <= 4);
   if (lock_count == 4) global_sid_lock->unlock();
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   channel_map.unlock();
@@ -4353,7 +4353,7 @@ bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
   enum_gtid_consistency_mode old_mode = get_gtid_consistency_mode();
   auto gtid_mode = global_gtid_mode.get();
 
-  DBUG_ASSERT(new_mode <= GTID_CONSISTENCY_MODE_WARN);
+  assert(new_mode <= GTID_CONSISTENCY_MODE_WARN);
 
   DBUG_PRINT("info", ("old enforce_gtid_consistency=%d "
                       "new enforce_gtid_consistency=%d "
@@ -4762,7 +4762,7 @@ static Sys_var_ulong Sys_thread_cache_size(
 static bool check_transaction_isolation(sys_var *, THD *thd, set_var *var) {
   if (var->type == OPT_DEFAULT &&
       (thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)) {
-    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
+    assert(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return true;
   }
@@ -4832,7 +4832,7 @@ static Sys_var_transaction_isolation Sys_transaction_isolation(
 static bool check_transaction_read_only(sys_var *, THD *thd, set_var *var) {
   if (var->type == OPT_DEFAULT &&
       (thd->in_active_multi_stmt_transaction() || thd->in_sub_stmt)) {
-    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
+    assert(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return true;
   }
@@ -5069,7 +5069,7 @@ static Sys_var_bit Sys_log_off("sql_log_off", "sql_log_off",
 */
 static bool fix_sql_log_bin_after_update(
     sys_var *, THD *thd, enum_var_type type MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(type == OPT_SESSION);
+  assert(type == OPT_SESSION);
 
   if (thd->variables.sql_log_bin)
     thd->variables.option_bits |= OPTION_BIN_LOG;
@@ -5895,22 +5895,22 @@ static Sys_var_uint Sys_checkpoint_mts_period(
     "Update progress status of Multi-threaded slave and flush "
     "the relay log info to disk after every #th milli-seconds.",
     GLOBAL_VAR(opt_mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     VALID_RANGE(0, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
 #else
     VALID_RANGE(1, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 static Sys_var_uint Sys_checkpoint_mts_group(
     "slave_checkpoint_group",
     "Maximum number of processed transactions by Multi-threaded slave "
     "before a checkpoint operation is called to update progress status.",
     GLOBAL_VAR(opt_mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
     VALID_RANGE(32, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 static Sys_var_uint Sys_sync_binlog_period(
     "sync_binlog",
@@ -6153,7 +6153,7 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var) {
 }
 
 static bool update_gtid_next_list(sys_var *self, THD *thd, enum_var_type type) {
-  DBUG_ASSERT(type == OPT_SESSION);
+  assert(type == OPT_SESSION);
   if (thd->get_gtid_next_list() != NULL)
     return gtid_acquire_ownership_multiple(thd) != 0 ? true : false;
   return false;
@@ -6478,7 +6478,7 @@ static bool sysvar_check_authid_string(sys_var *, THD *thd, set_var *var) {
     ROLE_ADMIN and the SYSTEM_VARIABLES_ADMIN.
   */
   Security_context *sctx = thd->security_context();
-  DBUG_ASSERT(sctx != nullptr);
+  assert(sctx != nullptr);
   if (sctx && !sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SYSTEM_VARIABLES_ADMIN or SUPER privileges, as well as the "
@@ -6619,7 +6619,7 @@ static bool check_binlog_row_value_options(sys_var *self, THD *thd,
               ER_THD(thd, ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED), msg);
           break;
         default:
-          DBUG_ASSERT(0); /* purecov: deadcode */
+          assert(0); /* purecov: deadcode */
       }
     }
   }
@@ -6999,7 +6999,7 @@ static bool check_set_require_row_format(sys_var *, THD *thd, set_var *var) {
   */
   longlong previous_val = thd->variables.require_row_format;
   longlong val = (longlong)var->save_result.ulonglong_value;
-  DBUG_ASSERT(!var->is_global_persist());
+  assert(!var->is_global_persist());
 
   // if it was true and we are changing it
   if (previous_val && val != previous_val) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 #ifndef ABSTRACT_QUERY_PLAN_H_INCLUDED
 #define ABSTRACT_QUERY_PLAN_H_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "sql/item_cmpfunc.h"  // Item_equal_iterator
 
 class Item;
@@ -260,7 +260,7 @@ class Table_access {
   @return The access_no'th table access operation.
 */
 inline Table_access *Join_plan::get_table_access(uint access_no) const {
-  DBUG_ASSERT(access_no < m_access_count);
+  assert(access_no < m_access_count);
   return m_table_accesses + access_no;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists) {
   const dd::Schema *sch = nullptr;
   bool error = mdl_handler.ensure_locked(schema_name) ||
                thd->dd_client()->acquire(schema_name, &sch);
-  DBUG_ASSERT(exists);
+  assert(exists);
   *exists = (sch != nullptr);
   // Error has been reported by the dictionary subsystem.
   return error;
@@ -65,7 +65,7 @@ bool create_schema(THD *thd, const char *schema_name,
 
   // Set schema name and collation id.
   schema->set_name(schema_name);
-  DBUG_ASSERT(charset_info);
+  assert(charset_info);
   schema->set_default_collation_id(charset_info->number);
   schema->set_default_encryption(default_encryption);
 
@@ -113,7 +113,7 @@ bool mdl_lock_schema(THD *thd, const char *schema_name,
   */
   if (thd->mdl_context.acquire_lock(&mdl_request,
                                     thd->variables.lock_wait_timeout)) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
   if (ticket != nullptr) {

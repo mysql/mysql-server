@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ bool Udf_charset_service::init() {
   mysql_service_mysql_udf_metadata =
       reinterpret_cast<SERVICE_TYPE(mysql_udf_metadata) *>(
           h_udf_metadata_service);
-  DBUG_ASSERT(mysql_service_mysql_udf_metadata != nullptr);
+  assert(mysql_service_mysql_udf_metadata != nullptr);
 
   return false;
 }

@@ -347,7 +347,7 @@ static ulong read_file(byte *buf, bool partial_page_read,
 
   size_t physical_page_size = static_cast<size_t>(page_size.physical());
 
-  DBUG_ASSERT(physical_page_size >= UNIV_ZIP_SIZE_MIN);
+  assert(physical_page_size >= UNIV_ZIP_SIZE_MIN);
 
   if (partial_page_read) {
     buf += UNIV_ZIP_SIZE_MIN;
@@ -1220,11 +1220,11 @@ static struct my_option innochecksum_options[] = {
      nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v', "Verbose (prints progress every 5 seconds).", &verbose,
      &verbose, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
      &dbug_setting, &dbug_setting, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr,
      0, nullptr},
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
     {"count", 'c', "Print the count of pages in the file and exits.",
      &just_count, &just_count, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
@@ -1264,11 +1264,11 @@ static struct my_option innochecksum_options[] = {
      0, nullptr, 0, nullptr}};
 
 static void usage(void) {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   print_version();
 #else
   print_version_debug();
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("InnoDB offline file checksum utility.\n");
   printf(
@@ -1286,14 +1286,14 @@ extern "C" bool innochecksum_get_one_option(
     int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     char *argument MY_ATTRIBUTE((unused))) {
   switch (optid) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     case '#':
       dbug_setting = argument ? argument
                               : IF_WIN("d:O,innochecksum.trace",
                                        "d:o,/tmp/innochecksum.trace");
       DBUG_PUSH(dbug_setting);
       break;
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
     case 'e':
       use_end_page = true;
       break;
@@ -1303,11 +1303,11 @@ extern "C" bool innochecksum_get_one_option(
       do_one_page = true;
       break;
     case 'V':
-#ifdef DBUG_OFF
+#ifdef NDEBUG
       print_version();
 #else
       print_version_debug();
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
       exit(EXIT_SUCCESS);
       break;
     case 'C':

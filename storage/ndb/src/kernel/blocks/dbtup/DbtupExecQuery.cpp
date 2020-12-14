@@ -4288,7 +4288,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
           // Attr2 to be read into tmpArea[] after Attr1.
           const Uint32 firstAttrWords = attrLen+1;
-          DBUG_ASSERT(tmpAreaSz >= 2*firstAttrWords);
+          assert(tmpAreaSz >= 2*firstAttrWords);
           Int32 TnoDataR = readAttributes(req_struct,
                                           &attr2Id, 1,
                                           &tmpArea[firstAttrWords],

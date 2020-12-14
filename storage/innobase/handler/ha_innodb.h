@@ -29,9 +29,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
+#include <assert.h>
 #include <sys/types.h>
 #include "handler.h"
-#include "my_dbug.h"
+
 #include "row0pread-adapter.h"
 #include "row0pread-histogram.h"
 #include "trx0trx.h"
@@ -94,7 +95,7 @@ class ha_innobase : public handler {
     /* This method is never used for FULLTEXT or SPATIAL keys.
     We rely on handler::ha_table_flags() to check if such keys
     are supported. */
-    DBUG_ASSERT(key_alg != HA_KEY_ALG_FULLTEXT && key_alg != HA_KEY_ALG_RTREE);
+    assert(key_alg != HA_KEY_ALG_FULLTEXT && key_alg != HA_KEY_ALG_RTREE);
     return key_alg == HA_KEY_ALG_BTREE;
   }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ void ndbcluster_anyvalue_set_normal(Uint32 &anyValue);
 Uint32 ndbcluster_anyvalue_get_serverid(Uint32 anyValue);
 void ndbcluster_anyvalue_set_serverid(Uint32 &anyValue, Uint32 serverId);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void dbug_ndbcluster_anyvalue_set_userbits(Uint32 &anyValue);
 #endif
 

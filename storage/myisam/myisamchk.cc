@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,7 +226,7 @@ static struct my_option my_long_options[] = {
     {"correct-checksum", OPT_CORRECT_CHECKSUM,
      "Correct checksum information for table.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
@@ -405,7 +405,7 @@ static void usage(void) {
       "errors");
   printf("Usage: %s [OPTIONS] tables[.MYI]\n", my_progname_short);
   printf("\nGlobal options:\n");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   printf(
       "\
   -#, --debug=...     Output debug log. Often this is 'd:t:o,filename'.\n");

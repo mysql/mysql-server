@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -444,12 +444,12 @@ Donor_recovery_endpoints::get_endpoints(Group_member_info *donor) {
       endpoints = Recovery_endpoints::get_endpoints();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("gr_recovery_endpoints_invalid_donor", {
     error = Recovery_endpoints::enum_status::INVALID;
     endpoints.clear();
   });
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   if (error == Recovery_endpoints::enum_status::BADFORMAT ||
       error == Recovery_endpoints::enum_status::INVALID)

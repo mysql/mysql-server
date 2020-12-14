@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/keyring/digest.h"
+#include <assert.h>
 #include <cstring>
-
-#include "my_dbug.h"
 
 namespace keyring {
 Digest::Digest(DigestKind digest_kind /*=SHA256*/) : is_empty(true) {
@@ -42,7 +41,7 @@ void Digest::set_digest_kind(DigestKind digest_kind) {
       value = new unsigned char[length];
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 }
 
@@ -52,7 +51,7 @@ Digest::~Digest() {
 }
 
 void Digest::assign(const char *value) {
-  DBUG_ASSERT(value != nullptr);
+  assert(value != nullptr);
   memcpy(this->value, value, length);
   is_empty = false;
 }

@@ -1438,7 +1438,7 @@ static int innobase_fill_i_s_table(handlerton *hton MY_ATTRIBUTE((unused)),
                                    THD *thd, TABLE_LIST *tables,
                                    Item *idx_cond MY_ATTRIBUTE((unused)),
                                    enum_schema_tables idx) {
-  DBUG_ASSERT(idx == SCH_TABLESPACES);
+  assert(idx == SCH_TABLESPACES);
 
   /** InnoDB does not implement I_S.TABLESPACES */
 
@@ -2507,8 +2507,8 @@ static void innobase_trx_init(
     trx_t *trx) /*!< in/out: InnoDB transaction handle */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(EQ_CURRENT_THD(thd));
-  DBUG_ASSERT(thd == trx->mysql_thd);
+  assert(EQ_CURRENT_THD(thd));
+  assert(thd == trx->mysql_thd);
 
   trx->check_foreigns = !thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS);
 
@@ -2523,8 +2523,8 @@ trx_t *innobase_trx_allocate(THD *thd) /*!< in: user thread handle */
   trx_t *trx;
 
   DBUG_TRACE;
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(EQ_CURRENT_THD(thd));
+  assert(thd != nullptr);
+  assert(EQ_CURRENT_THD(thd));
 
   MONITOR_ATOMIC_INC(MONITOR_TRX_ALLOCATIONS);
   trx = trx_allocate_for_mysql();
@@ -2731,7 +2731,7 @@ void ha_innobase::update_thd(THD *thd) /*!< in: thd to use the handle */
              ("user_thd: %p -> %p", m_user_thd, thd));
 
   /* The table should have been opened in ha_innobase::open(). */
-  DBUG_ASSERT(m_prebuilt->table->n_ref_count > 0);
+  assert(m_prebuilt->table->n_ref_count > 0);
 
   trx_t *trx = check_trx_exists(thd);
 
@@ -2743,8 +2743,8 @@ void ha_innobase::update_thd(THD *thd) /*!< in: thd to use the handle */
 
   m_user_thd = thd;
 
-  DBUG_ASSERT(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
-  DBUG_ASSERT(m_prebuilt->trx == thd_to_trx(m_user_thd));
+  assert(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
+  assert(m_prebuilt->trx == thd_to_trx(m_user_thd));
 }
 
 /** Updates the user_thd field in a handle and also allocates a new InnoDB
@@ -4447,7 +4447,7 @@ static int innodb_init_params() {
   ut_a(srv_log_write_ahead_size % OS_FILE_LOG_BLOCK_SIZE == 0);
   ut_a(srv_log_write_ahead_size > 0);
 
-  DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
+  assert(innodb_change_buffering <= IBUF_USE_ALL);
 
   /* Check that interdependent parameters have sane values. */
   if (srv_max_buf_pool_modified_pct < srv_max_dirty_pages_pct_lwm) {
@@ -5206,7 +5206,7 @@ group commit during flush stage, false in other cases.
 @return false */
 static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   if (srv_read_only_mode) {
     return false;
@@ -5269,7 +5269,7 @@ static int innobase_start_trx_and_assign_read_view(
                       whom the transaction should be committed */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   /* Create a new trx struct for thd, if it does not yet have one */
 
@@ -5321,7 +5321,7 @@ static int innobase_commit(handlerton *hton, /*!< in: InnoDB handlerton */
                                              ended */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
   DBUG_PRINT("trans", ("ending transaction"));
   DEBUG_SYNC_C("transaction_commit_start");
 
@@ -5479,7 +5479,7 @@ static int innobase_rollback(handlerton *hton, /*!< in: InnoDB handlerton */
                                                 current statement only */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
   DBUG_PRINT("trans", ("aborting transaction"));
 
   trx_t *trx = check_trx_exists(thd);
@@ -5572,7 +5572,7 @@ static int innobase_rollback_to_savepoint(
     void *savepoint)  /*!< in: savepoint data */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   trx_t *trx = check_trx_exists(thd);
 
@@ -5610,7 +5610,7 @@ static bool innobase_rollback_to_savepoint_can_release_mdl(
                       be rolled back to savepoint */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   trx_t *trx = check_trx_exists(thd);
 
@@ -5640,7 +5640,7 @@ static int innobase_release_savepoint(
   char name[64];
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   trx = check_trx_exists(thd);
 
@@ -5667,7 +5667,7 @@ static int innobase_savepoint(
     void *savepoint)  /*!< in: savepoint data */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   /* In the autocommit mode there is no sense to set a savepoint
   (unless we are in sub-statement), so SQL layer ensures that
@@ -5680,7 +5680,7 @@ static int innobase_savepoint(
   innobase_srv_conc_force_exit_innodb(trx);
 
   /* Cannot happen outside of transaction */
-  DBUG_ASSERT(trx_is_registered_for_2pc(trx));
+  assert(trx_is_registered_for_2pc(trx));
 
   /* TODO: use provided savepoint data area to store savepoint data */
   char name[64];
@@ -5704,7 +5704,7 @@ static int innobase_close_connection(
                       whose resources should be free'd */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   trx_t *trx = thd_to_trx(thd);
   bool free_trx = false;
@@ -5784,7 +5784,7 @@ static void innobase_kill_connection(
                       killed */
 {
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   trx_t *trx = thd_to_trx(thd);
 
@@ -6012,7 +6012,7 @@ bool create_table_info_t::normalize_table_name(char *norm_name,
     ptr--;
   }
 
-  DBUG_ASSERT(ptr >= name);
+  assert(ptr >= name);
 
   /* seek to the last but one path separator or one char before
   the beginning of name */
@@ -6728,7 +6728,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   bool cached = false;
 
   DBUG_TRACE;
-  DBUG_ASSERT(table_share == table->s);
+  assert(table_share == table->s);
 
   thd = ha_thd();
 
@@ -7194,7 +7194,7 @@ handler *ha_innobase::clone(const char *name,   /*!< in: table name */
       dynamic_cast<ha_innobase *>(handler::clone(name, mem_root));
 
   if (new_handler != nullptr) {
-    DBUG_ASSERT(new_handler->m_prebuilt != nullptr);
+    assert(new_handler->m_prebuilt != nullptr);
 
     new_handler->m_prebuilt->select_lock_type = m_prebuilt->select_lock_type;
   }
@@ -7454,11 +7454,11 @@ ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f) {
   8 bits: this is used in ibuf and also when DATA_NOT_NULL is ORed to
   the type */
 
-  DBUG_ASSERT((ulint)MYSQL_TYPE_STRING < 256);
-  DBUG_ASSERT((ulint)MYSQL_TYPE_VAR_STRING < 256);
-  DBUG_ASSERT((ulint)MYSQL_TYPE_DOUBLE < 256);
-  DBUG_ASSERT((ulint)MYSQL_TYPE_FLOAT < 256);
-  DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
+  assert((ulint)MYSQL_TYPE_STRING < 256);
+  assert((ulint)MYSQL_TYPE_VAR_STRING < 256);
+  assert((ulint)MYSQL_TYPE_DOUBLE < 256);
+  assert((ulint)MYSQL_TYPE_FLOAT < 256);
+  assert((ulint)MYSQL_TYPE_DECIMAL < 256);
 
   if (field->is_flag_set(UNSIGNED_FLAG)) {
     *unsigned_flag = DATA_UNSIGNED;
@@ -7524,7 +7524,7 @@ ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f) {
         case MYSQL_TYPE_TIMESTAMP:
           return (DATA_INT);
         default: /* Fall through */
-          DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
+          assert((ulint)MYSQL_TYPE_DECIMAL < 256);
         case MYSQL_TYPE_TIME2:
         case MYSQL_TYPE_DATETIME2:
         case MYSQL_TYPE_TIMESTAMP2:
@@ -9746,7 +9746,7 @@ int ha_innobase::index_read(
         m_prebuilt->search_tuple, m_prebuilt->srch_key_val1,
         m_prebuilt->srch_key_val_len, index, key_ptr, key_len, m_prebuilt->trx);
 
-    DBUG_ASSERT(m_prebuilt->search_tuple->n_fields > 0);
+    assert(m_prebuilt->search_tuple->n_fields > 0);
   } else {
     /* We position the cursor to the last or the first entry
     in the index */
@@ -10283,8 +10283,8 @@ int ha_innobase::read_range_next() {
 @return 0 or error number */
 int ha_innobase::rnd_init(bool scan) {
   DBUG_TRACE;
-  DBUG_ASSERT(table_share->is_missing_primary_key() ==
-              m_prebuilt->clust_index_was_generated);
+  assert(table_share->is_missing_primary_key() ==
+         m_prebuilt->clust_index_was_generated);
 
   int err = change_active_index(table_share->primary_key);
 
@@ -10725,9 +10725,9 @@ void ha_innobase::position(const uchar *record) {
   uint len;
 
   DBUG_TRACE;
-  DBUG_ASSERT(m_prebuilt->trx == thd_to_trx(ha_thd()));
-  DBUG_ASSERT(table_share->is_missing_primary_key() ==
-              m_prebuilt->clust_index_was_generated);
+  assert(m_prebuilt->trx == thd_to_trx(ha_thd()));
+  assert(table_share->is_missing_primary_key() ==
+         m_prebuilt->clust_index_was_generated);
 
   if (m_prebuilt->clust_index_was_generated) {
     /* No primary key was defined for the table and we
@@ -10842,7 +10842,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s", m_table_name));
 
-  DBUG_ASSERT(m_trx->mysql_thd == m_thd);
+  assert(m_trx->mysql_thd == m_thd);
 
   /* MySQL does the name length check. But we do additional check
   on the name length here */
@@ -12294,8 +12294,8 @@ static bool innobase_ddse_dict_init(
 
   LogErr(SYSTEM_LEVEL, ER_IB_MSG_INNODB_START_INITIALIZE);
 
-  DBUG_ASSERT(tables && tables->is_empty());
-  DBUG_ASSERT(tablespaces && tablespaces->is_empty());
+  assert(tables && tables->is_empty());
+  assert(tablespaces && tablespaces->is_empty());
 
   if (dblwr::enabled) {
     if (innobase_doublewrite_dir != nullptr && *innobase_doublewrite_dir != 0) {
@@ -12563,8 +12563,8 @@ bool create_table_info_t::innobase_table_flags() {
         goto index_bad;
       }
     } else if (key->flags & HA_SPATIAL) {
-      DBUG_ASSERT(~m_create_info->options &
-                  (HA_LEX_CREATE_TMP_TABLE | HA_LEX_CREATE_INTERNAL_TMP_TABLE));
+      assert(~m_create_info->options &
+             (HA_LEX_CREATE_TMP_TABLE | HA_LEX_CREATE_INTERNAL_TMP_TABLE));
     }
 
     if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
@@ -12986,7 +12986,7 @@ void create_table_info_t::initialize_autoinc() {
     ut_ad(innobase_table->is_intrinsic());
   }
 
-  DBUG_ASSERT(innobase_table != nullptr);
+  assert(innobase_table != nullptr);
 
   if (persist) {
     dict_table_autoinc_set_col_pos(
@@ -13149,7 +13149,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
   size_t stmt_len;
 
   DBUG_TRACE;
-  DBUG_ASSERT(m_form->s->keys <= MAX_KEY);
+  assert(m_form->s->keys <= MAX_KEY);
 
   /* Check if dd table has hidden fts doc id index.
   Note: in case of TRUNCATE a fulltext table with
@@ -13350,7 +13350,7 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
 int create_table_info_t::create_table_update_dict() {
   DBUG_TRACE;
 
-  DBUG_ASSERT(m_table != nullptr);
+  assert(m_table != nullptr);
 
 #ifdef UNIV_DEBUG
   if (m_table->is_intrinsic()) {
@@ -13366,15 +13366,14 @@ int create_table_info_t::create_table_update_dict() {
     if (m_table->fts_doc_id_index == nullptr) {
       m_table->fts_doc_id_index =
           dict_table_get_index_on_name(m_table, FTS_DOC_ID_INDEX_NAME);
-      DBUG_ASSERT(m_table->fts_doc_id_index != nullptr);
+      assert(m_table->fts_doc_id_index != nullptr);
     } else {
-      DBUG_ASSERT(m_table->fts_doc_id_index ==
-                  dict_table_get_index_on_name(m_table, FTS_DOC_ID_INDEX_NAME));
+      assert(m_table->fts_doc_id_index ==
+             dict_table_get_index_on_name(m_table, FTS_DOC_ID_INDEX_NAME));
     }
   }
 
-  DBUG_ASSERT((m_table->fts == nullptr) ==
-              (m_table->fts_doc_id_index == nullptr));
+  assert((m_table->fts == nullptr) == (m_table->fts_doc_id_index == nullptr));
 
   innobase_copy_frm_flags_from_create_info(m_table, m_create_info);
 
@@ -14408,8 +14407,8 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
 #endif
 
   DBUG_TRACE;
-  DBUG_ASSERT(dd_table != nullptr);
-  DBUG_ASSERT(n_tables < innodb_dd_table_size);
+  assert(dd_table != nullptr);
+  assert(n_tables < innodb_dd_table_size);
 
   if ((*(const_cast<const dd::Table *>(dd_table))->columns().begin())
           ->is_auto_increment()) {
@@ -14419,13 +14418,13 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
 #ifdef UNIV_DEBUG
   {
     /* These tables must not be partitioned. */
-    DBUG_ASSERT(dd_table->partitions()->empty());
+    assert(dd_table->partitions()->empty());
   }
 
   const innodb_dd_table_t &data = innodb_dd_table[n_tables];
 #endif
 
-  DBUG_ASSERT(dd_table->name() == data.name);
+  assert(dd_table->name() == data.name);
 
   dd_table->set_se_private_id(++n_tables);
   dd_table->set_tablespace_id(dict_sys_t::s_dd_space_id);
@@ -14454,7 +14453,7 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
     p.set(dd_index_key_strings[DD_TABLE_ID], n_tables);
   }
 
-  DBUG_ASSERT(n_indexes - n_indexes_old == data.n_indexes);
+  assert(n_indexes - n_indexes_old == data.n_indexes);
 
   return false;
 }
@@ -14940,7 +14939,7 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
   uint32_t fsp_flags = 0;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   ut_ad(alter_info->tablespace_name == dd_space->name());
   ut_ad(strcmp(alter_info->data_file_name,
@@ -15063,7 +15062,7 @@ static int innobase_alter_autoextend_size_tablespace(
   space_id_t space_id = SPACE_UNKNOWN;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   DEBUG_SYNC(current_thd, "innodb_alter_autoextend_size_tablespace");
 
@@ -15135,7 +15134,7 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   space_id_t space_id = SPACE_UNKNOWN;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   DEBUG_SYNC(current_thd, "innodb_alter_encrypt_tablespace");
 
@@ -15247,7 +15246,7 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
   ulint old_size, new_size;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   if (alter_info->ts_alter_tablespace_type != ALTER_TABLESPACE_RENAME &&
       alter_info->ts_alter_tablespace_type != ALTER_TABLESPACE_OPTIONS) {
@@ -15362,7 +15361,7 @@ static int innodb_drop_tablespace(handlerton *hton, THD *thd,
   space_id_t space_id = SPACE_UNKNOWN;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   auto dd_space_name = dd_space->name();
 
@@ -15433,7 +15432,7 @@ static int innodb_create_undo_tablespace(handlerton *hton, THD *thd,
   uint32_t flags;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   ut_ad(alter_info->tablespace_name == dd_space->name());
   ut_ad(strcmp(alter_info->data_file_name,
@@ -15608,7 +15607,7 @@ static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
   space_id_t space_id = SPACE_UNKNOWN;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   ut_ad(alter_info->tablespace_name == dd_space->name());
 
@@ -15680,7 +15679,7 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
   space_id_t space_id = SPACE_UNKNOWN;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   ut_ad(alter_info->tablespace_name == dd_space->name());
 
@@ -16115,14 +16114,14 @@ ha_rows ha_innobase::records_in_range(
       index, (byte *)(min_key ? min_key->key : (const uchar *)nullptr),
       (ulint)(min_key ? min_key->length : 0), m_prebuilt->trx);
 
-  DBUG_ASSERT(min_key ? range_start->n_fields > 0 : range_start->n_fields == 0);
+  assert(min_key ? range_start->n_fields > 0 : range_start->n_fields == 0);
 
   row_sel_convert_mysql_key_to_innobase(
       range_end, m_prebuilt->srch_key_val2, m_prebuilt->srch_key_val_len, index,
       (byte *)(max_key ? max_key->key : (const uchar *)nullptr),
       (ulint)(max_key ? max_key->length : 0), m_prebuilt->trx);
 
-  DBUG_ASSERT(max_key ? range_end->n_fields > 0 : range_end->n_fields == 0);
+  assert(max_key ? range_end->n_fields > 0 : range_end->n_fields == 0);
 
   mode1 = convert_search_mode_to_innobase(min_key ? min_key->flag
                                                   : HA_READ_KEY_EXACT);
@@ -16577,7 +16576,7 @@ int ha_innobase::info_low(uint flag, bool is_analyze) {
   m_prebuilt->trx->op_info = (char *)"returning various info to MySQL";
 
   ib_table = m_prebuilt->table;
-  DBUG_ASSERT(ib_table->n_ref_count > 0);
+  assert(ib_table->n_ref_count > 0);
 
   if (flag & HA_STATUS_TIME) {
     if (is_analyze || innobase_stats_on_metadata) {
@@ -17505,7 +17504,7 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
   dberr_t ret;
 
   DBUG_TRACE;
-  DBUG_ASSERT(thd == ha_thd());
+  assert(thd == ha_thd());
   ut_a(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
   ut_a(m_prebuilt->trx == thd_to_trx(thd));
 
@@ -18249,7 +18248,7 @@ static int innodb_show_status(handlerton *hton, THD *thd,
   bool ret_val;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   /* We don't create the temp files or associated
   mutexes in read-only-mode */
@@ -18339,7 +18338,7 @@ static bool innobase_lock_hton_log(handlerton *hton) {
   bool ret_val = false;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   log_position_lock(*log_sys);
 
@@ -18353,7 +18352,7 @@ static bool innobase_unlock_hton_log(handlerton *hton) {
   bool ret_val = false;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   log_position_unlock(*log_sys);
 
@@ -18370,7 +18369,7 @@ static bool innobase_collect_hton_log_info(handlerton *hton, Json_dom *json) {
   lsn_t lsn_checkpoint;
 
   DBUG_TRACE;
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   log_position_collect_lsn_info(*log_sys, &lsn, &lsn_checkpoint);
 
@@ -18538,7 +18537,7 @@ static int innodb_show_mutex_status(handlerton *hton, THD *thd,
 
   ShowStatus collector;
 
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   mutex_monitor->iterate(collector);
 
@@ -18562,7 +18561,7 @@ static int innodb_show_rwlock_status(handlerton *hton, THD *thd,
   ulint block_rwlock_oswait_count = 0;
   uint hton_name_len = (uint)strlen(innobase_hton_name);
 
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   mutex_enter(&rw_lock_list_mutex);
 
@@ -18654,7 +18653,7 @@ seems to be abused here, should be an int.
 static bool innobase_show_status(handlerton *hton, THD *thd,
                                  stat_print_fn *stat_print,
                                  enum ha_stat_type stat_type) {
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   switch (stat_type) {
     case HA_ENGINE_STATUS:
@@ -18818,7 +18817,7 @@ THR_LOCK_DATA **ha_innobase::store_lock(
     }
   }
 
-  DBUG_ASSERT(EQ_CURRENT_THD(thd));
+  assert(EQ_CURRENT_THD(thd));
   const bool in_lock_tables = thd_in_lock_tables(thd);
   const uint sql_command = thd_sql_command(thd);
 
@@ -19329,7 +19328,7 @@ static int innobase_xa_prepare(handlerton *hton, /*!< in: InnoDB handlerton */
 {
   trx_t *trx = check_trx_exists(thd);
 
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   thd_get_xid(thd, (MYSQL_XID *)trx->xid);
 
@@ -19408,7 +19407,7 @@ static int innobase_xa_recover(
     uint len,                 /*!< in: number of slots in xid_list */
     MEM_ROOT *mem_root)       /*!< in: memory for table names */
 {
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   if (len == 0 || txn_list == nullptr) {
     return (0);
@@ -19423,7 +19422,7 @@ static int innobase_xa_recover(
 static xa_status_code innobase_commit_by_xid(
     handlerton *hton, XID *xid) /*!< in: X/Open XA transaction identification */
 {
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   trx_t *trx = trx_get_trx_by_xid(xid);
 
@@ -19451,7 +19450,7 @@ static xa_status_code innobase_rollback_by_xid(
     XID *xid)         /*!< in: X/Open XA transaction
                       identification */
 {
-  DBUG_ASSERT(hton == innodb_hton_ptr);
+  assert(hton == innodb_hton_ptr);
 
   trx_t *trx = trx_get_trx_by_xid(xid);
 
@@ -22742,8 +22741,8 @@ innobase_index_cond(ha_innobase *h) /*!< in/out: pointer to ha_innobase */
 {
   DBUG_TRACE;
 
-  DBUG_ASSERT(h->pushed_idx_cond);
-  DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
+  assert(h->pushed_idx_cond);
+  assert(h->pushed_idx_cond_keyno != MAX_KEY);
 
   if (h->end_range && h->compare_key_icp(h->end_range) > 0) {
     /* caller should return HA_ERR_END_OF_FILE already */
@@ -23058,8 +23057,8 @@ dfield_t *innobase_get_computed_value(
 @return idx_cond if pushed; NULL if not pushed */
 class Item *ha_innobase::idx_cond_push(uint keyno, class Item *idx_cond) {
   DBUG_TRACE;
-  DBUG_ASSERT(keyno != MAX_KEY);
-  DBUG_ASSERT(idx_cond != nullptr);
+  assert(keyno != MAX_KEY);
+  assert(idx_cond != nullptr);
 
   pushed_idx_cond = idx_cond;
   pushed_idx_cond_keyno = keyno;

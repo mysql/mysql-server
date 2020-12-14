@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,11 +23,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/indexed_cells.cc
 TempTable Indexed Cells implementation. */
 
+#include <assert.h>
 #include <array>
 #include <cstddef>
 #include <limits>
 
-#include "my_dbug.h"
 #include "my_hash_combine.h"
 #include "sql/field.h"
 #include "sql/key.h"
@@ -76,8 +76,8 @@ Indexed_cells::Indexed_cells(const unsigned char *mysql_row, const Index &index)
       m_number_of_cells(static_cast<decltype(m_number_of_cells)>(
           index.number_of_indexed_columns())),
       m_mysql_buf(mysql_row) {
-  DBUG_ASSERT(index.number_of_indexed_columns() <=
-              std::numeric_limits<decltype(m_number_of_cells)>::max());
+  assert(index.number_of_indexed_columns() <=
+         std::numeric_limits<decltype(m_number_of_cells)>::max());
 }
 
 Indexed_cells::Indexed_cells(const Row &row, const Index &index)
@@ -85,12 +85,12 @@ Indexed_cells::Indexed_cells(const Row &row, const Index &index)
       m_number_of_cells(static_cast<decltype(m_number_of_cells)>(
           index.number_of_indexed_columns())),
       m_row(&row) {
-  DBUG_ASSERT(index.number_of_indexed_columns() <=
-              std::numeric_limits<decltype(m_number_of_cells)>::max());
+  assert(index.number_of_indexed_columns() <=
+         std::numeric_limits<decltype(m_number_of_cells)>::max());
 }
 
 Cell Indexed_cells::cell(size_t i, const Index &index) const {
-  DBUG_ASSERT(i < m_number_of_cells);
+  assert(i < m_number_of_cells);
 
   /*
   switch (m_data_location) {
@@ -180,7 +180,7 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
   for (size_t j = 0; j < i; ++j) {
     p += mysql_index.key_part[j].store_length;
   }
-  DBUG_ASSERT(p - m_mysql_buf < m_length);
+  assert(p - m_mysql_buf < m_length);
 
   bool is_null;
   if (mysql_field->is_nullable()) {
@@ -197,22 +197,22 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
   switch (user_data_offset_in_cell) {
     case 0:
       /* No is-NULL-byte (defined as NOT NULL), no length bytes. */
-      DBUG_ASSERT(!mysql_field->is_nullable());
+      assert(!mysql_field->is_nullable());
       data_length = mysql_key_part->length;
       break;
     case 1:
       /* is-NULL-byte (can be NULL), no length bytes. */
-      DBUG_ASSERT(mysql_field->is_nullable());
+      assert(mysql_field->is_nullable());
       data_length = mysql_key_part->length;
       break;
     case 2:
       /* No is-NULL-byte (defined as NOT NULL), 2 bytes for length. */
-      DBUG_ASSERT(!mysql_field->is_nullable());
+      assert(!mysql_field->is_nullable());
       data_length = p[0] | (static_cast<uint16_t>(p[1]) << 8);
       break;
     case 3:
       /* is-NULL-byte (can be NULL), 2 bytes for length. */
-      DBUG_ASSERT(mysql_field->is_nullable());
+      assert(mysql_field->is_nullable());
       data_length = p[1] | (static_cast<uint16_t>(p[2]) << 8);
       break;
     default:
@@ -223,8 +223,8 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
   const unsigned char *data = p + user_data_offset_in_cell;
 
   /* User data offset from the beginning of the search cells buffer. */
-  DBUG_ASSERT(data >= m_mysql_buf);
-  DBUG_ASSERT(data - m_mysql_buf <= std::numeric_limits<uint16_t>::max());
+  assert(data >= m_mysql_buf);
+  assert(data - m_mysql_buf <= std::numeric_limits<uint16_t>::max());
   const uint16_t user_data_offset_in_buf =
       static_cast<uint16_t>(data - m_mysql_buf);
 
@@ -233,9 +233,9 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
    * mysql search cells may only contain '_aaaa_bb' for c1='aaaa' and
    * c2='bb%' (_ designates some metadata bytes). In other words - the
    * last cell in the mysql buffer may be incomplete. */
-  DBUG_ASSERT(m_length >= user_data_offset_in_buf);
-  DBUG_ASSERT(m_length - user_data_offset_in_buf <=
-              std::numeric_limits<uint16_t>::max());
+  assert(m_length >= user_data_offset_in_buf);
+  assert(m_length - user_data_offset_in_buf <=
+         std::numeric_limits<uint16_t>::max());
   const uint16_t remaining = m_length - user_data_offset_in_buf;
 
   if (data_length > remaining) {

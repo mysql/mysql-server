@@ -255,14 +255,14 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 
   Invalid parameter handler we will use instead of the one "baked"
   into the CRT for Visual Studio.
-  The DBUG_ASSERT will catch things typically *not* caught by sanitizers,
+  The assert will catch things typically *not* caught by sanitizers,
   e.g. iterator out-of-range, but pointing to valid memory.
 */
 
 void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
                           const wchar_t *file, unsigned int line,
                           uintptr_t pReserved) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   fprintf(stderr,
           "my_parameter_handler errno %d "
           "expression: %ws  function: %ws  file: %ws, line: %d\n",
@@ -272,7 +272,7 @@ void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
   //   DBUG_EXECUTE_IF("ib_export_io_write_failure_1", close(fileno(file)););
   // So ignore EBADF
   if (errno != EBADF) {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 #endif
 }

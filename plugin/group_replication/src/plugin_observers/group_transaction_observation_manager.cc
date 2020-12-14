@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ void Group_transaction_observation_manager::unregister_transaction_observer(
 std::list<Group_transaction_listener *>
     *Group_transaction_observation_manager::get_all_observers() {
   DBUG_TRACE;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   transaction_observer_list_lock->assert_some_lock();
 #endif
   return &group_transaction_listeners;

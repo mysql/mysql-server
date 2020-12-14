@@ -71,7 +71,7 @@ struct cartesian;
 
 longlong Item_func_spatial_rel::val_int() {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String tmp_value1;
   String tmp_value2;
   String *res1 = nullptr;
@@ -227,11 +227,11 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2) {
   else if (spatial_rel == SP_EQUALS_FUNC)
     tres = geocol_equals_check<Coordsys>(gv1, gv2);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   /* If doing contains check, need to switch back the two operands. */
   if (tmpg) {
-    DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC);
+    assert(spatial_rel == SP_WITHIN_FUNC);
     tmpg = g2;
     g2 = g1;
     g1 = tmpg;
@@ -253,8 +253,7 @@ int Item_func_spatial_rel::geocol_relcheck_intersect_disjoint(
     const BG_geometry_collection::Geometry_list *gv2) {
   int tres = 0;
 
-  DBUG_ASSERT(functype() == SP_DISJOINT_FUNC ||
-              functype() == SP_INTERSECTS_FUNC);
+  assert(functype() == SP_DISJOINT_FUNC || functype() == SP_INTERSECTS_FUNC);
   const BG_geometry_collection::Geometry_list *gv = nullptr, *gvr = nullptr;
 
   if (gv1->size() > gv2->size()) {
@@ -317,8 +316,8 @@ int Item_func_spatial_rel::geocol_relcheck_intersect_disjoint(
     tres can be either true or false for DISJOINT check because the inner
     loop may never executed and tres woule be false.
    */
-  DBUG_ASSERT(functype() == SP_DISJOINT_FUNC ||
-              (!tres && functype() == SP_INTERSECTS_FUNC));
+  assert(functype() == SP_DISJOINT_FUNC ||
+         (!tres && functype() == SP_INTERSECTS_FUNC));
   return tres;
 }
 
@@ -440,7 +439,7 @@ int Item_func_spatial_rel::geocol_relcheck_within(
     component of gv1 is within gv2, so in this function we always assume
     with check and and use SP_WITHIN_FUNC.
   */
-  DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC || spatial_rel == SP_EQUALS_FUNC);
+  assert(spatial_rel == SP_WITHIN_FUNC || spatial_rel == SP_EQUALS_FUNC);
 
   // Within isn't symetric so we have to always build rtree tndex on gv2.
   Rtree_index rtree;
@@ -548,7 +547,7 @@ int Item_func_spatial_rel::geocol_relcheck_within(
       gv1 is not within or equal to gv2.
      */
     if (!innerOK) {
-      DBUG_ASSERT(tres == 0);
+      assert(tres == 0);
       return tres;
     }
   }
@@ -560,7 +559,7 @@ int Item_func_spatial_rel::geocol_relcheck_within(
     within and equals are true only when any(and every) combination of
     geometries from the two collections are true for the relation check.
    */
-  DBUG_ASSERT(tres);
+  assert(tres);
 
   return tres;
 }
@@ -579,7 +578,7 @@ int Item_func_spatial_rel::geocol_equals_check(
     const typename BG_geometry_collection::Geometry_list *gv1,
     const typename BG_geometry_collection::Geometry_list *gv2) {
   int tres = 0, num_try = 0;
-  DBUG_ASSERT(functype() == SP_EQUALS_FUNC);
+  assert(functype() == SP_EQUALS_FUNC);
 
   do {
     tres = geocol_relcheck_within<Coordsys>(gv1, gv2, functype());
@@ -631,7 +630,7 @@ int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
     result =
         BG_wrap<Geom_types>::multipolygon_within_geometry(g1, g2, pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
   return result;
 }
 
@@ -758,7 +757,7 @@ int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
                                                                    pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -818,7 +817,7 @@ int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
           g1, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   /*
@@ -877,7 +876,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
                  pnull_value);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
       break;
@@ -893,7 +892,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
                  pnull_value);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
       break;
@@ -907,7 +906,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
           BGCALL(result, overlaps, Polygon, g1, Multipolygon, g2, pnull_value);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
       break;
@@ -922,13 +921,13 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
                  pnull_value);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
       }
       break;
     }
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -990,7 +989,7 @@ int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
                                                                   pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
   return result;
@@ -1043,7 +1042,7 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
           g1, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -1107,7 +1106,7 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
       result = crosses_check<Geom_types>(g1, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 
@@ -1116,7 +1115,7 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
 
 longlong Item_func_spatial_relation::val_int() {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   String tmp_value1;
   String tmp_value2;
@@ -1130,7 +1129,7 @@ longlong Item_func_spatial_relation::val_int() {
   }
 
   if (res1 == nullptr || res2 == nullptr) {
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }

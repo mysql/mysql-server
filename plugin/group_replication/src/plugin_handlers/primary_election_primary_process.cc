@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ int Primary_election_primary_process::launch_primary_election_process(
   mysql_mutex_lock(&election_lock);
 
   // Callers should ensure the process is terminated
-  DBUG_ASSERT(!election_process_thd_state.is_thread_alive());
+  assert(!election_process_thd_state.is_thread_alive());
   if (election_process_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&election_lock); /* purecov: inspected */
     return 2;                           /* purecov: inspected */
@@ -440,7 +440,7 @@ int Primary_election_primary_process::terminate_election_process(bool wait) {
       mysql_cond_wait(&election_cond, &election_lock);
     }
 
-    DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+    assert(election_process_thd_state.is_thread_dead());
   }
 
   mysql_mutex_unlock(&election_lock);
@@ -461,7 +461,7 @@ void Primary_election_primary_process::wait_on_election_process_termination() {
                ("Waiting for the Primary election process thread to finish"));
     mysql_cond_wait(&election_cond, &election_lock);
   }
-  DBUG_ASSERT(election_process_thd_state.is_thread_dead());
+  assert(election_process_thd_state.is_thread_dead());
 
   mysql_mutex_unlock(&election_lock);
 

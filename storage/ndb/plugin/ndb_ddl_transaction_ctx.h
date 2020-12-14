@@ -174,7 +174,7 @@ class Ndb_DDL_transaction_ctx {
   Ndb_DDL_transaction_ctx(class THD *thd) : m_thd(thd) {}
 
   void get_original_sdi_for_rename(dd::sdi_t &orig_sdi) const {
-    DBUG_ASSERT(!m_original_sdi_for_rename.empty());
+    assert(!m_original_sdi_for_rename.empty());
     orig_sdi.assign(m_original_sdi_for_rename.c_str(),
                     m_original_sdi_for_rename.length());
   }

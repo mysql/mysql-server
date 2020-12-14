@@ -193,7 +193,7 @@ AggregateIterator::AggregateIterator(
 }
 
 bool AggregateIterator::Init() {
-  DBUG_ASSERT(!m_join->tmp_table_param.precomputed_group_by);
+  assert(!m_join->tmp_table_param.precomputed_group_by);
 
   // Disable any leftover rollup items used in children.
   m_current_rollup_position = -1;
@@ -396,7 +396,7 @@ int AggregateIterator::Read() {
       return -1;
   }
 
-  DBUG_ASSERT(false);
+  assert(false);
   return 1;
 }
 
@@ -451,8 +451,7 @@ int NestedLoopIterator::Read() {
       }
       m_state = READING_FIRST_INNER_ROW;
     }
-    DBUG_ASSERT(m_state == READING_INNER_ROWS ||
-                m_state == READING_FIRST_INNER_ROW);
+    assert(m_state == READING_INNER_ROWS || m_state == READING_FIRST_INNER_ROW);
 
     int err = m_source_inner->Read();
     if (err != 0 && m_pfs_batch_mode) {
@@ -518,11 +517,11 @@ MaterializeIterator::MaterializeIterator(
       m_limit_rows(limit_rows),
       m_invalidators(thd->mem_root) {
   if (ref_slice != -1) {
-    DBUG_ASSERT(m_join != nullptr);
+    assert(m_join != nullptr);
   }
   if (m_join != nullptr) {
-    DBUG_ASSERT(m_query_blocks_to_materialize.size() == 1);
-    DBUG_ASSERT(m_query_blocks_to_materialize[0].join == m_join);
+    assert(m_query_blocks_to_materialize.size() == 1);
+    assert(m_query_blocks_to_materialize[0].join == m_join);
   }
 }
 
@@ -740,7 +739,7 @@ bool MaterializeIterator::MaterializeRecursive() {
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Trash the pointers on exit, to ease debugging of dangling ones to the
   // stack.
   auto pointer_cleanup = create_scope_guard([this] {
@@ -833,7 +832,7 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
     }
 
     if (query_block.disable_deduplication_by_hash_field) {
-      DBUG_ASSERT(doing_hash_deduplication());
+      assert(doing_hash_deduplication());
     } else if (!check_unique_constraint(table())) {
       continue;
     }
@@ -876,7 +875,7 @@ int MaterializeIterator::Read() {
     table.
   */
   if (m_ref_slice != -1) {
-    DBUG_ASSERT(m_join != nullptr);
+    assert(m_join != nullptr);
     if (!m_join->ref_items[m_ref_slice].is_null()) {
       m_join->set_ref_item_slice(m_ref_slice);
     }
@@ -929,7 +928,7 @@ StreamingIterator::StreamingIterator(
       m_join(join),
       m_output_slice(ref_slice),
       m_provide_rowid(provide_rowid) {
-  DBUG_ASSERT(m_subquery_iterator != nullptr);
+  assert(m_subquery_iterator != nullptr);
 
   // If we have weedout in this query, it will expect to have row IDs that
   // uniquely identify each row, so calling position() will fail (since we
@@ -1221,8 +1220,8 @@ WeedoutIterator::WeedoutIterator(THD *thd,
       m_sj(sj),
       m_tables_to_get_rowid_for(tables_to_get_rowid_for) {
   // Confluent weedouts should have been rewritten to LIMIT 1 earlier.
-  DBUG_ASSERT(!m_sj->is_confluent);
-  DBUG_ASSERT(m_sj->tmp_table != nullptr);
+  assert(!m_sj->is_confluent);
+  assert(m_sj->tmp_table != nullptr);
 }
 
 bool WeedoutIterator::Init() {
@@ -1323,8 +1322,8 @@ NestedLoopSemiJoinWithDuplicateRemovalIterator::
       m_key(key),
       m_key_buf(new (thd->mem_root) uchar[key_len]),
       m_key_len(key_len) {
-  DBUG_ASSERT(m_source_outer != nullptr);
-  DBUG_ASSERT(m_source_inner != nullptr);
+  assert(m_source_outer != nullptr);
+  assert(m_source_inner != nullptr);
 }
 
 bool NestedLoopSemiJoinWithDuplicateRemovalIterator::Init() {
@@ -1399,7 +1398,7 @@ WindowingIterator::WindowingIterator(
       m_window(temp_table_param->m_window),
       m_join(join),
       m_output_slice(output_slice) {
-  DBUG_ASSERT(!m_window->needs_buffering());
+  assert(!m_window->needs_buffering());
 }
 
 bool WindowingIterator::Init() {
@@ -1445,7 +1444,7 @@ BufferingWindowingIterator::BufferingWindowingIterator(
       m_window(temp_table_param->m_window),
       m_join(join),
       m_output_slice(output_slice) {
-  DBUG_ASSERT(m_window->needs_buffering());
+  assert(m_window->needs_buffering());
 }
 
 bool BufferingWindowingIterator::Init() {
@@ -1459,7 +1458,7 @@ bool BufferingWindowingIterator::Init() {
 
   // Store which slice we will be reading from.
   m_input_slice = m_join->get_ref_item_slice();
-  DBUG_ASSERT(m_input_slice >= 0);
+  assert(m_input_slice >= 0);
 
   return false;
 }
@@ -1624,7 +1623,7 @@ bool MaterializeInformationSchemaTableIterator::Init() {
 AppendIterator::AppendIterator(
     THD *thd, std::vector<unique_ptr_destroy_only<RowIterator>> &&sub_iterators)
     : RowIterator(thd), m_sub_iterators(move(sub_iterators)) {
-  DBUG_ASSERT(!m_sub_iterators.empty());
+  assert(!m_sub_iterators.empty());
 }
 
 bool AppendIterator::Init() {
@@ -1659,7 +1658,7 @@ int AppendIterator::Read() {
 }
 
 void AppendIterator::SetNullRowFlag(bool is_null_row) {
-  DBUG_ASSERT(m_current_iterator_index < m_sub_iterators.size());
+  assert(m_current_iterator_index < m_sub_iterators.size());
   m_sub_iterators[m_current_iterator_index]->SetNullRowFlag(is_null_row);
 }
 
@@ -1677,6 +1676,6 @@ void AppendIterator::EndPSIBatchModeIfStarted() {
 }
 
 void AppendIterator::UnlockRow() {
-  DBUG_ASSERT(m_current_iterator_index < m_sub_iterators.size());
+  assert(m_current_iterator_index < m_sub_iterators.size());
   m_sub_iterators[m_current_iterator_index]->UnlockRow();
 }

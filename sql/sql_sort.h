@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include "map_helpers.h"
 #include "my_base.h"  // ha_rows
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "sql/filesort_utils.h"  // Filesort_buffer
 #include "sql/mem_root_array.h"
@@ -76,7 +77,7 @@ struct Merge_chunk {
   }
   void set_buffer_start(uchar *start) { m_buffer_start = start; }
   void set_buffer_end(uchar *end) {
-    DBUG_ASSERT(m_buffer_end == nullptr || end <= m_buffer_end);
+    assert(m_buffer_end == nullptr || end <= m_buffer_end);
     m_buffer_end = end;
   }
 
@@ -281,7 +282,7 @@ void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap) {
   for (; it != end; ++it) {
     if (old_top->merge_freed_buff(*it)) return;
   }
-  DBUG_ASSERT(0);
+  assert(0);
 }
 
 #endif /* SQL_SORT_INCLUDED */

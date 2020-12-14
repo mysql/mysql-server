@@ -26,7 +26,7 @@
 #define NDB_SHARE_H
 
 #include <string>
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #include <unordered_set>
 #endif
 
@@ -235,7 +235,7 @@ struct NDB_SHARE {
   // Rename share, rename in list of tables
   static int rename_share(NDB_SHARE *share, struct NDB_SHARE_KEY *new_key);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   static void dbg_check_shares_update();
 #endif
 
@@ -283,7 +283,7 @@ struct NDB_SHARE {
   */
   static void mark_share_dropped_impl(NDB_SHARE **share_ptr);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Lists of the different "users" who have acquired a reference to
   // this NDB_SHARE, used for checking the reference counter "m_use_count"
   // in a programmatic way.
@@ -300,22 +300,22 @@ struct NDB_SHARE {
 
     bool insert(const class ha_ndbcluster *ref) {
       // The reference should not already exist
-      DBUG_ASSERT(!exists(ref));
+      assert(!exists(ref));
 
       // Insert the new handler reference in the list
       const auto result = handlers.insert(ref);
-      DBUG_ASSERT(result.second);
+      assert(result.second);
 
       return result.second;
     }
 
     bool erase(const class ha_ndbcluster *ref) {
       // The reference must already exist
-      DBUG_ASSERT(exists(ref));
+      assert(exists(ref));
 
       // Remove the handler reference from the list
       const size_t erased = handlers.erase(ref);
-      DBUG_ASSERT(erased == 1);
+      assert(erased == 1);
 
       return erased == 1;
     }
@@ -324,22 +324,22 @@ struct NDB_SHARE {
 
     bool insert(const char *ref) {
       // The reference should not already exist
-      DBUG_ASSERT(!exists(ref));
+      assert(!exists(ref));
 
       // Insert the new string reference in the list
       const auto result = strings.insert(ref);
-      DBUG_ASSERT(result.second);
+      assert(result.second);
 
       return result.second;
     }
 
     bool erase(const char *ref) {
       // The reference must already exist
-      DBUG_ASSERT(exists(ref));
+      assert(exists(ref));
 
       // Remove the string reference from the list
       const size_t erased = strings.erase(ref);
-      DBUG_ASSERT(erased == 1);
+      assert(erased == 1);
 
       return erased == 1;
     }
@@ -352,22 +352,22 @@ struct NDB_SHARE {
   Ndb_share_references *refs;
 #endif
   void refs_insert(const char *reference MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(refs->insert(reference));
+    assert(refs->insert(reference));
   }
   void refs_insert(
       const class ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(refs->insert(reference));
+    assert(refs->insert(reference));
   }
   void refs_erase(const char *reference MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(refs->erase(reference));
+    assert(refs->erase(reference));
   }
   void refs_erase(const class ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(refs->erase(reference));
+    assert(refs->erase(reference));
   }
 
  public:
   bool refs_exists(const char *reference MY_ATTRIBUTE((unused))) const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     return refs->exists(reference);
 #else
     return true;

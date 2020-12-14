@@ -351,12 +351,12 @@ class Explain_union_result : public Explain {
       : Explain(CTX_UNION_RESULT, explain_thd_arg, query_thd_arg,
                 query_block_arg) {
     /* it's a UNION: */
-    DBUG_ASSERT(query_block_arg ==
-                query_block_arg->master_query_expression()->fake_query_block);
+    assert(query_block_arg ==
+           query_block_arg->master_query_expression()->fake_query_block);
     // Use optimized values from fake_query_block's join
     order_list = !query_block_arg->join->order.empty();
     // A plan exists so the reads above are safe:
-    DBUG_ASSERT(query_block_arg->join->get_plan_state() != JOIN::NO_PLAN);
+    assert(query_block_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
 
  protected:
@@ -366,8 +366,8 @@ class Explain_union_result : public Explain {
   bool explain_extra() override;
   /* purecov: begin deadcode */
   bool can_walk_clauses() override {
-    DBUG_ASSERT(0);  // UNION result can't have conditions
-    return true;     // Because we know that we have a plan
+    assert(0);    // UNION result can't have conditions
+    return true;  // Because we know that we have a plan
   }
   /* purecov: end */
 };
@@ -433,10 +433,9 @@ class Explain_join : public Explain_table_base {
         need_order(need_order_arg),
         distinct(distinct_arg),
         join(query_block_arg->join) {
-    DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
+    assert(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
-    DBUG_ASSERT(join->query_block !=
-                join->query_expression()->fake_query_block);
+    assert(join->query_block != join->query_expression()->fake_query_block);
     order_list = !join->order.empty();
   }
 
@@ -613,7 +612,7 @@ bool Explain::explain_subqueries() {
     if (context == CTX_DERIVED) {
       TABLE_LIST *tl = unit->derived_table;
       derived_clone_id = tl->query_block_id_for_explain();
-      DBUG_ASSERT(derived_clone_id);
+      assert(derived_clone_id);
       is_derived_clone = derived_clone_id != tl->query_block_id();
       if (is_derived_clone && !fmt->is_hierarchical()) {
         // Don't show underlying tables of derived table clone
@@ -886,14 +885,14 @@ bool Explain_table_base::explain_key_and_len_quick(QUICK_SELECT_I *quick) {
 }
 
 bool Explain_table_base::explain_key_and_len_index(int key) {
-  DBUG_ASSERT(key != MAX_KEY);
+  assert(key != MAX_KEY);
   return explain_key_and_len_index(key, table->key_info[key].key_length,
                                    table->key_info[key].user_defined_key_parts);
 }
 
 bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
                                                    uint key_parts) {
-  DBUG_ASSERT(key != MAX_KEY);
+  assert(key != MAX_KEY);
 
   char buff_key_len[24];
   const KEY *key_info = table->key_info + key;
@@ -963,7 +962,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
           We are replacing existing col_key value with a quickselect info,
           but not the reverse:
         */
-        DBUG_ASSERT(fmt->entry()->col_key.length);
+        assert(fmt->entry()->col_key.length);
         if (fmt->entry()->col_key.set(buff))  // keep col_key_len intact
           return true;
       } else {
@@ -1062,7 +1061,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
                          ft_hints->get_op_value());
           break;
         default:
-          DBUG_ASSERT(0);
+          assert(0);
       }
 
       buff.append(buf, len, cs);
@@ -1267,8 +1266,8 @@ bool Explain_join::shallow_explain() {
         Due to begin_sort_context() calls above, fmt->entry() returns another
         context than stored in join_entry.
       */
-      DBUG_ASSERT(order_by_distinct_or_grouping != join_entry ||
-                  !fmt->is_hierarchical());
+      assert(order_by_distinct_or_grouping != join_entry ||
+             !fmt->is_hierarchical());
       order_by_distinct_or_grouping->col_read_cost.set(join->sort_cost);
     }
   }
@@ -1303,7 +1302,7 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   quick_type = -1;
 
   if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
-    DBUG_ASSERT(tab->quick_optim());
+    assert(tab->quick_optim());
     quick_type = tab->quick_optim()->get_type();
   }
 
@@ -1590,7 +1589,7 @@ bool Explain_join::explain_extra() {
       } else if (tab->op_type == QEP_TAB::OT_BKA)
         buff.append("Batched Key Access");
       else
-        DBUG_ASSERT(0); /* purecov: inspected */
+        assert(0); /* purecov: inspected */
       if (push_extra(ET_USING_JOIN_BUFFER, buff)) return true;
     }
   }
@@ -1635,7 +1634,7 @@ bool Explain_table::explain_tmptable_and_filesort(bool need_tmp_table_arg,
       at the "table" node)
     */
     if (need_tmp_table_arg) {
-      DBUG_ASSERT(used_key_is_modified || order_list);
+      assert(used_key_is_modified || order_list);
       if (used_key_is_modified && push_extra(ET_USING_TEMPORARY, "for update"))
         return true;
     }
@@ -1990,10 +1989,10 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
       break;
     }
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      assert(0); /* purecov: inspected */
       ret = true;
   }
-  DBUG_ASSERT(ret || !explain_thd->is_error());
+  assert(ret || !explain_thd->is_error());
   ret |= explain_thd->is_error();
   return ret;
 }
@@ -2213,7 +2212,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
     if (explain_result->prepare(explain_thd, dummy, explain_thd->lex->unit))
       return true; /* purecov: inspected */
   } else {
-    DBUG_ASSERT(unit->is_optimized());
+    assert(unit->is_optimized());
     if (explain_result->need_explain_interceptor())
       explain_result = &explain_wrapper;
   }
@@ -2293,7 +2292,7 @@ bool mysql_explain_query_expression(THD *explain_thd, const THD *query_thd,
   else
     res = explain_query_specification(explain_thd, query_thd,
                                       unit->first_query_block(), CTX_JOIN);
-  DBUG_ASSERT(res || !explain_thd->is_error());
+  assert(res || !explain_thd->is_error());
   res |= explain_thd->is_error();
   return res;
 }
@@ -2406,7 +2405,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
          qp->get_lex()->m_sql_cmd->is_prepared()))  // (4)
     {
       Security_context *tmp_sctx = query_thd->security_context();
-      DBUG_ASSERT(tmp_sctx->user().str);
+      assert(tmp_sctx->user().str);
       if (user && strcmp(tmp_sctx->user().str, user)) {
         my_error(ER_ACCESS_DENIED_ERROR, MYF(0),
                  thd->security_context()->priv_user().str,
@@ -2449,7 +2448,7 @@ err:
 
 void Modification_plan::register_in_thd() {
   thd->lock_query_plan();
-  DBUG_ASSERT(thd->query_plan.get_modification_plan() == nullptr);
+  assert(thd->query_plan.get_modification_plan() == nullptr);
   thd->query_plan.set_modification_plan(this);
   thd->unlock_query_plan();
 }
@@ -2496,7 +2495,7 @@ Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
       message(nullptr),
       zero_result(false),
       examined_rows(rows) {
-  DBUG_ASSERT(current_thd == thd);
+  assert(current_thd == thd);
   if (!thd->in_sub_stmt) register_in_thd();
 }
 
@@ -2533,15 +2532,15 @@ Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
       message(message_arg),
       zero_result(zero_result_arg),
       examined_rows(rows) {
-  DBUG_ASSERT(current_thd == thd);
+  assert(current_thd == thd);
   if (!thd->in_sub_stmt) register_in_thd();
 }
 
 Modification_plan::~Modification_plan() {
   if (!thd->in_sub_stmt) {
     thd->lock_query_plan();
-    DBUG_ASSERT(current_thd == thd &&
-                thd->query_plan.get_modification_plan() == this);
+    assert(current_thd == thd &&
+           thd->query_plan.get_modification_plan() == this);
     thd->query_plan.set_modification_plan(nullptr);
     thd->unlock_query_plan();
   }

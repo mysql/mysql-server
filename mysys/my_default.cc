@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,7 +158,7 @@ PSI_memory_key key_memory_defaults;
 */
 static const char *args_separator = "----args-separator----";
 inline static void set_args_separator(const char **arg) {
-  DBUG_ASSERT(my_getopt_use_args_separator);
+  assert(my_getopt_use_args_separator);
   *arg = args_separator;
 }
 /*
@@ -1487,7 +1487,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs) {
   if (!(p = strmake_root(alloc, buf, len))) return 1; /* Failure */
   /* Should never fail if DEFAULT_DIRS_SIZE is correct size */
   err = array_append_string_unique(p, dirs, DEFAULT_DIRS_SIZE);
-  DBUG_ASSERT(err == false);
+  assert(err == false);
 
   return 0;
 }

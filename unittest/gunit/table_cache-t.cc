@@ -749,7 +749,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all tables for share_1, while some tables
   // are in use.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_ALL, &share_1),
       ".*Assertion.*is_empty.*");
@@ -787,7 +787,7 @@ TEST_F(TableCacheDoubleCacheDeathTest, ManagerFreeTable) {
   // There should be assert failure since we are trying
   // to free all not own TABLEs for share_1, while thd_2
   // has a TABLE object for it in used
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   EXPECT_DEATH_IF_SUPPORTED(
       table_cache_manager.free_table(thd_1, TDC_RT_REMOVE_NOT_OWN, &share_1),
       ".*Assertion.*0.*");

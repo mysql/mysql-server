@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,7 @@ extern bool opt_require_secure_transport;
 
 extern bool opt_slave_preserve_commit_order;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,16 +134,16 @@ int Recovery_module::stop_recovery(bool wait_for_termination) {
     */
     struct timespec abstime;
     set_timespec(&abstime, 2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error =
 #endif
         mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
 
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT((wait_for_termination && !recovery_thd_state.is_running()) ||
-              !wait_for_termination);
+  assert((wait_for_termination && !recovery_thd_state.is_running()) ||
+         !wait_for_termination);
 
   mysql_mutex_unlock(&run_lock);
 
@@ -257,17 +257,17 @@ int Recovery_module::recovery_thread_handle() {
     /* purecov: end */
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_start_wait_num_of_members", {
-    DBUG_ASSERT(number_of_members != 1);
+    assert(number_of_members != 1);
     DBUG_SET("d,recovery_thread_start_wait");
   });
   DBUG_EXECUTE_IF("recovery_thread_start_wait", {
     const char act[] =
         "now signal signal.recovery_waiting wait_for signal.recovery_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   /* Step 2 */
 
@@ -287,12 +287,12 @@ int Recovery_module::recovery_thread_handle() {
   stage_handler.set_stage(info_GR_STAGE_module_executing.m_key, __FILE__,
                           __LINE__, 0, 0);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_wait_before_finish", {
     const char act[] = "now wait_for signal.recovery_end";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   if (error) {
     goto cleanup;
@@ -332,12 +332,12 @@ cleanup:
 
   stage_handler.end_stage();
   stage_handler.terminate_stage_monitor();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_wait_before_cleanup", {
     const char act[] = "now wait_for signal.recovery_end_end";
     debug_sync_set_action(current_thd, STRING_WITH_LEN(act));
   });
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   /* Step 7 */
 

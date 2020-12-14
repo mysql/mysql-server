@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ inline iface::Frame_type get_notice_frame_type(const Notice_type notice_type) {
     case Notice_type::k_group_replication_member_state_changed:
       return iface::Frame_type::k_group_replication_state_changed;
     default: {
-      DBUG_ASSERT("unsupported ngs::Notice_type");
+      assert(false && "unsupported ngs::Notice_type");
     }
   }
   return iface::Frame_type::k_group_replication_state_changed;

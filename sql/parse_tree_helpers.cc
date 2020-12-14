@@ -22,6 +22,7 @@
 
 #include "sql/parse_tree_helpers.h"
 
+#include <assert.h>
 #include <cstddef>
 #include <initializer_list>
 #include <utility>
@@ -30,7 +31,7 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_sqlcommand.h"
 #include "my_sys.h"
@@ -93,7 +94,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
     return nullptr;
   }
 
-  DBUG_ASSERT(pctx && spv);
+  assert(pctx && spv);
 
   if (lex->reparse_common_table_expr_at != 0) {
     /*
@@ -112,7 +113,7 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
   Item_splocal *item = new (thd->mem_root) Item_splocal(
       name, spv->offset, spv->type, spv_pos_in_query, spv_len_in_query);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (item) item->m_sp = lex->sphead;
 #endif
 
@@ -211,17 +212,17 @@ bool set_trigger_new_row(Parse_context *pc, LEX_CSTRING trigger_field_name,
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
 
-  DBUG_ASSERT(expr_item);
-  DBUG_ASSERT(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
-              (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
-               sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+  assert(expr_item);
+  assert(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
+         (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+          sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
 
   Item_trigger_field *trg_fld = new (pc->mem_root) Item_trigger_field(
       POS(), TRG_NEW_ROW, trigger_field_name.str, UPDATE_ACL, false);
 
   if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
     return true;
-  DBUG_ASSERT(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
+  assert(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
 
   sp_instr_set_trigger_field *i = new (pc->mem_root)
       sp_instr_set_trigger_field(sp->instructions(), lex, trigger_field_name,

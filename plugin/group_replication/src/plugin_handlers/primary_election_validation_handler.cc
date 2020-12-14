@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ Primary_election_validation_handler::~Primary_election_validation_handler() {
 }
 
 bool Primary_election_validation_handler::initialize_validation_structures() {
-  DBUG_ASSERT(group_member_mgr);
+  assert(group_member_mgr);
   validation_process_aborted = false;
   number_of_responses = 0;
   group_members_info.clear();
@@ -325,7 +325,7 @@ int Primary_election_validation_handler::before_message_handling(
     std::map<const std::string, Election_member_info *>::iterator map_it;
     map_it = group_members_info.find(message_origin);
 
-    DBUG_ASSERT(map_it != group_members_info.end());
+    assert(map_it != group_members_info.end());
     if (map_it != group_members_info.end()) {
       map_it->second->set_has_running_channels(
           group_validation_message.has_slave_channels());

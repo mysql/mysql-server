@@ -1277,7 +1277,7 @@ ulong opt_mts_slave_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
 bool opt_slave_preserve_commit_order;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 uint slave_rows_last_search_algorithm_used;
 #endif
 ulong mts_parallel_option;
@@ -1665,7 +1665,7 @@ void substitute_progpath(char **argv) {
 
   // my_realpath() cannot resolve it, it must be a bare executable
   // name in path
-  DBUG_ASSERT(strchr(argv[0], FN_LIBCHAR) == nullptr);
+  assert(strchr(argv[0], FN_LIBCHAR) == nullptr);
 
   const char *spbegin = getenv("PATH");
   if (spbegin == nullptr) spbegin = "";
@@ -1682,7 +1682,7 @@ void substitute_progpath(char **argv) {
     if (my_access(cand.c_str(), X_OK) == 0) {
       if (my_realpath(my_progpath, cand.c_str(), MYF(0))) {
         // Fallback to raw cand
-        DBUG_ASSERT(cand.length() < FN_REFLEN);
+        assert(cand.length() < FN_REFLEN);
         std::copy(cand.begin(), cand.end(), my_progpath);
         my_progpath[cand.length()] = '\0';
       }
@@ -1691,7 +1691,7 @@ void substitute_progpath(char **argv) {
       break;
     }
     if (colonend == spend) {
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }  // while (true)
@@ -1744,8 +1744,8 @@ ulong sql_rnd_with_mutex() {
 }
 
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(aggregated != nullptr);
+  assert(thd != nullptr);
+  assert(aggregated != nullptr);
   *aggregated = thd->status_var_aggregated;
   return &thd->status_var;
 }
@@ -1816,7 +1816,7 @@ static NTService Service;  ///< Service object for WinNT
  */
 bool dynamic_plugins_are_initialized = false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static const char *default_dbug_option;
 #endif
 
@@ -2059,8 +2059,8 @@ class Set_kill_conn : public Do_THD_Impl {
         return;
       }
       DBUG_EXECUTE_IF("Check_dump_thread_is_alive", {
-        DBUG_ASSERT(killing_thd->get_command() != COM_BINLOG_DUMP &&
-                    killing_thd->get_command() != COM_BINLOG_DUMP_GTID);
+        assert(killing_thd->get_command() != COM_BINLOG_DUMP &&
+               killing_thd->get_command() != COM_BINLOG_DUMP_GTID);
       };);
     }
     mysql_mutex_lock(&killing_thd->LOCK_thd_data);
@@ -2311,9 +2311,8 @@ static void unireg_abort(int exit_code) {
 void clean_up_mysqld_mutexes() { clean_up_mutexes(); }
 
 static void mysqld_exit(int exit_code) {
-  DBUG_ASSERT(
-      (exit_code >= MYSQLD_SUCCESS_EXIT && exit_code <= MYSQLD_ABORT_EXIT) ||
-      exit_code == MYSQLD_RESTART_EXIT);
+  assert((exit_code >= MYSQLD_SUCCESS_EXIT && exit_code <= MYSQLD_ABORT_EXIT) ||
+         exit_code == MYSQLD_RESTART_EXIT);
   mysql_audit_finalize();
   Srv_session::module_deinit();
   delete_optimizer_cost_module();
@@ -2637,7 +2636,7 @@ static PasswdValue check_user(const char *user) {
     }
     return PasswdValue{};
   }
-  DBUG_ASSERT(user_id == 0);  // we are running as root
+  assert(user_id == 0);  // we are running as root
 
   if (!user) {
     if (!opt_initialize && !is_help_or_validate_option()) {
@@ -2677,7 +2676,7 @@ PasswdValue check_user_drv(const char *user) { return check_user(user); }
 
 static void set_user(const char *user, const PasswdValue &user_info_arg) {
   /* purecov: begin tested */
-  DBUG_ASSERT(user_info_arg.IsVoid() == false);
+  assert(user_info_arg.IsVoid() == false);
 #ifdef HAVE_INITGROUPS
   initgroups(user, user_info_arg.pw_gid);
 #endif
@@ -2701,7 +2700,7 @@ static void set_user(const char *user, const PasswdValue &user_info_arg) {
 }
 
 static void set_effective_user(const PasswdValue &user_info_arg) {
-  DBUG_ASSERT(user_info_arg.IsVoid() == false);
+  assert(user_info_arg.IsVoid() == false);
   if (setregid((gid_t)-1, user_info_arg.pw_gid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETREGID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -3029,7 +3028,7 @@ static bool network_init(void) {
 
     if (report_port == 0) report_port = mysqld_port;
 
-    if (!opt_disable_networking) DBUG_ASSERT(report_port != 0);
+    if (!opt_disable_networking) assert(report_port != 0);
   }
 #ifdef _WIN32
   // Create named pipe
@@ -3383,7 +3382,7 @@ static void start_signal_handler() {
 #endif
   if (0 !=
       my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize)) {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   /*
@@ -3506,7 +3505,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
           while (socket_listener_active) {
             DBUG_PRINT("info", ("Killing socket listener"));
             if (pthread_kill(main_thread_id, SIGALRM)) {
-              DBUG_ASSERT(false);
+              assert(false);
               break;
             }
             mysql_cond_wait(&COND_socket_listener_active,
@@ -3566,7 +3565,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
   DBUG_TRACE;
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
 
-  DBUG_ASSERT(str != nullptr);
+  assert(str != nullptr);
   /*
     An error should have a valid error number (!= 0), so it can be caught
     in stored procedures by SQL exception handlers.
@@ -3574,12 +3573,12 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
     Remaining known places to fix:
     - storage/myisam/mi_create.c, my_printf_error()
     TODO:
-    DBUG_ASSERT(error != 0);
+    assert(error != 0);
   */
 
   if (error == 0) {
     /* At least, prevent new abuse ... */
-    DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0);
+    assert(strncmp(str, "MyISAM table", 12) == 0);
     error = ER_UNKNOWN_ERROR;
   }
 
@@ -3642,7 +3641,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
       range). SIGNALing an error-code from the error-log range
       will not result in writing to that log to prevent abuse.
     */
-    DBUG_ASSERT(error < ER_SERVER_RANGE_START);
+    assert(error < ER_SERVER_RANGE_START);
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
@@ -3698,8 +3697,8 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
       (We're bailing after rather than before printing to make the
       culprit easier to track down.)
     */
-    DBUG_ASSERT((error == ER_FEATURE_NOT_AVAILABLE) ||
-                (error >= ER_SERVER_RANGE_START));
+    assert((error == ER_FEATURE_NOT_AVAILABLE) ||
+           (error >= ER_SERVER_RANGE_START));
   }
 
   /*
@@ -4328,7 +4327,7 @@ static void init_sql_statement_names() {
     ptr = var->value;
     if ((first_com <= ptr) && (ptr <= last_com)) {
       com_index = ((int)(ptr - first_com)) / record_size;
-      DBUG_ASSERT(com_index < (uint)SQLCOM_END);
+      assert(com_index < (uint)SQLCOM_END);
       sql_statement_names[com_index].str = var->name;
       /* TODO: Change SHOW_VAR::name to a LEX_STRING, to avoid strlen() */
       sql_statement_names[com_index].length = strlen(var->name);
@@ -4336,10 +4335,8 @@ static void init_sql_statement_names() {
     var++;
   }
 
-  DBUG_ASSERT(strcmp(sql_statement_names[(uint)SQLCOM_SELECT].str, "select") ==
-              0);
-  DBUG_ASSERT(strcmp(sql_statement_names[(uint)SQLCOM_SIGNAL].str, "signal") ==
-              0);
+  assert(strcmp(sql_statement_names[(uint)SQLCOM_SELECT].str, "select") == 0);
+  assert(strcmp(sql_statement_names[(uint)SQLCOM_SIGNAL].str, "signal") == 0);
 
   sql_statement_names[(uint)SQLCOM_END].str = "error";
 }
@@ -4549,7 +4546,7 @@ int init_common_variables() {
   */
   if (add_status_vars(status_vars)) return 1;  // an error was already reported
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     We have few debug-only commands in com_status_vars, only visible in debug
     builds. for simplicity we enable the assert only in debug builds
@@ -5315,7 +5312,7 @@ static bool initialize_storage_engine(const char *se_name, const char *se_kind,
       LogErr(ERROR_LEVEL, ER_DEFAULT_SE_UNAVAILABLE, se_kind, se_name);
       return true;
     }
-    DBUG_ASSERT(*dest_plugin);
+    assert(*dest_plugin);
   } else {
     /*
       Need to unlock as global_system_variables.table_plugin
@@ -5552,7 +5549,7 @@ static int setup_error_log_components() {
     If LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE is set, also add the
     flushed events to performance_schema.error_log.
   */
-  DBUG_ASSERT((log_error_dest != nullptr) && (log_error_dest[0] != '\0'));
+  assert((log_error_dest != nullptr) && (log_error_dest[0] != '\0'));
 
   if (!strcmp(log_error_dest, "stderr")) {
     // If we logging to stderr, there will be no log-file to read.
@@ -5656,8 +5653,8 @@ static int init_server_components() {
     LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-format");
 
   /* Check that we have not let the format to unspecified at this point */
-  DBUG_ASSERT((uint)global_system_variables.binlog_format <=
-              array_elements(binlog_format_names) - 1);
+  assert((uint)global_system_variables.binlog_format <=
+         array_elements(binlog_format_names) - 1);
 
   opt_server_id_mask = ~ulong(0);
   opt_server_id_mask =
@@ -5858,7 +5855,7 @@ static int init_server_components() {
           LogErr(WARNING_LEVEL, err, msg);
           break;
         default:
-          DBUG_ASSERT(0); /* purecov: deadcode */
+          assert(0); /* purecov: deadcode */
       }
     }
   }
@@ -5887,11 +5884,11 @@ static int init_server_components() {
       We have to call a function in log_resource.cc, or its references
       won't be visible to plugins.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int dummy =
 #endif
         Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server();
-    DBUG_ASSERT(dummy == 1);
+    assert(dummy == 1);
   }
 
   /*
@@ -6010,7 +6007,7 @@ static int init_server_components() {
   {  // New scope in which the error handler hook is modified.
     auto ehh_val = error_handler_hook;
     auto restore_ehh = create_scope_guard([ehh_val]() {
-      DBUG_ASSERT(ehh_val == my_message_stderr);
+      assert(ehh_val == my_message_stderr);
       error_handler_hook = ehh_val;
     });
     error_handler_hook = +[](uint c, const char *s, myf f) {
@@ -6030,7 +6027,7 @@ static int init_server_components() {
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }  // End of extra scope where missing server_cost errors are not logged
-  DBUG_ASSERT(error_handler_hook == my_message_stderr);
+  assert(error_handler_hook == my_message_stderr);
   dynamic_plugins_are_initialized =
       true; /* Don't separate from init function */
   delete_optimizer_cost_module();
@@ -6333,7 +6330,7 @@ static int init_server_components() {
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
       corretly compute the set of previous gtids.
     */
-    DBUG_ASSERT(!mysql_bin_log.is_relay_log);
+    assert(!mysql_bin_log.is_relay_log);
     mysql_mutex_t *log_lock = mysql_bin_log.get_log_lock();
     mysql_mutex_lock(log_lock);
 
@@ -6359,7 +6356,7 @@ static int init_server_components() {
     }
   } else if (expire_logs_days_supplied)
     binlog_expire_logs_seconds = 0;
-  DBUG_ASSERT(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
+  assert(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
 
   if (opt_bin_log) {
     if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
@@ -6465,7 +6462,7 @@ static void create_shutdown_and_restart_thread() {
 }
 #endif /* _WIN32 */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /*
   Debugging helper function to keep the locale database
   (see sql_locale.cc) and max_month_name_length and
@@ -6491,11 +6488,11 @@ static void test_lc_time_sz() {
         (*loc)->max_day_name_length != max_day_len) {
       DBUG_PRINT("Wrong max day name(or month name) length for locale:",
                  ("%s", (*loc)->name));
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 /*
   @brief : Set opt_super_readonly to user supplied value before
@@ -6917,7 +6914,7 @@ int mysqld_main(int argc, char **argv)
   size_t guardize = 0;
 #ifndef _WIN32
   int retval = pthread_attr_getguardsize(&connection_attrib, &guardize);
-  DBUG_ASSERT(retval == 0);
+  assert(retval == 0);
   if (retval != 0) guardize = my_thread_stack_size;
 #endif
 
@@ -6931,7 +6928,7 @@ int mysqld_main(int argc, char **argv)
 
   if (0 != my_thread_attr_setstacksize(&connection_attrib,
                                        my_thread_stack_size + guardize)) {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   {
@@ -6951,7 +6948,7 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   test_lc_time_sz();
   srand(static_cast<uint>(time(nullptr)));
 #endif
@@ -7190,7 +7187,7 @@ int mysqld_main(int argc, char **argv)
                    (gtids_in_binlog - purged_gtids_from_binlog)
                  = gtids_only_in_table + purged_gtids_from_binlog;
     */
-    DBUG_ASSERT(lost_gtids->is_empty());
+    assert(lost_gtids->is_empty());
     if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
         lost_gtids->add_gtid_set(&purged_gtids_from_binlog) !=
             RETURN_STATUS_OK) {
@@ -8044,7 +8041,7 @@ static void adjust_table_def_size() {
 
   default_value = min<ulong>(400 + table_cache_size / 2, 2000);
   var = intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
-  DBUG_ASSERT(var != nullptr);
+  assert(var != nullptr);
   var->update_default(default_value);
 
   if (!table_definition_cache_specified) table_def_size = default_value;
@@ -8751,7 +8748,7 @@ static int show_heartbeat_period(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static int show_slave_rows_last_search_algorithm_used(THD *, SHOW_VAR *var,
                                                       char *buff) {
   uint res = slave_rows_last_search_algorithm_used;
@@ -8925,19 +8922,19 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Acl_cache_items_count", (char *)&show_acl_cache_items_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"Ongoing_anonymous_gtid_violating_transaction_count",
      (char *)&show_ongoing_anonymous_gtid_violating_transaction_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-#endif  //! DBUG_OFF
+#endif  //! NDEBUG
     {"Ongoing_anonymous_transaction_count",
      (char *)&show_ongoing_anonymous_transaction_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"Ongoing_automatic_gtid_violating_transaction_count",
      (char *)&show_ongoing_automatic_gtid_violating_transaction_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-#endif  //! DBUG_OFF
+#endif  //! NDEBUG
     {"Binlog_cache_disk_use", (char *)&binlog_cache_disk_use, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"Binlog_cache_use", (char *)&binlog_cache_use, SHOW_LONG,
@@ -9128,7 +9125,7 @@ SHOW_VAR status_vars[] = {
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Slave_last_heartbeat", (char *)&show_slave_last_heartbeat, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"Slave_rows_last_search_algorithm_used",
      (char *)&show_slave_rows_last_search_algorithm_used, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
@@ -9304,7 +9301,7 @@ static bool operator<(const my_option &a, const my_option &b) {
         return false;
     }
   }
-  DBUG_ASSERT(a.name == b.name);
+  assert(a.name == b.name);
   return false;
 }
 
@@ -9479,7 +9476,7 @@ static int mysql_init_variables() {
   opt_replication_sender_observe_commit_only = 0;
 
   /* Variables that depends on compile options */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   default_dbug_option =
       IF_WIN("d:t:i:O,\\mysqld.trace", "d:t:i:o,/tmp/mysqld.trace");
 #endif
@@ -9540,7 +9537,7 @@ void parse_filter_arg(char **channel_name, char **filter_val, char *argument) {
 
   char *p = strchr(argument, ':');
 
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
 
   /*
     If argument='channel_1:db1', then channel_name='channel_1'
@@ -9600,7 +9597,7 @@ bool mysqld_get_one_option(int optid,
 
   switch (optid) {
     case '#':
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
       opt_endinfo = true; /* unireg: memory allocation */
@@ -10206,7 +10203,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
           log_builtins_filter_parse_suppression_list(
               opt_log_error_suppression_list, true);
         } else {
-          DBUG_ASSERT(false); /* purecov: inspected */
+          assert(false); /* purecov: inspected */
         }
       }
     }
@@ -10287,8 +10284,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   // Synchronize @@global.autocommit metadata on --autocommit
   my_option *opt = &my_long_options[3];
-  DBUG_ASSERT(strcmp(opt->name, "autocommit") == 0);
-  DBUG_ASSERT(opt->arg_source != nullptr);
+  assert(strcmp(opt->name, "autocommit") == 0);
+  assert(opt->arg_source != nullptr);
   Sys_autocommit_ptr->set_source_name(opt->arg_source->m_path_name);
   Sys_autocommit_ptr->set_source(opt->arg_source->m_source);
 
@@ -10358,7 +10355,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 static void set_server_version(void) {
   char *end MY_ATTRIBUTE((unused)) = strxmov(
       server_version, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end = my_stpcpy(end, "-debug");
 #endif
@@ -11589,7 +11586,7 @@ bool create_native_table_for_pfs(const Plugin_table *t) {
   if (!is_builtin_and_core_se_initialized()) return true;
 
   THD *thd = current_thd;
-  DBUG_ASSERT(thd);
+  assert(thd);
   return do_create_native_table_for_pfs(thd, t);
 }
 
@@ -11628,7 +11625,7 @@ bool drop_native_table_for_pfs(const char *schema_name,
   /* During bootstrap error cleanup, we don't have THD. */
   THD *thd = current_thd;
   if (thd == nullptr) {
-    DBUG_ASSERT(get_server_state() == SERVER_BOOTING);
+    assert(get_server_state() == SERVER_BOOTING);
     return false;
   }
   return do_drop_native_table_for_pfs(thd, schema_name, table_name);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,12 +22,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/x/src/mq/broker_task.h"
 
+#include <assert.h>
 #include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
-
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/helper/multithread/xsync_point.h"
 #include "plugin/x/src/ngs/protocol/message.h"
@@ -39,7 +38,7 @@ using Notice = ::Mysqlx::Notice::Frame;
 
 Broker_task::Broker_task(std::shared_ptr<Broker_context> context)
     : m_broker_context(context) {
-  DBUG_ASSERT(nullptr != m_broker_context.get());
+  assert(nullptr != m_broker_context.get());
 }
 
 bool Broker_task::prepare(Task_context *context) {
@@ -157,9 +156,8 @@ Broker_task::create_notice_message(
       {Notice_type::k_group_replication_member_state_changed,
        Protocol_type::GroupReplicationStateChanged_Type_MEMBER_STATE_CHANGE}};
 
-  DBUG_ASSERT(
-      k_map_types.count(notice_description.m_notice_type) == 1 &&
-      Notice_descriptor::is_dispatchable(notice_description.m_notice_type));
+  assert(k_map_types.count(notice_description.m_notice_type) == 1 &&
+         Notice_descriptor::is_dispatchable(notice_description.m_notice_type));
 
   auto binary_notice =
       std::make_shared<Notice_descriptor>(notice_description.m_notice_type);

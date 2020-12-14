@@ -1,7 +1,7 @@
 #ifndef INPLACE_VECTOR_INCLUDED
 #define INPLACE_VECTOR_INCLUDED
 
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 
 /* This file defines the Inplace_vector class template. */
 
+#include <assert.h>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"
@@ -74,16 +74,16 @@ class Inplace_vector {
             to allocate more space but out of memory.
    */
   objtype *get_space(size_t index) {
-    DBUG_ASSERT(index <= m_obj_count);
+    assert(index <= m_obj_count);
     size_t arr_id = index / array_size;
     size_t slot_id = index % array_size;
     objtype *ptr = nullptr;
 
-    DBUG_ASSERT(arr_id <= m_obj_arrays.size());
+    assert(arr_id <= m_obj_arrays.size());
 
     // Appending a new slot causes appending a new array.
     if (arr_id == m_obj_arrays.size()) {
-      DBUG_ASSERT(slot_id == 0);
+      assert(slot_id == 0);
       if (m_outof_mem) return nullptr;
       append_new_array();
       if (m_outof_mem) return nullptr;
@@ -129,7 +129,7 @@ class Inplace_vector {
     @return The element address specified by index; NULL if out of memory.
    */
   objtype *get_object(size_t index) {
-    DBUG_ASSERT(index < m_obj_count);
+    assert(index < m_obj_count);
     return get_space(index);
   }
 
@@ -222,7 +222,7 @@ class Inplace_vector {
     @return the reference of the last object stored in the vector.
     */
   const objtype &back() const {
-    DBUG_ASSERT(size() > 0);
+    assert(size() > 0);
     objtype *p = get_object(size() - 1);
     return *p;
   }
@@ -232,7 +232,7 @@ class Inplace_vector {
     @return the reference of the last object stored in the vector.
     */
   objtype &back() {
-    DBUG_ASSERT(size() > 0);
+    assert(size() > 0);
     objtype *p = get_object(size() - 1);
     return *p;
   }
@@ -244,7 +244,7 @@ class Inplace_vector {
     @return The element reference specified by index.
     */
   const objtype &operator[](size_t i) const {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     objtype *p = get_object(i);
     return *p;
   }
@@ -256,7 +256,7 @@ class Inplace_vector {
     @return The element reference specified by index.
     */
   objtype &operator[](size_t i) {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     objtype *p = get_object(i);
     return *p;
   }

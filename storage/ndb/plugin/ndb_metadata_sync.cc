@@ -72,7 +72,7 @@ std::string Ndb_metadata_sync::object_type_and_name_str(
       break;
     }
     default: {
-      DBUG_ASSERT(false);
+      assert(false);
       type_name_str << "";
     }
   }
@@ -245,12 +245,12 @@ bool Ndb_metadata_sync::get_excluded_object_for_validation(
       } break;
       case object_validation_state::IN_PROGRESS: {
         // Not possible since there can't be two objects being validated at once
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
       } break;
       default:
         // Unknown state, not possible
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
     }
   }
@@ -407,7 +407,7 @@ bool Ndb_metadata_sync::check_object_mismatch(THD *thd,
     } break;
     default:
       ndb_log_error("Unknown object type found");
-      DBUG_ASSERT(false);
+      assert(false);
   }
   return true;
 }
@@ -431,7 +431,7 @@ void Ndb_metadata_sync::validate_excluded_object(bool check_mismatch_result) {
       return;
     }
   }
-  DBUG_ASSERT(false);
+  assert(false);
 }
 
 void Ndb_metadata_sync::reset_excluded_objects_state() {

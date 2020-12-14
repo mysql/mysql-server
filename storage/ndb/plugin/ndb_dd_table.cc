@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <string>
 
+#include "my_dbug.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/impl/types/partition_impl.h"
 #include "sql/dd/properties.h"
@@ -158,7 +159,7 @@ void ndb_dd_table_fix_partition_count(dd::Table *table_def,
     }
   }
 
-  DBUG_ASSERT(ndb_num_partitions == table_def->partitions()->size());
+  assert(ndb_num_partitions == table_def->partitions()->size());
 }
 
 // The key used to store the NDB table's previous mysql version in the
@@ -206,9 +207,9 @@ static const char *schema_uuid_key = "schema_uuid";
 
 void ndb_dd_table_set_schema_uuid(dd::Table *table_def, const char *value) {
   DBUG_TRACE;
-  DBUG_ASSERT(value != nullptr);
+  assert(value != nullptr);
   // Schema UUID is to be stored in the ndb_schema table only
-  DBUG_ASSERT(table_def->name().compare("ndb_schema") == 0);
+  assert(table_def->name().compare("ndb_schema") == 0);
   table_def->se_private_data().set(schema_uuid_key, value);
 }
 
@@ -217,7 +218,7 @@ bool ndb_dd_table_get_schema_uuid(const dd::Table *table_def,
   DBUG_TRACE;
 
   // Schema UUID will be stored in the ndb_schema table
-  DBUG_ASSERT(table_def->name().compare("ndb_schema") == 0);
+  assert(table_def->name().compare("ndb_schema") == 0);
 
   if (!table_def->se_private_data().exists(schema_uuid_key)) {
     DBUG_PRINT("info", ("Table definition didn't contain property '%s'",

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,11 @@
 
 #include "storage/perfschema/table_events_statements.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/plugin_table.h"
 #include "sql/sp_head.h" /* TYPE_ENUM_FUNCTION, ... */
@@ -416,7 +417,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
   uint len;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 3);
+  assert(table->s->null_bytes == 3);
   buf[0] = 0;
   buf[1] = 0;
   buf[2] = 0;
@@ -627,7 +628,7 @@ int table_events_statements_common::read_row_values(TABLE *table,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -703,7 +704,7 @@ int table_events_statements_current::rnd_pos(const void *pos) {
       }
     }
 
-    DBUG_ASSERT(m_pos.m_index_2 < statement_stack_max);
+    assert(m_pos.m_index_2 < statement_stack_max);
 
     statement = &pfs_thread->m_statement_stack[m_pos.m_index_2];
 
@@ -794,7 +795,7 @@ ha_rows table_events_statements_current::get_row_count(void) {
 int table_events_statements_current::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                 bool) {
   PFS_index_events_statements *result;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_events_statements);
   m_opened_index = result;
   m_index = result;
@@ -856,12 +857,12 @@ int table_events_statements_history::rnd_pos(const void *pos) {
   PFS_thread *pfs_thread;
   PFS_events_statements *statement;
 
-  DBUG_ASSERT(events_statements_history_per_thread != 0);
+  assert(events_statements_history_per_thread != 0);
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != nullptr) {
-    DBUG_ASSERT(m_pos.m_index_2 < events_statements_history_per_thread);
+    assert(m_pos.m_index_2 < events_statements_history_per_thread);
 
     if (!pfs_thread->m_statements_history_full &&
         (m_pos.m_index_2 >= pfs_thread->m_statements_history_index)) {
@@ -954,7 +955,7 @@ ha_rows table_events_statements_history::get_row_count(void) {
 int table_events_statements_history::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                 bool) {
   PFS_index_events_statements *result;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_events_statements);
   m_opened_index = result;
   m_index = result;

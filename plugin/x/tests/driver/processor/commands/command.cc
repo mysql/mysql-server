@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -1160,7 +1160,7 @@ Command::Result Command::cmd_system(std::istream &input,
 #ifdef _WIN32
       // Replace CRLF char with LF.
       // See bug#22608247 and bug#22811243
-      DBUG_ASSERT(!std::strcmp(mode, "rb"));
+      assert(!std::strcmp(mode, "rb"));
       replace_crlf_with_lf(buf);
 #endif
       context->print(buf);

@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,10 @@
 #include "sql/gis/is_simple.h"          // gis::is_simple
 #include "sql/gis/is_simple_functor.h"  // gis::Is_simple
 
+#include <assert.h>
 #include <boost/geometry.hpp>
 
-#include "my_dbug.h"                                // DBUG_ASSERT
+// assert
 #include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
 #include "sql/gis/functor.h"                        // gis::null_value_exception
 #include "sql/gis/geometries.h"  // gis::{Geometry{,_type}, Coordinate_system}
@@ -48,7 +49,7 @@ Is_simple::Is_simple(double semi_major, double semi_minor)
       m_semi_minor{semi_minor} {}
 
 bool Is_simple::operator()(const Geometry &g) const {
-  DBUG_ASSERT(!g.is_empty() || g.type() == Geometry_type::kGeometrycollection);
+  assert(!g.is_empty() || g.type() == Geometry_type::kGeometrycollection);
 
   return apply(*this, g);
 }
@@ -146,12 +147,11 @@ bool is_simple(const dd::Spatial_reference_system *srs, const Geometry *g,
                const char *func_name, bool *result,
                bool *result_null) noexcept {
   try {
-    DBUG_ASSERT(!srs || srs->is_cartesian() || srs->is_geographic());
-    DBUG_ASSERT(!srs || srs->is_cartesian() == (g->coordinate_system() ==
-                                                Coordinate_system::kCartesian));
-    DBUG_ASSERT(!srs ||
-                srs->is_geographic() ==
-                    (g->coordinate_system() == Coordinate_system::kGeographic));
+    assert(!srs || srs->is_cartesian() || srs->is_geographic());
+    assert(!srs || srs->is_cartesian() == (g->coordinate_system() ==
+                                           Coordinate_system::kCartesian));
+    assert(!srs || srs->is_geographic() == (g->coordinate_system() ==
+                                            Coordinate_system::kGeographic));
 
     *result_null = false;
 

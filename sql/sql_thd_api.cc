@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -310,7 +310,7 @@ int thd_tablespace_op(const MYSQL_THD thd) {
     code and the Alter_info::flags.
   */
   if (thd->lex->sql_command != SQLCOM_ALTER_TABLE) return 0;
-  DBUG_ASSERT(thd->lex->alter_info != nullptr);
+  assert(thd->lex->alter_info != nullptr);
 
   return (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
                                          Alter_info::ALTER_IMPORT_TABLESPACE))
@@ -392,7 +392,7 @@ int thd_tx_priority(const MYSQL_THD thd) {
 
 MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder) {
   /* Should be different sessions. */
-  DBUG_ASSERT(holder != requestor);
+  assert(holder != requestor);
 
   return (thd_tx_priority(requestor) == thd_tx_priority(holder)
               ? requestor
@@ -483,7 +483,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     We have to copy the new string to the destination buffer because the string
     was reallocated to a larger buffer to be able to fit.
   */
-  DBUG_ASSERT(buffer != nullptr);
+  assert(buffer != nullptr);
   length = min(str.length(), length - 1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
@@ -531,7 +531,7 @@ int thd_allow_batch(MYSQL_THD thd) {
 
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all) {
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
   /*
     The parameter "all" has type int since the function is defined
     in plugin.h. The corresponding parameter in the call below has

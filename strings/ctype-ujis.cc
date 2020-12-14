@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -37,12 +37,13 @@
  * .configure. mbmaxlen_ujis=3
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "template_utils.h"
 
@@ -35760,8 +35761,8 @@ static size_t my_casefold_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
 */
 size_t my_casedn_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
                       char *dst, size_t dstlen) {
-  DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
-  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  assert(dstlen >= srclen * cs->casedn_multiply);
+  assert(src != dst || cs->casedn_multiply == 1);
   return my_casefold_ujis(cs, src, srclen, dst, dstlen, cs->to_lower, 0);
 }
 
@@ -35770,8 +35771,8 @@ size_t my_casedn_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
 */
 size_t my_caseup_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
                       char *dst, size_t dstlen) {
-  DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
-  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  assert(dstlen >= srclen * cs->caseup_multiply);
+  assert(src != dst || cs->caseup_multiply == 1);
   return my_casefold_ujis(cs, src, srclen, dst, dstlen, cs->to_upper, 1);
 }
 

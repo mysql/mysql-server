@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,13 @@
 #ifndef KEY_INCLUDED
 #define KEY_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "my_base.h" /* ha_rows, ha_key_alg */
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/key_spec.h"       /* fk_option */
 #include "sql/sql_plugin_ref.h" /* plugin_ref */
@@ -208,7 +209,7 @@ class KEY {
   */
 
   bool has_records_per_key(uint key_part_no) const {
-    DBUG_ASSERT(key_part_no < actual_key_parts);
+    assert(key_part_no < actual_key_parts);
 
     return ((rec_per_key_float &&
              rec_per_key_float[key_part_no] != REC_PER_KEY_UNKNOWN) ||
@@ -230,7 +231,7 @@ class KEY {
   */
 
   rec_per_key_t records_per_key(uint key_part_no) const {
-    DBUG_ASSERT(key_part_no < actual_key_parts);
+    assert(key_part_no < actual_key_parts);
 
     /*
       If the storage engine has provided rec per key estimates as float
@@ -256,10 +257,9 @@ class KEY {
   */
 
   void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est) {
-    DBUG_ASSERT(key_part_no < actual_key_parts);
-    DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN ||
-                rec_per_key_est >= 1.0);
-    DBUG_ASSERT(rec_per_key_float != nullptr);
+    assert(key_part_no < actual_key_parts);
+    assert(rec_per_key_est == REC_PER_KEY_UNKNOWN || rec_per_key_est >= 1.0);
+    assert(rec_per_key_float != nullptr);
 
     rec_per_key_float[key_part_no] = rec_per_key_est;
   }
@@ -309,8 +309,8 @@ class KEY {
   */
 
   double in_memory_estimate() const {
-    DBUG_ASSERT(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
-                (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
+    assert(m_in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+           (m_in_memory_estimate >= 0.0 && m_in_memory_estimate <= 1.0));
 
     return m_in_memory_estimate;
   }
@@ -324,8 +324,8 @@ class KEY {
   */
 
   void set_in_memory_estimate(double in_memory_estimate) {
-    DBUG_ASSERT(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
-                (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
+    assert(in_memory_estimate == IN_MEMORY_ESTIMATE_UNKNOWN ||
+           (in_memory_estimate >= 0.0 && in_memory_estimate <= 1.0));
 
     m_in_memory_estimate = in_memory_estimate;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ int Local::clone_exec() {
 }
 
 int Local_Callback::file_cbk(Ha_clone_file from_file, uint len) {
-  DBUG_ASSERT(!m_apply_data);
+  assert(!m_apply_data);
 
   /* Set source file to external handle of "Clone Client". */
   auto ext_link = get_client_data_link();
@@ -222,7 +222,7 @@ int Local_Callback::buffer_cbk(uchar *from_buffer, uint buf_len) {
 }
 
 int Local_Callback::apply_ack() {
-  DBUG_ASSERT(m_apply_data);
+  assert(m_apply_data);
 
   auto client = get_clone_client();
 
@@ -272,11 +272,11 @@ int Local_Callback::apply_data() {
 
   auto &task_vector = client->get_task_vector();
 
-  DBUG_ASSERT(get_loc_index() < task_vector.size());
+  assert(get_loc_index() < task_vector.size());
   auto task_id = task_vector[get_loc_index()];
 
   /* Call storage engine to apply the data. */
-  DBUG_ASSERT(!m_apply_data);
+  assert(!m_apply_data);
   m_apply_data = true;
 
   auto error = hton->clone_interface.clone_apply(hton, thd, client_loc, loc_len,
@@ -304,7 +304,7 @@ int Local_Callback::apply_cbk(Ha_clone_file to_file, bool apply_file,
                               uchar *&to_buffer, uint &to_len) {
   int error;
 
-  DBUG_ASSERT(m_apply_data);
+  assert(m_apply_data);
 
   auto client = get_clone_client();
   auto server = get_clone_server();
@@ -326,8 +326,8 @@ int Local_Callback::apply_cbk(Ha_clone_file to_file, bool apply_file,
     auto from_buf = ext_link->get_buffer();
 
     /* Assert alignment to CLONE_OS_ALIGN for O_DIRECT */
-    DBUG_ASSERT(is_os_buffer_cache() ||
-                from_buf->m_buffer == clone_os_align(from_buf->m_buffer));
+    assert(is_os_buffer_cache() ||
+           from_buf->m_buffer == clone_os_align(from_buf->m_buffer));
 
     if (apply_file) {
       error = clone_os_copy_buf_to_file(from_buf->m_buffer, to_file,
@@ -341,7 +341,7 @@ int Local_Callback::apply_cbk(Ha_clone_file to_file, bool apply_file,
     info.update(from_buf->m_length, 0);
 
   } else {
-    DBUG_ASSERT(dest_type == CLONE_HANDLE_FILE);
+    assert(dest_type == CLONE_HANDLE_FILE);
     uchar *buf_ptr;
     uint buf_len;
 

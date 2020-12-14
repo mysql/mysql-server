@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,12 +36,12 @@
 
 #include <string.h>
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 #include <assert.h>  // IWYU pragma: keep
 #include <stdio.h>
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 struct _db_stack_frame_ {
   const char *func;   /* function name of the previous stack frame       */
@@ -196,7 +196,6 @@ class AutoDebugTrace {
 #define DBUG_END() _db_end_()
 #define DBUG_LOCK_FILE _db_lock_file_()
 #define DBUG_UNLOCK_FILE _db_unlock_file_()
-#define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXPLAIN(buf, len) _db_explain_(0, (buf), (len))
 #define DBUG_EXPLAIN_INITIAL(buf, len) _db_explain_init_((buf), (len))
 #ifndef _WIN32
@@ -277,9 +276,6 @@ extern void _db_flush_gcov_();
 #define DBUG_END() \
   do {             \
   } while (0)
-#define DBUG_ASSERT(A) \
-  do {                 \
-  } while (0)
 #define DBUG_LOCK_FILE \
   do {                 \
   } while (0)
@@ -299,7 +295,7 @@ extern void _db_flush_gcov_();
 #endif
 
 #ifdef __cplusplus
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 #include <sstream>
 #include <string>
 
@@ -325,11 +321,11 @@ extern void _db_flush_gcov_();
     }                                                  \
   } while (0)
 
-#else /* DBUG_OFF */
+#else /* NDEBUG */
 #define DBUG_LOG(keyword, v) \
   do {                       \
   } while (0)
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 /**
    A type-safe interface to DBUG_EXECUTE_IF, where the debug action to

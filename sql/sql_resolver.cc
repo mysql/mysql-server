@@ -171,9 +171,9 @@ static Item *create_rollup_switcher(THD *thd, Query_block *query_block,
 bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(this == thd->lex->current_query_block());
-  DBUG_ASSERT(join == nullptr);
-  DBUG_ASSERT(!thd->is_error());
+  assert(this == thd->lex->current_query_block());
+  assert(join == nullptr);
+  assert(!thd->is_error());
 
   // If this query block is a table value constructor, a lot of the preparation
   // done in Query_block::prepare becomes irrelevant. Thus we call our own
@@ -261,7 +261,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     We are not parsing anymore: any new Items created now are due to
     query rewriting, so stop incrementing counters.
    */
-  DBUG_ASSERT(parsing_place == CTX_NONE);
+  assert(parsing_place == CTX_NONE);
   parsing_place = CTX_NONE;
 
   resolve_place = RESOLVE_SELECT_LIST;
@@ -307,7 +307,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
 
   // Setup the HAVING clause
   if (m_having_cond) {
-    DBUG_ASSERT(m_having_cond->is_bool_func());
+    assert(m_having_cond->is_bool_func());
     thd->where = "having clause";
     having_fix_field = true;
     resolve_place = RESOLVE_HAVING;
@@ -581,7 +581,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   if (olap == ROLLUP_TYPE && resolve_rollup_wfs(thd))
     return true; /* purecov: inspected */
 
-  DBUG_ASSERT(!thd->is_error());
+  assert(!thd->is_error());
   return false;
 }
 
@@ -664,7 +664,7 @@ bool Query_block::prepare_values(THD *thd) {
   // Note that this duplicated code should be removed in the future. TODO: for
   // wl#9384, which refactors DML statement preparation to be done only once.
   if (m_having_cond) {
-    DBUG_ASSERT(m_having_cond->is_bool_func());
+    assert(m_having_cond->is_bool_func());
     thd->where = "having clause";
     having_fix_field = true;
     resolve_place = RESOLVE_HAVING;
@@ -673,7 +673,7 @@ bool Query_block::prepare_values(THD *thd) {
          m_having_cond->check_cols(1)))
       return true; /* purecov: inspected */
 
-    DBUG_ASSERT(!m_having_cond->const_item());
+    assert(!m_having_cond->const_item());
 
     having_fix_field = false;
     resolve_place = RESOLVE_NONE;
@@ -725,7 +725,7 @@ bool Query_block::prepare_values(THD *thd) {
 bool Query_block::apply_local_transforms(THD *thd, bool prune) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(first_execution);
+  assert(first_execution);
 
   /*
     If query block contains one or more merged derived tables/views,
@@ -898,7 +898,7 @@ bool Query_block::resolve_limits(THD *thd) {
 
 static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
                                      bool *ret_cond_value) {
-  DBUG_ASSERT((*cond)->const_item());
+  assert((*cond)->const_item());
 
   bool cond_value;
 
@@ -950,8 +950,8 @@ bool Item_in_subselect::subquery_allows_materialization(
     THD *thd, Query_block *query_block, const Query_block *outer) {
   const uint elements = unit->first_query_block()->num_visible_fields();
   DBUG_TRACE;
-  DBUG_ASSERT(elements >= 1);
-  DBUG_ASSERT(left_expr->cols() == elements);
+  assert(elements >= 1);
+  assert(left_expr->cols() == elements);
 
   OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_mat,
                       query_block->select_number, "IN (SELECT)",
@@ -999,7 +999,7 @@ bool Item_in_subselect::subquery_allows_materialization(
       This is a temporary fix for BUG#36752; see bug report for
       description of restrictions we need to put on the compared expressions.
     */
-    DBUG_ASSERT(left_expr->fixed);
+    assert(left_expr->fixed);
     // @see comment in Item_subselect::element_index()
     bool has_nullables = left_expr->is_nullable();
 
@@ -1041,7 +1041,7 @@ bool Item_in_subselect::subquery_allows_materialization(
       }
     }
   }
-  DBUG_ASSERT(cause != nullptr);
+  assert(cause != nullptr);
   trace_mat.add("possible", false).add_alnum("cause", cause);
   return false;
 }
@@ -1059,9 +1059,9 @@ bool Item_in_subselect::subquery_allows_materialization(
 static TABLE_LIST **make_leaf_tables(TABLE_LIST **list, TABLE_LIST *tables) {
   for (TABLE_LIST *table = tables; table; table = table->next_local) {
     // A mergable view is not allowed to have a table pointer.
-    DBUG_ASSERT(!(table->is_view() && table->is_merged() && table->table));
+    assert(!(table->is_view() && table->is_merged() && table->table));
     if (table->merge_underlying_list) {
-      DBUG_ASSERT(table->is_merged());
+      assert(table->is_merged());
 
       list = make_leaf_tables(list, table->merge_underlying_list);
     } else {
@@ -1129,9 +1129,8 @@ bool Query_block::setup_tables(THD *thd, TABLE_LIST *tables,
                                bool select_insert) {
   DBUG_TRACE;
 
-  DBUG_ASSERT((select_insert && !tables->next_name_resolution_table) ||
-              !tables ||
-              (context.table_list && context.first_name_resolution_table));
+  assert((select_insert && !tables->next_name_resolution_table) || !tables ||
+         (context.table_list && context.first_name_resolution_table));
 
   leaf_tables = nullptr;
   (void)make_leaf_tables(&leaf_tables, tables);
@@ -1244,7 +1243,7 @@ void Query_block::remap_tables(THD *thd) {
 bool Query_block::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(derived_table_count > 0 || table_func_count > 0);
+  assert(derived_table_count > 0 || table_func_count > 0);
 
   // Prepare derived tables and views that belong to this query block.
   for (TABLE_LIST *tl = get_table_list(); tl; tl = tl->next_local) {
@@ -1257,7 +1256,7 @@ bool Query_block::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
       continue;
     }
 
-    DBUG_ASSERT(!tl->is_merged() && !tl->uses_materialization());
+    assert(!tl->is_merged() && !tl->uses_materialization());
 
     if (tl->resolve_derived(thd, apply_semijoin)) return true;
     /*
@@ -1341,7 +1340,7 @@ bool Query_block::resolve_subquery(THD *thd) {
     SubqueryExecMethod::EXEC_UNSPECIFIED.
   */
   Item_subselect *subq_predicate = master_query_expression()->item;
-  DBUG_ASSERT(subq_predicate != nullptr);
+  assert(subq_predicate != nullptr);
   /**
     @note
     In this case: IN (SELECT ... UNION SELECT ...), Query_block::prepare() is
@@ -1531,7 +1530,7 @@ bool Query_block::resolve_subquery(THD *thd) {
         in_predicate->left_expr->type() == Item::SUBSELECT_ITEM &&
         in_predicate->left_expr->cols() > 1) &&
       !thd->lex->m_subquery_to_derived_is_impossible) {  // 17
-    DBUG_ASSERT(outer->resolve_nest == nullptr);
+    assert(outer->resolve_nest == nullptr);
     /* Register the subquery for further processing in flatten_subqueries() */
     outer->sj_candidates->push_back(predicate);
     predicate->strategy = Subquery_strategy::CANDIDATE_FOR_DERIVED_TABLE;
@@ -1560,7 +1559,7 @@ bool Query_block::resolve_subquery(THD *thd) {
 bool Query_block::setup_wild(THD *thd) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(with_wild > 0);
+  assert(with_wild > 0);
 
   // PS/SP uses arena so that changes are made permanently.
   Prepared_stmt_arena_holder ps_arena_holder(thd);
@@ -1572,7 +1571,7 @@ bool Query_block::setup_wild(THD *thd) {
     if (item->type() == Item::FIELD_ITEM &&
         (item_field = down_cast<Item_field *>(item)) &&
         item_field->is_asterisk()) {
-      DBUG_ASSERT(item_field->field == nullptr);
+      assert(item_field->field == nullptr);
       const bool any_privileges = item_field->any_privileges;
       Item_subselect *subsel = master_query_expression()->item;
 
@@ -1592,7 +1591,7 @@ bool Query_block::setup_wild(THD *thd) {
         *it = new Item_int(NAME_STRING("Not_used"), 1,
                            MY_INT64_NUM_DECIMAL_DIGITS);
       } else {
-        DBUG_ASSERT(item_field->context == &this->context);
+        assert(item_field->context == &this->context);
         if (insert_fields(thd, this, item_field->db_name,
                           item_field->table_name, &fields, &it, any_privileges))
           return true;
@@ -1632,7 +1631,7 @@ bool Query_block::setup_conds(THD *thd) {
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
 
   if (m_where_cond) {
-    DBUG_ASSERT(m_where_cond->is_bool_func());
+    assert(m_where_cond->is_bool_func());
     resolve_place = Query_block::RESOLVE_CONDITION;
     thd->where = "where clause";
     if ((!m_where_cond->fixed &&
@@ -1659,8 +1658,8 @@ bool Query_block::setup_conds(THD *thd) {
 
   is_item_list_lookup = save_is_item_list_lookup;
 
-  DBUG_ASSERT(thd->lex->current_query_block() == this);
-  DBUG_ASSERT(!thd->is_error());
+  assert(thd->lex->current_query_block() == this);
+  assert(!thd->is_error());
   return false;
 }
 
@@ -1689,7 +1688,7 @@ bool Query_block::setup_join_cond(THD *thd,
     Item *join_cond = tr->join_cond();
     bool remove_cond = false;
     if (join_cond) {
-      DBUG_ASSERT(join_cond->is_bool_func());
+      assert(join_cond->is_bool_func());
       resolve_place = Query_block::RESOLVE_JOIN_NEST;
       resolve_nest = tr;
       thd->where = "on clause";
@@ -1941,7 +1940,7 @@ bool Query_block::simplify_joins(THD *thd,
           return true;
 
         if (join_cond != table->join_cond()) {
-          DBUG_ASSERT(join_cond);
+          assert(join_cond);
           table->set_join_cond(join_cond);
         }
       }
@@ -1995,7 +1994,7 @@ bool Query_block::simplify_joins(THD *thd,
             It is always a new item as both the upper-level condition and a
             join condition existed
           */
-          DBUG_ASSERT(!new_cond->fixed);
+          assert(!new_cond->fixed);
           Item *cond_after_fix = new_cond;
           if (new_cond->fix_fields(thd, &cond_after_fix)) return true;
 
@@ -2021,7 +2020,7 @@ bool Query_block::simplify_joins(THD *thd,
     if (table->join_cond()) {
       table->dep_tables |= table->join_cond()->used_tables();
       // At this point the joined tables always have an embedding join nest:
-      DBUG_ASSERT(table->embedding);
+      assert(table->embedding);
       table->dep_tables &= ~table->embedding->nested_join->used_tables;
 
       // Embedding table depends on tables used in embedded join conditions.
@@ -2246,11 +2245,11 @@ static void fix_tables_after_pullout(Query_block *parent_query_block,
     // Update select list of merged derived tables:
     for (Field_translator *transl = tr->field_translation;
          transl < tr->field_translation_end; transl++) {
-      DBUG_ASSERT(transl->item->fixed);
+      assert(transl->item->fixed);
       transl->item->fix_after_pullout(parent_query_block, removed_query_block);
     }
     // Update used table info for the WHERE clause of the derived table
-    DBUG_ASSERT(!tr->derived_where_cond || tr->derived_where_cond->fixed);
+    assert(!tr->derived_where_cond || tr->derived_where_cond->fixed);
     if (tr->derived_where_cond)
       tr->derived_where_cond->fix_after_pullout(parent_query_block,
                                                 removed_query_block);
@@ -2380,7 +2379,7 @@ void Query_block::fix_after_pullout(Query_block *parent_query_block,
 void Query_block::clear_sj_expressions(NESTED_JOIN *nested_join) {
   nested_join->sj_outer_exprs.clear();
   nested_join->sj_inner_exprs.clear();
-  DBUG_ASSERT(sj_nests.empty());
+  assert(sj_nests.empty());
 }
 
 /**
@@ -2694,7 +2693,7 @@ bool Query_block::decorrelate_condition(Semijoin_decorrelation &sj_decor,
   Item_cond *cond;
   Item_func *func;
 
-  DBUG_ASSERT(base_cond != nullptr);
+  assert(base_cond != nullptr);
 
   if (base_cond->type() == Item::FUNC_ITEM &&
       (func = down_cast<Item_func *>(base_cond)) &&
@@ -2759,7 +2758,7 @@ static bool build_sj_exprs(THD *thd, mem_root_deque<Item *> *sj_outer_exprs,
                            Query_block *subq_query_block) {
   Item_in_subselect *in_subq_pred = down_cast<Item_in_subselect *>(subq_pred);
 
-  DBUG_ASSERT(in_subq_pred->left_expr->fixed);
+  assert(in_subq_pred->left_expr->fixed);
 
   /*
     We have a special case for IN predicates with a scalar subquery or a
@@ -2918,8 +2917,8 @@ bool Query_block::convert_subquery_to_semijoin(
   mem_root_deque<TABLE_LIST *> *emb_join_list = &top_join_list;
   DBUG_TRACE;
 
-  DBUG_ASSERT(subq_pred->substype() == Item_subselect::IN_SUBS ||
-              subq_pred->substype() == Item_subselect::EXISTS_SUBS);
+  assert(subq_pred->substype() == Item_subselect::IN_SUBS ||
+         subq_pred->substype() == Item_subselect::EXISTS_SUBS);
 
   Opt_trace_context *trace = &thd->opt_trace;
   Opt_trace_object trace_object(trace, "transformation_to_semi_join");
@@ -3262,7 +3261,7 @@ bool Query_block::convert_subquery_to_semijoin(
     return true;
 
   // Processing requires a non-empty semi-join condition:
-  DBUG_ASSERT(sj_cond != nullptr);
+  assert(sj_cond != nullptr);
 
   // Fix the created equality and AND
   if (!sj_cond->fixed) {
@@ -3274,7 +3273,7 @@ bool Query_block::convert_subquery_to_semijoin(
   }
 
   sj_nest->set_sj_or_aj_nest();
-  DBUG_ASSERT(sj_nest->join_cond() == nullptr);
+  assert(sj_nest->join_cond() == nullptr);
 
   if (do_aj) {
     sj_nest->outer_join = true;
@@ -3392,7 +3391,7 @@ bool Query_block::merge_derived(THD *thd, TABLE_LIST *derived_table) {
       derived_table->derived_query_expression();
 
   // A derived table must be prepared before we can merge it
-  DBUG_ASSERT(derived_query_expression->is_prepared());
+  assert(derived_query_expression->is_prepared());
 
   LEX *const lex = parent_lex;
 
@@ -3574,7 +3573,7 @@ bool Query_block::merge_derived(THD *thd, TABLE_LIST *derived_table) {
      the outer query contains only one table reference.
     */
     // LIMIT currently blocks derived table merge
-    DBUG_ASSERT(!derived_query_block->has_limit());
+    assert(!derived_query_block->has_limit());
 
     if ((lex->sql_command == SQLCOM_SELECT ||
          lex->sql_command == SQLCOM_UPDATE ||
@@ -3722,7 +3721,7 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
 bool Query_block::flatten_subqueries(THD *thd) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(has_sj_candidates());
+  assert(has_sj_candidates());
 
   Item_exists_subselect **subq, **subq_begin = sj_candidates->begin(),
                                 **subq_end = sj_candidates->end();
@@ -3754,13 +3753,13 @@ bool Query_block::flatten_subqueries(THD *thd) {
   for (subq = subq_begin, subq_no = 0; subq < subq_end; subq++, subq_no++) {
     auto subq_item = *subq;
     // Transformation of IN and EXISTS subqueries is supported
-    DBUG_ASSERT(subq_item->substype() == Item_subselect::IN_SUBS ||
-                subq_item->substype() == Item_subselect::EXISTS_SUBS);
+    assert(subq_item->substype() == Item_subselect::IN_SUBS ||
+           subq_item->substype() == Item_subselect::EXISTS_SUBS);
 
     Query_block *child_query_block = subq_item->unit->first_query_block();
 
     // Check that we proceeded bottom-up
-    DBUG_ASSERT(child_query_block->sj_candidates == nullptr);
+    assert(child_query_block->sj_candidates == nullptr);
 
     bool dependent = subq_item->unit->uncacheable & UNCACHEABLE_DEPENDENT;
     subq_item->sj_convert_priority =
@@ -3848,7 +3847,7 @@ bool Query_block::flatten_subqueries(THD *thd) {
       // The cleaning up has called remove_semijoin_candidate() which has
       // changed the sj_candidates array: now *subq is the _next_ subquery.
       subq--;  // So that the next iteration will handle the next subquery.
-      DBUG_ASSERT(subq_begin == sj_candidates->begin());
+      assert(subq_begin == sj_candidates->begin());
       subq_end = sj_candidates->end();  // array's end moved.
     }
 
@@ -4070,10 +4069,10 @@ void Query_block::remove_redundant_subquery_clauses(
     if (has_limit()) return;
     possible_changes = REMOVE_ORDER;
   } else {
-    DBUG_ASSERT(subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
-                subq_predicate->substype() == Item_subselect::IN_SUBS ||
-                subq_predicate->substype() == Item_subselect::ALL_SUBS ||
-                subq_predicate->substype() == Item_subselect::ANY_SUBS);
+    assert(subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
+           subq_predicate->substype() == Item_subselect::IN_SUBS ||
+           subq_predicate->substype() == Item_subselect::ALL_SUBS ||
+           subq_predicate->substype() == Item_subselect::ANY_SUBS);
     possible_changes = REMOVE_ORDER | REMOVE_DISTINCT | REMOVE_GROUP;
   }
 
@@ -4391,7 +4390,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     item is removed from the query. In that case, we must call walk()
     with clean_up_after_removal() on the old order->item.
   */
-  DBUG_ASSERT(order_item == *order->item);
+  assert(order_item == *order->item);
   order->item = &ref_item_array[el];
   return false;
 }
@@ -4416,7 +4415,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
                  mem_root_deque<Item *> *fields, ORDER *order) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(order);
+  assert(order);
 
   Query_block *const select = thd->lex->current_query_block();
 
@@ -4559,7 +4558,7 @@ bool Query_block::setup_order_final(THD *thd) {
 
 bool Query_block::setup_group(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(group_list.elements);
+  assert(group_list.elements);
 
   thd->where = "group statement";
 
@@ -4696,7 +4695,7 @@ bool WalkAndReplace(
         return true;
       } else if (result.action == ReplaceResult::REPLACE) {
         Item *new_arg = result.replacement;
-        DBUG_ASSERT(item != new_arg);
+        assert(item != new_arg);
         *li.ref() = new_arg;
       } else if (WalkAndReplace(thd, arg, get_new_item)) {
         return true;
@@ -4799,8 +4798,8 @@ Item *Query_block::resolve_rollup_item(THD *thd, Item *item) {
 
 Item *create_rollup_switcher(THD *thd, Query_block *query_block, Item *item,
                              int send_group_parts) {
-  DBUG_ASSERT(!item->m_is_window_function);
-  DBUG_ASSERT(!is_rollup_sum_wrapper(item));
+  assert(!item->m_is_window_function);
+  assert(!is_rollup_sum_wrapper(item));
 
   List<Item> alternatives;
   alternatives.push_back(item);
@@ -5023,7 +5022,7 @@ void Query_block::delete_unused_merged_columns(
            transl < tl->field_translation_end; transl++) {
         Item *const item = transl->item;
 
-        DBUG_ASSERT(item->fixed);
+        assert(item->fixed);
         if (!item->has_subquery()) continue;
 
         /*
@@ -5202,10 +5201,10 @@ static bool update_context_to_derived(Item *expr, Query_block *new_derived);
 
 bool Query_block::transform_table_subquery_to_join_with_derived(
     THD *thd, Item_exists_subselect *subq) {
-  DBUG_ASSERT(first_execution);
+  assert(first_execution);
   Query_expression *const subs_query_expression = subq->unit;
   Query_block *subs_query_block = subs_query_expression->first_query_block();
-  DBUG_ASSERT(subs_query_block->first_execution);
+  assert(subs_query_block->first_execution);
 
   subq->strategy = Subquery_strategy::DERIVED_TABLE;
 
@@ -5229,7 +5228,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   // Ensure that all lists are consistent. all_fields should have an optional
   // prefix and then be fields_list. If no aggregates, base_ref_items should
   // start with fields_list.
-  DBUG_ASSERT(hidden_fields >= 0);
+  assert(hidden_fields >= 0);
 
   // We're going to build the lists of outer and inner semijoin
   // expressions:
@@ -5249,7 +5248,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     // All these expressions are compared with '=':
     op_types.resize(sj_outer_exprs.size(), Item_func::EQ_FUNC);
   } else {
-    DBUG_ASSERT(subq->substype() == Item_subselect::EXISTS_SUBS);
+    assert(subq->substype() == Item_subselect::EXISTS_SUBS);
 
     // We must replace of all EXISTS' initial SELECT list with
     // constants, otherwise they will interfere in DISTINCT, indeed if we didn't
@@ -5269,7 +5268,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
     // EXISTS(SELECT 1, 1 FROM t GROUP BY y HAVING x>2)
     // And as 'x' points to 1, HAVING is "always false".
     // resolve_subquery() ensures that this assertion holds.
-    DBUG_ASSERT(no_aggregates);
+    assert(no_aggregates);
     Item::Cleanup_after_removal_context ctx(this);
     int i = 0;
     for (auto it = subs_query_block->visible_fields().begin();
@@ -5411,7 +5410,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
           /*join_condition=*/nullptr))
     return true;
 
-  DBUG_ASSERT(CountVisibleFields(sj_inner_exprs) == sj_inner_exprs.size());
+  assert(CountVisibleFields(sj_inner_exprs) == sj_inner_exprs.size());
   const int first_sj_inner_expr_of_subquery =
       CountVisibleFields(subs_query_block->fields) - sj_inner_exprs.size();
 
@@ -5424,7 +5423,7 @@ bool Query_block::transform_table_subquery_to_join_with_derived(
   for (auto it_outer = sj_outer_exprs.begin(); it_outer != sj_outer_exprs.end();
        ++i, ++j, ++it_outer) {
     Item *outer = *it_outer;
-    DBUG_ASSERT(i < (int)tl->table->s->fields);
+    assert(i < (int)tl->table->s->fields);
     // Using this constructor, instead of the alternative which only takes a
     // Field pointer, gives a persistent name to the item (sets orig_table_name
     // etc) which is necessary for prepared statements.
@@ -5563,7 +5562,7 @@ TABLE_LIST *Query_block::synthesize_derived(THD *thd, Query_expression *unit,
 
     if (join_cond != nullptr) {
       // impossible if table subquery:
-      DBUG_ASSERT(derived_table->m_was_scalar_subquery);
+      assert(derived_table->m_was_scalar_subquery);
       if (nest_derived(thd, join_cond, join_list, derived_table))
         return nullptr;
     } else {
@@ -5695,7 +5694,7 @@ bool Query_block::remove_aggregates(THD *thd,
       // must be an aggregate induced from a HAVING clause, remove from
       // transformed query block since it is not needed on that
       // level any more
-      DBUG_ASSERT(select->having_cond() != nullptr);
+      assert(select->having_cond() != nullptr);
       Item *int_item = new (thd->mem_root) Item_int(0);
       int_item->hidden = select_expr->hidden;
       if (int_item == nullptr) return true;
@@ -5759,7 +5758,7 @@ static bool collect_aggregates(
   // non-grouped. When the grouping is implicit, the ORDER BY is eliminated
   // since the result set has only one row, so skip processing of the
   // order_list.
-  DBUG_ASSERT(select->order_list.elements == 0);
+  assert(select->order_list.elements == 0);
 
   List_iterator<Window> li(select->m_windows);
   for (Window *w = li++; w != nullptr; w = li++) {
@@ -5933,7 +5932,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       if (update_context_to_derived(cond, new_derived)) return true;
     }
 
-    DBUG_ASSERT(join == nullptr);
+    assert(join == nullptr);
 
     // Move FROM tables under the new derived table with fix ups
     new_derived->table_list = table_list;
@@ -5948,9 +5947,9 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     new_derived->derived_table_count = this->derived_table_count;
     derived_table_count = 0;  // will soon become 1.
 
-    DBUG_ASSERT(is_implicitly_grouped());  // only implicit grouping moved
-    DBUG_ASSERT(group_list.elements == 0);
-    DBUG_ASSERT(olap == UNSPECIFIED_OLAP_TYPE);
+    assert(is_implicitly_grouped());  // only implicit grouping moved
+    assert(group_list.elements == 0);
+    assert(olap == UNSPECIFIED_OLAP_TYPE);
 
     // Let new derived take over grouping flags
     new_derived->m_agg_func_used = m_agg_func_used;
@@ -5962,7 +5961,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     new_derived->sj_candidates = sj_candidates;
     sj_candidates = nullptr;
 
-    DBUG_ASSERT(join_list == &top_join_list);
+    assert(join_list == &top_join_list);
     new_derived->top_join_list = std::move(top_join_list);
     top_join_list.clear();
     new_derived->join_list = &new_derived->top_join_list;
@@ -5984,7 +5983,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     // resolution contexts
     context.table_list = tl;
     context.first_name_resolution_table = tl;
-    DBUG_ASSERT(context.last_name_resolution_table == nullptr);
+    assert(context.last_name_resolution_table == nullptr);
     new_derived->context.init();
     new_derived->context.table_list = table_list.first;
     new_derived->context.query_block = new_derived;
@@ -6002,8 +6001,8 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
         return true; /* purecov: inspected */
     }
 
-    DBUG_ASSERT(slave != nullptr);
-    DBUG_ASSERT(new_derived->slave == nullptr);
+    assert(slave != nullptr);
+    assert(new_derived->slave == nullptr);
 
     // Collect all query expressions in a container first, since we cannot rely
     // on old_slave's ::next pointer chain once we start inserting them.
@@ -6032,7 +6031,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
     // Insert the aggregates in the derived table's query block
     int i = 0;
     for (Item_sum *agg : aggregates.list) {
-      DBUG_ASSERT(agg->aggr_query_block == agg->base_query_block);
+      assert(agg->aggr_query_block == agg->base_query_block);
       agg->aggr_query_block = new_derived;
       agg->base_query_block = new_derived;
       if (agg->hidden) {
@@ -6126,7 +6125,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
 
   {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-    DBUG_ASSERT(tl->table != nullptr);
+    assert(tl->table != nullptr);
 
     /*
       We pushed the HAVING clause into new_derived above, but it is resolved to
@@ -6148,7 +6147,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
         bool MY_ATTRIBUTE((unused)) error = new_derived->m_having_cond->walk(
             &Item::update_aggr_refs, enum_walk::PREFIX,
             pointer_cast<uchar *>(&info));
-        DBUG_ASSERT(!error);
+        assert(!error);
         agg->aggr_query_block = new_derived;
       }
     }
@@ -6180,8 +6179,8 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       // We only transform implicit grouping to a derived table: in such a case,
       // the order by is eliminated since the result set has only one row, so
       // skip processing of order_list.
-      DBUG_ASSERT(group_list.elements == 0);
-      DBUG_ASSERT(order_list.elements == 0);
+      assert(group_list.elements == 0);
+      assert(order_list.elements == 0);
 
       List_iterator<Window> wli(m_windows);
       for (Window *w = wli++; w != nullptr; w = wli++) {
@@ -6203,7 +6202,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
         }
         // Physical sorting order should not have been set up since we are
         // implicitly grouped, so no need to attempt substitution in it.
-        DBUG_ASSERT(w->sorting_order(nullptr, false) == nullptr);
+        assert(w->sorting_order(nullptr, false) == nullptr);
       }
 
       // Aggregate argument may contain identifiers that need correct
@@ -6439,7 +6438,7 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
         return false;
       });
 
-  DBUG_ASSERT(found);
+  assert(found);
 
   // Make a copy of the join list, outer before inner joinees, so we
   // can rebuild the join_list after inserting the derived table in a nest
@@ -6453,7 +6452,7 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
                          [join_cond](TABLE_LIST *tl) -> bool {
                            return tl->join_cond() == join_cond;
                          });
-  DBUG_ASSERT(it != copy_list.end());  // assert that we found it
+  assert(it != copy_list.end());  // assert that we found it
   const size_t idx = it - copy_list.begin();
 
   // Insert back all outer tables to the inner containing the condition.

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -331,7 +331,7 @@ bool Ndb_dd_sync::synchronize_logfile_group(
   if (existing == nullptr) {
     ndb_log_error("Logfile group '%s' does not exist in DD",
                   logfile_group_name);
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -343,7 +343,7 @@ bool Ndb_dd_sync::synchronize_logfile_group(
         "Could not extract id and version from the definition "
         "of logfile group '%s'",
         logfile_group_name);
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -528,7 +528,7 @@ bool Ndb_dd_sync::synchronize_tablespace(
 
   if (existing == nullptr) {
     ndb_log_error("Tablespace '%s' does not exist in DD", tablespace_name);
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -540,7 +540,7 @@ bool Ndb_dd_sync::synchronize_tablespace(
         "Could not extract id and version from the definition "
         "of tablespace '%s'",
         tablespace_name);
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -647,7 +647,7 @@ bool Ndb_dd_sync::synchronize_tablespaces() const {
 const NdbError *Ndb_dd_sync::fetch_database_ddls(
     NdbTransaction *ndb_transaction, const NdbDictionary::Table *ndb_schema_tab,
     std::vector<Ndb_schema_tuple> *database_ddls) {
-  DBUG_ASSERT(ndb_transaction != nullptr);
+  assert(ndb_transaction != nullptr);
   DBUG_TRACE;
 
   // Create scan operation and define the read
@@ -796,7 +796,7 @@ bool Ndb_dd_sync::synchronize_databases() const {
     unsigned int ddl_counter, ddl_node_id;
     std::tie(db_name, query, schema_ddl_type, ddl_counter, ddl_node_id) =
         ddl_tuple;
-    DBUG_ASSERT(ddl_counter != 0 && ddl_node_id != 0);
+    assert(ddl_counter != 0 && ddl_node_id != 0);
     ndb_log_verbose(5,
                     "ndb_schema query : '%s', db : '%s', "
                     "counter : %u, node_id : %u",
@@ -958,7 +958,7 @@ bool Ndb_dd_sync::synchronize_databases() const {
         }
       } break;
       default:
-        DBUG_ASSERT(!"Unknown database DDL type");
+        assert(!"Unknown database DDL type");
     }
   }
 
@@ -1256,7 +1256,7 @@ bool Ndb_dd_sync::synchronize_table(const char *schema_name,
         "Failed to extract id and version from table definition "
         "for table '%s.%s'",
         schema_name, table_name);
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 

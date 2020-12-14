@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
     char *lower_string_data = pair.get_lower_inclusive().dup(mem_root);
     char *upper_string_data = pair.get_upper_inclusive().dup(mem_root);
     if (lower_string_data == nullptr || upper_string_data == nullptr) {
-      DBUG_ASSERT(false); /* purecov: deadcode */
+      assert(false); /* purecov: deadcode */
       return;
     }
 
@@ -120,7 +120,7 @@ Equi_height<String>::Equi_height(MEM_ROOT *mem_root,
 template <class T>
 bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
                                      size_t num_buckets) {
-  DBUG_ASSERT(num_buckets > 0);
+  assert(num_buckets > 0);
   if (num_buckets < 1) return true; /* purecov: inspected */
 
   // Set the number of buckets that was specified/requested by the user.
@@ -148,7 +148,7 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
     return false;
   }
 
-  DBUG_ASSERT(num_buckets > 0);
+  assert(num_buckets > 0);
 
   // Set the fraction of NULL values.
   const ha_rows total_count =
@@ -249,15 +249,15 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
       In debug, check that the lower value actually is less than or equal to
       the upper value.
     */
-    DBUG_ASSERT(!Histogram_comparator()(bucket.get_upper_inclusive(),
-                                        bucket.get_lower_inclusive()));
+    assert(!Histogram_comparator()(bucket.get_upper_inclusive(),
+                                   bucket.get_lower_inclusive()));
 
     /*
       We also check that the lower inclusive value of the current bucket is
       greater than the upper inclusive value of the previous bucket.
     */
     if (m_buckets.size() > 1) {
-      DBUG_ASSERT(Histogram_comparator()(
+      assert(Histogram_comparator()(
           std::prev(m_buckets.end(), 2)->get_upper_inclusive(),
           bucket.get_lower_inclusive()));
     }
@@ -269,7 +269,7 @@ bool Equi_height<T>::build_histogram(const Value_map<T> &value_map,
     if (next != value_map.end()) lowest_value = &next->first;
   }
 
-  DBUG_ASSERT(m_buckets.size() <= num_buckets);
+  assert(m_buckets.size() <= num_buckets);
   return false;
 }
 
@@ -312,15 +312,15 @@ bool Equi_height<T>::json_to_histogram(const Json_object &json_object) {
     return true; /* purecov: deadcode */
 
   const Json_dom *buckets_dom = json_object.get(buckets_str());
-  DBUG_ASSERT(buckets_dom->json_type() == enum_json_type::J_ARRAY);
+  assert(buckets_dom->json_type() == enum_json_type::J_ARRAY);
 
   const Json_array *buckets = down_cast<const Json_array *>(buckets_dom);
   for (size_t i = 0; i < buckets->size(); ++i) {
     const Json_dom *bucket_dom = (*buckets)[i];
-    DBUG_ASSERT(bucket_dom->json_type() == enum_json_type::J_ARRAY);
+    assert(bucket_dom->json_type() == enum_json_type::J_ARRAY);
 
     const Json_array *bucket = down_cast<const Json_array *>(bucket_dom);
-    DBUG_ASSERT(bucket->size() == 4);
+    assert(bucket->size() == 4);
 
     if (add_bucket_from_json(bucket)) return true; /* purecov: deadcode */
   }
@@ -412,8 +412,8 @@ double Equi_height<T>::get_equal_to_selectivity(const T &value) const {
     bucket_frequency = found->get_cumulative_frequency() -
                        previous->get_cumulative_frequency();
 
-    DBUG_ASSERT(bucket_frequency >= 0.0);
-    DBUG_ASSERT(bucket_frequency <= get_non_null_values_frequency());
+    assert(bucket_frequency >= 0.0);
+    assert(bucket_frequency <= get_non_null_values_frequency());
   }
 
   /*
@@ -468,8 +468,8 @@ double Equi_height<T>::get_less_than_equal_selectivity(const T &value) const {
 
   const double distance = found->get_distance_from_lower(value);
 
-  DBUG_ASSERT(distance >= 0.0);
-  DBUG_ASSERT(distance <= 1.0);
+  assert(distance >= 0.0);
+  assert(distance <= 1.0);
 
   const double selectivity = previous_bucket_cumulative_frequency +
                              (found_bucket_frequency * distance);

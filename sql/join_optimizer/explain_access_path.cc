@@ -401,7 +401,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     }
     case AccessPath::PUSHED_JOIN_REF: {
       TABLE *table = path->pushed_join_ref().table;
-      DBUG_ASSERT(table->file->pushed_idx_cond == nullptr);
+      assert(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->pushed_join_ref().ref->key];
       string str;
       if (path->pushed_join_ref().is_unique) {
@@ -419,7 +419,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     }
     case AccessPath::FULL_TEXT_SEARCH: {
       TABLE *table = path->full_text_search().table;
-      DBUG_ASSERT(table->file->pushed_idx_cond == nullptr);
+      assert(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->full_text_search().ref->key];
       description.push_back(string("Indexed full text search on ") +
                             table->alias + " using " + key->name + " (" +

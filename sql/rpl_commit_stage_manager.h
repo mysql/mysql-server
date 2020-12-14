@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -251,7 +251,7 @@ class Commit_stage_manager {
     return m_queue[stage].pop_front();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      The method ensures the follower's execution path can be preempted
      by the leader's thread.
@@ -377,7 +377,7 @@ class Commit_stage_manager {
   /** Mutex used for the stage level locks */
   mysql_mutex_t m_queue_lock[STAGE_COUNTER - 1];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Save pointer to leader thread which is used later to awake leader */
   THD *leader_thd;
 

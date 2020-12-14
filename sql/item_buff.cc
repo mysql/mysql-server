@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
       return new (thd->mem_root) Cached_item_decimal(item);
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return nullptr;
   }
 }
@@ -91,8 +91,8 @@ bool Cached_item_str::cmp(void) {
   bool tmp;
 
   DBUG_TRACE;
-  DBUG_ASSERT(!item->is_temporal());
-  DBUG_ASSERT(item->data_type() != MYSQL_TYPE_JSON);
+  assert(!item->is_temporal());
+  assert(item->data_type() != MYSQL_TYPE_JSON);
   if ((res = item->val_str(&tmp_value)))
     res->length(min(res->length(), static_cast<size_t>(value_max_length)));
   DBUG_PRINT("info", ("old: %s, new: %s", value.c_ptr_safe(),

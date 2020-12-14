@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ void Source_IO_monitor::cleanup_mutex() {
 
 bool Source_IO_monitor::is_monitor_killed(THD *thd, Master_info *) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_monitor_thd == thd);
+  assert(m_monitor_thd == thd);
 
   return m_abort_monitor || connection_events_loop_aborted() || thd->killed;
 }
@@ -198,7 +198,7 @@ bool Source_IO_monitor::launch_monitoring_process(PSI_thread_key thread_key) {
   mysql_mutex_lock(&m_run_lock);
 
   // Callers should ensure the process is terminated
-  DBUG_ASSERT(!m_monitor_thd_state.is_thread_alive());
+  assert(!m_monitor_thd_state.is_thread_alive());
   if (m_monitor_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&m_run_lock);
     return true;
@@ -1001,7 +1001,7 @@ int Source_IO_monitor::terminate_monitoring_process() {
 
     struct timespec abstime;
     set_timespec(&abstime, (stop_wait_timeout == 1 ? 1 : 2));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error =
 #endif
         mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);
@@ -1017,9 +1017,9 @@ int Source_IO_monitor::terminate_monitoring_process() {
       return 1;
     }
 
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
-  DBUG_ASSERT(m_monitor_thd_state.is_thread_dead());
+  assert(m_monitor_thd_state.is_thread_dead());
 
   mysql_mutex_unlock(&m_run_lock);
   cleanup_mutex();

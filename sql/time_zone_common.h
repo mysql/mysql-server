@@ -1,6 +1,6 @@
 #ifndef TIME_ZONE_COMMON_H
 #define TIME_ZONE_COMMON_H
-/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,11 +35,11 @@ using my_time_t = long;
 /*
   Now we don't use abbreviations in server but we will do this in future.
 */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 /* Let use abbreviations for debug purposes */
 #undef ABBR_ARE_USED
 #define ABBR_ARE_USED
-#endif /* !defined(DBUG_OFF) */
+#endif /* !defined(NDEBUG) */
 
 /* Structure describing local time type (e.g. Moscow summer time (MSD)) */
 typedef struct ttinfo {

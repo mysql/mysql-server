@@ -22,13 +22,14 @@
 
 #include "sql/opt_explain_traditional.h"
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>  // size_t
 
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"
@@ -177,7 +178,7 @@ static bool push(mem_root_deque<Item *> *items, const qep_row::column<float> &c,
 
 bool Explain_format_traditional::push_select_type(
     mem_root_deque<Item *> *items) {
-  DBUG_ASSERT(!column_buffer.col_select_type.is_empty());
+  assert(!column_buffer.col_select_type.is_empty());
   StringBuffer<32> buff;
   if (column_buffer.is_dependent) {
     if (buff.append(STRING_WITH_LEN("DEPENDENT "), system_charset_info))
@@ -240,7 +241,7 @@ bool Explain_format_traditional::flush_entry() {
     List_iterator<qep_row::extra> it(column_buffer.col_extra);
     qep_row::extra *e;
     while ((e = it++)) {
-      DBUG_ASSERT(traditional_extra_tags[e->tag] != nullptr);
+      assert(traditional_extra_tags[e->tag] != nullptr);
       if (buff.append(traditional_extra_tags[e->tag])) return true;
       if (e->data) {
         bool brackets = false;

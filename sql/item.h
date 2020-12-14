@@ -328,7 +328,7 @@ class Name_string : public Simple_cstring {
     Compare name to another name in C string, case insensitively.
   */
   bool eq(const char *str) const {
-    DBUG_ASSERT(str && ptr());
+    assert(str && ptr());
     return my_strcasecmp(system_charset_info, ptr(), str) == 0;
   }
   bool eq_safe(const char *str) const { return is_set() && str && eq(str); }
@@ -735,13 +735,13 @@ typedef void (*Cond_traverser)(const Item *item, void *arg);
 class Item_tree_walker {
  protected:
   Item_tree_walker() : stopped_at_item(nullptr) {}
-  ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
+  ~Item_tree_walker() { assert(!stopped_at_item); }
   Item_tree_walker(const Item_tree_walker &) = delete;
   Item_tree_walker &operator=(const Item_tree_walker &) = delete;
 
   /// Stops walking children of this item
   void stop_at(const Item *i) {
-    DBUG_ASSERT(!stopped_at_item);
+    assert(!stopped_at_item);
     stopped_at_item = i;
   }
 
@@ -884,7 +884,7 @@ class Item : public Parse_tree_node {
         return MYSQL_TYPE_INVALID;
       case ROW_RESULT:
       default:
-        DBUG_ASSERT(false);
+        assert(false);
     }
     return MYSQL_TYPE_INVALID;
   }
@@ -934,7 +934,7 @@ class Item : public Parse_tree_node {
       case MYSQL_TYPE_TYPED_ARRAY:
         break;
     }
-    DBUG_ASSERT(false);
+    assert(false);
     return INVALID_RESULT;
   }
 
@@ -991,7 +991,7 @@ class Item : public Parse_tree_node {
       case MYSQL_TYPE_TYPED_ARRAY:
         return MYSQL_TYPE_INVALID;
     }
-    DBUG_ASSERT(false);
+    assert(false);
     return MYSQL_TYPE_NULL;
   }
 
@@ -1035,7 +1035,7 @@ class Item : public Parse_tree_node {
     in Item class tree instead.
   */
   bool contextualize(Parse_context *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return true;
   }
 
@@ -1274,7 +1274,7 @@ class Item : public Parse_tree_node {
   */
   virtual enum_field_types default_data_type() const {
     // If data type has been set, the information returned here is irrelevant:
-    DBUG_ASSERT(data_type() == MYSQL_TYPE_INVALID);
+    assert(data_type() == MYSQL_TYPE_INVALID);
     return MYSQL_TYPE_VARCHAR;
   }
   /**
@@ -1400,7 +1400,7 @@ class Item : public Parse_tree_node {
     @param max_l Number of characters in string
   */
   inline void set_data_type_char(uint32 max_l) {
-    DBUG_ASSERT(max_l <= MAX_CHAR_WIDTH);
+    assert(max_l <= MAX_CHAR_WIDTH);
     max_length = max_l * collation.collation->mbmaxlen;
     decimals = DECIMAL_NOT_SPECIFIED;
     set_data_type(MYSQL_TYPE_STRING);
@@ -1588,7 +1588,7 @@ class Item : public Parse_tree_node {
   */
   virtual longlong val_int_endpoint(bool left_endp MY_ATTRIBUTE((unused)),
                                     bool *incl_endp MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
@@ -1630,7 +1630,7 @@ class Item : public Parse_tree_node {
   */
   longlong val_temporal_by_field_type() {
     if (data_type() == MYSQL_TYPE_TIME) return val_time_temporal();
-    DBUG_ASSERT(is_temporal_with_date());
+    assert(is_temporal_with_date());
     return val_date_temporal();
   }
 
@@ -1809,7 +1809,7 @@ class Item : public Parse_tree_node {
   */
   /* purecov: begin deadcode */
   virtual bool val_json(Json_wrapper *result MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
     return error_json();
   }
@@ -1843,7 +1843,7 @@ class Item : public Parse_tree_node {
       const MY_BITMAP *fields_to_ignore MY_ATTRIBUTE((unused)),
       double rows_in_table MY_ATTRIBUTE((unused))) {
     // Filtering effect cannot be calculated for a table already read.
-    DBUG_ASSERT((read_tables & filter_for_table) == 0);
+    assert((read_tables & filter_for_table) == 0);
     return COND_FILTER_ALLPASS;
   }
 
@@ -2994,7 +2994,7 @@ class Item : public Parse_tree_node {
     Return true if the item points to a column of an outer-joined table.
   */
   virtual bool is_outer_field() const {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return false;
   }
 
@@ -3384,7 +3384,7 @@ class Item_basic_constant : public Item {
   void cleanup() override {
     // @todo We should ensure we never change "basic constant" nodes.
     //       We should then be able to add this assert:
-    //         DBUG_ASSERT(marker == MARKER_NONE);
+    //         assert(marker == MARKER_NONE);
     //       and remove the call to Item::cleanup()
     Item::cleanup();
   }
@@ -3404,7 +3404,7 @@ class Item_sp_variable : public Item {
   Name_string m_name;
 
  public:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Routine to which this Item_splocal belongs. Used for checking if correct
     runtime context is used for variable handling.
@@ -4119,18 +4119,18 @@ class Item_field : public Item_ident {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool is_outer_field() const override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return table_ref->outer_join || table_ref->outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const override {
-    DBUG_ASSERT(data_type() == MYSQL_TYPE_GEOMETRY);
+    assert(data_type() == MYSQL_TYPE_GEOMETRY);
     return field->get_geometry_type();
   }
   const CHARSET_INFO *charset_for_protocol(void) override {
     return field->charset_for_protocol();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_print() const {
     fprintf(DBUG_FILE, "<field ");
     if (field) {
@@ -4231,7 +4231,7 @@ class Item_asterisk : public Item_field {
 
   bool itemize(Parse_context *pc, Item **res) override;
   bool fix_fields(THD *, Item **) override {
-    DBUG_ASSERT(false);  // should never happen: see setup_wild()
+    assert(false);  // should never happen: see setup_wild()
     return true;
   }
   bool is_asterisk() const override { return true; }
@@ -4465,21 +4465,21 @@ class Item_param final : public Item, private Settable_routine_parameter {
   bool is_unsigned_actual() const { return m_unsigned_actual; }
 
   void set_collation_actual(const CHARSET_INFO *coll) {
-    DBUG_ASSERT(is_string_type(m_data_type_actual));
+    assert(is_string_type(m_data_type_actual));
     m_collation_actual = coll;
   }
   void set_collation_stored(const CHARSET_INFO *coll) {
-    DBUG_ASSERT(is_string_type(m_data_type_actual));
+    assert(is_string_type(m_data_type_actual));
     m_collation_stored = coll;
   }
   /// @returns the actual collation of the supplied string parameter
   const CHARSET_INFO *collation_actual() const {
-    DBUG_ASSERT(is_string_type(m_data_type_actual));
+    assert(is_string_type(m_data_type_actual));
     return m_collation_actual;
   }
   /// @returns the stored collation of the supplied string parameter
   const CHARSET_INFO *collation_stored() const {
-    DBUG_ASSERT(is_string_type(m_data_type_actual));
+    assert(is_string_type(m_data_type_actual));
     return m_collation_stored;
   }
   bool fix_fields(THD *thd, Item **ref) override;
@@ -4533,7 +4533,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool is_null() override {
-    DBUG_ASSERT(m_param_state != NO_VALUE);
+    assert(m_param_state != NO_VALUE);
     return m_param_state == NULL_VALUE;
   }
 
@@ -4687,11 +4687,11 @@ class Item_int : public Item_num {
   enum Type type() const override { return INT_ITEM; }
   Item_result result_type() const override { return INT_RESULT; }
   longlong val_int() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return value;
   }
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return static_cast<double>(value);
   }
   my_decimal *val_decimal(my_decimal *) override;
@@ -4743,13 +4743,13 @@ class Item_temporal final : public Item_int {
 
  public:
   Item_temporal(enum_field_types field_type_arg, longlong i) : Item_int(i) {
-    DBUG_ASSERT(is_temporal_type(field_type_arg));
+    assert(is_temporal_type(field_type_arg));
     set_data_type(field_type_arg);
   }
   Item_temporal(enum_field_types field_type_arg, const Name_string &name_arg,
                 longlong i, uint length)
       : Item_int(i) {
-    DBUG_ASSERT(is_temporal_type(field_type_arg));
+    assert(is_temporal_type(field_type_arg));
     set_data_type(field_type_arg);
     max_length = length;
     item_name = name_arg;
@@ -4761,11 +4761,11 @@ class Item_temporal final : public Item_int {
   longlong val_time_temporal() override { return val_int(); }
   longlong val_date_temporal() override { return val_int(); }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
   bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
 };
@@ -4790,7 +4790,7 @@ class Item_uint : public Item_int {
     unsigned_flag = true;
   }
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return ulonglong2double(static_cast<ulonglong>(value));
   }
   String *val_str(String *) override;
@@ -4902,11 +4902,11 @@ class Item_float : public Item_num {
  public:
   enum Type type() const override { return REAL_ITEM; }
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return value;
   }
   longlong val_int() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     if (value <= LLONG_MIN) {
       return LLONG_MIN;
     } else if (value > LLONG_MAX_DOUBLE) {
@@ -5071,7 +5071,7 @@ class Item_string : public Item_basic_constant {
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *) override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return &str_value;
   }
   my_decimal *val_decimal(my_decimal *) override;
@@ -5248,7 +5248,7 @@ class Item_hex_string : public Item_basic_constant {
 
   enum Type type() const override { return VARBIN_ITEM; }
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return (double)(ulonglong)Item_hex_string::val_int();
   }
   longlong val_int() override;
@@ -5256,7 +5256,7 @@ class Item_hex_string : public Item_basic_constant {
     return new Item_hex_string(str_value.ptr(), max_length);
   }
   String *val_str(String *) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return &str_value;
   }
   my_decimal *val_decimal(my_decimal *) override;
@@ -5546,7 +5546,7 @@ class Item_ref : public Item_ident {
     if (ref && result_type() == ROW_RESULT) (*ref)->bring_value();
   }
   bool get_time(MYSQL_TIME *ltime) override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return (*ref)->get_time(ltime);
   }
 
@@ -5559,8 +5559,8 @@ class Item_ref : public Item_ident {
     return ref && (*ref)->basic_const_item();
   }
   bool is_outer_field() const override {
-    DBUG_ASSERT(fixed);
-    DBUG_ASSERT(ref);
+    assert(fixed);
+    assert(ref);
     return (*ref)->is_outer_field();
   }
 
@@ -5611,7 +5611,7 @@ class Item_view_ref final : public Item_ref {
       m_orig_db_name = db_name_arg;
       m_orig_table_name = table_name_arg;
     } else {
-      DBUG_ASSERT(db_name_arg == nullptr);
+      assert(db_name_arg == nullptr);
       m_orig_table_name = table_name_arg;
     }
     cached_table = tl;
@@ -5852,11 +5852,11 @@ class Item_temporal_with_ref : public Item_int_with_ref {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return true;
   }
   bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(0);
+    assert(0);
     return true;
   }
 };
@@ -5883,7 +5883,7 @@ class Item_datetime_with_ref final : public Item_temporal_with_ref {
   Item *clone_item() const override;
   longlong val_date_temporal() override { return val_int(); }
   longlong val_time_temporal() override {
-    DBUG_ASSERT(0);
+    assert(0);
     return val_int();
   }
 };
@@ -5908,7 +5908,7 @@ class Item_time_with_ref final : public Item_temporal_with_ref {
   Item *clone_item() const override;
   longlong val_time_temporal() override { return val_int(); }
   longlong val_date_temporal() override {
-    DBUG_ASSERT(0);
+    assert(0);
     return val_int();
   }
 };
@@ -5938,31 +5938,31 @@ class Item_metadata_copy final : public Item {
   table_map used_tables() const override { return 1; }
 
   String *val_str(String *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   double val_real() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return 0.0;
   }
   longlong val_int() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return 0;
   }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool val_json(Json_wrapper *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 
@@ -5996,7 +5996,7 @@ class Cached_item {
   virtual ~Cached_item(); /*line -e1509 */
   Item *get_item() { return item; }
   virtual void copy_to_Item_cache(Item_cache *i_c MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
   }
 };
 
@@ -6423,7 +6423,7 @@ class Item_cache : public Item_basic_constant {
         pointer_cast<Check_function_as_value_generator_parameters *>(args);
     func_arg->banned_function_name = "cached item";
     // This should not happen as SELECT statements are not allowed.
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   Item_result result_type() const override {

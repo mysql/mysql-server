@@ -23,8 +23,9 @@
 
 #include "sql/opt_costconstants.h"
 
+#include <assert.h>
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "mysql/components/services/bits/psi_bits.h"
 #include "sql/handler.h"
 #include "sql/sql_plugin_ref.h"
@@ -84,8 +85,8 @@ const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST = 0.5;
 
 cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
                                                double value) {
-  DBUG_ASSERT(name.str != nullptr);
-  DBUG_ASSERT(name.length > 0);
+  assert(name.str != nullptr);
+  assert(name.length > 0);
 
   if (name.str == nullptr || name.length == 0)
     return UNKNOWN_COST_NAME; /* purecov: inspected */
@@ -152,8 +153,8 @@ const double SE_cost_constants::IO_BLOCK_READ_COST = 1.0;
 cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
                                            const double value,
                                            bool default_value) {
-  DBUG_ASSERT(name.str != nullptr);
-  DBUG_ASSERT(name.length > 0);
+  assert(name.str != nullptr);
+  assert(name.length > 0);
 
   if (name.str == nullptr || name.length == 0)
     return UNKNOWN_COST_NAME; /* purecov: inspected */
@@ -256,14 +257,12 @@ Cost_model_constants::Cost_model_constants()
   }
 }
 
-Cost_model_constants::~Cost_model_constants() {
-  DBUG_ASSERT(m_ref_counter == 0);
-}
+Cost_model_constants::~Cost_model_constants() { assert(m_ref_counter == 0); }
 
 const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
     const TABLE *table) const {
-  DBUG_ASSERT(table->file != nullptr);
-  DBUG_ASSERT(table->file->ht != nullptr);
+  assert(table->file != nullptr);
+  assert(table->file->ht != nullptr);
 
   static SE_cost_constants default_cost;
 
@@ -276,7 +275,7 @@ const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
       slot < m_engines.size()
           ? m_engines[slot].get_cost_constants(DEFAULT_STORAGE_CLASS)
           : &default_cost;
-  DBUG_ASSERT(se_cc != nullptr);
+  assert(se_cc != nullptr);
 
   return se_cc;
 }
@@ -304,7 +303,7 @@ cost_constant_error Cost_model_constants::update_engine_cost_constant(
 
     SE_cost_constants *se_cc =
         m_engines[ht_slot_id].get_cost_constants(storage_category);
-    DBUG_ASSERT(se_cc != nullptr);
+    assert(se_cc != nullptr);
 
     retval = se_cc->update(name, value);
   }
@@ -320,9 +319,9 @@ uint Cost_model_constants::find_handler_slot_from_name(
 
   // Find the handlerton for this storage engine
   handlerton *ht = plugin_data<handlerton *>(plugin);
-  DBUG_ASSERT(ht != nullptr);
+  assert(ht != nullptr);
   if (!ht) {
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     return HA_SLOT_UNDEF;
   }
 
@@ -331,7 +330,7 @@ uint Cost_model_constants::find_handler_slot_from_name(
 
 cost_constant_error Cost_model_constants::update_engine_default_cost(
     const LEX_CSTRING &name, uint storage_category, double value) {
-  DBUG_ASSERT(storage_category < MAX_STORAGE_CLASSES);
+  assert(storage_category < MAX_STORAGE_CLASSES);
 
   /*
     Return value: if at least one of the storage engines recognizes the

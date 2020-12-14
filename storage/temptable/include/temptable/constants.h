@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,11 +71,11 @@ constexpr size_t STORAGE_PAGE_SIZE = 64_KiB;
 constexpr size_t INDEX_DEFAULT_HASH_TABLE_BUCKETS = 1024;
 
 /** Store build-type information into the constexpr expression. */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 constexpr bool DEBUG_BUILD = true;
 #else
 constexpr bool DEBUG_BUILD = false;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 /** Store L1-dcache size information into the constexpr expression. */
 constexpr size_t L1_DCACHE_SIZE = CPU_LEVEL1_DCACHE_LINESIZE;

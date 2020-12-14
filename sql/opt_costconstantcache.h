@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTCACHE_INCLUDED
 
 /*
-   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 
-#include "my_dbug.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "sql/opt_costconstants.h"  // Cost_model_constants
@@ -136,7 +136,7 @@ class Cost_constant_cache {
   */
 
   void release_cost_constants(const Cost_model_constants *cost_constants) {
-    DBUG_ASSERT(cost_constants != nullptr);
+    assert(cost_constants != nullptr);
 
     /*
       The reason for using a const cast here is to be able to keep

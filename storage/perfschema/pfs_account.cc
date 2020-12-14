@@ -28,8 +28,9 @@
 
 #include "storage/perfschema/pfs_account.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "sql/mysqld.h"  // global_status_var
 #include "storage/perfschema/pfs.h"
@@ -71,9 +72,9 @@ static const uchar *account_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_account *account;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_account *const *>(entry);
-  DBUG_ASSERT(typed_entry != nullptr);
+  assert(typed_entry != nullptr);
   account = *typed_entry;
-  DBUG_ASSERT(account != nullptr);
+  assert(account != nullptr);
   *length = account->m_key.m_key_length;
   result = account->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -113,8 +114,8 @@ static LF_PINS *get_account_hash_pins(PFS_thread *thread) {
 static void set_account_key(PFS_account_key *key, const char *user,
                             uint user_length, const char *host,
                             uint host_length) {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
-  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+  assert(user_length <= USERNAME_LENGTH);
+  assert(host_length <= HOSTNAME_LENGTH);
 
   char *ptr = &key->m_hash_key[0];
   if (user_length > 0) {
@@ -686,7 +687,7 @@ static void purge_account(PFS_thread *thread, PFS_account *account) {
       lf_hash_search(&account_hash, pins, account->m_key.m_hash_key,
                      account->m_key.m_key_length));
   if (entry && (entry != MY_LF_ERRPTR)) {
-    DBUG_ASSERT(*entry == account);
+    assert(*entry == account);
     if (account->get_refcount() == 0) {
       lf_hash_delete(&account_hash, pins, account->m_key.m_hash_key,
                      account->m_key.m_key_length);

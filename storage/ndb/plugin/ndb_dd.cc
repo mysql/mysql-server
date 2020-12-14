@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,9 +49,9 @@ bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
                        const char *schema_name, dd::sdi_t &sdi) {
   // Require the table to be visible, hidden by SE(like mysql.ndb_schema)
   // or else have temporary name
-  DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
-              table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE ||
-              ndb_name_is_temp(table_def->name().c_str()));
+  assert(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
+         table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE ||
+         ndb_name_is_temp(table_def->name().c_str()));
 
   // Make a copy of the table definition to allow it to
   // be modified before serialization
@@ -59,8 +59,8 @@ bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
 
   // Check that dd::Table::clone() properly clones the table definition
   // by comparing the serialized table def before and after clone()
-  DBUG_ASSERT(ndb_dd_sdi_serialize(thd, *table_def, schema_name) ==
-              ndb_dd_sdi_serialize(thd, *table_def_clone, schema_name));
+  assert(ndb_dd_sdi_serialize(thd, *table_def, schema_name) ==
+         ndb_dd_sdi_serialize(thd, *table_def_clone, schema_name));
 
   // Don't include the se_private_id in the serialized table def.
   table_def_clone->set_se_private_id(dd::INVALID_OBJECT_ID);
@@ -96,7 +96,7 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
   DBUG_PRINT("enter", ("proper_table_name: %s", proper_table_name));
 
   // Check that the proper_table_name is not a temporary name
-  DBUG_ASSERT(!ndb_name_is_temp(proper_table_name));
+  assert(!ndb_name_is_temp(proper_table_name));
 
   table_def->set_name(proper_table_name);
   table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);

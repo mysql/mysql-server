@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -49,7 +49,7 @@ typedef unsigned long uint32;
 #error Neither int or long is of 4 bytes width
 #endif
 
-#if defined(WITH_INNODB_MEMCACHED) && !defined(DBUG_OFF)
+#if defined(WITH_INNODB_MEMCACHED) && !defined(NDEBUG)
 #define UNIV_MEMCACHED_SDI
 #endif
 

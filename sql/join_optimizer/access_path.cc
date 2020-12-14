@@ -203,10 +203,10 @@ table_map GetUsedTables(const AccessPath *path) {
     case AccessPath::REMOVE_DUPLICATES:
       return GetUsedTables(path->remove_duplicates().child);
     case AccessPath::ALTERNATIVE:
-      DBUG_ASSERT(GetUsedTables(path->alternative().child) ==
-                  path->alternative()
-                      .table_scan_path->table_scan()
-                      .table->pos_in_table_list->map());
+      assert(GetUsedTables(path->alternative().child) ==
+             path->alternative()
+                 .table_scan_path->table_scan()
+                 .table->pos_in_table_list->map());
       return path->alternative()
           .table_scan_path->table_scan()
           .table->pos_in_table_list->map();

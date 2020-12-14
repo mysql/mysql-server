@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,10 +28,11 @@
 
 #include "storage/perfschema/table_sync_instances.h"
 
+#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -160,7 +161,7 @@ int table_mutex_instances::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_mutex_instances_by_thread_id);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   m_opened_index = result;
@@ -226,7 +227,7 @@ int table_mutex_instances::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -246,7 +247,7 @@ int table_mutex_instances::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -373,7 +374,7 @@ int table_rwlock_instances::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_rwlock_instances_by_thread_id);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   m_opened_index = result;
@@ -442,7 +443,7 @@ int table_rwlock_instances::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -465,7 +466,7 @@ int table_rwlock_instances::read_row_values(TABLE *table, unsigned char *buf,
           set_field_ulong(f, m_row.m_readers);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }
@@ -577,7 +578,7 @@ int table_cond_instances::index_init(uint idx, bool) {
       result = PFS_NEW(PFS_index_cond_instances_by_name);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 
   m_opened_index = result;
@@ -635,7 +636,7 @@ int table_cond_instances::read_row_values(TABLE *table, unsigned char *,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -647,7 +648,7 @@ int table_cond_instances::read_row_values(TABLE *table, unsigned char *,
           set_field_ulonglong(f, (intptr)m_row.m_identity);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ enum enum_locked_tables_mode {
   LTM_PRELOCKED_UNDER_LOCK_TABLES
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Getter for the enum enum_locked_tables_mode
   @param locked_tables_mode enum for types of locked tables mode
@@ -112,7 +112,7 @@ class Locked_tables_list {
   void unlock_locked_tables(THD *thd);
   ~Locked_tables_list() {
     unlock_locked_tables(nullptr);
-    DBUG_ASSERT(m_rename_tablespace_mdls.empty());
+    assert(m_rename_tablespace_mdls.empty());
   }
   bool init_locked_tables(THD *thd);
   TABLE_LIST *locked_tables() const { return m_locked_tables; }

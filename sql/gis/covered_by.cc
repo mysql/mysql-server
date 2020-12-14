@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ bool Covered_by::operator()(const Geometry *g1, const Geometry *g2) const {
 }
 
 bool Covered_by::operator()(const Box *b1, const Box *b2) const {
-  DBUG_ASSERT(b1->coordinate_system() == b2->coordinate_system());
+  assert(b1->coordinate_system() == b2->coordinate_system());
   switch (b1->coordinate_system()) {
     case Coordinate_system::kCartesian:
       return eval(down_cast<const Cartesian_box *>(b1),
@@ -58,13 +58,13 @@ bool Covered_by::operator()(const Box *b1, const Box *b2) const {
                   down_cast<const Geographic_box *>(b2));
   }
 
-  DBUG_ASSERT(false);
+  assert(false);
   return false;
 }
 
 bool Covered_by::eval(const Geometry *g1, const Geometry *g2) const {
   // Currently only implemented for boxes (MBRs).
-  DBUG_ASSERT(false);
+  assert(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
@@ -87,12 +87,12 @@ bool mbr_covered_by(const dd::Spatial_reference_system *srs, const Geometry *g1,
                     const Geometry *g2, const char *func_name, bool *covered_by,
                     bool *null) noexcept {
   try {
-    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
-    DBUG_ASSERT(srs == nullptr ||
-                ((srs->is_cartesian() &&
-                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
-                 (srs->is_geographic() &&
-                  g1->coordinate_system() == Coordinate_system::kGeographic)));
+    assert(g1->coordinate_system() == g2->coordinate_system());
+    assert(srs == nullptr ||
+           ((srs->is_cartesian() &&
+             g1->coordinate_system() == Coordinate_system::kCartesian) ||
+            (srs->is_geographic() &&
+             g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 

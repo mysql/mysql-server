@@ -174,7 +174,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
 
   DBUG_EXECUTE_IF("group_replication_before_commit_hook_wait", {
     const char act[] = "now wait_for continue_commit";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   /*
@@ -256,7 +256,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
     /* purecov: end */
   }
 
-  DBUG_ASSERT(applier_module != nullptr && recovery_module != nullptr);
+  assert(applier_module != nullptr && recovery_module != nullptr);
   // Transaction information.
   const ulong transaction_size_limit = get_transaction_size_limit();
   my_off_t transaction_size = 0;
@@ -360,7 +360,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
         /* purecov: end */
       }
       cleanup_transaction_write_set(write_set);
-      DBUG_ASSERT(is_gtid_specified || (tcle->get_write_set()->size() > 0));
+      assert(is_gtid_specified || (tcle->get_write_set()->size() > 0));
     } else {
       /*
         For empty transactions we should set the GTID may_have_sbr_stmts. See
@@ -493,15 +493,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
     /* purecov: end */
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("test_basic_CRUD_operations_sql_service_interface", {
     DBUG_SET("-d,test_basic_CRUD_operations_sql_service_interface");
-    DBUG_ASSERT(!sql_command_check());
+    assert(!sql_command_check());
   };);
 
   DBUG_EXECUTE_IF("group_replication_before_message_broadcast", {
     const char act[] = "now wait_for waiting";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
 
@@ -559,7 +559,7 @@ err:
 
   DBUG_EXECUTE_IF("group_replication_after_before_commit_hook", {
     const char act[] = "now wait_for signal.commit_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
   return error;
 }
@@ -643,7 +643,7 @@ int group_replication_trans_begin(Trans_param *param, int &out) {
     const char act[] =
         "now signal signal.group_replication_wait_on_observer_trans_waiting "
         "wait_for signal.group_replication_wait_on_observer_trans_continue";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   std::list<Group_transaction_listener *> *transaction_observers =

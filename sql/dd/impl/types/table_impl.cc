@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/dd/impl/types/table_impl.h"
 
+#include <assert.h>
 #include <string.h>
 #include <set>
 #include <sstream>
@@ -33,7 +34,7 @@
 #include <rapidjson/prettywriter.h>
 
 #include "m_string.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
 #include "sql/current_thd.h"                      // current_thd
@@ -132,14 +133,14 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
 
   // 1. Read the parent's schema name based on schema_id.
   Raw_table *schema_table = otx->get_table<dd::Schema>();
-  DBUG_ASSERT(schema_table);
+  assert(schema_table);
   Primary_id_key schema_pk(schema_id());
 
   std::unique_ptr<Raw_record_set> schema_rs;
   if (schema_table->open_record_set(&schema_pk, schema_rs)) return true;
 
   Raw_record *schema_rec = schema_rs->current_record();
-  DBUG_ASSERT(schema_rec);
+  assert(schema_rec);
   if (schema_rec == nullptr) return true;
 
   // 2. Build a key for searching the FK table.
@@ -153,7 +154,7 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
 
   // 3. Get the FK record set where this table is parent.
   Raw_table *foreign_key_table = otx->get_table<dd::Foreign_key>();
-  DBUG_ASSERT(foreign_key_table);
+  assert(foreign_key_table);
 
   std::unique_ptr<Raw_record_set> child_fk_rs;
   if (foreign_key_table->open_record_set(&parent_ref_key, child_fk_rs))
@@ -165,13 +166,13 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
     Primary_id_key child_pk(
         child_fk_rec->read_int(tables::Foreign_keys::FIELD_TABLE_ID));
     Raw_table *tables_table = otx->get_table<dd::Table>();
-    DBUG_ASSERT(tables_table);
+    assert(tables_table);
 
     std::unique_ptr<Raw_record_set> child_table_rs;
     if (tables_table->open_record_set(&child_pk, child_table_rs)) return true;
 
     Raw_record *child_table = child_table_rs->current_record();
-    DBUG_ASSERT(child_table);
+    assert(child_table);
     if (child_table == nullptr) return true;
 
     /*
@@ -193,7 +194,7 @@ bool Table_impl::load_foreign_key_parents(Open_dictionary_tables_ctx *otx) {
     if (schema_table->open_record_set(&schema_pk, schema_rs)) return true;
 
     schema_rec = schema_rs->current_record();
-    DBUG_ASSERT(schema_rec);
+    assert(schema_rec);
     if (schema_rec == nullptr) return true;
 
     // 6. Collect the relevant information.
@@ -234,7 +235,7 @@ bool Table_impl::reload_foreign_key_parents(THD *thd) {
   // Register and open tables.
   trx.otx.register_tables<dd::Table>();
   if (trx.otx.open_tables()) {
-    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    assert(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -482,7 +483,7 @@ bool Table_impl::store_attributes(Raw_record *r) {
   //
 
   // Temporary table definitions are never persisted.
-  DBUG_ASSERT(!m_is_temporary);
+  assert(!m_is_temporary);
 
   // Store last_checked_for_upgrade_version_id only if we're not upgrading
   if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
@@ -542,7 +543,7 @@ static_assert(Tables::NUMBER_OF_FIELDS == 37,
               "deserialize() need to be updated!");
 void Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   // Temporary table definitions are never persisted.
-  DBUG_ASSERT(!m_is_temporary);
+  assert(!m_is_temporary);
 
   w->StartObject();
   Abstract_table_impl::serialize(wctx, w);
@@ -855,8 +856,8 @@ const Trigger *Table_impl::get_trigger(const char *name) const {
 Trigger *Table_impl::add_trigger_following(const Trigger *trigger,
                                            Trigger::enum_action_timing at,
                                            Trigger::enum_event_type et) {
-  DBUG_ASSERT(trigger != nullptr && trigger->action_timing() == at &&
-              trigger->event_type() == et);
+  assert(trigger != nullptr && trigger->action_timing() == at &&
+         trigger->event_type() == et);
 
   // Allocate new Trigger object.
   Trigger_impl *new_trigger = create_trigger();
@@ -882,8 +883,8 @@ Trigger *Table_impl::add_trigger_following(const Trigger *trigger,
 Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
                                            Trigger::enum_action_timing at,
                                            Trigger::enum_event_type et) {
-  DBUG_ASSERT(trigger != nullptr && trigger->action_timing() == at &&
-              trigger->event_type() == et);
+  assert(trigger != nullptr && trigger->action_timing() == at &&
+         trigger->event_type() == et);
 
   Trigger_impl *new_trigger = create_trigger();
   if (new_trigger == nullptr) return nullptr;
@@ -903,7 +904,7 @@ Trigger *Table_impl::add_trigger_preceding(const Trigger *trigger,
 ///////////////////////////////////////////////////////////////////////////
 
 void Table_impl::copy_triggers(const Table *tab_obj) {
-  DBUG_ASSERT(tab_obj != nullptr);
+  assert(tab_obj != nullptr);
 
   for (const Trigger *trig : tab_obj->triggers()) {
     /*
@@ -941,7 +942,7 @@ void Table_impl::copy_triggers(const Table *tab_obj) {
     */
     Trigger_impl *new_trigger =
         new Trigger_impl(*dynamic_cast<const Trigger_impl *>(trig), this);
-    DBUG_ASSERT(new_trigger != nullptr);
+    assert(new_trigger != nullptr);
 
     new_trigger->set_id(INVALID_OBJECT_ID);
 
@@ -956,7 +957,7 @@ void Table_impl::drop_all_triggers() { m_triggers.remove_all(); }
 ///////////////////////////////////////////////////////////////////////////
 
 void Table_impl::drop_trigger(const Trigger *trigger) {
-  DBUG_ASSERT(trigger != nullptr);
+  assert(trigger != nullptr);
   dd::Trigger::enum_action_timing at = trigger->action_timing();
   dd::Trigger::enum_event_type et = trigger->event_type();
 

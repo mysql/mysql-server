@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,10 +26,10 @@ TempTable Storage. */
 #ifndef TEMPTABLE_STORAGE_H
 #define TEMPTABLE_STORAGE_H
 
+#include <assert.h>
 #include <cstddef>
 #include <utility>
 
-#include "my_dbug.h"
 #include "storage/temptable/include/temptable/allocator.h"
 #include "storage/temptable/include/temptable/constants.h"
 
@@ -351,7 +351,7 @@ inline Storage::Element *Storage::Iterator::operator*() const {
 }
 
 inline Storage::Iterator &Storage::Iterator::operator=(const Element *element) {
-  DBUG_ASSERT(m_storage != nullptr || element == nullptr);
+  assert(m_storage != nullptr || element == nullptr);
   m_element = const_cast<Element *>(element);
   return *this;
 }
@@ -365,8 +365,8 @@ inline bool Storage::Iterator::operator!=(const Iterator &rhs) const {
 }
 
 inline Storage::Iterator &Storage::Iterator::operator++() {
-  DBUG_ASSERT(m_storage != nullptr);
-  DBUG_ASSERT(*this != m_storage->end());
+  assert(m_storage != nullptr);
+  assert(*this != m_storage->end());
 
   do {
     if (m_storage->element_last_on_page(m_element)) {
@@ -386,8 +386,8 @@ inline Storage::Iterator &Storage::Iterator::operator++() {
 }
 
 inline Storage::Iterator &Storage::Iterator::operator--() {
-  DBUG_ASSERT(m_storage != nullptr);
-  DBUG_ASSERT(*this != m_storage->begin());
+  assert(m_storage != nullptr);
+  assert(*this != m_storage->begin());
 
   /* Since *this != m_storage->begin() there is at least one non-deleted element
    * preceding our position (ie the one pointed to by begin()). */
@@ -398,9 +398,9 @@ inline Storage::Iterator &Storage::Iterator::operator--() {
     } else if (m_storage->element_first_on_page(m_element)) {
       /* Go to the last element on the previous page. */
       Page *prev_page = *m_storage->element_prev_page_ptr(m_element);
-      DBUG_ASSERT(prev_page != nullptr);
+      assert(prev_page != nullptr);
       m_element = m_storage->last_possible_element_on_page(prev_page);
-      DBUG_ASSERT(m_storage->element_last_on_page(m_element));
+      assert(m_storage->element_last_on_page(m_element));
     } else {
       m_element = m_storage->prev_element(m_element);
     }
@@ -425,9 +425,9 @@ inline Storage::Storage(Storage &&other)
 }
 
 inline Storage &Storage::operator=(Storage &&rhs) {
-  DBUG_ASSERT(m_first_page == nullptr);
-  DBUG_ASSERT(m_last_page == nullptr);
-  DBUG_ASSERT(m_last_element == nullptr);
+  assert(m_first_page == nullptr);
+  assert(m_last_page == nullptr);
+  assert(m_last_element == nullptr);
 
   m_allocator = rhs.m_allocator;
   rhs.m_allocator = nullptr;
@@ -463,12 +463,12 @@ inline Storage::Iterator Storage::begin() const {
     return end();
   }
 
-  DBUG_ASSERT(m_first_page != nullptr);
+  assert(m_first_page != nullptr);
 
   Iterator it(this, first_possible_element_on_page(m_first_page));
 
   for (;;) {
-    DBUG_ASSERT(it != end());
+    assert(it != end());
     if (!element_deleted(*it)) {
       break;
     }
@@ -483,14 +483,14 @@ inline Storage::Iterator Storage::end() const {
 }
 
 inline void Storage::element_size(size_t element_size) {
-  DBUG_ASSERT(m_number_of_elements == 0);
+  assert(m_number_of_elements == 0);
 
   m_element_size = element_size;
 
   const size_t element_size_plus_meta = element_size + META_BYTES_PER_ELEMENT;
 
   /* Confirm that ALIGN_TO is a power of 2 (or zero). */
-  DBUG_ASSERT(ALIGN_TO == 0 || (ALIGN_TO & (ALIGN_TO - 1)) == 0);
+  assert(ALIGN_TO == 0 || (ALIGN_TO & (ALIGN_TO - 1)) == 0);
 
   /* The next multiple of ALIGN_TO from element_size_plus_meta. */
   m_bytes_used_per_element =
@@ -509,7 +509,7 @@ inline Storage::Element *Storage::back() { return m_last_element; }
 inline Storage::Element *Storage::allocate_back() {
   if (m_last_page == nullptr) {
     /* The storage is empty, create the first page. */
-    DBUG_ASSERT(m_first_page == nullptr);
+    assert(m_first_page == nullptr);
 
     m_first_page = m_allocator->allocate(page_size());
 
@@ -520,9 +520,9 @@ inline Storage::Element *Storage::allocate_back() {
 
     m_last_element = first_possible_element_on_page(m_first_page);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     *element_meta(m_last_element) = 0;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
     element_first_on_page(true, m_last_element);
   } else if (m_last_element == last_possible_element_on_page(m_last_page)) {
@@ -536,9 +536,9 @@ inline Storage::Element *Storage::allocate_back() {
     m_last_page = new_page;
     m_last_element = first_possible_element_on_page(new_page);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     *element_meta(m_last_element) = 0;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
     element_first_on_page(true, m_last_element);
   } else {
@@ -546,9 +546,9 @@ inline Storage::Element *Storage::allocate_back() {
 
     m_last_element = next_element(m_last_element);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     *element_meta(m_last_element) = 0;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
     element_first_on_page(false, m_last_element);
   }
@@ -563,7 +563,7 @@ inline Storage::Element *Storage::allocate_back() {
 }
 
 inline void Storage::deallocate_back() {
-  DBUG_ASSERT(m_number_of_elements > 0);
+  assert(m_number_of_elements > 0);
 
   --m_number_of_elements;
 
@@ -571,7 +571,7 @@ inline void Storage::deallocate_back() {
     if (m_last_element != first_possible_element_on_page(m_last_page)) {
       m_last_element = prev_element(m_last_element);
     } else if (m_first_page == m_last_page) {
-      DBUG_ASSERT(m_number_of_elements == 0);
+      assert(m_number_of_elements == 0);
       m_allocator->deallocate(static_cast<uint8_t *>(m_first_page),
                               page_size());
       m_first_page = nullptr;
@@ -602,7 +602,7 @@ inline Storage::Iterator Storage::erase(const Iterator &position) {
   if (*position == m_last_element) {
     deallocate_back();
   } else {
-    DBUG_ASSERT(m_number_of_elements > 0);
+    assert(m_number_of_elements > 0);
     --m_number_of_elements;
 
     element_deleted(true, *position);
@@ -613,12 +613,12 @@ inline Storage::Iterator Storage::erase(const Iterator &position) {
 
 inline void Storage::clear() {
   if (m_first_page == nullptr) {
-    DBUG_ASSERT(m_number_of_elements == 0);
+    assert(m_number_of_elements == 0);
     return;
   }
 
   if (m_first_page == m_last_page) {
-    DBUG_ASSERT(m_number_of_elements <= m_number_of_elements_per_page);
+    assert(m_number_of_elements <= m_number_of_elements_per_page);
   } else {
     Page *p = m_first_page;
     do {
@@ -637,8 +637,8 @@ inline void Storage::clear() {
 }
 
 inline size_t Storage::page_size() const {
-  DBUG_ASSERT(m_bytes_used_per_element > 0);
-  DBUG_ASSERT(m_number_of_elements_per_page > 0);
+  assert(m_bytes_used_per_element > 0);
+  assert(m_number_of_elements_per_page > 0);
 
   return m_bytes_used_per_element * m_number_of_elements_per_page +
          META_BYTES_PER_PAGE;
@@ -686,49 +686,49 @@ inline void Storage::element_deleted(bool deleted, Element *element) {
 }
 
 inline Storage::Page **Storage::element_prev_page_ptr(Element *element) const {
-  DBUG_ASSERT(element_first_on_page(element));
+  assert(element_first_on_page(element));
   return reinterpret_cast<Page **>(static_cast<uint8_t *>(element) -
                                    sizeof(Page *));
 }
 
 inline Storage::Page **Storage::element_next_page_ptr(Element *element) const {
-  DBUG_ASSERT(element_last_on_page(element));
+  assert(element_last_on_page(element));
   return reinterpret_cast<Page **>(static_cast<uint8_t *>(element) +
                                    m_bytes_used_per_element);
 }
 
 inline Storage::Element *Storage::prev_element(Element *element) const {
-  DBUG_ASSERT(element != nullptr);
-  DBUG_ASSERT(!element_first_on_page(element));
+  assert(element != nullptr);
+  assert(!element_first_on_page(element));
   return static_cast<uint8_t *>(element) - m_bytes_used_per_element;
 }
 
 inline Storage::Element *Storage::next_element(Element *element) const {
-  DBUG_ASSERT(element != nullptr);
-  DBUG_ASSERT(!element_last_on_page(element));
+  assert(element != nullptr);
+  assert(!element_last_on_page(element));
   return static_cast<uint8_t *>(element) + m_bytes_used_per_element;
 }
 
 inline Storage::Element *Storage::first_possible_element_on_page(
     Page *page) const {
-  DBUG_ASSERT(page != nullptr);
+  assert(page != nullptr);
   return static_cast<uint8_t *>(page) + sizeof(Page *);
 }
 
 inline Storage::Element *Storage::last_possible_element_on_page(
     Page *page) const {
-  DBUG_ASSERT(page != nullptr);
+  assert(page != nullptr);
   return static_cast<uint8_t *>(page) + sizeof(Page *) +
          m_bytes_used_per_element * (m_number_of_elements_per_page - 1);
 }
 
 inline Storage::Page **Storage::page_prev_page_ptr(Page *page) const {
-  DBUG_ASSERT(page != nullptr);
+  assert(page != nullptr);
   return reinterpret_cast<Page **>(page);
 }
 
 inline Storage::Page **Storage::page_next_page_ptr(Page *page) const {
-  DBUG_ASSERT(page != nullptr);
+  assert(page != nullptr);
   /* The sizeof(Page*) bytes just after the last element (and its meta byte(s)
    * and padding). */
   return reinterpret_cast<Page **>(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ class Resource_group_mgr {
 
   bool get_thread_attributes(PSI_thread_attrs *pfs_thread_attr,
                              ulonglong thread_id) {
-    DBUG_ASSERT(m_resource_group_support);
+    assert(m_resource_group_support);
     return m_resource_group_svc->get_thread_system_attrs_by_id(
                nullptr, thread_id, pfs_thread_attr) != 0;
   }
@@ -230,7 +230,7 @@ class Resource_group_mgr {
   */
 
   void set_res_grp_in_pfs(const char *name, int length, ulonglong thread_id) {
-    DBUG_ASSERT(m_resource_group_support);
+    assert(m_resource_group_support);
     m_resource_group_svc->set_thread_resource_group_by_id(
         nullptr, thread_id, name, length, nullptr);
   }
@@ -284,7 +284,7 @@ class Resource_group_mgr {
   */
 
   bool thread_priority_available() {
-    DBUG_ASSERT(m_resource_group_support);
+    assert(m_resource_group_support);
     return m_thread_priority_available;
   }
 
@@ -314,7 +314,7 @@ class Resource_group_mgr {
   */
 
   void release_shared_mdl_for_resource_group(THD *thd, MDL_ticket *ticket) {
-    DBUG_ASSERT(ticket != nullptr);
+    assert(ticket != nullptr);
     thd->mdl_context.release_lock(ticket);
   }
 
@@ -340,7 +340,7 @@ class Resource_group_mgr {
 
   void deinit();
 
-#ifndef DBUG_OFF  // The belows methods are required in debug build for testing.
+#ifndef NDEBUG  // The belows methods are required in debug build for testing.
   bool disable_pfs_notification();
 #endif
 
@@ -389,7 +389,7 @@ class Resource_group_mgr {
       const char act[] =
           "now "
           "SIGNAL restore_finished";
-      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
     };);
   }
 

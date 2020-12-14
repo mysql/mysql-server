@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -255,7 +255,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       }
       case Q_UPDATED_DB_NAMES: {
         unsigned char i = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         bool is_corruption_injected = false;
 #endif
 
@@ -277,7 +277,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
              i < mts_accessed_dbs && READER_CALL(position) < end_variable_part;
              i++) {
           uint64_t remaining;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           /*
             This is specific to mysql test run on the server
             for the keyword "query_log_event_mts_corrupt_db_names"
@@ -300,7 +300,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
                           NAME_LEN);
         }
         if (i != mts_accessed_dbs
-#ifndef DBUG_OFF
+#ifndef NDEBUG
             || is_corruption_injected
 #endif
         )

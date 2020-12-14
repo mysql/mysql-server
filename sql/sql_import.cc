@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/sql_import.h"
 
+#include <assert.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <memory>
@@ -29,7 +30,6 @@
 #include <utility>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/mysql_lex_string.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -62,7 +62,7 @@ Sql_cmd_import_table::Sql_cmd_import_table(
     : m_sdi_patterns(sdi_patterns) {}
 
 bool Sql_cmd_import_table::execute(THD *thd) {
-  DBUG_ASSERT(!m_sdi_patterns.empty());
+  assert(!m_sdi_patterns.empty());
 
   auto rbgrd = dd::sdi_utils::make_guard(thd, [&](THD *) {
     trans_rollback_stmt(thd);

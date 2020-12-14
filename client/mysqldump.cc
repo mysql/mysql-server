@@ -287,7 +287,7 @@ static struct my_option my_long_options[] = {
      "'USE db_name;' will be included in the output.",
      &opt_databases, &opt_databases, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -827,8 +827,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -1841,7 +1841,7 @@ static void print_xml_tag(FILE *xml_file, const char *sbeg,
   attribute_name = first_attribute_name;
   while (attribute_name != NullS) {
     attribute_value = va_arg(arg_list, char *);
-    DBUG_ASSERT(attribute_value != NullS);
+    assert(attribute_value != NullS);
 
     fputc(' ', xml_file);
     fputs(attribute_name, xml_file);
@@ -3878,10 +3878,9 @@ static void dump_table(char *table, char *db) {
                   dynstr_append_checked(&extended_row, "0x");
                   extended_row.length += mysql_hex_string(
                       extended_row.str + extended_row.length, row[i], length);
-                  DBUG_ASSERT(extended_row.length + 1 <=
-                              extended_row.max_length);
+                  assert(extended_row.length + 1 <= extended_row.max_length);
                   /* mysql_hex_string() already terminated string by '\0' */
-                  DBUG_ASSERT(extended_row.str[extended_row.length] == '\0');
+                  assert(extended_row.str[extended_row.length] == '\0');
                 } else {
                   dynstr_realloc_checked(
                       &extended_row,
@@ -4381,7 +4380,7 @@ static int dump_all_databases() {
       db_cnt++;
     }
   }
-  DBUG_ASSERT(mysql_db_found);
+  assert(mysql_db_found);
   memset(database_list, 0, sizeof(*database_list));
   my_free(database_list);
   mysql_free_result(tableres);
@@ -4767,7 +4766,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root) {
   DBUG_TRACE;
 
   /* Check memory for quote_for_like() */
-  DBUG_ASSERT(2 * sizeof(old_table_name) < sizeof(show_name_buff));
+  assert(2 * sizeof(old_table_name) < sizeof(show_name_buff));
   snprintf(query, sizeof(query), "SHOW TABLES LIKE %s",
            quote_for_like(old_table_name, show_name_buff));
 
@@ -5222,7 +5221,7 @@ char check_if_ignore_table(const char *table_name, char *table_type) {
   DBUG_TRACE;
 
   /* Check memory for quote_for_like() */
-  DBUG_ASSERT(2 * sizeof(table_name) < sizeof(show_name_buff));
+  assert(2 * sizeof(table_name) < sizeof(show_name_buff));
   snprintf(buff, sizeof(buff), "show table status like %s",
            quote_for_like(table_name, show_name_buff));
   if (mysql_query_with_error_report(mysql, &res, buff)) {

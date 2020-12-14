@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,8 +309,8 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
   DBUG_EXECUTE_IF("vio_init_returns_error", { return true; });
 
 #ifdef HAVE_KQUEUE
-  DBUG_ASSERT(type == VIO_TYPE_TCPIP || type == VIO_TYPE_SOCKET ||
-              type == VIO_TYPE_SSL);
+  assert(type == VIO_TYPE_TCPIP || type == VIO_TYPE_SOCKET ||
+         type == VIO_TYPE_SSL);
   vio->kq_fd = kqueue();
   if (vio->kq_fd == -1) {
     DBUG_PRINT("vio_init", ("kqueue failed with errno: %d", errno));
@@ -354,7 +354,7 @@ bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
   DBUG_TRACE;
 
   /* The only supported rebind is from a socket-based transport type. */
-  DBUG_ASSERT(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
+  assert(vio->type == VIO_TYPE_TCPIP || vio->type == VIO_TYPE_SOCKET);
 
   if (vio_init(&new_vio, type, sd, flags)) return true;
 

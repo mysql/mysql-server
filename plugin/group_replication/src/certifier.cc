@@ -220,7 +220,7 @@ int Certifier_broadcast_thread::broadcast_gtid_executed() {
     error = 1;                                          /* purecov: inspected */
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *encoded_gtid_executed_string =
       encoded_gtid_set_to_string(encoded_gtid_executed, length);
   DBUG_PRINT("info", ("Certifier broadcast executed_set: %s",
@@ -244,7 +244,7 @@ Certifier::Certifier()
       conflict_detection_enable(!local_member_info->in_primary_mode()) {
   last_conflict_free_transaction.clear();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   certifier_garbage_collection_block = false;
   /*
     Debug flag to block the garbage collection and discard incoming stable
@@ -417,7 +417,7 @@ void Certifier::compute_group_available_gtid_intervals() {
                                              ? group_gtid_extracted
                                              : group_gtid_executed,
                                          group_gtid_sid_map_group_sidno);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (certifying_already_applied_transactions)
     DBUG_PRINT(
         "Certifier::compute_group_available_gtid_intervals()",
@@ -444,7 +444,7 @@ void Certifier::compute_group_available_gtid_intervals() {
     rpl_gno end = MAX_GNO;
     if (iv_next != nullptr) end = iv_next->start - 1;
 
-    DBUG_ASSERT(start <= end);
+    assert(start <= end);
     Gtid_set::Interval interval = {start, end, nullptr};
     group_available_gtid_intervals.push_back(interval);
   }
@@ -458,7 +458,7 @@ void Certifier::compute_group_available_gtid_intervals() {
 
 Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
   DBUG_TRACE;
-  DBUG_ASSERT(block_size > 1);
+  assert(block_size > 1);
   mysql_mutex_assert_owner(&LOCK_certification_info);
 
   Gtid_set::Interval result;
@@ -469,7 +469,7 @@ Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
 
   std::list<Gtid_set::Interval>::iterator it =
       group_available_gtid_intervals.begin();
-  DBUG_ASSERT(it != group_available_gtid_intervals.end());
+  assert(it != group_available_gtid_intervals.end());
 
   /*
     We always have one or more intervals, the only thing to check
@@ -483,8 +483,8 @@ Gtid_set::Interval Certifier::reserve_gtid_block(longlong block_size) {
     result.start = it->start;
     result.end = it->start + block_size - 1;
     it->start = result.end + 1;
-    DBUG_ASSERT(result.start <= result.end);
-    DBUG_ASSERT(result.start < it->start);
+    assert(result.start <= result.end);
+    assert(result.start < it->start);
   }
 
   return result;
@@ -496,7 +496,7 @@ void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
   mysql_mutex_assert_owner(&LOCK_certification_info);
   group_gtid_executed->_add_gtid(sidno, gno);
   if (local) {
-    DBUG_ASSERT(sidno > 0 && gno > 0);
+    assert(sidno > 0 && gno > 0);
     last_local_gtid.set(sidno, gno);
   }
   /*
@@ -547,7 +547,7 @@ int Certifier::initialize(ulonglong gtid_assignment_block_size) {
     goto end;  /* purecov: inspected */
   }
 
-  DBUG_ASSERT(gtid_assignment_block_size >= 1);
+  assert(gtid_assignment_block_size >= 1);
   this->gtid_assignment_block_size = gtid_assignment_block_size;
 
   /*
@@ -584,8 +584,8 @@ void Certifier::increment_parallel_applier_sequence_number(
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_certification_info);
 
-  DBUG_ASSERT(parallel_applier_last_committed_global <
-              parallel_applier_sequence_number);
+  assert(parallel_applier_last_committed_global <
+         parallel_applier_sequence_number);
   if (update_parallel_applier_last_committed_global)
     parallel_applier_last_committed_global = parallel_applier_sequence_number;
 
@@ -633,7 +633,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
       !group_gtid_extracted->is_subset_not_equals(group_gtid_executed)) {
     certifying_already_applied_transactions = false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char *group_gtid_executed_string = nullptr;
     char *group_gtid_extracted_string = nullptr;
     group_gtid_executed->to_string(&group_gtid_executed_string, true);
@@ -822,9 +822,9 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
 
     gle->last_committed = transaction_last_committed;
     gle->sequence_number = parallel_applier_sequence_number;
-    DBUG_ASSERT(gle->last_committed >= 0);
-    DBUG_ASSERT(gle->sequence_number > 0);
-    DBUG_ASSERT(gle->last_committed < gle->sequence_number);
+    assert(gle->last_committed >= 0);
+    assert(gle->sequence_number > 0);
+    assert(gle->last_committed < gle->sequence_number);
 
     increment_parallel_applier_sequence_number(
         !has_write_set || update_parallel_applier_last_committed_global);
@@ -909,7 +909,7 @@ rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
   if (member_uuid == nullptr || gtid_assignment_block_size <= 1) {
     result = get_group_next_available_gtid_candidate(1, MAX_GNO);
     if (result < 0) {
-      DBUG_ASSERT(result == -1);
+      assert(result == -1);
       return result;
     }
 
@@ -945,7 +945,7 @@ rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
       std::pair<std::string, Gtid_set::Interval> member_pair(
           member, reserve_gtid_block(gtid_assignment_block_size));
       insert_ret = member_gtids.insert(member_pair);
-      DBUG_ASSERT(insert_ret.second == true);
+      assert(insert_ret.second == true);
       it = insert_ret.first;
     }
 
@@ -963,15 +963,15 @@ rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
     gtids_assigned_in_blocks_counter++;
   }
 
-  DBUG_ASSERT(result > 0);
+  assert(result > 0);
   return result;
 }
 
 rpl_gno Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
                                                            rpl_gno end) const {
   DBUG_TRACE;
-  DBUG_ASSERT(start > 0);
-  DBUG_ASSERT(start <= end);
+  assert(start > 0);
+  assert(start <= end);
   mysql_mutex_assert_owner(&LOCK_certification_info);
 
   rpl_gno candidate = start;
@@ -979,7 +979,7 @@ rpl_gno Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
                                              ? group_gtid_extracted
                                              : group_gtid_executed,
                                          group_gtid_sid_map_group_sidno);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (certifying_already_applied_transactions)
     DBUG_PRINT("Certifier::get_group_next_available_gtid_candidate()",
                ("Generating group transaction id from group_gtid_extracted"));
@@ -990,7 +990,7 @@ rpl_gno Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
     or return GNO exhausted error.
   */
   while (true) {
-    DBUG_ASSERT(candidate >= start);
+    assert(candidate >= start);
     const Gtid_set::Interval *iv = ivit.get();
     rpl_gno next_interval_start = iv != nullptr ? iv->start : MAX_GNO;
 
@@ -1149,7 +1149,7 @@ void Certifier::garbage_collect() {
   */
   increment_parallel_applier_sequence_number(true);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /*
     This part blocks the garbage collection process for 300 sec in order to
     simulate the case that while garbage collection is going on, we should
@@ -1208,7 +1208,7 @@ int Certifier::handle_certifier_data(
 
   mysql_mutex_lock(&LOCK_members);
   std::string member_id = gcs_member_id.get_member_id();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   if (same_member_message_discarded) {
     /*
       Injecting the member_id in the member's vector to simulate the case of
@@ -1265,7 +1265,7 @@ int Certifier::handle_certifier_data(
     mysql_mutex_unlock(&LOCK_members);                /* purecov: inspected */
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   if (same_member_message_discarded) {
     /*
       Clearing the flag here as the members vector is not cleaned above.
@@ -1360,7 +1360,7 @@ int Certifier::stable_set_handle() {
     error = 1;                                       /* purecov: inspected */
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *executed_set_string;
   executed_set.to_string(&executed_set_string);
   DBUG_PRINT("info", ("Certifier stable_set_handle: executed_set: %s",
@@ -1385,7 +1385,7 @@ void Certifier::get_certification_info(
   for (Certification_info::iterator it = certification_info.begin();
        it != certification_info.end(); ++it) {
     std::string key = it->first;
-    DBUG_ASSERT(key.compare(GTID_EXTRACTED_NAME) != 0);
+    assert(key.compare(GTID_EXTRACTED_NAME) != 0);
 
     size_t len = it->second->get_encoded_length();
     uchar *buf = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, len, MYF(0));
@@ -1414,10 +1414,8 @@ rpl_gno Certifier::generate_view_change_group_gno() {
   mysql_mutex_lock(&LOCK_certification_info);
   rpl_gno result = get_group_next_available_gtid(nullptr);
 
-  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_5",
-                  DBUG_ASSERT(result == 5););
-  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_7",
-                  DBUG_ASSERT(result == 7););
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_5", assert(result == 5););
+  DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_7", assert(result == 7););
 
   if (result > 0)
     add_to_group_gtid_executed_internal(group_gtid_sid_map_group_sidno, result,
@@ -1430,7 +1428,7 @@ rpl_gno Certifier::generate_view_change_group_gno() {
 int Certifier::set_certification_info(
     std::map<std::string, std::string> *cert_info) {
   DBUG_TRACE;
-  DBUG_ASSERT(cert_info != nullptr);
+  assert(cert_info != nullptr);
 
   if (cert_info->size() == 1) {
     std::map<std::string, std::string>::iterator it =
@@ -1494,7 +1492,7 @@ int Certifier::set_certification_info(
     certifying_already_applied_transactions = true;
     compute_group_available_gtid_intervals();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char *group_gtid_executed_string = nullptr;
     char *group_gtid_extracted_string = nullptr;
     group_gtid_executed->to_string(&group_gtid_executed_string, true);
@@ -1588,7 +1586,7 @@ void Certifier::enable_conflict_detection() {
 
 void Certifier::disable_conflict_detection() {
   DBUG_TRACE;
-  DBUG_ASSERT(local_member_info->in_primary_mode());
+  assert(local_member_info->in_primary_mode());
 
   mysql_mutex_lock(&LOCK_certification_info);
   conflict_detection_enable = false;

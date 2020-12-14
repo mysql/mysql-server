@@ -24,6 +24,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstdint>  // uint32_t
@@ -31,7 +32,7 @@
 #include "lex_string.h"
 #include "libbinlogevents/include/uuid.h"  // Uuid
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "my_table_map.h"
@@ -703,7 +704,7 @@ class Item_func_make_set final : public Item_str_func {
   bool itemize(Parse_context *pc, Item **res) override;
   String *val_str(String *str) override;
   bool fix_fields(THD *thd, Item **ref) override {
-    DBUG_ASSERT(fixed == 0);
+    assert(fixed == 0);
     bool res = ((!item->fixed && item->fix_fields(thd, &item)) ||
                 item->check_cols(1) || Item_func::fix_fields(thd, ref));
     set_nullable(is_nullable() | item->is_nullable());
@@ -887,7 +888,7 @@ class Item_func_unhex final : public Item_str_func {
   bool resolve_type(THD *thd) override;
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 class Item_func_like_range : public Item_str_func {
  protected:
   String min_str;
@@ -1023,7 +1024,7 @@ class Item_func_conv_charset final : public Item_str_func {
   Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const)
       : Item_str_func(a) {
-    DBUG_ASSERT(args[0]->fixed);
+    assert(args[0]->fixed);
 
     conv_charset = cs;
     if (cache_if_const && args[0]->may_evaluate_const(thd)) {

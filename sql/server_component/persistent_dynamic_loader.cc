@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stdarg.h>
 #include <string.h>
 #include <sys/types.h>
@@ -37,7 +38,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -115,7 +116,7 @@ class Component_db_intact : public Table_check_intact {
         log_ecode = ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2;
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return;
     }
 
@@ -291,7 +292,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
 
     /* res is guaranteed to be != 0, -1 means end of records encountered, which
       is interpreted as a success. */
-    DBUG_ASSERT(res != 0);
+    assert(res != 0);
     if (res != -1) {
       return true;
     }
@@ -488,7 +489,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       close_mysql_tables(thd);
     });
 
-    DBUG_ASSERT(component_table->key_info != nullptr);
+    assert(component_table->key_info != nullptr);
 
     for (int i = 0; i < component_count; ++i) {
       /* Find component ID used in component table using memory mapping. */

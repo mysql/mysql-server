@@ -511,7 +511,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
       }
 
       else if (throw_error) {
-        DBUG_ASSERT(thd);
+        assert(thd);
         push_warning_printf(
             thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
             "%s is not a valid system variable and will be ignored.", token);
@@ -716,7 +716,7 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf) {
 
 void Session_sysvars_tracker::mark_as_changed(THD *thd,
                                               LEX_CSTRING *tracked_item_name) {
-  DBUG_ASSERT(tracked_item_name->str);
+  assert(tracked_item_name->str);
   sysvar_node_st *node = nullptr;
   LEX_CSTRING tmp;
   tmp.str = tracked_item_name->str;

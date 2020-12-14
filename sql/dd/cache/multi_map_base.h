@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,7 +178,7 @@ class Multi_map_base {
 
   /* purecov: begin inspected */
   void dump() const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     fprintf(stderr, "    Reverse element map:\n");
     m_map<const T *>()->dump();
     fprintf(stderr, "    Id map:\n");

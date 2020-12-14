@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@
 
 void ndb_log_print(enum ndb_log_loglevel loglevel, const char *prefix,
                    const char *fmt, va_list args) {
-  DBUG_ASSERT(fmt);
+  assert(fmt);
 
   int prio;
 
@@ -137,7 +137,7 @@ static void ndb_log_detect_prefix(const char *fmt, const char **prefix,
     // Used subsystem prefix not in allowed list, caller should
     // fix by using one of the allowed subsystem prefixes or switching
     // over to use the Ndb_component log functions.
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   // Check if string starts with prefix "NDB", this prefix is redundant
@@ -145,7 +145,7 @@ static void ndb_log_detect_prefix(const char *fmt, const char **prefix,
   // using a subsystem prefix it will be "NDB <subsystem>:").
   // Crash in debug compile, caller should fix by removing prefix "NDB"
   // from the printout
-  DBUG_ASSERT(strncmp(fmt, "NDB", 3) != 0);
+  assert(strncmp(fmt, "NDB", 3) != 0);
 
   // Format string specifier accepted as is and no prefix was used
   // this would be the default case

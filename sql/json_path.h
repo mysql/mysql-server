@@ -1,7 +1,7 @@
 #ifndef SQL_JSON_PATH_INCLUDED
 #define SQL_JSON_PATH_INCLUDED
 
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
   attached to WL#7909.
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <algorithm>
 #include <new>
@@ -38,7 +39,7 @@
 #include <utility>
 
 #include "my_alloc.h"  // MEM_ROOT
-#include "my_dbug.h"   // DBUG_ASSERT
+                       // assert
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -171,8 +172,8 @@ class Json_path_leg final {
   */
   explicit Json_path_leg(enum_json_path_leg_type leg_type)
       : m_leg_type(leg_type) {
-    DBUG_ASSERT(leg_type == jpl_ellipsis || leg_type == jpl_member_wildcard ||
-                leg_type == jpl_array_cell_wildcard);
+    assert(leg_type == jpl_ellipsis || leg_type == jpl_member_wildcard ||
+           leg_type == jpl_array_cell_wildcard);
   }
 
   /**
@@ -255,7 +256,7 @@ class Json_path_leg final {
     @param array_length the length of the array
   */
   Json_array_index first_array_index(size_t array_length) const {
-    DBUG_ASSERT(m_leg_type == jpl_array_cell || m_leg_type == jpl_array_range);
+    assert(m_leg_type == jpl_array_cell || m_leg_type == jpl_array_range);
     return Json_array_index(m_first_array_index, m_first_array_index_from_end,
                             array_length);
   }
@@ -267,7 +268,7 @@ class Json_path_leg final {
     @param array_length the length of the array
   */
   Json_array_index last_array_index(size_t array_length) const {
-    DBUG_ASSERT(m_leg_type == jpl_array_range);
+    assert(m_leg_type == jpl_array_range);
     return Json_array_index(m_last_array_index, m_last_array_index_from_end,
                             array_length);
   }

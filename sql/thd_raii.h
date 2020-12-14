@@ -60,8 +60,8 @@ class Disable_autocommit_guard {
         We can't disable auto-commit if there is ongoing transaction as this
         might easily break statement/session transaction invariants.
       */
-      DBUG_ASSERT(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-                  m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
+      assert(m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+             m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION));
 
       m_thd->variables.option_bits &= ~OPTION_AUTOCOMMIT;
       m_thd->variables.option_bits |= OPTION_NOT_AUTOCOMMIT;
@@ -75,11 +75,10 @@ class Disable_autocommit_guard {
         time when we enable auto-commit mode back OR there must be a
         transactional DDL being executed.
       */
-      DBUG_ASSERT(
-          ((m_thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-            m_thd->lex->create_info->m_transactional_ddl) ||
-           (m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
-            m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION))));
+      assert(((m_thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+               m_thd->lex->create_info->m_transactional_ddl) ||
+              (m_thd->get_transaction()->is_empty(Transaction_ctx::STMT) &&
+               m_thd->get_transaction()->is_empty(Transaction_ctx::SESSION))));
       m_thd->variables.option_bits = m_save_option_bits;
     }
   }
@@ -217,7 +216,7 @@ class Save_and_Restore_binlog_format_state {
   }
 
   ~Save_and_Restore_binlog_format_state() {
-    DBUG_ASSERT(!m_thd->is_current_stmt_binlog_format_row());
+    assert(!m_thd->is_current_stmt_binlog_format_row());
     m_thd->variables.binlog_format = m_global_binlog_format;
     if (m_current_stmt_binlog_format == BINLOG_FORMAT_ROW)
       m_thd->set_current_stmt_binlog_format_row();

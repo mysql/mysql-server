@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,10 @@
 
 #include "sql/trigger_creation_ctx.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <atomic>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
@@ -90,7 +90,7 @@ Trigger_creation_ctx *Trigger_creation_ctx::create(
   */
 
   if (db_cl == nullptr && get_default_db_collation(thd, db_name.str, &db_cl)) {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    assert(thd->is_error() || thd->killed);
     return nullptr;
   }
 

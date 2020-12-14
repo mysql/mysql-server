@@ -22,6 +22,7 @@
 
 #include "unittest/gunit/test_utils.h"
 
+#include <assert.h>
 #include <gtest/gtest.h>
 #include <atomic>
 #include <new>
@@ -31,7 +32,7 @@
 #include "gtest/gtest-message.h"
 #include "m_ctype.h"
 #include "m_string.h"
-#include "my_dbug.h"  // DBUG_ASSERT
+// assert
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"
@@ -187,11 +188,11 @@ void DD_initializer::SetUp() {
     be future test cases that need the same.
   */
   dd::Dictionary_impl::s_instance = new (std::nothrow) dd::Dictionary_impl();
-  DBUG_ASSERT(dd::Dictionary_impl::s_instance != nullptr);
+  assert(dd::Dictionary_impl::s_instance != nullptr);
 }
 
 void DD_initializer::TearDown() {
-  DBUG_ASSERT(dd::Dictionary_impl::s_instance != nullptr);
+  assert(dd::Dictionary_impl::s_instance != nullptr);
   delete dd::Dictionary_impl::s_instance;
 }
 

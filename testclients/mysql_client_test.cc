@@ -12577,7 +12577,7 @@ static void test_bug9520() {
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   if (!opt_silent) printf("Fetched %d rows\n", row_count);
-  DBUG_ASSERT(row_count == 3);
+  assert(row_count == 3);
 
   mysql_stmt_close(stmt);
 
@@ -17767,7 +17767,7 @@ static void test_bug49972() {
 
     rc = mysql_stmt_fetch(stmt);
     rc = mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);
@@ -17795,7 +17795,7 @@ static void test_bug49972() {
 
     rc = mysql_stmt_fetch(stmt);
     rc = mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);

@@ -161,7 +161,7 @@ class CSET_STRING {
   CSET_STRING(const char *str_arg, size_t length_arg,
               const CHARSET_INFO *cs_arg)
       : cs(cs_arg) {
-    DBUG_ASSERT(cs_arg != nullptr);
+    assert(cs_arg != nullptr);
     string.str = str_arg;
     string.length = length_arg;
   }
@@ -602,7 +602,7 @@ bool Sql_cmd_show_routine_code::check_privileges(THD *) {
 }
 
 bool Sql_cmd_show_routine_code::execute_inner(THD *thd) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   enum_sp_type sp_type = m_sql_command == SQLCOM_SHOW_PROC_CODE
                              ? enum_sp_type::PROCEDURE
                              : enum_sp_type::FUNCTION;
@@ -623,7 +623,7 @@ bool Sql_cmd_show_routine_code::execute_inner(THD *thd) {
   my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROCEDURE|FUNCTION CODE",
            "--with-debug");
   return true;
-#endif  // ifndef DBUG_OFF
+#endif  // ifndef NDEBUG
 }
 
 bool Sql_cmd_show_replicas::check_privileges(THD *thd) {
@@ -710,7 +710,7 @@ bool Sql_cmd_show_table_base::check_parameters(THD *thd) {
       lock and deadlocks can occur due to waiting for it to go away.
       So instead of waiting skip this table with an appropriate warning.
     */
-    DBUG_ASSERT(can_deadlock);
+    assert(can_deadlock);
     my_error(ER_WARN_I_S_SKIPPED_TABLE, MYF(0), dst_table->db,
              dst_table->table_name);
     return true;
@@ -812,7 +812,7 @@ static bool show_plugins(THD *thd, plugin_ref plugin, void *arg) {
       table->field[2]->store(STRING_WITH_LEN("DISABLED"), cs);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   table->field[3]->store(plugin_type_names[plug->type].str,
@@ -1294,7 +1294,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     }
 
     if (get_default_db_collation(*schema, &create.default_table_charset)) {
-      DBUG_ASSERT(thd->is_error() || thd->killed);
+      assert(thd->is_error() || thd->killed);
       return true;
     }
 
@@ -1624,7 +1624,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   @return                  false on success, true on error.
 */
 static bool print_on_update_clause(Field *field, String *val, bool lcase) {
-  DBUG_ASSERT(val->charset()->mbminlen == 1);
+  assert(val->charset()->mbminlen == 1);
   val->length(0);
   if (field->has_update_default_datetime_value_expression()) {
     if (lcase)
@@ -1807,7 +1807,7 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
         packet->append(STRING_WITH_LEN(" ON DELETE SET DEFAULT"));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         break;
     }
     switch (fk->update_rule()) {
@@ -1828,7 +1828,7 @@ static void print_foreign_key_info(THD *thd, const LEX_CSTRING *db,
         packet->append(STRING_WITH_LEN(" ON UPDATE SET DEFAULT"));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         break;
     }
   }
@@ -2037,7 +2037,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         packet->append(STRING_WITH_LEN(" /*!50606 STORAGE MEMORY */"));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         break;
     }
 
@@ -2051,7 +2051,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         packet->append(STRING_WITH_LEN(" /*!50606 COLUMN_FORMAT DYNAMIC */"));
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
         break;
     }
 
@@ -2129,7 +2129,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         // If this fields represents a functional index, print the expression
         // instead of the column name.
         if (key_part->field->is_field_for_functional_index()) {
-          DBUG_ASSERT(key_part->field->gcol_info);
+          assert(key_part->field->gcol_info);
 
           StringBuffer<STRING_BUFFER_USUAL_SIZE> s;
           s.set_charset(system_charset_info);
@@ -2249,7 +2249,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (autoextend_size > 0) {
       char buf[std::numeric_limits<decltype(autoextend_size)>::digits10 + 2];
       int len = snprintf(buf, sizeof(buf), "%llu", autoextend_size);
-      DBUG_ASSERT(len < static_cast<int>(sizeof(buf)));
+      assert(len < static_cast<int>(sizeof(buf)));
       packet->append(STRING_WITH_LEN(" /*!80023 AUTOEXTEND_SIZE="));
       packet->append(buf, len);
       packet->append(STRING_WITH_LEN(" */"));
@@ -2485,7 +2485,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
 
       if (key_info->algorithm == HA_KEY_ALG_RTREE) {
         /* We should send USING only in non-default case: non-spatial rtree. */
-        DBUG_ASSERT(!(key_info->flags & HA_SPATIAL));
+        assert(!(key_info->flags & HA_SPATIAL));
         packet->append(STRING_WITH_LEN(" USING RTREE"));
       }
     }
@@ -2496,8 +2496,8 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end = longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint)(end - buff));
     }
-    DBUG_ASSERT(((key_info->flags & HA_USES_COMMENT) != 0) ==
-                (key_info->comment.length > 0));
+    assert(((key_info->flags & HA_USES_COMMENT) != 0) ==
+           (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT) {
       packet->append(STRING_WITH_LEN(" COMMENT "));
       append_unescaped(packet, key_info->comment.str, key_info->comment.length);
@@ -2549,7 +2549,7 @@ static void append_algorithm(TABLE_LIST *table, String *buff) {
       buff->append(STRING_WITH_LEN("MERGE "));
       break;
     default:
-      DBUG_ASSERT(0);  // never should happen
+      assert(0);  // never should happen
   }
 }
 
@@ -3436,14 +3436,14 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_SYS: /* Cannot happen */
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
 
   *length = (size_t)(end - pos);
   /* Some callers do not use the result. */
   if (charset != nullptr) {
-    DBUG_ASSERT(value_charset != nullptr);
+    assert(value_charset != nullptr);
     *charset = value_charset;
   }
   return pos;
@@ -3574,9 +3574,9 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
     This code is now only used for SHOW statements for temporary tables
     and not for any I_S queries.
   */
-  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_KEYS ||
-              thd->lex->sql_command == SQLCOM_SHOW_FIELDS);
-  DBUG_ASSERT(lsel && lsel->table_list.first);
+  assert(thd->lex->sql_command == SQLCOM_SHOW_KEYS ||
+         thd->lex->sql_command == SQLCOM_SHOW_FIELDS);
+  assert(lsel && lsel->table_list.first);
 
   /*
     In cases when SELECT from I_S table being filled by this call is
@@ -3661,7 +3661,7 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
     goto end;
 
   table_list = lex->query_block->table_list.first;
-  DBUG_ASSERT(!table_list->is_view_or_derived());
+  assert(!table_list->is_view_or_derived());
 
   /*
     Restore thd->temporary_tables to be able to process
@@ -3702,7 +3702,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  DBUG_ASSERT(i_s_arena.item_list() == nullptr);
+  assert(i_s_arena.item_list() == nullptr);
   thd->free_items();
 
   /*
@@ -3740,7 +3740,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
                                                LEX_CSTRING table_name) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_FIELDS);
+  assert(thd->lex->sql_command == SQLCOM_SHOW_FIELDS);
 
   if (res) return res;
 
@@ -3955,7 +3955,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
                                             LEX_CSTRING table_name) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_KEYS);
+  assert(thd->lex->sql_command == SQLCOM_SHOW_KEYS);
 
   if (res) return res;
 
@@ -4039,7 +4039,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
             str = "FULLTEXT";
             break;
           default:
-            DBUG_ASSERT(0);
+            assert(0);
             str = "";
         }
       }
@@ -4072,8 +4072,8 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       table->field[TMP_TABLE_KEYS_COMMENT]->set_notnull();
 
       // INDEX_COMMENT
-      DBUG_ASSERT(((key_info->flags & HA_USES_COMMENT) != 0) ==
-                  (key_info->comment.length > 0));
+      assert(((key_info->flags & HA_USES_COMMENT) != 0) ==
+             (key_info->comment.length > 0));
       if (key_info->flags & HA_USES_COMMENT)
         table->field[TMP_TABLE_KEYS_INDEX_COMMENT]->store(
             key_info->comment.str, key_info->comment.length, cs);
@@ -4327,7 +4327,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
       default:
         /* Don't let unimplemented types pass through. Could be a grave error.
          */
-        DBUG_ASSERT(fields_info->field_type == MYSQL_TYPE_STRING);
+        assert(fields_info->field_type == MYSQL_TYPE_STRING);
 
         if (!(item =
                   new Item_empty_string("", fields_info->field_length, cs))) {
@@ -4686,7 +4686,7 @@ bool get_schema_tables_result(JOIN *join,
       } else
         table_list->table->file->stats.records = 0;
 
-      DBUG_ASSERT(tab->condition() == tab->condition_optim());
+      assert(tab->condition() == tab->condition_optim());
 
       if (do_fill_information_schema_table(thd, table_list, tab->condition())) {
         result = true;

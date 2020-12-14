@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ static MYSQL_THDVAR_ENUM(
     nullptr, nullptr, MI_STATS_METHOD_NULLS_NOT_EQUAL,
     &myisam_stats_method_typelib);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Causes the thread to wait in a spin lock for a query kill signal.
   This function is used by the test frame work to identify race conditions.
@@ -272,11 +272,10 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
   for (i = 0; i < share->keys; i++, pos++) {
     keydef[i].flag =
         ((uint16)pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
-    DBUG_ASSERT(pos->algorithm != HA_KEY_ALG_SE_SPECIFIC);
-    DBUG_ASSERT(!(pos->flags & HA_SPATIAL) ||
-                pos->algorithm == HA_KEY_ALG_RTREE);
-    DBUG_ASSERT(!(pos->flags & HA_FULLTEXT) ||
-                pos->algorithm == HA_KEY_ALG_FULLTEXT);
+    assert(pos->algorithm != HA_KEY_ALG_SE_SPECIFIC);
+    assert(!(pos->flags & HA_SPATIAL) || pos->algorithm == HA_KEY_ALG_RTREE);
+    assert(!(pos->flags & HA_FULLTEXT) ||
+           pos->algorithm == HA_KEY_ALG_FULLTEXT);
     keydef[i].key_alg = pos->algorithm;
     keydef[i].block_length = pos->block_size;
     keydef[i].seg = keyseg;
@@ -1547,7 +1546,7 @@ int ha_myisam::rnd_end() {
 int ha_myisam::index_read_map(uchar *buf, const uchar *key,
                               key_part_map keypart_map,
                               enum ha_rkey_function find_flag) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error = mi_rkey(file, buf, active_index, key, keypart_map, find_flag);
   return error;
@@ -1556,8 +1555,8 @@ int ha_myisam::index_read_map(uchar *buf, const uchar *key,
 int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
                                   key_part_map keypart_map,
                                   enum ha_rkey_function find_flag) {
-  DBUG_ASSERT(pushed_idx_cond == nullptr);
-  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
+  assert(pushed_idx_cond == nullptr);
+  assert(pushed_idx_cond_keyno == MAX_KEY);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error = mi_rkey(file, buf, index, key, keypart_map, find_flag);
   return error;
@@ -1566,7 +1565,7 @@ int ha_myisam::index_read_idx_map(uchar *buf, uint index, const uchar *key,
 int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
                                    key_part_map keypart_map) {
   DBUG_TRACE;
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_key_count);
   int error =
       mi_rkey(file, buf, active_index, key, keypart_map, HA_READ_PREFIX_LAST);
@@ -1574,28 +1573,28 @@ int ha_myisam::index_read_last_map(uchar *buf, const uchar *key,
 }
 
 int ha_myisam::index_next(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   int error = mi_rnext(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_prev(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_prev_count);
   int error = mi_rprev(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_first(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_first_count);
   int error = mi_rfirst(file, buf, active_index);
   return error;
 }
 
 int ha_myisam::index_last(uchar *buf) {
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_last_count);
   int error = mi_rlast(file, buf, active_index);
   return error;
@@ -1605,7 +1604,7 @@ int ha_myisam::index_next_same(uchar *buf,
                                const uchar *key MY_ATTRIBUTE((unused)),
                                uint length MY_ATTRIBUTE((unused))) {
   int error;
-  DBUG_ASSERT(inited == INDEX);
+  assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   do {
     error = mi_rnext_same(file, buf);
@@ -1714,8 +1713,8 @@ int ha_myisam::extra(enum ha_extra_function operation) {
 
 int ha_myisam::reset(void) {
   /* Reset MyISAM specific part for index condition pushdown */
-  DBUG_ASSERT(pushed_idx_cond == nullptr);
-  DBUG_ASSERT(pushed_idx_cond_keyno == MAX_KEY);
+  assert(pushed_idx_cond == nullptr);
+  assert(pushed_idx_cond_keyno == MAX_KEY);
   mi_set_index_cond_func(file, nullptr, nullptr);
   ds_mrr.reset();
   return mi_reset(file);

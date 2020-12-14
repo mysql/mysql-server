@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 // Implements the functions declared in ndb_dd_fk.h
 #include "storage/ndb/plugin/ndb_dd_fk.h"
 
+#include "my_dbug.h"
 #include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
 #include "sql/dd/types/foreign_key_element.h"  // dd::Foreign_key_element
 #include "sql/dd/types/table.h"                // dd::Table
@@ -60,7 +61,7 @@ bool ndb_dd_fk_set_values_from_ndb(dd::Foreign_key *fk_def,
     std::string parent_index_name(ndb_fk.getParentIndex());
     std::string::size_type begin = parent_index_name.rfind('/') + 1;
     std::string::size_type end = parent_index_name.find("$unique");
-    DBUG_ASSERT(parent_index_name.substr(end).compare("$unique") == 0);
+    assert(parent_index_name.substr(end).compare("$unique") == 0);
 
     fk_def->set_unique_constraint_name(
         parent_index_name.substr(begin, end - begin).c_str());
@@ -73,21 +74,21 @@ bool ndb_dd_fk_set_values_from_ndb(dd::Foreign_key *fk_def,
 
     // Set the column foreign key is based on
     int child_col_num = ndb_fk.getChildColumnNo(i);
-    DBUG_ASSERT(child_col_num >= 0);
+    assert(child_col_num >= 0);
     const NdbDictionary::Column *ndb_child_col =
         ndb_child_table->getColumn(child_col_num);
-    DBUG_ASSERT(ndb_child_col != nullptr);
+    assert(ndb_child_col != nullptr);
     const dd::Column *dd_child_col =
         dd_child_table->get_column(ndb_child_col->getName());
-    DBUG_ASSERT(dd_child_col != nullptr);
+    assert(dd_child_col != nullptr);
     fk_col_def->set_column(dd_child_col);
 
     // Set the referencing column
     int parent_col_num = ndb_fk.getParentColumnNo(i);
-    DBUG_ASSERT(parent_col_num >= 0);
+    assert(parent_col_num >= 0);
     const NdbDictionary::Column *ndb_parent_col =
         ndb_parent_table->getColumn(parent_col_num);
-    DBUG_ASSERT(ndb_parent_col != nullptr);
+    assert(ndb_parent_col != nullptr);
     fk_col_def->referenced_column_name(ndb_parent_col->getName());
   }
 
@@ -112,7 +113,7 @@ bool ndb_dd_fk_set_values_from_ndb(dd::Foreign_key *fk_def,
       fk_def->set_update_rule(dd::Foreign_key::RULE_SET_DEFAULT);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
   }
 
@@ -134,7 +135,7 @@ bool ndb_dd_fk_set_values_from_ndb(dd::Foreign_key *fk_def,
       fk_def->set_delete_rule(dd::Foreign_key::RULE_SET_DEFAULT);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
   }
 

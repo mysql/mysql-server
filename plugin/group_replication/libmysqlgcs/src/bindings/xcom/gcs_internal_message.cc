@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ Gcs_packet::Gcs_packet(
       m_serialized_stage_metadata_size(0),
       m_delivery_synode() {
   auto const nr_stages = m_dynamic_headers.size();
-  DBUG_ASSERT(nr_stages == m_stage_metadata.size());
+  assert(nr_stages == m_stage_metadata.size());
 
   /* Calculate the size of the stage metadata. */
   for (auto const &metadata : m_stage_metadata) {
@@ -263,7 +263,7 @@ unsigned long long const &Gcs_packet::get_payload_length() const {
 }
 
 bool Gcs_packet::allocate_serialization_buffer() {
-  DBUG_ASSERT(m_serialized_payload_size > 0);
+  assert(m_serialized_payload_size > 0);
 
   bool error = true;
 
@@ -282,7 +282,7 @@ bool Gcs_packet::allocate_serialization_buffer() {
 }
 
 std::pair<Gcs_packet::buffer_ptr, unsigned long long> Gcs_packet::serialize() {
-  DBUG_ASSERT(m_serialized_packet.get() != nullptr);
+  assert(m_serialized_packet.get() != nullptr);
 
   // Serialize the headers.
   unsigned char *slider = m_serialized_packet.get();

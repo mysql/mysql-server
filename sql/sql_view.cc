@@ -440,7 +440,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   /* This is ensured in the parser. */
-  DBUG_ASSERT(!lex->result && !lex->param_list.elements);
+  assert(!lex->result && !lex->param_list.elements);
 
   /*
     We can't allow taking exclusive meta-data locks of unlocked view under
@@ -648,7 +648,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     uint final_priv = VIEW_ANY_ACL;
 
     for (sl = query_block; sl; sl = sl->next_query_block()) {
-      DBUG_ASSERT(view->db); /* Must be set in the parser */
+      assert(view->db); /* Must be set in the parser */
       for (Item *item : sl->visible_fields()) {
         Item_field *fld = item->field_for_view_update();
         uint priv = (get_column_grant(thd, &view->grant, view->db,
@@ -1018,7 +1018,7 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
                                                    &new_view))
       return true;
 
-    DBUG_ASSERT(new_view != nullptr);
+    assert(new_view != nullptr);
 
     return dd::update_view(thd, new_view, view);
   }
@@ -1118,7 +1118,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
   view_ref->definer.user.str = view_ref->definer.host.str = nullptr;
   view_ref->definer.user.length = view_ref->definer.host.length = 0;
 
-  DBUG_ASSERT(share->view_object);
+  assert(share->view_object);
 
   // Read view details from the view object.
   if (dd::read_view(view_ref, *share->view_object, thd->mem_root))
@@ -1126,8 +1126,8 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
 
   // Check old format view.
   if (!view_ref->definer.user.str) {
-    DBUG_ASSERT(!view_ref->definer.host.str && !view_ref->definer.user.length &&
-                !view_ref->definer.host.length);
+    assert(!view_ref->definer.host.str && !view_ref->definer.user.length &&
+           !view_ref->definer.host.length);
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_VIEW_FRM_NO_USER,
                         ER_THD(thd, ER_VIEW_FRM_NO_USER), view_ref->db,
                         view_ref->table_name);
@@ -1358,7 +1358,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     view_no_suid.db = view_ref->db;
     view_no_suid.table_name = view_ref->table_name;
 
-    DBUG_ASSERT(view_tables == nullptr || view_tables->security_ctx == nullptr);
+    assert(view_tables == nullptr || view_tables->security_ctx == nullptr);
 
     if (check_table_access(thd, SELECT_ACL, view_tables, false, UINT_MAX,
                            true) ||
@@ -1565,7 +1565,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
       objects of the view.
     */
     try {
-      DBUG_ASSERT(thd->stmt_arena->mem_root);
+      assert(thd->stmt_arena->mem_root);
       view_ref->view_sctx = new (thd->stmt_arena->mem_root) Security_context();
       if (view_ref->view_sctx == nullptr) return true;
     } catch (...) {
@@ -1587,7 +1587,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
 
   // Assign the context to the tables referenced in the view
   if (view_tables) {
-    DBUG_ASSERT(view_tables_tail);
+    assert(view_tables_tail);
     for (TABLE_LIST *tbl = view_tables; tbl != view_tables_tail->next_global;
          tbl = tbl->next_global)
       tbl->security_ctx = security_ctx;
@@ -1613,7 +1613,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   view_query_block->linkage = DERIVED_TABLE_TYPE;
 
   // Updatability is not decided yet
-  DBUG_ASSERT(!view_ref->is_updatable());
+  assert(!view_ref->is_updatable());
 
   // Link query expression of view into the outer query
   view_lex->unit->include_down(old_lex, view_ref->query_block);
@@ -1632,7 +1632,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
 
   view_ref->derived_key_list.clear();
 
-  DBUG_ASSERT(view_lex == thd->lex);
+  assert(view_lex == thd->lex);
   thd->lex = old_lex;  // Needed for prepare_security
 
   result = view_ref->prepare_security(thd);
@@ -1646,7 +1646,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
       tables at view creation time. And these privileges might have been
       revoked from user since then in any case.
     */
-    DBUG_ASSERT(view_tables_tail);
+    assert(view_tables_tail);
     for (TABLE_LIST *tbl = view_tables; tbl != view_tables_tail->next_global;
          tbl = tbl->next_global) {
       bool fake_lock_tables_acl;
@@ -1669,8 +1669,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
              populated by special hook, we do not acquire metadata
              locks or do normal open at all.
         */
-        DBUG_ASSERT(tbl->is_system_view || belongs_to_p_s(tbl) ||
-                    tbl->schema_table);
+        assert(tbl->is_system_view || belongs_to_p_s(tbl) || tbl->schema_table);
         tbl->mdl_request.set_type(MDL_SHARED_READ);
         /*
           We must override thr_lock_type (which can be a write type) as
@@ -1795,15 +1794,15 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views) {
     }
 
     if (at == nullptr) {
-      DBUG_ASSERT(thd->lex->drop_if_exists);
+      assert(thd->lex->drop_if_exists);
       continue;  // Warning reported above.
     }
 
-    DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW ||
-                at->type() == dd::enum_table_type::USER_VIEW);
+    assert(at->type() == dd::enum_table_type::SYSTEM_VIEW ||
+           at->type() == dd::enum_table_type::USER_VIEW);
 
     const dd::View *vw = dynamic_cast<const dd::View *>(at);
-    DBUG_ASSERT(vw);
+    assert(vw);
     /*
       If definer has the SYSTEM_USER privilege then invoker can drop view
       only if latter also has same privilege.

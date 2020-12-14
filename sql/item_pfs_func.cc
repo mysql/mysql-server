@@ -29,12 +29,13 @@
 
 #include "sql/item_pfs_func.h"
 
+#include <assert.h>
 #include <cstdint>  // uint64_t
 #include <cstdio>
 #include <cstdlib>  // abs
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/components/services/psi_thread_bits.h"
@@ -70,7 +71,7 @@ bool Item_func_pfs_current_thread_id::fix_fields(THD *thd, Item **ref) {
 }
 
 longlong Item_func_pfs_current_thread_id::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   /* Verify Performance Schema available. */
   if (!pfs_enabled) {
     my_printf_error(ER_WRONG_PERFSCHEMA_USAGE,
@@ -105,7 +106,7 @@ bool Item_func_pfs_thread_id::resolve_type(THD *) {
 }
 
 longlong Item_func_pfs_thread_id::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   /* Verify Performance Schema available. */
   if (!pfs_enabled) {

@@ -27,6 +27,7 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -34,7 +35,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
@@ -285,7 +286,7 @@ class Opt_hints {
   */
   virtual PT_hint *get_complex_hints(
       opt_hints_enum type MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr; /* error C4716: must return a value */
   }
 
@@ -619,7 +620,7 @@ class Opt_hints_table : public Opt_hints {
     if (type_arg == JOIN_INDEX_HINT_ENUM) return &join_index;
     if (type_arg == GROUP_INDEX_HINT_ENUM) return &group_index;
     if (type_arg == ORDER_INDEX_HINT_ENUM) return &order_index;
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr;
   }
 

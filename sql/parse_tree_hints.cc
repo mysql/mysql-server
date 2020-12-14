@@ -22,6 +22,7 @@
 
 #include "sql/parse_tree_hints.h"
 
+#include <assert.h>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -30,7 +31,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_sqlcommand.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
@@ -269,7 +270,7 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc) {
         pc->select->add_base_options(SELECT_STRAIGHT_JOIN);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   if (conflict ||
@@ -312,7 +313,7 @@ void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
           str->append(STRING_WITH_LEN(" INTOEXISTS"));
           break;
         default:  // Exactly one of above strategies should always be specified
-          DBUG_ASSERT(false);
+          assert(false);
       }
       break;
     case JOIN_PREFIX_HINT_ENUM:
@@ -328,7 +329,7 @@ void PT_qb_level_hint::append_args(const THD *thd, String *str) const {
     case JOIN_FIXED_ORDER_HINT_ENUM:
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
 
@@ -476,7 +477,7 @@ bool PT_hint_qb_name::contextualize(Parse_context *pc) {
 
   Opt_hints_qb *qb = pc->select->opt_hints_qb;
 
-  DBUG_ASSERT(qb);
+  assert(qb);
 
   if (qb->get_name() ||                         // QB name is already set
       qb->get_parent()->find_by_name(&qb_name,  // Name is already used

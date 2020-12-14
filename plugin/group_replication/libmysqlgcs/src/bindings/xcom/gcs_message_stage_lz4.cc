@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,8 +153,8 @@ Gcs_message_stage_lz4::revert_transformation(Gcs_packet &&packet) {
         static_cast<unsigned long long>(original_payload_length),
         static_cast<unsigned long long>(uncompressed_len))
 
-    DBUG_ASSERT(static_cast<unsigned long long>(uncompressed_len) ==
-                expected_new_payload_length);
+    assert(static_cast<unsigned long long>(uncompressed_len) ==
+           expected_new_payload_length);
   }
 
   result = std::make_pair(Gcs_pipeline_incoming_result::OK_PACKET,

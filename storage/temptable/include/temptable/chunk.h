@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -27,11 +27,10 @@ chunks.*/
 #ifndef TEMPTABLE_CHUNK_H
 #define TEMPTABLE_CHUNK_H
 
+#include <assert.h>
 #include <cstddef>      // size_t
 #include <cstdint>      // uint8_t, uintptr_t
 #include <type_traits>  // std::alignment_of
-
-#include "my_dbug.h"
 
 namespace temptable {
 
@@ -136,16 +135,16 @@ class Chunk {
 inline Chunk::Chunk(void *data) noexcept
     : m_offset(reinterpret_cast<uint8_t *>(data) -
                sizeof(Chunk::metadata_type)) {
-  DBUG_ASSERT(reinterpret_cast<Chunk::metadata_type>(m_offset) %
-                  alignof(Chunk::metadata_type) ==
-              0);
+  assert(reinterpret_cast<Chunk::metadata_type>(m_offset) %
+             alignof(Chunk::metadata_type) ==
+         0);
 }
 
 inline Chunk::Chunk(uint8_t *offset, size_t new_offset) noexcept
     : m_offset(offset) {
-  DBUG_ASSERT(reinterpret_cast<Chunk::metadata_type>(m_offset) %
-                  alignof(Chunk::metadata_type) ==
-              0);
+  assert(reinterpret_cast<Chunk::metadata_type>(m_offset) %
+             alignof(Chunk::metadata_type) ==
+         0);
   *chunk_offset_ptr(m_offset) = new_offset;
 }
 

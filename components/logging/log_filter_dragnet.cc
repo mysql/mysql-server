@@ -451,7 +451,7 @@ static log_filter_result log_filter_rule_dump(log_filter_rule *rule,
   int verb;
   const log_filter_xlate_key *token;
 
-  DBUG_ASSERT(out_buf != nullptr);
+  assert(out_buf != nullptr);
 
   out_buf[0] = '\0';
 
@@ -778,7 +778,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
   bool is_symbol = false;
 
   // sanity check
-  DBUG_ASSERT(!(li->alloc & LOG_ITEM_FREE_VALUE));
+  assert(!(li->alloc & LOG_ITEM_FREE_VALUE));
   if (li->alloc & LOG_ITEM_FREE_VALUE) {
     log_bs->free(const_cast<char *>(li->data.data_string.str));
     li->data.data_string.str = nullptr;
@@ -868,7 +868,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
     if ((val = log_bs->strndup(*token + 1, val_len)) == nullptr)
       return SET_ARG_OOM; /* purecov: inspected */
 
-    DBUG_ASSERT(val_len > 0);
+    assert(val_len > 0);
     val[--val_len] = '\0';  // cut trailing quotation mark
 
     li->data.data_string.str = val;
@@ -1455,7 +1455,7 @@ static int check_var_filter_rules(MYSQL_THD thd,
 
   if (proposed_rules == nullptr) return true;
 
-  DBUG_ASSERT(proposed_rules[value_len] == '\0');
+  assert(proposed_rules[value_len] == '\0');
 
   log_filter_temp_rules = log_bf->filter_ruleset_new(&rule_tag_dragnet, 0);
 
@@ -1736,7 +1736,7 @@ mysql_service_status_t log_filter_init() {
   }
 
 success:
-  DBUG_ASSERT(var_value[var_len] == '\0');
+  assert(var_value[var_len] == '\0');
   delete[] var_value;
   return false;
 }

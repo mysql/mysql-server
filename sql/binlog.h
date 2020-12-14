@@ -401,7 +401,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
                       bool is_server_starting = false);
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param) {
-    DBUG_ASSERT(is_relay_log);
+    assert(is_relay_log);
     previous_gtid_set_relaylog = previous_gtid_set_param;
   }
   /**

@@ -200,7 +200,7 @@ TEST_F(PropertiesTest, SetGetStrings) {
   // Key "" is illegal and will not be added
   p->set("", "");
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   EXPECT_DEATH_IF_SUPPORTED(p->get("", &str), ".*UTC - mysqld got.*");
 #else
   EXPECT_TRUE(p->get("", &str));
@@ -400,7 +400,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool) {
   delete p;
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 // Tests invalid setting and getting of int and bool options
 typedef PropertiesTest PropertiesTestDeathTest;
@@ -488,7 +488,7 @@ TEST_F(PropertiesTestDeathTest, FailingSetGetIntBool) {
   delete p;
 }
 
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 // Tests the exists function
 TEST_F(PropertiesTest, OptionsExist) {
@@ -961,7 +961,7 @@ TEST_F(PropertiesTest, ValidKeys) {
   dd::Properties_impl p({"a"});
 
   EXPECT_FALSE(p.set("a", "1"));
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
   EXPECT_TRUE(p.set("b", "2"));
 #else
   EXPECT_DEATH_IF_SUPPORTED(p.set("b", "2"), ".*UTC - mysqld got.*");
@@ -981,7 +981,7 @@ TEST_F(PropertiesTest, ValidKeys) {
   dd::String_type str;
   EXPECT_TRUE(!p.get("b", &str) && str == "2");
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   // Then adding a valid key asserts in dbug, though, because
   // we might then hide keys present.
   EXPECT_DEATH_IF_SUPPORTED(p.add_valid_keys({"c"}), ".*UTC - mysqld got.*");

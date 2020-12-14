@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +71,8 @@ Singleton<String>::Singleton(MEM_ROOT *mem_root, const Singleton<String> &other)
   for (const auto &bucket : other.m_buckets) {
     char *string_data = bucket.first.dup(mem_root);
     if (string_data == nullptr) {
-      DBUG_ASSERT(false); /* purecov: deadcode */
-      return;             // OOM
+      assert(false); /* purecov: deadcode */
+      return;        // OOM
     }
 
     String string_dup(string_data, bucket.first.length(),
@@ -234,7 +234,7 @@ bool Singleton<MYSQL_TIME>::add_value_json_bucket(const MYSQL_TIME &value,
       break;
     default:
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return true;
       /* purecov: end */
   }

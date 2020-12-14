@@ -34,7 +34,7 @@
 
 namespace temptable_test {
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 
 /* In release builds there will be an error reported as well
 as my_error generated. */
@@ -123,7 +123,7 @@ TEST_F(Handler_test, SimpleTableCreate) {
   EXPECT_EQ(handler.delete_table(table_name, nullptr), 0);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 TEST_F(
     Handler_test,
     TableCreateReturnsRecordFileFullWhenTempTableAllocatorThrowsRecordFileFull) {
@@ -175,7 +175,7 @@ TEST_F(Handler_test,
             HA_ERR_OUT_OF_MEM);
   DBUG_SET("-d,temptable_create_return_non_result_type_exception");
 }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 TEST_F(Handler_test, SimpleTableOpsFixedSize) {
   const char *table_name = "t1";

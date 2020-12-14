@@ -50,7 +50,7 @@ std::unique_ptr<Geometry> Line_interpolate_point::operator()(
 
 std::unique_ptr<Geometry> Line_interpolate_point::eval(
     const Geometry &g) const {
-  DBUG_ASSERT(false);
+  assert(false);
   throw not_implemented_exception::for_non_projected(g);
 }
 
@@ -92,10 +92,10 @@ bool line_interpolate_point(const dd::Spatial_reference_system *srs,
                             std::unique_ptr<Geometry> *result,
                             bool *result_null) noexcept {
   try {
-    DBUG_ASSERT(((srs == nullptr || srs->is_cartesian()) &&
-                 g->coordinate_system() == Coordinate_system::kCartesian) ||
-                (srs && srs->is_geographic() &&
-                 g->coordinate_system() == Coordinate_system::kGeographic));
+    assert(((srs == nullptr || srs->is_cartesian()) &&
+            g->coordinate_system() == Coordinate_system::kCartesian) ||
+           (srs && srs->is_geographic() &&
+            g->coordinate_system() == Coordinate_system::kGeographic));
 
     if (g->is_empty()) {
       *result_null = true;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@ Buffered_file_io::Buffered_file_io(ILogger *logger,
   else
     for (auto const &version : *versions) {
       auto checker = checker_factory.getCheckerForVersion(version);
-      DBUG_ASSERT(checker != nullptr);
+      assert(checker != nullptr);
       checkers.push_back(std::move(checker));
     }
 }
@@ -301,7 +301,7 @@ bool Buffered_file_io::check_if_keyring_file_can_be_opened_or_created() {
 */
 bool Buffered_file_io::init(std::string *keyring_filename) {
   // file name can't be empty
-  DBUG_ASSERT(keyring_filename->empty() == false);
+  assert(keyring_filename->empty() == false);
 
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_file_keys();
@@ -431,7 +431,7 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
 
   // upcast serialized object to buffer, verify result
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
-  DBUG_ASSERT(buffer != nullptr);
+  assert(buffer != nullptr);
 
   // calculate digest sum of buffer
   Digest buffer_digest;
@@ -496,8 +496,8 @@ bool Buffered_file_io::flush_buffer_to_storage(Buffer *buffer, File file) {
 */
 bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object) {
   Buffer *buffer = dynamic_cast<Buffer *>(serialized_object);
-  DBUG_ASSERT(buffer != nullptr);
-  DBUG_ASSERT(serialized_object->get_key_operation() != NONE);
+  assert(buffer != nullptr);
+  assert(serialized_object->get_key_operation() != NONE);
 
   // open keyring file
   File keyring_file =

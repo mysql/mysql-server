@@ -848,7 +848,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   }
 
   // Construct the hypergraph from the relational expression.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   std::fill(begin(graph->table_num_to_node_num),
             end(graph->table_num_to_node_num), -1);
 #endif

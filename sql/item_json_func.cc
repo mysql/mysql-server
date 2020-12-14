@@ -24,6 +24,7 @@
 
 #include "sql/item_json_func.h"
 
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <algorithm>  // std::fill
@@ -40,7 +41,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
@@ -103,7 +104,7 @@ bool ensure_utf8mb4(const String &val, String *buf, const char **resptr,
                   &my_charset_utf8mb4_bin, &dummy_errors)) {
       return true; /* purecov: inspected */
     }
-    DBUG_ASSERT(buf->charset() == &my_charset_utf8mb4_bin);
+    assert(buf->charset() == &my_charset_utf8mb4_bin);
     s = buf->ptr();
     ss = buf->length();
   }
@@ -146,7 +147,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
   }
 
   if (!dom) {
-    DBUG_ASSERT(!require_str_or_json);
+    assert(!require_str_or_json);
     return !is_valid_json_syntax(safep, safe_length, nullptr, nullptr);
   }
 
@@ -177,7 +178,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
 */
 
 static enum_field_types get_real_blob_type(const Field *arg) {
-  DBUG_ASSERT(arg);
+  assert(arg);
   return blob_type_from_pack_length(arg->pack_length() -
                                     portable_sizeof_char_ptr);
 }
@@ -193,7 +194,7 @@ static enum_field_types get_real_blob_type(const Field *arg) {
 */
 
 static enum_field_types get_real_blob_type(const Item *arg) {
-  DBUG_ASSERT(arg);
+  assert(arg);
   /*
     TINYTEXT, TEXT, MEDIUMTEXT, and LONGTEXT have type
     MYSQL_TYPE_BLOB. We want to treat them like strings. We check
@@ -332,7 +333,7 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
     return false;
   } else if (field_type == MYSQL_TYPE_NULL) {
     if (arg_item->update_null_value()) return true;
-    DBUG_ASSERT(arg_item->null_value);
+    assert(arg_item->null_value);
     *valid = true;
     return false;
   } else if (field_type == MYSQL_TYPE_JSON) {
@@ -528,7 +529,7 @@ void Item_json_func::cleanup() {
 }
 
 longlong Item_func_json_valid::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   try {
     bool ok;
     if (json_is_valid(args, 0, &m_value, func_name(), nullptr, false, &ok)) {
@@ -553,7 +554,7 @@ static bool evaluate_constant_json_schema(
     unique_ptr_destroy_only<const Json_schema_validator>
         *cached_schema_validator,
     Item **ref) {
-  DBUG_ASSERT(is_convertible_to_json(json_schema));
+  assert(is_convertible_to_json(json_schema));
   const char *func_name = down_cast<const Item_func *>(*ref)->func_name();
   if (json_schema->const_item()) {
     String schema_buffer;
@@ -599,7 +600,7 @@ static bool do_json_schema_validation(
     const char *func_name, const Json_schema_validator *cached_schema_validator,
     bool *null_value, bool *validation_result,
     Json_schema_validation_report *validation_report) {
-  DBUG_ASSERT(is_convertible_to_json(json_document));
+  assert(is_convertible_to_json(json_document));
 
   String document_buffer;
   String *document_string = json_document->val_str(&document_buffer);
@@ -610,7 +611,7 @@ static bool do_json_schema_validation(
   }
 
   if (cached_schema_validator != nullptr) {
-    DBUG_ASSERT(json_schema->const_item());
+    assert(json_schema->const_item());
     if (cached_schema_validator->is_valid_json_schema(
             document_string->ptr(), document_string->length(), func_name,
             validation_result, validation_report)) {
@@ -622,12 +623,12 @@ static bool do_json_schema_validation(
     // up the cached schema validator during fix_fields, the item will appear as
     // const here, and thus failing the assertion if we don't take constant
     // tables into account.
-    DBUG_ASSERT(!json_schema->const_item() ||
-                (json_schema->real_item()->type() == Item::FIELD_ITEM &&
-                 down_cast<const Item_field *>(json_schema->real_item())
-                     ->table_ref->table->const_table));
+    assert(!json_schema->const_item() ||
+           (json_schema->real_item()->type() == Item::FIELD_ITEM &&
+            down_cast<const Item_field *>(json_schema->real_item())
+                ->table_ref->table->const_table));
 
-    DBUG_ASSERT(is_convertible_to_json(json_schema));
+    assert(is_convertible_to_json(json_schema));
 
     String schema_buffer;
     String *schema_string = json_schema->val_str(&schema_buffer);
@@ -649,7 +650,7 @@ static bool do_json_schema_validation(
 }
 
 bool Item_func_json_schema_valid::val_bool() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   bool validation_result = false;
 
   if (m_in_check_constraint_exec_ctx) {
@@ -672,7 +673,7 @@ bool Item_func_json_schema_valid::val_bool() {
     }
   }
 
-  DBUG_ASSERT(is_nullable() || !null_value);
+  assert(is_nullable() || !null_value);
   return validation_result;
 }
 
@@ -700,7 +701,7 @@ Item_func_json_schema_validation_report::
     ~Item_func_json_schema_validation_report() = default;
 
 bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   bool validation_result = false;
   Json_schema_validation_report validation_report;
   if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
@@ -709,7 +710,7 @@ bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
     return error_json();
   }
 
-  DBUG_ASSERT(is_nullable() || !null_value);
+  assert(is_nullable() || !null_value);
   std::unique_ptr<Json_object> result(new (std::nothrow) Json_object());
   if (result == nullptr) return error_json();  // OOM
 
@@ -995,7 +996,7 @@ void Item_func_json_contains_path::cleanup() {
 }
 
 longlong Item_func_json_contains_path::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   longlong result = 0;
   null_value = false;
 
@@ -1069,7 +1070,7 @@ longlong Item_func_json_contains_path::val_int() {
 bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
   if (arg->data_type() == MYSQL_TYPE_NULL) {
     if (arg->update_null_value()) return true;
-    DBUG_ASSERT(arg->null_value);
+    assert(arg->null_value);
     *has_value = true;
     return false;
   }
@@ -1119,7 +1120,7 @@ bool get_json_wrapper(Item **args, uint arg_idx, String *str,
     return false;
   }
 
-  DBUG_ASSERT(dom);
+  assert(dom);
 
   *wrapper = Json_wrapper(std::move(dom));
   return false;
@@ -1227,7 +1228,7 @@ static uint opaque_index(enum_field_types field_type) {
         FIXME.
       */
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_GEOMETRY);
       /* purecov: end */
     }
@@ -1238,7 +1239,7 @@ static uint opaque_index(enum_field_types field_type) {
 }
 
 String *Item_func_json_type::val_str(String *) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper wr;
@@ -1282,7 +1283,7 @@ static String *val_string_from_json(Item_func *item, String *buffer) {
 }
 
 String *Item_json_func::val_str(String *) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   return val_string_from_json(this, &m_string_buffer);
 }
 
@@ -1576,8 +1577,8 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
   }
 
   // Exactly one of scalar and dom should be used.
-  DBUG_ASSERT((scalar == nullptr) != (dom == nullptr));
-  DBUG_ASSERT(scalar == nullptr || scalar->get() != nullptr);
+  assert((scalar == nullptr) != (dom == nullptr));
+  assert(scalar == nullptr || scalar->get() != nullptr);
 
   if (scalar != nullptr) {
     /*
@@ -1665,7 +1666,7 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 }
 
 bool Item_typecast_json::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_dom_ptr dom;  //@< if non-null we want a DOM from parse
 
@@ -1678,7 +1679,7 @@ bool Item_typecast_json::val_json(Json_wrapper *wr) {
     bool has_value;
     if (json_value(args[0], wr, &has_value)) return error_json();
 
-    DBUG_ASSERT(has_value);
+    assert(has_value);
     null_value = args[0]->null_value;
     return false;
   }
@@ -1693,7 +1694,7 @@ bool Item_typecast_json::val_json(Json_wrapper *wr) {
       return false;
     }
     // We were able to parse a JSON value from a string.
-    DBUG_ASSERT(dom);
+    assert(dom);
     // Pass on the DOM wrapped
     *wr = Json_wrapper(std::move(dom));
     null_value = false;
@@ -1727,7 +1728,7 @@ void Item_func_json_length::cleanup() {
 }
 
 longlong Item_func_json_length::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   longlong result = 0;
 
   Json_wrapper wrapper;
@@ -1765,7 +1766,7 @@ longlong Item_func_json_length::val_int() {
     }
 
     // there should only be one hit because wildcards were forbidden
-    DBUG_ASSERT(hits.size() == 1);
+    assert(hits.size() == 1);
 
     wrapper = std::move(hits[0]);
   }
@@ -1777,7 +1778,7 @@ longlong Item_func_json_length::val_int() {
 }
 
 longlong Item_func_json_depth::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   Json_wrapper wrapper;
 
   try {
@@ -1798,7 +1799,7 @@ longlong Item_func_json_depth::val_int() {
 }
 
 bool Item_func_json_keys::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_wrapper wrapper;
 
@@ -1859,7 +1860,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_extract::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper w;
@@ -1911,7 +1912,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
     } else  // one path, no ellipsis or wildcard
     {
       // there should only be one match
-      DBUG_ASSERT(v.size() == 1);
+      assert(v.size() == 1);
       *wr = std::move(v[0]);
     }
   } catch (...) {
@@ -1949,7 +1950,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
   return std::equal(args, args + arg_count, item_json->args, cmp);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Is this a path that could possibly return the root node of a JSON document?
 
@@ -1972,10 +1973,10 @@ static bool possible_root_path(const Json_path_iterator &begin,
   };
   return std::all_of(begin, end, is_autowrap);
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper docw;
@@ -2008,7 +2009,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
       if (hits.empty()) continue;
 
       // Paths with wildcards and ranges are rejected, so expect one hit.
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *hit = hits[0];
 
       Json_wrapper valuew;
@@ -2038,7 +2039,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
         Json_container *parent = hit->parent();
         if (parent == nullptr)  // root
         {
-          DBUG_ASSERT(possible_root_path(path->begin(), path->end()));
+          assert(possible_root_path(path->begin(), path->end()));
           docw = Json_wrapper(std::move(arr));
         } else {
           parent->replace_dom_in_container(hit, std::move(arr));
@@ -2060,7 +2061,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_insert::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper docw;
@@ -2122,7 +2123,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
       }
 
       // Paths with wildcards and ranges are rejected, so expect one hit.
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *hit = hits[0];
 
       // What did we specify in the path, object or array?
@@ -2156,7 +2157,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
           Json_container *parent = hit->parent();
           if (parent == nullptr)  // root
           {
-            DBUG_ASSERT(possible_root_path(path->begin(), path->end() - 1));
+            assert(possible_root_path(path->begin(), path->end() - 1));
             docw = Json_wrapper(std::move(newarr));
           } else {
             parent->replace_dom_in_container(hit, std::move(newarr));
@@ -2184,7 +2185,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper docw;
@@ -2236,7 +2237,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
       // We found *something* at that parent path
 
       // Paths with wildcards and ranges are rejected, so expect one hit.
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *hit = hits[0];
 
       // NOP if parent is not an array
@@ -2250,7 +2251,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
 
       // Insert the value at that location.
       Json_array *arr = down_cast<Json_array *>(hit);
-      DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+      assert(leg->get_type() == jpl_array_cell);
       size_t pos = leg->first_array_index(arr->size()).position();
       if (arr->insert_alias(pos, valuew.clone_dom(thd)))
         return error_json(); /* purecov: inspected */
@@ -2482,7 +2483,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
         }
 
         // We don't allow wildcards in the path, so there can only be one hit.
-        DBUG_ASSERT(hits.size() == 1);
+        assert(hits.size() == 1);
         Json_dom *hit = hits[0];
 
         // We now have either an array or an object in the parent's path
@@ -2509,7 +2510,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
               array position to be 0 here, though, as such legs should have
               been removed by the call to clone_without_autowrapping() above.
             */
-            DBUG_ASSERT(!leg->is_autowrap());
+            assert(!leg->is_autowrap());
             Json_array_ptr newarr = create_dom_ptr<Json_array>();
             size_t pos = leg->first_array_index(1).position();
             if (newarr == nullptr || newarr->append_clone(hit) ||
@@ -2556,7 +2557,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
         }
       } else {
         // We found one value, so replace semantics.
-        DBUG_ASSERT(hits.size() == 1);
+        assert(hits.size() == 1);
         Json_dom *child = hits[0];
         Json_container *parent = child->parent();
         if (parent == nullptr) {
@@ -2605,7 +2606,7 @@ return_null:
 }
 
 bool Item_func_json_array::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_array *arr = new (std::nothrow) Json_array();
@@ -2641,7 +2642,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_object *object = new (std::nothrow) Json_object();
@@ -2856,7 +2857,7 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
 }
 
 bool Item_func_json_search::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_dom_vector matches(key_memory_JSON);
 
@@ -2974,7 +2975,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
 
           if (hits.empty()) continue;
 
-          DBUG_ASSERT(hits.size() == 1);  // no wildcards
+          assert(hits.size() == 1);  // no wildcards
 
           path_str.length(0);
           if (path->to_string(&path_str))
@@ -3016,7 +3017,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_remove::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_wrapper wrapper;
   uint32 path_count = arg_count - 1;
@@ -3084,7 +3085,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
   Json_dom *dom = nullptr;
   String *partial_update_buffer = nullptr;
   if (binary_diffs) {
-    DBUG_ASSERT(!wrapper.is_dom());
+    assert(!wrapper.is_dom());
     partial_update_buffer = table->get_partial_update_buffer();
     // Reset the buffer in the innermost call.
     if (args[0]->real_item()->type() == FIELD_ITEM)
@@ -3119,7 +3120,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
         return error_json();       /* purecov: inspected */
       if (hits.empty()) continue;  // nothing to do
 
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *parent = hits[0];
       if (parent->json_type() == enum_json_type::J_OBJECT) {
         auto object = down_cast<Json_object *>(parent);
@@ -3156,7 +3157,7 @@ Item_func_json_merge::Item_func_json_merge(THD *thd, const POS &pos,
 }
 
 bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_dom_ptr result_dom;
 
@@ -3200,7 +3201,7 @@ bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
 }
 
 String *Item_func_json_quote::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   String *res = args[0]->val_str(str);
   if (!res) {
@@ -3250,7 +3251,7 @@ String *Item_func_json_quote::val_str(String *str) {
         not touch the m_value buffer, and the input string still lives
         in res. Use m_value as result buffer.
       */
-      DBUG_ASSERT(safep == res->ptr());
+      assert(safep == res->ptr());
       res = &m_value;
     }
 
@@ -3270,7 +3271,7 @@ String *Item_func_json_quote::val_str(String *str) {
 }
 
 String *Item_func_json_unquote::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     if (args[0]->data_type() == MYSQL_TYPE_JSON) {
@@ -3328,7 +3329,7 @@ String *Item_func_json_unquote::val_str(String *str) {
     if (ensure_utf8mb4(*res, &buf, &utf8text, &utf8len, true))
       return error_str();
     String *utf8str = (res->ptr() == utf8text) ? res : &buf;
-    DBUG_ASSERT(utf8text == utf8str->ptr());
+    assert(utf8text == utf8str->ptr());
 
     if (utf8len < 2 || utf8text[0] != '"' || utf8text[utf8len - 1] != '"') {
       null_value = false;
@@ -3348,7 +3349,7 @@ String *Item_func_json_unquote::val_str(String *str) {
     /*
       Extract the internal string representation as a MySQL string
     */
-    DBUG_ASSERT(dom->json_type() == enum_json_type::J_STRING);
+    assert(dom->json_type() == enum_json_type::J_STRING);
     Json_wrapper wr(std::move(dom));
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))
       return error_str(); /* purecov: inspected */
@@ -3364,7 +3365,7 @@ String *Item_func_json_unquote::val_str(String *str) {
 }
 
 String *Item_func_json_pretty::val_str(String *str) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   try {
     Json_wrapper wr;
     if (get_json_wrapper(args, 0, str, func_name(), &wr)) return error_str();
@@ -3387,7 +3388,7 @@ String *Item_func_json_pretty::val_str(String *str) {
 }
 
 longlong Item_func_json_storage_size::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   /*
     If the input is a reference to a JSON column, return the actual storage
@@ -3426,7 +3427,7 @@ longlong Item_func_json_storage_size::val_int() {
 }
 
 longlong Item_func_json_storage_free::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   Json_wrapper wrapper;
   try {
@@ -3452,7 +3453,7 @@ longlong Item_func_json_storage_free::val_int() {
 }
 
 bool Item_func_json_merge_patch::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   try {
     if (get_json_wrapper(args, 0, &m_value, func_name(), wr))
@@ -3582,7 +3583,7 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
     case ITEM_CAST_JSON:
       // JSON_VALUE(... RETURNING JSON) is supported, CAST(... AS JSON ARRAY) is
       // not supported.
-      DBUG_ASSERT(!item->returns_array());
+      assert(!item->returns_array());
       item->set_data_type_json();
       return;
     case ITEM_CAST_DOUBLE:
@@ -3593,7 +3594,7 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
       return;
   }
 
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
 }
 
 Item_func_array_cast::Item_func_array_cast(const POS &pos, Item *a,
@@ -3704,7 +3705,7 @@ static void print_cast_type(Cast_target cast_type, const Item *item,
       str->append(STRING_WITH_LEN("double"));
       return;
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
 }
 
 void Item_func_array_cast::print(const THD *thd, String *str,
@@ -3740,7 +3741,7 @@ static enum Item_result json_cast_result_type(Cast_target cast_type) {
       return REAL_RESULT;
   }
 
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return INT_RESULT;
 }
 
@@ -4127,7 +4128,7 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
     case ROW_RESULT:
     default:
       // Shouldn't happen
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   if (err && !no_error)
@@ -4165,13 +4166,13 @@ enum Item_result Item_func_json_value::result_type() const {
 
 bool Item_func_json_value::resolve_type(THD *) {
   // The path must be a character literal, so it's never NULL.
-  DBUG_ASSERT(!args[1]->is_nullable());
+  assert(!args[1]->is_nullable());
   // The DEFAULT values are character literals, so they are never NULL if they
   // are specified.
-  DBUG_ASSERT(m_on_empty != Json_on_response_type::DEFAULT ||
-              !args[2]->is_nullable());
-  DBUG_ASSERT(m_on_error != Json_on_response_type::DEFAULT ||
-              !args[3]->is_nullable());
+  assert(m_on_empty != Json_on_response_type::DEFAULT ||
+         !args[2]->is_nullable());
+  assert(m_on_error != Json_on_response_type::DEFAULT ||
+         !args[3]->is_nullable());
 
   // JSON_VALUE can return NULL if its first argument is nullable, or if NULL
   // ON EMPTY or NULL ON ERROR is specified or implied, or if the extracted JSON
@@ -4186,7 +4187,7 @@ bool Item_func_json_value::resolve_type(THD *) {
   losing any leading significant digits.
 */
 static bool decimal_within_range(const Item *item, const my_decimal *decimal) {
-  DBUG_ASSERT(item->data_type() == MYSQL_TYPE_NEWDECIMAL);
+  assert(item->data_type() == MYSQL_TYPE_NEWDECIMAL);
   return decimal_intg(decimal) <= item->decimal_int_part();
 }
 
@@ -4218,7 +4219,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       const CHARSET_INFO *const cs = string_value->charset();
       const char *const start = string_value->ptr();
       const char *const end_of_string = start + string_value->length();
@@ -4249,7 +4250,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       MYSQL_TIME *ltime = new (mem_root) MYSQL_TIME;
       if (ltime == nullptr) return nullptr;
       if (item->get_date(ltime, 0)) return nullptr;
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       default_value->temporal_default = ltime;
       break;
     }
@@ -4257,7 +4258,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       const CHARSET_INFO *const cs = string_value->charset();
       const char *const start = string_value->ptr();
       const char *const end_of_string = start + string_value->length();
@@ -4281,7 +4282,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       MYSQL_TIME *ltime = new (mem_root) MYSQL_TIME;
       if (ltime == nullptr) return nullptr;
       if (item->get_time(ltime)) return nullptr;
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       if (actual_decimals(ltime) > decimals) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "TIME DEFAULT", func_name());
         return nullptr;
@@ -4293,7 +4294,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       MYSQL_TIME *ltime = new (mem_root) MYSQL_TIME;
       if (ltime == nullptr) return nullptr;
       if (item->get_date(ltime, TIME_DATETIME_ONLY)) return nullptr;
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       if (actual_decimals(ltime) > decimals) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "TIME DEFAULT", func_name());
         return nullptr;
@@ -4305,7 +4306,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       if (string_value->numchars() > max_char_length()) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "CHAR DEFAULT", func_name());
         return nullptr;
@@ -4347,7 +4348,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       bool parse_error;
       if (parse_json(*string_value, 0, func_name(),
                      &default_value->json_default, true, &parse_error)) {
@@ -4383,14 +4384,14 @@ bool Item_func_json_value::fix_fields(THD *thd, Item **ref) {
 
   if (check_convertible_to_json(args[0], 1, func_name())) return true;
 
-  DBUG_ASSERT(args[1]->basic_const_item());
+  assert(args[1]->basic_const_item());
   const String *path = args[1]->val_str(nullptr);
-  DBUG_ASSERT(path != nullptr);
+  assert(path != nullptr);
   if (parse_path(*path, false, &m_path_json)) return true;
 
   if (m_on_empty == Json_on_response_type::DEFAULT &&
       m_default_empty == nullptr) {
-    DBUG_ASSERT(args[2]->basic_const_item());
+    assert(args[2]->basic_const_item());
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     m_default_empty = create_json_value_default(thd, args[2]);
     if (m_default_empty == nullptr) return true;
@@ -4398,7 +4399,7 @@ bool Item_func_json_value::fix_fields(THD *thd, Item **ref) {
 
   if (m_on_error == Json_on_response_type::DEFAULT &&
       m_default_error == nullptr) {
-    DBUG_ASSERT(args[3]->basic_const_item());
+    assert(args[3]->basic_const_item());
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     m_default_error = create_json_value_default(thd, args[3]);
     if (m_default_error == nullptr) return true;
@@ -4476,7 +4477,7 @@ static bool handle_json_value_conversion_error(Json_on_response_type on_error,
                                                const char *type,
                                                Item_func_json_value *item) {
   // Should have returned earlier if the value is NULL.
-  DBUG_ASSERT(!item->null_value);
+  assert(!item->null_value);
 
   switch (on_error) {
     case Json_on_response_type::ERROR: {
@@ -4502,7 +4503,7 @@ bool Item_func_json_value::extract_json_value(
   try {
     Json_wrapper doc;
 
-    DBUG_ASSERT(is_convertible_to_json(args[0]));  // Checked in fix_fields().
+    assert(is_convertible_to_json(args[0]));  // Checked in fix_fields().
     if (args[0]->data_type() == MYSQL_TYPE_JSON) {
       if (args[0]->val_json(&doc)) return true;
       null_value = args[0]->null_value;
@@ -4535,21 +4536,21 @@ bool Item_func_json_value::extract_json_value(
       // Invoke the ON ERROR clause if a parse error was raised.
       if (parse_error) {
         // ERROR ON ERROR will have returned above.
-        DBUG_ASSERT(m_on_error != Json_on_response_type::ERROR);
+        assert(m_on_error != Json_on_response_type::ERROR);
 
         if (m_on_error == Json_on_response_type::DEFAULT) {
           *return_default = m_default_error.get();
           return false;
         } else {
-          DBUG_ASSERT(m_on_error == Json_on_response_type::IMPLICIT ||
-                      m_on_error == Json_on_response_type::NULL_VALUE);
+          assert(m_on_error == Json_on_response_type::IMPLICIT ||
+                 m_on_error == Json_on_response_type::NULL_VALUE);
           assert(is_nullable());
           null_value = true;
           return false;
         }
       }
 
-      DBUG_ASSERT(dom != nullptr);
+      assert(dom != nullptr);
       doc = Json_wrapper(std::move(dom));
     }
 
@@ -4590,7 +4591,7 @@ bool Item_func_json_value::extract_json_value(
     }
 
     // Otherwise, we have multiple matches. Invoke the ON ERROR clause.
-    DBUG_ASSERT(v.size() > 1);
+    assert(v.size() > 1);
 
     switch (m_on_error) {
       case Json_on_response_type::ERROR:
@@ -4617,14 +4618,14 @@ bool Item_func_json_value::extract_json_value(
 }
 
 bool Item_func_json_value::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_JSON);
+  assert(fixed);
+  assert(m_cast_target == ITEM_CAST_JSON);
 
   const Default_value *return_default = nullptr;
   if (extract_json_value(wr, &return_default)) return error_json();
 
   if (return_default != nullptr) {
-    DBUG_ASSERT(!null_value);
+    assert(!null_value);
     *wr = Json_wrapper(return_default->json_default.get(), true);
   }
 
@@ -4632,7 +4633,7 @@ bool Item_func_json_value::val_json(Json_wrapper *wr) {
 }
 
 String *Item_func_json_value::val_str(String *buffer) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4654,12 +4655,12 @@ String *Item_func_json_value::val_str(String *buffer) {
     case ITEM_CAST_DOUBLE:
       return val_string_from_real(buffer);
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return nullptr;
 }
 
 double Item_func_json_value::val_real() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_DATE:
@@ -4679,12 +4680,12 @@ double Item_func_json_value::val_real() {
     case ITEM_CAST_DOUBLE:
       return extract_real_value();
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return 0.0;
 }
 
 longlong Item_func_json_value::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4707,12 +4708,12 @@ longlong Item_func_json_value::val_int() {
     case ITEM_CAST_DOUBLE:
       return val_int_from_real();
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return 0;
 }
 
 my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4733,12 +4734,12 @@ my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
     case ITEM_CAST_DOUBLE:
       return val_decimal_from_real(value);
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return nullptr;
 }
 
 bool Item_func_json_value::get_date(MYSQL_TIME *ltime, my_time_flags_t flags) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4760,12 +4761,12 @@ bool Item_func_json_value::get_date(MYSQL_TIME *ltime, my_time_flags_t flags) {
     case ITEM_CAST_DOUBLE:
       return get_date_from_real(ltime, flags);
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return true;
 }
 
 bool Item_func_json_value::get_time(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_YEAR:
@@ -4787,14 +4788,14 @@ bool Item_func_json_value::get_time(MYSQL_TIME *ltime) {
     case ITEM_CAST_DOUBLE:
       return get_time_from_real(ltime);
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return true;
 }
 
 int64_t Item_func_json_value::extract_integer_value() {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_SIGNED_INT ||
-              m_cast_target == ITEM_CAST_UNSIGNED_INT);
-  DBUG_ASSERT(unsigned_flag == (m_cast_target == ITEM_CAST_UNSIGNED_INT));
+  assert(m_cast_target == ITEM_CAST_SIGNED_INT ||
+         m_cast_target == ITEM_CAST_UNSIGNED_INT);
+  assert(unsigned_flag == (m_cast_target == ITEM_CAST_UNSIGNED_INT));
 
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
@@ -4806,7 +4807,7 @@ int64_t Item_func_json_value::extract_integer_value() {
   }
 
   if (return_default != nullptr) {
-    DBUG_ASSERT(!null_value);
+    assert(!null_value);
     return return_default->integer_default;
   }
 
@@ -4827,8 +4828,8 @@ int64_t Item_func_json_value::extract_integer_value() {
 }
 
 int64_t Item_func_json_value::extract_year_value() {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_YEAR);
-  DBUG_ASSERT(unsigned_flag == false);
+  assert(m_cast_target == ITEM_CAST_YEAR);
+  assert(unsigned_flag == false);
 
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
@@ -4840,7 +4841,7 @@ int64_t Item_func_json_value::extract_year_value() {
   }
 
   if (return_default != nullptr) {
-    DBUG_ASSERT(!null_value);
+    assert(!null_value);
     return return_default->integer_default;
   }
 
@@ -4860,8 +4861,7 @@ int64_t Item_func_json_value::extract_year_value() {
 }
 
 bool Item_func_json_value::extract_date_value(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_DATE ||
-              m_cast_target == ITEM_CAST_YEAR);
+  assert(m_cast_target == ITEM_CAST_DATE || m_cast_target == ITEM_CAST_YEAR);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
@@ -4887,7 +4887,7 @@ bool Item_func_json_value::extract_date_value(MYSQL_TIME *ltime) {
 }
 
 bool Item_func_json_value::extract_time_value(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_TIME);
+  assert(m_cast_target == ITEM_CAST_TIME);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
@@ -4913,7 +4913,7 @@ bool Item_func_json_value::extract_time_value(MYSQL_TIME *ltime) {
 }
 
 bool Item_func_json_value::extract_datetime_value(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_DATETIME);
+  assert(m_cast_target == ITEM_CAST_DATETIME);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
@@ -4940,7 +4940,7 @@ bool Item_func_json_value::extract_datetime_value(MYSQL_TIME *ltime) {
 }
 
 my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_DECIMAL);
+  assert(m_cast_target == ITEM_CAST_DECIMAL);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
@@ -4966,7 +4966,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
 }
 
 String *Item_func_json_value::extract_string_value(String *buffer) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_CHAR);
+  assert(m_cast_target == ITEM_CAST_CHAR);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default)) return error_str();
@@ -4989,7 +4989,7 @@ String *Item_func_json_value::extract_string_value(String *buffer) {
                               buffer->charset(), collation.collation,
                               &conversion_errors))
       return error_str(); /* purecov: inspected */
-    DBUG_ASSERT(converted_string.charset() == collation.collation);
+    assert(converted_string.charset() == collation.collation);
     buffer->swap(converted_string);
   }
 
@@ -5007,8 +5007,7 @@ String *Item_func_json_value::extract_string_value(String *buffer) {
 }
 
 double Item_func_json_value::extract_real_value() {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_FLOAT ||
-              m_cast_target == ITEM_CAST_DOUBLE);
+  assert(m_cast_target == ITEM_CAST_FLOAT || m_cast_target == ITEM_CAST_DOUBLE);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default)) return error_real();

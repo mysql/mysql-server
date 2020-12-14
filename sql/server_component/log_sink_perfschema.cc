@@ -107,7 +107,7 @@ static mysql_rwlock_t THR_LOCK_log_perfschema;
   @retval    The total size (header + message + '\0' + padding) in bytes.
 */
 static inline size_t log_sink_pfs_event_size(log_sink_pfs_event *e) {
-  DBUG_ASSERT(e != nullptr);
+  assert(e != nullptr);
 
   size_t s = sizeof(log_sink_pfs_event) + ((size_t)e->m_message_length) + 1;
   s = MY_ALIGN(s, sizeof(ulonglong));
@@ -183,9 +183,9 @@ log_sink_pfs_event *log_sink_pfs_event_next(log_sink_pfs_event *e) {
   char *n;  // pointer to next event
 
   // pre-condition: e must be a valid event
-  DBUG_ASSERT(e != nullptr);  // do not accept nullptr
-  DBUG_ASSERT(e->m_message_length !=
-              0);  // current event should not be wrap-around marker
+  assert(e != nullptr);  // do not accept nullptr
+  assert(e->m_message_length !=
+         0);  // current event should not be wrap-around marker
 
   // next event's location is current event's location plus its size
   n = ((char *)e) + log_sink_pfs_event_size(e);
@@ -214,7 +214,7 @@ log_sink_pfs_event *log_sink_pfs_event_next(log_sink_pfs_event *e) {
   }
 
   // next event should not be wrap-around marker
-  DBUG_ASSERT(((log_sink_pfs_event *)n)->m_message_length != 0);
+  assert(((log_sink_pfs_event *)n)->m_message_length != 0);
 
   return (log_sink_pfs_event *)n;
 }
@@ -232,8 +232,8 @@ log_sink_pfs_event *log_sink_pfs_event_next(log_sink_pfs_event *e) {
 */
 log_sink_pfs_event *log_sink_pfs_event_valid(log_sink_pfs_event *e,
                                              ulonglong logged) {
-  DBUG_ASSERT(e != nullptr);
-  DBUG_ASSERT(ring_buffer_read != nullptr);
+  assert(e != nullptr);
+  assert(ring_buffer_read != nullptr);
 
   // If the ring-buffer is empty, the event won't be there.
   if (log_sink_pfs_buffered_events == 0) return nullptr;
@@ -249,10 +249,10 @@ log_sink_pfs_event *log_sink_pfs_event_valid(log_sink_pfs_event *e,
     return nullptr; /* purecov: inspected */
 
   // Request's timestamp shouldn't be in the future.
-  DBUG_ASSERT(logged <= log_sink_pfs_latest_timestamp);
+  assert(logged <= log_sink_pfs_latest_timestamp);
 
   // Request's timestamp should equal that at the address we were given.
-  DBUG_ASSERT(logged == e->m_timestamp);
+  assert(logged == e->m_timestamp);
 
   // If we got here, the event still exists in the ring-buffer.
   return e;
@@ -260,8 +260,8 @@ log_sink_pfs_event *log_sink_pfs_event_valid(log_sink_pfs_event *e,
 
 // expire tail event (oldest event in buffer) by adjusting the read-pointer
 static inline void log_sink_pfs_event_expire(void) {
-  DBUG_ASSERT(log_sink_pfs_buffered_events > 0);
-  DBUG_ASSERT(ring_buffer_read != nullptr);
+  assert(log_sink_pfs_buffered_events > 0);
+  assert(ring_buffer_read != nullptr);
 
   log_sink_pfs_buffered_bytes -=
       log_sink_pfs_event_size((log_sink_pfs_event *)ring_buffer_read);
@@ -294,7 +294,7 @@ static inline void log_sink_pfs_event_expire(void) {
 static inline int log_sink_pfs_write_wrap(size_t s) {
   int ret = 0;
 
-  DBUG_ASSERT(s <= ring_buffer_size);
+  assert(s <= ring_buffer_size);
 
   // Writing the event would go past the end of the buffer. Wrap around!
   if ((ring_buffer_write + s) > ring_buffer_end) {
@@ -305,11 +305,11 @@ static inline int log_sink_pfs_write_wrap(size_t s) {
     if (ring_buffer_read >= ring_buffer_write) {
       ret = 2;
 
-      DBUG_ASSERT(log_sink_pfs_buffered_events > 0);
+      assert(log_sink_pfs_buffered_events > 0);
 
       // Expire high-address entries individually so statistics are correct
       while (ring_buffer_read >= ring_buffer_write) {
-        DBUG_ASSERT(log_sink_pfs_buffered_events > 0);
+        assert(log_sink_pfs_buffered_events > 0);
         log_sink_pfs_event_expire();
       }
 
@@ -322,7 +322,7 @@ static inline int log_sink_pfs_write_wrap(size_t s) {
         ring_buffer_read == ring_buffer_write (with the resulting setting
         of ring_buffer_read to NULL) should not happen.
       */
-      DBUG_ASSERT(ring_buffer_read == ring_buffer_start);
+      assert(ring_buffer_read == ring_buffer_start);
     }
 
     /*
@@ -390,7 +390,7 @@ log_service_error log_sink_pfs_event_add(log_sink_pfs_event *e,
     return LOG_SERVICE_NOT_AVAILABLE;
 
   // Have we been given an invalid event (one with no message)?
-  DBUG_ASSERT(e->m_message_length > 0);
+  assert(e->m_message_length > 0);
 
   // No-message event: Fail gracefully in production.
   if (e->m_message_length == 0) return LOG_SERVICE_INVALID_ARGUMENT;
@@ -474,7 +474,7 @@ log_service_error log_sink_pfs_event_add(log_sink_pfs_event *e,
     to the very start of the buffer).
   */
   if (ring_buffer_read == nullptr) {
-    DBUG_ASSERT(log_sink_pfs_buffered_events == 0);
+    assert(log_sink_pfs_buffered_events == 0);
     ring_buffer_read = ring_buffer_write;
   }
 
@@ -496,7 +496,7 @@ log_service_error log_sink_pfs_event_add(log_sink_pfs_event *e,
   log_sink_pfs_buffered_bytes += s;
 
   // ensure that we leave the read-pointer in a valid state
-  DBUG_ASSERT(((log_sink_pfs_event *)ring_buffer_read)->m_message_length != 0);
+  assert(((log_sink_pfs_event *)ring_buffer_read)->m_message_length != 0);
 
   ret = LOG_SERVICE_SUCCESS;
 
@@ -558,8 +558,8 @@ static log_service_error log_error_read_loop(const char *log_file,
   const char *line_start, *line_end;
   log_service_error ret = LOG_SERVICE_SUCCESS;
 
-  DBUG_ASSERT(log_sink_pfs_source != nullptr);
-  DBUG_ASSERT(log_sink_pfs_source->sce != nullptr);
+  assert(log_sink_pfs_source != nullptr);
+  assert(log_sink_pfs_source->sce != nullptr);
 
   if (size <= 0) return LOG_SERVICE_UNABLE_TO_READ;
 
@@ -627,7 +627,7 @@ static log_service_error log_error_read_loop(const char *log_file,
         ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(
             log_sink_pfs_source->sce->service);
 
-        DBUG_ASSERT(ls != nullptr);
+        assert(ls != nullptr);
 
         if (ls != nullptr)
           ret = ls->parse_log_line(line_start, line_end - line_start);
@@ -687,8 +687,8 @@ log_service_error log_error_read_log(const char *log_name) {
   char path[FN_REFLEN];
   log_service_error ret;
 
-  DBUG_ASSERT((log_name != nullptr) && (log_name[0] != '\0'));
-  DBUG_ASSERT(ring_buffer_start != nullptr);
+  assert((log_name != nullptr) && (log_name[0] != '\0'));
+  assert(ring_buffer_start != nullptr);
 
   // No log-service configured that could parse a log
   if ((log_sink_pfs_source == nullptr) ||
@@ -698,9 +698,9 @@ log_service_error log_error_read_log(const char *log_name) {
   }
 
   // If --log-err=... does not name a file, there's nothing we can do here.
-  DBUG_ASSERT(log_name != nullptr);
-  DBUG_ASSERT(log_name[0] != '\0');
-  DBUG_ASSERT(0 != strcmp(log_name, "stderr"));
+  assert(log_name != nullptr);
+  assert(log_name[0] != '\0');
+  assert(0 != strcmp(log_name, "stderr"));
 
   // If we're not using the built-in (trad log) reader, fix the log file name
   if (!(log_sink_pfs_source->sce->chistics & LOG_SERVICE_BUILTIN)) {
@@ -710,7 +710,7 @@ log_service_error log_error_read_log(const char *log_name) {
     ls = reinterpret_cast<SERVICE_TYPE(log_service) *>(
         log_sink_pfs_source->sce->service);
 
-    DBUG_ASSERT(ls != nullptr);
+    assert(ls != nullptr);
 
     // try to determine file extension for this log-service
     if ((ls == nullptr) || (ls->get_log_name(nullptr, ext, sizeof(ext)) < 0))
@@ -772,7 +772,7 @@ int log_error_read_log_exit() {
   @retval !=0  Failure - buffer was not allocated.
 */
 int log_error_read_log_init() {
-  DBUG_ASSERT(ring_buffer_start == nullptr);
+  assert(ring_buffer_start == nullptr);
 
   char *b;
 
@@ -813,7 +813,7 @@ int log_sink_perfschema(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
   log_sink_pfs_event e;
   memset(&e, 0, sizeof(log_sink_pfs_event));
 
-  DBUG_ASSERT(ring_buffer_start != nullptr);
+  assert(ring_buffer_start != nullptr);
 
   const char *msg = nullptr;
   int c, out_fields = 0;

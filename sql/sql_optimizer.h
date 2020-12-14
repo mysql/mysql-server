@@ -117,7 +117,7 @@ class ORDER_with_src {
   }
 
   int get_flags() const {
-    DBUG_ASSERT(order);
+    assert(order);
     return flags;
   }
 };
@@ -595,7 +595,7 @@ class JOIN {
     copy_ref_item_slice(ref_items[dst_slice], ref_items[src_slice]);
   }
   void copy_ref_item_slice(Ref_item_array dst_arr, Ref_item_array src_arr) {
-    DBUG_ASSERT(dst_arr.size() >= src_arr.size());
+    assert(dst_arr.size() >= src_arr.size());
     void *dest = dst_arr.array();
     const void *src = src_arr.array();
     if (!src_arr.is_null())
@@ -619,7 +619,7 @@ class JOIN {
            4 + windowno.
   */
   void set_ref_item_slice(uint sliceno) {
-    DBUG_ASSERT((int)sliceno >= 1);
+    assert((int)sliceno >= 1);
     if (current_ref_item_slice != sliceno) {
       copy_ref_item_slice(REF_SLICE_ACTIVE, sliceno);
       DBUG_PRINT("info", ("JOIN %p ref slice %u -> %u", this,
@@ -964,10 +964,9 @@ class JOIN {
   final join order. If 'tables==0', one is not expected to consult best_ref
   cells, and best_ref may not even have been allocated.
 */
-#define ASSERT_BEST_REF_IN_JOIN_ORDER(join)               \
-  do {                                                    \
-    DBUG_ASSERT((join)->tables == 0 ||                    \
-                ((join)->best_ref && !(join)->join_tab)); \
+#define ASSERT_BEST_REF_IN_JOIN_ORDER(join)                                 \
+  do {                                                                      \
+    assert((join)->tables == 0 || ((join)->best_ref && !(join)->join_tab)); \
   } while (0)
 
 /**
@@ -1064,7 +1063,7 @@ class Deps_of_remaining_lateral_derived_tables {
   ~Deps_of_remaining_lateral_derived_tables() { restore(); }
   void restore() { join->deps_of_remaining_lateral_derived_tables = saved; }
   void assert_unchanged() {
-    DBUG_ASSERT(join->deps_of_remaining_lateral_derived_tables == saved);
+    assert(join->deps_of_remaining_lateral_derived_tables == saved);
   }
   void recalculate(uint next_idx) {
     if (join->has_lateral)

@@ -58,27 +58,27 @@
 #include "sql/thd_raii.h"          // Prepared_stmt_arena_holder
 #include "thr_lock.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #include "sql/current_thd.h"
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 Sql_cmd_ddl_table::Sql_cmd_ddl_table(Alter_info *alter_info)
     : m_alter_info(alter_info) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   LEX *lex = current_thd->lex;
-  DBUG_ASSERT(lex->alter_info == m_alter_info);
-  DBUG_ASSERT(lex->sql_command == SQLCOM_ALTER_TABLE ||
-              lex->sql_command == SQLCOM_ANALYZE ||
-              lex->sql_command == SQLCOM_ASSIGN_TO_KEYCACHE ||
-              lex->sql_command == SQLCOM_CHECK ||
-              lex->sql_command == SQLCOM_CREATE_INDEX ||
-              lex->sql_command == SQLCOM_CREATE_TABLE ||
-              lex->sql_command == SQLCOM_DROP_INDEX ||
-              lex->sql_command == SQLCOM_OPTIMIZE ||
-              lex->sql_command == SQLCOM_PRELOAD_KEYS ||
-              lex->sql_command == SQLCOM_REPAIR);
-#endif  // DBUG_OFF
-  DBUG_ASSERT(m_alter_info != nullptr);
+  assert(lex->alter_info == m_alter_info);
+  assert(lex->sql_command == SQLCOM_ALTER_TABLE ||
+         lex->sql_command == SQLCOM_ANALYZE ||
+         lex->sql_command == SQLCOM_ASSIGN_TO_KEYCACHE ||
+         lex->sql_command == SQLCOM_CHECK ||
+         lex->sql_command == SQLCOM_CREATE_INDEX ||
+         lex->sql_command == SQLCOM_CREATE_TABLE ||
+         lex->sql_command == SQLCOM_DROP_INDEX ||
+         lex->sql_command == SQLCOM_OPTIMIZE ||
+         lex->sql_command == SQLCOM_PRELOAD_KEYS ||
+         lex->sql_command == SQLCOM_REPAIR);
+#endif  // NDEBUG
+  assert(m_alter_info != nullptr);
 }
 
 /**
@@ -167,7 +167,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
                               ? ha_default_temp_handlerton(thd)
                               : ha_default_handlerton(thd);
 
-  DBUG_ASSERT(create_info.db_type != nullptr);
+  assert(create_info.db_type != nullptr);
   if ((m_alter_info->flags & Alter_info::ANY_ENGINE_ATTRIBUTE) != 0 &&
       ((create_info.db_type->flags & HTON_SUPPORTS_ENGINE_ATTRIBUTE) == 0 &&
        DBUG_EVALUATE_IF("simulate_engine_attribute_support", false, true))) {
@@ -461,7 +461,7 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
   /* Push Strict_error_handler */
   Strict_error_handler strict_handler;
   if (thd->is_strict_mode()) thd->push_internal_handler(&strict_handler);
-  DBUG_ASSERT(!query_block->order_list.elements);
+  assert(!query_block->order_list.elements);
   const bool res =
       mysql_alter_table(thd, first_table->db, first_table->table_name,
                         &create_info, first_table, &alter_info);

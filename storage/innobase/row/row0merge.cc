@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1302,7 +1302,7 @@ static void row_merge_write_rec_low(
 #ifdef UNIV_DEBUG
   const byte *const end = b + size;
 #endif /* UNIV_DEBUG */
-  DBUG_ASSERT(e == rec_offs_extra_size(offsets) + 1);
+  assert(e == rec_offs_extra_size(offsets) + 1);
   DBUG_PRINT("ib_merge_sort",
              ("%p,fd=%d,%lu: %s", reinterpret_cast<const void *>(b), fd,
               ulong(foffs), rec_printer(mrec, 0, offsets).str().c_str()));
@@ -1315,7 +1315,7 @@ static void row_merge_write_rec_low(
   }
 
   memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
-  DBUG_ASSERT(b + rec_offs_size(offsets) == end);
+  assert(b + rec_offs_size(offsets) == end);
 }
 
 /** Write a merge record.

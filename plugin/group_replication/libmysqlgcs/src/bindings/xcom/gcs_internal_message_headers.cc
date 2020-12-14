@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ unsigned long long Gcs_internal_message_header::decode(
 
   /* Take care of old nodes, which send max_version = 0 but support version 1 */
   if (m_max_version == Gcs_protocol_version::UNKNOWN) {
-    DBUG_ASSERT(m_used_version == Gcs_protocol_version::V1);
+    assert(m_used_version == Gcs_protocol_version::V1);
     m_max_version = m_used_version;
   }
 
