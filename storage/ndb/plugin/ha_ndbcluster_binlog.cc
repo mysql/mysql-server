@@ -989,6 +989,24 @@ class Ndb_binlog_setup {
   }
 };
 
+/**
+  @brief Force start of GCP, don't wait for reply.
+
+  @note This function is used by schema distribution to speed up handling of
+  schema changes in the cluster. By forcing a GCP to start, the
+  Ndb_schema_event_handler will receive the events notifying about changes to
+  the ndb_schema* tables faster. Beware that forcing GCP will temporarily cause
+  smaller transactions in the binlog, thus potentially affecting batching when
+  applied on the replicas.
+
+  @param ndb  Ndb Object
+*/
+static inline void schema_dist_send_force_gcp(Ndb *ndb) {
+  // Send signal to DBDIH to start new micro gcp
+  constexpr int START_GCP_NO_WAIT = 1;
+  (void)ndb->getDictionary()->forceGCPWait(START_GCP_NO_WAIT);
+}
+
 /*
   Defines for the expected order of columns in ndb_schema table, should
   match the accepted table definition.
@@ -1096,7 +1114,7 @@ bool Ndb_schema_dist_client::write_schema_op_to_NDB(
     return false;
   }
 
-  (void)ndb->getDictionary()->forceGCPWait(1);
+  schema_dist_send_force_gcp(ndb);
 
   return true;
 }
@@ -1981,7 +1999,7 @@ class Ndb_schema_event_handler {
                          1 /*force send*/) == 0) {
         DBUG_PRINT("info", ("node %d cleared lock on '%s.%s'", own_nodeid(),
                             schema->db, schema->name));
-        (void)ndb->getDictionary()->forceGCPWait(1);
+        schema_dist_send_force_gcp(ndb);
         break;
       }
     err:
@@ -2081,9 +2099,10 @@ class Ndb_schema_event_handler {
       ndb_log_warning("Could not release slock on '%s.%s'", db, table_name);
       return 1;
     }
-    ndb_log_verbose(19, "Cleared slock on '%s.%s'", db, table_name);
 
-    (void)ndb->getDictionary()->forceGCPWait(1);
+    schema_dist_send_force_gcp(ndb);
+
+    ndb_log_verbose(19, "Cleared slock on '%s.%s'", db, table_name);
 
     return 0;
   }
@@ -2173,6 +2192,8 @@ class Ndb_schema_event_handler {
           schema->db, schema->name);
       return false;
     }
+
+    schema_dist_send_force_gcp(ndb);
 
     // Success
     ndb_log_verbose(19,
