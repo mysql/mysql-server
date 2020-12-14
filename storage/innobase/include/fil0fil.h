@@ -1594,15 +1594,6 @@ bool fil_system_get_file_by_space_num(space_id_t space_num,
 bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Drop and create an UNDO tablespace.
-@param[in]  old_space_id   Tablespace ID to truncate
-@param[in]  new_space_id   Tablespace ID to for the new file
-@param[in]  size_in_pages  Truncate size.
-@return true if truncate was successful. */
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages)
-    MY_ATTRIBUTE((warn_unused_result));
-
 /** Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
 @param[in,out]	trx		Transaction covering the close
@@ -2253,7 +2244,7 @@ void fil_set_scan_dirs(const std::string &directories);
 @return DB_SUCCESS if all goes well */
 dberr_t fil_scan_for_tablespaces();
 
-/** Open the tabelspace and also get the tablespace filenames, space_id must
+/** Open the tablespace and also get the tablespace filenames, space_id must
 already be known.
 @param[in]	space_id	Tablespace ID to lookup
 @return true if open was successful */

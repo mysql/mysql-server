@@ -5491,11 +5491,6 @@ dberr_t Fil_system::rename_tablespace_name(space_id_t space_id,
   return DB_SUCCESS;
 }
 
-/** Rename a tablespace.  Use the space_id to find the shard.
-@param[in]	space_id	tablespace ID
-@param[in]	old_name	old tablespace name
-@param[in]	new_name	new tablespace name
-@return DB_SUCCESS on success */
 dberr_t fil_rename_tablespace_by_id(space_id_t space_id, const char *old_name,
                                     const char *new_name) {
   return fil_system->rename_tablespace_name(space_id, old_name, new_name);
@@ -5759,16 +5754,6 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   return err;
 }
 
-/** Create an IBD tablespace file.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name in dbname/tablename format.
-                                For general tablespaces, the 'dbname/' part
-                                may be missing.
-@param[in]	path		Path and filename of the datafile to create.
-@param[in]	flags		Tablespace flags
-@param[in]	size		Initial size of the tablespace file in pages,
-                                must be >= FIL_IBD_FILE_INITIAL_SIZE
-@return DB_SUCCESS or error code */
 dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
                        uint32_t flags, page_no_t size) {
   ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
@@ -5777,44 +5762,11 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
                                FIL_TYPE_TABLESPACE);
 }
 
-/** Create a session temporary tablespace (IBT) file.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name
-@param[in]	path		Path and filename of the datafile to create.
-@param[in]	flags		Tablespace flags
-@param[in]	size		Initial size of the tablespace file in pages,
-                                must be >= FIL_IBT_FILE_INITIAL_SIZE
-@return DB_SUCCESS or error code */
 dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
                        uint32_t flags, page_no_t size) {
   ut_a(size >= FIL_IBT_FILE_INITIAL_SIZE);
   return fil_create_tablespace(space_id, name, path, flags, size,
                                FIL_TYPE_TEMPORARY);
-}
-
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages) {
-  auto space = fil_space_get(old_space_id);
-  std::string space_name(space->name);
-  std::string file_name(space->files.front().name);
-
-  /* Mark the old tablespace to be deleted. We defer the actual deletion
-  to avoid concurrency bottleneck.  Leave the pages in the buffer pool
-  and increment the space version number. */
-  auto err = fil_delete_tablespace(old_space_id, BUF_REMOVE_NONE);
-
-  if (err != DB_SUCCESS) {
-    return false;
-  }
-
-  ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
-
-  /* Create the new UNDO tablespace. */
-  err =
-      fil_create_tablespace(new_space_id, space_name.c_str(), file_name.c_str(),
-                            flags, size_in_pages, FIL_TYPE_TABLESPACE);
-
-  return (err == DB_SUCCESS);
 }
 
 #ifndef UNIV_HOTBACKUP
