@@ -9074,10 +9074,6 @@ static bool parsePartitionBalance(
 static int create_table_set_up_partition_info(partition_info *part_info,
                                               NdbDictionary::Table &,
                                               Ndb_table_map &);
-static int create_table_set_range_data(const partition_info *part_info,
-                                       NdbDictionary::Table &);
-static int create_table_set_list_data(const partition_info *part_info,
-                                      NdbDictionary::Table &);
 
 /**
   @brief Check that any table modifiers specified in the table COMMENT= matches
@@ -14623,75 +14619,12 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info) {
   }
 }
 
-static int create_table_set_range_data(const partition_info *part_info,
-                                       NdbDictionary::Table &ndbtab) {
-  const uint num_parts = part_info->num_parts;
-  DBUG_TRACE;
-
-  int32 *range_data =
-      (int32 *)my_malloc(PSI_INSTRUMENT_ME, num_parts * sizeof(int32), MYF(0));
-  if (!range_data) {
-    mem_alloc_error(num_parts * sizeof(int32));
-    return 1;
-  }
-  for (uint i = 0; i < num_parts; i++) {
-    longlong range_val = part_info->range_int_array[i];
-    const bool unsigned_flag = part_info->part_expr->unsigned_flag;
-    if (unsigned_flag) range_val -= 0x8000000000000000ULL;
-    if (range_val < INT_MIN32 || range_val >= INT_MAX32) {
-      if ((i != num_parts - 1) || (range_val != LLONG_MAX)) {
-        my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
-        my_free(range_data);
-        return 1;
-      }
-      range_val = INT_MAX32;
-    }
-    range_data[i] = (int32)range_val;
-  }
-  ndbtab.setRangeListData(range_data, num_parts);
-  my_free(range_data);
-  return 0;
-}
-
-static int create_table_set_list_data(const partition_info *part_info,
-                                      NdbDictionary::Table &ndbtab) {
-  const uint num_list_values = part_info->num_list_values;
-  int32 *list_data = (int32 *)my_malloc(
-      PSI_INSTRUMENT_ME, num_list_values * 2 * sizeof(int32), MYF(0));
-  DBUG_TRACE;
-
-  if (!list_data) {
-    mem_alloc_error(num_list_values * 2 * sizeof(int32));
-    return 1;
-  }
-  for (uint i = 0; i < num_list_values; i++) {
-    LIST_PART_ENTRY *list_entry = &part_info->list_array[i];
-    longlong list_val = list_entry->list_value;
-    const bool unsigned_flag = part_info->part_expr->unsigned_flag;
-    if (unsigned_flag) list_val -= 0x8000000000000000ULL;
-    if (list_val < INT_MIN32 || list_val > INT_MAX32) {
-      my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
-      my_free(list_data);
-      return 1;
-    }
-    list_data[2 * i] = (int32)list_val;
-    list_data[2 * i + 1] = list_entry->partition_id;
-  }
-  ndbtab.setRangeListData(list_data, 2 * num_list_values);
-  my_free(list_data);
-  return 0;
-}
-
 /*
-  User defined partitioning set-up. We need to check how many fragments the
-  user wants defined and which node groups to put those into.
+  Partitioning setup.
 
-  All the functionality of the partition function, partition limits and so
-  forth are entirely handled by the MySQL Server. There is one exception to
-  this rule for PARTITION BY KEY where NDB handles the hash function and
-  this type can thus be handled transparently also by NDB API program.
-  For RANGE, HASH and LIST and subpartitioning the NDB API programs must
-  implement the function to map to a partition.
+  Check how many fragments the user wants defined and which node groups to put
+  those into. Create mappings.
+
 */
 
 static int create_table_set_up_partition_info(partition_info *part_info,
@@ -14739,15 +14672,49 @@ static int create_table_set_up_partition_info(partition_info *part_info,
     col.setAutoIncrement(false);
     ndbtab.addColumn(col);
     if (part_info->part_type == partition_type::RANGE) {
-      const int error = create_table_set_range_data(part_info, ndbtab);
-      if (error) {
-        return error;
+      // Translate and check values for RANGE partitions to NDB format
+      const uint parts = part_info->num_parts;
+      std::unique_ptr<int32[]> range_data(new (std::nothrow) int32[parts]);
+      if (!range_data) {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), parts * sizeof(int32));
+        return 1;
       }
+      for (uint i = 0; i < parts; i++) {
+        longlong range_val = part_info->range_int_array[i];
+        if (part_info->part_expr->unsigned_flag)
+          range_val -= 0x8000000000000000ULL;
+        if (range_val < INT_MIN32 || range_val >= INT_MAX32) {
+          if ((i != parts - 1) || (range_val != LLONG_MAX)) {
+            my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
+            return 1;
+          }
+          range_val = INT_MAX32;
+        }
+        range_data[i] = (int32)range_val;
+      }
+      ndbtab.setRangeListData(range_data.get(), parts);
     } else if (part_info->part_type == partition_type::LIST) {
-      const int error = create_table_set_list_data(part_info, ndbtab);
-      if (error) {
-        return error;
+      // Translate and check values for LIST partitions to NDB format
+      const uint values = part_info->num_list_values;
+      std::unique_ptr<int32[]> list_data(new (std::nothrow) int32[values * 2]);
+      if (!list_data) {
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 values * 2 * sizeof(int32));
+        return 1;
       }
+      for (uint i = 0; i < values; i++) {
+        const LIST_PART_ENTRY *list_entry = &part_info->list_array[i];
+        longlong list_val = list_entry->list_value;
+        if (part_info->part_expr->unsigned_flag)
+          list_val -= 0x8000000000000000ULL;
+        if (list_val < INT_MIN32 || list_val > INT_MAX32) {
+          my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
+          return 1;
+        }
+        list_data[i * 2] = (int32)list_val;
+        list_data[i * 2 + 1] = list_entry->partition_id;
+      }
+      ndbtab.setRangeListData(list_data.get(), values * 2);
     }
 
     DBUG_PRINT("info", ("Using UserDefined fragmentation type"));
@@ -14771,32 +14738,32 @@ static int create_table_set_up_partition_info(partition_info *part_info,
     // Count number of fragments to use for the table and
     // build array describing which nodegroup should store each
     // partition(each partition is mapped to one fragment in the table).
-    uint32 frag_data[MAX_PARTITIONS];
-    ulong fd_index = 0;
-
+    const uint tot_parts = part_info->get_tot_partitions();
+    std::unique_ptr<uint32[]> frag_data(new (std::nothrow) uint32[tot_parts]);
+    if (!frag_data) {
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), tot_parts * sizeof(uint32));
+      return 1;
+    }
+    uint fd_index = 0;
     partition_element *part_elem;
     List_iterator<partition_element> part_it(part_info->partitions);
     while ((part_elem = part_it++)) {
       if (!part_info->is_sub_partitioned()) {
-        const Uint32 ng = part_elem->nodegroup_id;
-        assert(fd_index < NDB_ARRAY_SIZE(frag_data));
-        frag_data[fd_index++] = ng;
+        frag_data[fd_index++] = part_elem->nodegroup_id;
       } else {
         partition_element *subpart_elem;
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
         while ((subpart_elem = sub_it++)) {
-          const Uint32 ng = subpart_elem->nodegroup_id;
-          assert(fd_index < NDB_ARRAY_SIZE(frag_data));
-          frag_data[fd_index++] = ng;
+          frag_data[fd_index++] = subpart_elem->nodegroup_id;
         }
       }
     }
 
     // Double check number of partitions vs. fragments
-    assert(part_info->get_tot_partitions() == fd_index);
+    assert(tot_parts == fd_index);
 
     ndbtab.setFragmentCount(fd_index);
-    ndbtab.setFragmentData(frag_data, fd_index);
+    ndbtab.setFragmentData(frag_data.get(), fd_index);
     ndbtab.setPartitionBalance(
         NdbDictionary::Object::PartitionBalance_Specific);
   }
