@@ -95,11 +95,11 @@ TYPELIB behaviour_typelib = {array_elements(default_behaviour_on_failure) - 1,
                              default_behaviour_on_failure, NULL};
 
 RestartMode g_default_force_cluster_restart = None;
-const char *force_cluster_restart_mode[] = {"None", "Before", "After",
-                                            "Both", NullS};
+const char *force_cluster_restart_mode[] = {"none", "before", "after",
+                                            "both", nullptr};
 TYPELIB restart_typelib = {array_elements(force_cluster_restart_mode) -1,
                            "force_cluster_restart_mode",
-                           force_cluster_restart_mode, NULL};
+                           force_cluster_restart_mode, nullptr};
 const char *g_cwd = 0;
 const char *g_basedir = 0;
 const char *g_my_cnf = 0;
@@ -1192,9 +1192,9 @@ int read_test_case(FILE *file, int &line, atrt_testcase &tc) {
   tc.m_force_cluster_restart = g_default_force_cluster_restart;
     if (p.get("force-cluster-restart", &str)) {
     std::map<std::string, RestartMode> restart_mode_values = {
-        {"After", RestartMode::After},
-        {"Before", RestartMode::Before},
-        {"Both", RestartMode::Both}};
+        {"after", RestartMode::After},
+        {"before", RestartMode::Before},
+        {"both", RestartMode::Both}};
     if (restart_mode_values.find(str) == restart_mode_values.end()) {
       g_logger.critical("Invalid Restart Type!!");
       return ERR_CORRUPT_TESTCASE;
@@ -1662,13 +1662,13 @@ void print_testcase_file_syntax() {
       "mysqld   - Arguments that atrt will use when starting mysqld.\n"
       "cmd-type - If 'mysql' change test process type from ndbapi to client.\n"
       "name     - Change name of test.  Default is given by cmd and args.\n"
-      "force-cluster-restart - If 'Before' force restart the cluster before\n"
-      "                        running test.\n"
-      "                        If 'After' force restart the cluster after\n"
-      "                        running test.\n"
-      "                        If 'Both' force restart the cluster before\n"
-      "                        and after running test.\n"
-      "                        If 'None' no forceful cluster restart. \n"
+      "force-cluster-restart - If 'before', force restart the cluster before\n"
+      "                        running the test case.\n"
+      "                        If 'after', force restart the cluster after\n"
+      "                        running the test case.\n"
+      "                        If 'both', force restart the cluster before\n"
+      "                        and after running the test case.\n"
+      "                        If 'none', no forceful cluster restart.\n"
       "max-retries - Maximum number of retries after test failed.\n"
       ""
       "\n"
