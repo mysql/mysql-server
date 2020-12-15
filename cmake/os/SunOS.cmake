@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,16 @@ INCLUDE(CheckCXXSourceCompiles)
 SET(SOLARIS 1)
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
   SET(SOLARIS_SPARC 1)
+ENDIF()
+
+IF (NOT "${CMAKE_C_FLAGS}${CMAKE_CXX_FLAGS}" MATCHES "-m32|-m64")
+  IF(NOT FORCE_UNSUPPORTED_COMPILER)
+    MESSAGE("Adding -m64")
+    STRING_APPEND(CMAKE_C_FLAGS        " -m64")
+    STRING_APPEND(CMAKE_CXX_FLAGS      " -m64")
+    STRING_APPEND(CMAKE_C_LINK_FLAGS   " -m64")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -m64")
+  ENDIF()
 ENDIF()
 
 INCLUDE(CheckTypeSize)

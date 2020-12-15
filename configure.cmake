@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -142,7 +142,9 @@ ENDFUNCTION()
 FIND_PACKAGE (Threads)
 
 IF(UNIX)
-  MY_SEARCH_LIBS(floor m LIBM)
+  IF(NOT LIBM)
+    MY_SEARCH_LIBS(floor m LIBM)
+  ENDIF()
   IF(NOT LIBM)
     MY_SEARCH_LIBS(__infinity m LIBM)
   ENDIF()
@@ -151,6 +153,10 @@ IF(UNIX)
   MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
   MY_SEARCH_LIBS(dlopen dl LIBDL)
+  # HAVE_dlopen_IN_LIBC
+  IF(NOT LIBDL)
+    MY_SEARCH_LIBS(dlsym dl LIBDL)
+  ENDIF()
   MY_SEARCH_LIBS(sched_yield rt LIBRT)
   IF(NOT LIBRT)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)
