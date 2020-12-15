@@ -2133,6 +2133,7 @@ TEST_P(SplicerParamTest, xproto) {
   }
 }
 
+#if defined(HAS_TLS_AWARE_SERVER)
 const std::array<SplicerParam, 39> splicer_server_plain_params = {{
     // disabled - disabled
     {SslMode::kDisabled, SslMode::kDisabled,  // RT2_CONN_TYPE_RSLN_00_01
@@ -2294,7 +2295,6 @@ INSTANTIATE_TEST_SUITE_P(
              "_"s + (p.expected_success == 0 ? "succeed" : "fail");
     });
 
-#if defined(HAS_TLS_AWARE_SERVER)
 const std::array<SplicerParam, 39> splicer_server_tls_params = {{
     // disabled - disabled
     {SslMode::kDisabled, SslMode::kDisabled,  // RT2_CONN_TYPE_RSLN_01_01
