@@ -181,13 +181,8 @@ SET GLOBAL innodb_max_undo_log_size=20000000;
 SET GLOBAL innodb_fast_shutdown=0;
 SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
 SET GLOBAL innodb_purge_run_now=ON;
-
-# The truncate will get started during shutdown using the settings above.
-# The restarted engine does not need these settings to complete the truncate
-# if the injected crash was far enough along.
---let $restart_parameters="restart:"
 --let $shutdown_server_timeout= 300
---source include/restart_mysqld.inc
+--source include/shutdown_mysqld.inc
 
 if ($CRASH_ON_SHUTDOWN == 1)
 {
@@ -198,6 +193,13 @@ if ($CRASH_ON_SHUTDOWN == 1)
   --remove_files_wildcard $MYSQLD_DATADIR cht_logbin.*
   --remove_files_wildcard $MYSQLD_DATADIR binlog.*
 }
+
+# The truncate will get started during shutdown using the settings above.
+# The restarted engine does not need these settings to complete the truncate
+# if the injected crash was far enough along.
+--let $restart_parameters="restart:"
+--let $explicit_default_wait_counter = 15000
+--source include/start_mysqld.inc
 
 let FILE_SIZE_13 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = '$UNDO_NAME_1'`;
 let FILE_SIZE_23 = `SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = '$UNDO_NAME_2'`;
