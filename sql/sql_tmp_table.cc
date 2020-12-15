@@ -2275,6 +2275,8 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
 
 bool instantiate_tmp_table(THD *thd, TABLE *table) {
   TABLE_SHARE *const share = table->s;
+  table->in_use = thd;
+
 #ifndef NDEBUG
   for (uint i = 0; i < share->fields; i++)
     assert(table->field[i]->gcol_info == nullptr &&
