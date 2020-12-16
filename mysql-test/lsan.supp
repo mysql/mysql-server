@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,12 @@ leak:Perl_safesysrealloc
 leak:Perl_savesharedpv
 leak:Perl_Slab_Alloc
 leak:Perl_newUNOP_AUX
+leak:Perl_newSTATEOP
+leak:Perl_pmruntime
 leak:/usr/bin/perl
+leak:/lib64/libperl.so.*
 leak:/bin/bash
+leak:/usr/bin/zip
 # OpenLDAP bug 9081
 # Fixed in 2.4.49, we build with 2.4.48
 leak:ldap_initialize
