@@ -6490,8 +6490,62 @@ static bool check_partition(const std::string &dict_name, bool sub_part,
 @param[out]	position	position of TMP extension in string
 @return true, iff TMP extension exists. */
 static bool check_tmp(const std::string &dict_name, size_t &position) {
-  position = dict_name.find(TMP_POSTFIX);
-  return (position != std::string::npos);
+  std::string check_name(dict_name);
+  position = std::string::npos;
+
+  /* For partitioned or sub partitioned table we need to search the
+  temp postfix within the partition, sub-partition string. The temp
+  extension looks as follows in different cases.
+
+  1. Non partitioned table : table_name#TMP
+  2. Table Partition       : table_name#p#part_name#TMP
+  3. Table Sub Partition   : table_name#p#part_name#sp#sub_part_name#TMP
+
+  The issue with checking only #TMP at the end of string is that the partition
+  or sub partition could be named as 'TMP' and in following cases we could
+  wrongly classify it as name with temporary extension.
+
+  1. Table Partition       : table_name#p#TMP
+  3. Table Sub Partition   : table_name#p#part_name#sp#TMP */
+
+  size_t part_begin = std::string::npos;
+
+  if (check_partition(dict_name, false, part_begin)) {
+    part_begin += PART_SEPARATOR_LEN;
+    auto part_string = check_name.substr(part_begin);
+    /* Modify the name to start from the beginning of partition string
+    excluding the partition separator '#p#'. */
+    check_name.assign(part_string);
+
+    size_t sub_part_begin = std::string::npos;
+
+    if (check_partition(part_string, true, sub_part_begin)) {
+      sub_part_begin += SUB_PART_SEPARATOR_LEN;
+      auto sub_part_string = check_name.substr(sub_part_begin);
+      /* Modify the name to start from the beginning of sub-partition string
+      excluding the sub-partition separator '#sp#'. */
+      check_name.assign(sub_part_string);
+    }
+  }
+
+  auto length = check_name.size();
+
+  if (length < TMP_POSTFIX_LEN) {
+    return false;
+  }
+
+  auto postfix_pos = length - TMP_POSTFIX_LEN;
+  auto ret = check_name.compare(postfix_pos, TMP_POSTFIX_LEN, TMP_POSTFIX);
+
+  if (ret == 0) {
+    auto length = dict_name.size();
+    ut_a(length >= TMP_POSTFIX_LEN);
+
+    position = length - TMP_POSTFIX_LEN;
+    ut_ad(0 == dict_name.compare(position, TMP_POSTFIX_LEN, TMP_POSTFIX));
+    return true;
+  }
+  return false;
 }
 
 bool is_partition(const std::string &dict_name) {
