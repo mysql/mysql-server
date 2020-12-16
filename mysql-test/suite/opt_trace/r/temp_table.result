@@ -531,8 +531,8 @@ SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
     {
       "creating_tmp_table": {
         "tmp_table_info": {
-          "columns": 20,
-          "row_length": 6852,
+          "columns": 21,
+          "row_length": 6863,
           "key_length": 0,
           "unique_constraint": false,
           "makes_grouped_rows": false,
@@ -639,8 +639,8 @@ SELECT pool_id FROM information_schema.INNODB_BUFFER_PAGE LIMIT 1	{
               "tmp_table_info": {
                 "table": "`information_schema`.`INNODB_BUFFER_PAGE`",
                 "in_plan_at_position": 0,
-                "columns": 20,
-                "row_length": 6852,
+                "columns": 21,
+                "row_length": 6863,
                 "key_length": 0,
                 "unique_constraint": false,
                 "makes_grouped_rows": false,
