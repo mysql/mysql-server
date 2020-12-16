@@ -6988,7 +6988,7 @@ int mysqld_main(int argc, char **argv)
   if (opt_keyring_migration_source || opt_keyring_migration_destination ||
       migrate_connect_options) {
     Migrate_keyring mk;
-    my_getopt_skip_unknown = TRUE;
+    my_getopt_skip_unknown = true;
     if (mk.init(remaining_argc, remaining_argv, opt_keyring_migration_source,
                 opt_keyring_migration_destination, opt_keyring_migration_user,
                 opt_keyring_migration_host, opt_keyring_migration_password,
