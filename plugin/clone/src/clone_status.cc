@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -327,8 +327,8 @@ Status_pfs::Status_pfs() : Table_pfs(S_NUM_ROWS) {
       "`ID` int,"
       "`PID` int,"
       "`STATE` char(16),"
-      "`BEGIN_TIME` timestamp(3),"
-      "`END_TIME` timestamp(3),"
+      "`BEGIN_TIME` timestamp(3) NULL,"
+      "`END_TIME` timestamp(3) NULL,"
       "`SOURCE` varchar(512),"
       "`DESTINATION` varchar(512),"
       "`ERROR_NO` int,"
@@ -605,8 +605,8 @@ Progress_pfs::Progress_pfs() : Table_pfs(S_NUM_ROWS) {
       "`ID` int,"
       "`STAGE` char(32),"
       "`STATE` char(16),"
-      "`BEGIN_TIME` timestamp(6),"
-      "`END_TIME` timestamp(6),"
+      "`BEGIN_TIME` timestamp(6) NULL,"
+      "`END_TIME` timestamp(6) NULL,"
       "`THREADS` int,"
       "`ESTIMATE` bigint,"
       "`DATA` bigint,"

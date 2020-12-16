@@ -68,6 +68,19 @@ SELECT * from schema_read_only.t_innodb ORDER BY col1;
 
 ALTER SCHEMA schema_read_only READ ONLY=1;
 
+--echo #BEGIN Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
+# We would need to remove it once this deprecated variable is removed. Currently
+# it is required for clone to work with this variable as some users are using it.
+SET LOCAL explicit_defaults_for_timestamp = OFF;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+UNINSTALL PLUGIN clone;
+SET LOCAL explicit_defaults_for_timestamp = default;
+--echo #End Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
+
 # Install Clone Plugin
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
