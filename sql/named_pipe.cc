@@ -66,7 +66,7 @@ static bool check_windows_group_for_everyone(const char *group_name,
     return false;
   }
 
-  if (strcmp(group_name, DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP) == 0) {
+  if (strcmp(group_name, NAMED_PIPE_FULL_ACCESS_GROUP_EVERYONE) == 0) {
     *is_everyone_group = true;
     return false;
   } else {
@@ -149,9 +149,9 @@ bool my_security_attr_add_rights_to_group(SECURITY_ATTRIBUTES *psa,
     }
   }
 
-  // Treat the DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP value
+  // Treat the NAMED_PIPE_FULL_ACCESS_GROUP_EVERYONE value
   // as a special case: we  convert it to the "world" SID
-  if (strcmp(group_name, DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP) == 0) {
+  if (strcmp(group_name, NAMED_PIPE_FULL_ACCESS_GROUP_EVERYONE) == 0) {
     if (!CreateWellKnownSid(WinWorldSid, NULL, soughtSID, &size_sid)) {
       DWORD last_error_num = GetLastError();
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
