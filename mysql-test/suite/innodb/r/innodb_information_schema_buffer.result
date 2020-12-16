@@ -7,29 +7,44 @@ INSERT INTO infoschema_buffer_test VALUES(9);
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_buffer_test%"
-	and PAGE_STATE="file_page" and PAGE_TYPE="index";
+    and PAGE_STATE="file_page" and PAGE_TYPE="index";
 TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	PAGE_STATE	PAGE_TYPE
 `test`.`infoschema_buffer_test`	GEN_CLUST_INDEX	1	29	FILE_PAGE	INDEX
 INSERT INTO infoschema_buffer_test VALUES(19);
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_buffer_test%"
-and PAGE_STATE="file_page" and PAGE_TYPE="index";
+    and PAGE_STATE="file_page" and PAGE_TYPE="index";
 TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	PAGE_STATE	PAGE_TYPE
 `test`.`infoschema_buffer_test`	GEN_CLUST_INDEX	2	58	FILE_PAGE	INDEX
 CREATE INDEX idx ON infoschema_buffer_test(col1);
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_buffer_test%"
-and PAGE_STATE="file_page" and INDEX_NAME = "idx" and PAGE_TYPE="index";
+    and PAGE_STATE="file_page" and INDEX_NAME = "idx" and PAGE_TYPE="index";
 TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	PAGE_STATE	PAGE_TYPE
 `test`.`infoschema_buffer_test`	idx	2	32	FILE_PAGE	INDEX
 `test`.`infoschema_buffer_test`	idx	2	32	FILE_PAGE	INDEX
+SELECT space, is_stale FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+WHERE space = {space_id} GROUP BY space, is_stale;;
+space	is_stale
+{space_id}	NO
 DROP TABLE infoschema_buffer_test;
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_buffer_test%";
 TABLE_NAME	INDEX_NAME	NUMBER_RECORDS	DATA_SIZE	PAGE_STATE	PAGE_TYPE
+SELECT space, is_stale FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+WHERE space = {space_id} GROUP BY space, is_stale;;
+space	is_stale
+{space_id}	YES
+# Emptying InnoDB buffer pool: begin
+# Buffer pool size: 25165824 bytes
+# Creating and dropping a table with size: 50331648 bytes
+# Emptying InnoDB buffer pool: end
+SELECT space, is_stale FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
+WHERE space = {space_id} GROUP BY space, is_stale;;
+space	is_stale
 CREATE TABLE infoschema_parent (id INT NOT NULL, PRIMARY KEY (id))
 ENGINE=INNODB;
 CREATE TABLE infoschema_child (id INT, parent_id INT, INDEX par_ind (parent_id),
@@ -40,7 +55,7 @@ ENGINE=INNODB;
 SELECT count(*)
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
 WHERE TABLE_NAME like "%infoschema_child%" and PAGE_STATE="file_page"
-and PAGE_TYPE="index";
+    and PAGE_TYPE="index";
 count(*)
 2
 DROP TABLE infoschema_child;
