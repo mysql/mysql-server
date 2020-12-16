@@ -4045,10 +4045,51 @@ match_hostname(const in6_addr *client_in6_addr,
   return HostnameMatch::ok_exact_match;
 }
 
+
+/**
+   @brief Build list of nodes in configuration
+
+   @param config_nodes List of nodes
+   @return true if list was filled properly, false otherwise
+ */
+bool
+MgmtSrvr::build_node_list_from_config(Vector<ConfigNode>& config_nodes) const
+{
+  Guard g(m_local_config_mutex);
+
+  ConfigIter iter(m_local_config, CFG_SECTION_NODE);
+  for(iter.first(); iter.valid(); iter.next())
+  {
+    // Get nodeid
+    unsigned current_node_id;
+    require(iter.get(CFG_NODE_ID, &current_node_id) == 0);
+
+    // Check the optional Dedicated setting
+    unsigned dedicated_node = 0;
+    iter.get(CFG_NODE_DEDICATED, &dedicated_node);
+
+    // Check type of node, the caller will ask for API, MGM or NDB
+    unsigned current_node_type;
+    require(iter.get(CFG_TYPE_OF_SECTION, &current_node_type) == 0);
+
+    // Get configured HostName of this node
+    const char *config_hostname;
+    require(iter.get(CFG_NODE_HOST, &config_hostname) == 0);
+
+    if (config_nodes.push_back({current_node_id,
+                               dedicated_node,
+                               current_node_type,
+                               config_hostname}) != 0)
+      return false;
+  }
+  return true;
+}
+
 int
 MgmtSrvr::find_node_type(NodeId node_id,
                          ndb_mgm_node_type type,
                          const sockaddr_in6* client_addr,
+                         const Vector<ConfigNode>& config_nodes,
                          Vector<PossibleNode>& nodes,
                          int& error_code, BaseString& error_string)
 {
@@ -4057,21 +4098,18 @@ MgmtSrvr::find_node_type(NodeId node_id,
   bool found_unresolved_hosts = false;
   LocalDnsCache dnsCache;
 
-  Guard g(m_local_config_mutex);
-
-  ConfigIter iter(m_local_config, CFG_SECTION_NODE);
-  for(iter.first(); iter.valid(); iter.next())
+  for (unsigned i = 0; i < config_nodes.size(); i++)
   {
+    const ConfigNode& node = config_nodes[i];
+
     // Check current nodeid, the caller either asks to find any
     // nodeid (nodeid=0) or a specific node (nodeid=x)
-    unsigned current_node_id;
-    require(iter.get(CFG_NODE_ID, &current_node_id) == 0);
+    const unsigned current_node_id = node.nodeid;
     if (node_id && node_id != current_node_id)
       continue;
 
     // Check the optional Dedicated setting
-    unsigned dedicated_node = 0;
-    iter.get(CFG_NODE_DEDICATED, &dedicated_node);
+    const unsigned dedicated_node = node.dedicated;
     if (dedicated_node && current_node_id != node_id)
     {
       // This node id is only handed out if explicitly requested.
@@ -4079,7 +4117,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     }
 
     // Check type of node, the caller will ask for API, MGM or NDB
-    require(iter.get(CFG_TYPE_OF_SECTION, &type_c) == 0);
+    type_c = node.node_type;
     if (type_c != (unsigned)type)
     {
       if (node_id) {
@@ -4091,8 +4129,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     }
 
     // Get configured HostName of this node
-    const char *config_hostname;
-    require(iter.get(CFG_NODE_HOST, &config_hostname) == 0);
+    const char *config_hostname = node.hostname.c_str();
 
     // Check if the connecting clients address matches the configured hostname
     const HostnameMatch matchType = match_hostname(&(client_addr->sin6_addr),
@@ -4309,7 +4346,7 @@ int
 MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
                               ndb_mgm_node_type type,
                               Uint32 timeout_ms,
-                              Vector<PossibleNode>& nodes,
+                              const Vector<PossibleNode>& nodes,
                               int& error_code,
                               BaseString& error_string)
 {
@@ -4444,9 +4481,19 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     }
   }
 
+  // Build list of nodes fom configuration, this is done as a separate step
+  // in order to hold the config mutex only for a short time and also
+  // avoid holding it while resolving addresses.
+  Vector<ConfigNode> config_nodes;
+  if (!build_node_list_from_config(config_nodes)) {
+    error_code = NDB_MGM_ALLOCID_ERROR;
+    error_string.assfmt("Failed to build config_nodes list");
+    return false;
+  }
+
   /* Find possible nodeids */
   Vector<PossibleNode> nodes;
-  if (find_node_type(nodeid, type, client_addr,
+  if (find_node_type(nodeid, type, client_addr, config_nodes,
                      nodes, error_code, error_string))
     return false;
 

@@ -559,13 +559,22 @@ private:
   int try_alloc_from_list(NodeId& nodeid,
                           ndb_mgm_node_type type,
                           Uint32 timeout_ms,
-                          Vector<PossibleNode>& nodes_info,
+                          const Vector<PossibleNode>& nodes_info,
                           int& error_code,
                           BaseString& error_string);
+  struct ConfigNode
+  {
+    unsigned nodeid;
+    unsigned dedicated;
+    unsigned node_type;
+    BaseString hostname;
+  };
+  bool build_node_list_from_config(Vector<ConfigNode>& config_nodes) const;
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
                      const sockaddr_in6* client_addr,
-                     Vector<PossibleNode>& nodes_info,
+                     const Vector<ConfigNode>& config_nodes,
+                     Vector<PossibleNode>& nodes,
                      int& error_code, BaseString& error_string);
   bool alloc_node_id_impl(NodeId& nodeid,
                           ndb_mgm_node_type type,
