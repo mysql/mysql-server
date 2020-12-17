@@ -25,11 +25,6 @@
 #ifndef METADATA_CACHE_METADATA_CACHE_INCLUDED
 #define METADATA_CACHE_METADATA_CACHE_INCLUDED
 
-#include "gr_notifications_listener.h"
-#include "metadata.h"
-#include "mysql_router_thread.h"
-#include "mysqlrouter/metadata_cache.h"
-
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -41,7 +36,12 @@
 #include <string>
 #include <thread>
 
+#include "gr_notifications_listener.h"
+#include "metadata.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/monitor.h"
+#include "mysql_router_thread.h"
+#include "mysqlrouter/metadata_cache.h"
 
 class ClusterMetadata;
 
@@ -163,12 +163,15 @@ class METADATA_API MetadataCache
       metadata_cache::ReplicasetStateListenerInterface *listener) override;
 
   metadata_cache::MetadataCacheAPIBase::RefreshStatus refresh_status() {
-    return {refresh_failed_,
-            refresh_succeeded_,
-            last_refresh_succeeded_,
-            last_refresh_failed_,
-            last_metadata_server_host_,
-            last_metadata_server_port_};
+    return stats_([](auto const &stats)
+                      -> metadata_cache::MetadataCacheAPIBase::RefreshStatus {
+      return {stats.refresh_failed,
+              stats.refresh_succeeded,
+              stats.last_refresh_succeeded,
+              stats.last_refresh_failed,
+              stats.last_metadata_server_host,
+              stats.last_metadata_server_port};
+    });
   }
 
   std::string cluster_type_specific_id() const {
@@ -244,8 +247,14 @@ class METADATA_API MetadataCache
   // id of the Router in the cluster metadata
   unsigned router_id_;
 
-  // Authentication data for the rest users
-  MetaData::auth_credentials_t rest_auth_data_;
+  struct RestAuthData {
+    // Authentication data for the rest users
+    MetaData::auth_credentials_t rest_auth_data_;
+
+    std::chrono::system_clock::time_point last_credentials_update_;
+  };
+
+  Monitor<RestAuthData> rest_auth_{{}};
 
   // Authentication data should be fetched only when metadata_cache is used as
   // an authentication backend
@@ -297,14 +306,17 @@ class METADATA_API MetadataCache
            std::set<metadata_cache::ReplicasetStateListenerInterface *>>
       listeners_;
 
-  std::chrono::system_clock::time_point last_refresh_failed_;
-  std::chrono::system_clock::time_point last_refresh_succeeded_;
-  uint64_t refresh_failed_{0};
-  uint64_t refresh_succeeded_{0};
-  std::chrono::system_clock::time_point last_credentials_update_;
+  struct Stats {
+    std::chrono::system_clock::time_point last_refresh_failed;
+    std::chrono::system_clock::time_point last_refresh_succeeded;
+    uint64_t refresh_failed{0};
+    uint64_t refresh_succeeded{0};
 
-  std::string last_metadata_server_host_;
-  uint16_t last_metadata_server_port_;
+    std::string last_metadata_server_host;
+    uint16_t last_metadata_server_port;
+  };
+
+  Monitor<Stats> stats_{{}};
 
   bool version_updated_{false};
   unsigned last_check_in_updated_{0};

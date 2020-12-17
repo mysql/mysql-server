@@ -32,6 +32,7 @@
 #include <sstream>
 
 #include "context.h"
+#include "mysql/harness/stdx/monitor.h"
 #include "protocol_splicer.h"
 
 class MySQLRoutingConnectionBase {
@@ -39,9 +40,7 @@ class MySQLRoutingConnectionBase {
   MySQLRoutingConnectionBase(
       MySQLRoutingContext &context,
       std::function<void(MySQLRoutingConnectionBase *)> remove_callback)
-      : context_(context),
-        remove_callback_(std::move(remove_callback)),
-        started_(std::chrono::system_clock::now()) {}
+      : context_(context), remove_callback_(std::move(remove_callback)) {}
 
   virtual ~MySQLRoutingConnectionBase() = default;
 
@@ -65,28 +64,62 @@ class MySQLRoutingConnectionBase {
    */
   virtual std::string get_client_address() const = 0;
 
-  std::size_t get_bytes_up() const { return bytes_up_; }
-  std::size_t get_bytes_down() const { return bytes_down_; }
-
-  using time_point_type = std::chrono::time_point<std::chrono::system_clock>;
-
-  time_point_type get_started() const { return started_; }
-  time_point_type get_connected_to_server() const { return connected_server_; }
-  time_point_type get_last_sent_to_server() const {
-    return last_sent_to_server_;
+  std::size_t get_bytes_up() const {
+    return stats_([](const Stats &stats) { return stats.bytes_up; });
   }
+
+  std::size_t get_bytes_down() const {
+    return stats_([](const Stats &stats) { return stats.bytes_down; });
+  }
+
+  using clock_type = std::chrono::system_clock;
+  using time_point_type = clock_type::time_point;
+
+  time_point_type get_started() const {
+    return stats_([](const Stats &stats) { return stats.started; });
+  }
+
+  time_point_type get_connected_to_server() const {
+    return stats_([](const Stats &stats) { return stats.connected_to_server; });
+  }
+
+  time_point_type get_last_sent_to_server() const {
+    return stats_([](const Stats &stats) { return stats.last_sent_to_server; });
+  }
+
   time_point_type get_last_received_from_server() const {
-    return last_received_from_server_;
+    return stats_(
+        [](const Stats &stats) { return stats.last_received_from_server; });
+  }
+
+  struct Stats {
+    std::size_t bytes_up{0};
+    std::size_t bytes_down{0};
+
+    time_point_type started{clock_type::now()};
+    time_point_type connected_to_server;
+    time_point_type last_sent_to_server;
+    time_point_type last_received_from_server;
+  };
+
+  Stats get_stats() const {
+    return stats_([](const Stats &stats) { return stats; });
   }
 
   void transfered_to_server(size_t bytes) {
-    last_sent_to_server_ = std::chrono::system_clock::now();
-    bytes_down_ += bytes;
+    const auto now = clock_type::now();
+    stats_([bytes, now](Stats &stats) {
+      stats.last_sent_to_server = now;
+      stats.bytes_down += bytes;
+    });
   }
 
   void transfered_to_client(size_t bytes) {
-    last_received_from_server_ = std::chrono::system_clock::now();
-    bytes_up_ += bytes;
+    const auto now = clock_type::now();
+    stats_([bytes, now](Stats &stats) {
+      stats.last_received_from_server = now;
+      stats.bytes_up += bytes;
+    });
   }
 
   void disassociate() { remove_callback_(this); }
@@ -97,13 +130,7 @@ class MySQLRoutingConnectionBase {
   /** @brief callback that is called when thread of execution completes */
   std::function<void(MySQLRoutingConnectionBase *)> remove_callback_;
 
-  std::size_t bytes_up_{0};
-  std::size_t bytes_down_{0};
-
-  time_point_type started_;
-  time_point_type connected_server_;
-  time_point_type last_sent_to_server_;
-  time_point_type last_received_from_server_;
+  Monitor<Stats> stats_{{}};
 };
 
 template <class ClientProtocol, class ServerProtocol>
@@ -112,8 +139,8 @@ class Splicer;
 /**
  * @brief MySQLRoutingConnection represents a connection to MYSQL Server.
  *
- * The MySQLRoutingConnection wraps thread that handles traffic from one socket
- * to another.
+ * The MySQLRoutingConnection wraps thread that handles traffic from one
+ * socket to another.
  *
  * When instance of MySQLRoutingConnection object is created, remove callback
  * is passed, which is called when connection thread completes.
@@ -136,9 +163,9 @@ class MySQLRoutingConnection : public MySQLRoutingConnectionBase {
    * to/from client
    * @param server_socket socket used to send/receive data to/from server
    * @param server_endpoint IP address and TCP port of MySQL Server
-   * @param remove_callback called when thread finishes its execution to remove
-   *        associated MySQLRoutingConnection from container. It must be called
-   *        at the very end of thread execution
+   * @param remove_callback called when thread finishes its execution to
+   * remove associated MySQLRoutingConnection from container. It must be
+   * called at the very end of thread execution
    */
   MySQLRoutingConnection(
       MySQLRoutingContext &context, std::string destination_id,
@@ -169,7 +196,8 @@ class MySQLRoutingConnection : public MySQLRoutingConnectionBase {
   }
 
   void connected() {
-    connected_server_ = std::chrono::system_clock::now();
+    const auto now = clock_type::now();
+    stats_([now](Stats &stats) { stats.connected_to_server = now; });
 
     if (log_level_is_handled(mysql_harness::logging::LogLevel::kDebug)) {
       log_debug("[%s] fd=%d connected %s -> %s as fd=%d",

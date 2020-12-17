@@ -29,6 +29,7 @@
 #include <chrono>
 #include <iterator>  // advance
 #include <memory>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -447,9 +448,17 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
   return stdx::make_unexpected();
 }
 
+void DestMetadataCacheGroup::advance(size_t n) {
+  std::lock_guard<std::mutex> lk(mutex_update_);
+
+  start_pos_ += n;
+}
+
 Destinations DestMetadataCacheGroup::balance(
     const AvailableDestinations &available, bool primary_fallback) {
   Destinations dests;
+
+  std::lock_guard<std::mutex> lk(mutex_update_);
 
   switch (routing_strategy_) {
     case routing::RoutingStrategy::kFirstAvailable: {

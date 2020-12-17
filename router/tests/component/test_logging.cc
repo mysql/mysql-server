@@ -1728,7 +1728,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
   EXPECT_THAT(router.get_full_output(),
-              testing::Not(testing::HasSubstr("Executing query:")));
+              testing::Not(testing::HasSubstr("SELECT ")));
 }
 
 /**
@@ -1773,7 +1773,12 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
 
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
-  EXPECT_THAT(router.get_full_output(), testing::HasSubstr("Executing query:"));
+
+  // check if log output contains the SQL queries.
+  //
+  // SQL queries are logged with host:port at the start.
+  EXPECT_THAT(router.get_full_output(),
+              testing::HasSubstr("127.0.0.1:" + std::to_string(server_port)));
 }
 
 /**
@@ -1817,8 +1822,11 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
 
-  auto matcher = [](const std::string &line) -> bool {
-    return line.find("Executing query:") != line.npos;
+  // check if log output contains the SQL queries.
+  //
+  // SQL queries are logged with host:port at the start.
+  auto matcher = [server_port](const std::string &line) -> bool {
+    return line.find("127.0.0.1:" + std::to_string(server_port)) != line.npos;
   };
 
   EXPECT_TRUE(find_in_file(bootstrap_conf.name() + "/mysqlrouter.log", matcher,
@@ -1875,7 +1883,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
 
   // check if logs are not written to output
   EXPECT_THAT(router.get_full_output(),
-              testing::Not(testing::HasSubstr("Executing query:")));
+              testing::Not(testing::HasSubstr("SELECT ")));
 
   // check if normal output is written to output
   EXPECT_THAT(router.get_full_output(),

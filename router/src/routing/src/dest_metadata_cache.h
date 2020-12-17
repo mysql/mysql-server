@@ -103,7 +103,10 @@ class DestMetadataCacheGroup final
 
   Destinations primary_destinations();
 
-  void advance(size_t n) { start_pos_ += n; }
+  /**
+   * advance the current position in the destination by n.
+   */
+  void advance(size_t n);
 
  private:
   /** @brief The Metadata Cache to use

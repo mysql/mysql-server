@@ -357,8 +357,10 @@ std::string get_hidden_info(const metadata_cache::ManagedInstance &instance) {
 }
 
 void MetadataCache::on_refresh_failed(bool terminated) {
-  refresh_failed_++;
-  last_refresh_failed_ = std::chrono::system_clock::now();
+  stats_([](auto &stats) {
+    stats.refresh_failed++;
+    stats.last_refresh_failed = std::chrono::system_clock::now();
+  });
 
   // we failed to fetch metadata from any of the metadata servers
   if (!terminated)
@@ -382,10 +384,12 @@ void MetadataCache::on_refresh_failed(bool terminated) {
 
 void MetadataCache::on_refresh_succeeded(
     const metadata_cache::ManagedInstance &metadata_server) {
-  last_refresh_succeeded_ = std::chrono::system_clock::now();
-  last_metadata_server_host_ = metadata_server.host;
-  last_metadata_server_port_ = metadata_server.port;
-  refresh_succeeded_++;
+  stats_([&metadata_server](auto &stats) {
+    stats.last_refresh_succeeded = std::chrono::system_clock::now();
+    stats.last_metadata_server_host = metadata_server.host;
+    stats.last_metadata_server_port = metadata_server.port;
+    stats.refresh_succeeded++;
+  });
 }
 
 void MetadataCache::on_instances_changed(const bool md_servers_reachable,
@@ -545,29 +549,38 @@ void MetadataCache::check_auth_metadata_timers() const {
 
 std::pair<bool, MetaData::auth_credentials_t::mapped_type>
 MetadataCache::get_rest_user_auth_data(const std::string &user) {
-  // negative TTL is treated as infinite
-  if (auth_cache_ttl_.count() >= 0 &&
-      last_credentials_update_ + auth_cache_ttl_ <
-          std::chrono::system_clock::now()) {
-    // auth cache expired
-    return {false, std::make_pair("", rapidjson::Document{})};
-  }
+  auto auth_cache_ttl = auth_cache_ttl_;
 
-  auto pos = rest_auth_data_.find(user);
-  if (pos == std::end(rest_auth_data_))
-    return {false, std::make_pair("", rapidjson::Document{})};
+  return rest_auth_([&user, auth_cache_ttl](auto &rest_auth)
+                        -> std::pair<
+                            bool, MetaData::auth_credentials_t::mapped_type> {
+    // negative TTL is treated as infinite
+    if (auth_cache_ttl.count() >= 0 &&
+        rest_auth.last_credentials_update_ + auth_cache_ttl <
+            std::chrono::system_clock::now()) {
+      // auth cache expired
+      return {false, std::make_pair("", rapidjson::Document{})};
+    }
 
-  auto &auth_data = pos->second;
-  rapidjson::Document temp_privileges;
-  temp_privileges.CopyFrom(auth_data.second, auth_data.second.GetAllocator());
-  return {true, std::make_pair(auth_data.first, std::move(temp_privileges))};
+    auto pos = rest_auth.rest_auth_data_.find(user);
+    if (pos == std::end(rest_auth.rest_auth_data_))
+      return {false, std::make_pair("", rapidjson::Document{})};
+
+    auto &auth_data = pos->second;
+    rapidjson::Document temp_privileges;
+    temp_privileges.CopyFrom(auth_data.second, auth_data.second.GetAllocator());
+    return {true, std::make_pair(auth_data.first, std::move(temp_privileges))};
+  });
 }
 
 bool MetadataCache::update_auth_cache() {
   if (meta_data_ && auth_metadata_fetch_enabled_) {
     try {
-      rest_auth_data_ = meta_data_->fetch_auth_credentials(cluster_name_);
-      last_credentials_update_ = std::chrono::system_clock::now();
+      rest_auth_([this](auto &rest_auth) {
+        rest_auth.rest_auth_data_ =
+            meta_data_->fetch_auth_credentials(cluster_name_);
+        rest_auth.last_credentials_update_ = std::chrono::system_clock::now();
+      });
       return true;
     } catch (const std::exception &e) {
       log_warning("Updating the authentication credentials failed: %s",

@@ -37,6 +37,7 @@
 
 #include <rapidjson/document.h>
 
+#include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
@@ -504,10 +505,13 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   void check_auth_metadata_timers() const override;
 
  private:
-  std::string inst_name_;
+  struct InstData {
+    std::string name;
+  };
+  Monitor<InstData> inst_{{}};
 
   std::atomic<bool> is_initialized_{false};
-  MetadataCacheAPI() {}
+  MetadataCacheAPI() = default;
   MetadataCacheAPI(const MetadataCacheAPI &) = delete;
   MetadataCacheAPI &operator=(const MetadataCacheAPI &) = delete;
 };

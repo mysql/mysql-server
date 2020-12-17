@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <event2/http.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <memory>
 
 #include <iostream>
 #include <stdexcept>
@@ -57,9 +58,9 @@ bool IOContext::dispatch() {
   return ret == 0;
 }
 
-IOContext::~IOContext() {}
+IOContext::~IOContext() = default;
 
-HttpClient::~HttpClient() {}
+HttpClient::~HttpClient() = default;
 
 void HttpClient::make_request(HttpRequest *req, HttpMethod::type method,
                               const std::string &uri) {
@@ -84,18 +85,17 @@ std::string HttpClient::error_msg() const {
 }
 
 std::unique_ptr<HttpClientConnectionBase> HttpClient::make_connection() {
-  return std::unique_ptr<HttpClientConnection>(
-      new HttpClientConnection(io_ctx_, hostname_, port_));
+  return std::make_unique<HttpClientConnection>(io_ctx_, hostname_, port_);
 }
 
 std::unique_ptr<HttpClientConnectionBase> HttpsClient::make_connection() {
-  return std::unique_ptr<HttpsClientConnection>(
-      new HttpsClientConnection(io_ctx_, tls_ctx_, hostname_, port_));
+  return std::make_unique<HttpsClientConnection>(io_ctx_, tls_ctx_, hostname_,
+                                                 port_);
 }
 
 // Client connections
 
-HttpClientConnectionBase::~HttpClientConnectionBase() {}
+HttpClientConnectionBase::~HttpClientConnectionBase() = default;
 
 class HttpClientConnectionBase::impl {
  public:
@@ -163,12 +163,15 @@ HttpClientConnection::HttpClientConnection(IOContext &io_ctx,
 
 void HttpClientConnectionBase::make_request(HttpRequest *req,
                                             HttpMethod::type method,
-                                            const std::string &uri) {
+                                            const std::string &uri,
+                                            std::chrono::seconds timeout) {
   if (!pImpl_->conn) {
     throw std::runtime_error("no connection set");
   }
 
   auto *ev_req = req->pImpl_->req.get();
+
+  evhttp_connection_set_timeout(pImpl_->conn.get(), timeout.count());
 
   if (0 != evhttp_make_request(pImpl_->conn.get(), ev_req,
                                static_cast<enum evhttp_cmd_type>(method),
@@ -183,8 +186,9 @@ void HttpClientConnectionBase::make_request(HttpRequest *req,
 
 void HttpClientConnectionBase::make_request_sync(HttpRequest *req,
                                                  HttpMethod::type method,
-                                                 const std::string &uri) {
-  make_request(req, method, uri);
+                                                 const std::string &uri,
+                                                 std::chrono::seconds timeout) {
+  make_request(req, method, uri, timeout);
 
   io_ctx_.dispatch();
 }

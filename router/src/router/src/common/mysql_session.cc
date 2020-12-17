@@ -328,10 +328,29 @@ MySQLSession::real_query(const std::string &q) {
 
 stdx::expected<MySQLSession::mysql_result_type, MysqlError>
 MySQLSession::logged_real_query(const std::string &q) {
-  logging_strategy_->log("Executing query: "s + log_filter_.filter(q));
-  auto query_res = real_query(q);
+  using clock_type = std::chrono::steady_clock;
 
-  logging_strategy_->log("Done executing query");
+  auto start = clock_type::now();
+  auto query_res = real_query(q);
+  auto dur = clock_type::now() - start;
+  auto msg =
+      get_address() + " (" +
+      std::to_string(
+          std::chrono::duration_cast<std::chrono::microseconds>(dur).count()) +
+      " us)> " + log_filter_.filter(q);
+  if (query_res) {
+    auto const *res = query_res.value().get();
+
+    msg += " // OK";
+    if (res) {
+      msg += " " + std::to_string(res->row_count) + " row" +
+             (res->row_count != 1 ? "s" : "");
+    }
+  } else {
+    auto err = query_res.error();
+    msg += " // ERROR: " + std::to_string(err.value()) + " " + err.message();
+  }
+  logging_strategy_->log(msg);
 
   return query_res;
 }
@@ -352,7 +371,8 @@ void MySQLSession::execute(const std::string &q) {
 }
 
 /*
-  Execute query on the session and iterate the results with the given callback.
+  Execute query on the session and iterate the results with the given
+  callback.
 
   The processor callback is called with a vector of strings, which conain the
   values of each field of a row. It is called once per row.

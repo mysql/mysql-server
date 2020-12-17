@@ -213,16 +213,20 @@ bool wait_for_rest_endpoint_ready(
     step_time *= 10;
   }
 
-  while (max_wait_time.count() > 0) {
+  using clock_type = std::chrono::steady_clock;
+  auto start_time = clock_type::now();
+  auto end_time = start_time + max_wait_time;
+
+  while (clock_type::now() < end_time) {
+    auto step_end_time = clock_type::now() + step_time;
+
     auto req = rest_client.request_sync(HttpMethod::Get, uri);
 
     if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
       return true;
 
-    auto wait_time = std::min(step_time, max_wait_time);
-    std::this_thread::sleep_for(wait_time);
-
-    max_wait_time -= wait_time;
+    auto wait_end_time = std::min(step_end_time, end_time);
+    std::this_thread::sleep_until(wait_end_time);
   }
 
   return false;

@@ -138,9 +138,14 @@ void MetadataCacheAPI::cache_init(
   is_initialized_ = true;
 }
 
-std::string MetadataCacheAPI::instance_name() const { return inst_name_; }
+std::string MetadataCacheAPI::instance_name() const {
+  // read by rest_api
+  return inst_([](auto &inst) { return inst.name; });
+}
+
 void MetadataCacheAPI::instance_name(const std::string &inst_name) {
-  inst_name_ = inst_name;
+  // set by metadata_cache_plugin's start()
+  return inst_([&inst_name](auto &inst) { inst.name = inst_name; });
 }
 
 std::string MetadataCacheAPI::cluster_type_specific_id() const {
