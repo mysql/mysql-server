@@ -401,7 +401,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_SUBSCRIBERS,
     "MaxNoOfSubscribers",
     DB_TOKEN,
-    "Max no of subscribers (default 0 == 2 * MaxNoOfTables)",
+    "Max no of subscribers "
+    "(default 0 == 2 * MaxNoOfTables + 2 * 'number of API nodes')",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,

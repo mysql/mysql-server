@@ -157,7 +157,6 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_subscriptions.setSize(noTables);
 
   Uint32 cnt = 0;
-  cnt = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_SUBSCRIPTIONS, &cnt);
   if (cnt == 0)
   {
@@ -174,6 +173,20 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
     {
       jam();
       cnt =  val;
+    } else {
+      // Autosize: Add two subscribers for each API node (since each
+      // MySQL Server uses two for detecting schema changes)
+      Uint32 num_api_nodes = 0;
+      ndb_mgm_configuration_iterator * iter = m_ctx.m_config.getClusterConfigIterator();
+      for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter)){
+        Uint32 node_type;
+        ndbrequire(!ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION,
+                                              &node_type));
+        if (node_type == NODE_TYPE_API) {
+          num_api_nodes++;
+        }
+      }
+      cnt += 2 * num_api_nodes;
     }
   }
   c_subscriberPool.setSize(cnt);
