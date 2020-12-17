@@ -5815,21 +5815,38 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Skip the underscore. */
     ++ptr;
-    ut_a(end > ptr);
+    ut_a(end >= ptr);
     len = end - ptr;
+
+    /* It's not enough to be a FTS auxiliary table name */
+    if (len == 0) {
+      return (false);
+    }
 
     /* First search the common table suffix array. */
     for (i = 0; fts_common_tables[i] != nullptr; ++i) {
-      if (strncmp(ptr, fts_common_tables[i], len) == 0 ||
-          strncmp(ptr, fts_common_tables_5_7[i], len) == 0) {
+      if ((len == strlen(fts_common_tables[i])) &&
+          (strncmp(ptr, fts_common_tables[i], len) == 0)) {
+        table->type = FTS_COMMON_TABLE;
+        return (true);
+      }
+
+      if ((len == strlen(fts_common_tables_5_7[i])) &&
+          (strncmp(ptr, fts_common_tables_5_7[i], len) == 0)) {
         table->type = FTS_COMMON_TABLE;
         return (true);
       }
     }
 
     /* Could be obsolete common tables. */
-    if (native_strncasecmp(ptr, "ADDED", len) == 0 ||
-        native_strncasecmp(ptr, "STOPWORDS", len) == 0) {
+    if ((len == strlen("ADDED")) &&
+        (native_strncasecmp(ptr, "ADDED", len) == 0)) {
+      table->type = FTS_OBSOLETED_TABLE;
+      return (true);
+    }
+
+    if ((len == strlen("STOPWORDS")) &&
+        (native_strncasecmp(ptr, "STOPWORDS", len) == 0)) {
       table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
@@ -5839,7 +5856,7 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
       return (false);
     }
 
-    /* Skip the table id. */
+    /* Skip the index id. */
     ptr = static_cast<const char *>(memchr(ptr, '_', len));
 
     if (ptr == nullptr) {
@@ -5848,20 +5865,31 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Skip the underscore. */
     ++ptr;
-    ut_a(end > ptr);
+    ut_a(end >= ptr);
     len = end - ptr;
+
+    /* It's not enough to be a FTS auxiliary table name */
+    if (len == 0) {
+      return (false);
+    }
 
     /* Search the FT index specific array. */
     for (i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
-      if (strncmp(ptr, fts_get_suffix(i), len) == 0 ||
-          strncmp(ptr, fts_get_suffix_5_7(i), len) == 0) {
+      if ((len == strlen(fts_get_suffix(i))) &&
+          (strncmp(ptr, fts_get_suffix(i), len) == 0)) {
+        table->type = FTS_INDEX_TABLE;
+        return (true);
+      }
+      if ((len == strlen(fts_get_suffix_5_7(i))) &&
+          (strncmp(ptr, fts_get_suffix_5_7(i), len) == 0)) {
         table->type = FTS_INDEX_TABLE;
         return (true);
       }
     }
 
     /* Other FT index specific table(s). */
-    if (native_strncasecmp(ptr, "DOC_ID", len) == 0) {
+    if ((len == strlen("DOC_ID")) &&
+        (native_strncasecmp(ptr, "DOC_ID", len) == 0)) {
       table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
