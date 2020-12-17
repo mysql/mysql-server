@@ -89,6 +89,30 @@ const MockServerCLITestParam mock_server_cli_test_param[] = {
      [](const std::string &output) {
        EXPECT_THAT(output, ::testing::HasSubstr("was '65536'"));
      }},
+    {"hex_http_port",
+     // ensure mock-server fails with --http-port=0xffff.
+     {"--http-port", "0xffff",  //
+      "--filename", "@filename@"},
+     EXIT_FAILURE,
+     [](const std::string &output) {
+       EXPECT_THAT(output, ::testing::HasSubstr("was '0xffff'"));
+     }},
+    {"hex_xport",
+     // ensure mock-server fails with --xport=0xffff.
+     {"--port", "0xffff",  //
+      "--filename", "@filename@"},
+     EXIT_FAILURE,
+     [](const std::string &output) {
+       EXPECT_THAT(output, ::testing::HasSubstr("was '0xffff'"));
+     }},
+    {"hex_port",
+     // ensure mock-server fails with --port=0xffff.
+     {"--xport", "0xffff",  //
+      "--filename", "@filename@"},
+     EXIT_FAILURE,
+     [](const std::string &output) {
+       EXPECT_THAT(output, ::testing::HasSubstr("was '0xffff'"));
+     }},
     {"invalid_ssl_mode",
      {"--filename", "@filename@",  //
       "--ssl-mode", "verify_ca"},

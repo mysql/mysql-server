@@ -80,8 +80,7 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
                                      "password", "", ""));
 
     auto result{session->query_one("select @@port")};
-    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-              expected_node_port);
+    EXPECT_EQ(std::strtoul((*result)[0], nullptr, 10), expected_node_port);
 
     return session;
   }
@@ -97,8 +96,7 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
       uint16_t expected_node = 0 /*0 means do not verify the port*/) {
     auto result{session->query_one("select @@port")};
     if (expected_node > 0) {
-      EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-                expected_node);
+      EXPECT_EQ(std::strtoul((*result)[0], nullptr, 10), expected_node);
     }
   }
 

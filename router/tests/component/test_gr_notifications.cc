@@ -22,6 +22,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <limits>
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
 // globally and require to include my_rapidjson_size_t.h
@@ -965,7 +966,11 @@ INSTANTIATE_TEST_SUITE_P(
         ConfErrorTestParams{"invalid",
                             "Configuration error: option use_gr_notifications "
                             "in [metadata_cache:test] needs value between 0 "
-                            "and 1 inclusive, was 'invalid'"}));
+                            "and 1 inclusive, was 'invalid'"},
+        ConfErrorTestParams{"0x1",
+                            "Configuration error: option use_gr_notifications "
+                            "in [metadata_cache:test] needs value between 0 "
+                            "and 1 inclusive, was '0x1'"}));
 
 /**
  * @test
@@ -1100,8 +1105,17 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
                                            "username", "password", "", ""));
 
     auto result{client.query_one("select @@port")};
-    used_ports.insert(
-        static_cast<uint16_t>(std::stoul(std::string((*result)[0]))));
+
+    const auto &port_str = (*result)[0];
+
+    char *errptr = nullptr;
+    auto port = std::strtoul(port_str, &errptr, 10);
+    ASSERT_NE(errptr, nullptr);
+    EXPECT_EQ(*errptr, '\0') << port_str;
+    EXPECT_GT(port, 0);  // 0 isn't valid port.
+    EXPECT_LE(port, std::numeric_limits<uint16_t>::max());
+
+    used_ports.insert(port);
   }
   EXPECT_EQ(1u, used_ports.count(nodes_ports[2]));
 }

@@ -97,6 +97,21 @@ static const BrokenConfigParams broken_config_params[]{
      "needs value between 1 and 65535 inclusive, was '-1'",
      ""},
 
+    {"routing_connect_timeout_is_hex",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"connect_timeout", "0x0"},
+             }),
+     },
+     "Configuration error: option connect_timeout in [routing] "
+     "needs value between 1 and 65535 inclusive, was '0x0'",
+     ""},
+
     {"routing_client_connect_timeout_is_one",
      {
          mysql_harness::ConfigBuilder::build_section(
@@ -112,6 +127,21 @@ static const BrokenConfigParams broken_config_params[]{
      "needs value between 2 and 31536000 inclusive, was '1'",
      ""},
 
+    {"routing_client_connect_timeout_is_hex",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"client_connect_timeout", "0x0"},
+             }),
+     },
+     "Configuration error: option client_connect_timeout in [routing] "
+     "needs value between 2 and 31536000 inclusive, was '0x0'",
+     ""},
+
     {"routing_max_connect_error_is_zero",
      {
          mysql_harness::ConfigBuilder::build_section(
@@ -125,6 +155,21 @@ static const BrokenConfigParams broken_config_params[]{
      },
      "Configuration error: option max_connect_errors in [routing] "
      "needs value between 1 and 4294967295 inclusive, was '0'",
+     ""},
+
+    {"routing_max_connect_error_is_hex",
+     {
+         mysql_harness::ConfigBuilder::build_section(
+             "routing",
+             {
+                 {"bind_address", "127.0.0.1:7001"},
+                 {"destinations", "127.0.0.1:3306"},
+                 {"mode", "read-only"},
+                 {"max_connect_errors", "0x0"},
+             }),
+     },
+     "Configuration error: option max_connect_errors in [routing] "
+     "needs value between 1 and 4294967295 inclusive, was '0x0'",
      ""},
 
     {"routing_protocol_is_invalid",

@@ -2522,9 +2522,15 @@ std::set<std::string> ConfigGenerator::get_hostnames_of_created_accounts(
     const std::regex re{" '" + username + "'@'(.*?)' "};
     auto processor = [&](const MySQLSession::Row &row) -> bool {
       // we ignore warnings we're not expecting
-      unsigned code;
+      unsigned long code;
       try {
-        code = std::stoul(row[1]);
+        size_t end_pos{};
+        code = std::stoul(row[1], &end_pos);
+
+        if (end_pos != strlen(row[1])) {
+          throw std::invalid_argument(std::string(row[1]) +
+                                      " is expected to be an positive integer");
+        }
       } catch (const std::exception &e) {
         throw std::runtime_error(
             "SHOW WARNINGS: Failed to parse error code from error code column (column content = '"s +

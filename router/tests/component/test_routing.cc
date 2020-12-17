@@ -629,6 +629,20 @@ const RoutingConfigParam routing_config_param[] = {
                        "option thread_stack_size in [routing] needs "
                        "value between 1 and 65535 inclusive, was 'dfs4'")));
      }},
+    {"thread_stack_size_hex",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"thread_stack_size", "0xff"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option thread_stack_size in [routing] needs "
+                       "value between 1 and 65535 inclusive, was '0xff'")));
+     }},
     {"invalid_destination_host_start",
      {
          {"bind_address", "127.0.0.1"},

@@ -46,9 +46,9 @@ struct MysqlServerMockConfig {
   std::string queries_filename;
   std::string module_prefix;
   std::string bind_address{"0.0.0.0"};
-  unsigned port{3306};
-  unsigned http_port{0};
-  unsigned xport{0};
+  std::string port{"3306"};
+  std::string http_port{};
+  std::string xport{};
   bool verbose{false};
 
   std::string ssl_cert;
@@ -166,21 +166,21 @@ class MysqlServerMockFrontend {
         "data_folder",
         mysql_harness::Path(base_path).join("var").join("share").str());
 
-    if (config_.http_port != 0) {
+    if (!config_.http_port.empty()) {
       auto &rest_mock_server_config =
           loader_config->add("rest_mock_server", "");
       rest_mock_server_config.set("library", "rest_mock_server");
 
       auto &http_server_config = loader_config->add("http_server", "");
       http_server_config.set("library", "http_server");
-      http_server_config.set("port", std::to_string(config_.http_port));
+      http_server_config.set("port", config_.http_port);
       http_server_config.set("static_folder", "");
     }
 
     auto &mock_server_config = loader_config->add("mock_server", "classic");
     mock_server_config.set("library", "mock_server");
     mock_server_config.set("bind_address", config_.bind_address);
-    mock_server_config.set("port", std::to_string(config_.port));
+    mock_server_config.set("port", config_.port);
     mock_server_config.set("filename", config_.queries_filename);
     mock_server_config.set("module_prefix", config_.module_prefix);
     mock_server_config.set("protocol", "classic");
@@ -194,10 +194,10 @@ class MysqlServerMockFrontend {
     mock_server_config.set("ssl_crl", config_.ssl_crl);
     mock_server_config.set("ssl_crlpath", config_.ssl_crlpath);
 
-    if (config_.xport != 0) {
+    if (!config_.xport.empty()) {
       auto &mock_x_server_config = loader_config->add("mock_server", "x");
       mock_x_server_config.set("library", "mock_server");
-      mock_x_server_config.set("port", std::to_string(config_.xport));
+      mock_x_server_config.set("port", config_.xport);
       mock_x_server_config.set("filename", config_.queries_filename);
       mock_x_server_config.set("module_prefix", config_.module_prefix);
       mock_x_server_config.set("protocol", "x");
@@ -260,21 +260,18 @@ class MysqlServerMockFrontend {
     arg_handler_.add_option(
         CmdOption::OptionNames({"-P", "--port"}),
         "TCP port to listen on for classic protocol connections.",
-        CmdOptionValueReq::required, "int", [this](const std::string &port) {
-          config_.port = static_cast<unsigned>(std::stoul(port));
-        });
+        CmdOptionValueReq::required, "int",
+        [this](const std::string &port) { config_.port = port; });
     arg_handler_.add_option(
         CmdOption::OptionNames({"-X", "--xport"}),
         "TCP port to listen on for X protocol connections.",
-        CmdOptionValueReq::required, "int", [this](const std::string &port) {
-          config_.xport = static_cast<unsigned>(std::stoul(port));
-        });
+        CmdOptionValueReq::required, "int",
+        [this](const std::string &port) { config_.xport = port; });
     arg_handler_.add_option(
         CmdOption::OptionNames({"--http-port"}),
         "TCP port to listen on for HTTP/REST connections.",
-        CmdOptionValueReq::required, "int", [this](const std::string &port) {
-          config_.http_port = static_cast<unsigned>(std::stoul(port));
-        });
+        CmdOptionValueReq::required, "int",
+        [this](const std::string &port) { config_.http_port = port; });
     arg_handler_.add_option(
         CmdOption::OptionNames({"--module-prefix"}),
         "path prefix for javascript modules (default current directory).",

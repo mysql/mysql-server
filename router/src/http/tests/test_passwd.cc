@@ -503,6 +503,14 @@ const PasswdFrontendTestParam password_frontend_param[]{
      "",
      "--work-factor is negative",
      kPasswdEmpty},
+    {"set: work-factor, hex",
+     "",
+     {"set", kPasswdPlaceholder, "karl", "--work-factor=0xff"},
+     EXIT_FAILURE,
+     "",
+     "",
+     "--work-factor is not a positive integer",
+     kPasswdEmpty},
 
     // delete
 

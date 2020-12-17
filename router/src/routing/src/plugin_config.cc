@@ -70,7 +70,7 @@ static int get_option_tcp_port(const mysql_harness::ConfigSection *section,
   if (!value.empty()) {
     char *rest;
     errno = 0;
-    auto result = std::strtol(value.c_str(), &rest, 0);
+    auto result = std::strtol(value.c_str(), &rest, 10);
 
     if (errno > 0 || *rest != '\0' || result > UINT16_MAX || result < 1) {
       std::ostringstream os;
@@ -335,7 +335,7 @@ static T get_uint_option(const mysql_harness::ConfigSection *section,
 
   char *rest;
   errno = 0;
-  long long tol = std::strtoll(value.c_str(), &rest, 0);
+  long long tol = std::strtoll(value.c_str(), &rest, 10);
   T result = static_cast<T>(tol);
 
   if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value ||

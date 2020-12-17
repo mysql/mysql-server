@@ -398,9 +398,13 @@ void PasswdFrontend::prepare_command_options() {
       "Work-factor hint for KDF if account is updated.",
       CmdOptionValueReq::required, "num", [this](const std::string &value) {
         try {
-          long num = std::stol(value);
+          size_t end_pos;
+          long num = std::stol(value, &end_pos);
           if (num < 0) {
             throw UsageError("--work-factor is negative (must be positive)");
+          }
+          if (end_pos != value.size()) {
+            throw UsageError("--work-factor is not a positive integer");
           }
           config_.cost = num;
         } catch (const std::out_of_range &) {
