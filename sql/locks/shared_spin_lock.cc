@@ -239,7 +239,11 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::try_or_spin_exclusive_lock(
   {
     this->spin_exclusive_lock();
   }
+#if defined(__APPLE__)
+  my_atomic_store64(&this->m_exclusive_owner, reinterpret_cast<int64>(self));
+#else
   my_atomic_store64(&this->m_exclusive_owner, self);
+#endif
   return (*this);
 }
 
