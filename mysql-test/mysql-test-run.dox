@@ -7149,10 +7149,10 @@
       <b>character</b> in <b>string</b> and assign the result to
       <b>$var</b>.
 
-      Note that <b>character</b> must be only one character, and that
-      leading and trailing whitespace is not removed from
-      <b>string</b>. So you typically want to omit the space after the
-      comma for this command.
+      Note that <b>character</b> must be only one character, and not
+      newline.  Also, all whitespace is significant and preserved, so
+      you typically want to omit the space after the comma for this
+      command.
 
       This can be useful when you need to include <b>string</b> in an
       SQL string in a query, and <b>string</b> may contain quote

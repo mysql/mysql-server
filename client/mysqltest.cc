@@ -2802,9 +2802,8 @@ static void alloc_var(VAR *var, size_t length) {
 */
 static void var_set_escape(struct st_command *command, VAR *dst) {
   // command->query contains the statement escape(character,text)
-  static const std::regex arg_re(
-      R"""(\([:space:]*(.)[:space:]*,(.*)\))""",
-      std::regex::extended | std::regex::icase | std::regex::optimize);
+  static const std::regex arg_re("^\\(([^\\r\\n]),((?:.|[\\r\\n])*)\\)$",
+                                 std::regex::optimize);
   // Parse arguments.
   std::cmatch arg_match;
   if (std::regex_search(command->first_argument, arg_match, arg_re)) {
