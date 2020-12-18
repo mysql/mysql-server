@@ -167,8 +167,6 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
                    Verify lock_word == 0 (waiting thread holds x_lock)
 */
 
-rw_lock_stats_t rw_lock_stats;
-
 /* The global list of rw-locks */
 rw_lock_list_t rw_lock_list;
 ib_mutex_t rw_lock_list_mutex;
@@ -304,7 +302,6 @@ void rw_lock_s_lock_spin(
   it here for efficiency. */
 
   ut_ad(rw_lock_validate(lock));
-  rw_lock_stats.rw_s_spin_wait_count.inc();
 
 lock_loop:
 
@@ -328,10 +325,7 @@ lock_loop:
   if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
     return; /* Success */
   } else {
@@ -355,11 +349,7 @@ lock_loop:
 
       if (count_os_wait > 0) {
         lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-
-        rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
       }
-
-      rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
       return; /* Success */
     }
@@ -460,11 +450,8 @@ void rw_lock_x_lock_wait_func(
     }
   }
 
-  rw_lock_stats.rw_x_spin_round_count.add(n_spins);
-
   if (count_os_wait > 0) {
     lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-    rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
   }
 }
 
@@ -640,10 +627,7 @@ lock_loop:
   if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
     /* Locking succeeded */
     return;
@@ -651,7 +635,6 @@ lock_loop:
   } else {
     if (!spinning) {
       spinning = true;
-      rw_lock_stats.rw_x_spin_wait_count.inc();
     }
 
     /* Spin waiting for the lock_word to become free */
@@ -688,10 +671,7 @@ lock_loop:
 
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
     /* Locking succeeded */
     return;
@@ -736,11 +716,7 @@ lock_loop:
   if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
-    rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
     /* Locking succeeded */
     return;
@@ -782,11 +758,7 @@ lock_loop:
 
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
-    rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
     /* Locking succeeded */
     return;
