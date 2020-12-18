@@ -565,11 +565,13 @@ private:
   struct ConfigNode
   {
     unsigned nodeid;
-    unsigned dedicated;
-    unsigned node_type;
     BaseString hostname;
   };
-  bool build_node_list_from_config(Vector<ConfigNode>& config_nodes) const;
+  bool build_node_list_from_config(NodeId node_id,
+                                   ndb_mgm_node_type type,
+                                   Vector<ConfigNode>& config_nodes,
+                                   int& error_code,
+                                   BaseString& error_string) const;
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
                      const sockaddr_in6* client_addr,

@@ -4053,34 +4053,64 @@ match_hostname(const in6_addr *client_in6_addr,
    @return true if list was filled properly, false otherwise
  */
 bool
-MgmtSrvr::build_node_list_from_config(Vector<ConfigNode>& config_nodes) const
+MgmtSrvr::build_node_list_from_config(NodeId node_id,
+                                      ndb_mgm_node_type type,
+                                      Vector<ConfigNode>& config_nodes,
+                                      int& error_code,
+                                      BaseString& error_string) const
 {
   Guard g(m_local_config_mutex);
 
   ConfigIter iter(m_local_config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next())
   {
-    // Get nodeid
+    // Check current nodeid, the caller either asks to find any
+    // nodeid (nodeid=0) or a specific node (nodeid=x)
     unsigned current_node_id;
     require(iter.get(CFG_NODE_ID, &current_node_id) == 0);
+    if (node_id && node_id != current_node_id) continue;
 
     // Check the optional Dedicated setting
     unsigned dedicated_node = 0;
     iter.get(CFG_NODE_DEDICATED, &dedicated_node);
+    if (dedicated_node && current_node_id != node_id) {
+      // This node id is only handed out if explicitly requested.
+      continue;
+    }
 
     // Check type of node, the caller will ask for API, MGM or NDB
     unsigned current_node_type;
     require(iter.get(CFG_TYPE_OF_SECTION, &current_node_type) == 0);
+    if (current_node_type != (unsigned)type) {
+      if (node_id) {
+        // Caller asked for this exact nodeid, but it is not the correct type.
+        BaseString type_string, current_type_string;
+        const char *alias, *str;
+        alias = ndb_mgm_get_node_type_alias_string(type, &str);
+        type_string.assfmt("%s(%s)", alias, str);
+        alias = ndb_mgm_get_node_type_alias_string(
+            (enum ndb_mgm_node_type)current_node_type, &str);
+        current_type_string.assfmt("%s(%s)", alias, str);
+        error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
+                            node_id, current_type_string.c_str(),
+                            type_string.c_str());
+        error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+        return false;
+      }
+      continue;
+    }
 
     // Get configured HostName of this node
     const char *config_hostname;
     require(iter.get(CFG_NODE_HOST, &config_hostname) == 0);
 
     if (config_nodes.push_back({current_node_id,
-                               dedicated_node,
-                               current_node_type,
                                config_hostname}) != 0)
+    {
+      error_string.assfmt("Failed to build config_nodes list");
+      error_code = NDB_MGM_ALLOCID_ERROR;
       return false;
+    }
   }
   return true;
 }
@@ -4094,7 +4124,6 @@ MgmtSrvr::find_node_type(NodeId node_id,
                          int& error_code, BaseString& error_string)
 {
   const char* found_config_hostname = nullptr;
-  unsigned type_c= (unsigned)type;
   bool found_unresolved_hosts = false;
   LocalDnsCache dnsCache;
 
@@ -4102,31 +4131,8 @@ MgmtSrvr::find_node_type(NodeId node_id,
   {
     const ConfigNode& node = config_nodes[i];
 
-    // Check current nodeid, the caller either asks to find any
-    // nodeid (nodeid=0) or a specific node (nodeid=x)
+    // Get current nodeid
     const unsigned current_node_id = node.nodeid;
-    if (node_id && node_id != current_node_id)
-      continue;
-
-    // Check the optional Dedicated setting
-    const unsigned dedicated_node = node.dedicated;
-    if (dedicated_node && current_node_id != node_id)
-    {
-      // This node id is only handed out if explicitly requested.
-      continue;
-    }
-
-    // Check type of node, the caller will ask for API, MGM or NDB
-    type_c = node.node_type;
-    if (type_c != (unsigned)type)
-    {
-      if (node_id) {
-        // Caller asked for this exact nodeid, ignore that it's
-        // not the correct type and print error further down.
-        break;
-      }
-      continue;
-    }
 
     // Get configured HostName of this node
     const char *config_hostname = node.hostname.c_str();
@@ -4200,20 +4206,6 @@ MgmtSrvr::find_node_type(NodeId node_id,
   error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
   if (node_id)
   {
-    if (type_c != (unsigned) type)
-    {
-      BaseString type_string, type_c_string;
-      const char *alias, *str;
-      alias= ndb_mgm_get_node_type_alias_string(type, &str);
-      type_string.assfmt("%s(%s)", alias, str);
-      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)type_c,
-                                                &str);
-      type_c_string.assfmt("%s(%s)", alias, str);
-      error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
-                          node_id, type_c_string.c_str(),
-                          type_string.c_str());
-      return -1;
-    }
     if (found_config_hostname)
     {
       char addr_buf[NDB_ADDR_STRLEN];
@@ -4485,9 +4477,9 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   // in order to hold the config mutex only for a short time and also
   // avoid holding it while resolving addresses.
   Vector<ConfigNode> config_nodes;
-  if (!build_node_list_from_config(config_nodes)) {
-    error_code = NDB_MGM_ALLOCID_ERROR;
-    error_string.assfmt("Failed to build config_nodes list");
+  if (!build_node_list_from_config(nodeid, type, config_nodes,
+                                   error_code, error_string)) {
+    assert(error_string.length() > 0);
     return false;
   }
 
