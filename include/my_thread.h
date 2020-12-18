@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@
 #define STACK_MULTIPLIER 2UL
 #elif defined HAVE_UBSAN
 #define STACK_MULTIPLIER 3UL
-#elif defined HAVE_LSAN
+#elif defined(HAVE_LSAN) || defined(HAVE_ASAN)
 #define STACK_MULTIPLIER 4UL
 #else
 #define STACK_MULTIPLIER 1UL
