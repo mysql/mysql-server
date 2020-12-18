@@ -812,3 +812,214 @@ test/t1	662700032	4194304
 DROP PROCEDURE bulk_insert;
 DROP TABLE t1;
 # restart
+# Bug#32235621 - Concurrent execution of ALTER TABLE and SHOW CREATE TABLE crashes
+# the server
+CREATE TABLE t1(
+`c0001` int NOT NULL /*!80023 INVISIBLE */,
+`c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+`c0002` decimal(65,14) DEFAULT NULL,
+`c0004` tinyblob NOT NULL,
+KEY `i0001` (`c0002`, `c0001`),
+KEY `i0002` (`c0000`(112))
+) AUTOEXTEND_SIZE=8M ENGINE=InnoDB;
+CREATE PROCEDURE alter_table()
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < 20 DO
+ALTER TABLE t1 FORCE;
+SET i = i + 1;
+END WHILE;
+END |
+CREATE PROCEDURE show_create_table()
+BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < 20 DO
+SHOW CREATE TABLE t1;
+SET i = i + 1;
+END WHILE;
+END |
+CALL show_create_table();
+CALL alter_table();
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`,`c0001`),
+  KEY `i0002` (`c0000`(112))
+) /*!80023 AUTOEXTEND_SIZE=8388608 */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DROP PROCEDURE show_create_table;
+DROP PROCEDURE alter_table;
