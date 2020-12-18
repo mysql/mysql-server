@@ -3097,8 +3097,7 @@ bool get_implicit_tablespace_options(THD *thd, const Table *table,
 
   // Find the tablespace with the given space_id
   if (space_id != INVALID_OBJECT_ID &&
-      !thd->dd_client()->acquire_uncached_uncommitted<Tablespace>(space_id,
-                                                                  &tbsp) &&
+      !thd->dd_client()->acquire_uncached<Tablespace>(space_id, &tbsp) &&
       tbsp != nullptr) {
     const Properties &p = tbsp->options();
 
