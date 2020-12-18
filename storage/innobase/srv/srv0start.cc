@@ -2550,6 +2550,40 @@ files_checked:
 
     srv_dict_metadata = recv_recovery_from_checkpoint_finish(*log_sys, false);
 
+    /* We need to save the dynamic metadata collected from redo log to DD
+    buffer table here. This is to make sure that the dynamic metadata is not
+    lost by any future checkpoint. Since DD and data dictionary in memory
+    objects are not fully initialized at this point, the usual mechanism to
+    persist dynamic metadata at checkpoint wouldn't work. */
+
+    if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
+      /* Open this table in case srv_dict_metadata should be applied to this
+      table before checkpoint. And because DD is not fully up yet, the table
+      can be opened by internal APIs. */
+
+      fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+      if (space == nullptr) {
+        dberr_t error = fil_ibd_open(
+            true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id, predefined_flags,
+            dict_sys_t::s_dd_space_name, dict_sys_t::s_dd_space_name,
+            dict_sys_t::s_dd_space_file_name, true, false);
+        if (error != DB_SUCCESS) {
+          ib::error(ER_IB_MSG_1142);
+          return (srv_init_abort(DB_ERROR));
+        }
+      } else {
+        fil_space_release(space);
+      }
+
+      dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
+      /* We write redo log here. We assume that there should be enough room in
+      log files, supposing log_free_check() works fine before crash. */
+      srv_dict_metadata->store();
+
+      /* Flush logs to persist the changes. */
+      log_buffer_flush_to_disk(*log_sys);
+    }
+
     if (!srv_force_recovery && !recv_sys->found_corrupt_log &&
         (srv_log_file_size_requested != srv_log_file_size ||
          srv_n_log_files_found != srv_n_log_files)) {
@@ -2558,35 +2592,6 @@ files_checked:
       if (srv_read_only_mode) {
         ib::error(ER_IB_MSG_1141);
         return (srv_init_abort(DB_READ_ONLY));
-      }
-
-      if (srv_dict_metadata != nullptr && !srv_dict_metadata->empty()) {
-        /* Open this table in case srv_dict_metadata
-        should be applied to this table before
-        checkpoint. And because DD is not fully up yet,
-        the table can be opened by internal APIs. */
-
-        fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
-        if (space == nullptr) {
-          dberr_t error =
-              fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
-                           predefined_flags, dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_name,
-                           dict_sys_t::s_dd_space_file_name, true, false);
-          if (error != DB_SUCCESS) {
-            ib::error(ER_IB_MSG_1142);
-            return (srv_init_abort(DB_ERROR));
-          }
-        } else {
-          fil_space_release(space);
-        }
-
-        dict_persist->table_buffer = UT_NEW_NOKEY(DDTableBuffer());
-        /* This writes redo logs. Since the log file
-        size hasn't changed now, there should be enough
-        room in log files, supposing log_free_check()
-        works fine before crash */
-        srv_dict_metadata->store();
       }
 
       /* Prepare to delete the old redo log files */

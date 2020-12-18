@@ -1173,6 +1173,7 @@ bool initialize_dd_properties(THD *thd) {
       }
     }
 
+    DBUG_EXECUTE_IF("error_during_bootstrap", return true;);
     /*
       Reject restarting with a changed LCTN setting, since the collation
       for LCTN-dependent columns is decided during server initialization.
