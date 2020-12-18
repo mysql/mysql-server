@@ -93,7 +93,11 @@ Parallel_reader::Scan_ctx::~Scan_ctx() {}
 Parallel_reader::~Parallel_reader() {
   mutex_destroy(&m_mutex);
   os_event_destroy(m_event);
-  release_unused_threads(m_n_threads);
+
+  if (!m_single_threaded_mode) {
+    release_unused_threads(m_n_threads);
+  }
+
   for (auto thread_ctx : m_thread_ctxs) {
     if (thread_ctx != nullptr) {
       UT_DELETE(thread_ctx);
@@ -185,7 +189,10 @@ dberr_t Parallel_reader::Ctx::split() {
 }
 
 Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
-    : m_max_threads(max_threads), m_ctxs(), m_sync(sync) {
+    : m_max_threads(max_threads),
+      m_n_threads{max_threads},
+      m_ctxs(),
+      m_sync(sync) {
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
