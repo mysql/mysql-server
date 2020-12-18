@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -171,7 +171,7 @@ unlocking, not the corresponding function. */
 	rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
 
 #define rw_lock_sx_lock_nowait(M, P)				\
-	rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+	rw_lock_sx_lock_func_nowait((M), (P), __FILE__, __LINE__)
 
 # ifdef UNIV_DEBUG
 #  define rw_lock_sx_unlock(L)		rw_lock_sx_unlock_func(0, L)
@@ -247,7 +247,7 @@ unlocking, not the corresponding function. */
 	pfs_rw_lock_sx_lock_func((M), (P), __FILE__, __LINE__)
 
 #define rw_lock_sx_lock_nowait(M, P)				\
-	pfs_rw_lock_sx_lock_low((M), (P), __FILE__, __LINE__)
+	pfs_rw_lock_sx_lock_func_nowait((M), (P), __FILE__, __LINE__)
 
 # ifdef UNIV_DEBUG
 #  define rw_lock_sx_unlock(L)		pfs_rw_lock_sx_unlock_func(0, L)
@@ -390,11 +390,13 @@ rw_lock_x_lock_func(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line);	/*!< in: line where requested */
 /******************************************************************//**
-Low-level function for acquiring an sx lock.
+NOTE! Use the corresponding macro, not directly this function! Lock an
+rw-lock in SX mode for the current thread if the lock can be
+obtained immediately.
 @return FALSE if did not succeed, TRUE if success. */
 ibool
-rw_lock_sx_lock_low(
-/*================*/
+rw_lock_sx_lock_func_nowait(
+/*========================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
@@ -531,8 +533,9 @@ void
 rw_lock_set_writer_id_and_recursion_flag(
 /*=====================================*/
 	rw_lock_t*	lock,		/*!< in/out: lock to work on */
-	bool		recursive);	/*!< in: true if recursion
+	bool		recursive,	/*!< in: true if recursion
 					allowed */
+	const os_thread_id_t curr_thread);/*!< in: current thread id */
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
@@ -895,8 +898,8 @@ NOTE! Please use the corresponding macro, not directly
 this function! */
 UNIV_INLINE
 ibool
-pfs_rw_lock_sx_lock_low(
-/*================*/
+pfs_rw_lock_sx_lock_func_nowait(
+/*===========================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the lock will
 				be passed to another thread to unlock */
