@@ -31,6 +31,7 @@
 #include "Defragger.hpp"
 
 #include <NdbOut.hpp>
+#include "NdbTCP.h"
 #include <NdbApiSignal.hpp>
 #include <kernel_types.h>
 #include <GlobalSignalNumbers.h>
@@ -77,15 +78,6 @@
 
 #include <LogBuffer.hpp>
 #include <BufferedLogHandler.hpp>
-#include <DnsCache.hpp>
-
-enum class HostnameMatch
-{
-   no_resolve,       // failure: could not resolve hostname
-   no_match,         // failure: hostname does not match socket address
-   ok_exact_match,   // success: exact match
-   ok_wildcard,      // success: match not required
-};
 
 int g_errorInsert = 0;
 #define ERROR_INSERTED(x) (g_errorInsert == x)
@@ -4009,10 +4001,17 @@ static inline bool is_loopback(const struct in6_addr *addr) {
          (IN6_IS_ADDR_V4MAPPED(addr) && addr->s6_addr[12] == 0x7f));
 }
 
+enum class HostnameMatch
+{
+   no_resolve,       // failure: could not resolve hostname
+   no_match,         // failure: hostname does not match socket address
+   ok_exact_match,   // success: exact match
+   ok_wildcard,      // success: match not required
+};
+
 static HostnameMatch
 match_hostname(const in6_addr *client_in6_addr,
-               const char *config_hostname,
-               LocalDnsCache & dnsCache)
+               const char *config_hostname)
 {
   if (config_hostname == nullptr || config_hostname[0] == 0) {
     return HostnameMatch::ok_wildcard;
@@ -4023,7 +4022,7 @@ match_hostname(const in6_addr *client_in6_addr,
   // - try to bind() the socket (since that requires resolve)
   // - compare the resolved address with the clients.
   struct in6_addr resolved_addr;
-  if(dnsCache.getAddress(&resolved_addr, config_hostname) != 0)
+  if (Ndb_getInAddr6(&resolved_addr, config_hostname) != 0)
     return HostnameMatch::no_resolve;
 
   // Special case for client connecting on loopback address, check if it
@@ -4125,7 +4124,6 @@ MgmtSrvr::find_node_type(NodeId node_id,
 {
   const char* found_config_hostname = nullptr;
   bool found_unresolved_hosts = false;
-  LocalDnsCache dnsCache;
 
   for (unsigned i = 0; i < config_nodes.size(); i++)
   {
@@ -4139,7 +4137,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
 
     // Check if the connecting clients address matches the configured hostname
     const HostnameMatch matchType = match_hostname(&(client_addr->sin6_addr),
-                                                   config_hostname, dnsCache);
+                                                   config_hostname);
     switch(matchType)
     {
       case HostnameMatch::no_resolve:
