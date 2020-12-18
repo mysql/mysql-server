@@ -2455,7 +2455,7 @@ store_key::store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null,
 
 store_key::store_key_result store_key::copy() {
   enum store_key_result result;
-  THD *thd = to_field->table->in_use;
+  THD *thd = current_thd;
   enum_check_fields saved_check_for_truncated_fields =
       thd->check_for_truncated_fields;
   sql_mode_t sql_mode = thd->variables.sql_mode;
@@ -2493,13 +2493,13 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
     Json_wrapper wr;
     String str_val, buf;
 
-    Functional_index_error_handler functional_index_error_handler(
-        to_field, table->in_use);
+    Functional_index_error_handler functional_index_error_handler(to_field,
+                                                                  current_thd);
     // Get JSON value and store its value as the key. MEMBER OF is the only
     // function that can use this function
     if (get_json_atom_wrapper(&item, 0, "MEMBER OF", &str_val, &buf, &wr,
                               nullptr, true) ||
-        save_json_to_field(table->in_use, to_field, &wr, false))
+        save_json_to_field(current_thd, to_field, &wr, false))
       return STORE_KEY_FATAL;
     // Copy constant key only once
     if (m_const_key) m_inited = true;
@@ -2507,7 +2507,7 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
 
   dbug_tmp_restore_column_map(table->write_set, old_map);
   null_key = to_field->is_null() || item->null_value;
-  assert(!table->in_use->is_error());
+  assert(!current_thd->is_error());
   return STORE_KEY_OK;
 }
 
@@ -2556,10 +2556,10 @@ enum store_key::store_key_result store_key_item::copy_inner() {
     Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
     we need to check for errors executing it and react accordingly.
   */
-  if (save_res != TYPE_OK && table->in_use->is_error())
+  if (save_res != TYPE_OK && current_thd->is_error())
     res = STORE_KEY_FATAL;
   else
-    res = type_conversion_status_to_store_key(table->in_use, save_res);
+    res = type_conversion_status_to_store_key(current_thd, save_res);
   dbug_tmp_restore_column_map(table->write_set, old_map);
   null_key = to_field->is_null() || item->null_value;
   return to_field->is_tmp_null() ? STORE_KEY_FATAL : res;
@@ -5257,14 +5257,14 @@ uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
 */
 
 uint actual_key_parts(const KEY *key_info) {
-  return key_info->table->in_use->optimizer_switch_flag(
+  return current_thd->optimizer_switch_flag(
              OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
              ? key_info->actual_key_parts
              : key_info->user_defined_key_parts;
 }
 
 uint actual_key_flags(const KEY *key_info) {
-  return key_info->table->in_use->optimizer_switch_flag(
+  return current_thd->optimizer_switch_flag(
              OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
              ? key_info->actual_flags
              : key_info->flags;

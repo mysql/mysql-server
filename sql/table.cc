@@ -6817,7 +6817,7 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   }
   /* Add new possible key if nothing is found. */
   if (!entry) {
-    THD *thd = field->table->in_use;
+    THD *thd = current_thd;
     key++;
     entry = new (thd->mem_root) Derived_key();
     if (!entry) return true;
