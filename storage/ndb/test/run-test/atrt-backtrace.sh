@@ -29,7 +29,6 @@ then
 fi
 
 core=$1
-out=$2
 
 if [ ! -f "$core" ]
 then
@@ -45,21 +44,11 @@ fi
 # gdb command file
 #
 bt=`dirname $core`/bt.gdb
-echo "thread apply all bt" > $bt
+echo "bt" > $bt
+echo "thread apply all bt" >> $bt
 echo "quit" >> $bt
 
-#
-# Fix output
-#
-if [ -z "$out" ]
-then
-    out=`dirname $core`/bt.txt
-fi
-outarg=">> $out 2>&1"
-if [ "$out" = "-" ]
-then
-    outarg=""
-fi
+out=`dirname $core`/bt.txt
 
 #
 # get binary
