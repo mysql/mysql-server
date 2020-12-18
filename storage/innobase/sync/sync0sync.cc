@@ -180,40 +180,18 @@ MutexMonitor *mutex_monitor;
 
 /**
 Prints wait info of the sync system.
+Note: The instrumental counters are deprecated
+      and prints all 0 for compatibility.
 @param file - where to print */
 static void sync_print_wait_info(FILE *file) {
   fprintf(file,
-          "RW-shared spins " UINT64PF ", rounds " UINT64PF
-          ","
-          " OS waits " UINT64PF
-          "\n"
-          "RW-excl spins " UINT64PF ", rounds " UINT64PF
-          ","
-          " OS waits " UINT64PF
-          "\n"
-          "RW-sx spins " UINT64PF ", rounds " UINT64PF
-          ","
-          " OS waits " UINT64PF "\n",
-          (uint64_t)rw_lock_stats.rw_s_spin_wait_count,
-          (uint64_t)rw_lock_stats.rw_s_spin_round_count,
-          (uint64_t)rw_lock_stats.rw_s_os_wait_count,
-          (uint64_t)rw_lock_stats.rw_x_spin_wait_count,
-          (uint64_t)rw_lock_stats.rw_x_spin_round_count,
-          (uint64_t)rw_lock_stats.rw_x_os_wait_count,
-          (uint64_t)rw_lock_stats.rw_sx_spin_wait_count,
-          (uint64_t)rw_lock_stats.rw_sx_spin_round_count,
-          (uint64_t)rw_lock_stats.rw_sx_os_wait_count);
+          "RW-shared spins 0, rounds 0, OS waits 0\n"
+          "RW-excl spins 0, rounds 0, OS waits 0\n"
+          "RW-sx spins 0, rounds 0, OS waits 0\n");
 
-  fprintf(
-      file,
-      "Spin rounds per wait: %.2f RW-shared,"
-      " %.2f RW-excl, %.2f RW-sx\n",
-      (double)rw_lock_stats.rw_s_spin_round_count /
-          std::max(uint64_t(1), (uint64_t)rw_lock_stats.rw_s_spin_wait_count),
-      (double)rw_lock_stats.rw_x_spin_round_count /
-          std::max(uint64_t(1), (uint64_t)rw_lock_stats.rw_x_spin_wait_count),
-      (double)rw_lock_stats.rw_sx_spin_round_count /
-          std::max(uint64_t(1), (uint64_t)rw_lock_stats.rw_sx_spin_wait_count));
+  fprintf(file,
+          "Spin rounds per wait: 0.00 RW-shared,"
+          " 0.00 RW-excl, 0.00 RW-sx\n");
 }
 
 /** Prints info of the sync system.

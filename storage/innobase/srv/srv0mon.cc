@@ -1230,48 +1230,39 @@ static monitor_info_t innodb_counter_info[] = {
                                  MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_SRV_PAGE_SIZE},
 
-    {"innodb_rwlock_s_spin_waits", "server",
-     "Number of rwlock spin waits due to shared latch request",
+    {"innodb_rwlock_s_spin_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_SPIN_WAITS},
 
-    {"innodb_rwlock_x_spin_waits", "server",
-     "Number of rwlock spin waits due to exclusive latch request",
+    {"innodb_rwlock_x_spin_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_WAITS},
 
-    {"innodb_rwlock_sx_spin_waits", "server",
-     "Number of rwlock spin waits due to sx latch request",
+    {"innodb_rwlock_sx_spin_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS},
 
-    {"innodb_rwlock_s_spin_rounds", "server",
-     "Number of rwlock spin loop rounds due to shared latch request",
+    {"innodb_rwlock_s_spin_rounds", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS},
 
-    {"innodb_rwlock_x_spin_rounds", "server",
-     "Number of rwlock spin loop rounds due to exclusive latch request",
+    {"innodb_rwlock_x_spin_rounds", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS},
 
-    {"innodb_rwlock_sx_spin_rounds", "server",
-     "Number of rwlock spin loop rounds due to sx latch request",
+    {"innodb_rwlock_sx_spin_rounds", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS},
 
-    {"innodb_rwlock_s_os_waits", "server",
-     "Number of OS waits due to shared latch request",
+    {"innodb_rwlock_s_os_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_S_OS_WAITS},
 
-    {"innodb_rwlock_x_os_waits", "server",
-     "Number of OS waits due to exclusive latch request",
+    {"innodb_rwlock_x_os_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_X_OS_WAITS},
 
-    {"innodb_rwlock_sx_os_waits", "server",
-     "Number of OS waits due to sx latch request",
+    {"innodb_rwlock_sx_os_waits", "server", "Deprecated counter, always 0",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_RWLOCK_SX_OS_WAITS},
 
@@ -1803,39 +1794,16 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_RWLOCK_S_SPIN_WAITS:
-      value = rw_lock_stats.rw_s_spin_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_X_SPIN_WAITS:
-      value = rw_lock_stats.rw_x_spin_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_SX_SPIN_WAITS:
-      value = rw_lock_stats.rw_sx_spin_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_S_SPIN_ROUNDS:
-      value = rw_lock_stats.rw_s_spin_round_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_X_SPIN_ROUNDS:
-      value = rw_lock_stats.rw_x_spin_round_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_SX_SPIN_ROUNDS:
-      value = rw_lock_stats.rw_sx_spin_round_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_S_OS_WAITS:
-      value = rw_lock_stats.rw_s_os_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_X_OS_WAITS:
-      value = rw_lock_stats.rw_x_os_wait_count;
-      break;
-
     case MONITOR_OVLD_RWLOCK_SX_OS_WAITS:
-      value = rw_lock_stats.rw_sx_os_wait_count;
+      /* Deprecated counter. remained for compatibility. */
+      value = 0;
       break;
 
     case MONITOR_OVLD_BUFFER_POOL_SIZE:
