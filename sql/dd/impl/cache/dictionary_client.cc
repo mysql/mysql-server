@@ -2032,14 +2032,14 @@ bool Dictionary_client::fetch_schema_component_names(
                                                      fetch_criteria);
 }
 
-// Fetch objects from DD tables that match the supplied key.
+// Iterate over all entities of Object_type looked up by the submitted key.
+// Execute the submitted lambda for each item. Continue as long as the lambda
+// returns false.
 template <typename Object_type>
-bool Dictionary_client::fetch(Const_ptr_vec<Object_type> *coll,
-                              const Object_key *object_key) {
-  // Since we clear the vector on failure, it should be empty
-  // when we start.
-  assert(coll->empty());
-
+bool Dictionary_client::foreach (
+    const Object_key *object_key,
+    std::function<bool(std::unique_ptr<Object_type> &)> const &processor)
+    const {
   Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
   trx.otx.register_tables<typename Object_type::Cache_partition>();
   Raw_table *table = trx.otx.get_table<typename Object_type::Cache_partition>();
@@ -2062,7 +2062,6 @@ bool Dictionary_client::fetch(Const_ptr_vec<Object_type> *coll,
 
     Raw_record *r = rs->current_record();
     while (r) {
-      Object_type *object = nullptr;
       Entity_object *new_object = nullptr;
       const Entity_object_table &dd_table = Object_type::DD_table::instance();
 
@@ -2083,34 +2082,56 @@ bool Dictionary_client::fetch(Const_ptr_vec<Object_type> *coll,
                                                      &new_object)) {
           assert(m_thd->is_system_thread() || m_thd->killed ||
                  m_thd->is_error());
-          coll->clear();
           return true;
         }
       }
 
       // Delete the new object if dynamic cast fails. Here, a failing dynamic
       // cast is a legitimate situation; if we e.g. scan for tables, some
-      // of the objects will be views.
+      // of the objects will be views. The downcasted object is wrapped by a
+      // unique_ptr, which must be released by the processor if the object
+      // will be used at a later stage.
       if (new_object) {
-        object = dynamic_cast<Object_type *>(new_object);
-        if (object == nullptr) {
+        std::unique_ptr<Object_type> object(
+            dynamic_cast<Object_type *>(new_object));
+        if (object.get() == nullptr) {
           delete new_object;
-        } else {
-          // Sign up the object for being auto deleted.
-          auto_delete<Object_type>(object);
-          coll->push_back(object);
+        } else if (processor(object)) {
+          return true;
         }
       }
 
       if (rs->next(r)) {
         assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-        coll->clear();
         return true;
       }
     }
   }
 
   return false;
+}
+
+// Fetch objects from DD tables that match the supplied key.
+template <typename Object_type>
+bool Dictionary_client::fetch(Const_ptr_vec<Object_type> *coll,
+                              const Object_key *object_key) {
+  // Since we clear the vector on failure, it should be empty
+  // when we start.
+  assert(coll->empty());
+
+  auto process_item = [&](std::unique_ptr<Object_type> &object) {
+    // Release the object from the unique_ptr, sign up for auto delete
+    // and store it in the vector. The auto delete happens when the
+    // topmost auto releaser exits scope.
+    Object_type *ptr = object.release();
+    auto_delete<Object_type>(ptr);
+    coll->push_back(ptr);
+    return false;
+  };
+
+  bool error = foreach<Object_type>(object_key, process_item);
+  if (error) coll->clear();
+  return error;
 }
 
 // Fetch all components in the schema.

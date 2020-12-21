@@ -25,6 +25,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -938,6 +939,24 @@ class Dictionary_client {
   template <typename T>
   bool fetch_global_component_names(std::vector<String_type> *names) const
       MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+    Execute the submitted lambda function for each entity of the given type
+    selected by the submitted key. If the lambda returns true, iteration
+    stops and the function returns.
+
+    @tparam Object_type Entity type to examine.
+    @param  object_key  Key to use for selecting entities.
+    @param  processor   Lambda to execute for each entity.
+    @return      true   Failure (error is reported unless the lambda
+                        returned true).
+    @return      false  Success.
+  */
+
+  template <typename Object_type>
+  bool foreach (const Object_key *object_key,
+                std::function<bool(std::unique_ptr<Object_type> &)> const
+                    &processor) const MY_ATTRIBUTE((warn_unused_result));
 
   /**
     Fetch all components in the schema.
