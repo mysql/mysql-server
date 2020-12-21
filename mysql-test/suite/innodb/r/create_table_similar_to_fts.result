@@ -29,42 +29,42 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1103	Invalid table name. `test/fts_0000000000000424_deleted_cache` has the form of an FTS auxiliary table name
 Error	1103	Incorrect table name 'fts_0000000000000424_deleted_cache'
-CREATE TABLE FTS_0000000000000424_BEING_DELETED (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_BEING_DELETED'
+create table fts_0000000000000424_being_deleted (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_being_deleted'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_BEING_DELETED` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_BEING_DELETED'
-CREATE TABLE FTS_0000000000000424_BEING_DELETED_CACHE (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_BEING_DELETED_CACHE'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_being_deleted` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_being_deleted'
+create table fts_0000000000000424_being_deleted_cache (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_being_deleted_cache'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_BEING_DELETED_CACHE` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_BEING_DELETED_CACHE'
-CREATE TABLE FTS_0000000000000424_CONFIG (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_CONFIG'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_being_deleted_cache` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_being_deleted_cache'
+create table fts_0000000000000424_config (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_config'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_CONFIG` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_CONFIG'
-CREATE TABLE FTS_0000000000000424_DELETED_CACHE (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_DELETED_CACHE'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_config` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_config'
+create table fts_0000000000000424_deleted_cache (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_deleted_cache'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_DELETED_CACHE` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_DELETED_CACHE'
-CREATE TABLE FTS_0000000000000424_ADDED (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_ADDED'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_deleted_cache` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_deleted_cache'
+create table fts_0000000000000424_added (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_added'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_ADDED` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_ADDED'
-CREATE TABLE FTS_0000000000000424_STOPWORDS (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_STOPWORDS'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_added` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_added'
+create table fts_0000000000000424_stopwords (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_stopwords'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_STOPWORDS` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_STOPWORDS'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_stopwords` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_stopwords'
 CREATE TABLE fts_0000000000000424_0000000000000584_index_1 (id int);
 ERROR 42000: Incorrect table name 'fts_0000000000000424_0000000000000584_index_1'
 SHOW WARNINGS;
@@ -107,45 +107,45 @@ SHOW WARNINGS;
 Level	Code	Message
 Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_doc_id` has the form of an FTS auxiliary table name
 Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_doc_id'
-CREATE TABLE FTS_0000000000000424_0000000000000584_INDEX_1 (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_1'
+create table fts_0000000000000424_0000000000000584_index_1 (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_0000000000000584_index_1'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_0000000000000584_INDEX_1` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_1'
-CREATE TABLE FTS_0000000000000424_0000000000000584_INDEX_2 (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_2'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_index_1` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_index_1'
+create table fts_0000000000000424_0000000000000584_index_2 (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_0000000000000584_index_2'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_0000000000000584_INDEX_2` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_2'
-CREATE TABLE FTS_0000000000000424_0000000000000584_INDEX_3 (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_3'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_index_2` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_index_2'
+create table fts_0000000000000424_0000000000000584_index_3 (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_0000000000000584_index_3'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_0000000000000584_INDEX_3` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_3'
-CREATE TABLE FTS_0000000000000424_0000000000000584_INDEX_4 (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_4'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_index_3` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_index_3'
+create table fts_0000000000000424_0000000000000584_index_4 (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_0000000000000584_index_4'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_0000000000000584_INDEX_4` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_4'
-CREATE TABLE FTS_0000000000000424_0000000000000584_INDEX_5 (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_5'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_index_4` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_index_4'
+create table fts_0000000000000424_0000000000000584_index_5 (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_0000000000000584_index_5'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_0000000000000584_INDEX_5` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_5'
-CREATE TABLE FTS_0000000000000424_0000000000000584_INDEX_6 (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_6'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_index_5` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_index_5'
+create table fts_0000000000000424_0000000000000584_index_6 (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_0000000000000584_index_6'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_0000000000000584_INDEX_6` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_0000000000000584_INDEX_6'
-CREATE TABLE FTS_0000000000000424_0000000000000584_DOC_ID (id int);
-ERROR 42000: Incorrect table name 'FTS_0000000000000424_0000000000000584_DOC_ID'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_index_6` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_index_6'
+create table fts_0000000000000424_0000000000000584_doc_id (id int);
+ERROR 42000: incorrect table name 'fts_0000000000000424_0000000000000584_doc_id'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1103	Invalid table name. `test/FTS_0000000000000424_0000000000000584_DOC_ID` has the form of an FTS auxiliary table name
-Error	1103	Incorrect table name 'FTS_0000000000000424_0000000000000584_DOC_ID'
+Warning	1103	Invalid table name. `test/fts_0000000000000424_0000000000000584_doc_id` has the form of an FTS auxiliary table name
+Error	1103	Incorrect table name 'fts_0000000000000424_0000000000000584_doc_id'
