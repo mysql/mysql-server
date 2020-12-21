@@ -1891,6 +1891,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1"},
 
   {
+    CFG_DB_ENCRYPTED_FILE_SYSTEM,
+    "EncryptedFileSystem",
+    DB_TOKEN,
+    "Encryption of local checkpoint and table space files.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "1"},
+
+  {
     CFG_EXTRA_SEND_BUFFER_MEMORY,
     "ExtraSendBufferMemory",
     DB_TOKEN,

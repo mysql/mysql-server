@@ -59,8 +59,8 @@ ndb$acc_operations	15	64
 ndb$backup_id	1	20
 ndb$columns	530	44
 ndb$config_nodes	34	28
-ndb$config_params	166	120
-ndb$config_values	328	24
+ndb$config_params	167	120
+ndb$config_values	330	24
 ndb$counters	200	24
 ndb$dblqh_tcconnect_state	19	52
 ndb$dbtc_apiconnect_state	25	52
