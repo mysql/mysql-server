@@ -209,8 +209,8 @@ log_builtins_imp::wellknown_by_type, log_builtins_imp::wellknown_by_name,
     log_builtins_imp::parse_iso8601_timestamp,
 
     log_builtins_imp::open_errstream, log_builtins_imp::write_errstream,
-    log_builtins_imp::dedicated_errstream,
-    log_builtins_imp::close_errstream END_SERVICE_IMPLEMENTATION();
+    log_builtins_imp::dedicated_errstream, log_builtins_imp::close_errstream,
+    log_builtins_imp::reopen_errstream END_SERVICE_IMPLEMENTATION();
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
 log_builtins_filter_imp::filter_ruleset_new,

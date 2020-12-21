@@ -1570,8 +1570,8 @@ log_error_stack_error log_builtins_error_stack(const char *conf,
   flush() function must not try to log anything, as we hold an
   exclusive lock on the stack.
 
-  @retval   0   no problems
-  @retval  -1   error
+  @returns 0 if no problems occurred, otherwise the negative count
+             of the components that failed to flush
 */
 int log_builtins_error_stack_flush();
 

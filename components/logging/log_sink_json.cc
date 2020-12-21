@@ -484,6 +484,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
 
   mi->ext = nullptr;
   mi->id = opened;
+  mi->errstream = nullptr;
 
   if ((rr = get_json_log_name(mi, buff, sizeof(buff))) != LOG_SERVICE_SUCCESS)
     goto fail_with_free; /* purecov: inspected */
@@ -542,7 +543,8 @@ DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
   Flush any buffers.  This function will be called by the server
   on FLUSH ERROR LOGS.  The service may write its buffers, close
   and re-open any log files to work with log-rotation, etc.
-  The flush function MUST NOT itself log anything!
+  The flush function MUST NOT itself log anything (as the caller
+  holds THR_LOCK_log_stack)!
   A service implementation may provide a nullptr if it does not
   wish to provide a flush function.
 
@@ -558,9 +560,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush, (void **instance)) {
   if ((mi = *((my_state **)instance)) == nullptr)
     return LOG_SERVICE_INVALID_ARGUMENT; /* purecov: inspected */
 
-  log_bi->close_errstream(&mi->errstream);
-
-  return log_bi->open_errstream(mi->ext, &mi->errstream);
+  return log_bi->reopen_errstream(mi->ext, &mi->errstream);
 }
 
 /**
