@@ -7351,7 +7351,8 @@ bool Item_field::replace_field_processor(uchar *arg) {
 
   const Create_field *create_field = nullptr;
   for (const Create_field &create_field_it : *targ->fields()) {
-    if (strcmp(field_name, create_field_it.field_name) == 0) {
+    if (my_strcasecmp(system_charset_info, field_name,
+                      create_field_it.field_name) == 0) {
       create_field = &create_field_it;
       break;
     }
