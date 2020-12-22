@@ -1220,6 +1220,17 @@ enum_return_status Gtid_set::intersection(const Gtid_set *other,
   RETURN_OK;
 }
 
+bool Gtid_set::is_size_greater_than_or_equal(ulonglong num) const {
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+  rpl_sidno max_sidno = get_max_sidno();
+  ulonglong count = 0;
+  for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++) {
+    count += get_gtid_count(sidno);
+    if (count >= num) return true;
+  }
+  return false;
+}
+
 void Gtid_set::encode(uchar *buf) const {
   DBUG_TRACE;
   if (sid_lock != nullptr) sid_lock->assert_some_wrlock();

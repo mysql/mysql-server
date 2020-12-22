@@ -1682,33 +1682,30 @@ class Gtid_set {
   }
 
   /**
+    Return true if the size of the set is greater than or equal to the given
+    number. The size is measure in number of GTIDs, i.e., total length of all
+    intervals.
+
+    @param num Number to compare with
+    @retval true if the set contains >= num GTIDs.
+    @retval false if the set contains < num GTIDs.
+  */
+  bool is_size_greater_than_or_equal(ulonglong num) const;
+
+  /**
     What is the count of all the GTIDs in all intervals for a sidno
 
     @param sidno  The sidno that contains the intervals
 
     @return the number of all GTIDs in all intervals
   */
-  ulonglong get_interval_count(rpl_sidno sidno) const {
+  ulonglong get_gtid_count(rpl_sidno sidno) const {
     Const_interval_iterator ivit(this, sidno);
     ulonglong ret = 0;
     while (ivit.get() != nullptr) {
       ret += ivit.get()->end - ivit.get()->start;
       ivit.next();
     }
-    return ret;
-  }
-
-  /**
-    What is the count of all the GTIDs for all sidno
-
-    @return the number of all GTIDs
-  */
-  ulonglong get_gtid_number() const {
-    if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
-    rpl_sidno max_sidno = get_max_sidno();
-    ulonglong ret = 0;
-    for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++)
-      ret += get_interval_count(sidno);
     return ret;
   }
 
