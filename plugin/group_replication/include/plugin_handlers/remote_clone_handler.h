@@ -71,13 +71,13 @@ class Remote_clone_handler : public Group_event_observer {
                        number of valid clone donors
                        number of valid recovery donors
                        number of valid recovering donors
-                       number of gtids missing
+                       whether clone activation threshold was breached or not
 
     @return whether or not we managed to get the info
       @retval 0    the info was retrieved
       @retval != 0 some error occurred
   */
-  int extract_donor_info(std::tuple<uint, uint, uint, ulonglong> *donor_info);
+  int extract_donor_info(std::tuple<uint, uint, uint, bool> *donor_info);
 
   /**
     Check if clone or distributed recovery shall be used for provisioning

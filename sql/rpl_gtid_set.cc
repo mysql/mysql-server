@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1219,6 +1219,17 @@ enum_return_status Gtid_set::intersection(const Gtid_set *other,
   intersection.remove_gtid_set(&this_minus_other);
   PROPAGATE_REPORTED_ERROR(result->add_gtid_set(&intersection));
   RETURN_OK;
+}
+
+bool Gtid_set::is_size_greater_than_or_equal(ulonglong num) const {
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+  rpl_sidno max_sidno = get_max_sidno();
+  ulonglong count = 0;
+  for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++) {
+    count += get_gtid_count(sidno);
+    if (count >= num) return true;
+  }
+  return false;
 }
 
 void Gtid_set::encode(uchar *buf) const {

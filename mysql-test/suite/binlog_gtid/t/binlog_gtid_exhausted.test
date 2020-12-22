@@ -152,4 +152,75 @@ CREATE TABLE t1(i INT);
 
 # Cleanup
 DROP TABLE t1;
+
+##############################################################################
+# ==== Purpose ====
+# The purpose of this test is to verify that, when user executes
+# SET gtid_purged, GTID threshold breach warning message should be raised
+# only based on the number of GTIDs in the server_uuid instead of counting
+# all UUIDs.
+#
+# ==== Requirements ====
+# A SET gtid_purged statement should not generate a warning when the range of
+# GTIDs for server_uuid is below the limit, even if the total number of GTIDs
+# taking all UUIDs into account exceeds the threshold.
+#
+# ==== Implementation ====
+# 1. Single UUID other than server_uuid have less GTIDs than the
+#    Threshold[(INT64_MAX/100)*99] and total number of GTIDs > Threshold
+#    - Set server_uuid with a dummy value and GTID.GNO value below
+#      Threshold by executing SET GTID_PURGED.
+#    - Set server_uuid as @@GLOBAL.SERVER_UUID and GTID.GNO value below
+#      Threshold in such a way that total number of GTDs (server_uuid's
+#      GTID.GNO + previoulsy purged GTIDs) > Threshold
+#    - Verify that no warning messages is logged into the error log.
+#
+# 2. Single UUID other than server_uuid have more GTIDs than the
+#    Threshold[(INT64_MAX/100)*99]
+#    - Set server_uuid with a dummy value and GTID.GNO value greater than
+#      Threshold by executing SET GTID_PURGED.
+#    - Set server_uuid as @@GLOBAL.SERVER_UUID and set GTID.GNO value below
+#      Threshold
+#    - Verify that no new warning messages is logged into the error log.
+#
+# ==== References ====
+# Bug#:32086209: INCORRECT DECISION TO CLONE OR RECOVER WHEN GTID
+#                DIFFERENCE IS HUGE
+#
+###############################################################################
+
+--source include/shutdown_mysqld.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
+--source include/start_mysqld.inc
+
+--let $server_uuid = `SELECT @@server_uuid`
+--let $dummy_server_uuid = dddddddd-dddd-dddd-dddd-dddddddddddd
+--let $assert_file = $MYSQLTEST_VARDIR/tmp/binlog_gtid_exhausted.err
+--let $assert_select = The integer component of the GTID number is high.
+
+# Test scenario 1:
+RESET MASTER;
+# Set server_uuid as dummy and GTID value below Threshold.
+--eval SET GLOBAL gtid_purged = CONCAT('$dummy_server_uuid:1-', (1 << 62))
+# Set server_uuid as @@GLOBAL.SERVER_UUID and GTID below Threshold.
+--replace_result $server_uuid SERVER_UUID
+--eval SET GLOBAL gtid_purged = CONCAT('+$server_uuid:1-', (1 << 62))
+# Assert that no new warning was logged to the server error log.
+--let $assert_count = 0
+--let $assert_text = No ER_WARN_GTID_THRESHOLD_BREACH found in server error log
+--source include/assert_grep.inc
+
+# Test scenario 2:
+RESET MASTER;
+# Set server_uuid as dummy and GTID value above Threshold.
+--eval SET GLOBAL gtid_purged = CONCAT('$dummy_server_uuid:1-', (1 << 63) - 2)
+# Set server_uuid as @@GLOBAL.SERVER_UUID GTID below Threshold.
+--replace_result $server_uuid SERVER_UUID
+--eval SET GLOBAL gtid_purged = CONCAT('+$server_uuid:1-25')
+# Assert that no new warning was logged to the server error log.
+--let $assert_count = 0
+--let $assert_text = No new ER_WARN_GTID_THRESHOLD_BREACH found in server error log
+--source include/assert_grep.inc
+
+# Cleanup
 --source include/restart_mysqld.inc

@@ -33,3 +33,12 @@ CREATE TABLE t1(i INT);
 include/assert_grep.inc [No new ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
 DROP TABLE t1;
 # restart
+RESET MASTER;
+SET GLOBAL gtid_purged = CONCAT('dddddddd-dddd-dddd-dddd-dddddddddddd:1-', (1 << 62));
+SET GLOBAL gtid_purged = CONCAT('+SERVER_UUID:1-', (1 << 62));
+include/assert_grep.inc [No ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
+RESET MASTER;
+SET GLOBAL gtid_purged = CONCAT('dddddddd-dddd-dddd-dddd-dddddddddddd:1-', (1 << 63) - 2);
+SET GLOBAL gtid_purged = CONCAT('+SERVER_UUID:1-25');
+include/assert_grep.inc [No new ER_WARN_GTID_THRESHOLD_BREACH found in server error log]
+# restart

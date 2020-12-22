@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,13 +150,13 @@ Remote_clone_handler::check_clone_plugin_presence() {
 }
 
 int Remote_clone_handler::extract_donor_info(
-    std::tuple<uint, uint, uint, ulonglong> *donor_info) {
+    std::tuple<uint, uint, uint, bool> *donor_info) {
   int error = 0;
 
   uint valid_clone_donors = 0;
   uint valid_recovery_donors = 0;
   uint valid_recovering_donors = 0;
-  ulonglong number_gtids_missing = 0;
+  bool clone_activation_threshold_breach = false;
 
   std::vector<Group_member_info *> *all_members_info =
       group_member_mgr->get_all_members();
@@ -214,9 +214,10 @@ int Remote_clone_handler::extract_donor_info(
     }
   }
 
-  // Calculate the number of missing gtids
+  // Check clone activation threshold breach
   group_set.remove_gtid_set(&local_member_set);
-  number_gtids_missing = group_set.get_gtid_number();
+  clone_activation_threshold_breach =
+      group_set.is_size_greater_than_or_equal(m_clone_activation_threshold);
 
   // Before deciding calculate also the number of valid recovery donors
   for (Group_member_info *member : *all_members_info) {
@@ -260,7 +261,7 @@ cleaning:
   std::get<0>(*donor_info) = valid_clone_donors;
   std::get<1>(*donor_info) = valid_recovery_donors;
   std::get<2>(*donor_info) = valid_recovering_donors;
-  std::get<3>(*donor_info) = number_gtids_missing;
+  std::get<3>(*donor_info) = clone_activation_threshold_breach;
 
   // clean the members
   for (Group_member_info *member : *all_members_info) {
@@ -275,7 +276,7 @@ Remote_clone_handler::enum_clone_check_result
 Remote_clone_handler::check_clone_preconditions() {
   Remote_clone_handler::enum_clone_check_result result = NO_RECOVERY_POSSIBLE;
 
-  std::tuple<uint, uint, uint, ulonglong> donor_info(0, 0, 0, 0);
+  std::tuple<uint, uint, uint, bool> donor_info(0, 0, 0, false);
   if (extract_donor_info(&donor_info)) {
     return CHECK_ERROR; /* purecov: inspected */
   }
@@ -283,10 +284,10 @@ Remote_clone_handler::check_clone_preconditions() {
   uint valid_clone_donors = std::get<0>(donor_info);
   uint valid_recovery_donors = std::get<1>(donor_info);
   uint valid_recovering_donors = std::get<2>(donor_info);
-  ulonglong number_gtids_missing = std::get<3>(donor_info);
+  bool clone_activation_threshold_breach = std::get<3>(donor_info);
   ulonglong threshold = m_clone_activation_threshold;
 
-  if (number_gtids_missing >= threshold && valid_clone_donors > 0) {
+  if (clone_activation_threshold_breach && valid_clone_donors > 0) {
     result = DO_CLONE;
     LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_RECOVERY_STRAT_CLONE_THRESHOLD,
                  threshold);
@@ -428,7 +429,7 @@ int Remote_clone_handler::fallback_to_recovery_or_leave(
    Since cloning can be time consuming valid members may have left
    or joined in the meanwhile.
   */
-  std::tuple<uint, uint, uint, ulonglong> donor_info(0, 0, 0, 0);
+  std::tuple<uint, uint, uint, bool> donor_info(0, 0, 0, false);
   if (extract_donor_info(&donor_info)) {
     critical_error = true; /* purecov: inspected */
   } else {
