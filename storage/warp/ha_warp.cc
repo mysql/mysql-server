@@ -819,23 +819,30 @@ std::string ha_warp::get_writer_partition() {
   */
   
   ibis::part* least_part=NULL;
-  uint64_t least_cnt = -1ULL;
-
+  uint64_t least_cnt = 0;
+  
+  // if there is only one partition, the table is empty and a new p0 must be created
   if(partition_count == 1) {
     return std::string(share->data_dir_name) + std::string("/p0");
   }
   
-  for (auto it = parts.begin() + 1; it < parts.end(); ++it) {
-    if(least_cnt > (*it)->nRows()) {
+  for (auto it = parts.begin(); it < parts.end(); ++it) {
+    // skip the top level partition
+    if(std::string((*it)->currentDataDir()) == std::string(share->data_dir_name)) {
+      continue;
+    }
+    // find the partition with the least number of rows (top level partition is excluded above)
+    if(least_cnt < (*it)->nRows()) {
       least_part = *it;
       least_cnt = (*it)->nRows();
     }
   }   
+  // if this insert will fit into the partition with least rows, use the partition
   if(least_cnt + writer->mRows() <= my_partition_max_rows) {
     return std::string(least_part->currentDataDir());
   }
- 
-  return std::string(share->data_dir_name) + std::string("/p") + std::to_string(parts.size());
+  // otherwise create a new partition 
+  return std::string(share->data_dir_name) + std::string("/p") + (std::to_string(parts.size()-1));
 }
 
 /* write the rows and destroy the writer*/
@@ -853,6 +860,7 @@ void ha_warp::write_buffered_rows_to_disk() {
 
   /* rebuild any indexed columns */
   maintain_indexes(share->data_dir_name, table);
+  
   mysql_mutex_unlock(&share->mutex);
 };
 
@@ -976,7 +984,7 @@ int ha_warp::write_row(uchar *buf) {
   ha_statistic_increment(&System_status_var::ha_write_count);
   
   mysql_mutex_lock(&share->mutex);
-  if(share->next_rowid == 0) {
+  if(share->next_rowid == 1) {
     share->next_rowid = warp_state->get_next_rowid_batch();
   } 
   current_rowid = share->next_rowid--;
@@ -1644,7 +1652,7 @@ int ha_warp::rnd_init(bool) {
     // read all partitions unless a filter is set
     if(partition_filter_partition_name == "") {
       ibis::util::gatherParts(*partitions, share->data_dir_name, true);
-      part_it = partitions->begin() + 1;
+      part_it = partitions->begin();
     } else {
       // only read one partition if filter is set
       std::string tmpstr = std::string(share->data_dir_name);
@@ -1683,6 +1691,9 @@ int ha_warp::rnd_next(uchar *buf) {
 
 fetch_again:  
   if(partitions != NULL) {
+    if( std::string((*part_it)->currentDataDir()) == std::string(share->data_dir_name)) {
+      ++part_it;
+    }
     if(part_it == partitions->end()) {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
