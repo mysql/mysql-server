@@ -113,6 +113,7 @@ class Item_func_to_seconds final : public Item_int_func {
   Item_func_to_seconds(const POS &pos, Item *a) : Item_int_func(pos, a) {}
   longlong val_int() override;
   const char *func_name() const override { return "to_seconds"; }
+  enum Functype functype() const override { return TO_SECONDS_FUNC; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
     fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
@@ -489,6 +490,7 @@ class Item_func_unix_timestamp final : public Item_timeval_func {
       : Item_timeval_func(pos, a) {}
 
   const char *func_name() const override { return "unix_timestamp"; }
+  enum Functype functype() const override { return UNIX_TIMESTAMP_FUNC; }
 
   bool itemize(Parse_context *pc, Item **res) override;
   enum_monotonicity_info get_monotonicity_info() const override;
@@ -534,6 +536,7 @@ class Item_func_time_to_sec final : public Item_int_func {
       : Item_int_func(pos, item) {}
   longlong val_int() override;
   const char *func_name() const override { return "time_to_sec"; }
+  enum Functype functype() const override { return TIME_TO_SEC_FUNC; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_TIME)) return true;
     fix_char_length(10);
@@ -1331,6 +1334,7 @@ class Item_func_from_unixtime final : public Item_datetime_func {
   Item_func_from_unixtime(const POS &pos, Item *a)
       : Item_datetime_func(pos, a) {}
   const char *func_name() const override { return "from_unixtime"; }
+  enum Functype functype() const override { return FROM_UNIXTIME_FUNC; }
   bool resolve_type(THD *thd) override;
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
 };
@@ -1359,6 +1363,7 @@ class Item_func_convert_tz final : public Item_datetime_func {
         from_tz_cached(false),
         to_tz_cached(false) {}
   const char *func_name() const override { return "convert_tz"; }
+  enum Functype functype() const override { return CONVERT_TZ_FUNC; }
   bool resolve_type(THD *) override;
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date) override;
   void cleanup() override;
