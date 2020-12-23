@@ -280,6 +280,7 @@ our $opt_gcov_err                  = "mysql-test-gcov.err";
 our $opt_gcov_exe                  = "gcov";
 our $opt_gcov_msg                  = "mysql-test-gcov.msg";
 our $opt_hypergraph                = 0;
+our $opt_keep_ndbfs                = 0;
 our $opt_mem                       = $ENV{'MTR_MEM'} ? 1 : 0;
 our $opt_only_big_test             = 0;
 our $opt_parallel                  = $ENV{MTR_PARALLEL};
@@ -1687,6 +1688,7 @@ sub command_line_setup {
     'fast'                  => \$opt_fast,
     'force-restart'         => \$opt_force_restart,
     'help|h'                => \$opt_usage,
+    'keep-ndbfs'            => \$opt_keep_ndbfs,
     'max-connections=i'     => \$opt_max_connections,
     'print-testcases'       => \&collect_option,
     'quiet'                 => \$opt_quiet,
@@ -5904,9 +5906,11 @@ sub after_failure ($) {
       my $cluster_dir = "$opt_vardir/" . $cluster->{name};
 
       # Remove the fileystem of each ndbd
-      foreach my $ndbd (in_cluster($cluster, ndbds())) {
-        my $ndbd_datadir = $ndbd->value("DataDir");
-        remove_ndbfs_from_ndbd_datadir($ndbd_datadir);
+      if (!$opt_keep_ndbfs) {
+        foreach my $ndbd (in_cluster($cluster, ndbds())) {
+          my $ndbd_datadir = $ndbd->value("DataDir");
+          remove_ndbfs_from_ndbd_datadir($ndbd_datadir);
+        }
       }
 
       save_datadir_after_failure($cluster_dir, $save_dir);
@@ -7732,6 +7736,7 @@ Misc options
                         The result is a gcov file per source and header file.
   gprof                 Collect profiling information using gprof.
   help                  Get this help text.
+  keep-ndbfs            Keep ndbfs files when saving files on test failures.
   max-connections=N     Max number of open connection to server in mysqltest.
   no-skip               This option is used to run all MTR tests even if the
                         condition required for running the test as specified
