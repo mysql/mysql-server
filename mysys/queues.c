@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -663,7 +663,7 @@ static my_bool is_tree_heap(uint index, QUEUE *queue)
 }
 
 // Check if queue is a valid heap
-static my_bool is_queue_valid(QUEUE *queue)
+my_bool is_queue_valid(QUEUE *queue)
 {
   unsigned i;
 
