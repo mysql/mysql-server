@@ -29,6 +29,11 @@
 #include <string>
 #include <system_error>
 
+#ifdef _WIN32
+#include <WinSock2.h>
+#include <Windows.h>
+#endif
+
 #include <mysqld_error.h>
 #include <openssl/ssl.h>
 
