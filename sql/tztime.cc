@@ -31,6 +31,7 @@
 
 #include <algorithm>
 
+#include <assert.h>
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>
@@ -656,7 +657,7 @@ class Time_zone_system : public Time_zone {
   const String *get_name() const override;
   tz_type get_timezone_type() const override { return TZ_SYSTEM; }
   long get_timezone_offset() const override {
-    DBUG_ASSERT(0);
+    assert(false);
     return 0;
   }
 };
@@ -748,7 +749,7 @@ class Time_zone_utc : public Time_zone {
 
   tz_type get_timezone_type() const override { return TZ_UTC; }
   long get_timezone_offset() const override {
-    DBUG_ASSERT(0);
+    assert(false);
     return 0;
   }
 };
@@ -827,7 +828,7 @@ class Time_zone_db : public Time_zone {
   const String *get_name() const override;
   tz_type get_timezone_type() const override { return TZ_DB; }
   long get_timezone_offset() const override {
-    DBUG_ASSERT(0);
+    assert(false);
     return 0;
   }
 
