@@ -249,7 +249,7 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] The member is already leaving or joining a group."),
  ("\\[GCS\\] The member is leaving a group without being on one."),
  ("\\[GCS\\] Processing new view on handler without a valid group configuration."),
- ("\\[GCS\\] Error on opening a connection to localhost:.* on local port: .*."),
+ ("\\[GCS\\] Error on opening a connection to .*"),
  ("\\[GCS\\] Error pushing message into group communication engine."),
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
  ("\\[GCS\\] Automatically adding IPv4 localhost address to the allowlist. It is mandatory that it is added."),
