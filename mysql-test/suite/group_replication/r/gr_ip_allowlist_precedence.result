@@ -57,5 +57,6 @@ call mtr.add_suppression("Unable to initialize the group communication engine");
 call mtr.add_suppression("Error on group communication engine initialization");
 call mtr.add_suppression("\\[GCS\\] Invalid IP or subnet mask in the allowlist:*");
 call mtr.add_suppression("\\[GCS\\] Automatically adding IPv. localhost address to the allowlist. It is mandatory that it is added.");
+call mtr.add_suppression("\\[GCS\\] Connection attempt from IP address*");
 SET SESSION sql_log_bin = 1;
 include/group_replication_end.inc
