@@ -3798,13 +3798,17 @@ static bool os_is_sparse_file_supported_win32(const char *filename) {
         << "Failed to get the volume path name for: " << filename
         << "- OS error number " << GetLastError();
 
-    return (false);
+    return false;
   }
 
   DWORD flags;
 
-  GetVolumeInformation(volname, NULL, MAX_PATH, NULL, NULL, &flags, NULL,
-                       MAX_PATH);
+  result = GetVolumeInformation(volname, NULL, MAX_PATH, NULL, NULL, &flags,
+                                NULL, MAX_PATH);
+
+  if (!result) {
+    return false;
+  }
 
   return (flags & FILE_SUPPORTS_SPARSE_FILES) ? true : false;
 }
