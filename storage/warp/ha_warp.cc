@@ -1590,14 +1590,15 @@ int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
   auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
   char* partition_filter = THDVAR(table->in_use, partition_filter);
-  
+  std::cout << "Partition filter set to: " << partition_filter << "\n";
   /* extract/use the partition filter if provided*/
   uint partition_filter_len = strlen(partition_filter);
   partition_filter_alias = "";
   partition_filter_partition_name = "";
-  if(partition_filter_len > 2) {
+  // partition filter is of form alias: pX 
+  // minimum alias is one char, plus two char delim, plus two chars for partition = 5 chars
+  if(partition_filter_len >= 5) {
     for(uint delim_at = 0;delim_at<partition_filter_len;delim_at++) {
-      std::cout << partition_filter[delim_at] << "\n";
       if(partition_filter[delim_at] == ':' && partition_filter[delim_at+1] == ' ') {
         partition_filter_alias.assign(partition_filter, delim_at);
         if(partition_filter_alias == table->alias) {
@@ -1607,6 +1608,8 @@ int ha_warp::rnd_init(bool) {
       }
     }
   }
+
+  std::cout << "PARTITION_FILTER: alias=" << partition_filter_alias << " name=" << partition_filter_partition_name << "\n";
 
   bitmap_merge_join();
 

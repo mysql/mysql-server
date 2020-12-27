@@ -163,10 +163,6 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
                           "for a lock before being rolled back.",
                           nullptr, nullptr, 50, 0, ULONG_MAX, 0);
 
-static MYSQL_THDVAR_BOOL(parallel_query, PLUGIN_VAR_RQCMDARG,
-                          "Use parallel query optimization",
-                          nullptr, nullptr, false);
-
 static MYSQL_THDVAR_STR(partition_filter, PLUGIN_VAR_RQCMDARG|PLUGIN_VAR_MEMALLOC,
                           "Set partition to scan in a particular table using alias.partname",
                           nullptr, nullptr, "");
@@ -176,7 +172,6 @@ SYS_VAR* system_variables[] = {
   MYSQL_SYSVAR(cache_size),
   MYSQL_SYSVAR(write_cache_size),
   MYSQL_SYSVAR(lock_wait_timeout),
-  MYSQL_SYSVAR(parallel_query),
   MYSQL_SYSVAR(partition_filter),
   NULL
 };

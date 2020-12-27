@@ -281,6 +281,9 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
 
 int mysql_parser_get_statement_type(MYSQL_THD thd) {
   LEX *lex = thd->lex;
+  if(lex->is_explain()) {
+    return STATEMENT_TYPE_OTHER;
+  }
   switch (lex->sql_command) {
     case SQLCOM_SELECT:
       return STATEMENT_TYPE_SELECT;

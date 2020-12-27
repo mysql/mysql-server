@@ -47,16 +47,15 @@ ENDIF()
 # This installs all the scripts.
 #
 FOREACH(file
-    install_rewriter
-    uninstall_rewriter)
+    warp_parallel_install warp_parallel_uninstall)
 
-  CONFIGURE_FILE(
-    ${CMAKE_CURRENT_SOURCE_DIR}/${file}.sql.in
-    ${CMAKE_CURRENT_BINARY_DIR}/${file}.sql
-    )
+#  CONFIGURE_FILE(
+#${CMAKE_CURRENT_SOURCE_DIR}/${file}.sql.in
+#${CMAKE_CURRENT_BINARY_DIR}/${file}.sql
+#)
 
   INSTALL(FILES
-    ${CMAKE_CURRENT_BINARY_DIR}/${file}.sql
+    ${CMAKE_CURRENT_SOURCE_DIR}/${file}.sql
     DESTINATION ${INSTALL_MYSQLSHAREDIR}
     COMPONENT SupportFiles
     PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ

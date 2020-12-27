@@ -54,9 +54,9 @@ BEGIN
   CREATE TABLE warpsql.q (
     q_id bigint auto_increment primary key,
     sql_text longtext not null,
-    created_on timestamp,
-    started_on datetime default null,
-    completed_on datetime default null,
+    created_on datetime(6) default now(6),
+    started_on datetime(6) default now(6),
+    completed_on datetime(6) default now(6),
     parent bigint default null, 
     completed boolean default FALSE,
     state enum ('CHECKING','COMPLETED','WAITING','RUNNING','ERROR') NOT NULL DEFAULT 'WAITING',
@@ -73,7 +73,7 @@ BEGIN
   ) CHARSET=UTF8MB4 
   ENGINE=InnoDB;
   
-  INSERT INTO warpsql.settings VALUES ('thread_count', '8');
+  INSERT INTO warpsql.settings VALUES ('thread_count', '12');
       
 END;;
 
@@ -89,6 +89,7 @@ worker:BEGIN
   DECLARE v_got_lock BOOLEAN DEFAULT FALSE;
   DECLARE v_q_id BIGINT DEFAULT 0;
   DECLARE v_sql_text LONGTEXT DEFAULT NULL;
+  DECLARE v_partname LONGTEXT DEFAULT NULL;
 
   -- FIXME: 
   -- These control the backoff in the loop waiting
@@ -99,7 +100,7 @@ worker:BEGIN
   DECLARE v_wait FLOAT DEFAULT 0;
   DECLARE v_min_wait FLOAT DEFAULT 0;
   DECLARE v_inc_wait FLOAT DEFAULT 0.01;
-  DECLARE v_max_wait FLOAT DEFAULT 0.25;
+  DECLARE v_max_wait FLOAT DEFAULT 0.1;
 
   SELECT `value`
     INTO v_thread_count
@@ -115,7 +116,7 @@ worker:BEGIN
 	
   start_thread:LOOP
     IF(v_next_thread > v_thread_count) THEN
-			DO sleep(v_max_wait);  
+			DO sleep(1);  
       LEAVE worker;
     END IF;
     SET v_next_thread := v_next_thread + 1;
@@ -151,15 +152,17 @@ worker:BEGIN
       -- get the next SQL to run.  
 
       SELECT q_id,
-             sql_text
+             sql_text, 
+             partition_filter
         INTO v_q_id,
-             v_sql_text
+             v_sql_text,
+             v_partname
         FROM q
        WHERE completed = FALSE
          AND state = 'WAITING'
        ORDER BY q_id
       LIMIT 1 
- 			FOR UPDATE;
+ 			FOR UPDATE SKIP LOCKED;
 
       -- Increase the wait if there was no SQL found to
       -- execute.  
@@ -179,7 +182,7 @@ worker:BEGIN
 
         -- mark it as running
         UPDATE q 
-           SET started_on = NOW(), 
+           SET started_on = default, 
                  state='RUNNING'
          WHERE q_id = v_q_id;
 
@@ -187,6 +190,15 @@ worker:BEGIN
         COMMIT;
 
         START TRANSACTION;
+
+        IF v_partname IS NOT NULL THEN
+          insert into test.debug values (concat('setting partname to ', v_partname));
+          SET warp_partition_filter = v_partname;
+        ELSE 
+          
+          insert into test.debug values ('setting partname to empty string');
+          SET warp_partition_filter = '';
+        END IF;
 
         -- the output of the SELECT statement must go into a table
         -- other statements like INSERT or CALL can not return a 
@@ -200,7 +212,7 @@ worker:BEGIN
         PREPARE stmt FROM @v_sql;
         IF(@errno IS NULL) THEN
 					-- lock the query for exec
-					SELECT * from q where q_id = v_q_id FOR UPDATE;
+					SELECT * from q where q_id = v_q_id FOR UPDATE SKIP LOCKED;
         	EXECUTE stmt;
 					DEALLOCATE PREPARE stmt;
 				END IF;
@@ -210,7 +222,7 @@ worker:BEGIN
                errno = @errno,
                errmsg = @errmsg,
                completed = TRUE,
-               completed_on = SYSDATE()
+               completed_on = default
          WHERE q_id = v_q_id;
 
         COMMIT;
@@ -225,7 +237,7 @@ worker:BEGIN
       -- wait a bit for the next SQL so that we aren't
       -- spamming MySQL with queries to execute an
       -- empty queue
-      DO SLEEP(v_wait);
+       DO SLEEP(v_wait);
 
     END LOOP;  
 
@@ -250,12 +262,13 @@ BEGIN
 	-- this will block when the query is running
 	SELECT state, errmsg, errno INTO v_status,v_errmsg, v_errno from q where q_id = v_q_id ;
 	IF (v_status IS NULL) THEN
+    SET @v_message := CONCAT('Invalid QUERY_NUMBER: ', v_q_id);
     SIGNAL SQLSTATE '99998'
-       SET MESSAGE_TEXT='Invalid QUERY_NUMBER';
+       SET MESSAGE_TEXT=@v_message;
   END IF;
 	IF(v_status = 'WAITING') THEN
 		wait_loop:LOOP
-			DO SLEEP(.025);
+			-- DO SLEEP(.001);
 			SELECT state, errmsg, errno INTO v_status, v_errmsg, v_errno from q where q_id = v_q_id ;
 			IF (v_status !='WAITING') THEN
 				LEAVE wait_loop;
@@ -267,23 +280,29 @@ BEGIN
     SIGNAL SQLSTATE '99990'
        SET MESSAGE_TEXT = 'CALL asynch.check(QUERY_NUMBER) to get the detailed error information';
   END IF;
-
+  SET v_status := NULL;
   -- wait for record lock to be released for running query
-	set innodb_lock_wait_timeout=86400*7;
-	SELECT q_id INTO v_q_id from q where q_id = v_q_id FOR UPDATE;
-	ROLLBACK;
+	-- waitLoop: LOOP
+	--  SELECT state INTO v_status from q where q_id = v_q_id AND STATE NOT IN ('ERROR','COMPLETED');
+  --  IF v_status IS NOT NULL THEN
+  --    LEAVE waitLoop;
+  --  END IF;
+  --  DO SLEEP(.001);
+	-- END LOOP waitLoop;
 
-  SET @v_sql := CONCAT('SELECT * from rs_', v_q_id);
-  PREPARE stmt from @v_sql;
-  EXECUTE stmt;
-	DEALLOCATE PREPARE stmt;
+  if @warp_async_query IS NULL THEN
+    SET @v_sql := CONCAT('SELECT * from rs_', v_q_id);
+    PREPARE stmt from @v_sql;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
 
-	SET @v_sql := CONCAT('DROP TABLE rs_', v_q_id);
-  PREPARE stmt from @v_sql;
-  EXECUTE stmt;
-	DEALLOCATE PREPARE stmt;
-
+    SET @v_sql := CONCAT('DROP TABLE rs_', v_q_id);
+    PREPARE stmt from @v_sql;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+  END IF;
 END;;
+
 CREATE DEFINER=root@localhost PROCEDURE warpsql.queue(IN v_sql_text LONGTEXT)
 MODIFIES SQL DATA
 SQL SECURITY DEFINER
@@ -298,6 +317,25 @@ BEGIN
   SET @query_list := CONCAT(@query_list, @query_number);
 	SELECT @query_number as QUERY_NUMBER;
 END;;
+
+CREATE DEFINER=root@localhost PROCEDURE warpsql.queue_ll(
+  IN v_sql_text LONGTEXT,
+  IN v_partname LONGTEXT
+)
+MODIFIES SQL DATA
+SQL SECURITY DEFINER
+BEGIN
+  INSERT INTO q(sql_text,partition_filter) values(v_sql_text, v_partname);
+	SET @query_number := LAST_INSERT_ID();
+  IF(@query_list != '' AND @query_list IS NOT NULL) THEN
+    SET @query_list := CONCAT(@query_list,',');
+  ELSE
+    SET @query_list :=  '';
+  END IF;
+  SET @query_list := CONCAT(@query_list, @query_number);
+	-- SELECT @query_number as QUERY_NUMBER;
+END;;
+
 
 CREATE DEFINER=root@localhost PROCEDURE warpsql.wait_list(INOUT v_list TEXT)
 MODIFIES SQL DATA
@@ -328,8 +366,10 @@ END;;
 
 CREATE DEFINER=root@localhost PROCEDURE warpsql.wait_all()
 MODIFIES SQL DATA
-CALL wait_list(@query_list);;
-
+BEGIN
+CALL wait_list(@query_list);
+SET @query_list = '';
+END;;
 
 
 SELECT 'Creating parallel query worker using events' as message;
@@ -376,25 +416,161 @@ END;;
 drop procedure if exists warpsql.parallel_query;;
 create definer=root@localhost 
 procedure warpsql.parallel_query (
- IN v_ll_query text,
- IN v_coord_query text,
- IN v_ll_group text,
- IN v_coord_group text,
- IN v_ll_from text,
- IN v_ll_where text,
- IN v_ll_coord_having text,
- IN v_partitions text
+ IN v_ll_select     longtext,
+ IN v_coord_select  longtext,
+ IN v_ll_group      longtext,
+ IN v_coord_group   longtext,
+ IN v_ll_from       longtext,
+ IN v_ll_where      longtext,
+ IN v_coord_having  longtext,
+ IN v_partitions    longtext
 )
 begin
-select v_ll_query, v_coord_query, v_ll_group, v_coord_group, v_ll_from, v_ll_where, v_ll_coord_having, v_partitions;
+  -- this is the query that will be executed for each partition of the largest
+  -- table in the query ("generally the fact table")
+  declare v_ll_query LONGTEXT DEFAULT '';
+
+  -- this is the table that the results of v_ll_query go into
+  declare v_coord_table TEXT DEFAULT '';
+
+  -- this is the query over the v_coord_table that returns that aggregated
+  -- results.  This is the 'coordinator query'
+  declare v_coord_query LONGTEXT DEFAULT '';
+
+  -- this is the partition that will be scanned by v_ll_query
+  declare v_selected_partition TEXT DEFAULT '';
+  -- END DECLARATIONS
+
+  -- the queries executed by this stored procedure can't be parallelized
+  -- or there will be an infinite loop!
+  set warp_rewriter_parallel_query = OFF;
+
+  -- for DEBUG purposes
+  -- select v_ll_select, v_coord_query, v_ll_group, v_coord_group, v_ll_from, v_ll_where, v_coord_having, v_partitions;
+
+  set v_ll_query := CONCAT("SELECT ", v_ll_select, '\n  ', v_ll_from);
+  
+  -- 1=1 is added to the WHERE clause 
+  if(v_ll_where != "") then
+    SET v_ll_where := CONCAT("(" , v_ll_where, ") AND 1=1 ");
+    set v_ll_query := CONCAT(v_ll_query, '\n WHERE ', v_ll_where);
+  else 
+    set v_ll_query := CONCAT(v_ll_query, '\n WHERE 1=1 ', v_ll_where);
+  end if;
+
+  if(v_ll_group != "") then
+    set v_ll_query := CONCAT(v_ll_query, '\nGROUP BY ', v_ll_group);
+  end if;
+
+  -- select v_ll_query;
+  
+  SET v_coord_table := CONCAT('r_', md5(concat(sysdate(6),rand())));
+
+  set @v_sql = CONCAT(
+    'CREATE TABLE warpsql.', v_coord_table , '\nAS\n',
+    "SELECT * from ( ", 
+    replace(v_ll_query, "1=1","1=0"), " ) sq LIMIT 0;"
+  );
+
+  -- select @v_sql; 
+
+  PREPARE stmt FROM @v_sql;
+  EXECUTE stmt;
+  DEALLOCATE PREPARE stmt;
+
+  -- turn the parallel query into an INSERT statement
+  set v_ll_query := CONCAT(
+    'INSERT INTO warpsql.',v_coord_table,'\n', v_ll_query
+  );
+
+  --  select v_ll_query;
+
+  set v_coord_query := CONCAT('SELECT ',
+    v_coord_select, '\nFROM ',
+    v_coord_table, ' ' 
+  );
+
+  if(v_coord_group != "") then
+    set v_coord_query := CONCAT(v_coord_query, 'GROUP BY ', v_coord_group);
+  end if;
+
+  if(v_coord_having != "") then
+    set v_coord_query := CONCAT(v_coord_query, ' HAVING ', v_coord_having);
+  end if;
+
+  -- select v_coord_query;
+
+  drop temporary table if exists partitions;
+
+  create temporary table partitions (
+    p_name text
+  );
+
+  set @v_pos      := POSITION(':' IN v_partitions);
+  set @v_alias    := SUBSTR(v_partitions, 1, @v_pos-1);
+  set @v_partlist := SUBSTR(v_partitions, @v_pos+1);
+  SET @warp_async_query = true;
+
+  set @v_sql := CONCAT('INSERT INTO partitions VALUES ', @v_partlist);
+  prepare stmt from @v_sql;
+  execute stmt;
+  deallocate prepare stmt;
+  -- select 'submitting parallel workers';
+  BEGIN
+    declare v_done boolean default false;
+    declare v_partname text default '';
+    DECLARE parts CURSOR
+    FOR
+    SELECT * from partitions;
+    declare continue handler for not found
+      set v_done := true;
+    
+    OPEN parts;
+    partLoop: LOOP 
+      FETCH parts 
+       INTO v_partname;
+      IF v_done = true then
+        leave partLoop;
+      END IF;
+      CALL warpsql.queue_ll(v_ll_query, CONCAT(@v_alias, ': ', v_partname));
+    END LOOP partLoop;   
+  END; 
+  
+  set transaction_isolation = 'read-committed';
+  -- select @query_list;
+  set @v_sql := CONCAT("select count(*) into @wait_cnt from warpsql.q where q_id in (", @query_list, ") and state NOT IN ('COMPLETED','ERROR')");
+  waitLoop: LOOP
+    prepare wait_stmt from @v_sql;
+    execute wait_stmt;  
+    DEALLOCATE PREPARE wait_stmt;
+    if(@wait_cnt = 0) THEN
+      LEAVE waitLoop;
+    end if;
+    
+    -- select @wait_cnt;
+    do sleep(.005);
+  END LOOP waitLoop;
+  set @warp_async_query = NULL;
+  
+  set @query_list = '';
+  set @v_sql := v_coord_query;
+  PREPARE coord_stmt FROM @v_sql;
+  EXECUTE coord_stmt;
+  DEALLOCATE PREPARE coord_stmt;
+  -- SELECT v_coord_query;
+  
+  -- turn the parallel query plugin back on
+  set warp_rewriter_parallel_query = ON;
+
 end;;
 
 SELECT 'Installation complete' as message;;
 
-SELECT IF(@@event_scheduler=1,'The event scheduler is enabled.  The default of 8 running background threads of execution is currently being used.  Execute CALL warpsql.set_concurrency(X) to set the number of threads manually.',
+SELECT IF(@@event_scheduler=1 OR @@event_scheduler='ON','The event scheduler is enabled.  The default of 8 running background threads of execution is currently being used.  Execute CALL warpsql.set_concurrency(X) to set the number of threads manually.',
                               'You must enable the event scheduler ( SET GLOBAL event_scheduler=1 ) to enable background parallel execution threads.') 
 as message;;
 
 
 DELIMITER ;
 
+INSTALL PLUGIN warp_rewriter SONAME 'warp_rewriter.so';

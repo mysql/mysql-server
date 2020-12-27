@@ -95,6 +95,16 @@ static struct st_mysql_audit warp_rewrite_query_descriptor = {
     } /* class mask        */
 };
 
+static MYSQL_THDVAR_BOOL(parallel_query, PLUGIN_VAR_RQCMDARG,
+                          "Use parallel query optimization",
+                          nullptr, nullptr, false);
+
+SYS_VAR* plugin_system_variables[] = {
+  MYSQL_SYSVAR(parallel_query),
+  NULL
+};
+
+
 /* Plugin descriptor */
 mysql_declare_plugin(audit_log){
     MYSQL_AUDIT_PLUGIN,             /* plugin type                   */
@@ -110,7 +120,7 @@ mysql_declare_plugin(audit_log){
     //rewriter_plugin_status_vars,  /* status variables              */
     //rewriter_plugin_sys_vars,     /* system variables              */
     nullptr,                        /* status vars (none atm) */
-    nullptr,                        /* system vars (none atm) */
+    plugin_system_variables,        /* system vars (none atm) */
     nullptr,                        /* reserverd                     */
     0                               /* flags                         */
 } mysql_declare_plugin_end;
@@ -151,10 +161,10 @@ std::string get_warp_partitions(std::string schema, std::string table) {
       }
 
       if(parts != "") {
-        parts += " ";
+        parts += ", ";
       }
 
-      parts += std::string(ent->d_name);
+      parts += "('" + std::string(ent->d_name) +"')";
     }
   }
   return parts;
@@ -476,6 +486,11 @@ static int warp_rewrite_query_notify(
     return 0;
   }
 
+  if(THDVAR(thd,parallel_query) != true) {
+    //std::cout << "PARALLEL QUERY IS DISABLED\n";
+    return 0;
+  } 
+
   // currently only support SELECT statements
   if(mysql_parser_get_statement_type(thd) != STATEMENT_TYPE_SELECT) {
     return 0;
@@ -487,7 +502,7 @@ static int warp_rewrite_query_notify(
   }
 
   auto orig_query = mysql_parser_get_query(thd);
-  
+  std::cout << "WORKING ON: " << std::string(orig_query.str) << "\n";
   // the query sent to the parallel workers
   std::string ll_query;
 
@@ -713,6 +728,10 @@ static int warp_rewrite_query_notify(
     tbl = tbl->next_local;
   }
 
+  if(partition_list == "") {
+    return 0;
+  }
+
   /* Process the WHERE clause */
   std::string ll_where;
   if(thd->lex->select_lex->where_cond() != nullptr) {
@@ -760,7 +779,7 @@ static int warp_rewrite_query_notify(
     '"' + escape_for_call(coord_having) + "\",\n" +
     (partition_list != "" ? 
       '"' + escape_for_call(fact_alias) + ":" + partition_list + "\");\n" :
-      "''");
+      "'')");
   
   std::cout << "PARALLEL QUERY INTERFACE EXEC CALL:\n------------------\n";
   std::cout << call_sql << "\n";
