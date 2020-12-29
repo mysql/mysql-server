@@ -19,6 +19,14 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+/*
+ * ha_warp.cc:76:
+/data/warp/storage/warp/ha_warp.h:23:32: error: ‘-Werror=suggest-override’ is not an option that controls warnings [-Werror=pragmas]
+*/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-override"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch"
 #ifndef HA_WARP_HDR
 #define HA_WARP_HDR
 #define MYSQL_SERVER 1
@@ -259,7 +267,7 @@ class warp_pushdown_information {
 };
 
 // maps the table aliases for this query to pushdown information info
-std::unordered_map<THD*, std::unordered_map<const char*, warp_pushdown_information*> * > pd_info;
+std::unordered_map<THD*, std::unordered_map<std::string, warp_pushdown_information*> * > pd_info;
 // held when accessing or modifying the pushdown info
 std::mutex pushdown_mtx;
 

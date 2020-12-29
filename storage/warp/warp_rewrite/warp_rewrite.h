@@ -26,6 +26,11 @@
   @file rewriter_plugin.h
 
 */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-override"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch"
+
 
 #include <mysql/plugin_audit.h>
 #include "my_config.h"

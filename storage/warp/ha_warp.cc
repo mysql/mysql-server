@@ -154,7 +154,7 @@ static int warp_init_func(void *p) {
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(0);
+  ibis::util::setVerboseLevel(3);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
@@ -984,14 +984,11 @@ int ha_warp::write_row(uchar *buf) {
   ha_statistic_increment(&System_status_var::ha_write_count);
   
   mysql_mutex_lock(&share->mutex);
-  if(share->next_rowid == 1) {
+  if(share->next_rowid <= 1) {
     share->next_rowid = warp_state->get_next_rowid_batch();
   } 
   current_rowid = share->next_rowid--;
-  
   mysql_mutex_unlock(&share->mutex);
-//  auto current_trx = warp_get_trx(warp_hton, table->in_use);
-//  assert(current_trx != NULL);
     
   /* This will return a cached writer unless a background
     write was started on the last insert.  In that case
@@ -1590,7 +1587,7 @@ int ha_warp::rnd_init(bool) {
   DBUG_ENTER("ha_warp::rnd_init");
   auto pushdown_info = get_pushdown_info(table->in_use, table->alias);
   char* partition_filter = THDVAR(table->in_use, partition_filter);
-  std::cout << "Partition filter set to: " << partition_filter << "\n";
+ 
   /* extract/use the partition filter if provided*/
   uint partition_filter_len = strlen(partition_filter);
   partition_filter_alias = "";
@@ -1608,8 +1605,6 @@ int ha_warp::rnd_init(bool) {
       }
     }
   }
-
-  std::cout << "PARTITION_FILTER: alias=" << partition_filter_alias << " name=" << partition_filter_partition_name << "\n";
 
   bitmap_merge_join();
 
@@ -1748,7 +1743,7 @@ fetch_again:
   //DBUG_RETURN(HA_ERR_END_OF_FILE);
   cursor->getColumnAsULong("t", row_trx_id);
   cursor->getColumnAsULong("r", current_rowid);
-
+  
   /* This sets is_trx_visible handler variable!
      If we already checked this trx_id in the last iteration
      then it does not have to be checked again and the
@@ -1757,7 +1752,6 @@ fetch_again:
      checked if the value is not the same as this 
      transaction.
   */
- 
   is_trx_visible_to_read(row_trx_id);
   
   if(!is_trx_visible) {
@@ -2406,8 +2400,8 @@ int ha_warp::append_column_filter(const Item *cond,
       Item_field* f1 = (Item_field *)(arg[1]);
 
       // Get the pushdown information - something is quite broken if these are NULL
-      auto f0_info = get_pushdown_info(table->in_use, f0->table_name);
-      auto f1_info = get_pushdown_info(table->in_use, f1->table_name);
+      auto f0_info = get_pushdown_info(table->in_use, f0->table_ref->alias);
+      auto f1_info = get_pushdown_info(table->in_use, f1->table_ref->alias);
       
       assert(f0_info != NULL);
       assert(f1_info != NULL);
@@ -3133,9 +3127,10 @@ void warp_trx::commit() {
   int sz = 0;
   uint64_t rowid = 0;
   char marker;
-
+  
   auto commit_it = warp_state->commit_list.find(trx_id);
   if(dirty) {
+  
     if(commit_it == warp_state->commit_list.end()) {
       sql_print_error("Open transaction not in commit list");
       assert(false);
@@ -3200,14 +3195,17 @@ void warp_trx::commit() {
       sql_print_error("Failed to write to commits file");
       assert(false);
     }
+    // ensure commit marker is on disk
+    fflush(warp_state->commit_file);
     fsync(fileno(warp_state->commit_file));
-
+    
     commit_it->second = WARP_COMMITTED_TRX;
     
-    fclose(log);
-    unlink(log_filename.c_str());
-    log = NULL;
+    
   }
+  if(log) fclose(log);
+  log = NULL;
+  unlink(log_filename.c_str());
   
   commit_mtx.unlock();
 }
@@ -3555,7 +3553,7 @@ warp_global_data::warp_global_data() {
     on_disk_version = get_state_and_return_version();
     shutdown_ok = was_shutdown_clean();
   }  
-
+  
   if(!shutdown_ok) {
     DIR *dir = opendir(".");
     struct dirent* ent;
@@ -3584,6 +3582,7 @@ warp_global_data::warp_global_data() {
         if(!found) {
             continue;
         }
+
         if(strncmp(trxlog_file_extension,ext_at, 6) == 0) {
           // found a txlog to remove
           if(unlink(ent->d_name) != 0) {
@@ -3593,7 +3592,7 @@ warp_global_data::warp_global_data() {
         }
       }
     }
-    
+
     if(!repair_tables()) {
       assert("Table repair failed. Database could not be initialized");
     }
@@ -3601,24 +3600,25 @@ warp_global_data::warp_global_data() {
   
   // this file will be rewritten at clean shutdown
   unlink(shutdown_clean_file.c_str());
-  
+ 
   commit_file = fopen(commit_filename.c_str(), "ab+");
-  if(!commit_file) {    
-    sql_print_error("Could not open commit file: %s", commit_filename.c_str());
+   if(!commit_file) {  
+     sql_print_error("Could not open commit file: %s", commit_filename.c_str());
     assert(false);
   }
+ 
   fseek(commit_file, 0, SEEK_SET);
   int sz = 0;
   uint64_t trx_id;
 
   /* load list of committed transactions to the commit list */
   while( (sz = fread(&trx_id, sizeof(trx_id), 1, commit_file)) == 1) {
-    commit_list.emplace(std::pair<uint64_t, bool>(trx_id, true));
+     commit_list.emplace(std::pair<uint64_t, bool>(trx_id, true));
   }
   
   // this will create the commits.warp bitmap if it does not exist
   try {
-    delete_bitmap = new sparsebitmap(delete_bitmap_file, LOCK_SH); 
+     delete_bitmap = new sparsebitmap(delete_bitmap_file, LOCK_SH); 
   } catch(...) {
     sql_print_error("Could not open delete bitmap: %s", delete_bitmap_file.c_str());
     assert(false);
@@ -3626,11 +3626,10 @@ warp_global_data::warp_global_data() {
   
   // if tables are an older version on disk, proceed with upgrade process
   if(on_disk_version != WARP_VERSION) {
-    if(!warp_upgrade_tables(on_disk_version)) {
-      sql_print_error("WARP upgrade tables failed");
+     if(!warp_upgrade_tables(on_disk_version)) {
+       sql_print_error("WARP upgrade tables failed");
       assert(false);
     }
-
     // will write new version information to disk
     // asserts if writing fails
     write();
@@ -3655,7 +3654,7 @@ bool warp_global_data::check_state() {
   struct stat st;
   int state_exists = (stat(warp_state_file.c_str(), &st) == 0);
   int commit_file_exists = (stat(commit_filename.c_str(), &st) == 0);
-  
+
   if((state_exists && !commit_file_exists)) {
     sql_print_error("warp_state found but commits.warp is missing! Database can not be initialized.");
     return false;
@@ -3672,6 +3671,7 @@ bool warp_global_data::check_state() {
     sql_print_error("WARP tables found but database state is missing! This may be a beta 1 database. WARP can not be initialized.");
     return false;
   }
+
   return true;
 }
 
@@ -3925,7 +3925,7 @@ uint64_t warp_global_data::get_state_and_return_version() {
   
   fread(&state_record1, sizeof(struct on_disk_state), 1, fp);
   if(ferror(fp) != 0) {
-    sql_print_error("Failed to read state record one from warp_state");
+      sql_print_error("Failed to read state record one from warp_state");
     return 0;
   }
   fread(&state_record2, sizeof(struct on_disk_state), 1, fp);
@@ -4200,7 +4200,7 @@ warp_pushdown_information* get_pushdown_info(THD* thd, const char* alias) {
   
   int is_empty = true;
   for(auto it2 = pushdown_info_map->begin();it2!=pushdown_info_map->end(); ++it2) {
-    if(std::string(it2->first) == std::string(alias)) {
+    if(it2->first == std::string(alias)) {
       is_empty = false;
       break;
     }
@@ -4214,11 +4214,11 @@ warp_pushdown_information* get_pushdown_info(THD* thd, const char* alias) {
     pushdown_mtx.unlock();
     return NULL;
   }
-    
+  /*  
   if(it2->first == NULL) {
     pushdown_mtx.unlock();
     return NULL;
-  }
+  }*/
   
   pushdown_mtx.unlock();
   // return the pushdown info
@@ -4226,26 +4226,26 @@ warp_pushdown_information* get_pushdown_info(THD* thd, const char* alias) {
 }
 
 warp_pushdown_information* get_or_create_pushdown_info(THD* thd, const char* alias, const char* data_dir_name) {
-  std::unordered_map<const char*, warp_pushdown_information*> *pushdown_info_map;
+  std::unordered_map<std::string, warp_pushdown_information*> *pushdown_info_map;
   warp_pushdown_information* pushdown_info;
 
   pushdown_mtx.lock();
    
   auto it = pd_info.find(thd);
   if(it == pd_info.end()) {
-    pushdown_info_map = new std::unordered_map<const char*, warp_pushdown_information*>;
+    pushdown_info_map = new std::unordered_map<std::string, warp_pushdown_information*>;
     pushdown_info = new warp_pushdown_information();
     //map the alias used by MySQL to the directory of the Fastbit table
     pushdown_info->datadir = data_dir_name;
-    pushdown_info_map->emplace(std::pair<const char*, warp_pushdown_information*>(alias, pushdown_info));
-    pd_info.emplace(std::pair<THD*, std::unordered_map<const char*, warp_pushdown_information*>*>(thd, pushdown_info_map));
+    pushdown_info_map->emplace(std::pair<std::string, warp_pushdown_information*>(std::string(alias), pushdown_info));
+    pd_info.emplace(std::pair<THD*, std::unordered_map<std::string, warp_pushdown_information*>*>(thd, pushdown_info_map));
   } else {
     pushdown_info_map = it->second;
     auto it2 = pushdown_info_map->find(alias);
     if(it2 == pushdown_info_map->end()) {
       pushdown_info = new warp_pushdown_information();
       pushdown_info->datadir = data_dir_name;
-      pushdown_info_map->emplace(std::pair<const char*, warp_pushdown_information*>(alias, pushdown_info));
+      pushdown_info_map->emplace(std::pair<std::string, warp_pushdown_information*>(std::string(alias), pushdown_info));
     } else {
       pushdown_info = it2->second;
     }
