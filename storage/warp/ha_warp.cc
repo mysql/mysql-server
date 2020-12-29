@@ -1631,7 +1631,7 @@ int ha_warp::rnd_init(bool) {
   if(push_where_clause == "") {
     push_where_clause = "1=1";
   }
-
+  //DBUG_RETURN(-1);
   if(pushdown_info->base_table != NULL) {
     partitions = NULL;
     base_table = pushdown_info->base_table;
@@ -2410,7 +2410,6 @@ int ha_warp::append_column_filter(const Item *cond,
       if(f1_info->datadir != share->data_dir_name) {
         this_is_dim_table = false; 
       }
-      
       const char* dim_field_mysql_name;
       const char* fact_field_mysql_name;
       const char* dim_alias;
@@ -2662,7 +2661,6 @@ int ha_warp::bitmap_merge_join() {
   if(fact_pushdown_info == NULL) {
     return 0;
   }
-
   std::string fact_pushdown_clause = "";
   std::string dim_pushdown_clause = "";
   /*if(fact_pushdown_info->filter != "") {
@@ -2675,7 +2673,6 @@ int ha_warp::bitmap_merge_join() {
     } else {
       fact_pushdown_clause = "";
     }
-
     //bool dim_full_table_scan = false;
     Field* fact_field = join_it->first;
 
@@ -2693,7 +2690,6 @@ int ha_warp::bitmap_merge_join() {
     if(dim_pushdown_info == NULL) {
       continue;
     }
-
     std::string fact_colname = std::string("c") + std::to_string(fact_field->field_index());
     std::string fact_nullname = std::string("n") + std::to_string(fact_field->field_index());
     std::string dim_colname = std::string("c") + std::to_string(dim_field->field_index());
@@ -2709,27 +2705,22 @@ int ha_warp::bitmap_merge_join() {
     if(dim_is_nullable) {
       dim_pushdown_clause += " AND " + dim_nullname + "=0";
     } 
-        
     // this is where the pushdown information will be collected for the fact table
     // but if this is a full scan, no rows are pushed
     if(fact_pushdown_clause != "") {
       fact_pushdown_clause += " AND ";
     }
-      
     if(fact_is_nullable) {
       fact_pushdown_clause = fact_nullname += "=0 AND ";       
     }
     fact_pushdown_clause += fact_colname + " IN(";
-    
     /* open the dimension table to read the data - the pointers are stored on the pushdown
         info structure so that they can be re-used in the scan
     */
     dim_pushdown_info->base_table = ibis::mensa::create(dim_pushdown_info->datadir);
-
     if(dim_pushdown_info->base_table == NULL) {
       continue;
     }
-    
     dim_pushdown_info->filtered_table = 
     dim_pushdown_info->base_table->select(dim_pushdown_info->column_set.c_str(), dim_pushdown_clause.c_str());
     
@@ -2747,7 +2738,6 @@ int ha_warp::bitmap_merge_join() {
     std::vector<double> dbls;
     std::vector<std::string> strings;
     */
-
     while(dim_cursor->fetch() == 0) {   
       if(!first_row) fact_pushdown_clause += ",";
       first_row = false;
@@ -2893,7 +2883,6 @@ int ha_warp::bitmap_merge_join() {
         return -1;
       }
     } // end of fetch loop
-
     // new cursor will be opened in the scan if it wasn't used to build
     // a hash index otherwise attach this cursor to make sure the 
     // positional information remains vali
@@ -2901,17 +2890,20 @@ int ha_warp::bitmap_merge_join() {
     dim_pushdown_info->cursor = NULL;
     fact_pushdown_clause += ")";
     dim_pushdown_info->fact_filter = fact_pushdown_clause;
+    if(fact_pushdown_clause != "") {
+      if(push_where_clause != "") {
+        push_where_clause += " AND ";
+      }
+      push_where_clause += fact_pushdown_clause;
+    }
   } // end of dim tables loop   
-  
   // set the pushdown clause for the table
-  if(fact_pushdown_clause != "") {
-    push_where_clause = fact_pushdown_clause;
-  }
+
 
   return 0;
 }
 
-
+// changed
 
 /* Transaction support functions
    TODO: describe WARP transactions
