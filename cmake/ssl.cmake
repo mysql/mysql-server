@@ -237,7 +237,7 @@ MACRO (MYSQL_CHECK_SSL)
           )
         STRING(REGEX REPLACE
           "^.*OPENSSL_VERSION_MINOR[\t ]+([0-9]).*$" "\\1"
-          OPENSSL_MINOR_VERSION "${OPENSSL_VERSION_MINOR}"
+          OPENSSL_MINOR_VERSION "${OPENSSL_MINOR_VERSION}"
           )
         FILE(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h"
           OPENSSL_FIX_VERSION
@@ -245,7 +245,7 @@ MACRO (MYSQL_CHECK_SSL)
           )
         STRING(REGEX REPLACE
           "^.*OPENSSL_VERSION_PATCH[\t ]+([0-9]).*$" "\\1"
-          OPENSSL_FIX_VERSION "${OPENSSL_VERSION_PATCH}"
+          OPENSSL_FIX_VERSION "${OPENSSL_FIX_VERSION}"
           )
       ENDIF()
     ENDIF()
