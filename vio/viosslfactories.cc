@@ -544,7 +544,7 @@ EXIT:
 uint get_fips_mode() 
 { 
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-  return EVP_default_properties_is_fips_enabled(NULL);
+  return EVP_default_properties_is_fips_enabled(NULL) && OSSL_PROVIDER_available(NULL, "fips");
 #else
   return FIPS_mode();
 #endif
