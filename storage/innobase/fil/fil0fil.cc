@@ -11381,7 +11381,8 @@ void Tablespace_dirs::duplicate_check(const Const_iter &start,
   }
 
   if (printed_msg) {
-    ib::info(ER_IB_MSG_376) << "Checked " << count << " files";
+    ib::info(ER_IB_MSG_376) << "Thread# " << thread_id
+                            << " - Finished checking " << count << " files";
   }
 }
 
