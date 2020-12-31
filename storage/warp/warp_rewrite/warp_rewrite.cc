@@ -50,6 +50,7 @@
 #include "sql/mysqld.h"
 #include "sql/sql_parse.h"
 #include "plugin/rewriter/services.h"
+#include "sql/protocol_classic.h"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
@@ -66,6 +67,9 @@
 #include "../include/fastbit/mensa.h"
 #include "../include/fastbit/resource.h"
 #include "../include/fastbit/util.h"
+
+#include <vector>
+#include <map>
 
 using std::string;
 
@@ -99,8 +103,12 @@ static MYSQL_THDVAR_BOOL(parallel_query, PLUGIN_VAR_RQCMDARG,
                           "Use parallel query optimization",
                           nullptr, nullptr, false);
 
+static MYSQL_THDVAR_BOOL(reorder_outer, PLUGIN_VAR_RQCMDARG,
+                          "Reorder joins with OUTER joins",
+                          nullptr, nullptr, true);
 SYS_VAR* plugin_system_variables[] = {
   MYSQL_SYSVAR(parallel_query),
+  MYSQL_SYSVAR(reorder_outer),
   NULL
 };
 
@@ -238,11 +246,11 @@ bool process_having_item(THD* thd,
         
         if(sum->has_with_distinct()) {
           ll_query += arg_clause + " AS " + ll_alias;
-          used_fields.emplace(std::pair<std::string, uint>(arg_clause, max_used_expr_num));
+          used_fields.emplace(std::make_pair(arg_clause, max_used_expr_num));
           new_clause += std::string(sum->func_name()) + "(DISTINCT " + ll_alias + ")";
           coord_group += ll_alias;
         } else {
-          used_fields.emplace(std::pair<std::string, uint>(orig_clause, max_used_expr_num));
+          used_fields.emplace(std::make_pair(orig_clause, max_used_expr_num));
           ll_query += orig_clause + " AS " + ll_alias;
           new_clause += std::string("SUM(") + ll_alias + ")";
         }
@@ -468,6 +476,30 @@ int warp_parse_call(MYSQL_THD thd, const MYSQL_LEX_STRING query) {
   return parse_status;
 }
 
+bool desc(std::pair<string, uint64_t>& a, std::pair<string, uint64_t>& b) { 
+  return a.second < b.second; 
+} 
+  
+// Function to sort the map according 
+// to value in a (key-value) pairs 
+std::vector<std::pair<std::string, uint64_t>>sort_from(std::map<string, uint64_t> M) 
+{ 
+  
+    // Declare vector of pairs 
+    std::vector<std::pair<std::string, uint64_t>> vec; 
+  
+    // Copy key-value pair from Map 
+    // to vector of pairs 
+    for (auto& it : M) { 
+        vec.push_back(it); 
+    } 
+  
+    // Sort using comparator function 
+    sort(vec.begin(), vec.end(), desc); 
+  
+    return vec;
+} 
+
 /**
   Entry point to the plugin. The server calls this function after each parsed
   query when the plugin is active. The function extracts the digest of the
@@ -501,8 +533,8 @@ static int warp_rewrite_query_notify(
     return 0;
   }
 
-  auto orig_query = mysql_parser_get_query(thd);
-  std::cout << "WORKING ON: " << std::string(orig_query.str) << "\n";
+  //auto orig_query = mysql_parser_get_query(thd);
+  //std::cout << "WORKING ON: " << std::string(orig_query.str) << "\n";
   // the query sent to the parallel workers
   std::string ll_query;
 
@@ -521,7 +553,8 @@ static int warp_rewrite_query_notify(
   auto select_lex =thd->lex->select_lex;
   auto field_list = select_lex->get_fields_list();
   auto tables = select_lex->table_list;
-
+  //bool is_straight_join = (stristr(strtolower(orig_query.str), "straight_join") != NULL);
+  bool is_straight_join = 1;
   // query has no tables - do nothing
   if(tables.size() == 0) {
     return 0;
@@ -578,7 +611,7 @@ static int warp_rewrite_query_notify(
 
        // item func
        case Item::Type::FUNC_ITEM: 
-         std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
+         //std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
          return 0;
        break;
        
@@ -608,7 +641,7 @@ static int warp_rewrite_query_notify(
            ll_query += raw_field + " AS " + alias;
            coord_query += "SUM(" + alias + ") AS " + orig_alias;
          } else {
-           std::cout << "UNSUPPORTED SUM_FUNC_TYPE: " << func_name << "\n";
+           //std::cout << "UNSUPPORTED SUM_FUNC_TYPE: " << func_name << "\n";
            return 0;  
          } 
       
@@ -618,7 +651,7 @@ static int warp_rewrite_query_notify(
 
        // unsupported!
        default:
-         std::cout << "UNSUPPORTED ITEM TYPE: " << field->type() << "\n";
+         //std::cout << "UNSUPPORTED ITEM TYPE: " << field->type() << "\n";
          return 0;
      }
   }
@@ -662,29 +695,33 @@ static int warp_rewrite_query_notify(
   }
     
   // Process the FROM clause
-  std::string ll_from;
+  std::string ll_from="";
   auto tbl = tables.first;
   std::string fqtn;
   std::string fact_alias;
   uint64_t max_rows = 0;
   uint64_t rows = 0;
   std::string partition_list;
-  
+  std::map<std::string, std::string> from_clause;
+  std::string tmp_from = "";
+  std::map<std::string, uint64_t> table_row_counts;
+  bool has_outer_joins = false;
   for(long unsigned long int i = 0; i < tables.size(); ++i) {
-
+    tmp_from = "";
     if(tbl->is_table_function()) {
-      std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
+      //std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
       return 0;
     }
     
     if(tbl->is_derived()) {
-      std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
+      //std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
       return 0;
     }
-
+    
     // figure out the the WARP table with the most rows
     if(is_warp_table(std::string(tbl->db), std::string(tbl->table_name))) {
       rows = get_warp_row_count(std::string(tbl->db), std::string(tbl->table_name));
+      table_row_counts.emplace(std::make_pair(std::string(tbl->alias), rows));
       if(rows > max_rows) {
         fact_alias = std::string(tbl->alias);
         max_rows = rows;
@@ -696,15 +733,16 @@ static int warp_rewrite_query_notify(
            std::string("`") + std::string(tbl->table_name, tbl->table_name_length) + "` "
            " AS `" + std::string(tbl->alias) + "` ";
     
-    if(ll_from.length() > 0) {
+    if(!from_clause.empty()) {
       if(tbl->is_inner_table_of_outer_join()) {
-        ll_from += " OUTER ";
-      }
-      ll_from += " JOIN " + fqtn;
+        has_outer_joins = true;
+        tmp_from += "LEFT ";
+      } 
+      tmp_from += "JOIN " + fqtn;
     } else {
-      ll_from = std::string("FROM ") + fqtn;
+      tmp_from = std::string("FROM ") + fqtn;
     }
-
+    
     // handle NATURAL JOIN / USING
     if(tbl->join_columns != nullptr) {
       std::string join_columns;
@@ -715,19 +753,102 @@ static int warp_rewrite_query_notify(
         join_col_it->table_field->print(thd, &field_str, QT_ORDINARY);
         join_columns += std::string(field_str.ptr(), field_str.length());
       }
-      ll_from += std::string("USING(") + join_columns + ")\n";
-      continue;
+      tmp_from += std::string("/*%TOKEN%*/USING(") + join_columns + ")\n";
+    } else {
+      String join_str;
+      join_str.reserve(1024 * 1024);
+      if(tbl->join_cond() != nullptr) {
+        tbl->join_cond()->print(thd, &join_str, QT_ORDINARY);
+        tmp_from += "/*%TOKEN%*/ON " + std::string(join_str.ptr(), join_str.length());
+      }
     }
-    
-    String join_str;
-    join_str.reserve(1024 * 1024);
-    if(tbl->join_cond() != nullptr) {
-      tbl->join_cond()->print(thd, &join_str, QT_ORDINARY);
-      ll_from += "ON " + std::string(join_str.ptr(), join_str.length());
-    }
+    ll_from += tmp_from;
+    from_clause.emplace(std::make_pair(std::string(tbl->alias), tmp_from));
     tbl = tbl->next_local;
   }
+  
+  /* this puts the largest table first, then the tables in ascending row count order */
+  auto sorted_from_cnts = sort_from(table_row_counts);
+  std::vector<std::string> sorted_from;
+  auto t = sorted_from_cnts.back();
+  auto find_it = from_clause.find(t.first);
+  sorted_from.push_back(find_it->second);
+  for(auto sort_it=sorted_from_cnts.begin();sort_it<sorted_from_cnts.end()-1;++sort_it) {
+    auto find_it = from_clause.find(sort_it->first);
+    sorted_from.push_back(find_it->second);
+  }
 
+  /* select * from dim join fact on fact.dim_id = dim.id */
+  tmp_from ="";
+  resort:
+  if(!has_outer_joins || (has_outer_joins && THDVAR(thd, reorder_outer))) {
+    for(auto it = sorted_from.begin();it != sorted_from.end();++it) {
+
+      if(*it == "") continue;
+
+      if((*it).substr(0,1) == "F") {
+        tmp_from += *it;
+        *it = "";
+        goto resort;
+      } else {
+
+        if(tmp_from != "") {
+          tmp_from += " " + *it;
+          *it = "";
+          goto resort;
+        }
+
+        std::string swap_table = *it;
+        // find the first JOIN (not OUTER JOIN) table and swap the JOIN clauses
+        *it="";
+        ++it;
+
+        //it = JOIN t2 as t2 /*%TOKEN%/ON ...
+        //it2 = FROM t1 as t1
+        for(;it != sorted_from.end();++it) {
+          if((*it).substr(0,1) != "F") {
+            continue;
+          }
+          char *tmpstr = strdup(swap_table.c_str());
+          char* token_at = strstr(tmpstr, "/*%TOKEN%*/");
+          uint64_t token_pos = token_at - tmpstr-5;
+        
+          /* should never happen but just in case error out*/
+          if(token_at == NULL) {
+            free(tmpstr);
+            tmp_from = "";
+            goto after_sort;
+          }
+
+          /* get t1 as t1*/
+          std::string first_table_name_and_alias = std::string((*it).c_str() + 5);
+          /* get t2 as t2*/
+          std::string second_table_name_and_alias = " " + swap_table.substr(5, token_pos);
+
+          token_at += 11;
+          if(swap_table.substr(0,1) != "L") {
+            tmp_from = "FROM " + second_table_name_and_alias;
+            tmp_from += " JOIN " + first_table_name_and_alias + " " + std::string(token_at);
+          } else {
+            tmp_from = "FROM " + first_table_name_and_alias;
+            tmp_from += " LEFT JOIN " + second_table_name_and_alias.substr(5) + " " + std::string(token_at);
+          }
+          *it = "";
+          free(tmpstr);
+          tmpstr=nullptr;
+          goto resort;
+        }
+      
+        if(it == sorted_from.end()) {
+          tmp_from == "";
+          // query only contains OUTER JOIN joins so it can not be reordered
+          goto after_sort;
+        }
+      }
+    }
+  }
+  after_sort:
+  if(tmp_from != "") ll_from = tmp_from;
   if(partition_list == "") {
     return 0;
   }
@@ -753,20 +874,23 @@ static int warp_rewrite_query_notify(
     process_having(thd, select_lex->having_cond(), coord_having, ll_query, coord_group, used_fields);
   }
 
-
-  std::cout << "PROCESSED QUERY ELEMENTS:\n----------------------------\n";
-  std::cout << "     ORIG QUERY: " << std::string(orig_query.str, orig_query.length) << "\n";
-  std::cout << "       LL_QUERY: " << ll_query << "\n";
-  std::cout << "    COORD_QUERY: " << coord_query << "\n";
-  std::cout << "    LL GROUP BY: " << ll_group << "\n";
-  std::cout << " COORD GROUP BY: " << coord_group << "\n";
-  std::cout << " LL_FROM_CLAUSE: " << ll_from << "\n";
-  std::cout << "LL_WHERE_CLAUSE: " << ll_where << "\n";
-  std::cout << "   COORD HAVING: " << coord_having << "\n";
-  std::cout << "     FACT ALIAS: " << fact_alias << "\n";
-  std::cout << "FACT PARTITIONS: " << partition_list << "\n";
-  
-  
+  std::string coord_order;
+  auto orderby = select_lex->order_list;
+  String tmp_ob;
+  tmp_ob.reserve(1024*1024);  
+  if(orderby.size() > 0) {
+    auto ob = orderby.first;
+    for(uint i = 0;i<orderby.size();++i) {    
+      tmp_ob.set("", 0, &my_charset_bin);
+      ob->item_ptr->print_for_order(thd, &tmp_ob,QT_ORDINARY,ob->used_alias);
+      if(coord_order != "") {
+        coord_order += ",";
+      }
+      coord_order += std::string(tmp_ob.c_ptr(), tmp_ob.length());
+      ob = ob->next;
+    } 
+  }
+   
   std::string call_sql = 
     "CALL warpsql.parallel_query(\n";
     call_sql +=
@@ -777,12 +901,12 @@ static int warp_rewrite_query_notify(
     '"' + escape_for_call(ll_from) + "\",\n" +
     '"' + escape_for_call(ll_where) + "\",\n" +
     '"' + escape_for_call(coord_having) + "\",\n" +
+    '"' + escape_for_call(coord_order) + "\",\n" +
     (partition_list != "" ? 
-      '"' + escape_for_call(fact_alias) + ":" + partition_list + "\");\n" :
-      "'')");
-  
-  std::cout << "PARALLEL QUERY INTERFACE EXEC CALL:\n------------------\n";
-  std::cout << call_sql << "\n";
+      '"' + escape_for_call(fact_alias) + ":" + partition_list + "\",\n" :
+      "'',") +
+    (is_straight_join ? "1" : "0") + ")";
+
   MYSQL_LEX_STRING call_sql_str;
   call_sql_str.length = call_sql.size();
   call_sql_str.str = strdup(call_sql.c_str());

@@ -154,7 +154,7 @@ static int warp_init_func(void *p) {
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(3);
+  ibis::util::setVerboseLevel(0);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
@@ -813,17 +813,12 @@ int ha_warp::end_bulk_insert() {
 std::string ha_warp::get_writer_partition() {
   ibis::partList parts;
   int partition_count = ibis::util::gatherParts(parts, share->data_dir_name);
-
-  /* The fastbit table name has to be the same as the partition number
-     which is the directory name of the partition
-  */
-  
-  ibis::part* least_part=NULL;
-  uint64_t least_cnt = 0;
-  
+  std::string retval;
+  write_mutex.lock();
   // if there is only one partition, the table is empty and a new p0 must be created
   if(partition_count == 1) {
-    return std::string(share->data_dir_name) + std::string("/p0");
+    retval =  std::string(share->data_dir_name) + std::string("/p0");
+    goto done;
   }
   
   for (auto it = parts.begin(); it < parts.end(); ++it) {
@@ -832,17 +827,17 @@ std::string ha_warp::get_writer_partition() {
       continue;
     }
     // find the partition with the least number of rows (top level partition is excluded above)
-    if(least_cnt < (*it)->nRows()) {
-      least_part = *it;
-      least_cnt = (*it)->nRows();
+    if(writer->mRows() + (*it)->nRows() <= my_partition_max_rows) {
+      retval = std::string((*it)->currentDataDir());
+      goto done;
     }
   }   
-  // if this insert will fit into the partition with least rows, use the partition
-  if(least_cnt + writer->mRows() <= my_partition_max_rows) {
-    return std::string(least_part->currentDataDir());
-  }
-  // otherwise create a new partition 
-  return std::string(share->data_dir_name) + std::string("/p") + (std::to_string(parts.size()-1));
+  
+  retval = std::string(share->data_dir_name) + std::string("/p") + (std::to_string(parts.size()-1));
+  done:
+  write_mutex.unlock();
+  parts.clear();
+  return retval;
 }
 
 /* write the rows and destroy the writer*/
@@ -859,7 +854,7 @@ void ha_warp::write_buffered_rows_to_disk() {
   writer = NULL;
 
   /* rebuild any indexed columns */
-  maintain_indexes(share->data_dir_name, table);
+  //maintain_indexes(share->data_dir_name, table);
   
   mysql_mutex_unlock(&share->mutex);
 };
@@ -984,10 +979,12 @@ int ha_warp::write_row(uchar *buf) {
   ha_statistic_increment(&System_status_var::ha_write_count);
   
   mysql_mutex_lock(&share->mutex);
-  if(share->next_rowid <= 1) {
+  if(share->next_rowid == 0 || share->rowids_generated >= WARP_ROWID_BATCH_SIZE) {
     share->next_rowid = warp_state->get_next_rowid_batch();
+    share->rowids_generated = 0;
   } 
   current_rowid = share->next_rowid--;
+  share->rowids_generated++;
   mysql_mutex_unlock(&share->mutex);
     
   /* This will return a cached writer unless a background
@@ -1136,22 +1133,25 @@ int ha_warp::delete_all_rows() {
 int ha_warp::info(uint) {
   DBUG_ENTER("ha_warp::info");
   close_in_extra = true;
-  std::unordered_map<const char*, uint64_t> table_counts = get_table_counts_in_schema(share->data_dir_name);
-  const char* table_with_most_rows = get_table_with_most_rows(&table_counts);
+  char table_with_most_rows[]="lineorder";
+  //std::unordered_map<const char*, uint64_t> table_counts = get_table_counts_in_schema(share->data_dir_name);
+  //const char* table_with_most_rows = get_table_with_most_rows(&table_counts);
   assert(table_with_most_rows != NULL);
   bool is_fact_table = false;
 
   // if this is the fact table (largest table in schema) set the records to the smallest possible value
   // which is 2 (otherwise const evaluation will be used)
   if(table_with_most_rows != NULL) {
-    if(std::string(share->data_dir_name) == std::string(table_with_most_rows)) {
+    
+    //if(std::string(share->data_dir_name) == std::string(table_with_most_rows)) {
+    if(strstr(share->data_dir_name, table_with_most_rows) != NULL) {
       is_fact_table = true;
-      stats.records = 2;
+      // stats.records = 2;
     }
   } else {
     stats.records = 0;
   }
-  
+
   stats.mean_rec_length = 0;
   for (Field **field = table->s->field; *field; field++) {
     switch((*field)->real_type()) {
@@ -1230,12 +1230,30 @@ int ha_warp::info(uint) {
   DBUG_RETURN(0);
 }
 
+void index_builder(ibis::table* tbl, const char* cname, const char* comment) {
+  tbl->buildIndex(cname, comment);
+}
 /* Fastbit will normally maintain the indexes automatically, but if the type
    of bitmap index is to be set manually, the comment on the field will be
    taken into account. */
 void ha_warp::maintain_indexes(char *datadir, TABLE *table) {
-  ibis::mensa::table *base_table = ibis::mensa::create(datadir);
+  return;
 
+  auto base_table = ibis::mensa::create(datadir);
+  std::vector<std::thread> index_build_threads;
+  /*
+  for (Field **field = table->s->field; *field; field++) {
+     if(strstr((*field)->comment.str, "index=") != NULL) {
+       std::string cnum = "c" + std::to_string((*field)->field_index());
+       index_build_threads.push_back(std::thread(index_builder, base_table, cnum.c_str(), (*field)->comment.str));
+     }
+  }
+  // wait for build threads to complete
+  for(auto it = index_build_threads.begin();it < index_build_threads.end();++it) {
+    it->join();
+  }
+  */
+  /*
   for (uint16_t idx = 0; idx < table->s->keys; ++idx) {
     std::string cname =
         "c" +
@@ -1250,6 +1268,7 @@ void ha_warp::maintain_indexes(char *datadir, TABLE *table) {
     }
     base_table->buildIndex(cname.c_str(), comment.c_str());
   }
+  */
   delete (base_table);
   return;
 }
@@ -1355,7 +1374,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
   TEXT
   */
   int column_count = 0;
-
+  const char *index_spec=NULL;
   /* Create an empty writer.  Columns are added to it */
   writer = ibis::tablex::create();
 
@@ -1371,6 +1390,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
     /* create a tablex object to create the metadata for the table */
     switch((*field)->real_type()) {
       case MYSQL_TYPE_TINY:
+        index_spec="<binning none/><encoding interval/>";
         if(is_unsigned) {
           datatype = ibis::UBYTE;
         } else {
@@ -1379,6 +1399,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
         break;
 
       case MYSQL_TYPE_SHORT:
+        index_spec="<binning none/><encoding interval-equality/>";
         if(is_unsigned) {
           datatype = ibis::USHORT;
         } else {
@@ -1388,6 +1409,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
 
       case MYSQL_TYPE_INT24:
       case MYSQL_TYPE_LONG:
+        index_spec="<binning none><encoding binary/>";
         if(is_unsigned) {
           datatype = ibis::UINT;
         } else {
@@ -1396,6 +1418,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
         break;
 
       case MYSQL_TYPE_LONGLONG:
+        index_spec="<binning none/><encoding binary/>";
         if(is_unsigned) {
           datatype = ibis::ULONG;
         } else {
@@ -1411,28 +1434,34 @@ void ha_warp::create_writer(TABLE *table_arg) {
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_BLOB:
       case MYSQL_TYPE_JSON:
+        index_spec="<binning none/><encoding binary/>";
         datatype = ibis::TEXT;
         break;
 
       case MYSQL_TYPE_FLOAT:
+        index_spec="<binning precision=2/><encoding interval-equality/>";
         datatype = ibis::FLOAT;
         break;
 
       case MYSQL_TYPE_DOUBLE:
+        index_spec="<binning precision=2/><encoding interval-equality/>";
         datatype = ibis::DOUBLE;
         break;
 
       case MYSQL_TYPE_DECIMAL:
       case MYSQL_TYPE_NEWDECIMAL:
+        index_spec="<binning none/><encoding binary/>";
         datatype = ibis::TEXT;
         break;
 
       case MYSQL_TYPE_YEAR:
+        index_spec="<binning none/><encoding interval-equality/>";
         datatype = ibis::UBYTE;
         break;
 
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_NEWDATE:
+        index_spec="<binning none/><encoding interval-equality/>";
         datatype = ibis::UINT;
         break;
 
@@ -1442,7 +1471,7 @@ void ha_warp::create_writer(TABLE *table_arg) {
       case MYSQL_TYPE_DATETIME:
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_DATETIME2:
-
+        index_spec="<binning none/><encoding interval-equality/>";
         datatype = ibis::ULONG;
         break;
 
@@ -1470,14 +1499,20 @@ void ha_warp::create_writer(TABLE *table_arg) {
        column, then the indexing options used are taken from the comment.  In
        the future, the comment will support more options for compression, etc.
     */
-    std::string comment((*field)->comment.str, (*field)->comment.length);
-    std::string index_spec = "";
-    if(comment.substr(0, 6) != "index=") {
-      comment = "";
-      index_spec = comment;
+    const char *custom_spec;
+    if((custom_spec = strstr((*field)->comment.str, "index=")) != NULL) {
+      index_spec = custom_spec+6;  
+      if(index_spec[0] != '<') {
+        std::string tmp_spec = "<" + std::string(custom_spec) + "/>";
+        index_spec = tmp_spec.c_str();
+      }
+    } else {
+      if(index_spec == NULL) { 
+        index_spec = "<binary/>";
+      }
     }
-    writer->addColumn(name.c_str(), datatype, comment.c_str(),
-                      index_spec.c_str());
+    
+    writer->addColumn(name.c_str(), datatype, NULL, index_spec);
 
     /* Columns which are NULLable have a NULL marker.  A better approach might
        to have one NULL bitmap stored as a separate column instead of one byte
@@ -1489,7 +1524,8 @@ void ha_warp::create_writer(TABLE *table_arg) {
       // writer->addColumn(nname.c_str(),ibis::BIT,"NULL bitmap the
       // correspondingly numbered column");
       writer->addColumn(nname.c_str(), ibis::UBYTE,
-                        "NULL marker for the correspondingly numbered column");
+                        "NULL marker for the correspondingly numbered column",
+                        "<binning none/><encoding equality/>");
     }
   }
   /* This is the psuedo-rowid which is used for deletes and updates */
@@ -1594,10 +1630,12 @@ int ha_warp::rnd_init(bool) {
   partition_filter_partition_name = "";
   // partition filter is of form alias: pX 
   // minimum alias is one char, plus two char delim, plus two chars for partition = 5 chars
+  //bool is_fact = false;
   if(partition_filter_len >= 5) {
     for(uint delim_at = 0;delim_at<partition_filter_len;delim_at++) {
       if(partition_filter[delim_at] == ':' && partition_filter[delim_at+1] == ' ') {
         partition_filter_alias.assign(partition_filter, delim_at);
+      
         if(partition_filter_alias == table->alias) {
           partition_filter_partition_name.assign(partition_filter + delim_at+2);
         }
@@ -1607,7 +1645,7 @@ int ha_warp::rnd_init(bool) {
   }
 
   bitmap_merge_join();
-
+  
   current_rowid = 0;
   /* When scanning this is used to skip evaluation of transactions
      that have already been evaluated
@@ -1715,7 +1753,7 @@ fetch_again:
   }
   
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
-  ++fetch_count;
+
   if(cursor->fetch() != 0) {
     if(partitions != NULL) {
       delete base_table;
@@ -1725,8 +1763,10 @@ fetch_again:
       base_table = NULL;
       filtered_table = NULL;
       cursor = NULL;
+    
       delete *part_it;
       ++part_it;
+      fetch_count = 0;
       if(part_it == partitions->end()) {
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       }
@@ -1735,7 +1775,7 @@ fetch_again:
     }
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
-  
+  ++fetch_count;
   if(!cursor) {
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
@@ -3140,6 +3180,7 @@ void warp_trx::commit() {
     if(sz != 1) {
       sql_print_error("failed to write commit marker into transaction log");
     }
+    fflush(log);
     fsync(fileno(log));
     fseek(log, 0, SEEK_SET);
     while( (sz = fread(&marker, sizeof(marker), 1, log) == 1) ) {
@@ -3221,6 +3262,7 @@ void warp_trx::rollback(bool all) {
         sql_print_error("failed to write rollback marker into transaction log");
       }
     } 
+    fflush(log);
     fsync(fileno(log));
     fseek(log, 0, SEEK_SET);
     clearerr(log);
@@ -3280,6 +3322,7 @@ void warp_trx::rollback(bool all) {
   
     // remove the savepoint data
     if(savepoint_at > 0) {
+      fflush(log);
       ftruncate(fileno(log), savepoint_at);
       fsync(fileno(log));
     }
@@ -3376,7 +3419,10 @@ int warp_rollback(handlerton* hton, THD *thd, bool rollback_trx) {
 }
 
 bool ha_warp::is_row_visible_to_read(uint64_t rowid) {
+  // return true;
+
   uint64_t history_trx_id = warp_state->get_history_lock(rowid);
+  //uint64_t history_trx_id = 0;
   auto current_trx = warp_get_trx(warp_hton, table->in_use);
   assert(current_trx != NULL);
   //dbug("current_trx_id: " << current_trx->trx_id << " history_trx_id: " << history_trx_id << " for rowid: " << rowid);
@@ -3677,7 +3723,7 @@ uint64_t warp_global_data::get_next_trx_id() {
 
 uint64_t warp_global_data::get_next_rowid_batch() {
   mtx.lock();
-  next_rowid += 10000;
+  next_rowid += WARP_ROWID_BATCH_SIZE;
   write();
   mtx.unlock();
   return next_rowid;
@@ -3730,8 +3776,17 @@ int warp_global_data::create_lock(uint64_t rowid, warp_trx* trx, int lock_type) 
   // for more information about history locks, see 
   // ha_warp::update_row comments
   if(lock_type == LOCK_HISTORY) {
+    retry_hist_lock:
     history_lock_mtx.lock();
+    if(history_lock_writing == 1) {
+      history_lock_mtx.unlock();
+      goto retry_hist_lock;
+    }
+    history_lock_writing=1;
+    history_lock_mtx.unlock();
     history_locks.emplace(std::pair<uint64_t, uint64_t>(rowid, trx->trx_id));
+    history_lock_mtx.lock();
+    history_lock_writing=0;
     history_lock_mtx.unlock();
     return LOCK_HISTORY;
   }
@@ -3964,6 +4019,7 @@ void warp_global_data::write_clean_shutdown() {
   if(ferror(sd) != 0) {
     sql_print_error("could not write shutdown file");
   }
+  fflush(sd);
   fsync(fileno(sd));
   fclose(sd);
 }
@@ -4000,6 +4056,7 @@ void warp_global_data::write() {
     sql_print_error("Write to database state failed");
     assert(false);
   }
+  fflush(fp);
   if(fsync(fileno(fp)) != 0) {
     sql_print_error("fsync to database state failed");
     assert(false);
@@ -4023,6 +4080,7 @@ void warp_global_data::write() {
     sql_print_error("Write to database state failed");
     assert(false);
   }  
+  fflush(fp);
   if(fsync(fileno(fp)) != 0) {
     sql_print_error("fsync to database state failed");
     assert(false);
@@ -4056,17 +4114,29 @@ int warp_global_data::downgrade_to_history_lock(uint64_t rowid, warp_trx* trx) {
       break;
     }
   }
+  lock_mtx.unlock();
   // any trx open at or before this transaction will see the 
   // history lock - no need to check the delete bitmap for
   // any row that has a history lock - it was deleted 
   // and is no longer visible to newer transactions
   // if a history lock doesn't exist the deleted bitmap
   // will be checked
-  warp_lock history_lock;
+  retry_lock:
+  //warp_lock history_lock;
   history_lock_mtx.lock();
-  history_locks.emplace(std::pair<uint64_t, uint64_t>(rowid, trx->trx_id));
+  if(history_lock_writing == 1) {
+    history_lock_mtx.unlock();
+    goto retry_lock;
+  }
+  history_lock_writing=1;
   history_lock_mtx.unlock();
-  lock_mtx.unlock();
+  history_locks.emplace(std::pair<uint64_t, uint64_t>(rowid, trx->trx_id));
+  history_lock_mtx.lock();
+  history_lock_writing=0;
+  history_lock_mtx.unlock();
+
+  
+
   
   return 0;
 }
@@ -4090,13 +4160,20 @@ int warp_global_data::free_locks(warp_trx* trx) {
 // returns 0 if no history lock or the trx_id that created
 // the lock otherwise
 uint64_t warp_global_data::get_history_lock(uint64_t rowid) {
+  wait_for_writer:
   history_lock_mtx.lock();
-  auto it = history_locks.find(rowid);
-  if(it == history_locks.end()) {
+  if(history_lock_writing == 1) {
     history_lock_mtx.unlock();
-    return 0;
+    //pause();
+    goto wait_for_writer;
   }
   history_lock_mtx.unlock();
+  auto it = history_locks.find(rowid);
+  if(it == history_locks.end()) {
+    //history_lock_mtx.unlock();
+    return 0;
+  }
+  //history_lock_mtx.unlock();
   return it->second;
   
 }

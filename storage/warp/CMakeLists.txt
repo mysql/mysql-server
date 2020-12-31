@@ -26,7 +26,7 @@ ExternalProject_Add(
   CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/src/fastbit-2.0.3/configure --prefix=${CMAKE_CURRENT_SOURCE_DIR}
   PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/
   PATCH_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/patch_fastbit.sh ${CMAKE_CURRENT_SOURCE_DIR}
-  BUILD_COMMAND make -j4 && make install
+  BUILD_COMMAND make -j12 && make install
   BUILD_IN_SOURCE 1
 )
 

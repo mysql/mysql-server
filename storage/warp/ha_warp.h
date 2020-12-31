@@ -100,6 +100,7 @@
   1 - Initial Version. That is, the version when the metafile was introduced.
 */
 const uint16_t WARP_VERSION = 2;
+const uint64_t WARP_ROWID_BATCH_SIZE = 10000;
 
 #define BLOB_MEMROOT_ALLOC_SIZE 8192
 
@@ -118,8 +119,8 @@ static MYSQL_SYSVAR_ULONGLONG(
   "The maximum number of rows in a Fastbit partition.  An entire partition must fit in the cache.",
   NULL,
   NULL,
-  1024 * 1024,
-  1024 * 1024,
+  4000000,
+  64000,
   1ULL<<63,
   0
 );
@@ -144,8 +145,8 @@ static MYSQL_SYSVAR_ULONGLONG(
   "Fastbit file cache size",
   NULL,
   NULL,
-  1000000,
-  1000000,
+  200000,
+  32000,
   1ULL<<63,
   0
 );
@@ -191,6 +192,7 @@ struct WARP_SHARE {
   uint table_name_length, use_count;
   char data_dir_name[FN_REFLEN];
   uint64_t next_rowid = 0;  
+  uint64_t rowids_generated = 0;
   mysql_mutex_t mutex;
   THR_LOCK lock;
 };
@@ -400,6 +402,7 @@ class warp_global_data {
 
   std::mutex lock_mtx;
   std::mutex history_lock_mtx;
+  char history_lock_writing = 0;
   std::string shutdown_clean_file = "shutdown_clean.warp";
   std::string warp_state_file     = "state.warp";
   std::string commit_filename     = "commits.warp";

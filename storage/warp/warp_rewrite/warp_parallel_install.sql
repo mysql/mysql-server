@@ -116,7 +116,7 @@ worker:BEGIN
 	
   start_thread:LOOP
     IF(v_next_thread > v_thread_count) THEN
-			DO sleep(1);  
+			DO sleep(.01);  
       LEAVE worker;
     END IF;
     SET v_next_thread := v_next_thread + 1;
@@ -192,11 +192,11 @@ worker:BEGIN
         START TRANSACTION;
 
         IF v_partname IS NOT NULL THEN
-          insert into test.debug values (concat('setting partname to ', v_partname));
+          -- insert into test.debug values (concat('setting partname to ', v_partname));
           SET warp_partition_filter = v_partname;
         ELSE 
           
-          insert into test.debug values ('setting partname to empty string');
+          -- insert into test.debug values ('setting partname to empty string');
           SET warp_partition_filter = '';
         END IF;
 
@@ -237,7 +237,7 @@ worker:BEGIN
       -- wait a bit for the next SQL so that we aren't
       -- spamming MySQL with queries to execute an
       -- empty queue
-       DO SLEEP(v_wait);
+      DO SLEEP(v_wait);
 
     END LOOP;  
 
@@ -268,7 +268,7 @@ BEGIN
   END IF;
 	IF(v_status = 'WAITING') THEN
 		wait_loop:LOOP
-			-- DO SLEEP(.001);
+			DO SLEEP(.001);
 			SELECT state, errmsg, errno INTO v_status, v_errmsg, v_errno from q where q_id = v_q_id ;
 			IF (v_status !='WAITING') THEN
 				LEAVE wait_loop;
@@ -423,7 +423,9 @@ procedure warpsql.parallel_query (
  IN v_ll_from       longtext,
  IN v_ll_where      longtext,
  IN v_coord_having  longtext,
- IN v_partitions    longtext
+ in v_coord_order   longtext,
+ IN v_partitions    longtext,
+ IN v_straight_join boolean
 )
 begin
   -- this is the query that will be executed for each partition of the largest
@@ -444,12 +446,14 @@ begin
   -- the queries executed by this stored procedure can't be parallelized
   -- or there will be an infinite loop!
   set warp_rewriter_parallel_query = OFF;
-
+  set @v_coord_query = NULL;
   -- for DEBUG purposes
   -- select v_ll_select, v_coord_query, v_ll_group, v_coord_group, v_ll_from, v_ll_where, v_coord_having, v_partitions;
-
-  set v_ll_query := CONCAT("SELECT ", v_ll_select, '\n  ', v_ll_from);
-  
+  if v_straight_join = 1 then
+    set v_ll_query := CONCAT("SELECT STRAIGHT_JOIN ", v_ll_select, '\n  ', v_ll_from);
+  else 
+    set v_ll_query := CONCAT("SELECT ", v_ll_select, '\n  ', v_ll_from);
+  end if;
   -- 1=1 is added to the WHERE clause 
   if(v_ll_where != "") then
     SET v_ll_where := CONCAT("(" , v_ll_where, ") AND 1=1 ");
@@ -486,7 +490,7 @@ begin
   --  select v_ll_query;
 
   set v_coord_query := CONCAT('SELECT ',
-    v_coord_select, '\nFROM ',
+    v_coord_select, '\nFROM warpsql.',
     v_coord_table, ' ' 
   );
 
@@ -498,6 +502,10 @@ begin
     set v_coord_query := CONCAT(v_coord_query, ' HAVING ', v_coord_having);
   end if;
 
+  if(v_coord_order != "") then
+    set v_coord_query := CONCAT(v_coord_query, ' ORDER BY ', v_coord_order);
+  end if;
+  
   -- select v_coord_query;
 
   drop temporary table if exists partitions;
@@ -533,6 +541,7 @@ begin
         leave partLoop;
       END IF;
       CALL warpsql.queue_ll(v_ll_query, CONCAT(@v_alias, ': ', v_partname));
+      -- leave partLoop;
     END LOOP partLoop;   
   END; 
   
@@ -548,13 +557,13 @@ begin
     end if;
     
     -- select @wait_cnt;
-    do sleep(.005);
+    do sleep(.1);
   END LOOP waitLoop;
   set @warp_async_query = NULL;
   
   set @query_list = '';
-  set @v_sql := v_coord_query;
-  PREPARE coord_stmt FROM @v_sql;
+  set @v_coord_query := v_coord_query;
+  PREPARE coord_stmt FROM @v_coord_query;
   EXECUTE coord_stmt;
   DEALLOCATE PREPARE coord_stmt;
   -- SELECT v_coord_query;
