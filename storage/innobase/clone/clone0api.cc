@@ -573,8 +573,8 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   Clone_Msec sleep_time(Clone_Sec(1));
   /* Generate alert message every minute. */
   Clone_Sec alert_interval(Clone_Min(1));
-  /* Wait for 5 minutes for client to reconnect back */
-  Clone_Sec time_out(Clone_Min(5));
+  /* Wait for 15 minutes for client to reconnect back */
+  Clone_Sec time_out(Clone_Min(15));
 
   bool is_timeout = false;
   auto err = Clone_Sys::wait(
@@ -618,7 +618,7 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   if (err == 0 && is_timeout && clone_hdl->is_idle()) {
     ib::info(ER_IB_CLONE_TIMEOUT) << "Clone End Master wait "
                                      "for restart timed out after "
-                                     "5 Minutes. Dropping Snapshot";
+                                     "15 Minutes. Dropping Snapshot";
   }
   /* Last task should drop the clone handle. */
   clone_sys->drop_clone(clone_hdl);
