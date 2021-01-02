@@ -4476,9 +4476,9 @@ static bool is_silent_error(THD *thd) {
   @code
      if ((uint32) affected_in_event != (uint32) affected_on_slave)
      {
-     sql_print_error("Slave: did not get the expected number of affected \
-     rows running query from master - expected %d, got %d (this numbers \
-     should have matched modulo 4294967296).", 0, ...);
+     sql_print_error("Slave: did not get the expected number of affected "
+     "rows running query from master - expected %d, got %d (this numbers "
+     "should have matched modulo 4294967296).", 0, ...);
      thd->query_error = 1;
      }
   @endcode
@@ -5045,9 +5045,9 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       like:
       if ((uint32) affected_in_event != (uint32) affected_on_slave)
       {
-      sql_print_error("Slave: did not get the expected number of affected \
-      rows running query from master - expected %d, got %d (this numbers \
-      should have matched modulo 4294967296).", 0, ...);
+      sql_print_error("Slave: did not get the expected number of affected "
+      "rows running query from master - expected %d, got %d (this numbers "
+      "should have matched modulo 4294967296).", 0, ...);
       thd->is_slave_error = 1;
       }
       We may also want an option to tell the slave to ignore "affected"
