@@ -250,28 +250,32 @@ enum enum_slave_reconnect_messages {
   SLAVE_RECON_MSG_MAX
 };
 
-static const char *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX] =
-    {{"Waiting to reconnect after a failed registration on master",
-      "Slave I/O thread killed while waiting to reconnect after a failed \
-registration on master",
-      "Reconnecting after a failed registration on master",
-      "failed registering on master, reconnecting to try again, \
-log '%s' at position %s",
-      "COM_REGISTER_SLAVE",
-      "Slave I/O thread killed during or after reconnect"},
-     {"Waiting to reconnect after a failed binlog dump request",
-      "Slave I/O thread killed while retrying master dump",
-      "Reconnecting after a failed binlog dump request",
-      "failed dump request, reconnecting to try again, log '%s' at position %s",
-      "COM_BINLOG_DUMP", "Slave I/O thread killed during or after reconnect"},
-     {"Waiting to reconnect after a failed master event read",
-      "Slave I/O thread killed while waiting to reconnect after a failed read",
-      "Reconnecting after a failed master event read",
-      "Slave I/O thread: Failed reading log event, reconnecting to retry, \
-log '%s' at position %s",
-      "",
-      "Slave I/O thread killed during or after a reconnect done to recover from \
-failed read"}};
+static const char
+    *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX] = {
+        {"Waiting to reconnect after a failed registration on master",
+         "Slave I/O thread killed while waiting to reconnect after a failed "
+         "registration on master",
+         "Reconnecting after a failed registration on master",
+         "failed registering on master, reconnecting to try again, "
+         "log '%s' at position %s",
+         "COM_REGISTER_SLAVE",
+         "Slave I/O thread killed during or after reconnect"},
+        {"Waiting to reconnect after a failed binlog dump request",
+         "Slave I/O thread killed while retrying master dump",
+         "Reconnecting after a failed binlog dump request",
+         "failed dump request, reconnecting to try again, log '%s' at position "
+         "%s",
+         "COM_BINLOG_DUMP",
+         "Slave I/O thread killed during or after reconnect"},
+        {"Waiting to reconnect after a failed master event read",
+         "Slave I/O thread killed while waiting to reconnect after a failed "
+         "read",
+         "Reconnecting after a failed master event read",
+         "Slave I/O thread: Failed reading log event, reconnecting to retry, "
+         "log '%s' at position %s",
+         "",
+         "Slave I/O thread killed during or after a reconnect done to recover "
+         "from failed read"}};
 
 enum enum_slave_apply_event_and_update_pos_retval {
   SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK = 0,
@@ -671,7 +675,7 @@ err:
            stared, we would multple warnings called
            "Slave was already running" for each channel.
            A nice warning message  would be to add
-           "Slave for channel '%s" was already running"
+           "Slave for channel '%s' was already running"
            but error messages are in different languages and cannot be tampered
            with so, we have to handle it case by case basis, whether
            only default channel exists or not and properly continue with
@@ -2813,10 +2817,11 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
          (mi->master_id = strtoul(master_row[0], nullptr, 10))) &&
         !mi->rli->replicate_same_server_id) {
       errmsg =
-          "The slave I/O thread stops because master and slave have equal \
-MySQL server ids; these ids must be different for replication to work (or \
-the --replicate-same-server-id option must be used on slave but this does \
-not always make sense; please check the manual before using it).";
+          "The slave I/O thread stops because master and slave have equal "
+          "MySQL server ids; these ids must be different for replication to "
+          "work (or the --replicate-same-server-id option must be used on "
+          "slave but this does not always make sense; please check the "
+          "manual before using it).";
       err_code = ER_SLAVE_FATAL_ERROR;
       sprintf(err_buff, ER_THD(current_thd, ER_SLAVE_FATAL_ERROR), errmsg);
       goto err;
@@ -2832,15 +2837,15 @@ not always make sense; please check the manual before using it).";
     }
     /* Fatal error */
     errmsg =
-        "The slave I/O thread stops because a fatal error is encountered \
-when it try to get the value of SERVER_ID variable from master.";
+        "The slave I/O thread stops because a fatal error is encountered "
+        "when it try to get the value of SERVER_ID variable from master.";
     err_code = mysql_errno(mysql);
     sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
     goto err;
   } else {
     mi->report(WARNING_LEVEL, ER_SERVER_UNKNOWN_SYSTEM_VARIABLE,
-               "Unknown system variable 'SERVER_ID' on master, \
-maybe it is a *VERY OLD MASTER*.");
+               "Unknown system variable 'SERVER_ID' on master, maybe it "
+               "is a *VERY OLD MASTER*.");
   }
   if (master_res) {
     mysql_free_result(master_res);
@@ -5517,8 +5522,8 @@ extern "C" void *handle_slave_io(void *arg) {
         LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_REQUESTING_BINLOG_DUMP,
                mi->get_for_channel_str());
         if (check_io_slave_killed(thd, mi,
-                                  "Slave I/O thread killed while \
-requesting master dump") ||
+                                  "Slave I/O thread killed while "
+                                  "requesting master dump") ||
             try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
                              reconnect_messages[SLAVE_RECON_ACT_DUMP]))
           goto err;
@@ -5550,8 +5555,8 @@ requesting master dump") ||
         THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
         event_len = read_event(mysql, &rpl, mi, &suppress_warnings);
         if (check_io_slave_killed(thd, mi,
-                                  "Slave I/O thread killed while \
-reading event"))
+                                  "Slave I/O thread killed while "
+                                  "reading event"))
           goto err;
         DBUG_EXECUTE_IF(
             "FORCE_SLAVE_TO_RECONNECT_EVENT", if (!retry_count_event) {
@@ -5676,8 +5681,8 @@ reading event"))
 #ifndef NDEBUG
         {
           char llbuf1[22], llbuf2[22];
-          DBUG_PRINT("info", ("log_space_limit=%s log_space_total=%s \
-ignore_log_space_limit=%d",
+          DBUG_PRINT("info", ("log_space_limit=%s log_space_total=%s "
+                              "ignore_log_space_limit=%d",
                               llstr(rli->log_space_limit, llbuf1),
                               llstr(rli->log_space_total, llbuf2),
                               (int)rli->ignore_log_space_limit));
@@ -6518,7 +6523,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
            ? 0
            : reinterpret_cast<Slave_job_group *>(rli->gaq->head_queue())->ts;
   rli->reset_notified_checkpoint(cnt, ts, true);
-  /* end-of "Coordinator::"commit_positions" */
+  /* end-of "Coordinator::commit_positions" */
 
 end:
   error = error || rli->info_thd->killed != THD::NOT_KILLED;

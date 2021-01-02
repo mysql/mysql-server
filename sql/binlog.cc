@@ -11335,8 +11335,9 @@ static void do_unsafe_limit_checkout(char *buf, int unsafe_type,
         if ((now - limit_unsafe_suppression_start_time) <=
             LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT) {
           unsafe_warning_suppression_is_activated = true;
-          DBUG_PRINT("info", ("A warning flood has been detected and the limit \
-unsafety warning suppression has been activated."));
+          DBUG_PRINT("info", ("A warning flood has been detected and the "
+                              "limit unsafety warning suppression has been "
+                              "activated."));
         } else {
           /*
            there is no flooding till now, therefore we restart the monitoring
@@ -11360,8 +11361,8 @@ unsafety warning suppression has been activated."));
         if ((now - limit_unsafe_suppression_start_time) >
             LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT) {
           reset_binlog_unsafe_suppression();
-          DBUG_PRINT("info", ("The limit unsafety warning supression has been \
-deactivated"));
+          DBUG_PRINT("info", ("The limit unsafety warning supression has "
+                              "been deactivated"));
         }
       }
       limit_unsafe_warning_count = 0;
