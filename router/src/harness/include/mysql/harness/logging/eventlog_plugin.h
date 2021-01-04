@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "mysql/harness/plugin.h"
 
 constexpr const char *kEventlogPluginName = "eventlog";
+constexpr const char *kDefaultEventSourceName = "MySQL Router";
 extern "C" mysql_harness::Plugin harness_plugin_eventlog;
 
 /**
@@ -54,8 +55,10 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
    *
    * @throw std::runtime_error on WinAPI calls failures
    */
-  EventlogHandler(bool format_messages, mysql_harness::logging::LogLevel level,
-                  bool create_registry_entries = true);
+  EventlogHandler(
+      bool format_messages, mysql_harness::logging::LogLevel level,
+      bool create_registry_entries = true,
+      const std::string event_source_name = kDefaultEventSourceName);
 
   ~EventlogHandler() override;
 
@@ -66,6 +69,8 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
   void do_log(const mysql_harness::logging::Record &record) noexcept override;
 
   HANDLE event_src_;
+
+  const std::string event_source_name_;
 };
 
 #endif
