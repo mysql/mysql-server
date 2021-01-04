@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -68,6 +68,7 @@ log_checksum_func_t log_checksum_algorithm_ptr;
 #include "dict0boot.h"
 #include "ha_prototypes.h"
 #include "log0meb.h"
+#include "mtr0mtr.h"
 #include "os0thread-create.h"
 #include "trx0sys.h"
 
@@ -1277,5 +1278,38 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
 }
 
 /** @} */
+
+#ifdef UNIV_DEBUG
+void log_free_check_validate() {
+  /* This function may be called while holding some latches. This is OK,
+  as long as we are not holding any latches on buffer blocks or file spaces.
+  The following latches are not held by any thread that frees up redo log
+  space. */
+  static const latch_level_t latches[] = {
+      SYNC_NO_ORDER_CHECK, /* used for non-labeled latches */
+      SYNC_RSEGS,          /* rsegs->x_lock in trx_rseg_create() */
+      SYNC_UNDO_DDL,       /* undo::ddl_mutex */
+      SYNC_UNDO_SPACES,    /* undo::spaces::m_latch */
+      SYNC_FTS_CACHE,      /* fts_cache_t::lock */
+      SYNC_DICT,           /* dict_sys->mutex in commit_try_rebuild() */
+      SYNC_DICT_OPERATION, /* X-latch in commit_try_rebuild() */
+      SYNC_INDEX_TREE      /* index->lock */
+  };
+
+  sync_allowed_latches check(latches,
+                             latches + sizeof(latches) / sizeof(*latches));
+
+  if (sync_check_iterate(check)) {
+#ifndef UNIV_NO_ERR_MSGS
+    ib::error(ER_IB_MSG_1381)
+#else
+    ib::error()
+#endif
+        << "log_free_check() was called while holding an un-listed latch.";
+    ut_error;
+  }
+  mtr_t::check_my_thread_mtrs_are_not_latching();
+}
+#endif /* !UNIV_DEBUG */
 
 #endif /* !UNIV_HOTBACKUP */
