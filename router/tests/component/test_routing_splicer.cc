@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -681,7 +681,9 @@ TEST_P(SplicerConnectParamTest, check) {
 
   const auto conf_file = create_config_file(conf_dir_.name(), config);
 
-  launch_router({"-c", conf_file});
+  launch_router({"-c", conf_file}, EXIT_SUCCESS,
+                /* catch_stderr */ true, /* with_sudo */ false,
+                /* wait_for_notify_ready */ 20s);
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(router_host_, router_port));
 }
