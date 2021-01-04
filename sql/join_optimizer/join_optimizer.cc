@@ -166,9 +166,9 @@ class CostingReceiver {
 
   size_t num_access_paths() const { return m_access_paths.size(); }
 
-  AccessPath *ProposeAccessPath(
-      AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
-      const char *description_for_trace) const;
+  void ProposeAccessPath(AccessPath *path,
+                         Prealloced_array<AccessPath *, 4> *existing_paths,
+                         const char *description_for_trace) const;
 
   bool HasSecondaryEngineCostHook() const {
     return m_secondary_engine_cost_hook != nullptr;
@@ -243,8 +243,8 @@ class CostingReceiver {
     return Overlaps(AccessPathTypeBitmap(type), m_supported_access_path_types);
   }
 
-  AccessPath *ProposeAccessPathForNodes(NodeMap nodes, AccessPath *path,
-                                        const char *description_for_trace);
+  void ProposeAccessPathForNodes(NodeMap nodes, AccessPath *path,
+                                 const char *description_for_trace);
   bool ProposeTableScan(TABLE *table, int node_idx,
                         bool is_recursive_reference);
   bool ProposeRefAccess(TABLE *table, int node_idx, KEY *key, unsigned key_idx,
@@ -1130,7 +1130,7 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
     return;
   }
 
-  AccessPath join_path, filter_path;
+  AccessPath join_path;
   join_path.type = AccessPath::NESTED_LOOP_JOIN;
   join_path.parameter_tables =
       (left_path->parameter_tables | right_path->parameter_tables) &
@@ -1153,13 +1153,13 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
       right_path->subsumed_sargable_join_predicates;
 
   double already_applied_selectivity = 1.0;
-  bool filter_on_stack = false;
   if (edge->expr->equijoin_conditions.size() != 0 ||
       edge->expr->join_conditions.size() != 0) {
     // Apply join filters. Don't update num_output_rows, as the join's
     // selectivity will already be applied in FindOutputRowsForJoin().
     // NOTE(sgunders): We don't model the effect of short-circuiting filters on
     // the cost here.
+    AccessPath filter_path;
     filter_path.type = AccessPath::FILTER;
     filter_path.filter().child = right_path;
 
@@ -1209,9 +1209,6 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
     if (items.is_empty()) {
       // Everything was subsumed, so no filter needed after all.
     } else {
-      join_path.nested_loop_join().inner =
-          &filter_path;  // Will be updated to not point to the stack later,
-                         // if needed.
       Item *condition;
       if (items.size() == 1) {
         condition = items.head();
@@ -1222,7 +1219,9 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
         condition->apply_is_true();
       }
       filter_path.filter().condition = condition;
-      filter_on_stack = true;
+
+      join_path.nested_loop_join().inner =
+          new (m_thd->mem_root) AccessPath(filter_path);
     }
   }
 
@@ -1239,30 +1238,15 @@ void CostingReceiver::ProposeNestedLoopJoin(NodeMap left, NodeMap right,
 
   ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
                                   /*materialize_subqueries=*/false, &join_path);
-  AccessPath *insert_position =
-      ProposeAccessPathForNodes(left | right, &join_path, "nested loop");
-
-  if (insert_position != nullptr && filter_on_stack) {
-    // We inserted the join path, so give filter_path stable storage
-    // in the MEM_ROOT, too.
-    insert_position->nested_loop_join().inner =
-        join_path.nested_loop_join().inner =
-            new (m_thd->mem_root) AccessPath(filter_path);
-    filter_on_stack = false;
-  }
+  ProposeAccessPathForNodes(left | right, &join_path, "nested loop");
 
   if (Overlaps(join_path.filter_predicates,
                m_graph.materializable_predicates)) {
-    if (filter_on_stack) {
-      join_path.nested_loop_join().inner =
-          new (m_thd->mem_root) AccessPath(filter_path);
-    }
-
     ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
                                     /*materialize_subqueries=*/true,
                                     &join_path);
-    insert_position = ProposeAccessPathForNodes(left | right, &join_path,
-                                                "nested loop, mat. subq");
+    ProposeAccessPathForNodes(left | right, &join_path,
+                              "nested loop, mat. subq");
   }
 }
 
@@ -1398,19 +1382,19 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   write “hash join” when proposing a hash join access path. It may be
   the empty string.
  */
-AccessPath *CostingReceiver::ProposeAccessPath(
+void CostingReceiver::ProposeAccessPath(
     AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
     const char *description_for_trace) const {
   if (m_secondary_engine_cost_hook != nullptr) {
     // If an error was raised by a previous invocation of the hook, reject all
     // paths.
     if (m_thd->is_error()) {
-      return nullptr;
+      return;
     }
 
     if (m_secondary_engine_cost_hook(m_thd, m_graph, path)) {
       // Rejected by the secondary engine.
-      return nullptr;
+      return;
     }
     assert(!m_thd->is_error());
     assert(path->init_cost <= path->cost);
@@ -1428,7 +1412,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     }
     AccessPath *insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->push_back(insert_position);
-    return insert_position;
+    return;
   }
 
   AccessPath *insert_position = nullptr;
@@ -1448,7 +1432,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
                     PrintCost(*(*existing_paths)[i], m_graph, "") +
                     ", discarding\n";
       }
-      return nullptr;
+      return;
     }
     if (result == PathComparisonResult::FIRST_DOMINATES) {
       ++num_dominated;
@@ -1485,7 +1469,7 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     }
     insert_position = new (m_thd->mem_root) AccessPath(*path);
     existing_paths->emplace_back(insert_position);
-    return insert_position;
+    return;
   }
 
   if (m_trace != nullptr) {
@@ -1521,16 +1505,16 @@ AccessPath *CostingReceiver::ProposeAccessPath(
     }
   }
   *insert_position = *path;
-  return insert_position;
+  return;
 }
 
-AccessPath *CostingReceiver::ProposeAccessPathForNodes(
+void CostingReceiver::ProposeAccessPathForNodes(
     NodeMap nodes, AccessPath *path, const char *description_for_trace) {
   // Insert an empty array if none exists.
   auto it_and_inserted = m_access_paths.emplace(
       nodes, Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED});
-  return ProposeAccessPath(path, &it_and_inserted.first->second,
-                           description_for_trace);
+  ProposeAccessPath(path, &it_and_inserted.first->second,
+                    description_for_trace);
 }
 
 /**
