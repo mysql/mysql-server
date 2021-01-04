@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -79,11 +79,11 @@ struct Iterate {
 
     while (slot-- != start) {
       if (!m_functor(slot)) {
-        return (false);
+        return false;
       }
     }
 
-    return (true);
+    return true;
   }
 
   Functor &m_functor;
@@ -101,10 +101,10 @@ struct Find {
   bool operator()(mtr_memo_slot_t *slot) {
     if (m_object == slot->object && m_type == slot->type) {
       m_slot = slot;
-      return (false);
+      return false;
     }
 
-    return (true);
+    return true;
   }
 
   /** Slot if found */
@@ -138,28 +138,28 @@ struct Find_page {
     ut_ad(m_slot == nullptr);
 
     if (!(m_flags & slot->type) || slot->object == nullptr) {
-      return (true);
+      return true;
     }
 
     buf_block_t *block = reinterpret_cast<buf_block_t *>(slot->object);
 
     if (m_ptr < block->frame ||
         m_ptr >= block->frame + block->page.size.logical()) {
-      return (true);
+      return true;
     }
 
     m_slot = slot;
-    return (false);
+    return false;
   }
 
   /** @return the slot that was found */
   mtr_memo_slot_t *get_slot() const {
     ut_ad(m_slot != nullptr);
-    return (m_slot);
+    return m_slot;
   }
   /** @return the block that was found */
   buf_block_t *get_block() const {
-    return (reinterpret_cast<buf_block_t *>(get_slot()->object));
+    return reinterpret_cast<buf_block_t *>(get_slot()->object);
   }
 
  private:
@@ -198,7 +198,7 @@ bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
   Mtr_memo_contains check(mtr2, MTR_MEMO_MODIFY);
   Iterate<Mtr_memo_contains> iterator(check);
 
-  return (!m_impl.m_memo.for_each_block_in_reverse(iterator));
+  return !m_impl.m_memo.for_each_block_in_reverse(iterator);
 }
 #endif /* UNIV_DEBUG */
 
@@ -253,7 +253,7 @@ struct Release_all {
       memo_slot_release(slot);
     }
 
-    return (true);
+    return true;
   }
 };
 
@@ -262,9 +262,27 @@ struct Debug_check {
   /** @return true always. */
   bool operator()(const mtr_memo_slot_t *slot) const {
     ut_a(slot->object == nullptr);
-    return (true);
+    return true;
   }
 };
+
+#ifdef UNIV_DEBUG
+/** Assure that there are no slots that are latching any resources. Only buffer
+ * fixing a page is allowed. */
+struct Debug_check_no_latching {
+  /** @return true always. */
+  bool operator()(const mtr_memo_slot_t *slot) const {
+    switch (slot->type) {
+      case MTR_MEMO_BUF_FIX:
+        break;
+      default:
+        ib::fatal() << "Debug_check_no_latching failed, slot->type="
+                    << slot->type;
+    }
+    return true;
+  }
+};
+#endif
 
 /** Add blocks modified by the mini-transaction to the flush list. */
 struct Add_dirty_blocks_to_flush_list {
@@ -308,7 +326,7 @@ struct Add_dirty_blocks_to_flush_list {
       }
     }
 
-    return (true);
+    return true;
   }
 
   /** Mini-transaction REDO end LSN */
@@ -445,7 +463,7 @@ mtr_log_t mtr_t::set_log_mode(mtr_log_t mode) {
   }
 #endif /* !UNIV_HOTBACKUP */
 
-  return (old_mode);
+  return old_mode;
 }
 
 /** Check if a mini-transaction is dirtying a clean page.
@@ -472,7 +490,7 @@ struct mtr_write_log_t {
     ut_ad(block != nullptr);
 
     if (block->used() == 0) {
-      return (true);
+      return true;
     }
 
     start_lsn = m_lsn;
@@ -512,7 +530,7 @@ struct mtr_write_log_t {
 
     m_lsn = end_lsn;
 
-    return (true);
+    return true;
   }
 
   Log_handle m_handle;
@@ -520,6 +538,10 @@ struct mtr_write_log_t {
   ulint m_left_to_write;
 };
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+thread_local ut::unordered_set<const mtr_t *> mtr_t::s_my_thread_active_mtrs;
+#endif
 
 /** Start a mini-transaction.
 @param sync		true if it is a synchronous mini-transaction
@@ -553,6 +575,13 @@ void mtr_t::start(bool sync, bool read_only) {
   check_nolog_and_mark();
 #endif /* !UNIV_HOTBACKUP */
   ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
+
+#ifdef UNIV_DEBUG
+  auto res = s_my_thread_active_mtrs.insert(this);
+  /* Assert there are no collisions in thread local context - it would mean
+  reusing MTR without committing or destructing it. */
+  ut_a(res.second);
+#endif /* UNIV_DEBUG */
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -635,7 +664,26 @@ void mtr_t::commit() {
 #ifndef UNIV_HOTBACKUP
   check_nolog_and_unmark();
 #endif /* !UNIV_HOTBACKUP */
+
+  ut_d(remove_from_debug_list());
 }
+
+#ifdef UNIV_DEBUG
+void mtr_t::remove_from_debug_list() const {
+  auto it = s_my_thread_active_mtrs.find(this);
+  /* We have to find the MTR that is about to be committed in local context. We
+  are not sharing MTRs between threads. */
+  ut_a(it != s_my_thread_active_mtrs.end());
+  s_my_thread_active_mtrs.erase(it);
+}
+
+void mtr_t::check_is_not_latching() const {
+  Debug_check_no_latching release;
+  Iterate<Debug_check_no_latching> iterator(release);
+
+  m_impl.m_memo.for_each_block_in_reverse(iterator);
+}
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_HOTBACKUP
 
@@ -701,12 +749,12 @@ ulint mtr_t::Command::prepare_write() {
     case MTR_LOG_NO_REDO:
     case MTR_LOG_NONE:
       ut_ad(m_impl->m_log.size() == 0);
-      return (0);
+      return 0;
     case MTR_LOG_ALL:
       break;
     default:
       ut_ad(false);
-      return (0);
+      return 0;
   }
 
   /* An ibuf merge could happen when loading page to apply log
@@ -750,7 +798,7 @@ ulint mtr_t::Command::prepare_write() {
   ut_ad(m_impl->m_log.size() == len);
   ut_ad(len > 0);
 
-  return (len);
+  return len;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -823,7 +871,7 @@ void mtr_t::Command::execute() {
 #ifndef UNIV_HOTBACKUP
 int mtr_t::Logging::enable(THD *thd) {
   if (is_enabled()) {
-    return (0);
+    return 0;
   }
   /* Allow mtrs to generate redo log. Concurrent clone and redo
   log archiving is still restricted till we reach a recoverable state. */
@@ -834,7 +882,7 @@ int mtr_t::Logging::enable(THD *thd) {
   auto err = wait_no_log_mtr(thd);
   if (err != 0) {
     m_state.store(DISABLED);
-    return (err);
+    return err;
   }
 
   /* 2. Wait for dirty pages to flush by forcing checkpoint at current LSN.
@@ -864,12 +912,12 @@ int mtr_t::Logging::enable(THD *thd) {
   ib::warn(ER_IB_WRN_REDO_ENABLED);
   m_state.store(ENABLED);
 
-  return (0);
+  return 0;
 }
 
 int mtr_t::Logging::disable(THD *) {
   if (is_disabled()) {
-    return (0);
+    return 0;
   }
 
   /* Disallow archiving to start. */
@@ -880,7 +928,7 @@ int mtr_t::Logging::disable(THD *) {
   if (meb::redo_log_archive_is_active()) {
     m_state.store(ENABLED);
     my_error(ER_INNODB_REDO_ARCHIVING_ENABLED, MYF(0));
-    return (ER_INNODB_REDO_ARCHIVING_ENABLED);
+    return ER_INNODB_REDO_ARCHIVING_ENABLED;
   }
 
   /* Concurrent clone is blocked by BACKUP MDL lock except when
@@ -896,22 +944,22 @@ int mtr_t::Logging::disable(THD *) {
 
   clone_mark_active();
 
-  return (0);
+  return 0;
 }
 
 int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
   auto wait_cond = [&](bool alert, bool &result) {
     if (Counter::total(m_count_nologging_mtr) == 0) {
       result = false;
-      return (0);
+      return 0;
     }
     result = true;
 
     if (thd_killed(thd)) {
       my_error(ER_QUERY_INTERRUPTED, MYF(0));
-      return (ER_QUERY_INTERRUPTED);
+      return ER_QUERY_INTERRUPTED;
     }
-    return (0);
+    return 0;
   };
 
   /* Sleep for 1 millisecond */
@@ -932,7 +980,7 @@ int mtr_t::Logging::wait_no_log_mtr(THD *thd) {
     err = ER_INTERNAL_ERROR;
   }
 
-  return (err);
+  return err;
 }
 
 #ifdef UNIV_DEBUG
@@ -943,7 +991,7 @@ bool mtr_t::memo_contains(const mtr_buf_t *memo, const void *object,
   Find find(object, type);
   Iterate<Find> iterator(find);
 
-  return (!memo->for_each_block_in_reverse(iterator));
+  return !memo->for_each_block_in_reverse(iterator);
 }
 
 /** Debug check for flags */
@@ -954,10 +1002,10 @@ struct FlaggedCheck {
 
   bool operator()(const mtr_memo_slot_t *slot) const {
     if (m_ptr == slot->object && (m_flags & slot->type)) {
-      return (false);
+      return false;
     }
 
-    return (true);
+    return true;
   }
 
   const void *m_ptr;
@@ -976,7 +1024,7 @@ bool mtr_t::memo_contains_flagged(const void *ptr, ulint flags) const {
   FlaggedCheck check(ptr, flags);
   Iterate<FlaggedCheck> iterator(check);
 
-  return (!m_impl.m_memo.for_each_block_in_reverse(iterator));
+  return !m_impl.m_memo.for_each_block_in_reverse(iterator);
 }
 
 /** Check if memo contains the given page.
@@ -990,9 +1038,8 @@ buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
   Find_page check(ptr, flags);
   Iterate<Find_page> iterator(check);
 
-  return (m_impl.m_memo.for_each_block_in_reverse(iterator)
-              ? nullptr
-              : check.get_block());
+  return m_impl.m_memo.for_each_block_in_reverse(iterator) ? nullptr
+                                                           : check.get_block();
 }
 
 /** Mark the given latched page as modified.
@@ -1042,7 +1089,7 @@ lsn_t mtr_commit_mlog_test(log_t &log, size_t payload) {
 
   mtr_commit(&mtr);
 
-  return (mtr.commit_lsn());
+  return mtr.commit_lsn();
 }
 
 static void mtr_commit_mlog_test_filling_block_low(log_t &log,
