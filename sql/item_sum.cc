@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,7 @@ using std::min;
 
 bool Item_sum::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (Item_result_field::itemize(pc, res)) return true;
 
   if (m_window) {
     if (m_window->contextualize(pc)) return true; /* purecov: inspected */
@@ -408,39 +408,18 @@ bool Item_sum::check_wf_semantics1(THD *, Query_block *,
 }
 
 Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w)
-    : super(pos),
-      super2(nullptr, opt_list == nullptr ? 0 : opt_list->elements()),
-      m_window(w),
-      m_window_resolved(false),
-      next_sum(nullptr),
-      used_tables_cache(0),
-      forced_const(false) {
-  if (arg_count > 0) {
-    args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
-    if (args == nullptr) {
-      return;  // OOM
-    }
-    uint i = 0;
-    for (Item *item : opt_list->value) {
-      args[i++] = item;
-    }
-  }
-  init_aggregator();
-}
+    : Item_func(pos, opt_list), m_window(w) {}
 
 /**
   Constructor used in processing select with temporary tebles.
 */
 
 Item_sum::Item_sum(THD *thd, const Item_sum *item)
-    : super(thd, item),
+    : Item_func(thd, item),
       m_window(item->m_window),
-      m_window_resolved(false),
-      next_sum(nullptr),
       base_query_block(item->base_query_block),
       aggr_query_block(item->aggr_query_block),
       allow_group_via_temp_table(item->allow_group_via_temp_table),
-      used_tables_cache(item->used_tables_cache),
       forced_const(item->forced_const) {
   arg_count = item->arg_count;
   if (arg_count <= 2)
@@ -448,7 +427,6 @@ Item_sum::Item_sum(THD *thd, const Item_sum *item)
   else if (!(args = (Item **)thd->alloc(sizeof(Item *) * arg_count)))
     return;
   memcpy(args, item->args, sizeof(Item *) * arg_count);
-  init_aggregator();
   with_distinct = item->with_distinct;
   if (item->aggr) {
     Item_sum::set_aggregator(item->aggr->Aggrtype());
@@ -484,13 +462,6 @@ void Item_sum::print(const THD *thd, String *str,
   }
 }
 
-void Item_sum::fix_num_length_and_dec() {
-  decimals = 0;
-  for (uint i = 0; i < arg_count; i++)
-    decimals = max(decimals, args[i]->decimals);
-  max_length = float_length(decimals);
-}
-
 bool Item_sum::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, -1)) return true;
 
@@ -503,39 +474,6 @@ bool Item_sum::resolve_type(THD *thd) {
   if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC))
     return reject_geometry_args(arg_count, args, this);
   return false;
-}
-
-bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument) {
-  if ((walk & enum_walk::PREFIX) && (this->*processor)(argument)) return true;
-
-  Item **arg, **arg_end;
-  for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
-    if ((*arg)->walk(processor, walk, argument)) return true;
-  }
-
-  return (walk & enum_walk::POSTFIX) && (this->*processor)(argument);
-}
-
-/**
- Transform an Item_func object with a transformer callback function.
-
- The function recursively applies the transform method to each
- argument of the Item_func node.
- If the call of the method for an argument item returns a new item
- the old item is substituted for a new one.
- After this the transformer is applied to the root node
- of the Item_func object.
- */
-
-Item *Item_sum::transform(Item_transformer transformer, uchar *argument) {
-  if (arg_count) {
-    Item **arg, **arg_end;
-    for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
-      *arg = (*arg)->transform(transformer, argument);
-      if (*arg == nullptr) return nullptr;
-    }
-  }
-  return (this->*transformer)(argument);
 }
 
 /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -198,7 +198,7 @@ void Item_func::set_arguments(mem_root_deque<Item *> *list, bool context_free) {
 }
 
 Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
-    : super(pos), allowed_arg_cols(1) {
+    : Item_result_field(pos), allowed_arg_cols(1) {
   if (opt_list == nullptr) {
     args = m_embedded_arguments;
     arg_count = 0;
@@ -206,7 +206,7 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
     set_arguments(&opt_list->value, true);
 }
 
-Item_func::Item_func(THD *thd, Item_func *item)
+Item_func::Item_func(THD *thd, const Item_func *item)
     : Item_result_field(thd, item),
       null_on_null(item->null_on_null),
       allowed_arg_cols(item->allowed_arg_cols),
@@ -225,7 +225,7 @@ Item_func::Item_func(THD *thd, Item_func *item)
 
 bool Item_func::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res)) return true;
+  if (Item_result_field::itemize(pc, res)) return true;
   const bool no_named_params = !may_have_named_parameters();
   for (size_t i = 0; i < arg_count; i++) {
     add_accum_properties(args[i]);
@@ -379,7 +379,7 @@ bool Item_func::propagate_type(THD *thd, const Type_properties &type) {
 }
 
 /**
-   For arguments of this Func_args_handle ("args" array), in range
+   For arguments of this Item_func ("args" array), in range
    [start, start+step, start+2*step,...,end[ : if they're a PS
    parameter with invalid (not known) type, give them default type "def".
    @param thd   thread handler
@@ -390,8 +390,8 @@ bool Item_func::propagate_type(THD *thd, const Type_properties &type) {
 
    @returns false if success, true if error
 */
-bool Func_args_handle::param_type_is_default(THD *thd, uint start, uint end,
-                                             uint step, enum_field_types def) {
+bool Item_func::param_type_is_default(THD *thd, uint start, uint end, uint step,
+                                      enum_field_types def) {
   for (uint i = start; i < end; i += step) {
     if (i >= arg_count) break;
     if (args[i]->propagate_type(thd, def)) return true;
@@ -400,13 +400,13 @@ bool Func_args_handle::param_type_is_default(THD *thd, uint start, uint end,
 }
 
 /**
-   For arguments of this Func_args_handle ("args" array), in range [start,end[ :
+   For arguments of this Item_func ("args" array), in range [start,end[ :
    sends error if they're a dynamic parameter.
    @param start range's start (included)
    @param end   range's end (excluded)
    @returns true if error.
 */
-bool Func_args_handle::param_type_is_rejected(uint start, uint end) {
+bool Item_func::param_type_is_rejected(uint start, uint end) {
   for (uint i = start; i < end; i++) {
     if (i >= arg_count) break;
     if (args[i]->data_type() == MYSQL_TYPE_INVALID) {
@@ -418,7 +418,7 @@ bool Func_args_handle::param_type_is_rejected(uint start, uint end) {
 }
 
 /**
-  For arguments of this Func_args_handle  ("args" array), all of them: find an
+  For arguments of this Item_func  ("args" array), all of them: find an
   argument that is not a dynamic parameter; if found, all dynamic parameters
   without a valid type get the type of this; if not found, they get type "def".
 
@@ -478,8 +478,7 @@ inline bool param_type_uses_non_param_inner(THD *thd, uint arg_count,
   return false;
 }
 
-bool Func_args_handle::param_type_uses_non_param(THD *thd,
-                                                 enum_field_types def) {
+bool Item_func::param_type_uses_non_param(THD *thd, enum_field_types def) {
   if (arg_count == 0) return false;
   return param_type_uses_non_param_inner(thd, arg_count, args, def);
 }

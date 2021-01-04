@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,12 +82,7 @@ extern bool reject_geometry_args(uint arg_count, Item **args,
 void unsupported_json_comparison(size_t arg_count, Item **args,
                                  const char *msg);
 
-/**
-   Mixin class for classes which have an array of arguments ('args') and a
-   count of them ('arg_count').
-   Used by Item_func and Item_sum.
-*/
-class Func_args_handle {
+class Item_func : public Item_result_field {
  protected:
   /**
      Array of pointers to arguments. If there are max 2 arguments, this array
@@ -99,14 +94,8 @@ class Func_args_handle {
 
  public:
   uint arg_count;  ///< How many arguments in 'args'
-  Func_args_handle() = default;
-  virtual ~Func_args_handle() = default;
-  Func_args_handle(uint c) : args(m_embedded_arguments), arg_count(c) {}
-  Func_args_handle(Item **a, uint c) : args(a), arg_count(c) {}
   /// Changes argument and maintains any necessary invariants.
   virtual void set_arg_resolve(THD *, uint i, Item *arg) { args[i] = arg; }
-  Item *func_arg(uint i) { return args[i]; }
-  Item *set_func_arg(THD *thd, uint i, Item *new_val);
   virtual uint argument_count() const { return arg_count; }
   inline Item **arguments() const {
     return (argument_count() > 0) ? args : nullptr;
@@ -126,13 +115,7 @@ class Func_args_handle {
     return param_type_is_default(thd, start, end, 1, def);
   }
   bool param_type_is_rejected(uint start, uint end);
-};
 
-class Item_func : public Item_result_field, public Func_args_handle {
-  typedef Item_result_field super;
-  typedef Func_args_handle super2;
-
- protected:
   /**
     Affects how to determine that NULL argument implies a NULL function return.
     Default behaviour in this class is:
@@ -144,16 +127,16 @@ class Item_func : public Item_result_field, public Func_args_handle {
     RETURNS NULL ON NULL INPUT can be implemented for stored functions by
     modifying this member in class Item_func_sp.
   */
-  bool null_on_null = true;
+  bool null_on_null{true};
   /*
     Allowed numbers of columns in result (usually 1, which means scalar value)
     0 means get this number from first argument
   */
-  uint allowed_arg_cols = 1;
+  uint allowed_arg_cols{1};
   /// Value used in calculation of result of used_tables()
-  table_map used_tables_cache;
+  table_map used_tables_cache{0};
   /// Value used in calculation of result of not_null_tables()
-  table_map not_null_tables_cache;
+  table_map not_null_tables_cache{0};
 
  public:
   /*
@@ -290,24 +273,29 @@ class Item_func : public Item_result_field, public Func_args_handle {
   };
   enum Type type() const override { return FUNC_ITEM; }
   virtual enum Functype functype() const { return UNKNOWN_FUNC; }
-  Item_func() : super2(0) {}
+  Item_func() : args(m_embedded_arguments), arg_count(0) {}
 
-  explicit Item_func(const POS &pos) : super(pos), super2(0) {}
+  explicit Item_func(const POS &pos)
+      : Item_result_field(pos), args(m_embedded_arguments), arg_count(0) {}
 
-  Item_func(Item *a) : super2(1) {
+  Item_func(Item *a) : args(m_embedded_arguments), arg_count(1) {
     args[0] = a;
     set_accum_properties(a);
   }
-  Item_func(const POS &pos, Item *a) : super(pos), super2(1) { args[0] = a; }
+  Item_func(const POS &pos, Item *a)
+      : Item_result_field(pos), args(m_embedded_arguments), arg_count(1) {
+    args[0] = a;
+  }
 
-  Item_func(Item *a, Item *b) : super2(2) {
+  Item_func(Item *a, Item *b) : args(m_embedded_arguments), arg_count(2) {
     args[0] = a;
     args[1] = b;
     m_accum_properties = 0;
     add_accum_properties(a);
     add_accum_properties(b);
   }
-  Item_func(const POS &pos, Item *a, Item *b) : super(pos), super2(2) {
+  Item_func(const POS &pos, Item *a, Item *b)
+      : Item_result_field(pos), args(m_embedded_arguments), arg_count(2) {
     args[0] = a;
     args[1] = b;
   }
@@ -326,7 +314,8 @@ class Item_func : public Item_result_field, public Func_args_handle {
       arg_count = 0;  // OOM
   }
 
-  Item_func(const POS &pos, Item *a, Item *b, Item *c) : super(pos) {
+  Item_func(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_result_field(pos) {
     if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 3))) {
       arg_count = 3;
       args[0] = a;
@@ -352,7 +341,8 @@ class Item_func : public Item_result_field, public Func_args_handle {
       arg_count = 0;  // OOM
   }
 
-  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d) : super(pos) {
+  Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+      : Item_result_field(pos) {
     if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 4))) {
       arg_count = 4;
       args[0] = a;
@@ -380,7 +370,7 @@ class Item_func : public Item_result_field, public Func_args_handle {
       arg_count = 0;  // OOM
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
-      : super(pos) {
+      : Item_result_field(pos) {
     if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 5))) {
       arg_count = 5;
       args[0] = a;
@@ -398,11 +388,12 @@ class Item_func : public Item_result_field, public Func_args_handle {
   Item_func(const POS &pos, PT_item_list *opt_list);
 
   // Constructor used for Item_cond_and/or (see Item comment)
-  Item_func(THD *thd, Item_func *item);
+  Item_func(THD *thd, const Item_func *item);
 
-  inline Item *get_arg(uint i) { return func_arg(i); }
-  inline Item *set_arg(THD *thd, uint i, Item *new_val) {
-    return set_func_arg(thd, i, new_val);
+  virtual Item *get_arg(uint i) { return args[i]; }
+  virtual Item *set_arg(THD *, uint, Item *) {
+    assert(0);
+    return nullptr;
   }
 
   bool itemize(Parse_context *pc, Item **res) override;

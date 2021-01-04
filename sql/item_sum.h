@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -392,10 +392,7 @@ class Aggregator {
   the WF's val_*() to accumulate it.
 */
 
-class Item_sum : public Item_result_field, public Func_args_handle {
-  typedef Item_result_field super;
-  typedef Func_args_handle super2;
-
+class Item_sum : public Item_func {
   friend class Aggregator_distinct;
   friend class Aggregator_simple;
 
@@ -404,17 +401,17 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     Aggregator class instance. Not set initially. Allocated only after
     it is determined if the incoming data are already distinct.
   */
-  Aggregator *aggr;
+  Aggregator *aggr{nullptr};
 
   /**
     If sum is a window function, this field contains the window.
   */
-  PT_window *m_window;
+  PT_window *m_window{nullptr};
   /**
     True if we have already resolved this window functions window reference.
     Used in execution of prepared statement to avoid re-resolve.
   */
-  bool m_window_resolved;
+  bool m_window_resolved{false};
 
  private:
   /**
@@ -423,14 +420,14 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     over the temp table buffer that is referenced by
     Item_result_field::result_field.
   */
-  bool force_copy_fields;
+  bool force_copy_fields{false};
 
   /**
     Indicates how the aggregate function was specified by the parser :
      true if it was written as AGGREGATE(DISTINCT),
      false if it was AGGREGATE()
   */
-  bool with_distinct;
+  bool with_distinct{false};
 
  public:
   bool has_force_copy_fields() const { return force_copy_fields; }
@@ -476,8 +473,9 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     pointer).
   */
   Item **referenced_by[2];
-  Item_sum *next_sum;     ///< next in the circular chain of registered objects
-  Item_sum *in_sum_func;  ///< the containing set function if any
+  /// next in the circular chain of registered objects
+  Item_sum *next_sum{nullptr};
+  Item_sum *in_sum_func;          ///< the containing set function if any
   Query_block *base_query_block;  ///< query block where function is placed
   /**
     For a group aggregate, query block where function is aggregated. For a
@@ -497,13 +495,12 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   nesting_map save_deny_window_func;
 
  protected:
-  table_map used_tables_cache;
   /**
     True means that this field has been evaluated during optimization.
     When set, used_tables() returns zero and const_item() returns true.
     The value must be reset to false after execution.
   */
-  bool forced_const;
+  bool forced_const{false};
   static ulonglong ram_limitation(THD *thd);
 
  public:
@@ -511,56 +508,18 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   void mark_as_sum_func(Query_block *);
 
   Item_sum(const POS &pos, PT_window *w)
-      : super(pos),
-        super2(nullptr, 0),
-        m_window(w),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    init_aggregator();
-  }
+      : Item_func(pos), m_window(w), allow_group_via_temp_table(true) {}
 
   Item_sum(Item *a)
-      : super2(1),
-        m_window(nullptr),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    args[0] = a;
+      : Item_func(a), m_window(nullptr), allow_group_via_temp_table(true) {
     mark_as_sum_func();
-    init_aggregator();
   }
 
   Item_sum(const POS &pos, Item *a, PT_window *w)
-      : super(pos),
-        super2(1),
-        m_window(w),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    args[0] = a;
-    init_aggregator();
-  }
+      : Item_func(pos, a), m_window(w), allow_group_via_temp_table(true) {}
 
   Item_sum(const POS &pos, Item *a, Item *b, PT_window *w)
-      : super(pos),
-        super2(2),
-        m_window(w),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    args[0] = a;
-    args[1] = b;
-    init_aggregator();
-  }
+      : Item_func(pos, a, b), m_window(w), allow_group_via_temp_table(true) {}
 
   Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w);
 
@@ -614,6 +573,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   table_map used_tables() const override {
     return forced_const ? 0 : used_tables_cache;
   }
+  table_map not_null_tables() const override { return used_tables(); }
   void update_used_tables() override;
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
@@ -625,7 +585,6 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  void fix_num_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const override;
   /**
     Mark an aggregate as having no rows.
@@ -666,8 +625,6 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   bool collect_scalar_subqueries(uchar *) override;
   bool collect_item_field_or_view_ref_processor(uchar *) override;
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
-  Item *transform(Item_transformer transformer, uchar *arg) override;
   bool clean_up_after_removal(uchar *arg) override;
   bool aggregate_check_group(uchar *arg) override;
   bool aggregate_check_distinct(uchar *arg) override;
@@ -675,19 +632,11 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
 
-  virtual Item *get_arg(uint i) { return args[i]; }
-  virtual Item *set_arg(THD *thd, uint i, Item *new_val);
+  Item *set_arg(THD *thd, uint i, Item *new_val) override;
   /// @todo delete this when we no longer support temporary transformations
   Item **get_arg_ptr(uint i) { return &args[i]; }
 
   bool fix_fields(THD *thd, Item **ref) override;
-
-  /* Initialization of distinct related members */
-  void init_aggregator() {
-    aggr = nullptr;
-    with_distinct = false;
-    force_copy_fields = false;
-  }
 
   /**
     Called to initialize the aggregator.
