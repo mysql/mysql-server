@@ -1,7 +1,7 @@
 #ifndef COMPONENTS_SERVICES_MYSQL_SOCKET_BITS_H
 #define COMPONENTS_SERVICES_MYSQL_SOCKET_BITS_H
 
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
