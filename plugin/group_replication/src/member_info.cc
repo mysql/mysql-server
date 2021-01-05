@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -979,7 +979,7 @@ void Group_member_info_manager::update(Group_member_info *update_local_member) {
 }
 
 void Group_member_info_manager::update(
-    vector<Group_member_info *> *new_members) {
+    std::vector<Group_member_info *> *new_members) {
   mysql_mutex_lock(&update_lock);
 
   this->clear_members();

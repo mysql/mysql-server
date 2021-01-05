@@ -162,6 +162,8 @@ typedef void (*unbind_table_v1_t)(struct PSI_table *table);
   Rebind a table handle to the current thread.
   This operation happens when a table from the open table cache
   is reused for a thread.
+  @param share Instrumented table share.
+  @param identity Table handle identity, typically a memory address.
   @param table the table to unbind
 */
 typedef PSI_table *(*rebind_table_v1_t)(PSI_table_share *share,
@@ -170,6 +172,7 @@ typedef PSI_table *(*rebind_table_v1_t)(PSI_table_share *share,
 /**
   Close an instrumentation table handle.
   Note that the table handle is invalid after this call.
+  @param server_share TABLE_SHARE from the SQL layer.
   @param table the table handle to close
 */
 typedef void (*close_table_v1_t)(struct TABLE_SHARE *server_share,

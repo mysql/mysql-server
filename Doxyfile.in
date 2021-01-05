@@ -1,4 +1,4 @@
-## Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+## Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 ##
 ## This program is free software; you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License, version 2.0,
@@ -913,7 +913,6 @@ INPUT                  = ./client \
                          ./plugin/ddl_rewriter \
                          ./plugin/fulltext \
                          ./plugin/group_replication \
-                         ./plugin/innodb_memcached \
                          ./plugin/password_validation \
                          ./plugin/replication_observers_example \
                          ./plugin/rewrite_example \
@@ -999,8 +998,7 @@ EXCLUDE                = cmd-line-utils \
                          include/sql_state.h \
                          internal \
                          libevent \
-                         plugin/innodb_memcached/daemon_memcached/include/memcached \
-			 plugin/innodb_memcached/innodb_memcache \
+                         plugin/innodb_memcached \
                          plugin/test_services \
                          plugin/test_service_sql_api \
                          source_downloads \
@@ -1244,7 +1242,7 @@ ALPHABETICAL_INDEX     = YES
 # Minimum value: 1, maximum value: 20, default value: 5.
 # This tag requires that the tag ALPHABETICAL_INDEX is set to YES.
 
-COLS_IN_ALPHA_INDEX    = 5
+# COLS_IN_ALPHA_INDEX    = 5
 
 # In case all classes in a project start with a common prefix, all classes will
 # be put under the same header in the alphabetical index. The IGNORE_PREFIX tag

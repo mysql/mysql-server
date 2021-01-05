@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1451,6 +1451,7 @@ typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
   and cleanup after upgrade.
 
   @param    thd      Thread context
+  @param failed_upgrade True if the upgrade failed.
 
   @return Operation status.
   @retval == 0  Success.
@@ -1606,6 +1607,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   Insert/Update SDI for a given SDI key.
   @param[in]  hton        handlerton object
   @param[in]  tablespace  tablespace object
+  @param[in]  table       table object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @param[in]  sdi         SDI to write into the tablespace
   @param[in]  sdi_len     length of SDI BLOB returned
@@ -1620,6 +1622,7 @@ typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
 /**
   Delete SDI for a given SDI key.
   @param[in]  tablespace  tablespace object
+  @param[in]  table       table object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @retval     false       success
   @retval     true        failure, my_error() should be called

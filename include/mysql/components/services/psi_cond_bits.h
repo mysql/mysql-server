@@ -174,6 +174,7 @@ typedef void (*broadcast_cond_v1_t)(struct PSI_cond *cond);
   Record a condition instrumentation wait start event.
   @param state data storage for the locker
   @param cond the instrumented cond to lock
+  @param mutex the instrumented mutex associated with the condition
   @param op the operation to perform
   @param src_file the source file name
   @param src_line the source line number
