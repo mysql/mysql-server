@@ -66,6 +66,7 @@
 #include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
+#include "sql/sql_insert.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
@@ -101,7 +102,7 @@ constexpr double kMaterializeOneRowCost = 0.1;
 void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order);
 
 TABLE *CreateTemporaryTableFromSelectList(
-    THD *thd, const Query_block *query_block,
+    THD *thd, Query_block *query_block,
     Temp_table_param **temp_table_param_arg);
 
 void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
@@ -1610,8 +1611,7 @@ void EstimateSortCost(AccessPath *path) {
   Thus, that job is deferred to CreateMaterializationPathForSortingAggregates().
  */
 TABLE *CreateTemporaryTableForSortingAggregates(
-    THD *thd, const Query_block *query_block,
-    Temp_table_param **temp_table_param) {
+    THD *thd, Query_block *query_block, Temp_table_param **temp_table_param) {
   TABLE *temp_table =
       CreateTemporaryTableFromSelectList(thd, query_block, temp_table_param);
 
@@ -1621,11 +1621,50 @@ TABLE *CreateTemporaryTableForSortingAggregates(
 }
 
 /**
+  Replaces field references in an ON DUPLICATE KEY UPDATE clause with references
+  to corresponding fields in a temporary table. The changes will be rolled back
+  at the end of execution and will have to be redone during optimization in the
+  next execution.
+ */
+void ReplaceUpdateValuesWithTempTableFields(
+    Sql_cmd_insert_select *sql_cmd, Query_block *query_block,
+    const mem_root_deque<Item *> &original_fields,
+    const mem_root_deque<Item *> &temp_table_fields) {
+  assert(CountVisibleFields(original_fields) ==
+         CountVisibleFields(temp_table_fields));
+
+  if (sql_cmd->update_value_list.empty()) return;
+
+  auto tmp_field_it = VisibleFields(temp_table_fields).begin();
+  for (Item *orig_field : original_fields) {
+    Item *tmp_field = *tmp_field_it++;
+    if (orig_field->type() == Item::FIELD_ITEM) {
+      Item::Item_field_replacement replacement(
+          down_cast<Item_field *>(orig_field)->field,
+          down_cast<Item_field *>(tmp_field), query_block);
+      for (Item *&update_item : sql_cmd->update_value_list) {
+        uchar *dummy;
+        update_item = update_item->compile(&Item::visit_all_analyzer, &dummy,
+                                           &Item::replace_item_field,
+                                           pointer_cast<uchar *>(&replacement));
+      }
+    }
+  }
+}
+
+/**
   Creates a temporary table with columns matching the SELECT list of the given
-  query block.
+  query block. The SELECT list of the query block is updated to point to the
+  fields in the temporary table, and the same is done for the ON DUPLICATE KEY
+  UPDATE clause of INSERT SELECT statements, if they have one.
+
+  This function is used for materializing the query result, either as an
+  intermediate step before sorting the final result if the sort requires the
+  rows to come from a single table instead of a join, or as the last step if the
+  SQL_BUFFER_RESULT query option has been specified.
  */
 TABLE *CreateTemporaryTableFromSelectList(
-    THD *thd, const Query_block *query_block,
+    THD *thd, Query_block *query_block,
     Temp_table_param **temp_table_param_arg) {
   JOIN *join = query_block->join;
 
@@ -1643,8 +1682,18 @@ TABLE *CreateTemporaryTableFromSelectList(
       query_block->active_options(), /*rows_limit=*/HA_POS_ERROR, "");
   temp_table->alias = "<temporary>";
 
+  const mem_root_deque<Item *> *original_fields = join->fields;
+
   // Replace the SELECT list with items that read from our temporary table.
   ReplaceSelectListWithTempTableFields(thd, join, temp_table_param);
+
+  // In case we have an INSERT SELECT statement with an ON DUPLICATE KEY UPDATE
+  // clause, we also need to update the references in ODKU.
+  if (thd->lex->sql_command == SQLCOM_INSERT_SELECT) {
+    ReplaceUpdateValuesWithTempTableFields(
+        down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd), query_block,
+        *original_fields, *join->fields);
+  }
 
   // We made a new table, so make sure it gets properly cleaned up
   // at the end of execution.

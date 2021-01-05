@@ -89,6 +89,7 @@ show create table t1;
 
 eval create table t2 (a int auto_increment, primary key (a desc)) engine= $engine;
 show create table t2;
+--sorted_result  # Warnings come in different order with --hypergraph.
 insert ignore into t2 select a from t1;
 select * from t2;
 

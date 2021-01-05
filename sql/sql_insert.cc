@@ -1692,21 +1692,24 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
 
   lex->in_update_value_clause = false;
 
-  if (select_insert) {
+  if (select_insert && !lex->using_hypergraph_optimizer) {
     /*
       Traverse the update values list and substitute fields from the
       select for references (Item_ref objects) to them. This is done in
       order to get correct values from those fields when the select
       employs a temporary table.
+
+      This is not necessary for the hypergraph optimizer, since it changes the
+      Item_field objects to point directly to the fields in the temporary table
+      when the temporary table is created.
     */
     Query_block *const select = lex->query_block;
 
-    for (auto it = update_value_list.begin(); it != update_value_list.end();
-         ++it) {
-      Item *new_item = (*it)->transform(&Item::update_value_transformer,
-                                        pointer_cast<uchar *>(select));
+    for (Item *&it : update_value_list) {
+      Item *new_item = it->transform(&Item::update_value_transformer,
+                                     pointer_cast<uchar *>(select));
       if (new_item == nullptr) return true;
-      *it = new_item;
+      it = new_item;
     }
   }
 

@@ -68,10 +68,10 @@ replace into t2 select grp, a, c from t1 limit 2,1;
 select * from t2;
 grp	a	c
 1	2	a
+2	3	c
 2	5	c
 3	9	E
 NULL	NULL	
-2	3	c
 drop table t1,t2;
 CREATE TABLE t1 (id int(11),value1 float(10,2));
 Warnings:

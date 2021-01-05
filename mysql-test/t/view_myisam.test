@@ -46,7 +46,9 @@ insert into v3(b) values (10);
 insert into v3(a) select a from t2;
 insert into v3(b) select b from t2;
 insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
+--sorted_result
 select * from t1 ;
+--sorted_result
 select * from t2 ;
 # try delete from join view
 -- error ER_VIEW_DELETE_MERGE_VIEW

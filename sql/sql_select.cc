@@ -53,6 +53,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
+#include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -335,7 +336,9 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   lex->using_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
-      lex->sql_command == SQLCOM_SELECT;
+      (lex->sql_command == SQLCOM_SELECT ||
+       lex->sql_command == SQLCOM_INSERT_SELECT ||
+       lex->sql_command == SQLCOM_REPLACE_SELECT);
 
   /*
     Constant folding could cause warnings during preparation. Make
