@@ -6289,8 +6289,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
       pair.second->context = &new_derived->context;
 
       for (auto expr : contrib_exprs) {
-        Item::Item_field_replacement info(pair.first, replaces_field, this,
-                                          (*expr)->type() == Item::FIELD_ITEM);
+        Item::Item_field_replacement info(pair.first, replaces_field, this);
         Item *new_item = (*expr)->transform(&Item::replace_item_field,
                                             pointer_cast<uchar *>(&info));
         if (new_item == nullptr) return true;
@@ -6735,7 +6734,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_post(
       auto replaces_field = new (thd->mem_root) Item_field(field_in_derived);
       if (replaces_field == nullptr) return true;
 
-      Item::Item_field_replacement info(f->field, replaces_field, this, false);
+      Item::Item_field_replacement info(f->field, replaces_field, this);
       Item *new_item = derived->join_cond()->transform(
           &Item::replace_item_field, pointer_cast<uchar *>(&info));
       if (new_item == nullptr) return true;

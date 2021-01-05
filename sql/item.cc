@@ -7339,7 +7339,7 @@ bool Item_field::send(Protocol *protocol, String *) {
     belongs to the SELECT part in the INSERT .. SELECT .. ON DUPLICATE KEY
     UPDATE statement.
 
-  @retval NULL          if error occured
+  @retval nullptr       if an error occurred
   @retval ref           if all conditions are met
   @retval this field    otherwise
 */

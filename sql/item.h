@@ -2698,7 +2698,7 @@ class Item : public Parse_tree_node {
   */
   virtual bool has_aggregate_ref_in_group_by(uchar *) { return false; }
 
-  virtual bool visit_all_analyzer(uchar **) { return true; }
+  bool visit_all_analyzer(uchar **) { return true; }
   virtual bool cache_const_expr_analyzer(uchar **cache_item);
   Item *cache_const_expr_transformer(uchar *item);
 
@@ -2893,15 +2893,10 @@ class Item : public Parse_tree_node {
         : m_trans_block(transformed_block), m_curr_block(current_block) {}
   };
   struct Item_field_replacement : Item_replacement {
-    Field *m_target;           ///< The field to be replaced
-    Item_field *m_item;        ///< The replacement field
-    bool m_keep_alias{false};  ///< Needed for SELECT list alias preservation
-    Item_field_replacement(Field *target, Item_field *item, Query_block *select,
-                           bool keep)
-        : Item_replacement(select, select),
-          m_target(target),
-          m_item(item),
-          m_keep_alias(keep) {}
+    Field *m_target;     ///< The field to be replaced
+    Item_field *m_item;  ///< The replacement field
+    Item_field_replacement(Field *target, Item_field *item, Query_block *select)
+        : Item_replacement(select, select), m_target(target), m_item(item) {}
   };
 
   struct Item_view_ref_replacement : Item_replacement {
