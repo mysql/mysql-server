@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1233,10 +1233,13 @@ TEST_P(HttpServerSecureTest, ensure) {
       conf_dir_.name(),
       mysql_harness::ConfigBuilder::build_section("http_server", http_section),
       nullptr, "mysqlrouter.conf", "", false)};
+
+  // timeout for waiting for ready notification is increased to adress the case
+  // of strong dh params which takes long on overloaded CPUs
   ProcessWrapper &http_server{
       launch_router({"-c", conf_file},
                     GetParam().expected_success ? EXIT_SUCCESS : EXIT_FAILURE,
-                    true, false, GetParam().expected_success ? 5s : -1s)};
+                    true, false, GetParam().expected_success ? 20s : -1s)};
 
   if (GetParam().expected_success) {
     HttpUri u;
