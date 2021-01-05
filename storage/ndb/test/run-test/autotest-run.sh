@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.23"
+VERSION="autotest-run.sh version 1.24"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -274,7 +274,7 @@ choose(){
         i=1
         while [ $# -gt 0 ]
         do
-                sed -e s,"CHOOSE_host$i",$1,g < $TMP1 > $TMP2
+                sed -r s/"CHOOSE_host${i}[ ]*(, |\$)"/"${1}\1"/g < $TMP1 > $TMP2
                 mv $TMP2 $TMP1
                 shift
                 i=`expr $i + 1`
