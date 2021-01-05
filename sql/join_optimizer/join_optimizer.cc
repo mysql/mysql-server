@@ -98,6 +98,19 @@ constexpr double kHashBuildOneRowCost = 0.1;
 constexpr double kHashProbeOneRowCost = 0.1;
 constexpr double kMaterializeOneRowCost = 0.1;
 
+void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order);
+
+TABLE *CreateTemporaryTableFromSelectList(
+    THD *thd, const Query_block *query_block,
+    Temp_table_param **temp_table_param_arg);
+
+void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
+                                          Temp_table_param *temp_table_param);
+
+AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
+                                      TABLE *temp_table,
+                                      Temp_table_param *temp_table_param);
+
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
   based on cost. It receives subplans from DPhyp (see enumerate_subgraph.h),
@@ -1602,14 +1615,29 @@ void EstimateSortCost(AccessPath *path) {
  */
 TABLE *CreateTemporaryTableForSortingAggregates(
     THD *thd, const Query_block *query_block,
+    Temp_table_param **temp_table_param) {
+  TABLE *temp_table =
+      CreateTemporaryTableFromSelectList(thd, query_block, temp_table_param);
+
+  ReplaceOrderItemsWithTempTableFields(thd, query_block->order_list.first);
+
+  return temp_table;
+}
+
+/**
+  Creates a temporary table with columns matching the SELECT list of the given
+  query block.
+ */
+TABLE *CreateTemporaryTableFromSelectList(
+    THD *thd, const Query_block *query_block,
     Temp_table_param **temp_table_param_arg) {
   JOIN *join = query_block->join;
 
   Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param;
   *temp_table_param_arg = temp_table_param;
-  temp_table_param->precomputed_group_by = false;
+  assert(!temp_table_param->precomputed_group_by);
+  assert(!temp_table_param->skip_create_table);
   temp_table_param->hidden_field_count = CountHiddenFields(*join->fields);
-  temp_table_param->skip_create_table = false;
   count_field_types(query_block, temp_table_param, *join->fields,
                     /*reset_with_sum_func=*/true, /*save_sum_fields=*/true);
 
@@ -1620,6 +1648,22 @@ TABLE *CreateTemporaryTableForSortingAggregates(
   temp_table->alias = "<temporary>";
 
   // Replace the SELECT list with items that read from our temporary table.
+  ReplaceSelectListWithTempTableFields(thd, join, temp_table_param);
+
+  // We made a new table, so make sure it gets properly cleaned up
+  // at the end of execution.
+  join->temp_tables.push_back(
+      JOIN::TemporaryTableToCleanup{temp_table, temp_table_param});
+
+  return temp_table;
+}
+
+/**
+  Replaces the items in the SELECT list with items that point to fields in a
+  temporary table.
+ */
+void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
+                                          Temp_table_param *temp_table_param) {
   auto fields = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
   for (Item *item : *join->fields) {
     Field *field = item->get_tmp_table_field();
@@ -1648,13 +1692,14 @@ TABLE *CreateTemporaryTableForSortingAggregates(
     fields->push_back(temp_table_item);
   }
   join->fields = fields;
+}
 
+void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order) {
   // Change all items in the ORDER list to point to the temporary table.
   // This isn't important for streaming (the items would get the correct
   // value anyway -- although possibly with some extra calculations),
   // but it is for materialization.
-  for (ORDER *order = query_block->order_list.first; order != nullptr;
-       order = order->next) {
+  for (; order != nullptr; order = order->next) {
     Field *field = (*order->item)->get_tmp_table_field();
     if (field != nullptr) {
       Item_field *temp_field_item = new Item_field(field);
@@ -1673,13 +1718,6 @@ TABLE *CreateTemporaryTableForSortingAggregates(
       thd->change_item_tree(order->item, temp_field_item);
     }
   }
-
-  // We made a new table, so make sure it gets properly cleaned up
-  // at the end of execution.
-  join->temp_tables.push_back(
-      JOIN::TemporaryTableToCleanup{temp_table, temp_table_param});
-
-  return temp_table;
 }
 
 /**
@@ -1708,20 +1746,31 @@ AccessPath *CreateMaterializationPathForSortingAggregates(
     // smaller temporary table at the expense of more seeks, we could
     // materialize only aggregate functions and do a multi-table sort
     // by docid, but this situation is rare, so we go for simplicity.)
-    AccessPath *table_path =
-        NewTableScanAccessPath(thd, temp_table, /*count_examined_rows=*/false);
-    AccessPath *materialize_path = NewMaterializeAccessPath(
-        thd,
-        SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
-                                    /*copy_fields_and_items=*/true,
-                                    temp_table_param),
-        /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
-        /*query_expression=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
-        /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);
-
-    EstimateMaterializeCost(materialize_path);
-    return materialize_path;
+    return CreateMaterializationPath(thd, join, path, temp_table,
+                                     temp_table_param);
   }
+}
+
+/**
+  Sets up an access path for materializing the results returned from a path in a
+  temporary table.
+ */
+AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
+                                      TABLE *temp_table,
+                                      Temp_table_param *temp_table_param) {
+  AccessPath *table_path =
+      NewTableScanAccessPath(thd, temp_table, /*count_examined_rows=*/false);
+  AccessPath *materialize_path = NewMaterializeAccessPath(
+      thd,
+      SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
+                                  /*copy_fields_and_items=*/true,
+                                  temp_table_param),
+      /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
+      /*unit=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
+      /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);
+
+  EstimateMaterializeCost(materialize_path);
+  return materialize_path;
 }
 
 // Estimate the width of each row produced by “query_block”,
