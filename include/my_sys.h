@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -801,6 +801,8 @@ extern bool dynstr_append(DYNAMIC_STRING *str, const char *append);
 bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append, size_t length);
 extern bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append,
                                     ...);
+extern bool dynstr_append_quoted(DYNAMIC_STRING *str, const char *quote_str,
+                                 const uint quote_len, const char *append, ...);
 extern bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);

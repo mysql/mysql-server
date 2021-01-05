@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -515,24 +515,24 @@ static int set_command(void) {
   if (opt_user) /* --user */
   {
     dynstr_append(&path_buf, "\nuser = ");
-    dynstr_append(&path_buf, opt_user);
+    dynstr_append_quoted(&path_buf, "\"", 1, opt_user, NullS);
   }
 
   if (opt_password) /* --password */
   {
     dynstr_append(&path_buf, "\npassword = ");
-    dynstr_append(&path_buf, opt_password);
+    dynstr_append_quoted(&path_buf, "\"", 1, opt_password, NullS);
   }
 
   if (opt_host) /* --host */
   {
     dynstr_append(&path_buf, "\nhost = ");
-    dynstr_append(&path_buf, opt_host);
+    dynstr_append_quoted(&path_buf, "\"", 1, opt_host, NullS);
   }
 
   if (opt_socket) {
     dynstr_append(&path_buf, "\nsocket = ");
-    dynstr_append(&path_buf, opt_socket);
+    dynstr_append_quoted(&path_buf, "\"", 1, opt_socket, NullS);
   }
 
   if (opt_port) {
