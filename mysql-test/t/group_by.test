@@ -3135,3 +3135,21 @@ SELECT
   FROM (SELECT 555 AS f2) AS c;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32248291: ENABLE THE HYPERGRAPH OPTIMIZER FOR SQL_BUFFER_RESULT
+--echo #
+--echo # Verify that expressions in the SELECT list are evaluated only once
+--echo # per row.
+--echo #
+CREATE TABLE t(x INTEGER);
+INSERT INTO t VALUES (1), (2), (3);
+# The hypergraph optimizer streams the results through a temporary
+# table when a query has both GROUP BY and ORDER BY. It used to
+# evaluate RAND(1) twice per row when copying the expressions in the
+# SELECT list into the temporary table, and it therefore returned
+# different results than the old optimizer, which evaluated RAND(1)
+# once per row. Now they both evaluate it once per row and should
+# produce the same results.
+SELECT RAND(1) r, COUNT(*) FROM t GROUP BY x ORDER BY r;
+DROP TABLE t;

@@ -1629,11 +1629,20 @@ TABLE *CreateTemporaryTableForSortingAggregates(
       temp_table_item = item;
     } else {
       temp_table_item = new Item_field(field);
-      // Field items have already been turned into copy_fields entries
-      // in create_tmp_table(), but non-field items have not.
-      if (item->type() != Item::FIELD_ITEM) {
+      // Field items have already been turned into copy_fields entries in
+      // create_tmp_table(), and most non-field items have been added to
+      // items_to_copy in create_tmp_field(). Aggregate functions have not been
+      // added, so add them here.
+      if (item->type() == Item::SUM_FUNC_ITEM) {
         temp_table_param->items_to_copy->push_back(Func_ptr{item});
       }
+
+      // Verify that all non-field items have been added to items_to_copy.
+      assert(item->real_item()->type() == Item::FIELD_ITEM ||
+             std::any_of(
+                 temp_table_param->items_to_copy->begin(),
+                 temp_table_param->items_to_copy->end(),
+                 [item](const Func_ptr &ptr) { return ptr.func() == item; }));
     }
     temp_table_item->hidden = item->hidden;
     fields->push_back(temp_table_item);

@@ -757,6 +757,7 @@ SELECT * FROM series, seq_calls;
 # and send() both evaluate next_seq_value() instead
 # of sharing the result between them. See the comment in
 # JOIN::create_access_path_for_join() for more details.
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
        GROUP BY t HAVING r = 1  ORDER BY t1.u;
 
