@@ -52,6 +52,7 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
    * @param create_registry_entries If true, initialisation will perform extra
    *        steps (which may potentially fail, thus you might prefer to disable
    *        them for mission-critical usage)
+   * @param event_source_name the event source name for event log entries
    *
    * @throw std::runtime_error on WinAPI calls failures
    */
