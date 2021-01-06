@@ -2355,17 +2355,12 @@ longlong Item_func_int_div::val_int() {
 
 bool Item_func_int_div::resolve_type(THD *thd) {
   if (param_type_uses_non_param(thd, MYSQL_TYPE_LONGLONG)) return true;
-  Item_result argtype = args[0]->result_type();
-  /* use precision ony for the data type it is applicable for and valid */
-  uint32 char_length =
-      args[0]->max_char_length() -
-      (argtype == DECIMAL_RESULT || argtype == INT_RESULT ? args[0]->decimals
-                                                          : 0);
-  fix_char_length(char_length > MY_INT64_NUM_DECIMAL_DIGITS
-                      ? MY_INT64_NUM_DECIMAL_DIGITS
-                      : char_length);
-  set_nullable(true);
+  uint precision = args[0]->decimal_precision();
   unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
+
+  fix_char_length(my_decimal_precision_to_length(precision, 0, unsigned_flag));
+
+  set_nullable(true);
   return reject_geometry_args(arg_count, args, this);
 }
 

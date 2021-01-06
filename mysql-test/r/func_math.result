@@ -2040,3 +2040,26 @@ iu	bu
 0	0
 DROP TABLE t1;
 SET sql_mode = DEFAULT;
+#
+# Bug #30156563 TYPE RESOLUTION OF DIV OPERATOR
+#               PRODUCES ONE LESS PRECISION.
+#
+SELECT 5.0 + 96 DIV 1;
+5.0 + 96 DIV 1
+101.0
+CREATE TABLE t1 SELECT
+5.0 + 96 DIV 1,                     # Dividend is integer
+5.0 + 96.1234 DIV 1,                # Dividend is decimal
+5.0 + '96' DIV 1,                   # Dividend is string
+5.0 + CAST('96' AS SIGNED) DIV 1,   # Dividend is function
+5.0 + CAST('96' AS UNSIGNED) DIV 1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `5.0 + 96 DIV 1` decimal(4,1) DEFAULT NULL,
+  `5.0 + 96.1234 DIV 1` decimal(8,1) DEFAULT NULL,
+  `5.0 + '96' DIV 1` decimal(4,1) DEFAULT NULL,
+  `5.0 + CAST('96' AS SIGNED) DIV 1` decimal(4,1) DEFAULT NULL,
+  `5.0 + CAST('96' AS UNSIGNED) DIV 1` decimal(4,1) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
