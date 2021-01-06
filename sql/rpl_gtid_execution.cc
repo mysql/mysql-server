@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,14 +54,14 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
 #ifndef DBUG_OFF
       global_sid_lock->unlock();
       global_sid_lock->wrlock();
-      DBUG_ASSERT(gtid_state->get_owned_gtids()->
-                  thread_owns_anything(thd->thread_id()));
+      assert(gtid_state->get_owned_gtids()->
+             thread_owns_anything(thd->thread_id()));
 #endif
       thd->owned_gtid.to_string(thd->owned_sid, buf);
     }
     else
     {
-      DBUG_ASSERT(gtid_state->get_anonymous_ownership_count() > 0);
+      assert(gtid_state->get_anonymous_ownership_count() > 0);
       strcpy(buf, "ANONYMOUS");
     }
     my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
@@ -69,7 +69,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
   }
 
   // At this point we should not own any GTID.
-  DBUG_ASSERT(thd->owned_gtid.is_empty());
+  assert(thd->owned_gtid.is_empty());
 
   if (spec.type == AUTOMATIC_GROUP)
   {
@@ -90,13 +90,13 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
   }
   else
   {
-    DBUG_ASSERT(spec.type == GTID_GROUP);
-    DBUG_ASSERT(spec.gtid.sidno >= 1);
-    DBUG_ASSERT(spec.gtid.gno >= 1);
+    assert(spec.type == GTID_GROUP);
+    assert(spec.gtid.sidno >= 1);
+    assert(spec.gtid.gno >= 1);
     while (true)
     {
       // loop invariant: we should always hold global_sid_lock.rdlock
-      DBUG_ASSERT(lock_count == 1);
+      assert(lock_count == 1);
       global_sid_lock->assert_some_lock();
 
       if (get_gtid_mode(GTID_MODE_LOCK_SID) == GTID_MODE_OFF)
@@ -126,8 +126,8 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
         // acquire_ownership can't fail
         gtid_state->acquire_ownership(thd, spec.gtid);
         thd->variables.gtid_next= spec;
-        DBUG_ASSERT(thd->owned_gtid.sidno >= 1);
-        DBUG_ASSERT(thd->owned_gtid.gno >= 1);
+        assert(thd->owned_gtid.sidno >= 1);
+        assert(thd->owned_gtid.gno >= 1);
         break;
       }
       // GTID owned by someone (other thread)
@@ -153,7 +153,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
              (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
         {
           // TODO: error is *not* reported on cancel
-          DBUG_ASSERT(thd->rli_slave!= NULL);
+          assert(thd->rli_slave!= NULL);
           Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
           if (c_rli->abort_slave)
           {
@@ -213,7 +213,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
         // break the do-loop and wait for the sid to be updated
         if (owner != 0)
         {
-          DBUG_ASSERT(owner != thd->id);
+          assert(owner != thd->id);
           break;
         }
       }
@@ -251,7 +251,7 @@ int gtid_acquire_ownership_multiple(THD *thd)
     if ((thd->system_thread &
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0)
     {
-      DBUG_ASSERT(thd->rli_slave != NULL);
+      assert(thd->rli_slave != NULL);
       Relay_log_info *c_rli= thd->rli_slave->get_c_rli();
       if (c_rli->abort_slave)
         DBUG_RETURN(1);
@@ -329,23 +329,23 @@ static inline bool is_already_logged_transaction(const THD *thd)
       if (thd->owned_gtid.sidno == 0)
         DBUG_RETURN(true);
       else
-        DBUG_ASSERT(thd->owned_gtid.equals(gtid_next->gtid));
+        assert(thd->owned_gtid.equals(gtid_next->gtid));
     }
     else
-      DBUG_ASSERT(thd->owned_gtid.sidno == 0 ||
-                  thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
+      assert(thd->owned_gtid.sidno == 0 ||
+             thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS);
   }
   else
   {
 #ifdef HAVE_GTID_NEXT_LIST
     if (gtid_next->type == GTID_GROUP)
     {
-      DBUG_ASSERT(gtid_next_list->contains_gtid(gtid_next->gtid));
+      assert(gtid_next_list->contains_gtid(gtid_next->gtid));
       if (!thd->owned_gtid_set.contains_gtid(gtid_next->gtid))
         DBUG_RETURN(true);
     }
 #else
-    DBUG_ASSERT(0);/*NOTREACHED*/
+    assert(0);/*NOTREACHED*/
 #endif
   }
 
@@ -374,7 +374,7 @@ static inline void skip_statement(const THD *thd)
   const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
   global_sid_lock->rdlock();
   gtid_state->lock_sidno(thd->variables.gtid_next.gtid.sidno);
-  DBUG_ASSERT(executed_gtids->contains_gtid(thd->variables.gtid_next.gtid));
+  assert(executed_gtids->contains_gtid(thd->variables.gtid_next.gtid));
   gtid_state->unlock_sidno(thd->variables.gtid_next.gtid.sidno);
   global_sid_lock->unlock();
 #endif
@@ -460,8 +460,8 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
                       "owned_gtid.{sidno,gno}={%d,%lld}",
                       gtid_next->type,
                       thd->owned_gtid.sidno, thd->owned_gtid.gno));
-  DBUG_ASSERT(gtid_next->type != AUTOMATIC_GROUP ||
-              thd->owned_gtid.is_empty());
+  assert(gtid_next->type != AUTOMATIC_GROUP ||
+         thd->owned_gtid.is_empty());
 
   if ((stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
        thd->lex->sql_command == SQLCOM_BEGIN) &&
@@ -560,13 +560,13 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
     case ANONYMOUS_GROUP:
       DBUG_RETURN(GTID_STATEMENT_EXECUTE);
     case INVALID_GROUP:
-      DBUG_ASSERT(0);/*NOTREACHED*/
+      assert(0);/*NOTREACHED*/
     }
 #else
-    DBUG_ASSERT(0);/*NOTREACHED*/
+    assert(0);/*NOTREACHED*/
 #endif
   }
-  DBUG_ASSERT(0);/*NOTREACHED*/
+  assert(0);/*NOTREACHED*/
   DBUG_RETURN(GTID_STATEMENT_CANCEL);
 }
 
@@ -628,7 +628,7 @@ void gtid_set_performance_schema_values(const THD *thd)
     // Thread does not own anything.
     else
     {
-      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
+      assert(thd->owned_gtid.sidno == 0);
       spec.type= AUTOMATIC_GROUP;
     }
     MYSQL_SET_TRANSACTION_GTID(thd->m_transaction_psi, &thd->owned_sid, &spec);

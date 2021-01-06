@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,8 +63,8 @@ void PFS_connection_iterator::visit_global(bool with_hosts, bool with_users,
                                            bool with_THDs,
                                            PFS_connection_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
-  DBUG_ASSERT(! with_threads || ! with_THDs);
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
 
   visitor->visit_global();
 
@@ -163,8 +163,8 @@ void PFS_connection_iterator::visit_host(PFS_host *host,
                                          bool with_THDs,
                                          PFS_connection_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
-  DBUG_ASSERT(! with_threads || ! with_THDs);
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
 
   visitor->visit_host(host);
 
@@ -252,8 +252,8 @@ void PFS_connection_iterator::visit_user(PFS_user *user,
                                          bool with_THDs,
                                          PFS_connection_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
-  DBUG_ASSERT(! with_threads || ! with_THDs);
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
 
   visitor->visit_user(user);
 
@@ -333,8 +333,8 @@ void PFS_connection_iterator::visit_account(PFS_account *account,
                                             bool with_THDs,
                                             PFS_connection_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
-  DBUG_ASSERT(! with_threads || ! with_THDs);
+  assert(visitor != NULL);
+  assert(! with_threads || ! with_THDs);
 
   visitor->visit_account(account);
 
@@ -363,7 +363,7 @@ void PFS_connection_iterator::visit_account(PFS_account *account,
 void PFS_connection_iterator::visit_THD(THD *thd,
                                         PFS_connection_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
   visitor->visit_THD(thd);
 }
 
@@ -504,7 +504,7 @@ void PFS_instance_iterator::visit_all_file_instances(PFS_instance_visitor *visit
 void PFS_instance_iterator::visit_mutex_instances(PFS_mutex_class *klass,
                                                   PFS_instance_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   visitor->visit_mutex_class(klass);
 
@@ -538,7 +538,7 @@ void PFS_instance_iterator::visit_mutex_instances(PFS_mutex_class *klass,
 void PFS_instance_iterator::visit_rwlock_instances(PFS_rwlock_class *klass,
                                                    PFS_instance_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   visitor->visit_rwlock_class(klass);
 
@@ -572,7 +572,7 @@ void PFS_instance_iterator::visit_rwlock_instances(PFS_rwlock_class *klass,
 void PFS_instance_iterator::visit_cond_instances(PFS_cond_class *klass,
                                                  PFS_instance_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   visitor->visit_cond_class(klass);
 
@@ -606,7 +606,7 @@ void PFS_instance_iterator::visit_cond_instances(PFS_cond_class *klass,
 void PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
                                                  PFS_instance_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   visitor->visit_file_class(klass);
 
@@ -642,7 +642,7 @@ void PFS_instance_iterator::visit_file_instances(PFS_file_class *klass,
 void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
                                                    PFS_instance_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   visitor->visit_socket_class(klass);
 
@@ -680,8 +680,8 @@ void PFS_instance_iterator::visit_socket_instances(PFS_socket_class *klass,
                                                    PFS_thread *thread,
                                                    bool visit_class)
 {
-  DBUG_ASSERT(visitor != NULL);
-  DBUG_ASSERT(thread != NULL);
+  assert(visitor != NULL);
+  assert(thread != NULL);
 
   if (visit_class)
     visitor->visit_socket_class(klass);
@@ -720,8 +720,8 @@ void PFS_instance_iterator::visit_instances(PFS_instr_class *klass,
                                             PFS_thread *thread,
                                             bool visit_class)
 {
-  DBUG_ASSERT(visitor != NULL);
-  DBUG_ASSERT(klass != NULL);
+  assert(visitor != NULL);
+  assert(klass != NULL);
 
   switch (klass->m_type)
   {
@@ -789,7 +789,7 @@ private:
 
 void PFS_object_iterator::visit_all_tables(PFS_object_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   visitor->visit_global();
 
@@ -826,7 +826,7 @@ private:
 void PFS_object_iterator::visit_tables(PFS_table_share *share,
                                        PFS_object_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   if (!share->m_enabled)
     return;
@@ -869,7 +869,7 @@ void PFS_object_iterator::visit_table_indexes(PFS_table_share *share,
                                               uint index,
                                               PFS_object_visitor *visitor)
 {
-  DBUG_ASSERT(visitor != NULL);
+  assert(visitor != NULL);
 
   if (!share->m_enabled)
     return;
@@ -905,8 +905,8 @@ void PFS_connection_wait_visitor::visit_global()
     For waits, do not sum by connection but by instances,
     it is more efficient.
   */
-  DBUG_ASSERT(   (m_index == global_idle_class.m_event_name_index)
-              || (m_index == global_metadata_class.m_event_name_index));
+  assert(   (m_index == global_idle_class.m_event_name_index)
+            || (m_index == global_metadata_class.m_event_name_index));
 
   if (m_index == global_idle_class.m_event_name_index)
   {
@@ -968,7 +968,7 @@ PFS_connection_all_wait_visitor::~PFS_connection_all_wait_visitor()
 void PFS_connection_all_wait_visitor::visit_global()
 {
   /* Sum by instances, not by connection */
-  DBUG_ASSERT(false);
+  assert(false);
 }
 
 void PFS_connection_all_wait_visitor::visit_connection_slice(PFS_connection_slice *pfs)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -225,7 +225,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
     keypart_map= (((key_part_map)1) << (2*SPDIMS)) - 1;
 
   /* only key prefixes are supported */
-  DBUG_ASSERT(((keypart_map+1) & keypart_map) == 0);
+  assert(((keypart_map+1) & keypart_map) == 0);
 
   for (keyseg= info->s->keyinfo[keynr].seg ; keyseg->type && keypart_map;
        old+= keyseg->length, keyseg++)
@@ -571,7 +571,7 @@ ulonglong retrieve_auto_increment(MI_INFO *info,const uchar *record)
     value= uint8korr(key);
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
     value=0;                                    /* Error */
     break;
   }

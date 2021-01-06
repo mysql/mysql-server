@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,9 +179,9 @@ public:
 
   void sanity_check() const
   {
-    DBUG_ASSERT(foo1 == test_value);
-    DBUG_ASSERT(foo2 == test_value);
-    DBUG_ASSERT(buf  == buffer);
+    assert(foo1 == test_value);
+    assert(foo2 == test_value);
+    assert(buf  == buffer);
   }
 
   bool sign() const { return decimal_t::sign; }
@@ -223,8 +223,8 @@ extern my_decimal decimal_zero;
 inline
 void max_my_decimal(my_decimal *to, int precision, int frac)
 {
-  DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION)&&
-              (frac <= DECIMAL_MAX_SCALE));
+  assert((precision <= DECIMAL_MAX_PRECISION)&&
+         (frac <= DECIMAL_MAX_SCALE));
   max_decimal(precision, frac, to);
 }
 
@@ -255,7 +255,7 @@ inline uint my_decimal_length_to_precision(uint length, uint scale,
                                            bool unsigned_flag)
 {
   /* Precision can't be negative thus ignore unsigned_flag when length is 0. */
-  DBUG_ASSERT(length || !scale);
+  assert(length || !scale);
   uint retval= (uint) (length - (scale>0 ? 1:0) -
                  (unsigned_flag || !length ? 0:1));
   return retval;
@@ -269,7 +269,7 @@ inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
     When precision is 0 it means that original length was also 0. Thus
     unsigned_flag is ignored in this case.
   */
-  DBUG_ASSERT(precision || !scale);
+  assert(precision || !scale);
   uint32 retval= (uint32)(precision + (scale > 0 ? 1 : 0) +
                   (unsigned_flag || !precision ? 0 : 1));
   return retval;
@@ -282,7 +282,7 @@ inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,
     When precision is 0 it means that original length was also 0. Thus
     unsigned_flag is ignored in this case.
   */
-  DBUG_ASSERT(precision || !scale);
+  assert(precision || !scale);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   return my_decimal_precision_to_length_no_truncation(precision, scale,
                                                       unsigned_flag);

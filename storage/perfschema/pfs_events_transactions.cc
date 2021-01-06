@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ void insert_events_transactions_history(PFS_thread *thread, PFS_events_transacti
   if (unlikely(events_transactions_history_per_thread == 0))
     return;
 
-  DBUG_ASSERT(thread->m_transactions_history != NULL);
+  assert(thread->m_transactions_history != NULL);
 
   uint index= thread->m_transactions_history_index;
 
@@ -133,7 +133,7 @@ void insert_events_transactions_history_long(PFS_events_transactions *transactio
   if (unlikely(events_transactions_history_long_size == 0))
     return ;
 
-  DBUG_ASSERT(events_transactions_history_long_array != NULL);
+  assert(events_transactions_history_long_array != NULL);
 
   uint index= PFS_atomic::add_u32(&events_transactions_history_long_index.m_u32, 1);
 
@@ -252,7 +252,7 @@ bool xid_printable(PSI_xid *xid, size_t offset, size_t length)
   if (xid->is_null())
     return false;
 
-  DBUG_ASSERT(offset + length <= MYSQL_XIDDATASIZE);
+  assert(offset + length <= MYSQL_XIDDATASIZE);
 
   unsigned char *c= (unsigned char*)&xid->data + offset;
 

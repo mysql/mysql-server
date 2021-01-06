@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,14 +77,14 @@ struct st_my_thread_var
 
 static struct st_my_thread_var *mysys_thread_var()
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
+  assert(THR_KEY_mysys_initialized);
   return  (struct st_my_thread_var*)my_get_thread_local(THR_KEY_mysys);
 }
 
 
 static int set_mysys_thread_var(struct st_my_thread_var *mysys_var)
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
+  assert(THR_KEY_mysys_initialized);
   return my_set_thread_local(THR_KEY_mysys, mysys_var);
 }
 #endif
@@ -101,7 +101,7 @@ static int set_mysys_thread_var(struct st_my_thread_var *mysys_var)
 
 void my_thread_global_reinit()
 {
-  DBUG_ASSERT(my_thread_global_init_done);
+  assert(my_thread_global_init_done);
 
 #ifdef HAVE_PSI_INTERFACE
   my_init_mysys_psi_keys();
@@ -178,7 +178,7 @@ my_bool my_thread_global_init()
                             PTHREAD_MUTEX_ERRORCHECK);
 #endif
 
-  DBUG_ASSERT(! THR_KEY_mysys_initialized);
+  assert(! THR_KEY_mysys_initialized);
 #ifndef DBUG_OFF
   if ((pth_ret= my_create_thread_local_key(&THR_KEY_mysys, NULL)) != 0)
   { /* purecov: begin inspected */
@@ -256,7 +256,7 @@ void my_thread_global_end()
   mysql_mutex_unlock(&THR_LOCK_threads);
 #endif
 
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
+  assert(THR_KEY_mysys_initialized);
 #ifndef DBUG_OFF
   my_delete_thread_local_key(THR_KEY_mysys);
 #endif
@@ -374,7 +374,7 @@ void my_thread_end()
       my_thread_init() and DBUG_xxxx
     */
     mysql_mutex_lock(&THR_LOCK_threads);
-    DBUG_ASSERT(THR_thread_count != 0);
+    assert(THR_thread_count != 0);
     if (--THR_thread_count == 0)
       mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
@@ -433,7 +433,7 @@ struct _db_code_state_ **my_thread_var_dbug()
 {
   struct st_my_thread_var *tmp;
   /*
-    Instead of enforcing DBUG_ASSERT(THR_KEY_mysys_initialized) here,
+    Instead of enforcing assert(THR_KEY_mysys_initialized) here,
     which causes any DBUG_ENTER and related traces to fail when
     used in init / cleanup code, we are more tolerant:
     using DBUG_ENTER / DBUG_PRINT / DBUG_RETURN

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ inline bool Session_consistency_gtids_ctx::shall_collect(const THD* thd)
 bool Session_consistency_gtids_ctx::notify_after_transaction_commit(const THD* thd)
 {
   DBUG_ENTER("Rpl_consistency_ctx::notify_after_transaction_commit");
-  DBUG_ASSERT(thd);
+  assert(thd);
   bool res= false;
 
   if (!shall_collect(thd))
@@ -91,7 +91,7 @@ bool Session_consistency_gtids_ctx::notify_after_transaction_commit(const THD* t
 bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD *thd)
 {
   DBUG_ENTER("Rpl_consistency_ctx::notify_after_gtid_executed_update");
-  DBUG_ASSERT(thd);
+  assert(thd);
   bool res= false;
 
   if (!shall_collect(thd))
@@ -99,17 +99,17 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
 
   if (m_curr_session_track_gtids == OWN_GTID)
   {
-    DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
-    DBUG_ASSERT(thd->owned_gtid.sidno > 0);
+    assert(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
+    assert(thd->owned_gtid.sidno > 0);
     const Gtid& gtid= thd->owned_gtid;
     if (gtid.sidno == -1) // we need to add thd->owned_gtid_set
     {
       /* Caller must only call this function if the set was not empty. */
 #ifdef HAVE_GTID_NEXT_LIST
-      DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
+      assert(!thd->owned_gtid_set.is_empty());
       res= m_gtid_set->add_gtid_set(&thd->owned_gtid_set) != RETURN_STATUS_OK;
 #else
-      DBUG_ASSERT(0);
+      assert(0);
 #endif
     }
     else if (gtid.sidno > 0) // only one gtid
@@ -124,7 +124,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(const THD 
       */
       rpl_sidno local_set_sidno= m_sid_map->add_sid(thd->owned_sid);
 
-      DBUG_ASSERT(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
+      assert(!m_gtid_set->contains_gtid(local_set_sidno, gtid.gno));
       res= m_gtid_set->ensure_sidno(local_set_sidno) != RETURN_STATUS_OK;
       if (!res)
         m_gtid_set->_add_gtid(local_set_sidno, gtid.gno);
@@ -164,10 +164,10 @@ Session_consistency_gtids_ctx::register_ctx_change_listener(
               Session_consistency_gtids_ctx::Ctx_change_listener* listener,
               THD* thd)
 {
-  DBUG_ASSERT(m_listener == NULL || m_listener == listener);
+  assert(m_listener == NULL || m_listener == listener);
   if (m_listener == NULL)
   {
-    DBUG_ASSERT(m_sid_map == NULL && m_gtid_set == NULL);
+    assert(m_sid_map == NULL && m_gtid_set == NULL);
     m_listener= listener;
     m_sid_map= new Sid_map(NULL);
     m_gtid_set= new Gtid_set(m_sid_map);
@@ -184,7 +184,7 @@ Session_consistency_gtids_ctx::register_ctx_change_listener(
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
              Session_consistency_gtids_ctx::Ctx_change_listener* listener)
 {
-  DBUG_ASSERT(m_listener == listener || m_listener == NULL);
+  assert(m_listener == listener || m_listener == NULL);
 
   if (m_gtid_set)
     delete m_gtid_set;

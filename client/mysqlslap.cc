@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1990,13 +1990,13 @@ limit_not_met:
           Just in case someone runs this under an experimental engine we don't
           want a crash so the if() is placed here.
         */
-        DBUG_ASSERT(primary_keys_number_of);
+        assert(primary_keys_number_of);
         if (primary_keys_number_of)
         {
           key_val= (unsigned int)(random() % primary_keys_number_of);
           key= primary_keys[key_val];
 
-          DBUG_ASSERT(key);
+          assert(key);
 
           length= snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'", 
                            (int)ptr->length, ptr->string, key);

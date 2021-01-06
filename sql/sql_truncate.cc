@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,13 +156,13 @@ fk_truncate_illegal_if_parent(THD *thd, TABLE *table)
   /* Loop over the set of foreign keys for which this table is a parent. */
   while ((fk_info= it++))
   {
-    DBUG_ASSERT(!my_strcasecmp(system_charset_info,
-                               fk_info->referenced_db->str,
-                               table->s->db.str));
+    assert(!my_strcasecmp(system_charset_info,
+                          fk_info->referenced_db->str,
+                          table->s->db.str));
 
-    DBUG_ASSERT(!my_strcasecmp(system_charset_info,
-                               fk_info->referenced_table->str,
-                               table->s->table_name.str));
+    assert(!my_strcasecmp(system_charset_info,
+                          fk_info->referenced_table->str,
+                          table->s->table_name.str));
 
     if (my_strcasecmp(system_charset_info, fk_info->foreign_db->str,
                       table->s->db.str) ||
@@ -216,7 +216,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
   if (!is_tmp_table)
   {
     /* We don't need to load triggers. */
-    DBUG_ASSERT(table_ref->trg_event_map == 0);
+    assert(table_ref->trg_event_map == 0);
     /*
       Our metadata lock guarantees that no transaction is reading
       or writing into the table. Yet, to open a write cursor we need
@@ -343,9 +343,9 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   DBUG_ENTER("Sql_cmd_truncate_table::lock_table");
 
   /* Lock types are set in the parser. */
-  DBUG_ASSERT(table_ref->lock_type == TL_WRITE);
+  assert(table_ref->lock_type == TL_WRITE);
   /* The handler truncate protocol dictates a exclusive lock. */
-  DBUG_ASSERT(table_ref->mdl_request.type == MDL_EXCLUSIVE);
+  assert(table_ref->mdl_request.type == MDL_EXCLUSIVE);
 
   /*
     Before doing anything else, acquire a metadata lock on the table,
@@ -373,7 +373,7 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   else
   {
     /* Acquire an exclusive lock. */
-    DBUG_ASSERT(table_ref->next_global == NULL);
+    assert(table_ref->next_global == NULL);
     if (lock_table_names(thd, table_ref, NULL,
                          thd->variables.lock_wait_timeout, 0))
       DBUG_RETURN(TRUE);
@@ -430,8 +430,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
-  DBUG_ASSERT((!table_ref->table) ||
-              (table_ref->table && table_ref->table->s));
+  assert((!table_ref->table) ||
+         (table_ref->table && table_ref->table->s));
 
   /* Initialize, or reinitialize in case of reexecution (SP). */
   m_ticket_downgrade= NULL;
@@ -450,8 +450,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       if ((error= recreate_temporary_table(thd, tmp_table)))
         binlog_stmt= FALSE; /* No need to binlog failed truncate-by-recreate. */
 
-      DBUG_ASSERT(! thd->get_transaction()->cannot_safely_rollback(
-        Transaction_ctx::STMT));
+      assert(! thd->get_transaction()->cannot_safely_rollback(
+                                                              Transaction_ctx::STMT));
     }
     else
     {

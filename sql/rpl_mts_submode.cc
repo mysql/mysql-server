@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
   DBUG_ENTER("Mts_submode_database::attach_temp_tables");
   if (!is_mts_worker(thd) || (ev->ends_group() || ev->starts_group()))
     DBUG_VOID_RETURN;
-  DBUG_ASSERT(!thd->temporary_tables);
+  assert(!thd->temporary_tables);
   // in over max-db:s case just one special partition is locked
   parts= ((ev->mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ? 1 :
            ev->mts_accessed_dbs);
@@ -123,7 +123,7 @@ Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
 
     entry= (db_worker_hash_entry*) my_hash_element(hash, i);
 
-    DBUG_ASSERT(entry);
+    assert(entry);
 
     // the ignore Worker retains its active resources
     if (ignore && entry->worker == ignore && entry->usage > 0)
@@ -245,21 +245,21 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
           break;
       }
     }
-    DBUG_ASSERT(db_name && (
-                !strcmp(table->s->db.str, db_name) ||
-                !strlen(db_name))
-                );
-    DBUG_ASSERT(i < ev->mts_accessed_dbs);
+    assert(db_name && (
+                       !strcmp(table->s->db.str, db_name) ||
+                       !strlen(db_name))
+           );
+    assert(i < ev->mts_accessed_dbs);
     // table pointer is shifted inside the function
     table= mts_move_temp_table_to_entry(table, thd, ev->mts_assigned_partitions[i]);
   }
 
-  DBUG_ASSERT(!thd->temporary_tables);
+  assert(!thd->temporary_tables);
 #ifndef DBUG_OFF
   for (int i= 0; i < parts; i++)
   {
-    DBUG_ASSERT(!ev->mts_assigned_partitions[i]->temporary_tables ||
-                !ev->mts_assigned_partitions[i]->temporary_tables->prev);
+    assert(!ev->mts_assigned_partitions[i]->temporary_tables ||
+           !ev->mts_assigned_partitions[i]->temporary_tables->prev);
   }
 #endif
   DBUG_VOID_RETURN;
@@ -291,7 +291,7 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
     sql_print_information("Chosing worker id %lu, the following is"
                           " going to be %lu", worker->id,
                           static_cast<ulong>(w_rr % ws->size()));
-    DBUG_ASSERT(worker != NULL);
+    assert(worker != NULL);
     DBUG_RETURN(worker);
   }
 #endif
@@ -305,7 +305,7 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
       usage= (*ptr_current_worker)->usage_partition;
     }
   }
-  DBUG_ASSERT(worker != NULL);
+  assert(worker != NULL);
   DBUG_RETURN(worker);
 }
 
@@ -386,9 +386,9 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
     timestamp continuity invariant: if the queue has any item
     its timestamp is greater on one than the estimate.
   */
-  DBUG_ASSERT(lwm_estim == SEQ_UNINIT || rli->gaq->empty() ||
-              lwm_estim + 1 ==
-              rli->gaq->get_job_group(rli->gaq->entry)->sequence_number);
+  assert(lwm_estim == SEQ_UNINIT || rli->gaq->empty() ||
+         lwm_estim + 1 ==
+         rli->gaq->get_job_group(rli->gaq->entry)->sequence_number);
 
   last_lwm_index=
     rli->gaq->find_lwm(&ptr_g,
@@ -406,7 +406,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
   if (last_lwm_index != rli->gaq->size)
   {
     // non-decreasing lwm invariant
-    DBUG_ASSERT(clock_leq(last_lwm_timestamp, ptr_g->sequence_number));
+    assert(clock_leq(last_lwm_timestamp, ptr_g->sequence_number));
 
     last_lwm_timestamp= ptr_g->sequence_number;
   }
@@ -469,7 +469,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
 
   mysql_mutex_lock(&rli->mts_gaq_LOCK);
 
-  DBUG_ASSERT(min_waited_timestamp == SEQ_UNINIT);
+  assert(min_waited_timestamp == SEQ_UNINIT);
 
   my_atomic_store64(&min_waited_timestamp, last_committed_arg);
   /*
@@ -485,7 +485,7 @@ wait_for_last_committed_trx(Relay_log_info* rli,
     struct timespec ts[2];
     set_timespec_nsec(&ts[0], 0);
 
-    DBUG_ASSERT(rli->gaq->len >= 2); // there's someone to wait
+    assert(rli->gaq->len >= 2); // there's someone to wait
 
     thd->ENTER_COND(&rli->logical_clock_cond, &rli->mts_gaq_LOCK,
                     &stage_worker_waiting_for_commit_parent, &old_stage);
@@ -604,7 +604,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       DBUG_PRINT("info", ("sequence_number gap found, "
                           "last_sequence_number %lld, sequence_number %lld",
                           last_sequence_number, sequence_number));
-      DBUG_ASSERT(rli->replicate_same_server_id || true /* TODO: account autopositioning */);
+      assert(rli->replicate_same_server_id || true /* TODO: account autopositioning */);
       gap_successor= true;
     }
   }
@@ -679,18 +679,18 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       */
       if (gap_successor)
         last_lwm_timestamp= sequence_number - 1;
-      DBUG_ASSERT(!clock_leq(sequence_number, estimate_lwm_timestamp()));
+      assert(!clock_leq(sequence_number, estimate_lwm_timestamp()));
     }
 
     delegated_jobs++;
 
-    DBUG_ASSERT(!force_new_group);
+    assert(!force_new_group);
   }
   else
   {
-    DBUG_ASSERT(delegated_jobs >= jobs_done);
-    DBUG_ASSERT(is_error || (rli->gaq->len + jobs_done == 1 + delegated_jobs));
-    DBUG_ASSERT(rli->mts_group_status == Relay_log_info::MTS_IN_GROUP);
+    assert(delegated_jobs >= jobs_done);
+    assert(is_error || (rli->gaq->len + jobs_done == 1 + delegated_jobs));
+    assert(rli->mts_group_status == Relay_log_info::MTS_IN_GROUP);
 
     /*
       Under the new group fall the following use cases:
@@ -705,7 +705,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       DBUG_RETURN (ER_MTS_INCONSISTENT_DATA);
 
     rli->mts_group_status= Relay_log_info::MTS_IN_GROUP; //wait set it to NOT
-    DBUG_ASSERT(min_waited_timestamp == SEQ_UNINIT);
+    assert(min_waited_timestamp == SEQ_UNINIT);
     /*
       the instant last lwm timestamp must reset when force flag is up.
     */
@@ -725,7 +725,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
 
 #ifndef DBUG_OFF
   mysql_mutex_lock(&rli->mts_gaq_LOCK);
-  DBUG_ASSERT(is_error || (rli->gaq->len + jobs_done == delegated_jobs));
+  assert(is_error || (rli->gaq->len + jobs_done == delegated_jobs));
   mysql_mutex_unlock(&rli->mts_gaq_LOCK);
 #endif
   DBUG_RETURN(0);
@@ -750,7 +750,7 @@ Mts_submode_logical_clock::attach_temp_tables(THD *thd, const Relay_log_info* rl
     DBUG_VOID_RETURN;
   /* fetch coordinator's rli */
   Relay_log_info *c_rli= static_cast<const Slave_worker *>(rli)->c_rli;
-  DBUG_ASSERT(!thd->temporary_tables);
+  assert(!thd->temporary_tables);
   mysql_mutex_lock(&c_rli->mts_temp_table_LOCK);
   if (!(table= c_rli->info_thd->temporary_tables))
   {
@@ -848,7 +848,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     sql_print_information("Chosing worker id %lu, the following is"
                           " going to be %lu", worker->id,
                           static_cast<ulong>(w_rr % ws->size()));
-    DBUG_ASSERT(worker != NULL);
+    assert(worker != NULL);
     DBUG_RETURN(worker);
   }
   Slave_committed_queue *gaq= rli->gaq;
@@ -869,15 +869,15 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   if (rli->last_assigned_worker)
   {
     worker= rli->last_assigned_worker;
-    DBUG_ASSERT(ev->get_type_code() != binary_log::USER_VAR_EVENT || worker->id == 0 ||
-                rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
+    assert(ev->get_type_code() != binary_log::USER_VAR_EVENT || worker->id == 0 ||
+           rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
   }
   else
   {
     worker= get_free_worker(rli);
 
-    DBUG_ASSERT(ev->get_type_code() != binary_log::USER_VAR_EVENT ||
-                rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
+    assert(ev->get_type_code() != binary_log::USER_VAR_EVENT ||
+           rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
 
     if (worker == NULL)
     {
@@ -923,10 +923,10 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
       rli->get_commit_order_manager()->register_trx(worker);
   }
 
-  DBUG_ASSERT(ptr_group);
+  assert(ptr_group);
   // assert that we have a worker thread for this event or the slave has
   // stopped.
-  DBUG_ASSERT(worker != NULL || thd->killed);
+  assert(worker != NULL || thd->killed);
   /* The master my have send  db partition info. make sure we never use them*/
   if (ev->get_type_code() == binary_log::QUERY_EVENT)
     static_cast<Query_log_event*>(ev)->mts_accessed_dbs= 0;
@@ -1000,8 +1000,8 @@ Mts_submode_logical_clock::
   DBUG_EXECUTE_IF("wait_for_workers_to_finish_after_wait",
                   {
                     const char act[]= "now WAIT_FOR coordinator_continue";
-                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(rli->info_thd,
+                                                  STRING_WITH_LEN(act)));
                   });
 
   // The current commit point sequence may end here (e.g Rotate to new log)
@@ -1029,7 +1029,7 @@ Mts_submode_logical_clock::get_server_and_thread_id(TABLE* table)
   char* extra_string= table->s->table_cache_key.str;
   size_t extra_string_len= table->s->table_cache_key.length;
   // assert will fail when called with non temporary tables.
-  DBUG_ASSERT(table->s->table_cache_key.length > 0);
+  assert(table->s->table_cache_key.length > 0);
   std::pair<uint, my_thread_id>ret_pair= std::make_pair
     (
       /* last 8  bytes contains the server_id + pseudo_thread_id */

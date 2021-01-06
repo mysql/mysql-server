@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,9 +59,9 @@ protected:
   void set(const char *str_arg, size_t length_arg)
   {
     // NULL is allowed only with length==0
-    DBUG_ASSERT(str_arg || length_arg == 0);
+    assert(str_arg || length_arg == 0);
     // For non-NULL, make sure length_arg is in sync with '\0' terminator.
-    DBUG_ASSERT(!str_arg || str_arg[length_arg] == '\0');
+    assert(!str_arg || str_arg[length_arg] == '\0');
     m_str= str_arg;
     m_length= length_arg;
   }
@@ -207,8 +207,8 @@ public:
   const char *ptr() const { return m_ptr; }
   char *c_ptr()
   {
-    DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
-                (m_alloced_length >= (m_length + 1)));
+    assert(!m_is_alloced || !m_ptr || !m_alloced_length ||
+           (m_alloced_length >= (m_length + 1)));
 
     if (!m_ptr || m_ptr[m_length])		/* Should be safe */
       (void) mem_realloc(m_length);
@@ -242,7 +242,7 @@ public:
 
   void set(String &str,size_t offset, size_t arg_length)
   {
-    DBUG_ASSERT(&str != this);
+    assert(&str != this);
     mem_free();
     m_ptr= const_cast<char*>(str.ptr()) + offset;
     m_length= arg_length;
@@ -324,7 +324,7 @@ public:
   {
     m_length--;
     m_ptr[m_length]= '\0';
-    DBUG_ASSERT(strlen(m_ptr) == m_length);
+    assert(strlen(m_ptr) == m_length);
   }
 
   void mem_claim()
@@ -391,7 +391,7 @@ public:
         It is forbidden to do assignments like
         some_string = substring_of_that_string
        */
-      DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+      assert(!s.uses_buffer_owned_by(this));
       mem_free();
       m_ptr= s.m_ptr;
       m_length= s.m_length;
@@ -411,9 +411,9 @@ public:
   */
   void takeover(String &s)
   {
-    DBUG_ASSERT(this != &s);
+    assert(this != &s);
     // Make sure buffers of the two Strings do not overlap
-    DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+    assert(!s.uses_buffer_owned_by(this));
     mem_free();
     m_ptr= s.m_ptr;
     m_length= s.m_length;

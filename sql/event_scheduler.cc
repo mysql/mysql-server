@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
       sql_print_information("%*s", static_cast<int>(err_msg.length()), err_msg.c_ptr());
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
     }
   }
   DBUG_VOID_RETURN;
@@ -312,11 +312,11 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   Event_job_data job_data;
   bool res;
 
-  DBUG_ASSERT(thd->m_digest == NULL);
+  assert(thd->m_digest == NULL);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
-  DBUG_ASSERT(thd->m_statement_psi == NULL);
+  assert(thd->m_statement_psi == NULL);
   thd->m_statement_psi= MYSQL_START_STATEMENT(& state,
                                               event->get_psi_info()->m_key,
                                               event->dbname.str,
@@ -357,7 +357,7 @@ end:
   thd->m_statement_psi= NULL;
 #endif
 
-  DBUG_ASSERT(thd->m_digest == NULL);
+  assert(thd->m_digest == NULL);
 
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
@@ -540,7 +540,7 @@ Event_scheduler::run(THD *thd)
     }
     else
     {
-      DBUG_ASSERT(thd->killed);
+      assert(thd->killed);
       DBUG_PRINT("info", ("job_data is NULL, the thread was killed"));
     }
     DBUG_PRINT("info", ("state=%s", scheduler_states_names[state].str));

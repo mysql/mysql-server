@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,7 +239,7 @@ public:
   const char *pop_expr_start_ptr()
   {
 #ifndef DBUG_OFF
-    DBUG_ASSERT(m_expr_start_ptr);
+    assert(m_expr_start_ptr);
     const char *p= m_expr_start_ptr;
     m_expr_start_ptr= NULL;
     return p;
@@ -258,7 +258,7 @@ public:
   */
   void push_expr_start_ptr(const char *expr_start_ptr)
   {
-    DBUG_ASSERT(!m_expr_start_ptr);
+    assert(!m_expr_start_ptr);
     m_expr_start_ptr= expr_start_ptr;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -330,7 +330,7 @@ public:
       other Error
   */
   virtual int init_ror_merged_scan(bool reuse_handler)
-  { DBUG_ASSERT(0); return 1; }
+  { assert(0); return 1; }
 
   /*
     Save ROWID of last retrieved row in file->ref. This used in ROR-merging.
@@ -604,7 +604,7 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
+  void need_sorted_output() { assert(false); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() const { return false; }
@@ -696,7 +696,7 @@ public:
   ~QUICK_ROR_INTERSECT_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
+  void need_sorted_output() { assert(false); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() const { return false; }
@@ -795,7 +795,7 @@ public:
   ~QUICK_ROR_UNION_SELECT();
 
   int  init();
-  void need_sorted_output() { DBUG_ASSERT(false); /* Can't do it */ }
+  void need_sorted_output() { assert(false); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() const { return false; }

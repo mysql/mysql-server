@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1555,7 +1555,7 @@ my_bool _mi_memmap_file(MI_INFO *info)
 
 void _mi_unmap_file(MI_INFO *info)
 {
-  DBUG_ASSERT(info->s->options & HA_OPTION_COMPRESS_RECORD);
+  assert(info->s->options & HA_OPTION_COMPRESS_RECORD);
 
   (void) my_munmap((char*) info->s->file_map, (size_t) info->s->mmaped_length);
 
@@ -1668,7 +1668,7 @@ uint save_pack_length(uint version, uchar *block_buff, ulong length)
   *(uchar*) block_buff=255;
   if (version == 1) /* old format */
   {
-    DBUG_ASSERT(length <= 0xFFFFFF);
+    assert(length <= 0xFFFFFF);
     int3store(block_buff + 1, (ulong) length);
     return 4;
   }

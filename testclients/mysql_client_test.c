@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -13427,7 +13427,7 @@ static void test_bug9520()
 
   if (!opt_silent)
     printf("Fetched %d rows\n", row_count);
-  DBUG_ASSERT(row_count == 3);
+  assert(row_count == 3);
 
   mysql_stmt_close(stmt);
 
@@ -18880,7 +18880,7 @@ static void test_bug49972()
 
     rc= mysql_stmt_fetch(stmt);
     rc= mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);
@@ -18908,7 +18908,7 @@ static void test_bug49972()
 
     rc= mysql_stmt_fetch(stmt);
     rc= mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);

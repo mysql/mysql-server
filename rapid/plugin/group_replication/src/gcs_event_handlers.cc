@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -278,7 +278,7 @@ Plugin_gcs_events_handler::on_suspicions(const std::vector<Gcs_member_identifier
   if (members.empty() && unreachable.empty()) // nothing to do
     return; /* purecov: inspected */
 
-  DBUG_ASSERT(members.size() >= unreachable.size());
+  assert(members.size() >= unreachable.size());
 
   std::vector<Gcs_member_identifier> tmp_unreachable(unreachable);
   std::vector<Gcs_member_identifier>::const_iterator mit;
@@ -711,7 +711,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
   for(it= all_members_info->begin(); it != all_members_info->end(); it++)
   {
 #ifndef DBUG_OFF
-    DBUG_ASSERT(!(n > 1));
+    assert(!(n > 1));
 #endif
 
     Group_member_info* member= *it;
@@ -773,7 +773,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
       {
         Group_member_info* mi= *it;
 
-        DBUG_ASSERT(mi);
+        assert(mi);
         if (mi &&
             mi->get_recovery_status() == Group_member_info::MEMBER_ONLINE)
           the_primary= mi;
@@ -920,7 +920,7 @@ update_group_info_manager(const Gcs_view& new_view,
   temporary_states->clear();
 
 err:
-  DBUG_ASSERT(temporary_states->size() == 0);
+  assert(temporary_states->size() == 0);
   return error;
 }
 

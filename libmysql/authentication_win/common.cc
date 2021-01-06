@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ int opt_auth_win_log_level= 2;
 
 Connection::Connection(MYSQL_PLUGIN_VIO *vio): m_vio(vio), m_error(0)
 {
-  DBUG_ASSERT(vio);
+  assert(vio);
 }
 
 
@@ -422,7 +422,7 @@ char* wchar_to_utf8(const wchar_t *string, size_t *len)
 #endif
 
   // Let's check our assumption about sufficient buffer size
-  DBUG_ASSERT(ERROR_INSUFFICIENT_BUFFER != GetLastError());
+  assert(ERROR_INSUFFICIENT_BUFFER != GetLastError());
 
   return NULL;
 }
@@ -487,7 +487,7 @@ wchar_t* utf8_to_wchar(const char *string, size_t *len)
 #endif
 
   // Let's check our assumption about sufficient buffer size
-  DBUG_ASSERT(ERROR_INSUFFICIENT_BUFFER != GetLastError());
+  assert(ERROR_INSUFFICIENT_BUFFER != GetLastError());
 
   return NULL;
 }

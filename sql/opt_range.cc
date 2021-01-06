@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -508,7 +508,7 @@ public:
     use_count(1), left(NULL), right(NULL),
     next_key_part(0), color(BLACK), type(type_arg)
   {
-    DBUG_ASSERT(type_arg == MAYBE_KEY || type_arg == IMPOSSIBLE);
+    assert(type_arg == MAYBE_KEY || type_arg == IMPOSSIBLE);
   }
   /**
     returns true if a range predicate is equal. Use all_same()
@@ -644,8 +644,8 @@ public:
    */
   void set_gis_index_read_function(const enum ha_rkey_function rkey_func)
   {
-    DBUG_ASSERT(rkey_func >= HA_READ_MBR_CONTAIN &&
-                rkey_func <= HA_READ_MBR_EQUAL);
+    assert(rkey_func >= HA_READ_MBR_CONTAIN &&
+           rkey_func <= HA_READ_MBR_EQUAL);
     min_flag= GEOM_FLAG;
     rkey_func_flag= rkey_func;
     max_flag= NO_MAX_RANGE;
@@ -1367,7 +1367,7 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
     get_mm_tree() has constructed all ranges. In other words, there
     should not be any ROR scans to copy when this ctor is called.
   */
-  DBUG_ASSERT(n_ror_scans == 0);
+  assert(n_ror_scans == 0);
 }
 
 
@@ -1489,7 +1489,7 @@ static bool imerge_list_or_tree(RANGE_OPT_PARAM *param,
     else if (result_or == -1)
       DBUG_RETURN(true);
   }
-  DBUG_ASSERT(remaining_trees == 0);
+  assert(remaining_trees == 0);
   DBUG_RETURN(im1->is_empty());
 }
 
@@ -1835,7 +1835,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan");
 
   /* Initialize all merged "children" quick selects */
-  DBUG_ASSERT(!need_to_fetch_row || reuse_handler);
+  assert(!need_to_fetch_row || reuse_handler);
   if (!need_to_fetch_row && reuse_handler)
   {
     quick= quick_it++;
@@ -1858,8 +1858,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
     // Sets are shared by all members of "quick_selects" so must not change
-    DBUG_ASSERT(quick->head->read_set == save_read_set);
-    DBUG_ASSERT(quick->head->write_set == save_write_set);
+    assert(quick->head->read_set == save_read_set);
+    assert(quick->head->write_set == save_write_set);
     /* All merged scans share the same record buffer in intersection. */
     quick->record= head->record[0];
   }
@@ -2084,8 +2084,8 @@ QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
   min_key= static_cast<uchar*>(sql_memdup(min_key_arg, min_length_arg + 1));
   max_key= static_cast<uchar*>(sql_memdup(max_key_arg, max_length_arg + 1));
   // If we get is_null_string as argument, the memdup is undefined behavior.
-  DBUG_ASSERT(min_key_arg != is_null_string);
-  DBUG_ASSERT(max_key_arg != is_null_string);
+  assert(min_key_arg != is_null_string);
+  assert(max_key_arg != is_null_string);
 }
 
 SEL_ARG::SEL_ARG(SEL_ARG &arg)
@@ -2108,7 +2108,7 @@ SEL_ARG::SEL_ARG(SEL_ARG &arg)
   next_key_part(arg.next_key_part),
   type(arg.type)
 {
-  DBUG_ASSERT(arg.type != MAYBE_KEY);  // Would need left=right=NULL
+  assert(arg.type != MAYBE_KEY);  // Would need left=right=NULL
 }
 
 
@@ -2385,7 +2385,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
                                  Opt_trace_object *trace_object) const
 {
 #ifdef OPTIMIZER_TRACE
-  DBUG_ASSERT(param->using_real_indexes);
+  assert(param->using_real_indexes);
   const uint keynr_in_table= param->real_keynr[key_idx];
 
   const KEY &cur_key= param->table->key_info[keynr_in_table];
@@ -2397,7 +2397,7 @@ void TRP_RANGE::trace_basic_info(const PARAM *param,
   Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
 
   // TRP_RANGE should not be created if there are no range intervals
-  DBUG_ASSERT(key);
+  assert(key);
 
   String range_info;
   range_info.set_charset(system_charset_info);
@@ -4100,7 +4100,7 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
            The only case where we can get "no satisfying subpartitions"
            returned from the above call is when an error has occurred.
         */
-        DBUG_ASSERT(range_par->thd->is_error());
+        assert(range_par->thd->is_error());
         return 0;
       }
 
@@ -4611,7 +4611,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   DBUG_ENTER("get_best_disjunct_quick");
   DBUG_PRINT("info", ("Full table scan cost: %g", cost_est->total_cost()));
 
-  DBUG_ASSERT(param->table->file->stats.records);
+  assert(param->table->file->stats.records);
 
   Opt_trace_context * const trace= &param->thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
@@ -5338,7 +5338,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
            has_records_per_key(tuple_arg->part))       // (3)
       {
         DBUG_EXECUTE_IF("crash_records_in_range", DBUG_SUICIDE(););
-        DBUG_ASSERT(min_range.length > 0);
+        assert(min_range.length > 0);
         records=
           table->file->records_in_range(scan->keynr, &min_range, &max_range);
       }
@@ -5373,7 +5373,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
     selectivity_mult *= tmp;
   }
   // Todo: This assert fires in PB sysqa RQG tests.
-  // DBUG_ASSERT(selectivity_mult <= 1.0);
+  // assert(selectivity_mult <= 1.0);
   DBUG_PRINT("info", ("Returning multiplier: %g", selectivity_mult));
   DBUG_RETURN(selectivity_mult);
 }
@@ -6860,7 +6860,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   {
     Item *const arg_left= cond_func->arguments()[0];
 
-    DBUG_ASSERT (!ftree);
+    assert (!ftree);
     if (!(arg_left->used_tables() & OUTER_REF_TABLE_BIT) &&
         arg_left->real_item()->type() == Item::FIELD_ITEM)
     {
@@ -7137,7 +7137,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
                                              MEM_ROOT *memroot)
 {
   // A SEL_ARG should not have been created for this predicate yet.
-  DBUG_ASSERT(*tree == NULL);
+  assert(*tree == NULL);
 
   if (!value->can_be_evaluated_now())
   {
@@ -7326,7 +7326,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     */
   }
 
-  DBUG_ASSERT(FALSE); // Should never get here.
+  assert(FALSE); // Should never get here.
 
 impossible_cond:
   *tree= new (memroot) SEL_ARG(field, 0, 0);
@@ -8075,8 +8075,8 @@ and_all_keys(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2,
   if (key1->type == SEL_ARG::MAYBE_KEY)
   {
     // See todo for left/right pointers
-    DBUG_ASSERT(!key1->left);
-    DBUG_ASSERT(!key1->right);
+    assert(!key1->left);
+    assert(!key1->right);
     key1->next= key1->prev= 0;
   }
   for (next=key1->first(); next ; next=next->next)
@@ -9434,7 +9434,7 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
   if (this == root && use_count != 1)
   {
     sql_print_information("Use_count: Wrong count %lu for root",use_count);
-    // DBUG_ASSERT(false); // Todo - enable and clean up mess
+    // assert(false); // Todo - enable and clean up mess
     return true;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
@@ -9450,7 +9450,7 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
         sql_print_information("Use_count: Wrong count for key at 0x%lx, %lu "
                               "should be %lu", (long unsigned int)pos,
                               pos->next_key_part->use_count, count);
-        // DBUG_ASSERT(false); // Todo - enable and clean up mess
+        // assert(false); // Todo - enable and clean up mess
 	return true;
       }
       pos->next_key_part->test_use_count(root);
@@ -9460,7 +9460,7 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
   {
     sql_print_warning("Wrong use count: %u (should be %u) for tree at 0x%lx",
                       e_count, elements, (long unsigned int) this);
-    // DBUG_ASSERT(false); // Todo - enable and clean up mess
+    // assert(false); // Todo - enable and clean up mess
     return true;
   }
   return false;
@@ -9582,7 +9582,7 @@ public:
 
   void stack_pop_range()
   {
-    DBUG_ASSERT(!stack_empty());
+    assert(!stack_empty());
     if (curr_kp == 0)
       reset();
     else 
@@ -9623,7 +9623,7 @@ range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges, uint flags)
 void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
 {
 
-  DBUG_ASSERT((uint)curr_kp+1 < MAX_REF_PARTS);
+  assert((uint)curr_kp+1 < MAX_REF_PARTS);
 
   RANGE_SEQ_ENTRY *push_position= &stack[curr_kp + 1];
   RANGE_SEQ_ENTRY *last_added_kp= stack_top();
@@ -9748,7 +9748,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       if (key_tree->next)
       {
         /* This keypart has more ranges */
-        DBUG_ASSERT(key_tree->next != &null_element);
+        assert(key_tree->next != &null_element);
         key_tree= key_tree->next;
 
         /*
@@ -9773,7 +9773,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     }
   }
 
-  DBUG_ASSERT(!seq->stack_empty());
+  assert(!seq->stack_empty());
 
   /*
     Add range info for the next keypart if
@@ -9887,7 +9887,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
     seq->stack_push_range(key_tree);
   }
 
-  DBUG_ASSERT(!seq->stack_empty() && (seq->stack_top() != NULL));
+  assert(!seq->stack_empty() && (seq->stack_top() != NULL));
 
   // We now have a full range predicate in seq->stack_top()
   RANGE_SEQ_ENTRY *cur= seq->stack_top();
@@ -9907,7 +9907,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       Spatial operators are only allowed on spatial indexes, and no
       spatial index can at the moment return rows in ROWID order
     */
-    DBUG_ASSERT(!param->is_ror_scan);
+    assert(!param->is_ror_scan);
   }
   else
   {
@@ -10682,7 +10682,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
 
   cur_quick_it.rewind();
   cur_quick= cur_quick_it++;
-  DBUG_ASSERT(cur_quick != 0);
+  assert(cur_quick != 0);
   
   DBUG_EXECUTE_IF("simulate_bug13919180",
                   {
@@ -10712,8 +10712,8 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
     filesort_free_buffers(head, false);
   }
 
-  DBUG_ASSERT(file->ref_length == unique->get_size());
-  DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
+  assert(file->ref_length == unique->get_size());
+  assert(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
 
   if (!unique)
     DBUG_RETURN(1);
@@ -11294,7 +11294,7 @@ int QUICK_RANGE_SELECT::get_next_prefix(uint prefix_length,
     if (last_range)
     {
       /* Read the next record in the same range with prefix after cur_prefix. */
-      DBUG_ASSERT(cur_prefix != NULL);
+      assert(cur_prefix != NULL);
       result= file->ha_index_read_map(record, cur_prefix, keypart_map,
                                       HA_READ_AFTER_KEY);
       if (result || last_range->max_keypart_map == 0)
@@ -11559,11 +11559,11 @@ int QUICK_SELECT_DESC::get_next()
     }
     else
     {
-      DBUG_ASSERT(last_range->flag & NEAR_MAX ||
-                  (last_range->flag & EQ_RANGE && 
-                   used_key_parts >
-                   head->key_info[index].user_defined_key_parts) ||
-                  range_reads_after_key(last_range));
+      assert(last_range->flag & NEAR_MAX ||
+             (last_range->flag & EQ_RANGE && 
+              used_key_parts >
+              head->key_info[index].user_defined_key_parts) ||
+             range_reads_after_key(last_range));
       result= file->ha_index_read_map(record, last_range->max_key,
                                       last_range->max_keypart_map,
                                       ((last_range->flag & NEAR_MAX) ?
@@ -12296,7 +12296,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
           first Item? If so, then why? What is the array for?
         */
         /* Above we already checked that all group items are fields. */
-        DBUG_ASSERT((*tmp_group->item)->real_item()->type() == Item::FIELD_ITEM);
+        assert((*tmp_group->item)->real_item()->type() == Item::FIELD_ITEM);
         Item_field *group_field= (Item_field *) (*tmp_group->item)->real_item();
         if (group_field->field->eq(cur_part->field))
         {
@@ -12336,7 +12336,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, const Cost_estimate *cost_e
       {
         /* (SA5) already checked above. */
         item_field= (Item_field*) item->real_item(); 
-        DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+        assert(item->real_item()->type() == Item::FIELD_ITEM);
 
         /* not doing loose index scan for derived tables */
         if (!item_field->field)
@@ -12663,7 +12663,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
                                Field::imagetype image_type)
 {
   DBUG_ENTER("check_group_min_max_predicates");
-  DBUG_ASSERT(cond && min_max_arg_item);
+  assert(cond && min_max_arg_item);
 
   cond= cond->real_item();
   Item::Type cond_type= cond->type();
@@ -12738,7 +12738,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
    additional oddball cases which might benefit from this
    optimization.
   */
-  DBUG_ASSERT(cond_type == Item::FUNC_ITEM);
+  assert(cond_type == Item::FUNC_ITEM);
   if (cond_type != Item::FUNC_ITEM)
   {
     DBUG_RETURN(FALSE);
@@ -12877,7 +12877,7 @@ min_max_inspect_cond_for_fields(Item *cond, Item_field *min_max_arg_item,
                                 bool *non_min_max_arg_present)
 {
   DBUG_ENTER("inspect_cond_for_fields");
-  DBUG_ASSERT(cond && min_max_arg_item);
+  assert(cond && min_max_arg_item);
 
   cond= cond->real_item();
   Item::Type cond_type= cond->type();
@@ -13135,7 +13135,7 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
         to a "null value" (a copy of is_null_string) that we do not
         memcmp(), or memcpy to a field.
       */
-      DBUG_ASSERT (field_length > 0);
+      assert (field_length > 0);
       *key_ptr= 1;
       key_ptr+= field_length;
       *key_infix_len+= field_length;
@@ -13299,7 +13299,7 @@ void cost_group_min_max(TABLE* table, uint key, uint used_key_parts,
   double quick_prefix_selectivity;
   double io_blocks;       // Number of blocks to read from table
   DBUG_ENTER("cost_group_min_max");
-  DBUG_ASSERT(cost_est->is_zero());
+  assert(cost_est->is_zero());
 
   const KEY *const index_info= &table->key_info[key];
   table_records= table->file->stats.records;
@@ -13446,7 +13446,7 @@ TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool retrieve_full_rows,
 
   if (range_tree)
   {
-    DBUG_ASSERT(quick_prefix_records > 0);
+    assert(quick_prefix_records > 0);
     if (quick_prefix_records == HA_POS_ERROR)
       quick->quick_prefix_select= NULL; /* Can't construct a quick select. */
     else
@@ -13566,7 +13566,7 @@ QUICK_GROUP_MIN_MAX_SELECT(TABLE *table, JOIN *join_arg, bool have_min_arg,
     We can't have parent_alloc set as the init function can't handle this case
     yet.
   */
-  DBUG_ASSERT(!parent_alloc);
+  assert(!parent_alloc);
   if (!parent_alloc)
   {
     init_sql_alloc(key_memory_quick_group_min_max_select_root,
@@ -13939,7 +13939,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
     {
       is_last_prefix= key_cmp(index_info->key_part, last_prefix,
                               group_prefix_len);
-      DBUG_ASSERT(is_last_prefix <= 0);
+      assert(is_last_prefix <= 0);
     }
     else 
     {
@@ -13962,8 +13962,8 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
       if (max_res == 0)
         update_max_result();
       /* If a MIN was found, a MAX must have been found as well. */
-      DBUG_ASSERT((have_max && !have_min) ||
-                  (have_max && have_min && (max_res == 0)));
+      assert((have_max && !have_min) ||
+             (have_max && have_min && (max_res == 0)));
     }
     /*
       If this is just a GROUP BY or DISTINCT without MIN or MAX and there
@@ -14253,7 +14253,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
   bool found_null= FALSE;
   int result= HA_ERR_KEY_NOT_FOUND;
 
-  DBUG_ASSERT(min_max_ranges.size() > 0);
+  assert(min_max_ranges.size() > 0);
 
   /* Search from the left-most range to the right. */
   for (Quick_ranges::const_iterator it= min_max_ranges.begin();
@@ -14348,7 +14348,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min_in_range()
       }
     }
     /* If we got to this point, the current key qualifies as MIN. */
-    DBUG_ASSERT(result == 0);
+    assert(result == 0);
     break;
   }
   /*
@@ -14392,7 +14392,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range()
   key_part_map keypart_map;
   int result;
 
-  DBUG_ASSERT(min_max_ranges.size() > 0);
+  assert(min_max_ranges.size() > 0);
 
   /* Search from the right-most range to the left. */
   for (Quick_ranges::const_iterator it= min_max_ranges.end();
@@ -14845,12 +14845,12 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
                                       const KEY_PART_INFO *key_parts,
                                       const bool print_full)
 {
-  DBUG_ASSERT(keypart_root && keypart_root != &null_element);
+  assert(keypart_root && keypart_root != &null_element);
 
   const bool append_to_trace= (range_trace != NULL);
 
   // Either add info to range_string or to range_trace
-  DBUG_ASSERT(append_to_trace ? !range_string : (range_string != NULL));
+  assert(append_to_trace ? !range_string : (range_string != NULL));
 
   // Navigate to first interval in red-black tree
   const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;

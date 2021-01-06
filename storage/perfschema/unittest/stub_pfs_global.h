@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ void *pfs_malloc(PFS_builtin_memory_class *klass, size_t size, myf)
   /*
     Catch non initialized sizing parameter in the unit tests.
   */
-  DBUG_ASSERT(size <= 100*1024*1024);
+  assert(size <= 100*1024*1024);
 
   if (stub_alloc_always_fails)
     return NULL;

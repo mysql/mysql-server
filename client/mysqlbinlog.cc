@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ rewrite_db(char **buf, ulong *buf_size,
   if (new_db_it == map_mysqlbinlog_rewrite_db.end())
     return false;
   const char *new_db=new_db_it->second.c_str();
-  DBUG_ASSERT(new_db && new_db != old_db);
+  assert(new_db && new_db != old_db);
 
   size_t new_db_len= strlen(new_db);
 
@@ -2336,7 +2336,7 @@ static Exit_status dump_single_log(PRINT_EVENT_INFO *print_event_info,
       rc= dump_remote_log_entries(print_event_info, logname);
     break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
     break;
   }
   DBUG_RETURN(rc);
@@ -2605,7 +2605,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
 
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    assert(command_size == (allocation_size - 1));
   }
   else
   {
@@ -2647,7 +2647,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     global_sid_lock->unlock();
 
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    assert(command_size == (allocation_size - 1));
   }
 
   if (simple_command(mysql, command, command_buffer, command_size, 1))
@@ -2834,7 +2834,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       
       if (type == binary_log::LOAD_EVENT)
       {
-        DBUG_ASSERT(raw_mode);
+        assert(raw_mode);
         warning("Attempting to load a remote pre-4.0 binary log that contains "
                 "LOAD DATA INFILE statements. The file will not be copied from "
                 "the remote server. ");

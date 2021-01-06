@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,9 +131,9 @@ void Table_cache::check_unused()
     while ((entry= it++))
     {
       /* We must not have TABLEs in the free list that have their file closed. */
-      DBUG_ASSERT(entry->db_stat && entry->file);
+      assert(entry->db_stat && entry->file);
       /* Merge children should be detached from a merge parent */
-      DBUG_ASSERT(! entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+      assert(! entry->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
       if (entry->in_use)
         DBUG_PRINT("error",("Used table is in share's list of unused tables"));
@@ -369,7 +369,7 @@ void Table_cache_manager::free_table(THD *thd,
 
 #ifndef DBUG_OFF
       if (remove_type == TDC_RT_REMOVE_ALL)
-        DBUG_ASSERT(cache_el[i]->used_tables.is_empty());
+        assert(cache_el[i]->used_tables.is_empty());
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
                remove_type == TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE)
       {
@@ -377,7 +377,7 @@ void Table_cache_manager::free_table(THD *thd,
         while ((table= it2++))
         {
           if (table->in_use != thd)
-            DBUG_ASSERT(0);
+            assert(0);
         }
       }
 #endif

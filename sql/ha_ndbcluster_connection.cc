@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -218,7 +218,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   }
   else
   {
-    DBUG_ASSERT(res == -1);
+    assert(res == -1);
     DBUG_PRINT("error", ("permanent error"));
     sql_print_error("NDB: error (%u) %s",
                     g_ndb_cluster_connection->get_latest_error(),

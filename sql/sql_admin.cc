@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     goto end;					// No data file
 
   /* A MERGE table must not come here. */
-  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
+  assert(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -676,7 +676,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           require upgrade. So we don't need to pre-open them before calling
           mysql_recreate_table().
         */
-        DBUG_ASSERT(! table->table->s->tmp_table);
+        assert(! table->table->s->tmp_table);
 
         trans_rollback_stmt(thd);
         trans_rollback(thd);
@@ -913,7 +913,7 @@ send_result_message:
       protocol->store(operator_name, system_charset_info);
       if (result_code) // either mysql_recreate_table or analyze failed
       {
-        DBUG_ASSERT(thd->is_error() || thd->killed);
+        assert(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
           const char *err_msg= thd->get_stmt_da()->message_text();
@@ -1346,7 +1346,7 @@ bool Sql_cmd_alter_instance::execute(THD *thd)
       alter_instance= new Rotate_innodb_master_key(thd);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");
       DBUG_RETURN(true);
   }

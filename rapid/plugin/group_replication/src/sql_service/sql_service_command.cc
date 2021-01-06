@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ int Sql_service_command_interface::
 establish_session_connection(enum_plugin_con_isolation isolation_param,
                              void *plugin_pointer)
 {
-  DBUG_ASSERT(m_server_interface == NULL);
+  assert(m_server_interface == NULL);
 
   int error = 0;
   connection_thread_isolation= isolation_param;
@@ -153,7 +153,7 @@ internal_set_super_read_only(Sql_service_interface *sql_interface)
 {
   DBUG_ENTER("Sql_service_commands::internal_set_super_read_only");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   Sql_resultset rset;
   long srv_err= sql_interface->execute_query("SET GLOBAL super_read_only= 1;");
@@ -163,7 +163,7 @@ internal_set_super_read_only(Sql_service_interface *sql_interface)
     long err;
     err = sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
 
-    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 1);
+    assert(!err && rset.get_rows() > 0 && rset.getLong(0) == 1);
     log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=ON.");
 #endif
   }
@@ -176,7 +176,7 @@ internal_set_read_only(Sql_service_interface *sql_interface)
 {
   DBUG_ENTER("Sql_service_commands::internal_set_read_only");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   Sql_resultset rset;
   long srv_err= sql_interface->execute_query("SET GLOBAL read_only= 1;");
@@ -184,7 +184,7 @@ internal_set_read_only(Sql_service_interface *sql_interface)
   {
 #ifndef DBUG_OFF
     sql_interface->execute_query("SELECT @@GLOBAL.read_only;", &rset);
-    DBUG_ASSERT(rset.getLong(0) == 1);
+    assert(rset.getLong(0) == 1);
     log_message(MY_INFORMATION_LEVEL, "Setting read_only=ON.");
 #endif
   }
@@ -223,7 +223,7 @@ internal_reset_super_read_only(Sql_service_interface *sql_interface)
 {
   DBUG_ENTER("Sql_service_commands::internal_reset_super_read_only");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   Sql_resultset rset;
 
@@ -236,7 +236,7 @@ internal_reset_super_read_only(Sql_service_interface *sql_interface)
     query= "SELECT @@GLOBAL.super_read_only;";
     err= sql_interface->execute_query(query, &rset);
 
-    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
+    assert(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
     log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=OFF.");
   }
 #endif
@@ -267,7 +267,7 @@ internal_reset_read_only(Sql_service_interface *sql_interface)
 {
   DBUG_ENTER("Sql_service_commands::internal_reset_read_only");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   Sql_resultset rset;
 
@@ -281,7 +281,7 @@ internal_reset_read_only(Sql_service_interface *sql_interface)
     query= "SELECT @@GLOBAL.read_only";
     err= sql_interface->execute_query(query, &rset);
 
-    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
+    assert(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
     log_message(MY_INFORMATION_LEVEL, "Setting read_only=OFF.");
   }
 #endif
@@ -294,7 +294,7 @@ long Sql_service_command_interface::kill_session(uint32_t session_id,
 {
   DBUG_ENTER("Sql_service_command_interface::kill_session");
 
-  DBUG_ASSERT(m_server_interface != NULL);
+  assert(m_server_interface != NULL);
 
   Sql_resultset rset;
   long srv_err= 0;
@@ -341,7 +341,7 @@ internal_get_server_super_read_only(Sql_service_interface *sql_interface)
 {
   DBUG_ENTER("Sql_service_commands::internal_get_server_super_read_only");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   Sql_resultset rset;
   long server_super_read_only= -1;
@@ -380,7 +380,7 @@ internal_get_server_read_only(Sql_service_interface *sql_interface)
 {
   DBUG_ENTER("Sql_service_commands::internal_get_server_read_only");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   Sql_resultset rset;
   longlong server_read_only= -1;
@@ -399,7 +399,7 @@ int Sql_service_command_interface::get_server_gtid_executed(string& gtid_execute
   long error=0;
 
   /* No support for this method on thread isolation mode */
-  DBUG_ASSERT(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
+  assert(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD)
   {
@@ -417,7 +417,7 @@ internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
 {
   DBUG_ENTER("Sql_service_command_interface::get_server_gtid_executed");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   Sql_resultset rset;
   long srv_err=
@@ -438,7 +438,7 @@ wait_for_server_gtid_executed(std::string& gtid_executed,
   long error=0;
 
   /* No support for this method on thread isolation mode */
-  DBUG_ASSERT(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
+  assert(connection_thread_isolation != PSESSION_DEDICATED_THREAD);
 
   if (connection_thread_isolation != PSESSION_DEDICATED_THREAD)
   {
@@ -457,7 +457,7 @@ internal_wait_for_server_gtid_executed(Sql_service_interface *sql_interface,
 {
   DBUG_ENTER("Sql_service_commands::internal_wait_for_server_gtid_executed");
 
-  DBUG_ASSERT(sql_interface != NULL);
+  assert(sql_interface != NULL);
 
   DBUG_EXECUTE_IF("sql_int_wait_for_gtid_executed_no_timeout", { timeout= 0; });
 
@@ -623,10 +623,10 @@ Session_plugin_thread::terminate_session_thread()
       mysql_mutex_unlock(&m_run_lock);
       DBUG_RETURN(1);
     }
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!m_session_thread_running);
+  assert(!m_session_thread_running);
 
   while (!this->incoming_methods->empty())
   {

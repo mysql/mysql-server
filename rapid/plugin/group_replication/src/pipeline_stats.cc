@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -233,7 +233,7 @@ void
 Pipeline_stats_member_collector::increment_transactions_waiting_apply()
 {
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
-  DBUG_ASSERT(my_atomic_load32(&m_transactions_waiting_apply) >= 0);
+  assert(my_atomic_load32(&m_transactions_waiting_apply) >= 0);
   my_atomic_add32(&m_transactions_waiting_apply, 1);
   mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
@@ -245,7 +245,7 @@ Pipeline_stats_member_collector::decrement_transactions_waiting_apply()
   mysql_mutex_lock(&m_transactions_waiting_apply_lock);
   if (m_transactions_waiting_apply > 0)
     my_atomic_add32(&m_transactions_waiting_apply, -1);
-  DBUG_ASSERT(my_atomic_load32(&m_transactions_waiting_apply) >= 0);
+  assert(my_atomic_load32(&m_transactions_waiting_apply) >= 0);
   mysql_mutex_unlock(&m_transactions_waiting_apply_lock);
 }
 
@@ -626,7 +626,7 @@ Flow_control_module::flow_control_step()
       break;
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 }
 

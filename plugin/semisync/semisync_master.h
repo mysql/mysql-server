@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,7 +194,7 @@ public:
     }
 
     /* Node does not find should never happen */
-    DBUG_ASSERT(0);
+    assert(0);
     return 1;
   }
 

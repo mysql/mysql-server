@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -627,7 +627,7 @@ size_t build_tmptable_filename(THD* thd, char *buff, size_t bufflen)
   DBUG_ENTER("build_tmptable_filename");
 
   char *p= my_stpnmov(buff, mysql_tmpdir, bufflen);
-  DBUG_ASSERT(sizeof(my_thread_id) == 4);
+  assert(sizeof(my_thread_id) == 4);
   my_snprintf(p, bufflen - (p - buff), "/%s%lx_%lx_%x",
               tmp_file_prefix, current_pid,
               thd->thread_id(), thd->tmp_table++);
@@ -851,8 +851,8 @@ static uint read_ddl_log_header()
     entry_no= uint4korr(&file_entry_buf[DDL_LOG_NUM_ENTRY_POS]);
     global_ddl_log.name_len= uint4korr(&file_entry_buf[DDL_LOG_NAME_LEN_POS]);
     global_ddl_log.io_size= uint4korr(&file_entry_buf[DDL_LOG_IO_SIZE_POS]);
-    DBUG_ASSERT(global_ddl_log.io_size <=
-                sizeof(global_ddl_log.file_entry_buf));
+    assert(global_ddl_log.io_size <=
+           sizeof(global_ddl_log.file_entry_buf));
   }
   else
   {
@@ -883,25 +883,25 @@ static void set_global_from_ddl_log_entry(const DDL_LOG_ENTRY *ddl_log_entry)
   global_ddl_log.file_entry_buf[DDL_LOG_PHASE_POS]= 0;
   int4store(&global_ddl_log.file_entry_buf[DDL_LOG_NEXT_ENTRY_POS],
             ddl_log_entry->next_entry);
-  DBUG_ASSERT(strlen(ddl_log_entry->name) < FN_REFLEN);
+  assert(strlen(ddl_log_entry->name) < FN_REFLEN);
   strmake(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS],
           ddl_log_entry->name, FN_REFLEN - 1);
   if (ddl_log_entry->action_type == DDL_LOG_RENAME_ACTION ||
       ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION ||
       ddl_log_entry->action_type == DDL_LOG_EXCHANGE_ACTION)
   {
-    DBUG_ASSERT(strlen(ddl_log_entry->from_name) < FN_REFLEN);
+    assert(strlen(ddl_log_entry->from_name) < FN_REFLEN);
     strmake(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + FN_REFLEN],
           ddl_log_entry->from_name, FN_REFLEN - 1);
   }
   else
     global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + FN_REFLEN]= 0;
-  DBUG_ASSERT(strlen(ddl_log_entry->handler_name) < FN_REFLEN);
+  assert(strlen(ddl_log_entry->handler_name) < FN_REFLEN);
   strmake(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + (2*FN_REFLEN)],
           ddl_log_entry->handler_name, FN_REFLEN - 1);
   if (ddl_log_entry->action_type == DDL_LOG_EXCHANGE_ACTION)
   {
-    DBUG_ASSERT(strlen(ddl_log_entry->tmp_name) < FN_REFLEN);
+    assert(strlen(ddl_log_entry->tmp_name) < FN_REFLEN);
     strmake(&global_ddl_log.file_entry_buf[DDL_LOG_NAME_POS + (3*FN_REFLEN)],
           ddl_log_entry->tmp_name, FN_REFLEN - 1);
   }
@@ -1091,18 +1091,18 @@ static bool deactivate_ddl_log_entry_no_lock(uint entry_no)
         file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= DDL_IGNORE_LOG_ENTRY_CODE;
       else if (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_REPLACE_ACTION)
       {
-        DBUG_ASSERT(file_entry_buf[DDL_LOG_PHASE_POS] == 0);
+        assert(file_entry_buf[DDL_LOG_PHASE_POS] == 0);
         file_entry_buf[DDL_LOG_PHASE_POS]= 1;
       }
       else if (file_entry_buf[DDL_LOG_ACTION_TYPE_POS] == DDL_LOG_EXCHANGE_ACTION)
       {
-        DBUG_ASSERT(file_entry_buf[DDL_LOG_PHASE_POS] <=
-                                                 EXCH_PHASE_FROM_TO_NAME);
+        assert(file_entry_buf[DDL_LOG_PHASE_POS] <=
+               EXCH_PHASE_FROM_TO_NAME);
         file_entry_buf[DDL_LOG_PHASE_POS]++;
       }
       else
       {
-        DBUG_ASSERT(0);
+        assert(0);
       }
       if (write_ddl_log_file_entry(entry_no))
       {
@@ -1194,7 +1194,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
             if (my_errno() != ENOENT)
               break;
           }
-          DBUG_ASSERT(strcmp("partition", ddl_log_entry->handler_name));
+          assert(strcmp("partition", ddl_log_entry->handler_name));
           strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
           if (access(to_path, F_OK) == 0)
           {
@@ -1218,7 +1218,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         if (ddl_log_entry->action_type == DDL_LOG_DELETE_ACTION)
           break;
       }
-      DBUG_ASSERT(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
+      assert(ddl_log_entry->action_type == DDL_LOG_REPLACE_ACTION);
       /*
         Fall through and perform the rename action of the replace
         action. We have already indicated the success of the delete
@@ -1235,7 +1235,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         strxmov(from_path, ddl_log_entry->from_name, reg_ext, NullS);
         if (mysql_file_rename(key_file_frm, from_path, to_path, MYF(MY_WME)))
           break;
-        DBUG_ASSERT(strcmp("partition", ddl_log_entry->handler_name));
+        assert(strcmp("partition", ddl_log_entry->handler_name));
         strxmov(to_path, ddl_log_entry->name, par_ext, NullS);
         strxmov(from_path, ddl_log_entry->from_name, par_ext, NullS);
         if (access(from_path, F_OK) == 0)
@@ -1263,7 +1263,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       /* We hold LOCK_gdl, so we can alter global_ddl_log.file_entry_buf */
       char *file_entry_buf= (char*)&global_ddl_log.file_entry_buf;
       /* not yet implemented for frm */
-      DBUG_ASSERT(!frm_action);
+      assert(!frm_action);
       /*
         Using a case-switch here to revert all currently done phases,
         since it will fall through until the first phase is undone.
@@ -1304,14 +1304,14 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           error= FALSE;
           break;
         default:
-          DBUG_ASSERT(0);
+          assert(0);
           break;
       }
 
       break;
     }
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   delete file;
@@ -1401,8 +1401,8 @@ static bool execute_ddl_log_entry_no_lock(THD *thd, uint first_entry)
       error= true;
       break;
     }
-    DBUG_ASSERT(ddl_log_entry.entry_type == DDL_LOG_ENTRY_CODE ||
-                ddl_log_entry.entry_type == DDL_IGNORE_LOG_ENTRY_CODE);
+    assert(ddl_log_entry.entry_type == DDL_LOG_ENTRY_CODE ||
+           ddl_log_entry.entry_type == DDL_IGNORE_LOG_ENTRY_CODE);
 
     if ((error= execute_ddl_log_action(thd, &ddl_log_entry)))
     {
@@ -1863,7 +1863,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     }
     if (lpt->table->file->ht != lpt->create_info->db_type)
     {
-      DBUG_ASSERT(lpt->create_info->db_type->partition_flags != NULL);
+      assert(lpt->create_info->db_type->partition_flags != NULL);
       new_handler= get_new_handler(NULL, lpt->thd->mem_root,
                                    lpt->create_info->db_type);
       if (new_handler == NULL)
@@ -2156,7 +2156,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
             table locked with LOCK TABLES as a side effect of temporary
             table drop.
           */
-          DBUG_ASSERT(table->mdl_request.ticket == NULL);
+          assert(table->mdl_request.ticket == NULL);
         }
         else
         {
@@ -2360,10 +2360,10 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       the ticket should be NULL to ensure that we don't release a lock
       on a base table later.
     */
-    DBUG_ASSERT(!(thd->locked_tables_mode &&
-                  table->open_type != OT_BASE_ONLY &&
-                  find_temporary_table(thd, table) &&
-                  table->mdl_request.ticket != NULL));
+    assert(!(thd->locked_tables_mode &&
+             table->open_type != OT_BASE_ONLY &&
+             find_temporary_table(thd, table) &&
+             table->mdl_request.ticket != NULL));
 
     thd->add_to_binlog_accessed_dbs(table->db);
 
@@ -2377,7 +2377,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       error= 1;
     else if ((error= drop_temporary_table(thd, table, &is_trans)) == -1)
     {
-      DBUG_ASSERT(thd->in_sub_stmt);
+      assert(thd->in_sub_stmt);
       goto err;
     }
 
@@ -2449,9 +2449,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
 
       /* Check that we have an exclusive lock on the table to be dropped. */
-      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                     table->db, table->table_name,
-                                     MDL_EXCLUSIVE));
+      assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                          table->db, table->table_name,
+                                                          MDL_EXCLUSIVE));
       if (thd->killed)
       {
         error= -1;
@@ -3039,7 +3039,7 @@ int prepare_create_field(Create_field *sql_field,
     This code came from mysql_prepare_create_table.
     Indent preserved to make patching easier
   */
-  DBUG_ASSERT(sql_field->charset);
+  assert(sql_field->charset);
 
   switch (sql_field->sql_type) {
   case MYSQL_TYPE_BLOB:
@@ -3415,7 +3415,7 @@ static bool check_duplicate_key(THD *thd, const char *error_schema_name,
       Key_part_spec *c1= key_column_iterator++;
       Key_part_spec *c2= k_column_iterator++;
   
-      DBUG_ASSERT(c1 && c2);
+      assert(c1 && c2);
 
       if (my_strcasecmp(system_charset_info,
                         c1->field_name.str, c2->field_name.str) ||
@@ -3610,7 +3610,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
         int comma_length= cs->cset->wc_mb(cs, ',', (uchar*) comma_buf,
                                           (uchar*) comma_buf + 
                                           sizeof(comma_buf));
-        DBUG_ASSERT(comma_length > 0);
+        assert(comma_length > 0);
         for (uint i= 0; (tmp= int_it++); i++)
         {
           size_t lengthsp;
@@ -3684,7 +3684,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
       else  /* MYSQL_TYPE_ENUM */
       {
         size_t field_length;
-        DBUG_ASSERT(sql_field->sql_type == MYSQL_TYPE_ENUM);
+        assert(sql_field->sql_type == MYSQL_TYPE_ENUM);
         if (sql_field->def != NULL)
         {
           String str, *def= sql_field->def->val_str(&str);
@@ -3822,7 +3822,7 @@ mysql_prepare_create_table(THD *thd, const char *error_schema_name,
   it.rewind();
   while ((sql_field=it++))
   {
-    DBUG_ASSERT(sql_field->charset != 0);
+    assert(sql_field->charset != 0);
 
     if (prepare_create_field(sql_field, &blob_columns, 
 			     file->ha_table_flags()))
@@ -4794,7 +4794,7 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
                           FIELDFLAG_TREAT_BIT_AS_CHAR;
   }
   sql_field->create_length_to_internal_length();
-  DBUG_ASSERT(sql_field->def == 0);
+  assert(sql_field->def == 0);
   /* Can't go wrong as sql_field->def is not defined */
   (void) prepare_blob_field(thd, sql_field);
 }
@@ -4937,7 +4937,7 @@ bool create_table_impl(THD *thd,
       (create_info->db_type->partition_flags() & HA_USE_AUTO_PARTITION))
   {
     Partition_handler *part_handler= file->get_partition_handler();
-    DBUG_ASSERT(part_handler != NULL);
+    assert(part_handler != NULL);
 
     /*
       Table is not defined as a partitioned table but the engine handles
@@ -5080,7 +5080,7 @@ bool create_table_impl(THD *thd,
         goto no_partitioning;
       }
       create_info->db_type= plugin_data<handlerton*>(plugin);
-      DBUG_ASSERT(create_info->db_type->flags & HTON_NOT_USER_SELECTABLE);
+      assert(create_info->db_type->flags & HTON_NOT_USER_SELECTABLE);
       delete file;
       if (!(file= get_new_handler(NULL, thd->mem_root, create_info->db_type)))
       {
@@ -5089,13 +5089,13 @@ bool create_table_impl(THD *thd,
       }
       if (file->ht != create_info->db_type)
       {
-	DBUG_ASSERT(0);
+	assert(0);
         goto no_partitioning;
       }
       Partition_handler *part_handler= file->get_partition_handler();
       if (!part_handler)
       {
-        DBUG_ASSERT(0);
+        assert(0);
         goto no_partitioning;
       }
       part_handler->set_part_info(part_info, false);
@@ -5123,7 +5123,7 @@ bool create_table_impl(THD *thd,
         uint i;
         List_iterator<partition_element> part_it(part_info->partitions);
         part_it++;
-        DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
+        assert(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
         for (i= 1; i < part_info->partitions.elements; i++)
           (part_it++)->part_state= PART_TO_BE_DROPPED;
       }
@@ -5133,7 +5133,7 @@ bool create_table_impl(THD *thd,
                (int)part_info->num_subparts !=
                  part_handler->get_default_num_partitions(create_info))
       {
-        DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
+        assert(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
         part_info->num_subparts=
           part_handler->get_default_num_partitions(create_info);
       }
@@ -5397,7 +5397,7 @@ bool create_table_impl(THD *thd,
       needs to modify item tree. May need call THD::rollback_item_tree_changes
       later before calling closefrm if the change list is not empty.
     */
-    DBUG_ASSERT(thd->change_list.is_empty());
+    assert(thd->change_list.is_empty());
     if (!result)
       (void) closefrm(&table, 0);
 
@@ -5790,8 +5790,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   if (src_table->table->s->tablespace &&
       strlen(src_table->table->s->tablespace) > 0)
   {
-    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                  src_table->db, src_table->table_name, MDL_SHARED));
+    assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                        src_table->db, src_table->table_name, MDL_SHARED));
 
     if (tablespace_set.insert(
           const_cast<char*>(src_table->table->s->tablespace)))
@@ -5859,17 +5859,17 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     LOCK TABLE a non-existing table). And the only way we then can end up here
     is if IF EXISTS was used.
   */
-  DBUG_ASSERT(table->table || table->is_view() ||
-              (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
-              (thd->locked_tables_mode != LTM_LOCK_TABLES &&
-               thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                  table->db, table->table_name,
-                                  MDL_EXCLUSIVE)) ||
-              (thd->locked_tables_mode == LTM_LOCK_TABLES &&
-               (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) &&
-               thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                  table->db, table->table_name,
-                                  MDL_SHARED_NO_WRITE)));
+  assert(table->table || table->is_view() ||
+         (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+         (thd->locked_tables_mode != LTM_LOCK_TABLES &&
+          thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                       table->db, table->table_name,
+                                                       MDL_EXCLUSIVE)) ||
+         (thd->locked_tables_mode == LTM_LOCK_TABLES &&
+          (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) &&
+          thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                       table->db, table->table_name,
+                                                       MDL_SHARED_NO_WRITE)));
 
   DEBUG_SYNC(thd, "create_table_like_before_binlog");
 
@@ -5953,13 +5953,13 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             store_create_info(thd, table, &query,
                               create_info, TRUE /* show_database */);
 
-          DBUG_ASSERT(result == 0); // store_create_info() always return 0
+          assert(result == 0); // store_create_info() always return 0
           if (write_bin_log(thd, TRUE, query.ptr(), query.length()))
             goto err;
 
           if (new_table)
           {
-            DBUG_ASSERT(thd->open_tables == table->table);
+            assert(thd->open_tables == table->table);
             /*
               When opening the table, we ignored the locked tables
               (MYSQL_OPEN_GET_NEW_TABLE). Now we can close the table
@@ -6281,7 +6281,7 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
   Alter_info *alter_info= ha_alter_info->alter_info;
 
   DBUG_EXECUTE_IF("assert_index_def_has_no_pack_flag",
-      DBUG_ASSERT(!(table_key->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY))););
+                  assert(!(table_key->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY))););
 
   /* Check that the key types are compatible between old and new tables. */
   if ((table_key->algorithm != new_key->algorithm) ||
@@ -6602,14 +6602,14 @@ static bool fill_alter_inplace_info(THD *thd,
                                          ALTER_COLUMN_EQUAL_PACK_LENGTH;
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
       }
 
       // Conversion to and from generated column is supported if stored:
       if (field->is_gcol() != new_field->is_gcol())
       {
-        DBUG_ASSERT((field->is_gcol() && !field->is_virtual_gcol()) ||
-                    (new_field->is_gcol() && !new_field->is_virtual_gcol()));
+        assert((field->is_gcol() && !field->is_virtual_gcol()) ||
+               (new_field->is_gcol() && !new_field->is_virtual_gcol()));
         ha_alter_info->handler_flags|=
           Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
       }
@@ -6618,7 +6618,7 @@ static bool fill_alter_inplace_info(THD *thd,
       if (field->is_gcol() && new_field->is_gcol())
       {
         // Modification of storage attribute is not supported
-        DBUG_ASSERT(field->is_virtual_gcol() == new_field->is_virtual_gcol());
+        assert(field->is_virtual_gcol() == new_field->is_virtual_gcol());
         if (!field->gcol_expr_is_equal(new_field))
         {
           if (field->is_virtual_gcol())
@@ -6714,7 +6714,7 @@ static bool fill_alter_inplace_info(THD *thd,
       /*
         Field is not present in new version of table and therefore was dropped.
       */
-      DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_DROP_COLUMN);
+      assert(alter_info->flags & Alter_info::ALTER_DROP_COLUMN);
       if (field->is_virtual_gcol())
         ha_alter_info->handler_flags|=
           Alter_inplace_info::DROP_VIRTUAL_COLUMN;
@@ -6749,10 +6749,10 @@ static bool fill_alter_inplace_info(THD *thd,
       }
     }
     /* One of these should be set since Alter_info::ALTER_ADD_COLUMN was set. */
-    DBUG_ASSERT(ha_alter_info->handler_flags &
-                (Alter_inplace_info::ADD_VIRTUAL_COLUMN |
-                 Alter_inplace_info::ADD_STORED_BASE_COLUMN |
-                 Alter_inplace_info::ADD_STORED_GENERATED_COLUMN));
+    assert(ha_alter_info->handler_flags &
+           (Alter_inplace_info::ADD_VIRTUAL_COLUMN |
+            Alter_inplace_info::ADD_STORED_BASE_COLUMN |
+            Alter_inplace_info::ADD_STORED_GENERATED_COLUMN));
   }
 
   /*
@@ -7203,7 +7203,7 @@ static void push_zero_date_warning(THD *thd, Create_field *datetime_field)
     t_type= MYSQL_TIMESTAMP_DATETIME;
     break;
   default:
-    DBUG_ASSERT(false);  // Should not get here.
+    assert(false);  // Should not get here.
   }
   make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                ErrConvString(my_zero_datetime6, f_length),
@@ -7486,7 +7486,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (alter_ctx->error_if_not_empty)
   {
     bool has_records= true;
-    DBUG_ASSERT(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
+    assert(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
     if (table_list->table->file->ha_table_flags() & HA_HAS_RECORDS)
     {
       ha_rows tmp= 0;
@@ -7534,7 +7534,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   switch (inplace_supported) {
   case HA_ALTER_ERROR:
   case HA_ALTER_INPLACE_NOT_SUPPORTED:
-    DBUG_ASSERT(0);
+    assert(0);
     // fall through
   case HA_ALTER_INPLACE_NO_LOCK:
   case HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE:
@@ -7577,7 +7577,7 @@ static bool mysql_inplace_alter_table(THD *thd,
       table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_WRITE);
     else
     {
-      DBUG_ASSERT(inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
+      assert(inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
       table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
     }
   }
@@ -7756,7 +7756,7 @@ blob_length_by_type(enum_field_types type)
   case MYSQL_TYPE_LONG_BLOB:
     return 4294967295U;
   default:
-    DBUG_ASSERT(0); // we should never go here
+    assert(0); // we should never go here
     return 0;
   }
 }
@@ -7858,10 +7858,10 @@ upgrade_old_temporal_types(THD *thd, Alter_info *alter_info)
       continue;
     }
 
-    DBUG_ASSERT(!def->gcol_info ||
-                (def->gcol_info  &&
-                 (def->sql_type != MYSQL_TYPE_DATETIME
-                 || def->sql_type != MYSQL_TYPE_TIMESTAMP)));
+    assert(!def->gcol_info ||
+           (def->gcol_info  &&
+            (def->sql_type != MYSQL_TYPE_DATETIME
+             || def->sql_type != MYSQL_TYPE_TIMESTAMP)));
     // Replace the old temporal field with the new temporal field.
     Create_field *temporal_field= NULL;
     if (!(temporal_field= new (thd->mem_root) Create_field()) ||
@@ -8464,7 +8464,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       case Alter_drop::FOREIGN_KEY:
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
       }
     }
@@ -8637,10 +8637,10 @@ fk_check_column_changes(THD *thd, Alter_info *alter_info,
           return FK_COLUMN_DATA_CHANGE;
         }
       }
-      DBUG_ASSERT(old_field->is_gcol() == new_field->is_gcol() &&
-                  old_field->is_virtual_gcol() == new_field->is_virtual_gcol());
-      DBUG_ASSERT(!old_field->is_gcol() ||
-                  old_field->gcol_expr_is_equal(new_field));
+      assert(old_field->is_gcol() == new_field->is_gcol() &&
+             old_field->is_virtual_gcol() == new_field->is_virtual_gcol());
+      assert(!old_field->is_gcol() ||
+             old_field->gcol_expr_is_equal(new_field));
     }
     else
     {
@@ -8769,7 +8769,7 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
       DBUG_RETURN(true);
     }
     default:
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
 
@@ -8830,7 +8830,7 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
                f_key->foreign_id->str);
       DBUG_RETURN(true);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
 
@@ -9275,8 +9275,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         Global intention exclusive lock must have been already acquired when
         table to be altered was open, so there is no need to do it here.
       */
-      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
-                                     "", "", MDL_INTENTION_EXCLUSIVE));
+      assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                                          "", "", MDL_INTENTION_EXCLUSIVE));
 
       if (thd->mdl_context.acquire_locks(&mdl_requests,
                                          thd->variables.lock_wait_timeout))
@@ -9693,7 +9693,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                     };);
 
     // We assume that the table is non-temporary.
-    DBUG_ASSERT(!table->s->tmp_table);
+   assert(!table->s->tmp_table);
 
     if (!(altered_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
                                              alter_ctx.new_db,
@@ -9952,7 +9952,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   else
   {
     /* Should be MERGE only */
-    DBUG_ASSERT(new_table->file->ht->db_type == DB_TYPE_MRG_MYISAM);
+    assert(new_table->file->ht->db_type == DB_TYPE_MRG_MYISAM);
     if (!table->s->tmp_table &&
         wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto err_new_table_cleanup;
@@ -10046,7 +10046,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     anything goes wrong while renaming the new table.
   */
   char backup_name[32];
-  DBUG_ASSERT(sizeof(my_thread_id) == 4);
+  assert(sizeof(my_thread_id) == 4);
   my_snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%lx", tmp_file_prefix,
               current_pid, thd->thread_id());
   if (lower_case_table_names)
@@ -10130,9 +10130,9 @@ end_inplace:
                       thd->query().str, thd->query().length,
                       alter_ctx.db, alter_ctx.table_name);
 
-  DBUG_ASSERT(!(mysql_bin_log.is_open() &&
-                thd->is_current_stmt_binlog_format_row() &&
-                (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
+  assert(!(mysql_bin_log.is_open() &&
+           thd->is_current_stmt_binlog_format_row() &&
+           (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
   if (write_bin_log(thd, true, thd->query().str, thd->query().length))
     DBUG_RETURN(true);
 
@@ -10521,7 +10521,7 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   Alter_info alter_info;
 
   DBUG_ENTER("mysql_recreate_table");
-  DBUG_ASSERT(!table_list->next_global);
+  assert(!table_list->next_global);
   /* Set lock type which is appropriate for ALTER TABLE. */
   table_list->lock_type= TL_READ_NO_INSERT;
   /* Same applies to MDL request. */
@@ -10555,7 +10555,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     CHECKSUM TABLE returns results and rollbacks statement transaction,
     so it should not be used in stored function or trigger.
   */
-  DBUG_ASSERT(! thd->in_sub_stmt);
+  assert(! thd->in_sub_stmt);
 
   field_list.push_back(item = new Item_empty_string("Table", NAME_LEN*2));
   item->maybe_null= 1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,7 +242,7 @@ size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
 {
   char *end= src + srclen;
   const uchar *map= cs->to_upper;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
   return srclen;
@@ -255,7 +255,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
 {
   char *end= src + srclen;
   const uchar *map=cs->to_lower;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
   return srclen;
@@ -1758,7 +1758,7 @@ my_bool my_propagate_complex(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 uint my_strxfrm_flag_normalize(uint flags, uint maximum)
 {
-  DBUG_ASSERT(maximum >= 1 && maximum <= MY_STRXFRM_NLEVELS);
+  assert(maximum >= 1 && maximum <= MY_STRXFRM_NLEVELS);
   
   /* If levels are omitted, then 1-maximum is assumed*/
   if (!(flags & MY_STRXFRM_LEVEL_ALL))

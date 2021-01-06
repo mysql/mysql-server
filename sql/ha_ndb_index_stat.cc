@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,7 +294,7 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
     switch (v.unit) {
     case Ndb_index_stat_opt::Ubool:
       {
-        DBUG_ASSERT(v.val == 0 || v.val == 1);
+        assert(v.val == 0 || v.val == 1);
         if (v.val == 0)
           my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else
@@ -344,7 +344,7 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
       break;
 
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }
@@ -460,7 +460,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
       break;
 
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }
@@ -2045,7 +2045,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
   if (ret == -1)
   {
     // wl4124_todo report error
-    DBUG_ASSERT(false);
+    assert(false);
     return;
   }
   if (ret == 0)
@@ -2058,7 +2058,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
     if (ret == -1)
     {
       // wl4124_todo report error
-      DBUG_ASSERT(false);
+      assert(false);
       return;
     }
     if (ret == 0)
@@ -2706,7 +2706,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version)
     {
-      DBUG_ASSERT(false);
+      assert(false);
       err= NdbIndexStat::NoIndexStats;
       break;
     }
@@ -2766,7 +2766,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     if (st->error_count != snap.error_count)
     {
       /* A new error has occured */
-      DBUG_ASSERT(st->error_count > snap.error_count);
+      assert(st->error_count > snap.error_count);
       err= st->error.code;
       glob.analyze_error++;
       break;
@@ -2778,7 +2778,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version)
     {
-      DBUG_ASSERT(false);
+      assert(false);
       err= NdbIndexStat::AlienUpdate;
       break;
     }

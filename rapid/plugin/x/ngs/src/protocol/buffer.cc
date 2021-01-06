@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -252,7 +252,7 @@ void Buffer::add_bytes_transferred(size_t nbytes)
   for (; p != pages().end() && nbytes > 0; ++p)
   {
     // invariant: all pages after the 1st page with available space will be empty
-    DBUG_ASSERT((*p)->length == 0);
+    assert((*p)->length == 0);
     if (nbytes >= (*p)->capacity)
     {
       nbytes -= (*p)->capacity;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -310,7 +310,7 @@ void sp_head::init_sp_name(THD *thd, sp_name *spname)
 {
   /* Must be initialized in the parser. */
 
-  DBUG_ASSERT(spname && spname->m_db.str && spname->m_db.length);
+  assert(spname && spname->m_db.str && spname->m_db.length);
 
   /* We have to copy strings to get them into the right memroot. */
 
@@ -481,7 +481,7 @@ sp_head::~sp_head()
   sp_instr *i;
 
   // Parsing of SP-body must have been already finished.
-  DBUG_ASSERT(!m_parser_data.is_parsing_sp_body());
+  assert(!m_parser_data.is_parsing_sp_body());
 
   for (uint ip = 0 ; (i = get_instr(ip)) ; ip++)
     delete i;
@@ -604,7 +604,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   init_sql_alloc(key_memory_sp_head_execute_root,
                  &execute_mem_root, MEM_ROOT_BLOCK_SIZE, 0);
 
-  DBUG_ASSERT(!(m_flags & IS_INVOKED));
+  assert(!(m_flags & IS_INVOKED));
   m_flags|= IS_INVOKED;
   m_first_instance->m_first_free_instance= m_next_cached_sp;
   if (m_next_cached_sp)
@@ -622,9 +622,9 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     some instances after this one then recursion level of next instance
     greater then recursion level of current instance on 1
   */
-  DBUG_ASSERT((m_next_cached_sp == 0 &&
-               m_first_instance->m_last_cached_sp == this) ||
-              (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
+  assert((m_next_cached_sp == 0 &&
+          m_first_instance->m_last_cached_sp == this) ||
+         (m_recursion_level + 1 == m_next_cached_sp->m_recursion_level));
 
   /*
     NOTE: The SQL Standard does not specify the context that should be
@@ -853,11 +853,11 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   if(thd->is_classic_protocol())
     /* Restore all saved */
     old_packet.swap(*thd->get_protocol_classic()->get_packet());
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
   thd->set_query_id(old_query_id);
-  DBUG_ASSERT(!thd->derived_tables);
+  assert(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
   thd->pop_reprepare_observer();
@@ -929,7 +929,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   while (thd->get_stmt_da() != &sp_da)
     thd->pop_diagnostics_area();
   thd->pop_diagnostics_area();
-  DBUG_ASSERT(thd->get_stmt_da() == caller_da);
+  assert(thd->get_stmt_da() == caller_da);
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
@@ -968,13 +968,13 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     should go just after this one and recursion level of that free instance
     should be on 1 more then recursion level of this instance.
   */
-  DBUG_ASSERT((m_first_instance->m_first_free_instance == 0 &&
-               this == m_first_instance->m_last_cached_sp &&
-               m_next_cached_sp == 0) ||
-              (m_first_instance->m_first_free_instance != 0 &&
-               m_first_instance->m_first_free_instance == m_next_cached_sp &&
-               m_first_instance->m_first_free_instance->m_recursion_level ==
-               m_recursion_level + 1));
+  assert((m_first_instance->m_first_free_instance == 0 &&
+          this == m_first_instance->m_last_cached_sp &&
+          m_next_cached_sp == 0) ||
+         (m_first_instance->m_first_free_instance != 0 &&
+          m_first_instance->m_first_free_instance == m_next_cached_sp &&
+          m_first_instance->m_first_free_instance->m_recursion_level ==
+          m_recursion_level + 1));
   m_first_instance->m_first_free_instance= this;
 
   return err_status;
@@ -1183,7 +1183,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   for (arg_no= 0; arg_no < argcount; arg_no++)
   {
     /* Arguments must be fixed in Item_func_sp::fix_fields */
-    DBUG_ASSERT(argp[arg_no]->fixed);
+    assert(argp[arg_no]->fixed);
 
     err_status= func_runtime_ctx->set_variable(thd, arg_no, &(argp[arg_no]));
 
@@ -1566,7 +1566,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
       Settable_routine_parameter *srp=
         arg_item->get_settable_routine_parameter();
 
-      DBUG_ASSERT(srp);
+      assert(srp);
 
       if (srp->set_value(thd, parent_sp_runtime_ctx, proc_runtime_ctx->get_item_addr(i)))
       {
@@ -1755,7 +1755,7 @@ bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
 
   bool full_access;
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
 
   if (check_show_access(thd, &full_access))
     return true;

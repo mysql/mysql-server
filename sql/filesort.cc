@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
                                    ulong max_length_for_sort_data,
                                    ha_rows maxrows, bool sort_positions)
 {
-  DBUG_ASSERT(max_rows == 0);   // function should not be called twice
+  assert(max_rows == 0);   // function should not be called twice
   sort_length= sortlen;
   ref_length= table->file->ref_length;
   if (!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
@@ -278,8 +278,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   Opt_trace_object trace_wrapper(trace);
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
-  DBUG_ASSERT(!table->reginfo.join_tab);
-  DBUG_ASSERT(tab == table->reginfo.qep_tab);
+  assert(!table->reginfo.join_tab);
+  assert(tab == table->reginfo.qep_tab);
   Item_subselect *const subselect= tab && tab->join() ?
     tab->join()->select_lex->master_unit()->item : NULL;
 
@@ -300,7 +300,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   */
   Filesort_info table_sort= table->sort;
   table->sort.io_cache= NULL;
-  DBUG_ASSERT(table_sort.sorted_result == NULL);
+  assert(table_sort.sorted_result == NULL);
   table_sort.sorted_result_in_fsbuf= false;
 
   outfile= table_sort.io_cache;
@@ -353,7 +353,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       */
       DBUG_PRINT("info", ("failed to allocate PQ"));
       table_sort.free_sort_buffer();
-      DBUG_ASSERT(thd->is_error());
+      assert(thd->is_error());
       goto err;
     }
     filesort->using_pq= true;
@@ -531,7 +531,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   {
     int kill_errno= thd->killed_errno();
 
-    DBUG_ASSERT(thd->is_error() || kill_errno);
+    assert(thd->is_error() || kill_errno);
 
     /*
       We replace the table->sort at the end.
@@ -573,7 +573,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   *returned_rows= num_rows;
 
   /* table->sort.io_cache should be free by this time */
-  DBUG_ASSERT(NULL == table->sort.io_cache);
+  assert(NULL == table->sort.io_cache);
 
   // Assign the copy back!
   table->sort= table_sort;
@@ -633,7 +633,7 @@ uint Filesort::make_sortorder()
         Could be a field, or Item_direct_view_ref/Item_ref wrapping a field
         If it is an Item_outer_ref, only_full_group_by has been switched off.
       */
-      DBUG_ASSERT
+      assert
         (item->type() == Item::FIELD_ITEM ||
          (item->type() == Item::REF_ITEM &&
           (down_cast<Item_ref*>(item)->ref_type() == Item_ref::VIEW_REF
@@ -646,10 +646,10 @@ uint Filesort::make_sortorder()
              !real_item->const_item())
     {
       // Aggregate, or Item_aggregate_ref
-      DBUG_ASSERT(item->type() == Item::SUM_FUNC_ITEM ||
-                  (item->type() == Item::REF_ITEM &&
-                   static_cast<Item_ref*>(item)->ref_type() ==
-                   Item_ref::AGGREGATE_REF));
+      assert(item->type() == Item::SUM_FUNC_ITEM ||
+             (item->type() == Item::REF_ITEM &&
+              static_cast<Item_ref*>(item)->ref_type() ==
+              Item_ref::AGGREGATE_REF));
       pos->field= item->get_tmp_table_field();
     }
     else if (real_item->type() == Item::COPY_STR_ITEM)
@@ -659,7 +659,7 @@ uint Filesort::make_sortorder()
     else
       pos->item= item;
     pos->reverse= (ord->direction == ORDER::ORDER_DESC);
-    DBUG_ASSERT(pos->field != NULL || pos->item != NULL);
+    assert(pos->field != NULL || pos->item != NULL);
   }
   DBUG_RETURN(count);
 }
@@ -944,8 +944,8 @@ static ha_rows find_all_keys(Sort_param *param, QEP_TAB *qep_tab,
     Set up temporary column read map for columns used by sort and verify
     it's not used
   */
-  DBUG_ASSERT(sort_form->tmp_set.n_bits == 0 ||
-              bitmap_is_clear_all(&sort_form->tmp_set));
+  assert(sort_form->tmp_set.n_bits == 0 ||
+         bitmap_is_clear_all(&sort_form->tmp_set));
 
   // Temporary set for register_used_fields and mark_field_in_map()
   sort_form->read_set= &sort_form->tmp_set;
@@ -1233,7 +1233,7 @@ void copy_native_longlong(uchar *to, size_t to_length,
 static void MY_ATTRIBUTE((noinline))
 make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
 {
-  DBUG_ASSERT(!item->maybe_null || to[-1] == 1);
+  assert(!item->maybe_null || to[-1] == 1);
 
   Json_wrapper wr;
   if (item->val_json(&wr))
@@ -1286,7 +1286,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
     if (sort_field->field)
     {
       Field *field= sort_field->field;
-      DBUG_ASSERT(sort_field->field_type == field->type());
+      assert(sort_field->field_type == field->type());
       if (field->maybe_null())
       {
 	if (field->is_null())
@@ -1304,7 +1304,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       field->make_sort_key(to, sort_field->length);
       if (sort_field->field_type == MYSQL_TYPE_JSON)
       {
-        DBUG_ASSERT(use_hash);
+        assert(use_hash);
         unique_hash(field, &hash);
       }
     }
@@ -1312,7 +1312,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
     {						// Item
       Item *item=sort_field->item;
       maybe_null= item->maybe_null;
-      DBUG_ASSERT(sort_field->field_type == item->field_type());
+      assert(sort_field->field_type == item->field_type());
       switch (sort_field->result_type) {
       case STRING_RESULT:
       {
@@ -1321,7 +1321,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
 
         if (sort_field->field_type == MYSQL_TYPE_JSON)
         {
-          DBUG_ASSERT(use_hash);
+          assert(use_hash);
           /*
             We don't want the code for creating JSON sort keys to be
             inlined here, as increasing the size of the surrounding
@@ -1351,7 +1351,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
               of memory or have an item marked not null when it can be null.
               This code is here mainly to avoid a hard crash in this case.
             */
-            DBUG_ASSERT(0);
+            assert(0);
             DBUG_PRINT("warning",
                        ("Got null on something that shouldn't be null"));
             memset(to, 0, sort_field->length);	// Avoid crash
@@ -1366,7 +1366,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           size_t tmp_length MY_ATTRIBUTE((unused));
           if ((uchar*) from == to)
           {
-            DBUG_ASSERT(sort_field->length >= length);
+            assert(sort_field->length >= length);
             set_if_smaller(length,sort_field->length);
             memcpy(tmp_buffer, from, length);
             from= tmp_buffer;
@@ -1377,7 +1377,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
                                (uchar*) from, length,
                                MY_STRXFRM_PAD_WITH_SPACE |
                                MY_STRXFRM_PAD_TO_MAXLEN);
-          DBUG_ASSERT(tmp_length == sort_field->length);
+          assert(tmp_length == sort_field->length);
         }
         else
         {
@@ -1487,7 +1487,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
       case ROW_RESULT:
       default: 
 	// This case should never be choosen
-	DBUG_ASSERT(0);
+	assert(0);
 	break;
       }
     }
@@ -1647,7 +1647,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort)
   table_sort->sorted_result_in_fsbuf= false;
   const size_t buf_size= param->res_length * count;
 
-  DBUG_ASSERT(table_sort->sorted_result == NULL);
+  assert(table_sort->sorted_result == NULL);
   if (!(to= table_sort->sorted_result=
         static_cast<uchar*>(my_malloc(key_memory_Filesort_info_record_pointers,
                                       buf_size, MYF(MY_WME)))))
@@ -1969,11 +1969,11 @@ uint read_to_buffer(IO_CACHE *fromfile,
         uint res_length= Addon_fields::read_addon_length(plen);
         if (plen + res_length >= merge_chunk->buffer_end())
           break;                                // Incomplete record.
-        DBUG_ASSERT(res_length > 0);
+        assert(res_length > 0);
         record+= param->sort_length;
         record+= res_length;
       }
-      DBUG_ASSERT(ix > 0);
+      assert(ix > 0);
       count= ix;
       num_bytes_read= record - merge_chunk->buffer_start();
       DBUG_PRINT("info", ("read %llu bytes of complete records",
@@ -2091,7 +2091,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
   org_max_rows=max_rows= param->max_rows;
 
   /* The following will fire if there is not enough space in sort_buffer */
-  DBUG_ASSERT(maxcount!=0);
+  assert(maxcount!=0);
 
   const bool doing_unique= (param->unique_buff != NULL);
   if (doing_unique)
@@ -2136,7 +2136,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
 
   if (doing_unique)
   {
-    DBUG_ASSERT(!param->using_packed_addons());
+    assert(!param->using_packed_addons());
     /* 
        Called by Unique::get()
        Copy the first argument to param->unique_buff for unique removal.
@@ -2180,7 +2180,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
       merge_chunk= queue.top();
       if (doing_unique)                         // Remove duplicates
       {
-        DBUG_ASSERT(!param->using_packed_addons());
+        assert(!param->using_packed_addons());
         uchar *current_key= merge_chunk->current_key();
         if (!(*cmp)(first_cmp_arg, param->unique_buff, current_key))
           goto skip_duplicate;
@@ -2413,7 +2413,7 @@ sortlength(THD *thd, st_sort_field *sortorder, uint s_length,
       case ROW_RESULT:
       default: 
 	// This case should never be choosen
-	DBUG_ASSERT(0);
+	assert(0);
 	break;
       }
       if (sortorder->item->maybe_null)
@@ -2505,7 +2505,7 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
     // part_of_key is empty for a BLOB, so apply this check before the next.
     if (field->flags & BLOB_FLAG)
     {
-      DBUG_ASSERT(addon_fields == NULL);
+      assert(addon_fields == NULL);
       return NULL;
     }
     if (filter_covering && !field->part_of_key.is_set(index))
@@ -2533,7 +2533,7 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
 
   if (total_length + sortlength > max_length_for_sort_data)
   {
-    DBUG_ASSERT(addon_fields == NULL);
+    assert(addon_fields == NULL);
     return NULL;
   }
 
@@ -2553,7 +2553,7 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
       Allocate memory only once, reuse descriptor array and buffer.
       Set using_packed_addons here, and size/offset details below.
      */
-    DBUG_ASSERT(num_fields == addon_fields->num_field_descriptors());
+    assert(num_fields == addon_fields->num_field_descriptors());
     addon_fields->set_using_packed_addons(false);
   }
 
@@ -2568,7 +2568,7 @@ Filesort::get_addon_fields(ulong max_length_for_sort_data,
       continue;
     if (filter_covering && !field->part_of_key.is_set(index))
       continue;
-    DBUG_ASSERT(addonf != addon_fields->end());
+    assert(addonf != addon_fields->end());
 
     addonf->field= field;
     addonf->offset= length;

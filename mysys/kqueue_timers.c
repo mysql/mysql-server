@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused)))
     if (kev.filter == EVFILT_TIMER)
     {
       timer= kev.udata;
-      DBUG_ASSERT(timer->id == kev.ident);
+      assert(timer->id == kev.ident);
       timer->notify_function(timer);
     }
     else if (kev.filter == EVFILT_USER)
@@ -173,7 +173,7 @@ my_timer_deinitialize(void)
 int
 my_timer_create(my_timer_t *timer)
 {
-  DBUG_ASSERT(kq_fd >= 0);
+  assert(kq_fd >= 0);
 
   timer->id= (uintptr_t) timer;
 

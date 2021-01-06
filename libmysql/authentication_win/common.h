@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -139,13 +139,6 @@ void debug_msg(const char *fmt, ...)
 
 #undef DBUG_RETURN
 #define DBUG_RETURN(X) return (X)
-
-#undef DBUG_ASSERT
-#ifndef DBUG_OFF
-#define DBUG_ASSERT(X) assert (X)
-#else
-#define DBUG_ASSERT(X) do {} while (0)
-#endif
 
 #undef DBUG_DUMP
 #define DBUG_DUMP(A,B,C) do {} while (0)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -359,7 +359,7 @@ bool Table_cache::add_used_table(THD *thd, TABLE *table)
 
   assert_owner();
 
-  DBUG_ASSERT(table->in_use == thd);
+  assert(table->in_use == thd);
 
   /*
     Try to get Table_cache_element representing this table in the cache
@@ -377,9 +377,9 @@ bool Table_cache::add_used_table(THD *thd, TABLE *table)
       Allocate new Table_cache_element object and add it to the cache
       and array in TABLE_SHARE.
     */
-    DBUG_ASSERT(! my_hash_search(&m_cache,
-                                 (uchar*)table->s->table_cache_key.str,
-                                 table->s->table_cache_key.length));
+    assert(! my_hash_search(&m_cache,
+                            (uchar*)table->s->table_cache_key.str,
+                            table->s->table_cache_key.length));
 
     if (!(el= new Table_cache_element(table->s)))
       return true;
@@ -487,7 +487,7 @@ TABLE* Table_cache::get_table(THD *thd, my_hash_value_type hash_value,
 
   if ((table= el->free_tables.front()))
   {
-    DBUG_ASSERT(!table->in_use);
+    assert(!table->in_use);
 
     /*
       Unlink table from list of unused TABLE objects for this
@@ -506,9 +506,9 @@ TABLE* Table_cache::get_table(THD *thd, my_hash_value_type hash_value,
 
     table->in_use= thd;
     /* The ex-unused table must be fully functional. */
-    DBUG_ASSERT(table->db_stat && table->file);
+    assert(table->db_stat && table->file);
     /* The children must be detached from the table. */
-    DBUG_ASSERT(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+    assert(! table->file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   }
 
   return table;
@@ -530,11 +530,11 @@ void Table_cache::release_table(THD *thd, TABLE *table)
 
   assert_owner();
 
-  DBUG_ASSERT(table->in_use);
-  DBUG_ASSERT(table->file);
+  assert(table->in_use);
+  assert(table->file);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
-  DBUG_ASSERT(! table->s->has_old_version());
+  assert(! table->s->has_old_version());
 
   table->in_use= NULL;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -360,7 +360,7 @@ public:
           "START_STATE", "TABLE_STATE", "ROW_STATE", "STATE_COUNT"
         };
 
-        DBUG_ASSERT(0 <= target_state && target_state <= STATE_COUNT);
+        assert(0 <= target_state && target_state <= STATE_COUNT);
         DBUG_PRINT("info", ("In state %s", state_name[m_state]));
 #endif
 

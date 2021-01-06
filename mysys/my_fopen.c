@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
   int handle_fd, fd= _fileno(stream);
   HANDLE osfh;
 
-  DBUG_ASSERT(path && stream);
+  assert(path && stream);
 
   /* Services don't have stdout/stderr on Windows, so _fileno returns -1. */
   if (fd < 0)
@@ -183,7 +183,7 @@ static FILE *my_safe_freopen(const char *path, const char *mode, FILE *stream)
   int pathfd= -1;
   int ds= -1;
 
-  DBUG_ASSERT(path != NULL && stream != NULL);
+  assert(path != NULL && stream != NULL);
   streamfd= fileno(stream);
   if (streamfd == -1)
   {
@@ -364,8 +364,8 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
 static void make_ftype(char * to, int flag)
 {
   /* check some possible invalid combinations */  
-  DBUG_ASSERT((flag & (O_TRUNC | O_APPEND)) != (O_TRUNC | O_APPEND));
-  DBUG_ASSERT((flag & (O_WRONLY | O_RDWR)) != (O_WRONLY | O_RDWR));
+  assert((flag & (O_TRUNC | O_APPEND)) != (O_TRUNC | O_APPEND));
+  assert((flag & (O_WRONLY | O_RDWR)) != (O_WRONLY | O_RDWR));
 
   if ((flag & (O_RDONLY|O_WRONLY)) == O_WRONLY)    
     *to++= (flag & O_APPEND) ? 'a' : 'w';  

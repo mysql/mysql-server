@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -269,8 +269,8 @@ Lex_input_stream::reset(const char *buffer, size_t length)
 
 void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
 {
-  DBUG_ASSERT(begin_ptr);
-  DBUG_ASSERT(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
+  assert(begin_ptr);
+  assert(m_cpp_buf <= begin_ptr && begin_ptr <= m_cpp_buf + m_buf_length);
 
   size_t body_utf8_length=
     (m_buf_length / thd->variables.character_set_client->mbminlen) *
@@ -307,8 +307,8 @@ void Lex_input_stream::body_utf8_start(THD *thd, const char *begin_ptr)
 void Lex_input_stream::body_utf8_append(const char *ptr,
                                         const char *end_ptr)
 {
-  DBUG_ASSERT(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
-  DBUG_ASSERT(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
+  assert(m_cpp_buf <= ptr && ptr <= m_cpp_buf + m_buf_length);
+  assert(m_cpp_buf <= end_ptr && end_ptr <= m_cpp_buf + m_buf_length);
 
   if (!m_body_utf8)
     return;
@@ -512,7 +512,7 @@ bool lex_start(THD *thd)
   thd->init_cost_model();
 
   const bool status= lex->new_top_level_query();
-  DBUG_ASSERT(lex->current_select() == NULL);
+  assert(lex->current_select() == NULL);
   lex->m_current_select= lex->select_lex;
 
   DBUG_RETURN(status);
@@ -632,7 +632,7 @@ st_select_lex *LEX::new_query(st_select_lex *curr_select)
   else if (select->outer_select()->parsing_place == CTX_DERIVED)
   {
     // Currently, outer references are not allowed for a derived table
-    DBUG_ASSERT(select->context.outer_context == NULL);
+    assert(select->context.outer_context == NULL);
   }
   else
   {
@@ -663,7 +663,7 @@ st_select_lex *LEX::new_union_query(st_select_lex *curr_select, bool distinct)
 {
   DBUG_ENTER("LEX::new_union_query");
 
-  DBUG_ASSERT(unit != NULL && select_lex != NULL);
+  assert(unit != NULL && select_lex != NULL);
 
   // Is this the outer-most query expression?
   bool const outer_most= curr_select->master_unit() == unit;
@@ -738,11 +738,11 @@ bool LEX::new_top_level_query()
   DBUG_ENTER("LEX::new_top_level_query");
 
   // Assure that the LEX does not contain any query expression already
-  DBUG_ASSERT(unit == NULL &&
-              select_lex == NULL);
+  assert(unit == NULL &&
+         select_lex == NULL);
 
   // Check for the special situation when using INTO OUTFILE and LOAD DATA.
-  DBUG_ASSERT(result == 0);
+  assert(result == 0);
 
   select_lex= new_query(NULL);
   if (select_lex == NULL)
@@ -776,7 +776,7 @@ void LEX::new_static_query(SELECT_LEX_UNIT *sel_unit, SELECT_LEX *select)
 
   reset();
 
-  DBUG_ASSERT(unit == NULL && select_lex == NULL && current_select() == NULL);
+  assert(unit == NULL && select_lex == NULL && current_select() == NULL);
 
   select->parent_lex= this;
 
@@ -909,7 +909,7 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function)
 
 bool is_keyword(const char *name, size_t len)
 {
-  DBUG_ASSERT(len != 0);
+  assert(len != 0);
   return Lex_hash::sql_keywords.get_hash_symbol(name, len) != NULL;
 }
 
@@ -925,7 +925,7 @@ bool is_keyword(const char *name, size_t len)
 
 bool is_lex_native_function(const LEX_STRING *name)
 {
-  DBUG_ASSERT(name != NULL);
+  assert(name != NULL);
   return Lex_hash::sql_keywords_and_funcs.get_hash_symbol(name->str,
       (uint) name->length) != NULL;
 }
@@ -1036,7 +1036,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
       /* Extract the text from the token */
       str += pre_skip;
       end -= post_skip;
-      DBUG_ASSERT(end >= str);
+      assert(end >= str);
 
       if (!(start= static_cast<char *>(lip->m_thd->alloc((uint) (end-str)+1))))
 	return (char*) "";		// Sql_alloc has set error flag
@@ -1112,7 +1112,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 
 uint Lex_input_stream::get_lineno(const char *raw_ptr)
 {
-  DBUG_ASSERT(m_buf <= raw_ptr && raw_ptr < m_end_of_query);
+  assert(m_buf <= raw_ptr && raw_ptr < m_end_of_query);
   if (!(m_buf <= raw_ptr && raw_ptr < m_end_of_query))
     return 1;
 
@@ -1239,8 +1239,8 @@ static inline uint int_token(const char *str,uint length)
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
   // only one level of nested comments are allowed
-  DBUG_ASSERT(remaining_recursions_permitted == 0 ||
-              remaining_recursions_permitted == 1);
+  assert(remaining_recursions_permitted == 0 ||
+         remaining_recursions_permitted == 1);
   uchar c;
   while (! lip->eof())
   {
@@ -2200,7 +2200,7 @@ st_select_lex_unit::st_select_lex_unit(enum_parsing_context parsing_context) :
       break;
     default:
       /* Subquery can't happen outside of those ^. */
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       break;
   }
 }
@@ -2554,7 +2554,7 @@ ha_rows st_select_lex::get_offset()
     {
       fix_fields_successful= !offset_limit->fix_fields(master->thd, NULL);
 
-      DBUG_ASSERT(fix_fields_successful);
+      assert(fix_fields_successful);
     }
     val= fix_fields_successful ? offset_limit->val_uint() : HA_POS_ERROR;
   }
@@ -2591,7 +2591,7 @@ ha_rows st_select_lex::get_limit()
         1) it does not affect other items;
         2) it does not fail.
 
-      Nevertheless DBUG_ASSERT was added to catch future changes in
+        Nevertheless assert was added to catch future changes in
       fix_fields() implementation. Also added runtime check against a result
       of fix_fields() in order to handle error condition in non-debug build.
     */
@@ -2600,7 +2600,7 @@ ha_rows st_select_lex::get_limit()
     {
       fix_fields_successful= !select_limit->fix_fields(master->thd, NULL);
 
-      DBUG_ASSERT(fix_fields_successful);
+      assert(fix_fields_successful);
     }
     val= fix_fields_successful ? select_limit->val_uint() : HA_POS_ERROR;
   }
@@ -2977,7 +2977,7 @@ static void print_join(THD *thd,
       }
     }
   }
-  DBUG_ASSERT(tables_to_print >= 1);
+  assert(tables_to_print >= 1);
   print_table_array(thd, str, table, table + tables_to_print, query_type);
 }
 
@@ -3172,8 +3172,8 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
    be completely cleaned till the end of the query. This is valid only for
    explainable commands.
   */
-  DBUG_ASSERT(!(master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN &&
-                is_explainable_query(thd->lex->sql_command)));
+  assert(!(master_unit()->cleaned == SELECT_LEX_UNIT::UC_CLEAN &&
+           is_explainable_query(thd->lex->sql_command)));
 
   /* First add options */
   if (active_options() & SELECT_STRAIGHT_JOIN)
@@ -3201,7 +3201,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
     case SQL_CACHE_UNSPECIFIED:
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   //Item List
@@ -3685,7 +3685,7 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 {
   if (sphead)
   {
-    DBUG_ASSERT(sphead->m_db.str && sphead->m_db.length);
+    assert(sphead->m_db.str && sphead->m_db.length);
     /*
       It is safe to assign the string by-pointer, both sphead and
       its statements reside in the same memory root.
@@ -3706,7 +3706,7 @@ LEX::copy_db_to(char **p_db, size_t *p_db_length) const
 */
 void st_select_lex_unit::set_limit(st_select_lex *sl)
 {
-  DBUG_ASSERT(!thd->stmt_arena->is_stmt_prepare());
+  assert(!thd->stmt_arena->is_stmt_prepare());
 
   offset_limit_cnt= sl->get_offset();
   select_limit_cnt= sl->get_limit();
@@ -4310,7 +4310,7 @@ st_select_lex::type_enum st_select_lex::type()
 */
 void st_select_lex::include_down(LEX *lex, st_select_lex_unit *outer)
 {
-  DBUG_ASSERT(slave == NULL);
+  assert(slave == NULL);
 
   if ((next= outer->slave))
     next->prev= &next;
@@ -4476,7 +4476,7 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
     join->optimized is true => conditions are ready for reading.
     So if we are here, this should hold:
   */
-  DBUG_ASSERT(!(join && join->is_optimized()));
+  assert(!(join && join->is_optimized()));
   if (m_where_cond && !thd->stmt_arena->is_conventional())
   {
     *new_where= m_where_cond->copy_andor_structure(thd);
@@ -4602,15 +4602,15 @@ bool st_select_lex::validate_outermost_option(LEX *lex,
 
 bool st_select_lex::validate_base_options(LEX *lex, ulonglong options_arg) const
 {
-  DBUG_ASSERT(!(options_arg & ~(SELECT_STRAIGHT_JOIN |
-                                SELECT_HIGH_PRIORITY |
-                                SELECT_DISTINCT |
-                                SELECT_ALL |
-                                SELECT_SMALL_RESULT |
-                                SELECT_BIG_RESULT |
-                                OPTION_BUFFER_RESULT |
-                                OPTION_FOUND_ROWS |
-                                OPTION_TO_QUERY_CACHE)));
+  assert(!(options_arg & ~(SELECT_STRAIGHT_JOIN |
+                           SELECT_HIGH_PRIORITY |
+                           SELECT_DISTINCT |
+                           SELECT_ALL |
+                           SELECT_SMALL_RESULT |
+                           SELECT_BIG_RESULT |
+                           OPTION_BUFFER_RESULT |
+                           OPTION_FOUND_ROWS |
+                           OPTION_TO_QUERY_CACHE)));
 
   if (options_arg & SELECT_DISTINCT &&
       options_arg & SELECT_ALL)
@@ -4682,7 +4682,7 @@ bool Query_options::save_to(Parse_context *pc)
       my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_NO_CACHE");
       return true;
     }
-    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
+    assert(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
     lex->safe_to_cache_query= false;
     options&= ~OPTION_TO_QUERY_CACHE;
     pc->select->sql_cache= SELECT_LEX::SQL_NO_CACHE;
@@ -4693,13 +4693,13 @@ bool Query_options::save_to(Parse_context *pc)
       my_error(ER_CANT_USE_OPTION_HERE, MYF(0), "SQL_CACHE");
       return true;
     }
-    DBUG_ASSERT(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
+    assert(pc->select->sql_cache == SELECT_LEX::SQL_CACHE_UNSPECIFIED);
     lex->safe_to_cache_query= true;
     options|= OPTION_TO_QUERY_CACHE;
     pc->select->sql_cache= SELECT_LEX::SQL_CACHE;
     break;
   default:
-    DBUG_ASSERT(!"Unexpected cache option!");
+    assert(!"Unexpected cache option!");
   }
   if (pc->select->validate_base_options(lex, options))
     return true;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ bool Password_hasher::check_scramble_mysql41_hash(const char *scramble_arg, cons
   char buf[MYSQL41_HASH_SIZE];
   uint8_t hash_stage2_reassured[MYSQL41_HASH_SIZE];
 
-  DBUG_ASSERT(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
+  assert(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
   /* create key to encrypt scramble */
   compute_mysql41_hash_multi((uint8_t *)buf, message, SCRAMBLE_LENGTH, (const char *) hash_stage2, MYSQL41_HASH_SIZE);
 
@@ -182,7 +182,7 @@ std::string Password_hasher::scramble(const char *message, const char *password)
 
   result.at(SCRAMBLE_LENGTH - 1) = '\0';
 
-  DBUG_ASSERT(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
+  assert(MYSQL41_HASH_SIZE == SCRAMBLE_LENGTH);
 
   /* Two stage SHA1 hash of the pwd */
   compute_two_stage_mysql41_hash(password, strlen(password),

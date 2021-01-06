@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,7 +220,7 @@ public:
   CSET_STRING(const char *str_arg, size_t length_arg, const CHARSET_INFO *cs_arg) :
   cs(cs_arg)
   {
-    DBUG_ASSERT(cs_arg != NULL);
+    assert(cs_arg != NULL);
     string.str= str_arg;
     string.length= length_arg;
   }
@@ -412,7 +412,7 @@ class Time_zone;
 #define THD_SENTRY_MAGIC 0xfeedd1ff
 #define THD_SENTRY_GONE  0xdeadbeef
 
-#define THD_CHECK_SENTRY(thd) DBUG_ASSERT(thd->dbug_sentry == THD_SENTRY_MAGIC)
+#define THD_CHECK_SENTRY(thd) assert(thd->dbug_sentry == THD_SENTRY_MAGIC)
 
 typedef ulonglong sql_mode_t;
 
@@ -1461,16 +1461,16 @@ class THD :public MDL_context_owner,
 {
 private:
   inline bool is_stmt_prepare() const
-  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare(); }
+  { assert(0); return Query_arena::is_stmt_prepare(); }
 
   inline bool is_stmt_prepare_or_first_sp_execute() const
-  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare_or_first_sp_execute(); }
+  { assert(0); return Query_arena::is_stmt_prepare_or_first_sp_execute(); }
 
   inline bool is_stmt_prepare_or_first_stmt_execute() const
-  { DBUG_ASSERT(0); return Query_arena::is_stmt_prepare_or_first_stmt_execute(); }
+  { assert(0); return Query_arena::is_stmt_prepare_or_first_stmt_execute(); }
 
   inline bool is_conventional() const
-  { DBUG_ASSERT(0); return Query_arena::is_conventional(); }
+  { assert(0); return Query_arena::is_conventional(); }
 
 public:
   MDL_context mdl_context;
@@ -1674,7 +1674,7 @@ public:
   */
   void save_current_query_costs()
   {
-    DBUG_ASSERT(!status_var_aggregated);
+    assert(!status_var_aggregated);
     status_var.last_query_cost= m_current_query_cost;
     status_var.last_query_partial_plans= m_current_query_partial_plans;
   }
@@ -1804,8 +1804,8 @@ public:
   */
   Protocol_classic *get_protocol_classic() const
   {
-    DBUG_ASSERT(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
-                m_protocol->type() == Protocol::PROTOCOL_BINARY);
+    assert(m_protocol->type() == Protocol::PROTOCOL_TEXT ||
+           m_protocol->type() == Protocol::PROTOCOL_BINARY);
 
     return (Protocol_classic *) m_protocol;
   }
@@ -2081,8 +2081,8 @@ public:
     format.
    */
   int is_current_stmt_binlog_format_row() const {
-    DBUG_ASSERT(current_stmt_binlog_format == BINLOG_FORMAT_STMT ||
-                current_stmt_binlog_format == BINLOG_FORMAT_ROW);
+    assert(current_stmt_binlog_format == BINLOG_FORMAT_STMT ||
+           current_stmt_binlog_format == BINLOG_FORMAT_ROW);
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
 
@@ -2116,13 +2116,13 @@ public:
 
   inline void clear_binlog_local_stmt_filter()
   {
-    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    assert(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
     m_binlog_filter_state= BINLOG_FILTER_CLEAR;
   }
 
   inline void set_binlog_local_stmt_filter()
   {
-    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    assert(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
     m_binlog_filter_state= BINLOG_FILTER_SET;
   }
 
@@ -2817,7 +2817,7 @@ public:
   void set_trans_pos(const char *file, my_off_t pos)
   {
     DBUG_ENTER("THD::set_trans_pos");
-    DBUG_ASSERT(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
+    assert(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
     if (file)
     {
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
@@ -2825,7 +2825,7 @@ public:
       m_trans_log_file= file + dirname_length(file);
       if (!m_trans_fixed_log_file)
         m_trans_fixed_log_file= (char*) alloc_root(&main_mem_root, FN_REFLEN+1);
-      DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
+      assert(strlen(m_trans_log_file) <= FN_REFLEN);
       strcpy(m_trans_fixed_log_file, m_trans_log_file);
     }
     else
@@ -3490,7 +3490,7 @@ public:
   */
   inline void fatal_error()
   {
-    DBUG_ASSERT(get_stmt_da()->is_error() || killed);
+    assert(get_stmt_da()->is_error() || killed);
     is_fatal_error= 1;
     DBUG_PRINT("error",("Fatal error set"));
   }
@@ -3714,7 +3714,7 @@ public:
       statement, remove the big comment below that, and remove the
       in_sub_stmt==0 condition from the following 'if'.
     */
-    /* DBUG_ASSERT(in_sub_stmt == 0); */
+    /* assert(in_sub_stmt == 0); */
     /*
       If in a stored/function trigger, the caller should already have done the
       change. We test in_sub_stmt to prevent introducing bugs where people
@@ -4079,7 +4079,7 @@ public:
 #ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
 #else
-      DBUG_ASSERT(0);
+      assert(0);
 #endif
     }
     owned_gtid.clear();
@@ -4482,7 +4482,7 @@ public:
 
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
-    DBUG_ASSERT(locked_tables_mode == LTM_NONE);
+    assert(locked_tables_mode == LTM_NONE);
 
     if (mode_arg == LTM_LOCK_TABLES)
     {
@@ -5364,7 +5364,7 @@ class user_var_entry
   */
   void init(THD *thd, const Simple_cstring &name, const CHARSET_INFO *cs)
   {
-    DBUG_ASSERT(thd != NULL);
+    assert(thd != NULL);
     m_owner= thd;
     copy_name(name);
     reset_value();

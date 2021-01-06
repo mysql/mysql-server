@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,9 +152,9 @@ namespace {
  */
 inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len)
 {
-  DBUG_ASSERT(len > 0);
-  DBUG_ASSERT(s1 != NULL);
-  DBUG_ASSERT(s2 != NULL);
+  assert(len > 0);
+  assert(s1 != NULL);
+  assert(s2 != NULL);
   do {
     if (*s1++ != *s2++)
       return *--s1 < *--s2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -320,8 +320,8 @@ static const ulong XID_BUFFER_SIZE= XIDDATASIZE*2 + 2 + 1;
 */
 static uint xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset, size_t length)
 {
-  DBUG_ASSERT(buf_len >= XID_BUFFER_SIZE);
-  DBUG_ASSERT(offset + length <= XIDDATASIZE);
+  assert(buf_len >= XID_BUFFER_SIZE);
+  assert(offset + length <= XIDDATASIZE);
   *buf++= '0';
   *buf++= 'x';
   return bin_to_hex_str(buf, buf_len-2, (char*)(xid->data + offset), length) + 2;
@@ -338,7 +338,7 @@ static uint xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset, s
 */
 static void xid_store(Field *field, PSI_xid *xid, size_t offset, size_t length)
 {
-  DBUG_ASSERT(!xid->is_null());
+  assert(!xid->is_null());
   if (xid_printable(xid, offset, length))
   {
     field->store(xid->data + offset, length, &my_charset_bin);
@@ -377,7 +377,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 3);
+  assert(table->s->null_bytes == 3);
   buf[0]= 0;
   buf[1]= 0;
   buf[2]= 0;
@@ -495,7 +495,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -650,10 +650,10 @@ int table_events_transactions_history::rnd_pos(const void *pos)
   PFS_thread *pfs_thread;
   PFS_events_transactions *transaction;
 
-  DBUG_ASSERT(events_transactions_history_per_thread != 0);
+  assert(events_transactions_history_per_thread != 0);
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index_2 < events_transactions_history_per_thread);
+  assert(m_pos.m_index_2 < events_transactions_history_per_thread);
 
   pfs_thread= global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != NULL)

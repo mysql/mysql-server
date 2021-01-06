@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,8 +81,8 @@ const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST= 1.0;
 cost_constant_error Server_cost_constants::set(const LEX_CSTRING &name,
                                                double value)
 {
-  DBUG_ASSERT(name.str != NULL);
-  DBUG_ASSERT(name.length > 0);
+  assert(name.str != NULL);
+  assert(name.length > 0);
 
   if (name.str == NULL || name.length == 0)
     return UNKNOWN_COST_NAME;                   /* purecov: inspected */
@@ -159,8 +159,8 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
                                            const double value,
                                            bool default_value)
 {
-  DBUG_ASSERT(name.str != NULL);
-  DBUG_ASSERT(name.length > 0);
+  assert(name.str != NULL);
+  assert(name.length > 0);
 
   if (name.str == NULL || name.length == 0)
     return UNKNOWN_COST_NAME;                   /* purecov: inspected */
@@ -290,19 +290,19 @@ Cost_model_constants::Cost_model_constants()
 
 Cost_model_constants::~Cost_model_constants()
 {
-  DBUG_ASSERT(m_ref_counter == 0);
+  assert(m_ref_counter == 0);
 }
 
 
 const SE_cost_constants
 *Cost_model_constants::get_se_cost_constants(const TABLE *table) const
 {
-  DBUG_ASSERT(table->file != NULL);
-  DBUG_ASSERT(table->file->ht != NULL);
+  assert(table->file != NULL);
+  assert(table->file->ht != NULL);
 
   const SE_cost_constants *se_cc=
     m_engines[table->file->ht->slot].get_cost_constants(DEFAULT_STORAGE_CLASS);
-  DBUG_ASSERT(se_cc != NULL);
+  assert(se_cc != NULL);
 
   return se_cc;
 }
@@ -343,7 +343,7 @@ Cost_model_constants::update_engine_cost_constant(THD *thd,
 
     SE_cost_constants *se_cc=
       m_engines[ht_slot_id].get_cost_constants(storage_category);
-    DBUG_ASSERT(se_cc != NULL);
+    assert(se_cc != NULL);
 
     retval= se_cc->update(name, value);
   }
@@ -367,10 +367,10 @@ uint Cost_model_constants::find_handler_slot_from_name(THD *thd,
 
   // Find the handlerton for this storage engine
   handlerton *ht= plugin_data<handlerton*>(plugin);
-  DBUG_ASSERT(ht != NULL);
+  assert(ht != NULL);
   if (!ht)
   {
-    DBUG_ASSERT(false);                         /* purecov: inspected */
+    assert(false);                         /* purecov: inspected */
     return HA_SLOT_UNDEF;
   }
 
@@ -383,7 +383,7 @@ Cost_model_constants::update_engine_default_cost(const LEX_CSTRING &name,
                                                  uint storage_category,
                                                  double value)
 {
-  DBUG_ASSERT(storage_category < MAX_STORAGE_CLASSES);
+  assert(storage_category < MAX_STORAGE_CLASSES);
 
   /*
     Return value: if at least one of the storage engines recognizes the

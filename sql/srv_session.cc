@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -811,7 +811,7 @@ void Srv_session::deinit_thread()
 
   my_set_thread_local(THR_srv_session_thread, NULL);
 
-  DBUG_ASSERT(my_get_thread_local(THR_stack_start_address));
+  assert(my_get_thread_local(THR_stack_start_address));
   my_set_thread_local(THR_stack_start_address, NULL);
   my_thread_end();
 }
@@ -945,7 +945,7 @@ bool Srv_session::open()
   DBUG_ENTER("Srv_session::open");
 
   DBUG_PRINT("info",("Session=%p  THD=%p  DA=%p", this, &thd, &da));
-  DBUG_ASSERT(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
+  assert(state == SRV_SESSION_CREATED || state == SRV_SESSION_CLOSED);
 
   thd.set_protocol(&protocol_error);
   thd.push_diagnostics_area(&da);
@@ -1116,7 +1116,7 @@ bool Srv_session::detach()
   DBUG_PRINT("info",("Session=%p THD=%p current_thd=%p",
                      this, &thd, current_thd));
 
-  DBUG_ASSERT(&thd == current_thd);
+  assert(&thd == current_thd);
   thd.restore_globals();
 
   set_psi(NULL);
@@ -1154,7 +1154,7 @@ bool Srv_session::close()
   DBUG_PRINT("info",("Session=%p THD=%p current_thd=%p",
                      this, &thd, current_thd));
 
-  DBUG_ASSERT(state < SRV_SESSION_CLOSED);
+  assert(state < SRV_SESSION_CLOSED);
 
   /*
     RAII
@@ -1249,7 +1249,7 @@ int Srv_session::execute_command(enum enum_server_command command,
     DBUG_RETURN(1);
   }
 
-  DBUG_ASSERT(thd.get_protocol() == &protocol_error);
+  assert(thd.get_protocol() == &protocol_error);
 
   // RAII:the destructor restores the state
   Srv_session::Session_backup_and_attach backup(this, false);
@@ -1276,7 +1276,7 @@ int Srv_session::execute_command(enum enum_server_command command,
   if (command != COM_QUERY)
     thd.reset_for_next_command();
 
-  DBUG_ASSERT(thd.m_statement_psi == NULL);
+  assert(thd.m_statement_psi == NULL);
   thd.m_statement_psi= MYSQL_START_STATEMENT(&thd.m_statement_state,
                                              stmt_info_new_packet.m_key,
                                              thd.db().str,

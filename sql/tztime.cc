@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -669,7 +669,7 @@ find_time_range(my_time_t t, const my_time_t *range_boundaries,
   /*
     Function will work without this assertion but result would be meaningless.
   */
-  DBUG_ASSERT(higher_bound > 0 && t >= range_boundaries[0]);
+  assert(higher_bound > 0 && t >= range_boundaries[0]);
 
   /*
     Do binary search for minimal interval which contain t. We preserve:
@@ -820,12 +820,12 @@ static my_time_t
 sec_since_epoch(int year, int mon, int mday, int hour, int min ,int sec)
 {
   /* Guard against my_time_t overflow(on system with 32 bit my_time_t) */
-  DBUG_ASSERT(!(year == TIMESTAMP_MAX_YEAR && mon == 1 && mday > 17));
+  assert(!(year == TIMESTAMP_MAX_YEAR && mon == 1 && mday > 17));
   /*
     It turns out that only whenever month is normalized or unnormalized
     plays role.
   */
-  DBUG_ASSERT(mon > 0 && mon < 13);
+  assert(mon > 0 && mon < 13);
   long days= year * DAYS_PER_NYEAR - EPOCH_YEAR * DAYS_PER_NYEAR +
              LEAPS_THRU_END_OF(year - 1) -
              LEAPS_THRU_END_OF(EPOCH_YEAR - 1);
@@ -957,7 +957,7 @@ TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
                            saved_seconds ? 0 : t->second);
 
   /* We have at least one range */
-  DBUG_ASSERT(sp->revcnt >= 1);
+  assert(sp->revcnt >= 1);
 
   if (local_t < sp->revts[0] || local_t > sp->revts[sp->revcnt])
   {
@@ -1161,7 +1161,7 @@ my_time_t
 Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *t, my_bool *in_dst_time_gap) const
 {
   /* Should be never called */
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -1208,7 +1208,7 @@ const String *
 Time_zone_utc::get_name() const
 {
   /* Should be never called */
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -1915,8 +1915,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
       HA_ERR_LOCK_WAIT_TIMEOUT/HA_ERR_LOCK_DEADLOCK on return from read
       from storage engine.
     */
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
-                res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+           res != HA_ERR_LOCK_DEADLOCK);
 #ifdef EXTRA_DEBUG
     /*
       Most probably user has mistyped time zone name, so no need to bark here
@@ -1947,8 +1947,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
                                       HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   if (res)
   {
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
-                res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+           res != HA_ERR_LOCK_DEADLOCK);
 
     sql_print_error("Can't find description of time zone '%u'", tzid);
     goto end;
@@ -2019,7 +2019,7 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 #endif
 
     /* ttid is increasing because we are reading using index */
-    DBUG_ASSERT(ttid >= tmp_tz_info.typecnt);
+    assert(ttid >= tmp_tz_info.typecnt);
 
     tmp_tz_info.typecnt= ttid + 1;
 
@@ -2029,8 +2029,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 
   if (res != HA_ERR_END_OF_FILE)
   {
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
-                res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+           res != HA_ERR_LOCK_DEADLOCK);
     sql_print_error("Error while loading time zone description from "
                     "mysql.time_zone_transition_type table");
     goto end;
@@ -2089,8 +2089,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   if (res != HA_ERR_END_OF_FILE && res != HA_ERR_KEY_NOT_FOUND)
   {
-    DBUG_ASSERT(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
-                res != HA_ERR_LOCK_DEADLOCK);
+    assert(res != HA_ERR_LOCK_WAIT_TIMEOUT &&
+           res != HA_ERR_LOCK_DEADLOCK);
     sql_print_error("Error while loading time zone description from "
                     "mysql.time_zone_transition table");
     goto end;

@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -467,7 +467,7 @@ public:
   inline void *replace(void *element)
   {						// Return old element
     void *tmp=current->info;
-    DBUG_ASSERT(current->info != 0);
+    assert(current->info != 0);
     current->info=element;
     return tmp;
   }
@@ -731,7 +731,7 @@ public:
 
   void move_elements_to(base_ilist *new_owner)
   {
-    DBUG_ASSERT(new_owner->is_empty());
+    assert(new_owner->is_empty());
     new_owner->first= first;
     new_owner->sentinel= sentinel;
     empty();

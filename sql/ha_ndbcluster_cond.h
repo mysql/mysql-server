@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -294,7 +294,7 @@ public:
   static NDB_FUNC_TYPE negate(NDB_FUNC_TYPE fun)
   {
     uint i= (uint) fun;
-    DBUG_ASSERT(fun == neg_map[i].pos_fun);
+    assert(fun == neg_map[i].pos_fun);
     return  neg_map[i].neg_fun;
   }
 

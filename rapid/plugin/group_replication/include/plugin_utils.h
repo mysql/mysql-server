@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -422,7 +422,7 @@ public:
       int error=
 #endif
       mysql_cond_timedwait(&cond, &lock, &abstime);
-      DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+      assert(error == ETIMEDOUT || error == 0);
       if (timeout >= 1)
       {
         timeout= timeout - 1;
@@ -457,7 +457,7 @@ public:
   {
     DBUG_ENTER("Mutex_autolock::Mutex_autolock");
 
-    DBUG_ASSERT(arg != NULL);
+    assert(arg != NULL);
 
     mysql_mutex_lock(ptr_mutex);
     DBUG_VOID_RETURN;
@@ -481,7 +481,7 @@ public:
   {
     DBUG_ENTER("Shared_writelock::Shared_writelock");
 
-    DBUG_ASSERT(arg != NULL);
+    assert(arg != NULL);
 
     mysql_mutex_init(key_GR_LOCK_write_lock_protection, &write_lock, MY_MUTEX_INIT_FAST);
 

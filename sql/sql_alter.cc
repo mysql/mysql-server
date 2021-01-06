@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,9 +238,9 @@ bool Sql_cmd_alter_table::execute(THD *thd)
     priv_needed|= DROP_ACL;
 
   /* Must be set in the parser */
-  DBUG_ASSERT(select_lex->db);
-  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
-  DBUG_ASSERT(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
+  assert(select_lex->db);
+  assert(!(alter_info.flags & Alter_info::ALTER_EXCHANGE_PARTITION));
+  assert(!(alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION));
   if (check_access(thd, priv_needed, first_table->db,
                    &first_table->grant.privilege,
                    &first_table->grant.m_internal,

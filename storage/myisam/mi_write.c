@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -403,7 +403,7 @@ static int w_search(MI_INFO *info, MI_KEYDEF *keyinfo,
                                       &root, comp_flag);
         _mi_dpointer(info, keypos+HA_FT_WLEN, root);
         subkeys--; /* should there be underflow protection ? */
-        DBUG_ASSERT(subkeys < 0);
+        assert(subkeys < 0);
         ft_intXstore(keypos, subkeys);
         if (!error)
           error=_mi_write_keypage(info,keyinfo,page,DFLT_INIT_HITS,temp_buff);
@@ -536,14 +536,14 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
       uchar *a=key, *b=anc_buff+2+nod_flag;
       uint alen, blen, ft2len=info->s->ft2_keyinfo.keylength;
       /* the very first key on the page is always unpacked */
-      DBUG_ASSERT((*b & 128) == 0);
+      assert((*b & 128) == 0);
 #if HA_FT_MAXLEN >= 127 /* TODO: Undefined symbol */
       blen= mi_uint2korr(b); b+=2;
 #else
       blen= *b++;
 #endif
       get_key_length(alen,a);
-      DBUG_ASSERT(info->ft1_to_ft2==0);
+      assert(info->ft1_to_ft2==0);
       if (alen == blen &&
           ha_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0, 0)==0)
       {
@@ -976,8 +976,8 @@ int mi_init_bulk_insert(MI_INFO *info, ulong cache_size, ha_rows rows)
   DBUG_ENTER("_mi_init_bulk_insert");
   DBUG_PRINT("enter",("cache_size: %lu", cache_size));
 
-  DBUG_ASSERT(!info->bulk_insert &&
-	      (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT));
+  assert(!info->bulk_insert &&
+         (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT));
 
   mi_clear_all_keys_active(key_map);
   for (i=total_keylength=num_keys=0 ; i < share->base.keys ; i++)

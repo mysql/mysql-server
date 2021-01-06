@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,7 +189,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
       SSL_read() returns an error from the error queue, when SSL_read() failed
       because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret= SSL_read(ssl, buf, (int)size);
 
@@ -226,7 +226,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
       SSL_write() returns an error from the error queue, when SSL_write() failed
       because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret= SSL_write(ssl, buf, (int)size);
 
@@ -339,7 +339,7 @@ static int ssl_handshake_loop(Vio *vio, SSL *ssl,
       SSL-handshake-function returns an error from the error queue, when the
       function failed because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret= func(ssl);
 

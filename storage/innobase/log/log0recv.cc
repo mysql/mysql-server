@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -3800,7 +3800,7 @@ recv_group_scan_log_recs(
 	bool		last_phase)
 {
 	DBUG_ENTER("recv_group_scan_log_recs");
-	DBUG_ASSERT(!last_phase || recv_sys->mlog_checkpoint_lsn > 0);
+	assert(!last_phase || recv_sys->mlog_checkpoint_lsn > 0);
 
 	mutex_enter(&recv_sys->mutex);
 	recv_sys->len = 0;
@@ -4786,7 +4786,7 @@ get_mlog_string(mlog_id_t type)
 	case MLOG_TRUNCATE:
 		return("MLOG_TRUNCATE");
 	}
-	DBUG_ASSERT(0);
+	assert(0);
 	return(NULL);
 }
 #endif /* !DBUG_OFF */

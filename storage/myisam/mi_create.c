@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -387,7 +387,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	}
 	if (keyseg->flag & HA_SPACE_PACK)
 	{
-          DBUG_ASSERT(!(keyseg->flag & HA_VAR_LENGTH_PART));
+          assert(!(keyseg->flag & HA_VAR_LENGTH_PART));
 	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	  length++;				/* At least one length byte */
@@ -400,8 +400,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	}
 	if (keyseg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
 	{
-          DBUG_ASSERT(!test_all_bits(keyseg->flag,
-                                    (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
+          assert(!test_all_bits(keyseg->flag,
+                                (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
 	  length++;				/* At least one length byte */
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
@@ -848,7 +848,7 @@ err_no_lock:
 
 uint mi_get_pointer_length(ulonglong file_length, uint def)
 {
-  DBUG_ASSERT(def >= 2 && def <= 7);
+  assert(def >= 2 && def <= 7);
   if (file_length)				/* If not default */
   {
     if (file_length >= 1ULL << 48)

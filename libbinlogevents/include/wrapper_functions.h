@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,11 +51,7 @@ extern PSI_memory_key key_memory_log_event;
 #endif
 
 #if !defined(DBUG_OFF)
-#if HAVE_MYSYS
-#define BAPI_ASSERT(x) DBUG_ASSERT(x)
-#else
 #define BAPI_ASSERT(x) assert(x)
-#endif
 #else
 #define BAPI_ASSERT(x) do { } while(0)
 #endif

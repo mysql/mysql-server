@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -335,7 +335,7 @@ Item_func* OptRangeTest::create_item(Item_func::Functype type,
     break;
   default:
     result= NULL;
-    DBUG_ASSERT(false);
+    assert(false);
     return result;
   }
   Item *itm= static_cast<Item*>(result);
@@ -1949,7 +1949,7 @@ TEST_F(OptRangeTest, IncrementUseCount2)
 TEST_F(OptRangeTest, CombineAlways)
 {
   // Gets decremented in key_or() before being compared > 0, triggering
-  // a DBUG_ASSERT in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
+  // a assert in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
   // handled.
   static const int INITIAL_USE_COUNT= 3;
 
@@ -1997,7 +1997,7 @@ TEST_F(OptRangeTest, CombineAlways2)
       next_key_part= NULL;
       make_root();
       // Gets decremented in key_or() before being compared > 0, triggering
-      // a DBUG_ASSERT in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
+      // a assert in SEL_ARG::SEL_ARG(Type) unless the ALWAYS type is
       // handled.
       use_count= 3;
     }

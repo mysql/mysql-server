@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ TEST_join(JOIN *join)
 {
   uint i,ref;
   DBUG_ENTER("TEST_join");
-  DBUG_ASSERT(!join->join_tab);
+  assert(!join->join_tab);
   /*
     Assemble results of all the calls to full_name() first,
     in order not to garble the tabular output below.

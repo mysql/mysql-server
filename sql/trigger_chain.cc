@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root,
   case TRG_ORDER_FOLLOWS:
   case TRG_ORDER_PRECEDES:
     {
-      DBUG_ASSERT(referenced_trigger_name.str);
+      assert(referenced_trigger_name.str);
 
       List_iterator<Trigger> it(m_triggers);
       List_iterator<Trigger> it2= it;
@@ -106,7 +106,7 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root,
     }
   }
 
-  DBUG_ASSERT(false);
+  assert(false);
   return true;
 }
 

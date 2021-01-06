@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -183,7 +183,7 @@ ssl_error_string[] =
 const char*
 sslGetErrString(enum enum_ssl_init_error e)
 {
-  DBUG_ASSERT(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
+  assert(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
   return ssl_error_string[e];
 }
 

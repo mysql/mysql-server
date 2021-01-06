@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,12 +46,12 @@ public:
   explicit Parse_tree_item(const POS &pos) : Item(pos) {}
 
   virtual enum Type type() const { return INVALID_ITEM; }
-  virtual double val_real() { DBUG_ASSERT(0); return 0; }
-  virtual longlong val_int() { DBUG_ASSERT(0); return 0; }
-  virtual String *val_str(String *) { DBUG_ASSERT(0); return NULL; }
-  virtual my_decimal *val_decimal(my_decimal *) { DBUG_ASSERT(0); return NULL; }
-  virtual bool get_date(MYSQL_TIME *, uint) { DBUG_ASSERT(0); return false; }
-  virtual bool get_time(MYSQL_TIME *) { DBUG_ASSERT(0); return false; }
+  virtual double val_real() { assert(0); return 0; }
+  virtual longlong val_int() { assert(0); return 0; }
+  virtual String *val_str(String *) { assert(0); return NULL; }
+  virtual my_decimal *val_decimal(my_decimal *) { assert(0); return NULL; }
+  virtual bool get_date(MYSQL_TIME *, uint) { assert(0); return false; }
+  virtual bool get_time(MYSQL_TIME *) { assert(0); return false; }
 };
 
 
@@ -105,7 +105,7 @@ public:
 
   Item *pop_front()
   {
-    DBUG_ASSERT(!is_empty());
+    assert(!is_empty());
     return value.pop();
   }
 };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,10 +167,10 @@ Recovery_module::stop_recovery()
       DBUG_RETURN(1);
     }
     /* purecov: inspected */
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!recovery_running);
+  assert(!recovery_running);
 
   mysql_mutex_unlock(&run_lock);
 
@@ -350,13 +350,13 @@ Recovery_module::recovery_thread_handle()
 #ifndef DBUG_OFF
   DBUG_EXECUTE_IF("recovery_thread_start_wait_num_of_members",
                   {
-                    DBUG_ASSERT(number_of_members != 1);
+                    assert(number_of_members != 1);
                     DBUG_SET("d,recovery_thread_start_wait");
                   });
   DBUG_EXECUTE_IF("recovery_thread_start_wait",
                   {
                     const char act[]= "now wait_for signal.recovery_continue";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 #endif // DBUG_OFF
 
@@ -381,7 +381,7 @@ Recovery_module::recovery_thread_handle()
   DBUG_EXECUTE_IF("recovery_thread_wait_before_finish",
                   {
                     const char act[]= "now wait_for signal.recovery_end";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 #endif // DBUG_OFF
 

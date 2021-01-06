@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -147,7 +147,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                item->item_name.ptr(), item->unsigned_flag);
     break;
   case STRING_RESULT:
-    DBUG_ASSERT(item->collation.collation);
+    assert(item->collation.collation);
   
     /*
       DATE/TIME, GEOMETRY and JSON fields have STRING_RESULT result type.
@@ -171,7 +171,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   case ROW_RESULT:
   default:
     // This case should never be choosen
-    DBUG_ASSERT(0);
+    assert(0);
     new_field= 0;
     break;
   }
@@ -352,7 +352,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 
       if (make_copy_field)
       {
-        DBUG_ASSERT(item_func_sp->result_field);
+        assert(item_func_sp->result_field);
         *from_field= item_func_sp->result_field;
       }
       else
@@ -390,7 +390,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   case Item::PARAM_ITEM:
     if (make_copy_field)
     {
-      DBUG_ASSERT(((Item_result_field*)item)->result_field);
+      assert(((Item_result_field*)item)->result_field);
       *from_field= ((Item_result_field*)item)->result_field;
     }
     result= create_tmp_field_from_item(thd, item, table,
@@ -405,7 +405,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     result->set_derivation(item->collation.derivation);
     break;
   default:					// Dosen't have to be stored
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
   return result;
@@ -513,7 +513,7 @@ uint Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS= 0;
 
 void init_cache_tmp_engine_properties()
 {
-  DBUG_ASSERT(!current_thd);
+  assert(!current_thd);
   THD *thd= new THD();
   thd->thread_stack= pointer_cast<char *>(&thd);
   thd->store_globals();
@@ -533,7 +533,7 @@ void get_max_key_and_part_length(uint *max_key_length,
                                  uint *max_key_part_length)
 {
   // Make sure these cached properties are initialized.
-  DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH);
+  assert(Cache_temp_engine_properties::HEAP_MAX_KEY_LENGTH);
 
   switch (internal_tmp_disk_storage_engine)
   {
@@ -549,8 +549,8 @@ void get_max_key_and_part_length(uint *max_key_length,
       It is correct as long as HEAP'S not bigger than on-disk temp table
       engine's, which we check here.
     */
-    DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS <=
-                Cache_temp_engine_properties::MYISAM_MAX_KEY_PARTS);
+    assert(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS <=
+           Cache_temp_engine_properties::MYISAM_MAX_KEY_PARTS);
     break;
   case TMP_TABLE_INNODB:
   default:
@@ -560,8 +560,8 @@ void get_max_key_and_part_length(uint *max_key_length,
     *max_key_part_length=
       std::min(Cache_temp_engine_properties::HEAP_MAX_KEY_PART_LENGTH,
                Cache_temp_engine_properties::INNODB_MAX_KEY_PART_LENGTH);
-    DBUG_ASSERT(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS <=
-                Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS);
+    assert(Cache_temp_engine_properties::HEAP_MAX_KEY_PARTS <=
+           Cache_temp_engine_properties::INNODB_MAX_KEY_PARTS);
     break;
   }
 }
@@ -718,7 +718,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   else
   {
     /* if we run out of slots or we are not using tempool */
-    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    assert(sizeof(my_thread_id) == 4);
     sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid,
             thd->thread_id(), thd->tmp_table++);
   }
@@ -975,7 +975,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
       if (!new_field)
       {
-        DBUG_ASSERT(thd->is_fatal_error);
+        assert(thd->is_fatal_error);
         goto err;				// Got OOM
       }
       if (type == Item::SUM_FUNC_ITEM)
@@ -1052,8 +1052,8 @@ update_hidden:
       total_uneven_bit_length= 0;
     }
   }
-  DBUG_ASSERT(fieldnr == (uint) (reg_field - table->field));
-  DBUG_ASSERT(field_count >= (uint) (reg_field - table->field));
+  assert(fieldnr == (uint) (reg_field - table->field));
+  assert(field_count >= (uint) (reg_field - table->field));
   field_count= fieldnr;
   *reg_field= 0;
   *blob_field= 0;				// End marker
@@ -1083,7 +1083,7 @@ update_hidden:
       share->db_plugin= ha_lock_engine(0, innodb_hton);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       share->db_plugin= ha_lock_engine(0, innodb_hton);
     }
 
@@ -1143,7 +1143,7 @@ update_hidden:
       for (; cur_group ; cur_group= cur_group->next, key_part_info++)
       {
         Field *field= (*cur_group->item)->get_tmp_table_field();
-        DBUG_ASSERT(field->table == table);
+        assert(field->table == table);
         key_part_info->init_from_field(field);
 
         /* In GROUP BY 'a' and 'a ' are equal for VARCHAR fields */
@@ -1220,7 +1220,7 @@ update_hidden:
           Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field)
     {
-      DBUG_ASSERT(thd->is_fatal_error);
+      assert(thd->is_fatal_error);
       goto err;   // Got OOM
     }
 
@@ -1292,7 +1292,7 @@ update_hidden:
     share->default_values= table->record[1]+alloc_length;
   }
   param->func_count= copy_func->size();
-  DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated
+  assert(param->func_count <= copy_func_count); // Used <= allocated
 
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
@@ -1313,7 +1313,7 @@ update_hidden:
   }
   null_count= (blob_count == 0) ? 1 : 0;
   hidden_field_count=param->hidden_field_count;
-  DBUG_ASSERT((uint)hidden_field_count <= field_count);
+  assert((uint)hidden_field_count <= field_count);
   for (i=0,reg_field=table->field; i < field_count; i++,reg_field++,recinfo++)
   {
     Field *field= *reg_field;
@@ -1442,7 +1442,7 @@ update_hidden:
     for (; cur_group ; cur_group= cur_group->next, key_part_info++)
     {
       Field *field= (*cur_group->item)->get_tmp_table_field();
-      DBUG_ASSERT(field->table == table);
+      assert(field->table == table);
       bool maybe_null= (*cur_group->item)->maybe_null;
       key_part_info->init_from_field(key_part_info->field);
       keyinfo->key_length+= key_part_info->store_length;
@@ -1602,7 +1602,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   uint i;
 
   DBUG_ENTER("create_duplicate_weedout_tmp_table");
-  DBUG_ASSERT(!sjtbl->is_confluent);
+  assert(!sjtbl->is_confluent);
   /*
     STEP 1: Get temporary table name
   */
@@ -1616,7 +1616,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   else
   {
     /* if we run out of slots or we are not using tempool */
-    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    assert(sizeof(my_thread_id) == 4);
     sprintf(path,"%s%lx_%x_%x", tmp_file_prefix,current_pid,
             thd->thread_id(), thd->tmp_table++);
   }
@@ -1688,7 +1688,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
           Field_longlong(sizeof(ulonglong), false, "<hash_field>", true);
     if (!field)
     {
-      DBUG_ASSERT(thd->is_fatal_error);
+      assert(thd->is_fatal_error);
       goto err;				// Got OOM
     }
     // Mark hash_field as NOT NULL
@@ -1738,7 +1738,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       share->db_plugin= ha_lock_engine(0, innodb_hton);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       share->db_plugin= ha_lock_engine(0, innodb_hton);
     }
     table->file= get_new_handler(share, &table->mem_root,
@@ -1885,7 +1885,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->key_length=0;
     {
       key_part_info->init_from_field(field);
-      DBUG_ASSERT(key_part_info->key_type == FIELDFLAG_BINARY);
+      assert(key_part_info->key_type == FIELDFLAG_BINARY);
 
       key_field= field->new_key_field(thd->mem_root, table, group_buff);
       if (!key_field)
@@ -2129,7 +2129,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
   {						// Get keys for ni_create
     if (share->keys > 1)
     {
-      DBUG_ASSERT(0); // This code can't handle more than 1 key
+      assert(0); // This code can't handle more than 1 key
       share->keys= 1;
     }
     HA_KEYSEG *seg= (HA_KEYSEG*) alloc_root(&table->mem_root,
@@ -2333,7 +2333,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table)
   }
   else
   {
-    DBUG_ASSERT(table->s->db_type() == heap_hton);
+    assert(table->s->db_type() == heap_hton);
     trace_tmp.add_alnum("location", "memory (heap)").
       add("row_limit_estimate", table->s->max_rows);
   }
@@ -2367,7 +2367,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
 {
 #ifndef DBUG_OFF
   for (uint i= 0; i < table->s->fields; i++)
-    DBUG_ASSERT(table->field[i]->gcol_info== NULL && table->field[i]->stored_in_db);
+    assert(table->field[i]->gcol_info== NULL && table->field[i]->stored_in_db);
 #endif
 
   if (table->s->db_type() == innodb_hton)
@@ -2518,7 +2518,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     new_table.s->db_plugin= ha_lock_engine(thd, innodb_hton);
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
     new_table.s->db_plugin= ha_lock_engine(thd, innodb_hton);
   }
 
@@ -2556,7 +2556,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     Opt_trace_context * trace= &thd->opt_trace;
     Opt_trace_object wrapper(trace);
     Opt_trace_object convert(trace, "converting_tmp_table_to_ondisk");
-    DBUG_ASSERT(error == HA_ERR_RECORD_FILE_FULL);
+    assert(error == HA_ERR_RECORD_FILE_FULL);
     convert.add_alnum("cause", "memory_table_size_exceeded");
     trace_tmp_table(trace, &new_table);
   }
@@ -2620,14 +2620,14 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
   /* Update quick select, if any. */
   {
     QEP_TAB *tab= table->reginfo.qep_tab;
-    DBUG_ASSERT(tab || !table->reginfo.join_tab);
+    assert(tab || !table->reginfo.join_tab);
     if (tab && tab->quick())
     {
       /*
         This could happen only with result of derived table/view
         materialization.
       */
-      DBUG_ASSERT(tab->table_ref && tab->table_ref->uses_materialization());
+      assert(tab->table_ref && tab->table_ref->uses_materialization());
       tab->quick()->set_handler(table->file);
     }
   }

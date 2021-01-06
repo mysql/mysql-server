@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ void hint_lex_init_maps(charset_info_st *cs,
       hint_map[i]= HINT_CHR_DIGIT;
     else if (my_isspace(cs, i))
     {
-      DBUG_ASSERT(!my_ismb1st(cs, i));
+      assert(!my_ismb1st(cs, i));
       hint_map[i]= HINT_CHR_SPACE;
     }
     else

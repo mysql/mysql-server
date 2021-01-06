@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -369,8 +369,8 @@ void Binlog_sender::run()
 		    const char act[]= "now "
 		    "signal dump_thread_reached_wait_point "
 		    "wait_for continue_dump_thread no_clear_event";
-		    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-						       STRING_WITH_LEN(act)));
+		    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
 		    };);
     mysql_bin_log.lock_index();
     if (!mysql_bin_log.is_open())
@@ -392,8 +392,8 @@ void Binlog_sender::run()
       DBUG_EXECUTE_IF("waiting_for_disable_binlog",
 		      {
 		      const char act[]= "now signal consumed_binlog";
-		      DBUG_ASSERT(!debug_sync_set_action(current_thd,
-							 STRING_WITH_LEN(act)));
+		      assert(!debug_sync_set_action(current_thd,
+                                                    STRING_WITH_LEN(act)));
 		      };);
       if (is_index_file_reopened_on_binlog_disable)
         mysql_bin_log.close(LOG_CLOSE_INDEX, true/*need_lock_log=true*/,
@@ -488,8 +488,8 @@ my_off_t Binlog_sender::send_binlog(IO_CACHE *log_cache, my_off_t start_pos)
     DBUG_EXECUTE_IF("wait_after_binlog_EOF",
                     {
                       const char act[]= "now wait_for signal.rotate_finished no_clear_event";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                         STRING_WITH_LEN(act)));
+                      assert(!debug_sync_set_action(current_thd,
+                                                    STRING_WITH_LEN(act)));
                     };);
   }
   return 1;
@@ -575,8 +575,8 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                         const char act[]=
                           "now "
                           "wait_for signal.continue";
-                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+                        assert(opt_debug_sync_timeout > 0);
+                        assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
                       }
                     });
 
@@ -601,7 +601,7 @@ int Binlog_sender::send_events(IO_CACHE *log_cache, my_off_t end_pos)
                       my_sleep(2000000);
                       });
       time_t now= time(0);
-      DBUG_ASSERT(now >= m_last_event_sent_ts);
+      assert(now >= m_last_event_sent_ts);
       bool time_for_hb_event= ((ulonglong)(now - m_last_event_sent_ts)
                           >= (ulonglong)(m_heartbeat_period/1000000000UL));
       if (time_for_hb_event)
@@ -861,7 +861,7 @@ int Binlog_sender::check_start_file()
       and Slave.
     */
     Sid_map* slave_sid_map= m_exclude_gtid->get_sid_map();
-    DBUG_ASSERT(slave_sid_map);
+    assert(slave_sid_map);
     global_sid_lock->wrlock();
     const rpl_sid &server_sid= gtid_state->get_server_sid();
     rpl_sidno subset_sidno= slave_sid_map->sid_to_sidno(server_sid);
@@ -872,7 +872,7 @@ int Binlog_sender::check_start_file()
     if (gtid_executed_and_owned.add_gtid_set(gtid_state->get_executed_gtids())
         != RETURN_STATUS_OK)
     {
-      DBUG_ASSERT(0);
+      assert(0);
     }
     gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
 
@@ -1004,7 +1004,7 @@ void Binlog_sender::init_checksum_alg()
   {
     m_slave_checksum_alg=
       static_cast<enum_binlog_checksum_alg>(find_type((char*) entry->ptr(), &binlog_checksum_typelib, 1) - 1);
-    DBUG_ASSERT(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
+    assert(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
   }
 
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
@@ -1068,7 +1068,7 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
   DBUG_ENTER("Binlog_sender::reset_transmit_packet");
   DBUG_PRINT("info", ("event_len: %zu, m_packet->alloced_length: %zu",
                       event_len, m_packet.alloced_length()));
-  DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+  assert(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
   m_packet.length(0);  // size of the content
   m_packet.qs_append('\0'); // Set this as an OK packet
@@ -1112,12 +1112,12 @@ int Binlog_sender::send_format_description_event(IO_CACHE *log_cache,
     DBUG_RETURN(1);
   }
 
-  DBUG_ASSERT(event_ptr[LOG_POS_OFFSET] > 0);
+  assert(event_ptr[LOG_POS_OFFSET] > 0);
   m_event_checksum_alg=
     Log_event_footer::get_checksum_alg((const char *)event_ptr, event_len);
 
-  DBUG_ASSERT(m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END ||
-              m_event_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  assert(m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END ||
+         m_event_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
 
   /* Slave does not support checksum, but binary events include checksum */
   if (m_slave_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
@@ -1240,8 +1240,8 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   DBUG_EXECUTE_IF("dump_thread_before_read_event",
                   {
                     const char act[]= "now wait_for signal.continue no_clear_event";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 
   /*
@@ -1260,7 +1260,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
     that it might call functions to replace the buffer by one with the size to
     fit the event.
   */
-  DBUG_ASSERT(packet_buffer == m_packet.ptr());
+  assert(packet_buffer == m_packet.ptr());
   *event_ptr= (uchar *)m_packet.ptr() + event_offset;
 
   DBUG_PRINT("info",
@@ -1449,7 +1449,7 @@ inline bool Binlog_sender::shrink_packet()
   size_t cur_buffer_size= m_packet.alloced_length();
   size_t buffer_used= m_packet.length();
 
-  DBUG_ASSERT(!(cur_buffer_size < PACKET_MIN_SIZE));
+  assert(!(cur_buffer_size < PACKET_MIN_SIZE));
 
   /*
      If the packet is already at the minimum size, just
@@ -1488,8 +1488,8 @@ inline bool Binlog_sender::shrink_packet()
 #ifndef DBUG_OFF
   if (res == false)
   {
-    DBUG_ASSERT(m_new_shrink_size <= cur_buffer_size);
-    DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+    assert(m_new_shrink_size <= cur_buffer_size);
+    assert(m_packet.alloced_length() >= PACKET_MIN_SIZE);
   }
 #endif
   DBUG_RETURN(res);
@@ -1499,7 +1499,7 @@ inline size_t Binlog_sender::calc_grow_buffer_size(size_t current_size,
                                                    size_t min_size)
 {
   /* Check that a sane minimum buffer size was requested.  */
-  DBUG_ASSERT(min_size > PACKET_MIN_SIZE);
+  assert(min_size > PACKET_MIN_SIZE);
   if (min_size > PACKET_MAX_SIZE)
     return 0;
 

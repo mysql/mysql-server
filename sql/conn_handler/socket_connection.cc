@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ void net_before_header_psi(struct st_net *net, void *user_data, size_t /* unused
 {
   THD *thd;
   thd= static_cast<THD*> (user_data);
-  DBUG_ASSERT(thd != NULL);
+  assert(thd != NULL);
 
   if (thd->m_server_idle)
   {
@@ -81,7 +81,7 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
 {
   THD *thd;
   thd= static_cast<THD*> (user_data);
-  DBUG_ASSERT(thd != NULL);
+  assert(thd != NULL);
 
   if (thd->m_server_idle)
   {
@@ -100,7 +100,7 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
 
     if (! rc)
     {
-      DBUG_ASSERT(thd->m_statement_psi == NULL);
+      assert(thd->m_statement_psi == NULL);
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   stmt_info_new_packet.m_key,
                                                   thd->db().str,

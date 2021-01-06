@@ -2,7 +2,7 @@
 #define NULLABLE_INCLUDED
 
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ public:
   */
   const T_value& value() const
   {
-    DBUG_ASSERT(this->m_has_value);
+    assert(this->m_has_value);
     return this->m_value;
   }
 

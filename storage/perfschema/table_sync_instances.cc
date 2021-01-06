@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -175,7 +175,7 @@ int table_mutex_instances::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -197,7 +197,7 @@ int table_mutex_instances::read_row_values(TABLE *table,
           f->set_null();
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -353,7 +353,7 @@ int table_rwlock_instances::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -378,7 +378,7 @@ int table_rwlock_instances::read_row_values(TABLE *table,
         set_field_ulong(f, m_row.m_readers);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -510,7 +510,7 @@ int table_cond_instances::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)
   {
@@ -525,7 +525,7 @@ int table_cond_instances::read_row_values(TABLE *table,
         set_field_ulonglong(f, (intptr) m_row.m_identity);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
