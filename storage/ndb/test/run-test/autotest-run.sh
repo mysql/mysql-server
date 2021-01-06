@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,43 +72,31 @@ LOCK=$HOME/.autotest-lock
 # Read command line entries#
 ############################
 
-while [ "$1" ]
-do
-        case "$1" in
-                --verbose=*) verbose=`echo $1 | sed s/--verbose=//`;;
-                --verbose) verbose=`expr $verbose + 1`;;
-                --conf=*) conf=`echo $1 | sed s/--conf=//`;;
-                --version) echo $VERSION; exit;;
-	        --suite=*) RUN=`echo $1 | sed s/--suite=//`;;
-          --suite-suffix=*) suite_suffix=`echo $1 | sed s/--suite-suffix=//`;;
-	        --run-dir=*) run_dir=`echo $1 | sed s/--run-dir=//`;;
-          --custom-atrt=*) custom_atrt=`echo $1 | sed s/--custom-atrt=//`;;
-          --custom-cpcc=*) custom_cpcc=`echo $1 | sed s/--custom-cpcc=//`;;
-	        --install-dir=*) install_dir=`echo $1 | sed s/--install-dir=//`;;
-	        --install-dir0=*) install_dir0=`echo $1 | sed s/--install-dir0=//`;;
-	        --install-dir1=*) install_dir1=`echo $1 | sed s/--install-dir1=//`;;
-	        --clone=*) clone0=`echo $1 | sed s/--clone=//`;;
-	        --clone0=*) clone0=`echo $1 | sed s/--clone0=//`;;
-	        --clone1=*) clone1=`echo $1 | sed s/--clone1=//`;;
-	        --nolock) nolock=true;;
-	        --clonename=*) clonename=`echo $1 | sed s/--clonename=//`;;
-                --baseport=*) baseport_arg="$1";;
-                --base-dir=*) base_dir=`echo $1 | sed s/--base-dir=//`;;
-                --clusters=*) clusters_arg="$1";;
-                --atrt-defaults-group-suffix=*)
-                    atrt_defaults_group_suffix_arg="${1/#--atrt-/--}"
-                    ;;
-                --site=*) site_arg="$1";;
-                --default-max-retries=*) default_max_retries_arg="$1";;
-                --default-force-cluster-restart=*)
-                    default_force_cluster_restart_arg="$1";;
-                --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
-                --*clean-shutdown*) clean_shutdown_arg="$1";;
-                --atrt-coverage-tool=*) coverage_tool_arg="${1/#--atrt-/--}";;
-                --atrt-coverage*) coverage_arg="${1/#--atrt-/--}";;
-                --build-dir=*) build_dir_arg="$1";;
-        esac
-        shift
+while [ "${1}" ]; do
+  case "${1}" in
+    --atrt-*) atrt_arg=$(echo "${1}" | sed s/--atrt-/--/);
+        atrt_args="${atrt_args} ${atrt_arg}";;
+    --verbose=*) verbose=$(echo "${1}" | sed s/--verbose=//);;
+    --verbose) verbose=$(expr "${verbose}" + 1);;
+    --conf=*) conf=$(echo "${1}" | sed s/--conf=//);;
+    --version) echo "${VERSION}"; exit;;
+    --suite=*) RUN=$(echo "${1}" | sed s/--suite=//);;
+    --suite-suffix=*) suite_suffix=$(echo "${1}" | sed s/--suite-suffix=//);;
+    --base-dir=*) base_dir=$(echo $1 | sed s/--base-dir=//);;
+    --clusters=*) clusters_arg="${1}"; atrt_args="${atrt_args} ${1}";;
+    --run-dir=*) run_dir=$(echo "${1}" | sed s/--run-dir=//);;
+    --custom-atrt=*) custom_atrt=$(echo "${1}" | sed s/--custom-atrt=//);;
+    --custom-cpcc=*) custom_cpcc=$(echo "${1}" | sed s/--custom-cpcc=//);;
+    --install-dir=*) install_dir=$(echo "${1}" | sed s/--install-dir=//);;
+    --install-dir0=*) install_dir0=$(echo "${1}" | sed s/--install-dir0=//);;
+    --install-dir1=*) install_dir1=$(echo "${1}" | sed s/--install-dir1=//);;
+    --clone=*) clone0=$(echo "${1}" | sed s/--clone=//);;
+    --clone0=*) clone0=$(echo "${1}" | sed s/--clone0=//);;
+    --clone1=*) clone1=$(echo "${1}" | sed s/--clone1=//);;
+    --nolock) nolock=true;;
+    --clonename=*) clonename=$(echo "${1}" | sed s/--clonename=//);;
+  esac
+  shift
 done
 
 #################################
@@ -431,14 +419,10 @@ if [ ${verbose} -gt 0 ] ; then
   verbose_arg=--verbose=${verbose}
 fi
 
-return_code=0
-
 # Setup configuration
-$atrt ${atrt_defaults_group_suffix_arg} Cdq \
-   ${site_arg} \
-   ${clusters_arg} \
+${atrt} ${atrt_args} Cdq \
+   ${prefix} \
    ${verbose_arg} \
-   $prefix \
    my.cnf \
    | tee log.txt
 
@@ -447,26 +431,17 @@ if [ ${atrt_conf_status} -ne 0 ]; then
     return_code=$atrt_conf_status
     echo "Setup configuration failure"
 else
-    args="${atrt_defaults_group_suffix_arg}"
-    args="$args --report-file=report.txt"
-    args="$args --testcase-file=${test_file}"
-    args="$args ${baseport_arg}"
-    args="$args ${site_arg} ${clusters_arg}"
-    args="$args $prefix"
-    args="$args ${verbose_arg}"
-    args="$args ${default_max_retries_arg}"
-    args="$args ${default_force_cluster_restart_arg}"
-    args="$args ${default_behaviour_on_failure_arg}"
-    args="$args ${clean_shutdown_arg}"
-    args="$args ${coverage_arg}"
-    args="$args ${build_dir_arg}"
-    args="$args ${coverage_tool_arg}"
-    $atrt $args my.cnf | tee -a log.txt
+    args="${atrt_args}"
+    args="${args} --report-file=report.txt"
+    args="${args} --testcase-file=${test_file}"
+    args="${args} ${prefix}"
+    args="${args} ${verbose_arg}"
+    ${atrt} ${args} my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}
     if [ $atrt_test_status -ne 0 ]; then
         return_code=$atrt_test_status
-        echo "ERROR: $atrt_test_status: $atrt $args my.cnf"
+        echo "ERROR: ${atrt_test_status}: ${atrt} ${args} my.cnf"
     fi
 fi
 
@@ -486,7 +461,7 @@ echo "arch=$target" >> info.txt
 echo "host=$HOST" >> info.txt
 [ -z "${clusters_arg}" ] || echo "clusters=${clusters_arg/--clusters=/}" >> info.txt
 echo "test_hosts='$hosts'" >> info.txt
-echo "test_atrt_command='$atrt $args my.cnf'" >> info.txt
+echo "test_atrt_command='${atrt} ${args} my.cnf'" >> info.txt
 if [ "$clone1" ]
 then
     echo "clone1=$clone1" >> info.txt
