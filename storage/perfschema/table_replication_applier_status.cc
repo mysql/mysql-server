@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License, version 2.0,
@@ -164,8 +164,8 @@ void table_replication_applier_status::make_row(Master_info *mi)
 
   m_row_exists= false;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  assert(mi != NULL);
+  assert(mi->rli != NULL);
 
   m_row.channel_name_length= mi->get_channel()? strlen(mi->get_channel()):0;
   memcpy(m_row.channel_name, mi->get_channel(), m_row.channel_name_length);
@@ -215,7 +215,7 @@ int table_replication_applier_status::read_row_values(TABLE *table,
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -240,7 +240,7 @@ int table_replication_applier_status::read_row_values(TABLE *table,
         set_field_ulonglong(f, m_row.count_transactions_retries);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

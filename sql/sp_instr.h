@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -539,7 +539,7 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    assert(thd->lex->select_lex->item_list.elements == 1);
 
     m_value_item= thd->lex->select_lex->item_list.head();
 
@@ -692,7 +692,7 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    assert(thd->lex->select_lex->item_list.elements == 1);
 
     m_expr_item= thd->lex->select_lex->item_list.head();
 
@@ -786,7 +786,7 @@ public:
   virtual void backpatch(uint dest)
   {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
-    DBUG_ASSERT(m_dest == 0);
+    assert(m_dest == 0);
     m_dest= dest;
   }
 
@@ -885,7 +885,7 @@ public:
   virtual void backpatch(uint dest)
   {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
-    DBUG_ASSERT(m_dest == 0);
+    assert(m_dest == 0);
     m_dest= dest;
   }
 
@@ -947,7 +947,7 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    assert(thd->lex->select_lex->item_list.elements == 1);
 
     m_expr_item= thd->lex->select_lex->item_list.head();
 
@@ -1034,7 +1034,7 @@ public:
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    assert(thd->lex->select_lex->item_list.elements == 1);
 
     m_expr_item= thd->lex->select_lex->item_list.head();
 
@@ -1164,7 +1164,7 @@ public:
     m_opt_hpop(0),
     m_frame(ctx->current_var_count())
   {
-    DBUG_ASSERT(m_handler->condition_values.elements == 0);
+    assert(m_handler->condition_values.elements == 0);
   }
 
   virtual ~sp_instr_hpush_jump()
@@ -1203,7 +1203,7 @@ public:
 
   virtual void backpatch(uint dest)
   {
-    DBUG_ASSERT(!m_dest || !m_opt_hpop);
+    assert(!m_dest || !m_opt_hpop);
     if (!m_dest)
       m_dest= dest;
     else

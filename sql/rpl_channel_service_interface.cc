@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -418,11 +418,11 @@ int channel_start(const char* channel,
         lex_mi.until_after_gaps= true;
         break;
       case CHANNEL_UNTIL_VIEW_ID:
-        DBUG_ASSERT((thread_mask & SLAVE_SQL) && connection_info->view_id);
+        assert((thread_mask & SLAVE_SQL) && connection_info->view_id);
         lex_mi.view_id= connection_info->view_id;
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 
@@ -643,7 +643,7 @@ bool channel_is_active(const char* channel, enum_channel_thread_types thd_type)
     case CHANNEL_APPLIER_THREAD:
       DBUG_RETURN(thread_mask & SLAVE_SQL);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   DBUG_RETURN(false);
 }
@@ -1026,7 +1026,7 @@ bool channel_is_stopping(const char* channel,
       is_stopping= likely(mi->rli->is_stopping.atomic_get());
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   channel_map.unlock();

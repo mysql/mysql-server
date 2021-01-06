@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -236,7 +236,7 @@ bool linear_areal_intersect_infinite(Geometry *g1, Geometry *g2,
       res= bg::is_valid(mplgn);
     }
     else
-      DBUG_ASSERT(false);
+      assert(false);
 
     return res;
   }
@@ -395,7 +395,7 @@ bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
       min corner point have greater coordinates than the max corner point,
       the box isn't valid and the rtree can be empty.
      */
-    DBUG_ASSERT(rtree_result.size() != 0);
+    assert(rtree_result.size() != 0);
 
     // Sort rtree_result by Rtree_entry::second in order to make
     // components in fixed order.
@@ -583,7 +583,7 @@ template <typename BG_geotype>
 bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
                      BG_geotype &geout, String *res)
 {
-  DBUG_ASSERT(geout.has_geom_header_space());
+  assert(geout.has_geom_header_space());
   reassemble_geometry(&geout);
 
   // Such objects returned by BG never have overlapped components.

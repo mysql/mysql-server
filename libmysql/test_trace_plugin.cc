@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -481,7 +481,7 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
     {
       LOG(("wrong stage, expected: %s", protocol_stage_name(data->next_stage)));
       if (opt_crash)
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 
@@ -624,7 +624,7 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
   default:
     LOG(("invalid stage %d", stage));
     if (opt_crash)
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   // Disable invalid event check in certain cases.
@@ -654,7 +654,7 @@ trace_event(struct st_mysql_client_plugin_TRACE *self,
   {
     LOG(("invalid event detected"));
     if (opt_crash)
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   return 0;

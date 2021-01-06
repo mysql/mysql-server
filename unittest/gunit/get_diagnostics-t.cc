@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ TEST_F(GetDiagnosticsTest, Cmd)
 }
 
 
-// Verifies death with a DBUG_ASSERT if target item is not settable.
+// Verifies death with a assert if target item is not settable.
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef GetDiagnosticsTest GetDiagnosticsTestDeathTest;
 

@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -583,7 +583,7 @@ public:
       case SP_EXTERIORRING:
         return "st_exteriorring";
       default:
-	DBUG_ASSERT(0);  // Should never happened
+	assert(0);  // Should never happened
         return "spatial_decomp_unknown";
     }
   }
@@ -608,7 +608,7 @@ public:
       case SP_INTERIORRINGN:
         return "st_interiorringn";
       default:
-	DBUG_ASSERT(0);  // Should never happened
+	assert(0);  // Should never happened
         return "spatial_decomp_n_unknown";
     }
   }

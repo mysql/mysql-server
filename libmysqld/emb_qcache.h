@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,8 @@ public:
       around to the first block again. That means we're trying to write
       more data than we allocated space for.
     */
-    DBUG_ASSERT(block->next != block);
-    DBUG_ASSERT(block->next != first_block);
+    assert(block->next != block);
+    assert(block->next != first_block);
 
     block= block->next;
     /*
@@ -61,7 +61,7 @@ public:
     if (writing)
       block->type= Query_cache_block::RES_CONT;
     else
-      DBUG_ASSERT(block->type == Query_cache_block::RES_CONT);
+      assert(block->type == Query_cache_block::RES_CONT);
 
     cur_data= ((uchar*)block)+headers_len;
     data_end= cur_data + (block->used-headers_len);

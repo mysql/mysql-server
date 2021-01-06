@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ int table_setup_consumers::rnd_next(void)
 int table_setup_consumers::rnd_pos(const void *pos)
 {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < COUNT_SETUP_CONSUMERS);
+  assert(m_pos.m_index < COUNT_SETUP_CONSUMERS);
   m_row= &all_setup_consumers_data[m_pos.m_index];
   return 0;
 }
@@ -223,11 +223,11 @@ int table_setup_consumers::read_row_values(TABLE *table,
 {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)
   {
@@ -242,7 +242,7 @@ int table_setup_consumers::read_row_values(TABLE *table,
         set_field_enum(f, (*m_row->m_enabled_ptr) ? ENUM_YES : ENUM_NO);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -258,7 +258,7 @@ int table_setup_consumers::update_row_values(TABLE *table,
   Field *f;
   enum_yes_no value;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   for (; (f= *fields) ; fields++)
   {
@@ -275,7 +275,7 @@ int table_setup_consumers::update_row_values(TABLE *table,
         break;
       }
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

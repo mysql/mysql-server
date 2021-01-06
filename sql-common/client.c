@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,7 +268,7 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate) {
   NET *net;
   DBUG_ENTER("set_mysql_error");
   DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
-  DBUG_ASSERT(mysql != 0);
+  assert(mysql != 0);
 
   if (mysql) {
     net = &mysql->net;
@@ -319,7 +319,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
   va_list args;
   DBUG_ENTER("set_mysql_extended_error");
   DBUG_PRINT("enter", ("error :%d '%s'", errcode, format));
-  DBUG_ASSERT(mysql != 0);
+  assert(mysql != 0);
 
   net = &mysql->net;
   net->last_errno = errcode;
@@ -462,7 +462,7 @@ static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
     behavior if the user passed in a different name on the command-line or
     in a my.cnf.
   */
-  DBUG_ASSERT(shared_memory_base_name != NULL);
+  assert(shared_memory_base_name != NULL);
 
   /*
      get enough space base-name + '_' + longest suffix we might ever send
@@ -984,7 +984,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
             if (is_error) return;
 
             /* length for boolean tracker is always 1 */
-            DBUG_ASSERT(len == 1);
+            assert(len == 1);
             if (!buffer_check_remaining(mysql, pos, length, len)) return;
             if (!my_multi_malloc(key_memory_MYSQL_state_change_info, MYF(0),
                                  &element, sizeof(LIST), &data,
@@ -1003,7 +1003,7 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
 
             break;
           default:
-            DBUG_ASSERT(type <= SESSION_TRACK_END);
+            assert(type <= SESSION_TRACK_END);
             /*
               Unknown/unsupported type received, get the total length and move
               past it.
@@ -1367,7 +1367,7 @@ my_bool flush_one_result(MYSQL *mysql) {
   ulong packet_length;
   my_bool is_data_packet;
 
-  DBUG_ASSERT(mysql->status != MYSQL_STATUS_READY);
+  assert(mysql->status != MYSQL_STATUS_READY);
 
   do {
     packet_length = cli_safe_read(mysql, &is_data_packet);
@@ -1422,7 +1422,7 @@ my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet) {
     return TRUE;
 
   /* cli_safe_read always reads a non-empty packet. */
-  DBUG_ASSERT(packet_length);
+  assert(packet_length);
 
   *is_ok_packet =
       ((mysql->net.read_pos[0] == 0) ||
@@ -3192,7 +3192,7 @@ uchar *send_client_connect_attrs(MYSQL *mysql, uchar *buf) {
         LEX_STRING *key = attr, *value = attr + 1;
 
         /* we can't have zero length keys */
-        DBUG_ASSERT(key->length);
+        assert(key->length);
 
         buf = write_length_encoded_string3(buf, key->str, key->length);
         buf = write_length_encoded_string3(buf, value->str, value->length);
@@ -3306,7 +3306,7 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio, const uchar *data,
   if (!data_len)
     *end++ = 0;
   else {
-    DBUG_ASSERT(data_len <= 255);
+    assert(data_len <= 255);
     if (data_len > 255) {
       set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
       goto error;
@@ -3355,7 +3355,7 @@ static char *mysql_fill_packet_header(MYSQL *mysql, char *buff,
 
   if (mysql->client_flag & CLIENT_PROTOCOL_41) {
     /* 4.1 server and 4.1 client has a 32 byte option flag */
-    DBUG_ASSERT(buff_size >= 32);
+    assert(buff_size >= 32);
 
     int4store(buff_p, mysql->client_flag);
     int4store(buff_p + 4, net->max_packet_size);
@@ -3363,8 +3363,8 @@ static char *mysql_fill_packet_header(MYSQL *mysql, char *buff,
     memset(buff + 9, 0, 32 - 9);
     end = buff + 32;
   } else {
-    DBUG_ASSERT(buff_size >= 5);
-    DBUG_ASSERT(mysql->client_flag <= UINT_MAX16);
+    assert(buff_size >= 5);
+    assert(mysql->client_flag <= UINT_MAX16);
 
     int2store(buff_p, (uint16)mysql->client_flag);
     int3store(buff_p + 2, net->max_packet_size);
@@ -3618,7 +3618,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio, const uchar *data,
           ? mysql->options.extension->connection_attributes_length
           : 0;
 
-  DBUG_ASSERT(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
+  assert(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
 
   /*
     Fixed size of the packet is 32 bytes. See mysql_fill_packet_header.
@@ -3834,7 +3834,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info) {
 #endif
 #endif
   default:
-    DBUG_ASSERT(0);
+    assert(0);
   }
 }
 
@@ -4733,7 +4733,7 @@ error:
 my_bool mysql_reconnect(MYSQL *mysql) {
   MYSQL tmp_mysql;
   DBUG_ENTER("mysql_reconnect");
-  DBUG_ASSERT(mysql);
+  assert(mysql);
   DBUG_PRINT("enter", ("mysql->reconnect: %d", mysql->reconnect));
 
   if (!mysql->reconnect || (mysql->server_status & SERVER_STATUS_IN_TRANS) ||
@@ -5827,7 +5827,7 @@ const char *STDCALL mysql_error(MYSQL *mysql) {
 */
 
 static int get_data_and_length(LIST *node, const char **data, size_t *length) {
-  DBUG_ASSERT(!node || node->data);
+  assert(!node || node->data);
   if (data)
     *data = node ? ((LEX_STRING *)(node->data))->str : NULL;
   if (length)

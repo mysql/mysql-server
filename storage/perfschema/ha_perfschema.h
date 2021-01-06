@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -235,8 +235,8 @@ private:
   */
   bool is_executed_by_slave() const
   {
-    DBUG_ASSERT(table != NULL);
-    DBUG_ASSERT(table->in_use != NULL);
+    assert(table != NULL);
+    assert(table->in_use != NULL);
     return table->in_use->slave_thread;
 
   }

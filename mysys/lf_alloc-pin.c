@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ static void lf_pinbox_real_free(LF_PINS *pins);
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void *free_func_arg)
 {
-  DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
+  assert(free_ptr_offset % sizeof(void *) == 0);
   compile_time_assert(sizeof(LF_PINS) == 64);
   lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
   pinbox->pinstack_top_ver= 0;
@@ -211,7 +211,7 @@ void lf_pinbox_put_pins(LF_PINS *pins)
     /* This thread should not hold any pin. */
     int i;
     for (i= 0; i < LF_PINBOX_PINS; i++)
-      DBUG_ASSERT(pins->pin[i] == 0);
+      assert(pins->pin[i] == 0);
   }
 #endif /* DBUG_OFF */
 
@@ -398,7 +398,7 @@ void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
   allocator->element_size= size;
   allocator->constructor= ctor;
   allocator->destructor= dtor;
-  DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
+  assert(size >= sizeof(void*) + free_ptr_offset);
 }
 
 /*

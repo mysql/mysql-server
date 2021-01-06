@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,9 +76,9 @@ public:
     DBUG_PRINT("enter", ("ht: 0x%llx (%s)",
                          (ulonglong) ht_arg,
                          ha_legacy_type_name(ht_arg->db_type)));
-    DBUG_ASSERT(m_flags == 0);
-    DBUG_ASSERT(m_ht == NULL);
-    DBUG_ASSERT(m_next == NULL);
+    assert(m_flags == 0);
+    assert(m_ht == NULL);
+    assert(m_next == NULL);
 
     m_ht= ht_arg;
     m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
@@ -108,13 +108,13 @@ public:
 
   void set_trx_read_write()
   {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     m_flags|= (int) TRX_READ_WRITE;
   }
 
   bool is_trx_read_write() const
   {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     return m_flags & (int) TRX_READ_WRITE;
   }
 
@@ -124,7 +124,7 @@ public:
   */
   void set_trx_noop_read_write()
   {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     m_flags|= (int) TRX_NOOP_READ_WRITE;
   }
 
@@ -133,7 +133,7 @@ public:
   */
   bool is_trx_noop_read_write() const
   {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     return m_flags & (int) TRX_NOOP_READ_WRITE;
   }
 
@@ -154,7 +154,7 @@ public:
       Can be called many times, e.g. when we have many
       read-write statements in a transaction.
     */
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     if (stmt_trx->is_trx_read_write())
       set_trx_read_write();
     if (stmt_trx->is_trx_noop_read_write())
@@ -163,13 +163,13 @@ public:
 
   Ha_trx_info *next() const
   {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     return m_next;
   }
 
   handlerton *ht() const
   {
-    DBUG_ASSERT(is_started());
+    assert(is_started());
     return m_ht;
   }
 

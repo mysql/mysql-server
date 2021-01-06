@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -820,7 +820,7 @@ void mysql_rewrite_query(THD *thd)
   String rlb;
 
   // We should not come through here twice for the same query.
-  DBUG_ASSERT(thd->rewritten_query().length() == 0);
+  assert(thd->rewritten_query().length() == 0);
 
   if (thd->lex->contains_plaintext_password)
   {

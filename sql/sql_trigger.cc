@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
 
     if (!tables)
     {
-      DBUG_ASSERT(if_exists);
+      assert(if_exists);
       /*
         Since the trigger does not exist, there is no associated table,
         and therefore :
@@ -188,7 +188,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   }
 
   /* We should have only one table in table list. */
-  DBUG_ASSERT(tables->next_global == 0);
+  assert(tables->next_global == 0);
 
   /* We do not allow creation of triggers on temporary tables. */
   if (create && find_temporary_table(thd, tables))
@@ -444,13 +444,13 @@ bool change_trigger_table_name(THD *thd,
     This method interfaces the mysql server code protected by
     an exclusive metadata lock.
   */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                                           db_name,
-                                                           table_name,
-                                                           MDL_EXCLUSIVE));
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      db_name,
+                                                      table_name,
+                                                      MDL_EXCLUSIVE));
 
-  DBUG_ASSERT(my_strcasecmp(table_alias_charset, db_name, new_db_name) ||
-              my_strcasecmp(table_alias_charset, table_alias, new_table_name));
+  assert(my_strcasecmp(table_alias_charset, db_name, new_db_name) ||
+         my_strcasecmp(table_alias_charset, table_alias, new_table_name));
 
   Table_trigger_dispatcher d(db_name, table_name);
 

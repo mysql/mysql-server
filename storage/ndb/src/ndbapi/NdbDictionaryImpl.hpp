@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1441,7 +1441,7 @@ public:
   
   int init(NdbDictionaryImpl *dict, NdbTableImpl &tab) const {
     DBUG_ENTER("InitIndex::init");
-    DBUG_ASSERT(tab.m_indexType != NdbDictionary::Object::TypeUndefined);
+    assert(tab.m_indexType != NdbDictionary::Object::TypeUndefined);
     /**
      * Create index impl
      */

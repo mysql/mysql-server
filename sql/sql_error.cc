@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,7 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root)
   m_severity_level(Sql_condition::SL_ERROR),
   m_mem_root(mem_root)
 {
-  DBUG_ASSERT(mem_root != NULL);
+  assert(mem_root != NULL);
   memset(m_returned_sqlstate, 0, sizeof(m_returned_sqlstate));
 }
 
@@ -237,10 +237,10 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
   m_severity_level(severity),
   m_mem_root(mem_root)
 {
-  DBUG_ASSERT(mem_root != NULL);
-  DBUG_ASSERT(mysql_errno != 0);
-  DBUG_ASSERT(returned_sqlstate != NULL);
-  DBUG_ASSERT(message_text != NULL);
+  assert(mem_root != NULL);
+  assert(mysql_errno != 0);
+  assert(returned_sqlstate != NULL);
+  assert(message_text != NULL);
 
   set_message_text(message_text);
   set_returned_sqlstate(returned_sqlstate);
@@ -250,7 +250,7 @@ Sql_condition::Sql_condition(MEM_ROOT *mem_root, uint mysql_errno,
 
 void Sql_condition::copy_opt_attributes(const Sql_condition *cond)
 {
-  DBUG_ASSERT(this != cond);
+  assert(this != cond);
   copy_string(m_mem_root, & m_class_origin, & cond->m_class_origin);
   copy_string(m_mem_root, & m_subclass_origin, & cond->m_subclass_origin);
   copy_string(m_mem_root, & m_constraint_catalog, & cond->m_constraint_catalog);
@@ -270,7 +270,7 @@ void Sql_condition::set_message_text(const char* message_text)
 
   const char* copy= strdup_root(m_mem_root, message_text);
   m_message_text.set(copy, strlen(copy), error_message_charset_info);
-  DBUG_ASSERT(! m_message_text.is_alloced());
+  assert(! m_message_text.is_alloced());
 }
 
 
@@ -289,11 +289,11 @@ void Sql_condition::set_class_origins()
   cls[1]= m_returned_sqlstate[1];
 
   /* Only digits and upper case latin letter are allowed. */
-  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[0]) ||
-              my_isupper(&my_charset_latin1, cls[0]));
+  assert(my_isdigit(&my_charset_latin1, cls[0]) ||
+         my_isupper(&my_charset_latin1, cls[0]));
 
-  DBUG_ASSERT(my_isdigit(&my_charset_latin1, cls[1]) ||
-              my_isupper(&my_charset_latin1, cls[1]));
+  assert(my_isdigit(&my_charset_latin1, cls[1]) ||
+         my_isupper(&my_charset_latin1, cls[1]));
 
   /*
     If CLASS[1] is any of: 0 1 2 3 4 A B C D E F G H
@@ -384,7 +384,7 @@ void Diagnostics_area::set_ok_status(ulonglong affected_rows,
                                      const char *message_text)
 {
   DBUG_ENTER("set_ok_status");
-  DBUG_ASSERT(! is_set());
+  assert(! is_set());
   /*
     In production, refuse to overwrite an error or a custom response
     with an OK packet.
@@ -408,7 +408,7 @@ void Diagnostics_area::set_eof_status(THD *thd)
 {
   DBUG_ENTER("set_eof_status");
   /* Only allowed to report eof if has not yet reported an error */
-  DBUG_ASSERT(! is_set());
+  assert(! is_set());
   /*
     In production, refuse to overwrite an error or a custom response
     with an EOF packet.
@@ -448,13 +448,13 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
     The only exception is when we flush the message to the client,
     an error can happen during the flush.
   */
-  DBUG_ASSERT(! is_set() || m_can_overwrite_status);
+  assert(! is_set() || m_can_overwrite_status);
 
   // message must be set properly by the caller.
-  DBUG_ASSERT(message_text);
+  assert(message_text);
 
   // sqlstate must be set properly by the caller.
-  DBUG_ASSERT(returned_sqlstate);
+  assert(returned_sqlstate);
 
 #ifdef DBUG_OFF
   /*
@@ -702,7 +702,7 @@ Diagnostics_area::push_warning(THD *thd, const Sql_condition *sql_condition)
 void Diagnostics_area::push_diagnostics_area(THD *thd, Diagnostics_area *da,
                                              bool copy_conditions)
 {
-  DBUG_ASSERT(da->m_stacked_da == NULL);
+  assert(da->m_stacked_da == NULL);
   da->m_stacked_da= this;
   if (copy_conditions)
   {
@@ -715,7 +715,7 @@ void Diagnostics_area::push_diagnostics_area(THD *thd, Diagnostics_area *da,
 
 Diagnostics_area *Diagnostics_area::pop_diagnostics_area()
 {
-  DBUG_ASSERT(m_stacked_da);
+  assert(m_stacked_da);
   Diagnostics_area *da= m_stacked_da;
   m_stacked_da= NULL;
   return da;
@@ -742,7 +742,7 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
     SL_ERROR *is* a bug.  Either use my_printf_error(),
     my_error(), or SL_WARNING.
   */
-  DBUG_ASSERT(severity != Sql_condition::SL_ERROR);
+  assert(severity != Sql_condition::SL_ERROR);
 
   if (severity == Sql_condition::SL_ERROR)
     severity= Sql_condition::SL_WARNING;
@@ -770,8 +770,8 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_ENTER("push_warning_printf");
   DBUG_PRINT("enter",("warning: %u", code));
 
-  DBUG_ASSERT(code != 0);
-  DBUG_ASSERT(format != NULL);
+  assert(code != 0);
+  assert(format != NULL);
 
   va_start(args,format);
   my_vsnprintf_ex(&my_charset_utf8_general_ci, warning,
@@ -916,7 +916,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show)
 ErrConvString::ErrConvString(double nr)
 {
   // enough to print '-[digits].E+###'
-  DBUG_ASSERT(sizeof(err_buffer) > DBL_DIG + 8);
+  assert(sizeof(err_buffer) > DBL_DIG + 8);
   buf_length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE,
                       static_cast<int>(sizeof(err_buffer)) - 1,
                       err_buffer, NULL);
@@ -959,7 +959,7 @@ size_t err_conv(char *buff, size_t to_length, const char *from,
   const char *from_start= from;
   size_t res;
 
-  DBUG_ASSERT(to_length > 0);
+  assert(to_length > 0);
   to_length--;
   if (from_cs == &my_charset_bin)
   {
@@ -1036,7 +1036,7 @@ size_t convert_error_message(char *to, size_t to_length,
   uint error_count= 0;
   size_t length;
 
-  DBUG_ASSERT(to_length > 0);
+  assert(to_length > 0);
   /* Make room for the null terminator. */
   to_length--;
   to_end= (uchar*) (to + to_length);

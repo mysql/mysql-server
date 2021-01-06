@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ static void check_locks(THR_LOCK *lock, const char *where,
 	if ((int) data->type == (int) TL_READ_NO_INSERT)
 	  count++;
         /* Protect against infinite loop. */
-        DBUG_ASSERT(count <= lock->read_no_write_count);
+        assert(count <= lock->read_no_write_count);
       }
       if (count != lock->read_no_write_count)
       {
@@ -648,10 +648,10 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
         tries to update t1, is an example of statement which requests two
         different types of write lock on the same table).
       */
-      DBUG_ASSERT(! has_old_lock(lock->write.data, data->owner) ||
-                  ((lock_type <= lock->write.data->type ||
-                    (lock_type == TL_WRITE &&
-                     lock->write.data->type == TL_WRITE_LOW_PRIORITY))));
+      assert(! has_old_lock(lock->write.data, data->owner) ||
+             ((lock_type <= lock->write.data->type ||
+               (lock_type == TL_WRITE &&
+                lock->write.data->type == TL_WRITE_LOW_PRIORITY))));
 
       if ((lock_type == TL_WRITE_ALLOW_WRITE &&
            ! lock->write_wait.data &&
@@ -1223,8 +1223,8 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
   DBUG_ENTER("thr_downgrade_write_only_lock");
 
   mysql_mutex_lock(&lock->mutex);
-  DBUG_ASSERT(old_lock_type == TL_WRITE_ONLY);
-  DBUG_ASSERT(old_lock_type > new_lock_type);
+  assert(old_lock_type == TL_WRITE_ONLY);
+  assert(old_lock_type > new_lock_type);
   in_data->type= new_lock_type;
   check_locks(lock,"after downgrading lock",0);
 

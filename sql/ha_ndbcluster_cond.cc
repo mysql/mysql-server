@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -306,7 +306,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                 type != MYSQL_TYPE_GEOMETRY)
             {
               const NDBCOL *col= tab->getColumn(field->field_name);
-              DBUG_ASSERT(col);
+              assert(col);
               curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
               context->dont_expect(Item::FIELD_ITEM);
               context->expect_no_field_result();
@@ -1229,7 +1229,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       break;
     default:
       field= NULL; //Keep compiler happy
-      DBUG_ASSERT(0);
+      assert(0);
       break;
     }
     switch ((negated) ? 
@@ -1686,7 +1686,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
               key_range has no count of parts so must test byte length.
               But this is not the place for following assert.
             */
-            // DBUG_ASSERT(ptr - key->key == key->length);
+            // assert(ptr - key->key == key->length);
             break;
           }
           key_part++;
@@ -1790,7 +1790,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
 
     DBUG_PRINT("info", ("Unknown hash index scan"));
     // enable to catch new cases when optimizer changes
-    // DBUG_ASSERT(false);
+    // assert(false);
   }
   while (0);
 

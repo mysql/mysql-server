@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -372,13 +372,13 @@ extern bool THR_MALLOC_initialized;
 
 static inline MEM_ROOT ** my_thread_get_THR_MALLOC()
 {
-  DBUG_ASSERT(THR_MALLOC_initialized);
+  assert(THR_MALLOC_initialized);
   return (MEM_ROOT**) my_get_thread_local(THR_MALLOC);
 }
 
 static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
 {
-  DBUG_ASSERT(THR_MALLOC_initialized);
+  assert(THR_MALLOC_initialized);
   return my_set_thread_local(THR_MALLOC, hdl);
 }
 
@@ -397,7 +397,7 @@ static inline THD * my_thread_get_THR_THD()
 
 static inline int my_thread_set_THR_THD(THD *thd)
 {
-  DBUG_ASSERT(THR_THD_initialized);
+  assert(THR_THD_initialized);
   return my_set_thread_local(THR_THD, thd);
 }
 

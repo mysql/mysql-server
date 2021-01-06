@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ JOIN::exec()
   List<Item> *columns_list= &fields_list;
   DBUG_ENTER("JOIN::exec");
 
-  DBUG_ASSERT(select_lex == thd->lex->current_select());
+  assert(select_lex == thd->lex->current_select());
 
   /*
     Check that we either
@@ -120,8 +120,8 @@ JOIN::exec()
     - called for fake_select_lex, which may have temporary tables which do
       not need locking up front.
   */
-  DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked() ||
-              select_lex == unit->fake_select_lex);
+  assert(!tables || thd->lex->is_query_tables_locked() ||
+         select_lex == unit->fake_select_lex);
 
   THD_STAGE_INFO(thd, stage_executing);
   DEBUG_SYNC(thd, "before_join_exec");
@@ -244,7 +244,7 @@ JOIN::create_intermediate_table(QEP_TAB *const tab,
   tmp_table_param.using_outer_summary_function=
     tab->tmp_table_param->using_outer_summary_function;
 
-  DBUG_ASSERT(tab->idx() > 0);
+  assert(tab->idx() > 0);
   tab[-1].next_select= sub_select_op;
   if (!(tab->op= new (thd->mem_root) QEP_tmp_table(tab)))
     goto err;
@@ -431,7 +431,7 @@ JOIN::optimize_distinct()
   if (order && skip_sort_order)
   {
     /* Should already have been optimized away */
-    DBUG_ASSERT(ordered_index_usage == ordered_index_order_by);
+    assert(ordered_index_usage == ordered_index_order_by);
     if (ordered_index_usage == ordered_index_order_by)
     {
       order= NULL;
@@ -804,7 +804,7 @@ void setup_tmptable_write_func(QEP_TAB *tab)
   QEP_tmp_table *op= (QEP_tmp_table *)tab->op;
   Temp_table_param *const tmp_tbl= tab->tmp_table_param;
 
-  DBUG_ASSERT(table && op);
+  assert(table && op);
 
   if (table->group && tmp_tbl->sum_func_count && 
       !tmp_tbl->precomputed_group_by)
@@ -909,7 +909,7 @@ do_select(JOIN *join)
         so we don't touch it here.
       */
       join->examined_rows++;
-      DBUG_ASSERT(join->examined_rows <= 1);
+      assert(join->examined_rows <= 1);
     }
     else if (join->send_row_on_empty_set())
     {
@@ -953,7 +953,7 @@ do_select(JOIN *join)
   else
   {
     QEP_TAB *qep_tab= join->qep_tab + join->const_tables;
-    DBUG_ASSERT(join->primary_tables);
+    assert(join->primary_tables);
     error= join->first_select(join,qep_tab,0);
     if (error >= NESTED_LOOP_OK)
       error= join->first_select(join,qep_tab,1);
@@ -978,7 +978,7 @@ do_select(JOIN *join)
       sort_tab= &join->qep_tab[join->primary_tables + join->tmp_tables - 1];
     else
     {
-      DBUG_ASSERT(!join->plan_is_const());
+      assert(!join->plan_is_const());
       sort_tab= &join->qep_tab[const_tables];
     }
     if (sort_tab->filesort &&
@@ -1069,7 +1069,7 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   QEP_operation *op= qep_tab->op;
 
   /* This function cannot be called if qep_tab has no associated operation */
-  DBUG_ASSERT(op != NULL);
+  assert(op != NULL);
 
   if (end_of_records)
   {
@@ -1085,7 +1085,7 @@ sub_select_op(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     setup_join_buffering() disables join buffering if QS_DYNAMIC_RANGE is
     enabled.
   */
-  DBUG_ASSERT(!qep_tab->dynamic_range());
+  assert(!qep_tab->dynamic_range());
 
   rc= op->put_record();
 
@@ -1545,8 +1545,8 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
           know all cond. guards are open and we can apply
           the 'not_exists_optimize'.
         */
-        DBUG_ASSERT(!(tab->table()->reginfo.not_exists_optimize &&
-                     !tab->condition()));
+        assert(!(tab->table()->reginfo.not_exists_optimize &&
+                 !tab->condition()));
 
         if (tab->condition() && !tab->condition()->val_int())
         {
@@ -1615,7 +1615,7 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
          EQ_REF and LooseScan may happen if dependencies in subquery (e.g.,
          outer join) prevents table pull-out.
        */  
-      DBUG_ASSERT(qep_tab->use_order() || qep_tab->type() == JT_EQ_REF);
+      assert(qep_tab->use_order() || qep_tab->type() == JT_EQ_REF);
 
       /* 
          Previous row combination for duplicate-generating range,
@@ -1920,7 +1920,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   if (tab->join_cond() && !table->has_null_row())
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
-    DBUG_ASSERT(!tab->join_cond()->is_expensive());
+    assert(!tab->join_cond()->is_expensive());
     if (tab->join_cond()->val_int() == 0)
       table->set_null_row();
   }
@@ -2074,7 +2074,7 @@ join_read_key(QEP_TAB *tab)
     */
     if (tab->table_ref->is_inner_table_of_outer_join())
       table_ref->disable_cache= true;
-    DBUG_ASSERT(!tab->use_order()); //Don't expect sort req. for single row.
+    assert(!tab->use_order()); //Don't expect sort req. for single row.
     if ((error= table->file->ha_index_init(table_ref->key, tab->use_order())))
     {
       (void) report_handler_error(table, error);
@@ -2118,7 +2118,7 @@ join_read_key(QEP_TAB *tab)
   }
   else if (table->status == 0)
   {
-    DBUG_ASSERT(table_ref->has_record);
+    assert(table_ref->has_record);
     table_ref->use_count++;
   }
   table->reset_null_row();
@@ -2137,7 +2137,7 @@ join_read_key(QEP_TAB *tab)
 void
 join_read_key_unlock_row(QEP_TAB *tab)
 {
-  DBUG_ASSERT(tab->ref().use_count);
+  assert(tab->ref().use_count);
   if (tab->ref().use_count)
     tab->ref().use_count--;
 }
@@ -2151,7 +2151,7 @@ join_read_key_unlock_row(QEP_TAB *tab)
 void
 join_const_unlock_row(QEP_TAB *tab)
 {
-  DBUG_ASSERT(tab->type() == JT_CONST);
+  assert(tab->type() == JT_CONST);
 }
 
 /**
@@ -2185,7 +2185,7 @@ join_read_linked_first(QEP_TAB *tab)
   TABLE *table= tab->table();
   DBUG_ENTER("join_read_linked_first");
 
-  DBUG_ASSERT(!tab->use_order()); // Pushed child can't be sorted
+  assert(!tab->use_order()); // Pushed child can't be sorted
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref().key, tab->use_order())))
   {
@@ -2366,7 +2366,7 @@ join_read_prev_same(READ_RECORD *info)
     to read to the beginning of the index if no qualifying record is
     found.
   */
-  DBUG_ASSERT(table->file->pushed_idx_cond == NULL);
+  assert(table->file->pushed_idx_cond == NULL);
 
   if ((error= table->file->ha_index_prev(table->record[0])))
     return report_handler_error(table, error);
@@ -2428,7 +2428,7 @@ join_init_quick_read_record(QEP_TAB *tab)
                                   ORDER::ORDER_NOT_RELEVANT, tab,
                                   tab->condition(), &needed_reg_dummy, &qck,
                                   tab->table()->force_index);
-  DBUG_ASSERT(old_qck == NULL || old_qck != qck) ;
+  assert(old_qck == NULL || old_qck != qck) ;
   tab->set_quick(qck);
 
   /*
@@ -2514,7 +2514,7 @@ int join_materialize_derived(QEP_TAB *tab)
   THD *const thd= tab->table()->in_use;
   TABLE_LIST *const derived= tab->table_ref;
 
-  DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
+  assert(derived->uses_materialization() && !tab->materialized);
 
   if (derived->materializable_is_const()) // Has been materialized by optimizer
     return NESTED_LOOP_OK;
@@ -2619,9 +2619,9 @@ QEP_TAB::sort_table()
 {
   DBUG_PRINT("info",("Sorting for index"));
   THD_STAGE_INFO(join()->thd, stage_creating_sort_index);
-  DBUG_ASSERT(join()->ordered_index_usage != (filesort->order == join()->order ?
-                                              JOIN::ordered_index_order_by :
-                                              JOIN::ordered_index_group_by));
+  assert(join()->ordered_index_usage != (filesort->order == join()->order ?
+                                         JOIN::ordered_index_order_by :
+                                         JOIN::ordered_index_group_by));
   const bool rc= create_sort_index(join()->thd, join(), this) != 0;
   /*
     Filesort has filtered rows already (see skip_record() in
@@ -2792,12 +2792,12 @@ join_read_next_same_or_null(READ_RECORD *info)
 void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
 {
   ASSERT_BEST_REF_IN_JOIN_ORDER(join());
-  DBUG_ASSERT(join_tab == join()->best_ref[idx()]);
-  DBUG_ASSERT(table());
-  DBUG_ASSERT(read_first_record == NULL);
+  assert(join_tab == join()->best_ref[idx()]);
+  assert(table());
+  assert(read_first_record == NULL);
   // Only some access methods support reversed access:
-  DBUG_ASSERT(!join_tab->reversed_access || type() == JT_REF ||
-              type() == JT_INDEX_SCAN);
+  assert(!join_tab->reversed_access || type() == JT_REF ||
+         type() == JT_INDEX_SCAN);
   // Fall through to set default access functions:
   switch (type())
   {
@@ -2847,7 +2847,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
       join_init_quick_read_record : join_init_read_record;
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
     break;
   }
 }
@@ -2861,7 +2861,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
 void QEP_TAB::set_pushed_table_access_method(void)
 {
   DBUG_ENTER("set_pushed_table_access_method");
-  DBUG_ASSERT(table());
+  assert(table());
 
   /**
     Setup modified access function for children of pushed joins.
@@ -2877,7 +2877,7 @@ void QEP_TAB::set_pushed_table_access_method(void)
      */
     DBUG_PRINT("info", ("Modifying table access method for '%s'",
                         table()->s->table_name.str));
-    DBUG_ASSERT(type() != JT_REF_OR_NULL);
+    assert(type() != JT_REF_OR_NULL);
     read_first_record= join_read_linked_first;
     read_record.read_record= join_read_linked_next;
     // Use the default unlock_row function
@@ -2909,7 +2909,7 @@ end_send(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
     Note that qep_tab may be one past the last of qep_tab! So don't read its
     pointed content. But you can read qep_tab[-1] then.
   */
-  DBUG_ASSERT(qep_tab == NULL || qep_tab > join->qep_tab);
+  assert(qep_tab == NULL || qep_tab > join->qep_tab);
   //TODO pass fields via argument
   List<Item> *fields= qep_tab ? qep_tab[-1].fields : join->fields;
 
@@ -3130,7 +3130,7 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
 
 static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
 {
-  DBUG_ASSERT(field);
+  assert(field);
   /*
     Records are different when:
     1) NULL flags aren't the same
@@ -3288,7 +3288,7 @@ ulonglong unique_hash_group(ORDER *group)
   {
     Item *item= *(ord->item);
     field= item->get_tmp_table_field();
-    DBUG_ASSERT(field);
+    assert(field);
     unique_hash(field, &crc);
   }
 
@@ -3576,7 +3576,7 @@ end_write_group(JOIN *join, QEP_TAB *const qep_tab, bool end_of_records)
         if (!join->first_record)
         {
           // Dead code or we need a test case for this branch
-          DBUG_ASSERT(false);
+          assert(false);
           /*
             If this is a subquery, we need to save and later restore
             the const table NULL info before clearing the tables
@@ -3681,7 +3681,7 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
   DBUG_ENTER("create_sort_index");
 
   // One row, no need to sort. make_tmp_tables_info should already handle this.
-  DBUG_ASSERT(!join->plan_is_const() && fsort);
+  assert(!join->plan_is_const() && fsort);
   table=  tab->table();
 
   table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
@@ -3694,7 +3694,7 @@ create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab)
   {
     if (tab->type() != JT_REF_OR_NULL && tab->type() != JT_FT)
     {
-      DBUG_ASSERT(tab->type() == JT_REF || tab->type() == JT_EQ_REF);
+      assert(tab->type() == JT_REF || tab->type() == JT_EQ_REF);
       // Update ref value
       if ((cp_buffer_from_ref(thd, table, &tab->ref()) && thd->is_fatal_error))
         goto err;                                   // out of memory
@@ -3772,7 +3772,7 @@ QEP_TAB::remove_duplicates()
   List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
 
-  DBUG_ASSERT(join()->tmp_tables > 0 && table()->s->tmp_table != NO_TMP_TABLE);
+  assert(join()->tmp_tables > 0 && table()->s->tmp_table != NO_TMP_TABLE);
   THD_STAGE_INFO(join()->thd, stage_removing_duplicates);
 
   TABLE *const tbl= table();
@@ -3952,7 +3952,7 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
     }
     DBUG_PRINT("info",("field_count: %u  key_length: %lu  total_length: %lu",
                        field_count, key_length, total_length));
-    DBUG_ASSERT(total_length <= key_length);
+    assert(total_length <= key_length);
     key_length= total_length;
     extra_length= ALIGN_SIZE(key_length)-key_length;
   }
@@ -4297,7 +4297,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
 	  goto err;
         if (copy)
         {
-          DBUG_ASSERT (param->field_count > (uint) (copy - copy_start));
+          assert (param->field_count > (uint) (copy - copy_start));
           copy->set(tmp, item->result_field);
           item->result_field->move_field(copy->to_ptr, copy->to_null_ptr, 1);
           copy++;
@@ -4367,7 +4367,7 @@ copy_fields(Temp_table_param *param, const THD *thd)
   Copy_field *ptr=param->copy_field;
   Copy_field *end=param->copy_field_end;
 
-  DBUG_ASSERT((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
+  assert((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
 
   for (; ptr < end; ptr++)
     ptr->invoke_do_copy(ptr);
@@ -4554,7 +4554,7 @@ change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
 */
 static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
 {
-  DBUG_ASSERT(join->const_tables);
+  assert(join->const_tables);
 
   for (uint tableno= 0; tableno < join->const_tables; tableno++)
   {
@@ -4565,8 +4565,8 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
       or none set. Otherwise, an additional table_map parameter is
       needed to save/restore_const_null_info() these separately
     */
-    DBUG_ASSERT(table->has_null_row() ? (table->status & STATUS_NULL_ROW) :
-                                        !(table->status & STATUS_NULL_ROW));
+    assert(table->has_null_row() ? (table->status & STATUS_NULL_ROW) :
+           !(table->status & STATUS_NULL_ROW));
 
     if (!table->has_null_row())
       *save_nullinfo|= tab->table_ref->map();
@@ -4591,7 +4591,7 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
 */
 static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
 {
-  DBUG_ASSERT(join->const_tables && save_nullinfo);
+  assert(join->const_tables && save_nullinfo);
 
   for (uint tableno= 0; tableno < join->const_tables; tableno++)
   {

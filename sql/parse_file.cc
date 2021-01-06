@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ write_parameter(IO_CACHE *file, uchar* base, File_option *parameter)
     break;
   }
   default:
-    DBUG_ASSERT(0); // never should happened
+    assert(0); // never should happened
   }
   DBUG_RETURN(FALSE);
 }
@@ -857,7 +857,7 @@ list_err:
             DBUG_RETURN(TRUE);
           break;
 	default:
-	  DBUG_ASSERT(0); // never should happened
+	  assert(0); // never should happened
 	}
       }
       else

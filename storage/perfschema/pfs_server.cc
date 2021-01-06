@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -211,7 +211,7 @@ initialize_performance_schema(PFS_global_param *param)
 static void destroy_pfs_thread(void *key)
 {
   PFS_thread* pfs= reinterpret_cast<PFS_thread*> (key);
-  DBUG_ASSERT(pfs);
+  assert(pfs);
   /*
     This automatic cleanup is a last resort and best effort to avoid leaks,
     and may not work on windows due to the implementation of pthread_key_create().

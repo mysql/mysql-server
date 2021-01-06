@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ Plugin_gcs_view_modification_notifier::cancel_view_modification(int error)
 bool
 Plugin_gcs_view_modification_notifier::is_cancelled()
 {
-  DBUG_ASSERT(view_changing == false);
+  assert(view_changing == false);
   return cancelled_view_change;
 }
 
@@ -144,6 +144,6 @@ Plugin_gcs_view_modification_notifier::wait_for_view_modification(long timeout)
 int
 Plugin_gcs_view_modification_notifier::get_error()
 {
-  DBUG_ASSERT(view_changing == false);
+  assert(view_changing == false);
   return error;
 }

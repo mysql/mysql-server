@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -49,7 +49,7 @@
 #define DEBUG_SE_WRITE_ERROR_POST(debug_flag)    \
   DBUG_EXECUTE_IF(debug_flag,  \
                   {  \
-                    DBUG_ASSERT(error == HA_ERR_INTERNAL_ERROR);  \
+                    assert(error == HA_ERR_INTERNAL_ERROR);    \
                     DBUG_SET("-d, inject_error_ha_write_row"); \
                     error= HA_ERR_LOCK_WAIT_TIMEOUT;  \
                   });
@@ -61,7 +61,7 @@
 #define DEBUG_SE_UPDATE_ERROR_POST(debug_flag)    \
   DBUG_EXECUTE_IF(debug_flag,  \
                   {  \
-                    DBUG_ASSERT(error == HA_ERR_INTERNAL_ERROR);  \
+                    assert(error == HA_ERR_INTERNAL_ERROR);     \
                     DBUG_SET("-d, inject_error_ha_update_row"); \
                     error= HA_ERR_LOCK_WAIT_TIMEOUT;  \
                   });
@@ -73,7 +73,7 @@
 #define DEBUG_SE_DELETE_ERROR_POST(debug_flag)    \
   DBUG_EXECUTE_IF(debug_flag,  \
                   {  \
-                    DBUG_ASSERT(error == HA_ERR_INTERNAL_ERROR);  \
+                    assert(error == HA_ERR_INTERNAL_ERROR);     \
                     DBUG_SET("-d, inject_error_ha_delete_row"); \
                     error= HA_ERR_LOCK_WAIT_TIMEOUT;  \
                   });
@@ -682,7 +682,7 @@ void close_acl_tables(THD *thd)
     bool res=
 #endif
       trans_commit_stmt(thd);
-    DBUG_ASSERT(res == false);
+    assert(res == false);
   }
 
   close_mysql_tables(thd);
@@ -719,7 +719,7 @@ bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction)
     It is safe to do so since ACL statement always do implicit commit at the
     end of statement.
   */
-  DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
+  assert(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
   if (rollback_transaction)
   {
@@ -907,7 +907,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     goto end;
   
   table->use_all_columns();
-  DBUG_ASSERT(combo->host.str != NULL);
+  assert(combo->host.str != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                              system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -983,7 +983,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     old_row_exists = 0;
     restore_record(table,s->default_values);
-    DBUG_ASSERT(combo->host.str != NULL);
+    assert(combo->host.str != NULL);
     table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                                system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,

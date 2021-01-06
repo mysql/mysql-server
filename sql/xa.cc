@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,10 +154,10 @@ int ha_recover(HASH *commit_list)
   info.list= NULL;
 
   /* commit_list and tc_heuristic_recover cannot be set both */
-  DBUG_ASSERT(info.commit_list == 0 ||
-              tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
+  assert(info.commit_list == 0 ||
+         tc_heuristic_recover == TC_HEURISTIC_NOT_USED);
   /* if either is set, total_ha_2pc must be set too */
-  DBUG_ASSERT(info.dry_run || total_ha_2pc>(ulong)opt_bin_log);
+  assert(info.dry_run || total_ha_2pc>(ulong)opt_bin_log);
 
   if (total_ha_2pc <= (ulong)opt_bin_log)
     DBUG_RETURN(0);
@@ -268,8 +268,8 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
 
   DBUG_ENTER("trans_xa_commit");
 
-  DBUG_ASSERT(!thd->slave_thread || xid_state->get_xid()->is_null() ||
-              m_xa_opt == XA_ONE_PHASE);
+  assert(!thd->slave_thread || xid_state->get_xid()->is_null() ||
+         m_xa_opt == XA_ONE_PHASE);
 
   if (!xid_state->has_same_xid(m_xid))
   {
@@ -303,7 +303,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       DBUG_RETURN(true);
     }
 
-    DBUG_ASSERT(xs->is_in_recovery());
+    assert(xs->is_in_recovery());
     /*
       Resumed transaction XA-commit.
       The case deals with the "external" XA-commit by either a slave applier
@@ -479,7 +479,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
   }
   else
   {
-    DBUG_ASSERT(!need_clear_owned_gtid);
+    assert(!need_clear_owned_gtid);
 
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
     DBUG_RETURN(true);
@@ -491,7 +491,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
   xid_state->unset_binlogged();
   trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
-  DBUG_ASSERT(thd->m_transaction_psi == NULL || res);
+  assert(thd->m_transaction_psi == NULL || res);
   DBUG_RETURN(res);
 }
 
@@ -555,7 +555,7 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 
     bool gtid_error= false;
 
-    DBUG_ASSERT(xs->is_in_recovery());
+    assert(xs->is_in_recovery());
 
     /*
       Acquire metadata lock which will ensure that XA ROLLBACK is blocked
@@ -644,7 +644,7 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
   xid_state->unset_binlogged();
   trans_track_end_trx(thd);
   /* The transaction should be marked as complete in P_S. */
-  DBUG_ASSERT(thd->m_transaction_psi == NULL);
+  assert(thd->m_transaction_psi == NULL);
   DBUG_RETURN(res);
 }
 
@@ -834,7 +834,7 @@ bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
         ha_rollback_trans(thd, true);
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-      DBUG_ASSERT(thd->m_transaction_psi == NULL);
+      assert(thd->m_transaction_psi == NULL);
 #endif
 
       /*
@@ -1237,12 +1237,12 @@ bool transaction_cache_detach(Transaction_ctx *transaction)
   bool was_logged= xs->is_binlogged();
 
 
-  DBUG_ASSERT(xs->has_state(XID_STATE::XA_PREPARED));
+  assert(xs->has_state(XID_STATE::XA_PREPARED));
 
   mysql_mutex_lock(&LOCK_transaction_cache);
 
-  DBUG_ASSERT(my_hash_search(&transaction_cache, xid.key(),
-                             xid.key_length()));
+  assert(my_hash_search(&transaction_cache, xid.key(),
+                        xid.key_length()));
 
   my_hash_delete(&transaction_cache, (uchar *)transaction);
   res= create_and_insert_new_transaction(&xid, was_logged);
@@ -1396,7 +1396,7 @@ my_bool detach_native_trx(THD *thd, plugin_ref plugin, void *unused)
   if (hton->replace_native_transaction_in_thd)
   {
     /* Ensure any active backup engine ha_data won't be overwritten */
-    DBUG_ASSERT(!thd->ha_data[hton->slot].ha_ptr_backup);
+    assert(!thd->ha_data[hton->slot].ha_ptr_backup);
 
     hton->replace_native_transaction_in_thd(thd, NULL,
                                             thd_ha_data_backup(thd, hton));

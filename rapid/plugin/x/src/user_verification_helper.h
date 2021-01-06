@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ namespace xpl {
         // The query asks for primary key, thus here we should get
         // only one row
         if (!r_result_set.empty()) {
-          DBUG_ASSERT(1 == r_result_set.size());
+          assert(1 == r_result_set.size());
           if (this->verify_mysql_account_entry(r_result_set.front()))
             return ngs::Error_code();
         }
@@ -120,7 +120,7 @@ namespace xpl {
       bool is_offline_mode_and_isnt_super_user = false;
       Sql_user_require required;
 
-      DBUG_ASSERT(10 == row.fields.size());
+      assert(10 == row.fields.size());
 
       if (!get_bool_from_int_value(row, 0, require_secure_transport) ||
           !get_string_value(row, 1, db_password_hash) ||

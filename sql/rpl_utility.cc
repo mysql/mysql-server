@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,7 +238,7 @@ static void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       break;
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
     }
     break;
@@ -485,7 +485,7 @@ can_convert_field_to(Field *field,
         *order_var = 1;                         // Always require lossy conversions
       else
         *order_var= compare_lengths(field, source_type, metadata);
-      DBUG_ASSERT(*order_var != 0);
+      assert(*order_var != 0);
       DBUG_RETURN(is_conversion_ok(*order_var, rli));
     }
 
@@ -511,7 +511,7 @@ can_convert_field_to(Field *field,
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
       *order_var= compare_lengths(field, source_type, metadata);
-      DBUG_ASSERT(*order_var != 0);
+      assert(*order_var != 0);
       DBUG_RETURN(is_conversion_ok(*order_var, rli));
 
     default:
@@ -631,7 +631,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       DBUG_PRINT("debug", ("Checking column %d -"
                            " field '%s' can be converted - order: %d",
                            col, field->field_name, order));
-      DBUG_ASSERT(order >= -1 && order <= 1);
+      assert(order >= -1 && order <= 1);
 
       /*
         If order is not 0, a conversion is required, so we need to set
@@ -661,8 +661,8 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       DBUG_PRINT("debug", ("Checking column %d -"
                            " field '%s' can not be converted",
                            col, field->field_name));
-      DBUG_ASSERT(col < size() && col < table->s->fields);
-      DBUG_ASSERT(table->s->db.str && table->s->table_name.str);
+      assert(col < size() && col < table->s->fields);
+      assert(table->s->db.str && table->s->table_name.str);
       const char *db_name= table->s->db.str;
       const char *tbl_name= table->s->table_name.str;
       char source_buf[MAX_FIELD_WIDTH];
@@ -1157,7 +1157,7 @@ Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols)
 bool Hash_slave_rows::next(HASH_ROW_ENTRY** entry)
 {
   DBUG_ENTER("Hash_slave_rows::next");
-  DBUG_ASSERT(*entry);
+  assert(*entry);
 
   if (*entry == NULL)
     DBUG_RETURN(true);
@@ -1206,7 +1206,7 @@ bool
 Hash_slave_rows::del(HASH_ROW_ENTRY *entry)
 {
   DBUG_ENTER("Hash_slave_rows::del");
-  DBUG_ASSERT(entry);
+  assert(entry);
 
   if (my_hash_delete(&m_hash, (uchar *) entry))
     DBUG_RETURN(true);
@@ -1353,7 +1353,7 @@ bool Deferred_log_events::execute(Relay_log_info *rli)
 {
   bool res= false;
 
-  DBUG_ASSERT(rli->deferred_events_collecting);
+  assert(rli->deferred_events_collecting);
 
   rli->deferred_events_collecting= false;
   for (Log_event **it= m_array.begin(); !res && it != m_array.end(); ++it)

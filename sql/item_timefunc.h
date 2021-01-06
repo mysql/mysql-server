@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,7 +151,7 @@ public:
   { collation.set_numeric(); }
   longlong val_int();
   double val_real()
-  { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
+  { assert(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
     longlong nr= val_int();
@@ -365,10 +365,10 @@ public:
     :Item_func(pos, a), odbc_type(type_arg)
   { collation.set_numeric(); }
   longlong val_int();
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real() { assert(fixed == 1); return (double) val_int(); }
   String *val_str(String *str)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     str->set(val_int(), &my_charset_bin);
     return null_value ? 0 : str;
   }
@@ -557,12 +557,12 @@ public:
   }
   uint time_precision()
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return decimals;
   }
   uint datetime_precision()
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return decimals;
   }
   virtual void print(String *str, enum_query_type query_type);
@@ -607,7 +607,7 @@ public:
       or using collation.collation when VARCHAR
       (which is fixed from @collation_connection in fix_length_and_dec).
     */
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_field_type == MYSQL_TYPE_STRING ?
                                 collation.collation : &my_charset_bin;
   }
@@ -684,7 +684,7 @@ public:
   }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return  val_decimal_from_date(decimal_value);
   }
   // All date functions must implement get_date()
@@ -738,7 +738,7 @@ public:
   longlong val_date_temporal();
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return  val_decimal_from_date(decimal_value);
   }
   bool get_time(MYSQL_TIME *ltime)
@@ -779,7 +779,7 @@ public:
   double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return  val_decimal_from_time(decimal_value);
   }
   longlong val_int()
@@ -845,7 +845,7 @@ class MYSQL_TIME_cache
   */
   void get_TIME(MYSQL_TIME *ltime) const
   {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     *ltime= time;
   }
 public:
@@ -894,7 +894,7 @@ public:
   */
   uint8 decimals() const
   {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     return dec;
   }
 
@@ -903,7 +903,7 @@ public:
   */
   longlong val_packed() const
   {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     return time_packed;
   }
   /**
@@ -924,7 +924,7 @@ public:
   */
   MYSQL_TIME *get_TIME_ptr()
   {
-    DBUG_ASSERT(time.time_type != MYSQL_TIMESTAMP_NONE);
+    assert(time.time_type != MYSQL_TIMESTAMP_NONE);
     return &time;
   }
   /**
@@ -959,17 +959,17 @@ public:
   void print(String *str, enum_query_type query_type);
   longlong val_date_temporal()
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.get_date(ltime, fuzzy_date);
   }
   String *val_str(String *str)
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_str(str);
   }
   void fix_length_and_dec()
@@ -1014,17 +1014,17 @@ public:
   void print(String *str, enum_query_type query_type);
   longlong val_time_temporal()
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_packed();
   }
   bool get_time(MYSQL_TIME *ltime)
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.get_time(ltime);
   }
   String *val_str(String *str)
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_str(str);
   }
   void fix_length_and_dec()
@@ -1069,17 +1069,17 @@ public:
   void print(String *str, enum_query_type query_type);
   longlong val_date_temporal()
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzy_date)
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.get_date(ltime, fuzzy_date);
   }
   String *val_str(String *str)
   {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return cached_time.val_str(str);
   }
   void fix_length_and_dec()
@@ -1124,17 +1124,17 @@ public:
   void fix_length_and_dec();
   longlong val_time_temporal()
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.val_packed();
   }
   bool get_time(MYSQL_TIME *ltime)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.get_time(ltime);
   }
   String *val_str(String *str)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.val_str(&str_value);
   }
   bool check_gcol_func_processor(uchar *int_arg)
@@ -1183,17 +1183,17 @@ public:
   void fix_length_and_dec();
   longlong val_date_temporal()
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.get_time(res);
   }
   String *val_str(String *str)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.val_str(&str_value);
   }
   bool check_gcol_func_processor(uchar *int_arg)
@@ -1242,17 +1242,17 @@ public:
   void fix_length_and_dec();
   longlong val_date_temporal()
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.val_packed();
   }
   bool get_date(MYSQL_TIME *res, my_time_flags_t fuzzy_date)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.get_time(res);
   }
   String *val_str(String *str)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return cached_time.val_str(&str_value);
   }
   bool check_gcol_func_processor(uchar *int_arg)

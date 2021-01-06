@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ protected:
   */
   virtual ~Diagnostics_information()
   {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   /**
@@ -171,7 +171,7 @@ protected:
   */
   virtual ~Diagnostics_information_item()
   {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
 private:

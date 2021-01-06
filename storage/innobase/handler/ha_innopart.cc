@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1122,7 +1122,7 @@ share_error:
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
-	DBUG_ASSERT(table != NULL);
+	assert(table != NULL);
 	m_prebuilt->m_mysql_table = table;
 	m_prebuilt->m_mysql_handler = this;
 
@@ -4599,8 +4599,8 @@ ha_innopart::rnd_pos_by_record(uchar*  record)
 {
 	int error;
 	DBUG_ENTER("ha_innopart::rnd_pos_by_record");
-	DBUG_ASSERT(ha_table_flags() &
-		HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+	assert(ha_table_flags() &
+	       HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
 	/* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
 	/* Set m_last_part correctly. */
 	if (unlikely(get_part_for_delete(record,

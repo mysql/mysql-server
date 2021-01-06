@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
       null_mask <<= 1;
       if ((null_mask & 0xFF) == 0)
       {
-        DBUG_ASSERT(null_ptr < row_data + null_byte_count);
+        assert(null_ptr < row_data + null_byte_count);
         null_mask = 1U;
         *null_ptr++ = null_bits;
         null_bits= (1U << 8) - 1;
@@ -151,7 +151,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   */
   if ((null_mask & 0xFF) > 1)
   {
-    DBUG_ASSERT(null_ptr < row_data + null_byte_count);
+    assert(null_ptr < row_data + null_byte_count);
     *null_ptr++ = null_bits;
   }
 
@@ -159,7 +159,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
     The null pointer should now point to the first byte of the
     packed data. If it doesn't, something is very wrong.
   */
-  DBUG_ASSERT(null_ptr == row_data + null_byte_count);
+  assert(null_ptr == row_data + null_byte_count);
   DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
   DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
 }
@@ -217,8 +217,8 @@ unpack_row(Relay_log_info const *rli,
            uchar const *const row_end)
 {
   DBUG_ENTER("unpack_row");
-  DBUG_ASSERT(row_data);
-  DBUG_ASSERT(table);
+  assert(row_data);
+  assert(table);
   size_t const master_null_byte_count= (bitmap_bits_set(cols) + 7) / 8;
   int error= 0;
 
@@ -241,7 +241,7 @@ unpack_row(Relay_log_info const *rli,
   Field **field_ptr;
   Field **const end_ptr= begin_ptr + colcnt;
 
-  DBUG_ASSERT(null_ptr < row_data + master_null_byte_count);
+  assert(null_ptr < row_data + master_null_byte_count);
 
   // Mask to mask out the correct bit among the null bits
   unsigned int null_mask= 1U;
@@ -253,7 +253,7 @@ unpack_row(Relay_log_info const *rli,
   bool table_found= rli && rli->get_table_data(table, &tabledef, &conv_table);
   DBUG_PRINT("debug", ("Table data: table_found: %d, tabldef: %p, conv_table: %p",
                        table_found, tabledef, conv_table));
-  DBUG_ASSERT(table_found);
+  assert(table_found);
 
   /*
     If rli is NULL it means that there is no source table and that the
@@ -279,7 +279,7 @@ unpack_row(Relay_log_info const *rli,
                          conv_field ? "" : "not ",
                          (*field_ptr)->field_name,
                          (long) (field_ptr - begin_ptr)));
-    DBUG_ASSERT(f != NULL);
+    assert(f != NULL);
 
     DBUG_PRINT("debug", ("field: %s; null mask: 0x%x; null bits: 0x%lx;"
                          " row start: %p; null bytes: %ld",
@@ -294,15 +294,15 @@ unpack_row(Relay_log_info const *rli,
     {
       if ((null_mask & 0xFF) == 0)
       {
-        DBUG_ASSERT(null_ptr < row_data + master_null_byte_count);
+        assert(null_ptr < row_data + master_null_byte_count);
         null_mask= 1U;
         null_bits= *null_ptr++;
       }
 
-      DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
+      assert(null_mask & 0xFF); // One of the 8 LSB should be set
 
       /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(pack_ptr != NULL);
+      assert(pack_ptr != NULL);
 
       if (null_bits & null_mask)
       {
@@ -382,9 +382,9 @@ unpack_row(Relay_log_info const *rli,
           a old decimal data type which is unsupported datatype in
           RBR mode.
          */
-        DBUG_ASSERT(tabledef->type(i) == MYSQL_TYPE_DECIMAL ||
-                    tabledef->calc_field_size(i, (uchar *) old_pack_ptr) ==
-                    (uint32) (pack_ptr - old_pack_ptr));
+        assert(tabledef->type(i) == MYSQL_TYPE_DECIMAL ||
+               tabledef->calc_field_size(i, (uchar *) old_pack_ptr) ==
+               (uint32) (pack_ptr - old_pack_ptr));
       }
 
       /*
@@ -461,11 +461,11 @@ unpack_row(Relay_log_info const *rli,
     {
       if ((null_mask & 0xFF) == 0)
       {
-        DBUG_ASSERT(null_ptr < row_data + master_null_byte_count);
+        assert(null_ptr < row_data + master_null_byte_count);
         null_mask= 1U;
         null_bits= *null_ptr++;
       }
-      DBUG_ASSERT(null_mask & 0xFF); // One of the 8 LSB should be set
+      assert(null_mask & 0xFF); // One of the 8 LSB should be set
 
       if (!((null_bits & null_mask) && tabledef->maybe_null(i))) {
         uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
@@ -485,7 +485,7 @@ unpack_row(Relay_log_info const *rli,
     We should now have read all the null bytes, otherwise something is
     really wrong.
    */
-  DBUG_ASSERT(null_ptr == row_data + master_null_byte_count);
+  assert(null_ptr == row_data + master_null_byte_count);
 
   DBUG_DUMP("row_data", row_data, pack_ptr - row_data);
 
@@ -540,7 +540,7 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
     Just to be sure that tmp_set is currently not in use as
     the read_set already.
   */
-  DBUG_ASSERT(table->write_set != &table->tmp_set);
+  assert(table->write_set != &table->tmp_set);
   /* set the temporary write_set */
   table->column_bitmaps_set_no_signal(table->read_set,
                                       &table->tmp_set);

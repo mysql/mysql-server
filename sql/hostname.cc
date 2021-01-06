@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -181,7 +181,7 @@ static void prepare_hostname_cache_key(const char *ip_string,
                                        char *ip_key)
 {
   size_t ip_string_length= strlen(ip_string);
-  DBUG_ASSERT(ip_string_length < HOST_ENTRY_KEY_SIZE);
+  assert(ip_string_length < HOST_ENTRY_KEY_SIZE);
 
   memset(ip_key, 0, HOST_ENTRY_KEY_SIZE);
   memcpy(ip_key, ip_string, ip_string_length);
@@ -960,7 +960,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
       err_status=
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));
-      DBUG_ASSERT(!err_status);
+      assert(!err_status);
     }
 
     DBUG_PRINT("info", ("  - '%s'", ip_buffer));
@@ -1007,7 +1007,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 #endif
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,
                                      ip_buffer, sizeof (ip_buffer));
-      DBUG_ASSERT(!err_status);
+      assert(!err_status);
 
       sql_print_information(" - %s", ip_buffer);
     }

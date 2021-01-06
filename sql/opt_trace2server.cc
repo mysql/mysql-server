@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -327,7 +327,7 @@ void opt_trace_disable_if_no_security_context_access(THD *thd)
       this command. The command itself is not traced though
       (SQLCOM_SHOW_FIELDS does not have CF_OPTIMIZER_TRACE).
     */
-    DBUG_ASSERT(false);
+    assert(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -358,7 +358,7 @@ void opt_trace_disable_if_no_stored_proc_func_access(THD *thd, sp_head *sp)
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(false);
+    assert(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -387,7 +387,7 @@ void opt_trace_disable_if_no_view_access(THD *thd, TABLE_LIST *view,
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(false);
+    assert(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }
@@ -449,7 +449,7 @@ void opt_trace_disable_if_no_tables_access(THD *thd, TABLE_LIST *tbl)
   Opt_trace_context * const trace= &thd->opt_trace;
   if (!trace->is_started())
   {
-    DBUG_ASSERT(false);
+    assert(false);
     trace->disable_I_S_for_this_and_children();
     DBUG_VOID_RETURN;
   }

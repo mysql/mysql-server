@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -263,7 +263,7 @@ my_bool my_aes_needs_iv(my_aes_opmode opmode)
   int iv_length;
 
   iv_length= EVP_CIPHER_iv_length(cipher);
-  DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
+  assert(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
   return iv_length != 0 ? TRUE : FALSE;
 }
 

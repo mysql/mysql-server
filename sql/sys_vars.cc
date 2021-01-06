@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
 {
   bool error= false;
-  DBUG_ASSERT(offset == offsetof(KEY_CACHE, param_buff_size));
+  assert(offset == offsetof(KEY_CACHE, param_buff_size));
 
   if (new_value == 0)
   {
@@ -135,7 +135,7 @@ static bool update_keycache_param(THD *thd, KEY_CACHE *key_cache,
                                   ptrdiff_t offset, ulonglong new_value)
 {
   bool error= false;
-  DBUG_ASSERT(offset != offsetof(KEY_CACHE, param_buff_size));
+  assert(offset != offsetof(KEY_CACHE, param_buff_size));
 
   keycache_var(key_cache, offset)= new_value;
 
@@ -783,7 +783,7 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
-  DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
+  assert(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!(thd->security_context()->check_access(SUPER_ACL)))
   {
@@ -2418,7 +2418,7 @@ static Sys_var_ulong Sys_metadata_locks_hash_instances(
        VALID_RANGE(1, 1024), DEFAULT(8), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED_VAR(""));
 
-// relies on DBUG_ASSERT(sizeof(my_thread_id) == 4);
+// relies on assert(sizeof(my_thread_id) == 4);
 static Sys_var_uint Sys_pseudo_thread_id(
        "pseudo_thread_id",
        "This variable is for internal server use",
@@ -3706,9 +3706,9 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
     binlog_checksum_options=
       static_cast<ulong>(var->save_result.ulonglong_value);
   }
-  DBUG_ASSERT(binlog_checksum_options == var->save_result.ulonglong_value);
-  DBUG_ASSERT(mysql_bin_log.checksum_alg_reset ==
-              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  assert(binlog_checksum_options == var->save_result.ulonglong_value);
+  assert(mysql_bin_log.checksum_alg_reset ==
+         binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   
   if (check_purge)
@@ -4108,7 +4108,7 @@ static bool check_transaction_isolation(sys_var *self, THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
   {
-    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
+    assert(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return true;
   }
@@ -4247,7 +4247,7 @@ static bool check_transaction_read_only(sys_var *self, THD *thd, set_var *var)
   if (var->type == OPT_DEFAULT && (thd->in_active_multi_stmt_transaction() ||
                                    thd->in_sub_stmt))
   {
-    DBUG_ASSERT(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
+    assert(thd->in_multi_stmt_transaction_mode() || thd->in_sub_stmt);
     my_error(ER_CANT_CHANGE_TX_CHARACTERISTICS, MYF(0));
     return true;
   }
@@ -4547,7 +4547,7 @@ static Sys_var_bit Sys_log_off(
 static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
                                          enum_var_type type)
 {
-  DBUG_ASSERT(type == OPT_SESSION);
+  assert(type == OPT_SESSION);
 
   if (thd->variables.sql_log_bin)
     thd->variables.option_bits |= OPTION_BIN_LOG;
@@ -5637,7 +5637,7 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 
 static bool update_gtid_next_list(sys_var *self, THD *thd, enum_var_type type)
 {
-  DBUG_ASSERT(type == OPT_SESSION);
+  assert(type == OPT_SESSION);
   if (thd->get_gtid_next_list() != NULL)
     return gtid_acquire_ownership_multiple(thd) != 0 ? true : false;
   return false;

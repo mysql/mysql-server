@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -247,7 +247,7 @@ void check_return_status(enum_return_status status, const char *action,
 {
   if (status != RETURN_STATUS_OK)
   {
-    DBUG_ASSERT(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
+    assert(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
     if (status == RETURN_STATUS_REPORTED_ERROR)
     {
 #if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
@@ -259,10 +259,10 @@ void check_return_status(enum_return_status status, const char *action,
         assert in this case. We assert that diagnostic area logged the error
         outside server startup since the assert is realy useful.
      */
-      DBUG_ASSERT(thd == NULL ||
-                  thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
-                  (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
-                   thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
+      assert(thd == NULL ||
+             thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
+             (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
+              thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
 #endif
     }
     DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,7 @@
 
 /*
   A lot of our programs uses asserts, so better to always include it
-  This also fixes a problem when people uses DBUG_ASSERT without including
+  This also fixes a problem when people uses assert without including
   assert.h
 */
 #include <assert.h>

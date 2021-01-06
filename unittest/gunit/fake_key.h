@@ -2,7 +2,7 @@
 #define FAKE_KEY_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ public:
 
   Fake_KEY(unsigned int key_parts_arg, bool unique)
   {
-    DBUG_ASSERT(key_parts_arg > 0);
+    assert(key_parts_arg > 0);
 
     flags= 0;
     if (unique)

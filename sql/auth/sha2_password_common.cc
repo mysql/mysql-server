@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -201,7 +201,7 @@ Generate_scramble::Generate_scramble(const std::string source,
       break;
     }
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   };
 }
 
@@ -267,7 +267,7 @@ bool Generate_scramble::scramble(unsigned char *scramble,
     }
     default:
     {
-      DBUG_ASSERT(false);
+      assert(false);
       DBUG_RETURN(true);
     }
   }

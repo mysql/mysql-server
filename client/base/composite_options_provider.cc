@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ using namespace Mysql::Tools::Base::Options;
 void Composite_options_provider::add_providers(
   I_options_provider* first, ...)
 {
-  DBUG_ASSERT(this->m_options_providers.size() == 0);
+  assert(this->m_options_providers.size() == 0);
 
   va_list options_to_add;
   va_start(options_to_add, first);

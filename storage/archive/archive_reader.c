@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
       read= (unsigned int)azread(&reader_handle, buffer + ARCHIVE_ROW_HEADER_SIZE, 
                                  row_len, &error); 
 
-      DBUG_ASSERT(read == row_len);
+      assert(read == row_len);
 
       azwrite(&writer_handle, buffer, row_len + ARCHIVE_ROW_HEADER_SIZE);
 

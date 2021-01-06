@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,8 +74,8 @@ Thd_ndb::recycle_ndb(void)
   DBUG_ENTER("recycle_ndb");
   DBUG_PRINT("enter", ("ndb: 0x%lx", (long)ndb));
 
-  DBUG_ASSERT(global_schema_lock_trans == NULL);
-  DBUG_ASSERT(trans == NULL);
+  assert(global_schema_lock_trans == NULL);
+  assert(trans == NULL);
 
   delete ndb;
   if ((ndb= new Ndb(connection, "")) == NULL)

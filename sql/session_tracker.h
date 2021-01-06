@@ -1,7 +1,7 @@
 #ifndef SESSION_TRACKER_INCLUDED
 #define SESSION_TRACKER_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,13 +127,13 @@ private:
   /** Copy constructor */
   Session_tracker(Session_tracker const &other)
   {
-    DBUG_ASSERT(FALSE);
+    assert(FALSE);
   }
 
   /** Copy assignment operator */
   Session_tracker& operator= (Session_tracker const &rhs)
   {
-    DBUG_ASSERT(FALSE);
+    assert(FALSE);
     return *this;
   }
 

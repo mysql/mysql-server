@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License, version 2.0,
@@ -249,8 +249,8 @@ void table_replication_connection_status::make_row(Master_info *mi)
   m_row.thread_id_is_null= true;
   m_row.service_state= PS_RPL_CONNECT_SERVICE_STATE_NO;
 
-  DBUG_ASSERT(mi != NULL);
-  DBUG_ASSERT(mi->rli != NULL);
+  assert(mi != NULL);
+  assert(mi->rli != NULL);
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
@@ -376,7 +376,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -430,7 +430,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
         set_field_timestamp(f, m_row.last_error_timestamp);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

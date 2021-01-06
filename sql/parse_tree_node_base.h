@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ public:
 #ifndef DBUG_OFF
     if (transitional)
     {
-      DBUG_ASSERT(contextualized);
+      assert(contextualized);
       return false;
     }
 #endif//DBUG_OFF
@@ -162,7 +162,7 @@ public:
       return true;
 
 #ifndef DBUG_OFF
-    DBUG_ASSERT(!contextualized);
+    assert(!contextualized);
     contextualized= true;
 #endif//DBUG_OFF
 
@@ -199,7 +199,7 @@ public:
   virtual bool contextualize_(Parse_context *pc)
   {
 #ifndef DBUG_OFF
-    DBUG_ASSERT(!contextualized && !transitional);
+    assert(!contextualized && !transitional);
     transitional= true;
     contextualized= true;
 #endif//DBUG_OFF

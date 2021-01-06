@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2019,7 +2019,7 @@ static char *bindigits(ulonglong value, uint bits)
   char *ptr= digits;
   uint idx= bits;
 
-  DBUG_ASSERT(idx < sizeof(digits));
+  assert(idx < sizeof(digits));
   while (idx)
     *(ptr++)= '0' + ((char) (value >> (--idx)) & (char) 1);
   *ptr= '\0';
@@ -2048,7 +2048,7 @@ static char *hexdigits(ulonglong value)
   char *ptr= digits;
   uint idx= 2 * sizeof(value); /* Two hex digits per byte. */
 
-  DBUG_ASSERT(idx < sizeof(digits));
+  assert(idx < sizeof(digits));
   while (idx)
   {
     if ((*(ptr++)= '0' + ((char) (value >> (4 * (--idx))) & (char) 0xf)) > '9')
@@ -2930,8 +2930,8 @@ static void end_file_buffer(void)
 
 static void write_bits(ulonglong value, uint bits)
 {
-  DBUG_ASSERT(((bits < 8 * sizeof(value)) && ! (value >> bits)) ||
-              (bits == 8 * sizeof(value)));
+  assert(((bits < 8 * sizeof(value)) && ! (value >> bits)) ||
+         (bits == 8 * sizeof(value)));
 
   if ((file_buffer.bits-= (int) bits) >= 0)
   {

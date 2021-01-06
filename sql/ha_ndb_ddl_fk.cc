@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,10 +271,10 @@ isnull(const char * str)
 static void
 ndb_fk_casedn(char *name)
 {
-  DBUG_ASSERT(name != 0);
+  assert(name != 0);
   uint length = (uint)strlen(name);
-  DBUG_ASSERT(files_charset_info != 0 &&
-              files_charset_info->casedn_multiply == 1);
+  assert(files_charset_info != 0 &&
+         files_charset_info->casedn_multiply == 1);
   files_charset_info->cset->casedn(files_charset_info,
                                    name, length, name, length);
 }
@@ -484,14 +484,14 @@ class Fk_util
   {
     DBUG_ENTER("resolve_mock");
     DBUG_PRINT("enter", ("mock_name '%s'", mock_name));
-    DBUG_ASSERT(is_mock_name(mock_name));
+    assert(is_mock_name(mock_name));
 
     // Load up the mock table
     Ndb_table_guard mock_tab(dict, mock_name);
     if (!mock_tab.get_table())
     {
       error(dict, "Failed to load the listed mock table '%s'", mock_name);
-      DBUG_ASSERT(false);
+      assert(false);
       DBUG_VOID_RETURN;
     }
 
@@ -593,7 +593,7 @@ class Fk_util
       if (dict->getForeignKey(fk, element.name) != 0)
       {
         // Could not find the listed fk
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
 
@@ -670,7 +670,7 @@ class Fk_util
                   col_names, col_types))
       {
         error(dict, "Failed to create mock parent table '%s", mock_name);
-        DBUG_ASSERT(false);
+        assert(false);
         DBUG_RETURN(false);
       }
 
@@ -802,7 +802,7 @@ public:
 
     DBUG_ENTER("mock_table::create");
     DBUG_PRINT("enter", ("mock_name: %s", mock_name));
-    DBUG_ASSERT(is_mock_name(mock_name));
+    assert(is_mock_name(mock_name));
 
     if (mock_tab.setName(mock_name))
     {
@@ -819,7 +819,7 @@ public:
       DBUG_PRINT("info", ("name: %s", col_name));
       if (mock_col.setName(col_name))
       {
-        DBUG_ASSERT(false);
+        assert(false);
         DBUG_RETURN(false);
       }
 
@@ -827,7 +827,7 @@ public:
       if (!col)
       {
         // Internal error, the two lists should be same size
-        DBUG_ASSERT(col);
+        assert(col);
         DBUG_RETURN(false);
       }
 
@@ -882,7 +882,7 @@ public:
       if (dict->getForeignKey(fk, element.name) != 0)
       {
         // Could not find the listed fk
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
 
@@ -915,7 +915,7 @@ public:
       {
        // Could not open the mock table
        DBUG_PRINT("error", ("Could not open the listed mock table, ignore it"));
-       DBUG_ASSERT(false);
+       assert(false);
        continue;
       }
 
@@ -923,7 +923,7 @@ public:
       {
         DBUG_PRINT("error", ("Failed to drop the mock table '%s'",
                               mocktab_g.get_table()->getName()));
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
       info("Dropped mock table '%s' - referencing table dropped", table_name);
@@ -991,7 +991,7 @@ public:
     if (dict->getForeignKey(fk, fk_name) != 0)
     {
       error(dict, "Could not find fk '%s'", fk_name);
-      DBUG_ASSERT(false);
+      assert(false);
       DBUG_RETURN(false);
     }
 
@@ -1010,7 +1010,7 @@ public:
         if (dict->dropTableGlobal(*mocktab_g.get_table(), drop_flags) != 0)
         {
           error(dict, "Failed to drop fk mock table '%s'", parent_name);
-          DBUG_ASSERT(false);
+          assert(false);
           DBUG_RETURN(false);
         }
         // table and fk dropped
@@ -1020,7 +1020,7 @@ public:
       {
         warn("Could not open the fk mock table '%s', ignoring it...",
              parent_name);
-        DBUG_ASSERT(false);
+        assert(false);
         // fallthrough and try to drop only the fk,
       }
     }
@@ -1028,7 +1028,7 @@ public:
     if (dict->dropForeignKey(fk) != 0)
     {
       error(dict, "Failed to drop fk '%s'", fk_name);
-      DBUG_ASSERT(false);
+      assert(false);
       DBUG_RETURN(false);
     }
     DBUG_RETURN(true);
@@ -1051,7 +1051,7 @@ public:
     NdbDictionary::Dictionary::List table_list;
     if (dict->listObjects(table_list, NdbDictionary::Object::UserTable, true) != 0)
     {
-      DBUG_ASSERT(false);
+      assert(false);
       DBUG_VOID_RETURN;
     }
 
@@ -1059,7 +1059,7 @@ public:
     {
       const NdbDictionary::Dictionary::List::Element& el = table_list.elements[i];
 
-      DBUG_ASSERT(el.type == NdbDictionary::Object::UserTable);
+      assert(el.type == NdbDictionary::Object::UserTable);
 
       // Check if table is in same database as the potential new parent
       if (strcmp(new_parent_db, el.database) != 0)
@@ -1111,7 +1111,7 @@ public:
       if (dict->getForeignKey(fk, element.name) != 0)
       {
         error(dict, "Could not find the listed fk '%s'", element.name);
-        DBUG_ASSERT(false);
+        assert(false);
         continue;
       }
 
@@ -1357,7 +1357,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                              "INTERNAL ERROR: Could not find created mock table '%s'",
                              mock_name);
          // Internal error, should be able to load the just created mock table
-         DBUG_ASSERT(parent_tab.get_table());
+         assert(parent_tab.get_table());
          DBUG_RETURN(err_default);
        }       
     }
@@ -1536,7 +1536,7 @@ ha_ndbcluster::referenced_by_foreign_key()
   Ndb_fk_data *data= m_fk_data;
   if (data == 0)
   {
-    DBUG_ASSERT(false);
+    assert(false);
     DBUG_RETURN(0);
   }
 
@@ -1553,7 +1553,7 @@ ha_ndbcluster::is_child_or_parent_of_fk()
   Ndb_fk_data *data= m_fk_data;
   if (data == 0)
   {
-    DBUG_ASSERT(false);
+    assert(false);
     DBUG_RETURN(0);
   }
   
@@ -1642,7 +1642,7 @@ fk_split_name(char dst[], const char * src, bool index)
 struct Ndb_mem_root_guard {
   Ndb_mem_root_guard(MEM_ROOT *new_root) {
     root_ptr= my_thread_get_THR_MALLOC();
-    DBUG_ASSERT(root_ptr != 0);
+    assert(root_ptr != 0);
     old_root= *root_ptr;
     *root_ptr= new_root;
   }
@@ -1735,7 +1735,7 @@ ha_ndbcluster::get_fk_data(THD *thd, Ndb *ndb)
       Ndb_table_guard child_tab(dict, child_name);
       if (child_tab.get_table() == 0)
       {
-        DBUG_ASSERT(false);
+        assert(false);
         ERR_RETURN(dict->getNdbError());
       }
 
@@ -1773,7 +1773,7 @@ ha_ndbcluster::get_fk_data(THD *thd, Ndb *ndb)
       Ndb_table_guard parent_tab(dict, parent_name);
       if (parent_tab.get_table() == 0)
       {
-        DBUG_ASSERT(false);
+        assert(false);
         ERR_RETURN(dict->getNdbError());
       }
 
@@ -1913,7 +1913,7 @@ ha_ndbcluster::get_child_or_parent_fk_list(THD *thd,
   Ndb_fk_data *data= m_fk_data;
   if (data == 0)
   {
-    DBUG_ASSERT(false);
+    assert(false);
     DBUG_RETURN(0);
   }
 
@@ -2502,7 +2502,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
   Ndb_table_guard srctab(dict, tab->getName());
   if (srctab.get_table() == 0)
   {
-    DBUG_ASSERT(false); // Why ??
+    assert(false); // Why ??
     DBUG_RETURN(0);
   }
 
@@ -2642,7 +2642,7 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
                         "INTERNAL ERROR: Could not find created child table '%s'",
                         tab_name);
     // Internal error, should be able to load the just created child table
-    DBUG_ASSERT(child_tab.get_table());
+    assert(child_tab.get_table());
     DBUG_RETURN(err_default);
   }
 
@@ -2666,7 +2666,7 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
                               ER_CANNOT_ADD_FOREIGN,
                               "Child table %s has no column referred by the FK %s",
                               tab->getName(), fk->getName());
-          DBUG_ASSERT(ndbcol);
+          assert(ndbcol);
           DBUG_RETURN(err_default);
         }
         child_cols[pos++]= ndbcol;

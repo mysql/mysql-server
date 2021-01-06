@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -240,8 +240,8 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli);
 static void set_thd_tx_priority(THD* thd, int priority)
 {
   DBUG_ENTER("set_thd_tx_priority");
-  DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
-              thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER);
+  assert(thd->system_thread == SYSTEM_THREAD_SLAVE_SQL ||
+         thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER);
 
   thd->thd_tx_priority= priority;
   DBUG_EXECUTE_IF("dbug_set_high_prio_sql_thread",
@@ -283,7 +283,7 @@ static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql)
 {
   DBUG_ENTER("set_slave_max_allowed_packet");
   // thd and mysql must be valid
-  DBUG_ASSERT(thd && mysql);
+  assert(thd && mysql);
 
   thd->variables.max_allowed_packet= slave_max_allowed_packet;
   /*
@@ -559,7 +559,7 @@ bool start_slave(THD *thd)
   if (channel_map.get_num_instances() == 1)
   {
     mi= channel_map.get_default_channel_mi();
-    DBUG_ASSERT(mi);
+    assert(mi);
     if (start_slave(thd, &thd->lex->slave_connection,
                     &thd->lex->mi, thd->lex->slave_thd_opt, mi, true))
       DBUG_RETURN(true);
@@ -634,8 +634,8 @@ int stop_slave(THD *thd)
   {
     mi= channel_map.get_default_channel_mi();
 
-    DBUG_ASSERT(!strcmp(mi->get_channel(),
-                        channel_map.get_default_channel()));
+    assert(!strcmp(mi->get_channel(),
+                   channel_map.get_default_channel()));
 
     error= stop_slave(thd, mi, 1,
                       false /*for_one_channel*/, &push_temp_table_warning);
@@ -880,7 +880,7 @@ read_rotate_from_relay_log(char *filename, char *master_log_file,
     first event of the log.
    */
   Format_description_log_event fd_ev(BINLOG_VERSION), *fd_ev_p= &fd_ev;
-  DBUG_ASSERT(fd_ev.is_valid());
+  assert(fd_ev.is_valid());
   IO_CACHE log;
   const char *errmsg= NULL;
   File file= open_binlog_file(&log, filename, &errmsg);
@@ -913,7 +913,7 @@ read_rotate_from_relay_log(char *filename, char *master_log_file,
       if (ev->server_id && ev->server_id != ::server_id)
       {
         Rotate_log_event *rotate_ev= (Rotate_log_event *)ev;
-        DBUG_ASSERT(FN_REFLEN >= rotate_ev->ident_len + 1);
+        assert(FN_REFLEN >= rotate_ev->ident_len + 1);
         memcpy(master_log_file, rotate_ev->new_log_ident, rotate_ev->ident_len + 1);
         *master_log_pos= rotate_ev->pos;
         ret= FOUND_ROTATE;
@@ -1303,7 +1303,7 @@ int load_mi_and_rli_from_repositories(Master_info* mi,
                                       int thread_mask)
 {
   DBUG_ENTER("init_info");
-  DBUG_ASSERT(mi != NULL && mi->rli != NULL);
+  assert(mi != NULL && mi->rli != NULL);
   int init_error= 0;
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
   THD *thd= current_thd;
@@ -1395,7 +1395,7 @@ end:
 void end_info(Master_info* mi)
 {
   DBUG_ENTER("end_info");
-  DBUG_ASSERT(mi != NULL && mi->rli != NULL);
+  assert(mi != NULL && mi->rli != NULL);
 
   /*
     The previous implementation was not acquiring locks.  We do the same here.
@@ -1411,7 +1411,7 @@ int remove_info(Master_info* mi)
 {
   int error= 1;
   DBUG_ENTER("remove_info");
-  DBUG_ASSERT(mi != NULL && mi->rli != NULL);
+  assert(mi != NULL && mi->rli != NULL);
 
   /*
     The previous implementation was not acquiring locks.
@@ -1449,7 +1449,7 @@ err:
 int flush_master_info(Master_info* mi, bool force)
 {
   DBUG_ENTER("flush_master_info");
-  DBUG_ASSERT(mi != NULL && mi->rli != NULL);
+  assert(mi != NULL && mi->rli != NULL);
   /*
     The previous implementation was not acquiring locks.
     We do the same here. However, this is quite strange.
@@ -1496,8 +1496,8 @@ static void print_slave_skip_errors(void)
   */
   const size_t MIN_ROOM= 10;
   DBUG_ENTER("print_slave_skip_errors");
-  DBUG_ASSERT(sizeof(slave_skip_error_names) > MIN_ROOM);
-  DBUG_ASSERT(MAX_SLAVE_ERROR <= 999999); // 6 digits
+  assert(sizeof(slave_skip_error_names) > MIN_ROOM);
+  assert(MAX_SLAVE_ERROR <= 999999); // 6 digits
 
   if (!use_slave_mask || bitmap_is_clear_all(&slave_error_mask))
   {
@@ -1565,7 +1565,7 @@ void set_slave_skip_errors(char** slave_skip_errors_ptr)
 static void init_slave_skip_errors()
 {
   DBUG_ENTER("init_slave_skip_errors");
-  DBUG_ASSERT(!use_slave_mask); // not already initialized
+  assert(!use_slave_mask); // not already initialized
 
   if (bitmap_init(&slave_error_mask,0,MAX_SLAVE_ERROR,0))
   {
@@ -1579,8 +1579,8 @@ static void init_slave_skip_errors()
 static void add_slave_skip_errors(const uint* errors, uint n_errors)
 {
   DBUG_ENTER("add_slave_skip_errors");
-  DBUG_ASSERT(errors);
-  DBUG_ASSERT(use_slave_mask);
+  assert(errors);
+  assert(use_slave_mask);
 
   for (uint i = 0; i < n_errors; i++)
   {
@@ -1752,8 +1752,8 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
                     {
                       const char act[]=
                         "now SIGNAL reached_stopping_io_thread";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                         STRING_WITH_LEN(act)));
+                      assert(!debug_sync_set_action(current_thd,
+                                                    STRING_WITH_LEN(act)));
                     };);
     if ((error=terminate_slave_thread(mi->info_thd,io_lock,
                                       &mi->stop_cond,
@@ -1870,7 +1870,7 @@ terminate_slave_thread(THD *thd,
       DBUG_RETURN(ER_SLAVE_CHANNEL_NOT_RUNNING);
     }
   }
-  DBUG_ASSERT(thd != 0);
+  assert(thd != 0);
   THD_CHECK_SENTRY(thd);
 
   /*
@@ -1890,7 +1890,7 @@ terminate_slave_thread(THD *thd,
     */
 #ifndef _WIN32
     int err MY_ATTRIBUTE((unused))= pthread_kill(thd->real_id, SIGUSR1);
-    DBUG_ASSERT(err != EINVAL);
+    assert(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -1913,10 +1913,10 @@ terminate_slave_thread(THD *thd,
         mysql_mutex_unlock(term_lock);
       DBUG_RETURN (1);
     }
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(*slave_running == 0);
+  assert(*slave_running == 0);
 
   if (need_lock_term)
     mysql_mutex_unlock(term_lock);
@@ -2210,8 +2210,8 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
 {
   DBUG_ENTER("io_slave_killed");
 
-  DBUG_ASSERT(mi->info_thd == thd);
-  DBUG_ASSERT(mi->slave_running); // tracking buffer overrun
+  assert(mi->info_thd == thd);
+  assert(mi->slave_running); // tracking buffer overrun
   DBUG_RETURN(mi->abort_slave || abort_loop || thd->killed);
 }
 
@@ -2240,8 +2240,8 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 
   DBUG_ENTER("sql_slave_killed");
 
-  DBUG_ASSERT(rli->info_thd == thd);
-  DBUG_ASSERT(rli->slave_running == 1);
+  assert(rli->info_thd == thd);
+  assert(rli->slave_running == 1);
   if (rli->sql_thread_kill_accepted)
     DBUG_RETURN(true);
   DBUG_EXECUTE_IF("stop_when_mts_in_group", rli->abort_slave = 1;
@@ -2485,7 +2485,7 @@ io_thread_init_command(Master_info *mi, const char *query, int allowed_error,
     }
   }
   else
-    DBUG_ASSERT(master_row == NULL);
+    assert(master_row == NULL);
   DBUG_RETURN(COMMAND_STATUS_OK);
 }
 
@@ -2561,17 +2561,17 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
                     const char act[]= "now wait_for signal.get_master_uuid";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 
   DBUG_EXECUTE_IF("dbug.simulate_busy_io",
                   {
                     const char act[]= "now signal Reached wait_for signal.got_stop_slave";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 #ifndef DBUG_OFF
   DBUG_EXECUTE_IF("dbug.simulate_no_such_var_server_uuid",
@@ -2810,10 +2810,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   mi->get_mi_description_event()->common_footer->checksum_alg=
     mi->rli->relay_log.relay_log_checksum_alg;
 
-  DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg !=
-              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-  DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
-              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  assert(mi->get_mi_description_event()->common_footer->checksum_alg !=
+         binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  assert(mi->rli->relay_log.relay_log_checksum_alg !=
+         binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
 
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -2827,9 +2827,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                     const char act[]=
                       "now "
                       "wait_for signal.get_unix_timestamp";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 
   master_res= NULL;
@@ -2882,9 +2882,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
                     const char act[]=
                       "now "
                       "wait_for signal.get_server_id";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, 
-                                                       STRING_WITH_LEN(act)));
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(current_thd, 
+                                                  STRING_WITH_LEN(act)));
                   };);
   master_res= NULL;
   master_row= NULL;
@@ -3189,10 +3189,10 @@ when it try to get the value of TIME_ZONE global variable from master.";
        }
 
         // valid outcome is either of
-        DBUG_ASSERT(mi->checksum_alg_before_fd ==
-                    binary_log::BINLOG_CHECKSUM_ALG_OFF ||
-                    mi->checksum_alg_before_fd ==
-                    binary_log::BINLOG_CHECKSUM_ALG_CRC32);
+       assert(mi->checksum_alg_before_fd ==
+              binary_log::BINLOG_CHECKSUM_ALG_OFF ||
+              mi->checksum_alg_before_fd ==
+              binary_log::BINLOG_CHECKSUM_ALG_CRC32);
       }
       else if (check_io_slave_killed(mi->info_thd, mi, NULL))
         goto slave_killed_err;
@@ -3316,7 +3316,7 @@ err:
   {
     if (master_res)
       mysql_free_result(master_res);
-    DBUG_ASSERT(err_code != 0);
+    assert(err_code != 0);
     mi->report(ERROR_LEVEL, err_code, "%s", err_buff);
     DBUG_RETURN(1);
   }
@@ -3429,7 +3429,7 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi,
   int error= 0;
   DBUG_ENTER("write_ignored_events_info_to_relay_log");
 
-  DBUG_ASSERT(thd == mi->info_thd);
+  assert(thd == mi->info_thd);
   mysql_mutex_assert_owner(&mi->data_lock);
   mysql_mutex_lock(log_lock);
   if (rli->ign_master_log_name_end[0])
@@ -3777,7 +3777,7 @@ bool show_slave_status_send_data(THD *thd, Master_info *mi,
     until_type= "DONE";
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
   }
   protocol->store(until_type, &my_charset_bin);
   protocol->store(mi->rli->until_log_name, &my_charset_bin);
@@ -4457,7 +4457,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= encoded_data_size;
 
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    assert(command_size == (allocation_size - 1));
   }
   else
   {
@@ -4481,7 +4481,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
 
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - 1));
+    assert(command_size == (allocation_size - 1));
   }
 
   if (simple_command(mysql, command, command_buffer, command_size, 1))
@@ -4607,7 +4607,7 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
 
   DBUG_ENTER("sql_delay_event");
   mysql_mutex_assert_owner(&rli->data_lock);
-  DBUG_ASSERT(!rli->belongs_to_client());
+  assert(!rli->belongs_to_client());
 
   int type= ev->get_type_code();
   if (sql_delay && type != binary_log::ROTATE_EVENT &&
@@ -4806,7 +4806,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         bool need_sync= ev->is_mts_group_isolated();
 
         // all events except BEGIN-query must be marked with a non-NULL Worker
-        DBUG_ASSERT(((Slave_worker*) ev->worker) == rli->last_assigned_worker);
+        assert(((Slave_worker*) ev->worker) == rli->last_assigned_worker);
 
         DBUG_PRINT("Log_event::apply_event:",
                    ("-> job item data %p to W_%lu", job_item->data, w->id));
@@ -4989,12 +4989,12 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
         INTVAR_EVENT, RAND_EVENT, USER_VAR_EVENT and ROWS_QUERY_LOG_EVENT are
         deferred event. It means ev->worker is NULL.
       */
-      DBUG_ASSERT(*ptr_ev == ev || rli->is_parallel_exec() ||
-		  (!ev->worker &&
-		   (ev->get_type_code() == binary_log::INTVAR_EVENT ||
-		    ev->get_type_code() == binary_log::RAND_EVENT ||
-		    ev->get_type_code() == binary_log::USER_VAR_EVENT ||
-                    ev->get_type_code() == binary_log::ROWS_QUERY_LOG_EVENT)));
+      assert(*ptr_ev == ev || rli->is_parallel_exec() ||
+             (!ev->worker &&
+              (ev->get_type_code() == binary_log::INTVAR_EVENT ||
+               ev->get_type_code() == binary_log::RAND_EVENT ||
+               ev->get_type_code() == binary_log::USER_VAR_EVENT ||
+               ev->get_type_code() == binary_log::ROWS_QUERY_LOG_EVENT)));
 
       rli->inc_event_relay_log_pos();
     }
@@ -5220,7 +5220,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
 
   Log_event *ev = next_event(rli), **ptr_ev;
 
-  DBUG_ASSERT(rli->info_thd==thd);
+  assert(rli->info_thd==thd);
 
   if (sql_slave_killed(thd,rli))
   {
@@ -5256,7 +5256,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     {
       rli->last_master_timestamp= ev->common_header->when.tv_sec +
                                   (time_t) ev->exec_time;
-      DBUG_ASSERT(rli->last_master_timestamp >= 0);
+      assert(rli->last_master_timestamp >= 0);
     }
 
     /*
@@ -5292,8 +5292,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                           ((ev->get_type_code() == binary_log::QUERY_EVENT) &&
                            strcmp("COMMIT", ((Query_log_event *) ev)->query) == 0))
                       {
-                        DBUG_ASSERT(thd->get_transaction()->cannot_safely_rollback(
-                            Transaction_ctx::SESSION));
+                        assert(thd->get_transaction()->cannot_safely_rollback(
+                                                                              Transaction_ctx::SESSION));
                         rli->abort_slave= 1;
                         mysql_mutex_unlock(&rli->data_lock);
                         delete ev;
@@ -5338,15 +5338,15 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     */
     if (*ptr_ev)
     {
-      DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator
+      assert(*ptr_ev == ev); // event remains to belong to Coordinator
 
       DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
                     {
                       if (ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT)
                       {
                         const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
-                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+                        assert(opt_debug_sync_timeout > 0);
+                        assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
                       }
                     };);
       DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event",
@@ -5354,9 +5354,9 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                       if (ev->get_type_code() == binary_log::ROTATE_EVENT && ev->is_artificial_event())
                       {
                       const char act[]= "now signal signal.reached wait_for signal.done_sbm_calculation";
-                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                      DBUG_ASSERT(!debug_sync_set_action(thd,
-                                                         STRING_WITH_LEN(act)));
+                      assert(opt_debug_sync_timeout > 0);
+                      assert(!debug_sync_set_action(thd,
+                                                    STRING_WITH_LEN(act)));
                       }
                     };);
       /*
@@ -5605,7 +5605,7 @@ extern "C" void *handle_slave_io(void *arg)
   my_thread_init();
   DBUG_ENTER("handle_slave_io");
 
-  DBUG_ASSERT(mi->inited);
+  assert(mi->inited);
   mysql= NULL ;
   retry_count= 0;
 
@@ -5709,9 +5709,9 @@ connected:
                       const char act[]=
                         "now "
                         "wait_for signal.io_thread_let_running";
-                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                      DBUG_ASSERT(!debug_sync_set_action(thd, 
-                                                         STRING_WITH_LEN(act)));
+                      assert(opt_debug_sync_timeout > 0);
+                      assert(!debug_sync_set_action(thd, 
+                                                    STRING_WITH_LEN(act)));
                     };);
     DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event",
                     {
@@ -5816,7 +5816,7 @@ requesting master dump") ||
       });
     const char *event_buf;
 
-    DBUG_ASSERT(mi->last_error().number == 0);
+    assert(mi->last_error().number == 0);
     while (!io_slave_killed(thd,mi))
     {
       ulong event_len;
@@ -5930,8 +5930,8 @@ Stopping slave I/O thread due to out-of-memory error from master");
                         const char act[]=
                           "now SIGNAL reached_after_queue_event "
                           "WAIT_FOR continue_after_queue_event";
-                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                           STRING_WITH_LEN(act)));
+                        assert(!debug_sync_set_action(current_thd,
+                                                      STRING_WITH_LEN(act)));
                       };);
 
       /*
@@ -5971,9 +5971,9 @@ ignore_log_space_limit=%d",
                       if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
                       {
                       const char act[]= "now signal Reached wait_for signal.flush_complete_continue";
-                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                         STRING_WITH_LEN(act)));
+                      assert(opt_debug_sync_timeout > 0);
+                      assert(!debug_sync_set_action(current_thd,
+                                                    STRING_WITH_LEN(act)));
 
                       }
                       });
@@ -6036,8 +6036,8 @@ err:
                   {
                     const char act[]= "now SIGNAL reached_stopping_io_thread "
                                       "WAIT_FOR continue_to_stop_io_thread";
-                    DBUG_ASSERT(!debug_sync_set_action(thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
   thd->reset_query();
   thd->reset_db(NULL_CSTR);
@@ -6254,7 +6254,7 @@ extern "C" void *handle_slave_worker(void *arg)
 
   mysql_mutex_unlock(&w->jobs_lock);
 
-  DBUG_ASSERT(thd->is_slave_error == 0);
+  assert(thd->is_slave_error == 0);
 
   w->stats_exec_time= w->stats_read_time= 0;
   set_timespec_nsec(&w->ts_exec[0], 0);
@@ -6279,18 +6279,18 @@ extern "C" void *handle_slave_worker(void *arg)
   {
     purge_cnt++;
     purge_size += job_item->data->common_header->data_written;
-    DBUG_ASSERT(job_item->data);
+    assert(job_item->data);
     delete job_item->data;
   }
 
-  DBUG_ASSERT(w->jobs.len == 0);
+  assert(w->jobs.len == 0);
 
   mysql_mutex_unlock(&w->jobs_lock);
 
   mysql_mutex_lock(&rli->pending_jobs_lock);
   rli->pending_jobs -= purge_cnt;
   rli->mts_pending_jobs_size -= purge_size;
-  DBUG_ASSERT(rli->mts_pending_jobs_size < rli->mts_pending_jobs_size_max);
+  assert(rli->mts_pending_jobs_size < rli->mts_pending_jobs_size_max);
 
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 
@@ -6393,7 +6393,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
 
   DBUG_ENTER("mts_recovery_groups");
 
-  DBUG_ASSERT(rli->slave_parallel_workers == 0);
+  assert(rli->slave_parallel_workers == 0);
 
   /* 
      Although mts_recovery_groups() is reentrant it returns
@@ -6432,7 +6432,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
   };
 
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
-  DBUG_ASSERT(p_fdle->is_valid());
+  assert(p_fdle->is_valid());
 
   /*
     Gathers information on valuable workers and stores it in 
@@ -6514,7 +6514,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
         while(!eof);
         continue;
   */
-  DBUG_ASSERT(!rli->recovery_groups_inited);
+  assert(!rli->recovery_groups_inited);
 
   if (!above_lwm_jobs.empty())
   {
@@ -6589,7 +6589,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
              (ev= Log_event::read_log_event(&log, 0, p_fdle,
                                             opt_slave_sql_verify_checksum)))
       {
-        DBUG_ASSERT(ev->is_valid());
+        assert(ev->is_valid());
 
         if (ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
           p_fdle->common_footer->checksum_alg= ev->common_footer->checksum_alg;
@@ -6654,7 +6654,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
             not_reached_commit= false;
           }
           else
-            DBUG_ASSERT(ret < 0);
+            assert(ret < 0);
         }
         delete ev;
         ev= NULL;
@@ -6673,8 +6673,8 @@ bool mts_recovery_groups(Relay_log_info *rli)
       recovery_group_cnt : rli->mts_recovery_group_cnt);
   }
 
-  DBUG_ASSERT(!rli->recovery_groups_inited ||
-              rli->mts_recovery_group_cnt <= groups->n_bits);
+  assert(!rli->recovery_groups_inited ||
+         rli->mts_recovery_group_cnt <= groups->n_bits);
 
   goto end;
 err:
@@ -6726,8 +6726,8 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                   {
                     const char act[]=
                       "now signal mts_checkpoint_start";
-                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(rli->info_thd,
+                                                  STRING_WITH_LEN(act)));
                  };);
 #endif
 
@@ -6735,10 +6735,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     rli->checkpoint_group can have two possible values due to
     two possible status of the last (being scheduled) group. 
   */
-  DBUG_ASSERT(!rli->gaq->full() ||
-              ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
-                rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
-               rli->checkpoint_seqno == rli->checkpoint_group));
+  assert(!rli->gaq->full() ||
+         ((rli->checkpoint_seqno == rli->checkpoint_group -1 &&
+           rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) ||
+          rli->checkpoint_seqno == rli->checkpoint_group));
 
   /*
     Currently, the checkpoint routine is being called by the SQL Thread.
@@ -6873,8 +6873,8 @@ end:
                   {
                     const char act[]=
                       "now signal mts_checkpoint_end";
-                    DBUG_ASSERT(!debug_sync_set_action(rli->info_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(rli->info_thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 #endif
   set_timespec_nsec(&rli->last_clock, 0);
@@ -6916,7 +6916,7 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   }
 
   // We assume that workers are added in sequential order here.
-  DBUG_ASSERT(i == rli->workers.size());
+  assert(i == rli->workers.size());
   if (i >= rli->workers.size())
     rli->workers.resize(i+1);
   rli->workers[i]= w;
@@ -7150,9 +7150,9 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
     while (w->running_status != Slave_worker::NOT_RUNNING)
     {
       PSI_stage_info old_stage;
-      DBUG_ASSERT(w->running_status == Slave_worker::ERROR_LEAVING ||
-                  w->running_status == Slave_worker::STOP ||
-                  w->running_status == Slave_worker::STOP_ACCEPTED);
+      assert(w->running_status == Slave_worker::ERROR_LEAVING ||
+             w->running_status == Slave_worker::STOP ||
+             w->running_status == Slave_worker::STOP_ACCEPTED);
 
       thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
                       &stage_slave_waiting_workers_to_exit, &old_stage);
@@ -7196,8 +7196,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
                       rli->mts_wq_no_underrun_cnt,
                       rli->mts_total_wait_worker_avail));
 
-  DBUG_ASSERT(rli->pending_jobs == 0);
-  DBUG_ASSERT(rli->mts_pending_jobs_size == 0);
+  assert(rli->pending_jobs == 0);
+  assert(rli->mts_pending_jobs_size == 0);
 
 end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
@@ -7249,9 +7249,9 @@ extern "C" void *handle_slave_sql(void *arg)
   my_thread_init();
   DBUG_ENTER("handle_slave_sql");
 
-  DBUG_ASSERT(rli->inited);
+  assert(rli->inited);
   mysql_mutex_lock(&rli->run_lock);
-  DBUG_ASSERT(!rli->slave_running);
+  assert(!rli->slave_running);
   errmsg= 0;
   error_string= 0;
 #ifndef DBUG_OFF
@@ -7419,7 +7419,7 @@ extern "C" void *handle_slave_sql(void *arg)
     DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
                         llstr(my_b_tell(rli->cur_log),llbuf1),
                         llstr(rli->get_event_relay_log_pos(),llbuf2)));
-    DBUG_ASSERT(rli->get_event_relay_log_pos() >= BIN_LOG_HEADER_SIZE);
+    assert(rli->get_event_relay_log_pos() >= BIN_LOG_HEADER_SIZE);
     /*
       Wonder if this is correct. I (Guilhem) wonder if my_b_tell() returns the
       correct position when it's called just after my_b_seek() (the questionable
@@ -7430,13 +7430,13 @@ extern "C" void *handle_slave_sql(void *arg)
       fails (as we my_b_seek(rli->event_relay_log_pos) at the very end of
       init_relay_log_pos() called above). Maybe the assertion would be
       meaningful if we held rli->data_lock between the my_b_seek() and the
-      DBUG_ASSERT().
+      assert().
 
-      DBUG_ASSERT(my_b_tell(rli->cur_log) == rli->get_event_relay_log_pos());
+      assert(my_b_tell(rli->cur_log) == rli->get_event_relay_log_pos());
     */
   }
 #endif
-  DBUG_ASSERT(rli->info_thd == thd);
+  assert(rli->info_thd == thd);
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   /* engine specific hook, to be made generic */
@@ -7505,7 +7505,7 @@ extern "C" void *handle_slave_sql(void *arg)
   while (!sql_slave_killed(thd,rli))
   {
     THD_STAGE_INFO(thd, stage_reading_event_from_the_relay_log);
-    DBUG_ASSERT(rli->info_thd == thd);
+    assert(rli->info_thd == thd);
     THD_CHECK_SENTRY(thd);
 
     if (saved_skip && rli->slave_skip_counter == 0)
@@ -7642,15 +7642,15 @@ extern "C" void *handle_slave_sql(void *arg)
                   {
                     const char act[]= "now SIGNAL reached_stopping_sql_thread "
                                       "WAIT_FOR continue_to_stop_sql_thread";
-                    DBUG_ASSERT(!debug_sync_set_action(thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
   mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   mysql_mutex_lock(&rli->data_lock);
-  DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun
+  assert(rli->slave_running == 1); // tracking buffer overrun
   /* When master_pos_wait() wakes up it will check this and terminate */
   rli->slave_running= 0;
   rli->is_stopping.atomic_set(0);
@@ -7672,7 +7672,7 @@ extern "C" void *handle_slave_sql(void *arg)
   thd->temporary_tables = 0; // remove tempation from destructor to close them
   // destructor will not free it, because we are weird
   thd->get_protocol_classic()->end_net();
-  DBUG_ASSERT(rli->info_thd == thd);
+  assert(rli->info_thd == thd);
   THD_CHECK_SENTRY(thd);
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= NULL;
@@ -7743,7 +7743,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
     skip_load_data_infile(net);
     DBUG_RETURN(0);
   }
-  DBUG_ASSERT(cev->inited_from_old);
+  assert(cev->inited_from_old);
   thd->file_id = cev->file_id = mi->file_id++;
   thd->server_id = cev->server_id;
   cev_not_written = 1;
@@ -7880,8 +7880,8 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   Format_description_log_event *old_fdle= mi->get_mi_description_event();
   if (old_fdle->binlog_version >= 4)
   {
-    DBUG_ASSERT(old_fdle->common_footer->checksum_alg ==
-                mi->rli->relay_log.relay_log_checksum_alg);
+    assert(old_fdle->common_footer->checksum_alg ==
+           mi->rli->relay_log.relay_log_checksum_alg);
     Format_description_log_event *new_fdle= new
       Format_description_log_event(3);
     new_fdle->common_footer->checksum_alg=
@@ -7980,7 +7980,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
     */
   {
     /* We come here when and only when tmp_buf != 0 */
-    DBUG_ASSERT(tmp_buf != 0);
+    assert(tmp_buf != 0);
     inc_pos=event_len;
     ev->common_header->log_pos+= inc_pos;
     int error = process_io_create_file(mi,(Create_file_log_event*)ev);
@@ -8150,9 +8150,9 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   Gtid gtid= { 0, 0 };
   Log_event_type event_type= (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
-  DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF || 
-              checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF || 
-              checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_CRC32); 
+  assert(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF || 
+         checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF || 
+         checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_CRC32); 
 
   DBUG_ENTER("queue_event");
 
@@ -8164,8 +8164,8 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                   {
                     const char act[]= "now SIGNAL reached_queuing_event "
                                       "WAIT_FOR continue_queuing_event";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 
   /*
@@ -8188,12 +8188,12 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   // does not hold always because of old binlog can work with NM 
-  // DBUG_ASSERT(checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
+  // assert(checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
 
   // should hold unless manipulations with RL. Tests that do that
   // will have to refine the clause.
-  DBUG_ASSERT(mi->rli->relay_log.relay_log_checksum_alg !=
-              binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  assert(mi->rli->relay_log.relay_log_checksum_alg !=
+         binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
               
   // Emulate the network corruption
   DBUG_EXECUTE_IF("corrupt_queue_event",
@@ -8219,7 +8219,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   }
 
   mysql_mutex_lock(&mi->data_lock);
-  DBUG_ASSERT(lock_count == 0);
+  assert(lock_count == 0);
   lock_count= 1;
 
   if (mi->get_mi_description_event() == NULL)
@@ -8355,12 +8355,12 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       rot_crc= checksum_crc32(rot_crc, (const uchar *) rot_buf,
                            event_len - BINLOG_CHECKSUM_LEN);
       int4store(&rot_buf[event_len - BINLOG_CHECKSUM_LEN], rot_crc);
-      DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
-      DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg ==
-                  mi->rli->relay_log.relay_log_checksum_alg);
+      assert(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
+      assert(mi->get_mi_description_event()->common_footer->checksum_alg ==
+             mi->rli->relay_log.relay_log_checksum_alg);
       /* the first one */
-      DBUG_ASSERT(mi->checksum_alg_before_fd !=
-                  binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+      assert(mi->checksum_alg_before_fd !=
+             binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
       save_buf= (char *) buf;
       buf= rot_buf;
     }
@@ -8379,12 +8379,12 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
         int4store(&rot_buf[EVENT_LEN_OFFSET],
                   uint4korr(rot_buf + EVENT_LEN_OFFSET) -
                   BINLOG_CHECKSUM_LEN);
-        DBUG_ASSERT(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
-        DBUG_ASSERT(mi->get_mi_description_event()->common_footer->checksum_alg ==
-                    mi->rli->relay_log.relay_log_checksum_alg);
+        assert(event_len == uint4korr(&rot_buf[EVENT_LEN_OFFSET]));
+        assert(mi->get_mi_description_event()->common_footer->checksum_alg ==
+               mi->rli->relay_log.relay_log_checksum_alg);
         /* the first one */
-        DBUG_ASSERT(mi->checksum_alg_before_fd !=
-                    binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+        assert(mi->checksum_alg_before_fd !=
+               binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
         save_buf= (char *) buf;
         buf= rot_buf;
       }
@@ -8488,12 +8488,12 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
        hb.common_header->log_pos &&  mi->get_master_log_name() != NULL)
     {
 
-      DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
-                         hb.get_log_ident(), hb.get_ident_len()) == 0);
+      assert(memcmp(const_cast<char*>(mi->get_master_log_name()),
+                    hb.get_log_ident(), hb.get_ident_len()) == 0);
 
       DBUG_EXECUTE_IF("reached_heart_beat_queue_event", {
                       const char act[] = "now SIGNAL check_slave_master_info WAIT_FOR proceed_write_rotate";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                       };);
 
       mi->set_master_log_pos(hb.common_header->log_pos);
@@ -8669,7 +8669,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
   */
 
   mysql_mutex_lock(log_lock);
-  DBUG_ASSERT(lock_count == 1);
+  assert(lock_count == 1);
   lock_count= 2;
 
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
@@ -8719,7 +8719,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     {
       mi->set_master_log_pos(mi->get_master_log_pos() + inc_pos);
       memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(), FN_REFLEN);
-      DBUG_ASSERT(rli->ign_master_log_name_end[0]);
+      assert(rli->ign_master_log_name_end[0]);
       rli->ign_master_log_pos_end= mi->get_master_log_pos();
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
@@ -9052,8 +9052,8 @@ static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,
 static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
 {
   DBUG_ENTER("reopen_relay_log");
-  DBUG_ASSERT(rli->cur_log != &rli->cache_buf);
-  DBUG_ASSERT(rli->cur_log_fd == -1);
+  assert(rli->cur_log != &rli->cache_buf);
+  assert(rli->cur_log_fd == -1);
 
   IO_CACHE *cur_log = rli->cur_log=&rli->cache_buf;
   if ((rli->cur_log_fd=open_binlog_file(cur_log,rli->get_event_relay_log_name(),
@@ -9090,7 +9090,7 @@ static Log_event* next_event(Relay_log_info* rli)
   THD* thd = rli->info_thd;
   DBUG_ENTER("next_event");
 
-  DBUG_ASSERT(thd != 0);
+  assert(thd != 0);
 
 #ifndef DBUG_OFF
   if (abort_slave_event_count && !rli->events_until_exit--)
@@ -9123,7 +9123,7 @@ static Log_event* next_event(Relay_log_info* rli)
     if ((hot_log = (cur_log != &rli->cache_buf)) ||
         DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
     {
-      DBUG_ASSERT(rli->cur_log_fd == -1); // foreign descriptor
+      assert(rli->cur_log_fd == -1); // foreign descriptor
       mysql_mutex_lock(log_lock);
 
       /*
@@ -9166,8 +9166,8 @@ static Log_event* next_event(Relay_log_info* rli)
                           llstr(my_b_tell(cur_log),llbuf1),
                           llstr(rli->get_event_relay_log_pos(),llbuf2)));
 
-      DBUG_ASSERT(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
-      DBUG_ASSERT(my_b_tell(cur_log) == rli->get_event_relay_log_pos() || rli->is_parallel_exec());
+      assert(my_b_tell(cur_log) >= BIN_LOG_HEADER_SIZE);
+      assert(my_b_tell(cur_log) == rli->get_event_relay_log_pos() || rli->is_parallel_exec());
 
       DBUG_PRINT("info", ("next_event group master %s %lu group relay %s %lu event %s %lu\n",
         rli->get_group_master_log_name(),
@@ -9195,7 +9195,7 @@ static Log_event* next_event(Relay_log_info* rli)
                                        rli->get_rli_description_event(),
                                        opt_slave_sql_verify_checksum)))
     {
-      DBUG_ASSERT(thd==rli->info_thd);
+      assert(thd==rli->info_thd);
       /*
         read it while we have a lock, to avoid a mutex lock in
         inc_event_relay_log_pos()
@@ -9225,14 +9225,14 @@ static Log_event* next_event(Relay_log_info* rli)
           the checkpoint routine must be periodically invoked.
         */
         (void) mts_checkpoint_routine(rli, period, force, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
-        DBUG_ASSERT(!force ||
-                    (force && (rli->checkpoint_seqno <= (rli->checkpoint_group - 1))) ||
-                    sql_slave_killed(thd, rli));
+        assert(!force ||
+               (force && (rli->checkpoint_seqno <= (rli->checkpoint_group - 1))) ||
+               sql_slave_killed(thd, rli));
         mysql_mutex_lock(&rli->data_lock);
       }
       DBUG_RETURN(ev);
     }
-    DBUG_ASSERT(thd==rli->info_thd);
+    assert(thd==rli->info_thd);
     if (opt_reckless_slave)                     // For mysql-test
       cur_log->error = 0;
     if (cur_log->error < 0)
@@ -9295,8 +9295,8 @@ static Log_event* next_event(Relay_log_info* rli)
         if (!rli->is_parallel_exec())
           rli->last_master_timestamp= 0;
 
-        DBUG_ASSERT(rli->relay_log.get_open_count() ==
-                    rli->cur_log_old_open_count);
+        assert(rli->relay_log.get_open_count() ==
+               rli->cur_log_old_open_count);
 
         if (rli->ign_master_log_name_end[0])
         {
@@ -9435,7 +9435,7 @@ static Log_event* next_event(Relay_log_info* rli)
         cases separately after doing some common initialization
       */
       end_io_cache(cur_log);
-      DBUG_ASSERT(rli->cur_log_fd >= 0);
+      assert(rli->cur_log_fd >= 0);
       mysql_file_close(rli->cur_log_fd, MYF(MY_WME));
       rli->cur_log_fd = -1;
 
@@ -9521,7 +9521,7 @@ static Log_event* next_event(Relay_log_info* rli)
 #endif
         rli->cur_log= cur_log= rli->relay_log.get_log_file();
         rli->cur_log_old_open_count= rli->relay_log.get_open_count();
-        DBUG_ASSERT(rli->cur_log_fd == -1);
+        assert(rli->cur_log_fd == -1);
 
         /*
            When the SQL thread is [stopped and] (re)started the
@@ -9853,7 +9853,7 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
   const uchar *master_ver=
     rli->get_rli_description_event()->server_version_split;
 
-  DBUG_ASSERT(sizeof(rli->get_rli_description_event()->server_version_split) == 3);
+  assert(sizeof(rli->get_rli_description_event()->server_version_split) == 3);
 
   for (uint i= 0;
        i < sizeof(versions_for_all_bugs)/sizeof(*versions_for_all_bugs);i++)
@@ -10404,7 +10404,7 @@ int reset_slave(THD *thd)
         continue;
       }
       mi= it->second;
-      DBUG_ASSERT(mi);
+      assert(mi);
       if ((result= reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
         break;
       it= channel_map.begin();
@@ -10414,7 +10414,7 @@ int reset_slave(THD *thd)
     while (gr_channel_map_it != channel_map.end(GROUP_REPLICATION_CHANNEL))
     {
       mi= gr_channel_map_it->second;
-      DBUG_ASSERT(mi);
+      assert(mi);
       /*
         We cannot RESET a group replication channel while the group
         replication is running.
@@ -10436,7 +10436,7 @@ int reset_slave(THD *thd)
     while (it != channel_map.end())
     {
       mi= it->second;
-      DBUG_ASSERT(mi);
+      assert(mi);
       if ((result= reset_slave(thd, mi, thd->lex->reset_slave_info.all)))
         break;
       it++;
@@ -10451,7 +10451,7 @@ int reset_slave(THD *thd)
     while (gr_channel_map_it != channel_map.end(GROUP_REPLICATION_CHANNEL))
     {
       mi= gr_channel_map_it->second;
-      DBUG_ASSERT(mi);
+      assert(mi);
       if (is_group_replication_running())
       {
         my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
@@ -10528,7 +10528,7 @@ int reset_slave(THD *thd, Master_info* mi, bool reset_all)
   }
 
   /* Clear master's log coordinates and associated information */
-  DBUG_ASSERT(!mi->rli || !mi->rli->slave_running); // none writes in rli table
+  assert(!mi->rli || !mi->rli->slave_running); // none writes in rli table
   if (remove_info(mi))
   {
     error= ER_UNKNOWN_ERROR;
@@ -10873,8 +10873,8 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     */
     mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
                                      (slave_net_timeout/2.0f));
-    DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
-                || mi->heartbeat_period == 0);
+    assert(mi->heartbeat_period > (float) 0.001
+           || mi->heartbeat_period == 0);
 
     // counter is cleared if master is CHANGED.
     mi->received_heartbeats= 0;
@@ -11204,7 +11204,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
         Change-Master can't be done if there is a mts group gap.
         That requires mts-recovery which START SLAVE provides.
       */
-      DBUG_ASSERT(mi->rli->recovery_parallel_workers);
+      assert(mi->rli->recovery_parallel_workers);
 
       error= ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS;
       my_message(ER_MTS_CHANGE_MASTER_CANT_RUN_WITH_GAPS,
@@ -11386,7 +11386,7 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
       relay_log_purge= 0;
 
       /* Relay log must be already initialized */
-      DBUG_ASSERT(mi->rli->inited);
+      assert(mi->rli->inited);
       if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
                                       mi->rli->get_group_relay_log_pos(),
                                       true/*we do need mi->rli->data_lock*/,

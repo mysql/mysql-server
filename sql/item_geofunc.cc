@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res)
     return false;
   if (super::itemize(pc, res))
     return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  assert(arg_count == 1 || arg_count == 2);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
@@ -121,7 +121,7 @@ bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res)
  */
 String *Item_func_geometry_from_text::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   Geometry_buffer buffer;
   String arg_val;
   String *wkt= args[0]->val_str_ascii(&arg_val);
@@ -136,7 +136,7 @@ String *Item_func_geometry_from_text::val_str(String *str)
   {
     if ((null_value= args[1]->null_value))
     {
-      DBUG_ASSERT(maybe_null);
+      assert(maybe_null);
       return NULL;
     }
     else
@@ -163,7 +163,7 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
     return false;
   if (super::itemize(pc, res))
     return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  assert(arg_count == 1 || arg_count == 2);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
@@ -179,7 +179,7 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
  */
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *wkb= NULL;
   uint32 srid= 0;
 
@@ -408,7 +408,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   null_value= (args[0]->null_value || wr.type() == Json_dom::J_NULL);
   if (null_value)
   {
-    DBUG_ASSERT(maybe_null);
+    assert(maybe_null);
     return NULL;
   }
 
@@ -461,7 +461,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
     if (rollback)
     {
-      DBUG_ASSERT(maybe_null);
+      assert(maybe_null);
       null_value= true;
       return NULL;
     }
@@ -655,7 +655,7 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
 
   // Defensive code. This should never be reached.
   /* purecov: begin inspected */
-  DBUG_ASSERT(false);
+  assert(false);
   return true;
   /* purecov: end inspected */
 }
@@ -714,11 +714,11 @@ get_positions(const Json_array *coordinates, Gis_point *point)
   case Item_func_geomfromgeojson::strip_now_strip_future:
   case Item_func_geomfromgeojson::strip_now_accept_future:
     if (GEOM_DIM > 2)
-      DBUG_ASSERT(false);
+      assert(false);
     break;
   default:
     // Unspecified behaviour.
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 
@@ -951,7 +951,7 @@ parse_object_array(const Json_array *data_array, Geometry::wkbType type,
     }
   default:
     {
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
     }
   }
@@ -1290,7 +1290,7 @@ is_member_valid(const Json_dom *member, const char *member_name,
 
   if (allow_null)
   {
-    DBUG_ASSERT(was_null != NULL);
+    assert(was_null != NULL);
     *was_null= member->json_type() == Json_dom::J_NULL;
     if (*was_null)
       return true;
@@ -1312,7 +1312,7 @@ is_member_valid(const Json_dom *member, const char *member_name,
       break;
     default:
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return false;
       /* purecov: end */
     }
@@ -1671,7 +1671,7 @@ bool append_polygon(Geometry::wkb_parser *parser,
 */
 bool append_bounding_box(MBR *mbr, Json_object *geometry)
 {
-  DBUG_ASSERT(GEOM_DIM == 2);
+  assert(GEOM_DIM == 2);
 
   Json_array *bbox_array= new (std::nothrow) Json_array();
   if (bbox_array == NULL ||
@@ -1713,8 +1713,8 @@ bool append_crs(Json_object *geometry,
                 bool add_long_crs_urn,
                 uint32 geometry_srid)
 {
-  DBUG_ASSERT(add_long_crs_urn || add_short_crs_urn);
-  DBUG_ASSERT(geometry_srid > 0);
+  assert(add_long_crs_urn || add_short_crs_urn);
+  assert(geometry_srid > 0);
 
   Json_object *crs_object= new (std::nothrow) Json_object();
   if (crs_object == NULL || geometry->add_alias("crs", crs_object) ||
@@ -1901,7 +1901,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
                                       add_long_crs_urn,
                                       geometry_srid);
           else
-            DBUG_ASSERT(false);
+            assert(false);
 
           if (result)
             return true;
@@ -1949,7 +1949,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
     {
       // This should not happen, since we did a check on wkb_type earlier.
       /* purecov: begin inspected */
-      DBUG_ASSERT(false);
+      assert(false);
       return true;
       /* purecov: end inspected */
     }
@@ -2024,7 +2024,7 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg, const char *calling_
 */
 bool Item_func_as_geojson::val_json(Json_wrapper *wr)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  assert(fixed == TRUE);
 
   if ((arg_count > 1 && parse_maxdecimaldigits_argument()) ||
       (arg_count > 2 && parse_options_argument()))
@@ -2081,7 +2081,7 @@ bool Item_func_as_geojson::val_json(Json_wrapper *wr)
 */
 bool Item_func_as_geojson::parse_options_argument()
 {
-  DBUG_ASSERT(arg_count > 2);
+  assert(arg_count > 2);
   longlong options_argument= args[2]->val_int();
   if ((null_value= args[2]->null_value))
     return true;
@@ -2121,7 +2121,7 @@ bool Item_func_as_geojson::parse_options_argument()
 */
 bool Item_func_as_geojson::parse_maxdecimaldigits_argument()
 {
-  DBUG_ASSERT(arg_count > 1);
+  assert(arg_count > 1);
   longlong max_decimal_digits_argument = args[1]->val_int();
   if ((null_value= args[1]->null_value))
     return true;
@@ -2205,7 +2205,7 @@ bool Item_func_as_geojson::fix_fields(THD *thd, Item **ref)
 
 String *Item_func_as_wkt::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
@@ -2238,7 +2238,7 @@ void Item_func_as_wkt::fix_length_and_dec()
 
 String *Item_func_as_wkb::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
@@ -2260,7 +2260,7 @@ String *Item_func_as_wkb::val_str(String *str)
 
 String *Item_func_geometry_type::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *swkb= args[0]->val_str(str);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
@@ -2283,7 +2283,7 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
 
 String *Item_func_validate::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
@@ -2322,7 +2322,7 @@ Field::geometry_type Item_func_make_envelope::get_geometry_type() const
 
 String *Item_func_make_envelope::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_val1, arg_val2;
   String *pt1= args[0]->val_str(&arg_val1);
   String *pt2= args[1]->val_str(&arg_val2);
@@ -2393,7 +2393,7 @@ String *Item_func_make_envelope::val_str(String *str)
   }
 
   int dim= mbr.dimension();
-  DBUG_ASSERT(dim >= 0);
+  assert(dim >= 0);
 
   /*
     Use default invalid SRID because we are computing the envelope on an
@@ -2431,7 +2431,7 @@ String *Item_func_make_envelope::val_str(String *str)
   }
   else
   {
-    DBUG_ASSERT(dim == 2);
+    assert(dim == 2);
     str->q_append(static_cast<uint32>(Geometry::wkb_polygon));
     str->q_append(static_cast<uint32>(1));
     str->q_append(static_cast<uint32>(5));
@@ -2459,7 +2459,7 @@ Field::geometry_type Item_func_envelope::get_geometry_type() const
 
 String *Item_func_envelope::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
@@ -2468,7 +2468,7 @@ String *Item_func_envelope::val_str(String *str)
 
   if ((null_value= (!swkb || args[0]->null_value)))
   {
-    DBUG_ASSERT(!swkb && args[0]->null_value);
+    assert(!swkb && args[0]->null_value);
     return NULL;
   }
 
@@ -2502,7 +2502,7 @@ Field::geometry_type Item_func_centroid::get_geometry_type() const
 
 String *Item_func_centroid::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
@@ -2566,7 +2566,7 @@ public:
   virtual void on_wkb_end(const void *wkb)
   {
     if (pt_start)
-      DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
+      assert(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
 
     pt_start= NULL;
   }
@@ -2608,7 +2608,7 @@ public:
       m_target_type= Geometry::wkb_polygon;
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }
@@ -2620,7 +2620,7 @@ public:
     :m_group(NULL), m_collection(out), m_gcbuf(gcbuf)
   {
     m_target_type= Geometry::wkb_polygon;
-    DBUG_ASSERT(out != NULL && gcbuf != NULL);
+    assert(out != NULL && gcbuf != NULL);
   }
 
 
@@ -2632,7 +2632,7 @@ public:
     m_ptrs.push_back(wkb);
 
     if (m_types.size() == 1)
-      DBUG_ASSERT(geotype == Geometry::wkb_geometrycollection);
+      assert(geotype == Geometry::wkb_geometrycollection);
   }
 
 
@@ -2668,13 +2668,13 @@ public:
     {
       Base_type g(wkb_start, len, Geometry::Flags_t(m_target_type, 0), 0);
       m_group->push_back(g);
-      DBUG_ASSERT(m_collection == NULL && m_gcbuf == NULL);
+      assert(m_collection == NULL && m_gcbuf == NULL);
     }
 
     if (m_collection != NULL && (geotype == Geometry::wkb_polygon ||
                                  geotype == Geometry::wkb_multipolygon))
     {
-      DBUG_ASSERT(m_group == NULL && m_gcbuf != NULL);
+      assert(m_group == NULL && m_gcbuf != NULL);
       String str(static_cast<const char *>(wkb_start), len, &my_charset_bin);
       m_collection->append_geometry(m_collection->get_srid(), geotype,
                                     &str, m_gcbuf);
@@ -2817,7 +2817,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb)
       }
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
 
@@ -2857,7 +2857,7 @@ String *Item_func_convex_hull::val_str(String *str)
     return error_str();
   }
 
-  DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
+  assert(geom->get_coordsys() == Geometry::cartesian);
   str->set_charset(&my_charset_bin);
   str->length(0);
 
@@ -2978,8 +2978,8 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
           A point's convex hull is the point itself, directly use the point's
           WKB buffer, set its header info correctly.
         */
-        DBUG_ASSERT(geom->get_ownmem() == false &&
-                    geom->has_geom_header_space());
+        assert(geom->get_ownmem() == false &&
+               geom->has_geom_header_space());
         char *p= geom->get_cptr() - GEOM_HEADER_SIZE;
         write_geometry_header(p, geom->get_srid(), geom->get_geotype());
         return false;
@@ -3027,7 +3027,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
       break;
     case Geometry::wkb_geometrycollection:
       // Handled above.
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     default:
       break;
@@ -3050,7 +3050,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
 
 String *Item_func_simplify::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *swkb= args[0]->val_str(&arg_val);
   double max_dist= args[1]->val_real();
   Geometry_buffer buffer;
@@ -3116,7 +3116,7 @@ int Item_func_simplify::
 simplify_basic(Geometry *geom, double max_dist, String *str,
                Gis_geometry_collection *gc, String *gcbuf)
 {
-  DBUG_ASSERT((gc == NULL && gcbuf == NULL) || (gc != NULL && gcbuf != NULL));
+  assert((gc == NULL && gcbuf == NULL) || (gc != NULL && gcbuf != NULL));
   Geometry::wkbType geotype= geom->get_type();
 
   switch (geotype)
@@ -3195,7 +3195,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
     break;
   case Geometry::wkb_geometrycollection:
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -3209,7 +3209,7 @@ simplify_basic(Geometry *geom, double max_dist, String *str,
 
 String *Item_func_spatial_decomp::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
@@ -3259,7 +3259,7 @@ err:
 
 String *Item_func_spatial_decomp_n::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_val;
   String *swkb= args[0]->val_str(&arg_val);
   long n= (long) args[1]->val_int();
@@ -3327,7 +3327,7 @@ Field::geometry_type Item_func_point::get_geometry_type() const
 
 String *Item_func_point::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   /*
     The coordinates of a point can't be another geometry, but other types
@@ -3415,7 +3415,7 @@ bool Item_func_pointfromgeohash::fix_fields(THD *thd, Item **ref)
 
 String *Item_func_pointfromgeohash::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  assert(fixed == TRUE);
 
   String argument_value;
   String *geohash= args[0]->val_str_ascii(&argument_value);
@@ -3492,7 +3492,7 @@ const char *Item_func_spatial_collection::func_name() const
     str= "geometrycollection";
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -3512,7 +3512,7 @@ const char *Item_func_spatial_collection::func_name() const
 
 String *Item_func_spatial_collection::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String arg_value;
   uint i;
   uint32 srid= 0;
@@ -3745,7 +3745,7 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo,
       if (geo2 == NULL)
       {
         // The geometry data already pass such checks, it's always valid here.
-        DBUG_ASSERT(false);
+        assert(false);
         return true;
       }
       else if (geo2->get_type() == Geometry::wkb_geometrycollection)
@@ -3787,7 +3787,7 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
   Geometry_buffer *pgeobuf= NULL;
   size_t geosize= geo->get_data_size();
 
-  DBUG_ASSERT(geo->get_type() != Geometry::wkb_geometrycollection);
+  assert(geo->get_type() != Geometry::wkb_geometrycollection);
   pres= m_geosdata.append_object();
   if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize, 256))
     return NULL;
@@ -3799,7 +3799,7 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
     return NULL;
   geo2= Geometry::construct(pgeobuf, pres->ptr(), pres->length());
   // The geometry data already pass such checks, it's always valid here.
-  DBUG_ASSERT(geo2 != NULL);
+  assert(geo2 != NULL);
 
   if (geo2 != NULL && geo2->get_type() != Geometry::wkb_geometrycollection)
     m_geos.push_back(geo2);
@@ -3810,7 +3810,7 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
 
 longlong Item_func_isempty::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
   Geometry_buffer buffer;
@@ -3831,13 +3831,13 @@ longlong Item_func_isempty::val_int()
 longlong Item_func_issimple::val_int()
 {
   DBUG_ENTER("Item_func_issimple::val_int");
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   tmp.length(0);
   String *arg_wkb= args[0]->val_str(&tmp);
   if ((null_value= args[0]->null_value))
   {
-    DBUG_ASSERT(maybe_null);
+    assert(maybe_null);
     DBUG_RETURN(0);
   }
   if (arg_wkb == NULL)
@@ -3955,7 +3955,7 @@ bool Item_func_issimple::issimple(Geometry *g)
       }
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
     }
   }
@@ -3971,7 +3971,7 @@ bool Item_func_issimple::issimple(Geometry *g)
 
 longlong Item_func_isclosed::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
   Geometry_buffer buffer;
@@ -4020,7 +4020,7 @@ public:
     if (types.size() > 0)
       top= types.top();
     else
-      DBUG_ASSERT(geotype == Geometry::wkb_geometrycollection);
+      assert(geotype == Geometry::wkb_geometrycollection);
 
     types.push(geotype);
     // A geometry collection's vaidity is determined by that of its components.
@@ -4031,8 +4031,8 @@ public:
     if (top != Geometry::wkb_geometrycollection)
       return;
 
-    DBUG_ASSERT(top != Geometry::wkb_invalid_type && has_hdr);
-    DBUG_ASSERT(len > WKB_HEADER_SIZE);
+    assert(top != Geometry::wkb_invalid_type && has_hdr);
+    assert(len > WKB_HEADER_SIZE);
 
     Geometry_buffer geobuf;
     Geometry *geo= NULL;
@@ -4155,7 +4155,7 @@ static int check_geometry_valid(Geometry *geom)
     break;
   }
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -4165,7 +4165,7 @@ static int check_geometry_valid(Geometry *geom)
 
 longlong Item_func_isvalid::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
   Geometry_buffer buffer;
@@ -4205,7 +4205,7 @@ longlong Item_func_isvalid::val_int()
 
 longlong Item_func_dimension::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint32 dim= 0;				// In case of error
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4225,7 +4225,7 @@ longlong Item_func_dimension::val_int()
 
 longlong Item_func_numinteriorring::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint32 num= 0;				// In case of error
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4245,7 +4245,7 @@ longlong Item_func_numinteriorring::val_int()
 
 longlong Item_func_numgeometries::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint32 num= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4265,7 +4265,7 @@ longlong Item_func_numgeometries::val_int()
 
 longlong Item_func_numpoints::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint32 num= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4285,7 +4285,7 @@ longlong Item_func_numpoints::val_int()
 
 double Item_func_x::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   double res= 0.0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4305,7 +4305,7 @@ double Item_func_x::val_real()
 
 double Item_func_y::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   double res= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4382,7 +4382,7 @@ double Item_func_area::bg_area(const Geometry *geom)
       }
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }
@@ -4408,7 +4408,7 @@ double Item_func_area::bg_area(const Geometry *geom)
 
 double Item_func_area::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   double res= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4421,7 +4421,7 @@ double Item_func_area::val_real()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_real();
   }
-  DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
+  assert(geom->get_coordsys() == Geometry::cartesian);
 
   if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
       geom->normalize_ring_order() == NULL)
@@ -4446,7 +4446,7 @@ double Item_func_area::val_real()
 
 double Item_func_glength::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   double res= 0;				// In case of errors
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
@@ -4471,7 +4471,7 @@ double Item_func_glength::val_real()
 
 longlong Item_func_srid::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
   longlong res= 0L;
@@ -4698,7 +4698,7 @@ double Item_func_distance::val_real()
   double distance= 0;
 
   DBUG_ENTER("Item_func_distance::val_real");
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
@@ -4859,7 +4859,7 @@ geometry_collection_distance(const Geometry *g1, const Geometry *g2)
       {
         // For now this is never reached because we only support
         // distance([multi]point, [multi]point) for spherical.
-        DBUG_ASSERT(false);
+        assert(false);
       }
       else
         dist= BG_distance<bgcs::cartesian>::apply(this, *i, *j);
@@ -4925,7 +4925,7 @@ distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2)
     }
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
   return res;
@@ -4963,7 +4963,7 @@ distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2)
     }
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -4987,7 +4987,7 @@ bg_distance_spherical(const Geometry *g1, const Geometry *g2)
       res= distance_multipoint_geometry_spherical(g1, g2);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }
@@ -5057,7 +5057,7 @@ distance_dispatch_second_geometry(const BG_geometry& bg1, const Geometry* g2)
     }
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
   return res;
@@ -5129,7 +5129,7 @@ double Item_func_distance::bg_distance(const Geometry *g1, const Geometry *g2)
       }
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }

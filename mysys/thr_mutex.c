@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ void safe_mutex_global_init(void)
 int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
 		    const char *file, uint line)
 {
-  DBUG_ASSERT(safe_mutex_inited);
+  assert(safe_mutex_inited);
   memset(mp, 0, sizeof(*mp));
   native_mutex_init(&mp->global,MY_MUTEX_INIT_ERRCHK);
   native_mutex_init(&mp->mutex,attr);

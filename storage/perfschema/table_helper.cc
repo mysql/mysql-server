@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ void PFS_account_row::set_field(uint index, Field *f)
         f->set_null();
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 }
@@ -181,7 +181,7 @@ void PFS_digest_row::set_field(uint index, Field *f)
         f->set_null();
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 }
@@ -318,7 +318,7 @@ void PFS_object_row::set_field(uint index, Field *f)
       PFS_engine_table::set_field_varchar_utf8(f, m_object_name, m_object_name_length);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
 
@@ -345,7 +345,7 @@ void PFS_object_row::set_nullable_field(uint index, Field *f)
         f->set_null();
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
 
@@ -401,7 +401,7 @@ void PFS_index_row::set_field(uint index, Field *f)
         f->set_null();
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
 
@@ -474,7 +474,7 @@ void PFS_statement_stat_row::set_field(uint index, Field *f)
       PFS_engine_table::set_field_ulonglong(f, m_no_good_index_used);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 }
@@ -505,7 +505,7 @@ void PFS_transaction_stat_row::set_field(uint index, Field *f)
       m_read_only_row.set_field(index-10, f);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 }
@@ -521,7 +521,7 @@ void PFS_connection_stat_row::set_field(uint index, Field *f)
       PFS_engine_table::set_field_ulonglong(f, m_total_connections);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 }
@@ -568,7 +568,7 @@ void set_field_object_type(Field *f, enum_object_type object_type)
     break;
   case NO_OBJECT_TYPE:
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     PFS_engine_table::set_field_varchar_utf8(f, "", 0);
     break;
   }
@@ -612,7 +612,7 @@ void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type)
     f->set_null();
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
@@ -655,7 +655,7 @@ void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
     PFS_engine_table::set_field_varchar_utf8(f, "EXCLUSIVE", 9);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
@@ -675,7 +675,7 @@ void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration)
     break;
   case MDL_DURATION_END:
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
@@ -698,7 +698,7 @@ void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status)
     PFS_engine_table::set_field_varchar_utf8(f, "POST_RELEASE_NOTIFY", 19);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
@@ -745,7 +745,7 @@ void PFS_memory_stat_row::set_field(uint index, Field *f)
       PFS_engine_table::set_field_longlong(f, val);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 }
@@ -767,7 +767,7 @@ void set_field_isolation_level(Field *f, enum_isolation_level iso_level)
     PFS_engine_table::set_field_varchar_utf8(f, "SERIALIZABLE", 12);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
@@ -794,14 +794,14 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
     PFS_engine_table::set_field_varchar_utf8(f, "COMMITTED", 9);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
 void PFS_variable_name_row::make_row(const char* str, size_t length)
 {
-  DBUG_ASSERT(length <= sizeof(m_str));
-  DBUG_ASSERT(length <= NAME_CHAR_LEN);
+  assert(length <= sizeof(m_str));
+  assert(length <= NAME_CHAR_LEN);
 
   m_length= MY_MIN(length, NAME_CHAR_LEN); /* enforce max name length */
   if (m_length > 0)
@@ -821,8 +821,8 @@ void PFS_variable_value_row::make_row(const System_variable *var)
 
 void PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char* str, size_t length)
 {
-  DBUG_ASSERT(cs != NULL);
-  DBUG_ASSERT(length <= sizeof(m_str));
+  assert(cs != NULL);
+  assert(length <= sizeof(m_str));
   if (length > 0)
   {
     memcpy(m_str, str, length);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ extern "C" {
                                 enum cs_text_or_binary text_or_binary,
                                 void * service_callbacks_ctx)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 

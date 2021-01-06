@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,13 +155,13 @@ public:
 
   Element_type &at(size_t n)
   {
-    DBUG_ASSERT(n < size());
+    assert(n < size());
     return m_array_ptr[n];
   }
 
   const Element_type &at(size_t n) const
   {
-    DBUG_ASSERT(n < size());
+    assert(n < size());
     return m_array_ptr[n];
   }
 
@@ -240,7 +240,7 @@ public:
    */
   void pop_back()
   {
-    DBUG_ASSERT(!empty());
+    assert(!empty());
     if (!Has_trivial_destructor)
       back().~Element_type();
     m_size-= 1;
@@ -342,7 +342,7 @@ public:
   */
   iterator erase(iterator position)
   {
-    DBUG_ASSERT(position != end());
+    assert(position != end());
     if (position + 1 != end())
       std::copy(position + 1, end(), position);
     this->pop_back();
@@ -354,7 +354,7 @@ public:
   */
   iterator erase(size_t ix)
   {
-    DBUG_ASSERT(ix < size());
+    assert(ix < size());
     return erase(begin() + ix);
   }
 

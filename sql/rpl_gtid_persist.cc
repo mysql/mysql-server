@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,8 +64,8 @@ public:
   ~Attachable_trx_rw()
   {
     /* The attachable transaction has been already committed */
-    DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
-                && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+    assert(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
+           && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
 
     m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
     m_thd->tx_read_only= true;
@@ -86,7 +86,7 @@ bool THD::is_attachable_rw_transaction_active() const
 
 void THD::begin_attachable_rw_transaction()
 {
-  DBUG_ASSERT(!m_attachable_trx);
+  assert(!m_attachable_trx);
 
   m_attachable_trx= new Attachable_trx_rw(this);
 }
@@ -185,10 +185,10 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
       the main transaction thanks to rejection to update
       'mysql.gtid_executed' by XA main transaction.
     */
-    DBUG_ASSERT((*thd)->get_transaction()->xid_state()->
-                has_state(XID_STATE::XA_IDLE) ||
-                (*thd)->get_transaction()->xid_state()->
-                has_state(XID_STATE::XA_PREPARED));
+    assert((*thd)->get_transaction()->xid_state()->
+           has_state(XID_STATE::XA_IDLE) ||
+           (*thd)->get_transaction()->xid_state()->
+           has_state(XID_STATE::XA_PREPARED));
 
     (*thd)->begin_attachable_rw_transaction();
   }
@@ -536,9 +536,9 @@ static int dbug_test_on_compress(THD *thd)
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info",
                   {
                     const char act[]= "now signal fetch_thread_stage";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
   /* Sleep a little, so that we can always fetch the correct stage info. */
   DBUG_EXECUTE_IF("fetch_compression_thread_stage_info", sleep(1););
@@ -550,9 +550,9 @@ static int dbug_test_on_compress(THD *thd)
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table",
                   {
                     const char act[]= "now wait_for notified_thread_complete";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
   DBUG_EXECUTE_IF("simulate_crash_on_compress_gtid_table", DBUG_SUICIDE(););
 
@@ -575,9 +575,9 @@ int Gtid_table_persistor::compress(THD *thd)
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {
                     const char act[]= "now signal complete_compression";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(opt_debug_sync_timeout > 0);
+                    assert(!debug_sync_set_action(thd,
+                                                  STRING_WITH_LEN(act)));
                   };);
 
   DBUG_RETURN(error);
@@ -899,9 +899,9 @@ extern "C" void *compress_gtid_table(void *p_thd)
       DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
                       {
                         const char act[]= "now signal compression_failed";
-                        DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                        DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                           STRING_WITH_LEN(act)));
+                        assert(opt_debug_sync_timeout > 0);
+                        assert(!debug_sync_set_action(current_thd,
+                                                      STRING_WITH_LEN(act)));
                       };);
     }
   }

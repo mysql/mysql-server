@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ typedef BoundedQueueTest BoundedQueueDeathTest;
 
 #if !defined(DBUG_OFF)
 /*
-  Verifies that we DBUG_ASSERT if trying to push to an un-initialized queue.
+  Verifies that we assert if trying to push to an un-initialized queue.
  */
 TEST_F(BoundedQueueDeathTest, DieIfNotInitialized)
 {
@@ -202,8 +202,8 @@ TEST_F(BoundedQueueDeathTest, DieIfNotInitialized)
 }
 
 /*
-  Verifies that popping an empty queue hits a DBUG_ASSERT.
- */
+  Verifies that popping an empty queue hits a assert.
+*/
 TEST_F(BoundedQueueDeathTest, DieIfPoppingEmptyQueue)
 {
   EXPECT_EQ(0, m_queue.init(0, true, test_key_compare,

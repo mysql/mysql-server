@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ class Cmp_splocal_locations :
 public:
   bool operator()(const Item_splocal *a, const Item_splocal *b)
   {
-    DBUG_ASSERT(a == b || a->pos_in_query != b->pos_in_query);
+    assert(a == b || a->pos_in_query != b->pos_in_query);
     return a->pos_in_query < b->pos_in_query;
   }
 };
@@ -314,8 +314,8 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
   /* Check pre-conditions. */
 
-  DBUG_ASSERT(!thd->derived_tables);
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(!thd->derived_tables);
+  assert(thd->change_list.is_empty());
 
   /*
     Use our own lex.
@@ -572,7 +572,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     // The instruction has returned zero-length query string. That means, the
     // re-preparation of the instruction is not possible. We should not come
     // here in the normal life.
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     return NULL;
   }
@@ -652,7 +652,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 
       Trigger *t= sp->m_trg_list->find_trigger(thd->lex->sphead->m_name);
 
-      DBUG_ASSERT(t);
+      assert(t);
 
       if (!t)
         return NULL; // Don't take chances in production.
@@ -778,7 +778,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd,
         thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE &&
         reprepare_attempt++ < 3)
     {
-      DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());
+      assert(stmt_reprepare_observer->is_invalidated());
 
       thd->clear_error();
       free_lex();
@@ -966,8 +966,8 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
       double-check whether the potential conflict they created is a
       problem.
     */
-    DBUG_ASSERT((thd->query_name_consts == 0) ||
-                (thd->rewritten_query().length() == 0));
+    assert((thd->query_name_consts == 0) ||
+           (thd->rewritten_query().length() == 0));
   }
   else
     *nextp= get_ip() + 1;
@@ -1129,11 +1129,11 @@ void sp_instr_set_trigger_field::print(String *str)
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
 {
-  DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+  assert(thd->lex->select_lex->item_list.elements == 1);
 
   m_value_item= thd->lex->select_lex->item_list.head();
 
-  DBUG_ASSERT(!m_trigger_field);
+  assert(!m_trigger_field);
 
   m_trigger_field=
     new (thd->mem_root) Item_trigger_field(thd->lex->current_context(),
@@ -1232,7 +1232,7 @@ PSI_statement_info sp_instr_jump_if_not::psi_info=
 
 bool sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp)
 {
-  DBUG_ASSERT(m_expr_item);
+  assert(m_expr_item);
 
   Item *item= sp_prepare_func_item(thd, &m_expr_item);
 
@@ -1328,7 +1328,7 @@ PSI_statement_info sp_instr_jump_case_when::psi_info=
 
 bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp)
 {
-  DBUG_ASSERT(m_eq_item);
+  assert(m_eq_item);
 
   Item *item= sp_prepare_func_item(thd, &m_eq_item);
 
@@ -1382,7 +1382,7 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
 
   if (!m_expr_item)
   {
-    DBUG_ASSERT(thd->lex->select_lex->item_list.elements == 1);
+    assert(thd->lex->select_lex->item_list.elements == 1);
 
     m_expr_item= thd->lex->select_lex->item_list.head();
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -259,10 +259,10 @@ int Group_partition_handling::terminate_partition_handler_thread()
       DBUG_RETURN(1);
     }
     /* purecov: inspected */
-    DBUG_ASSERT(error == ETIMEDOUT || error == 0);
+    assert(error == ETIMEDOUT || error == 0);
   }
 
-  DBUG_ASSERT(!thread_running);
+  assert(!thread_running);
 
   mysql_mutex_unlock(&run_lock);
 

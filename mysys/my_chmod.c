@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ my_bool my_chmod(const char *filename, ulong perm_flags, myf my_flags)
   int ret_val;
   MY_MODE file_perm;
   DBUG_ENTER("my_chmod");
-  DBUG_ASSERT(filename && filename[0]);
+  assert(filename && filename[0]);
 
   file_perm= get_file_perm(perm_flags);
 #ifdef _WIN32

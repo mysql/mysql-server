@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ public:
   */
   bool handle(int sql_errno, const char*, const char *message)
   {
-    DBUG_ASSERT(message != NULL);
+    assert(message != NULL);
     if (m_message.empty())
       m_message.assign(message);
     switch (sql_errno)

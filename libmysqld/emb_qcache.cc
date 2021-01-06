@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -403,7 +403,7 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
       }
     }
   }
-  DBUG_ASSERT(emb_count_querycache_size(thd) == dst->stored_size);
+  assert(emb_count_querycache_size(thd) == dst->stored_size);
   DBUG_VOID_RETURN;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
        This one is supposed to be set: just an extra check so that
        nothing strange has happened.
      */
-    DBUG_ASSERT(ev->get_flags(Old_rows_log_event::STMT_END_F));
+    assert(ev->get_flags(Old_rows_log_event::STMT_END_F));
 
     const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(ev_thd);
     ev_thd->clear_error();
@@ -79,7 +79,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     do_apply_event(). We still check here to prevent future coding
     errors.
   */
-  DBUG_ASSERT(rli->info_thd == ev_thd);
+  assert(rli->info_thd == ev_thd);
 
   /*
     If there is no locks taken, this is the first binrow event seen
@@ -147,7 +147,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
           skipped above).
         */
         RPL_TABLE_LIST *ptr=static_cast<RPL_TABLE_LIST*>(table_list_ptr);
-        DBUG_ASSERT(ptr->m_tabledef_valid);
+        assert(ptr->m_tabledef_valid);
         TABLE *conv_table;
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
                                              ptr->table, &conv_table))
@@ -226,7 +226,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     else
         ev_thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
     /* A small test to verify that objects have consistent types */
-    DBUG_ASSERT(sizeof(ev_thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
+    assert(sizeof(ev_thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -247,8 +247,8 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         break; // We should perform the after-row operation even in
                // the case of error
 
-      DBUG_ASSERT(row_end != NULL); // cannot happen
-      DBUG_ASSERT(row_end <= ev->m_rows_end);
+      assert(row_end != NULL); // cannot happen
+      assert(row_end <= ev->m_rows_end);
 
       /* in_use can have been set to NULL in close_tables_for_reopen */
       THD* old_thd= table->in_use;
@@ -457,7 +457,7 @@ copy_extra_record_fields(TABLE *table,
   if (table->s->fields < (uint) master_fields)
     DBUG_RETURN(0);
 
- DBUG_ASSERT(master_reclength <= table->s->reclength);
+  assert(master_reclength <= table->s->reclength);
   if (master_reclength < table->s->reclength)
     memcpy(table->record[0] + master_reclength,
                 table->record[1] + master_reclength,
@@ -544,7 +544,7 @@ replace_record(THD *thd, TABLE *table,
                uint const master_fields)
 {
   DBUG_ENTER("replace_record");
-  DBUG_ASSERT(table != NULL && thd != NULL);
+  assert(table != NULL && thd != NULL);
 
   int error;
   int keynum;
@@ -579,14 +579,14 @@ replace_record(THD *thd, TABLE *table,
       has value MAX_KEY as a marker for the case when no information
       about key can be found. In the last case we have to require
       that storage engine has the flag HA_DUPLICATE_POS turned on.
-      If this invariant is false then DBUG_ASSERT will crash
+      If this invariant is false then assert will crash
       the server built in debug mode. For the server that was built
       without DEBUG we have additional check for the value of key index
       in the code below in order to report about error in any case.
     */
-    DBUG_ASSERT(keynum != MAX_KEY ||
-                (keynum == MAX_KEY &&
-                 (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
+    assert(keynum != MAX_KEY ||
+           (keynum == MAX_KEY &&
+            (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
 
     /*
        We need to retrieve the old row into record[1] to be able to
@@ -731,7 +731,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
   DBUG_PRINT("enter", ("table: 0x%lx, key: 0x%lx  record: 0x%lx",
            (long) table, (long) key, (long) table->record[1]));
 
-  DBUG_ASSERT(table->in_use != NULL);
+  assert(table->in_use != NULL);
 
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
 
@@ -752,8 +752,8 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
 
       ADD>>>  store_record(table,record[1]);
               int error= table->file->rnd_pos(table->record[0], table->file->ref);
-      ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
-                                 table->s->reclength) == 0);
+              ADD>>>  assert(memcmp(table->record[1], table->record[0],
+              table->s->reclength) == 0);
 
     */
     table->file->position(table->record[0]);
@@ -915,7 +915,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     DBUG_PRINT("info", ("Record %sfound", restart_count == 2 ? "not " : ""));
     table->file->ha_rnd_end();
 
-    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
+    assert(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
   }
 
@@ -999,8 +999,8 @@ Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
                                          uchar const *row_start,
                                          uchar const **row_end)
 {
-  DBUG_ASSERT(table != NULL);
-  DBUG_ASSERT(row_start && row_end);
+  assert(table != NULL);
+  assert(row_start && row_end);
 
   int error;
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
@@ -1014,7 +1014,7 @@ Write_rows_log_event_old::do_prepare_row(THD *thd_arg,
 
 int Write_rows_log_event_old::do_exec_row(TABLE *table)
 {
-  DBUG_ASSERT(table != NULL);
+  assert(table != NULL);
   int error= replace_record(thd, table, m_master_reclength, m_width);
   return error;
 }
@@ -1026,7 +1026,7 @@ int Write_rows_log_event_old::do_exec_row(TABLE *table)
 
 int Delete_rows_log_event_old::do_before_row_operations(TABLE *table)
 {
-  DBUG_ASSERT(m_memory == NULL);
+  assert(m_memory == NULL);
 
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION) &&
       table->s->primary_key < MAX_KEY)
@@ -1085,12 +1085,12 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
                                           uchar const **row_end)
 {
   int error;
-  DBUG_ASSERT(row_start && row_end);
+  assert(row_start && row_end);
   /*
     This assertion actually checks that there is at least as many
     columns on the slave as on the master.
   */
-  DBUG_ASSERT(table->s->fields >= m_width);
+  assert(table->s->fields >= m_width);
 
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
                         table, m_width, table->record[0],
@@ -1114,7 +1114,7 @@ Delete_rows_log_event_old::do_prepare_row(THD *thd_arg,
 int Delete_rows_log_event_old::do_exec_row(TABLE *table)
 {
   int error;
-  DBUG_ASSERT(table != NULL);
+  assert(table != NULL);
 
   if (!(error= ::find_and_fetch_row(table, m_key)))
   { 
@@ -1135,7 +1135,7 @@ int Delete_rows_log_event_old::do_exec_row(TABLE *table)
 
 int Update_rows_log_event_old::do_before_row_operations(TABLE *table)
 {
-  DBUG_ASSERT(m_memory == NULL);
+  assert(m_memory == NULL);
 
   int error= 0;
 
@@ -1183,12 +1183,12 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
                                               uchar const **row_end)
 {
   int error;
-  DBUG_ASSERT(row_start && row_end);
+  assert(row_start && row_end);
   /*
     This assertion actually checks that there is at least as many
     columns on the slave as on the master.
   */
-  DBUG_ASSERT(table->s->fields >= m_width);
+  assert(table->s->fields >= m_width);
 
   /* record[0] is the before image for the update */
   error= unpack_row_old(const_cast<Relay_log_info*>(rli),
@@ -1222,7 +1222,7 @@ int Update_rows_log_event_old::do_prepare_row(THD *thd_arg,
 
 int Update_rows_log_event_old::do_exec_row(TABLE *table)
 {
-  DBUG_ASSERT(table != NULL);
+  assert(table != NULL);
 
   int error= ::find_and_fetch_row(table, m_key);
   if (error)
@@ -1305,8 +1305,8 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
     solution, to be able to terminate a started statement in the
     binary log: the extraneous events will be removed in the future.
    */
-  DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
-              (!tbl_arg && !cols && tid == ~0UL));
+  assert((tbl_arg && tbl_arg->s && tid != ~0UL) ||
+         (!tbl_arg && !cols && tid == ~0UL));
 
   if (thd_arg->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
@@ -1470,9 +1470,9 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
                        (ulong) length));
   DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
 
-  DBUG_ASSERT(m_rows_buf <= m_rows_cur);
-  DBUG_ASSERT(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
-  DBUG_ASSERT(m_rows_cur <= m_rows_end);
+  assert(m_rows_buf <= m_rows_cur);
+  assert(!m_rows_buf || (m_rows_end && m_rows_buf < m_rows_end));
+  assert(m_rows_cur <= m_rows_end);
 
   /* The cast will always work since m_rows_cur <= m_rows_end */
   if (static_cast<size_t>(m_rows_end - m_rows_cur) <= length)
@@ -1502,7 +1502,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     m_rows_end= m_rows_buf + new_alloc;
   }
 
-  DBUG_ASSERT(m_rows_cur + length <= m_rows_end);
+  assert(m_rows_cur + length <= m_rows_end);
   memcpy(m_rows_cur, row_data, length);
   m_rows_cur+= length;
   m_row_count++;
@@ -1530,7 +1530,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
        This one is supposed to be set: just an extra check so that
        nothing strange has happened.
      */
-    DBUG_ASSERT(get_flags(STMT_END_F));
+    assert(get_flags(STMT_END_F));
 
     const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
@@ -1542,7 +1542,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     do_apply_event(). We still check here to prevent future coding
     errors.
   */
-  DBUG_ASSERT(rli->info_thd == thd);
+  assert(rli->info_thd == thd);
 
   /*
     If there is no locks taken, this is the first binrow event seen
@@ -1680,7 +1680,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
     /* A small test to verify that objects have consistent types */
-    DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
+    assert(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -1729,7 +1729,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       error= do_exec_row(rli);
 
       DBUG_PRINT("info", ("error: %d", error));
-      DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
+      assert(error != HA_ERR_RECORD_DELETED);
 
       table->in_use = old_thd;
       switch (error)
@@ -1768,9 +1768,9 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         unpack_current_row(rli);
   
       // at this moment m_curr_row_end should be set
-      DBUG_ASSERT(error || m_curr_row_end != NULL); 
-      DBUG_ASSERT(error || m_curr_row < m_curr_row_end);
-      DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
+      assert(error || m_curr_row_end != NULL); 
+      assert(error || m_curr_row < m_curr_row_end);
+      assert(error || m_curr_row_end <= m_rows_end);
   
       m_curr_row= m_curr_row_end;
  
@@ -1864,7 +1864,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       If there was a deadlock the transaction should have been rolled back
       already. So there should be no need to rollback the transaction.
     */
-    DBUG_ASSERT(! thd->transaction_rollback_request);
+    assert(! thd->transaction_rollback_request);
     if ((error= (binlog_error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd))))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
@@ -1964,7 +1964,7 @@ bool Old_rows_log_event::write_data_body(IO_CACHE*file)
 
   bool res= false;
   uchar *const sbuf_end= net_store_length(sbuf, (size_t) m_width);
-  DBUG_ASSERT(static_cast<size_t>(sbuf_end - sbuf) <= sizeof(sbuf));
+  assert(static_cast<size_t>(sbuf_end - sbuf) <= sizeof(sbuf));
 
   DBUG_DUMP("m_width", sbuf, (size_t) (sbuf_end - sbuf));
   res= res || my_b_safe_write(file, sbuf, (size_t) (sbuf_end - sbuf));
@@ -2056,7 +2056,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
                               const bool overwrite)
 {
   DBUG_ENTER("write_row");
-  DBUG_ASSERT(m_table != NULL && thd != NULL);
+  assert(m_table != NULL && thd != NULL);
 
   TABLE *table= m_table;  // pointer to event's table
   int error;
@@ -2109,14 +2109,14 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
       has value MAX_KEY as a marker for the case when no information
       about key can be found. In the last case we have to require
       that storage engine has the flag HA_DUPLICATE_POS turned on.
-      If this invariant is false then DBUG_ASSERT will crash
+      If this invariant is false then assert will crash
       the server built in debug mode. For the server that was built
       without DEBUG we have additional check for the value of key index
       in the code below in order to report about error in any case.
     */
-    DBUG_ASSERT(keynum != MAX_KEY ||
-                (keynum == MAX_KEY &&
-                 (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
+    assert(keynum != MAX_KEY ||
+           (keynum == MAX_KEY &&
+            (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
     /*
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
@@ -2294,7 +2294,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 {
   DBUG_ENTER("find_row");
 
-  DBUG_ASSERT(m_table && m_table->in_use != NULL);
+  assert(m_table && m_table->in_use != NULL);
 
   TABLE *table= m_table;
   int error;
@@ -2327,8 +2327,8 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 
       ADD>>>  store_record(table,record[1]);
               int error= table->file->rnd_pos(table->record[0], table->file->ref);
-      ADD>>>  DBUG_ASSERT(memcmp(table->record[1], table->record[0],
-                                 table->s->reclength) == 0);
+              ADD>>>  assert(memcmp(table->record[1], table->record[0],
+              table->s->reclength) == 0);
 
     */
     DBUG_PRINT("info",("locating record using primary key (position)"));
@@ -2371,7 +2371,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 
     /* Fill key data for the row */
 
-    DBUG_ASSERT(m_key);
+    assert(m_key);
     key_copy(m_key, table->record[0], table->key_info, 0);
 
     DBUG_DUMP("key data", m_key, table->key_info->key_length);
@@ -2553,7 +2553,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
       DBUG_DUMP("record found", table->record[0], table->s->reclength);
     table->file->ha_rnd_end();
 
-    DBUG_ASSERT(error == HA_ERR_END_OF_FILE || error == 0);
+    assert(error == HA_ERR_END_OF_FILE || error == 0);
     DBUG_RETURN(error);
   }
 
@@ -2672,7 +2672,7 @@ Write_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabili
 int 
 Write_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
 {
-  DBUG_ASSERT(m_table != NULL);
+  assert(m_table != NULL);
   int error= write_row(rli, TRUE /* overwrite */);
   
   if (error && !thd->get_protocol_classic()->get_last_errno())
@@ -2775,7 +2775,7 @@ Delete_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabil
 int Delete_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
 {
   int error;
-  DBUG_ASSERT(m_table != NULL);
+  assert(m_table != NULL);
 
   if (!(error= find_row(rli))) 
   { 
@@ -2872,7 +2872,7 @@ Update_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabil
 int 
 Update_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
 {
-  DBUG_ASSERT(m_table != NULL);
+  assert(m_table != NULL);
 
   int error= find_row(rli); 
   if (error)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,7 @@ typedef MDLTest MDLDeathTest;
 
 
 /*
-  Verifies that we die with a DBUG_ASSERT if we destry a non-empty MDL_context.
+  Verifies that we die with a assert if we destry a non-empty MDL_context.
  */
 #if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
@@ -4224,8 +4224,8 @@ TEST_F(MDLHtonNotifyTest, NotifyLockTypes)
   EXPECT_EQ(1U, post_release_count());
 
   // There are no other lock types!
-  DBUG_ASSERT(static_cast<uint>(MDL_EXCLUSIVE) + 1 ==
-              static_cast<uint>(MDL_TYPE_END));
+  assert(static_cast<uint>(MDL_EXCLUSIVE) + 1 ==
+         static_cast<uint>(MDL_TYPE_END));
 }
 
 
@@ -4586,7 +4586,7 @@ typedef MDLKeyTest MDLKeyDeathTest;
 
 
 /*
-  Verifies that debug build dies with a DBUG_ASSERT if we try to construct
+  Verifies that debug build dies with a assert if we try to construct
   MDL_key with too long database or object names.
 */
 

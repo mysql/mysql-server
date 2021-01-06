@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,9 +70,9 @@ static uchar *setup_object_hash_get_key(const uchar *entry, size_t *length,
   const PFS_setup_object *setup_object;
   const void *result;
   typed_entry= reinterpret_cast<const PFS_setup_object* const *> (entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != NULL);
   setup_object= *typed_entry;
-  DBUG_ASSERT(setup_object != NULL);
+  assert(setup_object != NULL);
   *length= setup_object->m_key.m_key_length;
   result= setup_object->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
@@ -120,8 +120,8 @@ static void set_setup_object_key(PFS_setup_object_key *key,
                                  const char *schema, uint schema_length,
                                  const char *object, uint object_length)
 {
-  DBUG_ASSERT(schema_length <= NAME_LEN);
-  DBUG_ASSERT(object_length <= NAME_LEN);
+  assert(schema_length <= NAME_LEN);
+  assert(object_length <= NAME_LEN);
 
   char *ptr= &key->m_hash_key[0];
   ptr[0]= (char) object_type;
@@ -278,7 +278,7 @@ void lookup_setup_object(PFS_thread *thread,
     - TABLE foo.bar
     - TEMPORARY TABLE foo.bar
   */
-  DBUG_ASSERT(object_type != OBJECT_TYPE_TEMPORARY_TABLE);
+  assert(object_type != OBJECT_TYPE_TEMPORARY_TABLE);
 
   LF_PINS* pins= get_setup_object_hash_pins(thread);
   if (unlikely(pins == NULL))

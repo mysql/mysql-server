@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -276,7 +276,7 @@ int table_setup_instruments::read_row_values(TABLE *table,
 {
   Field *f;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   /*
     The row always exist, the instrument classes
@@ -299,7 +299,7 @@ int table_setup_instruments::read_row_values(TABLE *table,
         set_field_enum(f, m_row.m_instr_class->m_timed ? ENUM_YES : ENUM_NO);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -340,7 +340,7 @@ int table_setup_instruments::update_row_values(TABLE *table,
         }
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -384,7 +384,7 @@ int table_setup_instruments::update_row_values(TABLE *table,
       update_metadata_derived_flags();
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
   }
 

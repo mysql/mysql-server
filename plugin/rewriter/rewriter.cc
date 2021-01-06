@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -127,9 +127,9 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
 */
 static void do_debug_sync(MYSQL_THD thd)
 {
-  DBUG_ASSERT(opt_debug_sync_timeout > 0);
+  assert(opt_debug_sync_timeout > 0);
   const char act[]= "now signal parked wait_for go";
-  DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+  assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 }
 #endif
 

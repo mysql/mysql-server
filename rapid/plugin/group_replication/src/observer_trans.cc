@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,7 @@ int group_replication_trans_before_commit(Trans_param *param)
   DBUG_EXECUTE_IF("group_replication_before_commit_hook_wait",
                   {
                     const char act[]= "now wait_for continue_commit";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 
   /*
@@ -314,7 +314,7 @@ int group_replication_trans_before_commit(Trans_param *param)
     DBUG_RETURN(0);
   }
 
-  DBUG_ASSERT(applier_module != NULL && recovery_module != NULL);
+  assert(applier_module != NULL && recovery_module != NULL);
   Group_member_info::Group_member_status member_status=
       local_member_info->get_recovery_status();
 
@@ -410,7 +410,7 @@ int group_replication_trans_before_commit(Trans_param *param)
   applier_module->get_pipeline_stats_member_collector()
       ->increment_transactions_local();
 
-  DBUG_ASSERT(cache_log->type == WRITE_CACHE);
+  assert(cache_log->type == WRITE_CACHE);
   DBUG_PRINT("cache_log", ("thread_id: %u, trx_cache_log_position: %llu,"
                            " stmt_cache_log_position: %llu",
                            param->thread_id, trx_cache_log_position,
@@ -494,7 +494,7 @@ int group_replication_trans_before_commit(Trans_param *param)
         /* purecov: end */
       }
       cleanup_transaction_write_set(write_set);
-      DBUG_ASSERT(is_gtid_specified || (tcle->get_write_set()->size() > 0));
+      assert(is_gtid_specified || (tcle->get_write_set()->size() > 0));
     }
     else
     {
@@ -563,7 +563,7 @@ int group_replication_trans_before_commit(Trans_param *param)
   }
 
 
-  DBUG_ASSERT(certification_latch != NULL);
+  assert(certification_latch != NULL);
   if (certification_latch->registerTicket(param->thread_id))
   {
     /* purecov: begin inspected */
@@ -579,13 +579,13 @@ int group_replication_trans_before_commit(Trans_param *param)
   DBUG_EXECUTE_IF("test_basic_CRUD_operations_sql_service_interface",
                   {
                     DBUG_SET("-d,test_basic_CRUD_operations_sql_service_interface");
-                    DBUG_ASSERT(!sql_command_check());
+                    assert(!sql_command_check());
                   };);
 
   DBUG_EXECUTE_IF("group_replication_before_message_broadcast",
                   {
                     const char act[]= "now wait_for waiting";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 #endif
 
@@ -619,7 +619,7 @@ int group_replication_trans_before_commit(Trans_param *param)
 
   shared_plugin_stop_lock->release_read_lock();
 
-  DBUG_ASSERT(certification_latch != NULL);
+  assert(certification_latch != NULL);
   if (certification_latch->waitTicket(param->thread_id))
   {
     /* purecov: begin inspected */
@@ -651,7 +651,7 @@ err:
     if (error == pre_wait_error)
       shared_plugin_stop_lock->release_read_lock();
 
-    DBUG_ASSERT(certification_latch != NULL);
+    assert(certification_latch != NULL);
     // Release and remove certification latch ticket.
     certification_latch->releaseTicket(param->thread_id);
     certification_latch->waitTicket(param->thread_id);
@@ -660,7 +660,7 @@ err:
   DBUG_EXECUTE_IF("group_replication_after_before_commit_hook",
                  {
                     const char act[]= "now wait_for signal.commit_continue";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
   DBUG_RETURN(error);
 }
@@ -819,7 +819,7 @@ bool
 Transaction_Message::append_cache(IO_CACHE *src)
 {
   DBUG_ENTER("append_cache");
-  DBUG_ASSERT(src->type == READ_CACHE);
+  assert(src->type == READ_CACHE);
 
   uchar *buffer= src->read_pos;
   size_t length= my_b_fill(src);

@@ -1,5 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +48,7 @@ my_bool array_append_string_unique(const char *str,
   const char **p;
   /* end points at the terminating NULL element */
   const char **end= array + size - 1;
-  DBUG_ASSERT(*end == NULL);
+  assert(*end == NULL);
 
   for (p= array; *p; ++p)
   {
@@ -59,7 +58,7 @@ my_bool array_append_string_unique(const char *str,
   if (p >= end)
     return TRUE;                               /* Array is full */
 
-  DBUG_ASSERT(*p == NULL || strcmp(*p, str) == 0);
+  assert(*p == NULL || strcmp(*p, str) == 0);
 
   while (*(p + 1))
   {
@@ -67,7 +66,7 @@ my_bool array_append_string_unique(const char *str,
     ++p;
   }
 
-  DBUG_ASSERT(p < end);
+  assert(p < end);
   *p= str;
 
   return FALSE;                                 /* Success */

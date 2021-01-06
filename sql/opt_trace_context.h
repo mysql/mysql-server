@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -273,7 +273,7 @@ public:
   void restore_I_S()
   {
     --I_S_disabled;
-    DBUG_ASSERT(I_S_disabled >= 0);
+    assert(I_S_disabled >= 0);
     if (unlikely(pimpl != NULL))
       pimpl->restore_I_S();
   }
