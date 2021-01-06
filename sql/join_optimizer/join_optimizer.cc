@@ -1562,10 +1562,6 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "windowing functions");
     return true;
   }
-  if (join->query_block->active_options() & OPTION_BUFFER_RESULT) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "SQL_BUFFER_RESULT");
-    return true;
-  }
   return false;
 }
 
@@ -1771,6 +1767,17 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
 
   EstimateMaterializeCost(materialize_path);
   return materialize_path;
+}
+
+bool IsMaterializationPath(const AccessPath *path) {
+  switch (path->type) {
+    case AccessPath::MATERIALIZE:
+    case AccessPath::MATERIALIZED_TABLE_FUNCTION:
+    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
+      return true;
+    default:
+      return false;
+  }
 }
 
 // Estimate the width of each row produced by “query_block”,
@@ -2485,6 +2492,23 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                         [](const AccessPath *a, const AccessPath *b) {
                           return a->cost < b->cost;
                         });
+
+  // Materialize the result if a top-level query block has the SQL_BUFFER_RESULT
+  // option, and the chosen root path isn't already a materialization path.
+  if (query_block->active_options() & OPTION_BUFFER_RESULT &&
+      query_block->outer_query_block() == nullptr &&
+      !IsMaterializationPath(root_path)) {
+    if (trace != nullptr) {
+      *trace += "Adding temporary table for SQL_BUFFER_RESULT.\n";
+    }
+
+    Temp_table_param *temp_table_param = nullptr;
+    TABLE *temp_table =
+        CreateTemporaryTableFromSelectList(thd, query_block, &temp_table_param);
+    root_path = CreateMaterializationPath(thd, join, root_path, temp_table,
+                                          temp_table_param);
+  }
+
   if (trace != nullptr) {
     *trace += StringPrintf("Final cost is %.1f.\n", root_path->cost);
   }
