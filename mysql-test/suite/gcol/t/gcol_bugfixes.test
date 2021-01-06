@@ -1422,6 +1422,9 @@ CREATE TABLE t (
   KEY (i)
 );
 INSERT INTO t(i) VALUES (5853267), (32766);
+# Filter differences between the old optimizer and the hypergraph
+# optimizer in the error message.
+--replace_regex /<cache>\((.*)\)/\1/
 --error ER_DATA_OUT_OF_RANGE
 SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
 DROP TABLE t;
