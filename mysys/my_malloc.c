@@ -100,7 +100,7 @@ my_realloc(PSI_memory_key key, void *ptr, size_t size, myf flags)
   new_ptr= my_malloc(key, size, flags);
   if (likely(new_ptr != NULL))
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     my_memory_header *new_mh= USER_TO_HEADER(new_ptr);
 #endif
 
@@ -264,7 +264,7 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags)
 #else
   point= realloc(oldpoint, size);
 #endif
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 end:
 #endif
   if (point == NULL)

@@ -2540,7 +2540,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     {
       Item_splocal *splocal= new Item_splocal(Name_string(name, false),
                                               spv->offset, spv->type, 0);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (splocal)
         splocal->m_sp= lex->sphead;
 #endif

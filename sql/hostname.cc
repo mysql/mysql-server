@@ -1002,7 +1002,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
     {
       char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool err_status=
 #endif
         vio_get_normalized_ip_string(addr_info->ai_addr, addr_info->ai_addrlen,

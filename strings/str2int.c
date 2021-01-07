@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ char *str2int(const char *src, int radix, long int lower,
 
   /*  Check that the radix is in the range 2..36  */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (radix < 2 || radix > 36) {
     errno=EDOM;
     return NullS;

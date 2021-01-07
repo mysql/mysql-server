@@ -577,9 +577,9 @@ Item::Item():
   with_stored_program(false), tables_locked_cache(false),
   is_parser_item(false)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   contextualized= true;
-#endif//DBUG_OFF
+#endif//NDEBUG
 
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
@@ -660,10 +660,10 @@ Item::Item(THD *thd, Item *item):
   tables_locked_cache(item->tables_locked_cache),
   is_parser_item(false)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   assert(item->contextualized);
   contextualized= true;
-#endif//DBUG_OFF
+#endif//NDEBUG
 
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -1710,7 +1710,7 @@ bool Item::is_blob_field() const
 
 Item_sp_variable::Item_sp_variable(const Name_string sp_var_name)
   :m_thd(0), m_name(sp_var_name)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
    , m_sp(0)
 #endif
 {
@@ -5349,7 +5349,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   @note Currently, this function is only used in assert
   statements and therefore not included in optimized builds.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 bool is_fixed_or_outer_ref(const Item *ref)
 {
   /*
@@ -9295,7 +9295,7 @@ bool Item_trigger_field::fix_fields(THD *thd, Item **items)
 
     if (table_grants)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       table_grants->want_privilege= want_privilege;
 #endif
       if (check_grant_column(thd, table_grants,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -399,7 +399,7 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
     ndb_mgm_destroy_handle(&m_mgm_handle);
   m_mgm_handle= h;
   ndb_mgm_set_timeout(m_mgm_handle, 5000);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (h)
   {
     char buf[256];

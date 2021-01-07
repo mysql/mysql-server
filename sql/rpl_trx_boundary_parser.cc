@@ -26,7 +26,7 @@
 #include "log_event.h"     // Log_event
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* Event parser state names */
 static const char *event_parser_state_names[]= {
   "None",

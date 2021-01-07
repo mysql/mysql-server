@@ -524,7 +524,7 @@ int Gtid_table_persistor::save(TABLE *table, const Gtid_set *gtid_set)
     @retval 0    OK.
     @retval -1   Error.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static int dbug_test_on_compress(THD *thd)
 {
   DBUG_ENTER("dbug_test_on_compress");
@@ -608,7 +608,7 @@ int Gtid_table_persistor::compress_in_single_transaction(THD *thd,
   if ((error= compress_first_consecutive_range(table, is_complete)))
     goto end;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   error= dbug_test_on_compress(thd);
 #endif
 

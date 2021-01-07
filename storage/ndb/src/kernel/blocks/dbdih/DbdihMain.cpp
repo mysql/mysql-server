@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21077,7 +21077,7 @@ void Dbdih::initRestartInfo(Signal* signal)
   } while (nodePtr.i != RNIL);
 
   Uint32 startGci = 1;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #ifdef NDB_USE_GET_ENV
   {
     char envBuf[256];

@@ -465,7 +465,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after)
   QEP_TAB *const qep_array= join->qep_tab;
   for (tableno= join->const_tables; tableno < join->primary_tables; )
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     const bool tab_in_sj_nest= join->best_ref[tableno]->emb_sj_nest != NULL;
 #endif
     QEP_TAB *const tab= &qep_array[tableno];

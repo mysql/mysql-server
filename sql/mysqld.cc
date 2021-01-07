@@ -472,7 +472,7 @@ ulonglong slave_rows_search_algorithms_options;
 my_bool opt_slave_preserve_commit_order;
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 uint slave_rows_last_search_algorithm_used;
 #endif
 ulong mts_parallel_option;
@@ -866,7 +866,7 @@ bool mysqld_embedded=1;
 
 static my_bool plugins_are_initialized= FALSE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static const char* default_dbug_option;
 #endif
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
@@ -2794,7 +2794,7 @@ int init_common_variables()
   if (add_status_vars(status_vars))
     return 1; // an error was already reported
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     We have few debug-only commands in com_status_vars, only visible in debug
     builds. for simplicity we enable the assert only in debug builds
@@ -4361,7 +4361,7 @@ static void create_shutdown_thread()
 }
 #endif /* _WIN32 */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /*
   Debugging helper function to keep the locale database
   (see sql_locale.cc) and max_month_name_length and
@@ -4396,7 +4396,7 @@ static void test_lc_time_sz()
   }
   DBUG_VOID_RETURN;
 }
-#endif//DBUG_OFF
+#endif//NDEBUG
 
 /*
   @brief : Set opt_super_readonly to user supplied value before
@@ -4645,7 +4645,7 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   test_lc_time_sz();
   srand(static_cast<uint>(time(NULL)));
 #endif
@@ -6324,7 +6324,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static int show_slave_rows_last_search_algorithm_used(THD *thd, SHOW_VAR *var, char *buff)
 {
   uint res= slave_rows_last_search_algorithm_used;
@@ -6794,13 +6794,13 @@ SHOW_VAR status_vars[]= {
   {"Aborted_connects",         (char*) &show_aborted_connects,                        SHOW_FUNC,               SHOW_SCOPE_GLOBAL},
 #endif
 #ifdef HAVE_REPLICATION
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {"Ongoing_anonymous_gtid_violating_transaction_count",(char*) &show_ongoing_anonymous_gtid_violating_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-#endif//!DBUG_OFF
+#endif//!NDEBUG
   {"Ongoing_anonymous_transaction_count",(char*) &show_ongoing_anonymous_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {"Ongoing_automatic_gtid_violating_transaction_count",(char*) &show_ongoing_automatic_gtid_violating_transaction_count, SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-#endif//!DBUG_OFF
+#endif//!NDEBUG
 #endif//HAVE_REPLICATION
   {"Binlog_cache_disk_use",    (char*) &binlog_cache_disk_use,                        SHOW_LONG,               SHOW_SCOPE_GLOBAL},
   {"Binlog_cache_use",         (char*) &binlog_cache_use,                             SHOW_LONG,               SHOW_SCOPE_GLOBAL},
@@ -6892,7 +6892,7 @@ SHOW_VAR status_vars[]= {
   {"Slave_heartbeat_period",   (char*) &show_heartbeat_period,                         SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
   {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats,                SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
   {"Slave_last_heartbeat",     (char*) &show_slave_last_heartbeat,                     SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {"Slave_rows_last_search_algorithm_used",(char*) &show_slave_rows_last_search_algorithm_used, SHOW_FUNC,     SHOW_SCOPE_GLOBAL},
 #endif
   {"Slave_running",            (char*) &show_slave_running,                            SHOW_FUNC,              SHOW_SCOPE_GLOBAL},
@@ -7182,7 +7182,7 @@ static int mysql_init_variables(void)
   opt_replication_sender_observe_commit_only= 0;
 
   /* Variables that depends on compile options */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   default_dbug_option=IF_WIN("d:t:i:O,\\mysqld.trace",
            "d:t:i:o,/tmp/mysqld.trace");
 #endif
@@ -7266,7 +7266,7 @@ mysqld_get_one_option(int optid,
 {
   switch(optid) {
   case '#':
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
     opt_endinfo=1;        /* unireg: memory allocation */
@@ -8008,7 +8008,7 @@ static void set_server_version(void)
 #ifdef EMBEDDED_LIBRARY
   end= my_stpcpy(end, "-embedded");
 #endif
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end= my_stpcpy(end, "-debug");
 #endif

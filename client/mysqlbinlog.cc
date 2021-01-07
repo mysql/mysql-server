@@ -316,7 +316,7 @@ uint test_flags = 0;
 static uint opt_protocol= 0;
 static FILE *result_file;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static const char* default_dbug_option = "d:t:o,/tmp/mysqlbinlog.trace";
 #endif
 static const char *load_default_groups[]= { "mysqlbinlog","client",0 };
@@ -1762,7 +1762,7 @@ static struct my_option my_long_options[] =
   {"rewrite-db", OPT_REWRITE_DB, "Rewrite the row event to point so that "
    "it can be applied to a new database", &rewrite, &rewrite, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
    {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
    {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
@@ -2122,7 +2122,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 {
   bool tty_password=0;
   switch (optid) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   case '#':
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;

@@ -807,7 +807,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                       (ulong) share, share->ref_count));
 
   /* If debug, assert that the share is actually present in the cache */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   assert(my_hash_search(&table_def_cache,
                         reinterpret_cast<uchar*>(const_cast<char*>(key)),
                         key_length));
@@ -4217,7 +4217,7 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_VOID_RETURN;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* Cause a spurious statement reprepare for debug purposes. */
 static bool inject_reprepare(THD *thd)
 {
@@ -7046,7 +7046,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                                       MYF(MY_WME))))
     DBUG_RETURN(0);				/* purecov: inspected */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // In order to let purge thread callback call open_table_uncached()
   // we cannot grab LOCK_open here, as that will cause a deadlock.
 

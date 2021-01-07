@@ -1185,7 +1185,7 @@ static bool master_info_repository_check(sys_var *self, THD *thd, set_var *var)
 static const char *repository_names[]=
 {
   "FILE", "TABLE",
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   "DUMMY",
 #endif
   0
@@ -1503,7 +1503,7 @@ static Sys_var_charptr Sys_datadir(
        READ_ONLY GLOBAL_VAR(mysql_real_data_home_ptr),
        CMD_LINE(REQUIRED_ARG, 'h'), IN_FS_CHARSET, DEFAULT(mysql_real_data_home));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static Sys_var_dbug Sys_dbug(
        "debug", "Debug log", sys_var::SESSION,
        CMD_LINE(OPT_ARG, '#'), DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
@@ -5354,22 +5354,22 @@ static Sys_var_uint Sys_checkpoint_mts_period(
        "Update progress status of Multi-threaded slave and flush "
        "the relay log info to disk after every #th milli-seconds.",
        GLOBAL_VAR(opt_mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
        VALID_RANGE(0, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
 #else
        VALID_RANGE(1, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 static Sys_var_uint Sys_checkpoint_mts_group(
        "slave_checkpoint_group",
        "Maximum number of processed transactions by Multi-threaded slave "
        "before a checkpoint operation is called to update progress status.",
        GLOBAL_VAR(opt_mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
        VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else
        VALID_RANGE(32, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(8));
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 #endif /* HAVE_REPLICATION */
 
 static Sys_var_uint Sys_sync_binlog_period(

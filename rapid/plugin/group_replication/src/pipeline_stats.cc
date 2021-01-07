@@ -488,7 +488,7 @@ Pipeline_member_stats::get_stamp()
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void
 Pipeline_member_stats::debug(const char *member, int64 quota_size,
                              int64 quota_used)
@@ -663,7 +663,7 @@ Flow_control_module::handle_stats_data(const uchar *data,
   if (it->second.is_flow_control_needed())
   {
     my_atomic_add32(&m_holds_in_period, 1);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     it->second.debug(it->first.c_str(),
                      my_atomic_load64(&m_quota_size),
                      my_atomic_load64(&m_quota_used));

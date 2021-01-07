@@ -363,7 +363,7 @@ Diagnostics_area::~Diagnostics_area()
 void Diagnostics_area::reset_diagnostics_area()
 {
   DBUG_ENTER("reset_diagnostics_area");
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   set_overwrite_status(false);
   // Don't take chances in production.
   m_message_text[0]= '\0';
@@ -456,7 +456,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
   // sqlstate must be set properly by the caller.
   assert(returned_sqlstate);
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   /*
     In production, refuse to overwrite a custom response with an
     ERROR packet.

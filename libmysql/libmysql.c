@@ -265,7 +265,7 @@ append_wild(char *to, char *end, const char *wild)
 void STDCALL
 mysql_debug(const char *debug MY_ATTRIBUTE((unused)))
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char	*env;
   if (debug)
   {
@@ -4556,7 +4556,7 @@ static void stmt_update_metadata(MYSQL_STMT *stmt, MYSQL_ROWS *data)
   MYSQL_FIELD *field;
   uchar *null_ptr, bit;
   uchar *row= (uchar*) data->data;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uchar *row_end= row + data->length;
 #endif
 

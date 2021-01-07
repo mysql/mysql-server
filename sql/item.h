@@ -2362,7 +2362,7 @@ public:
   Name_string m_name;
 
 public:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Routine to which this Item_splocal belongs. Used for checking if correct
     runtime context is used for variable handling.
@@ -2976,7 +2976,7 @@ public:
   const CHARSET_INFO *charset_for_protocol(void) const
   { return field->charset_for_protocol(); }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_print()
   {
     fprintf(DBUG_FILE, "<field ");
@@ -5017,7 +5017,7 @@ class Cached_item_field :public Cached_item
   uint length;
 
 public:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_print()
   {
     uchar *org_ptr;
@@ -5685,7 +5685,7 @@ extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
 extern const String my_null_string;
 void convert_and_print(String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 bool is_fixed_or_outer_ref(const Item *ref);
 #endif
 

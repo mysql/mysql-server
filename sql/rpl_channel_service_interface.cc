@@ -777,7 +777,7 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
   last_gno= mi->rli->get_gtid_set()->get_last_gno(sidno);
   global_sid_lock->unlock();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   const Gtid_set *retrieved_gtid_set= mi->rli->get_gtid_set();
   char *retrieved_gtid_set_string= NULL;
   global_sid_lock->wrlock();

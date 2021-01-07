@@ -363,7 +363,7 @@ public:
     return serialize_xid(buf, formatID, gtrid_length, bqual_length, data);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Get printable XID value.
 

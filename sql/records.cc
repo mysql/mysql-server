@@ -594,7 +594,7 @@ template<bool Packed_addon_fields>
 static int rr_unpack_from_tempfile(READ_RECORD *info)
 {
   uchar *destination= info->rec_buf;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   my_off_t where= my_b_tell(info->io_cache);
 #endif
   if (Packed_addon_fields)

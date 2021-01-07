@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -855,9 +855,9 @@ page_copy_rec_list_start(
 		if (!page_zip_compress(new_page_zip, new_page, index,
 				       page_zip_level, NULL, mtr)) {
 			ulint	ret_pos;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 zip_reorganize:
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ret_pos = page_rec_get_n_recs_before(ret);

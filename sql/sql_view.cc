@@ -576,7 +576,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         (they were not copied at derived tables processing)
       */
       tbl->table->grant.privilege= tbl->grant.privilege;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       tbl->table->grant.want_privilege= tbl->grant.want_privilege;
 #endif
     }

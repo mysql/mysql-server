@@ -840,7 +840,7 @@ bool Gtid_state::update_gtids_impl_do_nothing(THD *thd)
 
 bool Gtid_state::update_gtids_impl_begin(THD *thd)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (current_thd != thd)
     mysql_mutex_lock(&thd->LOCK_thd_query);
   DBUG_PRINT("info", ("query='%s' thd->is_commit_in_middle_of_statement=%d",

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ public:
   volatile uint slave_running;
   volatile ulong slave_run_id;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int events_until_exit;
 #endif
 

@@ -116,7 +116,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
           length is stored in little-endian format, since this is the
           format used for the binlog.
         */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         const uchar *old_pack_ptr= pack_ptr;
 #endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
@@ -138,7 +138,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
         null_bits= (1U << 8) - 1;
       }
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     else
     {
       DBUG_PRINT("debug", ("Skipped"));
@@ -346,7 +346,7 @@ unpack_row(Relay_log_info const *rli,
           normal unpack operation.
         */
         uint16 const metadata= tabledef->field_metadata(i);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         uchar const *const old_pack_ptr= pack_ptr;
 #endif
         uint32 len= tabledef->calc_field_size(i, (uchar *) pack_ptr);
@@ -396,7 +396,7 @@ unpack_row(Relay_log_info const *rli,
       if (conv_field)
       {
         Copy_field copy;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         char source_buf[MAX_FIELD_WIDTH];
         char value_buf[MAX_FIELD_WIDTH];
         String source_type(source_buf, sizeof(source_buf), system_charset_info);
@@ -409,7 +409,7 @@ unpack_row(Relay_log_info const *rli,
 #endif
         copy.set(*field_ptr, f, TRUE);
         copy.invoke_do_copy(&copy);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         char target_buf[MAX_FIELD_WIDTH];
         String target_type(target_buf, sizeof(target_buf), system_charset_info);
         (*field_ptr)->sql_type(target_type);
@@ -422,7 +422,7 @@ unpack_row(Relay_log_info const *rli,
 
       null_mask <<= 1;
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     else
     {
       DBUG_PRINT("debug", ("Non-existent: skipped"));

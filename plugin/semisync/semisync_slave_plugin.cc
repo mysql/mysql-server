@@ -51,7 +51,7 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
 {
   MYSQL *mysql= param->mysql;
   MYSQL_RES *res= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MYSQL_ROW row= NULL;
 #endif
   const char *query;
@@ -74,7 +74,7 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   }
   else
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     row=
 #endif
       mysql_fetch_row(res);

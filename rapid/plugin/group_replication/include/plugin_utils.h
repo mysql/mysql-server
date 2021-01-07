@@ -418,7 +418,7 @@ public:
     {
       struct timespec abstime;
       set_timespec(&abstime, 1);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       int error=
 #endif
       mysql_cond_timedwait(&cond, &lock, &abstime);

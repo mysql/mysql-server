@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ static int rnd(int max_value);
 static uint testflag=0,recant=10000,reclength=37;
 static uint16 key1[1000];
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define hash_check(A) 0
 #else
 my_bool hash_check(HASH *hash);

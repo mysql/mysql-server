@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -271,7 +271,7 @@ int Load_event::copy_load_event(const char *buf, unsigned long event_len,
 
   db= table_name + table_name_len + 1;
 
-  #ifndef DBUG_OFF
+  #ifndef NDEBUG
   /*
     This is specific to mysql test run on the server
     for the keyword "simulate_invalid_address"

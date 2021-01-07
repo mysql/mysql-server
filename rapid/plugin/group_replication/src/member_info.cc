@@ -166,7 +166,7 @@ Group_member_info::encode_payload(std::vector<unsigned char>* buffer) const
                            member_weight_aux);
 
   uint16 lower_case_table_names_aux= static_cast <uint16> (lower_case_table_names);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (lower_case_table_names != SKIP_ENCODING_LOWER_CASE_TABLE_NAMES)
 #endif
   encode_payload_item_int2(buffer, PIT_LOWER_CASE_TABLE_NAME,

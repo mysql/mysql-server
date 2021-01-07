@@ -874,7 +874,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
     }
     if (record >= info->state->data_file_length)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       char llbuff2[22], llbuff3[22];
 #endif
       mi_check_print_error(param,"Found key at page %s that points to record outside datafile",llstr(page,llbuff));
@@ -3846,7 +3846,7 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a)
       _mi_print_key(stdout,sort_param->seg,(uchar*) a, USE_WHOLE_KEY);
     return (sort_delete_record(sort_param));
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (cmp > 0)
   {
     mi_check_print_error(param,

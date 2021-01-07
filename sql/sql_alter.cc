@@ -99,7 +99,7 @@ Alter_table_ctx::Alter_table_ctx()
     tables_opened(0),
     db(NULL), table_name(NULL), alias(NULL),
     new_db(NULL), new_name(NULL), new_alias(NULL)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     , tmp_table(false)
 #endif
 {
@@ -113,7 +113,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(tables_opened_arg),
     new_db(new_db_arg), new_name(new_name_arg)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     , tmp_table(false)
 #endif
 {
@@ -190,7 +190,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
       this case. This fact is enforced with assert.
     */
     build_tmptable_filename(thd, tmp_path, sizeof(tmp_path));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     tmp_table= true;
 #endif
   }

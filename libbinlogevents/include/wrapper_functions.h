@@ -50,7 +50,7 @@ extern PSI_memory_key key_memory_log_event;
 
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 #define BAPI_ASSERT(x) assert(x)
 #else
 #define BAPI_ASSERT(x) do { } while(0)

@@ -65,7 +65,7 @@ const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 };
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 void
 print_where(Item *cond,const char *info, enum_query_type query_type)
@@ -163,12 +163,12 @@ TEST_join(JOIN *join)
   DBUG_VOID_RETURN;
 }
 
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 void print_keyuse_array(Opt_trace_context *trace,
                         const Key_use_array *keyuse_array)
 {
-#if !defined(DBUG_OFF) || defined(OPTIMIZER_TRACE)
+#if !defined(NDEBUG) || defined(OPTIMIZER_TRACE)
   if (unlikely(!trace->is_started()))
     return;
   Opt_trace_object wrapper(trace);
@@ -190,10 +190,10 @@ void print_keyuse_array(Opt_trace_context *trace,
       add("equals", keyuse.val).
       add("null_rejecting", keyuse.null_rejecting);
   }
-#endif /* !DBUG_OFF || OPTIMIZER_TRACE */
+#endif /* !NDEBUG || OPTIMIZER_TRACE */
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* purecov: begin inspected */
 
 /** 
@@ -294,7 +294,7 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   DBUG_UNLOCK_FILE;
 }
 
-#endif  /* !DBUG_OFF */
+#endif  /* !NDEBUG */
 
 C_MODE_START
 static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
@@ -472,7 +472,7 @@ void mysql_print_status()
          Global_THD_manager::get_instance()->get_thd_count(),
 	 (long) my_thread_stack_size);
   thr_print_locks();				// Write some debug info
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   print_cached_tables();
 #endif
   /* Print key cache status */
@@ -519,7 +519,7 @@ Open streams:  %10lu\n",
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #ifdef EXTRA_DEBUG_DUMP_TABLE_LISTS
 
 

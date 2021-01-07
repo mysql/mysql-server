@@ -225,7 +225,7 @@ static void free_block(KEY_CACHE *keycache,
 #define HASH_LINK_NUMBER(h)                                                   \
   ((uint) (((char*)(h)-(char *) keycache->hash_link_root)/sizeof(HASH_LINK)))
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 static int fail_block(BLOCK_LINK *block);
 static int fail_hlink(HASH_LINK *hlink);
 static int cache_empty(KEY_CACHE *keycache);
@@ -732,7 +732,7 @@ static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
                                       thread->prev);
   }
   thread->next= NULL;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some assert() rely on it.
@@ -850,7 +850,7 @@ static inline void unlink_changed(BLOCK_LINK *block)
     block->next_changed->prev_changed= block->prev_changed;
   *block->prev_changed= block->next_changed;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some assert() rely on it.
@@ -1121,7 +1121,7 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
       keycache->used_ins=STRUCT_PTR(BLOCK_LINK, next_used, block->prev_used);
   }
   block->next_used= NULL;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some assert() rely on it.
@@ -1369,7 +1369,7 @@ static HASH_LINK *get_hash_link(KEY_CACHE *keycache,
                                 st_keycache_thread_var *thread)
 {
   HASH_LINK *hash_link, **start;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int cnt;
 #endif
 
@@ -1380,7 +1380,7 @@ restart:
      hash_link points to the first member of the list
   */
   hash_link= *(start= &keycache->hash_root[KEYCACHE_HASH(file, filepos)]);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   cnt= 0;
 #endif
   /* Look for an element for the pair (file, filepos) in the bucket chain */
@@ -1388,7 +1388,7 @@ restart:
          (hash_link->diskpos != filepos || hash_link->file != file))
   {
     hash_link= hash_link->next;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     cnt++;
     assert(cnt <= keycache->hash_links_used);
 #endif
@@ -3377,7 +3377,7 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
     BLOCK_LINK *last_in_flush;
     BLOCK_LINK *last_for_update;
     BLOCK_LINK *block, *next;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     uint cnt=0;
 #endif
 
@@ -3426,7 +3426,7 @@ restart:
          block ;
          block= next)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       cnt++;
       assert(cnt <= keycache->blocks_used);
 #endif
@@ -3614,12 +3614,12 @@ restart:
     */
     while (first_in_switch)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       cnt= 0;
 #endif
       wait_on_queue(&first_in_switch->wqueue[COND_FOR_SAVED],
                     &keycache->cache_lock, thread_var);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       cnt++;
       assert(cnt <= keycache->blocks_used);
 #endif
@@ -3947,7 +3947,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
     */
   } while (total_found);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* Now there should not exist any block any more. */
   for (idx= 0; idx < CHANGED_BLOCKS_HASH; idx++)
   {
@@ -3996,7 +3996,7 @@ int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
 }
 
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 #define F_B_PRT(_f_, _v_) DBUG_PRINT("assert_fail", (_f_, _v_))
 
 static int fail_block(BLOCK_LINK *block)

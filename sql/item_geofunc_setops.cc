@@ -208,7 +208,7 @@ public:
   Geometry *point_intersection_geometry(Geometry *g1, Geometry *g2,
                                         String *result)
   {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     Geometry *retgeo= NULL;
@@ -284,7 +284,7 @@ public:
                                              String *result)
   {
     Geometry *retgeo= NULL;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     Point_set ptset;
@@ -758,7 +758,7 @@ public:
   Geometry *point_union_geometry(Geometry *g1, Geometry *g2, String *result)
   {
     Geometry *retgeo= NULL;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     assert(gt2 == Geometry::wkb_linestring ||
@@ -1074,7 +1074,7 @@ public:
                                       String *result)
   {
     Geometry *retgeo= NULL;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     Point_set ptset;

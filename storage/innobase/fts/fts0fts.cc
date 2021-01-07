@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -7596,9 +7596,9 @@ fts_check_and_drop_orphaned_tables(
 						DICT_TF2_FTS_AUX_HEX_NAME);
 				}
 			}
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 table_exit:
-#endif	/* !DBUG_OFF */
+#endif	/* !NDEBUG */
 
 			if (table != NULL) {
 				dict_table_close(table, TRUE, FALSE);

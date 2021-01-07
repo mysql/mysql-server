@@ -778,7 +778,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           if (context->expecting(Item::STRING_ITEM) &&
               context->expecting_length(item->max_length)) 
           {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
             char buff[256];
             String str(buff, 0, system_charset_info);
             const_cast<Item*>(item)->print(&str, QT_ORDINARY);
@@ -1039,7 +1039,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             if (context->expecting(Item::STRING_ITEM) &&
                 context->expecting_length(item->max_length)) 
             {
-  #ifndef DBUG_OFF
+  #ifndef NDEBUG
               char buff[256];
               String str(buff, 0, system_charset_info);
               const_cast<Item*>(item)->print(&str, QT_ORDINARY);
@@ -1654,7 +1654,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
 {
   DBUG_ENTER("generate_scan_filter_from_key");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     DBUG_PRINT("info", ("key parts:%u length:%u",
                         key_info->user_defined_key_parts, key_info->key_length));

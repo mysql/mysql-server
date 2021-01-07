@@ -566,7 +566,7 @@ private:
   int64 parallel_applier_last_committed_global;
   int64 parallel_applier_sequence_number;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   bool certifier_garbage_collection_block;
   bool same_member_message_discarded;
 #endif

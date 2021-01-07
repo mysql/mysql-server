@@ -106,7 +106,7 @@ int ignored_error_code(int err_code);
    @param COND   Condition to check
    @param ERRNO  Error number to return in non-debug builds
 */
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
   do { if (!(COND)) return ERRNO; } while (0)
 #else

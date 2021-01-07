@@ -1095,7 +1095,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   result= set_up_field_array(table, is_sub_part);
 end:
   end_lex_with_single_table(thd, table, old_lex);
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX, NULL);
 #endif
   DBUG_RETURN(result);

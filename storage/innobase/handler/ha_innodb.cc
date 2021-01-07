@@ -3582,7 +3582,7 @@ innobase_init(
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	static const char	test_filename[] = "-@";
 	char			test_tablename[sizeof test_filename
 				+ sizeof(srv_mysql50_table_name_prefix) - 1];
@@ -3600,7 +3600,7 @@ innobase_init(
 		sql_print_error("tablename encoding has been changed");
 		DBUG_RETURN(innobase_init_abort());
 	}
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 	/* Check that values don't overflow on 32-bit systems. */
 	if (sizeof(ulint) == 4) {
@@ -5150,7 +5150,7 @@ create_table_info_t::normalize_table_name_low(
 	}
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 /*********************************************************************
 Test normalize_table_name_low(). */
 static
@@ -5276,7 +5276,7 @@ test_ut_format_name()
 		}
 	}
 }
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
@@ -19920,12 +19920,12 @@ static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Kills the server during crash recovery.",
   NULL, NULL, 0, 0, 100, 0);
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -20346,9 +20346,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MYSQL_SYSVAR(force_recovery_crash),
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
   MYSQL_SYSVAR(fill_factor),
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),

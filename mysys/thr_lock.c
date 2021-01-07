@@ -1217,7 +1217,7 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
                               enum thr_lock_type new_lock_type)
 {
   THR_LOCK *lock=in_data->lock;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   enum thr_lock_type old_lock_type= in_data->type;
 #endif
   DBUG_ENTER("thr_downgrade_write_only_lock");

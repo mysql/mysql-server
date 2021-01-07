@@ -28,7 +28,7 @@ long enable_super_read_only_mode(Sql_service_command_interface *command_interfac
   DBUG_ENTER("set_super_read_only_mode");
   long error =0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_skip_read_mode", { DBUG_RETURN(0); });
   DBUG_EXECUTE_IF("group_replication_read_mode_error", { DBUG_RETURN(1); });
 #endif

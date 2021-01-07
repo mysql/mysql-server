@@ -176,7 +176,7 @@ void Recovery_state_transfer::update_group_membership(bool update_donor)
 {
   DBUG_ENTER("Recovery_state_transfer::update_group_membership");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mysql_mutex_assert_owner(&donor_selection_lock);
 #endif
 

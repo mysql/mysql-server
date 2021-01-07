@@ -1761,7 +1761,7 @@ test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
 
 class Plan_change_watchdog
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 public:
   /**
     @param tab_arg     table whose access path is being determined

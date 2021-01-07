@@ -147,7 +147,7 @@ public:
       This class should be a singleton.
       The assert below is to prevent it to be instantiated more than once.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     static int instance_count= 0;
     instance_count++;
     assert(instance_count == 1);

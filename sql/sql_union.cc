@@ -767,7 +767,7 @@ bool st_select_lex_unit::explain(THD *ethd)
 {
   DBUG_ENTER("st_select_lex_unit::explain");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   SELECT_LEX *lex_select_save= thd->lex->current_select();
 #endif
   Explain_format *fmt= ethd->lex->explain_format;
@@ -952,7 +952,7 @@ bool st_select_lex_unit::cleanup(bool full)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void st_select_lex_unit::assert_not_fully_clean()
 {
   assert(cleaned < UC_CLEAN);
@@ -980,7 +980,7 @@ void st_select_lex_unit::assert_not_fully_clean()
 void st_select_lex_unit::reinit_exec_mechanism()
 {
   prepared= optimized= executed= false;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (is_union())
   {
     List_iterator_fast<Item> it(item_list);

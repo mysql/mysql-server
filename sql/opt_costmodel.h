@@ -46,7 +46,7 @@ public:
 
   Cost_model_server() : m_cost_constants(NULL), m_server_cost_constants(NULL)
   {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized= false;
 #endif
   }
@@ -222,7 +222,7 @@ protected: // To be able make a gunit fake sub class
   */
   const Server_cost_constants *m_server_cost_constants;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /**
     Used for detecting if this object is used without having been initialized.
   */
@@ -244,7 +244,7 @@ public:
   Cost_model_table() : m_cost_model_server(NULL), m_se_cost_constants(NULL),
     m_table(NULL)
   {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized= false;
 #endif
   }
@@ -414,7 +414,7 @@ protected: // To be able make a gunit fake sub class
   */
   const SE_cost_constants *m_se_cost_constants;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /**
     Used for detecting if this object is used without having been initialized.
   */

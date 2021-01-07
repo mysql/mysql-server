@@ -29,7 +29,7 @@ class Querycache_stream
   Query_cache_block *block;
   uint headers_len;
 public:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Query_cache_block *first_block;
   size_t stored_size;
 #endif
@@ -38,7 +38,7 @@ public:
   {
     cur_data= ((uchar*)block)+headers_len;
     data_end= cur_data + (block->used-headers_len);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     first_block= ini_block;
     stored_size= 0;
 #endif

@@ -190,7 +190,7 @@ Writeset_trx_dependency_tracker::get_dependency(THD *thd,
     thd->get_transaction()->get_transaction_write_set_ctx();
   std::set<uint64> *writeset= write_set_ctx->get_write_set();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* The writeset of an empty transaction must be empty. */
   if (is_empty_transaction_in_binlog_cache(thd))
     assert(writeset->size() == 0);

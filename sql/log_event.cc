@@ -1043,7 +1043,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf)
   // Query start time
   ulong timestamp= (ulong) get_time();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour",1,0)  &&
       DBUG_EVALUATE_IF("dec_event_time_by_1_hour",1,0))
   {
@@ -1552,7 +1552,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
     }
   );
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   binary_log_debug::debug_checksum_test=
     DBUG_EVALUATE_IF("simulate_checksum_test_failure", true, false);
 #endif
@@ -1624,7 +1624,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
     switch(event_type) {
     case binary_log::QUERY_EVENT:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       binary_log_debug::debug_query_mts_corrupt_db_names=
         DBUG_EVALUATE_IF("query_log_event_mts_corrupt_db_names", true, false);
 #endif
@@ -1633,7 +1633,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       break;
     case binary_log::LOAD_EVENT:
     case binary_log::NEW_LOAD_EVENT:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       binary_log_debug::debug_simulate_invalid_address=
         DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
 #endif
@@ -1643,7 +1643,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Rotate_log_event(buf, event_len, description_event);
       break;
     case binary_log::CREATE_FILE_EVENT:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       binary_log_debug::debug_simulate_invalid_address=
         DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
 #endif
@@ -3020,7 +3020,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       The following assert proves there's the only reason
       for such group.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       bool empty_group_with_gtids= rli->curr_group_seen_begin &&
                                    rli->curr_group_seen_gtid &&
@@ -3175,7 +3175,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ret_worker->master_log_change_notified= true;
 
     assert(!ptr_group->notified);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     ptr_group->notified= true;
 #endif
   }
@@ -3275,7 +3275,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     */
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     w_rr++;
 #endif
 
@@ -3415,7 +3415,7 @@ int Log_event::apply_event(Relay_log_info *rli)
             rli->current_mts_submode->get_type() ==
             MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
         {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           assert(rli->curr_group_da.size() == 1);
           Log_event* ev= rli->curr_group_da[0].data;
           assert(ev->get_type_code() == binary_log::GTID_LOG_EVENT ||
@@ -3464,7 +3464,7 @@ int Log_event::apply_event(Relay_log_info *rli)
             DBUG_RETURN(-1);
         }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         /* all Workers are idle as done through wait_for_workers_to_finish */
         for (uint k= 0; k < rli->curr_group_da.size(); k++)
         {
@@ -3510,7 +3510,7 @@ int Log_event::apply_event(Relay_log_info *rli)
   worker= (Relay_log_info*)
     (rli->last_assigned_worker= get_slave_worker(rli));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (rli->last_assigned_worker)
     DBUG_PRINT("mts", ("Assigning job to worker %lu",
                rli->last_assigned_worker->id));
@@ -5575,7 +5575,7 @@ bool Format_description_log_event::write(IO_CACHE* file)
     FD_queue checksum_alg value.
   */
   compile_time_assert(sizeof(BINLOG_CHECKSUM_ALG_DESC_LEN == 1));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   common_header->data_written= 0; // to prepare for need_checksum assert
 #endif
   buff[Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN]= need_checksum() ?
@@ -6573,7 +6573,7 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
   Log_event(header(), footer(),
             Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(...,flags)");
 #endif
   new_log_ident= new_log_ident_arg;
@@ -6582,7 +6582,7 @@ Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
              ident_len_arg : (uint) strlen(new_log_ident_arg);
   flags= flags_arg;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buff[22];
   DBUG_PRINT("enter",("new_log_ident: %s  pos: %s  flags: %lu", new_log_ident_arg,
                       llstr(pos_arg, buff), (ulong) flags));
@@ -6653,7 +6653,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
 {
   int error= 0;
   DBUG_ENTER("Rotate_log_event::do_update_pos");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[32];
 #endif
 
@@ -9151,7 +9151,7 @@ const char *sql_ex_info::init(const char *buf, const char *buf_end,
 {
   return data_info.init(buf, buf_end, use_new_format);
 }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #ifndef MYSQL_CLIENT
 static uchar dbug_extra_row_data_val= 0;
 
@@ -9203,7 +9203,7 @@ void check_extra_data(uchar* extra_row_data)
   }
 }
 
-#endif  // #ifndef DBUG_OFF
+#endif  // #ifndef NDEBUG
 
 /**************************************************************************
 	Rows_log_event member functions
@@ -9238,7 +9238,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
   if (thd_arg->variables.option_bits & OPTION_RELAXED_UNIQUE_CHECKS)
       set_flags(RELAXED_UNIQUE_CHECKS_F);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uchar extra_data[255];
   DBUG_EXECUTE_IF("extra_row_data_set",
                   /* Set extra row data to a known value */
@@ -9840,7 +9840,7 @@ end:
   */
   assert(m_distinct_keys.empty());
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const char* s= ((m_rows_lookup_algorithm == Rows_log_event::ROW_LOOKUP_TABLE_SCAN) ? "TABLE_SCAN" :
                   ((m_rows_lookup_algorithm == Rows_log_event::ROW_LOOKUP_HASH_SCAN) ? "HASH_SCAN" :
                    "INDEX_SCAN"));
@@ -10390,7 +10390,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
     goto end;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_PRINT("info",("looking for the following record"));
   DBUG_DUMP("record[0]", m_table->record[0], m_table->s->reclength);
 #endif
@@ -12605,7 +12605,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
   if (is_auto_inc_in_extra_columns())
     m_table->next_number_field->set_null();
   
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_PRINT_BITSET("debug", "write_set = %s", table->write_set);
   DBUG_PRINT_BITSET("debug", "read_set = %s", table->read_set);
@@ -12753,7 +12753,7 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
       error= unpack_current_row(rli, &m_cols);
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PRINT("debug",("preparing for update: before and after image"));
     DBUG_DUMP("record[1] (before)", table->record[1], table->s->reclength);
     DBUG_DUMP("record[0] (after)", table->record[0], table->s->reclength);
@@ -13392,7 +13392,7 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(const char *,"
              " uint, const Format_description_log_event *");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint8_t const common_header_len= description_event->common_header_len;
   uint8 const post_header_len=
     buffer[EVENT_TYPE_OFFSET] == binary_log::ANONYMOUS_GTID_LOG_EVENT ?
@@ -13444,7 +13444,7 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                               binary_log::GTID_LOG_EVENT);
   common_header->type_code= event_type;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[MAX_SET_STRING_LENGTH + 1];
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
@@ -13490,7 +13490,7 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
                               binary_log::GTID_LOG_EVENT);
   common_header->type_code= event_type;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[MAX_SET_STRING_LENGTH + 1];
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
@@ -13573,7 +13573,7 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   *ptr_buffer= gtid_flags;
   ptr_buffer+= ENCODED_FLAG_LENGTH;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[binary_log::Uuid::TEXT_LENGTH + 1];
   sid.to_string(buf);
   DBUG_PRINT("info", ("sid=%s sidno=%d gno=%lld",

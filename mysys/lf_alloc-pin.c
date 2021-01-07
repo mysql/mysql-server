@@ -206,14 +206,14 @@ void lf_pinbox_put_pins(LF_PINS *pins)
   uint32 top_ver, nr;
   nr= pins->link;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     /* This thread should not hold any pin. */
     int i;
     for (i= 0; i < LF_PINBOX_PINS; i++)
       assert(pins->pin[i] == 0);
   }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   /*
     XXX this will deadlock if other threads will wait for

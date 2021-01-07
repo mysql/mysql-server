@@ -355,7 +355,7 @@ public:
        */
       int check_state(enum_state const target_state)
       {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         static char const *state_name[] = {
           "START_STATE", "TABLE_STATE", "ROW_STATE", "STATE_COUNT"
         };

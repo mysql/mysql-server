@@ -122,7 +122,7 @@ void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner)
   {
     if (node->owner == owner)
     {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
       my_hash_delete(hash, (uchar *)node);
 #else
       // my_hash_delete returns nonzero if the element does not exist

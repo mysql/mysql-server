@@ -160,8 +160,8 @@ public:
   {
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done);
-#ifndef DBUG_OFF
-    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF */
+#ifndef NDEBUG
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !NDEBUG */
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
@@ -218,7 +218,7 @@ public:
     return m_queue[stage].pop_front();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      The method ensures the follower's execution path can be preempted
      by the leader's thread.
@@ -272,7 +272,7 @@ private:
 
   /** Mutex used for the condition variable above */
   mysql_mutex_t m_lock_done;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Flag is set by Leader when it starts waiting for follower's all-clear */
   bool leader_await_preempt_status;
 

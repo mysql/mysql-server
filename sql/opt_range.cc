@@ -748,7 +748,7 @@ public:
   SEL_ARG *find_range(SEL_ARG *key);
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
 #endif
   bool test_use_count(SEL_ARG *root);
@@ -1121,7 +1121,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 static
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
                                           const Cost_estimate *cost_est);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
                            const char *msg);
 static void print_ror_scans_arr(TABLE *table, const char *msg,
@@ -1850,7 +1850,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
   while ((quick= quick_it++))
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     const MY_BITMAP * const save_read_set= quick->head->read_set;
     const MY_BITMAP * const save_write_set= quick->head->write_set;
 #endif
@@ -3377,7 +3377,7 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
                                             List<SEL_IMERGE> &merges);
 static void mark_all_partitions_as_used(partition_info *part_info);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void print_partitioning_index(KEY_PART *parts, KEY_PART *parts_end);
 static void dbug_print_segment_range(SEL_ARG *arg, KEY_PART *part);
 static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
@@ -4432,7 +4432,7 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static void print_partitioning_index(KEY_PART *parts, KEY_PART *parts_end)
 {
@@ -7791,7 +7791,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           DBUG_RETURN(tree1);
         }
         result_keys.set_bit(idx);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         /*
           Do not test use_count if there is a large range tree created.
           It takes too much time to traverse the tree.
@@ -7991,7 +7991,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       {
         result=tree1;				// Added to tree1
         result_keys.set_bit(idx);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         /*
           Do not test use count if there is a large range tree created.
           It takes too much time to traverse the tree.
@@ -9127,7 +9127,7 @@ SEL_ARG::tree_delete(SEL_ARG *key)
     DBUG_RETURN(0);				// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   test_rb_tree(root,root->parent);
 #endif
   root->use_count=this->use_count;		// Fix root counters
@@ -9225,7 +9225,7 @@ SEL_ARG::rb_insert(SEL_ARG *leaf)
     }
   }
   root->color=BLACK;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   test_rb_tree(root,root->parent);
 #endif
   return root;
@@ -9311,7 +9311,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	/* Test that the properties for a red-black tree hold */
 
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
@@ -14632,7 +14632,7 @@ static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint lim
   return false;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
                            const char *msg)
@@ -14684,7 +14684,7 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 }
 
 
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /**
   Print a key to a string
@@ -14935,7 +14935,7 @@ static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree,
                                    const RANGE_OPT_PARAM *param)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   print_tree(NULL, tree_name, tree, param, true);
 #endif
 }
@@ -15098,7 +15098,7 @@ static inline void print_tree(String *out,
 ** of locking the DEBUG stream !
 *****************************************************************************/
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static void
 print_multiple_key_values(KEY_PART *key_part, const uchar *key,
@@ -15291,5 +15291,5 @@ void QUICK_GROUP_MIN_MAX_SELECT::dbug_dump(int indent, bool verbose)
 }
 
 
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 #endif /* OPT_RANGE_CC_INCLUDED */

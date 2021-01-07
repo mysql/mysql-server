@@ -205,7 +205,7 @@ ndbcluster_connect(int (*connect_callback)(void),
         DBUG_RETURN(-1);
       }
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       char buf[1024];
       DBUG_PRINT("info",

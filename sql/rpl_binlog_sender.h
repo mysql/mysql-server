@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -376,7 +376,7 @@ private:
   int wait_with_heartbeat(my_off_t log_pos);
   int wait_without_heartbeat();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* It is used to count the events that have been sent. */
   int m_event_count;
   /*

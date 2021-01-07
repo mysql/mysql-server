@@ -1466,7 +1466,7 @@ skip_to_ssl:
   if (protocol->has_client_capability(CLIENT_SSL))
   {
     unsigned long errptr;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     uint ssl_charset_code= 0;
 #endif
 
@@ -1509,7 +1509,7 @@ skip_to_ssl:
     {
       packet_has_required_size= bytes_remaining_in_packet >= 
         AUTH_PACKET_HEADER_SIZE_PROTO_41;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       ssl_charset_code=
         (uint)(uchar)*((char *)protocol->get_net()->read_pos + 8);
       DBUG_PRINT("info", ("client_character_set: %u", ssl_charset_code));
@@ -1525,7 +1525,7 @@ skip_to_ssl:
       end= (char *)protocol->get_net()->read_pos
         + AUTH_PACKET_HEADER_SIZE_PROTO_40;
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       /**
         Old clients didn't have their own charset. Instead the assumption
         was that they used what ever the server used.

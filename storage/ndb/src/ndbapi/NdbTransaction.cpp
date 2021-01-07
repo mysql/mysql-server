@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -711,7 +711,7 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
   /**
    * Reset error.code on execute
    */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
 #endif

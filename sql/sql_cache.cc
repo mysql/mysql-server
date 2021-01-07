@@ -358,7 +358,7 @@ TODO list:
 using std::min;
 using std::max;
 
-#if defined(EXTRA_DEBUG) && !defined(DBUG_OFF)
+#if defined(EXTRA_DEBUG) && !defined(NDEBUG)
 #define RW_WLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
   if (!mysql_rwlock_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
@@ -515,7 +515,7 @@ bool Query_cache::try_lock(bool use_timeout)
     if (m_cache_lock_status == Query_cache::UNLOCKED)
     {
       m_cache_lock_status= Query_cache::LOCKED;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (thd)
         m_cache_lock_thread_id= thd->thread_id();
 #endif
@@ -582,7 +582,7 @@ void Query_cache::lock_and_suspend(void)
   while (m_cache_lock_status != Query_cache::UNLOCKED)
     mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (thd)
     m_cache_lock_thread_id= thd->thread_id();
 #endif
@@ -611,7 +611,7 @@ void Query_cache::lock(void)
   while (m_cache_lock_status != Query_cache::UNLOCKED)
     mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (thd)
     m_cache_lock_thread_id= thd->thread_id();
 #endif
@@ -629,7 +629,7 @@ void Query_cache::unlock(void)
 {
   DBUG_ENTER("Query_cache::unlock");
   mysql_mutex_lock(&structure_guard_mutex);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   THD *thd= current_thd;
   if (thd)
     assert(m_cache_lock_thread_id == thd->thread_id());
@@ -743,7 +743,7 @@ inline uchar* Query_cache_block::data(void)
 
 inline Query_cache_query * Query_cache_block::query()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (type != QUERY)
     query_cache.wreck(__LINE__, "incorrect block type");
 #endif
@@ -752,7 +752,7 @@ inline Query_cache_query * Query_cache_block::query()
 
 inline Query_cache_table * Query_cache_block::table()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (type != TABLE)
     query_cache.wreck(__LINE__, "incorrect block type");
 #endif
@@ -761,7 +761,7 @@ inline Query_cache_table * Query_cache_block::table()
 
 inline Query_cache_result * Query_cache_block::result()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (type != RESULT && type != RES_CONT && type != RES_BEG &&
       type != RES_INCOMPLETE)
     query_cache.wreck(__LINE__, "incorrect block type");
@@ -4355,7 +4355,7 @@ size_t Query_cache::filename_2_table_key (char *key, const char *path,
   Functions to be used when debugging
 ****************************************************************************/
 
-#if defined(DBUG_OFF) || !defined(EXTRA_DEBUG)
+#if defined(NDEBUG) || !defined(EXTRA_DEBUG)
 
 void Query_cache::wreck(uint line, const char *message) { query_cache_size = 0; }
 void Query_cache::bins_dump() {}
@@ -5031,5 +5031,5 @@ err2:
   return result;
 }
 
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 

@@ -4810,7 +4810,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	  break;
         }
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       else
       {
         switch (ctx.m_info->getType(ctx.m_currentInfo, name)){

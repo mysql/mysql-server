@@ -73,7 +73,7 @@
 #include "log.h"                             // sql_print_error
 
 #include "debug_sync.h"
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #include "sql_test.h"                        // print_where
 #endif
 
@@ -3851,10 +3851,10 @@ int ha_partition::info(uint flag)
   int res, error= 0;
   DBUG_ENTER("ha_partition::info");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (bitmap_is_set_all(&(m_part_info->read_partitions)))
     DBUG_PRINT("info", ("All partitions are used"));
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
   if (flag & HA_STATUS_AUTO)
   {
     DBUG_PRINT("info", ("HA_STATUS_AUTO"));
@@ -5794,7 +5794,7 @@ void ha_partition::cancel_pushed_idx_cond()
 inline int ha_partition::initialize_auto_increment(bool no_lock)
 {
   DBUG_ENTER("ha_partition::initialize_auto_increment");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (table_share->tmp_table == NO_TMP_TABLE)
   {
     mysql_mutex_assert_owner(part_share->auto_inc_mutex);

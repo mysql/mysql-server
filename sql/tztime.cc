@@ -65,11 +65,11 @@ using std::min;
 #if defined(TZINFO2SQL)
 #define ABBR_ARE_USED
 #else
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 /* Let use abbreviations for debug purposes */
 #undef ABBR_ARE_USED
 #define ABBR_ARE_USED
-#endif /* !defined(DBUG_OFF) */
+#endif /* !defined(NDEBUG) */
 #endif /* defined(TZINFO2SQL) */
 
 /* Structure describing local time type (e.g. Moscow summer time (MSD)) */

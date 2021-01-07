@@ -8939,7 +8939,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
     fk.ChildColumns[i] = src.m_child_columns[i];
   fk.ChildColumnsLength = 4 * src.m_child_columns.size(); // bytes :(
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     char buf[2048];
     ndbout_print(fk, buf, sizeof(buf));

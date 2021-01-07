@@ -80,7 +80,7 @@ Item_splocal* create_item_for_sp_var(THD *thd,
     new (thd->mem_root) Item_splocal(
       name, spv->offset, spv->type, spv_pos_in_query, spv_len_in_query);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (item)
     item->m_sp= lex->sphead;
 #endif

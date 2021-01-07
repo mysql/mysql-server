@@ -290,7 +290,7 @@ static struct my_option my_long_options[] =
    "Dump several databases. Note the difference in usage; in this case no tables are given. All name arguments are regarded as database names. 'USE db_name;' will be included in the output.",
    &opt_databases, &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
@@ -935,7 +935,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
         fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
         exit(1);
       }
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       {
         size_t size_for_sql_mode= 0;
         const char **ptr;

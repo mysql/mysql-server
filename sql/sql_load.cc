@@ -1290,7 +1290,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     xmlit.rewind();
     XML_TAG *tag= NULL;
     
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PRINT("read_xml_field", ("skip_lines=%d", (int) skip_lines));
     while ((tag= xmlit++))
     {

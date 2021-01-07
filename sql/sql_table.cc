@@ -395,9 +395,9 @@ size_t explain_filename(THD* thd,
 */
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                            , bool stay_quiet
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
                            )
 {
   uint errors;
@@ -419,13 +419,13 @@ size_t filename_to_tablename(const char *from, char *to, size_t to_length
     {
       res= (strxnmov(to, to_length, MYSQL50_TABLE_NAME_PREFIX,  from, NullS) -
             to);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (!stay_quiet) {
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
         sql_print_error("Invalid (old?) table or database name '%s'", from);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
       /*
         TODO: add a stored procedure for fix table and database names,
         and mention its name in error log.

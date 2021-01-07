@@ -698,7 +698,7 @@ void Filesort_info::read_chunk_descriptors(IO_CACHE *chunk_file, uint count)
   DBUG_VOID_RETURN;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /*
   Print a text, SQL-like record representation into dbug trace.
 

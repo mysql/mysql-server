@@ -238,7 +238,7 @@ public:
   */
   const char *pop_expr_start_ptr()
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     assert(m_expr_start_ptr);
     const char *p= m_expr_start_ptr;
     m_expr_start_ptr= NULL;
@@ -898,7 +898,7 @@ public:
                     HAS_COMMIT_OR_ROLLBACK|HAS_SQLCOM_RESET|HAS_SQLCOM_FLUSH));
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Return the routine instructions as a result set.
     @return Error status.

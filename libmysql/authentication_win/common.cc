@@ -78,7 +78,7 @@ int Connection::write(const Blob &blob)
 {
   m_error= m_vio->write_packet(m_vio, blob.ptr(), static_cast<int>(blob.len()));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (m_error)
     DBUG_PRINT("error", ("vio write error %d", m_error));
 #endif
@@ -127,7 +127,7 @@ Blob Connection::read()
 */
 
 Sid::Sid(const wchar_t *account_name): m_data(NULL)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 , m_as_string(NULL)
 #endif
 {
@@ -141,7 +141,7 @@ Sid::Sid(const wchar_t *account_name): m_data(NULL)
 
   if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID buffer size, "
                          "LookupAccountName() failed with error %X (%s)",
@@ -163,7 +163,7 @@ Sid::Sid(const wchar_t *account_name): m_data(NULL)
 
   if (!success || !is_valid())
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID of '%S', "
                          "LookupAccountName() failed with error %X (%s)",
@@ -196,7 +196,7 @@ end:
 */
 
 Sid::Sid(HANDLE token): m_data(NULL)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 , m_as_string(NULL)
 #endif
 {
@@ -208,7 +208,7 @@ Sid::Sid(HANDLE token): m_data(NULL)
   success= GetTokenInformation(token, TokenUser, NULL, 0, &req_size);
   if (!success && GetLastError() != ERROR_INSUFFICIENT_BUFFER)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     Error_message_buf error_buf;
     DBUG_PRINT("error", ("Could not determine SID buffer size, "
                          "GetTokenInformation() failed with error %X (%s)",
@@ -224,7 +224,7 @@ Sid::Sid(HANDLE token): m_data(NULL)
   {
     delete [] m_data;
     m_data= NULL;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (!success)
     {
       Error_message_buf error_buf;
@@ -241,7 +241,7 @@ Sid::~Sid()
 {
   if (m_data)
     delete [] m_data;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (m_as_string)
     LocalFree(m_as_string);
 #endif
@@ -254,7 +254,7 @@ bool Sid::is_valid(void) const
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 /**
   Produces string representation of the SID.
@@ -276,7 +276,7 @@ const char* Sid::as_string()
 
     if (!success)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       Error_message_buf error_buf;
       DBUG_PRINT("error", ("Could not get textual representation of a SID, "
                            "ConvertSidToStringSid() failed with error %X (%s)",
@@ -321,7 +321,7 @@ UPN::UPN(): m_buf(NULL)
   {
     if (GetLastError())
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       Error_message_buf error_buf;
       DBUG_PRINT("note", ("When determining UPN"
                           ", GetUserNameEx() failed with error %X (%s)",
@@ -413,7 +413,7 @@ char* wchar_to_utf8(const wchar_t *string, size_t *len)
 
   // res is 0 which indicates error
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Error_message_buf error_buf;
   DBUG_PRINT("error", ("Could not convert string '%S' to utf8"
                        ", WideCharToMultiByte() failed with error %X (%s)",
@@ -479,7 +479,7 @@ wchar_t* utf8_to_wchar(const char *string, size_t *len)
 
   // error in MultiByteToWideChar()
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Error_message_buf error_buf;
   DBUG_PRINT("error", ("Could not convert UPN from UTF-8"
                        ", MultiByteToWideChar() failed with error %X (%s)",

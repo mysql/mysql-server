@@ -159,7 +159,7 @@ internal_set_super_read_only(Sql_service_interface *sql_interface)
   long srv_err= sql_interface->execute_query("SET GLOBAL super_read_only= 1;");
   if (srv_err == 0)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     long err;
     err = sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
 
@@ -182,7 +182,7 @@ internal_set_read_only(Sql_service_interface *sql_interface)
   long srv_err= sql_interface->execute_query("SET GLOBAL read_only= 1;");
   if (srv_err == 0)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     sql_interface->execute_query("SELECT @@GLOBAL.read_only;", &rset);
     assert(rset.getLong(0) == 1);
     log_message(MY_INFORMATION_LEVEL, "Setting read_only=ON.");
@@ -229,7 +229,7 @@ internal_reset_super_read_only(Sql_service_interface *sql_interface)
 
   const char * query= "SET GLOBAL super_read_only= 0";
   long srv_err= sql_interface->execute_query(query);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (srv_err == 0)
   {
     long err;
@@ -274,7 +274,7 @@ internal_reset_read_only(Sql_service_interface *sql_interface)
   const char* query= "SET GLOBAL read_only= 0";
   long srv_err= sql_interface->execute_query(query);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (srv_err == 0)
   {
     long err;
@@ -610,7 +610,7 @@ Session_plugin_thread::terminate_session_thread()
 
     struct timespec abstime;
     set_timespec(&abstime, 1);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error=
 #endif
       mysql_cond_timedwait(&m_run_cond, &m_run_lock, &abstime);

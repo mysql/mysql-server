@@ -550,7 +550,7 @@ replace_record(THD *thd, TABLE *table,
   int keynum;
   char *key= NULL;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_PRINT_BITSET("debug", "write_set = %s", table->write_set);
   DBUG_PRINT_BITSET("debug", "read_set = %s", table->read_set);
@@ -2072,7 +2072,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
   /* unpack row into table->record[0] */
   error= unpack_current_row(rli); // TODO: how to handle errors?
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_PRINT_BITSET("debug", "write_set = %s", table->write_set);
   DBUG_PRINT_BITSET("debug", "read_set = %s", table->read_set);
@@ -2202,7 +2202,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
       error= unpack_current_row(rli);
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PRINT("debug",("preparing for update: before and after image"));
     DBUG_DUMP("record[1] (before)", table->record[1], table->s->reclength);
     DBUG_DUMP("record[0] (after)", table->record[0], table->s->reclength);
@@ -2305,7 +2305,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
   prepare_record(table, table->read_set, FALSE /* don't check errors */); 
   error= unpack_current_row(rli); 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_PRINT("info",("looking for the following record"));
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ OPT_EXTERN(my_bool,opt_core,NONE);
 OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);
 OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 OPT_EXTERN(const char *,opt_debug,= 0);
 #endif
 
@@ -94,7 +94,7 @@ OPT_EXTERN(const char *,opt_debug,= 0);
      "Directory where character sets are.", (uchar**) &charsets_dir,\
      (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}\
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define NDB_STD_OPTS(prog_name) \
   { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
     (uchar**) &opt_debug, (uchar**) &opt_debug, \

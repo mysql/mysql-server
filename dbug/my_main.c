@@ -3,8 +3,8 @@
   fixed so that it could compile and run in MySQL source tree
 */
 
-#ifdef DBUG_OFF				/* We are testing dbug */
-#undef DBUG_OFF
+#ifdef NDEBUG				/* We are testing dbug */
+#undef NDEBUG
 #endif
 
 #include <my_global.h>	/* This includes dbug.h */

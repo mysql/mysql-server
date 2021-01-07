@@ -1511,7 +1511,7 @@ public:
     assert(0);
     return GEOM_GEOMETRY;
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* Print field value into debug trace, in NULL-aware way. */
   void dbug_print()
   {

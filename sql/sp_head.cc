@@ -1945,7 +1945,7 @@ void sp_head::opt_mark()
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 bool sp_head::show_routine_code(THD *thd)
 {
   Protocol *protocol= thd->get_protocol();
@@ -2000,7 +2000,7 @@ bool sp_head::show_routine_code(THD *thd)
 
   return res;
 }
-#endif // ifndef DBUG_OFF
+#endif // ifndef NDEBUG
 
 
 bool sp_head::merge_table_list(THD *thd,

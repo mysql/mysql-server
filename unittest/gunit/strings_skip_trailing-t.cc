@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ namespace skip_trailing_space_unittest {
 
 #if defined(GTEST_HAS_PARAM_TEST)
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 // There is no point in benchmarking anything in debug mode.
 const size_t num_iterations= 1ULL;
 #else

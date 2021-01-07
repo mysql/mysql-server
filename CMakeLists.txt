@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -461,22 +461,6 @@ IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
   MESSAGE(SEND_ERROR 
           "Test trace plugin was selected but it can be included only in debug binaries.
           Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
-ENDIF()
-
-# Set DBUG_OFF for non-debug project types
-FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
-  FOREACH(LANG C CXX)
-    STRING_PREPEND(CMAKE_${LANG}_FLAGS_${BUILD_TYPE} "-DDBUG_OFF ")
-  ENDFOREACH()
-ENDFOREACH()
-
-IF(NOT CMAKE_BUILD_TYPE
-    AND NOT CMAKE_GENERATOR MATCHES "Visual Studio" 
-    AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
-    # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
-    # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set.
-    ADD_DEFINITIONS(-DDBUG_OFF)
 ENDIF()
 
 # Add safemutex for debug configurations

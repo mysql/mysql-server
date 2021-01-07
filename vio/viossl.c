@@ -36,7 +36,7 @@
 
 #ifdef HAVE_OPENSSL
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static void
 report_errors(SSL* ssl)
@@ -154,7 +154,7 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
     *event= VIO_IO_EVENT_WRITE;
     break;
   default:
-#ifndef DBUG_OFF  /* Debug build */
+#ifndef NDEBUG  /* Debug build */
     /* Note: the OpenSSL error queue gets cleared in report_errors(). */
     report_errors(ssl);
 #else             /* Release build */
@@ -371,7 +371,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int j, n;
 #endif
 
@@ -394,7 +394,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();
@@ -430,7 +430,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   if (vio_reset(vio, VIO_TYPE_SSL, SSL_get_fd(ssl), ssl, 0))
     DBUG_RETURN(1);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     /* Print some info about the peer */
     X509 *cert;

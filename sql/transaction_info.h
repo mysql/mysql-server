@@ -365,7 +365,7 @@ public:
     bool real_commit;               // Is this a "real" commit?
     bool commit_low;                // see MYSQL_BIN_LOG::ordered_commit
     bool run_hooks;                 // Call the after_commit hook
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool ready_preempt;             // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
   } m_flags;

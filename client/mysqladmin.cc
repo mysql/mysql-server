@@ -142,7 +142,7 @@ static struct my_option my_long_options[] =
    "Number of iterations to make. This works with -i (--sleep) only.",
    &nr_iterations, &nr_iterations, 0, GET_UINT,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",

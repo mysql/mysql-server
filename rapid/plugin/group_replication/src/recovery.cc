@@ -152,7 +152,7 @@ Recovery_module::stop_recovery()
     */
     struct timespec abstime;
     set_timespec(&abstime, 2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error=
 #endif
     mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
@@ -347,7 +347,7 @@ Recovery_module::recovery_thread_handle()
     /* purecov: end */
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_start_wait_num_of_members",
                   {
                     assert(number_of_members != 1);
@@ -358,7 +358,7 @@ Recovery_module::recovery_thread_handle()
                     const char act[]= "now wait_for signal.recovery_continue";
                     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
-#endif // DBUG_OFF
+#endif // NDEBUG
 
   /* Step 2 */
 
@@ -377,13 +377,13 @@ Recovery_module::recovery_thread_handle()
 
   error= recovery_state_transfer.state_transfer(recovery_thd);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_wait_before_finish",
                   {
                     const char act[]= "now wait_for signal.recovery_end";
                     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
-#endif // DBUG_OFF
+#endif // NDEBUG
 
   if (error)
   {
@@ -425,13 +425,13 @@ cleanup:
     leave_group_on_recovery_failure();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("recovery_thread_wait_before_cleanup",
                   {
                     const char act[]= "now wait_for signal.recovery_end_end";
                     debug_sync_set_action(current_thd, STRING_WITH_LEN(act));
                   });
-#endif // DBUG_OFF
+#endif // NDEBUG
 
   /* Step 7 */
 

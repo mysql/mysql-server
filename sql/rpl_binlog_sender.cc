@@ -35,7 +35,7 @@
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   static uint binlog_dump_count= 0;
 #endif
 using binary_log::checksum_crc32;
@@ -290,7 +290,7 @@ void Binlog_sender::init()
   /* Binary event can be vary large. So set it to max allowed packet. */
   thd->variables.max_allowed_packet= MAX_MAX_ALLOWED_PACKET;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
     set_unknow_error("Master fails in COM_BINLOG_DUMP because of "
                      "--sporadic-binlog-dump-fail");
@@ -780,7 +780,7 @@ int Binlog_sender::wait_new_events(my_off_t log_pos)
 
 inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ulong hb_info_counter= 0;
 #endif
   struct timespec ts;
@@ -793,7 +793,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos)
     if (ret != ETIMEDOUT && ret != ETIME)
       break;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (hb_info_counter < 3)
       {
         sql_print_information("master sends heartbeat message");
@@ -1222,7 +1222,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
   size_t event_offset;
   char header[LOG_EVENT_MINIMAL_HEADER_LEN];
   int error= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const char *packet_buffer= NULL;
 #endif
 
@@ -1233,7 +1233,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
     DBUG_RETURN(1);
 
   event_offset= m_packet.length();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   packet_buffer= m_packet.ptr();
 #endif
 
@@ -1267,7 +1267,7 @@ inline int Binlog_sender::read_event(IO_CACHE *log_cache, enum_binlog_checksum_a
              ("Read event %s",
               Log_event::get_type_str(Log_event_type
                                       ((*event_ptr)[EVENT_TYPE_OFFSET]))));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (check_event_count())
     DBUG_RETURN(1);
 #endif
@@ -1390,7 +1390,7 @@ inline int Binlog_sender::after_send_hook(const char *log_file,
   return 0;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern int max_binlog_dump_events;
 
 inline int Binlog_sender::check_event_count()
@@ -1485,7 +1485,7 @@ inline bool Binlog_sender::shrink_packet()
     else
       m_half_buffer_size_req_counter= 0;
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (res == false)
   {
     assert(m_new_shrink_size <= cur_buffer_size);
