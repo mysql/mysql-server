@@ -91,7 +91,7 @@ void Gtid_set::init()
   if (sid_lock)
     mysql_mutex_init(key_gtid_executed_free_intervals_mutex,
                      &free_intervals_mutex, NULL);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   n_chunks= 0;
 #endif
   DBUG_VOID_RETURN;
@@ -107,7 +107,7 @@ Gtid_set::~Gtid_set()
     Interval_chunk *next_chunk= chunk->next;
     my_free(chunk);
     chunk= next_chunk;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     n_chunks--;
 #endif
   }
@@ -241,7 +241,7 @@ void Gtid_set::create_new_chunk(int size)
   // store the chunk in the list of chunks
   new_chunk->next= chunks;
   chunks= new_chunk;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   n_chunks++;
 #endif
   // add the intervals in the chunk to the list of free intervals
@@ -978,7 +978,7 @@ static size_t get_string_length(rpl_gno gno)
     tmp_gno /= 10;
     len++;
   } while (tmp_gno != 0);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[22];
   assert(my_snprintf(buf, 22, "%lld", gno) == len);
 #endif

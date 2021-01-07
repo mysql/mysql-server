@@ -604,7 +604,7 @@ static struct my_option my_long_options[] =
   {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
     NULL, NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
   { "debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",

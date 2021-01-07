@@ -3947,7 +3947,7 @@ EventBufData_list::add_gci_op(Gci_op g)
       m_gci_op_alloc = n;
     }
     assert(m_gci_op_count < m_gci_op_alloc);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     i = m_gci_op_count;
 #endif
     m_gci_op_list[m_gci_op_count++] = g;

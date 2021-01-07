@@ -110,7 +110,7 @@ static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
   "and NULLS_IGNORED", NULL, NULL,
   MI_STATS_METHOD_NULLS_NOT_EQUAL, &myisam_stats_method_typelib);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Causes the thread to wait in a spin lock for a query kill signal.
   This function is used by the test frame work to identify race conditions.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ int main(int argc, char** argv){
   const char *load_default_groups[]= { "mysql_cluster",0 };
   ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
   int ho_error;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_connect.trace";
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 

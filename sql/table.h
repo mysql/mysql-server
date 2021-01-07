@@ -321,7 +321,7 @@ struct GRANT_INFO
      The set is implemented as a bitmap, with the bits defined in sql_acl.h.
    */
   ulong privilege;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      @brief the set of privileges that the current user needs to fulfil in
      order to carry out the requested operation. Used in debug build to
@@ -2882,7 +2882,7 @@ static inline void tmp_restore_column_map(MY_BITMAP *bitmap,
 static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
                                                       MY_BITMAP *bitmap)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   return tmp_use_all_columns(table, bitmap);
 #else
   return 0;
@@ -2892,7 +2892,7 @@ static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
 static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
                                                my_bitmap_map *old)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   tmp_restore_column_map(bitmap, old);
 #endif
 }
@@ -2907,7 +2907,7 @@ static inline void dbug_tmp_use_all_columns(TABLE *table,
                                             MY_BITMAP *read_set,
                                             MY_BITMAP *write_set)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   save[0]= read_set->bitmap;
   save[1]= write_set->bitmap;
   (void) tmp_use_all_columns(table, read_set);
@@ -2920,7 +2920,7 @@ static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
                                                 MY_BITMAP *write_set,
                                                 my_bitmap_map **old)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   tmp_restore_column_map(read_set, old[0]);
   tmp_restore_column_map(write_set, old[1]);
 #endif

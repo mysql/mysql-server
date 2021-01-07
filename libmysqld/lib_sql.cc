@@ -1312,7 +1312,7 @@ void Protocol_text::start_row()
   data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
   next_mysql_field= data->embedded_info->fields_list;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   field_pos= 0;
 #endif
 

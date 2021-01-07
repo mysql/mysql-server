@@ -30,7 +30,7 @@
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ulong w_rr= 0;
   uint mts_debug_concurrent_access= 0;
 #endif
@@ -87,7 +87,7 @@ bool handle_slave_worker_stop(Slave_worker *worker,
     worker->exit_incremented= true;
     assert(!is_mts_worker(current_thd));
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   else
     assert(is_mts_worker(current_thd));
 #endif
@@ -312,7 +312,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   jobs.entry= jobs.size= c_rli->mts_slave_worker_queue_len_max;
   jobs.inited_queue= true;
   curr_group_seen_begin= curr_group_seen_gtid= false;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   curr_group_seen_sequence_number= false;
 #endif
   jobs.m_Q.resize(jobs.size, empty);
@@ -1135,7 +1135,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
         thd->temporary_tables= NULL;
       }
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     else
     {
       // all entries must have been emptied from temps by the caller
@@ -1281,7 +1281,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
       if (entry->worker != this) // Coordinator is waiting
       {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         // TODO: open it! assert(usage_partition || !entry->worker->jobs.len);
 #endif
         DBUG_PRINT("info",
@@ -1363,7 +1363,7 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
       mysql_mutex_unlock(&c_rli->mts_gaq_LOCK);
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     curr_group_seen_sequence_number= false;
 #endif
   }
@@ -1402,7 +1402,7 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k)
       return i > k;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 bool Slave_committed_queue::count_done(Relay_log_info* rli)
 {
   ulong i, k, cnt= 0;
@@ -1460,7 +1460,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
     Slave_job_group *ptr_g;
     char grl_name[FN_REFLEN];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
         cnt == opt_mts_checkpoint_period)
       DBUG_RETURN(cnt);
@@ -1499,7 +1499,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
       Removes the job from the (G)lobal (A)ssigned (Q)ueue.
     */
     Slave_job_group g= Slave_job_group();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     ulong ind=
 #endif
       de_queue(&g);
@@ -1519,7 +1519,7 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws)
     assert(ind == i);
     assert(!ptr_g->group_relay_log_name);
     assert(ptr_g->total_seqno == lwm.total_seqno);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       ulonglong l= last_done[w_i->id];
       /*
@@ -1706,7 +1706,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   this->va_report(level, err_code, buff_coord, msg, args);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool may_have_timestamp(Log_event *ev)
 {
   bool res= false;
@@ -1791,7 +1791,7 @@ int Slave_worker::slave_worker_exec_event(Log_event *ev)
   ev->thd= thd; // todo: assert because up to this point, ev->thd == 0
   ev->worker= this;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!is_mts_db_partitioned(rli) && may_have_timestamp(ev) &&
       !curr_group_seen_sequence_number)
   {
@@ -1969,7 +1969,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
       {
         error= ER_LOCK_DEADLOCK;
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       else
       {
         /*
@@ -2737,7 +2737,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
   /* The group is applied successfully, so error should be 0 */
   worker->slave_worker_ends_group(ev, 0);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"
                      " %u processed %lu debug %d\n", worker->id, opt_mts_checkpoint_group,
                      worker->groups_done,

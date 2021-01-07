@@ -375,7 +375,7 @@ public:
     Table record buffer used by this quick select.
   */
   uchar    *record;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Print quick select information to DBUG_FILE. Caller is responsible
     for locking DBUG_FILE before this call and unlocking it afterwards.
@@ -507,7 +507,7 @@ public:
   virtual bool is_agg_loose_index_scan() const { return false; }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose);
 #endif
   QUICK_SELECT_I *make_reverse(uint used_key_parts_arg);
@@ -616,7 +616,7 @@ public:
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
   bool is_keys_used(const MY_BITMAP *fields);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose);
 #endif
 
@@ -708,7 +708,7 @@ public:
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
   bool is_keys_used(const MY_BITMAP *fields);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose);
 #endif
   int init_ror_merged_scan(bool reuse_handler);
@@ -807,7 +807,7 @@ public:
   void add_keys_and_lengths(String *key_names, String *used_lengths);
   void add_info_string(String *str);
   bool is_keys_used(const MY_BITMAP *fields);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose);
 #endif
 
@@ -963,7 +963,7 @@ public:
   virtual bool is_loose_index_scan() const { return true; }
   virtual bool is_agg_loose_index_scan() const { return is_agg_distinct(); }
   void add_keys_and_lengths(String *key_names, String *used_lengths);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void dbug_dump(int indent, bool verbose);
 #endif
   bool is_agg_distinct() const { return have_agg_distinct; }

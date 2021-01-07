@@ -2296,7 +2296,7 @@ public:
       exception now. We do so nonetheless for potential mis-use of exceptions
       in futher code.
     */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     try
     {
 #endif
@@ -2304,7 +2304,7 @@ public:
         return;
       if (m_geo_vect != NULL)
         clear_wkb_data();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     }
     catch (...)
     {

@@ -20,9 +20,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 // This code can be used only in debug builds.
-#error You cannot use test trace plugin when DBUG_OFF is defined. \
+#error You cannot use test trace plugin when NDEBUG is defined. \
        Test trace plugin will work in debug builds only.
 #else
 
@@ -1426,4 +1426,4 @@ int check_event_DISCONNECTED(MYSQL *conn,
 
 } // namespace test_trace
 
-#endif // #if defined(DBUG_OFF)
+#endif // #if defined(NDEBUG)

@@ -116,13 +116,13 @@ class my_decimal :public decimal_t
     To catch them, we allocate dummy fields around the buffer,
     and test that their values do not change.
    */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int foo1;
 #endif
 
   decimal_digit_t buffer[DECIMAL_BUFF_LENGTH];
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int foo2;
   static const int test_value= 123;
 #endif
@@ -132,7 +132,7 @@ public:
   my_decimal(const my_decimal &rhs) : decimal_t(rhs)
   {
     rhs.sanity_check();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     foo1= test_value;
     foo2= test_value;
 #endif
@@ -156,7 +156,7 @@ public:
 
   void init()
   {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     foo1= test_value;
     foo2= test_value;
 #endif
@@ -205,7 +205,7 @@ public:
 };
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void print_decimal(const my_decimal *dec);
 void print_decimal_buff(const my_decimal *dec, const uchar* ptr, int length);
 const char *dbug_decimal_as_string(char *buff, const my_decimal *val);

@@ -3706,7 +3706,7 @@ Prepared_statement::reprepare()
 
     swap_prepared_statement(&copy);
     swap_parameter_array(param_array, copy.param_array, param_count);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     is_reprepared= TRUE;
 #endif
     /*

@@ -102,7 +102,7 @@
 #include <signal.h>
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 
 /*

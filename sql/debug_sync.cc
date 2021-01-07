@@ -762,7 +762,7 @@ static char *debug_sync_bmove_len(char *to, char *to_end,
 }
 
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 /**
   Create a string that describes an action.
@@ -853,7 +853,7 @@ static void debug_sync_print_actions(THD *thd)
   DBUG_VOID_RETURN;
 }
 
-#endif /* !defined(DBUG_OFF) */
+#endif /* !defined(NDEBUG) */
 
 
 /**
@@ -1889,7 +1889,7 @@ static inline void clear_signal_event(const std::string *signal_name)
 
 static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const char *dsp_name= action->sync_point.c_ptr();
   const char *sig_emit= action->signal.c_ptr();
   const char *sig_wait= action->wait_for.c_ptr();

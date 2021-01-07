@@ -575,7 +575,7 @@ int group_replication_trans_before_commit(Trans_param *param)
     /* purecov: end */
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("test_basic_CRUD_operations_sql_service_interface",
                   {
                     DBUG_SET("-d,test_basic_CRUD_operations_sql_service_interface");

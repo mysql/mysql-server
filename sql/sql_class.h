@@ -714,7 +714,7 @@ mysqld_collation_get_by_name(const char *name,
 #ifdef MYSQL_SERVER
 
 /* The following macro is to make init of Query_arena simpler */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= FALSE;
 #else
 #define INIT_ARENA_DBUG_INFO
@@ -729,7 +729,7 @@ public:
   */
   Item *free_list;
   MEM_ROOT *mem_root;                   // Pointer to current memroot
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool is_backup_arena; /* True if this arena is used for backup. */
   bool is_reprepared;
 #endif
@@ -902,7 +902,7 @@ enum enum_locked_tables_mode
   LTM_PRELOCKED_UNDER_LOCK_TABLES
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Getter for the enum enum_locked_tables_mode
   @param locked_tables_mode enum for types of locked tables mode
@@ -1783,7 +1783,7 @@ public:
 
   SSL_handle get_ssl() const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (current_thd != this)
     {
       /*
@@ -1853,7 +1853,7 @@ public:
   public:
     /// Asserts that current_thd has locked this plan, if it does not own it.
     void assert_plan_is_locked_if_other() const
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {}
 #else
     ;
@@ -1938,7 +1938,7 @@ public:
     chapter 'Miscellaneous functions', for functions GET_LOCK, RELEASE_LOCK.
   */
   HASH ull_hash;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint dbug_sentry; // watch out for memory corruption
 #endif
   bool is_killable;
@@ -4351,7 +4351,7 @@ public:
   */
   const LEX_CSTRING &query() const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (current_thd != this)
       mysql_mutex_assert_owner(&LOCK_thd_query);
 #endif
@@ -4432,7 +4432,7 @@ public:
     is set on), the caller must hold LOCK_thd_query while calling this!
   */
   const String &rewritten_query() const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (current_thd != this)
       mysql_mutex_assert_owner(&LOCK_thd_query);
 #endif

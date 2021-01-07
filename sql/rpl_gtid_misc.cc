@@ -186,7 +186,7 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const
   }
   else
   {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     /*
       NULL is only allowed in debug mode, since the sidno does not
       make sense for users but is useful to include in debug
@@ -241,7 +241,7 @@ bool Gtid::is_valid(const char *text)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void check_return_status(enum_return_status status, const char *action,
                          const char *status_name, int allow_unreported)
 {
@@ -250,7 +250,7 @@ void check_return_status(enum_return_status status, const char *action,
     assert(allow_unreported || status == RETURN_STATUS_REPORTED_ERROR);
     if (status == RETURN_STATUS_REPORTED_ERROR)
     {
-#if !defined(MYSQL_CLIENT) && !defined(DBUG_OFF)
+#if !defined(MYSQL_CLIENT) && !defined(NDEBUG)
       THD *thd= current_thd;
       /*
         We create a new system THD with 'SYSTEM_THREAD_COMPRESS_GTID_TABLE'
@@ -268,7 +268,7 @@ void check_return_status(enum_return_status status, const char *action,
     DBUG_PRINT("info", ("%s error %d (%s)", action, status, status_name));
   }
 }
-#endif // ! DBUG_OFF
+#endif // ! NDEBUG
 
 
 #ifndef MYSQL_CLIENT

@@ -639,7 +639,7 @@ public:
   virtual bool change_query_result(Item_subselect *si,
                                    Query_result_subquery *result)= 0;
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      @returns the internal Item. Defined only in debug builds, because should
      be used only for debug asserts.

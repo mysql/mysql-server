@@ -434,7 +434,7 @@ int init_slave()
                                                           &channel_map)))
     sql_print_error("Failed to create or recover replication info repositories.");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* @todo: Print it for all the channels */
   {
     Master_info *default_mi;
@@ -1901,7 +1901,7 @@ terminate_slave_thread(THD *thd,
     */
     struct timespec abstime;
     set_timespec(&abstime,2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error=
 #endif
       mysql_cond_timedwait(term_cond, term_lock, &abstime);
@@ -2573,7 +2573,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                     assert(!debug_sync_set_action(current_thd,
                                                   STRING_WITH_LEN(act)));
                   };);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("dbug.simulate_no_such_var_server_uuid",
 		  {
 		    query_buf[strlen(query_buf) - 1]= '_'; // currupt the last char
@@ -3377,7 +3377,7 @@ static bool wait_for_relay_log_space(Relay_log_info* rli)
    */
   if (rli->ignore_log_space_limit)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       char llbuf1[22], llbuf2[22];
       DBUG_PRINT("info", ("log_space_limit=%s "
@@ -4288,7 +4288,7 @@ void set_slave_thread_default_charset(THD* thd, Relay_log_info const *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int simulate_error= 0;
 #endif
   thd->system_thread= (thd_type == SLAVE_THD_WORKER) ? 
@@ -4320,7 +4320,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
                   simulate_error|= (1 << SLAVE_THD_IO););
   DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_SQL););
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   if (thd->store_globals() || simulate_error & (1<< thd_type))
 #else
   if (thd->store_globals())
@@ -4535,7 +4535,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
     my_real_read() will time us out
     We check if we were told to die, and if not, try reading again
   */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (disconnect_slave_event_count && !(mi->events_until_exit--))
     DBUG_RETURN(packet_error);
 #endif
@@ -4761,7 +4761,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
   {
     reason= ev->shall_skip(rli);
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (rli->is_mts_recovery())
   {
     DBUG_PRINT("mts", ("Mts is recovering %d, number of bits set %d, "
@@ -4929,7 +4929,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
          (ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
           bitmap_is_set(&rli->recovery_groups, rli->mts_recovery_index))))
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       /*
         This only prints information to the debug trace.
         
@@ -4969,7 +4969,7 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
       if (skip_event)
         free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       DBUG_PRINT("info", ("update_pos error = %d", error));
       if (!rli->belongs_to_client())
       {
@@ -5597,7 +5597,7 @@ extern "C" void *handle_slave_io(void *arg)
   bool suppress_warnings;
   int ret;
   int binlog_version;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint retry_count_reg= 0, retry_count_dump= 0, retry_count_event= 0;
 #endif
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
@@ -5613,7 +5613,7 @@ extern "C" void *handle_slave_io(void *arg)
   /* Inform waiting threads that slave has started */
   mi->slave_run_id++;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mi->events_until_exit = disconnect_slave_event_count;
 #endif
 
@@ -5946,7 +5946,7 @@ Stopping slave I/O thread due to out-of-memory error from master");
         for no reason, but this function will do a clean read, notice the clean
         value and exit immediately.
       */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       {
         char llbuf1[22], llbuf2[22];
         DBUG_PRINT("info", ("log_space_limit=%s log_space_total=%s \
@@ -6628,7 +6628,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
                                 ev->common_header->log_pos);
           if ((ret= mts_event_coord_cmp(&ev_coord, &w_last)) == 0)
           {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
             for (uint i= 0; i <= w->checkpoint_seqno; i++)
             {
               if (bitmap_is_set(&w->group_executed, i))
@@ -6716,7 +6716,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
 
   DBUG_ENTER("checkpoint_routine");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
   {
     if (!rli->gaq->count_done(rli))
@@ -6766,7 +6766,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
 
     if (!is_mts_db_partitioned(rli))
       mysql_mutex_unlock(&rli->mts_gaq_LOCK);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
         cnt != opt_mts_checkpoint_period)
       sql_print_error("This an error cnt != mts_checkpoint_period");
@@ -6866,7 +6866,7 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   /* end-of "Coordinator::"commit_positions" */
 
 end:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
     DBUG_SUICIDE();
   DBUG_EXECUTE_IF("mts_checkpoint",
@@ -7254,7 +7254,7 @@ extern "C" void *handle_slave_sql(void *arg)
   assert(!rli->slave_running);
   errmsg= 0;
   error_string= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   rli->events_until_exit = abort_slave_event_count;
 #endif
 
@@ -7413,7 +7413,7 @@ extern "C" void *handle_slave_sql(void *arg)
     goto err;
   }
   THD_CHECK_SENTRY(thd);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     char llbuf1[22], llbuf2[22];
     DBUG_PRINT("info", ("my_b_tell(rli->cur_log)=%s rli->event_relay_log_pos=%s",
@@ -7861,7 +7861,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
   mi->set_master_log_pos(rev->pos);
   DBUG_PRINT("info", ("new (master_log_name, master_log_pos): ('%s', %lu)",
                       mi->get_master_log_name(), (ulong) mi->get_master_log_pos()));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     If we do not do this, we will be getting the first
     rotate event forever, so we need to not disconnect after one.
@@ -8753,7 +8753,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
         */
       if (event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT)
       {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         if (!mi->get_last_gtid_queued()->is_empty())
         {
           DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
@@ -8857,7 +8857,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   size_t password_size= sizeof(password);
   DBUG_ENTER("connect_to_master");
   set_slave_max_allowed_packet(thd, mysql);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mi->events_until_exit = disconnect_slave_event_count;
 #endif
   ulong client_flag= CLIENT_REMEMBER_OPTIONS;
@@ -9092,7 +9092,7 @@ static Log_event* next_event(Relay_log_info* rli)
 
   assert(thd != 0);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (abort_slave_event_count && !rli->events_until_exit--)
     DBUG_RETURN(0);
 #endif
@@ -9153,7 +9153,7 @@ static Log_event* next_event(Relay_log_info* rli)
         mysql_mutex_unlock(log_lock);
       goto err;
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       DBUG_PRINT("info", ("assertion skip %lu file pos %lu event relay log pos %lu file %s\n",
         (ulong) rli->slave_skip_counter, (ulong) my_b_tell(cur_log),
@@ -10074,7 +10074,7 @@ bool start_slave(THD* thd,
           else
             mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         if (!DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
 #endif
           mi->rli->checkpoint_group= opt_mts_checkpoint_group;

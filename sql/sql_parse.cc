@@ -1732,7 +1732,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     if (check_global_access(thd,RELOAD_ACL))
       break;
     query_logger.general_log_print(thd, command, NullS);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool debug_simulate= FALSE;
     DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= TRUE;);
     if (debug_simulate)
@@ -2710,7 +2710,7 @@ mysql_execute_command(THD *thd, bool first_level)
   }
 #endif /* !EMBEDDED_LIBRARY */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (lex->sql_command != SQLCOM_SET_OPTION)
     DEBUG_SYNC(thd,"before_execute_sql_command");
 #endif
@@ -4728,7 +4728,7 @@ end_with_restore_list:
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       sp_head *sp;
       enum_sp_type sp_type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE) ?
                             SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
@@ -4747,7 +4747,7 @@ end_with_restore_list:
       my_error(ER_FEATURE_DISABLED, MYF(0),
                "SHOW PROCEDURE|FUNCTION CODE", "--with-debug");
       goto error;
-#endif // ifndef DBUG_OFF
+#endif // ifndef NDEBUG
     }
   case SQLCOM_SHOW_CREATE_TRIGGER:
     {
@@ -5009,7 +5009,7 @@ finish:
   THD_STAGE_INFO(thd, stage_closing_tables);
   close_thread_tables(thd);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (lex->sql_command != SQLCOM_SET_OPTION && ! thd->in_sub_stmt)
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
@@ -5179,7 +5179,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
 #define used_stack(A,B) (long) (B - A)
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 long max_stack_used;
 #endif
 
@@ -5211,7 +5211,7 @@ bool check_stack_overrun(THD *thd, long margin,
     }
     return 1;
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   max_stack_used= max(max_stack_used, stack_used);
 #endif
   return 0;

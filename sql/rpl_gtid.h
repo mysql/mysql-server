@@ -129,7 +129,7 @@ enum enum_return_status
   Lowest level macro used in the PROPAGATE_* and RETURN_* macros
   below.
 
-  If DBUG_OFF is defined, does nothing. Otherwise, if STATUS is
+  If NDEBUG is defined, does nothing. Otherwise, if STATUS is
   RETURN_STATUS_OK, does nothing; otherwise, make a dbug printout and
   (if ALLOW_UNREPORTED==0) assert that STATUS !=
   RETURN_STATUS_UNREPORTED.
@@ -142,7 +142,7 @@ enum enum_return_status
   @param ALLOW_UNREPORTED If false, the macro asserts that STATUS is
   not RETURN_STATUS_UNREPORTED_ERROR.
 */
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define __CHECK_RETURN_STATUS(STATUS, ACTION, STATUS_NAME, ALLOW_UNREPORTED)
 #else
 extern void check_return_status(enum_return_status status,
@@ -345,7 +345,7 @@ enum enum_gtid_mode_lock
 */
 enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Return the current GTID_MODE as a string. Used only for debugging.
 
@@ -355,7 +355,7 @@ inline const char *get_gtid_mode_string(enum_gtid_mode_lock have_lock)
 {
   return get_gtid_mode_string(get_gtid_mode(have_lock));
 }
-#endif // ifndef DBUG_OFF
+#endif // ifndef NDEBUG
 
 
 /**
@@ -453,7 +453,7 @@ public:
 #endif
                    )
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     my_atomic_store32(&lock_state, 0);
     dbug_trace= true;
 #else
@@ -476,7 +476,7 @@ public:
   {
     mysql_rwlock_rdlock(&rwlock);
     assert_no_wrlock();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (dbug_trace)
       DBUG_PRINT("info", ("%p.rdlock()", this));
     my_atomic_add32(&lock_state, 1);
@@ -487,7 +487,7 @@ public:
   {
     mysql_rwlock_wrlock(&rwlock);
     assert_no_lock();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (dbug_trace)
       DBUG_PRINT("info", ("%p.wrlock()", this));
     my_atomic_store32(&lock_state, -1);
@@ -499,7 +499,7 @@ public:
   inline void unlock()
   {
     assert_some_lock();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (dbug_trace)
       DBUG_PRINT("info", ("%p.unlock()", this));
     int val= my_atomic_load32(&lock_state);
@@ -521,7 +521,7 @@ public:
   inline bool is_wrlock()
   {
     assert_some_lock();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     return get_state() == -1;
 #else
     return is_write_lock;
@@ -547,7 +547,7 @@ public:
   inline void assert_no_lock() const
   { assert(get_state() == 0); }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
   /// If enabled, print any lock/unlock operations to the DBUG trace.
   bool dbug_trace;
@@ -831,21 +831,21 @@ public:
   }
   /**
     Assert that this thread owns the n'th mutex.
-    This is a no-op if DBUG_OFF is on.
+    This is a no-op if NDEBUG is on.
   */
   inline void assert_owner(int n) const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     mysql_mutex_assert_owner(&get_mutex_cond(n)->mutex);
 #endif
   }
   /**
     Assert that this thread does not own the n'th mutex.
-    This is a no-op if DBUG_OFF is on.
+    This is a no-op if NDEBUG is on.
   */
   inline void assert_not_owner(int n) const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     mysql_mutex_assert_not_owner(&get_mutex_cond(n)->mutex);
 #endif
   }
@@ -1035,7 +1035,7 @@ struct Gtid
   */
   enum_return_status parse(Sid_map *sid_map, const char *text);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /// Debug only: print this Gtid to stdout.
   void print(const Sid_map *sid_map) const
   {
@@ -1048,7 +1048,7 @@ struct Gtid
   void dbug_print(const Sid_map *sid_map, const char *text= "",
                   bool need_lock= false) const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char buf[MAX_TEXT_LENGTH + 1];
     to_string(sid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
@@ -1417,7 +1417,7 @@ public:
   */
   long to_string(char **buf, bool need_lock= false,
                  const String_format *string_format= NULL) const;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /// Debug only: Print this Gtid_set to stdout.
   void print(bool need_lock= false,
              const Gtid_set::String_format *sf= NULL) const
@@ -1435,7 +1435,7 @@ public:
   void dbug_print(const char *text= "", bool need_lock= false,
                   const Gtid_set::String_format *sf= NULL) const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char *str;
     to_string(&str, need_lock, sf);
     DBUG_PRINT("info", ("%s%s'%s'",
@@ -1949,7 +1949,7 @@ private:
   mutable size_t cached_string_length;
   /// The String_format that was used when cached_string_length was computed.
   mutable const String_format *cached_string_format;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     The number of chunks.  Used only to check some invariants when
     DBUG is on.
@@ -2174,7 +2174,7 @@ public:
     return false;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Debug only: return a newly allocated string representation of
     this Owned_gtids.
@@ -2201,7 +2201,7 @@ public:
   */
   void dbug_print(const char *text= "") const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char *str= to_string();
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
     my_free(str);
@@ -2257,7 +2257,7 @@ public:
     /// Advance to next group.
     inline void next()
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (owned_gtids->sid_lock)
         owned_gtids->sid_lock->assert_some_wrlock();
 #endif
@@ -2484,7 +2484,7 @@ public:
     DBUG_ENTER("Gtid_state::acquire_anonymous_ownership");
     sid_lock->assert_some_lock();
     assert(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int32 old_value=
 #endif
       anonymous_gtid_count.atomic_add(1);
@@ -2499,7 +2499,7 @@ public:
     DBUG_ENTER("Gtid_state::release_anonymous_ownership");
     sid_lock->assert_some_lock();
     assert(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int32 old_value=
 #endif
       anonymous_gtid_count.atomic_add(-1);
@@ -2523,7 +2523,7 @@ public:
     DBUG_ENTER("Gtid_state::begin_automatic_gtid_violating_transaction");
     assert(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
     assert(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int32 old_value=
 #endif
       automatic_gtid_violation_count.atomic_add(1);
@@ -2539,7 +2539,7 @@ public:
   void end_automatic_gtid_violating_transaction()
   {
     DBUG_ENTER("Gtid_state::end_automatic_gtid_violating_transaction");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     global_sid_lock->rdlock();
     assert(get_gtid_mode(GTID_MODE_LOCK_SID) <= GTID_MODE_OFF_PERMISSIVE);
     assert(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
@@ -2570,7 +2570,7 @@ public:
     DBUG_ENTER("Gtid_state::begin_anonymous_gtid_violating_transaction");
     assert(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
     assert(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int32 old_value=
 #endif
       anonymous_gtid_violation_count.atomic_add(1);
@@ -2586,7 +2586,7 @@ public:
   void end_anonymous_gtid_violating_transaction()
   {
     DBUG_ENTER("Gtid_state::end_anonymous_gtid_violating_transaction");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     global_sid_lock->rdlock();
     assert(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_ON);
     assert(get_gtid_consistency_mode() != GTID_CONSISTENCY_MODE_ON);
@@ -2618,7 +2618,7 @@ public:
   {
     DBUG_ENTER("Gtid_state::begin_gtid_wait");
     assert(get_gtid_mode(gtid_mode_lock) != GTID_MODE_OFF);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int32 old_value=
 #endif
       gtid_wait_count.atomic_add(1);
@@ -2637,7 +2637,7 @@ public:
   {
     DBUG_ENTER("Gtid_state::end_gtid_wait");
     assert(get_gtid_mode(GTID_MODE_LOCK_NONE) != GTID_MODE_OFF);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int32 old_value=
 #endif
       gtid_wait_count.atomic_add(-1);
@@ -2850,7 +2850,7 @@ public:
   {
     return global_sid_map->sidno_to_sid(server_sidno);
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Debug only: Returns an upper bound on the length of the string
     generated by to_string(), not counting '\0'.  The actual length
@@ -2901,7 +2901,7 @@ public:
   */
   void dbug_print(const char *text= "") const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     sid_lock->assert_some_wrlock();
     char *str= to_string();
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", str));
@@ -3508,7 +3508,7 @@ struct Gtid_specification
     @buf[out]
   */
   int to_string(const rpl_sid *sid, char *buf) const;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /// Debug only: print this Gtid_specification to stdout.
   void print() const
   {
@@ -3523,7 +3523,7 @@ struct Gtid_specification
   */
   void dbug_print(const char *text= "", bool need_lock= false) const
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char buf[MAX_TEXT_LENGTH + 1];
     to_string(global_sid_map, buf, need_lock);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));

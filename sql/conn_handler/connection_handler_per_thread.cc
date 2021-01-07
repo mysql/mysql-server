@@ -418,9 +418,9 @@ bool Per_thread_connection_handler::add_connection(Channel_info* channel_info)
                              &connection_attrib,
                              handle_connection,
                              (void*) channel_info);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 handle_error:
-#endif // !DBUG_OFF
+#endif // !NDEBUG
 
   if (error)
   {

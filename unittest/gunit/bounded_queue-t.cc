@@ -189,7 +189,7 @@ private:
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef BoundedQueueTest BoundedQueueDeathTest;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 /*
   Verifies that we assert if trying to push to an un-initialized queue.
  */
@@ -212,7 +212,7 @@ TEST_F(BoundedQueueDeathTest, DieIfPoppingEmptyQueue)
   EXPECT_DEATH_IF_SUPPORTED(m_queue.pop(),
                             ".*Assertion .*elements > 0.*");
 }
-#endif  // !defined(DBUG_OFF)
+#endif  // !defined(NDEBUG)
 
 
 /*

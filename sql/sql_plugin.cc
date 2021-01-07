@@ -63,7 +63,7 @@ using std::max;
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static PSI_memory_key key_memory_plugin_ref;
 #endif
 
@@ -847,7 +847,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
   if (pi->state & (PLUGIN_IS_READY | PLUGIN_IS_UNINITIALIZED))
   {
     plugin_ref plugin;
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     /* built-in plugins don't need ref counting */
     if (!pi->plugin_dl)
       DBUG_RETURN(pi);
@@ -1138,7 +1138,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
 
   pi= plugin_ref_to_int(plugin);
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   if (!pi->plugin_dl)
     DBUG_VOID_RETURN;
 #else
@@ -1184,7 +1184,7 @@ void plugin_unlock(THD *thd, plugin_ref plugin)
   DBUG_ENTER("plugin_unlock");
   if (!plugin)
     DBUG_VOID_RETURN;
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   /* built-in plugins don't need ref counting */
   if (!plugin_dlib(plugin))
     DBUG_VOID_RETURN;
@@ -1338,7 +1338,7 @@ static PSI_mutex_info all_plugin_mutexes[]=
 
 static PSI_memory_info all_plugin_memory[]=
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   { &key_memory_plugin_ref, "plugin_ref", PSI_FLAG_GLOBAL},
 #endif
   { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_GLOBAL},

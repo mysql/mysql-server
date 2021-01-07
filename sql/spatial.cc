@@ -1280,7 +1280,7 @@ bool Geometry::get_mbr_for_points(MBR *mbr, wkb_parser *wkb,
 
 Geometry::Geometry(const Geometry &geo)
 {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   wkbType geotype= geo.get_geotype();
 #endif
   assert(is_valid_geotype(geotype) &&
@@ -1308,13 +1308,13 @@ Geometry::~Geometry()
     problem we want to address/avoid by forbiding throwing exceptions in
     destructors of Geometry classes.
 
-    Since assert only works when DBUG_OFF is not defined, the
+    Since assert only works when NDEBUG is not defined, the
     try/catch is only enabled here depending on the same condition, so that
     in release builds we don't have the overhead of the try-catch statement.
 
     This is true also for destructors of children classes of Geometry.
   */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   try
   {
 #endif
@@ -1338,7 +1338,7 @@ Geometry::~Geometry()
 
     donate_data();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   }
   catch (...)
   {
@@ -1358,7 +1358,7 @@ Geometry &Geometry::operator=(const Geometry &rhs)
   if (this == &rhs)
     return *this;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   Geometry::wkbType geotype= rhs.get_geotype();
 #endif
   assert((is_bg_adapter() || rhs.is_bg_adapter()) &&
@@ -1878,7 +1878,7 @@ Gis_polygon::Gis_polygon(const void *wkb, size_t nbytes,
 Gis_polygon::~Gis_polygon()
 {
   /* See ~Geometry() for why we do try-catch like this. */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   try
   {
 #endif
@@ -1906,7 +1906,7 @@ Gis_polygon::~Gis_polygon()
       given to us, we don't own it; otherwise the two pieces are already freed
       above.
      */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   }
   catch (...)
   {
@@ -4389,7 +4389,7 @@ void Gis_wkb_vector<T>::reassemble()
         // component can be a multipoint/multilinestring/multipolygon or a
         // geometrycollection. And multipoint components are already supported
         // so not forbidding them here.
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
         Geometry::wkbType veci_gt= veci->get_geotype();
 #endif
         assert(veci_gt != wkb_geometrycollection &&
@@ -5041,7 +5041,7 @@ void Gis_wkb_vector<T>::resize(size_t sz)
     memset((get_cptr() + get_nbytes() - sublen), 0xff, sublen);
     set_nbytes(get_nbytes() - sublen);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     bool rsz_ret= m_geo_vect->resize(sz);
     assert(rsz_ret == false);
 #else

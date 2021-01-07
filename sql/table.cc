@@ -235,7 +235,7 @@ GRANT_INFO::GRANT_INFO()
   grant_table= 0;
   version= 0;
   privilege= NO_ACCESS;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   want_privilege= 0;
 #endif
 }
@@ -2680,7 +2680,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   bitmap_set_all(&share->all_set);
 
   delete handler_file;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (use_hash)
     (void) my_hash_check(&share->name_hash);
 #endif
@@ -5541,7 +5541,7 @@ TABLE_LIST *TABLE_LIST::last_leaf_for_name_resolution()
 
 void TABLE_LIST::set_want_privilege(ulong want_privilege)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Remove SHOW_VIEW_ACL, because it will be checked during making view
   want_privilege&= ~SHOW_VIEW_ACL;
 

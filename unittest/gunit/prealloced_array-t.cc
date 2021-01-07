@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ TEST_F(PreallocedArrayTest, Empty)
   EXPECT_EQ(0U, int_10.size());
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef PreallocedArrayTest PreallocedArrayDeathTest;
 
@@ -91,7 +91,7 @@ TEST_F(PreallocedArrayDeathTest, EmptyErase)
                             ".*Assertion .*ix < size.*");
 }
 
-#endif // DBUG_OFF
+#endif // NDEBUG
 
 TEST_F(PreallocedArrayTest, Insert5)
 {

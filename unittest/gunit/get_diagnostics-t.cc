@@ -155,7 +155,7 @@ TEST_F(GetDiagnosticsTest, Cmd)
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef GetDiagnosticsTest GetDiagnosticsTestDeathTest;
 
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem)
 {
   Item *var;
@@ -179,7 +179,7 @@ TEST_F(GetDiagnosticsTestDeathTest, DieWhenUnsettableItem)
 
   EXPECT_DEATH(cmd->execute(thd()), ".*Assertion.*srp.*");
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 
 class MockDiagInfoError : public Diagnostics_information
@@ -476,14 +476,14 @@ TEST_F(GetDiagnosticsTest, PushPopDiagnosticsArea)
 
 
 // Pop when there is just one diagnostics area = assert
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(GetDiagnosticsTestDeathTest, DiePopDiagnosticsArea)
 {
   ::testing::FLAGS_gtest_death_test_style= "threadsafe";
 
   EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 
 // Pushed diagnostics area should initially contain copy of conditions

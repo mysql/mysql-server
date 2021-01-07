@@ -356,7 +356,7 @@ void my_decimal_trim(ulong *precision, uint *scale)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* routines for debugging print */
 
 #define DIG_PER_DEC1 9
@@ -402,7 +402,7 @@ const char *dbug_decimal_as_string(char *buff, const my_decimal *val)
   return buff;
 }
 
-#endif /*DBUG_OFF*/
+#endif /*NDEBUG*/
 
 
 #endif /*MYSQL_CLIENT*/

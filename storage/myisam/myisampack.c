@@ -181,7 +181,7 @@ static int save_state_mrg(File file,PACK_MRG_INFO *isam_file,my_off_t new_length
 static int mrg_close(PACK_MRG_INFO *mrg);
 static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count);
 static int fakecmp(my_off_t **count1, my_off_t **count2);
 #endif
@@ -279,7 +279,7 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR_MP,
    "Directory where character sets are.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
@@ -3132,7 +3132,7 @@ static int mrg_close(PACK_MRG_INFO *mrg)
 }
 
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 /*
   Fake the counts to get big Huffman codes.
 

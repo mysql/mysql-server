@@ -914,7 +914,7 @@ public:
       trx_cache.reset();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool dbug_any_finalized() const {
     return stmt_cache.is_finalized() || trx_cache.is_finalized();
   }
@@ -1900,7 +1900,7 @@ inline int binlog_xa_commit_or_rollback(THD *thd, XID *xid, bool commit)
 {
   int error= 0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   binlog_cache_mngr *cache_mngr= thd_get_cache_mngr(thd);
   assert(!cache_mngr || !cache_mngr->has_logged_xid);
 #endif
@@ -2153,7 +2153,7 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   if (stage_mutex && need_unlock_stage_mutex)
     mysql_mutex_unlock(stage_mutex);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_PRINT("info", ("This is a leader thread: %d (0=n 1=y)", leader));
 
   DEBUG_SYNC(thd, "after_enrolling_for_stage");
@@ -2186,7 +2186,7 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   if (!leader)
   {
     mysql_mutex_lock(&m_lock_done);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     /*
       Leader can be awaiting all-clear to preempt follower's execution.
       With setting the status the follower ensures it won't execute anything
@@ -2241,7 +2241,7 @@ void Stage_manager::wait_count_or_timeout(ulong count, long usec, StageID stage)
 
   while (to_wait > 0 && (count == 0 || static_cast<ulong>(m_queue[stage].get_size()) < count))
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (current_thd)
       DEBUG_SYNC(current_thd, "bgc_wait_count_or_timeout");
 #endif
@@ -2259,7 +2259,7 @@ void Stage_manager::signal_done(THD *queue)
   mysql_cond_broadcast(&m_cond_done);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void Stage_manager::clear_preempt_status(THD *head)
 {
   assert(head);
@@ -2516,7 +2516,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       my_error(ER_RUN_HOOK_ERROR, MYF(0), "before_commit");
       DBUG_RETURN(RESULT_ABORTED);
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     /*
       XA rollback is always accepted.
     */
@@ -2821,7 +2821,7 @@ private:
 static int log_in_use(const char* log_name)
 {
   Log_in_use log_in_use(log_name);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (current_thd)
     DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
 #endif
@@ -3943,7 +3943,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
 
   assert(retrieved_gtids != NULL);
   assert(trx_parser != NULL);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   unsigned long event_counter= 0;
 #endif
 
@@ -3985,7 +3985,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
          NULL)
   {
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     event_counter++;
 #endif
 
@@ -4087,7 +4087,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
         error= true;
         break;
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
       DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
                           filename, prev_buffer));
@@ -4181,7 +4181,7 @@ read_gtids_and_update_trx_parser_from_relaylog(
   mysql_file_close(file, MYF(MY_WME));
   end_io_cache(&log);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   sql_print_information("%lu events read in relaylog file '%s' for updating "
                         "Retrieved_Gtid_Set and/or IO thread transaction "
                         "parser state.",
@@ -4245,7 +4245,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   File file;
   IO_CACHE log;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   unsigned long event_counter= 0;
   /*
     We assert here that both all_gtids and prev_gtids, if specified,
@@ -4285,7 +4285,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
          (ev= Log_event::read_log_event(&log, 0, fd_ev_p, verify_checksum)) !=
          NULL)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     event_counter++;
 #endif
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
@@ -4309,7 +4309,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         ret= ERROR, done= true;
       else if (prev_gtids != NULL && prev_gtids_ev->add_to_set(prev_gtids) != 0)
         ret= ERROR, done= true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
       DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
                           filename, prev_buffer));
@@ -4478,7 +4478,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     first_gtid->dbug_print(sid_map, "first_gtid");
 
   DBUG_PRINT("info", ("returning %d", ret));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!is_relay_log && prev_gtids != NULL &&
       all_gtids == NULL && first_gtid == NULL)
     sql_print_information("Read %lu events from binary log file '%s' to "
@@ -4616,7 +4616,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     If this is a relay log, we must have the IO thread Master_info trx_parser
     in order to correctly feed it with relay log events.
   */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (is_relay_log)
   {
     assert(trx_parser != NULL);
@@ -5026,7 +5026,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   bool write_file_name_to_index_file=0;
 
   /* This must be before goto err. */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   binary_log_debug::debug_pretend_version_50034_in_binlog=
     DBUG_EVALUATE_IF("pretend_version_50034_in_binlog", true, false);
 #endif
@@ -6888,7 +6888,7 @@ bool MYSQL_BIN_LOG::is_active(const char *log_file_name_arg)
 void MYSQL_BIN_LOG::inc_prep_xids(THD *thd)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int result= m_prep_xids.atomic_add(1);
   DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
 #else
@@ -7191,7 +7191,7 @@ bool MYSQL_BIN_LOG::after_append_to_relay_log(Master_info *mi)
   */
   bool can_rotate= mi->transaction_parser.is_not_inside_transaction();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if ((uint) my_b_append_tell(&log_file) >
       DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size) &&
       !can_rotate)
@@ -7761,7 +7761,7 @@ bool MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache, Binlog_event_writer *writer)
                     DBUG_RETURN(true);
                   });
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint64 expected_total_len= my_b_tell(cache);
 #endif
 
@@ -7910,7 +7910,7 @@ bool MYSQL_BIN_LOG::write_incident(Incident_log_event *ev, THD *thd,
       cache_mngr= thd_get_cache_mngr(thd);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (DBUG_EVALUATE_IF("simulate_write_incident_event_into_binlog_directly",
                        1, 0) && !cache_mngr->stmt_cache.is_binlog_empty())
   {
@@ -8359,7 +8359,7 @@ void MYSQL_BIN_LOG::close(uint exiting, bool need_lock_log,
 
 void MYSQL_BIN_LOG::harvest_bytes_written(Relay_log_info* rli, bool need_log_space_lock)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf1[22],buf2[22];
 #endif
   DBUG_ENTER("harvest_bytes_written");
@@ -8946,7 +8946,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
                                          THD **out_queue_var)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::process_flush_stage_queue");
-  #ifndef DBUG_OFF
+  #ifndef NDEBUG
   // number of flushes per group.
   int no_flushes= 0;
   #endif
@@ -8978,7 +8978,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
     total_bytes+= result.second;
     if (flush_error == 1)
       flush_error= result.first;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     no_flushes++;
 #endif
   }
@@ -8987,7 +8987,7 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   *total_bytes_var= total_bytes;
   if (total_bytes > 0 && my_b_tell(&log_file) >= (my_off_t) max_size)
     *rotate_var= true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_PRINT("info",("no_flushes:= %d", no_flushes));
   no_flushes= 0;
 #endif
@@ -9014,7 +9014,7 @@ void
 MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
 {
   mysql_mutex_assert_owner(&LOCK_commit);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   thd->get_transaction()->m_flags.ready_preempt= 1; // formality by the leader
 #endif
   for (THD *head= first ; head ; head = head->next_to_commit)
@@ -9030,7 +9030,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
       If flush succeeded, attach to the session and commit it in the
       engines.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     stage_manager.clear_preempt_status(head);
 #endif
     if (head->get_transaction()->sequence_number != SEQ_UNINIT)
@@ -9119,7 +9119,7 @@ MYSQL_BIN_LOG::process_after_commit_stage_queue(THD *thd, THD *first)
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Names for the stages. */
 static const char* g_stage_name[] = {
   "FLUSH",
@@ -9548,11 +9548,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   thd->get_transaction()->m_flags.xid_written= false;
   thd->get_transaction()->m_flags.commit_low= !skip_commit;
   thd->get_transaction()->m_flags.run_hooks= !skip_commit;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
      The group commit Leader may have to wait for follower whose transaction
      is not ready to be preempted. Initially the status is pessimistic.
-     Preemption guarding logics is necessary only when !DBUG_OFF is set.
+     Preemption guarding logics is necessary only when !NDEBUG is set.
      It won't be required for the dbug-off case as long as the follower won't
      execute any thread-specific write access code in this method, which is
      the case as of current.
@@ -10634,7 +10634,7 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
   }
   return FALSE;
 }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 const char * get_locked_tables_mode_name(enum_locked_tables_mode locked_tables_mode)
 {
    switch (locked_tables_mode)
@@ -10849,7 +10849,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       on modifying gtid_executed table.
     */
     int warned_gtid_executed_table= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       DBUG_PRINT("debug", ("prelocked_mode: %s",
                            get_locked_tables_mode_name(locked_tables_mode)));
@@ -11182,7 +11182,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
             || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           int flags= lex->get_stmt_unsafe_flags();
           DBUG_PRINT("info", ("setting row format for unsafe statement"));
           for (int i= 0; i < Query_tables_list::BINLOG_STMT_UNSAFE_COUNT; i++)
@@ -11668,7 +11668,7 @@ namespace {
     Row_data_memory(TABLE *table, size_t const len1)
       : m_memory(0)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       m_alloc_checked= FALSE;
 #endif
       allocate_memory(table, len1);
@@ -11679,7 +11679,7 @@ namespace {
     Row_data_memory(TABLE *table, size_t const len1, size_t const len2)
       : m_memory(0)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       m_alloc_checked= FALSE;
 #endif
       allocate_memory(table, len1 + len2);
@@ -11700,7 +11700,7 @@ namespace {
        @retval false Memory allocation failed
      */
     bool has_memory() const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       m_alloc_checked= TRUE;
 #endif
       return m_memory != 0;
@@ -11750,7 +11750,7 @@ namespace {
       }
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     mutable bool m_alloc_checked;
 #endif
     bool m_release_memory_on_destruction;
@@ -12031,7 +12031,7 @@ THD::binlog_row_event_extra_data_eq(const uchar* a,
                    a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 static const char *
 show_query_type(THD::enum_binlog_query_type qtype)
 {

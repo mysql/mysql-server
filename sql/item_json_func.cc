@@ -2051,7 +2051,7 @@ static inline bool wrapped_top_level_item(Json_path *path, Json_dom *v)
   if (v->parent())
     return false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (size_t i= 0; i < path->leg_count(); i++)
   {
     assert(path->get_leg_at(i)->get_type() == jpl_array_cell);

@@ -692,7 +692,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (mi_state_info_write(file, &share.state, 2) ||
       mi_base_info_write(file, &share.base))
     goto err;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if ((uint) mysql_file_tell(file, MYF(0)) != base_pos + MI_BASE_INFO_SIZE)
   {
     uint pos=(uint) mysql_file_tell(file, MYF(0));
@@ -787,7 +787,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     if (mi_recinfo_write(file, &recinfo[i]))
       goto err;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if ((uint) mysql_file_tell(file, MYF(0)) != info_length)
   {
     uint pos= (uint) mysql_file_tell(file, MYF(0));

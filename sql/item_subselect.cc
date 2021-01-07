@@ -414,7 +414,7 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
     checks.
   */
   assert(thd == unit->thd);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   // Engine accesses THD via its 'item' pointer, check it:
   assert(engine->get_item() == this);
 #endif
@@ -2580,7 +2580,7 @@ Item_in_subselect::select_in_like_transformer(SELECT_LEX *select,
 
   DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     IN/SOME/ALL/ANY subqueries don't support LIMIT clause. Without
     it, ORDER BY becomes meaningless and should already have been

@@ -4192,7 +4192,7 @@ err:
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 String *Item_func_like_range::val_str(String *str)
 {
   assert(fixed == 1);

@@ -51,7 +51,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec)
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
     if (thd->owned_gtid.sidno > 0)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       global_sid_lock->unlock();
       global_sid_lock->wrlock();
       assert(gtid_state->get_owned_gtids()->
@@ -370,7 +370,7 @@ static inline void skip_statement(const THD *thd)
                       thd->lex->sql_command,
                       thd->thread_id()));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
   global_sid_lock->rdlock();
   gtid_state->lock_sidno(thd->variables.gtid_next.gtid.sidno);

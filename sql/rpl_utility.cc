@@ -388,7 +388,7 @@ can_convert_field_to(Field *field,
                      int *order_var)
 {
   DBUG_ENTER("can_convert_field_to");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char field_type_buf[MAX_FIELD_WIDTH];
   String field_type(field_type_buf, sizeof(field_type_buf), &my_charset_latin1);
   field->sql_type(field_type);
@@ -708,7 +708,7 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (tmp_table)
   {
     for (unsigned int col= 0; col < tmp_table->s->fields; ++col)
@@ -968,7 +968,7 @@ table_def::table_def(unsigned char *types, ulong size,
 table_def::~table_def()
 {
   my_free(m_memory);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   m_type= 0;
   m_size= 0;
 #endif
@@ -1295,7 +1295,7 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
           crc= checksum_crc32(crc, f->ptr, f->data_length());
           break;
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       String tmp;
       f->val_str(&tmp);
       DBUG_PRINT("debug", ("make_hash_entry: hash after field %s=%s: %u", f->field_name, tmp.c_ptr_safe(), crc));

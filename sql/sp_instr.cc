@@ -1364,7 +1364,7 @@ bool sp_instr_jump_case_when::build_expr_items(THD *thd)
   if (!m_case_expr_item)
     return true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   m_case_expr_item->m_sp= thd->lex->sphead;
 #endif
 

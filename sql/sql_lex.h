@@ -703,7 +703,7 @@ public:
   void set_explain_marker(enum_parsing_context m);
   void set_explain_marker_from(const st_select_lex_unit *u);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Asserts that none of {this unit and its children units} is fully cleaned
      up.
@@ -2265,7 +2265,7 @@ public:
     STMT_ACCESS_TABLE_COUNT
   };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   static inline const char *stmt_accessed_table_string(enum_stmt_accessed_table accessed_table)
   {
     switch (accessed_table)
@@ -2388,7 +2388,7 @@ public:
 
       unsafe= (binlog_unsafe_map[stmt_accessed_table_flag] & condition);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       DBUG_PRINT("LEX::is_mixed_stmt_unsafe", ("RESULT %02X %02X %02X\n", condition,
               binlog_unsafe_map[stmt_accessed_table_flag],
               (binlog_unsafe_map[stmt_accessed_table_flag] & condition)));

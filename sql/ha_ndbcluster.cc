@@ -2240,7 +2240,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   for (unsigned i= 0; key_part != end; key_part++, i++) 
   {
     const char *field_name= key_part->field->field_name;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
    data.unique_index_attrid_map[i]= 255;
 #endif
     for (unsigned j= 0; j < sz; j++)
@@ -3105,7 +3105,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
   DBUG_PRINT("info", ("primary key update or partition change, "
                       "doing delete+insert"));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
    * 'old_data' contain colums as specified in 'read_set'.
    * All PK columns must be included for ::ndb_delete_row()
@@ -4057,7 +4057,7 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
   DBUG_ENTER("ha_ndbcluster::compute_index_bounds");
   DBUG_PRINT("info", ("from: %d", from));
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_PRINT("info", ("key parts: %u length: %u",
                       key_info->user_defined_key_parts, key_info->key_length));
   {
@@ -4694,7 +4694,7 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
       ndbcluster_anyvalue_set_nologging(options->anyValue);
     }
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("ndb_set_reflect_anyvalue",
                   {
                     fprintf(stderr, "Ndb forcing reflect AnyValue\n");
@@ -5197,7 +5197,7 @@ handle_conflict_op_error(NdbTransaction* trans,
     const NdbRecord* data_rec= ex_data.data_rec;
     const uchar* old_row= ex_data.old_row;
     const uchar* new_row= ex_data.new_row;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     const uchar* row=
       (ex_data.op_type == DELETE_ROW)?
       ex_data.old_row : ex_data.new_row;
@@ -7012,7 +7012,7 @@ void ha_ndbcluster::print_results()
 {
   DBUG_ENTER("print_results");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
   char buf_type[MAX_FIELD_WIDTH], buf_val[MAX_FIELD_WIDTH];
   String type(buf_type, sizeof(buf_type), &my_charset_bin);
@@ -7557,7 +7557,7 @@ void ha_ndbcluster::position(const uchar *record)
     }
     else
       key_length= ref_length;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int hidden_no= table->s->fields;
     const NDBTAB *tab= m_table;  
     const NDBCOL *hidden_col= tab->getColumn(hidden_no);
@@ -7567,7 +7567,7 @@ void ha_ndbcluster::position(const uchar *record)
 #endif
     memcpy(ref, &m_ref, key_length);
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (table_share->primary_key == MAX_KEY && m_user_defined_partitioning) 
     DBUG_DUMP("key+part", ref, key_length+sizeof(m_part_id));
 #endif
@@ -9309,7 +9309,7 @@ NDB_Modifiers::get(const char * name) const
 static bool
 ndb_blob_striping()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const char* p= getenv("NDB_BLOB_STRIPING");
   if (p != 0 && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
     return true;
@@ -13307,7 +13307,7 @@ int ndbcluster_init(void* p)
   DBUG_RETURN(0); // OK
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static
 const char*
 get_share_state_string(NDB_SHARE_STATE s)
@@ -13348,7 +13348,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     {
       NDB_SHARE *share=
         (NDB_SHARE*) my_hash_element(&ndbcluster_open_tables, 0);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
               share->key_string(), share->use_count,
@@ -13369,7 +13369,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
     {
       NDB_SHARE *share=
         (NDB_SHARE*) my_hash_element(&ndbcluster_dropped_tables, 0);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       fprintf(stderr,
               "NDB: table share %s with use_count %d state: %s(%u) not freed\n",
               share->key_string(), share->use_count,
@@ -14083,7 +14083,7 @@ static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static void print_ndbcluster_open_tables()
 {
@@ -19336,7 +19336,7 @@ static MYSQL_SYSVAR_ENUM(
   &slave_conflict_role_typelib       /* typelib */
 );
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static
 void
@@ -19442,7 +19442,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(deferred_constraints),
   MYSQL_SYSVAR(join_pushdown),
   MYSQL_SYSVAR(log_exclusive_reads),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MYSQL_SYSVAR(dbg_check_shares),
 #endif
   MYSQL_SYSVAR(version),

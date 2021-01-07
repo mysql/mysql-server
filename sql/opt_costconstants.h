@@ -563,7 +563,7 @@ private:
   /// Reference counter for this set of cost constants.
   unsigned int m_ref_counter;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /// Version number for this cost constant set. Not used. Will likely remove
   unsigned int version_no;
 #endif

@@ -169,7 +169,7 @@ void Table_cache::free_all_unused_tables()
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Print debug information for the contents of the table cache.
 */
@@ -367,7 +367,7 @@ void Table_cache_manager::free_table(THD *thd,
       Table_cache_element::TABLE_list::Iterator it(cache_el[i]->free_tables);
       TABLE *table;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (remove_type == TDC_RT_REMOVE_ALL)
         assert(cache_el[i]->used_tables.is_empty());
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
@@ -403,7 +403,7 @@ void Table_cache_manager::free_all_unused_tables()
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Print debug information for the contents of all table cache instances.
 */

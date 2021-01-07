@@ -6437,9 +6437,9 @@ ok_exit:
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
 		ctx->m_stage, add_v, eval_table);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 oom:
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 	if (error == DB_SUCCESS && ctx->online && ctx->need_rebuild()) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
@@ -6671,13 +6671,13 @@ rollback_inplace_alter_table(
 	trx_free_for_mysql(ctx->trx);
 
 func_exit:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	dict_index_t* clust_index = dict_table_get_first_index(
 		prebuilt->table);
 	assert(!clust_index->online_log);
 	assert(dict_index_get_online_status(clust_index)
 	       == ONLINE_INDEX_COMPLETE);
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 	if (ctx) {
 		assert(ctx->prebuilt == prebuilt);
@@ -8205,9 +8205,9 @@ alter_stats_rebuild(
 		DBUG_VOID_RETURN;
 	}
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	bool	ibd_file_missing_orig = false;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 	DBUG_EXECUTE_IF(
 		"ib_rename_index_fail2",
@@ -8235,7 +8235,7 @@ alter_stats_rebuild(
 	DBUG_VOID_RETURN;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 # define DBUG_INJECT_CRASH(prefix, count)			\
 do {								\
 	char buf[32];						\
@@ -8275,11 +8275,11 @@ ha_innobase::commit_inplace_alter_table(
 	ctx0 = static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	uint	crash_inject_count	= 1;
 	uint	crash_fail_inject_count	= 1;
 	uint	failure_inject_count	= 1;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 	DBUG_ENTER("commit_inplace_alter_table");
 	assert(!srv_read_only_mode);
@@ -8468,7 +8468,7 @@ ha_innobase::commit_inplace_alter_table(
 		}
 		DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 				  crash_inject_count++);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 		{
 			/* Generate a dynamic dbug text. */
 			char buf[32];
@@ -8997,7 +8997,7 @@ foreign_fail:
 	/* TODO: Also perform DROP TABLE and DROP INDEX after
 	the MDL downgrade. */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	dict_index_t* clust_index = dict_table_get_first_index(
 		ctx0->prebuilt->table);
 	assert(!clust_index->online_log);
@@ -9009,7 +9009,7 @@ foreign_fail:
 	     index = dict_table_get_next_index(index)) {
 		assert(!index->to_be_dropped);
 	}
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	DBUG_RETURN(false);
 }

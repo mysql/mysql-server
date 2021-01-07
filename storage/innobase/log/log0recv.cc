@@ -172,13 +172,13 @@ mysql_pfs_key_t	recv_writer_thread_key;
 volatile bool	recv_writer_thread_active = false;
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef	DBUG_OFF
+#ifndef	NDEBUG
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */
 const char*
 get_mlog_string(mlog_id_t type);
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /* prototypes */
 
@@ -4611,7 +4611,7 @@ recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 	return(result);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */
@@ -4789,4 +4789,4 @@ get_mlog_string(mlog_id_t type)
 	assert(0);
 	return(NULL);
 }
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */

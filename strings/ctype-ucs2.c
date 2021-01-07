@@ -2579,7 +2579,7 @@ void my_fill_utf32(const CHARSET_INFO *cs,
 
   assert((slen % 4) == 0);
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     uint buflen=
 #endif
       cs->cset->wc_mb(cs, (my_wc_t) fill, (uchar*) buf,

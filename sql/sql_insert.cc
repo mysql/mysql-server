@@ -119,7 +119,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 {
   LEX *const lex= thd->lex;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   TABLE_LIST *const saved_insert_table_leaf= lex->insert_table_leaf;
 #endif
 

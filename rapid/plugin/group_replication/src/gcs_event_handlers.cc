@@ -48,7 +48,7 @@ Plugin_gcs_events_handler(Applier_module_interface* applier_module,
                                        Group_member_info_pointer_comparator>();
   this->joiner_compatibility_status= new st_compatibility_types(INCOMPATIBLE);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     set_number_of_members_on_view_changed_to_10= false;
     DBUG_EXECUTE_IF("group_replication_set_number_of_members_on_view_changed_to_10",
                     { set_number_of_members_on_view_changed_to_10= true; };);
@@ -682,7 +682,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
     return;
 
   bool am_i_leaving= true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int n=0;
 #endif
   Group_member_info* the_primary= NULL;
@@ -710,7 +710,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
    */
   for(it= all_members_info->begin(); it != all_members_info->end(); it++)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     assert(!(n > 1));
 #endif
 
@@ -719,7 +719,7 @@ void Plugin_gcs_events_handler::handle_leader_election_if_needed() const
         member->get_role() == Group_member_info::MEMBER_ROLE_PRIMARY)
     {
       the_primary= member;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       n++;
 #endif
     }
@@ -1343,7 +1343,7 @@ Plugin_gcs_events_handler::check_group_compatibility(size_t number_of_members) c
   /*
     Check if group size did reach the maximum number of members.
   */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (set_number_of_members_on_view_changed_to_10)
     number_of_members= 10;
 #endif

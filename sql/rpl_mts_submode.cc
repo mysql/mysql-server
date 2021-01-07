@@ -255,7 +255,7 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
   }
 
   assert(!thd->temporary_tables);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (int i= 0; i < parts; i++)
   {
     assert(!ev->mts_assigned_partitions[i]->temporary_tables ||
@@ -283,7 +283,7 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
 
   DBUG_ENTER("Mts_submode_database::get_least_occupied_worker");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
@@ -723,7 +723,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
       rli->last_assigned_worker= *rli->workers.begin();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mysql_mutex_lock(&rli->mts_gaq_LOCK);
   assert(is_error || (rli->gaq->len + jobs_done == delegated_jobs));
   mysql_mutex_unlock(&rli->mts_gaq_LOCK);
@@ -840,7 +840,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
   PSI_stage_info *old_stage= 0;
   THD* thd= rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::get_least_occupied_worker");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {

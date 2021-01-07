@@ -147,7 +147,7 @@ static void check_foreign_key(TABLE *table, THD *thd,
 
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_hash,
                                        std::vector<uint64> &hash_list)
 {
@@ -571,7 +571,7 @@ static void debug_check_for_write_sets(std::vector<std::string> &key_list_to_has
 */
 
 static bool generate_hash_pke(const std::string &pke, uint collation_conversion_algorithm, THD* thd
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                               , std::vector<std::string> &write_sets
                               , std::vector<uint64> &hash_list
 #endif
@@ -586,7 +586,7 @@ static bool generate_hash_pke(const std::string &pke, uint collation_conversion_
                                        pke.c_str(), length);
   if (thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash))
     return true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   write_sets.push_back(pke);
   hash_list.push_back(hash);
 #endif
@@ -667,7 +667,7 @@ bool add_pke(TABLE *table, THD *thd)
     // Buffer to read the row data from the table record[0].
     String row_data(name_read_buffer, sizeof(name_read_buffer), &my_charset_bin);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     std::vector<std::string> write_sets;
     std::vector<uint64> hash_list;
 #endif
@@ -770,7 +770,7 @@ bool add_pke(TABLE *table, THD *thd)
         if (i == table->key_info[key_number].user_defined_key_parts)
         {
           if (generate_hash_pke(pke, collation_conversion_algorithm, thd
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                             , write_sets, hash_list
 #endif
           ))
@@ -876,7 +876,7 @@ bool add_pke(TABLE *table, THD *thd)
               pke_prefix.append(value_length);
 
               if (generate_hash_pke(pke_prefix, collation_conversion_algorithm, thd
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                 , write_sets, hash_list
 #endif
               ))
@@ -895,7 +895,7 @@ bool add_pke(TABLE *table, THD *thd)
 
     my_free(pk_value);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     debug_check_for_write_sets(write_sets, hash_list);
 #endif
   }

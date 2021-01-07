@@ -1178,7 +1178,7 @@ THD::THD(bool enable_plugins)
   enable_slow_log= 0;
   commit_error= CE_NONE;
   durability_property= HA_REGULAR_DURABILITY;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
 #ifndef EMBEDDED_LIBRARY
@@ -1677,7 +1677,7 @@ void THD::cleanup_connection(void)
   profiling.cleanup();
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     /* DEBUG code only (begin) */
     bool check_cleanup= FALSE;
     DBUG_EXECUTE_IF("debug_test_cleanup_connection", check_cleanup= TRUE;);
@@ -1896,7 +1896,7 @@ THD::~THD()
   mysql_mutex_destroy(&LOCK_thd_sysvar);
   mysql_mutex_destroy(&LOCK_current_cond);
   mysql_cond_destroy(&COND_thr_lock);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   dbug_sentry= THD_SENTRY_GONE;
 #endif
 
@@ -2216,7 +2216,7 @@ bool THD::store_globals()
     another thread to the same TLS reference.
   */
   is_killable= true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
@@ -3454,7 +3454,7 @@ void THD::set_n_backup_active_arena(Query_arena *set, Query_arena *backup)
 
   backup->set_query_arena(this);
   set_query_arena(set);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   backup->is_backup_arena= TRUE;
 #endif
   DBUG_VOID_RETURN;
@@ -3467,7 +3467,7 @@ void THD::restore_active_arena(Query_arena *set, Query_arena *backup)
   assert(backup->is_backup_arena);
   set->set_query_arena(this);
   set_query_arena(backup);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   backup->is_backup_arena= FALSE;
 #endif
   DBUG_VOID_RETURN;
@@ -4615,7 +4615,7 @@ void THD::time_out_user_resource_limits()
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void THD::Query_plan::assert_plan_is_locked_if_other() const
 {
   if (current_thd != thd)

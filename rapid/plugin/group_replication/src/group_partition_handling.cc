@@ -244,7 +244,7 @@ int Group_partition_handling::terminate_partition_handler_thread()
 
     struct timespec abstime;
     set_timespec(&abstime, 2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error=
 #endif
       mysql_cond_timedwait(&run_cond, &run_lock, &abstime);

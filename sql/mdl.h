@@ -700,12 +700,12 @@ private:
   friend class MDL_context;
 
   MDL_ticket(MDL_context *ctx_arg, enum_mdl_type type_arg
-#ifndef DBUG_OFF
+#ifndef NDEBUG
              , enum_mdl_duration duration_arg
 #endif
             )
    : m_type(type_arg),
-#ifndef DBUG_OFF
+#ifndef NDEBUG
      m_duration(duration_arg),
 #endif
      m_ctx(ctx_arg),
@@ -721,7 +721,7 @@ private:
   }
 
   static MDL_ticket *create(MDL_context *ctx_arg, enum_mdl_type type_arg
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                             , enum_mdl_duration duration_arg
 #endif
                             );
@@ -729,7 +729,7 @@ private:
 private:
   /** Type of metadata lock. Externally accessible. */
   enum enum_mdl_type m_type;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Duration of lock represented by this ticket.
     Context private. Debug-only.
@@ -1181,7 +1181,7 @@ void mdl_init();
 void mdl_destroy();
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern mysql_mutex_t LOCK_open;
 #endif
 

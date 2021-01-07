@@ -921,7 +921,7 @@ public:
       If HAS_SLOW_PATH flag is set all changes to m_fast_path_state
       should happen under protection of MDL_lock::m_rwlock ([INV1]).
     */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     if (((*old_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH)) !=
          (new_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH))) ||
         *old_state & HAS_OBTRUSIVE)
@@ -1691,14 +1691,14 @@ MDL_lock::needs_hton_notification(MDL_key::enum_mdl_namespace mdl_namespace)
 */
 
 MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                , enum_mdl_duration duration_arg
 #endif
                                )
 {
   return new (std::nothrow)
              MDL_ticket(ctx_arg, type_arg
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                         , duration_arg
 #endif
                         );
@@ -3024,7 +3024,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     return TRUE;
 
   if (!(ticket= MDL_ticket::create(this, mdl_request->type
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                    , mdl_request->duration
 #endif
                                    )))
@@ -3378,7 +3378,7 @@ MDL_context::clone_ticket(MDL_request *mdl_request)
     the request.
   */
   if (!(ticket= MDL_ticket::create(this, mdl_request->type
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                    , mdl_request->duration
 #endif
                                    )))
@@ -4845,7 +4845,7 @@ void MDL_context::set_lock_duration(MDL_ticket *mdl_ticket,
 
   m_tickets[MDL_TRANSACTION].remove(mdl_ticket);
   m_tickets[duration].push_front(mdl_ticket);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mdl_ticket->m_duration= duration;
 #endif
 }
@@ -4882,7 +4882,7 @@ void MDL_context::set_explicit_duration_for_all_locks()
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Ticket_iterator exp_it(m_tickets[MDL_EXPLICIT]);
 
   while ((ticket= exp_it++))
@@ -4920,7 +4920,7 @@ void MDL_context::set_transaction_duration_for_all_locks()
     m_tickets[MDL_TRANSACTION].push_front(ticket);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   Ticket_iterator trans_it(m_tickets[MDL_TRANSACTION]);
 
   while ((ticket= trans_it++))

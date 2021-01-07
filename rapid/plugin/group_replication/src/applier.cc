@@ -615,7 +615,7 @@ Applier_module::terminate_applier_thread()
     */
     struct timespec abstime;
     set_timespec(&abstime, 2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int error=
 #endif
       mysql_cond_timedwait(&run_cond, &run_lock, &abstime);
@@ -951,7 +951,7 @@ Applier_module::intersect_group_executed_sets(std::vector<std::string>& gtid_set
     }
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *executed_set_string;
   output_set->to_string(&executed_set_string);
   DBUG_PRINT("info", ("View change GTID information: output_set: %s",

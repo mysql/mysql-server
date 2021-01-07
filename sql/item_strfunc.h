@@ -983,7 +983,7 @@ public:
 };
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 class Item_func_like_range :public Item_str_func
 {
 protected:

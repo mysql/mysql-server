@@ -120,7 +120,7 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule)
   return true;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Normal debug sync points will not work in the THD that the plugin creates,
   so we have to call the debug sync functions ourselves.

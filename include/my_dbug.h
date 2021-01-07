@@ -33,7 +33,7 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 struct _db_stack_frame_ {
   const char *func;      /* function name of the previous stack frame       */
@@ -227,7 +227,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #endif
 
 #ifdef __cplusplus
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 #include <sstream>
 
 /*
@@ -249,7 +249,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 	sout << v; \
 	DBUG_PUTS(keyword, sout.str().c_str()); \
 } while(0)
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 #endif /* __cplusplus */
 
 #endif /* MY_DBUG_INCLUDED */

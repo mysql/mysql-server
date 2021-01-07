@@ -104,12 +104,12 @@ bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share)
 {
   DBUG_ENTER("Partition_share::init_auto_inc_mutex");
   assert(!auto_inc_mutex);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (table_share->tmp_table == NO_TMP_TABLE)
   {
     mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
   }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
   auto_inc_mutex= static_cast<mysql_mutex_t*>(my_malloc(
                                               key_memory_Partition_share,
                                               sizeof(*auto_inc_mutex),
@@ -139,12 +139,12 @@ Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share
 {
   assert(auto_inc_mutex);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (table_share->tmp_table == NO_TMP_TABLE)
   {
     mysql_mutex_assert_owner(auto_inc_mutex);
   }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   /*
     If the current auto_increment values is lower than the reserved value (1)
@@ -200,7 +200,7 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
     This ensures only one thread/table instance will execute this.
   */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (part_info->table->s->tmp_table == NO_TMP_TABLE)
   {
     mysql_mutex_assert_owner(&part_info->table->s->LOCK_ha_data);
@@ -479,9 +479,9 @@ int Partition_helper::ph_write_row(uchar *buf)
   THD *thd= get_thd();
   sql_mode_t saved_sql_mode= thd->variables.sql_mode;
   bool saved_auto_inc_field_not_null= m_table->auto_increment_field_not_null;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   my_bitmap_map *old_map;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
   DBUG_ENTER("Partition_helper::ph_write_row");
   assert(buf == m_table->record[0]);
 
@@ -518,16 +518,16 @@ int Partition_helper::ph_write_row(uchar *buf)
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /* Temporary mark the partitioning fields as readable. */
   old_map= dbug_tmp_use_all_columns(m_table, m_table->read_set);
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   error= m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   dbug_tmp_restore_column_map(m_table->read_set, old_map);
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   if (unlikely(error))
   {

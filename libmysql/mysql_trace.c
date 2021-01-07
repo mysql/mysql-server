@@ -193,7 +193,7 @@ void mysql_trace_trace(struct st_mysql  *m,
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /*
   These functions are declared in plugin_trace.h.
 

@@ -324,7 +324,7 @@ public:
     assert(dbug_exclusive_flags(JTT_LEFT | JTT_RIGHT));
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool dbug_exclusive_flags(unsigned int mask)
   {
 #ifdef __GNUC__
@@ -1616,9 +1616,9 @@ public:
       return true;
 
     THD *thd= pc->thd;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     LEX *old_lex= thd->lex;
-#endif//DBUG_OFF
+#endif//NDEBUG
 
     sp_create_assignment_lex(thd, delimiter_pos.raw.end);
     assert(thd->lex->select_lex == thd->lex->current_select());
@@ -2072,7 +2072,7 @@ class PT_select_sp_var : public PT_select_var
 
   uint offset;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Routine to which this Item_splocal belongs. Used for checking if correct
     runtime context is used for variable handling.
@@ -2092,7 +2092,7 @@ public:
       return true;
 
     LEX *lex= pc->thd->lex;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     sp= lex->sphead;
 #endif
     sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();

@@ -614,7 +614,7 @@ int validate_plugin_server_requirements(Trans_param *param)
   size_t length;
   get_server_encoded_gtid_executed(&encoded_gtid_executed, &length);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *encoded_gtid_executed_string=
       encoded_gtid_set_to_string(encoded_gtid_executed, length);
 #endif
@@ -626,7 +626,7 @@ int validate_plugin_server_requirements(Trans_param *param)
       startup_pre_reqs.gtid_mode == 3 &&
       server_engine_ready &&
       encoded_gtid_executed != NULL
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
       && encoded_gtid_executed_string != NULL
 #endif
      )
@@ -637,7 +637,7 @@ int validate_plugin_server_requirements(Trans_param *param)
                           "replication_observers_example_plugin:validate_plugin_server_requirements:"
                           " failed to invoke group_replication_priv.h exported functions");
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   my_free(encoded_gtid_executed_string);
 #endif
   my_free(encoded_gtid_executed);
@@ -1051,14 +1051,14 @@ bool test_channel_service_interface_relay_log_renamed()
   {
     THD *thd= current_thd;
     thd->clear_error();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     const char act[]= "now SIGNAL reached_sql_thread_startup_failed";
     assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
 #endif
   }
   else
   {
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     const char act[]= "now SIGNAL reached_sql_thread_started";
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
 #endif

@@ -317,7 +317,7 @@ First of all, notice that all of the debugger functions are implemented
 via preprocessor macros.
 This does not detract from the readability of the code and makes disabling
 all debug compilation trivial (a single preprocessor symbol, 
-.B DBUG_OFF ,
+.B NDEBUG ,
 forces the macro expansions to be null).
 .P
 Also notice the inclusion of the header file

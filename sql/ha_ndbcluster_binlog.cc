@@ -176,7 +176,7 @@ static my_bool g_ndb_log_slave_updates;
 
 static bool g_injector_v1_warning_emitted = false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void print_records(TABLE *table, const uchar *record)
 {
   for (uint j= 0; j < table->s->fields; j++)
@@ -201,7 +201,7 @@ static void print_records(TABLE *table, const uchar *record)
 #endif
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void dbug_print_table(const char *info, TABLE *table)
 {
   if (table == 0)
@@ -366,7 +366,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
 
   event_data->init_pk_bitmap();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   dbug_print_table("table", shadow_table);
 #endif
   *root_ptr= old_root;
@@ -1960,7 +1960,7 @@ int ndbcluster_log_schema_op(THD *thd,
         anyValue = thd_unmasked_server_id(thd);
       }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       /*
         MySQLD will set the user-portion of AnyValue (if any) to all 1s
         This tests code filtering ServerIds on the value of server-id-bits.
@@ -5422,7 +5422,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
         }
         else
         {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           // pointer vas set in get_ndb_blobs_value
           Field_blob *field_blob= (Field_blob*)field;
           uchar* ptr;
@@ -6106,7 +6106,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
 
   longlong gci_to_store = (longlong) gci;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("ndb_binlog_injector_cycle_gcis",
                   {
                     ulonglong gciHi = ((gci_to_store >> 32) 
@@ -6162,7 +6162,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   apply_status_table->field[2]->store("", 0, &my_charset_bin);
   apply_status_table->field[3]->store((longlong)0, true);
   apply_status_table->field[4]->store((longlong)0, true);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const LEX_STRING &name= apply_status_table->s->table_name;
   DBUG_PRINT("info", ("use_table: %.*s",
                       (int) name.length, name.str));
@@ -6569,7 +6569,7 @@ restart_cluster_failure:
             ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci()) &&
           binlog_thread_state != BCCC_restart; )
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (binlog_thread_state)
     {
       DBUG_PRINT("info", ("binlog_thread_state: %d, "
@@ -6774,7 +6774,7 @@ restart_cluster_failure:
         assert(gci <= ndb_latest_received_binlog_epoch);
 
         /* Update our thread-local debug settings based on the global */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         /* Get value of global...*/
         {
           char buf[256];
@@ -6849,7 +6849,7 @@ restart_cluster_failure:
               continue;
             }
             TABLE *table= event_data->shadow_table;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
             const LEX_STRING &name= table->s->table_name;
 #endif
             if ((event_types & (NdbDictionary::Event::TE_INSERT |
@@ -6890,7 +6890,7 @@ restart_cluster_failure:
               handle_error(pOp) < 0)
             goto err;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           {
             Ndb_event_data *event_data=
               (Ndb_event_data *) pOp->getCustomData();

@@ -267,7 +267,7 @@ typedef MDLTest MDLDeathTest;
 /*
   Verifies that we die with a assert if we destry a non-empty MDL_context.
  */
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
@@ -280,7 +280,7 @@ TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
                ".*Assertion.*MDL_TRANSACTION.*is_empty.*");
   m_mdl_context.release_transactional_locks();
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 
 
@@ -4590,7 +4590,7 @@ typedef MDLKeyTest MDLKeyDeathTest;
   MDL_key with too long database or object names.
 */
 
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
@@ -4615,7 +4615,7 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong)
                ".*Assertion.*strlen.*");
 
 }
-#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+#endif  // GTEST_HAS_DEATH_TEST && !defined(NDEBUG)
 
 
 /*
@@ -4624,7 +4624,7 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong)
   truncated.
 */
 
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 TEST_F(MDLKeyTest, TruncateTooLongNames)
 {
   /* We need a name which is longer than NAME_LEN = 64*3 = 192.*/
@@ -4644,7 +4644,7 @@ TEST_F(MDLKeyTest, TruncateTooLongNames)
   EXPECT_LE(strlen(name), (uint)NAME_LEN);
   EXPECT_TRUE(strncmp(name, too_long_name, NAME_LEN) == 0);
 }
-#endif  // defined(DBUG_OFF)
+#endif  // defined(NDEBUG)
 
 
 }  // namespace

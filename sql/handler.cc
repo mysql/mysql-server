@@ -239,7 +239,7 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 const char *ha_legacy_type_name(legacy_db_type legacy_type)
 {
@@ -571,7 +571,7 @@ plugin_ref ha_lock_engine(THD *thd, const handlerton *hton)
   {
     st_plugin_int **plugin= hton2plugin + hton->slot;
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     /*
       Take a shortcut for builtin engines -- return pointer to plugin
       without acquiring LOCK_plugin mutex. This is safe safe since such
@@ -8236,7 +8236,7 @@ Handler_share *handler::get_ha_share_ptr()
   DBUG_ENTER("handler::get_ha_share_ptr");
   assert(ha_share && table_share);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (table_share->tmp_table == NO_TMP_TABLE)
     mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
 #endif
@@ -8258,7 +8258,7 @@ void handler::set_ha_share_ptr(Handler_share *arg_ha_share)
 {
   DBUG_ENTER("handler::set_ha_share_ptr");
   assert(ha_share);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (table_share->tmp_table == NO_TMP_TABLE)
     mysql_mutex_assert_owner(&table_share->LOCK_ha_data);
 #endif

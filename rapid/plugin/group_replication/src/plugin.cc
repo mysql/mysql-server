@@ -1716,7 +1716,7 @@ static int check_if_server_properly_configured()
 
   gr_lower_case_table_names= startup_pre_reqs.lower_case_table_names;
   assert (gr_lower_case_table_names <= 2);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names",
                 {
                   gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
@@ -2149,7 +2149,7 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *var,
   force_members_running= true;
   mysql_mutex_unlock(&force_members_running_mutex);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_wait_on_check_force_members",
                   {
                     const char act[]= "now wait_for waiting";

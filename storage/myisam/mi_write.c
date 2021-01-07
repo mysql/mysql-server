@@ -484,7 +484,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
 				(key_pos == endpos ? (uchar*) 0 : key_pos),
 				prev_key, prev_key,
 				key,&s_temp);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (key_pos != anc_buff+2+nod_flag && (keyinfo->flag &
 					 (HA_BINARY_PACK_KEY | HA_PACK_KEY)))
   {

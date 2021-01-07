@@ -270,7 +270,7 @@ void Opt_trace_struct::do_construct(Opt_trace_context *ctx,
 
   DBUG_PRINT("opt", ("%s: starting struct", key));
   stmt= ctx->get_current_stmt_in_gen();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   previous_key[0]= 0;
 #endif
   has_disabled_I_S= !ctx->feature_enabled(feature);
@@ -446,7 +446,7 @@ const char *Opt_trace_struct::check_key(const char *key)
   }
   if (has_key)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     /*
       Check that we're not having two identical consecutive keys in one
       object; though the real restriction should not have 'consecutive'.
@@ -1205,7 +1205,7 @@ void Opt_trace_context::purge_stmts(bool purge_all)
   for (idx= (pimpl->all_stmts_to_del.size() - 1) ; idx >= 0 ; idx--)
   {
     Opt_trace_stmt *stmt= pimpl->all_stmts_to_del.at(idx);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool skip_del= false;
     DBUG_EXECUTE_IF("opt_trace_oom_in_purge", skip_del= true;);
 #else

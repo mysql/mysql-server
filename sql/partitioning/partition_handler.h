@@ -455,7 +455,7 @@ public:
   */
   inline bool init_partitioning(MEM_ROOT *mem_root)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     m_key_not_found_partitions.bitmap= NULL;
 #endif
     return false;

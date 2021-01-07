@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #include <NdbSleep.h>
 #endif
 #include <EventLogger.hpp>
@@ -86,7 +86,7 @@ Ndb::init(int aMaxNoOfTransactions)
 
   const Uint32 tRef = theImpl->open(theFacade);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if(DBUG_EVALUATE_IF("sleep_in_ndbinit", true, false))
   {
     fprintf(stderr, "Ndb::init() (%p) taking a break\n", this);
@@ -1380,7 +1380,7 @@ Ndb::check_send_timeout()
   const Uint32 timeout = theImpl->get_ndbapi_config_parameters().m_waitfor_timeout;
   const Uint64 current_time = NdbTick_CurrentMillisecond();
   assert(current_time >= the_last_check_time);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
   {
     fprintf(stderr, "Forcing immediate timeout check in Ndb::check_send_timeout()\n");
@@ -1392,7 +1392,7 @@ Ndb::check_send_timeout()
     Uint32 no_of_sent = theNoOfSentTransactions;
     for (Uint32 i = 0; i < no_of_sent; i++) {
       NdbTransaction* a_con = theSentTransactionsArray[i];
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
       {
         fprintf(stderr, "Inducing early timeout in Ndb::check_send_timeout()\n");
@@ -1596,7 +1596,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
     const NDB_TICKS now = NdbTick_getCurrentTicks();
     waitTime = aMilliSecondsToWait - 
       (int)NdbTick_Elapsed(start,now).milliSec();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {
       fprintf(stderr, "Inducing early timeout in Ndb::waitCompletedTransactions()\n");

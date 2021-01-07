@@ -1720,14 +1720,14 @@ bool Field::send_text(Protocol *protocol)
     return protocol->store_null();
   char buff[MAX_FIELD_WIDTH];
   String str(buff, sizeof(buff), &my_charset_bin);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   my_bitmap_map *old_map= 0;
   if (table->file)
     old_map= dbug_tmp_use_all_columns(table, table->read_set);
 #endif
 
   String *res= val_str(&str);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (old_map)
     dbug_tmp_restore_column_map(table->read_set, old_map);
 #endif
@@ -2995,7 +2995,7 @@ Field_new_decimal::store_value(const my_decimal *decimal_value)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error= TYPE_OK;
   DBUG_ENTER("Field_new_decimal::store_value");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("enter", ("value: %s", dbug_decimal_as_string(dbug_buff, decimal_value)));
@@ -3010,7 +3010,7 @@ Field_new_decimal::store_value(const my_decimal *decimal_value)
     error= TYPE_WARN_OUT_OF_RANGE;
     decimal_value= &decimal_zero;
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
     DBUG_PRINT("info", ("saving with precision %d  scale: %d  value %s",
@@ -3064,7 +3064,7 @@ Field_new_decimal::store(const char *from, size_t length,
   if (err != 0)
     set_decimal_warning(this, err, &decimal_value, from, length, charset_arg);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char dbug_buff[DECIMAL_MAX_STR_LENGTH+2];
   DBUG_PRINT("enter", ("value: %s",
                        dbug_decimal_as_string(dbug_buff, &decimal_value)));
@@ -8628,7 +8628,7 @@ const uchar *Field_blob::unpack(uchar *to,
   bitmap_set_bit(table->write_set, field_index);
   Field_blob::store(pointer_cast<const char*>(from) + master_packlength,
                     length, field_charset);
-#ifndef DBUG_OFF  
+#ifndef NDEBUG
   uchar *vptr;
   get_ptr(&vptr);
   DBUG_DUMP("field", ptr, pack_length() /* len bytes + ptr bytes */);

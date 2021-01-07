@@ -418,7 +418,7 @@ static inline int add_relay_log(Relay_log_info* rli,LOG_INFO* linfo)
     DBUG_RETURN(1);
   }
   rli->log_space_total += s.st_size;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[22];
   DBUG_PRINT("info",("log_space_total: %s", llstr(rli->log_space_total,buf)));
 #endif
@@ -653,7 +653,7 @@ int Relay_log_info::init_relay_log_pos(const char* log,
       }
     }
     my_b_seek(cur_log,(off_t)pos);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     char llbuf1[22], llbuf2[22];
     DBUG_PRINT("info", ("my_b_tell(cur_log)=%s >event_relay_log_pos=%s",
@@ -894,7 +894,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       /*
         Doing this to generate a stack trace and make debugging
         easier. 
@@ -1060,7 +1060,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       /*
         Doing this to generate a stack trace and make debugging
         easier. 
@@ -1375,7 +1375,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
                     true/*need_lock_log=true*/,
                     true/*need_lock_index=true*/);
 err:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buf[22];
 #endif
   DBUG_PRINT("info",("log_space_total: %s",llstr(log_space_total,buf)));
@@ -1504,7 +1504,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       log_pos= group_relay_log_pos;
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       char buf[32];
       DBUG_PRINT("info", ("group_master_log_name='%s', group_master_log_pos=%s",
@@ -1886,7 +1886,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
 void Relay_log_info::clear_tables_to_lock()
 {
   DBUG_ENTER("Relay_log_info::clear_tables_to_lock()");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     When replicating in RBR and MyISAM Merge tables are involved
     open_and_lock_tables (called in do_apply_event) appends the 
@@ -2232,7 +2232,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       sql_print_error("Failed in open_index_file() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     global_sid_lock->wrlock();
     gtid_set.dbug_print("set of GTIDs in relay log before initialization");
     global_sid_lock->unlock();
@@ -2260,7 +2260,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       DBUG_RETURN(1);
     }
     gtid_retrieved_initialized= true;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     global_sid_lock->wrlock();
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
     global_sid_lock->unlock();
@@ -2371,7 +2371,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       goto err;
     }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {
       char llbuf1[22], llbuf2[22];
       DBUG_PRINT("info", ("my_b_tell(cur_log)=%s event_relay_log_pos=%s",
@@ -2760,7 +2760,7 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
   if (rli_description_event &&
       rli_description_event->usage_counter.atomic_add(-1) == 1)
     delete rli_description_event;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   else
     /* It must be MTS mode when the usage counter greater than 1. */
     assert(!rli_description_event || is_parallel_exec());

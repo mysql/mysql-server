@@ -66,7 +66,7 @@ void          set_log_level(unsigned int);
   to fprintf() (see error_log_vprint() function).
 */
 
-#if defined(DEBUG_ERROR_LOG) && defined(DBUG_OFF)
+#if defined(DEBUG_ERROR_LOG) && defined(NDEBUG)
 #define ERROR_LOG(Level, Msg)     do {} while (0)
 #else
 #define ERROR_LOG(Level, Msg)     error_log_print< error_log_level::Level > Msg
@@ -99,7 +99,7 @@ const char* get_last_error_message(Error_message_buf);
   unless the dbug library implementation is used or debug messages are disabled.
 */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 #define DBUG_PRINT_DO(Keyword, Msg) \
   do { \
@@ -272,7 +272,7 @@ public:
     return (PSID)m_data->User.Sid;
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 private:
     char *m_as_string;  ///< Cached string representation of the SID.

@@ -60,7 +60,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
 
   thd->derived_tables_processing= true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
   {
     // Make sure there are no outer references
@@ -256,7 +256,7 @@ bool TABLE_LIST::create_derived(THD *thd)
       At this point, JT_CONST derived tables should be null rows. Otherwise
       they would have been materialized already.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (table != NULL)
     {
       QEP_TAB *tab= table->reginfo.qep_tab;

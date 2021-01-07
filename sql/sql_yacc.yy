@@ -176,7 +176,7 @@ int yylex(void *yylval, void *yythd);
   } while(0)
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define YYDEBUG 1
 #else
 #define YYDEBUG 0
@@ -219,7 +219,7 @@ void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void turn_parser_debug_on()
 {
   /*

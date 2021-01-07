@@ -34,7 +34,7 @@
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_slave.h"         // MTS_WORKER_UNDEF
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern ulong w_rr;
 #endif
 /**
@@ -122,7 +122,7 @@ typedef struct st_slave_job_group
   int32    done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool     notified;    // to debug group_master_log_name change notification
 #endif
   /* Clock-based scheduler requirement: */
@@ -173,7 +173,7 @@ typedef struct st_slave_job_group
     checkpoint_seqno= (uint) -1;
     done= 0;
     ts= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified= false;
 #endif
     last_committed= SEQ_UNINIT;
@@ -310,7 +310,7 @@ public:
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool count_done(Relay_log_info* rli);
 #endif
 
@@ -511,7 +511,7 @@ public:
   curr_group_exec_parts; // Current Group Executed Partitions
 
   bool curr_group_seen_begin; // is set to TRUE with explicit B-event
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool curr_group_seen_sequence_number; // is set to TRUE about starts_group()
 #endif
   ulong id;                 // numberic identifier of the Worker

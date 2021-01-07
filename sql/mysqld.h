@@ -164,7 +164,7 @@ extern my_bool opt_require_secure_transport;
 extern my_bool opt_slave_preserve_commit_order;
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;

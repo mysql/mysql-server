@@ -242,7 +242,7 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
   }
 
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *encoded_gtid_executed_string=
       encoded_gtid_set_to_string(encoded_gtid_executed, length);
   DBUG_PRINT("info", ("Certifier broadcast executed_set: %s", encoded_gtid_executed_string));
@@ -266,7 +266,7 @@ Certifier::Certifier()
 {
    last_conflict_free_transaction.clear();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   certifier_garbage_collection_block= false;
   /*
     Debug flag to block the garbage collection and discard incoming stable
@@ -456,7 +456,7 @@ void Certifier::compute_group_available_gtid_intervals()
                                              ? group_gtid_extracted
                                              : group_gtid_executed,
                                          group_gtid_sid_map_group_sidno);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (certifying_already_applied_transactions)
     DBUG_PRINT("Certifier::compute_group_available_gtid_intervals()",
                ("Generating group transaction intervals from group_gtid_extracted"));
@@ -715,7 +715,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
   {
     certifying_already_applied_transactions= false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char *group_gtid_executed_string= NULL;
     char *group_gtid_extracted_string= NULL;
     group_gtid_executed->to_string(&group_gtid_executed_string, true);
@@ -1079,7 +1079,7 @@ Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
                                              ? group_gtid_extracted
                                              : group_gtid_executed,
                                          group_gtid_sid_map_group_sidno);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (certifying_already_applied_transactions)
     DBUG_PRINT("Certifier::get_group_next_available_gtid_candidate()",
                ("Generating group transaction id from group_gtid_extracted"));
@@ -1257,7 +1257,7 @@ void Certifier::garbage_collect()
   */
   increment_parallel_applier_sequence_number(true);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   /*
     This part blocks the garbage collection process for 300 sec in order to
     simulate the case that while garbage collection is going on, we should
@@ -1305,7 +1305,7 @@ int Certifier::handle_certifier_data(const uchar *data, ulong len,
 
   mysql_mutex_lock(&LOCK_members);
   std::string member_id= gcs_member_id.get_member_id();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   if (same_member_message_discarded)
   {
     /*
@@ -1382,7 +1382,7 @@ int Certifier::handle_certifier_data(const uchar *data, ulong len,
     mysql_mutex_unlock(&LOCK_members); /* purecov: inspected */
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   if (same_member_message_discarded)
   {
     /*
@@ -1480,7 +1480,7 @@ int Certifier::stable_set_handle()
     error= 1; /* purecov: inspected */
   }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   char *executed_set_string;
   executed_set.to_string(&executed_set_string);
   DBUG_PRINT("info", ("Certifier stable_set_handle: executed_set: %s", executed_set_string));
@@ -1625,7 +1625,7 @@ int Certifier::set_certification_info(std::map<std::string, std::string> *cert_i
     certifying_already_applied_transactions= true;
     compute_group_available_gtid_intervals();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char *group_gtid_executed_string= NULL;
     char *group_gtid_extracted_string= NULL;
     group_gtid_executed->to_string(&group_gtid_executed_string, true);

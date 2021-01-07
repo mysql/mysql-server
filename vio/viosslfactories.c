@@ -156,7 +156,7 @@ report_errors()
 
   while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)) != 0)
   {
-#ifndef DBUG_OFF				/* Avoid warning */
+#ifndef NDEBUG				/* Avoid warning */
     char buf[200];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
 			 file,line,(flags & ERR_TXT_STRING) ? data : "")) ;

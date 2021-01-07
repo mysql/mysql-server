@@ -946,7 +946,7 @@ public:
   }
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   @@session.dbug and @@global.dbug variables.
 

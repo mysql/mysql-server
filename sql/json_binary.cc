@@ -500,7 +500,7 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
   size_t offset= dest->length() +
     size * (key_entry_size + value_entry_size) - start_pos;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const std::string *prev_key= NULL;
 #endif
 
@@ -511,7 +511,7 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
     const std::string *key= &it->first;
     size_t len= key->length();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Check that the DOM returns the keys in the correct order.
     if (prev_key)
     {

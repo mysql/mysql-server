@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ int main(int argc, char** argv){
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
   ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
   int ho_error;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_select_count.trace";
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options,

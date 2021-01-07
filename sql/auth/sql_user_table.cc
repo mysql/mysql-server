@@ -678,7 +678,7 @@ void close_acl_tables(THD *thd)
   }
   else
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     bool res=
 #endif
       trans_commit_stmt(thd);

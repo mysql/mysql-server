@@ -53,7 +53,7 @@ void Cost_model_server::init()
     m_server_cost_constants= m_cost_constants->get_server_cost_constants();
     assert(m_server_cost_constants != NULL);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized= true;
 #endif
   }
@@ -74,7 +74,7 @@ void Cost_model_table::init(const Cost_model_server *cost_model_server,
     m_cost_model_server->get_cost_constants()->get_se_cost_constants(table);
   assert(m_se_cost_constants != NULL);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   m_initialized= true;
 #endif
 }

@@ -2365,7 +2365,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
                            ulonglong options, my_bool big_tables,
                            Opt_trace_context *trace)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (uint i= 0; i < table->s->fields; i++)
     assert(table->field[i]->gcol_info== NULL && table->field[i]->stored_in_db);
 #endif

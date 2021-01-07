@@ -683,7 +683,7 @@ bool Trigger::parse(THD *thd)
                                        m_sp->m_name.str, m_sp->m_name.length);
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Check that we correctly update trigger definitions when we rename tables
     with triggers.

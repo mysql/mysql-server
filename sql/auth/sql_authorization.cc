@@ -2155,7 +2155,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
            Depend on the controls in the P_S table itself.
         */
         t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         t_ref->grant.want_privilege= 0;
 #endif
         continue;
@@ -2185,7 +2185,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
           clause, or an INFORMATION_SCHEMA table, drop the request for
           a privilege.
         */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         t_ref->grant.want_privilege= 0;
 #endif
       }
@@ -2201,7 +2201,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
         if user has CREATE_TMP_ACL.
       */
       t_ref->grant.privilege|= TMP_TABLE_ACLS;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       t_ref->grant.want_privilege= 0;
 #endif
       continue;

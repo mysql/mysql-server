@@ -111,11 +111,11 @@ class Parse_tree_node
   Parse_tree_node(const Parse_tree_node &); // undefined
   void operator=(const Parse_tree_node &); // undefined
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 private:
   bool contextualized; // true if the node object is contextualized
   bool transitional; // TODO: remove that after parser refactoring
-#endif//DBUG_OFF
+#endif//NDEBUG
 
 public:
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
@@ -126,18 +126,18 @@ public:
 protected:
   Parse_tree_node()
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     contextualized= false;
     transitional= false;
-#endif//DBUG_OFF
+#endif//NDEBUG
   }
 
 public:
   virtual ~Parse_tree_node() {}
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool is_contextualized() const { return contextualized; }
-#endif//DBUG_OFF
+#endif//NDEBUG
 
   /**
     Do all context-sensitive things and mark the node as contextualized
@@ -149,22 +149,22 @@ public:
   */
   virtual bool contextualize(Parse_context *pc)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (transitional)
     {
       assert(contextualized);
       return false;
     }
-#endif//DBUG_OFF
+#endif//NDEBUG
 
     uchar dummy;
     if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy))
       return true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     assert(!contextualized);
     contextualized= true;
-#endif//DBUG_OFF
+#endif//NDEBUG
 
     return false;
   }
@@ -198,11 +198,11 @@ public:
   */
   virtual bool contextualize_(Parse_context *pc)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     assert(!contextualized && !transitional);
     transitional= true;
     contextualized= true;
-#endif//DBUG_OFF
+#endif//NDEBUG
     return false;
   }
 

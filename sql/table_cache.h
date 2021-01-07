@@ -139,7 +139,7 @@ public:
 
   void free_all_unused_tables();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void print_tables();
 #endif
 };
@@ -187,7 +187,7 @@ public:
 
   void free_all_unused_tables();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void print_tables();
 #endif
 

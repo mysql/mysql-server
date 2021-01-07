@@ -38,7 +38,7 @@
 #include "sql_user_table.h"
 #include <set>
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define HASH_STRING_WITH_QUOTE \
         "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif

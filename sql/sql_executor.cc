@@ -1009,7 +1009,7 @@ do_select(JOIN *join)
   }
   else
     rc= -1;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (rc)
   {
     DBUG_PRINT("error",("Error: do_select() failed"));
@@ -2563,7 +2563,7 @@ join_materialize_semijoin(QEP_TAB *tab)
   last->next_select= NULL;
   last->set_sj_mat_exec(NULL);
 
-#if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
+#if !defined(NDEBUG) || defined(HAVE_VALGRIND)
   // Fields of inner tables should not be read anymore:
   for (QEP_TAB *t= first; t <= last; t++)
   {
@@ -4463,7 +4463,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
         ifield->table_name= iref->table_name;
         ifield->db_name= iref->db_name;
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (!item_field->item_name.is_set())
       {
         char buff[256];

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2513,7 +2513,7 @@ buf_pool_resize_hash(
 	buf_pool->zip_hash = new_hash_table;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** This is a debug routine to inject an memory allocation failure error. */
 static
 void
@@ -2528,7 +2528,7 @@ buf_pool_resize_chunk_make_null(buf_chunk_t** new_chunks)
 
 	count++;
 }
-#endif // DBUG_OFF
+#endif // NDEBUG
 
 /** Resize the buffer pool based on srv_buf_pool_size from
 srv_buf_pool_old_size. */
@@ -2693,7 +2693,7 @@ withdraw_retry:
 
 	buf_resize_status("Latching whole of buffer pool.");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	{
 		bool	should_wait = true;
 
@@ -2704,7 +2704,7 @@ withdraw_retry:
 				should_wait = true; os_thread_sleep(10000););
 		}
 	}
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 	if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
 		return;
