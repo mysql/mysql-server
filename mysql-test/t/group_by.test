@@ -3103,3 +3103,25 @@ SELECT AVG(a2.a)
   LEFT JOIN t1 AS a2 ON a2.b = ( SELECT a1.b FROM t1 );
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32335256: COUNT(*) RETURNS NULL IN NESTED QUERY
+--echo #
+
+CREATE TABLE t1 (
+  f1 INTEGER
+);
+
+SELECT
+  (
+    SELECT COUNT(*) +
+      (
+        SELECT COUNT(*)
+        FROM t1
+        WHERE f1 = c.f2
+      )
+    FROM t1
+  )
+  FROM (SELECT 555 AS f2) AS c;
+
+DROP TABLE t1;
