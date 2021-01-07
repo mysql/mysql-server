@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -155,12 +155,19 @@ IF(UNIX)
       ENDIF()
 
       SET(COMMON_C_FLAGS            "-g ${SUNPRO_FLAGS}")
-      SET(COMMON_CXX_FLAGS          "-g0 ${SUNPRO_FLAGS}")
-      SET(COMMON_CXX_FLAGS          "${COMMON_CXX_FLAGS} -std=c++03")
-      SET(CMAKE_C_FLAGS_DEBUG       "${COMMON_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS_DEBUG     "${COMMON_CXX_FLAGS}")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-xO3 ${COMMON_C_FLAGS}")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-xO3 ${COMMON_CXX_FLAGS}")
+      SET(COMMON_CXX_FLAGS          "-g0 ${SUNPRO_FLAGS} -std=c++03")
+      # For SunPro, append our own flags rather than prepending below.
+      # We need -g0 and the misc -x flags above to reduce the size of binaries.
+      STRING_APPEND(CMAKE_C_FLAGS_DEBUG            " ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG          " ${COMMON_CXX_FLAGS}")
+      STRING_APPEND(CMAKE_C_FLAGS_RELWITHDEBINFO   " -xO3 ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO3 ${COMMON_CXX_FLAGS}")
+      STRING_APPEND(CMAKE_C_FLAGS_RELEASE          " -xO3 ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE        " -xO3 ${COMMON_CXX_FLAGS}")
+      STRING_APPEND(CMAKE_C_FLAGS_MINSIZEREL       " -xO3 ${COMMON_C_FLAGS}")
+      STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL     " -xO3 ${COMMON_CXX_FLAGS}")
+      SET(COMMON_C_FLAGS "")
+      SET(COMMON_CXX_FLAGS "")
     ENDIF()
   ENDIF()
 
