@@ -231,7 +231,7 @@ int AggregateIterator::Read() {
           // no input rows.
 
           // Calculate aggregate functions for no rows
-          for (Item *item : *m_join->get_current_fields()) {
+          for (Item *item : VisibleFields(*m_join->get_current_fields())) {
             item->no_rows_in_result();
           }
 
