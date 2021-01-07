@@ -58,6 +58,7 @@ CHECK_FUNCTION_EXISTS(secure_getenv   HAVE_SECURE_GETENV)
 
 FUNCTION(MAKELIST_TARGET target outfile options infiles)
   STRING(REPLACE ";" " " infile_string "${infiles}")
+  LIST(REMOVE_ITEM infiles vi.h emacs.h common.h) # remove from DEPENDS
   ADD_CUSTOM_COMMAND(
     OUTPUT ${outfile}
     COMMAND sh ${MAKELIST} ${options} ${infile_string} > ${outfile}
@@ -81,6 +82,10 @@ MAKELIST_TARGET(libedit_common common.h -h ${CMAKE_CURRENT_SOURCE_DIR}/common.c)
 MAKELIST_TARGET(libedit_fcns   fcns.h   -fh "${AHDR}")
 MAKELIST_TARGET(libedit_help   help.h   -bh "${ASRC}")
 MAKELIST_TARGET(libedit_func   func.h   -fc "${AHDR}")
+
+# Add target dependencies, to compensate for the DEPENDS we removed above.
+ADD_DEPENDENCIES(libedit_fcns libedit_vi libedit_emacs libedit_common)
+ADD_DEPENDENCIES(libedit_func libedit_vi libedit_emacs libedit_common)
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
@@ -135,6 +140,8 @@ ENDIF()
 
 ADD_LIBRARY(edit STATIC ${LIBEDIT_SOURCES})
 TARGET_LINK_LIBRARIES(edit ${CURSES_LIBRARY})
+ADD_DEPENDENCIES(edit libedit_vi libedit_emacs libedit_common libedit_fcns libedit_help libedit_func)
+
 
 # clang may complain:
 # converts between pointers to integer types with different sign

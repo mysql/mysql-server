@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,10 @@ ELSEIF(APPLE)
   # supported by cmake. 3.12.4 will force using the legacy build system.
   # Version 3.9.2 is needed because INCLUDE_DIRECTORIES(SYSTEM ...) wasn't
   # handled properly by the cmake Xcode generator.
+  # NOTE:
+  # cmake >= 3.19 will use the new build system by default for Xcode >= 12.x
   IF(CMAKE_GENERATOR STREQUAL "Xcode")
+    SET(APPLE_XCODE 1)
     CMAKE_MINIMUM_REQUIRED(VERSION 3.12.4)
   ELSE()
     CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)

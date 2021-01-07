@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -611,8 +611,12 @@ IF(WITH_LOCK_ORDER)
   MESSAGE(STATUS "FLEX outputs ${FLEX_debug_lo_scanner_OUTPUTS}")
 
   # Some targets, for easier debugging.
-  ADD_CUSTOM_TARGET(GenBison_lo DEPENDS ${BISON_debug_lo_parser_OUTPUTS})
-  ADD_CUSTOM_TARGET(GenFlex_lo DEPENDS ${FLEX_debug_lo_scanner_OUTPUTS})
+  # The new Xcode build system does not support multiple targets that
+  # DEPEND on the same outputs.
+  IF(NOT APPLE_XCODE)
+    ADD_CUSTOM_TARGET(GenBison_lo DEPENDS ${BISON_debug_lo_parser_OUTPUTS})
+    ADD_CUSTOM_TARGET(GenFlex_lo DEPENDS ${FLEX_debug_lo_scanner_OUTPUTS})
+  ENDIF()
 
   LIST(APPEND SQL_SHARED_SOURCES
     ${BISON_debug_lo_parser_OUTPUTS}
@@ -1009,7 +1013,7 @@ IF(APPLE)
   IF(CORESERVICES)
     TARGET_LINK_LIBRARIES(mysqld ${CORESERVICES})
   ENDIF()
-  IF(NOT BUILD_IS_SINGLE_CONFIG)
+  IF(APPLE_XCODE)
     ADD_COMPILE_DEFINITIONS(mysqld.cc COMPILE_DEFINITIONS APPLE_XCODE)
   ENDIF()
 ENDIF()
@@ -1178,8 +1182,12 @@ ELSE()
   MESSAGE(STATUS "BISON outputs ${BISON_hints_parser_OUTPUTS}")
 
   # Some targets, for easier debugging.
-  ADD_CUSTOM_TARGET(GenBison_mysql DEPENDS ${BISON_mysql_parser_OUTPUTS})
-  ADD_CUSTOM_TARGET(GenBison_hints DEPENDS ${BISON_hints_parser_OUTPUTS})
+  # The new Xcode build system does not support multiple targets that
+  # DEPEND on the same outputs.
+  IF(NOT APPLE_XCODE)
+    ADD_CUSTOM_TARGET(GenBison_mysql DEPENDS ${BISON_mysql_parser_OUTPUTS})
+    ADD_CUSTOM_TARGET(GenBison_hints DEPENDS ${BISON_hints_parser_OUTPUTS})
+  ENDIF()
 
 ENDIF()
 

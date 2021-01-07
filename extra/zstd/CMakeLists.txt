@@ -8,7 +8,7 @@
 # ################################################################
 
 PROJECT(zstd)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
+# CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 
 SET(ZSTD_SRCS
   lib/common/debug.c
