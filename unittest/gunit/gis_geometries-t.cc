@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,13 @@ TYPED_TEST(GeometriesTest, Point) {
   pt.y(-1.7976931348623157e308);
   EXPECT_EQ(1.7976931348623157e308, pt.x());
   EXPECT_EQ(-1.7976931348623157e308, pt.y());
+
+  std::unique_ptr<typename TypeParam::Point> pt_clone(pt.clone());
+  EXPECT_FALSE(&pt == pt_clone.get());
+  EXPECT_EQ(pt.type(), pt_clone.get()->type());
+  EXPECT_EQ(pt.coordinate_system(), pt_clone.get()->coordinate_system());
+  EXPECT_EQ(pt.x(), pt_clone.get()->x());
+  EXPECT_EQ(pt.y(), pt_clone.get()->y());
 }
 
 TYPED_TEST(GeometriesTest, Curve) {}
@@ -131,6 +138,32 @@ TYPED_TEST(GeometriesTest, Linestring) {
   EXPECT_EQ(0.0, ls[0].y());
   EXPECT_EQ(30.0, ls[3].x());
   EXPECT_EQ(10.0, ls[3].y());
+
+  EXPECT_EQ(0.0, ls.front().x());
+  EXPECT_EQ(0.0, ls.front().y());
+
+  ls.pop_front();
+  EXPECT_EQ(3U, ls.size());
+  EXPECT_EQ(10.0, ls.front().x());
+  EXPECT_EQ(10.0, ls.front().y());
+
+  std::unique_ptr<gis::Linestring> ls_new(
+      ls.CreateLinestring(ls.coordinate_system()));
+  EXPECT_FALSE(&ls == ls_new.get());
+  EXPECT_EQ(gis::Geometry_type::kLinestring, ls_new.get()->type());
+  EXPECT_EQ(ls.coordinate_system(), ls_new.get()->coordinate_system());
+  EXPECT_TRUE(ls_new.get()->empty());
+  EXPECT_TRUE(ls_new.get()->is_empty());
+
+  std::unique_ptr<typename TypeParam::Linestring> ls_clone(ls.clone());
+  EXPECT_FALSE(&ls == ls_clone.get());
+  EXPECT_EQ(ls.type(), ls_clone.get()->type());
+  EXPECT_EQ(ls.coordinate_system(), ls_clone.get()->coordinate_system());
+  EXPECT_EQ(ls.size(), ls_clone.get()->size());
+  for (std::size_t i = 0; i < ls.size(); i++) {
+    EXPECT_EQ(ls[i].x(), (*ls_clone.get())[i].x());
+    EXPECT_EQ(ls[i].y(), (*ls_clone.get())[i].y());
+  }
 }
 
 TYPED_TEST(GeometriesTest, Linearring) {
@@ -156,6 +189,39 @@ TYPED_TEST(GeometriesTest, Linearring) {
   EXPECT_EQ(10.0, lr[1].y());
   EXPECT_EQ(20.0, lr[2].x());
   EXPECT_EQ(0.0, lr[2].y());
+
+  EXPECT_EQ(0.0, lr.back().x());
+  EXPECT_EQ(10.0, lr.back().y());
+
+  EXPECT_EQ(0.0, lr.front().x());
+  EXPECT_EQ(0.0, lr.front().y());
+
+  lr.pop_front();
+  EXPECT_EQ(3U, lr.size());
+  EXPECT_EQ(10.0, lr.front().x());
+  EXPECT_EQ(10.0, lr.front().y());
+
+  std::unique_ptr<gis::Linearring> lr_new(
+      lr.CreateLinearring(lr.coordinate_system()));
+  EXPECT_FALSE(&lr == lr_new.get());
+  EXPECT_EQ(gis::Geometry_type::kLinestring, lr_new.get()->type());
+  EXPECT_EQ(lr.coordinate_system(), lr_new.get()->coordinate_system());
+  EXPECT_TRUE(lr_new.get()->empty());
+  EXPECT_TRUE(lr_new.get()->is_empty());
+
+  std::unique_ptr<typename TypeParam::Linearring> lr_clone(
+      static_cast<typename TypeParam::Linearring *>(lr.clone()));
+  EXPECT_FALSE(&lr == lr_clone.get());
+  EXPECT_EQ(lr.type(), lr_clone.get()->type());
+  EXPECT_EQ(lr.coordinate_system(), lr_clone.get()->coordinate_system());
+  EXPECT_EQ(lr.size(), lr_clone.get()->size());
+  for (std::size_t i = 0; i < lr.size(); i++) {
+    EXPECT_EQ(lr[i].x(), (*lr_clone.get())[i].x());
+    EXPECT_EQ(lr[i].y(), (*lr_clone.get())[i].y());
+  }
+  typename TypeParam::Polygon py;
+  py.push_back(*lr_clone.get());
+  EXPECT_EQ(1U, py.size());
 }
 
 TYPED_TEST(GeometriesTest, Surface) {}
@@ -193,6 +259,34 @@ TYPED_TEST(GeometriesTest, Polygon) {
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(py.accept(&visitor));
+
+  std::unique_ptr<gis::Polygon> py_new(
+      py.CreatePolygon(py.coordinate_system()));
+  EXPECT_FALSE(&py == py_new.get());
+  EXPECT_EQ(gis::Geometry_type::kPolygon, py_new.get()->type());
+  EXPECT_EQ(py.coordinate_system(), py_new.get()->coordinate_system());
+  EXPECT_TRUE(py_new.get()->empty());
+  EXPECT_TRUE(py_new.get()->is_empty());
+
+  std::unique_ptr<typename TypeParam::Polygon> py_clone(py.clone());
+  EXPECT_FALSE(&py == py_clone.get());
+  EXPECT_EQ(py.type(), py_clone.get()->type());
+  EXPECT_EQ(py.coordinate_system(), py_clone.get()->coordinate_system());
+  EXPECT_EQ(py.size(), py_clone.get()->size());
+  for (std::size_t i = 0; i < py.exterior_ring().size(); i++) {
+    EXPECT_EQ(py.exterior_ring()[i].x(),
+              py_clone.get()->exterior_ring()[i].x());
+    EXPECT_EQ(py.exterior_ring()[i].y(),
+              py_clone.get()->exterior_ring()[i].y());
+  }
+  for (std::size_t i = 0; i < py.interior_rings().size(); i++) {
+    for (std::size_t j = 0; j < py.interior_ring(i).size(); j++) {
+      EXPECT_EQ(py.interior_ring(i)[j].x(),
+                py_clone.get()->interior_ring(i)[j].x());
+      EXPECT_EQ(py.interior_ring(i)[j].x(),
+                py_clone.get()->interior_ring(i)[j].x());
+    }
+  }
 }
 
 TYPED_TEST(GeometriesTest, Geometrycollection) {
@@ -263,6 +357,32 @@ TYPED_TEST(GeometriesTest, Geometrycollection) {
   EXPECT_EQ(13U, gc_copy.size());
   EXPECT_FALSE(gc.empty());
   EXPECT_FALSE(gc.is_empty());
+
+  EXPECT_EQ(gis::Geometry_type::kGeometrycollection, gc.front().type());
+
+  gc.pop_front();
+  gc.pop_front();
+  EXPECT_EQ(11U, gc.size());
+  EXPECT_EQ(gis::Geometry_type::kPoint, gc.front().type());
+
+  std::unique_ptr<gis::Geometrycollection> gc_new(
+      gc.CreateGeometrycollection(gc.coordinate_system()));
+  EXPECT_FALSE(&gc == gc_new.get());
+  EXPECT_EQ(gis::Geometry_type::kGeometrycollection, gc_new.get()->type());
+  EXPECT_EQ(gc.coordinate_system(), gc_new.get()->coordinate_system());
+  EXPECT_TRUE(gc_new.get()->empty());
+  EXPECT_TRUE(gc_new.get()->is_empty());
+
+  std::unique_ptr<typename TypeParam::Geometrycollection> gc_clone(gc.clone());
+  EXPECT_FALSE(&gc == gc_clone.get());
+  EXPECT_EQ(gc.type(), gc_clone.get()->type());
+  EXPECT_EQ(gc.coordinate_system(), gc_clone.get()->coordinate_system());
+  EXPECT_EQ(gc.size(), gc_clone.get()->size());
+  for (std::size_t i = 0; i < gc.size(); i++) {
+    EXPECT_EQ(gc[i].type(), (*gc_clone.get())[i].type());
+    EXPECT_EQ(gc[i].coordinate_system(),
+              (*gc_clone.get())[i].coordinate_system());
+  }
 }
 
 TYPED_TEST(GeometriesTest, Multipoint) {
@@ -282,6 +402,32 @@ TYPED_TEST(GeometriesTest, Multipoint) {
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(mpt.accept(&visitor));
+
+  EXPECT_EQ(0.0, mpt.front().x());
+  EXPECT_EQ(0.0, mpt.front().y());
+
+  mpt.pop_front();
+  EXPECT_EQ(1U, mpt.size());
+  EXPECT_EQ(1.0, mpt.front().x());
+  EXPECT_EQ(1.0, mpt.front().y());
+
+  std::unique_ptr<gis::Multipoint> mpt_new(
+      mpt.CreateMultipoint(mpt.coordinate_system()));
+  EXPECT_FALSE(&mpt == mpt_new.get());
+  EXPECT_EQ(gis::Geometry_type::kMultipoint, mpt_new.get()->type());
+  EXPECT_EQ(mpt.coordinate_system(), mpt_new.get()->coordinate_system());
+  EXPECT_TRUE(mpt_new.get()->empty());
+  EXPECT_TRUE(mpt_new.get()->is_empty());
+
+  std::unique_ptr<typename TypeParam::Multipoint> mpt_clone(mpt.clone());
+  EXPECT_FALSE(&mpt == mpt_clone.get());
+  EXPECT_EQ(mpt.type(), mpt_clone.get()->type());
+  EXPECT_EQ(mpt.coordinate_system(), mpt_clone.get()->coordinate_system());
+  EXPECT_EQ(mpt.size(), mpt_clone.get()->size());
+  for (std::size_t i = 0; i < mpt.size(); i++) {
+    EXPECT_EQ(mpt[i].x(), (*mpt_clone.get())[i].x());
+    EXPECT_EQ(mpt[i].y(), (*mpt_clone)[i].y());
+  }
 }
 
 TYPED_TEST(GeometriesTest, Multicurve) {
@@ -321,6 +467,32 @@ TYPED_TEST(GeometriesTest, Multilinestring) {
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(mls.accept(&visitor));
+
+  EXPECT_EQ(5U, mls.front().size());
+
+  mls.pop_front();
+  EXPECT_EQ(1U, mls.size());
+  EXPECT_EQ(2U, mls.front().size());
+
+  std::unique_ptr<gis::Multilinestring> mls_new(
+      mls.CreateMultilinestring(mls.coordinate_system()));
+  EXPECT_FALSE(&mls == mls_new.get());
+  EXPECT_EQ(gis::Geometry_type::kMultilinestring, mls_new.get()->type());
+  EXPECT_EQ(mls.coordinate_system(), mls_new.get()->coordinate_system());
+  EXPECT_TRUE(mls_new.get()->empty());
+  EXPECT_TRUE(mls_new.get()->is_empty());
+
+  std::unique_ptr<typename TypeParam::Multilinestring> mls_clone(mls.clone());
+  EXPECT_FALSE(&mls == mls_clone.get());
+  EXPECT_EQ(mls.type(), mls_clone.get()->type());
+  EXPECT_EQ(mls.coordinate_system(), mls_clone.get()->coordinate_system());
+  EXPECT_EQ(mls.size(), mls_clone.get()->size());
+  for (std::size_t i = 0; i < mls.size(); i++) {
+    for (std::size_t j = 0; j < mls[i].size(); j++) {
+      EXPECT_EQ(mls[i][j].x(), (*mls_clone.get())[i][j].x());
+      EXPECT_EQ(mls[i][j].y(), (*mls_clone.get())[i][j].y());
+    }
+  }
 }
 
 TYPED_TEST(GeometriesTest, Multisurface) {
@@ -367,6 +539,42 @@ TYPED_TEST(GeometriesTest, Multipolygon) {
 
   gis::Nop_visitor visitor;
   EXPECT_FALSE(mpy.accept(&visitor));
+
+  std::unique_ptr<gis::Multipolygon> mpy_new(
+      mpy.CreateMultipolygon(mpy.coordinate_system()));
+  EXPECT_FALSE(&mpy == mpy_new.get());
+  EXPECT_EQ(gis::Geometry_type::kMultipolygon, mpy_new.get()->type());
+  EXPECT_EQ(mpy.coordinate_system(), mpy_new.get()->coordinate_system());
+  EXPECT_TRUE(mpy_new.get()->empty());
+  EXPECT_TRUE(mpy_new.get()->is_empty());
+
+  std::unique_ptr<typename TypeParam::Multipolygon> mpy_clone(mpy.clone());
+  EXPECT_FALSE(&mpy == mpy_clone.get());
+  EXPECT_EQ(mpy.type(), mpy_clone.get()->type());
+  EXPECT_EQ(mpy.coordinate_system(), mpy_clone.get()->coordinate_system());
+  EXPECT_EQ(mpy.size(), mpy_clone.get()->size());
+  for (std::size_t i = 0; i < mpy.size(); i++) {
+    for (std::size_t j = 0; j < mpy[i].exterior_ring().size(); j++) {
+      EXPECT_EQ(mpy[i].exterior_ring()[j].x(),
+                (*mpy_clone.get())[i].exterior_ring()[j].x());
+      EXPECT_EQ(mpy[i].exterior_ring()[j].y(),
+                (*mpy_clone.get())[i].exterior_ring()[j].y());
+    }
+    for (std::size_t j = 0; j < mpy[i].interior_rings().size(); j++) {
+      for (std::size_t k = 0; k < mpy[i].interior_ring(j).size(); k++) {
+        EXPECT_EQ(mpy[i].interior_ring(j)[k].x(),
+                  (*mpy_clone.get())[i].interior_ring(j)[k].x());
+        EXPECT_EQ(mpy[i].interior_ring(j)[k].y(),
+                  (*mpy_clone.get())[i].interior_ring(j)[k].y());
+      }
+    }
+  }
+
+  EXPECT_EQ(2U, mpy.front().size());
+
+  mpy.pop_front();
+  EXPECT_EQ(1U, mpy.size());
+  EXPECT_EQ(0U, mpy.front().size());
 }
 
 }  // namespace geometries_unittest

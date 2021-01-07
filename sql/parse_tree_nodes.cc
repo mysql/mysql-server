@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3878,7 +3878,7 @@ bool PT_alter_table_set_default::contextualize(Table_ddl_parse_context *pc) {
         return true;
       }
       assert(dynamic_cast<Item_func_true *>(func) ||
-                  dynamic_cast<Item_func_false *>(func));
+             dynamic_cast<Item_func_false *>(func));
       actual_expr = new Item_int(func->val_int());
     }
     alter_column = new (pc->mem_root) Alter_column(m_name, actual_expr);

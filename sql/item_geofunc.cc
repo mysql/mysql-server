@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
+#include <boost/geometry/algorithms/detail/calculate_point_order.hpp>
 #include <boost/geometry/strategies/strategies.hpp>  // IWYU pragma: keep
 #include <boost/iterator/iterator_facade.hpp>        // operator-
 
@@ -62,11 +63,14 @@
 #include "sql/gis/distance_sphere.h"
 #include "sql/gis/frechet_distance.h"
 #include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
 #include "sql/gis/hausdorff_distance.h"
 #include "sql/gis/is_simple.h"
 #include "sql/gis/is_valid.h"
 #include "sql/gis/length.h"
 #include "sql/gis/line_interpolate.h"
+#include "sql/gis/relops.h"
+#include "sql/gis/ring_flip_visitor.h"
 #include "sql/gis/simplify.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/st_units_of_measure.h"
@@ -5713,4 +5717,952 @@ String *Item_func_st_transform::val_str(String *str) {
 
   write_geometry(target_srs, *target_g, str);
   return str;
+}
+
+// Typecast functions
+
+String *Item_typecast_geometry::val_str(String *str) {
+  assert(fixed);
+  String *source_swkb = args[0]->val_str(str);
+
+  if (args[0]->null_value) return null_return_str();
+
+  if (!source_swkb) {
+    assert(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<gis::Geometry> source_g;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+
+  // Handles non-well-formed geometries, undefined SRSs and longitudes/latitudes
+  // out of range
+  if (gis::parse_geometry(current_thd, func_name(), source_swkb, &srs,
+                          &source_g)) {
+    assert(current_thd->is_error());
+    return error_str();
+  }
+
+  std::unique_ptr<gis::Geometry> target_g;
+
+  // Casts the geometry to target type, if cast is valid.
+  if (cast(srs, &source_g, &target_g)) {
+    assert(current_thd->is_error());
+    return error_str();
+  }
+
+  if (target_g.get() == nullptr) {
+    assert(false);
+    null_value = true;
+    return nullptr;
+  }
+
+  if (gis::write_geometry(srs, *target_g, str)) {
+    assert(current_thd->is_error());
+    return error_str();
+  }
+
+  return str;
+}
+
+bool Item_typecast_point::cast(
+    const dd::Spatial_reference_system *,
+    std::unique_ptr<gis::Geometry> *source_geometry,
+    std::unique_ptr<gis::Geometry> *target_geometry) const {
+  // Raises error if source type is not Point, Multipoint or Geometrycollection
+  if ((*source_geometry)->type() != gis::Geometry_type::kPoint &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultipoint &&
+      (*source_geometry)->type() != gis::Geometry_type::kGeometrycollection) {
+    my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+             gis::type_to_name((*source_geometry)->type()), "POINT");
+    return true;
+  }
+
+  switch ((*source_geometry)->type()) {
+      // POINT -> POINT
+    case gis::Geometry_type::kPoint: {
+      target_geometry->swap(*source_geometry);
+      return false;
+    }
+
+    // MULTIPOINT -> POINT (raises error if multipoint has multiple points)
+    case gis::Geometry_type::kMultipoint: {
+      std::unique_ptr<gis::Multipoint> source_multipoint(
+          static_cast<gis::Multipoint *>(source_geometry->release()));
+      if (source_multipoint->size() != 1) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_multipoint->type()), "POINT");
+        return true;
+      } else {
+        std::unique_ptr<gis::Point> target_point(
+            source_multipoint->front().clone());
+        target_geometry->reset(target_point.release());
+        return false;
+      }
+    }
+
+    // GEOMETRYCOLLECTION -> POINT (raises error if geometrycollection is empty,
+    // has multiple geometries or other geometries than point)
+    case gis::Geometry_type::kGeometrycollection: {
+      std::unique_ptr<gis::Geometrycollection> source_geomcollection(
+          static_cast<gis::Geometrycollection *>(source_geometry->release()));
+      if (source_geomcollection->size() != 1 ||
+          source_geomcollection->front().type() != gis::Geometry_type::kPoint) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_geomcollection->type()), "POINT");
+        return true;
+      } else {
+        std::unique_ptr<gis::Geometry> target_point(
+            source_geomcollection->front().clone());
+        target_geometry->reset(target_point.release());
+        return false;
+      }
+    }
+
+    default: {
+      // This should not be reached
+      assert(false);
+      return true;
+    }
+  }
+}
+
+Field::geometry_type Item_typecast_point::get_geometry_type() const {
+  return Field::GEOM_POINT;
+}
+
+void Item_typecast_point::print(const THD *thd, String *str,
+                                enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as point)"));
+}
+
+bool Item_typecast_linestring::cast(
+    const dd::Spatial_reference_system *,
+    std::unique_ptr<gis::Geometry> *source_geometry,
+    std::unique_ptr<gis::Geometry> *target_geometry) const {
+  // Raises error if source type is not Linestring, Polygon, Multipoint,
+  // Multilinestring or Geometrycollection.
+  if ((*source_geometry)->type() != gis::Geometry_type::kLinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kPolygon &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultipoint &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultilinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kGeometrycollection) {
+    my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+             gis::type_to_name((*source_geometry)->type()), "LINESTRING");
+    return true;
+  }
+
+  switch ((*source_geometry)->type()) {
+    // LINESTRING -> LINESTRING
+    case gis::Geometry_type::kLinestring: {
+      target_geometry->swap(*source_geometry);
+      return false;
+    }
+
+    // POLYGON -> LINESTRING (raises error if polygon is empty or has inner
+    // rings)
+    case gis::Geometry_type::kPolygon: {
+      std::unique_ptr<gis::Polygon> source_polygon(
+          static_cast<gis::Polygon *>(source_geometry->release()));
+      std::unique_ptr<gis::Linestring> target_linestring(
+          gis::Linestring::CreateLinestring(
+              source_polygon->coordinate_system()));
+      if (source_polygon->size() != 1 ||
+          source_polygon->exterior_ring().empty()) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_polygon->type()), "LINESTRING");
+        return true;
+      } else {
+        while (!source_polygon->exterior_ring().empty()) {
+          std::unique_ptr<gis::Point> target_point(
+              source_polygon->exterior_ring().front().clone());
+          target_linestring->push_back(*target_point);
+          source_polygon->exterior_ring().pop_front();
+        }
+        target_geometry->reset(target_linestring.release());
+        return false;
+      }
+    }
+
+    // MULTIPOINT -> LINESTRING (raises error if multipoint has only one point)
+    case gis::Geometry_type::kMultipoint: {
+      std::unique_ptr<gis::Multipoint> source_multipoint(
+          static_cast<gis::Multipoint *>(source_geometry->release()));
+      std::unique_ptr<gis::Linestring> target_linestring(
+          gis::Linestring::CreateLinestring(
+              source_multipoint->coordinate_system()));
+      if (source_multipoint->size() < 2) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_multipoint->type()), "LINESTRING");
+        return true;
+      } else {
+        while (!source_multipoint->empty()) {
+          std::unique_ptr<gis::Point> target_point(
+              source_multipoint->front().clone());
+          target_linestring->push_back(*target_point);
+          source_multipoint->pop_front();
+        }
+        target_geometry->reset(target_linestring.release());
+        return false;
+      }
+    }
+
+    // MULTILINESTRING -> LINESTRING (raises error if multilinestring has
+    // multiple linestrings)
+    case gis::Geometry_type::kMultilinestring: {
+      std::unique_ptr<gis::Multilinestring> source_multilinestring(
+          static_cast<gis::Multilinestring *>(source_geometry->release()));
+      if (source_multilinestring->size() != 1) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_multilinestring->type()),
+                 "LINESTRING");
+        return true;
+      } else {
+        std::unique_ptr<gis::Linestring> target_linestring(
+            source_multilinestring->front().clone());
+        target_geometry->reset(target_linestring.release());
+        return false;
+      }
+    }
+
+    // GEOMETRYCOLLECTION -> LINESTRING (raises error if geometrycollection is
+    // empty, has multiple geometries or other geometries than linestring)
+    case gis::Geometry_type::kGeometrycollection: {
+      std::unique_ptr<gis::Geometrycollection> source_geomcollection(
+          static_cast<gis::Geometrycollection *>(source_geometry->release()));
+      if (source_geomcollection->size() != 1 ||
+          source_geomcollection->front().type() !=
+              gis::Geometry_type::kLinestring) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_geomcollection->type()),
+                 "LINESTRING");
+        return true;
+      } else {
+        std::unique_ptr<gis::Geometry> target_linestring(
+            source_geomcollection->front().clone());
+        target_geometry->reset(target_linestring.release());
+        return false;
+      }
+    }
+
+    default: {
+      // This should not be reached
+      assert(false);
+      return true;
+    }
+  }
+}
+
+Field::geometry_type Item_typecast_linestring::get_geometry_type() const {
+  return Field::GEOM_LINESTRING;
+}
+
+void Item_typecast_linestring::print(const THD *thd, String *str,
+                                     enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as linestring)"));
+}
+
+bool Item_typecast_polygon::cast(
+    const dd::Spatial_reference_system *srs,
+    std::unique_ptr<gis::Geometry> *source_geometry,
+    std::unique_ptr<gis::Geometry> *target_geometry) const {
+  // Raises error if source type is not Linestring, Polygon, Multilinestring,
+  // Multipolygon, Geometrycollection.
+  if ((*source_geometry)->type() != gis::Geometry_type::kLinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kPolygon &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultilinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultipolygon &&
+      (*source_geometry)->type() != gis::Geometry_type::kGeometrycollection) {
+    my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+             gis::type_to_name((*source_geometry)->type()), "POLYGON");
+    return true;
+  }
+
+  switch ((*source_geometry)->type()) {
+    // LINESTRING -> POLYGON (raises error if linestring is not counter
+    // clockwise oriented linearring)
+    case gis::Geometry_type::kLinestring: {
+      std::unique_ptr<gis::Linestring> source_linestring(
+          static_cast<gis::Linestring *>(source_geometry->release()));
+      std::unique_ptr<gis::Polygon> target_polygon(
+          gis::Polygon::CreatePolygon(source_linestring->coordinate_system()));
+
+      // If the back and front of the linestring are not the same point, this
+      // cannot be a linear ring.
+      bool equals = false;
+      bool is_null = false;
+      if (gis::equals(srs, &source_linestring->front(),
+                      &source_linestring->back(), func_name(), &equals,
+                      &is_null)) {
+        assert(current_thd->is_error());
+        return true;
+      }
+      if (!equals || source_linestring->size() < 4) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_linestring->type()), "POLYGON");
+        return true;
+      } else {
+        for (size_t i = 0; i < source_linestring->size(); ++i) {
+          std::unique_ptr<gis::Point> target_point(
+              (*source_linestring)[i].clone());
+          target_polygon->exterior_ring().push_back(*target_point);
+        }
+        // Flip polygon rings and compare order of points with original
+        // linestring, to check whether input linestring was valid
+        double semi_major = 1.0;
+        double semi_minor = 1.0;
+        if (srs && srs->is_geographic()) {
+          semi_major = srs->semi_major_axis();
+          semi_minor = srs->semi_minor_axis();
+        }
+        gis::Ring_flip_visitor rfv(semi_major, semi_minor);
+        target_polygon->accept(&rfv);
+        if (rfv.invalid()) {
+          // There's something wrong with a polygon in the geometry.
+          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+          return true;
+        }
+        // Check each point of the linestring against the exterior ring of the
+        // polygon
+        for (size_t i = 0; i < source_linestring->size(); ++i) {
+          bool ring_equals_linestring = false;
+          bool result_is_null = false;
+          if (gis::equals(srs, &(*source_linestring)[i],
+                          &target_polygon->exterior_ring()[i], func_name(),
+                          &ring_equals_linestring, &result_is_null)) {
+            assert(current_thd->is_error());
+            return true;
+          }
+          // Unequal points means exterior ring was reversed, which means source
+          // linestring had wrong direction for cast (not counter clockwise)
+          if (!ring_equals_linestring) {
+            my_error(ER_INVALID_CAST_POLYGON_RING_DIRECTION, MYF(0),
+                     gis::type_to_name(source_linestring->type()), "POLYGON");
+            return true;
+          }
+        }
+        target_geometry->reset(target_polygon.release());
+        return false;
+      }
+    }
+
+    // POLYGON -> POLYGON
+    case gis::Geometry_type::kPolygon: {
+      target_geometry->swap(*source_geometry);
+      return false;
+    }
+
+    // MULTILINESTRING -> POLYGON (raises error if multilinestrings has
+    // linestrings that are not correctly oriented linearrings, i.e. first ring
+    // must be counter clockwise and remaining rings must be clockwise)
+    case gis::Geometry_type::kMultilinestring: {
+      std::unique_ptr<gis::Multilinestring> source_multilinestring(
+          static_cast<gis::Multilinestring *>(source_geometry->release()));
+      std::unique_ptr<gis::Polygon> target_polygon(gis::Polygon::CreatePolygon(
+          source_multilinestring->coordinate_system()));
+      for (size_t i = 0; i < source_multilinestring->size(); ++i) {
+        gis::Linestring *source_linestring =
+            static_cast<gis::Linestring *>(&(*source_multilinestring)[i]);
+        // If the back and front of each linestring are not the same point, this
+        // linestring cannot be a linear ring.
+        bool equals = false;
+        bool is_null = false;
+        if (gis::equals(srs, &source_linestring->front(),
+                        &source_linestring->back(), func_name(), &equals,
+                        &is_null)) {
+          assert(current_thd->is_error());
+          return true;
+        }
+        if (!equals || source_linestring->size() < 4) {
+          my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                   gis::type_to_name(source_linestring->type()), "POLYGON");
+          return true;
+        } else {
+          std::unique_ptr<gis::Linearring> target_linearring(
+              gis::Linearring::CreateLinearring(
+                  source_multilinestring->coordinate_system()));
+          for (size_t j = 0; j < source_linestring->size(); ++j) {
+            std::unique_ptr<gis::Point> target_point(
+                (*source_linestring)[j].clone());
+            target_linearring->push_back(*target_point);
+          }
+          target_polygon->push_back(*target_linearring);
+
+          // Flip polygon rings and compare order of points with original
+          // linestring, to check whether input linestring was valid
+          double semi_major = 1.0;
+          double semi_minor = 1.0;
+          if (srs && srs->is_geographic()) {
+            semi_major = srs->semi_major_axis();
+            semi_minor = srs->semi_minor_axis();
+          }
+          gis::Ring_flip_visitor rfv(semi_major, semi_minor);
+          target_polygon->accept(&rfv);
+          if (rfv.invalid()) {
+            // There's something wrong with a polygon in the geometry.
+            my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+            return true;
+          }
+          // Check each point of the current linestring against the current
+          // polygon ring
+          gis::Linearring *target_polygon_ring =
+              (i == 0 ? &target_polygon->exterior_ring()
+                      : &target_polygon->interior_ring(i - 1));
+          for (size_t j = 0; j < source_linestring->size(); ++j) {
+            bool ring_equals_linestring = false;
+            bool result_is_null = false;
+            if (gis::equals(srs, &(*source_linestring)[j],
+                            &(*target_polygon_ring)[j], func_name(),
+                            &ring_equals_linestring, &result_is_null)) {
+              assert(current_thd->is_error());
+              return true;
+            }
+            // Unequal points means ring was reversed, which means source
+            // linestring had wrong direction for cast (not counter clockwise
+            // for exterior ring, not clockwise for interior rings)
+            if (!ring_equals_linestring) {
+              my_error(ER_INVALID_CAST_POLYGON_RING_DIRECTION, MYF(0),
+                       gis::type_to_name(source_linestring->type()), "POLYGON");
+              return true;
+            }
+          }
+        }
+      }
+      target_geometry->reset(target_polygon.release());
+      return false;
+    }
+
+    // MULTIPOLYGON -> POLYGON (raises error if multipolygon has multiple
+    // polygons)
+    case gis::Geometry_type::kMultipolygon: {
+      std::unique_ptr<gis::Multipolygon> source_multipolygon(
+          static_cast<gis::Multipolygon *>(source_geometry->release()));
+      if (source_multipolygon->size() != 1) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_multipolygon->type()), "POLYGON");
+        return true;
+      } else {
+        std::unique_ptr<gis::Polygon> target_polygon(
+            source_multipolygon->front().clone());
+        target_geometry->reset(target_polygon.release());
+        return false;
+      }
+    }
+
+    // GEOMETRYCOLLECTION -> POLYGON (raises error if geometrycollection is
+    // empty, has multiple geometries or other geometries than polygons)
+    case gis::Geometry_type::kGeometrycollection: {
+      std::unique_ptr<gis::Geometrycollection> source_geomcollection(
+          static_cast<gis::Geometrycollection *>(source_geometry->release()));
+      if (source_geomcollection->size() != 1 ||
+          source_geomcollection->front().type() !=
+              gis::Geometry_type::kPolygon) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_geomcollection->type()), "POLYGON");
+        return true;
+      } else {
+        std::unique_ptr<gis::Geometry> target_polygon(
+            source_geomcollection->front().clone());
+        target_geometry->reset(target_polygon.release());
+        return false;
+      }
+    }
+
+    default: {
+      // This should not be reached
+      assert(false);
+      return true;
+    }
+  }
+}
+
+Field::geometry_type Item_typecast_polygon::get_geometry_type() const {
+  return Field::GEOM_POLYGON;
+}
+
+void Item_typecast_polygon::print(const THD *thd, String *str,
+                                  enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as polygon)"));
+}
+
+bool Item_typecast_multipoint::cast(
+    const dd::Spatial_reference_system *,
+    std::unique_ptr<gis::Geometry> *source_geometry,
+    std::unique_ptr<gis::Geometry> *target_geometry) const {
+  // Raises error if source type is not Point, Multipoint, Linestring or
+  // Geometrycollection
+  if ((*source_geometry)->type() != gis::Geometry_type::kPoint &&
+      (*source_geometry)->type() != gis::Geometry_type::kLinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultipoint &&
+      (*source_geometry)->type() != gis::Geometry_type::kGeometrycollection) {
+    my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+             gis::type_to_name((*source_geometry)->type()), "MULTIPOINT");
+    return true;
+  }
+
+  switch ((*source_geometry)->type()) {
+    // POINT -> MULTIPOINT
+    case gis::Geometry_type::kPoint: {
+      std::unique_ptr<gis::Multipoint> target_multipoint(
+          gis::Multipoint::CreateMultipoint(
+              (*source_geometry)->coordinate_system()));
+      target_multipoint->push_back(**source_geometry);
+      target_geometry->reset(target_multipoint.release());
+      return false;
+    }
+
+    // LINESTRING -> MULTIPOINT
+    case gis::Geometry_type::kLinestring: {
+      std::unique_ptr<gis::Linestring> source_linestring(
+          static_cast<gis::Linestring *>(source_geometry->release()));
+      std::unique_ptr<gis::Multipoint> target_multipoint(
+          gis::Multipoint::CreateMultipoint(
+              source_linestring->coordinate_system()));
+      while (!source_linestring->empty()) {
+        std::unique_ptr<gis::Point> target_point(
+            source_linestring->front().clone());
+        target_multipoint->push_back(*target_point);
+        source_linestring->pop_front();
+      }
+      target_geometry->reset(target_multipoint.release());
+      return false;
+    }
+
+    // MULTIPOINT -> MULTIPOINT
+    case gis::Geometry_type::kMultipoint: {
+      target_geometry->swap(*source_geometry);
+      return false;
+    }
+
+    // GEOMETRYCOLLECTION -> MULTIPOINT (raises error if geometrycollection is
+    // empty or has other geometries than points)
+    case gis::Geometry_type::kGeometrycollection: {
+      std::unique_ptr<gis::Geometrycollection> source_geomcollection(
+          static_cast<gis::Geometrycollection *>(source_geometry->release()));
+      if (source_geomcollection->is_empty()) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_geomcollection->type()),
+                 "MULTIPOINT");
+        return true;
+      } else {
+        std::unique_ptr<gis::Multipoint> target_multipoint(
+            gis::Multipoint::CreateMultipoint(
+                source_geomcollection->coordinate_system()));
+        while (!source_geomcollection->empty()) {
+          // Check while popping off elements whether they are points.
+          if (source_geomcollection->front().type() !=
+              gis::Geometry_type::kPoint) {
+            my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                     gis::type_to_name(source_geomcollection->type()),
+                     "MULTIPOINT");
+            return true;
+          }
+          std::unique_ptr<gis::Geometry> target_point(
+              source_geomcollection->front().clone());
+          target_multipoint->push_back(*target_point);
+          source_geomcollection->pop_front();
+        }
+        target_geometry->reset(target_multipoint.release());
+        return false;
+      }
+    }
+
+    default: {
+      // This should not be reached
+      assert(false);
+      return true;
+    }
+  }
+}
+
+Field::geometry_type Item_typecast_multipoint::get_geometry_type() const {
+  return Field::GEOM_MULTIPOINT;
+}
+
+void Item_typecast_multipoint::print(const THD *thd, String *str,
+                                     enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as multipoint)"));
+}
+
+bool Item_typecast_multilinestring::cast(
+    const dd::Spatial_reference_system *,
+    std::unique_ptr<gis::Geometry> *source_geometry,
+    std::unique_ptr<gis::Geometry> *target_geometry) const {
+  // Raises error if source type is not Linestring, Polygon, Multilinestring,
+  // Multipolygon or Geometrycollection.
+  if ((*source_geometry)->type() != gis::Geometry_type::kLinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kPolygon &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultilinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultipolygon &&
+      (*source_geometry)->type() != gis::Geometry_type::kGeometrycollection) {
+    my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+             gis::type_to_name((*source_geometry)->type()), "MULTILINESTRING");
+    return true;
+  }
+
+  switch ((*source_geometry)->type()) {
+    // LINESTRING -> MULTILINESTRING
+    case gis::Geometry_type::kLinestring: {
+      std::unique_ptr<gis::Multilinestring> target_multilinestring(
+          gis::Multilinestring::CreateMultilinestring(
+              (*source_geometry)->coordinate_system()));
+      target_multilinestring->push_back(**source_geometry);
+      target_geometry->reset(target_multilinestring.release());
+      return false;
+    }
+
+    // POLYGON -> MULTILINESTRING
+    case gis::Geometry_type::kPolygon: {
+      std::unique_ptr<gis::Polygon> source_polygon(
+          static_cast<gis::Polygon *>(source_geometry->release()));
+      std::unique_ptr<gis::Multilinestring> target_multilinestring(
+          gis::Multilinestring::CreateMultilinestring(
+              source_polygon->coordinate_system()));
+      for (size_t i = 0; i < source_polygon->size(); ++i) {
+        // Traverse the polygon from outer to inner rings
+        gis::Linearring *source_polygon_ring;
+        if (i == 0) {
+          source_polygon_ring = &source_polygon->exterior_ring();
+        } else {
+          source_polygon_ring = &source_polygon->interior_ring(i - 1);
+        }
+        std::unique_ptr<gis::Linestring> target_linestring(
+            gis::Linestring::CreateLinestring(
+                source_polygon->coordinate_system()));
+        for (size_t j = 0; j < source_polygon_ring->size(); ++j) {
+          std::unique_ptr<gis::Point> target_point(
+              (*source_polygon_ring)[j].clone());
+          target_linestring->push_back(*target_point);
+        }
+        target_multilinestring->push_back(*target_linestring);
+      }
+      target_geometry->reset(target_multilinestring.release());
+      return false;
+    }
+
+    // MULTILINESTRING -> MULTILINESTRING
+    case gis::Geometry_type::kMultilinestring: {
+      target_geometry->reset(source_geometry->release());
+      return false;
+    }
+
+    // MULTIPOLYGON -> MULTILINESTRING (raises error if some polygons have inner
+    // rings)
+    case gis::Geometry_type::kMultipolygon: {
+      std::unique_ptr<gis::Multipolygon> source_multipolygon(
+          static_cast<gis::Multipolygon *>(source_geometry->release()));
+      std::unique_ptr<gis::Multilinestring> target_multilinestring(
+          gis::Multilinestring::CreateMultilinestring(
+              source_multipolygon->coordinate_system()));
+      while (!source_multipolygon->empty()) {
+        if (source_multipolygon->front().size() != 1) {
+          my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                   gis::type_to_name(source_multipolygon->type()),
+                   "MULTILINESTRING");
+          return true;
+        }
+        std::unique_ptr<gis::Linestring> target_linestring(
+            gis::Linestring::CreateLinestring(
+                source_multipolygon->coordinate_system()));
+        while (!source_multipolygon->front().exterior_ring().empty()) {
+          std::unique_ptr<gis::Point> target_point(
+              source_multipolygon->front().exterior_ring().front().clone());
+          target_linestring->push_back(*target_point);
+          source_multipolygon->front().exterior_ring().pop_front();
+        }
+        target_multilinestring->push_back(*target_linestring);
+        source_multipolygon->pop_front();
+      }
+      target_geometry->reset(target_multilinestring.release());
+      return false;
+    }
+
+    // GEOMETRYCOLLECTION -> MULTILINESTRING (raises error if geometrycollection
+    // is empty or has other geometries than linestrings)
+    case gis::Geometry_type::kGeometrycollection: {
+      std::unique_ptr<gis::Geometrycollection> source_geomcollection(
+          static_cast<gis::Geometrycollection *>(source_geometry->release()));
+      if (source_geomcollection->is_empty()) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_geomcollection->type()),
+                 "MULTILINESTRING");
+        return true;
+      } else {
+        std::unique_ptr<gis::Multilinestring> target_multilinestring(
+            gis::Multilinestring::CreateMultilinestring(
+                source_geomcollection->coordinate_system()));
+        while (!source_geomcollection->empty()) {
+          if (source_geomcollection->front().type() !=
+              gis::Geometry_type::kLinestring) {
+            my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                     gis::type_to_name(source_geomcollection->type()),
+                     "MULTILINESTRING");
+            return true;
+          }
+          std::unique_ptr<gis::Geometry> target_linestring(
+              source_geomcollection->front().clone());
+          target_multilinestring->push_back(*target_linestring);
+          source_geomcollection->pop_front();
+        }
+        target_geometry->reset(target_multilinestring.release());
+        return false;
+      }
+    }
+
+    default: {
+      // This should not be reached
+      assert(false);
+      return true;
+    }
+  }
+}
+
+Field::geometry_type Item_typecast_multilinestring::get_geometry_type() const {
+  return Field::GEOM_MULTILINESTRING;
+}
+
+void Item_typecast_multilinestring::print(const THD *thd, String *str,
+                                          enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as multilinestring)"));
+}
+
+bool Item_typecast_multipolygon::cast(
+    const dd::Spatial_reference_system *srs,
+    std::unique_ptr<gis::Geometry> *source_geometry,
+    std::unique_ptr<gis::Geometry> *target_geometry) const {
+  // Raises error if source type is not Polygon, Multilinestring, Multipolygon
+  // or Geometrycollection.
+  if ((*source_geometry)->type() != gis::Geometry_type::kPolygon &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultilinestring &&
+      (*source_geometry)->type() != gis::Geometry_type::kMultipolygon &&
+      (*source_geometry)->type() != gis::Geometry_type::kGeometrycollection) {
+    my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+             gis::type_to_name((*source_geometry)->type()), "MULTIPOLYGON");
+    return true;
+  }
+  switch ((*source_geometry)->type()) {
+    // POLYGON -> MULTIPOLYGON
+    case gis::Geometry_type::kPolygon: {
+      std::unique_ptr<gis::Multipolygon> target_multipolygon(
+          gis::Multipolygon::CreateMultipolygon(
+              (*source_geometry)->coordinate_system()));
+      target_multipolygon->push_back(**source_geometry);
+      target_geometry->reset(target_multipolygon.release());
+      return false;
+    }
+
+    // MULTILINESTRING -> MULTIPOLYGON (raises error if multilinestrings has
+    // linestrings that are not correctly oriented linearrings, i.e. not
+    // counter clockwise)
+    case gis::Geometry_type::kMultilinestring: {
+      std::unique_ptr<gis::Multilinestring> source_multilinestring(
+          static_cast<gis::Multilinestring *>(source_geometry->release()));
+      std::unique_ptr<gis::Multipolygon> target_multipolygon(
+          gis::Multipolygon::CreateMultipolygon(
+              source_multilinestring->coordinate_system()));
+      for (size_t i = 0; i < source_multilinestring->size(); ++i) {
+        gis::Linestring *source_linestring =
+            static_cast<gis::Linestring *>(&(*source_multilinestring)[i]);
+        // If the back and front of the current linestring are not the same
+        // point, this cannot be a linear ring.
+        bool equals = false;
+        bool is_null = false;
+        if (gis::equals(srs, &source_linestring->front(),
+                        &source_linestring->back(), func_name(), &equals,
+                        &is_null)) {
+          assert(current_thd->is_error());
+          return true;
+        }
+        if (!equals || source_linestring->size() < 4) {
+          my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                   gis::type_to_name(source_multilinestring->type()),
+                   "MULTIPOLYGON");
+          return true;
+        } else {
+          std::unique_ptr<gis::Polygon> target_polygon(
+              gis::Polygon::CreatePolygon(
+                  source_multilinestring->coordinate_system()));
+          std::unique_ptr<gis::Linearring> target_polygon_ring(
+              gis::Linearring::CreateLinearring(
+                  source_multilinestring->coordinate_system()));
+          for (size_t j = 0; j < source_linestring->size(); ++j) {
+            std::unique_ptr<gis::Point> target_point(
+                (*source_linestring)[j].clone());
+            target_polygon_ring->push_back(*target_point);
+          }
+
+          target_polygon->push_back(*target_polygon_ring);
+          // Flip polygon rings and compare order of points with original
+          // linestring, to check whether input linestring was valid
+          double semi_major = 1.0;
+          double semi_minor = 1.0;
+          if (srs && srs->is_geographic()) {
+            semi_major = srs->semi_major_axis();
+            semi_minor = srs->semi_minor_axis();
+          }
+          gis::Ring_flip_visitor rfv(semi_major, semi_minor);
+          target_polygon->accept(&rfv);
+          if (rfv.invalid()) {
+            // There's something wrong with a polygon in the geometry.
+            my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+            return true;
+          }
+          // Check each point of the current linestring against the current
+          // polygon
+          for (size_t j = 0; j < source_linestring->size(); ++j) {
+            bool ring_equals_linestring = false;
+            bool result_is_null = false;
+            if (gis::equals(srs, &(*source_linestring)[j],
+                            &target_polygon->exterior_ring()[j], func_name(),
+                            &ring_equals_linestring, &result_is_null)) {
+              assert(current_thd->is_error());
+              return true;
+            }
+            // Unequal points means ring was reversed, which means source
+            // linestring had wrong direction for cast (not counter clockwise)
+            if (!ring_equals_linestring) {
+              my_error(ER_INVALID_CAST_POLYGON_RING_DIRECTION, MYF(0),
+                       gis::type_to_name(source_multilinestring->type()),
+                       "MULTIPOLYGON");
+              return true;
+            }
+          }
+          target_multipolygon->push_back(*target_polygon);
+        }
+      }
+      target_geometry->reset(target_multipolygon.release());
+      return false;
+    }
+
+    // MULTIPOLYGON -> MULTIPOLYGON
+    case gis::Geometry_type::kMultipolygon: {
+      target_geometry->reset(source_geometry->release());
+      return false;
+    }
+
+    // GEOMETRYCOLLECTION -> MULTIPOLYGON (raises error if geometrycollection
+    // is empty or has other geometries than polygons)
+    case gis::Geometry_type::kGeometrycollection: {
+      std::unique_ptr<gis::Geometrycollection> source_geomcollection(
+          static_cast<gis::Geometrycollection *>(source_geometry->release()));
+      if (source_geomcollection->is_empty()) {
+        my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                 gis::type_to_name(source_geomcollection->type()),
+                 "MULTIPOLYGON");
+        return true;
+      } else {
+        std::unique_ptr<gis::Multipolygon> target_multipolygon(
+            gis::Multipolygon::CreateMultipolygon(
+                source_geomcollection->coordinate_system()));
+        while (!source_geomcollection->empty()) {
+          if (source_geomcollection->front().type() !=
+              gis::Geometry_type::kPolygon) {
+            my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
+                     gis::type_to_name(source_geomcollection->type()),
+                     "MULTIPOLYGON");
+            return true;
+          }
+          std::unique_ptr<gis::Geometry> target_polygon(
+              source_geomcollection->front().clone());
+          target_multipolygon->push_back(*target_polygon);
+          source_geomcollection->pop_front();
+        }
+        target_geometry->reset(target_multipolygon.release());
+        return false;
+      }
+    }
+
+    default: {
+      // This should not be reached
+      assert(false);
+      return true;
+    }
+  }
+}
+
+Field::geometry_type Item_typecast_multipolygon::get_geometry_type() const {
+  return Field::GEOM_MULTIPOLYGON;
+}
+
+void Item_typecast_multipolygon::print(const THD *thd, String *str,
+                                       enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as multipolygon)"));
+}
+
+bool Item_typecast_geometrycollection::cast(
+    const dd::Spatial_reference_system *,
+    std::unique_ptr<gis::Geometry> *source_geometry,
+    std::unique_ptr<gis::Geometry> *target_geometry) const {
+  switch ((*source_geometry)->type()) {
+    // POINT/LINESTRING/POLYGON -> GEOMETRYCOLLECTION
+    case gis::Geometry_type::kPoint:
+    case gis::Geometry_type::kLinestring:
+    case gis::Geometry_type::kPolygon: {
+      std::unique_ptr<gis::Geometrycollection> target_geomcollection(
+          gis::Geometrycollection::CreateGeometrycollection(
+              (*source_geometry)->coordinate_system()));
+      target_geomcollection->push_back(**source_geometry);
+      target_geometry->reset(target_geomcollection.release());
+      return false;
+    }
+
+    // MULTIPOINT/MULTILINESTRING/MULTIPOLYGON -> GEOMETRYCOLLECTION
+    case gis::Geometry_type::kMultipoint:
+    case gis::Geometry_type::kMultilinestring:
+    case gis::Geometry_type::kMultipolygon: {
+      std::unique_ptr<gis::Geometrycollection> source_geomcollection(
+          static_cast<gis::Geometrycollection *>(source_geometry->release()));
+      std::unique_ptr<gis::Geometrycollection> target_geomcollection(
+          gis::Geometrycollection::CreateGeometrycollection(
+              source_geomcollection->coordinate_system()));
+      while (!source_geomcollection->empty()) {
+        std::unique_ptr<gis::Geometry> target_geomcollection_geometry(
+            source_geomcollection->front().clone());
+        target_geomcollection->push_back(*target_geomcollection_geometry);
+        source_geomcollection->pop_front();
+      }
+      target_geometry->reset(target_geomcollection.release());
+      return false;
+    }
+
+    // GEOMETRYCOLLECTION -> GEOMETRYCOLLECTION
+    case gis::Geometry_type::kGeometrycollection: {
+      target_geometry->reset(source_geometry->release());
+      return false;
+    }
+
+    default: {
+      // This should not be reached
+      assert(false);
+      return true;
+    }
+  }
+}
+
+Field::geometry_type Item_typecast_geometrycollection::get_geometry_type()
+    const {
+  return Field::GEOM_GEOMETRYCOLLECTION;
+}
+
+void Item_typecast_geometrycollection::print(const THD *thd, String *str,
+                                             enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as geometrycollection)"));
 }

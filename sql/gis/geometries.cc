@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -70,6 +70,14 @@ bool Cartesian_linestring::accept(Geometry_visitor *v) {
   return v->visit_leave(this);
 }
 
+Linestring *Linestring::CreateLinestring(Coordinate_system coordinate_system) {
+  if (coordinate_system == Coordinate_system::kCartesian) {
+    return new Cartesian_linestring;
+  } else {
+    return new Geographic_linestring;
+  }
+}
+
 void Cartesian_linestring::push_back(const Point &pt) {
   assert(pt.coordinate_system() == Coordinate_system::kCartesian);
   m_points.push_back(static_cast<const Cartesian_point &>(pt));
@@ -104,6 +112,14 @@ void Geographic_linestring::push_back(Point &&pt) {
 
 bool Geographic_linestring::empty() const { return m_points.empty(); }
 
+Linearring *Linearring::CreateLinearring(Coordinate_system coordinate_system) {
+  if (coordinate_system == Coordinate_system::kCartesian) {
+    return new Cartesian_linearring;
+  } else {
+    return new Geographic_linearring;
+  }
+}
+
 bool Cartesian_linearring::accept(Geometry_visitor *v) {
   if (!v->visit_enter(this) && m_points.size() > 0) {
     if (m_points[0].accept(v)) return true;
@@ -122,6 +138,14 @@ bool Geographic_linearring::accept(Geometry_visitor *v) {
     }
   }
   return v->visit_leave(this);
+}
+
+Polygon *Polygon::CreatePolygon(Coordinate_system coordinate_system) {
+  if (coordinate_system == Coordinate_system::kCartesian) {
+    return new Cartesian_polygon;
+  } else {
+    return new Geographic_polygon;
+  }
 }
 
 bool Cartesian_polygon::accept(Geometry_visitor *v) {
@@ -241,6 +265,15 @@ Geographic_polygon::const_interior_rings() const {
 }
 
 #endif  // IN_DOXYGEN
+
+Geometrycollection *Geometrycollection::CreateGeometrycollection(
+    Coordinate_system coordinate_system) {
+  if (coordinate_system == Coordinate_system::kCartesian) {
+    return new Cartesian_geometrycollection;
+  } else {
+    return new Geographic_geometrycollection;
+  }
+}
 
 Cartesian_geometrycollection::Cartesian_geometrycollection(
     const Cartesian_geometrycollection &gc)
@@ -536,6 +569,14 @@ void Geographic_multipoint::push_back(Geometry &&pt) {
 
 bool Geographic_multipoint::empty() const { return m_points.empty(); }
 
+Multipoint *Multipoint::CreateMultipoint(Coordinate_system coordinate_system) {
+  if (coordinate_system == Coordinate_system::kCartesian) {
+    return new Cartesian_multipoint;
+  } else {
+    return new Geographic_multipoint;
+  }
+}
+
 bool Cartesian_multilinestring::accept(Geometry_visitor *v) {
   if (!v->visit_enter(this) && m_linestrings.size() > 0) {
     if (m_linestrings[0].accept(v)) return true;
@@ -568,6 +609,15 @@ bool Geographic_multilinestring::accept(Geometry_visitor *v) {
     }
   }
   return v->visit_leave(this);
+}
+
+Multilinestring *Multilinestring::CreateMultilinestring(
+    Coordinate_system coordinate_system) {
+  if (coordinate_system == Coordinate_system::kCartesian) {
+    return new Cartesian_multilinestring;
+  } else {
+    return new Geographic_multilinestring;
+  }
 }
 
 void Geographic_multilinestring::push_back(const Geometry &ls) {
@@ -612,6 +662,15 @@ bool Geographic_multipolygon::accept(Geometry_visitor *v) {
     }
   }
   return v->visit_leave(this);
+}
+
+Multipolygon *Multipolygon::CreateMultipolygon(
+    Coordinate_system coordinate_system) {
+  if (coordinate_system == Coordinate_system::kCartesian) {
+    return new Cartesian_multipolygon;
+  } else {
+    return new Geographic_multipolygon;
+  }
 }
 
 void Geographic_multipolygon::push_back(const Geometry &py) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3592,6 +3592,29 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
     case ITEM_CAST_FLOAT:
       item->set_data_type_float();
       return;
+    // JSON_VALUE(... RETURNING <geometry type>) is not supported
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return;
   }
 
   assert(false); /* purecov: deadcode */
@@ -3704,6 +3727,29 @@ static void print_cast_type(Cast_target cast_type, const Item *item,
     case ITEM_CAST_DOUBLE:
       str->append(STRING_WITH_LEN("double"));
       return;
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      str->append(STRING_WITH_LEN("point"));
+      return;
+    case ITEM_CAST_LINESTRING:
+      str->append(STRING_WITH_LEN("linestring"));
+      return;
+    case ITEM_CAST_POLYGON:
+      str->append(STRING_WITH_LEN("polygon"));
+      return;
+    case ITEM_CAST_MULTIPOINT:
+      str->append(STRING_WITH_LEN("multipoint"));
+      return;
+    case ITEM_CAST_MULTILINESTRING:
+      str->append(STRING_WITH_LEN("multilinestring"));
+      return;
+    case ITEM_CAST_MULTIPOLYGON:
+      str->append(STRING_WITH_LEN("multipolygon"));
+      return;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      str->append(STRING_WITH_LEN("geometrycollection"));
+      return;
+      /* purecov: end */
   }
   assert(false); /* purecov: deadcode */
 }
@@ -3739,6 +3785,16 @@ static enum Item_result json_cast_result_type(Cast_target cast_type) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return REAL_RESULT;
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+    case ITEM_CAST_LINESTRING:
+    case ITEM_CAST_POLYGON:
+    case ITEM_CAST_MULTIPOINT:
+    case ITEM_CAST_MULTILINESTRING:
+    case ITEM_CAST_MULTIPOLYGON:
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      return INVALID_RESULT;
+      /* purecov: end */
   }
 
   assert(false); /* purecov: deadcode */
@@ -4374,6 +4430,30 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       default_value->real_default = value;
       break;
     }
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return nullptr;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return nullptr;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return nullptr;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return nullptr;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return nullptr;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return nullptr;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return nullptr;
+      /* purecov: end */
   }
 
   return default_value;
@@ -4654,6 +4734,30 @@ String *Item_func_json_value::val_str(String *buffer) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return val_string_from_real(buffer);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return nullptr;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return nullptr;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return nullptr;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return nullptr;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return nullptr;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return nullptr;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return nullptr;
+      /* purecov: end */
   }
   assert(false); /* purecov: deadcode */
   return nullptr;
@@ -4679,6 +4783,30 @@ double Item_func_json_value::val_real() {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return extract_real_value();
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return 0.0;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return 0.0;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return 0.0;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return 0.0;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return 0.0;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return 0.0;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return 0.0;
+      /* purecov: end */
   }
   assert(false); /* purecov: deadcode */
   return 0.0;
@@ -4707,6 +4835,30 @@ longlong Item_func_json_value::val_int() {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return val_int_from_real();
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return 0;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return 0;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return 0;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return 0;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return 0;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return 0;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return 0;
+      /* purecov: end */
   }
   assert(false); /* purecov: deadcode */
   return 0;
@@ -4733,6 +4885,30 @@ my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return val_decimal_from_real(value);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return nullptr;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return nullptr;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return nullptr;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return nullptr;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return nullptr;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return nullptr;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return nullptr;
+      /* purecov: end */
   }
   assert(false); /* purecov: deadcode */
   return nullptr;
@@ -4760,6 +4936,30 @@ bool Item_func_json_value::get_date(MYSQL_TIME *ltime, my_time_flags_t flags) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return get_date_from_real(ltime, flags);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return true;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return true;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return true;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return true;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return true;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return true;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return true;
+      /* purecov: end */
   }
   assert(false); /* purecov: deadcode */
   return true;
@@ -4787,6 +4987,30 @@ bool Item_func_json_value::get_time(MYSQL_TIME *ltime) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return get_time_from_real(ltime);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return true;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return true;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return true;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return true;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return true;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return true;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return true;
+      /* purecov: end */
   }
   assert(false); /* purecov: deadcode */
   return true;

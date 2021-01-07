@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -9523,6 +9523,11 @@ ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE
 ER_CLIENT_INTERACTION_TIMEOUT
     eng "The client was disconnected by the server because of inactivity. See wait_timeout and interactive_timeout for configuring this behavior."
 
+ER_INVALID_CAST_TO_GEOMETRY 22S01
+  eng "Invalid cast from %s to %s."
+
+ER_INVALID_CAST_POLYGON_RING_DIRECTION 22S04
+  eng "Invalid cast from %s to %s. A polygon ring is in the wrong direction."
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

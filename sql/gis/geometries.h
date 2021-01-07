@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GEOMETRIES_H_INCLUDED
 #define SQL_GIS_GEOMETRIES_H_INCLUDED
 
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +103,9 @@ class Geometry {
   Geometry(const Geometry &) = default;
   Geometry &operator=(const Geometry &) = default;
 
+  // Returns a copy of an instantiable subclass of Geometry.
+  virtual Geometry *clone() const = 0;
+
   /// Gets the geometry type of the object.
   ///
   /// @return The type of this object
@@ -151,6 +154,9 @@ class Point : public Geometry {
   bool is_empty() const override {
     return (std::isnan(m_x) || std::isnan(m_y));
   }
+
+  // Returns a copy of a subclass of Point.
+  Point *clone() const override = 0;
 
   /// Gets a coordinate value.
   ///
@@ -250,11 +256,24 @@ class Linestring : public Curve {
   bool accept(Geometry_visitor *v) override = 0;
   bool is_empty() const override { return empty(); }
 
+  /// Creates a subclass of Linestring from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Linestring for.
+  /// @return A pointer to a Linestring that caller must free when it is done
+  /// with it.
+  static Linestring *CreateLinestring(Coordinate_system coordinate_system);
+
+  // Returns a copy of a subclass of Linestring.
+  Linestring *clone() const override = 0;
+
   /// Adds a point to the end of the linestring.
   ///
   /// @param pt The point to add.
   virtual void push_back(const Point &pt) = 0;
   virtual void push_back(Point &&pt) = 0;
+
+  /// Removes a point from the front of the linestring.
+  virtual void pop_front() = 0;
 
   /// Checks if the linestring is empty.
   ///
@@ -272,6 +291,17 @@ class Linestring : public Curve {
 
   /// Removes all points from the linestring.
   virtual void clear() noexcept = 0;
+  /// Returns the last point of the linestring.
+  ///
+  /// @return Last point of linestring
+  virtual Point &back() = 0;
+  virtual const Point &back() const = 0;
+
+  /// Returns the first point of the linestring.
+  ///
+  /// @return First point of linestring
+  virtual Point &front() = 0;
+  virtual const Point &front() const = 0;
 
   virtual Point &operator[](std::size_t i) = 0;
   virtual const Point &operator[](std::size_t i) const = 0;
@@ -286,7 +316,15 @@ class Linestring : public Curve {
 /// enforced, by the implementation).
 class Linearring : public Linestring {
  public:
+  ~Linearring() override = default;
   bool accept(Geometry_visitor *v) override = 0;
+
+  /// Creates a subclass of Linearring from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Linearring for.
+  /// @return A pointer to a Linearring that caller must free when it is done
+  /// with it.
+  static Linearring *CreateLinearring(Coordinate_system coordinate_system);
 };
 
 /// An abstract 2d surface.
@@ -311,6 +349,16 @@ class Polygon : public Surface {
   Geometry_type type() const override { return Geometry_type::kPolygon; }
   bool accept(Geometry_visitor *v) override = 0;
   bool is_empty() const override { return empty(); }
+
+  /// Creates a subclass of Polygon from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Polygon for.
+  /// @return A pointer to a Polygon that caller must free when it is done
+  /// with it.
+  static Polygon *CreatePolygon(Coordinate_system coordinate_system);
+
+  // Returns a copy of a subclass of Polygon.
+  Polygon *clone() const override = 0;
 
   /// Adds a linear ring to the polygon.
   ///
@@ -364,11 +412,26 @@ class Geometrycollection : public Geometry {
   }
   bool accept(Geometry_visitor *v) override = 0;
 
+  /// Creates a subclass of Geometrycollection from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a
+  /// Geometrycollection for.
+  /// @return A pointer to a Geometrycollection that caller must free when it is
+  /// done with it.
+  static Geometrycollection *CreateGeometrycollection(
+      Coordinate_system coordinate_system);
+
+  // Returns a copy of a subclass of Geometrycollection.
+  Geometrycollection *clone() const override = 0;
+
   /// Adds a geometry to the collection.
   ///
   /// @param g The geometry to add.
   virtual void push_back(const Geometry &g) = 0;
   virtual void push_back(Geometry &&g) = 0;
+
+  /// Removes a geometry from the front of the collection.
+  virtual void pop_front() = 0;
 
   /// Checks if the collection is empty.
   ///
@@ -392,6 +455,12 @@ class Geometrycollection : public Geometry {
   /// Removes all geometries from the geometrycollection.
   virtual void clear() noexcept = 0;
 
+  /// Returns the first geometry of the collection.
+  ///
+  /// @return First geometry of the collection
+  virtual Geometry &front() = 0;
+  virtual const Geometry &front() const = 0;
+
   virtual Geometry &operator[](std::size_t i) = 0;
   virtual const Geometry &operator[](std::size_t i) const = 0;
 };
@@ -404,6 +473,22 @@ class Multipoint : public Geometrycollection {
   Geometry_type type() const override { return Geometry_type::kMultipoint; }
 
   bool accept(Geometry_visitor *v) override = 0;
+
+  // Returns a copy of a subclass of Multipoint.
+  Multipoint *clone() const override = 0;
+
+  /// Creates a subclass of Multipoint from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Multipoint for.
+  /// @return A pointer to a Multipoint that caller must free when it is done
+  /// with it.
+  static Multipoint *CreateMultipoint(Coordinate_system coordinate_system);
+
+  /// Returns the first point of the Multipoint.
+  ///
+  /// @return First point of the Multipoint
+  Point &front() override = 0;
+  const Point &front() const override = 0;
 };
 
 /// An abstract collection of curves.
@@ -424,6 +509,24 @@ class Multilinestring : public Multicurve {
     return Geometry_type::kMultilinestring;
   }
   bool accept(Geometry_visitor *v) override = 0;
+
+  // Returns a copy of a subclass of Multilinestring.
+  Multilinestring *clone() const override = 0;
+
+  /// Creates a subclass of Multilinestring from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Multilinestring
+  /// for.
+  /// @return A pointer to a Multilinestring that caller must free when it is
+  /// done with it.
+  static Multilinestring *CreateMultilinestring(
+      Coordinate_system coordinate_system);
+
+  /// Returns the first linestring of the Multilinestring.
+  ///
+  /// @return First linestring of the Multilinestring
+  Linestring &front() override = 0;
+  const Linestring &front() const override = 0;
 };
 
 /// An abstract collection of surfaces.
@@ -442,6 +545,23 @@ class Multipolygon : public Multisurface {
  public:
   Geometry_type type() const override { return Geometry_type::kMultipolygon; }
   bool accept(Geometry_visitor *v) override = 0;
+
+  // Returns a copy of a subclass of Multipolygon.
+  Multipolygon *clone() const override = 0;
+
+  /// Creates a subclass of Multipolygon from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Multipolygon
+  /// for.
+  /// @return A pointer to a Multipolygon that caller must free when it is
+  /// done with it.
+  static Multipolygon *CreateMultipolygon(Coordinate_system coordinate_system);
+
+  /// Returns the first polygon of the Multipolygon.
+  ///
+  /// @return First polygon of the Multipolygon
+  Polygon &front() override = 0;
+  const Polygon &front() const override = 0;
 };
 
 /// Get the type name string corresponding to a geometry type.

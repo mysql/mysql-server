@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -11615,6 +11615,55 @@ cast_type:
             $$.target = ITEM_CAST_FLOAT;
             $$.charset = nullptr;
             $$.length = $2.length;
+            $$.dec = nullptr;
+          }
+        | POINT_SYM
+          {
+            $$.target = ITEM_CAST_POINT;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | LINESTRING_SYM
+          {
+            $$.target = ITEM_CAST_LINESTRING;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | POLYGON_SYM
+          {
+            $$.target = ITEM_CAST_POLYGON;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | MULTIPOINT_SYM
+          {
+            $$.target = ITEM_CAST_MULTIPOINT;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | MULTILINESTRING_SYM
+          {
+            $$.target = ITEM_CAST_MULTILINESTRING;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | MULTIPOLYGON_SYM
+          {
+            $$.target = ITEM_CAST_MULTIPOLYGON;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | GEOMETRYCOLLECTION_SYM
+          {
+            $$.target = ITEM_CAST_GEOMETRYCOLLECTION;
+            $$.charset = nullptr;
+            $$.length = nullptr;
             $$.dec = nullptr;
           }
         ;

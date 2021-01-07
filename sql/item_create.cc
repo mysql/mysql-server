@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1960,6 +1960,55 @@ static bool validate_cast_type_and_extract_length(
         return true;
       }
       return false;
+    case ITEM_CAST_POINT:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of POINT");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_LINESTRING:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of LINESTRING");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_POLYGON:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of POLYGON");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_MULTIPOINT:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of MULTIPOINT");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_MULTILINESTRING:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of MULTILINESTRING>");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_MULTIPOLYGON:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of MULTIPOLYGON");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of GEOMETRYCOLLECTION");
+        return true;
+      }
+      return false;
   }
   /* purecov: begin deadcode */
   assert(false);
@@ -2010,6 +2059,20 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
     case ITEM_CAST_DOUBLE:
       return new (thd->mem_root)
           Item_typecast_real(pos, arg, /*as_double=*/true);
+    case ITEM_CAST_POINT:
+      return new (thd->mem_root) Item_typecast_point(pos, arg);
+    case ITEM_CAST_LINESTRING:
+      return new (thd->mem_root) Item_typecast_linestring(pos, arg);
+    case ITEM_CAST_POLYGON:
+      return new (thd->mem_root) Item_typecast_polygon(pos, arg);
+    case ITEM_CAST_MULTIPOINT:
+      return new (thd->mem_root) Item_typecast_multipoint(pos, arg);
+    case ITEM_CAST_MULTILINESTRING:
+      return new (thd->mem_root) Item_typecast_multilinestring(pos, arg);
+    case ITEM_CAST_MULTIPOLYGON:
+      return new (thd->mem_root) Item_typecast_multipolygon(pos, arg);
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      return new (thd->mem_root) Item_typecast_geometrycollection(pos, arg);
   }
 
   /* purecov: begin deadcode */
