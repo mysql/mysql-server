@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -8387,9 +8387,6 @@ struct my_option my_long_options[] = {
     {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"skip-slave-start", 0, "If set, slave is not autostarted.",
-     &opt_skip_slave_start, &opt_skip_slave_start, nullptr, GET_BOOL, NO_ARG, 0,
-     0, 0, nullptr, 0, nullptr},
     {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
      "Don't print a stack trace on failure.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},

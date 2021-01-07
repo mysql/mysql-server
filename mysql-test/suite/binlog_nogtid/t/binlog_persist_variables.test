@@ -50,7 +50,8 @@ INSERT INTO rplvars (varname, varvalue)
         VARIABLE_NAME LIKE '%semi_sync%' OR
         VARIABLE_NAME LIKE '%slave%') AND
        (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-        'innodb_master_thread_disabled_debug'))
+        'innodb_master_thread_disabled_debug',
+        'skip_slave_start'))
        ORDER BY VARIABLE_NAME;
 --enable_warnings
 --let $countvars= `SELECT COUNT(*) FROM rplvars;`

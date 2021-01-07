@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7059,5 +7059,11 @@ static Sys_var_bool Sys_replication_sender_observe_commit_only(
     "Optional flag that allows for only calling back observer hooks at "
     "commit.",
     GLOBAL_VAR(opt_replication_sender_observe_commit_only), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_skip_slave_start(
+    "skip_slave_start", "If set, slave is not autostarted.",
+    READ_ONLY GLOBAL_VAR(opt_skip_slave_start), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(nullptr));
