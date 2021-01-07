@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ const unsigned int ITERATION_LENGTH = 3;
 /* Iteration multipler to be used on extracted iteration count */
 const unsigned int ITERATION_MULTIPLIER = 1000;
 /* Upper cap on iterations */
-const long unsigned int MAX_ITERATIONS = 100000;
+const long unsigned int MAX_ITERATIONS = 0xFFF * ITERATION_MULTIPLIER;
 /* length of salt */
 const unsigned int SALT_LENGTH = CRYPT_SALT_LENGTH;
 /* $ + A + $ + ITERATION_LENGTH + $ + SALT_LENGTH + CACHING_SHA2_DIGEST_LENGTH =
@@ -111,8 +111,7 @@ class SHA2_password_cache {
 class Caching_sha2_password {
  public:
   Caching_sha2_password(
-      MYSQL_PLUGIN plugin_handle,
-      size_t stored_digest_rounds = DEFAULT_STORED_DIGEST_ROUNDS,
+      MYSQL_PLUGIN plugin_handle, size_t stored_digest_rounds,
       unsigned int fast_digest_rounds = DEFAULT_FAST_DIGEST_ROUNDS,
       Digest_info digest_type = Digest_info::SHA256_DIGEST);
   ~Caching_sha2_password();

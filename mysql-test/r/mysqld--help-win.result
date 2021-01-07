@@ -230,6 +230,9 @@ The following options may be given as the first argument:
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
  that this is a limit per thread!
+ --caching-sha2-password-digest-rounds=# 
+ Number of SHA2 rounds to be done when storing a password
+ hash onto disk.
  --caching-sha2-password-private-key-path=name 
  A fully qualified path to the private RSA key used for
  authentication.
@@ -1519,6 +1522,7 @@ binlog-transaction-dependency-history-size 25000
 binlog-transaction-dependency-tracking COMMIT_ORDER
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
+caching-sha2-password-digest-rounds 5000
 caching-sha2-password-private-key-path private_key.pem
 caching-sha2-password-public-key-path public_key.pem
 character-set-client-handshake TRUE
