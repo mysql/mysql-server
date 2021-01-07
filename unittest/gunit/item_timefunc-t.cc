@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,24 +20,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sstream>
 #include <string>
 
 #include "decimal.h"
 #include "m_ctype.h"
+#include "m_string.h"
 #include "my_time.h"
 #include "mysql_time.h"
 #include "sql/item.h"
 #include "sql/item_timefunc.h"
 #include "sql/my_decimal.h"
+#include "sql/parse_location.h"
+#include "sql/parse_tree_node_base.h"
 #include "sql/sql_class.h"
+#include "sql/sql_const.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_time.h"
+#include "sql/system_variables.h"
+#include "sql_string.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace item_timefunc_unittest {
@@ -66,6 +70,56 @@ TEST_F(ItemTimeFuncTest, dateAddInterval) {
 
   // The below result is not correct, see Bug#16198372
   EXPECT_DOUBLE_EQ(20130122145222.234567, item->val_real());
+}
+
+// Checks that the metadata and result are consistent for a time function that
+// returns an integer.
+static void CheckMetadataConsistency(THD *thd, Item *item) {
+  SCOPED_TRACE(ItemToString(item));
+
+  Item *ref[] = {item};
+  ASSERT_FALSE(item->fix_fields(thd, ref));
+  ASSERT_EQ(item, ref[0]);
+
+  // Expect a signed integer return type.
+  EXPECT_FALSE(item->unsigned_flag);
+  EXPECT_EQ(0, item->decimals);
+
+  const int64_t int_result = item->val_int();
+  if (item->null_value) {
+    EXPECT_TRUE(item->is_nullable());
+    return;
+  }
+
+  // int result and string result should match.
+  const std::string expected_string_result = std::to_string(int_result);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
+  EXPECT_EQ(expected_string_result, to_string(*item->val_str(&buffer)));
+
+  // Check that the metadata matches what was actually returned.
+  const size_t result_char_length = expected_string_result.size();
+  const size_t digits = result_char_length - (int_result < 0 ? 1 : 0);
+  EXPECT_LE(result_char_length, item->max_char_length());
+  EXPECT_LE(digits, item->decimal_precision());
+  EXPECT_LE(digits, item->decimal_int_part());
+}
+
+// Checks that the metadata and result are consistent for a time function that
+// returns an integer. Additionally, check that the expected result is returned.
+static void CheckMetadataAndResult(THD *thd, Item *item,
+                                   int64_t expected_result) {
+  CheckMetadataConsistency(thd, item);
+  EXPECT_EQ(expected_result, item->val_int());
+  EXPECT_FALSE(item->null_value);
+}
+
+// Verifies that the results returned by the TO_DAYS function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, ToDaysMetadata) {
+  auto arg = new Item_string(STRING_WITH_LEN("9999-12-31"),
+                             &my_charset_utf8mb4_0900_ai_ci);
+  auto to_days = new Item_func_to_days(POS(), arg);
+  CheckMetadataAndResult(thd(), to_days, 3652424);
 }
 
 struct test_data {

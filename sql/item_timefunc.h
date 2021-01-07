@@ -1,7 +1,7 @@
 #ifndef ITEM_TIMEFUNC_INCLUDED
 #define ITEM_TIMEFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,12 +94,7 @@ class Item_func_to_days final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "to_days"; }
   enum Functype functype() const override { return TO_DAYS_FUNC; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
-    fix_char_length(6);
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool check_partition_func_processor(uchar *) override { return false; }

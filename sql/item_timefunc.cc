@@ -1061,6 +1061,20 @@ longlong Item_func_period_diff::val_int() {
          static_cast<longlong>(convert_period_to_month(period2));
 }
 
+bool Item_func_to_days::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  // The maximum string length returned by TO_DAYS is 7, as its range is
+  // [0000-01-01, 9999-12-31] -> [0, 3652424]. Set the maximum length to one
+  // higher, to account for the sign, even though the function never returns
+  // negative values. (Needed in order to get decimal_precision() to return a
+  // correct value.)
+  fix_char_length(8);
+  assert(decimal_precision() == 7);
+  assert(decimal_int_part() == 7);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_to_days::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
