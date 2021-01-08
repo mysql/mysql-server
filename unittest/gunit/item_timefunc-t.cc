@@ -188,6 +188,15 @@ TEST_F(ItemTimeFuncTest, ToSecondsMetadata) {
   CheckMetadataAndResult(thd(), to_seconds, 315569519999);
 }
 
+// Verifies that the results returned by the DAYOFMONTH function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, DayOfMonthMetadata) {
+  for (int i = 20210100; i <= 20210131; ++i) {
+    CheckMetadataAndResult(
+        thd(), new Item_func_dayofmonth(POS(), new Item_int(i)), i % 100);
+  }
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
