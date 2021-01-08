@@ -1281,6 +1281,16 @@ String *Item_func_monthname::val_str(String *str) {
   return str;
 }
 
+bool Item_func_quarter::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
+  // Always one digit [1, 4]. Add one character for the sign.
+  fix_char_length(2);
+  assert(decimal_precision() == 1);
+  assert(decimal_int_part() == 1);
+  set_nullable(true);
+  return false;
+}
+
 /**
   Returns the quarter of the year.
 */

@@ -229,6 +229,17 @@ TEST_F(ItemTimeFuncTest, MinuteMetadata) {
   }
 }
 
+// Verifies that the results returned by the QUARTER function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, QuarterMetadata) {
+  for (int month = 1; month <= 12; ++month) {
+    CheckMetadataAndResult(
+        thd(),
+        new Item_func_quarter(POS(), new Item_int(20000001 + month * 100)),
+        (month + 2) / 3);
+  }
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
