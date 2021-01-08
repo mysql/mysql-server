@@ -736,16 +736,16 @@ SELECT /*+ SET_VAR(optimizer_switch='subquery_to_derived=OFF') */
 WHERE dt.f2 = dt1.f2 AND dt.f3 > 'h' ) AS field1
 FROM (t1 AS dt1, t1 AS dt2) GROUP BY field1;
 field1
-3
 2
+3
 NULL
 SELECT
 (SELECT MAX(dt.f1) AS max FROM t1 AS dt
 WHERE dt.f2 = dt1.f2 AND dt.f3 > 'h' ) AS field1
 FROM (t1 AS dt1, t1 AS dt2) GROUP BY field1;
 field1
-3
 2
+3
 NULL
 DROP TABLE t1;
 #

@@ -540,11 +540,13 @@ CREATE TABLE t1 (f1 INTEGER, f2 VARCHAR(1) , f3 VARCHAR(1), PRIMARY KEY(f1));
 
 INSERT INTO t1 (f1,f2,f3) values (1,'a','e'),(2,'о','i'),(3,'7','j');
 
+--sorted_result
 SELECT /*+ SET_VAR(optimizer_switch='subquery_to_derived=OFF') */
   (SELECT MAX(dt.f1) AS max FROM t1 AS dt
    WHERE dt.f2 = dt1.f2 AND dt.f3 > 'h' ) AS field1
  FROM (t1 AS dt1, t1 AS dt2) GROUP BY field1;
 
+--sorted_result
 SELECT
   (SELECT MAX(dt.f1) AS max FROM t1 AS dt
    WHERE dt.f2 = dt1.f2 AND dt.f3 > 'h' ) AS field1
