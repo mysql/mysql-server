@@ -1478,6 +1478,13 @@ String *Item_func_dayname::val_str(String *str) {
   return str;
 }
 
+bool Item_func_year::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  fix_char_length(5); /* 9999 plus sign */
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_year::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
