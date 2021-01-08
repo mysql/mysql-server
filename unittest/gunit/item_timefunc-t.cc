@@ -261,6 +261,20 @@ TEST_F(ItemTimeFuncTest, WeekMetadata) {
       thd(), new Item_func_week(POS(), new Item_int(20210101), mode), 53);
 }
 
+// Verifies that the results returned by the YEARWEAK function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, YearWeekMetadata) {
+  auto mode = new Item_int(int{WEEK_MONDAY_FIRST | WEEK_YEAR});
+
+  CheckMetadataAndResult(
+      thd(), new Item_func_yearweek(POS(), new Item_int(20200101), mode),
+      202001);
+
+  CheckMetadataAndResult(
+      thd(), new Item_func_yearweek(POS(), new Item_int(20210101), mode),
+      202053);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;

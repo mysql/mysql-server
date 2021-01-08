@@ -274,13 +274,7 @@ class Item_func_yearweek final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "yearweek"; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
-    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
-    fix_char_length(6); /* YYYYWW */
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_valid_arguments_processor(uchar *) override {
     return !has_date_args();

@@ -1376,7 +1376,7 @@ create table t1 as select concat(yearweek(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(6) DEFAULT NULL
+  `c1` varchar(7) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(year(20090224)));

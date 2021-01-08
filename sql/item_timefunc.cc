@@ -1421,6 +1421,17 @@ longlong Item_func_week::val_int() {
   return (longlong)calc_week(ltime, week_mode((uint)args[1]->val_int()), &year);
 }
 
+bool Item_func_yearweek::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
+  // Returns six digits (YYYYWW). Add one character for the sign.
+  fix_char_length(7);
+  assert(decimal_precision() == 6);
+  assert(decimal_int_part() == 6);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_yearweek::val_int() {
   assert(fixed == 1);
   uint year, week;
