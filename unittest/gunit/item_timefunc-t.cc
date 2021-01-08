@@ -197,6 +197,16 @@ TEST_F(ItemTimeFuncTest, DayOfMonthMetadata) {
   }
 }
 
+// Verifies that the results returned by the DAYOFYEAR function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, DayOfYearMetadata) {
+  CheckMetadataAndResult(
+      thd(), new Item_func_dayofyear(POS(), new Item_int(20200101)), 1);
+
+  CheckMetadataAndResult(
+      thd(), new Item_func_dayofyear(POS(), new Item_int(20201231)), 366);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
