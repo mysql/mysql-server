@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1719,6 +1719,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
             /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
             /*remove_duplicates=*/false, /*force_sort_positions=*/false,
             /*unwrap_rollup=*/false);
+        join->filesorts_to_cleanup.push_back(filesort);
         AccessPath *sort_path =
             NewSortAccessPath(thd, root_path, filesort,
                               /*count_examined_rows=*/false);

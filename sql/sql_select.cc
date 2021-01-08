@@ -1720,6 +1720,10 @@ void JOIN::destroy() {
       }
     }
     for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
+      if (cleanup.table != nullptr) {
+        cleanup.table->sorting_iterator = nullptr;
+        cleanup.table->duplicate_removal_iterator = nullptr;
+      }
       close_tmp_table(cleanup.table);
       free_tmp_table(cleanup.table);
       ::destroy(cleanup.temp_table_param);
