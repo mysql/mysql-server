@@ -1292,6 +1292,16 @@ longlong Item_func_quarter::val_int() {
   return (longlong)((ltime.month + 2) / 3);
 }
 
+bool Item_func_hour::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  // Can have up to three digits (TIME_MAX_HOUR == 838). Add one for the sign.
+  fix_char_length(4);
+  assert(decimal_precision() == 3);
+  assert(decimal_int_part() == 3);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_hour::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
