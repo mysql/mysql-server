@@ -2261,12 +2261,6 @@ static inline void empty_record(TABLE *table) {
     memset(table->null_flags, 255, table->s->null_bytes);
 }
 
-enum enum_schema_table_state : int {
-  NOT_PROCESSED = 0,
-  PROCESSED_BY_CREATE_SORT_INDEX,
-  PROCESSED_BY_JOIN_EXEC
-};
-
 #define MY_I_S_MAYBE_NULL 1
 #define MY_I_S_UNSIGNED 2
 
@@ -3616,7 +3610,7 @@ struct TABLE_LIST {
   bool has_db_lookup_value{false};
   bool has_table_lookup_value{false};
   uint table_open_method{0};
-  enum_schema_table_state schema_table_state{NOT_PROCESSED};
+  bool schema_table_filled{false};
 
   MDL_request mdl_request;
 

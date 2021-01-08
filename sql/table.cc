@@ -4394,8 +4394,8 @@ void TABLE_LIST::reset() {
   // Reset connection to TABLE
   if (is_base_table()) table = nullptr;
 
-  // Reset is_schema_table_processed value(needed for I_S tables
-  schema_table_state = NOT_PROCESSED;
+  // Needed for I_S tables.
+  schema_table_filled = false;
 
   mdl_request.ticket = nullptr;
 

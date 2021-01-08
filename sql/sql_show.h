@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,6 @@ struct System_status_var;
 struct TABLE;
 struct TABLE_LIST;
 typedef enum enum_mysql_show_type SHOW_TYPE;
-enum enum_schema_table_state : int;
 enum enum_schema_tables : int;
 enum enum_var_type : int;
 enum enum_field_types : int;
@@ -117,8 +116,6 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx);
 bool make_schema_query_block(THD *thd, Query_block *sel,
                              enum enum_schema_tables schema_table_idx);
 bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list);
-bool get_schema_tables_result(JOIN *join,
-                              enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
 const char *get_one_variable(THD *thd, const SHOW_VAR *variable,

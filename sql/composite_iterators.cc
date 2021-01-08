@@ -1602,16 +1602,18 @@ MaterializeInformationSchemaTableIterator::
       m_condition(condition) {}
 
 bool MaterializeInformationSchemaTableIterator::Init() {
-  m_table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
-  m_table_list->table->file->ha_delete_all_rows();
-  free_io_cache(m_table_list->table);
-  m_table_list->table->set_not_started();
+  if (!m_table_list->schema_table_filled) {
+    m_table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
+    m_table_list->table->file->ha_delete_all_rows();
+    free_io_cache(m_table_list->table);
+    m_table_list->table->set_not_started();
 
-  if (do_fill_information_schema_table(thd(), m_table_list, m_condition)) {
-    return true;
+    if (do_fill_information_schema_table(thd(), m_table_list, m_condition)) {
+      return true;
+    }
+
+    m_table_list->schema_table_filled = true;
   }
-
-  m_table_list->schema_table_state = PROCESSED_BY_JOIN_EXEC;
 
   return m_table_iterator->Init();
 }
