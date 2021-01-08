@@ -249,6 +249,18 @@ TEST_F(ItemTimeFuncTest, SecondMetadata) {
   }
 }
 
+// Verifies that the results returned by the WEEK function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, WeekMetadata) {
+  auto mode = new Item_int(int{WEEK_MONDAY_FIRST | WEEK_YEAR});
+
+  CheckMetadataAndResult(
+      thd(), new Item_func_week(POS(), new Item_int(20200101), mode), 1);
+
+  CheckMetadataAndResult(
+      thd(), new Item_func_week(POS(), new Item_int(20210101), mode), 53);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
