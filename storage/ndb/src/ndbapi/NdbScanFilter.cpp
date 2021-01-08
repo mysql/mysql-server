@@ -47,7 +47,7 @@ public:
   NdbScanFilterImpl()
     : m_label(0),
       m_current{(NdbScanFilter::Group)0, 0, 0, ~0U, ~0U},
-      m_negative(0),
+      m_negate(false),
       m_stack(),
       m_stack2(),
       m_code(NULL),
@@ -59,7 +59,7 @@ public:
   {
     m_label = 0;
     m_current = {(NdbScanFilter::Group)0, 0, 0, ~0U, ~0U};
-    m_negative = 0;
+    m_negate = false;
     m_stack.clear();
     m_stack2.clear();
     m_error.code = 0;
@@ -69,7 +69,7 @@ public:
   }
 
   struct State {
-    NdbScanFilter::Group m_group;
+    NdbScanFilter::Group m_group;  // AND or OR
     Uint32 m_popCount;
     Uint32 m_ownLabel;
     Uint32 m_trueLabel;
@@ -78,9 +78,9 @@ public:
 
   int m_label;
   State m_current;
-  Uint32 m_negative;    //used for translating NAND/NOR to AND/OR, equal 0 or 1 
+  bool m_negate;    //used for translating NAND/NOR to AND/OR
   Vector<State> m_stack;
-  Vector<Uint32> m_stack2;    //to store info of m_negative
+  Vector<bool> m_stack2;    //to store info of m_negate
   NdbInterpretedCode * m_code;
   NdbError m_error;
 
@@ -197,46 +197,54 @@ int
 NdbScanFilter::begin(Group group){
   if (m_impl.m_error.code != 0) return -1;
 
-  if (m_impl.m_stack2.push_back(m_impl.m_negative))
+  if (m_impl.m_stack2.push_back(m_impl.m_negate))
   {
     /* Memory allocation problem */
     m_impl.m_error.code= 4000;
     return -1;
   }
+
+  /**
+   * Note that even if NAND and NOR may be specified as input arg,
+   * it is never stored in m_group. (Converted to negated AND/OR)
+   */
   switch(group){
   case NdbScanFilter::AND:
     INT_DEBUG(("Begin(AND)"));
-    if(m_impl.m_negative == 1){
+    if(m_impl.m_negate){
       group = NdbScanFilter::OR;
     }
     break;
   case NdbScanFilter::OR:
     INT_DEBUG(("Begin(OR)"));
-    if(m_impl.m_negative == 1){
+    if(m_impl.m_negate){
       group = NdbScanFilter::AND;
     }
     break;
+  /* Below is the only place we should ever see a NAND/NOR group */
   case NdbScanFilter::NAND:
     INT_DEBUG(("Begin(NAND)"));
-    if(m_impl.m_negative == 0){
-      group = NdbScanFilter::OR;
-      m_impl.m_negative = 1; 
-    }else{
+    if(m_impl.m_negate){
       group = NdbScanFilter::AND;
-      m_impl.m_negative = 0; 
+    }else{
+      group = NdbScanFilter::OR;
     }
+    m_impl.m_negate = !m_impl.m_negate;
     break;
   case NdbScanFilter::NOR:
     INT_DEBUG(("Begin(NOR)"));
-    if(m_impl.m_negative == 0){
-      group = NdbScanFilter::AND;
-      m_impl.m_negative = 1; 
-    }else{
+    if(m_impl.m_negate){
       group = NdbScanFilter::OR;
-      m_impl.m_negative = 0; 
+    }else{
+      group = NdbScanFilter::AND;
     }
+    m_impl.m_negate = !m_impl.m_negate;
     break;
   }
+
+  assert(m_impl.m_current.m_group == 0 ||  // Initial cond
+         m_impl.m_current.m_group == NdbScanFilter::AND ||
+         m_impl.m_current.m_group == NdbScanFilter::OR);
 
   if(group == m_impl.m_current.m_group){
     switch(group){
@@ -244,8 +252,10 @@ NdbScanFilter::begin(Group group){
     case NdbScanFilter::OR:
       m_impl.m_current.m_popCount++;
       return 0;
-    case NdbScanFilter::NOR:
-    case NdbScanFilter::NAND:
+    default:
+      // NAND / NOR not expected, will be converted to AND/OR + negate
+      assert(group != NdbScanFilter::NAND);
+      assert(group != NdbScanFilter::NOR);
       break;
     }
   }
@@ -263,16 +273,16 @@ NdbScanFilter::begin(Group group){
   
   switch(group){
   case NdbScanFilter::AND:
-  case NdbScanFilter::NAND:
     m_impl.m_current.m_falseLabel = m_impl.m_current.m_ownLabel;
     m_impl.m_current.m_trueLabel = tmp.m_trueLabel;
     break;
   case NdbScanFilter::OR:
-  case NdbScanFilter::NOR:
     m_impl.m_current.m_falseLabel = tmp.m_falseLabel;
     m_impl.m_current.m_trueLabel = m_impl.m_current.m_ownLabel;
     break;
   default: 
+    assert(group != NdbScanFilter::NAND); // Impossible
+    assert(group != NdbScanFilter::NOR);  // Impossible
     /* Operator is not defined in NdbScanFilter::Group  */
     m_impl.m_error.code= 4260;
     return -1;
@@ -290,7 +300,7 @@ NdbScanFilter::end(){
     m_impl.m_error.code= 4259;
     return -1;
   }
-  m_impl.m_negative = m_impl.m_stack2.back();
+  m_impl.m_negate = m_impl.m_stack2.back();
   m_impl.m_stack2.erase(m_impl.m_stack2.size() - 1);
 
   switch(m_impl.m_current.m_group){
@@ -300,11 +310,9 @@ NdbScanFilter::end(){
   case NdbScanFilter::OR:
     INT_DEBUG(("End(OR pc=%d)", m_impl.m_current.m_popCount));
     break;
-  case NdbScanFilter::NAND:
-    INT_DEBUG(("End(NAND pc=%d)", m_impl.m_current.m_popCount));
-    break;
-  case NdbScanFilter::NOR:
-    INT_DEBUG(("End(NOR pc=%d)", m_impl.m_current.m_popCount));
+  default:
+    assert(m_impl.m_current.m_group != NdbScanFilter::NAND); // Impossible
+    assert(m_impl.m_current.m_group != NdbScanFilter::NOR);  // Impossible
     break;
   }
 
@@ -321,23 +329,19 @@ NdbScanFilter::end(){
   }
   m_impl.m_current = m_impl.m_stack.back();
   m_impl.m_stack.erase(m_impl.m_stack.size() - 1);
-  
+
+  /**
+   * Only AND/OR is possible, as NAND/NOR is converted to
+   * negated OR/AND in begin().
+   */
   switch(tmp.m_group){
   case NdbScanFilter::AND:
     if(tmp.m_trueLabel == (Uint32)~0){
       if (m_impl.m_code->interpret_exit_ok() == -1)
         return m_impl.propagateErrorFromCode();
     } else {
+      assert(m_impl.m_current.m_group == NdbScanFilter::OR);
       if (m_impl.m_code->branch_label(tmp.m_trueLabel) == -1)
-        return m_impl.propagateErrorFromCode();
-    }
-    break;
-  case NdbScanFilter::NAND:
-    if(tmp.m_trueLabel == (Uint32)~0){
-      if (m_impl.m_code->interpret_exit_nok() == -1)
-        return m_impl.propagateErrorFromCode();
-    } else {
-      if (m_impl.m_code->branch_label(tmp.m_falseLabel) == -1)
         return m_impl.propagateErrorFromCode();
     }
     break;
@@ -346,20 +350,14 @@ NdbScanFilter::end(){
       if (m_impl.m_code->interpret_exit_nok() == -1)
         return m_impl.propagateErrorFromCode();
     } else {
+      assert(m_impl.m_current.m_group == NdbScanFilter::AND);
       if (m_impl.m_code->branch_label(tmp.m_falseLabel) == -1)
         return m_impl.propagateErrorFromCode();
     }
     break;
-  case NdbScanFilter::NOR:
-    if(tmp.m_falseLabel == (Uint32)~0){
-      if (m_impl.m_code->interpret_exit_ok() == -1)
-        return m_impl.propagateErrorFromCode();
-    } else {
-      if (m_impl.m_code->branch_label(tmp.m_trueLabel) == -1)
-        return m_impl.propagateErrorFromCode();
-    }
-    break;
   default:
+    assert(tmp.m_group != NdbScanFilter::NAND); // Impossible
+    assert(tmp.m_group != NdbScanFilter::NOR);  // Impossible
     /* Operator is not defined in NdbScanFilter::Group */
     m_impl.m_error.code= 4260;
     return -1;
@@ -371,16 +369,16 @@ NdbScanFilter::end(){
   if(m_impl.m_stack.size() == 0){
     switch(tmp.m_group){
     case NdbScanFilter::AND:
-    case NdbScanFilter::NOR:
       if (m_impl.m_code->interpret_exit_nok() == -1)
         return m_impl.propagateErrorFromCode();
       break;
     case NdbScanFilter::OR:
-    case NdbScanFilter::NAND:
       if (m_impl.m_code->interpret_exit_ok() == -1)
         return m_impl.propagateErrorFromCode();
       break;
     default:
+      assert(tmp.m_group != NdbScanFilter::NAND); // Impossible
+      assert(tmp.m_group != NdbScanFilter::NOR);  // Impossible
       /* Operator is not defined in NdbScanFilter::Group */
       m_impl.m_error.code= 4260;
       return -1;
@@ -396,8 +394,8 @@ int
 NdbScanFilter::istrue(){
   if(m_impl.m_error.code != 0) return -1;
 
-  if(m_impl.m_current.m_group < NdbScanFilter::AND || 
-     m_impl.m_current.m_group > NdbScanFilter::NOR){
+  if (m_impl.m_current.m_group != NdbScanFilter::AND &&
+      m_impl.m_current.m_group != NdbScanFilter::OR) {
     /* Operator is not defined in NdbScanFilter::Group */
     m_impl.m_error.code= 4260;
     return -1;
@@ -417,8 +415,9 @@ NdbScanFilter::istrue(){
 int
 NdbScanFilter::isfalse(){
   if (m_impl.m_error.code != 0) return -1;
-  if(m_impl.m_current.m_group < NdbScanFilter::AND || 
-     m_impl.m_current.m_group > NdbScanFilter::NOR){
+
+  if (m_impl.m_current.m_group != NdbScanFilter::AND &&
+      m_impl.m_current.m_group != NdbScanFilter::OR) {
     /* Operator is not defined in NdbScanFilter::Group */
     m_impl.m_error.code= 4260;
     return -1;
@@ -512,7 +511,7 @@ int
 NdbScanFilter::isnull(int AttrId){
   if (m_impl.m_error.code != 0) return -1;
 
-  if(m_impl.m_negative == 1)
+  if(m_impl.m_negate)
     return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
   else
     return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
@@ -522,7 +521,7 @@ int
 NdbScanFilter::isnotnull(int AttrId){
   if (m_impl.m_error.code != 0) return -1;
 
-  if(m_impl.m_negative == 1)
+  if(m_impl.m_negate)
     return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
   else
     return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
@@ -676,7 +675,7 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
   }
 
   StrBranch2 branch;
-  if(m_negative == 1){  //change NdbOperation to its negative
+  if(m_negate){  //change NdbOperation to its negative
     if(m_current.m_group == NdbScanFilter::AND)
       branch = table3[op].m_branches[NdbScanFilter::OR];
     else if(m_current.m_group == NdbScanFilter::OR)
@@ -810,7 +809,7 @@ NdbScanFilterImpl::cond_col_col(Interpreter::BinaryCondition op,
   }
 
   Branch2Col branch;
-  if (m_negative == 1) {  //change NdbOperation to its negative
+  if (m_negate) {  //change NdbOperation to its negative
     if (m_current.m_group == NdbScanFilter::AND)
       branch = table4[op].m_branches[NdbScanFilter::OR];
     else if (m_current.m_group == NdbScanFilter::OR)
