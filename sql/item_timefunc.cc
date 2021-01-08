@@ -1050,6 +1050,10 @@ longlong Item_func_period_add::val_int() {
   return convert_month_to_period(convert_period_to_month(period) + months);
 }
 
+bool Item_func_period_diff::resolve_type(THD *thd) {
+  return param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG);
+}
+
 longlong Item_func_period_diff::val_int() {
   assert(fixed == 1);
   longlong period1 = args[0]->val_int();
