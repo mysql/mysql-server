@@ -161,7 +161,7 @@ class CostingReceiver {
   const Prealloced_array<AccessPath *, 4> &root_candidates() {
     const auto it = m_access_paths.find(TablesBetween(0, m_graph.nodes.size()));
     assert(it != m_access_paths.end());
-    return it->second;
+    return it->second.paths;
   }
 
   size_t num_access_paths() const { return m_access_paths.size(); }
@@ -181,6 +181,20 @@ class CostingReceiver {
   Query_block *m_query_block;
 
   /**
+    Besides the access paths for a set of nodes (see m_access_paths),
+    AccessPathSet contains information that is common between all access
+    paths for that set. One would believe num_output_rows would be such
+    a member (a set of tables should produce the same number of ouptut
+    rows no matter the join order), but due to parametrized paths,
+    different access paths could have different outputs. delayed_predicates
+    is another, but currently, it's already efficiently hidden space-wise
+    due to the use of a union.
+   */
+  struct AccessPathSet {
+    Prealloced_array<AccessPath *, 4> paths;
+  };
+
+  /**
     For each subset of tables that are connected in the join hypergraph,
     keeps the current best access paths for producing said subset.
     There can be several that are best in different ways; see comments
@@ -190,7 +204,7 @@ class CostingReceiver {
     (in HasSeen()); if there's an entry here, that subset will induce
     a connected subgraph of the join hypergraph.
    */
-  std::unordered_map<NodeMap, Prealloced_array<AccessPath *, 4>> m_access_paths;
+  std::unordered_map<NodeMap, AccessPathSet> m_access_paths;
 
   /// The graph we are running over.
   const JoinHypergraph &m_graph;
@@ -923,8 +937,8 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   bool wrote_trace = false;
 
-  for (AccessPath *left_path : left_it->second) {
-    for (AccessPath *right_path : right_it->second) {
+  for (AccessPath *left_path : left_it->second.paths) {
+    for (AccessPath *right_path : right_it->second.paths) {
       // For inner joins and full outer joins, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes
       // the fewest amount of rows. (This has lower initial cost, and the same
@@ -1512,8 +1526,9 @@ void CostingReceiver::ProposeAccessPathForNodes(
     NodeMap nodes, AccessPath *path, const char *description_for_trace) {
   // Insert an empty array if none exists.
   auto it_and_inserted = m_access_paths.emplace(
-      nodes, Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED});
-  ProposeAccessPath(path, &it_and_inserted.first->second,
+      nodes,
+      AccessPathSet{Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED}});
+  ProposeAccessPath(path, &it_and_inserted.first->second.paths,
                     description_for_trace);
 }
 
