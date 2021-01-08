@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GC_UTILS_H_INCLUDED
 #define SQL_GIS_GC_UTILS_H_INCLUDED
 
-// Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -82,6 +82,16 @@ void gc_union(double semi_major, double semi_minor,
               std::unique_ptr<Multilinestring> *mls,
               std::unique_ptr<Multipolygon> *mpy);
 
+/// Narrows down a geometrycollection to return a Multipoint, Multilinestring
+/// or a Multipolygon if the first level of the geometrycollection contains
+/// only points, linestrings or polygons. Otherwise, if the contents is
+/// heterogenous or contains a geometrycollection, returns the input
+/// geometrycollection.
+///
+/// @param[in] geometrycollection Geometrycollection to be narroweed down.
+/// @return The narrowest type that can contain all the geometries in the input.
+std::unique_ptr<gis::Geometrycollection> narrowest_multigeometry(
+    std::unique_ptr<gis::Geometrycollection> geometrycollection);
 }  // namespace gis
 
 #endif  // SQL_GIS_GC_UTILS_H_INCLUDED

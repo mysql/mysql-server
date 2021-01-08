@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -741,11 +741,12 @@ bool equals(const dd::Spatial_reference_system *srs, const Geometry *g1,
             bool *null) noexcept {
   try {
     assert(g1->coordinate_system() == g2->coordinate_system());
-    assert(srs == nullptr ||
-           ((srs->is_cartesian() &&
-             g1->coordinate_system() == Coordinate_system::kCartesian) ||
-            (srs->is_geographic() &&
-             g1->coordinate_system() == Coordinate_system::kGeographic)));
+    assert((srs == nullptr &&
+            g1->coordinate_system() == Coordinate_system::kCartesian) ||
+           (srs != nullptr && srs->is_cartesian() &&
+            g1->coordinate_system() == Coordinate_system::kCartesian) ||
+           (srs != nullptr && srs->is_geographic() &&
+            g1->coordinate_system() == Coordinate_system::kGeographic));
 
     *null = false;
     if (g1->is_empty()) {

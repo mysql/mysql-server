@@ -5871,7 +5871,7 @@ bool Item_typecast_linestring::cast(
       std::unique_ptr<gis::Polygon> source_polygon(
           static_cast<gis::Polygon *>(source_geometry->release()));
       std::unique_ptr<gis::Linestring> target_linestring(
-          gis::Linestring::CreateLinestring(
+          gis::Linestring::create_linestring(
               source_polygon->coordinate_system()));
       if (source_polygon->size() != 1 ||
           source_polygon->exterior_ring().empty()) {
@@ -5895,7 +5895,7 @@ bool Item_typecast_linestring::cast(
       std::unique_ptr<gis::Multipoint> source_multipoint(
           static_cast<gis::Multipoint *>(source_geometry->release()));
       std::unique_ptr<gis::Linestring> target_linestring(
-          gis::Linestring::CreateLinestring(
+          gis::Linestring::create_linestring(
               source_multipoint->coordinate_system()));
       if (source_multipoint->size() < 2) {
         my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0),
@@ -5993,7 +5993,7 @@ bool Item_typecast_polygon::cast(
       std::unique_ptr<gis::Linestring> source_linestring(
           static_cast<gis::Linestring *>(source_geometry->release()));
       std::unique_ptr<gis::Polygon> target_polygon(
-          gis::Polygon::CreatePolygon(source_linestring->coordinate_system()));
+          gis::Polygon::create_polygon(source_linestring->coordinate_system()));
 
       // If the back and front of the linestring are not the same point, this
       // cannot be a linear ring.
@@ -6066,7 +6066,7 @@ bool Item_typecast_polygon::cast(
     case gis::Geometry_type::kMultilinestring: {
       std::unique_ptr<gis::Multilinestring> source_multilinestring(
           static_cast<gis::Multilinestring *>(source_geometry->release()));
-      std::unique_ptr<gis::Polygon> target_polygon(gis::Polygon::CreatePolygon(
+      std::unique_ptr<gis::Polygon> target_polygon(gis::Polygon::create_polygon(
           source_multilinestring->coordinate_system()));
       for (size_t i = 0; i < source_multilinestring->size(); ++i) {
         gis::Linestring *source_linestring =
@@ -6087,7 +6087,7 @@ bool Item_typecast_polygon::cast(
           return true;
         } else {
           std::unique_ptr<gis::Linearring> target_linearring(
-              gis::Linearring::CreateLinearring(
+              gis::Linearring::create_linearring(
                   source_multilinestring->coordinate_system()));
           for (size_t j = 0; j < source_linestring->size(); ++j) {
             std::unique_ptr<gis::Point> target_point(
@@ -6214,7 +6214,7 @@ bool Item_typecast_multipoint::cast(
     // POINT -> MULTIPOINT
     case gis::Geometry_type::kPoint: {
       std::unique_ptr<gis::Multipoint> target_multipoint(
-          gis::Multipoint::CreateMultipoint(
+          gis::Multipoint::create_multipoint(
               (*source_geometry)->coordinate_system()));
       target_multipoint->push_back(**source_geometry);
       target_geometry->reset(target_multipoint.release());
@@ -6226,7 +6226,7 @@ bool Item_typecast_multipoint::cast(
       std::unique_ptr<gis::Linestring> source_linestring(
           static_cast<gis::Linestring *>(source_geometry->release()));
       std::unique_ptr<gis::Multipoint> target_multipoint(
-          gis::Multipoint::CreateMultipoint(
+          gis::Multipoint::create_multipoint(
               source_linestring->coordinate_system()));
       while (!source_linestring->empty()) {
         std::unique_ptr<gis::Point> target_point(
@@ -6256,7 +6256,7 @@ bool Item_typecast_multipoint::cast(
         return true;
       } else {
         std::unique_ptr<gis::Multipoint> target_multipoint(
-            gis::Multipoint::CreateMultipoint(
+            gis::Multipoint::create_multipoint(
                 source_geomcollection->coordinate_system()));
         while (!source_geomcollection->empty()) {
           // Check while popping off elements whether they are points.
@@ -6316,7 +6316,7 @@ bool Item_typecast_multilinestring::cast(
     // LINESTRING -> MULTILINESTRING
     case gis::Geometry_type::kLinestring: {
       std::unique_ptr<gis::Multilinestring> target_multilinestring(
-          gis::Multilinestring::CreateMultilinestring(
+          gis::Multilinestring::create_multilinestring(
               (*source_geometry)->coordinate_system()));
       target_multilinestring->push_back(**source_geometry);
       target_geometry->reset(target_multilinestring.release());
@@ -6328,7 +6328,7 @@ bool Item_typecast_multilinestring::cast(
       std::unique_ptr<gis::Polygon> source_polygon(
           static_cast<gis::Polygon *>(source_geometry->release()));
       std::unique_ptr<gis::Multilinestring> target_multilinestring(
-          gis::Multilinestring::CreateMultilinestring(
+          gis::Multilinestring::create_multilinestring(
               source_polygon->coordinate_system()));
       for (size_t i = 0; i < source_polygon->size(); ++i) {
         // Traverse the polygon from outer to inner rings
@@ -6339,7 +6339,7 @@ bool Item_typecast_multilinestring::cast(
           source_polygon_ring = &source_polygon->interior_ring(i - 1);
         }
         std::unique_ptr<gis::Linestring> target_linestring(
-            gis::Linestring::CreateLinestring(
+            gis::Linestring::create_linestring(
                 source_polygon->coordinate_system()));
         for (size_t j = 0; j < source_polygon_ring->size(); ++j) {
           std::unique_ptr<gis::Point> target_point(
@@ -6364,7 +6364,7 @@ bool Item_typecast_multilinestring::cast(
       std::unique_ptr<gis::Multipolygon> source_multipolygon(
           static_cast<gis::Multipolygon *>(source_geometry->release()));
       std::unique_ptr<gis::Multilinestring> target_multilinestring(
-          gis::Multilinestring::CreateMultilinestring(
+          gis::Multilinestring::create_multilinestring(
               source_multipolygon->coordinate_system()));
       while (!source_multipolygon->empty()) {
         if (source_multipolygon->front().size() != 1) {
@@ -6374,7 +6374,7 @@ bool Item_typecast_multilinestring::cast(
           return true;
         }
         std::unique_ptr<gis::Linestring> target_linestring(
-            gis::Linestring::CreateLinestring(
+            gis::Linestring::create_linestring(
                 source_multipolygon->coordinate_system()));
         while (!source_multipolygon->front().exterior_ring().empty()) {
           std::unique_ptr<gis::Point> target_point(
@@ -6401,7 +6401,7 @@ bool Item_typecast_multilinestring::cast(
         return true;
       } else {
         std::unique_ptr<gis::Multilinestring> target_multilinestring(
-            gis::Multilinestring::CreateMultilinestring(
+            gis::Multilinestring::create_multilinestring(
                 source_geomcollection->coordinate_system()));
         while (!source_geomcollection->empty()) {
           if (source_geomcollection->front().type() !=
@@ -6458,7 +6458,7 @@ bool Item_typecast_multipolygon::cast(
     // POLYGON -> MULTIPOLYGON
     case gis::Geometry_type::kPolygon: {
       std::unique_ptr<gis::Multipolygon> target_multipolygon(
-          gis::Multipolygon::CreateMultipolygon(
+          gis::Multipolygon::create_multipolygon(
               (*source_geometry)->coordinate_system()));
       target_multipolygon->push_back(**source_geometry);
       target_geometry->reset(target_multipolygon.release());
@@ -6472,7 +6472,7 @@ bool Item_typecast_multipolygon::cast(
       std::unique_ptr<gis::Multilinestring> source_multilinestring(
           static_cast<gis::Multilinestring *>(source_geometry->release()));
       std::unique_ptr<gis::Multipolygon> target_multipolygon(
-          gis::Multipolygon::CreateMultipolygon(
+          gis::Multipolygon::create_multipolygon(
               source_multilinestring->coordinate_system()));
       for (size_t i = 0; i < source_multilinestring->size(); ++i) {
         gis::Linestring *source_linestring =
@@ -6494,10 +6494,10 @@ bool Item_typecast_multipolygon::cast(
           return true;
         } else {
           std::unique_ptr<gis::Polygon> target_polygon(
-              gis::Polygon::CreatePolygon(
+              gis::Polygon::create_polygon(
                   source_multilinestring->coordinate_system()));
           std::unique_ptr<gis::Linearring> target_polygon_ring(
-              gis::Linearring::CreateLinearring(
+              gis::Linearring::create_linearring(
                   source_multilinestring->coordinate_system()));
           for (size_t j = 0; j < source_linestring->size(); ++j) {
             std::unique_ptr<gis::Point> target_point(
@@ -6566,7 +6566,7 @@ bool Item_typecast_multipolygon::cast(
         return true;
       } else {
         std::unique_ptr<gis::Multipolygon> target_multipolygon(
-            gis::Multipolygon::CreateMultipolygon(
+            gis::Multipolygon::create_multipolygon(
                 source_geomcollection->coordinate_system()));
         while (!source_geomcollection->empty()) {
           if (source_geomcollection->front().type() !=
@@ -6615,7 +6615,7 @@ bool Item_typecast_geometrycollection::cast(
     case gis::Geometry_type::kLinestring:
     case gis::Geometry_type::kPolygon: {
       std::unique_ptr<gis::Geometrycollection> target_geomcollection(
-          gis::Geometrycollection::CreateGeometrycollection(
+          gis::Geometrycollection::create_geometrycollection(
               (*source_geometry)->coordinate_system()));
       target_geomcollection->push_back(**source_geometry);
       target_geometry->reset(target_geomcollection.release());
@@ -6629,7 +6629,7 @@ bool Item_typecast_geometrycollection::cast(
       std::unique_ptr<gis::Geometrycollection> source_geomcollection(
           static_cast<gis::Geometrycollection *>(source_geometry->release()));
       std::unique_ptr<gis::Geometrycollection> target_geomcollection(
-          gis::Geometrycollection::CreateGeometrycollection(
+          gis::Geometrycollection::create_geometrycollection(
               source_geomcollection->coordinate_system()));
       while (!source_geomcollection->empty()) {
         std::unique_ptr<gis::Geometry> target_geomcollection_geometry(

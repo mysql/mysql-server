@@ -148,7 +148,7 @@ TYPED_TEST(GeometriesTest, Linestring) {
   EXPECT_EQ(10.0, ls.front().y());
 
   std::unique_ptr<gis::Linestring> ls_new(
-      ls.CreateLinestring(ls.coordinate_system()));
+      gis::Linestring::create_linestring(ls.coordinate_system()));
   EXPECT_FALSE(&ls == ls_new.get());
   EXPECT_EQ(gis::Geometry_type::kLinestring, ls_new.get()->type());
   EXPECT_EQ(ls.coordinate_system(), ls_new.get()->coordinate_system());
@@ -202,7 +202,7 @@ TYPED_TEST(GeometriesTest, Linearring) {
   EXPECT_EQ(10.0, lr.front().y());
 
   std::unique_ptr<gis::Linearring> lr_new(
-      lr.CreateLinearring(lr.coordinate_system()));
+      gis::Linearring::create_linearring(lr.coordinate_system()));
   EXPECT_FALSE(&lr == lr_new.get());
   EXPECT_EQ(gis::Geometry_type::kLinestring, lr_new.get()->type());
   EXPECT_EQ(lr.coordinate_system(), lr_new.get()->coordinate_system());
@@ -261,7 +261,7 @@ TYPED_TEST(GeometriesTest, Polygon) {
   EXPECT_FALSE(py.accept(&visitor));
 
   std::unique_ptr<gis::Polygon> py_new(
-      py.CreatePolygon(py.coordinate_system()));
+      gis::Polygon::create_polygon(py.coordinate_system()));
   EXPECT_FALSE(&py == py_new.get());
   EXPECT_EQ(gis::Geometry_type::kPolygon, py_new.get()->type());
   EXPECT_EQ(py.coordinate_system(), py_new.get()->coordinate_system());
@@ -366,7 +366,8 @@ TYPED_TEST(GeometriesTest, Geometrycollection) {
   EXPECT_EQ(gis::Geometry_type::kPoint, gc.front().type());
 
   std::unique_ptr<gis::Geometrycollection> gc_new(
-      gc.CreateGeometrycollection(gc.coordinate_system()));
+      gis::Geometrycollection::create_geometrycollection(
+          gc.coordinate_system()));
   EXPECT_FALSE(&gc == gc_new.get());
   EXPECT_EQ(gis::Geometry_type::kGeometrycollection, gc_new.get()->type());
   EXPECT_EQ(gc.coordinate_system(), gc_new.get()->coordinate_system());
@@ -412,7 +413,7 @@ TYPED_TEST(GeometriesTest, Multipoint) {
   EXPECT_EQ(1.0, mpt.front().y());
 
   std::unique_ptr<gis::Multipoint> mpt_new(
-      mpt.CreateMultipoint(mpt.coordinate_system()));
+      gis::Multipoint::create_multipoint(mpt.coordinate_system()));
   EXPECT_FALSE(&mpt == mpt_new.get());
   EXPECT_EQ(gis::Geometry_type::kMultipoint, mpt_new.get()->type());
   EXPECT_EQ(mpt.coordinate_system(), mpt_new.get()->coordinate_system());
@@ -475,7 +476,7 @@ TYPED_TEST(GeometriesTest, Multilinestring) {
   EXPECT_EQ(2U, mls.front().size());
 
   std::unique_ptr<gis::Multilinestring> mls_new(
-      mls.CreateMultilinestring(mls.coordinate_system()));
+      gis::Multilinestring::create_multilinestring(mls.coordinate_system()));
   EXPECT_FALSE(&mls == mls_new.get());
   EXPECT_EQ(gis::Geometry_type::kMultilinestring, mls_new.get()->type());
   EXPECT_EQ(mls.coordinate_system(), mls_new.get()->coordinate_system());
@@ -541,7 +542,7 @@ TYPED_TEST(GeometriesTest, Multipolygon) {
   EXPECT_FALSE(mpy.accept(&visitor));
 
   std::unique_ptr<gis::Multipolygon> mpy_new(
-      mpy.CreateMultipolygon(mpy.coordinate_system()));
+      gis::Multipolygon::create_multipolygon(mpy.coordinate_system()));
   EXPECT_FALSE(&mpy == mpy_new.get());
   EXPECT_EQ(gis::Geometry_type::kMultipolygon, mpy_new.get()->type());
   EXPECT_EQ(mpy.coordinate_system(), mpy_new.get()->coordinate_system());

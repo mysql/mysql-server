@@ -417,10 +417,6 @@ class Cartesian_geometrycollection : public Geometrycollection {
   void resize(std::size_t count) override { m_geometries.resize(count); }
   void clear() noexcept override { m_geometries.clear(); }
 
-  Cartesian_geometrycollection *clone() const override {
-    return new Cartesian_geometrycollection(*this);
-  }
-
   iterator begin() noexcept { return m_geometries.begin(); }
   const_iterator begin() const noexcept { return m_geometries.begin(); }
 
@@ -433,6 +429,9 @@ class Cartesian_geometrycollection : public Geometrycollection {
   Geometry &operator[](std::size_t i) override { return *m_geometries[i]; }
   const Geometry &operator[](std::size_t i) const override {
     return *m_geometries[i];
+  }
+  Cartesian_geometrycollection *clone() const override {
+    return new Cartesian_geometrycollection(*this);
   }
 };
 
@@ -481,10 +480,6 @@ class Geographic_geometrycollection : public Geometrycollection {
   void resize(std::size_t count) override { m_geometries.resize(count); }
   void clear() noexcept override { m_geometries.clear(); }
 
-  Geographic_geometrycollection *clone() const override {
-    return new Geographic_geometrycollection(*this);
-  }
-
   iterator begin() noexcept { return m_geometries.begin(); }
   const_iterator begin() const noexcept { return m_geometries.begin(); }
 
@@ -497,6 +492,9 @@ class Geographic_geometrycollection : public Geometrycollection {
   Geometry &operator[](std::size_t i) override { return *m_geometries[i]; }
   const Geometry &operator[](std::size_t i) const override {
     return *m_geometries[i];
+  }
+  Geographic_geometrycollection *clone() const override {
+    return new Geographic_geometrycollection(*this);
   }
 };
 
@@ -533,10 +531,6 @@ class Cartesian_multipoint : public Multipoint {
   void resize(std::size_t count) override { m_points.resize(count); }
   void clear() noexcept override { m_points.clear(); }
 
-  Cartesian_multipoint *clone() const override {
-    return new Cartesian_multipoint(*this);
-  }
-
   iterator begin() noexcept { return m_points.begin(); }
   const_iterator begin() const noexcept { return m_points.begin(); }
 
@@ -549,6 +543,9 @@ class Cartesian_multipoint : public Multipoint {
   Cartesian_point &operator[](std::size_t i) override { return m_points[i]; }
   const Cartesian_point &operator[](std::size_t i) const override {
     return m_points[i];
+  }
+  Cartesian_multipoint *clone() const override {
+    return new Cartesian_multipoint(*this);
   }
 };
 
@@ -584,10 +581,6 @@ class Geographic_multipoint : public Multipoint {
   void resize(std::size_t count) override { m_points.resize(count); }
   void clear() noexcept override { m_points.clear(); }
 
-  Geographic_multipoint *clone() const override {
-    return new Geographic_multipoint(*this);
-  }
-
   iterator begin() noexcept { return m_points.begin(); }
   const_iterator begin() const noexcept { return m_points.begin(); }
 
@@ -600,6 +593,9 @@ class Geographic_multipoint : public Multipoint {
   Geographic_point &operator[](std::size_t i) override { return m_points[i]; }
   const Geographic_point &operator[](std::size_t i) const override {
     return m_points[i];
+  }
+  Geographic_multipoint *clone() const override {
+    return new Geographic_multipoint(*this);
   }
 };
 
@@ -637,10 +633,6 @@ class Cartesian_multilinestring : public Multilinestring {
   void resize(std::size_t count) override { m_linestrings.resize(count); }
   void clear() noexcept override { m_linestrings.clear(); }
 
-  Cartesian_multilinestring *clone() const override {
-    return new Cartesian_multilinestring(*this);
-  }
-
   Cartesian_linestring &back() { return m_linestrings.back(); }
   const Cartesian_linestring &back() const { return m_linestrings.back(); }
 
@@ -660,6 +652,9 @@ class Cartesian_multilinestring : public Multilinestring {
   }
   const Geometry &operator[](std::size_t i) const override {
     return m_linestrings[i];
+  }
+  Cartesian_multilinestring *clone() const override {
+    return new Cartesian_multilinestring(*this);
   }
 };
 
@@ -697,10 +692,6 @@ class Geographic_multilinestring : public Multilinestring {
   void resize(std::size_t count) override { m_linestrings.resize(count); }
   void clear() noexcept override { m_linestrings.clear(); }
 
-  Geographic_multilinestring *clone() const override {
-    return new Geographic_multilinestring(*this);
-  }
-
   Geographic_linestring &back() { return m_linestrings.back(); }
   const Geographic_linestring &back() const { return m_linestrings.back(); }
 
@@ -720,6 +711,9 @@ class Geographic_multilinestring : public Multilinestring {
   }
   const Geometry &operator[](std::size_t i) const override {
     return m_linestrings[i];
+  }
+  Geographic_multilinestring *clone() const override {
+    return new Geographic_multilinestring(*this);
   }
 };
 
@@ -757,10 +751,6 @@ class Cartesian_multipolygon : public Multipolygon {
   void resize(std::size_t count) override { m_polygons.resize(count); }
   void clear() noexcept override { m_polygons.clear(); }
 
-  Cartesian_multipolygon *clone() const override {
-    return new Cartesian_multipolygon(*this);
-  }
-
   iterator begin() noexcept { return m_polygons.begin(); }
   const_iterator begin() const noexcept { return m_polygons.begin(); }
 
@@ -775,6 +765,9 @@ class Cartesian_multipolygon : public Multipolygon {
   }
   const Geometry &operator[](std::size_t i) const override {
     return m_polygons[i];
+  }
+  Cartesian_multipolygon *clone() const override {
+    return new Cartesian_multipolygon(*this);
   }
 };
 
@@ -812,10 +805,6 @@ class Geographic_multipolygon : public Multipolygon {
   void resize(std::size_t count) override { m_polygons.resize(count); }
   void clear() noexcept override { m_polygons.clear(); }
 
-  Geographic_multipolygon *clone() const override {
-    return new Geographic_multipolygon(*this);
-  }
-
   iterator begin() noexcept { return m_polygons.begin(); }
   const_iterator begin() const noexcept { return m_polygons.begin(); }
 
@@ -832,6 +821,9 @@ class Geographic_multipolygon : public Multipolygon {
   }
   const Geometry &operator[](std::size_t i) const override {
     return m_polygons[i];
+  }
+  Geographic_multipolygon *clone() const override {
+    return new Geographic_multipolygon(*this);
   }
 };
 

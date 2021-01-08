@@ -50,7 +50,10 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "sql/enum_query_type.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/wkb.h"
 #include "sql/item.h"       // Item_result_field
 #include "sql/item_func.h"  // Item_int_func
 #include "sql/mem_root_array.h"
@@ -457,7 +460,8 @@ class Item_sum : public Item_func {
     LEAD_LAG_FUNC,
     FIRST_LAST_VALUE_FUNC,
     NTH_VALUE_FUNC,
-    ROLLUP_SUM_SWITCHER_FUNC
+    ROLLUP_SUM_SWITCHER_FUNC,
+    GEOMETRY_AGGREGATE_FUNC
   };
 
   /**
@@ -2733,6 +2737,71 @@ class Item_rollup_sum_switcher final : public Item_sum {
 
   const int m_num_levels;
   int m_current_rollup_level = INT_MAX;
+};
+/// Implements ST_Collect which aggregates geometries into Multipoints,
+/// Multilinestrings, Multipolygons and Geometrycollections.
+
+class Item_sum_collect : public Item_sum {
+ private:
+  Mysql::Nullable<gis::srid_t> srid;
+  std::unique_ptr<gis::Geometrycollection> m_geometrycollection;
+  void pop_front();
+
+ public:
+  using Super = Item_sum;
+  Item_sum_collect(THD *thd, Item_sum *item) : Item_sum(thd, item) {
+    set_data_type_geometry();
+  }
+  Item_sum_collect(const POS &pos, Item *a, PT_window *w, bool distinct)
+      : Item_sum(pos, a, w) {
+    set_distinct(distinct);
+    set_data_type_geometry();
+  }
+
+  my_decimal *val_decimal(my_decimal *decimal_buffer) override;
+  longlong val_int() override { return val_int_from_string(); }
+  double val_real() override { return val_real_from_string(); }
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override { return true; }
+  bool get_time(MYSQL_TIME *) override { return true; }
+  enum Sumfunctype sum_func() const override { return GEOMETRY_AGGREGATE_FUNC; }
+  Item_result result_type() const override { return STRING_RESULT; }
+  int set_aggregator(Aggregator::Aggregator_type) override {
+    /*
+       In contrast to Item_sum, Item_sum_collect always uses Aggregator_simple,
+       and only needs to reset its aggregator when called.
+       */
+    if (aggr) {
+      aggr->clear();
+      return false;
+    }
+
+    destroy(aggr);
+    aggr = new (*THR_MALLOC) Aggregator_simple(this);
+    return aggr ? false : true;
+  }
+
+  bool fix_fields(THD *thd, Item **ref) override;
+  /*
+     We need to override check_wf_semantics1 because it reports an error when
+     with_distinct is set.
+     */
+  bool check_wf_semantics1(THD *thd, Query_block *,
+                           Window_evaluation_requirements *r) override;
+
+  Item *copy_or_same(THD *thd) override;
+
+  void update_field() override;
+  void reset_field() override;
+
+  String *val_str(String *str) override;
+
+  bool add() override;
+
+  void read_result_field();
+  void store_result_field();
+
+  void clear() override;
+  const char *func_name() const override { return "st_collect"; }
 };
 
 #endif /* ITEM_SUM_INCLUDED */

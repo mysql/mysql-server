@@ -5864,8 +5864,12 @@ Field *Item::make_string_field(TABLE *table) const {
   if (data_type() == MYSQL_TYPE_JSON)
     field =
         new (*THR_MALLOC) Field_json(max_length, m_nullable, item_name.ptr());
-  else if (max_length / collation.collation->mbmaxlen >
-           CONVERT_IF_BIGGER_TO_BLOB)
+  else if (data_type() == MYSQL_TYPE_GEOMETRY) {
+    field = new (*THR_MALLOC)
+        Field_geom(max_length, m_nullable, item_name.ptr(),
+                   Field::GEOM_GEOMETRY, Nullable<gis::srid_t>());
+  } else if (max_length / collation.collation->mbmaxlen >
+             CONVERT_IF_BIGGER_TO_BLOB)
     field = new (*THR_MALLOC) Field_blob(
         max_length, m_nullable, item_name.ptr(), collation.collation, true);
   /* Item_type_holder holds the exact type, do not change it */

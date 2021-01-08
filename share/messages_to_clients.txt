@@ -9528,6 +9528,10 @@ ER_INVALID_CAST_TO_GEOMETRY 22S01
 
 ER_INVALID_CAST_POLYGON_RING_DIRECTION 22S04
   eng "Invalid cast from %s to %s. A polygon ring is in the wrong direction."
+
+ER_GIS_DIFFERENT_SRIDS_AGGREGATION 22S05
+  eng "Arguments to function %s contains geometries with different SRIDs: %u and %u. All geometries must have the same SRID."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

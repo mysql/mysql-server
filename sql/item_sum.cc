@@ -49,8 +49,14 @@
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/create_field.h"
 #include "sql/current_thd.h"  // current_thd
-#include "sql/derror.h"       // ER_THD
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/derror.h"  // ER_THD
 #include "sql/field.h"
+#include "sql/gis/gc_utils.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometry_extraction.h"
+#include "sql/gis/relops.h"
+#include "sql/gis/rtree_support.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
@@ -470,8 +476,9 @@ bool Item_sum::resolve_type(THD *thd) {
 
   const Sumfunctype t = sum_func();
 
-  // None except these 3 types are allowed for geometry arguments.
-  if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC))
+  // None except these 4 types are allowed for geometry arguments.
+  if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC ||
+        t == GEOMETRY_AGGREGATE_FUNC))
     return reject_geometry_args(arg_count, args, this);
   return false;
 }
@@ -5878,7 +5885,6 @@ bool Item_sum_json_object::add() {
       return error_json();
 
     std::string key(safep, safe_length);
-
     if (m_is_window_function) {
       /*
         When a row is leaving a frame, we have two options:
@@ -6198,4 +6204,250 @@ bool Item_rollup_sum_switcher::aggregator_setup(THD *thd) {
     }
   }
   return false;
+}
+
+namespace {
+std::unique_ptr<gis::Geometrycollection> filtergeometries(
+    std::unique_ptr<gis::Geometrycollection> geometrycollection,
+    dd::Spatial_reference_system *srs) {
+  assert(geometrycollection.get() != nullptr);
+  auto filtered_geometries = std::unique_ptr<gis::Geometrycollection>(
+      gis::Geometrycollection::create_geometrycollection(
+          geometrycollection->coordinate_system()));
+  for (size_t i = 0; i < geometrycollection->size(); i++) {
+    auto comparator = [&srs](gis::Geometry *geometrya,
+                             gis::Geometry *geometryb) {
+      bool equals = false;
+      bool isnull = false;
+      gis::equals(srs, geometrya, geometryb, "ST_Collect", &equals, &isnull);
+      return equals;
+    };
+    bool equals = false;
+    for (size_t j = 0; j < filtered_geometries->size(); ++j) {
+      equals |= comparator(&filtered_geometries->operator[](j),
+                           &geometrycollection->operator[](i));
+    }
+    if (!equals) {
+      filtered_geometries->push_back(geometrycollection->operator[](i));
+    }
+  }
+  return filtered_geometries;
+}
+}  // namespace
+
+bool Item_sum_collect::fix_fields(THD *thd, Item **ref) {
+  assert(!fixed);
+  result_field = nullptr;
+
+  if (Super::fix_fields(thd, ref)) return true; /* purecov: inspected */
+
+  if (init_sum_func_check(thd)) return true;
+
+  assert(arg_count == 1);
+  if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
+      args[0]->check_cols(1))
+    return true;
+
+  if (resolve_type(thd)) return true;
+
+  if (check_sum_func(thd, ref)) return true;
+
+  set_nullable(true);
+  null_value = true;
+  fixed = true;
+  return false;
+}
+bool Item_sum_collect::check_wf_semantics1(THD *, Query_block *,
+                                           Window_evaluation_requirements *r) {
+  const PT_frame *frame = m_window->frame();
+  r->needs_buffer = !(frame->m_query_expression == WFU_ROWS &&
+                      frame->m_from->m_border_type == WBT_UNBOUNDED_PRECEDING &&
+                      frame->m_to->m_border_type == WBT_CURRENT_ROW);
+  return false;
+}
+
+void Item_sum_collect::clear() {
+  m_geometrycollection.reset();
+  null_value = true;
+  srid = Mysql::Nullable<gis::srid_t>{};
+}
+
+bool Item_sum_collect::add() {
+  assert(fixed == 1);
+  assert(arg_count == 1);
+
+  THD *thd = base_query_block->parent_lex->thd;
+
+  GeometryExtractionResult geometryExtractionResult =
+      ExtractGeometry(*args, thd, func_name());
+
+  std::unique_ptr<gis::Geometry> currentGeometry;
+  gis::srid_t currentSrid = 0;
+
+  switch (geometryExtractionResult.GetResultType()) {
+    case ResultType::Error:
+      return true;
+    case ResultType::NullValue:
+      return false;
+    case ResultType::Value:
+      currentGeometry = geometryExtractionResult.GetValue();
+      currentSrid = geometryExtractionResult.GetSrid();
+      break;
+  }
+
+  if (m_geometrycollection.get() == nullptr) {
+    m_geometrycollection = std::unique_ptr<gis::Geometrycollection>(
+        gis::Geometrycollection::create_geometrycollection(
+            currentGeometry->coordinate_system()));
+    srid = currentSrid;
+  }
+  if (srid == currentSrid || (!srid.has_value() && currentSrid == 0)) {
+    try {
+      m_geometrycollection->push_back(*currentGeometry.get());
+      null_value = false;
+    } catch (...) {
+      /* purecov: begin inspected */
+      handle_std_exception(func_name());
+      return true;
+      /* purecov: end */
+    }
+  } else {  // srid mismatch
+    my_error(ER_GIS_DIFFERENT_SRIDS_AGGREGATION, MYF(0), func_name(),
+             srid.value(), currentSrid);
+    return true;
+  }
+  return false;
+}
+
+Item *Item_sum_collect::copy_or_same(THD *thd) {
+  return m_is_window_function ? this
+                              : new (thd->mem_root) Item_sum_collect(thd, this);
+}
+
+void Item_sum_collect::read_result_field() {
+  GeometryExtractionResult geometryExtractionResult =
+      ExtractGeometry(result_field, current_thd, func_name());
+  switch (geometryExtractionResult.GetResultType()) {
+    case ResultType::Error:
+      return;
+    case ResultType::NullValue:
+      clear();
+      return;
+    case ResultType::Value:
+      std::unique_ptr<gis::Geometry> geo = geometryExtractionResult.GetValue();
+      srid = geometryExtractionResult.GetSrid();
+      switch (geo->type()) {
+        case gis::Geometry_type::kGeometrycollection:
+          m_geometrycollection = std::unique_ptr<gis::Geometrycollection>(
+              down_cast<gis::Geometrycollection *>(geo.get())->clone());
+          break;
+        case gis::Geometry_type::kMultipoint:
+        case gis::Geometry_type::kMultilinestring:
+        case gis::Geometry_type::kMultipolygon: {
+          m_geometrycollection = std::unique_ptr<gis::Geometrycollection>(
+              gis::Geometrycollection::create_geometrycollection(
+                  geo->coordinate_system()));
+          gis::Geometrycollection *geometrycollection =
+              down_cast<gis::Geometrycollection *>(geo.get());
+          for (size_t i = 0; i < geometrycollection->size(); i++) {
+            m_geometrycollection->push_back(geometrycollection->operator[](i));
+          }
+        } break;
+        default: {
+          assert(0);
+        }
+      }
+  }
+}
+
+void Item_sum_collect::pop_front() {
+  m_geometrycollection->pop_front();
+  if (m_geometrycollection->size() == 0) {
+    clear();
+  }
+}
+
+String *Item_sum_collect::val_str(String *str) {
+  if (m_is_window_function) {
+    if (wf_common_init()) {
+      return error_str();
+    }
+    if (m_window->do_inverse()) {
+      String backing_arg_wkb;
+      args[0]->val_str(&backing_arg_wkb);
+      if (!args[0]->is_null()) {
+        pop_front();
+      }
+    } else {
+      if (add()) return error_str();
+    }
+  }
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
+      std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
+          current_thd->dd_client());
+  dd::Spatial_reference_system *srs =
+      this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+  if (m_geometrycollection.get() == nullptr) {
+    null_value = true;
+    return error_str();
+  }
+  std::unique_ptr<gis::Geometrycollection> narrowerCollection;
+  if (has_with_distinct()) {
+    narrowerCollection = narrowest_multigeometry(filtergeometries(
+        std::unique_ptr<gis::Geometrycollection>(m_geometrycollection->clone()),
+        srs));
+  } else {
+    narrowerCollection =
+        gis::narrowest_multigeometry(std::unique_ptr<gis::Geometrycollection>(
+            m_geometrycollection->clone()));
+  }
+  gis::write_geometry(srs, *narrowerCollection, str);
+  return str;
+}
+
+void Item_sum_collect::update_field() {
+  read_result_field();
+  add();
+  store_result_field();
+}
+
+void Item_sum_collect::store_result_field() {
+  if (m_geometrycollection.get() != nullptr) {
+    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
+        std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
+            current_thd->dd_client());
+    dd::Spatial_reference_system *srs =
+        this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+
+    std::unique_ptr<gis::Geometrycollection> narrowerCollection;
+    narrowerCollection =
+        narrowest_multigeometry(std::unique_ptr<gis::Geometrycollection>(
+            m_geometrycollection->clone()));
+
+    String str;
+    gis::write_geometry(srs, *narrowerCollection, &str);
+    Field_geom *multipoint_field = down_cast<Field_geom *>(result_field);
+    auto storeRes =
+        multipoint_field->store(str.ptr(), str.length(), str.charset());
+    if (storeRes) {
+      return;
+    }
+    result_field->set_notnull();
+  } else {
+    result_field->reset();
+    result_field->set_null();
+  }
+}
+
+my_decimal *Item_sum_collect::val_decimal(my_decimal *decimal_value) {
+  assert(fixed == 1);
+  double2my_decimal(E_DEC_FATAL_ERROR, 0.0, decimal_value);
+  return decimal_value;
+}
+void Item_sum_collect::reset_field() {
+  clear();
+  result_field->reset();
+  result_field->set_null();
+  add();
+  store_result_field();
 }

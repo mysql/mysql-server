@@ -1,0 +1,109 @@
+#ifndef SQL_GIS_GEOMETRY_EXTRACTION_H_INCLUDED
+#define SQL_GIS_GEOMETRY_EXTRACTION_H_INCLUDED
+
+// Copyright (c) 2021, Oracle and/or its affiliates.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
+//
+// This program is also distributed with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have included with MySQL.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
+
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/gis/geometries.h"
+#include "sql/sql_class.h"  // THD
+
+#include <algorithm>
+#include <memory>
+/// @file
+///
+/// This file contains a few convenience functions for working with Geometries,
+/// to avoid boilerplate and mishandling of Geometries.
+
+/// Type used to differentiate the three cases that can happen when parsing a
+/// geometry.
+enum class ResultType { Error, NullValue, Value };
+
+/// Type used to handle both the result of the decoding of a geometry and the
+/// geometry in the case of success.
+class GeometryExtractionResult {
+ private:
+  const ResultType m_resultType;
+  std::unique_ptr<gis::Geometry> m_value;
+  gis::srid_t srid = 0;
+
+ public:
+  ResultType GetResultType() const { return m_resultType; }
+  gis::srid_t GetSrid() const {
+    assert(m_resultType == ResultType::Value);
+    return srid;
+  }
+  std::unique_ptr<gis::Geometry> GetValue() {
+    assert(m_resultType == ResultType::Value);
+    return std::move(m_value);
+  }
+  explicit GeometryExtractionResult(ResultType resultType)
+      : m_resultType(resultType) {
+    if (resultType == ResultType::Value) {
+      throw ResultType::Error;
+    }
+  }
+  explicit GeometryExtractionResult(std::unique_ptr<gis::Geometry> geometry,
+                                    gis::srid_t srid)
+      : m_resultType(ResultType::Value),
+        m_value(std::move(geometry)),
+        srid(srid) {}
+};
+
+/// ExtractGeometry takes an Item or a Field, attempts to parse a geometry out
+/// of it and returns a value combining the result of the parsing process with
+/// the geometry in case it is a success.
+///
+/// @param[in] str The Field or Item we want a geometry from.
+/// @param[in] thd THD* to report errors on
+/// @param[in] func_name C-string to report errors as.
+/// @returns GeometryExtractionResult which holds a result and an optional
+/// Geometry
+
+template <typename WithValStrMethod>
+GeometryExtractionResult ExtractGeometry(WithValStrMethod *str, THD *thd,
+                                         const char *func_name) {
+  String backing_arg_wkb;
+  String *arg_wkb = str->val_str(&backing_arg_wkb);
+  if (thd->is_error()) {
+    return GeometryExtractionResult(ResultType::Error);
+  }
+
+  if (str->is_null() == true) {
+    return GeometryExtractionResult(ResultType::NullValue);
+  }
+
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+  const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<gis::Geometry> geo;
+  bool result = gis::parse_geometry(thd, func_name, arg_wkb, &srs, &geo);
+
+  if (result == true) {
+    return GeometryExtractionResult(ResultType::Error);
+  } else {
+    return GeometryExtractionResult(std::move(geo), srs ? srs->id() : 0);
+  }
+}
+
+#endif  // SQL_GIS_GEOMETRY_EXTRACTION_H_INCLUDED

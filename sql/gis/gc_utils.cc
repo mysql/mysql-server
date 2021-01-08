@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -190,6 +190,59 @@ void gc_union(double semi_major, double semi_minor,
 
   assert(mpt->get() && mls->get() && mpy->get());
   assert(!(*mpt)->empty() || !(*mls)->empty() || !(*mpy)->empty());
+}
+
+std::unique_ptr<gis::Geometrycollection> narrowest_multigeometry(
+    std::unique_ptr<gis::Geometrycollection> geometrycollection) {
+  bool pt = false;
+  bool ls = false;
+  bool py = false;
+  for (size_t i = 0; i < geometrycollection->size(); i++) {
+    switch (geometrycollection->operator[](i).type()) {
+      case gis::Geometry_type::kPoint:
+        if (ls || py) return geometrycollection;
+        pt = true;
+        break;
+      case gis::Geometry_type::kLinestring:
+        if (pt || py) return geometrycollection;
+        ls = true;
+        break;
+      case gis::Geometry_type::kPolygon:
+        if (pt || ls) return geometrycollection;
+        py = true;
+        break;
+      case gis::Geometry_type::kMultipoint:
+      case gis::Geometry_type::kMultilinestring:
+      case gis::Geometry_type::kMultipolygon:
+      case gis::Geometry_type::kGeometrycollection:
+        return geometrycollection;
+      default:
+        break;
+    }
+  }
+
+  // Otherwise create the necessary multigeometries and split the input.
+  std::unique_ptr<gis::Multipoint> multipoint =
+      std::unique_ptr<gis::Multipoint>(gis::Multipoint::create_multipoint(
+          geometrycollection->coordinate_system()));
+  std::unique_ptr<gis::Multilinestring> multilinestring =
+      std::unique_ptr<gis::Multilinestring>(
+          gis::Multilinestring::create_multilinestring(
+              geometrycollection->coordinate_system()));
+  std::unique_ptr<gis::Multipolygon> multipolygon =
+      std::unique_ptr<gis::Multipolygon>(gis::Multipolygon::create_multipolygon(
+          geometrycollection->coordinate_system()));
+  gis::split_gc(geometrycollection.get(), &multipoint, &multilinestring,
+                &multipolygon);
+
+  if (!multipoint->empty())
+    return std::unique_ptr<gis::Geometrycollection>(multipoint.release());
+  else if (!multilinestring->empty())
+    return std::unique_ptr<gis::Geometrycollection>(multilinestring.release());
+  else if (!multipolygon->empty())
+    return std::unique_ptr<gis::Geometrycollection>(multipolygon.release());
+  assert(false);
+  return geometrycollection;
 }
 
 }  // namespace gis

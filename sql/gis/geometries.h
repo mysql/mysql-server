@@ -261,7 +261,7 @@ class Linestring : public Curve {
   /// @param[in] coordinate_system Coordinate system to create a Linestring for.
   /// @return A pointer to a Linestring that caller must free when it is done
   /// with it.
-  static Linestring *CreateLinestring(Coordinate_system coordinate_system);
+  static Linestring *create_linestring(Coordinate_system coordinate_system);
 
   // Returns a copy of a subclass of Linestring.
   Linestring *clone() const override = 0;
@@ -324,7 +324,7 @@ class Linearring : public Linestring {
   /// @param[in] coordinate_system Coordinate system to create a Linearring for.
   /// @return A pointer to a Linearring that caller must free when it is done
   /// with it.
-  static Linearring *CreateLinearring(Coordinate_system coordinate_system);
+  static Linearring *create_linearring(Coordinate_system coordinate_system);
 };
 
 /// An abstract 2d surface.
@@ -355,7 +355,7 @@ class Polygon : public Surface {
   /// @param[in] coordinate_system Coordinate system to create a Polygon for.
   /// @return A pointer to a Polygon that caller must free when it is done
   /// with it.
-  static Polygon *CreatePolygon(Coordinate_system coordinate_system);
+  static Polygon *create_polygon(Coordinate_system coordinate_system);
 
   // Returns a copy of a subclass of Polygon.
   Polygon *clone() const override = 0;
@@ -421,9 +421,6 @@ class Geometrycollection : public Geometry {
   static Geometrycollection *CreateGeometrycollection(
       Coordinate_system coordinate_system);
 
-  // Returns a copy of a subclass of Geometrycollection.
-  Geometrycollection *clone() const override = 0;
-
   /// Adds a geometry to the collection.
   ///
   /// @param g The geometry to add.
@@ -463,6 +460,20 @@ class Geometrycollection : public Geometry {
 
   virtual Geometry &operator[](std::size_t i) = 0;
   virtual const Geometry &operator[](std::size_t i) const = 0;
+  /// Clone pattern to easily duplicate a Geometrycollection.
+  ///
+  /// @return A pointer to a copy of the Geometrycollection that caller
+  /// must free when it is done with it.
+  Geometrycollection *clone() const override = 0;
+
+  /// Creates a subclass from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a
+  /// geometrycollection for
+  /// @return A pointer to a Geometrycollection that caller must free when it is
+  /// done with it.
+  static Geometrycollection *create_geometrycollection(
+      Coordinate_system coordinate_system);
 };
 
 /// A collection of points.
@@ -474,21 +485,25 @@ class Multipoint : public Geometrycollection {
 
   bool accept(Geometry_visitor *v) override = 0;
 
-  // Returns a copy of a subclass of Multipoint.
-  Multipoint *clone() const override = 0;
-
-  /// Creates a subclass of Multipoint from a Coordinate_system
+  /// Clone pattern to easily duplicate a Multipoint.
   ///
-  /// @param[in] coordinate_system Coordinate system to create a Multipoint for.
-  /// @return A pointer to a Multipoint that caller must free when it is done
-  /// with it.
-  static Multipoint *CreateMultipoint(Coordinate_system coordinate_system);
+  /// @return A pointer to a copy of the Multipoint that caller
+  /// must free when it is done with it.
+  Multipoint *clone() const override = 0;
 
   /// Returns the first point of the Multipoint.
   ///
   /// @return First point of the Multipoint
   Point &front() override = 0;
   const Point &front() const override = 0;
+
+  /// Creates a subclass of Multipoint from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Multipoint for.
+  /// @return A pointer to a Multipoint that caller must free when it is done
+  /// with it.
+
+  static Multipoint *create_multipoint(Coordinate_system coordinate_system);
 };
 
 /// An abstract collection of curves.
@@ -510,8 +525,17 @@ class Multilinestring : public Multicurve {
   }
   bool accept(Geometry_visitor *v) override = 0;
 
-  // Returns a copy of a subclass of Multilinestring.
+  /// Clone pattern to easily duplicate a Multilinestring.
+  ///
+  /// @return A pointer to a copy of the Multilinestring that caller
+  /// must free when it is done with it.
   Multilinestring *clone() const override = 0;
+
+  /// Returns the first linestring of the Multilinestring.
+  ///
+  /// @return First linestring of the Multilinestring
+  Linestring &front() override = 0;
+  const Linestring &front() const override = 0;
 
   /// Creates a subclass of Multilinestring from a Coordinate_system
   ///
@@ -519,14 +543,8 @@ class Multilinestring : public Multicurve {
   /// for.
   /// @return A pointer to a Multilinestring that caller must free when it is
   /// done with it.
-  static Multilinestring *CreateMultilinestring(
+  static Multilinestring *create_multilinestring(
       Coordinate_system coordinate_system);
-
-  /// Returns the first linestring of the Multilinestring.
-  ///
-  /// @return First linestring of the Multilinestring
-  Linestring &front() override = 0;
-  const Linestring &front() const override = 0;
 };
 
 /// An abstract collection of surfaces.
@@ -546,22 +564,25 @@ class Multipolygon : public Multisurface {
   Geometry_type type() const override { return Geometry_type::kMultipolygon; }
   bool accept(Geometry_visitor *v) override = 0;
 
-  // Returns a copy of a subclass of Multipolygon.
-  Multipolygon *clone() const override = 0;
-
-  /// Creates a subclass of Multipolygon from a Coordinate_system
+  /// Clone pattern to easily duplicate a Multipolygon.
   ///
-  /// @param[in] coordinate_system Coordinate system to create a Multipolygon
-  /// for.
-  /// @return A pointer to a Multipolygon that caller must free when it is
-  /// done with it.
-  static Multipolygon *CreateMultipolygon(Coordinate_system coordinate_system);
+  /// @return A pointer to a copy of the Multipolygon that caller
+  /// must free when it is done with it.
+  Multipolygon *clone() const override = 0;
 
   /// Returns the first polygon of the Multipolygon.
   ///
   /// @return First polygon of the Multipolygon
   Polygon &front() override = 0;
   const Polygon &front() const override = 0;
+
+  /// Creates a subclass of Multipolygon from a Coordinate_system
+  ///
+  /// @param[in] coordinate_system Coordinate system to create a Multipolygon
+  /// for.
+  /// @return A pointer to a Multipolygon that caller must free when it is done
+  /// with it.
+  static Multipolygon *create_multipolygon(Coordinate_system coordinate_system);
 };
 
 /// Get the type name string corresponding to a geometry type.

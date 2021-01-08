@@ -1355,6 +1355,7 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> SOURCE_USER_SYM 1187                     /* MYSQL */
 %token<lexer.keyword> SOURCE_ZSTD_COMPRESSION_LEVEL_SYM 1188   /* MYSQL */
 
+%token<lexer.keyword> ST_COLLECT_SYM 1189                      /* MYSQL */
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -11018,6 +11019,14 @@ sum_expr:
             $$ = NEW_PTN Item_sum_json_object(
                 @$, $3, $5, $7, std::move(wrapper), std::move(object));
           }
+        | ST_COLLECT_SYM '(' in_sum_expr ')' opt_windowing_clause
+          {
+            $$= NEW_PTN Item_sum_collect(@$, $3, $5, false);
+          }
+        | ST_COLLECT_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
+          {
+            $$= NEW_PTN Item_sum_collect(@$, $4, $6, true );
+          }
         | BIT_XOR_SYM  '(' in_sum_expr ')' opt_windowing_clause
           {
             $$= NEW_PTN Item_sum_xor(@$, $3, $5);
@@ -15458,6 +15467,7 @@ ident_keywords_unambiguous:
         | STORAGE_SYM
         | STREAM_SYM
         | STRING_SYM
+        | ST_COLLECT_SYM
         | SUBCLASS_ORIGIN_SYM
         | SUBDATE_SYM
         | SUBJECT_SYM
