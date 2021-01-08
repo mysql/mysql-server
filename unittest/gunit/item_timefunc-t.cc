@@ -240,6 +240,15 @@ TEST_F(ItemTimeFuncTest, QuarterMetadata) {
   }
 }
 
+// Verifies that the results returned by the SECOND function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, SecondMetadata) {
+  for (int i = 0; i < 60; ++i) {
+    CheckMetadataAndResult(thd(), new Item_func_second(POS(), new Item_int(i)),
+                           i);
+  }
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;

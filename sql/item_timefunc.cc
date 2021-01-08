@@ -1334,6 +1334,16 @@ longlong Item_func_minute::val_int() {
   return get_arg0_time(&ltime) ? 0 : ltime.minute;
 }
 
+bool Item_func_second::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  // Can have up to two digits [0, 59]. Add one for the sign.
+  fix_char_length(3);
+  assert(decimal_precision() == 2);
+  assert(decimal_int_part() == 2);
+  set_nullable(true);
+  return false;
+}
+
 /**
   Returns the second in time_exp in the range of 0 - 59.
 */
