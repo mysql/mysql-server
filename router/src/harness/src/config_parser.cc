@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -170,10 +170,14 @@ std::string ConfigSection::get_section_name(const std::string &option) const {
   }
   auto it = options_.find(lower(option));
   if (it != options_.end()) {
-    return key.empty() ? name : name + ":" + key;
+    return get_section_name();
   } else {
     return defaults_->get_section_name(option);
   }
+}
+
+std::string ConfigSection::get_section_name() const {
+  return key.empty() ? name : name + ":" + key;
 }
 
 bool ConfigSection::has(const std::string &option) const {
@@ -291,8 +295,7 @@ ConfigSection &Config::add(const std::string &section, const std::string &key) {
   auto result = sections_.emplace(make_pair(section, key), std::move(cnfsec));
   if (!result.second) {
     ostringstream buffer;
-    buffer << "Section '" << section << (key.empty() ? "" : (":" + key))
-           << "' already exists";
+    buffer << "Section '" << cnfsec.get_section_name() << "' already exists";
     throw bad_section(buffer.str());
   }
 

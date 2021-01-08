@@ -1504,7 +1504,7 @@ class CreateConfigGeneratorTest : public ConfigGeneratorTest {
 
 TEST_F(CreateConfigGeneratorTest, create_config_basic) {
   ConfigGenerator::Options options =
-      config_gen.fill_options(user_options, default_paths);
+      config_gen.fill_options(user_options, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "myrouter",
                            "mysqlrouter", cluster_info, "cluster_user", options,
@@ -1558,14 +1558,14 @@ TEST_F(CreateConfigGeneratorTest, create_config_basic) {
       "",
       "[routing:mycluster_myreplicaset_x_rw]",
       "bind_address=0.0.0.0",
-      "bind_port=64460",
+      "bind_port=6448",
       "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
       "[routing:mycluster_myreplicaset_x_ro]",
       "bind_address=0.0.0.0",
-      "bind_port=64470",
+      "bind_port=6449",
       "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
@@ -1594,7 +1594,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_basic) {
 
 TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
   ConfigGenerator::Options options =
-      config_gen.fill_options(user_options, default_paths);
+      config_gen.fill_options(user_options, default_paths, {});
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
                            "cluster_user", options, default_paths,
                            "state_file_name.json");
@@ -1645,14 +1645,14 @@ TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
       "",
       "[routing:mycluster_myreplicaset_x_rw]",
       "bind_address=0.0.0.0",
-      "bind_port=64460",
+      "bind_port=6448",
       "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
       "[routing:mycluster_myreplicaset_x_ro]",
       "bind_address=0.0.0.0",
-      "bind_port=64470",
+      "bind_port=6449",
       "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
@@ -1681,10 +1681,10 @@ TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
 
 TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
   ConfigGenerator::Options options =
-      config_gen.fill_options(user_options, default_paths);
+      config_gen.fill_options(user_options, default_paths, {});
   auto opts = user_options;
   opts["base-port"] = "1234";
-  options = config_gen.fill_options(opts, default_paths);
+  options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
                            "cluster_user", options, default_paths,
@@ -1772,13 +1772,13 @@ TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
 
 TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
   ConfigGenerator::Options options =
-      config_gen.fill_options(user_options, default_paths);
+      config_gen.fill_options(user_options, default_paths, {});
   auto opts = user_options;
   opts["base-port"] = "123";
   opts["use-sockets"] = "1";
   opts["skip-tcp"] = "1";
   opts["socketsdir"] = test_dir();
-  options = config_gen.fill_options(opts, default_paths);
+  options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
                            "cluster_user", options, default_paths,
@@ -1862,11 +1862,11 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
 
 TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
   ConfigGenerator::Options options =
-      config_gen.fill_options(user_options, default_paths);
+      config_gen.fill_options(user_options, default_paths, {});
   auto opts = user_options;
   opts["use-sockets"] = "1";
   opts["socketsdir"] = test_dir();
-  options = config_gen.fill_options(opts, default_paths);
+  options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
                            "cluster_user", options, default_paths,
@@ -1920,7 +1920,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "",
       "[routing:mycluster_myreplicaset_x_rw]",
       "bind_address=0.0.0.0",
-      "bind_port=64460",
+      "bind_port=6448",
       "socket=" + test_dir() + "/mysqlx.sock",
       "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
       "routing_strategy=first-available",
@@ -1928,7 +1928,7 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "",
       "[routing:mycluster_myreplicaset_x_ro]",
       "bind_address=0.0.0.0",
-      "bind_port=64470",
+      "bind_port=6449",
       "socket=" + test_dir() + "/mysqlxro.sock",
       "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
@@ -1958,10 +1958,10 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
 
 TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
   ConfigGenerator::Options options =
-      config_gen.fill_options(user_options, default_paths);
+      config_gen.fill_options(user_options, default_paths, {});
   auto opts = user_options;
   opts["bind-address"] = "127.0.0.1";
-  options = config_gen.fill_options(opts, default_paths);
+  options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "myrouter",
                            "mysqlrouter", cluster_info, "cluster_user", options,
@@ -2015,14 +2015,14 @@ TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
       "",
       "[routing:mycluster_myreplicaset_x_rw]",
       "bind_address=127.0.0.1",
-      "bind_port=64460",
+      "bind_port=6448",
       "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
       "[routing:mycluster_myreplicaset_x_ro]",
       "bind_address=127.0.0.1",
-      "bind_port=64470",
+      "bind_port=6449",
       "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
@@ -2051,10 +2051,10 @@ TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
 
 TEST_F(CreateConfigGeneratorTest, create_config_disable_rest) {
   ConfigGenerator::Options options =
-      config_gen.fill_options(user_options, default_paths);
+      config_gen.fill_options(user_options, default_paths, {});
   auto opts = user_options;
   opts["disable-rest"] = "";
-  options = config_gen.fill_options(opts, default_paths);
+  options = config_gen.fill_options(opts, default_paths, {});
 
   config_gen.create_config(conf_output, state_output, 123, "myrouter",
                            "mysqlrouter", cluster_info, "cluster_user", options,
@@ -2108,14 +2108,14 @@ TEST_F(CreateConfigGeneratorTest, create_config_disable_rest) {
       "",
       "[routing:mycluster_myreplicaset_x_rw]",
       "bind_address=0.0.0.0",
-      "bind_port=64460",
+      "bind_port=6448",
       "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
       "[routing:mycluster_myreplicaset_x_ro]",
       "bind_address=0.0.0.0",
-      "bind_port=64470",
+      "bind_port=6449",
       "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
@@ -2147,7 +2147,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   ConfigGenerator::Options options;
   {
     std::map<std::string, std::string> user_options;
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -2162,7 +2162,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["bind-address"] = "127.0.0.1";
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.bind_address, Eq("127.0.0.1"));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -2177,7 +2177,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["base-port"] = "1234";
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(1234));
@@ -2194,39 +2194,41 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["base-port"] = "1";
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.rw_endpoint.port, Eq(1));
     user_options["base-port"] = "3306";
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.rw_endpoint.port, Eq(3306));
     user_options["base-port"] = "";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
     user_options["base-port"] = "-1";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
     user_options["base-port"] = "999999";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
-    user_options["base-port"] = "0";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
     user_options["base-port"] = "65536";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
     user_options["base-port"] = "2000bozo";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
 
     // Bug #24808309
     user_options["base-port"] = "65533";
     ASSERT_THROW_LIKE(
-        options = config_gen.fill_options(user_options, default_paths),
+        options = config_gen.fill_options(user_options, default_paths, {}),
         std::runtime_error, "Invalid base-port number");
 
     user_options["base-port"] = "65532";
-    ASSERT_NO_THROW(options =
-                        config_gen.fill_options(user_options, default_paths));
+    ASSERT_NO_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}));
 
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(65532));
@@ -2245,20 +2247,23 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["bind-address"] = "invalid..";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
     user_options["bind-address"] = "";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
     user_options["bind-address"] = "1.2.3.4..5";
-    ASSERT_THROW(options = config_gen.fill_options(user_options, default_paths),
-                 std::runtime_error);
+    ASSERT_THROW(
+        options = config_gen.fill_options(user_options, default_paths, {}),
+        std::runtime_error);
   }
   {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
     user_options["skip-tcp"] = "1";
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
@@ -2275,7 +2280,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["skip-tcp"] = "1";
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(false));
     ASSERT_THAT(options.rw_endpoint.port, Eq(0));
@@ -2292,7 +2297,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   {
     std::map<std::string, std::string> user_options;
     user_options["use-sockets"] = "1";
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -2308,7 +2313,7 @@ TEST_F(ConfigGeneratorTest, fill_options) {
   }
   {
     std::map<std::string, std::string> user_options;
-    options = config_gen.fill_options(user_options, default_paths);
+    options = config_gen.fill_options(user_options, default_paths, {});
     ASSERT_THAT(options.bind_address, Eq(""));
     ASSERT_THAT(options.rw_endpoint, Eq(true));
     ASSERT_THAT(options.rw_endpoint.port, Eq(6446));
@@ -2950,18 +2955,16 @@ TEST_F(ConfigGeneratorTest, full_test) {
 
 TEST_F(ConfigGeneratorTest, empty_config_file) {
   ConfigGenerator config;
-  uint32_t router_id;
   TempDirectory test_dir;
   const std::string conf_path(test_dir.name() + "/mysqlrouter.conf");
 
   std::ofstream file(conf_path, std::ofstream::out | std::ofstream::trunc);
   file.close();
 
-  EXPECT_NO_THROW(
-      std::tie(router_id, std::ignore) =
-          config.get_router_id_and_username_from_config_if_it_exists(
-              conf_path, "dummy", false));
-  EXPECT_EQ(router_id, uint32_t(0));
+  ConfigGenerator::ExistingConfigOptions conf_options;
+  EXPECT_NO_THROW(conf_options = config.get_options_from_config_if_it_exists(
+                      conf_path, "dummy", false));
+  EXPECT_EQ(conf_options.router_id, uint32_t(0));
 
   mysql_harness::reset_keyring();
 }
@@ -3243,7 +3246,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
           const std::map<std::string, std::string> &user_options,
           const char *result) {
         ConfigGenerator::Options options =
-            config_gen.fill_options(user_options, default_paths);
+            config_gen.fill_options(user_options, default_paths, {});
         std::stringstream conf_output, state_output;
         mysqlrouter::ClusterInfo cluster_info{
             {"server1", "server2", "server3"}, "", "mycluster", "myreplicaset"};

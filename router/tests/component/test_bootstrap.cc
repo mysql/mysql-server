@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -138,14 +138,14 @@ protocol=classic
 
 [routing:mycluster_x_rw]
 bind_address=0.0.0.0
-bind_port=64460
+bind_port=6448
 destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
 [routing:mycluster_x_ro]
 bind_address=0.0.0.0
-bind_port=64470
+bind_port=6449
 destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=x)";
@@ -179,14 +179,14 @@ protocol=classic
 
 [routing:mycluster_x_rw]
 bind_address=0.0.0.0
-bind_port=64460
+bind_port=6448
 destinations=metadata-cache://mycluster/?role=PRIMARY
 routing_strategy=first-available
 protocol=x
 
 [routing:mycluster_x_ro]
 bind_address=0.0.0.0
-bind_port=64470
+bind_port=6449
 destinations=metadata-cache://mycluster/?role=SECONDARY
 routing_strategy=round-robin-with-fallback
 protocol=x)";
@@ -219,7 +219,354 @@ INSTANTIATE_TEST_SUITE_P(
                            "", ""}),
     get_test_description);
 
+struct BootstrapOkBasePortTestParam {
+  const char *test_name;
+
+  std::vector<std::string> bs_params;
+
+  uint16_t expected_port_classic_rw;
+  uint16_t expected_port_classic_ro;
+  uint16_t expected_port_x_rw;
+  uint16_t expected_port_x_ro;
+};
+
+class RouterBootstrapOkBasePortTest
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<BootstrapOkBasePortTestParam> {};
+
+void check_bind_port(const std::string &conf_file_content,
+                     const std::string &route_name,
+                     const std::string &protocol_name,
+                     const std::string &server_role,
+                     uint16_t expected_bind_port) {
+  const std::string routing_strategy = server_role == "PRIMARY"
+                                           ? "first-available"
+                                           : "round-robin-with-fallback";
+  // clang-format off
+  const std::string routing_section =
+      "[routing:"s + route_name + "]\n"
+      "bind_address=0.0.0.0\n" +
+      "bind_port=" + std::to_string(expected_bind_port) + "\n" +
+      "destinations=metadata-cache://mycluster/?role=" +  server_role + "\n" +
+      "routing_strategy=" + routing_strategy + "\n" +
+      "protocol=" + protocol_name + "\n";
+  // clang-format on
+
+  EXPECT_TRUE(conf_file_content.find(routing_section) != std::string::npos)
+      << conf_file_content << "EXPECTED: \n"
+      << routing_section;
+}
+
+/**
+ * @test
+ *       verify that the --conf-base-port bootstrap parameter is handled
+ * properly
+ */
+TEST_P(RouterBootstrapOkBasePortTest, RouterBootstrapOkBasePort) {
+  const auto param = GetParam();
+  const std::string tracefile = "bootstrap_gr.js";
+
+  std::vector<Config> mock_servers{
+      {"127.0.0.1", port_pool_.get_next_available(),
+       port_pool_.get_next_available(), get_data_dir().join(tracefile).str()},
+  };
+
+  std::vector<std::string> cmdline = {
+      "--bootstrap=" + mock_servers.at(0).ip + ":" +
+          std::to_string(mock_servers.at(0).port),
+      "-d", bootstrap_dir.name()};
+
+  cmdline.insert(cmdline.begin(), param.bs_params.begin(),
+                 param.bs_params.end());
+
+  bootstrap_failover(mock_servers, ClusterType::GR_V2, cmdline);
+
+  // let's check if the actual config file contains what we expect:
+  const std::string config_file_str = get_file_output(config_file);
+
+  // classic RW
+  check_bind_port(config_file_str, "mycluster_rw", "classic", "PRIMARY",
+                  param.expected_port_classic_rw);
+
+  // classic RO
+  check_bind_port(config_file_str, "mycluster_ro", "classic", "SECONDARY",
+                  param.expected_port_classic_ro);
+
+  // x RW
+  check_bind_port(config_file_str, "mycluster_x_rw", "x", "PRIMARY",
+                  param.expected_port_x_rw);
+
+  // x RO
+  check_bind_port(config_file_str, "mycluster_x_ro", "x", "SECONDARY",
+                  param.expected_port_x_ro);
+}
+
+const BootstrapOkBasePortTestParam bootstrap_ok_base_port_test_param[] = {
+    {"default_ports",
+     /* bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449},
+    {"legacy_default_ports",
+     /* bs_params */ {"--conf-base-port=0"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470},
+    {"consecutive_ports",
+     /* bs_params */ {"--conf-base-port=1234"},
+     /* expected_port_classic_rw */ 1234,
+     /* expected_port_classic_ro */ 1235,
+     /* expected_port_x_rw */ 1236,
+     /* expected_port_x_ro */ 1237}};
+
+INSTANTIATE_TEST_SUITE_P(RouterBootstrapOkBasePort,
+                         RouterBootstrapOkBasePortTest,
+                         ::testing::ValuesIn(bootstrap_ok_base_port_test_param),
+                         [](const auto &info) { return info.param.test_name; });
+
+struct BootstrapErrorBasePortTestParam {
+  const char *test_name;
+
+  std::vector<std::string> bs_params;
+  std::string expected_error;
+};
+
+class RouterBootstrapErrorBasePortTest
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<BootstrapErrorBasePortTestParam> {};
+
+/**
+ * @test
+ *       verify that the --conf-base-port bootstrap parameter errors are handled
+ * properly
+ */
+TEST_P(RouterBootstrapErrorBasePortTest, RouterBootstrapErrorBasePort) {
+  const auto param = GetParam();
+  const std::string tracefile = "bootstrap_gr.js";
+
+  std::vector<Config> mock_servers{
+      {"127.0.0.1", port_pool_.get_next_available(),
+       port_pool_.get_next_available(), get_data_dir().join(tracefile).str()},
+  };
+
+  const uint16_t server_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join(tracefile).str();
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+
+  // launch the router in bootstrap mode
+  std::vector<std::string> cmdline = {"--bootstrap=root:"s + kRootPassword +
+                                          "@localhost:"s +
+                                          std::to_string(server_port),
+                                      "-d", bootstrap_dir.name()};
+  cmdline.insert(cmdline.begin(), param.bs_params.begin(),
+                 param.bs_params.end());
+  auto &router = launch_router_for_bootstrap(cmdline, EXIT_FAILURE);
+
+  check_exit_code(router, EXIT_FAILURE, 5s);
+
+  // let's check if the expected error was reported:
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::ContainsRegex(param.expected_error));
+}
+
+const BootstrapErrorBasePortTestParam bootstrap_error_base_port_test_param[] = {
+    {"negative",
+     {"--conf-base-port=-1"},
+     "Error: Invalid base-port number -1; please pick "
+     "a value between 0 and 65532"},
+    {"too_big",
+     {"--conf-base-port=65533"},
+     "Error: Invalid base-port number 65533; please pick "
+     "a value between 0 and 65532"},
+    {"nan",
+     {"--conf-base-port=abc"},
+     "Error: Invalid base-port number abc; please pick "
+     "a value between 0 and 65532"},
+    {"empty",
+     {"--conf-base-port="},
+     "Error: Value for base-port can't be empty"}};
+
+INSTANTIATE_TEST_SUITE_P(
+    RouterBootstrapErrorBasePort, RouterBootstrapErrorBasePortTest,
+    ::testing::ValuesIn(bootstrap_error_base_port_test_param),
+    [](const auto &info) { return info.param.test_name; });
+
+struct ReBootstrapOkBasePortTestParam {
+  const char *test_name;
+  std::vector<std::string> first_bs_params;
+  std::vector<std::string> second_bs_params;
+
+  uint16_t expected_port_classic_rw;
+  uint16_t expected_port_classic_ro;
+  uint16_t expected_port_x_rw;
+  uint16_t expected_port_x_ro;
+};
+
+class RouterReBootstrapOkBasePortTest
+    : public RouterComponentBootstrapTest,
+      public ::testing::WithParamInterface<ReBootstrapOkBasePortTestParam> {};
+
+/**
+ * @test
+ *       verify that the --conf-base-port bootstrap parameter is handled
+ * properly when we overwrite an existing Router configuration
+ */
+TEST_P(RouterReBootstrapOkBasePortTest, RouterReBootstrapOkBasePort) {
+  const auto param = GetParam();
+  const std::string tracefile = "bootstrap_gr.js";
+
+  std::vector<Config> mock_servers{
+      {"127.0.0.1", port_pool_.get_next_available(),
+       port_pool_.get_next_available(), get_data_dir().join(tracefile).str()},
+  };
+
+  const uint16_t server_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join(tracefile).str();
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+
+  // do the first bootstrap
+  std::vector<std::string> cmdline_first_bs = {
+      "--bootstrap=root:"s + kRootPassword + "@localhost:"s +
+          std::to_string(server_port),
+      "-d", bootstrap_dir.name()};
+  cmdline_first_bs.insert(cmdline_first_bs.begin(),
+                          param.first_bs_params.begin(),
+                          param.first_bs_params.end());
+
+  auto &router_bs1 = launch_router_for_bootstrap(cmdline_first_bs);
+  check_exit_code(router_bs1, EXIT_SUCCESS, 5s);
+
+  const std::string conf_file2 =
+      mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
+
+  // let's check if the actual config file contains what we expect:
+  const std::string config_file_str2 = get_file_output(conf_file2);
+
+  // do the second bootstrap using the same directory
+  std::vector<std::string> cmdline_second_bs = {
+      "--bootstrap=root:"s + kRootPassword + "@localhost:"s +
+          std::to_string(server_port),
+      "-d", bootstrap_dir.name()};
+  cmdline_second_bs.insert(cmdline_second_bs.begin(),
+                           param.second_bs_params.begin(),
+                           param.second_bs_params.end());
+  auto &router_bs2 = launch_router_for_bootstrap(cmdline_second_bs);
+  check_exit_code(router_bs2, EXIT_SUCCESS, 5s);
+
+  const std::string conf_file =
+      mysql_harness::Path(bootstrap_dir.name()).join("mysqlrouter.conf").str();
+
+  // let's check if the actual config file contains what we expect:
+  const std::string config_file_str = get_file_output(conf_file);
+
+  // classic RW
+  check_bind_port(config_file_str, "mycluster_rw", "classic", "PRIMARY",
+                  param.expected_port_classic_rw);
+
+  // classic RO
+  check_bind_port(config_file_str, "mycluster_ro", "classic", "SECONDARY",
+                  param.expected_port_classic_ro);
+
+  // x RW
+  check_bind_port(config_file_str, "mycluster_x_rw", "x", "PRIMARY",
+                  param.expected_port_x_rw);
+
+  // x RO
+  check_bind_port(config_file_str, "mycluster_x_ro", "x", "SECONDARY",
+                  param.expected_port_x_ro);
+}
+
+const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
+    // create a config with legacy defaults [6446, 6447, 64460, 64470]
+    // bootstrap again on top of that config with no conf-base-port parameter
+    // since the existing conf uses legacy default we should stick to them
+    {"overwrite_over_legacy_defaults_keep_them",
+     /* first_bs_params */ {"--conf-base-port=0"},
+     /* second_bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470},
+
+    // create a config with custom ports [5000, 5001, 5002, 5003]
+    // bootstrap again on top of that config with no conf-base-port parameter
+    // we expect new default ports to be used
+    {"overwrite_custom_ports",
+     /* first_bs_params */ {"--conf-base-port=5000"},
+     /* second_bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449},
+
+    // create a config with legacy ports [6446, 6447, 64460, 64470]
+    // bootstrap again on top of that config with --conf-base-port=1 parameter
+    // we expect 1, 2, 3, 4 ports to overwrite the legacy ports
+    {"overwrite_legacy_with_custom_ports",
+     /* first_bs_params */ {"--conf-base-port=0"},
+     /* second_bs_params */ {"--conf-base-port=1"},
+     /* expected_port_classic_rw */ 1,
+     /* expected_port_classic_ro */ 2,
+     /* expected_port_x_rw */ 3,
+     /* expected_port_x_ro */ 4},
+
+    // create a config with legacy defaults [6446, 6447, 64460, 64470]
+    // bootstrap again on top of that config with specifing conf-base-port
+    // parameter even though the existing conf uses legacy default we change
+    // them because the user used conf-base-port, so we should not be using
+    // defaults
+    {"overwrite_over_legacy_defaults_using_param_change_them",
+     /* first_bs_params */ {"--conf-base-port=0"},
+     /* second_bs_params */ {"--conf-base-port=6446"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449},
+
+    // create a config with custom ports [6666, 6667, 6668, 6669]
+    // bootstrap again on top of that config with conf-base-port=0 parameter
+    // since the user requested legacy defaults the ports in the config should
+    // be [6446, 6447, 64460, 64470]
+    {"overwrite_custom_ports_with_legacy",
+     /* first_bs_params */ {"--conf-base-port=6666"},
+     /* second_bs_params */ {"--conf-base-port=0"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470},
+
+    // create a config with no tcp endpoints
+    // bootstrap again on top of that config with no conf-base-port parameter
+    // the new defaults should be used
+    {"overwrite_over_no_tcp_config_new_defaults",
+     /* first_bs_params */ {"--conf-skip-tcp"},
+     /* second_bs_params */ {},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 6448,
+     /* expected_port_x_ro */ 6449},
+
+    // create a config with no tcp endpoints
+    // bootstrap again on top of that config with conf-base-port=0 parameter
+    // since the user requested legacy defaults the ports in the config should
+    // be [6446, 6447, 64460, 64470]
+    {"overwrite_over_no_tcp_config_legacy_defaults",
+     /* first_bs_params */ {"--conf-skip-tcp"},
+     /* second_bs_params */ {"--conf-base-port=0"},
+     /* expected_port_classic_rw */ 6446,
+     /* expected_port_classic_ro */ 6447,
+     /* expected_port_x_rw */ 64460,
+     /* expected_port_x_ro */ 64470}};
+
+INSTANTIATE_TEST_SUITE_P(
+    RouterReBootstrapOkBasePort, RouterReBootstrapOkBasePortTest,
+    ::testing::ValuesIn(rebootstrap_ok_base_port_test_param),
+    [](const auto &info) { return info.param.test_name; });
+
 #ifndef _WIN32
+
 /**
  * verify that the router's \c --user is ignored if it matches the current
  * username.
