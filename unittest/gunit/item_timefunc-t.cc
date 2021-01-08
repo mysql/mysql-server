@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits>
 #include <sstream>
 #include <string>
 
@@ -111,6 +112,31 @@ static void CheckMetadataAndResult(THD *thd, Item *item,
   CheckMetadataConsistency(thd, item);
   EXPECT_EQ(expected_result, item->val_int());
   EXPECT_FALSE(item->null_value);
+}
+
+// Verifies that the results returned by the PERIOD_ADD function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, PeriodAddMetadata) {
+  // PERIOD_ADD returns values on the form YYYYMM, but it's not limited to
+  // four-digit year.
+  CheckMetadataAndResult(
+      thd(),
+      new Item_func_period_add(POS(), new Item_int(999912), new Item_int(1)),
+      1000001);
+
+  // Maximum return value.
+  CheckMetadataAndResult(
+      thd(),
+      new Item_func_period_add(POS(), new Item_int(9223372036854775806LL),
+                               new Item_int(1)),
+      std::numeric_limits<int64_t>::max());
+
+  // Overflow makes the result wrap around.
+  CheckMetadataAndResult(
+      thd(),
+      new Item_func_period_add(POS(), new Item_int(9223372036854775806LL),
+                               new Item_int(2)),
+      std::numeric_limits<int64_t>::min());
 }
 
 // Verifies that the results returned by the TO_DAYS function are consistent
