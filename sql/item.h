@@ -5483,7 +5483,7 @@ class Item_ref : public Item_ident {
   bool fix_fields(THD *, Item **) override;
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
-  void save_org_in_field(Field *field) override;
+
   Item_result result_type() const override { return (*ref)->result_type(); }
   Field *get_tmp_table_field() override {
     return result_field ? result_field : (*ref)->get_tmp_table_field();

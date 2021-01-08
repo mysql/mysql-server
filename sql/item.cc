@@ -7922,10 +7922,6 @@ type_conversion_status Item_ref::save_in_field_inner(Field *to,
   return res;
 }
 
-void Item_ref::save_org_in_field(Field *field) {
-  (*ref)->save_org_in_field(field);
-}
-
 void Item_ref::make_field(Send_field *field) {
   (*ref)->make_field(field);
   /* Non-zero in case of a view */
