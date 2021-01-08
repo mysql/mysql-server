@@ -88,17 +88,17 @@ user_2@localhost	user_2@localhost
 #    .mylogin.cnf file before cleanup      #
 ############################################
 [login_path_1]
-user = user_1
+user = "user_1"
 password = *****
-host = localhost
+host = "localhost"
 [login_path_3]
-user = user_3
+user = "user_3"
 password = *****
-host = localhost
+host = "localhost"
 [login_path_2]
-user = user_2
+user = "user_2"
 password = *****
-host = localhost
+host = "localhost"
 
 #################################################
 #     empty .mylogin.cnf file after cleanup     #
