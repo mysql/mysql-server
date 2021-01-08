@@ -220,6 +220,15 @@ TEST_F(ItemTimeFuncTest, HourMetadata) {
       thd(), new Item_func_hour(POS(), new Item_int(-8380000)), 838);
 }
 
+// Verifies that the results returned by the MINUTE function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, MinuteMetadata) {
+  for (int i = 0; i < 60; ++i) {
+    CheckMetadataAndResult(
+        thd(), new Item_func_minute(POS(), new Item_int(i * 100)), i);
+  }
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
