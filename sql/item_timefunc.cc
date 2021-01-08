@@ -1213,6 +1213,17 @@ longlong Item_func_to_days::val_int_endpoint(bool left_endp, bool *incl_endp) {
   return res;
 }
 
+bool Item_func_dayofyear::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  // Returns a value in the range [1, 366], so max three digits. Add one to the
+  // character length for the sign.
+  fix_char_length(4);
+  assert(decimal_precision() == 3);
+  assert(decimal_int_part() == 3);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_dayofyear::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
