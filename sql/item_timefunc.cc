@@ -1491,6 +1491,15 @@ longlong Item_func_year::val_int() {
   return get_arg0_date(&ltime, TIME_FUZZY_DATE) ? 0 : (longlong)ltime.year;
 }
 
+bool Item_typecast_year::resolve_type(THD *thd) {
+  if (reject_geometry_args(arg_count, args, this)) return true;
+  if (args[0]->propagate_type(thd, MYSQL_TYPE_YEAR, false, true)) return true;
+  assert(decimal_precision() == 4);
+  assert(decimal_int_part() == 4);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_typecast_year::val_int() {
   assert(fixed == 1);
   longlong value{0};

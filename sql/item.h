@@ -1498,7 +1498,7 @@ class Item : public Parse_tree_node {
   void set_data_type_year() {
     set_data_type(MYSQL_TYPE_YEAR);
     collation.set_numeric();
-    fix_char_length(4);
+    fix_char_length(5);  // YYYY + sign
   }
 
   /**

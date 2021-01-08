@@ -304,13 +304,7 @@ class Item_typecast_year final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "cast_as_year"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
-  bool resolve_type(THD *thd) override {
-    if (reject_geometry_args(arg_count, args, this)) return true;
-    if (args[0]->propagate_type(thd, MYSQL_TYPE_YEAR, false, true)) return true;
-    fix_char_length(4); /* 2155 */
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 };
 
 /**
