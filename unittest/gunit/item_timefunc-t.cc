@@ -207,6 +207,19 @@ TEST_F(ItemTimeFuncTest, DayOfYearMetadata) {
       thd(), new Item_func_dayofyear(POS(), new Item_int(20201231)), 366);
 }
 
+// Verifies that the results returned by the HOUR function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, HourMetadata) {
+  static_assert(TIME_MAX_HOUR == 838,
+                "TIME_MAX_HOUR has changed. Update the test case to test the "
+                "new maximum value.");
+  CheckMetadataAndResult(thd(),
+                         new Item_func_hour(POS(), new Item_int(8380000)), 838);
+
+  CheckMetadataAndResult(
+      thd(), new Item_func_hour(POS(), new Item_int(-8380000)), 838);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
