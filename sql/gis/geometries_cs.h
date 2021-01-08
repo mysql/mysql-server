@@ -175,7 +175,9 @@ class Geographic_linestring : public Linestring {
 /// A Cartesian 2d linear ring.
 class Cartesian_linearring : public Cartesian_linestring, public Linearring {
  public:
+#if defined(__SUNPRO_CC)
   ~Cartesian_linearring() override = default;
+#endif
   Geometry_type type() const override { return Linearring::type(); }
   Coordinate_system coordinate_system() const override {
     return Coordinate_system::kCartesian;
@@ -222,7 +224,9 @@ class Cartesian_linearring : public Cartesian_linestring, public Linearring {
 /// A geographic (ellipsoidal) 2d linear ring.
 class Geographic_linearring : public Geographic_linestring, public Linearring {
  public:
+#if defined(__SUNPRO_CC)
   ~Geographic_linearring() override = default;
+#endif
   Geometry_type type() const override { return Linearring::type(); }
   Coordinate_system coordinate_system() const override {
     return Coordinate_system::kGeographic;

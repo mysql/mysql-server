@@ -316,7 +316,9 @@ class Linestring : public Curve {
 /// enforced, by the implementation).
 class Linearring : public Linestring {
  public:
+#if defined(__SUNPRO_CC)
   ~Linearring() override = default;
+#endif
   bool accept(Geometry_visitor *v) override = 0;
 
   /// Creates a subclass of Linearring from a Coordinate_system

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,7 +143,7 @@ gis::Geographic_multipoint MakeMultipoint(
 gis::Geographic_multilinestring MakeMultilinestring(
     const std::initializer_list<std::initializer_list<double>> &data) {
   gis ::Geographic_multilinestring multilinestring;
-  for (const auto linestring : data) {
+  for (const auto &linestring : data) {
     multilinestring.push_back(MakeLinestring(linestring));
   }
   return multilinestring;
