@@ -122,18 +122,12 @@ class Item_func_to_seconds final : public Item_int_func {
 
 class Item_func_dayofmonth final : public Item_int_func {
  public:
-  Item_func_dayofmonth(Item *a) : Item_int_func(a) {}
   Item_func_dayofmonth(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
   longlong val_int() override;
   const char *func_name() const override { return "dayofmonth"; }
   enum Functype functype() const override { return DAY_FUNC; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
-    fix_char_length(2); /* 1..31 */
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_valid_arguments_processor(uchar *) override {
     return !has_date_args();

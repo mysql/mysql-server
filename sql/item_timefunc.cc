@@ -1221,6 +1221,17 @@ longlong Item_func_dayofyear::val_int() {
          calc_daynr(ltime.year, 1, 1) + 1;
 }
 
+bool Item_func_dayofmonth::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  // Returns a value in the range [0, 31], so max two digits. Add one to the
+  // character length for the sign.
+  fix_char_length(3);
+  assert(decimal_precision() == 2);
+  assert(decimal_int_part() == 2);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_dayofmonth::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
