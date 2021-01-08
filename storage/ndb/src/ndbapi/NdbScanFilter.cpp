@@ -45,7 +45,8 @@
 class NdbScanFilterImpl {
 public:
   NdbScanFilterImpl()
-    : m_label(0),
+    : m_sql_cmp_semantics(false),
+      m_label(0),
       m_current{(NdbScanFilter::Group)0, 0, 0, ~0U, ~0U},
       m_negate(false),
       m_stack(),
@@ -76,6 +77,7 @@ public:
     Uint32 m_falseLabel;
   };
 
+  bool m_sql_cmp_semantics;
   int m_label;
   State m_current;
   bool m_negate;    //used for translating NAND/NOR to AND/OR
@@ -188,6 +190,12 @@ NdbScanFilter::~NdbScanFilter()
 }
 
 void
+NdbScanFilter::sqlNullSemantics()
+{
+  m_impl.m_sql_cmp_semantics = true;
+}
+
+void
 NdbScanFilter::reset()
 {
   m_impl.reset();
@@ -275,10 +283,18 @@ NdbScanFilter::begin(Group group){
   case NdbScanFilter::AND:
     m_impl.m_current.m_falseLabel = m_impl.m_current.m_ownLabel;
     m_impl.m_current.m_trueLabel = tmp.m_trueLabel;
+    if (m_impl.m_sql_cmp_semantics) {
+      // An unknown in an AND-group makes entire group unknown -> branch out
+      m_impl.m_code->set_sql_null_semantics(NdbInterpretedCode::BranchIfUnknown);
+    }
     break;
   case NdbScanFilter::OR:
     m_impl.m_current.m_falseLabel = tmp.m_falseLabel;
     m_impl.m_current.m_trueLabel = m_impl.m_current.m_ownLabel;
+    if (m_impl.m_sql_cmp_semantics) {
+      // An unknown in an OR-group need us to continue looking for a 'true'.
+      m_impl.m_code->set_sql_null_semantics(NdbInterpretedCode::ContinueIfUnknown);
+    }
     break;
   default: 
     assert(group != NdbScanFilter::NAND); // Impossible
@@ -341,6 +357,8 @@ NdbScanFilter::end(){
         return m_impl.propagateErrorFromCode();
     } else {
       assert(m_impl.m_current.m_group == NdbScanFilter::OR);
+      if (m_impl.m_sql_cmp_semantics)
+        m_impl.m_code->set_sql_null_semantics(NdbInterpretedCode::ContinueIfUnknown);
       if (m_impl.m_code->branch_label(tmp.m_trueLabel) == -1)
         return m_impl.propagateErrorFromCode();
     }
@@ -351,6 +369,8 @@ NdbScanFilter::end(){
         return m_impl.propagateErrorFromCode();
     } else {
       assert(m_impl.m_current.m_group == NdbScanFilter::AND);
+      if (m_impl.m_sql_cmp_semantics)
+        m_impl.m_code->set_sql_null_semantics(NdbInterpretedCode::BranchIfUnknown);
       if (m_impl.m_code->branch_label(tmp.m_falseLabel) == -1)
         return m_impl.propagateErrorFromCode();
     }

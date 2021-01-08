@@ -76,6 +76,8 @@ public:
   NdbScanFilter(class NdbOperation * op);
 
   ~NdbScanFilter();
+
+  void sqlNullSemantics();
   
   /**
    *  Group operators
