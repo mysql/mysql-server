@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,7 @@
 #include "rest_metadata_client.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
 
 #define ASSERT_NO_ERROR(expr) \
@@ -472,7 +473,7 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
                                config_generator_->build_config_file(
                                    temp_test_dir_.name(), ClusterType::GR_V2),
                                -1s);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_rw_port_));
+  EXPECT_TRUE(wait_for_port_ready(monitoring_port_));
 
   SCOPED_TRACE("// [prep] waiting " +
                std::to_string(wait_for_cache_ready_timeout.count()) +
@@ -664,6 +665,7 @@ TEST_P(IsConnectionsClosedWhenSecondaryRemovedFromClusterTest,
   launch_router(router_rw_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
 
   SCOPED_TRACE("// connect clients");
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
@@ -740,6 +742,8 @@ TEST_P(IsRWConnectionsClosedWhenPrimaryFailoverTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port_));
+
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(2);
 
@@ -798,6 +802,8 @@ TEST_P(IsROConnectionsKeptWhenPrimaryFailoverTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(
                     temp_test_dir_.name(), GetParam().cluster_type, true));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(4);
 
@@ -859,6 +865,8 @@ TEST_P(RouterRoutingConnectionPromotedTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -927,6 +935,8 @@ TEST_P(IsConnectionToSecondaryClosedWhenPromotedToPrimaryTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -991,6 +1001,7 @@ TEST_P(IsConnectionToMinorityClosedWhenClusterPartitionTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);
@@ -1076,6 +1087,8 @@ TEST_P(IsConnectionClosedWhenClusterOverloadedTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -1139,6 +1152,8 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port_));
+
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(6);
 
@@ -1252,6 +1267,7 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
   launch_router(router_ro_port_,
                 config_generator_->build_config_file(temp_test_dir_.name(),
                                                      GetParam().cluster_type));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port_));
 
   // connect clients
   std::vector<std::pair<MySQLSession, uint16_t>> clients(10);

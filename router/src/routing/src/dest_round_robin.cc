@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -154,6 +154,9 @@ void DestRoundRobin::add_to_quarantine(const size_t index) noexcept {
                 destinations_.at(index).str().c_str(), index);
 
       q.add(index);
+      if (q.size() >= this->destinations().size()) {
+        this->stop_listening_router_socket();
+      }
       cv.notify_one();
     }
   });
@@ -279,6 +282,14 @@ void DestRoundRobin::quarantine_manager_thread() noexcept {
     // if we aren't shutting down, cleanup and wait
     if (stopped_.wait_for(0s) != std::future_status::ready) {
       cleanup_quarantine();
+      // If there are unquarantined destinations, listening router socket should
+      // be open.
+      quarantine_([this](auto &q) {
+        if (q.size() < this->destinations().size() &&
+            this->notify_router_socket_acceptor_callback_) {
+          this->notify_router_socket_acceptor_callback_();
+        }
+      });
       // Temporize
       stopped_.wait_for(kQuarantineCleanupInterval);
     }

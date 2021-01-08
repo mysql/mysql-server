@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -95,6 +95,8 @@ bool ARMetadataCache::refresh() {
     if (!metadata_servers_tmp.empty()) {
       metadata_servers_ = std::move(metadata_servers_tmp);
     }
+  } else if (force_instance_update_) {
+    on_instances_changed(/*md_servers_reachable=*/true, view_id);
   }
 
   return true;

@@ -84,6 +84,7 @@ TEST_F(SplicerTest, ssl_mode_default_passthrough) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 }
 
 TEST_F(SplicerTest, ssl_mode_default_preferred) {
@@ -108,6 +109,7 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 }
 
 /**
@@ -768,6 +770,7 @@ TEST_P(SplicerConnectParamTest, check) {
   launch_router({"-c", conf_file}, EXIT_SUCCESS,
                 /* catch_stderr */ true, /* with_sudo */ false,
                 /* wait_for_notify_ready */ 20s);
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(router_host_, router_port));
 }
@@ -1853,6 +1856,7 @@ TEST_F(SplicerTest, classic_protocol_default_preferred_as_client) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   mysqlrouter::MySQLSession sess;
 
@@ -1935,6 +1939,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   mysqlrouter::MySQLSession sess;
 
@@ -2070,6 +2075,7 @@ TEST_P(SplicerParamTest, xproto) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   auto sess = xcl::create_session();
   ASSERT_THAT(

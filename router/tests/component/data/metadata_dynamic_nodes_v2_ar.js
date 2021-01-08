@@ -64,15 +64,18 @@ var options = {
   group_replication_membership: group_replication_membership_online,
   cluster_id: mysqld.global.gr_id,
   view_id: mysqld.global.view_id,
-  primary_port:
-      group_replication_membership_online[mysqld.global.primary_id][2],
+  primary_port: (mysqld.global.primary_id >= 0) ?
+      group_replication_membership_online[mysqld.global.primary_id][2] :
+      mysqld.global.primary_id,
   cluster_type: mysqld.global.cluster_type,
   innodb_cluster_name: "test",
 };
 
 // first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_membership[mysqld.global.primary_id][0];
+if (mysqld.global.primary_id >= 0) {
+  options.group_replication_primary_member =
+      options.group_replication_membership[mysqld.global.primary_id][0];
+}
 
 var select_port = common_stmts.get("select_port", options);
 
@@ -110,6 +113,12 @@ var router_select_cluster_type =
     common_stmts.get("router_select_cluster_type_v2", options);
 
 ({
+  handshake: {
+    auth: {
+      username: mysqld.global.user,
+      password: mysqld.global.password,
+    }
+  },
   stmts: function(stmt) {
     if (stmt === select_port.stmt) {
       return select_port;

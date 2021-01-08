@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -193,6 +193,8 @@ class METADATA_API MetadataCache
   std::pair<bool, MetaData::auth_credentials_t::mapped_type>
   get_rest_user_auth_data(const std::string &user);
 
+  void force_instance_update_on_refresh() { force_instance_update_ = true; }
+
  protected:
   /** @brief Refreshes the cache
    *
@@ -322,6 +324,8 @@ class METADATA_API MetadataCache
   unsigned last_check_in_updated_{0};
 
   bool ready_announced_{false};
+
+  std::atomic<bool> force_instance_update_{false};
 };
 
 bool operator==(const MetaData::ReplicaSetsByName &map_a,

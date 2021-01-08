@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -102,6 +102,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
                void(const std::string &, InstanceStatus));
   MOCK_METHOD2(wait_primary_failover,
                bool(const std::string &, const std::chrono::seconds &));
+
+  MOCK_METHOD0(force_instance_update_on_refresh, void());
 
   // cannot mock it as it has more than 10 parameters
   void cache_init(
@@ -1140,11 +1142,13 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
   });
 
   bool callback_called{false};
-  auto check_nodes = [&](const AllowedNodes &nodes,
-                         const std::string &reason) -> void {
+  auto check_nodes = [&](const AllowedNodes &nodes, const AllowedNodes &,
+                         const bool disconnect,
+                         const std::string &disconnect_reason) -> void {
     // no primaries so we expect empty set as we are role=PRIMARY
     ASSERT_EQ(0u, nodes.size());
-    ASSERT_STREQ("metadata change", reason.c_str());
+    ASSERT_TRUE(disconnect);
+    ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
   };
   dest_mc_group.register_allowed_nodes_change_callback(check_nodes);
@@ -1183,8 +1187,9 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
   fill_instance_vector(instances);
 
   bool callback_called{false};
-  auto check_nodes = [&](const AllowedNodes &nodes,
-                         const std::string &reason) -> void {
+  auto check_nodes = [&](const AllowedNodes &nodes, const AllowedNodes &,
+                         const bool disconnect,
+                         const std::string &disconnect_reason) -> void {
     // 2 primaries and we are role=PRIMARY
     ASSERT_THAT(
         nodes,
@@ -1192,7 +1197,8 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
             instances[0].host + ":" + std::to_string(instances[0].port),
             instances[1].host + ":" + std::to_string(instances[1].port)));
 
-    ASSERT_STREQ("metadata change", reason.c_str());
+    ASSERT_TRUE(disconnect);
+    ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
   };
   dest_mc_group.register_allowed_nodes_change_callback(check_nodes);
@@ -1232,15 +1238,17 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
   fill_instance_vector(instances);
 
   bool callback_called{false};
-  auto check_nodes = [&](const AllowedNodes &nodes,
-                         const std::string &reason) -> void {
+  auto check_nodes = [&](const AllowedNodes &nodes, const AllowedNodes &,
+                         const bool disconnect,
+                         const std::string &disconnect_reason) -> void {
     // no secondaries and we are role=SECONDARY
     // by default we allow existing connections to the primary so it should
     // be in the allowed nodes
     ASSERT_THAT(nodes,
                 ::testing::ElementsAre(instances[0].host + ":" +
                                        std::to_string(instances[0].port)));
-    ASSERT_STREQ("metadata change", reason.c_str());
+    ASSERT_TRUE(disconnect);
+    ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
   };
   dest_mc_group.register_allowed_nodes_change_callback(check_nodes);
@@ -1279,15 +1287,17 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
   // let's stick to the 'old' md so we have single primary and single secondary
 
   bool callback_called{false};
-  auto check_nodes = [&](const AllowedNodes &nodes,
-                         const std::string &reason) -> void {
+  auto check_nodes = [&](const AllowedNodes &nodes, const AllowedNodes &,
+                         const bool disconnect,
+                         const std::string &disconnect_reason) -> void {
     // one secondary and we are role=SECONDARY
     // we have disconnect_on_promoted_to_primary=yes configured so primary is
     // not allowed
     ASSERT_THAT(nodes,
                 ::testing::ElementsAre(instances[1].host + ":" +
                                        std::to_string(instances[1].port)));
-    ASSERT_STREQ("metadata change", reason.c_str());
+    ASSERT_TRUE(disconnect);
+    ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
   };
   dest_mc_group.register_allowed_nodes_change_callback(check_nodes);
@@ -1332,15 +1342,17 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
 
   // let's stick to the 'old' md so we have single primary and single secondary
   bool callback_called{false};
-  auto check_nodes = [&](const AllowedNodes &nodes,
-                         const std::string &reason) -> void {
+  auto check_nodes = [&](const AllowedNodes &nodes, const AllowedNodes &,
+                         const bool disconnect,
+                         const std::string &disconnect_reason) -> void {
     // one secondary and we are role=SECONDARY
     // disconnect_on_promoted_to_primary=yes overrides previous value in
     // configuration so primary is not allowed
     ASSERT_THAT(nodes,
                 ::testing::ElementsAre(instances[1].host + ":" +
                                        std::to_string(instances[1].port)));
-    ASSERT_STREQ("metadata change", reason.c_str());
+    ASSERT_TRUE(disconnect);
+    ASSERT_STREQ("metadata change", disconnect_reason.c_str());
     callback_called = true;
   };
   dest_mc_group.register_allowed_nodes_change_callback(check_nodes);
@@ -1377,10 +1389,12 @@ TEST_F(DestMetadataCacheTest,
   fill_instance_vector({});
 
   bool callback_called{false};
-  auto check_nodes = [&](const AllowedNodes &nodes,
-                         const std::string &reason) -> void {
+  auto check_nodes = [&](const AllowedNodes &nodes, const AllowedNodes &,
+                         const bool disconnect,
+                         const std::string &disconnect_reason) -> void {
     ASSERT_EQ(0u, nodes.size());
-    ASSERT_STREQ("metadata unavaiable", reason.c_str());
+    ASSERT_FALSE(disconnect);
+    ASSERT_STREQ("metadata unavailable", disconnect_reason.c_str());
     callback_called = true;
   };
   dest_mc_group.register_allowed_nodes_change_callback(check_nodes);
@@ -1389,9 +1403,8 @@ TEST_F(DestMetadataCacheTest,
 
   // the metadata has changed but we got the notification that this is triggered
   // because md servers are not reachable as disconnect_on_metadata_unavailable
-  // is set to 'no' (by default) we are not expected to call the users (routing)
-  // callbacks to force the disconnects
-  ASSERT_FALSE(callback_called);
+  // is set to 'no' (by default) we are not expected to force the disconnects
+  ASSERT_TRUE(callback_called);
 }
 
 /**
@@ -1425,10 +1438,12 @@ TEST_F(DestMetadataCacheTest,
   fill_instance_vector({});
 
   bool callback_called{false};
-  auto check_nodes = [&](const AllowedNodes &nodes,
-                         const std::string &reason) -> void {
+  auto check_nodes = [&](const AllowedNodes &nodes, const AllowedNodes &,
+                         const bool disconnect,
+                         const std::string &disconnect_reason) -> void {
     ASSERT_EQ(0u, nodes.size());
-    ASSERT_STREQ("metadata unavailable", reason.c_str());
+    ASSERT_TRUE(disconnect);
+    ASSERT_STREQ("metadata unavailable", disconnect_reason.c_str());
     callback_called = true;
   };
   dest_mc_group.register_allowed_nodes_change_callback(check_nodes);

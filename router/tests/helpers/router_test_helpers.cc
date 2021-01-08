@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,16 @@
 #include <cassert>
 #include <cerrno>
 #include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <iterator>
 #include <regex>
 #include <stdexcept>
+#include <string>
 #include <thread>
+#include <vector>
 
 #ifndef _WIN32
 #include <sys/socket.h>
@@ -48,8 +52,11 @@
 #include "keyring/keyring_manager.h"
 #include "my_inttypes.h"  // ssize_t
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysqlrouter/mysql_session.h"
 #include "mysqlrouter/utils.h"
+#include "temp_dir.h"
 
 using mysql_harness::Path;
 using namespace std::chrono_literals;
@@ -300,6 +307,87 @@ bool wait_for_port_ready(uint16_t port, std::chrono::milliseconds timeout,
   } while (status < 0 && timeout > std::chrono::steady_clock::now() - started);
 
   return status >= 0;
+}
+
+inline bool is_port_available_fallback(const uint16_t port) {
+  net::io_context io_ctx;
+  net::ip::tcp::acceptor acceptor(io_ctx);
+
+  net::ip::tcp::resolver resolver(io_ctx);
+  const auto &resolve_res = resolver.resolve("127.0.0.1", std::to_string(port));
+  if (!resolve_res) {
+    throw std::runtime_error(std::string("resolve failed: ") +
+                             resolve_res.error().message());
+  }
+
+  acceptor.set_option(net::socket_base::reuse_address(true));
+  const auto &open_res =
+      acceptor.open(resolve_res->begin()->endpoint().protocol());
+  if (!open_res) return false;
+
+  const auto &bind_res = acceptor.bind(resolve_res->begin()->endpoint());
+  if (!bind_res) return false;
+
+  const auto &listen_res = acceptor.listen(128);
+  if (!listen_res) return false;
+
+  return true;
+}
+
+bool is_port_available(const uint16_t port) {
+#if defined(__linux__)
+  const std::string &netstat_cmd{"netstat -tnl"};
+#elif defined(_WIN32)
+  const std::string &netstat_cmd{"netstat -p tcp -n -a | findstr LISTEN"};
+#elif defined(__sun)
+  const std::string &netstat_cmd{"netstat -n -P tcp | grep LISTEN"};
+#else
+  // BSD and MacOS
+  const std::string &netstat_cmd{"netstat -p tcp -an | grep LISTEN"};
+#endif
+
+  TempDirectory temp_dir;
+  std::string filename = Path(temp_dir.name()).join("netstat_output.txt").str();
+  const std::string &cmd{netstat_cmd + " > " + filename};
+  if (std::system(cmd.c_str()) != 0) {
+    // netstat command failed, do the check by trying to bind to the port
+    // instead
+    return is_port_available_fallback(port);
+  }
+
+  std::ifstream file{filename};
+  if (!file) throw std::runtime_error("Could not open " + filename);
+
+  std::string line;
+  while (std::getline(file, line)) {
+    if (pattern_found(line,
+                      "127\\..*[.:]" + std::to_string(port) + "[^\\d]?")) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static bool wait_for_port(const bool available, const uint16_t port,
+                          std::chrono::milliseconds timeout = 2s) {
+  const std::chrono::milliseconds step = 50ms;
+  do {
+    if (available == is_port_available(port)) return true;
+    std::this_thread::sleep_for(step);
+    timeout -= step;
+  } while (timeout > 0ms);
+  return false;
+}
+
+bool wait_for_port_not_available(const uint16_t port,
+                                 std::chrono::milliseconds timeout) {
+  return wait_for_port(/*available*/ false, port, timeout);
+}
+
+bool wait_for_port_available(const uint16_t port,
+                             std::chrono::milliseconds timeout) {
+  return wait_for_port(/*available*/ true, port, timeout);
 }
 
 void init_keyring(std::map<std::string, std::string> &default_section,

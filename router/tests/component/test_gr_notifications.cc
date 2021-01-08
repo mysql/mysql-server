@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1039,8 +1039,9 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
       router_port_ro, "SECONDARY", "round-robin", "ro");
 
   SCOPED_TRACE("// Launch ther router");
-  launch_router(temp_test_dir.name(), metadata_cache_section,
-                routing_section_rw + routing_section_ro, state_file);
+  auto &router =
+      launch_router(temp_test_dir.name(), metadata_cache_section,
+                    routing_section_rw + routing_section_ro, state_file);
 
   wait_for_new_md_queries(2, http_ports[0], 1s);
   EXPECT_TRUE(wait_for_port_ready(router_port_ro));
@@ -1082,9 +1083,12 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
                       /*send=*/true, nodes_ports);
   }
 
-  // we wait 5 query refresh cycles for slower machines to be sure the changes
-  // on the mock server side propagated to the Router
-  wait_for_new_md_queries(5, http_ports[0], 2000ms);
+  // wait for the second RO to be visible after metadata cache update
+  EXPECT_TRUE(wait_log_contains(router,
+                                "127.0.0.1:" + std::to_string(nodes_ports[2]) +
+                                    " / " + std::to_string(nodes_xports[2]) +
+                                    " - mode=RO",
+                                10s));
 
   SCOPED_TRACE(
       "// Make 2 connections to the RO port, the newly added node should be "

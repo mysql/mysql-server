@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -90,6 +90,8 @@ class ROUTING_EXPORT MySQLRoutingAPI {
 
   std::vector<mysql_harness::TCPAddress> get_destinations() const;
 
+  bool is_accepting_connections() const;
+
  private:
   std::shared_ptr<MySQLRouting> r_;
 };
@@ -103,6 +105,8 @@ class ROUTING_EXPORT MySQLRoutingComponent {
   MySQLRoutingAPI api(const std::string &name);
 
   std::vector<std::string> route_names() const;
+
+  void stop();
 
  private:
   // disable copy, as we are a single-instance

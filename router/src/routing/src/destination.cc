@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,24 @@ void DestinationNodesStateNotifier::unregister_allowed_nodes_change_callback(
     const AllowedNodesChangeCallbacksListIterator &it) {
   std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);
   allowed_nodes_change_callbacks_.erase(it);
+}
+
+void DestinationNodesStateNotifier::register_notify_router_socket_acceptor(
+    const std::function<void()> &callback) {
+  notify_router_socket_acceptor_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_notify_router_socket_acceptor() {
+  notify_router_socket_acceptor_callback_ = nullptr;
+}
+
+void DestinationNodesStateNotifier::register_stop_router_socket_acceptor(
+    const std::function<void()> &callback) {
+  stop_router_socket_acceptor_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_stop_router_socket_acceptor() {
+  stop_router_socket_acceptor_callback_ = nullptr;
 }
 
 // class RouteDestination

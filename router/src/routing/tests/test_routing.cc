@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -580,6 +580,7 @@ TEST_F(RoutingTests, bug_24841281) {
   EXPECT_EQ(0, routing.get_context().info_active_routes_.load());
 #endif
   env.clear_running();  // shut down MySQLRouting
+  routing.notify_socket_acceptors();
   server.stop();
   thd.join();
 }

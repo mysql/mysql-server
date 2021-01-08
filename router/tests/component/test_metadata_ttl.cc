@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,8 @@
 #include "router_component_test.h"
 #include "router_component_testutils.h"
 #include "router_config.h"
+#include "router_test_helpers.h"
+#include "socket_operations.h"
 #include "tcp_port_pool.h"
 
 using mysqlrouter::ClusterType;
@@ -80,14 +82,15 @@ class MetadataChacheTTLTest : public RouterComponentTest {
   std::string get_metadata_cache_routing_section(
       uint16_t router_port, const std::string &role,
       const std::string &strategy, const std::string &mode = "",
-      const std::string &section_name = "default") {
+      const std::string &section_name = "default",
+      const std::string &protocol = "classic") {
     std::string result =
         "[routing:" + section_name +
         "]\n"
         "bind_port=" +
         std::to_string(router_port) + "\n" +
         "destinations=metadata-cache://test/default?role=" + role + "\n" +
-        "protocol=classic\n";
+        "protocol=" + protocol + "\n";
 
     if (!strategy.empty())
       result += std::string("routing_strategy=" + strategy + "\n");
@@ -539,6 +542,7 @@ TEST_P(MetadataChacheTTLTestInvalidMysqlXPort, InvalidMysqlXPort) {
   SCOPED_TRACE(
       "// Even though the metadata contains invalid mysqlx port we still "
       "should be able to connect on the classic port");
+  EXPECT_TRUE(wait_for_port_ready(router_port));
   MySQLSession client;
   ASSERT_NO_FATAL_FAILURE(
       client.connect("127.0.0.1", router_port, "username", "password", "", ""));
@@ -806,6 +810,7 @@ TEST_P(UpgradeInProgressTest, UpgradeInProgress) {
   auto &router =
       launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
                     /*wait_for_notify_ready=*/5s);
+  EXPECT_TRUE(wait_for_port_not_available(router_port));
 
   SCOPED_TRACE("// let us make some user connection via the router port");
   auto client = make_new_connection_ok(router_port, md_server_port);
@@ -956,7 +961,8 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
 
   // first node is RW, all others (if any) RO
   void setup_cluster(const size_t nodes_count, const std::string &tracefile,
-                     const std::vector<std::string> &nodes_attributes = {}) {
+                     const std::vector<std::string> &nodes_attributes = {},
+                     const bool no_primary = false) {
     assert(nodes_count > 0);
 
     const std::string json_metadata = get_data_dir().join(tracefile).str();
@@ -980,41 +986,56 @@ class NodeHiddenTest : public MetadataChacheTTLTest {
       ASSERT_TRUE(MockServerRestClient(node_http_ports[i])
                       .wait_for_rest_endpoint_ready());
 
-      set_mock_metadata(node_http_ports[i], "", node_ports, 0, 0, false,
-                        node_hostname, {}, nodes_attributes);
+      const auto primary_id = no_primary ? -1 : 0;
+      set_mock_metadata(node_http_ports[i], "", node_ports, primary_id, 0,
+                        false, node_hostname, {}, nodes_attributes);
     }
   }
 
-  void setup_router(ClusterType cluster_type, const std::string &ttl) {
-    router_rw_port = port_pool_.get_next_available();
-    router_ro_port = port_pool_.get_next_available();
-
+  void setup_router(ClusterType cluster_type, const std::string &ttl,
+                    const bool read_only = false) {
     const std::string metadata_cache_section =
         get_metadata_cache_section(node_ports, cluster_type, ttl);
-    const std::string routing_rw_section = get_metadata_cache_routing_section(
-        router_rw_port, "PRIMARY", "first-available", "", "rw");
-    const std::string routing_ro_section = get_metadata_cache_routing_section(
+    std::string routing_rw_section{""};
+    if (!read_only) {
+      routing_rw_section = get_metadata_cache_routing_section(
+          router_rw_port, "PRIMARY", "first-available", "", "rw");
+      routing_rw_section += get_metadata_cache_routing_section(
+          router_rw_x_port, "PRIMARY", "first-available", "", "x_rw", "x");
+    }
+    std::string routing_ro_section = get_metadata_cache_routing_section(
         router_ro_port, "SECONDARY", "round-robin", "", "ro");
+    routing_ro_section += get_metadata_cache_routing_section(
+        router_ro_x_port, "SECONDARY", "round-robin", "", "x_ro", "x");
+
     router =
         &launch_router(metadata_cache_section,
                        routing_rw_section + routing_ro_section, EXIT_SUCCESS,
                        /*wait_for_notify_ready=*/5s);
-    ASSERT_NO_FATAL_FAILURE(check_port_ready(*router, router_rw_port));
+
+    ASSERT_NO_FATAL_FAILURE(
+        check_port_ready(*router, read_only ? router_ro_port : router_rw_port));
 
     EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   }
 
-  void set_nodes_attributes(const std::vector<std::string> &nodes_attributes) {
-    set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
+  void set_nodes_attributes(const std::vector<std::string> &nodes_attributes,
+                            const bool no_primary = false) {
+    const auto primary_id = no_primary ? -1 : 0;
+    set_mock_metadata(node_http_ports[0], "", node_ports, primary_id, 0, false,
                       node_hostname, {}, nodes_attributes);
-    EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 3));
+
+    EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
   }
 
   std::vector<uint16_t> node_ports, node_http_ports;
   std::vector<ProcessWrapper *> cluster_nodes;
   ProcessWrapper *router;
 
-  uint16_t router_rw_port, router_ro_port;
+  const uint16_t router_rw_port{port_pool_.get_next_available()};
+  const uint16_t router_ro_port{port_pool_.get_next_available()};
+  const uint16_t router_rw_x_port{port_pool_.get_next_available()};
+  const uint16_t router_ro_x_port{port_pool_.get_next_available()};
 
  private:
   TempDirectory temp_test_dir;
@@ -1028,57 +1049,157 @@ constexpr const char *const NodeHiddenTest::node_hostname;
  * @test Verifies that setting the _hidden tags in the metadata for the node is
  * handled as expected by the Router.
  *
- * TS_FR02_01, TS_FR02_02, TS_FR02_04
+ * WL#13787: TS_FR02_01, TS_FR02_02, TS_FR02_04
+ * WL#13327: TS_R2_6
  */
-class RWNodeHiddenTest
+class ClusterNodeHiddenTest
     : public NodeHiddenTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {};
 
-TEST_P(RWNodeHiddenTest, RWNodeHidden) {
+TEST_P(ClusterNodeHiddenTest, RWRONodeHidden) {
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
   setup_cluster(3, GetParam().tracefile);
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl);
-
+  SCOPED_TRACE("// check if both RO and RW ports are used");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
   SCOPED_TRACE("// Make rw connection, should be ok");
-  auto rw_con_1 = make_new_connection_ok(router_rw_port, node_ports[0]);
+  make_new_connection_ok(router_rw_port, node_ports[0]);
+
+  SCOPED_TRACE("// Configure first RO node to hidden=true");
+  set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })", ""});
+  SCOPED_TRACE("// RW and RO ports should be used by the router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+
+  SCOPED_TRACE("// Configure both RO node to hidden=true");
+  set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })",
+                        R"({"tags" : {"_hidden": true} })"});
+  SCOPED_TRACE("// RO ports should not be used by the router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+
+  SCOPED_TRACE("// Unhide first RO node");
+  set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })", ""});
+  SCOPED_TRACE("// RO ports should be used by the router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+
+  SCOPED_TRACE("// Hide first RO node");
+  set_nodes_attributes({"", R"({"tags" : {"_hidden": true} })",
+                        R"({"tags" : {"_hidden": true} })"});
+  SCOPED_TRACE("// RO ports should not be used by the router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+
+  SCOPED_TRACE("// Unhide second RO node");
+  set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })",
+                        R"({"tags" : {"_hidden": true} })"});
+  SCOPED_TRACE("// RO ports should be used by the router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
+
+  SCOPED_TRACE("// Unhide first RO node");
+  set_nodes_attributes({"", R"({"tags" : {"_hidden": false} })",
+                        R"({"tags" : {"_hidden": false} })"});
+  SCOPED_TRACE("// RO ports should be used by the router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
 
   SCOPED_TRACE(
       "// Configure RW node to hidden=true, "
       "disconnect_existing_sessions_when_hidden stays default which is 'true'");
-  set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""});
-
-  SCOPED_TRACE("// The existing connection should get dropped");
-  verify_existing_connection_dropped(rw_con_1.get());
+  set_nodes_attributes({R"({"tags" : {"_hidden": true} })",
+                        R"({"tags" : {"_hidden": true} })",
+                        R"({"tags" : {"_hidden": true} })"});
+  SCOPED_TRACE("// RW port should be open");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
   SCOPED_TRACE("// Making new connection should not be possible");
   verify_new_connection_fails(router_rw_port);
 
   SCOPED_TRACE("// Configure RW node back to hidden=false");
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })", "", ""});
+  SCOPED_TRACE("// RW port should be again used by the Router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
   SCOPED_TRACE("// Making new connection should be possible again");
-  auto rw_con_2 = make_new_connection_ok(router_rw_port, node_ports[0]);
+  make_new_connection_ok(router_rw_port, node_ports[0]);
 
   SCOPED_TRACE("// Configure RW node again to hidden=true");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""});
-  SCOPED_TRACE("// The existing connection should get dropped");
-  verify_existing_connection_dropped(rw_con_2.get());
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
   SCOPED_TRACE("// Making new connection should not be possible");
   verify_new_connection_fails(router_rw_port);
 
   SCOPED_TRACE("// Configure RW node back to hidden=false");
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })", "", ""});
+  SCOPED_TRACE("// RW port should be again used by the Router");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_x_port));
   SCOPED_TRACE("// Making new connection should be possible again");
-  /*auto rw_con_3 =*/make_new_connection_ok(router_rw_port, node_ports[0]);
+  make_new_connection_ok(router_rw_port, node_ports[0]);
+}
+
+TEST_P(ClusterNodeHiddenTest, RWNodeHidden) {
+  SCOPED_TRACE("// launch cluster with only 1 RW node");
+  setup_cluster(1, GetParam().tracefile);
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  setup_router(GetParam().cluster_type, GetParam().ttl);
+
+  SCOPED_TRACE("// RW socket is listening");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+
+  SCOPED_TRACE("// Hide RW node");
+  set_nodes_attributes({R"({"tags" : {"_hidden": true} })"});
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
+
+  SCOPED_TRACE("// Unhide RW node");
+  set_nodes_attributes({R"({"tags" : {"_hidden": false} })"});
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_x_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_x_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    RWNodeHidden, RWNodeHiddenTest,
+    ClusterNodeHidden, ClusterNodeHiddenTest,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
-                                            "rw_hidden_gr_v2",
+                                            "node_hidden_gr_v2",
                                             ClusterType::GR_V2, "0.1"),
                       MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
-                                            "rw_hidden_ar_v2",
+                                            "node_hidden_ar_v2",
                                             ClusterType::RS_V2, "0.1")),
     get_test_description);
 
@@ -1099,6 +1220,7 @@ TEST_P(RWNodeHiddenDontDisconnectToggleTest, RWNodeHiddenDontDisconnectToggle) {
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl);
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0]));
 
   // test tags: {hidden, disconnect}
   {
@@ -1329,6 +1451,106 @@ INSTANTIATE_TEST_SUITE_P(
                                             ClusterType::RS_V2, "0.1")),
     get_test_description);
 
+class NodesHiddenWithFallbackTest
+    : public NodeHiddenTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {};
+
+TEST_P(NodesHiddenWithFallbackTest, PrimaryHidden) {
+  SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
+  setup_cluster(3, GetParam().tracefile);
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(node_ports, GetParam().cluster_type);
+  std::string routing_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "round-robin", "", "rw");
+  routing_section += get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
+
+  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+                /*wait_for_notify_ready=*/5s);
+
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Configure primary node to be hidden");
+  set_nodes_attributes({R"({"tags" : {"_hidden": true} })", "", ""});
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Bring down secondary nodes, primary is hidden");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0]}, 0, 0, false,
+                    node_hostname, {}, {R"({"tags" : {"_hidden": true} })"});
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+
+  SCOPED_TRACE("// Bring up second secondary node, primary is hidden");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
+                    0, false, node_hostname, {},
+                    {R"({"tags" : {"_hidden": true} })", ""});
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Unhide primary node");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
+                    0, false, node_hostname, {}, {"", ""});
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+}
+
+TEST_P(NodesHiddenWithFallbackTest, SecondaryHidden) {
+  SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
+  setup_cluster(3, GetParam().tracefile);
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(node_ports, GetParam().cluster_type);
+  std::string routing_section = get_metadata_cache_routing_section(
+      router_rw_port, "PRIMARY", "round-robin", "", "rw");
+  routing_section += get_metadata_cache_routing_section(
+      router_ro_port, "SECONDARY", "round-robin-with-fallback", "", "ro");
+
+  launch_router(metadata_cache_section, routing_section, EXIT_SUCCESS,
+                /*wait_for_notify_ready=*/5s);
+
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Configure second secondary node to be hidden");
+  set_nodes_attributes({"", "", R"({"tags" : {"_hidden": true} })"});
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Bring down first primary node");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
+                    0, false, node_hostname, {},
+                    {"", R"({"tags" : {"_hidden": true} })"});
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Unhide second secondary node");
+  set_mock_metadata(node_http_ports[0], "", {node_ports[0], node_ports[2]}, 0,
+                    0, false, node_hostname, {}, {"", ""});
+  EXPECT_TRUE(wait_for_transaction_count_increase(node_http_ports[0], 2));
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    NodesHiddenWithFallback, NodesHiddenWithFallbackTest,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "hidden_with_fallback_gr_v2",
+                                            ClusterType::GR_V2, "0.1"),
+                      MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
+                                            "hidden_with_fallback_ar_v2",
+                                            ClusterType::RS_V2, "0.1")),
+    get_test_description);
+
 class OneNodeClusterHiddenTest
     : public NodeHiddenTest,
       public ::testing::WithParamInterface<MetadataTTLTestParams> {
@@ -1340,17 +1562,26 @@ class OneNodeClusterHiddenTest
  * @test Verify _hidden works fine with one node cluster and after the node
  * resurrection
  *
- * TS_FR02_06, TS_FR02_07
+ * WL#13787: TS_FR02_06, TS_FR02_07
+ * WL#13327: TS_R2_3
  */
-TEST_P(OneNodeClusterHiddenTest, OneNodeClusterHidden) {
+TEST_P(OneNodeClusterHiddenTest, OneRWNodeClusterHidden) {
   SCOPED_TRACE("// launch one node cluster (single RW node)");
   setup_cluster(1, GetParam().tracefile);
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
   setup_router(GetParam().cluster_type, GetParam().ttl);
 
+  SCOPED_TRACE("// RW port shoudld be used, RO is unused");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+
   SCOPED_TRACE("// Hide the single node that we have");
   set_nodes_attributes({R"({"tags" : {"_hidden": true} })"});
+
+  SCOPED_TRACE("// RW and RO ports are open");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
 
   verify_new_connection_fails(router_rw_port);
 
@@ -1363,18 +1594,149 @@ TEST_P(OneNodeClusterHiddenTest, OneNodeClusterHidden) {
       "// Relaunch the node, set the node as hidden from the very start");
   setup_cluster(1, GetParam().tracefile, {R"({"tags" : {"_hidden": true} })"});
 
+  SCOPED_TRACE("// RW and RO ports are open");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+
   SCOPED_TRACE("// We still should not be able to connect");
   verify_new_connection_fails(router_rw_port);
 
   SCOPED_TRACE("// Un-hide the node");
   set_nodes_attributes({R"({"tags" : {"_hidden": false} })"});
 
+  SCOPED_TRACE("// RW port shoudld be used, RO is unused");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+
   SCOPED_TRACE("// Now we should be able to connect");
   make_new_connection_ok(router_rw_port, node_ports[0]);
 }
 
+/**
+ * @test Test hiding a node in a single SECONDARY node cluster.
+ *
+ * WL#13327: TS_R2_4
+ */
+TEST_P(OneNodeClusterHiddenTest, OneRONodeClusterHidden) {
+  SCOPED_TRACE("// launch one node cluster (single RO) node)");
+  setup_cluster(1, GetParam().tracefile, {}, /*no_primary*/ true);
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  setup_router(GetParam().cluster_type, GetParam().ttl, true);
+
+  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Hide the single node that we have");
+  set_nodes_attributes({R"({"tags" : {"_hidden": true} })"},
+                       /*no_primary*/ true);
+
+  SCOPED_TRACE("// RW and RO ports are open");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+
+  verify_new_connection_fails(router_rw_port);
+
+  SCOPED_TRACE(
+      "// Check that hiding also works after node dissapearing and getting "
+      "back");
+  kill_server(cluster_nodes[0]);
+
+  SCOPED_TRACE(
+      "// Relaunch the node, set the node as hidden from the very start");
+  setup_cluster(1, GetParam().tracefile, {R"({"tags" : {"_hidden": true} })"},
+                /*no_primary*/ true);
+
+  SCOPED_TRACE("// RW and RO ports are open");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+
+  SCOPED_TRACE("// We still should not be able to connect");
+  verify_new_connection_fails(router_rw_port);
+
+  SCOPED_TRACE("// Un-hide the node");
+  set_nodes_attributes({R"({"tags" : {"_hidden": false} })"},
+                       /*no_primary*/ true);
+
+  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Now we should be able to connect");
+  make_new_connection_ok(router_ro_port, node_ports[0]);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     OneNodeClusterHidden, OneNodeClusterHiddenTest,
+    ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
+                                            "one_node_cluster_hidden_gr_v2",
+                                            ClusterType::GR_V2, "0.1"),
+                      MetadataTTLTestParams("metadata_dynamic_nodes_v2_ar.js",
+                                            "one_node_cluster_hidden_ar_v2",
+                                            ClusterType::RS_V2, "0.1")),
+    get_test_description);
+
+class TwoNodesClusterHidden
+    : public NodeHiddenTest,
+      public ::testing::WithParamInterface<MetadataTTLTestParams> {
+ protected:
+  void kill_server(ProcessWrapper *server) { EXPECT_NO_THROW(server->kill()); }
+};
+
+/**
+ * @test Test hiding a node in a two SECONDARY nodes cluster.
+ *
+ * WL#13327: TS_R2_5
+ */
+TEST_P(TwoNodesClusterHidden, TwoRONodesClusterHidden) {
+  SCOPED_TRACE("// launch two nodes cluster (both SECONDARY) nodes)");
+  setup_cluster(2, GetParam().tracefile, {}, /*no_primary*/ true);
+
+  SCOPED_TRACE("// launch the router with metadata-cache configuration");
+  setup_router(GetParam().cluster_type, GetParam().ttl, true);
+
+  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Hide one node");
+  set_nodes_attributes({R"({"tags" : {"_hidden": true} })", ""},
+                       /*no_primary*/ true);
+
+  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Hide the second node as well");
+  set_nodes_attributes(
+      {R"({"tags" : {"_hidden": true} })", R"({"tags" : {"_hidden": true} })"},
+      /*no_primary*/ true);
+
+  SCOPED_TRACE("// RO and RW ports are unused");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_available(router_ro_port));
+
+  verify_new_connection_fails(router_rw_port);
+
+  SCOPED_TRACE("// Un-hide one node");
+  set_nodes_attributes({R"({"tags" : {"_hidden": false} })", ""},
+                       /*no_primary*/ true);
+
+  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+
+  SCOPED_TRACE("// Un-hide second node");
+  set_nodes_attributes({"", ""}, /*no_primary*/ true);
+
+  SCOPED_TRACE("// RO port shoudld be used, RW is unused");
+  EXPECT_TRUE(wait_for_port_available(router_rw_port));
+  EXPECT_TRUE(wait_for_port_not_available(router_ro_port));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TwoRONodesClusterHidden, TwoNodesClusterHidden,
     ::testing::Values(MetadataTTLTestParams("metadata_dynamic_nodes_v2_gr.js",
                                             "one_node_cluster_hidden_gr_v2",
                                             ClusterType::GR_V2, "0.1"),

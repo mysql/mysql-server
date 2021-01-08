@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1989,7 +1989,6 @@ TEST_F(MetadataCacheLoggingTest,
   auto &router =
       launch_router({"-c", init_keyring_and_config_file(conf_dir.name())},
                     EXIT_SUCCESS, false, -1s);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting
@@ -2029,7 +2028,6 @@ TEST_F(MetadataCacheLoggingTest,
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS, true,
       false, -1s);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache WARNING [7ff0bb001700] Failed connecting
@@ -2067,7 +2065,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   RouterComponentTest::sleep_for(500ms);
 
@@ -2107,7 +2104,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   RouterComponentTest::sleep_for(500ms);
 
@@ -2149,7 +2145,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   RouterComponentTest::sleep_for(500ms);
 
@@ -2171,9 +2166,8 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   chmod(log_file_1.c_str(), S_IRUSR);
 
   // start the router again and check that the new log file got created
-  auto &router2 = launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router2, router_port, 10000ms));
+  launch_router({"-c", init_keyring_and_config_file(conf_dir.name())},
+                EXIT_SUCCESS);
   RouterComponentTest::sleep_for(500ms);
   EXPECT_TRUE(log_file.exists());
 }
@@ -2188,7 +2182,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
@@ -2238,7 +2231,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
       {"-c",
        init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)},
       EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
 
   auto sleep_time = 200ms;
   RouterComponentTest::sleep_for(sleep_time);

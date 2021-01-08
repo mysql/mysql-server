@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -144,6 +144,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
 
   // launch the router with the created configuration
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_not_available(router_port));
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
@@ -214,7 +215,7 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   TempDirectory conf_dir("conf");
   const std::string conf_file =
       create_config_file(conf_dir.name(), routing_section);
-  launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file});
 
   // loop until socket file appears and has correct permissions
   auto wait_for_correct_perms = [&socket_file](int timeout_ms) {
@@ -238,6 +239,10 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   };
 
   EXPECT_THAT(wait_for_correct_perms(5000), testing::Eq(true));
+  EXPECT_TRUE(wait_log_contains(router,
+                                "Start accepting connections for routing "
+                                "routing:basic listening on named socket",
+                                5s));
 }
 #endif
 
@@ -387,6 +392,14 @@ TEST_F(RouterRoutingTest, error_counters) {
 
   // launch the router with the created configuration
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
+  {
+    // Make a good connection to reset the error counter that might have been
+    // increased by the wait_for_port_ready()
+    mysqlrouter::MySQLSession client;
+    EXPECT_NO_THROW(
+        client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""));
+  }
 
   SCOPED_TRACE(
       "// make good and bad connections (connect() + 1024 0-bytes) to check "
@@ -396,8 +409,8 @@ TEST_F(RouterRoutingTest, error_counters) {
   for (int i = 0; i < 5; i++) {
     // good connection, followed by 2 bad ones. Good one should reset the error
     // counter
-    mysqlrouter::MySQLSession client;
     try {
+      mysqlrouter::MySQLSession client;
       client.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
     } catch (const std::exception &e) {
       FAIL() << e.what();

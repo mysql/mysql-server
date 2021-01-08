@@ -76,8 +76,10 @@ var options = {
 };
 
 // first node is PRIMARY
-options.group_replication_primary_member =
-    options.group_replication_membership[mysqld.global.primary_id][0];
+if (mysqld.global.primary_id >= 0) {
+  options.group_replication_primary_member =
+      options.group_replication_membership[mysqld.global.primary_id][0];
+}
 
 // prepare the responses for common statements
 var common_responses = common_stmts.prepare_statement_responses(
@@ -108,6 +110,12 @@ var router_start_transaction =
     common_stmts.get("router_start_transaction", options);
 
 ({
+  handshake: {
+    auth: {
+      username: mysqld.global.user,
+      password: mysqld.global.password,
+    }
+  },
   stmts: function(stmt) {
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,9 +54,9 @@
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
+#include "mysql/harness/plugin.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
-#include "mysql/harness/stdx/monitor.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
@@ -150,25 +150,13 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
       get_routing_thread_name(context_.get_name(), "RtM")
           .c_str());  // "Rt main" would be too long :(
   if (context_.get_bind_address().port() > 0) {
-    auto res = setup_tcp_service();
-    if (!res) {
-      clear_running(env);
-      throw std::runtime_error(
-          string_format("Setting up TCP service using %s: %s",
-                        context_.get_bind_address().str().c_str(),
-                        res.error().message().c_str()));
-    }
-
     // routing strategy and mode are mutually-exclusive (mode is legacy)
     if (routing_strategy_ != RoutingStrategy::kUndefined)
-      log_info("[%s] started: listening on %s, routing strategy = %s",
+      log_info("[%s] started: routing strategy = %s",
                context_.get_name().c_str(),
-               context_.get_bind_address().str().c_str(),
                get_routing_strategy_name(routing_strategy_).c_str());
     else
-      log_info("[%s] started: listening on %s, routing mode = %s",
-               context_.get_name().c_str(),
-               context_.get_bind_address().str().c_str(),
+      log_info("[%s] started: routing mode = %s", context_.get_name().c_str(),
                get_access_mode_name(access_mode_).c_str());
   }
 #ifndef _WIN32
@@ -177,7 +165,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
     if (!res) {
       clear_running(env);
       throw std::runtime_error(
-          string_format("Setting up named socket service '%s': %s",
+          string_format("Failed setting up named socket service '%s': %s",
                         context_.get_bind_named_socket().c_str(),
                         res.error().message().c_str()));
     }
@@ -187,7 +175,14 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
 #endif
   if (context_.get_bind_address().port() > 0 ||
       context_.get_bind_named_socket().is_set()) {
-    start_acceptor(env);
+    auto res = start_acceptor(env);
+    if (!res) {
+      clear_running(env);
+      throw std::runtime_error(
+          string_format("Failed setting up TCP service using %s: %s",
+                        context_.get_bind_address().str().c_str(),
+                        res.error().message().c_str()));
+    }
 #ifndef _WIN32
     if (context_.get_bind_named_socket().is_set() &&
         unlink(context_.get_bind_named_socket().str().c_str()) == -1) {
@@ -704,8 +699,6 @@ class Connector : public ConnectorBase {
   std::error_code last_ec_;
 };
 
-struct Nothing {};
-
 template <class Protocol>
 class Acceptor {
  public:
@@ -714,7 +707,7 @@ class Acceptor {
   using acceptor_socket_type = typename protocol_type::acceptor;
   using acceptor_endpoint_type = typename protocol_type::endpoint;
 
-  Acceptor(MySQLRouting *r, mysql_harness::PluginFuncEnv *env,
+  Acceptor(MySQLRouting *r, const mysql_harness::PluginFuncEnv *env,
            std::list<IoThread> &io_threads,
            acceptor_socket_type &acceptor_socket,
            const acceptor_endpoint_type &acceptor_endpoint,
@@ -743,7 +736,7 @@ class Acceptor {
       // finished.
       waitable_.serialize_with_cv([this](auto &, auto &cv) {
         acceptor_socket_.close();
-        cv.notify_one();
+        cv.notify_all();
       });
     }
   }
@@ -954,7 +947,7 @@ class Acceptor {
 
  private:
   MySQLRouting *r_;
-  mysql_harness::PluginFuncEnv *env_;
+  const mysql_harness::PluginFuncEnv *env_;
 
   std::list<IoThread> &io_threads_;
 
@@ -986,88 +979,108 @@ void MySQLRouting::disconnect_all() {
   connection_container_.disconnect_all();
 }
 
-void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
-  mysql_harness::on_service_ready(env);
-
-  destination_->start(env);
-  auto allowed_nodes_changed = [&](const AllowedNodes &nodes,
-                                   const std::string &reason) {
-    std::ostringstream oss;
-
-    if (!context_.get_bind_address().address().empty()) {
-      oss << context_.get_bind_address().port();
-      if (!context_.get_bind_named_socket().str().empty()) oss << " and ";
+std::string MySQLRouting::get_port_str() const {
+  std::string port_str;
+  if (!context_.get_bind_address().address().empty() &&
+      context_.get_bind_address().port() > 0) {
+    port_str += std::to_string(context_.get_bind_address().port());
+    if (!context_.get_bind_named_socket().str().empty()) {
+      port_str += " and ";
     }
+  }
+  if (!context_.get_bind_named_socket().str().empty()) {
+    port_str += "named socket ";
+    port_str += context_.get_bind_named_socket().str();
+  }
+  return port_str;
+}
+void MySQLRouting::notify_socket_acceptors() { acceptor_cond_.notify_one(); }
 
-    if (!context_.get_bind_named_socket().str().empty())
-      oss << "named socket " << context_.get_bind_named_socket();
+stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
+    mysql_harness::PluginFuncEnv *env) {
+  mysql_harness::on_service_ready(env);
+  destination_->start(env);
 
-    log_info(
-        "Routing %s listening on %s got request to disconnect invalid "
-        "connections: %s",
-        context_.get_name().c_str(), oss.str().c_str(), reason.c_str());
+  if (!destinations()->empty() ||
+      (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
+       is_destination_standalone)) {
+    // For standalone destination with first-available strategy we always try to
+    // open a listening socket, even if there are no destinations.
+    auto res = start_accepting_connections(env);
+    // If the routing started at the exact moment as when the metadata had it
+    // initial refresh then it may start the acceptors even if metadata do not
+    // allow for it to happen, in that case we will force instance update on the
+    // next refresh.
+    if (!is_destination_standalone) destination_->md_force_instance_update();
+    // If we failed to start accepting connections on startup then router
+    // should fail.
+    if (!res) return stdx::make_unexpected(res.error());
+  }
 
-    // handle allowed nodes changed
-    connection_container_.disconnect(nodes);
-  };
+  auto allowed_nodes_changed =
+      [&](const AllowedNodes &existing_connections_nodes,
+          const AllowedNodes &new_connection_nodes, const bool disconnect,
+          const std::string &disconnect_reason) {
+        const std::string &port_str = get_port_str();
+
+        if (disconnect) {
+          log_info(
+              "Routing %s listening on %s got request to disconnect invalid "
+              "connections: %s",
+              context_.get_name().c_str(), port_str.c_str(),
+              disconnect_reason.c_str());
+
+          // handle allowed nodes changed for existing connections
+          connection_container_.disconnect(existing_connections_nodes);
+        }
+
+        if (!is_running(env)) return;
+        if (service_tcp_.is_open() && new_connection_nodes.empty()) {
+          stop_socket_acceptors();
+        } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
+          if (!start_accepting_connections(env)) {
+            // We could not start acceptor (e.g. the port is used by other app)
+            // In that case we should retry on the next md refresh with the
+            // latest instance information.
+            destination_->md_force_instance_update();
+          }
+        }
+      };
 
   allowed_nodes_list_iterator_ =
       destination_->register_allowed_nodes_change_callback(
           allowed_nodes_changed);
+  destination_->register_notify_router_socket_acceptor(
+      [&]() { notify_socket_acceptors(); });
+  destination_->register_stop_router_socket_acceptor(
+      [&]() { stop_socket_acceptors(); });
 
   std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
     destination_->unregister_allowed_nodes_change_callback(
         allowed_nodes_list_iterator_);
+    destination_->unregister_notify_router_socket_acceptor();
+    destination_->unregister_stop_router_socket_acceptor();
   });
 
-  // pass the io_threads to the acceptor to distribute new connections across
-  // the threads
-  auto &io_threads = IoComponent::get_instance().io_threads();
-
-  {
-    WaitableMonitor<Nothing> acceptor_waitable{Nothing{}};
-
-    if (tcp_socket().is_open()) {
-      tcp_socket().native_non_blocking(true);
-      tcp_socket().async_wait(
-          net::socket_base::wait_read,
-          Acceptor<net::ip::tcp>(this, env, io_threads, tcp_socket(),
-                                 service_tcp_endpoint_,
-                                 tcp_connector_container_, acceptor_waitable));
-    }
-#if !defined(_WIN32)
-    if (service_named_socket_.is_open()) {
-      service_named_socket_.native_non_blocking(true);
-      service_named_socket_.async_wait(
-          net::socket_base::wait_read,
-          Acceptor<local::stream_protocol>(
-              this, env, io_threads, service_named_socket_,
-              service_named_endpoint_, unix_socket_connector_container_,
-              acceptor_waitable));
-    }
-#endif
-
-    // wait for the signal to shutdown.
-    wait_for_stop(env, 0);
-
-    // 1. close and wait for acceptors to close
-    // 2. cancel all connectors and wait for them to finish
-    // 3. close all connections and wait for them to finish
-    //
-    acceptor_waitable.wait([this](auto &) {
-      if (service_tcp_.is_open()) {
-        service_tcp_.cancel();
-#if !defined(_WIN32)
-      } else if (service_named_socket_.is_open()) {
-        service_named_socket_.cancel();
-#endif
-      } else {
-        return true;
-      }
-
-      return false;
+  // Depending on the routing strategy we might want to start accepting
+  // connections again.
+  while (is_running(env)) {
+    std::unique_lock<std::mutex> lock{acceptor_mutex_};
+    acceptor_cond_.wait(lock, [this, env]() {
+      return !is_running(env) ||
+             acceptor_waitable_.serialize_with_cv([this](auto &, auto &) {
+               return context_.get_bind_address().port() > 0 &&
+                      !service_tcp_.is_open();
+             });
     });
+    if (is_running(env) && destinations()->size() != 0) {
+      auto res = start_accepting_connections(env);
+      if (!res) std::this_thread::sleep_for(3s);
+    }
   }
+
+  // routing is no longer running, lets close listening socket
+  stop_socket_acceptors();
 
   // close client sockets which aren't connected to a backend yet
   tcp_connector_container_.disconnect_all();
@@ -1097,6 +1110,79 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
   }
 
   log_info("[%s] stopped", context_.get_name().c_str());
+  return {};
+}
+
+stdx::expected<void, std::error_code> MySQLRouting::start_accepting_connections(
+    const mysql_harness::PluginFuncEnv *env) {
+  if (!is_running(env)) {
+    return stdx::make_unexpected(
+        std::make_error_code(std::errc::connection_aborted));
+  }
+
+  stdx::expected<void, std::error_code> res;
+  acceptor_waitable_.wait([this, &res](auto &) {
+    if (context_.get_bind_address().port() <= 0) {
+      return true;
+    } else if (!service_tcp_.is_open()) {
+      res = this->setup_tcp_service();
+      return true;
+    } else {
+      return false;
+    }
+  });
+  if (!res) return stdx::make_unexpected(res.error());
+
+  log_info("Start accepting connections for routing %s listening on %s",
+           context_.get_name().c_str(), get_port_str().c_str());
+  // pass the io_threads to the acceptor to distribute new connections across
+  // the threads
+  auto &io_threads = IoComponent::get_instance().io_threads();
+
+  {
+    if (tcp_socket().is_open()) {
+      tcp_socket().native_non_blocking(true);
+      tcp_socket().async_wait(
+          net::socket_base::wait_read,
+          Acceptor<net::ip::tcp>(this, env, io_threads, tcp_socket(),
+                                 service_tcp_endpoint_,
+                                 tcp_connector_container_, acceptor_waitable_));
+    }
+#if !defined(_WIN32)
+    if (service_named_socket_.is_open()) {
+      service_named_socket_.native_non_blocking(true);
+      service_named_socket_.async_wait(
+          net::socket_base::wait_read,
+          Acceptor<local::stream_protocol>(
+              this, env, io_threads, service_named_socket_,
+              service_named_endpoint_, unix_socket_connector_container_,
+              acceptor_waitable_));
+    }
+#endif
+  }
+  return {};
+}
+
+void MySQLRouting::stop_socket_acceptors() {
+  log_info("Stop accepting connections for routing %s listening on %s",
+           context_.get_name().c_str(), get_port_str().c_str());
+  // 1. close and wait for acceptors to close
+  // 2. cancel all connectors and wait for them to finish
+  // 3. close all connections and wait for them to finish
+  //
+  acceptor_waitable_.wait([this](auto &) {
+    if (service_tcp_.is_open()) {
+      service_tcp_.cancel();
+#if !defined(_WIN32)
+    } else if (service_named_socket_.is_open()) {
+      service_named_socket_.cancel();
+#endif
+    } else {
+      return true;
+    }
+
+    return false;
+  });
 }
 
 template <class ClientProtocol, class ServerProtocol>
@@ -1350,6 +1436,7 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
     routing_strategy_ = get_default_routing_strategy(access_mode_);
   }
 
+  is_destination_standalone = true;
   destination_ = create_standalone_destination(
       io_ctx_, routing_strategy_, context_.get_protocol(),
       context_.get_thread_stack_size());
@@ -1422,4 +1509,15 @@ std::vector<mysql_harness::TCPAddress> MySQLRouting::get_destinations() const {
 
 std::vector<MySQLRoutingAPI::ConnData> MySQLRouting::get_connections() {
   return connection_container_.get_all_connections_info();
+}
+
+bool MySQLRouting::is_accepting_connections() const {
+  if (service_tcp_.is_open()) {
+    return true;
+#if !defined(_WIN32)
+  } else if (service_named_socket_.is_open()) {
+    return true;
+#endif
+  }
+  return false;
 }

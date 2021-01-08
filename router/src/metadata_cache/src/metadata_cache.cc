@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -394,6 +394,7 @@ void MetadataCache::on_refresh_succeeded(
 
 void MetadataCache::on_instances_changed(const bool md_servers_reachable,
                                          unsigned view_id) {
+  force_instance_update_ = false;
   auto instances = replicaset_lookup("" /*cluster_name_*/);
   {
     std::lock_guard<std::mutex> lock(

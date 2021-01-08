@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
-#include "mysql/harness/tls_server_context.h"
+#include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_export.h"
@@ -177,6 +177,8 @@ class SocketContainer {
 
 using mysqlrouter::URI;
 using std::string;
+
+struct Nothing {};
 
 /** @class MySQLRoutering
  *  @brief Manage Connections from clients to MySQL servers
@@ -349,7 +351,38 @@ class MySQLRouting {
 
   void disconnect_all();
 
+  /**
+   * Stop accepting new connections on a listening socket.
+   */
+  void stop_socket_acceptors();
+
+  /**
+   * Notify the routing that the routing socket should accept new connections
+   * again.
+   */
+  void notify_socket_acceptors();
+
+  /**
+   * Check if we are accepting connections on a routing socket.
+   *
+   * @retval true if we are accepting connections, false otherwise
+   */
+  bool is_accepting_connections() const;
+
  private:
+  /**
+   * Start accepting new connections on a listening socket
+   *
+   * @returns std::error_code on errors.
+   */
+  stdx::expected<void, std::error_code> start_accepting_connections(
+      const mysql_harness::PluginFuncEnv *env);
+
+  /**
+   * Get listening socket detail information used for the logging purposes.
+   */
+  std::string get_port_str() const;
+
   /** @brief Sets up the TCP service
    *
    * Sets up the TCP service binding to IP addresses and TCP port.
@@ -374,11 +407,22 @@ class MySQLRouting {
    */
   static void set_unix_socket_permissions(const char *socket_file);
 
+  stdx::expected<void, std::error_code> start_acceptor(
+      mysql_harness::PluginFuncEnv *env);
+
  public:
   MySQLRoutingContext &get_context() { return context_; }
 
  private:
-  void start_acceptor(mysql_harness::PluginFuncEnv *env);
+  /** Monitor for notifying socket acceptor */
+  WaitableMonitor<Nothing> acceptor_waitable_{Nothing{}};
+
+  /** Mutex for the acceptor_cond_ condition variable */
+  std::mutex acceptor_mutex_;
+
+  /** Condition variable for notifying the acceptor from the routing
+   * destinations */
+  std::condition_variable acceptor_cond_;
 
   /** @brief wrapper for data used by all connections */
   MySQLRoutingContext context_;
@@ -387,6 +431,8 @@ class MySQLRouting {
 
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
+
+  bool is_destination_standalone{false};
 
   /** @brief Routing strategy to use when getting next destination */
   routing::RoutingStrategy routing_strategy_;

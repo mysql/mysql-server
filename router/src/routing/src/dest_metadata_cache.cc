@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -215,11 +215,11 @@ DestMetadataCacheGroup::get_available(
   const auto &managed_servers_vec = managed_servers.instance_vector;
   if (routing_strategy_ == routing::RoutingStrategy::kRoundRobinWithFallback) {
     // if there are no secondaries available we fall-back to primaries
-    auto secondary =
-        std::find_if(managed_servers_vec.begin(), managed_servers_vec.end(),
-                     [](const metadata_cache::ManagedInstance &i) {
-                       return i.mode == metadata_cache::ServerMode::ReadOnly;
-                     });
+    auto secondary = std::find_if(
+        managed_servers_vec.begin(), managed_servers_vec.end(),
+        [](const metadata_cache::ManagedInstance &i) {
+          return i.mode == metadata_cache::ServerMode::ReadOnly && !i.hidden;
+        });
 
     primary_fallback = secondary == managed_servers_vec.end();
   }
@@ -594,18 +594,27 @@ void DestMetadataCacheGroup::on_instances_change(
   // we got notified that the metadata has changed.
   // If instances is empty then (most like is empty)
   // the metadata-cache cannot connect to the metadata-servers
-  // In that case we only trigger the callbacks (resulting in disconnects) if
+  // In that case we only disconnect clients if
   // the user configured that it should happen
   // (disconnect_on_metadata_unavailable_ == true)
-  if (!md_servers_reachable && !disconnect_on_metadata_unavailable_) return;
+  const bool disconnect =
+      md_servers_reachable || disconnect_on_metadata_unavailable_;
 
   const std::string reason =
       md_servers_reachable ? "metadata change" : "metadata unavailable";
 
-  const auto &available_nodes =
+  const auto &nodes_for_new_connections =
+      get_available(instances, /*for_new_connections=*/true).first;
+
+  AllowedNodes new_addresses;
+  for (const auto &dest : nodes_for_new_connections) {
+    new_addresses.emplace_back(dest.address.str());
+  }
+
+  const auto &nodes_for_existing_connections =
       get_available(instances, /*for_new_connections=*/false).first;
   AllowedNodes addresses;
-  for (const auto &dest : available_nodes) {
+  for (const auto &dest : nodes_for_existing_connections) {
     addresses.emplace_back(dest.address.str());
   }
 
@@ -614,7 +623,7 @@ void DestMetadataCacheGroup::on_instances_change(
   // notify all the registered listeners about the list of available nodes
   // change
   for (auto &clb : allowed_nodes_change_callbacks_) {
-    clb(addresses, reason);
+    clb(addresses, new_addresses, disconnect, reason);
   }
 }
 

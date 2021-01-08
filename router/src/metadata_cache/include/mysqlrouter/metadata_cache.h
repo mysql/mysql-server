@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -428,6 +428,14 @@ class METADATA_API MetadataCacheAPIBase
    */
   virtual void check_auth_metadata_timers() const = 0;
 
+  /**
+   * Force the instance check on next metadata cache refresh.
+   *
+   * We request the listeners to be notified about the cluster topology
+   * regardless if it changed or not during the next metadata update.
+   */
+  virtual void force_instance_update_on_refresh() = 0;
+
   MetadataCacheAPIBase() = default;
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
@@ -503,6 +511,8 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   void enable_fetch_auth_metadata() override;
   void force_cache_update() override;
   void check_auth_metadata_timers() const override;
+
+  void force_instance_update_on_refresh() override;
 
  private:
   struct InstData {
