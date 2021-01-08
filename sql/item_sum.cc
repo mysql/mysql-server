@@ -661,8 +661,7 @@ bool Item_sum::collect_grouped_aggregates(uchar *arg) {
 
   if (m_is_window_function || info->m_break_off) return false;
 
-  if (info->m_query_block == aggr_query_block &&
-      (used_tables() & OUTER_REF_TABLE_BIT)) {
+  if (info->m_query_block == aggr_query_block && is_outer_reference()) {
     // This aggregate function aggregates in the transformed query block, but is
     // located inside a subquery. Currently, transform cannot get to this since
     // it doesn't descend into subqueries. This means we cannot substitute a
@@ -674,6 +673,7 @@ bool Item_sum::collect_grouped_aggregates(uchar *arg) {
   if (info->m_query_block != aggr_query_block) {
     // Aggregated either inside a subquery of the transformed query block or
     // outside of it. In either case, ignore it.
+    info->m_outside = true;
     return false;
   }
 

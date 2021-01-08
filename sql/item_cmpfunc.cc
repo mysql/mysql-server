@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2607,6 +2607,20 @@ longlong Item_func_le::val_int() {
   assert(fixed == 1);
   int value = cmp.compare();
   return value <= 0 && !null_value ? 1 : 0;
+}
+
+longlong Item_func_reject_if::val_int() {
+  longlong result = args[0]->val_int();
+  if (result == 1) {
+    my_error(ER_SUBQUERY_NO_1_ROW, MYF(0));
+  }
+  return !result;
+}
+float Item_func_reject_if::get_filtering_effect(
+    THD *thd, table_map filter_for_table, table_map read_tables,
+    const MY_BITMAP *fields_to_ignore, double rows_in_table) {
+  return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                       fields_to_ignore, rows_in_table);
 }
 
 longlong Item_func_lt::val_int() {

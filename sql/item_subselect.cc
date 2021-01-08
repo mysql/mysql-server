@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2655,22 +2655,25 @@ void Item_allany_subselect::print(const THD *thd, String *str,
 
 bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
   auto *info = pointer_cast<Collect_scalar_subquery_info *>(arg);
-  const table_map map = used_tables();
-
-  // Skip transformation if more than one column is selected or column contains
-  // a non-deterministic function.
-  // Also exclude scalar subqueries with references to outer query blocks and
-  // Item_maxmin_subselect (ALL/ANY -> MAX/MIN transform artifact)
   Item *i = unit->first_query_block()->single_visible_field();
-  if (i == nullptr || info->is_stopped(this) ||
-      (map & ~PSEUDO_TABLE_BITS) != 0 || (map & OUTER_REF_TABLE_BIT) != 0 ||
-      (map & RAND_TABLE_BIT) || is_maxmin()) {
-    return false;
+
+  if (!info->m_collect_unconditionally) {
+    // Skip transformation if more than one column is selected [1]
+    // or column contains a non-deterministic function [3]
+    // Also exclude scalar subqueries with references to outer query blocks [2]
+    // and Item_maxmin_subselect (ALL/ANY -> MAX/MIN transform artifact) [4]
+    // Merely correlation to the current query block are ok
+    if (i == nullptr ||                                    // [1]
+        info->is_stopped(this) || is_outer_reference() ||  // [2]
+        is_non_deterministic() ||                          // [3]
+        is_maxmin()) {                                     // [4]
+      return false;
+    }
   }
 
   /*
     Check if it has been already added. Can happen after other
-    transformations, eg. when aggregates are repeated in
+    transformations, eg. IN -> EXISTS and when aggregates are repeated in
     HAVING clause:
       SELECT SUM(a), (SELECT SUM(b) FROM t3) AS scalar
       FROM t1 HAVING SUM(a) > scalar
@@ -2681,8 +2684,9 @@ bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
       return false;
     }
   }
-  info->m_list.emplace_back(Collect_scalar_subquery_info::Css_info{
-      info->m_location, this, info->m_join_condition_context,
+  const table_map correlated_map = used_tables() & ~PSEUDO_TABLE_BITS;
+  info->m_list.emplace_back(Css_info{
+      info->m_location, this, correlated_map, info->m_join_condition_context,
       /*
         Compute if we can skip run-time cardinality check:
         [1]   implicitly grouped queries for now, OR
@@ -2692,8 +2696,8 @@ bool Item_singlerow_subselect::collect_scalar_subqueries(uchar *arg) {
       ((i->has_aggregation() &&
         unit->first_query_block()->is_implicitly_grouped()) ||    // [1]
        (unit->first_query_block()->m_was_implicitly_grouped)) &&  // [1.1]
-          !unit->is_union()});                                    // [2]
-
+          !unit->is_union(),                                      // [2]
+      false});
   return false;
 }
 
@@ -2736,15 +2740,25 @@ Item *Item_singlerow_subselect::replace_scalar_subquery(uchar *arg) {
     // a conflict in the value of item->hidden.)
     ref = info->m_outer_query_block->add_hidden_item(scalar_item);
   }
-
+  Item *result;
   if (unit->place() == CTX_HAVING) {
-    return new (current_thd->mem_root)
+    result = new (current_thd->mem_root)
         Item_ref(&info->m_outer_query_block->context, ref, scalar_item->db_name,
                  scalar_item->table_name, scalar_item->field_name);
     // nullptr is error, but no separate return needed here
   } else {
-    return scalar_item;
+    result = scalar_item;
   }
+
+  if (info->m_add_coalesce) {
+    Item_int *zero = new (current_thd->mem_root) Item_int_0();
+    if (zero == nullptr) return nullptr;
+    Item *coa = new (current_thd->mem_root) Item_func_coalesce(result, zero);
+    if (coa == nullptr) return nullptr;
+    if (coa->fix_fields(current_thd, &coa)) return nullptr;
+    result = coa;
+  }
+  return result;
 }
 
 Item *Item_subselect::replace_item(Item_transformer t, uchar *arg) {

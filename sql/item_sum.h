@@ -616,6 +616,8 @@ class Item_sum : public Item_func {
     Query_block *m_query_block{nullptr};
     /// true: break off transformation
     bool m_break_off{false};
+    /// true: an aggregate aggregates outside m_query_block
+    bool m_outside{false};
     Collect_grouped_aggregate_info(Query_block *select)
         : m_query_block(select) {}
   };
@@ -920,6 +922,9 @@ class Item_sum_num : public Item_sum {
   enum_field_types default_data_type() const override {
     return MYSQL_TYPE_DOUBLE;
   }
+
+  Item_sum_num(Item *item_par) : Item_sum(item_par), is_evaluated(false) {}
+
   bool fix_fields(THD *, Item **) override;
   longlong val_int() override {
     assert(fixed == 1);
@@ -949,6 +954,10 @@ class Item_sum_int : public Item_sum_num {
   }
 
   Item_sum_int(THD *thd, Item_sum_int *item) : Item_sum_num(thd, item) {
+    set_data_type_longlong();
+  }
+
+  Item_sum_int(Item *item_par) : Item_sum_num(item_par) {
     set_data_type_longlong();
   }
 
@@ -1026,7 +1035,7 @@ class Item_sum_count : public Item_sum_int {
  public:
   Item_sum_count(const POS &pos, Item *item_par, PT_window *w)
       : Item_sum_int(pos, item_par, w), count(0) {}
-
+  Item_sum_count(Item_int *number) : Item_sum_int(number), count(0) {}
   /**
     Constructs an instance for COUNT(DISTINCT)
 

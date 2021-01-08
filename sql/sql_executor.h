@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -242,12 +242,14 @@ int update_item_cache_if_changed(List<Cached_item> &list);
 // Create list for using with tempory table
 bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
-                              mem_root_deque<Item *> *res_fields);
+                              mem_root_deque<Item *> *res_fields,
+                              size_t added_non_hidden_fields);
 // Create list for using with tempory table
 bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
                                           THD *thd, Query_block *select,
                                           Ref_item_array ref_item_array,
-                                          mem_root_deque<Item *> *res_fields);
+                                          mem_root_deque<Item *> *res_fields,
+                                          size_t added_non_hidden_fields);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);

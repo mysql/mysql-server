@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6070,7 +6070,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
     case Item_func::BETWEEN: {
       Item *const arg_left = cond_func->arguments()[0];
 
-      if (!(arg_left->used_tables() & OUTER_REF_TABLE_BIT) &&
+      if (!arg_left->is_outer_reference() &&
           arg_left->real_item()->type() == Item::FIELD_ITEM) {
         field_item = (Item_field *)arg_left->real_item();
         ftree =
@@ -6084,7 +6084,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
       for (uint i = 1; i < cond_func->arg_count; i++) {
         Item *const arg = cond_func->arguments()[i];
 
-        if (!(arg->used_tables() & OUTER_REF_TABLE_BIT) &&
+        if (!arg->is_outer_reference() &&
             arg->real_item()->type() == Item::FIELD_ITEM) {
           field_item = (Item_field *)arg->real_item();
           SEL_TREE *tmp = get_full_func_mm_tree(
@@ -6139,7 +6139,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
       Item *const arg_left = cond_func->arguments()[0];
 
       assert(!ftree);
-      if (!(arg_left->used_tables() & OUTER_REF_TABLE_BIT) &&
+      if (!arg_left->is_outer_reference() &&
           arg_left->real_item()->type() == Item::FIELD_ITEM) {
         field_item = (Item_field *)arg_left->real_item();
         value = cond_func->arg_count > 1 ? cond_func->arguments()[1] : nullptr;
@@ -6164,7 +6164,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
       Item *arg_right;
       if (!ftree && cond_func->have_rev_func() &&
           (arg_right = cond_func->arguments()[1]) &&
-          !(arg_right->used_tables() & OUTER_REF_TABLE_BIT) &&
+          !arg_right->is_outer_reference() &&
           arg_right->real_item()->type() == Item::FIELD_ITEM) {
         field_item = (Item_field *)arg_right->real_item();
         value = arg_left;

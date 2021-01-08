@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2846,9 +2846,9 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
           3. The index condition contains an updatable user variable
              (test this by checking that the RAND_TABLE_BIT is set).
         */
-        assert(other_tbls_ok ||                              // 1
-               idx_cond->const_item() ||                     // 2
-               (idx_cond->used_tables() & RAND_TABLE_BIT));  // 3
+        assert(other_tbls_ok ||                    // 1
+               idx_cond->const_item() ||           // 2
+               idx_cond->is_non_deterministic());  // 3
         return;
       }
 
@@ -4294,12 +4294,14 @@ bool JOIN::make_tmp_tables_info() {
     if (streaming_aggregation || qep_tab[curr_tmp_table].table()->group ||
         tmp_table_param.precomputed_group_by) {
       if (change_to_use_tmp_fields(fields, thd, ref_items[REF_SLICE_TMP1],
-                                   &tmp_fields[REF_SLICE_TMP1]))
+                                   &tmp_fields[REF_SLICE_TMP1],
+                                   query_block->m_added_non_hidden_fields))
         return true;
     } else {
-      if (change_to_use_tmp_fields_except_sums(fields, thd, query_block,
-                                               ref_items[REF_SLICE_TMP1],
-                                               &tmp_fields[REF_SLICE_TMP1]))
+      if (change_to_use_tmp_fields_except_sums(
+              fields, thd, query_block, ref_items[REF_SLICE_TMP1],
+              &tmp_fields[REF_SLICE_TMP1],
+              query_block->m_added_non_hidden_fields))
         return true;
     }
     curr_fields = &tmp_fields[REF_SLICE_TMP1];
@@ -4443,7 +4445,8 @@ bool JOIN::make_tmp_tables_info() {
       // No sum funcs anymore
       if (change_to_use_tmp_fields(&tmp_fields[REF_SLICE_TMP1], thd,
                                    ref_items[REF_SLICE_TMP2],
-                                   &tmp_fields[REF_SLICE_TMP2]))
+                                   &tmp_fields[REF_SLICE_TMP2],
+                                   query_block->m_added_non_hidden_fields))
         return true;
 
       curr_fields = &tmp_fields[REF_SLICE_TMP2];
@@ -4670,7 +4673,8 @@ bool JOIN::make_tmp_tables_info() {
         if (alloc_ref_item_slice(thd, fbidx)) return true;
 
         if (change_to_use_tmp_fields(curr_fields, thd, ref_items[fbidx],
-                                     &tmp_fields[fbidx]))
+                                     &tmp_fields[fbidx],
+                                     query_block->m_added_non_hidden_fields))
           return true;
 
         m_windows[wno]->set_frame_buffer_param(par);
@@ -4696,7 +4700,8 @@ bool JOIN::make_tmp_tables_info() {
               (last_slice_before_windowing == REF_SLICE_ACTIVE
                    ? fields
                    : &tmp_fields[last_slice_before_windowing]),
-              thd, ref_items[widx], &tmp_fields[widx]))
+              thd, ref_items[widx], &tmp_fields[widx],
+              query_block->m_added_non_hidden_fields))
         return true;
 
       curr_fields = &tmp_fields[widx];
@@ -4755,9 +4760,22 @@ bool JOIN::make_tmp_tables_info() {
     // there's a lot of logic that looks through the GROUP BY list, which refers
     // to the base slice and expects _not_ to find rollup items there.
     unsigned num_hidden_fields = CountHiddenFields(*fields);
+    const size_t num_select_elements = fields->size() - num_hidden_fields;
+    const size_t orig_num_select_elements =
+        num_select_elements - query_block->m_added_non_hidden_fields;
+
     for (unsigned i = 0; i < fields->size(); ++i) {
       Item *item = (*fields)[i];
-      int pos = item->hidden ? fields->size() - i - 1 : i - num_hidden_fields;
+      size_t pos;
+      // See change_to_use_tmp_fields_except_sums for an explanation of how
+      // the visible fields, hidden fields and additonal fields added by
+      // transformations are organized in fields and ref_item_array.
+      if (i < num_hidden_fields) {
+        pos = fields->size() - i - 1 - query_block->m_added_non_hidden_fields;
+      } else {
+        pos = i - num_hidden_fields;
+        if (pos >= orig_num_select_elements) pos += num_hidden_fields;
+      }
       query_block->base_ref_items[pos] = item;
       if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
         ref_items[REF_SLICE_SAVED_BASE][pos] = item;

@@ -1,0 +1,796 @@
+SET optimizer_switch = 'subquery_to_derived=on';
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+INSERT INTO t2 VALUES(1), (2);
+CREATE TABLE t0 AS SELECT *FROM t1;
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES(1, 3), (2, 3);
+ANALYZE TABLE t1, t2, t0, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t0	analyze	status	OK
+test.t3	analyze	status	OK
+#
+# example supported query
+#
+SELECT * FROM t1 WHERE(SELECT a FROM t2 WHERE t2.a = t1.a) > 0;
+a
+1
+2
+EXPLAIN SELECT * FROM t1 WHERE(SELECT a FROM t2 WHERE t2.a = t1.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a`,count(0) AS `Name_exp_2` from `test`.`t2` where (`test`.`t2`.`a` > 0) group by `test`.`t2`.`a`) `derived_1_2` where ((`test`.`t1`.`a` = `derived_1_2`.`a`) and reject_if((`derived_1_2`.`Name_exp_2` > 1)))
+SELECT * FROM t1 WHERE(SELECT b FROM t3 WHERE t3.a = t1.a) > 0;
+a
+1
+2
+EXPLAIN SELECT * FROM t1 WHERE(SELECT b FROM t3 WHERE t3.a = t1.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
+2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select any_value(`test`.`t3`.`b`),`test`.`t3`.`a` AS `a`,count(0) AS `Name_exp_3` from `test`.`t3` group by `test`.`t3`.`a` having (any_value(`test`.`t3`.`b`) > 0)) `derived_1_2` where ((`test`.`t1`.`a` = `derived_1_2`.`a`) and reject_if((`derived_1_2`.`Name_exp_3` > 1)))
+SELECT * FROM t1 WHERE(SELECT ABS(a) FROM t2 WHERE t2.a = t1.a) > 0;
+a
+1
+2
+EXPLAIN SELECT * FROM t1 WHERE(SELECT ABS(a) FROM t2 WHERE t2.a = t1.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select any_value(abs(`test`.`t2`.`a`)),`test`.`t2`.`a` AS `a`,count(0) AS `Name_exp_3` from `test`.`t2` group by `test`.`t2`.`a` having (any_value(abs(`test`.`t2`.`a`)) > 0)) `derived_1_2` where ((`test`.`t1`.`a` = `derived_1_2`.`a`) and reject_if((`derived_1_2`.`Name_exp_3` > 1)))
+#
+# example supported query: more than one correlated field
+#
+SELECT * FROM t2
+WHERE(SELECT a FROM t3
+WHERE t3.a = t2.a AND
+t3.b = t2.a) > 0;
+a
+EXPLAIN SELECT * FROM t2
+WHERE(SELECT a FROM t3
+WHERE t3.a = t2.a AND
+t3.b = t2.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	10	test.t2.a,test.t2.a	2	50.00	Using where
+2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` join (/* select#2 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,count(0) AS `Name_exp_3` from `test`.`t3` where (`test`.`t3`.`a` > 0) group by `test`.`t3`.`a`,`test`.`t3`.`b`) `derived_1_2` where ((`derived_1_2`.`a` = `test`.`t2`.`a`) and (`derived_1_2`.`b` = `test`.`t2`.`a`) and reject_if((`derived_1_2`.`Name_exp_3` > 1)))
+#
+# exmaple unsuported query(no non-equalities)
+#
+SELECT * FROM t3
+WHERE(SELECT a FROM t2
+WHERE t2.a > t3.a) > 0;
+a	b
+1	3
+EXPLAIN SELECT * FROM t3
+WHERE(SELECT a FROM t2
+WHERE t2.a > t3.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where ((/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` > `test`.`t3`.`a`)) > 0)
+SELECT * FROM t3
+WHERE(SELECT a FROM t2
+WHERE t2.a != t3.a) > 0;
+a	b
+1	3
+2	3
+EXPLAIN SELECT * FROM t3
+WHERE(SELECT a FROM t2
+WHERE t2.a != t3.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where ((/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <> `test`.`t3`.`a`)) > 0)
+#
+# exmaple unsuported query(<=>)
+#
+INSERT INTO t2 VALUES(NULL),(NULL);
+INSERT INTO t3 VALUES(NULL, 3);
+SELECT * FROM t3
+WHERE(SELECT a FROM t2
+WHERE t2.a <=> t3.a);
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN SELECT * FROM t3
+WHERE(SELECT a FROM t2
+WHERE t2.a <=> t3.a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (0 <> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` <=> `test`.`t3`.`a`)))
+DELETE FROM t2 WHERE a IS NULL;
+DELETE FROM t3 WHERE a IS NULL;
+#
+# example unsupported query (correlation not inside WHERE)
+#
+SELECT a,
+(SELECT SUM(a) + t3.b FROM t2) FROM t3;
+a	(SELECT SUM(a) + t3.b FROM t2)
+1	6
+2	6
+EXPLAIN SELECT a,
+(SELECT SUM(a) + t3.b FROM t2) FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 'test.t3.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,(/* select#2 */ select (sum(`test`.`t2`.`a`) + `test`.`t3`.`b`) from `test`.`t2`) AS `(SELECT SUM(a) + t3.b FROM t2)` from `test`.`t3`
+#
+# example unsupported query(correlation not inside WHERE)
+#
+SELECT a,
+(SELECT SUM(a) OVER w FROM t2 WINDOW w AS(ORDER BY t3.a) LIMIT 1)
+FROM t3;
+a	(SELECT SUM(a) OVER w FROM t2 WINDOW w AS(ORDER BY t3.a) LIMIT 1)
+1	3
+2	3
+EXPLAIN SELECT a,
+(SELECT SUM(a) OVER w FROM t2 WINDOW w AS(ORDER BY t3.a) LIMIT 1)
+FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t3.a' of SELECT #2 was resolved in SELECT #1
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,(/* select#2 */ select sum(`test`.`t2`.`a`) OVER `w` from `test`.`t2` window `w` AS (ORDER BY `test`.`t3`.`a` )  limit 1) AS `(SELECT SUM(a) OVER w FROM t2 WINDOW w AS(ORDER BY t3.a) LIMIT 1)` from `test`.`t3`
+#
+# example unsupported query(correlation not inside WHERE)
+#
+SELECT a FROM t2
+WHERE(SELECT SUM(b) FROM t3 GROUP BY a, t2.a LIMIT 1) > 0;
+a
+1
+2
+EXPLAIN SELECT a FROM t2
+WHERE(SELECT SUM(b) FROM t3 GROUP BY a, t2.a LIMIT 1) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where ((/* select#2 */ select sum(`test`.`t3`.`b`) from `test`.`t3` group by `test`.`t3`.`a`,`test`.`t2`.`a` limit 1) > 0)
+#
+# example unsupported query(correlation not inside WHERE)
+#
+SELECT a FROM t2
+WHERE (SELECT SUM(b) FROM t3 GROUP BY a HAVING SUM(b) > t2.a LIMIT 1) > 0;
+a
+1
+2
+EXPLAIN SELECT a FROM t2
+WHERE (SELECT SUM(b) FROM t3 GROUP BY a HAVING SUM(b) > t2.a LIMIT 1) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 't2.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where ((/* select#2 */ select sum(`test`.`t3`.`b`) from `test`.`t3` group by `test`.`t3`.`a` having (sum(`test`.`t3`.`b`) > `test`.`t2`.`a`) limit 1) > 0)
+#
+# example unsupported query (aggregate not inside WHERE))
+# 
+SELECT a, 
+(SELECT t2.a FROM t2 ORDER BY t1.a LIMIT 1)
+FROM t1;
+a	(SELECT t2.a FROM t2 ORDER BY t1.a LIMIT 1)
+1	1
+2	1
+3	1
+4	1
+EXPLAIN SELECT a, 
+(SELECT t2.a FROM t2 ORDER BY t1.a LIMIT 1)
+FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` order by `test`.`t1`.`a` limit 1) AS `(SELECT t2.a FROM t2 ORDER BY t1.a LIMIT 1)` from `test`.`t1`
+#
+# example unsupported query (aggregate which aggregates outside subquery)
+#
+SELECT SUM(a),
+a, (SELECT MIN(a) FROM t2 WHERE a = COUNT(*))
+FROM t1 GROUP BY a;
+SUM(a)	a	(SELECT MIN(a) FROM t2 WHERE a = COUNT(*))
+1	1	1
+2	2	1
+3	3	1
+4	4	1
+EXPLAIN SELECT SUM(a),
+a, (SELECT MIN(a) FROM t2 WHERE a = COUNT(*))
+FROM t1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`a`) AS `SUM(a)`,`test`.`t1`.`a` AS `a`,(/* select#2 */ select min(`test`.`t2`.`a`) from `test`.`t2` where (`test`.`t2`.`a` = count(0))) AS `(SELECT MIN(a) FROM t2 WHERE a = COUNT(*))` from `test`.`t1` group by `test`.`t1`.`a`
+#
+# example unsupported query (aggregate which aggregates outside subquery)
+#
+SELECT SUM(a),
+a, (SELECT MIN(a) FROM t2 WHERE a = AVG(t1.a))
+FROM t1 GROUP BY a;
+SUM(a)	a	(SELECT MIN(a) FROM t2 WHERE a = AVG(t1.a))
+1	1	1
+2	2	2
+3	3	NULL
+4	4	NULL
+EXPLAIN SELECT SUM(a),
+a, (SELECT MIN(a) FROM t2 WHERE a = AVG(t1.a))
+FROM t1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`a`) AS `SUM(a)`,`test`.`t1`.`a` AS `a`,(/* select#2 */ select min(`test`.`t2`.`a`) from `test`.`t2` where (`test`.`t2`.`a` = avg(`test`.`t1`.`a`))) AS `(SELECT MIN(a) FROM t2 WHERE a = AVG(t1.a))` from `test`.`t1` group by `test`.`t1`.`a`
+#
+# Added cardinality check: aggregate to ensure exactly one row after we
+# add GROUP BY
+#
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t1 WHERE (SELECT a FROM t2 WHERE t2.a = t1.a) > 0;
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN SELECT * FROM t1 WHERE (SELECT a FROM t2 WHERE t2.a = t1.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a`,count(0) AS `Name_exp_2` from `test`.`t2` where (`test`.`t2`.`a` > 0) group by `test`.`t2`.`a`) `derived_1_2` where ((`test`.`t1`.`a` = `derived_1_2`.`a`) and reject_if((`derived_1_2`.`Name_exp_2` > 1)))
+SET optimizer_switch = 'subquery_to_derived=default';
+SELECT * FROM t1 WHERE (SELECT a FROM t2 WHERE t2.a = t1.a) > 0;
+ERROR 21000: Subquery returns more than 1 row
+EXPLAIN SELECT * FROM t1 WHERE (SELECT a FROM t2 WHERE t2.a = t1.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) > 0)
+SET optimizer_switch = 'subquery_to_derived=on';
+#
+# We have an aggregate, no need for adding COUNT(*):
+#
+SELECT * FROM t1 WHERE (SELECT COUNT(a) FROM t2 WHERE t2.a = t1.a) > 0;
+a
+1
+2
+EXPLAIN SELECT * FROM t1 WHERE (SELECT COUNT(a) FROM t2 WHERE t2.a = t1.a) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	Using where
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` left join (/* select#2 */ select count(`test`.`t2`.`a`) AS `COUNT(a)`,`test`.`t2`.`a` AS `a` from `test`.`t2` group by `test`.`t2`.`a`) `derived_1_2` on((`derived_1_2`.`a` = `test`.`t1`.`a`)) where (coalesce(`derived_1_2`.`COUNT(a)`,0) > 0)
+#
+# The existing GROUP BY groups on another field that inner in where
+# predicate:
+#
+SELECT * FROM t1 WHERE (SELECT COUNT(a) FROM t3 WHERE t3.a = t1.a GROUP BY b) > 0;
+a
+1
+2
+EXPLAIN SELECT * FROM t1 WHERE (SELECT COUNT(a) FROM t3 WHERE t3.a = t1.a GROUP BY b) > 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join (/* select#2 */ select count(`test`.`t3`.`a`) AS `COUNT(a)`,`test`.`t3`.`a` AS `a` from `test`.`t3` group by `test`.`t3`.`b`,`test`.`t3`.`a` having (count(`test`.`t3`.`a`) > 0)) `derived_1_2` where (`derived_1_2`.`a` = `test`.`t1`.`a`)
+#
+# Test case that used to yield wrong result before we corrected
+# computations of slice positions to accommodate non-hidden fields
+# after hidden ones.
+#
+create table p(p_pkey int primary key);
+create table l(l_pkey int,
+l_quantity int);
+insert into p values (10), (20), (30), (40);
+insert into l values (10, 100),
+(10, 10),
+(20, 200),
+(10, 1);
+SET optimizer_switch = 'subquery_to_derived=on';
+select * from l, p
+where p_pkey = l_pkey and
+l_quantity < (select 0.9 * avg(l_quantity)
+from l where l_pkey = p_pkey);
+l_pkey	l_quantity	p_pkey
+10	10	10
+10	1	10
+EXPLAIN select * from l, p
+where p_pkey = l_pkey and
+l_quantity < (select 0.9 * avg(l_quantity)
+from l where l_pkey = p_pkey);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	l	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key2>	<auto_key2>	5	test.l.l_pkey	2	33.33	Using where
+1	PRIMARY	p	NULL	eq_ref	PRIMARY	PRIMARY	4	test.l.l_pkey	1	100.00	Using index
+2	DERIVED	l	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.p.p_pkey' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`l`.`l_pkey` AS `l_pkey`,`test`.`l`.`l_quantity` AS `l_quantity`,`test`.`p`.`p_pkey` AS `p_pkey` from `test`.`l` join `test`.`p` join (/* select#2 */ select (0.9 * avg(`test`.`l`.`l_quantity`)) AS `0.9 * avg(l_quantity)`,`test`.`l`.`l_pkey` AS `l_pkey` from `test`.`l` group by `test`.`l`.`l_pkey`) `derived_1_2` where ((`derived_1_2`.`l_pkey` = `test`.`l`.`l_pkey`) and (`test`.`p`.`p_pkey` = `test`.`l`.`l_pkey`) and (`test`.`l`.`l_quantity` < `derived_1_2`.`0.9 * avg(l_quantity)`))
+DROP TABLE p, l;
+DROP TABLE t0, t1, t2, t3;
+#
+# Test case arried over from subquery_scalar_to_derived.test which now
+# transforms. Caused initial problems due to the HAVING: the reference
+# WHERE ... = t4.b is realized as an Item_ref rather than an
+# Item_field, now handled.
+#
+CREATE TABLE t2 (a INT, b INT);
+CREATE TABLE t4 (a INT NOT NULL, b INT NOT NULL);
+INSERT INTO t2 VALUES (1, 7), (2, 7), (2,10);
+INSERT INTO t4 VALUES (4, 8), (3, 8), (5, 9), (12, 7), (1, 7),
+(10, 9), (9, 6), (7, 6), (3, 9), (1, 10);
+ANALYZE TABLE t2, t4;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t4	analyze	status	OK
+SELECT b, MAX(a) AS ma FROM t4
+GROUP BY b HAVING ma < (SELECT MAX(t2.a) FROM t2 WHERE t2.b=t4.b);
+b	ma
+10	1
+EXPLAIN SELECT b, MAX(a) AS ma FROM t4
+GROUP BY b HAVING ma < (SELECT MAX(t2.a) FROM t2 WHERE t2.b=t4.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t4`.`b` AS `b`,max(`test`.`t4`.`a`) AS `ma` from `test`.`t4` left join (/* select#2 */ select max(`test`.`t2`.`a`) AS `MAX(t2.a)`,`test`.`t2`.`b` AS `b` from `test`.`t2` group by `test`.`t2`.`b`) `derived_1_2` on((`derived_1_2`.`b` = `test`.`t4`.`b`)) where true group by `test`.`t4`.`b` having (`ma` < `derived_1_2`.`MAX(t2.a)`)
+DROP TABLE t2, t4;
+#
+# Move the cardinality assert into the LEFT JOIN condition, lest we
+# lose outer rows due to empty scalar subquery in select list.
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT PRIMARY KEY, b INT);
+CREATE TABLE t3 (c INT);
+INSERT INTO t1 (a) VALUES (1), (2);
+INSERT INTO t2 (a,b) VALUES (1,2), (2,3);
+INSERT INTO t3 (c) VALUES (1), (2);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SELECT (SELECT t1.a FROM t1, t2 WHERE t1.a = t2.b AND t2.a = t3.c ORDER BY t1.a) FROM t3;
+(SELECT t1.a FROM t1, t2 WHERE t1.a = t2.b AND t2.a = t3.c ORDER BY t1.a)
+2
+NULL
+EXPLAIN SELECT (SELECT t1.a FROM t1, t2 WHERE t1.a = t2.b AND t2.a = t3.c ORDER BY t1.a) FROM t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t3.c	2	100.00	Using where
+2	DERIVED	t2	NULL	index	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+2	DERIVED	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Using index
+Warnings:
+Note	1276	Field or reference 'test.t3.c' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `derived_1_2`.`any_value(t1.a)` AS `(SELECT t1.a FROM t1, t2 WHERE t1.a = t2.b AND t2.a = t3.c ORDER BY t1.a)` from `test`.`t3` left join (/* select#2 */ select any_value(`test`.`t1`.`a`),`test`.`t2`.`a` AS `a`,count(0) AS `Name_exp_3` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`b`) group by `test`.`t2`.`a`) `derived_1_2` on(((`derived_1_2`.`a` = `test`.`t3`.`c`) and reject_if((`derived_1_2`.`Name_exp_3` > 1)))) where true
+DROP TABLE t1, t2, t3;
+# 
+# Detect and skip transform if correlated field is inside a nested subquery
+#
+CREATE TABLE t1 (a INT, b INT, c INT DEFAULT 0);
+INSERT INTO t1 (a, b) VALUES (3,3), (2,2), (3,3), (2,2), (3,3), (4,4);
+CREATE TABLE t2 SELECT DISTINCT * FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# This one is nominally correlated inside a nested subquery, but it gets
+# unrolled before the transformation, so transformation sees only "t1.b",
+# not "(SELECT t1.b FROM DUAL)", so the transformation takes place.
+EXPLAIN SELECT t1.a, SUM(t1.b)
+FROM t1
+WHERE t1.a = (SELECT t2.a
+FROM t2
+WHERE t2.a > (SELECT t1.b FROM DUAL) AND t1.a=t2.a)
+GROUP BY t1.a ORDER BY t1.a LIMIT 30;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
+Note	1249	Select 3 was reduced during optimization
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) AS `SUM(t1.b)` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where ((`test`.`t2`.`a` > `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t2`.`a`)))) group by `test`.`t1`.`a` order by `test`.`t1`.`a` limit 30
+# This has grouping inside a nested subquery, soit does not get unrolled,
+# and transformation is not done
+EXPLAIN SELECT t1.a, SUM(t1.b)
+FROM t1
+WHERE t1.a = (SELECT t2.a
+FROM t2
+WHERE t2.a > (SELECT SUM(t1.b) FROM DUAL) AND t1.a=t2.a)
+GROUP BY t1.a ORDER BY t1.a LIMIT 30;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) AS `SUM(t1.b)` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where ((`test`.`t2`.`a` > (/* select#3 */ select sum(`test`.`t1`.`b`))) and (`test`.`t1`.`a` = `test`.`t2`.`a`)))) group by `test`.`t1`.`a` order by `test`.`t1`.`a` limit 30
+#
+# Correlated field is inside an ORDER BY optimized away. We should really
+# have been able to transform this.  Possible fix: update subquery's
+# dependency information after the optimization so it is no longer marked
+# as correlated. FIXME. This used to crash before because we had an
+# assert that correlated subquery have at least one correlated field.
+#
+EXPLAIN SELECT t1.a, SUM(t1.b)
+FROM t1
+WHERE t1.a = (SELECT SUM(t2.b)
+FROM t2
+WHERE t2.a > 4 ORDER BY t1.b)
+GROUP BY t1.a ORDER BY t1.a LIMIT 30;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t1`.`b`) AS `SUM(t1.b)` from `test`.`t1` where (`test`.`t1`.`a` = (/* select#2 */ select sum(`test`.`t2`.`b`) from `test`.`t2` where (`test`.`t2`.`a` > 4))) group by `test`.`t1`.`a` order by `test`.`t1`.`a` limit 30
+DROP TABLES t1, t2;
+#
+# Detect and skip transform for LIMIT/OFFSET
+#
+CREATE TABLE t1 (
+id INTEGER NOT NULL ,
+contract_id INTEGER DEFAULT NULL,
+datestamp DATETIME DEFAULT NULL,
+PRIMARY KEY (id),
+KEY contract_id (contract_id),
+KEY idx_datestamp (datestamp)
+);
+INSERT INTO t1 VALUES
+(1,2,'2006-09-18 09:07:53'), (2,3,'2006-09-18 09:07:53'),
+(3,4,'2006-09-18 09:07:53'), (4,10,'2006-09-18 09:07:53'),
+(5,7,'2006-09-18 09:07:53'), (6,5,'2006-09-18 09:07:53'),
+(7,9,'2006-09-18 09:07:53'), (8,10,'2006-09-18 09:07:53'),
+(9,10,'2006-09-18 09:07:53'), (10,6,'2014-09-18 09:07:53');
+CREATE TABLE t2 (id INTEGER NOT NULL, PRIMARY KEY (id));
+INSERT INTO t2 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+ANALYZE TABLE t1,t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN
+SELECT (SELECT datestamp
+FROM t1
+WHERE contract_id = t2.id
+ORDER BY datestamp ASC
+LIMIT 1)
+FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	NULL	index	NULL	PRIMARY	4	NULL	10	100.00	Using index
+2	DEPENDENT SUBQUERY	t1	NULL	ref	contract_id	contract_id	5	test.t2.id	1	100.00	Using filesort
+Warnings:
+Note	1276	Field or reference 'test.t2.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`datestamp` from `test`.`t1` where (`test`.`t1`.`contract_id` = `test`.`t2`.`id`) order by `test`.`t1`.`datestamp` limit 1) AS `(SELECT datestamp
+FROM t1
+WHERE contract_id = t2.id
+ORDER BY datestamp ASC
+LIMIT 1)` from `test`.`t2`
+DROP TABLE t1, t2;
+#
+# Detect and skip transform for correlated derived table in
+# FROM list of subquery
+#
+CREATE TABLE t1(a INT, b INT DEFAULT 0);
+INSERT INTO t1(a) VALUES (1), (2);
+CREATE TABLE t2 SELECT * FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN
+SELECT (SELECT dt.a
+FROM   (SELECT 1 AS a, t2.a AS b
+FROM t2
+HAVING t1.a) dt     # <----- outer reference inside derived table.
+WHERE dt.b=t1.a) AS subq    # <----- normal outer reference
+FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+Warnings:
+Note	1276	Field or reference 't1.a' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select `dt`.`a` from (/* select#3 */ select 1 AS `a`,`test`.`t2`.`a` AS `b` from `test`.`t2` having (0 <> `test`.`t1`.`a`)) `dt` where (`dt`.`b` = `test`.`t1`.`a`)) AS `subq` from `test`.`t1`
+DROP TABLE t1, t2;
+#
+# Detect and skip transform for is the correlated subquery
+# has window functions
+#
+CREATE TABLE t_a (a INT, b INT);
+INSERT INTO t_a VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
+CREATE TABLE t_b SELECT DISTINCT a FROM t_a;
+ANALYZE TABLE t_a, t_b;
+Table	Op	Msg_type	Msg_text
+test.t_a	analyze	status	OK
+test.t_b	analyze	status	OK
+EXPLAIN
+SELECT (SELECT SUM(t_b.a) OVER ()
+FROM t_b
+WHERE t_b.a = t_a.a) aa,
+b
+FROM t_a
+GROUP BY aa, b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t_a	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t_b	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t_a.a' of SELECT #2 was resolved in SELECT #1
+Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(`test`.`t_b`.`a`) OVER ()  from `test`.`t_b` where (`test`.`t_b`.`a` = `test`.`t_a`.`a`)) AS `aa`,`test`.`t_a`.`b` AS `b` from `test`.`t_a` group by `aa`,`test`.`t_a`.`b`
+DROP TABLE t_a, t_b;
+#
+# Handle implicitly grouped COUNT with COALESCE
+#
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# Transformed. Would give wrong result without COALESCE
+SELECT t1.id, ( SELECT COUNT(t.id)
+FROM t2 AS t
+WHERE t.id = t1.id ) AS c FROM t1;
+id	c
+1	1
+2	0
+EXPLAIN SELECT t1.id, ( SELECT COUNT(t.id)
+FROM t2 AS t
+WHERE t.id = t1.id ) AS c FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.id	2	100.00	NULL
+2	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+Warnings:
+Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,coalesce(`derived_1_2`.`COUNT(t.id)`,0) AS `c` from `test`.`t1` left join (/* select#2 */ select count(`test`.`t`.`id`) AS `COUNT(t.id)`,`test`.`t`.`id` AS `id` from `test`.`t2` `t` group by `test`.`t`.`id`) `derived_1_2` on((`derived_1_2`.`id` = `test`.`t1`.`id`)) where true
+# Not transformed: COUNT is involved in expression in select list
+EXPLAIN SELECT t1.id, ( SELECT COUNT(t.id)+2
+FROM t2 AS t
+WHERE t.id = t1.id ) AS c FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t1.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,(/* select#2 */ select (count(`test`.`t`.`id`) + 2) from `test`.`t2` `t` where (`test`.`t`.`id` = `test`.`t1`.`id`)) AS `c` from `test`.`t1`
+DROP TABLE t1, t2;
+#
+# Disallow correlated subquery in ON clause
+#
+CREATE TABLE t1 (a INT, b INT);
+EXPLAIN
+SELECT COUNT(*)
+FROM t1 a JOIN
+t1 outr
+ON a.a = (SELECT COUNT(*) FROM t1 inr WHERE inr.a = outr.a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	outr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+2	DEPENDENT SUBQUERY	inr	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.outr.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` `a` join `test`.`t1` `outr` where (`test`.`a`.`a` = (/* select#2 */ select count(0) from `test`.`t1` `inr` where (`test`.`inr`.`a` = `test`.`outr`.`a`)))
+DROP TABLE t1;
+#
+# Bug#32215632: WL#13520: SEGFAULT IN SELECT_LEX::
+#               DECORRELATE_DERIVED_SCALAR_SUBQUERY_POST()
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,2);
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+SELECT (SELECT COUNT(t2.f1) FROM (t2) WHERE t2.f2 <> table1.f1
+AND t2.f2 != table1.f1) AS dt FROM (SELECT * FROM t1 ) AS table1;
+dt
+1
+DROP TABLE t1,t2;
+#
+# Bug#32216224: WL#13520: ASSERTION FAILURE IN
+#               SELECT_LEX_UNIT::ACCUMULATE_USED_TABLES
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER);
+INSERT INTO t1 VALUES (1,2);
+CREATE ALGORITHM=MERGE VIEW view_merge AS
+SELECT (SELECT MAX(t1.f1) AS dt_f1 FROM (t1)
+WHERE t1.f2 > table1.f2 OR t1.f2 != 2)
+FROM (SELECT * FROM t1)  AS table1 ;
+SELECT * FROM view_merge;
+Name_exp_1
+NULL
+DROP TABLE t1;
+DROP VIEW view_merge;
+#
+# Bug#32225812: WL#13520: ASSERTION FAILURE IN ADD_KEY_FIELD
+#               AT SQL/SQL_OPTIMIZER.CC
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER,
+PRIMARY KEY(f1), KEY(f2));
+SELECT f1, (SELECT SUM(t2.f2) FROM (t1 as t2)
+WHERE t2.f3 = t1.f3 AND t2.f1 < t1.f1) AS dt
+FROM t1 WHERE f2 =3 GROUP BY f1;
+f1	dt
+DROP TABLE t1;
+#
+# Bug#32231084: WL#13520: SEGMENTATION FAULT IN
+#               QEP_SHARED_OWNER::IDX AT SQL_OPT_EXEC_SHARED.H
+#
+CREATE TABLE t1 (f1 INTEGER, f2 VARCHAR(1), f3 VARCHAR(1), PRIMARY KEY(f1));
+SELECT (SELECT MIN(t1.f1) FROM t1
+WHERE t1.f3 > t2.f3 OR t1.f3 = t2.f3)
+FROM (( SELECT * FROM t1) AS t2 RIGHT JOIN t1 ON 1);
+(SELECT MIN(t1.f1) FROM t1
+WHERE t1.f3 > t2.f3 OR t1.f3 = t2.f3)
+DROP TABLE t1;
+# Check if full group by checks work for fields from views
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT, b INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT * FROM t2;
+INSERT INTO t1 VALUES(1), (2), (3), (4);
+INSERT INTO t2 VALUES(1, 3), (2, 3);
+SELECT * FROM v1 WHERE(SELECT b FROM v2 WHERE v2.a = v1.a) > 0;
+a
+1
+2
+DROP TABLE t1,t2;
+DROP VIEW v1,v2;
+# Bug#32250083 : WL#13520: SEGFAULT IN QEP_SHARED_OWNER::IDX AT
+#	   SQL/SQL_OPT_EXEC_SHARED.H
+# Bug#32250359 : WL#13520: ASSERTION QUERY_BLOCK->IS_RECURSIVE()
+#                FAILED IN JOIN::MAKE_JOIN_PLAN()
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 INTEGER,
+f4 VARCHAR(1), PRIMARY KEY(f1));
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT SUM(t2.f4),
+(SELECT COUNT(dt1.f2) FROM (t1 AS dt1) WHERE dt1.f3 = v1.f1 )
+FROM ( v1 RIGHT OUTER JOIN( t1 AS t2 STRAIGHT_JOIN t1 AS t3 ON 1) ON 1);
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.f1'; this is incompatible with sql_mode=only_full_group_by
+set sql_mode="";
+explain SELECT SUM(t2.f4),
+(SELECT COUNT(dt1.f2) FROM (t1 AS dt1) WHERE dt1.f3 = v1.f1 )
+FROM ( v1 RIGHT OUTER JOIN( t1 AS t2 STRAIGHT_JOIN t1 AS t3 ON 1) ON 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived5>	NULL	ref	<auto_key0>	<auto_key0>	5	derived_1_4.Name_exp_1	2	100.00	NULL
+5	DERIVED	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+4	DERIVED	t3	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using index; Using join buffer (hash join)
+4	DERIVED	t1	NULL	index	NULL	PRIMARY	4	NULL	1	100.00	Using where; Using index; Using join buffer (hash join)
+Warnings:
+Note	1276	Field or reference 'v1.f1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `derived_1_4`.`SUM(t2.f4)` AS `SUM(t2.f4)`,coalesce(`derived_1_5`.`COUNT(dt1.f2)`,0) AS `(SELECT COUNT(dt1.f2) FROM (t1 AS dt1) WHERE dt1.f3 = v1.f1 )` from (/* select#4 */ select sum(`test`.`t2`.`f4`) AS `SUM(t2.f4)`,`test`.`t1`.`f1` AS `Name_exp_1` from `test`.`t1` `t2` straight_join `test`.`t1` `t3` left join (`test`.`t1`) on(true) where true) `derived_1_4` left join (/* select#5 */ select count(`test`.`dt1`.`f2`) AS `COUNT(dt1.f2)`,`test`.`dt1`.`f3` AS `f3` from `test`.`t1` `dt1` group by `test`.`dt1`.`f3`) `derived_1_5` on((`derived_1_5`.`f3` = `derived_1_4`.`Name_exp_1`)) where true
+SELECT SUM(t2.f4),
+(SELECT COUNT(dt1.f2) FROM (t1 AS dt1) WHERE dt1.f3 = v1.f1 )
+FROM ( v1 RIGHT OUTER JOIN( t1 AS t2 STRAIGHT_JOIN t1 AS t3 ON 1) ON 1);
+SUM(t2.f4)	(SELECT COUNT(dt1.f2) FROM (t1 AS dt1) WHERE dt1.f3 = v1.f1 )
+NULL	0
+set sql_mode=default;
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# Bug#32288314: WL#13520: DIFFERENT NUMBER OF ROWS WITH
+#               OPTIMIZER_SWITCH SUBQUERY_TO_DERIVED=ON
+#
+CREATE TABLE t1 (f1 INTEGER , f2 INTEGER);
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+SELECT /*+ SET_VAR(optimizer_switch='subquery_to_derived=OFF') */ *
+FROM t1 WHERE ( SELECT COUNT(dt.f1) FROM t1 AS dt WHERE dt.f2 > t1.f2);
+f1	f2
+1	1
+2	2
+SELECT * FROM t1 WHERE ( SELECT COUNT(dt.f1) FROM t1 AS dt WHERE dt.f2 > t1.f2);
+f1	f2
+1	1
+2	2
+DROP TABLE t1;
+#
+# Bug#32303319: WL#13520: QUERY RETURNS EMPTY RESULTSET WITH
+#	       TRANSFORMATION ENABLED
+#
+CREATE TABLE t1 (f1 INTEGER, f2 VARCHAR(1) , f3 VARCHAR(1), PRIMARY KEY(f1));
+INSERT INTO t1 (f1,f2,f3) values (1,'a','e'),(2,'о','i'),(3,'7','j');
+SELECT /*+ SET_VAR(optimizer_switch='subquery_to_derived=OFF') */
+(SELECT MAX(dt.f1) AS max FROM t1 AS dt
+WHERE dt.f2 = dt1.f2 AND dt.f3 > 'h' ) AS field1
+FROM (t1 AS dt1, t1 AS dt2) GROUP BY field1;
+field1
+3
+2
+NULL
+SELECT
+(SELECT MAX(dt.f1) AS max FROM t1 AS dt
+WHERE dt.f2 = dt1.f2 AND dt.f3 > 'h' ) AS field1
+FROM (t1 AS dt1, t1 AS dt2) GROUP BY field1;
+field1
+3
+2
+NULL
+DROP TABLE t1;
+#
+# Bug#32301860: WL#13520: ASSERTION FAILURE IN JOIN::MAKE_JOIN_PLAN()
+# AT SQL/SQL_OPTIMIZER.CC
+#
+CREATE TABLE t1 (f1 INTEGER, f2 INTEGER, f3 VARCHAR(1), PRIMARY KEY(f1));
+CREATE VIEW view_t1 AS SELECT * FROM t1;
+SELECT
+(SELECT SUM(dt2.f2) FROM (t1 AS dt1 STRAIGHT_JOIN t1  AS dt2 ON 1)
+WHERE dt1.f3 = table1.f3) AS field1,
+MAX(table2.f2) AS field4
+FROM (view_t1 AS table1 RIGHT JOIN
+((t1 AS table2 JOIN t1 AS table3 ON (table3 .f1 = table2.f2))) ON 1)
+WHERE table1 . f3 != 'x' ;
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.table1.f3'; this is incompatible with sql_mode=only_full_group_by
+set sql_mode="";
+explain SELECT
+(SELECT SUM(dt2.f2) FROM (t1 AS dt1 STRAIGHT_JOIN t1  AS dt2 ON 1)
+WHERE dt1.f3 = table1.f3) AS field1,
+MAX(table2.f2) AS field4
+FROM (view_t1 AS table1 RIGHT JOIN
+((t1 AS table2 JOIN t1 AS table3 ON (table3 .f1 = table2.f2))) ON 1)
+WHERE table1 . f3 != 'x' ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived4>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<derived5>	NULL	ref	<auto_key0>	<auto_key0>	7	derived_1_4.Name_exp_1	2	100.00	NULL
+5	DERIVED	dt1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+5	DERIVED	dt2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (hash join)
+4	DERIVED	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+4	DERIVED	table3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.table2.f2	1	100.00	Using index
+4	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1276	Field or reference 'table1.f3' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `derived_1_5`.`SUM(dt2.f2)` AS `field1`,`derived_1_4`.`field4` AS `field4` from (/* select#4 */ select max(`test`.`table2`.`f2`) AS `field4`,`test`.`t1`.`f3` AS `Name_exp_1` from `test`.`t1` `table2` join `test`.`t1` `table3` join `test`.`t1` where ((`test`.`table3`.`f1` = `test`.`table2`.`f2`) and (`test`.`t1`.`f3` <> 'x'))) `derived_1_4` left join (/* select#5 */ select sum(`test`.`dt2`.`f2`) AS `SUM(dt2.f2)`,`test`.`dt1`.`f3` AS `f3` from `test`.`t1` `dt1` straight_join `test`.`t1` `dt2` where true group by `test`.`dt1`.`f3`) `derived_1_5` on((`derived_1_5`.`f3` = `derived_1_4`.`Name_exp_1`)) where true
+SELECT
+(SELECT SUM(dt2.f2) FROM (t1 AS dt1 STRAIGHT_JOIN t1  AS dt2 ON 1)
+WHERE dt1.f3 = table1.f3) AS field1,
+MAX(table2.f2) AS field4
+FROM (view_t1 AS table1 RIGHT JOIN
+((t1 AS table2 JOIN t1 AS table3 ON (table3 .f1 = table2.f2))) ON 1)
+WHERE table1 . f3 != 'x' ;
+field1	field4
+NULL	NULL
+set sql_mode=default;
+DROP TABLE t1;
+DROP view view_t1;
+SET optimizer_switch = 'subquery_to_derived=default';

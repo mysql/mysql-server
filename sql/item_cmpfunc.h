@@ -1135,6 +1135,28 @@ class Item_func_le final : public Item_func_comparison {
 };
 
 /**
+  Internal function used by subquery to derived tranformation to check
+  if a subquery is scalar. We model it to check if the count is greater than
+  1 using Item_func_gt.
+*/
+
+class Item_func_reject_if : public Item_bool_func {
+ public:
+  Item_func_reject_if(Item *a) : Item_bool_func(a) {}
+  longlong val_int() override;
+  const char *func_name() const override { return "reject_if"; }
+  /// Redefine to avoid pushing into derived table
+  bool check_column_from_derived_table(
+      uchar *arg MY_ATTRIBUTE((unused))) override {
+    return true;
+  }
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table) override;
+};
+
+/**
   Implements the comparison operator less than (<)
 */
 class Item_func_lt final : public Item_func_comparison {
@@ -1328,6 +1350,7 @@ class Item_func_coalesce : public Item_func_numhybrid {
   Item_func_coalesce(const POS &pos, Item *a) : Item_func_numhybrid(pos, a) {
     null_on_null = false;
   }
+  Item_func_coalesce(Item *a) : Item_func_numhybrid(a) { null_on_null = false; }
 
  public:
   Item_func_coalesce(const POS &pos, PT_item_list *list)
@@ -1336,6 +1359,9 @@ class Item_func_coalesce : public Item_func_numhybrid {
   }
   enum_field_types default_data_type() const override {
     return MYSQL_TYPE_VARCHAR;
+  }
+  Item_func_coalesce(Item *a, Item *b) : Item_func_numhybrid(a, b) {
+    null_on_null = false;
   }
   double real_op() override;
   longlong int_op() override;
@@ -1383,6 +1409,7 @@ class Item_func_ifnull final : public Item_func_coalesce {
 class Item_func_any_value final : public Item_func_coalesce {
  public:
   Item_func_any_value(const POS &pos, Item *a) : Item_func_coalesce(pos, a) {}
+  Item_func_any_value(Item *a) : Item_func_coalesce(a) {}
   const char *func_name() const override { return "any_value"; }
   bool aggregate_check_group(uchar *arg) override;
   bool aggregate_check_distinct(uchar *arg) override;

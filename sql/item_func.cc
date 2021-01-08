@@ -870,14 +870,14 @@ bool Item_func::check_column_in_window_functions(uchar *arg) {
   // materialization. Therefore, if there are window functions we cannot push
   // to HAVING, and if there is GROUP BY we cannot push to WHERE.
   // See also Item_field::check_column_from_derived_table.
-  if (!(used_tables() & RAND_TABLE_BIT)) return false;
+  if (!is_non_deterministic()) return false;
   TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
   Query_block *select = tl->derived_query_expression()->first_query_block();
   return !select->m_windows.is_empty();
 }
 
 bool Item_func::check_column_in_group_by(uchar *arg) {
-  if (!(used_tables() & RAND_TABLE_BIT)) return false;
+  if (!is_non_deterministic()) return false;
   TABLE_LIST *tl = pointer_cast<TABLE_LIST *>(arg);
   Query_block *select = tl->derived_query_expression()->first_query_block();
   return select->is_grouped();
@@ -7480,7 +7480,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
     item = args[i] = args[i]->real_item();
     if (item->type() != Item::FIELD_ITEM ||
         /* Cannot use FTS index with outer table field */
-        (item->used_tables() & OUTER_REF_TABLE_BIT)) {
+        item->is_outer_reference()) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "MATCH");
       return true;
     }

@@ -1186,20 +1186,13 @@ FROM cc
 GROUP BY i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	cc	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
-2	DEPENDENT SUBQUERY	cc_alias	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-2	DEPENDENT SUBQUERY	cc	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(cc_alias); Using join buffer (hash join)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.cc.i	2	100.00	NULL
+2	DERIVED	cc_alias	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DERIVED	cc	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	FirstMatch(cc_alias); Using join buffer (hash join)
 Warnings:
 Note	1276	Field or reference 'test.cc_alias.i' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.cc.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select count(`test`.`cc_alias`.`i`) from `test`.`cc` `cc_alias` semi join (`test`.`cc`) where (`test`.`cc`.`i` = `test`.`cc_alias`.`i`)) AS `cnt` from `test`.`cc` group by `test`.`cc`.`i`
-PREPARE stmt FROM "SELECT (SELECT COUNT(i) FROM cc AS cc_alias
-WHERE (cc.i IN (SELECT cc_alias.i FROM cc))) AS cnt
-FROM cc
-GROUP BY i";
-EXECUTE stmt;
-cnt
-1
-DROP PREPARE stmt;
+Note	1003	/* select#1 */ select coalesce(`derived_1_2`.`COUNT(i)`,0) AS `cnt` from `test`.`cc` left join (/* select#2 */ select count(`test`.`cc_alias`.`i`) AS `COUNT(i)`,`test`.`cc_alias`.`i` AS `i` from `test`.`cc` `cc_alias` semi join (`test`.`cc`) group by `test`.`cc_alias`.`i`) `derived_1_2` on((`derived_1_2`.`i` = `test`.`cc`.`i`)) where true group by `test`.`cc`.`i`
 DROP TABLE cc;
 # Test: detect correlated aggregates deep inside scalar subquery (was
 # missed before we let has_correlated_aggregate walk subqueries
@@ -2545,14 +2538,16 @@ WHERE t1.login=t2.login
 GROUP BY t1.login
 LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	index	PRIMARY,numb	PRIMARY	4	NULL	5	100.00	NULL
+1	PRIMARY	t1	NULL	index	PRIMARY,numb	PRIMARY	4	NULL	1	100.00	NULL
 1	PRIMARY	t2	NULL	ref	login	login	4	test.t1.login	1	100.00	Using index
-3	DEPENDENT SUBQUERY	tbl2	NULL	ref	login	login	4	func	1	100.00	NULL
-2	DEPENDENT SUBQUERY	tbl2	NULL	ref	login	login	4	func	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.login	10	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.login	10	100.00	NULL
+3	DERIVED	tbl2	NULL	index	login	login	4	NULL	500	100.00	NULL
+2	DERIVED	tbl2	NULL	index	login	login	4	NULL	500	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.login' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`login` AS `tlogin`,((`test`.`t1`.`numb` - ifnull((/* select#2 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) - ifnull((/* select#3 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` where (`test`.`t2`.`login` = `test`.`t1`.`login`) group by `test`.`t1`.`login` limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`login` AS `tlogin`,((`test`.`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` left join (/* select#2 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_2` on((`derived_1_2`.`login` = `test`.`t1`.`login`)) left join (/* select#3 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_3` on((`derived_1_3`.`login` = `test`.`t1`.`login`)) where (`test`.`t2`.`login` = `test`.`t1`.`login`) group by `test`.`t1`.`login` limit 5
 SELECT
 t1.login AS tlogin,
 numb -
@@ -2582,12 +2577,14 @@ LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	PRIMARY,numb	PRIMARY	4	NULL	500	100.00	Using temporary; Using filesort
 1	PRIMARY	t2	NULL	ref	login	login	4	test.t1.login	1	100.00	Using index
-3	DEPENDENT SUBQUERY	tbl2	NULL	ref	login	login	4	func	1	100.00	NULL
-2	DEPENDENT SUBQUERY	tbl2	NULL	ref	login	login	4	func	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.login	10	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.login	10	100.00	NULL
+3	DERIVED	tbl2	NULL	index	login	login	4	NULL	500	100.00	NULL
+2	DERIVED	tbl2	NULL	index	login	login	4	NULL	500	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.login' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`login` AS `tlogin`,((`test`.`t1`.`numb` - ifnull((/* select#2 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) - ifnull((/* select#3 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` where (`test`.`t2`.`login` = `test`.`t1`.`login`) group by `test`.`t1`.`login` order by `sp` limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`login` AS `tlogin`,((`test`.`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` left join (/* select#2 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_2` on((`derived_1_2`.`login` = `test`.`t1`.`login`)) left join (/* select#3 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_3` on((`derived_1_3`.`login` = `test`.`t1`.`login`)) where (`test`.`t2`.`login` = `test`.`t1`.`login`) group by `test`.`t1`.`login` order by `sp` limit 5
 SELECT
 t1.login AS tlogin,
 numb -
@@ -2619,12 +2616,14 @@ LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	PRIMARY,numb	PRIMARY	4	NULL	500	100.00	Using temporary; Using filesort
 1	PRIMARY	t2	NULL	ref	login	login	4	test.t1.login	1	100.00	Using index
-3	DEPENDENT SUBQUERY	tbl2	NULL	ref	login	login	4	func	1	100.00	NULL
-2	DEPENDENT SUBQUERY	tbl2	NULL	ref	login	login	4	func	1	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.login	10	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	4	test.t1.login	10	100.00	NULL
+3	DERIVED	tbl2	NULL	index	login	login	4	NULL	500	100.00	NULL
+2	DERIVED	tbl2	NULL	index	login	login	4	NULL	500	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.login' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.login' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`login` AS `tlogin`,((`test`.`t1`.`numb` - ifnull((/* select#2 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) - ifnull((/* select#3 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` where (`test`.`t2`.`login` = `test`.`t1`.`login`) group by `test`.`t1`.`login` order by ((`test`.`t1`.`numb` - ifnull((/* select#2 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) - ifnull((/* select#3 */ select sum(`test`.`tbl2`.`nump`) from `test`.`tbl2` where (`test`.`tbl2`.`login` = `test`.`t1`.`login`)),0)) limit 5
+Note	1003	/* select#1 */ select `test`.`t1`.`login` AS `tlogin`,((`test`.`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) AS `sp` from `test`.`tbl1` `t1` join `test`.`tbl2` `t2` left join (/* select#2 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_2` on((`derived_1_2`.`login` = `test`.`t1`.`login`)) left join (/* select#3 */ select sum(`test`.`tbl2`.`nump`) AS `sum(nump)`,`test`.`tbl2`.`login` AS `login` from `test`.`tbl2` group by `test`.`tbl2`.`login`) `derived_1_3` on((`derived_1_3`.`login` = `test`.`t1`.`login`)) where (`test`.`t2`.`login` = `test`.`t1`.`login`) group by `test`.`t1`.`login` order by ((`test`.`t1`.`numb` - ifnull(`derived_1_2`.`sum(nump)`,0)) - ifnull(`derived_1_3`.`sum(nump)`,0)) limit 5
 DROP TABLE tbl1, tbl2;
 Bug 2
 CREATE TABLE t2 (a INT, b INT);
@@ -2644,11 +2643,12 @@ EXPLAIN SELECT b, MAX(a) AS ma FROM t4
 GROUP BY b HAVING ma < (SELECT MAX(t2.a) FROM t2 WHERE t2.b=t4.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t4	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (hash join)
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using temporary
 Warnings:
 Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t4`.`b` AS `b`,max(`test`.`t4`.`a`) AS `ma` from `test`.`t4` group by `test`.`t4`.`b` having (`ma` < (/* select#2 */ select max(`test`.`t2`.`a`) from `test`.`t2` where (`test`.`t2`.`b` = `test`.`t4`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t4`.`b` AS `b`,max(`test`.`t4`.`a`) AS `ma` from `test`.`t4` left join (/* select#2 */ select max(`test`.`t2`.`a`) AS `MAX(t2.a)`,`test`.`t2`.`b` AS `b` from `test`.`t2` group by `test`.`t2`.`b`) `derived_1_2` on((`derived_1_2`.`b` = `test`.`t4`.`b`)) where true group by `test`.`t4`.`b` having (`ma` < `derived_1_2`.`MAX(t2.a)`)
 DROP TABLE t2, t4;
 Bug 3
 

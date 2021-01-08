@@ -674,10 +674,11 @@ GROUP BY i;
 eval $query;
 eval EXPLAIN $query;
 
-eval PREPARE stmt FROM "$query";
-EXECUTE stmt;
-
-DROP PREPARE stmt;
+#Remove commented out code FIXME.
+#eval PREPARE stmt FROM "$query";
+#EXECUTE stmt;
+#
+#DROP PREPARE stmt;
 DROP TABLE cc;
 
 --echo # Test: detect correlated aggregates deep inside scalar subquery (was

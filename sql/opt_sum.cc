@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -378,7 +378,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
 
   for (Item *item : fields) {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function) {
-      if (item->used_tables() & OUTER_REF_TABLE_BIT) {
+      if (item->is_outer_reference()) {
         aggr_impossible = true;
         continue;
       }

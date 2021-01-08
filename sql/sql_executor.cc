@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6103,6 +6103,24 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
   return idx;
 }
 
+/// Compute the position mapping from fields to ref_item_array, cf.
+/// detailed explanation in change_to_use_tmp_fields_except_sums
+static size_t compute_ria_idx(const mem_root_deque<Item *> &fields, size_t i,
+                              size_t added_non_hidden_fields, size_t border) {
+  const size_t num_select_elements = fields.size() - border;
+  const size_t orig_num_select_elements =
+      num_select_elements - added_non_hidden_fields;
+  size_t idx;
+
+  if (i < border) {
+    idx = fields.size() - i - 1 - added_non_hidden_fields;
+  } else {
+    idx = i - border;
+    if (idx >= orig_num_select_elements) idx += border;
+  }
+  return idx;
+}
+
 /**
   Make a copy of all simple SELECT'ed fields.
 
@@ -6184,19 +6202,23 @@ static bool replace_embedded_rollup_references_with_tmp_fields(
   @param [out] ref_item_array        array of pointers to top elements of filed
   list
   @param [out] res_fields            new list of all items
+  @param added_non_hidden_fields     number of visible fields added by subquery
+                                     to derived transformation
 
   @returns false if success, true if error
 */
 
 bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
                               Ref_item_array ref_item_array,
-                              mem_root_deque<Item *> *res_fields) {
+                              mem_root_deque<Item *> *res_fields,
+                              size_t added_non_hidden_fields) {
   DBUG_TRACE;
 
   res_fields->clear();
 
+  const auto num_hidden_fields = CountHiddenFields(*fields);
   auto it = fields->begin();
-  size_t num_hidden_fields = CountHiddenFields(*fields);
+
   for (size_t i = 0; it != fields->end(); ++i, ++it) {
     Item *item = *it;
     Item_field *orig_field = item->real_item()->type() == Item::FIELD_ITEM
@@ -6263,12 +6285,9 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
 
     new_item->hidden = item->hidden;
     res_fields->push_back(new_item);
-    /*
-      Cf. comment explaining the reordering going on below in
-      similar section of change_to_use_tmp_fields_except_sums
-    */
-    ref_item_array[item->hidden ? fields->size() - i - 1
-                                : i - num_hidden_fields] = new_item;
+    const size_t idx =
+        compute_ria_idx(*fields, i, added_non_hidden_fields, num_hidden_fields);
+    ref_item_array[idx] = new_item;
   }
 
   return false;
@@ -6329,6 +6348,8 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
   @param [out] ref_item_array        array of pointers to top elements of filed
   list
   @param [out] res_fields            new list of items of select item list
+  @param added_non_hidden_fields     number of visible fields added by subquery
+                                     to derived transformation
 
   @returns false if success, true if error
 */
@@ -6336,45 +6357,85 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
 bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
                                           THD *thd, Query_block *select,
                                           Ref_item_array ref_item_array,
-                                          mem_root_deque<Item *> *res_fields) {
+                                          mem_root_deque<Item *> *res_fields,
+                                          size_t added_non_hidden_fields) {
   DBUG_TRACE;
   res_fields->clear();
 
+  const auto num_hidden_items = CountHiddenFields(*fields);
   auto it = fields->begin();
-  size_t num_hidden_fields = CountHiddenFields(*fields);
+
   for (size_t i = 0; it != fields->end(); ++i, ++it) {
     Item *item = *it;
     /*
       Below we create "new_item" using get_tmp_table_item
-      based on fields[i] and assign them to res_fields[i].
+      based on all_fields[i] and assign them to res_all_fields[i].
 
       The new items are also put into ref_item_array, but in another order,
       cf the diagram below.
 
-      Example of the population of ref_item_array and res_fields
-      based on fields:
+      Example of the population of ref_item_array and the fields argument
+      containing hidden and selected fields. "border" is computed by counting
+      the number of hidden fields at the beginning of fields:
 
-      res_fields
-         |
-         V
-       +--+   +--+   +--+   +--+   +--+   +--+          +--+
-       |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
-       +--+   +--+   +--+   +--+   +--+   +--+          +--+
-                              |     |
-        ,------------->--------\----/
-        |                       |
-      +-^-+---+---+---+---+---#-^-+---+---+---+
-      |   |   |   |   |   |   #   |   |   |   | ref_item_array
-      +---+---+---+---+---+---#---+---+---+---+
-        4   5   6   7   8   9   3   2   1   0   position in fields list
-                                                similar to res_fields pos
-      all_fields.elements == 10      border == 4
-      (visible) elements == 6
+       fields                       (selected fields)
+          |                          |
+          V                          V
+        +--+   +--+   +--+   +--+   +--+   +--+          +--+
+        |0 |-->|  |-->|  |-->|3 |-->|4 |-->|  |--> .. -->|9 |
+        +--+   +--+   +--+   +--+   +--+   +--+          +--+
+                               |     |
+         ,------------->--------\----/
+         |                       |
+       +-^-+---+---+---+---+---#-^-+---+---+---+
+       |   |   |   |   |   |   #   |   |   |   | ref_item_array
+       +---+---+---+---+---+---#---+---+---+---+
+         4   5   6   7   8   9   3   2   1   0   position in fields
+                                                 similar to ref_all_fields pos
+       fields.elements == 10        border == 4 (i.e. # of hidden fields)
+       (visible) elements == 6
 
-      i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
-      i==1   ->   afe-1-1 == 8      :
-      i==2   ->   afe-2-1 == 7
-      i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
+       i==0   ->   afe-0-1 == 9     i==4 -> 4-4 == 0
+       i==1   ->   afe-1-1 == 8      :
+       i==2   ->   afe-2-1 == 7
+       i==3   ->   afe-3-1 == 6     i==9 -> 9-4 == 5
+
+      This mapping is further compilated if a scalar subquery to join with
+      derived table transformation has added (visible) fields to field_list
+      *after* resolving and adding hidden fields,
+      cf. decorrelate_derived_scalar_subquery. This is signalled by a value
+      of added_non_hidden_fields > 0. This makes the mapping look like this,
+      (Note: only one original select list item "orig" in a scalar subquery):
+
+       fields            (selected_fields)
+       |                 |
+       V                 V (orig: 2, added by transform: 3, 4)
+       +--+    +--+    +--+    +--+    +--+
+       |0 | -> |1 | -> |2 | -> |3 | -> |4 |
+       +--+    +--+    +--+    +--+    +--+
+
+       +---#---+---#---+---+
+       | 2 # 1 | 0 # 3 | 4 | resulting ref_item_array
+       +---#---+---#---+---+
+
+       all_fields.elements == 5      border == 2
+       (visible) elements == 3       added_non_hidden_fields == 2
+                                     orig_num_select_elements == 1
+
+      If the added visible fields had not been there we would have seen this:
+
+       +---#---+---+
+       | 2 # 1 | 0 | ref_item_array
+       +---#---+---+
+
+       all_fields.elements == 3      border == 2
+       (visible) elements == 1       added_non_hidden_fields == 0
+                                     orig_num_select_elements == 1
+
+      so the logic below effectively lets the original fields stay where they
+      are, tucking the extra fields on at the end, since references
+      (Item_ref::ref) will point to those positions in the effective slice
+      array.
     */
     Item *new_item;
 
@@ -6424,8 +6485,9 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
     assert_consistent_hidden_flags(*res_fields, new_item, item->hidden);
     new_item->hidden = item->hidden;
     res_fields->push_back(new_item);
-    ref_item_array[(item->hidden ? fields->size() - i - 1
-                                 : i - num_hidden_fields)] = new_item;
+    const size_t idx =
+        compute_ria_idx(*fields, i, added_non_hidden_fields, num_hidden_items);
+    ref_item_array[idx] = new_item;
   }
 
   for (Item *item : *fields) {

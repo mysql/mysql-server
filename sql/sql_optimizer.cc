@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -4206,11 +4206,11 @@ static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
                                          JOIN_TAB **table_join_idx) {
   int cmp = 0;
   bool outer_ref = false;
-  if (field1->used_tables() & OUTER_REF_TABLE_BIT) {
+  if (field1->is_outer_reference()) {
     outer_ref = true;
     cmp = -1;
   }
-  if (field2->used_tables() & OUTER_REF_TABLE_BIT) {
+  if (field2->is_outer_reference()) {
     outer_ref = true;
     cmp++;
   }
@@ -6973,7 +6973,7 @@ static bool add_key_equal_fields(THD *thd, Key_field **key_fields,
 
 static bool is_local_field(Item *field) {
   return field->real_item()->type() == Item::FIELD_ITEM &&
-         !(field->used_tables() & OUTER_REF_TABLE_BIT) &&
+         !field->is_outer_reference() &&
          !down_cast<Item_ident *>(field)->depended_from &&
          !down_cast<Item_ident *>(field->real_item())->depended_from;
 }
@@ -7211,7 +7211,7 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
       }                                        // if (... Item_func::CONTAINS)
       // The predicate is IN or <>
       else if (is_local_field(cond_func->key_item()) &&
-               !(cond_func->used_tables() & OUTER_REF_TABLE_BIT)) {
+               !cond_func->is_outer_reference()) {
         values = cond_func->arguments() + 1;
         if (cond_func->functype() == Item_func::NE_FUNC &&
             is_local_field(cond_func->arguments()[1]))
@@ -7338,7 +7338,7 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
     case Item_func::OPTIMIZE_NULL:
       /* column_name IS [NOT] NULL */
       if (is_local_field(cond_func->arguments()[0]) &&
-          !(cond_func->used_tables() & OUTER_REF_TABLE_BIT)) {
+          !cond_func->is_outer_reference()) {
         Item *tmp = new Item_null;
         if (tmp == nullptr) return true;
         if (add_key_equal_fields(
@@ -9323,7 +9323,7 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               (tab->keys() != tab->const_keys) &&  // 1b
               (i > 0 ||                            // 1c
                (join->query_block->master_query_expression()->item &&
-                cond->used_tables() & OUTER_REF_TABLE_BIT)))
+                cond->is_outer_reference())))
             recheck_reason = NOT_FIRST_TABLE;
           else if (!tab->const_keys.is_clear_all() &&  // 2a
                    i == join->const_tables &&          // 2b
@@ -10088,8 +10088,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
     }
     Item *left_item = down_cast<Item_func *>(cond)->arguments()[0];
     Item *right_item = down_cast<Item_func *>(cond)->arguments()[1];
-    if (left_item->eq(right_item, true) &&
-        (cond->used_tables() & RAND_TABLE_BIT) == 0) {
+    if (left_item->eq(right_item, true) && !cond->is_non_deterministic()) {
       /*
        Two identical items are being compared:
        1) If the items are not nullable, return result from eq_cmp_result(),

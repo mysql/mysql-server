@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -747,13 +747,13 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
     assert(static_cast<const Item_ref *>(item)->ref_type() ==
            Item_ref::VIEW_REF);
     /*
-      Refuse RAND_TABLE_BIT because:
+      Refuse non-deterministic expressions because:
       - FDs in a view are those of the underlying query expression.
       - For FDs in a query expression, expressions in the SELECT list must be
       deterministic.
       Same is true for materialized tables further down.
     */
-    if (item->used_tables() & RAND_TABLE_BIT) return false;
+    if (item->is_non_deterministic()) return false;
 
     Item *const real_it = item->real_item();
     Used_tables ut(select);
@@ -841,7 +841,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
           - or intersect(En, tl.*) contains a non-nullable column (3) (then
           the FD is NFFD).
         */
-        if (!(expr_under->used_tables() & RAND_TABLE_BIT) &&  // (1)
+        if (!expr_under->is_non_deterministic() &&            // (1)
             (!(mat_gc->table->map() & select->outer_join) ||  // (2)
              mat_gc->non_null_in_source) &&                   // (3)
             !expr_under->walk(&Item::aggregate_check_group,   // (4)
@@ -1023,7 +1023,7 @@ void Group_check::analyze_scalar_eq(Item *cond, Item *left_item,
 
   if ((left_is_column && (strong_tables & left_tables) &&
        is_in_fd(left_item)) ||
-      left_item->const_item() || (OUTER_REF_TABLE_BIT & left_tables)) {
+      left_item->const_item() || left_item->is_outer_reference()) {
     // strong_or_literal_or_outer_ref= right_item
 
     if (!weak_tables) {
@@ -1037,7 +1037,7 @@ void Group_check::analyze_scalar_eq(Item *cond, Item *left_item,
       add_to_fd(right_item, true);
     } else {
       // Outer join. So condition must be deterministic.
-      if (cond->used_tables() & RAND_TABLE_BIT) return;
+      if (cond->is_non_deterministic()) return;
 
       /*
         FD will have DJS as source columns, where DJS is the set of strong

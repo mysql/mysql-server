@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1520,8 +1520,8 @@ static List<const Ndb_item> cond_push_boolean_term(
     }
   }
 
-  if (term->used_tables() & RAND_TABLE_BIT) {
-    // RAND_TABLE_BIT: Produce non deterministic results, dont push
+  if (term->is_non_deterministic()) {
+    // Produce non deterministic results, dont push
   } else if (other_tbls_ok || !(term->used_tables() & ~PSEUDO_TABLE_BITS &
                                 ~table->pos_in_table_list->map())) {
     // Has broken down the condition into predicate terms, or sub conditions,

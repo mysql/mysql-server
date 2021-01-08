@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,6 +129,7 @@ struct NESTED_JOIN;
 struct PSI_digest_locker;
 struct sql_digest_state;
 union Lexer_yystype;
+struct Lifted_fields_map;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;
 
@@ -1812,6 +1813,7 @@ class Query_block {
   // * Members (most of these should not be public) *
   // ************************************************
 
+  size_t m_added_non_hidden_fields{0};
   /**
     All expressions needed after join and filtering, ie., select list,
     group by list, having clause, window clause, order by clause,
@@ -2160,9 +2162,16 @@ class Query_block {
                                      Query_expression *subs_query_expression,
                                      Item_subselect *subq, bool use_inner_join,
                                      bool reject_multiple_rows,
-                                     Item *join_condition);
+                                     Item *join_condition,
+                                     Item *lifted_where_cond);
   bool transform_table_subquery_to_join_with_derived(
       THD *thd, Item_exists_subselect *subq_pred);
+  bool decorrelate_derived_scalar_subquery_pre(
+      THD *thd, TABLE_LIST *derived, Item *lifted_where,
+      Lifted_fields_map *lifted_where_fields, bool *added_card_check);
+  bool decorrelate_derived_scalar_subquery_post(
+      THD *thd, TABLE_LIST *derived, Lifted_fields_map *lifted_where_fields,
+      bool added_card_check);
   void remap_tables(THD *thd);
   bool resolve_subquery(THD *thd);
   void mark_item_as_maybe_null_if_rollup_item(Item *item);
@@ -2211,8 +2220,10 @@ class Query_block {
     @returns       true on error
   */
   bool transform_scalar_subqueries_to_join_with_derived(THD *thd);
+  bool supported_correlated_scalar_subquery(THD *thd, Item::Css_info *subquery,
+                                            Item **lifted_where);
   bool transform_grouped_to_derived(THD *thd, bool *break_off);
-  bool replace_subquery_in_expr(THD *thd, Item_singlerow_subselect *subquery,
+  bool replace_subquery_in_expr(THD *thd, Item::Css_info *subquery,
                                 TABLE_LIST *tr, Item **expr);
   bool nest_derived(THD *thd, Item *join_cond,
                     mem_root_deque<TABLE_LIST *> *join_list,

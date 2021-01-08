@@ -2142,6 +2142,22 @@ class Item : public Parse_tree_node {
   bool may_evaluate_const(const THD *thd) const;
 
   /**
+    @returns true if this item is non-deterministic, which means that a
+             has a component that must be evaluated once per row in
+             execution of a JOIN query.
+  */
+  bool is_non_deterministic() const { return used_tables() & RAND_TABLE_BIT; }
+
+  /**
+    @returns true if this item is an outer reference, usually this means that
+             it references a column that contained in a table located in
+             the FROM clause of an outer query block.
+  */
+  bool is_outer_reference() const {
+    return used_tables() & OUTER_REF_TABLE_BIT;
+  }
+
+  /**
     This method is used for to:
       - to generate a view definition query (SELECT-statement);
       - to generate a SQL-query for EXPLAIN EXTENDED;
@@ -2388,16 +2404,20 @@ class Item : public Parse_tree_node {
   }
 
   virtual bool collect_item_field_processor(uchar *) { return false; }
+  virtual bool collect_item_field_or_ref_processor(uchar *) { return false; }
 
-  class Collect_item_fields : public Item_tree_walker {
+  class Collect_item_fields_or_refs : public Item_tree_walker {
    public:
-    List<Item_field> *m_item_fields;
-    Collect_item_fields(List<Item_field> *fields) : m_item_fields(fields) {}
-    Collect_item_fields(const Collect_item_fields &) = delete;
-    Collect_item_fields &operator=(const Collect_item_fields &) = delete;
+    List<Item> *m_items;
+    Collect_item_fields_or_refs(List<Item> *fields_or_refs)
+        : m_items(fields_or_refs) {}
+    Collect_item_fields_or_refs(const Collect_item_fields_or_refs &) = delete;
+    Collect_item_fields_or_refs &operator=(
+        const Collect_item_fields_or_refs &) = delete;
 
     friend class Item_sum;
     friend class Item_field;
+    friend class Item_ref;
   };
 
   class Collect_item_fields_or_view_refs : public Item_tree_walker {
@@ -2418,6 +2438,10 @@ class Item : public Parse_tree_node {
     friend class Item_view_ref;
   };
 
+  /**
+   Collects fields and view references that have the qualifying table
+   in the specified query block.
+  */
   virtual bool collect_item_field_or_view_ref_processor(uchar *) {
     return false;
   }
@@ -2594,6 +2618,26 @@ class Item : public Parse_tree_node {
   }
 
   /**
+     Minion class under Collect_scalar_subquery_info. Information about one
+     scalar subquery being considered for transformation
+  */
+  struct Css_info {
+    /// set of locations
+    int8 m_location{0};
+    /// the scalar subquery
+    Item_singlerow_subselect *item{nullptr};
+    table_map m_correlation_map{0};
+    /// Where did we find item above? Used when m_location == L_JOIN_COND,
+    /// nullptr for other locations.
+    Item *m_join_condition{nullptr};
+    /// If true, we can forego cardinality checking of the derived table
+    bool m_implicitly_grouped_and_no_union{false};
+    /// If true, add a COALESCE around replaced subquery: used for implicitly
+    /// grouped COUNT() in subquery select list when subquery is correlated
+    bool m_add_coalesce{false};
+  };
+
+  /**
     Context struct used by walk method collect_scalar_subqueries to
     accumulate information about scalar subqueries found.
 
@@ -2602,23 +2646,12 @@ class Item : public Parse_tree_node {
   */
   struct Collect_scalar_subquery_info : public Item_tree_walker {
     enum Location { L_SELECT = 1, L_WHERE = 2, L_HAVING = 4, L_JOIN_COND = 8 };
-    /// Information about one scalar subquery
-    struct Css_info {
-      int8 m_location;  ///< set of locations
-      /// the scalar subquery
-      Item_singlerow_subselect *item;
-      /// Where did we find item above? Used when m_location == L_JOIN_COND,
-      /// nullptr for other locations.
-      Item *m_join_condition;
-      /// If true, we can forego cardinality checking of the derived table
-      bool m_implicitly_grouped_and_no_union;
-    };
-
     /// accumulated all scalar subqueries found
     std::vector<Css_info> m_list;
     /// we are currently looking at this kind of clause, cf. enum Location
     int8 m_location{0};
     Item *m_join_condition_context{nullptr};
+    bool m_collect_unconditionally{false};
     Collect_scalar_subquery_info() {}
     friend class Item_sum;
     friend class Item_singlerow_subselect;
@@ -2878,6 +2911,7 @@ class Item : public Parse_tree_node {
   virtual Item *replace_item_field(uchar *) { return this; }
   virtual Item *replace_item_view_ref(uchar *) { return this; }
   virtual Item *replace_aggregate(uchar *) { return this; }
+  virtual Item *replace_outer_ref(uchar *) { return this; }
 
   struct Aggregate_ref_update {
     Item_sum *m_target;
@@ -4075,6 +4109,7 @@ class Item_field : public Item_ident {
   }
   Item *get_tmp_table_item(THD *thd) override;
   bool collect_item_field_processor(uchar *arg) override;
+  bool collect_item_field_or_ref_processor(uchar *arg) override;
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   bool add_field_to_set_processor(uchar *arg) override;
   bool add_field_to_cond_set_processor(uchar *) override;
@@ -5401,6 +5436,9 @@ class Item_ref : public Item_ident {
 
  public:
   enum Ref_Type { REF, VIEW_REF, OUTER_REF, AGGREGATE_REF };
+  // If true, depended_from information of this ref was pushed down to
+  // underlying field.
+  bool pusheddown_depended_from{false};
 
  private:
   Field *result_field{nullptr}; /* Save result here */
@@ -5589,6 +5627,7 @@ class Item_ref : public Item_ident {
   bool check_column_in_group_by(uchar *arg) override {
     return (*ref)->check_column_in_group_by(arg);
   }
+  bool collect_item_field_or_ref_processor(uchar *arg) override;
 };
 
 /**
@@ -5770,6 +5809,7 @@ class Item_outer_ref final : public Item_ref {
   table_map not_null_tables() const override { return 0; }
 
   Ref_Type ref_type() const override { return OUTER_REF; }
+  Item *replace_outer_ref(uchar *) override;
 };
 
 class Item_in_subselect;
@@ -6807,6 +6847,7 @@ void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
 
 std::string ItemToString(const Item *item);
+void ExtractConditions(Item *condition, std::vector<Item *> *condition_parts);
 
 inline size_t CountVisibleFields(const mem_root_deque<Item *> &fields) {
   return std::count_if(fields.begin(), fields.end(),

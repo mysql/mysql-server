@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -806,6 +806,19 @@ bool Item_field::collect_item_field_processor(uchar *arg) {
     if (curr_item->eq(this, true)) return false; /* Already in the set. */
   }
   item_list->push_back(this);
+  return false;
+}
+
+bool Item_field::collect_item_field_or_ref_processor(uchar *arg) {
+  auto *info = pointer_cast<Collect_item_fields_or_refs *>(arg);
+  if (info->is_stopped(this)) return false;
+
+  List_iterator<Item> item_list_it(*info->m_items);
+  Item *curr_item;
+  while ((curr_item = item_list_it++)) {
+    if (curr_item->eq(this, true)) return false; /* Already in the set. */
+  }
+  info->m_items->push_back(this);
   return false;
 }
 
@@ -7901,6 +7914,14 @@ void Item_ref_null_helper::print(const THD *thd, String *str,
   str->append(')');
 }
 
+bool Item_ref::collect_item_field_or_ref_processor(uchar *arg) {
+  auto *info = pointer_cast<Collect_item_fields_or_refs *>(arg);
+  if (info->is_stopped(this)) return false;
+  if (real_item()->type() == Item::FIELD_ITEM) info->m_items->push_back(this);
+  info->stop_at(this);
+  return false;
+}
+
 /**
   Prepare referenced field then call usual Item_ref::fix_fields .
 
@@ -8017,6 +8038,12 @@ void Item_outer_ref::fix_after_pullout(Query_block *parent_query_block,
   Item_ref::fix_after_pullout(parent_query_block, removed_query_block);
 }
 
+Item *Item_outer_ref::replace_outer_ref(uchar *arg) {
+  auto *info = pointer_cast<Item_outer_ref *>(arg);
+  if (this == info) return real_item();
+  return this;
+}
+
 void Item_ref::fix_after_pullout(Query_block *parent_query_block,
                                  Query_block *removed_query_block) {
   (*ref)->fix_after_pullout(parent_query_block, removed_query_block);
@@ -8121,8 +8148,23 @@ type_conversion_status Item_view_ref::save_in_field_inner(Field *field,
 bool Item_view_ref::collect_item_field_or_view_ref_processor(uchar *arg) {
   auto *info = pointer_cast<Collect_item_fields_or_view_refs *>(arg);
   if (info->is_stopped(this)) return false;
-  if (context->query_block == info->m_transformed_block)
-    info->m_item_fields_or_view_refs->push_back(this);
+  // We collect this view ref
+  // If it's qualifying table is in the transformed query block - (1)
+  // If it's underlying field's qualifying table is in the transformed
+  // query block - (2)
+  // If this view ref is an outer reference dependent on the
+  // transformed query block - (3)
+  Item *item = nullptr;
+  item = (context->query_block == info->m_transformed_block)  // 1
+             ? this
+             : ((real_item()->type() == Item::FIELD_ITEM &&
+                 (down_cast<Item_field *>(real_item())->context->query_block ==
+                  info->m_transformed_block))  // 2
+                    ? this->real_item()
+                    : ((depended_from == info->m_transformed_block)  // 3
+                           ? this
+                           : nullptr));
+  if (item != nullptr) info->m_item_fields_or_view_refs->push_back(item);
   info->stop_at(this);
   return false;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2301,8 +2301,7 @@ static bool validate_value_generator_expr(Item *expr,
 
   // No non-deterministic functions are allowed as GC but most of them are
   // allowed as default value expressions
-  if ((expr->used_tables() & RAND_TABLE_BIT &&
-       (source == VGS_GENERATED_COLUMN))) {
+  if ((expr->is_non_deterministic() && (source == VGS_GENERATED_COLUMN))) {
     if (func_item != nullptr) {
       my_error(err_code, MYF(0), source_name, func_item->func_name());
       return true;

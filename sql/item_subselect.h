@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -333,12 +333,14 @@ class Item_singlerow_subselect : public Item_subselect {
     Query_block *m_inner_query_block;    ///< The immediately surrounding query
                                        ///< block. This will be the transformed
                                        ///< block or a subquery of it
+    bool m_add_coalesce{false};
     Scalar_subquery_replacement(Item_singlerow_subselect *target, Field *field,
-                                Query_block *select)
+                                Query_block *select, bool add_coalesce)
         : m_target(target),
           m_field(field),
           m_outer_query_block(select),
-          m_inner_query_block(select) {}
+          m_inner_query_block(select),
+          m_add_coalesce(add_coalesce) {}
   };
 
   Item *replace_scalar_subquery(uchar *arge) override;
