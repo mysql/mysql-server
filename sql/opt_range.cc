@@ -156,6 +156,7 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
+#include "sql/item_json_func.h"  // Item_func_json_contains
 #include "sql/item_row.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/json_dom.h"  // Json_wrapper
@@ -187,8 +188,6 @@
 #include "sql/thr_malloc.h"
 #include "sql/uniques.h"  // Unique
 #include "template_utils.h"
-// idx_merge_hint_state()
-#include "item_json_func.h"  // Item_func_json_contains
 
 using std::max;
 using std::min;
@@ -1118,10 +1117,11 @@ int QUICK_ROR_INTERSECT_SELECT::init() {
 
 int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
   handler *save_file = file, *org_file;
-  THD *thd;
   MY_BITMAP *const save_read_set = head->read_set;
   MY_BITMAP *const save_write_set = head->write_set;
   DBUG_TRACE;
+
+  THD *thd = current_thd;
 
   in_ror_merged_scan = true;
   mrr_flags |= HA_MRR_SORTED;
@@ -1141,7 +1141,6 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
     return 0;
   }
 
-  thd = head->in_use;
   if (!(file =
             head->file->clone(head->s->normalized_path.str, thd->mem_root))) {
     /*
@@ -1357,7 +1356,6 @@ int QUICK_ROR_UNION_SELECT::reset() {
         dynamic range access where range optimizer is invoked many times
         for a single statement.
       */
-      THD *thd = quick->head->in_use;
       MEM_ROOT *saved_root = thd->mem_root;
       thd->mem_root = &alloc;
       error = quick->init_ror_merged_scan(false);
@@ -4840,7 +4838,7 @@ static TRP_ROR_INTERSECT *get_best_ror_intersect(
 
   bool use_cheapest_index_merge = false;
   bool force_index_merge =
-      idx_merge_hint_state(param->table, &use_cheapest_index_merge);
+      idx_merge_hint_state(param->thd, param->table, &use_cheapest_index_merge);
 
   Opt_trace_object trace_ror(trace, "analyzing_roworder_intersect");
 
@@ -5113,7 +5111,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
   bool is_best_idx_imerge_scan = true;
   bool use_cheapest_index_merge = false;
   bool force_index_merge =
-      idx_merge_hint_state(param->table, &use_cheapest_index_merge);
+      idx_merge_hint_state(param->thd, param->table, &use_cheapest_index_merge);
 
   for (idx = 0; idx < param->keys; idx++) {
     key = tree->keys[idx];
@@ -6385,7 +6383,7 @@ static bool save_value_and_handle_conversion(SEL_ROOT **tree, Item *value,
   // A SEL_ARG should not have been created for this predicate yet.
   assert(*tree == nullptr);
 
-  THD *const thd = field->table->in_use;
+  THD *const thd = current_thd;
 
   if (!(value->const_item() || thd->lex->is_query_tables_locked())) {
     /*
@@ -13803,7 +13801,7 @@ void cost_skip_scan(TABLE *table, uint key, uint distinct_key_parts,
     double max_distinct_values = max(
         1.0, static_cast<double>(uint(keys_per_group) / uint(keys_per_range)));
     float filtering_effect = where_cond->get_filtering_effect(
-        table->in_use, table->pos_in_table_list->map(), used_tables,
+        current_thd, table->pos_in_table_list->map(), used_tables,
         &ignored_fields, max_distinct_values);
     *records = max(ha_rows(1), ha_rows(skip_scan_records * filtering_effect));
   }
@@ -14569,8 +14567,7 @@ void append_range(String *out, const KEY_PART_INFO *key_part,
       out->append(STRING_WITH_LEN(" <= "));
   }
 
-  out->append(get_field_name_or_expression(key_part->field->table->in_use,
-                                           key_part->field));
+  out->append(get_field_name_or_expression(current_thd, key_part->field));
 
   if (!(flag & NO_MAX_RANGE)) {
     if (flag & NEAR_MAX)

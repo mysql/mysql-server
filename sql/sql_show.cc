@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1396,7 +1396,7 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
   table->use_all_columns();
   if (thd->send_result_metadata(field_list, Protocol::SEND_DEFAULTS)) return;
   if (table_list->is_view_or_derived()) {
-    close_tmp_table(thd, table);
+    close_tmp_table(table);
     free_tmp_table(table);
     table_list->table = nullptr;
   }

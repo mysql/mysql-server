@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -890,6 +890,7 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg) {
 */
 
 bool Unique::get(TABLE *table) {
+  THD *thd = current_thd;
   table->unique_result.found_records = elements + tree.elements_in_tree;
 
   if (my_b_tell(&file) == 0) {
@@ -944,15 +945,14 @@ bool Unique::get(TABLE *table) {
   uniq_param.cmp_context.key_compare_arg = tree.custom_arg;
 
   /* Merge the buffers to one file, removing duplicates */
-  if (merge_many_buff(table->in_use, &uniq_param,
-                      Sort_buffer(sort_memory, num_bytes),
+  if (merge_many_buff(thd, &uniq_param, Sort_buffer(sort_memory, num_bytes),
                       Merge_chunk_array(file_ptrs.begin(), file_ptrs.size()),
                       &num_chunks, &file))
     goto err;
   if (flush_io_cache(&file) ||
       reinit_io_cache(&file, READ_CACHE, 0L, false, false))
     goto err;
-  if (merge_buffers(table->in_use, &uniq_param, &file, outfile,
+  if (merge_buffers(thd, &uniq_param, &file, outfile,
                     Sort_buffer(sort_memory, num_bytes), file_ptr,
                     Merge_chunk_array(file_ptr, num_chunks), 0))
     goto err;
@@ -969,6 +969,7 @@ err:
 }
 
 bool Unique_on_insert::unique_add(void *ptr) {
+  THD *thd = current_thd;
   Field *key = *m_table->visible_field_ptr();
   if (key->store((const char *)ptr, m_size, &my_charset_bin) != TYPE_OK)
     return true; /* purecov: inspected */
@@ -977,8 +978,7 @@ bool Unique_on_insert::unique_add(void *ptr) {
   if (res) {
     bool dup = false;
     if (res == HA_ERR_FOUND_DUPP_KEY) return true;
-    if (create_ondisk_from_heap(m_table->in_use, m_table, res, false, &dup) ||
-        dup)
+    if (create_ondisk_from_heap(thd, m_table, res, false, &dup) || dup)
       return true;
   }
   return false;
@@ -1001,6 +1001,6 @@ bool Unique_on_insert::init() {
 
 void Unique_on_insert::cleanup() {
   reset(false);
-  close_tmp_table(m_table->in_use, m_table);
+  close_tmp_table(m_table);
   free_tmp_table(m_table);
 }

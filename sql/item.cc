@@ -495,7 +495,7 @@ type_conversion_status Item::save_time_in_field(Field *field) {
 type_conversion_status Item::save_date_in_field(Field *field) {
   MYSQL_TIME ltime;
   my_time_flags_t flags = TIME_FUZZY_DATE;
-  const sql_mode_t mode = field->table->in_use->variables.sql_mode;
+  const sql_mode_t mode = current_thd->variables.sql_mode;
   if (mode & MODE_INVALID_DATES) flags |= TIME_INVALID_DATES;
   if (get_date(&ltime, flags))
     return set_field_to_null_with_conversions(field, false);
@@ -1572,7 +1572,7 @@ type_conversion_status Item::save_in_field_no_warnings(Field *field,
                                                        bool no_conversions) {
   DBUG_TRACE;
   TABLE *table = field->table;
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
   enum_check_fields tmp = thd->check_for_truncated_fields;
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
   sql_mode_t sql_mode = thd->variables.sql_mode;
@@ -6084,10 +6084,9 @@ type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
   // an error handler that catches any errors that tries to print out the
   // name of the hidden column. It will instead print out the functional
   // index name.
-  assert(field->table == nullptr || field->table->in_use == current_thd);
 
-  Functional_index_error_handler functional_index_error_handler(
-      field, (field->table ? field->table->in_use : current_thd));
+  Functional_index_error_handler functional_index_error_handler(field,
+                                                                current_thd);
 
   const type_conversion_status ret = save_in_field_inner(field, no_conversions);
 
@@ -6096,9 +6095,9 @@ type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
     save_in_field_inner() might not notice and return TYPE_OK. Make
     sure that we return not OK if there was an error.
   */
-  if (ret == TYPE_OK && field->table && field->table->in_use->is_error())
+  if (ret == TYPE_OK && current_thd->is_error()) {
     return TYPE_ERR_BAD_VALUE;
-
+  }
   return ret;
 }
 
@@ -8284,6 +8283,7 @@ void Item_default_value::print(const THD *thd, String *str,
 
 type_conversion_status Item_default_value::save_in_field_inner(
     Field *field_arg, bool no_conversions) {
+  THD *thd = current_thd;
   if (!arg) {
     if ((field_arg->is_flag_set(NO_DEFAULT_VALUE_FLAG) &&
          field_arg->m_default_val_expr == nullptr) &&
@@ -8295,17 +8295,14 @@ type_conversion_status Item_default_value::save_in_field_inner(
 
       if (context->view_error_handler) {
         TABLE_LIST *view = cached_table->top_table();
-        push_warning_printf(
-            field_arg->table->in_use, Sql_condition::SL_WARNING,
-            ER_NO_DEFAULT_FOR_VIEW_FIELD,
-            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_VIEW_FIELD),
-            view->db, view->table_name);
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_NO_DEFAULT_FOR_VIEW_FIELD,
+                            ER_THD(thd, ER_NO_DEFAULT_FOR_VIEW_FIELD), view->db,
+                            view->table_name);
       } else {
         push_warning_printf(
-            field_arg->table->in_use, Sql_condition::SL_WARNING,
-            ER_NO_DEFAULT_FOR_FIELD,
-            ER_THD(field_arg->table->in_use, ER_NO_DEFAULT_FOR_FIELD),
-            field_arg->field_name);
+            thd, Sql_condition::SL_WARNING, ER_NO_DEFAULT_FOR_FIELD,
+            ER_THD(thd, ER_NO_DEFAULT_FOR_FIELD), field_arg->field_name);
       }
       return TYPE_ERR_BAD_VALUE;
     }

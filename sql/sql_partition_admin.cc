@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -243,7 +243,7 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
     ha_myisam compares pointers to verify that DATA/INDEX DIRECTORY is
     the same, so any table using data/index_file_name will fail.
   */
-  if (mysql_compare_tables(table, &part_alter_info, &part_create_info,
+  if (mysql_compare_tables(thd, table, &part_alter_info, &part_create_info,
                            &metadata_equal)) {
     my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
     return true;

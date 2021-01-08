@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,6 @@ bool prepare_default_value(THD *thd, uchar *buf, TABLE *table,
   bool retval = true;
   if (!regfield) goto err;
 
-  // save_in_field() will access regfield->table->in_use.
   regfield->init(table);
 
   // Set if the field may be NULL.

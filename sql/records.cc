@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -407,6 +407,8 @@ bool FollowTailIterator::Init() {
       // Recursive references always refer to a temporary table,
       // which do not exist at resolution time; thus, we need to
       // connect to it on first run here.
+      assert(table()->in_use == nullptr || table()->in_use == thd());
+      table()->in_use = thd();
       if (open_tmp_table(table())) {
         return true;
       }

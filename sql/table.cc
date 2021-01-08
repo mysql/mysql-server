@@ -3916,6 +3916,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   if (gvisitor->enter_node(src_ctx)) goto end;
 
   while ((table = tables_it++)) {
+    // Use the THD pointer stored in the TABLE object when checking locks
     if (gvisitor->inspect_edge(&table->in_use->mdl_context)) {
       goto end_leave_node;
     }
@@ -3923,6 +3924,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
 
   tables_it.rewind();
   while ((table = tables_it++)) {
+    // Use the THD pointer stored in the TABLE object when checking locks
     if (table->in_use->mdl_context.visit_subgraph(gvisitor)) {
       goto end_leave_node;
     }
@@ -5624,8 +5626,8 @@ void TABLE::mark_columns_needed_for_delete(THD *thd) {
         in mark_columns_per_binlog_row_image, if not, then use
         the hidden primary key
       */
-      if (!(mysql_bin_log.is_open() && in_use &&
-            in_use->is_current_stmt_binlog_format_row()))
+      if (!(mysql_bin_log.is_open() &&
+            thd->is_current_stmt_binlog_format_row()))
         file->use_hidden_primary_key();
     } else
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
@@ -5702,8 +5704,8 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
         in mark_columns_per_binlog_row_image, if not, then use
         the hidden primary key
       */
-      if (!(mysql_bin_log.is_open() && in_use &&
-            in_use->is_current_stmt_binlog_format_row()))
+      if (!(mysql_bin_log.is_open() &&
+            thd->is_current_stmt_binlog_format_row()))
         file->use_hidden_primary_key();
     } else
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
@@ -5753,12 +5755,11 @@ void TABLE::mark_columns_per_binlog_row_image(THD *thd) {
   assert(read_set->bitmap);
   assert(write_set->bitmap);
 
-  /**
+  /*
     If in RBR we may need to mark some extra columns,
     depending on the binlog-row-image command line argument.
    */
-  if ((mysql_bin_log.is_open() && in_use &&
-       in_use->is_current_stmt_binlog_format_row() &&
+  if ((mysql_bin_log.is_open() && thd->is_current_stmt_binlog_format_row() &&
        !ha_check_storage_engine_flag(s->db_type(), HTON_NO_BINLOG_ROW_OPT))) {
     /* if there is no PK, then mark all columns for the BI. */
     if (s->primary_key >= MAX_KEY) bitmap_set_all(read_set);
@@ -6583,6 +6584,7 @@ int TABLE_LIST::fetch_number_of_rows() {
 /**
   A helper function to add a derived key to the list of possible keys
 
+  @param thd               thread handler
   @param derived_key_list  list of all possible derived keys
   @param field             referenced field
   @param ref_by_tbl        the table that refers to given field
@@ -6794,8 +6796,8 @@ int TABLE_LIST::fetch_number_of_rows() {
   @retval false otherwise
 */
 
-static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
-                            table_map ref_by_tbl) {
+static bool add_derived_key(THD *thd, List<Derived_key> &derived_key_list,
+                            Field *field, table_map ref_by_tbl) {
   uint key = 0;
   Derived_key *entry = nullptr;
   List_iterator<Derived_key> ki(derived_key_list);
@@ -6816,7 +6818,6 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   }
   /* Add new possible key if nothing is found. */
   if (!entry) {
-    THD *thd = current_thd;
     key++;
     entry = new (thd->mem_root) Derived_key();
     if (!entry) return true;
@@ -6880,11 +6881,11 @@ bool TABLE_LIST::update_derived_keys(THD *thd, Field *field, Item **values,
     if (!tables || values[i]->real_item()->type() != Item::FIELD_ITEM) continue;
     for (table_map tbl = 1; tables >= tbl; tbl <<= 1) {
       if (!(tables & tbl)) continue;
-      if (add_derived_key(derived_key_list, field, tbl)) return true;
+      if (add_derived_key(thd, derived_key_list, field, tbl)) return true;
     }
   }
   /* Extend key which includes all referenced fields. */
-  if (add_derived_key(derived_key_list, field, (table_map)0)) return true;
+  if (add_derived_key(thd, derived_key_list, field, (table_map)0)) return true;
   *allocated = true;
 
   return false;
@@ -7019,7 +7020,7 @@ bool TABLE::update_const_key_parts(Item *conds) {
     Handle error for the whole function here instead of along with the call for
     const_expression_in_where() as the function does not return true for errors.
   */
-  return this->in_use && this->in_use->is_error();
+  return current_thd->is_error();
 }
 
 /**
@@ -7105,7 +7106,7 @@ static bool update_generated_columns(TABLE *table, const MY_BITMAP *columns,
   assert(table != nullptr);
   assert(table->has_gcol());
 
-  const THD *const thd = table->in_use;
+  const THD *const thd = current_thd;
   assert(!thd->is_error());
 
   for (Field **field_ptr = table->vfield; *field_ptr != nullptr; ++field_ptr) {
@@ -7163,7 +7164,7 @@ static bool update_generated_columns(TABLE *table, const MY_BITMAP *columns,
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   DBUG_TRACE;
   assert(table != nullptr && table->has_gcol());
-  if (table->in_use->is_error()) return true;
+  if (current_thd->is_error()) return true;
   if (active_index != MAX_KEY && table->key_read) {
     /*
       The covering index is providing all necessary columns, including
@@ -7355,11 +7356,10 @@ LEX_USER *LEX_USER::init(LEX_USER *ret, THD *thd, LEX_STRING *user_arg,
 struct Partial_update_info {
   Partial_update_info(const TABLE *table, const MY_BITMAP *columns,
                       bool logical_diffs)
-      : m_binary_diff_vectors(table->in_use->mem_root, table->s->fields,
-                              nullptr),
-        m_logical_diff_vectors(table->in_use->mem_root,
+      : m_binary_diff_vectors(current_thd->mem_root, table->s->fields, nullptr),
+        m_logical_diff_vectors(current_thd->mem_root,
                                logical_diffs ? table->s->fields : 0, nullptr) {
-    MEM_ROOT *const mem_root = table->in_use->mem_root;
+    MEM_ROOT *const mem_root = current_thd->mem_root;
     const size_t bitmap_size = table->s->column_bitmap_size;
 
     auto buffer = static_cast<my_bitmap_map *>(mem_root->Alloc(bitmap_size));
@@ -7482,9 +7482,11 @@ bool TABLE::setup_partial_update(bool logical_diffs) {
   DBUG_TRACE;
   assert(m_partial_update_info == nullptr);
 
+  THD *thd = current_thd;
+
   if (!has_columns_marked_for_partial_update()) return false;
 
-  Opt_trace_context *trace = &in_use->opt_trace;
+  Opt_trace_context *trace = &thd->opt_trace;
   if (trace->is_started()) {
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object trace_partial_update(trace, "json_partial_update");
@@ -7497,28 +7499,30 @@ bool TABLE::setup_partial_update(bool logical_diffs) {
     }
   }
 
-  m_partial_update_info = new (in_use->mem_root)
+  m_partial_update_info = new (thd->mem_root)
       Partial_update_info(this, m_partial_update_columns, logical_diffs);
-  return in_use->is_error();
+  return thd->is_error();
 }
 
 bool TABLE::setup_partial_update() {
-  bool logical_diffs = (in_use->variables.binlog_row_value_options &
-                        PARTIAL_JSON_UPDATES) != 0 &&
-                       mysql_bin_log.is_open() &&
-                       (in_use->variables.option_bits & OPTION_BIN_LOG) != 0 &&
-                       log_bin_use_v1_row_events == 0 &&
-                       in_use->is_current_stmt_binlog_format_row();
+  THD *thd = current_thd;
+
+  bool logical_diffs =
+      (thd->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0 &&
+      mysql_bin_log.is_open() &&
+      (thd->variables.option_bits & OPTION_BIN_LOG) != 0 &&
+      log_bin_use_v1_row_events == 0 &&
+      thd->is_current_stmt_binlog_format_row();
   DBUG_PRINT(
       "info",
       ("TABLE::setup_partial_update(): logical_diffs=%d "
        "because binlog_row_value_options=%d binlog.is_open=%d "
        "sql_log_bin=%d use_v1_row_events=%d rbr=%d",
        logical_diffs,
-       (in_use->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0,
+       (thd->variables.binlog_row_value_options & PARTIAL_JSON_UPDATES) != 0,
        mysql_bin_log.is_open(),
-       (in_use->variables.option_bits & OPTION_BIN_LOG) != 0,
-       log_bin_use_v1_row_events, in_use->is_current_stmt_binlog_format_row()));
+       (thd->variables.option_bits & OPTION_BIN_LOG) != 0,
+       log_bin_use_v1_row_events, thd->is_current_stmt_binlog_format_row()));
   return setup_partial_update(logical_diffs);
 }
 
@@ -7650,10 +7654,9 @@ void TABLE::add_logical_diff(const Field_json *field,
       m_partial_update_info->m_logical_diff_vectors[field->field_index()];
   if (new_value == nullptr)
     diffs->add_diff(path, operation);
-  else {
-    diffs->add_diff(path, operation,
-                    new_value->clone_dom(field->table->in_use));
-  }
+  else
+    diffs->add_diff(path, operation, new_value->clone_dom(current_thd));
+
 #ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> path_str;
   StringBuffer<STRING_BUFFER_USUAL_SIZE> value_str;

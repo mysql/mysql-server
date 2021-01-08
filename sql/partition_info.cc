@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -452,6 +452,7 @@ bool partition_info::can_prune_insert(
 /**
   Mark the partition, the record belongs to, as used.
 
+  @param thd              Thread handler
   @param fields           Fields to set
   @param values           Values to use
   @param info             COPY_INFO used for default values handling
@@ -465,12 +466,12 @@ bool partition_info::can_prune_insert(
   so caller must check thd->is_error().
 */
 
-bool partition_info::set_used_partition(const mem_root_deque<Item *> &fields,
+bool partition_info::set_used_partition(THD *thd,
+                                        const mem_root_deque<Item *> &fields,
                                         const mem_root_deque<Item *> &values,
                                         COPY_INFO &info,
                                         bool copy_default_values,
                                         MY_BITMAP *used_partitions) {
-  THD *thd = table->in_use;
   uint32 part_id;
   longlong func_value;
 

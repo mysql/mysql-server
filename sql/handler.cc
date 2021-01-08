@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2702,9 +2702,11 @@ void handler::ha_statistic_increment(
   if (table && table->in_use) (table->in_use->status_var.*offset)++;
 }
 
-THD *handler::ha_thd(void) const {
-  assert(!table || !table->in_use || table->in_use == current_thd);
-  return (table && table->in_use) ? table->in_use : current_thd;
+THD *handler::ha_thd() const {
+  assert(table == nullptr || table->in_use == nullptr ||
+         table->in_use == current_thd);
+  return table != nullptr && table->in_use != nullptr ? table->in_use
+                                                      : current_thd;
 }
 
 void handler::unbind_psi() {

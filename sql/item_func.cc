@@ -1023,7 +1023,7 @@ static bool substitute_gc_expression(Item_func **expr, Item **value,
 
   // A matching expression is found. Substitute the expression with
   // the matching generated column.
-  THD *thd = item_field->field->table->in_use;
+  THD *thd = current_thd;
   if (item_field->returns_array() && value) {
     Json_wrapper wr;
     String str_val, buf;
@@ -1125,8 +1125,8 @@ static void gc_subst_overlaps_contains(Item_func **func, Item **vals,
       new (thd->mem_root) Item_json(std::move(res), (*func)->item_name);
   if (!array_arg || array_arg->fix_fields(thd, nullptr)) return;
   table->mark_column_used(found, MARK_COLUMNS_READ);
-  table->in_use->change_item_tree(pointer_cast<Item **>(func), subs_item);
-  table->in_use->change_item_tree(vals, array_arg);
+  thd->change_item_tree(pointer_cast<Item **>(func), subs_item);
+  thd->change_item_tree(vals, array_arg);
 }
 
 /**

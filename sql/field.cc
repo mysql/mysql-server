@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1217,9 +1217,7 @@ bool pre_validate_value_generator_expr(Item *expression, const char *name,
 void Field::set_tmp_null() {
   m_is_tmp_null = true;
 
-  m_check_for_truncated_fields_saved =
-      table ? table->in_use->check_for_truncated_fields
-            : current_thd->check_for_truncated_fields;
+  m_check_for_truncated_fields_saved = current_thd->check_for_truncated_fields;
 }
 
 uint Field::is_equal(const Create_field *new_field) const {
@@ -1394,6 +1392,7 @@ static void push_numerical_conversion_warning(
   Emits a warning for the decimal conversion error. May modify
   dec_value if there was conversion overflow or bad number.
 
+  @param thd               Thread handler
   @param field             Field to operate on
   @param dec_error         decimal library return code
                            (E_DEC_* see include/decimal.h)
@@ -1402,9 +1401,9 @@ static void push_numerical_conversion_warning(
   @param length            Length of 'from'
   @param charset_arg       Charset of 'from'
 */
-static void set_decimal_warning(Field_new_decimal *field, int dec_error,
-                                my_decimal *dec_value, const char *from,
-                                size_t length,
+static void set_decimal_warning(THD *thd, Field_new_decimal *field,
+                                int dec_error, my_decimal *dec_value,
+                                const char *from, size_t length,
                                 const CHARSET_INFO *charset_arg) {
   switch (dec_error) {
     case E_DEC_TRUNCATED:
@@ -1417,13 +1416,11 @@ static void set_decimal_warning(Field_new_decimal *field, int dec_error,
       break;
     case E_DEC_BAD_NUM:
       ErrConvString errmsg(from, length, charset_arg);
-      const Diagnostics_area *da = field->table->in_use->get_stmt_da();
+      const Diagnostics_area *da = thd->get_stmt_da();
       push_warning_printf(
-          field->table->in_use, Sql_condition::SL_WARNING,
-          ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-          ER_THD(field->table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
-          "decimal", errmsg.ptr(), field->field_name,
-          da->current_row_for_condition());
+          thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+          ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "decimal",
+          errmsg.ptr(), field->field_name, da->current_row_for_condition());
       my_decimal_set_zero(dec_value);
   }
 }
@@ -1558,13 +1555,12 @@ type_conversion_status Field_num::check_int(const CHARSET_INFO *cs,
                                             const char *int_end, int error) {
   /* Test if we get an empty string or wrong integer */
   if (str == int_end || error == MY_ERRNO_EDOM) {
+    THD *thd = current_thd;
     ErrConvString err(str, length, cs);
     push_warning_printf(
-        table->in_use, Sql_condition::SL_WARNING,
-        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-        ER_THD(table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "integer",
-        err.ptr(), field_name,
-        table->in_use->get_stmt_da()->current_row_for_condition());
+        thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "integer", err.ptr(),
+        field_name, thd->get_stmt_da()->current_row_for_condition());
     return TYPE_ERR_BAD_VALUE;
   }
   /* Test if we have garbage at the end of the given string. */
@@ -1620,7 +1616,7 @@ type_conversion_status Field_num::get_int(const CHARSET_INFO *cs,
       goto out_of_range;
     }
   }
-  if (table->in_use->check_for_truncated_fields != 0)
+  if (current_thd->check_for_truncated_fields != 0)
     return check_int(cs, from, len, end, error);
 
   return TYPE_OK;
@@ -1872,10 +1868,11 @@ bool Field::compatible_field_size(uint field_metadata, Relay_log_info *, uint16,
 type_conversion_status Field::store(const char *to, size_t length,
                                     const CHARSET_INFO *cs,
                                     enum_check_fields check_level) {
-  enum_check_fields old_check_level = table->in_use->check_for_truncated_fields;
-  table->in_use->check_for_truncated_fields = check_level;
+  THD *thd = current_thd;
+  enum_check_fields old_check_level = thd->check_for_truncated_fields;
+  thd->check_for_truncated_fields = check_level;
   const type_conversion_status res = store(to, length, cs);
-  table->in_use->check_for_truncated_fields = old_check_level;
+  thd->check_for_truncated_fields = old_check_level;
   return res;
 }
 
@@ -2251,6 +2248,8 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   String tmp(buff, sizeof(buff), &my_charset_bin);
   const uchar *from = pointer_cast<const uchar *>(from_arg);
 
+  THD *thd = current_thd;
+
   /* Convert character set if the old one is multi uchar */
   if (cs->mbmaxlen > 1) {
     uint dummy_errors;
@@ -2296,7 +2295,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   uchar *left_wall, *right_wall;
   uchar tmp_char;
   /*
-    To remember if table->in_use->num_truncated_fields has already
+    To remember if thd->num_truncated_fields has already
     been incremented, to do that only once
   */
   bool has_incremented_num_truncated_fields = false;
@@ -2373,7 +2372,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
     it makes the code easer to read.
   */
 
-  if (table->in_use->check_for_truncated_fields) {
+  if (thd->check_for_truncated_fields) {
     // Skip end spaces
     for (; from != end && my_isspace(&my_charset_bin, *from); from++)
       ;
@@ -2514,7 +2513,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
 
   /*
     Write digits of the frac_% parts ;
-    Depending on table->in_use->count_cutted_fields, we may also want
+    Depending on thd->check_for_truncated_fields, we may also want
     to know if some non-zero tail of these parts will
     be truncated (for example, 0.002->0.00 will generate a warning,
     while 0.000->0.00 will not)
@@ -2528,7 +2527,7 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   if (expo_sign_char == '-') {
     while (frac_digits_added_zeros-- > 0) {
       if (pos == right_wall) {
-        if (table->in_use->check_for_truncated_fields &&
+        if (thd->check_for_truncated_fields &&
             !has_incremented_num_truncated_fields)
           break;  // Go on below to see if we lose non zero digits
         return TYPE_OK;
@@ -2889,25 +2888,26 @@ type_conversion_status Field_new_decimal::store(
   my_decimal decimal_value;
   DBUG_TRACE;
 
+  THD *thd = current_thd;
+
   int err =
       str2my_decimal(E_DEC_FATAL_ERROR & ~(E_DEC_OVERFLOW | E_DEC_BAD_NUM),
                      from, length, charset_arg, &decimal_value);
 
-  if (err != 0 && !table->in_use->lex->is_ignore() &&
-      table->in_use->is_strict_mode()) {
+  if (err != 0 && !thd->lex->is_ignore() && thd->is_strict_mode()) {
     ErrConvString errmsg(from, length, charset_arg);
-    const Diagnostics_area *da = table->in_use->get_stmt_da();
+    const Diagnostics_area *da = thd->get_stmt_da();
     push_warning_printf(
-        table->in_use, Sql_condition::SL_WARNING,
-        ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
-        ER_THD(table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "decimal",
+        thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
+        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "decimal",
         errmsg.ptr(), field_name, da->current_row_for_condition());
     return decimal_err_to_type_conv_status(err);
   }
 
-  if (err != 0)
-    set_decimal_warning(this, err, &decimal_value, from, length, charset_arg);
-
+  if (err != 0) {
+    set_decimal_warning(thd, this, err, &decimal_value, from, length,
+                        charset_arg);
+  }
 #ifndef NDEBUG
   char dbug_buff[DECIMAL_MAX_STR_LENGTH + 2];
   DBUG_PRINT("enter",
@@ -2921,6 +2921,8 @@ type_conversion_status Field_new_decimal::store(
 type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
                                                        int err,
                                                        my_decimal *value) {
+  THD *thd = current_thd;
+
   type_conversion_status stat = TYPE_OK;
   if (err == E_DEC_OVERFLOW) {
     field->set_value_on_overflow(value, value->sign());
@@ -2928,12 +2930,11 @@ type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
   } else if (err == E_DEC_TRUNCATED) {
     stat = TYPE_NOTE_TRUNCATED;
   }
-  uint cond_count = field->table->in_use->get_stmt_da()->cond_count();
+  uint cond_count = thd->get_stmt_da()->cond_count();
   type_conversion_status store_stat = field->store_value(value);
   if (store_stat != TYPE_OK)
     return store_stat;
-  else if (err != 0 &&
-           (field->table->in_use->get_stmt_da()->cond_count() == cond_count)) {
+  else if (err != 0 && thd->get_stmt_da()->cond_count() == cond_count) {
     /* Only issue a warning if store_value doesn't issue an warning */
     field->warn_if_overflow(err);
   }
@@ -3763,8 +3764,6 @@ double Field_long::val_real() const {
 longlong Field_long::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   int32 j;
-  /* See the comment in Field_long::store(long long) */
-  assert(table->in_use == current_thd);
   if (table->s->db_low_byte_first)
     j = sint4korr(ptr);
   else
@@ -3862,7 +3861,7 @@ type_conversion_status Field_longlong::store(const char *from, size_t len,
   if (conv_err == MY_ERRNO_ERANGE) {
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     error = TYPE_WARN_OUT_OF_RANGE;
-  } else if (table->in_use->check_for_truncated_fields &&
+  } else if (current_thd->check_for_truncated_fields &&
              check_int(cs, from, len, end, conv_err))
     error = TYPE_WARN_OUT_OF_RANGE;
   else
@@ -4059,7 +4058,7 @@ type_conversion_status Field_float::store(const char *from, size_t len,
   const char *end;
   double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error || (!len || ((uint)(end - from) != len &&
-                              table->in_use->check_for_truncated_fields))) {
+                              current_thd->check_for_truncated_fields))) {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
                 1);
@@ -4219,13 +4218,14 @@ void Field_float::sql_type(String &res) const {
 
 type_conversion_status Field_double::store(const char *from, size_t len,
                                            const CHARSET_INFO *cs) {
+  THD *thd = current_thd;
+
   int conv_error;
   type_conversion_status error = TYPE_OK;
   const char *end;
   double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error != 0 || len == 0 ||
-      (((uint)(end - from) != len &&
-        table->in_use->check_for_truncated_fields))) {
+      (((uint)(end - from) != len && thd->check_for_truncated_fields))) {
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
                 1);
@@ -4460,7 +4460,7 @@ void Field_double::sql_type(String &res) const {
 *****************************************************************************/
 
 my_time_flags_t Field_temporal::date_flags() const {
-  return date_flags(table ? table->in_use : current_thd);
+  return date_flags(current_thd);
 }
 
 uint Field_temporal::is_equal(const Create_field *new_field) const {
@@ -4795,7 +4795,7 @@ type_conversion_status Field_temporal_with_date::store_time(MYSQL_TIME *ltime,
       break;
     case MYSQL_TIMESTAMP_TIME: {
       /* Convert TIME to DATETIME */
-      THD *thd = table ? table->in_use : current_thd;
+      THD *thd = current_thd;
       MYSQL_TIME ltime2;
       time_to_datetime(thd, ltime, &ltime2);
       error = store_internal_adjust_frac(&ltime2, &warnings);
@@ -4992,7 +4992,7 @@ my_time_flags_t Field_timestamp::date_flags(const THD *thd) const {
 
 type_conversion_status Field_timestamp::store_internal(const MYSQL_TIME *ltime,
                                                        int *warnings) {
-  THD *thd = table ? table->in_use : current_thd;
+  THD *thd = current_thd;
   struct timeval tm;
   convert_TIME_to_timestamp(ltime, *thd->time_zone(), &tm, warnings);
   const type_conversion_status error =
@@ -5002,7 +5002,7 @@ type_conversion_status Field_timestamp::store_internal(const MYSQL_TIME *ltime,
 }
 
 bool Field_timestamp::get_date_internal(MYSQL_TIME *ltime) const {
-  THD *thd = table != nullptr ? table->in_use : current_thd;
+  THD *thd = current_thd;
   return get_date_internal_at(thd->time_zone(), ltime);
 }
 
@@ -5151,7 +5151,7 @@ void Field_timestampf::store_timestamp_internal(const struct timeval *tm) {
 
 type_conversion_status Field_timestampf::store_internal(const MYSQL_TIME *ltime,
                                                         int *warnings) {
-  THD *thd = table ? table->in_use : current_thd;
+  THD *thd = current_thd;
   struct timeval tm;
   convert_TIME_to_timestamp(ltime, *thd->time_zone(), &tm, warnings);
   const type_conversion_status error =
@@ -5183,7 +5183,7 @@ void Field_timestampf::sql_type(String &res) const {
 }
 
 bool Field_timestampf::get_date_internal(MYSQL_TIME *ltime) const {
-  THD *thd = table != nullptr ? table->in_use : current_thd;
+  THD *thd = current_thd;
   return get_date_internal_at(thd->time_zone(), ltime);
 }
 
@@ -5192,7 +5192,7 @@ bool Field_timestampf::get_date_internal_at_utc(MYSQL_TIME *ltime) const {
 }
 
 bool Field_timestampf::get_timestamp(struct timeval *tm, int *) const {
-  THD *thd = table ? table->in_use : current_thd;
+  THD *thd = current_thd;
   thd->time_zone_used = true;
   assert(!is_null());
   my_timestamp_from_binary(tm, ptr, dec);
@@ -5302,7 +5302,7 @@ bool Field_time_common::get_date(MYSQL_TIME *ltime, my_time_flags_t) const {
     assert(0);
     set_zero_time(ltime, MYSQL_TIMESTAMP_TIME);
   }
-  time_to_datetime(table ? table->in_use : current_thd, &tm, ltime);
+  time_to_datetime(current_thd, &tm, ltime);
   return false;
 }
 
@@ -5313,7 +5313,7 @@ longlong Field_time_common::val_date_temporal() const {
     assert(0);  // Field_time*::get_time should not fail
     return 0;
   }
-  time_to_datetime(table ? table->in_use : current_thd, &time, &datetime);
+  time_to_datetime(current_thd, &time, &datetime);
   return TIME_to_longlong_datetime_packed(datetime);
 }
 
@@ -5502,7 +5502,7 @@ type_conversion_status Field_year::store(const char *from, size_t len,
 
   if (conv_error) ret = TYPE_ERR_BAD_VALUE;
 
-  if (table->in_use->check_for_truncated_fields)
+  if (current_thd->check_for_truncated_fields)
     ret = check_int(cs, from, len, end, conv_error);
 
   if (ret != TYPE_OK) {
@@ -5536,7 +5536,7 @@ type_conversion_status Field_year::store_time(MYSQL_TIME *ltime, uint8) {
   if (ltime->time_type != MYSQL_TIMESTAMP_DATETIME &&
       ltime->time_type != MYSQL_TIMESTAMP_DATE) {
     /* Convert time to datetime, then store year of the result */
-    THD *thd = table ? table->in_use : current_thd;
+    THD *thd = current_thd;
     MYSQL_TIME ltime2;
     time_to_datetime(thd, ltime, &ltime2);
     return store(ltime2.year, false);
@@ -6003,7 +6003,7 @@ type_conversion_status Field_longstr::check_string_copy_error(
     const CHARSET_INFO *cs) {
   const char *pos;
   char tmp[32];
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
 
   if (!(pos = well_formed_error_pos) && !(pos = cannot_convert_error_pos))
     return report_if_important_data(from_end_pos, end, count_spaces);
@@ -6044,10 +6044,12 @@ type_conversion_status Field_longstr::report_if_important_data(
     const char *pstr, const char *end, bool count_spaces) {
   if (pstr < end)  // String is truncated
   {
+    THD *thd = current_thd;
+
     if (test_if_important_data(field_charset, pstr, end)) {
       // Warning should only be written when check_for_truncated_fields is set
-      if (table->in_use->check_for_truncated_fields) {
-        if (!table->in_use->lex->is_ignore() && table->in_use->is_strict_mode())
+      if (thd->check_for_truncated_fields) {
+        if (!thd->lex->is_ignore() && thd->is_strict_mode())
           set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
         else
           set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
@@ -6055,7 +6057,7 @@ type_conversion_status Field_longstr::report_if_important_data(
       return TYPE_WARN_TRUNCATED;
     } else if (count_spaces) {
       // If we lost only spaces then produce a NOTE, not a WARNING
-      if (table->in_use->check_for_truncated_fields) {
+      if (thd->check_for_truncated_fields) {
         set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
       }
       return TYPE_NOTE_TRUNCATED;
@@ -6073,9 +6075,6 @@ type_conversion_status Field_string::store(const char *from, size_t length,
   const char *well_formed_error_pos;
   const char *cannot_convert_error_pos;
   const char *from_end_pos;
-
-  /* See the comment for Field_long::store(long long) */
-  assert(table->in_use == current_thd);
 
   copy_length = field_well_formed_copy_nchars(
       field_charset, (char *)ptr, field_length, cs, from, length,
@@ -6113,7 +6112,9 @@ type_conversion_status Field_str::store(double nr) {
     length = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, local_char_length, buff, &error);
 
   if (error) {
-    if (!table->in_use->lex->is_ignore() && table->in_use->is_strict_mode())
+    THD *thd = current_thd;
+
+    if (!thd->lex->is_ignore() && thd->is_strict_mode())
       set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     else
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
@@ -6218,10 +6219,8 @@ longlong Field_string::val_int() const {
 
 String *Field_string::val_str(String *, String *val_ptr) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  /* See the comment for Field_long::store(long long) */
-  assert(table->in_use == current_thd);
   size_t length;
-  if (table->in_use->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)
+  if (current_thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)
     length = my_charpos(field_charset, ptr, ptr + field_length,
                         field_length / field_charset->mbmaxlen);
   else
@@ -6285,7 +6284,7 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
     a_len = b_len = field_length;
 
   if (field_charset->pad_attribute == NO_PAD &&
-      !(table->in_use->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)) {
+      !(current_thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)) {
     /*
       Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
       this doesn't matter, for but NO PAD, we need to do it ourselves here.
@@ -6317,7 +6316,7 @@ size_t Field_string::make_sort_key(uchar *to, size_t length) const {
           pointer_cast<const char *>(ptr) + field_length, char_length()));
 
   if (field_charset->pad_attribute == NO_PAD &&
-      !(table->in_use->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)) {
+      !(current_thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH)) {
     /*
       Our CHAR default behavior is to strip spaces. For PAD SPACE collations,
       this doesn't matter, for but NO PAD, we need to do it ourselves here.
@@ -6335,7 +6334,7 @@ size_t Field_string::make_sort_key(uchar *to, size_t length) const {
 }
 
 void Field_string::sql_type(String &res) const {
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
   const CHARSET_INFO *cs = res.charset();
   size_t length;
 
@@ -6964,6 +6963,8 @@ type_conversion_status Field_blob::store_internal(const char *from,
   char buff[STRING_BUFFER_USUAL_SIZE], *tmp;
   String tmpstr(buff, sizeof(buff), &my_charset_bin);
 
+  THD *thd = current_thd;
+
   /*
     If the 'from' address is in the range of the temporary 'value'-
     object we need to copy the content to a different location or it will be
@@ -6979,9 +6980,8 @@ type_conversion_status Field_blob::store_internal(const char *from,
     if (!String::needs_conversion_on_storage(length, cs, field_charset)) {
       if (length > max_len) {
         store_ptr_and_length(from, max_len);
-        if (table->in_use->check_for_truncated_fields) {
-          if (table->in_use->is_strict_mode() &&
-              !table->in_use->lex->is_ignore())
+        if (thd->check_for_truncated_fields) {
+          if (thd->is_strict_mode() && !thd->lex->is_ignore())
             set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
           else
             set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
@@ -7032,7 +7032,7 @@ type_conversion_status Field_blob::store(const char *from, size_t length,
 
   if (table->blob_storage)  // GROUP_CONCAT with ORDER BY | DISTINCT
     return store_to_mem(from, length, cs,
-                        table->in_use->variables.group_concat_max_len,
+                        current_thd->variables.group_concat_max_len,
                         table->blob_storage);
 
   return store_internal(from, length, cs);
@@ -7594,7 +7594,7 @@ type_conversion_status Field_json::store(const char *from, size_t length,
     return TYPE_ERR_BAD_VALUE;
   }
 
-  if (json_binary::serialize(table->in_use, dom.get(), &value))
+  if (json_binary::serialize(current_thd, dom.get(), &value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -7683,7 +7683,7 @@ type_conversion_status Field_json::store_json(const Json_wrapper *json) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmpstr;
   String *buffer = json->is_binary_backed_by(&value) ? &tmpstr : &value;
 
-  if (json->to_binary(table->in_use, buffer)) return TYPE_ERR_BAD_VALUE;
+  if (json->to_binary(current_thd, buffer)) return TYPE_ERR_BAD_VALUE;
 
   return store_binary(buffer->ptr(), buffer->length());
 }
@@ -8067,7 +8067,7 @@ type_conversion_status Field_enum::store(const char *from, size_t length,
         set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
         ret = TYPE_WARN_TRUNCATED;
       }
-      if (!table->in_use->check_for_truncated_fields) ret = TYPE_OK;
+      if (!current_thd->check_for_truncated_fields) ret = TYPE_OK;
     } else
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
   }
@@ -8088,7 +8088,7 @@ type_conversion_status Field_enum::store(longlong nr, bool) {
   type_conversion_status error = TYPE_OK;
   if ((ulonglong)nr > typelib->count || nr == 0) {
     set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-    if (nr != 0 || table->in_use->check_for_truncated_fields) {
+    if (nr != 0 || current_thd->check_for_truncated_fields) {
       nr = 0;
       error = TYPE_WARN_TRUNCATED;
     }
@@ -8640,7 +8640,7 @@ type_conversion_status Field_bit::store(const char *from, size_t length,
       (!bit_len && delta < 0)) {
     set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
-    if (table->in_use->is_strict_mode())
+    if (current_thd->is_strict_mode())
       set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     else
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -9026,7 +9026,7 @@ type_conversion_status Field_bit_as_char::store(const char *from, size_t length,
       (delta == 0 && bits && (uint)(uchar)*from >= (uint)(1 << bits))) {
     memset(ptr, 0xff, bytes_in_rec);
     if (bits) *ptr &= ((1 << bits) - 1); /* set first uchar */
-    if (table->in_use->is_strict_mode())
+    if (current_thd->is_strict_mode())
       set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     else
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -9607,7 +9607,7 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
     will have table == NULL.
   */
 
-  THD *thd = table ? table->in_use : current_thd;
+  THD *thd = current_thd;
 
   if (!thd->check_for_truncated_fields)
     return level >= Sql_condition::SL_WARNING;
@@ -9661,7 +9661,7 @@ bool Field_temporal::set_datetime_warning(
     Sql_condition::enum_severity_level level, uint code,
     const ErrConvString &val, enum_mysql_timestamp_type ts_type,
     int truncate_increment) {
-  THD *thd = table ? table->in_use : current_thd;
+  THD *thd = current_thd;
   if ((!thd->lex->is_ignore() &&
        ((thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) ||
         (thd->variables.sql_mode & MODE_STRICT_TRANS_TABLES &&
@@ -9746,6 +9746,8 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
 
   set_null();
 
+  THD *thd = current_thd;
+
   try {
     // How to store values
     switch (data->type()) {
@@ -9773,8 +9775,9 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
         if (coerce_json_value(data, false, &coerced))
           return TYPE_ERR_BAD_VALUE; /* purecov: inspected */
         coerced.set_alias();
-        if (array->append_alias(coerced.to_dom(table->in_use)))
+        if (array->append_alias(coerced.to_dom(thd))) {
           return TYPE_ERR_OOM;
+        }
         Json_wrapper wr(array, true);
         /*
           No need to check multi-valued key limits, as single value is always
@@ -9814,8 +9817,9 @@ type_conversion_status Field_typed_array::store_array(const Json_wrapper *data,
           if (coerce_json_value(&elt, false, &coerced))
             return TYPE_ERR_BAD_VALUE;
           coerced.set_alias();
-          if (array->append_alias(coerced.to_dom(table->in_use)))
+          if (array->append_alias(coerced.to_dom(thd))) {
             return TYPE_ERR_OOM;
+          }
           if (type() == MYSQL_TYPE_VARCHAR)
             keys_length += coerced.get_data_length();
           else
@@ -9950,7 +9954,6 @@ void Field_typed_array::init(TABLE *table_arg) {
   if (type() == MYSQL_TYPE_NEWDECIMAL)
     (down_cast<Field_new_decimal *>(conv_field))->set_keep_precision(true);
   conv_field->move_field(buf + 1, buf, 0);
-  // Allow conv_field to use table->in_use
   conv_field->table = table;
   conv_field->table_name = table_name;
   conv_field->set_field_index(field_index());
@@ -9985,7 +9988,7 @@ size_t Field_typed_array::make_sort_key(Json_wrapper *wr, uchar *to,
       break;
   }
 #endif
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
   // Force error on bad data
 #ifndef NDEBUG
   bool res =

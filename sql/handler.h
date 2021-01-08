@@ -6054,7 +6054,7 @@ class handler {
  protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulonglong System_status_var::*offset) const;
-  THD *ha_thd(void) const;
+  THD *ha_thd() const;
 
   /**
     Acquire the instrumented table information from a table share.

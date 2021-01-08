@@ -8064,7 +8064,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
     keyuse->at(i) = key_end;
     keyuse->chop(i);
   }
-  print_keyuse_array(&thd->opt_trace, keyuse);
+  print_keyuse_array(thd, &thd->opt_trace, keyuse);
   /*
     Number of functions here call val_x() methods, which might throw an error.
     Catch those errors here.

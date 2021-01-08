@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -11993,6 +11993,7 @@ static void set_column_static_defaults(TABLE *altered_table,
   One table specified by a TABLE instance, the other using Alter_info
   and HA_CREATE_INFO.
 
+  @param      thd            Thread handler
   @param[in]  table          The first table.
   @param[in]  alter_info     Alter options, fields and keys for the
                              second table.
@@ -12003,7 +12004,7 @@ static void set_column_static_defaults(TABLE *altered_table,
   @retval false  success
 */
 
-bool mysql_compare_tables(TABLE *table, Alter_info *alter_info,
+bool mysql_compare_tables(THD *thd, TABLE *table, Alter_info *alter_info,
                           HA_CREATE_INFO *create_info, bool *metadata_equal) {
   DBUG_TRACE;
 
@@ -12011,7 +12012,6 @@ bool mysql_compare_tables(TABLE *table, Alter_info *alter_info,
   uint key_count;
   uint fk_key_count = 0;
   List_iterator_fast<Create_field> tmp_new_field_it;
-  THD *thd = table->in_use;
   *metadata_equal = false;
 
   /*

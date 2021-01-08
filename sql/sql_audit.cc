@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -487,11 +487,12 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
   Events for Views, table catogories other than 'SYSTEM' or 'USER' and
   temporary tables are not generated.
 
+  @param thd   Thread handler
   @param table Table that is to be check.
 
   @retval true - generate event, otherwise not.
 */
-inline bool generate_table_access_event(TABLE_LIST *table) {
+inline bool generate_table_access_event(THD *thd, TABLE_LIST *table) {
   /* Discard views or derived tables. */
   if (table->is_view_or_derived()) return false;
 
@@ -499,7 +500,7 @@ inline bool generate_table_access_event(TABLE_LIST *table) {
   if (!table->table) return true;
 
   /* Do not generate events, which come from PS preparation. */
-  if (table->table->in_use->lex->is_ps_or_view_context_analysis()) return false;
+  if (thd->lex->is_ps_or_view_context_analysis()) return false;
 
   /* Generate event for SYSTEM and USER tables, which are not temp tables. */
   if ((table->table->s->table_category == TABLE_CATEGORY_SYSTEM ||
@@ -547,7 +548,7 @@ static int mysql_audit_notify(THD *thd,
   LEX_CSTRING str;
   mysql_event_table_access event;
 
-  if (!generate_table_access_event(table) ||
+  if (!generate_table_access_event(thd, table) ||
       mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_TABLE_ACCESS_CLASS,
                                   static_cast<unsigned long>(subclass)))
     return 0;

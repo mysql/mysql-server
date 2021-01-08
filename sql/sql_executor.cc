@@ -301,7 +301,7 @@ bool JOIN::create_intermediate_table(
 
 err:
   if (table != nullptr) {
-    close_tmp_table(thd, table);
+    close_tmp_table(table);
     free_tmp_table(table);
     tab->set_table(nullptr);
   }
@@ -759,7 +759,7 @@ bool set_record_buffer(TABLE *table, double expected_rows_to_fetch) {
   rows_in_buffer = std::min(rows_in_buffer, max_rows);
 
   const auto bufsize = Record_buffer::buffer_size(rows_in_buffer, record_size);
-  const auto ptr = static_cast<uchar *>(table->in_use->alloc(bufsize));
+  const auto ptr = pointer_cast<uchar *>(current_thd->alloc(bufsize));
   if (ptr == nullptr) return true; /* purecov: inspected */
 
   table->m_record_buffer = Record_buffer{rows_in_buffer, record_size, ptr};
@@ -3272,7 +3272,7 @@ int report_handler_error(TABLE *table, int error) {
     Also skip printing to error log if the current thread has been killed.
   */
   if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT &&
-      error != HA_ERR_TABLE_DEF_CHANGED && !table->in_use->killed)
+      error != HA_ERR_TABLE_DEF_CHANGED && !current_thd->killed)
     LogErr(ERROR_LEVEL, ER_READING_TABLE_FAILED, error, table->s->path.str);
   table->file->print_error(error, MYF(0));
   return 1;
@@ -3489,7 +3489,7 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
   {
     /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
     if (ref->impossible_null_ref() ||
-        construct_lookup_ref(table->in_use, table, ref))
+        construct_lookup_ref(current_thd, table, ref))
       error = HA_ERR_KEY_NOT_FOUND;
     else {
       error = table->file->ha_index_init(ref->key, false);
@@ -3612,7 +3612,7 @@ int EQRefIterator::Read() {
     memcpy(m_ref->key_buff2, m_ref->key_buff, m_ref->key_length);
 
   // Create new key for lookup
-  m_ref->key_err = construct_lookup_ref(table()->in_use, table(), m_ref);
+  m_ref->key_err = construct_lookup_ref(thd(), table(), m_ref);
   if (m_ref->key_err) {
     table()->set_no_row();
     return -1;

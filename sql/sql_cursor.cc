@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -403,7 +403,7 @@ bool Materialized_cursor::open(THD *thd) {
 */
 
 bool Materialized_cursor::fetch(ulong num_rows) {
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
 
   int res = 0;
   result->begin_dataset();
@@ -442,7 +442,7 @@ void Materialized_cursor::close() {
     (void)table->file->ha_rnd_end();
     is_rnd_inited = false;
   }
-  close_tmp_table(table->in_use, table);
+  close_tmp_table(table);
   m_arena.free_items();
   item_list.clear();
   mem_root.ClearForReuse();

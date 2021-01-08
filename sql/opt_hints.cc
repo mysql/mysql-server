@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -936,9 +936,10 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
   return true;
 }
 
-bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge) {
-  bool force_index_merge = hint_table_state(
-      table->in_use, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
+bool idx_merge_hint_state(THD *thd, const TABLE *table,
+                          bool *use_cheapest_index_merge) {
+  bool force_index_merge =
+      hint_table_state(thd, table->pos_in_table_list, INDEX_MERGE_HINT_ENUM, 0);
   if (force_index_merge) {
     assert(table->pos_in_table_list->opt_hints_table);
     Opt_hints_table *table_hints = table->pos_in_table_list->opt_hints_table;

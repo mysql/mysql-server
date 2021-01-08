@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1929,7 +1929,7 @@ bool Item_func_now::resolve_type(THD *) {
 }
 
 void Item_func_now_local::store_in(Field *field) {
-  THD *thd = field->table != nullptr ? field->table->in_use : current_thd;
+  THD *thd = current_thd;
   const timeval tm = thd->query_start_timeval_trunc(field->decimals());
   field->set_notnull();
   return field->store_timestamp(&tm);

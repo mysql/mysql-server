@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,7 +346,7 @@ bool Json_table_column::fill_column(Table_function_json *table_function,
       break;
     }
     case enum_jt_column::JTC_PATH: {
-      THD *thd = fld->table->in_use;
+      THD *thd = current_thd;
       // Vector of matches
       Json_wrapper_vector data_v(key_memory_JSON);
       m_jds_elt->jdata.seek(m_path_json, m_path_json.leg_count(), &data_v, true,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1043,7 +1043,7 @@ class AdjacencyList {
   }
 };
 
-void Window::eliminate_unused_objects(THD *thd, List<Window> &windows) {
+void Window::eliminate_unused_objects(List<Window> &windows) {
   /*
     Go through the list. Check if a window is used by any function. If not,
     check if any other window (used by window functions) is actually inheriting
@@ -1079,7 +1079,7 @@ void Window::eliminate_unused_objects(THD *thd, List<Window> &windows) {
         if (window_used) break;
       }
       if (!window_used) {
-        w1->cleanup(thd);
+        w1->cleanup();
         w1->destroy();
         for (auto it : {w1->m_partition_by, w1->m_order_by}) {
           if (it != nullptr) {
@@ -1345,10 +1345,10 @@ bool Window::make_special_rows_cache(THD *thd, TABLE *out_tbl) {
                (uchar *)thd->alloc((FBC_FIRST_KEY - FBC_LAST_KEY + 1) * l));
 }
 
-void Window::cleanup(THD *thd) {
+void Window::cleanup() {
   if (m_needs_frame_buffering && m_frame_buffer != nullptr) {
     (void)m_frame_buffer->file->ha_index_or_rnd_end();
-    close_tmp_table(thd, m_frame_buffer);
+    close_tmp_table(m_frame_buffer);
     free_tmp_table(m_frame_buffer);
     ::destroy(m_frame_buffer_param);
   }

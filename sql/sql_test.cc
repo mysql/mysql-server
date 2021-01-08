@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,7 +156,7 @@ void TEST_join(JOIN *join) {
 
 #endif /* !NDEBUG */
 
-void print_keyuse_array(Opt_trace_context *trace,
+void print_keyuse_array(THD *thd, Opt_trace_context *trace,
                         const Key_use_array *keyuse_array) {
   if (unlikely(!trace->is_started())) return;
   Opt_trace_object wrapper(trace);
@@ -176,10 +176,9 @@ void print_keyuse_array(Opt_trace_context *trace,
                   (keyuse.keypart == FT_KEYPART)
                       ? "<fulltext>"
                       : get_field_name_or_expression(
-                            keyuse.table_ref->table->in_use,
-                            keyuse.table_ref->table->key_info[keyuse.key]
-                                .key_part[keyuse.keypart]
-                                .field))
+                            thd, keyuse.table_ref->table->key_info[keyuse.key]
+                                     .key_part[keyuse.keypart]
+                                     .field))
         .add("equals", keyuse.val)
         .add("null_rejecting", keyuse.null_rejecting);
   }

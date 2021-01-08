@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1326,7 +1326,7 @@ void Query_expression::cleanup(THD *thd, bool full) {
   // fake_query_block's table depends on Temp_table_param inside union_result
   if (full && union_result) {
     union_result->cleanup(thd);
-    if (table != nullptr) close_tmp_table(thd, table);
+    if (table != nullptr) close_tmp_table(table);
   }
 
   /*
@@ -1472,21 +1472,20 @@ bool Query_expression::walk(Item_processor processor, enum_walk walk,
   Closes (and, if last reference, drops) temporary tables created to
   materialize derived tables, schema tables and CTEs.
 
-  @param thd  Thread handler
   @param list List of tables to search in
 */
-static void remove_materialized(THD *thd, TABLE_LIST *list) {
+static void remove_materialized(TABLE_LIST *list) {
   for (auto tl = list; tl; tl = tl->next_local) {
     if (tl->merge_underlying_list) {
       // Find a materialized view inside another view.
-      remove_materialized(thd, tl->merge_underlying_list);
+      remove_materialized(tl->merge_underlying_list);
     } else if (tl->is_table_function()) {
       tl->table_function->cleanup();
     }
     if (tl->table == nullptr) continue;  // Not materialized
     if ((tl->is_view_or_derived() || tl->is_recursive_reference() ||
          tl->schema_table || tl->is_table_function())) {
-      close_tmp_table(thd, tl->table);
+      close_tmp_table(tl->table);
       if (tl->schema_table) {
         free_tmp_table(tl->table);  // Schema tables are per execution
         tl->table = nullptr;
@@ -1542,19 +1541,18 @@ void Query_block::cleanup(THD *thd, bool full) {
   }
 
   if (full) {
-    remove_materialized(thd, get_table_list());
+    remove_materialized(get_table_list());
     if (hidden_items_from_optimization > 0) remove_hidden_items();
     if (m_windows.elements > 0) {
       List_iterator<Window> li(m_windows);
       Window *w;
-      while ((w = li++)) w->cleanup(thd);
+      while ((w = li++)) w->cleanup();
     }
   }
 
-  for (Query_expression *lex_query_expression = first_inner_query_expression();
-       lex_query_expression;
-       lex_query_expression = lex_query_expression->next_query_expression()) {
-    lex_query_expression->cleanup(thd, full);
+  for (Query_expression *qe = first_inner_query_expression(); qe != nullptr;
+       qe = qe->next_query_expression()) {
+    qe->cleanup(thd, full);
   }
 }
 

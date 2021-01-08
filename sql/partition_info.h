@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -508,7 +508,7 @@ class partition_info {
   void set_show_version_string(String *packet);
   partition_element *get_part_elem(const char *partition_name, uint32 *part_id);
   void report_part_expr_error(bool use_subpart_expr);
-  bool set_used_partition(const mem_root_deque<Item *> &fields,
+  bool set_used_partition(THD *thd, const mem_root_deque<Item *> &fields,
                           const mem_root_deque<Item *> &values, COPY_INFO &info,
                           bool copy_default_values, MY_BITMAP *used_partitions);
   /**

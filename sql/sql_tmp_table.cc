@@ -89,7 +89,7 @@
 
 using std::max;
 using std::min;
-static bool alloc_record_buffers(TABLE *table);
+static bool alloc_record_buffers(THD *thd, TABLE *table);
 
 /**
   Lifecycle management of internal temporary tables.
@@ -927,8 +927,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
   table->init_tmp_table(thd, share, &own_root, param->table_charset,
                         table_alias, reg_field, blob_field, false);
 
-  auto free_tmp_table_guard = create_scope_guard([thd, table] {
-    close_tmp_table(thd, table);
+  auto free_tmp_table_guard = create_scope_guard([table] {
+    close_tmp_table(table);
     free_tmp_table(table);
   });
 
@@ -1373,7 +1373,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
   share->null_fields = null_count + hidden_null_count;
 
-  if (alloc_record_buffers(table)) return nullptr;
+  if (alloc_record_buffers(thd, table)) return nullptr;
 
   uchar *pos = table->record[0] + share->null_bytes;
   null_count = (share->blob_fields == 0) ? 1 : 0;
@@ -1712,7 +1712,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   share->null_bytes = null_pack_length;
   share->null_fields = null_count;
 
-  if (alloc_record_buffers(table)) goto err;
+  if (alloc_record_buffers(thd, table)) goto err;
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   null_flags = table->record[0];
@@ -1784,7 +1784,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
 err:
   /* purecov: begin inspected */
   table->file->ha_index_or_rnd_end();
-  close_tmp_table(thd, table);
+  close_tmp_table(table);
   free_tmp_table(table);
   return nullptr;
   /* purecov: end */
@@ -1908,7 +1908,7 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
       table->null_flags = table->record[0];
       memset(table->record[0], 255, null_pack_length);  // Set null fields
     }
-  } else if (alloc_record_buffers(table))
+  } else if (alloc_record_buffers(thd, table))
     goto error;
 
   setup_tmp_table_column_bitmaps(table, bitmaps);
@@ -2084,16 +2084,14 @@ bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
   @note Caller must initialize TABLE_SHARE::reclength and
   TABLE_SHARE::null_bytes before calling this function.
 
+  @param thd    thread handler
   @param table  table to allocate record buffers for
 
-  @returns
-    false  on success
-    true   otherwise
+  @returns false on success, true on error
 */
 
-static bool alloc_record_buffers(TABLE *table) {
+static bool alloc_record_buffers(THD *thd, TABLE *table) {
   TABLE_SHARE *share = table->s;
-  THD *thd = table->in_use;
   /*
     Same as MI_UNIQUE_HASH_LENGTH,
     allows to exclude "myisam.h" from include files.
@@ -2171,12 +2169,13 @@ bool open_tmp_table(TABLE *table) {
   This function may use the free element to create hash column for unique
   constraint.
 
+  @param         thd   Thread handler
   @param[in,out] table Table object that describes the table to be created
 
   @retval false OK
   @retval true Error
 */
-static bool create_tmp_table_with_fallback(TABLE *table) {
+static bool create_tmp_table_with_fallback(THD *thd, TABLE *table) {
   TABLE_SHARE *share = table->s;
 
   DBUG_TRACE;
@@ -2206,8 +2205,7 @@ static bool create_tmp_table_with_fallback(TABLE *table) {
       table->file->create(share->table_name.str, table, &create_info, nullptr);
   if (error == HA_ERR_RECORD_FILE_FULL &&
       table->s->db_type() == temptable_hton) {
-    table->file =
-        get_new_handler(table->s, false, table->in_use->mem_root, innodb_hton);
+    table->file = get_new_handler(table->s, false, thd->mem_root, innodb_hton);
     error = table->file->create(share->table_name.str, table, &create_info,
                                 nullptr);
   }
@@ -2218,7 +2216,7 @@ static bool create_tmp_table_with_fallback(TABLE *table) {
     return true;
   } else {
     if (table->s->db_type() != temptable_hton) {
-      table->in_use->inc_status_created_tmp_disk_tables();
+      thd->inc_status_created_tmp_disk_tables();
     }
     return false;
   }
@@ -2257,24 +2255,23 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
 }
 
 /**
-  @brief
   Instantiates temporary table
 
   @param  thd             Thread handler
   @param  table           Table object that describes the table to be
                           instantiated
 
-  @details
-    Creates tmp table and opens it.
+  Creates temporary table and opens it.
 
-  @return
-     false - OK
-     true  - Error
+  @returns false if success, true if error
 */
 
 bool instantiate_tmp_table(THD *thd, TABLE *table) {
-  TABLE_SHARE *const share = table->s;
+  // Ensure that "in_use" is synchronized with the current session
+  assert(table->in_use == nullptr || table->in_use == thd);
   table->in_use = thd;
+
+  TABLE_SHARE *const share = table->s;
 
 #ifndef NDEBUG
   for (uint i = 0; i < share->fields; i++)
@@ -2290,9 +2287,9 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
     return true;
   }
   if (share->db_type() == temptable_hton) {
-    if (create_tmp_table_with_fallback(table)) return true;
+    if (create_tmp_table_with_fallback(thd, table)) return true;
   } else if (share->db_type() == innodb_hton) {
-    if (create_tmp_table_with_fallback(table)) return true;
+    if (create_tmp_table_with_fallback(thd, table)) return true;
     // Make empty record so random data is not written to disk
     empty_record(table);
   }
@@ -2337,46 +2334,43 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
   - If a storage handler has been allocated, it will be deleted and the
     plugin will be released.
 
-  @param thd    Thread handler
-  @param entry  Table reference
+  @param table  Table reference
 */
-void close_tmp_table(THD *thd, TABLE *entry) {
+void close_tmp_table(TABLE *table) {
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("table: %s", entry->alias));
-
-  const char *save_proc_info = thd->proc_info;
-  THD_STAGE_INFO(thd, stage_removing_tmp_table);
+  DBUG_PRINT("enter", ("table: %s", table->alias));
 
   // Free blobs, even if no storage handler is assigned
-  for (Field **ptr = entry->field; *ptr; ptr++) (*ptr)->mem_free();
+  for (Field **ptr = table->field; *ptr; ptr++) (*ptr)->mem_free();
 
-  if (!entry->has_storage_handler()) return;
+  if (!table->has_storage_handler()) return;
 
-  assert(entry->has_storage_handler() && entry->s->ref_count() > 0 &&
-         entry->s->tmp_handler_count <= entry->s->ref_count());
-  assert(entry->mem_root.allocated_size() == 0);
+  assert(table->has_storage_handler() && table->s->ref_count() > 0 &&
+         table->s->tmp_handler_count <= table->s->ref_count());
+  assert(table->mem_root.allocated_size() == 0);
 
-  filesort_free_buffers(entry, true);
+  filesort_free_buffers(table, true);
 
-  if (entry->is_created()) {
-    if (--entry->s->tmp_handler_count > 0) {
-      entry->file->ha_close();
+  if (table->is_created()) {
+    if (--table->s->tmp_handler_count > 0) {
+      table->file->ha_close();
     } else  // no more open 'handler' objects
-      entry->file->ha_drop_table(entry->s->table_name.str);
-    entry->set_deleted();
+      table->file->ha_drop_table(table->s->table_name.str);
+    table->set_deleted();
   }
 
-  if (entry->s->tmp_handler_count == 0 && entry->s->db_plugin != nullptr) {
-    plugin_unlock(nullptr, entry->s->db_plugin);
-    entry->s->db_plugin = nullptr;
+  if (table->s->tmp_handler_count == 0 && table->s->db_plugin != nullptr) {
+    plugin_unlock(nullptr, table->s->db_plugin);
+    table->s->db_plugin = nullptr;
   }
 
-  destroy(entry->file);
-  entry->file = nullptr;
+  destroy(table->file);
+  table->file = nullptr;
 
-  free_io_cache(entry);
+  free_io_cache(table);
 
-  thd_proc_info(thd, save_proc_info);
+  // Mark table as inactive when it is closed
+  table->in_use = nullptr;
 }
 
 /**
@@ -2387,13 +2381,13 @@ void close_tmp_table(THD *thd, TABLE *entry) {
   @param entry  Table reference
 */
 
-void free_tmp_table(TABLE *entry) {
+void free_tmp_table(TABLE *table) {
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("table: %s", entry->alias));
+  DBUG_PRINT("enter", ("table: %s", table->alias));
 
-  assert(!entry->is_created() && !entry->has_storage_handler() &&
-         entry->s->db_plugin == nullptr && entry->s->ref_count() > 0 &&
-         entry->s->tmp_handler_count == 0);
+  assert(!table->is_created() && !table->has_storage_handler() &&
+         table->s->db_plugin == nullptr && table->s->ref_count() > 0 &&
+         table->s->tmp_handler_count == 0);
 
   /*
     In create_tmp_table(), the share's memroot is allocated inside own_root
@@ -2401,10 +2395,10 @@ void free_tmp_table(TABLE *entry) {
     so as soon as we free a memory block the memroot becomes unreadbable.
     So we need a copy to free it.
   */
-  if (entry->s->decrement_ref_count() == 0)  // no more TABLE objects
+  if (table->s->decrement_ref_count() == 0)  // no more TABLE objects
   {
-    MEM_ROOT own_root = std::move(entry->s->mem_root);
-    destroy(entry);
+    MEM_ROOT own_root = std::move(table->s->mem_root);
+    destroy(table);
     free_root(&own_root, MYF(0));
   }
 }
@@ -2576,7 +2570,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     set_real_row_type(&new_table);
 
     if (!table_on_disk) {
-      if (create_tmp_table_with_fallback(&new_table))
+      if (create_tmp_table_with_fallback(thd, &new_table))
         goto err_after_alloc; /* purecov: inspected */
 
       table_on_disk = true;

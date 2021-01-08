@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -424,7 +424,7 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
 
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
 
-  const THD *thd = field->table->in_use;
+  const THD *thd = current_thd;
 
   for (const Json_diff &diff : *diffs) {
     Json_wrapper val = diff.value();

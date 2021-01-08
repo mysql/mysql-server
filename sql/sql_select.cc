@@ -1561,7 +1561,7 @@ static void destroy_sj_tmp_tables(JOIN *join) {
     if (table->file != nullptr) {
       table->file->ha_index_or_rnd_end();
     }
-    close_tmp_table(join->thd, table);
+    close_tmp_table(table);
     free_tmp_table(table);
   }
   join->sj_tmp_tables.clear();
@@ -1720,7 +1720,7 @@ void JOIN::destroy() {
       }
     }
     for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
-      close_tmp_table(thd, cleanup.table);
+      close_tmp_table(cleanup.table);
       free_tmp_table(cleanup.table);
       ::destroy(cleanup.temp_table_param);
     }
@@ -2486,6 +2486,7 @@ enum store_key::store_key_result store_key_hash_item::copy_inner() {
 namespace {
 
 enum store_key::store_key_result store_key_json_item::copy_inner() {
+  THD *thd = current_thd;
   TABLE *table = to_field->table;
   // Temporarily mark all table's fields writable to avoid assert.
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
@@ -2494,12 +2495,12 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
     String str_val, buf;
 
     Functional_index_error_handler functional_index_error_handler(to_field,
-                                                                  current_thd);
+                                                                  thd);
     // Get JSON value and store its value as the key. MEMBER OF is the only
     // function that can use this function
     if (get_json_atom_wrapper(&item, 0, "MEMBER OF", &str_val, &buf, &wr,
                               nullptr, true) ||
-        save_json_to_field(current_thd, to_field, &wr, false))
+        save_json_to_field(thd, to_field, &wr, false))
       return STORE_KEY_FATAL;
     // Copy constant key only once
     if (m_const_key) m_inited = true;
@@ -2507,7 +2508,7 @@ enum store_key::store_key_result store_key_json_item::copy_inner() {
 
   dbug_tmp_restore_column_map(table->write_set, old_map);
   null_key = to_field->is_null() || item->null_value;
-  assert(!current_thd->is_error());
+  assert(!thd->is_error());
   return STORE_KEY_OK;
 }
 
@@ -2548,6 +2549,7 @@ store_key_item::store_key_item(THD *thd, Field *to_field_arg, uchar *ptr,
 }
 
 enum store_key::store_key_result store_key_item::copy_inner() {
+  THD *thd = current_thd;
   TABLE *table = to_field->table;
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
   type_conversion_status save_res = item->save_in_field(to_field, true);
@@ -2556,10 +2558,10 @@ enum store_key::store_key_result store_key_item::copy_inner() {
     Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
     we need to check for errors executing it and react accordingly.
   */
-  if (save_res != TYPE_OK && current_thd->is_error())
+  if (save_res != TYPE_OK && thd->is_error())
     res = STORE_KEY_FATAL;
   else
-    res = type_conversion_status_to_store_key(current_thd, save_res);
+    res = type_conversion_status_to_store_key(thd, save_res);
   dbug_tmp_restore_column_map(table->write_set, old_map);
   null_key = to_field->is_null() || item->null_value;
   return to_field->is_tmp_null() ? STORE_KEY_FATAL : res;
@@ -3400,7 +3402,7 @@ void QEP_TAB::cleanup() {
       op_type == QEP_TAB::OT_WINDOWING_FUNCTION) {
     if (t != nullptr)  // Check tmp table is not yet freed.
     {
-      close_tmp_table(current_thd, t);
+      close_tmp_table(t);
       free_tmp_table(t);
     }
     destroy(tmp_table_param);
@@ -3413,7 +3415,7 @@ void QEP_TAB::cleanup() {
     t->covering_keys.clear_all();
     t->possible_quick_keys.clear_all();
 
-    close_tmp_table(current_thd, t);
+    close_tmp_table(t);
   }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1741,7 +1741,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
 
   if (inlined) {
     new_entry.length(value_entry_size(m_large));
-    Json_dom *dom = new_value->to_dom(field->table->in_use);
+    Json_dom *dom = new_value->to_dom(current_thd);
     if (dom == nullptr) return true; /* purecov: inspected */
     attempt_inline_value(dom, &new_entry, 0, m_large);
   } else {
@@ -1753,7 +1753,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
     char *value_dest = destination + value_offset;
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
-    if (new_value->to_binary(field->table->in_use, &buffer))
+    if (new_value->to_binary(current_thd, &buffer))
       return true; /* purecov: inspected */
 
     assert(buffer.length() > 1);

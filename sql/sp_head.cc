@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1964,7 +1964,7 @@ void sp_head::returns_type(THD *thd, String *result) const {
   Field *field = make_field(m_return_field_def, &share, m_name.str,
                             m_return_field_def.max_display_width_in_bytes(),
                             nullptr, nullptr, 0);
-  field->init(&table);  // Field::sql_type() uses Field::table::in_use
+  field->init(&table);
   field->sql_type(*result);
 
   if (field->has_charset()) {

@@ -573,7 +573,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   }
 
   // Eliminate unused window definitions, redundant sorts etc.
-  if (m_windows.elements != 0) Window::eliminate_unused_objects(thd, m_windows);
+  if (m_windows.elements != 0) Window::eliminate_unused_objects(m_windows);
 
   // Replace group by field references inside window functions with references
   // in the presence of ROLLUP.
@@ -4977,7 +4977,7 @@ bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
     if (rfield->m_default_val_expr &&
         value->type() == Item::DEFAULT_VALUE_ITEM) {
       // Restore the statement safety flag to current lex
-      table->in_use->lex->set_stmt_unsafe_flags(
+      current_thd->lex->set_stmt_unsafe_flags(
           rfield->m_default_val_expr->get_stmt_unsafe_flags());
       // Mark the columns that this expression reads to rthe ead_set
       for (uint j = 0; j < table->s->fields; j++) {

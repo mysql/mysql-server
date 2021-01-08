@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3619,7 +3619,7 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
 
   // Find out how much space we need to store new_value.
   size_t needed;
-  const THD *thd = field->table->in_use;
+  const THD *thd = current_thd;
   if (space_needed(thd, new_value, parent.large_format(), &needed)) return true;
 
   // Do we have that space available?
@@ -3671,6 +3671,8 @@ bool Json_wrapper::binary_remove(const Field_json *field,
 
   *found_path = false;
 
+  THD *thd = current_thd;
+
   Json_wrapper_vector hits(key_memory_JSON);
   if (seek_no_dup_elimination(
           m_value, path.begin(),
@@ -3716,8 +3718,9 @@ bool Json_wrapper::binary_remove(const Field_json *field,
   */
   const char *original;
   if (result->is_empty()) {
-    if (m_value.raw_binary(field->table->in_use, result))
+    if (m_value.raw_binary(thd, result)) {
       return true; /* purecov: inspected */
+    }
     original = field->get_binary();
   } else {
     assert(is_binary_backed_by(result));

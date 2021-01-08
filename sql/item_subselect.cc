@@ -3385,7 +3385,7 @@ void subselect_hash_sj_engine::cleanup(THD *thd) {
     TABLE *const table = tab->table();
     if (table->file->inited)
       table->file->ha_index_end();  // Close the scan over the index
-    close_tmp_table(thd, table);
+    close_tmp_table(table);
     free_tmp_table(table);
     // Note that tab->qep_cleanup() is not called
     tab = nullptr;

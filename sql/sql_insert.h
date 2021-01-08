@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -229,6 +229,8 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
   bool resolve_update_expressions(THD *thd);
   bool prepare_values_table(THD *thd);
   bool resolve_values_table_columns(THD *thd);
+  bool get_default_columns(THD *thd, TABLE *table,
+                           MY_BITMAP **m_function_default_columns);
 
  protected:
   /// true when REPLACE statement, false when INSERT statement

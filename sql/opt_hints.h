@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -782,6 +782,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 /**
   Returns true if index merge hint state is on otherwise returns false.
 
+  @param thd                       Thread handler
   @param table                     Pointer to TABLE object
   @param use_cheapest_index_merge  IN/OUT Returns true if INDEX_MERGE hint is
                                           used without any specified key.
@@ -789,7 +790,8 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
   @return true if index merge hint state is on otherwise returns false.
 */
 
-bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge);
+bool idx_merge_hint_state(THD *thd, const TABLE *table,
+                          bool *use_cheapest_index_merge);
 
 int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
                    const CHARSET_INFO *cs);

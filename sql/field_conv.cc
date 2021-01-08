@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,7 @@ type_conversion_status set_field_to_null(Field *field) {
     neither NULL-able nor temporary NULL-able (see setup_copy_fields()).
   */
   field->reset();
-  switch (field->table->in_use->check_for_truncated_fields) {
+  switch (current_thd->check_for_truncated_fields) {
     case CHECK_FIELD_WARN:
       field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
       /* fall through */
@@ -161,6 +161,8 @@ type_conversion_status set_field_to_null(Field *field) {
 
 type_conversion_status set_field_to_null_with_conversions(Field *field,
                                                           bool no_conversions) {
+  THD *thd = current_thd;
+
   if (field->is_nullable()) {
     field->set_null();
     field->reset();
@@ -182,7 +184,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
     no special value.
   */
   if (field->type() == MYSQL_TYPE_TIMESTAMP &&
-      !field->table->in_use->variables.explicit_defaults_for_timestamp) {
+      !thd->variables.explicit_defaults_for_timestamp) {
     /*
       With explicit_defaults_for_timestamp disabled, if a NULL value is inserted
       into a timestamp column with NOT NULL attribute, would attempt to convert
@@ -218,7 +220,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
 
-  switch (field->table->in_use->check_for_truncated_fields) {
+  switch (thd->check_for_truncated_fields) {
     case CHECK_FIELD_WARN:
       field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
       /* fall through */
@@ -304,7 +306,7 @@ static void do_copy_blob(Copy_field *, const Field *from_field,
   to_blob->set_ptr(std::min(from_length, to_field->max_data_length()),
                    from_blob->get_blob_data());
   if (to_blob->get_length() < from_length) {
-    if (to_field->table->in_use->is_strict_mode()) {
+    if (current_thd->is_strict_mode()) {
       to_field->set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     } else {
       to_field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
@@ -502,6 +504,7 @@ static void copy_field_varstring(Field_varstring *const to,
 
   size_t bytes_to_copy;
   const CHARSET_INFO *const from_cs = from->charset();
+  THD *thd = current_thd;
   if (from->row_pack_length() <= to->row_pack_length()) {
     /*
       There's room for everything in the destination buffer;
@@ -516,14 +519,14 @@ static void copy_field_varstring(Field_varstring *const to,
         from_cs, from_beg, from_beg + from->data_length(), to_char_length,
         &well_formed_error);
     if (bytes_to_copy < from->data_length()) {
-      if (from->table->in_use->check_for_truncated_fields)
+      if (thd->check_for_truncated_fields)
         to->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
     }
   } else {
     bytes_to_copy = from->data_length();
     if (bytes_to_copy > to->row_pack_length()) {
       bytes_to_copy = to->row_pack_length();
-      if (from->table->in_use->check_for_truncated_fields)
+      if (thd->check_for_truncated_fields)
         to->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
     }
   }
@@ -598,6 +601,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
     That call will take place anyway in all known cases.
  */
 Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
+  THD *thd = current_thd;
   if ((m_to_field->is_flag_set(BLOB_FLAG)) && save) {
     if (m_to_field->real_type() == MYSQL_TYPE_JSON &&
         m_from_field->real_type() == MYSQL_TYPE_JSON)
@@ -683,7 +687,7 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
           m_to_field->decimals() !=
               m_from_field->decimals() /* e.g. TIME vs TIME(6) */
           || !compatible_db_low_byte_first ||
-          (((m_to_field->table->in_use->variables.sql_mode &
+          (((thd->variables.sql_mode &
              (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) &&
             m_to_field->type() == MYSQL_TYPE_DATE) ||
            m_to_field->type() == MYSQL_TYPE_DATETIME)) {
@@ -753,6 +757,8 @@ type_conversion_status field_conv(Field *to, const Field *from) {
   const enum_field_types from_type = from->type();
   const enum_field_types to_type = to->type();
 
+  THD *thd = current_thd;
+
   if ((to_type == MYSQL_TYPE_JSON) && (from_type == MYSQL_TYPE_JSON)) {
     Field_json *to_json = down_cast<Field_json *>(to);
     const Field_json *from_json = down_cast<const Field_json *>(from);
@@ -784,10 +790,10 @@ type_conversion_status field_conv(Field *to, const Field *from) {
           (down_cast<Field_num *>(to)->dec ==
            down_cast<const Field_num *>(from)->dec))) &&
         to->table->s->db_low_byte_first == from->table->s->db_low_byte_first &&
-        (!(to->table->in_use->variables.sql_mode &
+        (!(thd->variables.sql_mode &
            (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE | MODE_INVALID_DATES)) ||
          (to_type != MYSQL_TYPE_DATE && to_type != MYSQL_TYPE_DATETIME &&
-          (!to->table->in_use->variables.explicit_defaults_for_timestamp ||
+          (!thd->variables.explicit_defaults_for_timestamp ||
            to_type != MYSQL_TYPE_TIMESTAMP))) &&
         (from->real_type() != MYSQL_TYPE_VARCHAR)) {  // Identical fields
       // to->ptr==from->ptr may happen if one does 'UPDATE ... SET x=x'

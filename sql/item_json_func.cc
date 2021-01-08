@@ -3847,7 +3847,7 @@ Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
 bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
                                           Json_wrapper *coerced) const {
   Json_wrapper saved;
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
   // Save JSON value to the conversion field
   if (wr->type() == enum_json_type::J_NULL) {
     Json_dom_ptr elt;

@@ -1213,6 +1213,8 @@ void Aggregator_distinct::clear() {
 */
 
 bool Aggregator_distinct::add() {
+  THD *thd = current_thd;
+
   if (const_distinct == CONST_NULL) return false;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC ||
@@ -1225,8 +1227,8 @@ bool Aggregator_distinct::add() {
       sum->count = 1;
       return false;
     }
-    if (copy_fields(tmp_table_param, table->in_use)) return true;
-    if (copy_funcs(tmp_table_param, table->in_use)) return true;
+    if (copy_fields(tmp_table_param, thd)) return true;
+    if (copy_funcs(tmp_table_param, thd)) return true;
 
     for (Field **field = table->field; *field; field++)
       if ((*field)->is_real_null()) return false;  // Don't count NULL
@@ -2049,7 +2051,7 @@ Aggregator_distinct::~Aggregator_distinct() {
   }
   if (table) {
     if (table->file) table->file->ha_index_or_rnd_end();
-    close_tmp_table(table->in_use, table);
+    close_tmp_table(table);
     free_tmp_table(table);
     table = nullptr;
   }
@@ -4196,9 +4198,8 @@ void Item_func_group_concat::cleanup() {
     destroy(tmp_table_param);
     tmp_table_param = nullptr;
     if (table != nullptr) {
-      THD *thd = table->in_use;
       if (table->blob_storage) destroy(table->blob_storage);
-      close_tmp_table(thd, table);
+      close_tmp_table(table);
       free_tmp_table(table);
       table = nullptr;
       if (tree != nullptr) {
@@ -4275,8 +4276,9 @@ void Item_func_group_concat::clear() {
 
 bool Item_func_group_concat::add() {
   if (always_null) return false;
-  if (copy_fields(tmp_table_param, table->in_use)) return true;
-  if (copy_funcs(tmp_table_param, table->in_use)) return true;
+  THD *thd = current_thd;
+  if (copy_fields(tmp_table_param, thd)) return true;
+  if (copy_funcs(tmp_table_param, thd)) return true;
 
   for (uint i = 0; i < arg_count_field; i++) {
     Item *show_item = args[i];

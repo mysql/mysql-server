@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,6 @@ void dump_TABLE_LIST_graph(Query_block *query_block, TABLE_LIST *tl);
 #endif
 class Opt_trace_context;
 
-void print_keyuse_array(Opt_trace_context *trace,
+void print_keyuse_array(THD *thd, Opt_trace_context *trace,
                         const Key_use_array *keyuse_array);
 #endif /* SQL_TEST_INCLUDED */

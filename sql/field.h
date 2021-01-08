@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -670,12 +670,8 @@ class Field {
 
  public:
   uchar *get_null_ptr() { return m_null_ptr; }
-
-  /*
-    Note that you can use table->in_use as replacement for current_thd member
-    only inside of val_*() and store() members (e.g. you can't use it in cons)
-  */
-  TABLE *table;  // Pointer for table
+  /// Pointer to TABLE object that owns this field
+  TABLE *table;
   /// Pointer to original database name, only non-NULL for a temporary table
   const char *orig_db_name{nullptr};
   /// Pointer to original table name, only non-NULL for a temporary table

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -925,10 +925,9 @@ class Window {
     only after syntactic and semantic checking for errors has been performed.
     Eliminate redundant sorts after unused windows are removed.
 
-    @param thd             The session's execution thread
     @param windows         The list of windows defined for this select
   */
-  static void eliminate_unused_objects(THD *thd, List<Window> &windows);
+  static void eliminate_unused_objects(List<Window> &windows);
 
   /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
@@ -1303,7 +1302,7 @@ class Window {
     e.g. temporary files and in-memory data structures. Called when done
     with all window processing steps from Query_block::cleanup.
   */
-  void cleanup(THD *thd);
+  void cleanup();
 
   /**
     Free structures that were set up during preparation of window functions

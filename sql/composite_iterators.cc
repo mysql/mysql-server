@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1201,8 +1201,7 @@ bool MaterializedTableFunctionIterator::Init() {
       return true;
     }
   }
-  (void)m_table_function->fill_result_table();
-  if (table()->in_use->is_error()) {
+  if (m_table_function->fill_result_table()) {
     return true;
   }
   return m_table_iterator->Init();

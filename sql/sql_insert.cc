@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -926,16 +926,14 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables) {
   return;
 }
 
-static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
+static bool allocate_column_bitmap(THD *thd, TABLE *table, MY_BITMAP **bitmap) {
   DBUG_TRACE;
   const uint number_bits = table->s->fields;
   MY_BITMAP *the_struct;
   my_bitmap_map *the_bits;
 
-  assert(current_thd == table->in_use);
-  if (multi_alloc_root(table->in_use->mem_root, &the_struct, sizeof(MY_BITMAP),
-                       &the_bits, bitmap_buffer_size(number_bits),
-                       NULL) == nullptr)
+  if (multi_alloc_root(thd->mem_root, &the_struct, sizeof(MY_BITMAP), &the_bits,
+                       bitmap_buffer_size(number_bits), nullptr) == nullptr)
     return true;
 
   if (bitmap_init(the_struct, the_bits, number_bits) != 0) return true;
@@ -945,8 +943,11 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
   return false;
 }
 
-bool get_default_columns(TABLE *table, MY_BITMAP **m_function_default_columns) {
-  if (allocate_column_bitmap(table, m_function_default_columns)) return true;
+bool Sql_cmd_insert_base::get_default_columns(
+    THD *thd, TABLE *table, MY_BITMAP **m_function_default_columns) {
+  if (allocate_column_bitmap(thd, table, m_function_default_columns)) {
+    return true;
+  }
   /*
     Find columns with function default on insert or update, mark them in
     bitmap.
@@ -971,7 +972,7 @@ bool get_default_columns(TABLE *table, MY_BITMAP **m_function_default_columns) {
     if (bitmap_is_set(*m_function_default_columns, i)) {
       assert(f->m_default_val_expr != nullptr);
       // restore binlog safety flags
-      table->in_use->lex->set_stmt_unsafe_flags(
+      thd->lex->set_stmt_unsafe_flags(
           f->m_default_val_expr->get_stmt_unsafe_flags());
       // Mark the columns the expression reads in the table's read_set
       for (uint j = 0; j < table->s->fields; j++) {
@@ -1201,7 +1202,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     bitmap_set_all(insert_table->write_set);
 
   MY_BITMAP *function_default_columns = nullptr;
-  get_default_columns(insert_table, &function_default_columns);
+  if (get_default_columns(thd, insert_table, &function_default_columns))
+    return true;
 
   // If an alias for VALUES is specified, prepare the derived values table. This
   // must be done after setting up the insert table to have access to insert
@@ -1456,7 +1458,7 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
         rest will be in the same partition.
       */
       if (insert_table->part_info->set_used_partition(
-              insert_field_list, /*values=*/*(*its++), info,
+              thd, insert_field_list, /*values=*/*(*its++), info,
               prune_needs_default_values, &used_partitions)) {
         can_prune_partitions = partition_info::PRUNE_NO;
         // set_used_partition may fail.
@@ -1476,8 +1478,8 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
         */
         if (can_prune_partitions == partition_info::PRUNE_YES) {
           if (insert_table->part_info->set_used_partition(
-                  insert_field_list, *values, info, prune_needs_default_values,
-                  &used_partitions)) {
+                  thd, insert_field_list, *values, info,
+                  prune_needs_default_values, &used_partitions)) {
             can_prune_partitions = partition_info::PRUNE_NO;
             // set_used_partition may fail.
             if (thd->is_error()) return true;

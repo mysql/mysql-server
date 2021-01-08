@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1391,8 +1391,18 @@ struct TABLE {
     indexes.
   */
   MY_BITMAP fields_for_functional_indexes;
-
-  THD *in_use{nullptr};   /* Which thread uses this */
+  /**
+    The current session using this table object.
+    Should be NULL when object is not in use.
+    For an internal temporary table, it is NULL when the table is closed.
+    Used for two purposes:
+     - Signal that the object is in use, and by which session.
+     - Pass the thread handler to storage handlers.
+    The field should NOT be used as a general THD reference, instead use
+    a passed THD reference, or, if there is no such, current_thd.
+    The reason for this is that we cannot guarantee the field is not NULL.
+  */
+  THD *in_use{nullptr};
   Field **field{nullptr}; /* Pointer to fields */
   /// Count of hidden fields, if internal temporary table; 0 otherwise.
   uint hidden_field_count{0};
