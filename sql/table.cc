@@ -2780,24 +2780,6 @@ bool unpack_partition_info(THD *thd, TABLE *outparam, TABLE_SHARE *share,
   assert(!share->m_part_info || outparam->part_info->list_of_part_fields ==
                                     share->m_part_info->list_of_part_fields);
 
-  // part_info->part_expr->table_name and
-  // part_info->subpart_expr->table_name will have been set to
-  // TABLE::alias (passed on from Field). But part_info cannot refer
-  // to TABLE::alias since this may be changed when the table object
-  // is reused. Traverse part_expr and subpart_expr and set table_name
-  // to nullptr, to avoid dereferencing an invalid pointer.
-
-  // @todo bug#29354690: When part_info handling is refactored and properly
-  // attached to a single TABLE object, this extra code can be
-  // deleted.
-  if (outparam->part_info->part_expr != nullptr) {
-    outparam->part_info->part_expr->walk(&Item::set_table_name,
-                                         enum_walk::SUBQUERY_POSTFIX, nullptr);
-  }
-  if (outparam->part_info->subpart_expr != nullptr) {
-    outparam->part_info->subpart_expr->walk(
-        &Item::set_table_name, enum_walk::SUBQUERY_POSTFIX, nullptr);
-  }
   return tmp;
 }
 

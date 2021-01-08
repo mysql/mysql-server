@@ -3333,16 +3333,6 @@ class Item : public Parse_tree_node {
 
  public:
   /**
-     Noop in Item for items that are not subclasses of Item_ident.
-     Overridden in Item_ident where it sets the
-     table_name member. Signture matches the requirement of
-     Item::walk.
-
-     @return true - to signal that walk should continue to sub items.
-   */
-  virtual bool set_table_name(uchar *) { return true; }
-
-  /**
     Check if this expression can be used for partial update of a given
     JSON column.
 
@@ -3834,18 +3824,6 @@ class Item_ident : public Item {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override {
     print(thd, str, query_type, db_name, table_name);
-  }
-
-  /**
-     Assign the argument to table_name. Argument passed as uchar* to
-     match requirement of Item::walk.
-
-     @param tn new table_name (should be pointer to const char)
-     @return true - to signal that walk should continue to sub items.
-   */
-  bool set_table_name(uchar *tn) final {
-    table_name = pointer_cast<const char *>(tn);
-    return true;
   }
 
  protected:
