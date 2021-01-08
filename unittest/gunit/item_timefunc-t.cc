@@ -139,6 +139,37 @@ TEST_F(ItemTimeFuncTest, PeriodAddMetadata) {
       std::numeric_limits<int64_t>::min());
 }
 
+// Verifies that the results returned by the PERIOD_DIFF function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, PeriodDiffMetadata) {
+  CheckMetadataAndResult(thd(),
+                         new Item_func_period_diff(POS(), new Item_int(202101),
+                                                   new Item_int(202101)),
+                         0);
+
+  CheckMetadataAndResult(thd(),
+                         new Item_func_period_diff(POS(), new Item_int(202101),
+                                                   new Item_int(201912)),
+                         13);
+
+  CheckMetadataAndResult(thd(),
+                         new Item_func_period_diff(POS(), new Item_int(201912),
+                                                   new Item_int(202101)),
+                         -13);
+
+  CheckMetadataAndResult(
+      thd(),
+      new Item_func_period_diff(POS(), new Item_int(9223372036854775807LL),
+                                new Item_int(1)),
+      1106804644422549102LL);
+
+  CheckMetadataAndResult(
+      thd(),
+      new Item_func_period_diff(POS(), new Item_int(1),
+                                new Item_int(9223372036854775807LL)),
+      -1106804644422549102LL);
+}
+
 // Verifies that the results returned by the TO_DAYS function are consistent
 // with the metadata.
 TEST_F(ItemTimeFuncTest, ToDaysMetadata) {

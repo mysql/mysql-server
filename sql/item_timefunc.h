@@ -77,11 +77,7 @@ class Item_func_period_diff final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "period_diff"; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_LONGLONG)) return true;
-    fix_char_length(6); /* YYYYMM */
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 };
 
 class Item_func_to_days final : public Item_int_func {
