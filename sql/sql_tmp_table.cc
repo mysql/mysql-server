@@ -2378,7 +2378,7 @@ void close_tmp_table(TABLE *table) {
 
   When ref_count reaches zero, the table's mem_root allocator is deleted.
 
-  @param entry  Table reference
+  @param table  Table reference
 */
 
 void free_tmp_table(TABLE *table) {
