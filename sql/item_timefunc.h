@@ -265,13 +265,7 @@ class Item_func_week final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "week"; }
   enum Functype functype() const override { return WEEK_FUNC; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
-    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_LONGLONG)) return true;
-    fix_char_length(2); /* 0..54 */
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 };
 
 class Item_func_yearweek final : public Item_int_func {
