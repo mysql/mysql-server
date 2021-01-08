@@ -1275,7 +1275,7 @@ create table t1 as select concat(period_add(200902, 2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(6) DEFAULT NULL
+  `c1` varbinary(21) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = '';
@@ -1283,12 +1283,10 @@ select hex(concat(period_diff(200902, 200802)));
 hex(concat(period_diff(200902, 200802)))
 3132
 create table t1 as select concat(period_add(200902, 200802)) as c1;
-Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(6) NOT NULL DEFAULT ''
+  `c1` varbinary(21) NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
