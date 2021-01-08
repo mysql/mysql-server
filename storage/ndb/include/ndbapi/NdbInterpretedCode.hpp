@@ -109,6 +109,25 @@ public:
   ~NdbInterpretedCode();
 
   /**
+   * Descibe how a comparison involving a NULL value should behave.
+   * Old API behaviour was to cmp 'NULL == NULL -> true' and
+   * 'NULL < <any non-null> -> true. (CmpHasNoUnknowns). However,
+   * MySQL specify that a comparison involving a NULL-value is 'unknown',
+   * which (depending on AND/OR context) will require the branch-out to
+   * be taken or ignored. (BranchIfUnknown or ContinueIfUnknown)
+   */
+  enum UnknownHandling {
+    CmpHasNoUnknowns,   // Cmp Never compute boolean 'unknown'
+    BranchIfUnknown,    // Cmp will take the 'branch' if unknown.
+    ContinueIfUnknown   // 'Unknown' is inconclusive, continue
+  };
+
+  /**
+   * Use semantics specified by SQL_ISO for comparing NULL values.
+   */
+  void set_sql_null_semantics(UnknownHandling unknown_action);
+
+  /**
    * Discard any NdbInterpreter program constructed so far
    * and allow construction to start over again.
    */
@@ -240,6 +259,14 @@ public:
    * be in normal column format as described in the
    * documentation for NdbOperation.equal()
    * NOTE THE ORDER OF THE COMPARISON AND ARGUMENTS
+
+   * NOTE that NULL values are compared according to the specified
+   * 'UnknownHandling' (set_sql_null_semantics()). If not specified,
+   * the default will be to compare NULL such that NULL is
+   * less that any non-NULL value, and NULL is equal to NULL.
+   *
+   * BEWARE, that the later is not according to the specified SQL
+   * std spec, which is also implemented by MySql.
    * 
    * if ( *val <cond> ValueOf(AttrId) )
    *   goto Label;
@@ -277,10 +304,12 @@ public:
    * from the same table. Both Attr's has to be of the exact same
    * data type, including length, precision, scale, etc.
    *
-   * NOTE that NULL values are compared such that NULL is
+   * NOTE that NULL values are compared according to the specified
+   * 'UnknownHandling' (set_sql_null_semantics()). If not specified,
+   * the default will be to compare NULL such that NULL is
    * less that any non-NULL value, and NULL is equal to NULL.
    *
-   * BEWARE, that this is not according to the specified SQL
+   * BEWARE, that the later is not according to the specified SQL
    * std spec, which is also implemented by MySql.
    */
   int branch_col_eq(Uint32 attrId1, Uint32 attrId2, Uint32 label);
@@ -644,6 +673,8 @@ private:
   Uint32 m_flags;
 
   NdbError m_error;
+
+  UnknownHandling m_unknown_action;
 
   enum InfoType {
     Label      = 0,

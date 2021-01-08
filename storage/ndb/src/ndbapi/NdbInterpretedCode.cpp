@@ -58,7 +58,9 @@ NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
   m_instructions_length(0),
   m_first_sub_instruction_pos(0),
   m_available_length(m_buffer_length),
-  m_flags(0)
+  m_flags(0),
+  m_error(),
+  m_unknown_action(CmpHasNoUnknowns)
 {
   if (table != NULL)
     m_table_impl= & NdbTableImpl::getImpl(*table);
@@ -79,6 +81,12 @@ NdbInterpretedCode::~NdbInterpretedCode()
   {
     delete [] m_internal_buffer;
   }
+}
+
+void
+NdbInterpretedCode::set_sql_null_semantics(UnknownHandling unknown_action)
+{
+  m_unknown_action = unknown_action;
 }
 
 void
@@ -593,7 +601,15 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   if (col->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
 
-  if (add_branch(Interpreter::BranchCol(cond, 0, 0), label) != 0)
+  Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
+  if (m_unknown_action == CmpHasNoUnknowns)
+    nulls = Interpreter::NULL_CMP_EQUAL;
+  else if (m_unknown_action == BranchIfUnknown)
+    nulls = Interpreter::IF_NULL_BREAK_OUT;
+  else  // ContinueIfUnknown
+    nulls = Interpreter::IF_NULL_CONTINUE;
+
+  if (add_branch(Interpreter::BranchCol(cond, nulls), label) != 0)
     DBUG_RETURN(-1);
 
   if (add1(Interpreter::BranchCol_2(attrId, len)) != 0)
@@ -657,7 +673,15 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
       col2->m_storageType == NDB_STORAGETYPE_DISK)
     m_flags|= UsesDisk;
 
-  if (add_branch(Interpreter::BranchColAttrId(cond), label) != 0)
+  Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
+  if (m_unknown_action == CmpHasNoUnknowns)
+    nulls = Interpreter::NULL_CMP_EQUAL;
+  else if (m_unknown_action == BranchIfUnknown)
+    nulls = Interpreter::IF_NULL_BREAK_OUT;
+  else  // ContinueIfUnknown
+    nulls = Interpreter::IF_NULL_CONTINUE;
+
+  if (add_branch(Interpreter::BranchColAttrId(cond, nulls), label) != 0)
     DBUG_RETURN(-1);
 
   if (add1(Interpreter::BranchColAttrId_2(attrId1, attrId2)) != 0)

@@ -4327,11 +4327,31 @@ int Dbtup::interpreterNextLab(Signal* signal,
           step = 0;
         } //!ah2.isNULL()
 
-	// Evaluate
+        // Evaluate
+        const bool r1_null = ah.isNULL();
+        const bool r2_null = argLen == 0;
+        if (r1_null || r2_null)
+        {
+          // There are NULL-valued operands, check the NullSemantics
+          const Uint32 nullSemantics =
+              Interpreter::getNullSemantics(theInstruction);
+          if (nullSemantics == Interpreter::IF_NULL_BREAK_OUT)
+          {
+            // Branch out of AND conjunction
+            TprogramCounter = brancher(theInstruction, TprogramCounter);
+            break;
+          }
+          if (nullSemantics == Interpreter::IF_NULL_CONTINUE)
+          {
+            // Ignore NULL in OR conjunction,  -> next instruction
+            const Uint32 tmp = ((step + 3) >> 2) + 1;
+            TprogramCounter += tmp;
+            break;
+          }
+        }
+
         const Uint32 cond = Interpreter::getBinaryCondition(theInstruction);
-	const bool r1_null = ah.isNULL();
-	const bool r2_null = argLen == 0;
-	int res1;
+        int res1;
         if (cond <= Interpreter::GE)
         {
           /* Inequality - EQ, NE, LT, LE, GT, GE */

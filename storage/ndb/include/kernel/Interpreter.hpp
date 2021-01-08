@@ -103,14 +103,15 @@ public:
   /**
    * Branch OP_ARG (Attr1 <op> <value arg>)
    *
-   * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
+   * i = Instruction              -  6 Bits ( 0 - 5 ) max 63
+   * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
    * a = Attribute id             -  16 bits
    * l = Length of string (bytes) -  16 bits OP_ARG
    * p = parameter no             -  16 bits OP_ARG_2
    * b = Branch offset (words)    -  16 bits
    * t = branch type              -  4 bits
-   * d = Array length diff
-   * v = Varchar flag
+   * d = Array length diff  // UNUSED
+   * v = Varchar flag       // UNUSED
    *
    *           1111111111222222222233
    * 01234567890123456789012345678901
@@ -121,7 +122,8 @@ public:
    *
    * Branch OP_ARG_2 (Attr1 <op> <ParamNo>)
    *
-   * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
+   * i = Instruction              -  6 Bits ( 0 - 5 ) max 63
+   * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
    * a = Attribute id             -  16 bits
    * p = parameter no             -  16 bits OP_ARG_2
    * b = Branch offset (words)    -  16 bits
@@ -135,7 +137,8 @@ public:
    *
    * Branch OP_ATTR (Attr1 <op> Attr2)
    *
-   * i = Instruction              -  5 Bits ( 0 - 5 ) max 63
+   * i = Instruction              -  6 Bits ( 0 - 5 ) max 63
+   * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
    * a = Attribute id1            -  16 bits
    * A = Attribute id2            -  16 bits
    * b = Branch offset (words)    -  16 bits
@@ -166,24 +169,28 @@ public:
     AND_EQ_ZERO = 10,
     AND_NE_ZERO = 11
   };
+
+  enum NullSemantics {
+    NULL_CMP_EQUAL = 0x0,    // Old cmp mode; 'NULL == NULL' and 'NULL < x'
+    IF_NULL_BREAK_OUT = 0x2, // Jump to branch destination IF NULL
+    IF_NULL_CONTINUE = 0x3   // Ignore IF NULL, continue with next OP
+  };
+
   // Compare Attr with literal
-  // TODO : Remove other 2 unused parameters.
-  static Uint32 BranchCol(BinaryCondition cond, 
-			  Uint32 arrayLengthDiff, Uint32 varchar);
+  static Uint32 BranchCol(BinaryCondition cond, NullSemantics nulls);
   static Uint32 BranchCol_2(Uint32 AttrId);
   static Uint32 BranchCol_2(Uint32 AttrId, Uint32 Len);
 
   // Compare Attr with parameter
-  static Uint32 BranchColParameter(BinaryCondition cond);
+  static Uint32 BranchColParameter(BinaryCondition cond, NullSemantics nulls);
   static Uint32 BranchColParameter_2(Uint32 AttrId, Uint32 ParamNo);
 
   // Compare two Attr from same table
-  static Uint32 BranchColAttrId(BinaryCondition cond);
+  static Uint32 BranchColAttrId(BinaryCondition cond, NullSemantics nulls);
   static Uint32 BranchColAttrId_2(Uint32 AttrId1, Uint32 AttrId2);
 
+  static Uint32 getNullSemantics(Uint32 op);
   static Uint32 getBinaryCondition(Uint32 op1);
-  static Uint32 getArrayLengthDiff(Uint32 op1);
-  static Uint32 isVarchar(Uint32 op1);
   static Uint32 getBranchCol_AttrId(Uint32 op2);
   static Uint32 getBranchCol_AttrId2(Uint32 op2);
   static Uint32 getBranchCol_Len(Uint32 op2);
@@ -272,9 +279,10 @@ Interpreter::Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2){
 
 inline
 Uint32
-Interpreter::BranchColAttrId(BinaryCondition cond) {
+Interpreter::BranchColAttrId(BinaryCondition cond, NullSemantics nulls) {
   return
     BRANCH_ATTR_OP_ATTR +     // Compare two ATTRs
+    (nulls << 6) +
     (cond << 12);
 }
 
@@ -286,23 +294,21 @@ Interpreter::BranchColAttrId_2(Uint32 AttrId1, Uint32 AttrId2) {
 
 inline
 Uint32
-Interpreter::BranchCol(BinaryCondition cond, 
-		       Uint32 arrayLengthDiff,
-		       Uint32 varchar){
-  //ndbout_c("BranchCol: cond=%d diff=%u varchar=%u",
-      //cond, arrayLengthDiff, varchar);
+Interpreter::BranchCol(BinaryCondition cond, NullSemantics nulls){
   return 
-    BRANCH_ATTR_OP_ARG + 
-    (arrayLengthDiff << 9) + 
-    (varchar << 11) +
+    BRANCH_ATTR_OP_ARG +
+    (nulls << 6) +
     (cond << 12);
 }
 
 inline
 Uint32
-Interpreter::BranchColParameter(BinaryCondition cond)
+Interpreter::BranchColParameter(BinaryCondition cond, NullSemantics nulls)
 {
-  return BRANCH_ATTR_OP_ARG_2 + (cond << 12);
+  return
+    BRANCH_ATTR_OP_ARG_2 +
+    (nulls << 6) +
+    (cond << 12);
 }
 
 inline
@@ -325,20 +331,14 @@ Interpreter::BranchCol_2(Uint32 AttrId){
 
 inline
 Uint32
+Interpreter::getNullSemantics(Uint32 op){
+  return ((op >> 6) & 0x3);
+}
+
+inline
+Uint32
 Interpreter::getBinaryCondition(Uint32 op){
   return (op >> 12) & 0xf;
-}
-
-inline
-Uint32
-Interpreter::getArrayLengthDiff(Uint32 op){
-  return (op >> 9) & 0x3;
-}
-
-inline
-Uint32
-Interpreter::isVarchar(Uint32 op){
-  return (op >> 11) & 1;
 }
 
 inline
