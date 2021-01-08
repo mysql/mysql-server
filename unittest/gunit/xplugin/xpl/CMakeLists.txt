@@ -1,4 +1,4 @@
-# Copyright (c) 2020, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ ENDIF()
 # googlemock uses GTEST_DISALLOW_ASSIGN_ which will generate:
 # definition of implicit copy constructor for  ....
 # is deprecated because it has a user-declared copy assignment operator
-IF(APPLE)
+IF(MY_COMPILER_IS_CLANG)
   ADD_COMPILE_FLAGS(
     account_verification_handler_t.cc
     admin_cmd_index_t.cc
