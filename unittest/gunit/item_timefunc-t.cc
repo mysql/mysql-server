@@ -285,6 +285,16 @@ TEST_F(ItemTimeFuncTest, YearMetadata) {
       thd(), new Item_func_year(POS(), new Item_int(20210101)), 2021);
 }
 
+// Verifies that the results returned by the CAST(... AS YEAR) are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, CastAsYearMetadata) {
+  CheckMetadataAndResult(
+      thd(), new Item_typecast_year(POS(), new Item_int(2021)), 2021);
+
+  CheckMetadataAndResult(
+      thd(), new Item_typecast_year(POS(), new Item_int(2155)), 2155);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
