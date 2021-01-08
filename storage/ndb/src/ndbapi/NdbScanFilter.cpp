@@ -434,8 +434,6 @@ NdbScanFilter::isfalse(){
   return 0;
 }
 
-#define action(x, y, z)
-
 /* One argument branch definition method signature */
 typedef int (NdbInterpretedCode:: * Branch1)(Uint32 a1, Uint32 label);
 
@@ -445,6 +443,31 @@ typedef int (NdbInterpretedCode:: * Branch1)(Uint32 a1, Uint32 label);
 typedef int (NdbInterpretedCode:: * StrBranch2)(const void *val, Uint32 len,
                                                 Uint32 a1, Uint32 label);
 typedef int (NdbInterpretedCode:: * Branch2Col)(Uint32 a1, Uint32 a2, Uint32 label);
+
+/**
+ * Table indexed by the BinaryCondition or UnaryCondition,
+ * containing its negated condition. Used to find the correct
+ * variant of branch_* in table*[] set up below.
+ */
+static constexpr Interpreter::BinaryCondition negateBinary[] {
+  Interpreter::NE,           // EQ
+  Interpreter::EQ,           // NE
+  Interpreter::GE,           // LT
+  Interpreter::GT,           // LE
+  Interpreter::LE,           // GT
+  Interpreter::LT,           // GE
+  Interpreter::NOT_LIKE,     // LIKE
+  Interpreter::LIKE,         // NOT LIKE
+  Interpreter::AND_NE_MASK,  // AND EQ MASK
+  Interpreter::AND_EQ_MASK,  // AND NE MASK
+  Interpreter::AND_NE_ZERO,  // AND EQ ZERO
+  Interpreter::AND_EQ_ZERO,  // AND NE ZERO
+};
+
+static constexpr Interpreter::UnaryCondition negateUnary[] {
+  Interpreter::IS_NOT_NULL,  // IS NULL
+  Interpreter::IS_NULL,      // IS NOT NULL
+};
 
 
 /* Table of unary branch methods for each group type */
@@ -493,14 +516,29 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
     return -1;
   }
   
-  if(m_current.m_group < NdbScanFilter::AND || 
-     m_current.m_group > NdbScanFilter::NOR){
+  /**
+   * Only AND/OR is possible, as NAND/NOR is converted to
+   * negated OR/AND in begin().
+   */
+  if (m_current.m_group != NdbScanFilter::AND &&
+      m_current.m_group != NdbScanFilter::OR) {
     /* Operator is not defined in NdbScanFilter::Group */
     m_error.code= 4260;
     return -1;
   }
-  
-  Branch1 branch = table2[op].m_branches[m_current.m_group];
+
+  /**
+   * Find the operation to branch to a conclusive true/false outcome.
+   * Note that both AND and negate implies an inverted condition, having
+   * both of them is a double negation, canceling out each other.
+   */
+  Interpreter::UnaryCondition branchOp;
+  if ((m_current.m_group == NdbScanFilter::AND) != (m_negate))
+    branchOp = negateUnary[op];
+  else
+    branchOp = op;
+
+  Branch1 branch = table2[branchOp].m_branches[NdbScanFilter::OR];
   if ((m_code->* branch)(AttrId, m_current.m_ownLabel) == -1)
     return propagateErrorFromCode();
 
@@ -509,22 +547,12 @@ NdbScanFilterImpl::cond_col(Interpreter::UnaryCondition op, Uint32 AttrId){
 
 int
 NdbScanFilter::isnull(int AttrId){
-  if (m_impl.m_error.code != 0) return -1;
-
-  if(m_impl.m_negate)
-    return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
-  else
-    return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
+  return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
 }
 
 int
 NdbScanFilter::isnotnull(int AttrId){
-  if (m_impl.m_error.code != 0) return -1;
-
-  if(m_impl.m_negate)
-    return m_impl.cond_col(Interpreter::IS_NULL, AttrId);
-  else
-    return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
+  return m_impl.cond_col(Interpreter::IS_NOT_NULL, AttrId);
 }
 
 /* NdbInterpretedCode two-arg branch method to use for
@@ -667,34 +695,17 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
     return -1;
   }
   
-  if(m_current.m_group < NdbScanFilter::AND || 
-     m_current.m_group > NdbScanFilter::NOR){
+  /**
+   * Only AND/OR is possible, as NAND/NOR is converted to
+   * negated OR/AND in begin().
+   */
+  if (m_current.m_group != NdbScanFilter::AND &&
+      m_current.m_group != NdbScanFilter::OR) {
     /* Operator is not defined in NdbScanFilter::Group */
     m_error.code= 4260;
     return -1;
   }
 
-  StrBranch2 branch;
-  if(m_negate){  //change NdbOperation to its negative
-    if(m_current.m_group == NdbScanFilter::AND)
-      branch = table3[op].m_branches[NdbScanFilter::OR];
-    else if(m_current.m_group == NdbScanFilter::OR)
-      branch = table3[op].m_branches[NdbScanFilter::AND];
-    else
-    {
-      /**
-       * This is not possible, as NAND/NOR is converted to negative OR/AND in
-       * begin().
-       * But silence the compiler warning about uninitialised variable `branch`
-       */
-      assert(FALSE);
-      m_error.code= 4260;
-      return -1;
-    }
-  }else{
-    branch = table3[op].m_branches[(Uint32)(m_current.m_group)];
-  }
-  
   const NdbDictionary::Table * table = m_code->getTable();
   if (table == nullptr) {
     /* NdbInterpretedCode instruction requires that table is set */
@@ -703,12 +714,24 @@ NdbScanFilterImpl::cond_col_const(Interpreter::BinaryCondition op,
   }
 
   const NdbDictionary::Column * col = table->getColumn(AttrId);
-  if (col == nullptr ) {
+  if (col == nullptr) {
     /* Column is NULL */
     m_error.code= 4261;
     return -1;
   }
   
+  /**
+   * Find the operation to branch to a conclusive true/false outcome.
+   * Note that both AND and negate implies an inverted condition, having
+   * both of them is a double negation, canceling out each other.
+   */
+  Interpreter::BinaryCondition branchOp;
+  if ((m_current.m_group == NdbScanFilter::AND) != (m_negate))
+    branchOp = negateBinary[op];
+  else
+    branchOp = op;
+
+  const StrBranch2 branch = table3[branchOp].m_branches[NdbScanFilter::OR];
   if ((m_code->* branch)(value, len, AttrId, m_current.m_ownLabel) == -1)
     return propagateErrorFromCode();
 
@@ -792,7 +815,7 @@ const int tab4_sz = sizeof(table4)/sizeof(table4[0]);
 
 int
 NdbScanFilterImpl::cond_col_col(Interpreter::BinaryCondition op,
-                                Uint32 attrId1,  Uint32 attrId2) {
+                                Uint32 attrId1, Uint32 attrId2) {
   if (m_error.code != 0) return -1;
 
   if (op < 0 || op >= tab4_sz) {
@@ -801,31 +824,15 @@ NdbScanFilterImpl::cond_col_col(Interpreter::BinaryCondition op,
     return -1;
   }
 
-  if (m_current.m_group < NdbScanFilter::AND ||
-      m_current.m_group > NdbScanFilter::NOR) {
+  /**
+   * Only AND/OR is possible, as NAND/NOR is converted to
+   * negated OR/AND in begin().
+   */
+  if (m_current.m_group != NdbScanFilter::AND &&
+      m_current.m_group != NdbScanFilter::OR) {
     /* Operator is not defined in NdbScanFilter::Group */
     m_error.code= 4260;
     return -1;
-  }
-
-  Branch2Col branch;
-  if (m_negate) {  //change NdbOperation to its negative
-    if (m_current.m_group == NdbScanFilter::AND)
-      branch = table4[op].m_branches[NdbScanFilter::OR];
-    else if (m_current.m_group == NdbScanFilter::OR)
-      branch = table4[op].m_branches[NdbScanFilter::AND];
-    else {
-      /**
-       * This is not possible, as NAND/NOR is converted to negative OR/AND in
-       * begin().
-       * But silence the compiler warning about uninitialised variable `branch`
-       */
-      assert(false);
-      m_error.code= 4260;
-      return -1;
-    }
-  } else {
-    branch = table4[op].m_branches[(Uint32)(m_current.m_group)];
   }
 
   const NdbDictionary::Table * table = m_code->getTable();
@@ -843,6 +850,18 @@ NdbScanFilterImpl::cond_col_col(Interpreter::BinaryCondition op,
     return -1;
   }
 
+  /**
+   * Find the operation to branch to a conclusive true/false outcome.
+   * Note that both AND and negate implies an inverted condition, having
+   * both of them is a double negation, canceling out each other.
+   */
+  Interpreter::BinaryCondition branchOp;
+  if ((m_current.m_group == NdbScanFilter::AND) != (m_negate))
+    branchOp = negateBinary[op];
+  else
+    branchOp = op;
+
+  const Branch2Col branch = table4[branchOp].m_branches[NdbScanFilter::OR];
   if ((m_code->* branch)(attrId1, attrId2, m_current.m_ownLabel) == -1)
     return propagateErrorFromCode();
 
