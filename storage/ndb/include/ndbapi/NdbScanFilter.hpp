@@ -77,7 +77,7 @@ public:
 
   ~NdbScanFilter();
 
-  void sqlNullSemantics();
+  void setSqlCmpSemantics();
   
   /**
    *  Group operators

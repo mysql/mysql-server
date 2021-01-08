@@ -664,4 +664,17 @@ ndbd_support_backup_file_encryption(Uint32 x)
 {
   return x >= NDBD_SUPPORT_BACKUP_FILE_ENCRYPTION;
 }
+
+/*
+ * NdbInterpreter may compare NULL values according to the semantic
+ * specified by the SQL standard, which is what MySQL expect.
+ */
+#define NDBD_SUPPORT_SQL_COMPARE_SEMANTICS NDB_MAKE_VERSION(8,0,24)
+static
+inline
+int
+ndbd_support_sql_compare_semantics(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_SQL_COMPARE_SEMANTICS;
+}
 #endif

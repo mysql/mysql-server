@@ -190,7 +190,7 @@ NdbScanFilter::~NdbScanFilter()
 }
 
 void
-NdbScanFilter::sqlNullSemantics()
+NdbScanFilter::setSqlCmpSemantics()
 {
   m_impl.m_sql_cmp_semantics = true;
 }

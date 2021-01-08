@@ -37,6 +37,26 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
+/**
+ * The SqlScanFilter is a regular NdbScanFilter, except that it
+ * use the NULL-compare semantic specified by ISO-SQL, instead of
+ * the default NDB API cmp semantic, (Where NULL==NULL and NULL<non-null)
+ */
+class SqlScanFilter : public NdbScanFilter {
+ public:
+  SqlScanFilter(NdbInterpretedCode *code) : NdbScanFilter(code) {
+    const Uint32 ver = get_thd_ndb(current_thd)->ndb->getMinDbNodeVersion();
+    useSqlCmpSemantics = ndbd_support_sql_compare_semantics(ver);
+    if (useSqlCmpSemantics) {
+      NdbScanFilter::setSqlCmpSemantics();
+    }
+  }
+  bool hasSqlCmpSemantics() const { return useSqlCmpSemantics; }
+
+ private:
+  bool useSqlCmpSemantics;
+};
+
 enum NDB_ITEM_TYPE {
   NDB_VALUE = 0,     // Qualified more with Item::Type
   NDB_FIELD = 1,     // Qualified from table definition
@@ -1588,7 +1608,7 @@ int ha_ndbcluster_cond::use_cond_push(const Item *&pushed_cond,
      * for all later API requests to 'table'
      */
     NdbInterpretedCode code(m_handler->m_table);
-    NdbScanFilter filter(&code);
+    SqlScanFilter filter(&code);
     const int ret = generate_scan_filter_from_cond(filter);
     if (unlikely(ret != 0)) {
       cond_clear();
@@ -1609,7 +1629,7 @@ int ha_ndbcluster_cond::build_cond_push() {
   DBUG_TRACE;
   if (m_pushed_cond != nullptr && !isGeneratedCodeReusable()) {
     NdbInterpretedCode code(m_handler->m_table);
-    NdbScanFilter filter(&code);
+    SqlScanFilter filter(&code);
     const int ret = generate_scan_filter_from_cond(filter);
     if (unlikely(ret != 0)) {
       set_condition(m_pushed_cond);
@@ -1624,7 +1644,7 @@ int ha_ndbcluster_cond::build_cond_push() {
 }
 
 int ha_ndbcluster_cond::build_scan_filter_predicate(
-    List_iterator<const Ndb_item> &cond, NdbScanFilter *filter,
+    List_iterator<const Ndb_item> &cond, SqlScanFilter *filter,
     bool negated) const {
   DBUG_TRACE;
   const Ndb_item *ndb_item = *cond.ref();
@@ -1714,7 +1734,8 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
           field2 && field2->get_field()->is_nullable();
       bool added_null_check = false;
 
-      if (field1_maybe_null || field2_maybe_null) {
+      if ((field1_maybe_null || field2_maybe_null) &&
+          !filter->hasSqlCmpSemantics()) {
         switch (function_type) {
           /*
             The NdbInterpreter handles a NULL value as being less than any
@@ -1889,7 +1910,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
 }
 
 int ha_ndbcluster_cond::build_scan_filter_group(
-    List_iterator<const Ndb_item> &cond, NdbScanFilter *filter,
+    List_iterator<const Ndb_item> &cond, SqlScanFilter *filter,
     const bool negated) const {
   uint level = 0;
   DBUG_TRACE;
@@ -1974,7 +1995,7 @@ int ha_ndbcluster_cond::build_scan_filter_group(
   return 0;
 }
 
-int ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter &filter) {
+int ha_ndbcluster_cond::generate_scan_filter_from_cond(SqlScanFilter &filter) {
   bool need_group = true;
   DBUG_TRACE;
 
@@ -2020,7 +2041,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter &filter) {
   the index bounds are pushed down.
 */
 int ha_ndbcluster_cond::generate_scan_filter_from_key(
-    NdbScanFilter &filter, const KEY *key_info, const key_range *start_key,
+    SqlScanFilter &filter, const KEY *key_info, const key_range *start_key,
     const key_range *end_key) {
   DBUG_TRACE;
 
@@ -2201,7 +2222,7 @@ void ha_ndbcluster::generate_scan_filter(
   }
 
   // Generate the scan_filter from previously 'serialized' condition code
-  NdbScanFilter filter(code);
+  SqlScanFilter filter(code);
   const int ret = m_cond.generate_scan_filter_from_cond(filter);
   if (unlikely(ret != 0)) {
     /**
@@ -2220,7 +2241,7 @@ int ha_ndbcluster::generate_scan_filter_with_key(
     const KEY *key_info, const key_range *start_key, const key_range *end_key) {
   DBUG_TRACE;
 
-  NdbScanFilter filter(code);
+  SqlScanFilter filter(code);
   if (filter.begin(NdbScanFilter::AND) == -1) return 1;
 
   // Generate a scanFilter from a prepared pushed conditions

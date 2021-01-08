@@ -38,6 +38,7 @@ struct key_range;
 struct TABLE;
 class Ndb_item;
 class ha_ndbcluster;
+class SqlScanFilter;
 
 class ha_ndbcluster_cond {
  public:
@@ -57,9 +58,9 @@ class ha_ndbcluster_cond {
 
   int build_cond_push();
 
-  int generate_scan_filter_from_cond(NdbScanFilter &filter);
+  int generate_scan_filter_from_cond(SqlScanFilter &filter);
 
-  static int generate_scan_filter_from_key(NdbScanFilter &filter,
+  static int generate_scan_filter_from_key(SqlScanFilter &filter,
                                            const class KEY *key_info,
                                            const key_range *start_key,
                                            const key_range *end_key);
@@ -79,9 +80,9 @@ class ha_ndbcluster_cond {
 
  private:
   int build_scan_filter_predicate(List_iterator<const Ndb_item> &cond,
-                                  NdbScanFilter *filter, bool negated) const;
+                                  SqlScanFilter *filter, bool negated) const;
   int build_scan_filter_group(List_iterator<const Ndb_item> &cond,
-                              NdbScanFilter *filter, bool negated) const;
+                              SqlScanFilter *filter, bool negated) const;
 
   bool eval_condition() const;
 
