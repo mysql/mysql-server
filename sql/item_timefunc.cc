@@ -1113,6 +1113,12 @@ longlong Item_func_to_seconds::val_int_endpoint(bool, bool *) {
   return seconds;
 }
 
+bool Item_func_to_seconds::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_to_seconds::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
