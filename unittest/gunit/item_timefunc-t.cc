@@ -275,6 +275,16 @@ TEST_F(ItemTimeFuncTest, YearWeekMetadata) {
       202053);
 }
 
+// Verifies that the results returned by the YEAR function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, YearMetadata) {
+  CheckMetadataAndResult(
+      thd(), new Item_func_year(POS(), new Item_int(20201231)), 2020);
+
+  CheckMetadataAndResult(
+      thd(), new Item_func_year(POS(), new Item_int(20210101)), 2021);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
