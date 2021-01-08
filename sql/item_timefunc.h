@@ -101,12 +101,7 @@ class Item_func_to_seconds final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "to_seconds"; }
   enum Functype functype() const override { return TO_SECONDS_FUNC; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
-    fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
   enum_monotonicity_info get_monotonicity_info() const override;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp) override;
   bool check_partition_func_processor(uchar *) override { return false; }

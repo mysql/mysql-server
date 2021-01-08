@@ -179,6 +179,15 @@ TEST_F(ItemTimeFuncTest, ToDaysMetadata) {
   CheckMetadataAndResult(thd(), to_days, 3652424);
 }
 
+// Verifies that the results returned by the TO_SECONDS function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, ToSecondsMetadata) {
+  auto arg = new Item_string(STRING_WITH_LEN("9999-12-31 23:59:59"),
+                             &my_charset_utf8mb4_0900_ai_ci);
+  auto to_seconds = new Item_func_to_seconds(POS(), arg);
+  CheckMetadataAndResult(thd(), to_seconds, 315569519999);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
