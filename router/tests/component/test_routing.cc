@@ -765,6 +765,93 @@ const RoutingConfigParam routing_config_param[] = {
                        "option bind_port in [routing] needs value "
                        "between 1 and 65535 inclusive, was '{mysqld@1}'")));
      }},
+    {"destinations_trailing_comma",
+     {
+         {"destinations", "localhost:13005,localhost:13003,localhost:13004,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "empty address found in destination list (was "
+                       "'localhost:13005,localhost:13003,localhost:13004,')")));
+     }},
+    {"destinations_trailing_comma_and_spaces",
+     {
+         {"destinations",
+          "localhost:13005,localhost:13003,localhost:13004, , ,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "empty address found in destination list (was "
+               "'localhost:13005,localhost:13003,localhost:13004, , ,')")));
+     }},
+    {"destinations_empty_and_spaces",
+     {
+         {"destinations", "localhost:13005, ,,localhost:13003,localhost:13004"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "empty address found in destination list (was "
+               "'localhost:13005, ,,localhost:13003,localhost:13004')")));
+     }},
+    {"destinations_leading_comma",
+     {
+         {"destinations", ",localhost:13005,localhost:13003,localhost:13004"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "empty address found in destination list (was "
+                       "',localhost:13005,localhost:13003,localhost:13004')")));
+     }},
+    {"destinations_only_commas",
+     {
+         {"destinations", ",, ,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "empty address found in destination list (was "
+                              "',, ,')")));
+     }},
+    {"destinations_leading_trailing_comma",
+     {
+         {"destinations",
+          ",localhost:13005, ,,localhost:13003,localhost:13004, ,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "empty address found in destination list (was "
+               "',localhost:13005, ,,localhost:13003,localhost:13004, ,')")));
+     }},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, RoutingConfigTest,

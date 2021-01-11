@@ -215,18 +215,7 @@ static std::string get_option_destinations(
     }
     return value;
   } catch (const mysqlrouter::URIError &) {
-    char delimiter = ',';
-
-    mysql_harness::trim(value);
-    if (value.back() == delimiter || value.front() == delimiter) {
-      throw std::invalid_argument(
-          get_log_prefix(section, option) +
-          ": empty address found in destination list (was '" + value + "')");
-    }
-
-    std::stringstream ss(value);
-    std::string part;
-    while (std::getline(ss, part, delimiter)) {
+    for (auto part : mysql_harness::split_string(value, ',')) {
       mysql_harness::trim(part);
       if (part.empty()) {
         throw std::invalid_argument(

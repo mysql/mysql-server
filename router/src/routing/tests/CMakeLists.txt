@@ -108,7 +108,6 @@ FOREACH(test_file
     test_bug21873666.cc
     test_bug21962350.cc
     test_bug22062859.cc
-    test_bug22579989.cc
     )
   add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/issues/${test_file}
     MODULE issues
