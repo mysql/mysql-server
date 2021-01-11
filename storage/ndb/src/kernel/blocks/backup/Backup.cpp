@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4200,6 +4200,8 @@ Backup::checkNodeFail(Signal* signal,
         // so that master sends BACKUP_FRAGMENT_REFs to self from every LDM
         // on every failed node.
         Uint32 workers = getNodeInfo(i).m_lqh_workers;
+        if (workers == 0)
+          workers = 1; // single-threaded backup
         for (Uint32 j=0; j<workers; j++)
         {
           sendSignal(reference(), gsn, signal, len, JBB);
