@@ -2635,11 +2635,11 @@ bool Item_extract::resolve_type(THD *thd) {
   set_nullable(true);  // If wrong date
   switch (int_type) {
     case INTERVAL_YEAR:
-      max_length = 4;
+      max_length = 5;  // YYYY + sign
       date_value = true;
       break;
     case INTERVAL_YEAR_MONTH:
-      max_length = 6;
+      max_length = 7;  // YYYYMM + sign
       date_value = true;
       break;
     case INTERVAL_QUARTER:
@@ -2647,15 +2647,15 @@ bool Item_extract::resolve_type(THD *thd) {
       date_value = true;
       break;
     case INTERVAL_MONTH:
-      max_length = 2;
+      max_length = 3;  // MM + sign
       date_value = true;
       break;
     case INTERVAL_WEEK:
-      max_length = 2;
+      max_length = 3;  // WW + sign
       date_value = true;
       break;
     case INTERVAL_DAY:
-      max_length = 2;
+      max_length = 3;  // DD + sign
       date_value = true;
       break;
     case INTERVAL_DAY_HOUR:
@@ -2671,31 +2671,31 @@ bool Item_extract::resolve_type(THD *thd) {
       date_value = false;
       break;
     case INTERVAL_HOUR:
-      max_length = 2;
+      max_length = 4;  // HHH + sign
       date_value = false;
       break;
     case INTERVAL_HOUR_MINUTE:
-      max_length = 4;
+      max_length = 6;  // HHHMM + sign
       date_value = false;
       break;
     case INTERVAL_HOUR_SECOND:
-      max_length = 6;
+      max_length = 8;  // HHHMMSS + sign
       date_value = false;
       break;
     case INTERVAL_MINUTE:
-      max_length = 2;
+      max_length = 3;  // MM + sign
       date_value = false;
       break;
     case INTERVAL_MINUTE_SECOND:
-      max_length = 4;
+      max_length = 5;  // MMSS + sign
       date_value = false;
       break;
     case INTERVAL_SECOND:
-      max_length = 2;
+      max_length = 3;  // SS + sign
       date_value = false;
       break;
     case INTERVAL_MICROSECOND:
-      max_length = 2;
+      max_length = 7;  // six digits + sign
       date_value = false;
       break;
     case INTERVAL_DAY_MICROSECOND:
@@ -2703,7 +2703,7 @@ bool Item_extract::resolve_type(THD *thd) {
       date_value = false;
       break;
     case INTERVAL_HOUR_MICROSECOND:
-      max_length = 13;
+      max_length = 14;  // HHHMMSSFFFFFF + sign
       date_value = false;
       break;
     case INTERVAL_MINUTE_MICROSECOND:

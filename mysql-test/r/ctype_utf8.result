@@ -4255,7 +4255,7 @@ create table t1 as select concat(extract(year from 20090702)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) CHARACTER SET utf8 DEFAULT NULL
+  `c1` varchar(5) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(microsecond('12:00:00.123456')));

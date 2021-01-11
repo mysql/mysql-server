@@ -559,4 +559,46 @@ INSTANTIATE_TEST_SUITE_P(
          4 * 10000 - 1},
     }));
 
+// Verifies that the results returned by the EXTRACT function are consistent
+// with the metadata.
+class ItemExtractMetadataTest : public ::testing::TestWithParam<interval_type> {
+ protected:
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
+  Server_initializer initializer;
+};
+
+TEST_P(ItemExtractMetadataTest, ExtractFromHighestTimestamp) {
+  auto arg = new Item_string(STRING_WITH_LEN("9999-12-31 23:59:59.999999"),
+                             &my_charset_utf8mb4_0900_ai_ci);
+  CheckMetadataConsistency(initializer.thd(),
+                           new Item_extract(POS(), GetParam(), arg));
+}
+
+TEST_P(ItemExtractMetadataTest, ExtractFromHighestTime) {
+  static_assert(TIME_MAX_HOUR == 838,
+                "TIME_MAX_HOUR has changed. Update the test case to test the "
+                "new maximum value.");
+  auto arg = new Item_string(STRING_WITH_LEN("838:59:59.000000"),
+                             &my_charset_utf8mb4_0900_ai_ci);
+  CheckMetadataConsistency(initializer.thd(),
+                           new Item_extract(POS(), GetParam(), arg));
+}
+
+TEST_P(ItemExtractMetadataTest, ExtractFromLowestTime) {
+  static_assert(TIME_MAX_HOUR == 838,
+                "TIME_MAX_HOUR has changed. Update the test case to test the "
+                "new maximum value.");
+  auto arg = new Item_string(STRING_WITH_LEN("-838:59:59.000000"),
+                             &my_charset_utf8mb4_0900_ai_ci);
+  CheckMetadataConsistency(initializer.thd(),
+                           new Item_extract(POS(), GetParam(), arg));
+}
+
+// Tests the EXTRACT function has correct metadata for all possible interval
+// types.
+INSTANTIATE_TEST_SUITE_P(IntervalTypes, ItemExtractMetadataTest,
+                         testing::Range(static_cast<interval_type>(0),
+                                        INTERVAL_LAST));
+
 }  // namespace item_timefunc_unittest
