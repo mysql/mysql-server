@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -44,7 +44,7 @@ Parallel_reader_adapter::Parallel_reader_adapter(size_t max_threads,
 dberr_t Parallel_reader_adapter::add_scan(trx_t *trx,
                                           const Parallel_reader::Config &config,
                                           Parallel_reader::F &&f) {
-  return (m_parallel_reader.add_scan(trx, config, std::move(f)));
+  return m_parallel_reader.add_scan(trx, config, std::move(f));
 }
 
 Parallel_reader_adapter::Thread_ctx::Thread_ctx() {
@@ -96,7 +96,7 @@ dberr_t Parallel_reader_adapter::run(void **thread_ctxs, Init_fn init_fn,
   m_load_fn = load_fn;
   m_thread_ctxs = thread_ctxs;
 
-  return m_parallel_reader.run();
+  return m_parallel_reader.run(m_parallel_reader.max_threads());
 }
 
 dberr_t Parallel_reader_adapter::init(

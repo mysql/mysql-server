@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -93,7 +93,7 @@ Parallel_reader::Scan_ctx::~Scan_ctx() {}
 Parallel_reader::~Parallel_reader() {
   mutex_destroy(&m_mutex);
   os_event_destroy(m_event);
-  release_unused_threads(m_max_threads);
+  release_unused_threads(m_n_threads);
   for (auto thread_ctx : m_thread_ctxs) {
     if (thread_ctx != nullptr) {
       UT_DELETE(thread_ctx);
@@ -1078,28 +1078,33 @@ dberr_t Parallel_reader::Scan_ctx::create_contexts(const Ranges &ranges) {
 }
 
 void Parallel_reader::parallel_read() {
-  ut_a(m_max_threads > 0);
-
   if (m_ctxs.empty()) {
     return;
   }
 
-  if (m_single_threaded_mode) {
+  if (m_n_threads == 0) {
     auto ptr = UT_NEW_NOKEY(Thread_ctx{0});
+
     if (ptr == nullptr) {
       set_error_state(DB_OUT_OF_MEMORY);
       return;
     }
+
     m_thread_ctxs.push_back(ptr);
+
+    /* Set event to indicate to ::worker() that no threads will be spawned. */
+    os_event_set(m_event);
+
     worker(m_thread_ctxs[0]);
+
     return;
   }
 
-  m_thread_ctxs.reserve(m_max_threads);
+  m_thread_ctxs.reserve(m_n_threads);
 
   dberr_t err{DB_SUCCESS};
 
-  for (size_t i = 0; i < m_max_threads; ++i) {
+  for (size_t i = 0; i < m_n_threads; ++i) {
     try {
       auto ptr = UT_NEW_NOKEY(Thread_ctx{i});
       if (ptr == nullptr) {
@@ -1136,13 +1141,29 @@ void Parallel_reader::parallel_read() {
   join();
 }
 
-dberr_t Parallel_reader::run() {
+dberr_t Parallel_reader::run(size_t n_threads) {
   if (!m_scan_ctxs.empty()) {
+    if (n_threads == 0) {
+      n_threads = std::min(m_max_threads, m_ctxs.size());
+
+      /* No need to spawn any threads if only one thread is required. */
+      if (n_threads == 1 || m_single_threaded_mode) {
+        n_threads = 0;
+      }
+    }
+
+    m_n_threads = n_threads;
+
+    if (!m_single_threaded_mode) {
+      release_unused_threads(m_max_threads - m_n_threads);
+    }
+
     parallel_read();
   }
 
-  /* Don't wait for the threads to finish if the read is not synchronous. */
-  if (!m_sync) {
+  /* Don't wait for the threads to finish if the read is not synchronous or if
+  there's no parallel read. */
+  if (!m_sync || m_n_threads == 0) {
     return DB_SUCCESS;
   }
 
