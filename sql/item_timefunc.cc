@@ -1683,6 +1683,13 @@ longlong Item_func_unix_timestamp::val_int_endpoint(bool, bool *) {
   return val_timeval(&tm) ? 0 : tm.tv_sec;
 }
 
+bool Item_func_time_to_sec::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_TIME)) return true;
+  fix_char_length(10);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_time_to_sec::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
