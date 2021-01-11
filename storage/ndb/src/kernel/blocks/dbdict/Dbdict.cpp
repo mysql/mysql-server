@@ -5655,16 +5655,14 @@ void Dbdict::printTables()
 {
   DictObjectName_hash::Iterator iter;
   bool moreTables = c_obj_name_hash.first(iter);
-  printf("OBJECTS IN DICT:\n");
   char name[PATH_MAX];
   while (moreTables) {
     DictObjectPtr tablePtr = iter.curr;
     ConstRope r(c_rope_pool, tablePtr.p->m_name);
     r.copy(name);
-    printf("%s ", name);
     moreTables = c_obj_name_hash.next(iter);
   }
-  printf("\n");
+  g_eventLogger->info("OBJECT IN DICT:%s", name);
 }
 
 #define tabRequire(cond, error) \

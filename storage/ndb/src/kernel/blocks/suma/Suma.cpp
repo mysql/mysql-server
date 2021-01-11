@@ -5474,14 +5474,13 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
       {
 	Uint32 state = c_buckets[i].m_state;
 	m_switchover_buckets.clear(i);
-	printf("%u/%u (%u/%u) switchover complete bucket %d state: %x\n", 
-	       Uint32(gci >> 32),
-	       Uint32(gci),
-	       Uint32(c_buckets[i].m_switchover_gci >> 32),
-	       Uint32(c_buckets[i].m_switchover_gci),
-	       i, state);
+        g_eventLogger->info(
+            "%u/%u (%u/%u) switchover complete bucket %d state: %x",
+            Uint32(gci >> 32), Uint32(gci),
+            Uint32(c_buckets[i].m_switchover_gci >> 32),
+            Uint32(c_buckets[i].m_switchover_gci), i, state);
 
-	if(state & Bucket::BUCKET_STARTING)
+        if(state & Bucket::BUCKET_STARTING)
 	{
 	  /**
 	   * NR case
@@ -7264,7 +7263,7 @@ static Uint32 g_cnt = 0;
 void
 Suma::start_resend(Signal* signal, Uint32 buck)
 {
-  printf("start_resend(%d, ", buck);
+  g_eventLogger->info("start_resend(%d, ", buck);
 
   /**
    * Resend from m_max_acked_gci + 1 until max_gci + 1

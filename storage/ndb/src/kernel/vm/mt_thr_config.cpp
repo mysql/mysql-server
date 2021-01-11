@@ -2249,8 +2249,8 @@ THRConfigRebinder::THRConfigRebinder(THRConfigApplier* tca,
   int rc = m_config_applier->do_unbind(m_thread);
   if (rc < 0)
   {
-    printf("THRConfigRebinder(%p) unbind failed: %u\n",
-           m_thread, rc);
+    g_eventLogger->info("THRConfigRebinder(%p) unbind failed: %u", m_thread,
+                        rc);
     return;
   }
   /* Unbound */
@@ -2259,8 +2259,7 @@ THRConfigRebinder::THRConfigRebinder(THRConfigApplier* tca,
   rc = m_config_applier->do_bind_idxbuild(m_thread);
   if (rc < 0)
   {
-    printf("THRConfigRebinder(%p) bind failed : %u\n",
-           m_thread, rc);
+    g_eventLogger->info("THRConfigRebinder(%p) bind failed : %u", m_thread, rc);
     return;
   }
   /* Bound */
@@ -2278,8 +2277,8 @@ THRConfigRebinder::~THRConfigRebinder()
     int rc = m_config_applier->do_unbind(m_thread);
     if (rc < 0)
     {
-      printf("~THRConfigRebinder(%p) unbind failed: %u\n",
-             m_thread, rc);
+      g_eventLogger->info("~THRConfigRebinder(%p) unbind failed: %u", m_thread,
+                          rc);
       return;
     }
     /* Fall through */
@@ -2290,8 +2289,8 @@ THRConfigRebinder::~THRConfigRebinder()
     int rc = m_config_applier->do_bind_io(m_thread);
     if (rc < 0)
     {
-      printf("~THRConfigRebinder(%p) bind failed : %u\n",
-             m_thread, rc);
+      g_eventLogger->info("~THRConfigRebinder(%p) bind failed : %u", m_thread,
+                          rc);
     }
     break;
   }
@@ -2588,6 +2587,7 @@ THRConfigApplier::do_bind(NdbThread* thread,
 
 TAPTEST(mt_thr_config)
 {
+  ndb_init();
   {
     THRConfig tmp;
     Uint32 dummy;
@@ -2858,6 +2858,7 @@ TAPTEST(mt_thr_config)
            2 + l + t + s + r);
   }
 
+  ndb_end(0);
   return 1;
 }
 
@@ -3043,6 +3044,8 @@ int main(int argc, char *argv)
   Uint32 num_threads[NUM_INDEXES];
   Uint32 i;
 
+  ndb_init();
+
   printf("MaxNoOfExecutionThreads,LQH,TC,send,recv\n");
   for (i = 9; i <= 72; i++)
   {
@@ -3054,6 +3057,7 @@ int main(int argc, char *argv)
            num_threads[SEND_THREAD_INDEX],
            num_threads[RECV_THREAD_INDEX]);
   }
+  ndb_end(0);
   return 0;
 }
 

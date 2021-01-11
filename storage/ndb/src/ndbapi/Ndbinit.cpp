@@ -153,12 +153,11 @@ Ndb::~Ndb()
   {
     g_eventLogger->warning("Deleting Ndb-object with NdbEventOperation still"
                            " active");
-    printf("this: %p NdbEventOperation(s): ", this);
+    g_eventLogger->info("this: %p NdbEventOperation(s): ", this);
     for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
     {
-      printf("%p ", op);
+      g_eventLogger->info("%p ", op);
     }
-    printf("\n");
     fflush(stdout);
   }
 

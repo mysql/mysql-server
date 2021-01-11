@@ -3157,13 +3157,12 @@ Dbtc::releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord* regCachePtr)
 void
 Dbtc::dump_trans(ApiConnectRecordPtr transPtr)
 {
-  printf("transid %u [ 0x%x 0x%x ] state: %u flags: 0x%x m_pre_commit_pass: %u\n",
-         transPtr.i,
-         transPtr.p->transid[0],
-         transPtr.p->transid[1],
-         transPtr.p->apiConnectstate,
-         transPtr.p->m_flags,
-         transPtr.p->m_pre_commit_pass);
+  g_eventLogger->info(
+      "transid %u [ 0x%x 0x%x ] state: %u flags: 0x%x"
+      " m_pre_commit_pass: %u",
+      transPtr.i, transPtr.p->transid[0], transPtr.p->transid[1],
+      transPtr.p->apiConnectstate, transPtr.p->m_flags,
+      transPtr.p->m_pre_commit_pass);
 
   Uint32 i = 0;
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, transPtr.p->tcConnect);
@@ -3176,16 +3175,17 @@ Dbtc::dump_trans(ApiConnectRecordPtr transPtr)
       c_theDefinedTriggers.getPtr(trigPtr, tcConnectptr.p->currentTriggerId);
     }
 
-    printf(" %u : opPtrI: 0x%x op: %u state: %u triggeringOperation: 0x%x flags: 0x%x triggerType: %u apiConnect: %u\n",
-           i++,
-           tcConnectptr.i,
-           tcConnectptr.p->operation,
-           tcConnectptr.p->tcConnectstate,
-           tcConnectptr.p->triggeringOperation,
-           tcConnectptr.p->m_special_op_flags,
-           tcConnectptr.p->currentTriggerId == RNIL ? RNIL :
-           (Uint32)trigPtr.p->triggerType,
-           tcConnectptr.p->apiConnect);
+    g_eventLogger->info(
+        " %u : opPtrI: 0x%x op: %u state: %u"
+        " triggeringOperation: 0x%x flags: 0x%x"
+        " triggerType: %u apiConnect: %u",
+        i++, tcConnectptr.i, tcConnectptr.p->operation,
+        tcConnectptr.p->tcConnectstate, tcConnectptr.p->triggeringOperation,
+        tcConnectptr.p->m_special_op_flags,
+        tcConnectptr.p->currentTriggerId == RNIL
+            ? RNIL
+            : (Uint32)trigPtr.p->triggerType,
+        tcConnectptr.p->apiConnect);
   } while (tcConList.next(tcConnectptr));
 }
 
@@ -20217,9 +20217,8 @@ Dbtc::trigger_op_finished(Signal* signal,
     jam();
     if (unlikely((triggeringOp->triggerExecutionCount == 0)))
     {
-      printf("%u : %p->triggerExecutionCount == 0\n",
-             __LINE__,
-             triggeringOp);
+      g_eventLogger->info("%u : %p->triggerExecutionCount == 0", __LINE__,
+                          triggeringOp);
       dump_trans(apiConnectptr);
     }
     ndbrequire(triggeringOp->triggerExecutionCount > 0);

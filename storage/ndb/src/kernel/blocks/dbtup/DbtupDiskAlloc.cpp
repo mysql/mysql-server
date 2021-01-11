@@ -154,7 +154,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   g_eventLogger->info("dirty pages");
   for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
-    printf("  %d : ", i);
+    g_eventLogger->info("  %d : ", i);
     PagePtr ptr;
     Page_pool *pool= (Page_pool*)&m_global_page_pool;
     Local_Page_list list(*pool, alloc.m_dirty_pages[i]);
@@ -171,7 +171,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   g_eventLogger->info("page requests");
   for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
-    printf("  %d : ", i);
+    g_eventLogger->info("  %d : ", i);
     Ptr<Page_request> ptr;
     Local_page_request_list list(c_page_request_pool, 
 				 alloc.m_page_requests[i]);
@@ -189,7 +189,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   g_eventLogger->info("Extent matrix");
   for(Uint32 i = 0; i<alloc.SZ; i++)
   {
-    printf("  %d : ", i);
+    g_eventLogger->info("  %d : ", i);
     Ptr<Extent_info> ptr;
     Local_extent_info_list list(c_extent_pool, alloc.m_free_extents[i]);
     Uint32 c = 0;

@@ -3787,7 +3787,7 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
       tmp.appfmt("Successfully set thread prio to %u ", thread_prio);
     }
 
-    printf("%s\n", tmp.c_str());
+    g_eventLogger->info("%s", tmp.c_str());
     fflush(stdout);
     if (fail)
     {
@@ -7359,7 +7359,7 @@ init_thread(thr_data *selfptr)
              selfptr->m_max_signals_before_send,
              selfptr->m_max_signals_before_send_flush);
 
-  printf("%s\n", tmp.c_str());
+  g_eventLogger->info("%s", tmp.c_str());
   fflush(stdout);
   if (fail)
   {

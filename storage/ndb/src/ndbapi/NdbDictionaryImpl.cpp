@@ -1819,11 +1819,10 @@ NdbTableImpl::dumpColumnHash() const
 {
   const Uint32 size = m_columns.size();
 
-  printf("Table %s column hash stores %u columns in hash table size %u\n",
-         getName(),
-         size,
-         m_columnHash.size());
-  
+  g_eventLogger->info(
+      "Table %s column hash stores %u columns in hash table size %u",
+      getName(), size, m_columnHash.size());
+
   Uint32 comparisons = 0;
 
   for(size_t i = 0; i<m_columnHash.size(); i++){
@@ -1834,19 +1833,16 @@ NdbTableImpl::dumpColumnHash() const
       {
         if (tmp == UniBucket)
         {
-          printf("  m_columnHash[%d]  %x NULL\n", (Uint32) i, tmp);
+          g_eventLogger->info("  m_columnHash[%d]  %x NULL", (Uint32)i, tmp);
         }
         else
         {
           Uint32 hash = m_columnHash[i] & ColNameHashMask;
           Uint32 bucket = (m_columnHash[i] & ColNameHashMask) & m_columnHashMask;
-          printf("  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d\n", 
-                 (Uint32) i, 
-                 tmp,
-                 m_columns[tmp >> ColShift]->getName(), 
-                 hash,
-                 bucket,
-                 (bucket < size? bucket : bucket - size));
+          g_eventLogger->info(
+              "  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d",
+              (Uint32)i, tmp, m_columns[tmp >> ColShift]->getName(), hash,
+              bucket, (bucket < size ? bucket : bucket - size));
           comparisons++;
         }
       }
@@ -1855,13 +1851,10 @@ NdbTableImpl::dumpColumnHash() const
         /* Chain header */
         Uint32 chainStart = Uint32(i) + (tmp & ColNameHashMask);
         Uint32 chainLen = tmp >> ColShift;
-        printf("  m_columnHash[%d] %x chain header of size %u @ +%u = %u\n",
-               (Uint32) i,
-               tmp,
-               chainLen,
-               (tmp & ColNameHashMask),
-               chainStart);
-        
+        g_eventLogger->info(
+            "  m_columnHash[%d] %x chain header of size %u @ +%u = %u",
+            (Uint32)i, tmp, chainLen, (tmp & ColNameHashMask), chainStart);
+
         /* Always 1 comparison, sometimes more */
         comparisons += ((chainLen * (chainLen + 1)) / 2);
       }
@@ -1871,32 +1864,27 @@ NdbTableImpl::dumpColumnHash() const
       /* Chain body  */
       Uint32 hash = m_columnHash[i] & ColNameHashMask;
       Uint32 bucket = (m_columnHash[i] & ColNameHashMask) & m_columnHashMask;
-      printf("  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d\n", 
-             (Uint32) i, 
-             tmp,
-             m_columns[tmp >> ColShift]->getName(), 
-             hash,
-             bucket,
-             (bucket < size? bucket : bucket - size));
+      g_eventLogger->info(
+          "  m_columnHash[%d] %x %s HashVal %d Bucket %d Bucket2 %d",
+          (Uint32)i, tmp, m_columns[tmp >> ColShift]->getName(), hash, bucket,
+          (bucket < size ? bucket : bucket - size));
     }
   }
 
   Uint32 sigdig = comparisons/size;
   Uint32 places = 10000;
-  printf("Entries = %u Hash Total comparisons = %u Average comparisons = %u.%u "
-         "Expected average strcmps = 1\n",
-         size,
-         comparisons,
-         sigdig,
-         (comparisons * places / size) - (sigdig * places));
+  g_eventLogger->info(
+      "Entries = %u Hash Total comparisons = %u Average comparisons = %u.%u"
+      " Expected average strcmps = 1",
+      size, comparisons, sigdig,
+      (comparisons * places / size) - (sigdig * places));
   /* Basic implementation behaviour (linear string search) */
   comparisons = (size * (size+1)) / 2;
   sigdig = comparisons / size;
-  printf("Entries = %u Basic Total strcmps = %u Average strcmps = %u.%u\n",
-         size,
-         comparisons,
-         sigdig,
-         (comparisons * places / size) - (sigdig * places));
+  g_eventLogger->info(
+      "Entries = %u Basic Total strcmps = %u Average strcmps = %u.%u",
+      size, comparisons, sigdig,
+      (comparisons * places / size) - (sigdig * places));
 }
 
 bool
@@ -1924,12 +1912,11 @@ NdbTableImpl::checkColumnHash() const
        */
       if (strcmp(col->getName(), hashLookup->getName()) != 0)
       {
-        printf("NdbDictionaryImpl.cpp::checkColumnHash() : "
-               "Failed lookup on table %s col %u %s - gives %p %s\n",
-               getName(),
-               i, col->getName(),
-               hashLookup,
-               (hashLookup?hashLookup->getName():""));
+        g_eventLogger->info(
+            "NdbDictionaryImpl.cpp::checkColumnHash() : "
+            "Failed lookup on table %s col %u %s - gives %p %s",
+            getName(), i, col->getName(), hashLookup,
+            (hashLookup ? hashLookup->getName() : ""));
         ok = false;
       }
     }

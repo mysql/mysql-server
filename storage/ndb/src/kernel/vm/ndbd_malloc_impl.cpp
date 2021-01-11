@@ -506,16 +506,12 @@ Resource_limits::check() const
 void
 Resource_limits::dump() const
 {
-  printf("ri: global "
-         "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u: untaken: %u: lent: %u: borrowed: %u\n",
-         m_max_page,
-         m_free_reserved,
-         m_in_use,
-         m_allocated,
-         m_spare,
-         m_untaken,
-         m_lent,
-         m_borrowed);
+  g_eventLogger->info(
+      "ri: global "
+      "max_page: %u free_reserved: %u in_use: %u allocated: %u spare: %u: "
+      "untaken: %u: lent: %u: borrowed: %u",
+      m_max_page, m_free_reserved, m_in_use, m_allocated, m_spare, m_untaken,
+      m_lent, m_borrowed);
   for (Uint32 i = 0; i < MM_RG_COUNT; i++)
   {
     if (m_limit[i].m_resource_id == 0 &&
@@ -529,16 +525,12 @@ Resource_limits::dump() const
     {
       continue;
     }
-    printf("ri: %u id: %u min: %u curr: %u max: %u lent: %u borrowed: %u spare: %u spare_pct: %u\n",
-           i,
-           m_limit[i].m_resource_id,
-           m_limit[i].m_min,
-           m_limit[i].m_curr,
-           m_limit[i].m_max,
-           m_limit[i].m_lent,
-           m_limit[i].m_borrowed,
-           m_limit[i].m_spare,
-           m_limit[i].m_spare_pct);
+    g_eventLogger->info(
+        "ri: %u id: %u min: %u curr: %u max: %u lent: %u"
+        " borrowed: %u spare: %u spare_pct: %u",
+        i, m_limit[i].m_resource_id, m_limit[i].m_min, m_limit[i].m_curr,
+        m_limit[i].m_max, m_limit[i].m_lent, m_limit[i].m_borrowed,
+        m_limit[i].m_spare, m_limit[i].m_spare_pct);
   }
 }
 
@@ -1311,11 +1303,9 @@ Ndbd_mem_manager::alloc(AllocZone zone,
     {
       if (unlikely(m_dump_on_alloc_fail))
       {
-        printf("Page allocation failed in %s: zone=%u pages=%u (at least %u)\n",
-               __func__,
-               zone,
-               save,
-               min);
+        g_eventLogger->info(
+            "Page allocation failed in %s: zone=%u pages=%u (at least %u)",
+            __func__, zone, save, min);
         dump(true);
       }
       return;
@@ -1468,29 +1458,28 @@ Ndbd_mem_manager::dump(bool locked) const
 {
   if (!locked)
     mt_mem_manager_lock();
-  printf("Begin Ndbd_mem_manager::dump\n");
+  g_eventLogger->info("Begin Ndbd_mem_manager::dump");
   for (Uint32 zone = 0; zone < ZONE_COUNT; zone ++)
   {
-    printf("zone %u\n", zone);
+    g_eventLogger->info("zone %u", zone);
     for (Uint32 i = 0; i<16; i++)
     {
       Uint32 head = m_buddy_lists[zone][i];
       if (head == 0)
         continue;
-      printf(" list: %d - ", i);
+      g_eventLogger->info(" list: %d - ", i);
       while(head)
       {
         Free_page_data* fd = get_free_page_data(m_base_page+head, head);
-        printf("[ i: %d prev %d next %d list %d size %d ] ",
-               head, fd->m_prev, fd->m_next, fd->m_list, fd->m_size);
+        g_eventLogger->info("[ i: %d prev %d next %d list %d size %d ] ", head,
+                            fd->m_prev, fd->m_next, fd->m_list, fd->m_size);
         head = fd->m_next;
       }
-      printf("EOL\n");
+      g_eventLogger->info("EOL");
     }
   }
   m_resource_limits.dump();
-  printf("End Ndbd_mem_manager::dump\n");
-  fflush(stdout);
+  g_eventLogger->info("End Ndbd_mem_manager::dump");
   if (!locked)
     mt_mem_manager_unlock();
 }
@@ -1540,8 +1529,8 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
       {
         if (unlikely(m_dump_on_alloc_fail))
         {
-          printf("Page allocation failed in %s: no free resource page.\n",
-                 __func__);
+          g_eventLogger->info(
+              "Page allocation failed in %s: no free resource page.", __func__);
           dump(true);
         }
         if (!locked)
@@ -1553,8 +1542,9 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
     {
       if (unlikely(m_dump_on_alloc_fail))
       {
-        printf("Page allocation failed in %s: no free reserved resource page.\n",
-               __func__);
+        g_eventLogger->info(
+            "Page allocation failed in %s: no free reserved resource page.",
+            __func__);
         dump(true);
       }
       if (!locked)
@@ -1573,8 +1563,9 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
       m_resource_limits.check();
       if (unlikely(m_dump_on_alloc_fail))
       {
-        printf("Page allocation failed in %s: no free non-spare resource page.\n",
-               __func__);
+        g_eventLogger->info(
+            "Page allocation failed in %s: no free non-spare resource page.",
+            __func__);
         dump(true);
       }
       if (!locked)
@@ -1594,9 +1585,9 @@ Ndbd_mem_manager::alloc_page(Uint32 type,
   }
   if (unlikely(m_dump_on_alloc_fail))
   {
-    printf("Page allocation failed in %s: no page available in zone %d.\n",
-           __func__,
-           zone);
+    g_eventLogger->info(
+        "Page allocation failed in %s: no page available in zone %d.", __func__,
+        zone);
     dump(true);
   }
   if (!locked)
@@ -1632,8 +1623,8 @@ Ndbd_mem_manager::alloc_spare_page(Uint32 type, Uint32* i, AllocZone zone)
   }
   if (unlikely(m_dump_on_alloc_fail))
   {
-    printf("Page allocation failed in %s: no spare page.\n",
-           __func__);
+    g_eventLogger->info("Page allocation failed in %s: no spare page.",
+                        __func__);
     dump(true);
   }
   mt_mem_manager_unlock();
@@ -1694,8 +1685,9 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
       *cnt = 0;
       if (unlikely(m_dump_on_alloc_fail))
       {
-        printf("Page allocation failed in %s: not enough free resource pages.\n",
-               __func__);
+        g_eventLogger->info(
+            "Page allocation failed in %s: not enough free resource pages.",
+            __func__);
         dump(true);
       }
       if (!locked)
@@ -1722,9 +1714,9 @@ Ndbd_mem_manager::alloc_pages(Uint32 type,
   m_resource_limits.check();
   if (req == 0 && unlikely(m_dump_on_alloc_fail))
   {
-    printf("Page allocation failed in %s: no page available in zone %d.\n",
-           __func__,
-           zone);
+    g_eventLogger->info(
+        "Page allocation failed in %s: no page available in zone %d.", __func__,
+        zone);
     dump(true);
   }
   if (!locked)

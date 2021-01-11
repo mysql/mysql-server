@@ -519,7 +519,7 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_latest_error_msg.assfmt
       ("Could not initialize handle to management server: %s",
        m_config_retriever->getErrorString());
-    printf("%s\n", get_latest_error_msg());
+    g_eventLogger->info("%s", get_latest_error_msg());
   }
   if (!m_main_connection)
   {
@@ -1505,7 +1505,7 @@ void Ndb_cluster_connection_impl::connect_thread()
     if ((r = connect(0,0,0)) == 0)
       break;
     if (r == -1) {
-      printf("Ndb_cluster_connection::connect_thread error\n");
+      g_eventLogger->info("Ndb_cluster_connection::connect_thread error");
       assert(false);
       m_run_connect_thread= 0;
     }
