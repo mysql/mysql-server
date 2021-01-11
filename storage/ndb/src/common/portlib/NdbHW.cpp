@@ -2881,6 +2881,7 @@ TAPTEST(NdbCPU)
     return 0;
   }
 
+  ndb_init();
   long sysconf_ncpu_conf = 0;
 #ifdef _SC_NPROCESSORS_CONF
   {
@@ -2917,6 +2918,7 @@ TAPTEST(NdbCPU)
   }
   Ndb_FreeHWInfo();
   NdbHW_End();
+  ndb_end(0);
   return 1; // OK
 }
 #endif

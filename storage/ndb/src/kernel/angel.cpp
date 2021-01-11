@@ -738,7 +738,7 @@ angel_run(const char* progname,
       else if (sscanf(buf, "sphase=%d\n", &value) == 1)
         child_sphase = value;
       else if (strcmp(buf, "\n") != 0)
-        fprintf(stderr, "unknown info from child: '%s'\n", buf);
+        g_eventLogger->info("unknown info from child: '%s'", buf);
     }
     g_eventLogger->debug("error: %u, signal: %u, sphase: %u",
                          child_error, child_signal, child_sphase);

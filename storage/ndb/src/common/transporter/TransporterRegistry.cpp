@@ -1282,8 +1282,8 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
     if (ret_val != 0)
     {
       int error= errno;
-      fprintf(stderr, "Failed to add extra sock %u to epoll-set: %u\n",
-              sock, error);
+      g_eventLogger->info("Failed to add extra sock %u to epoll-set: %u", sock,
+                          error);
       fflush(stderr);
       goto err;
     }
@@ -3122,10 +3122,9 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata,
     {
       if (performStates[nodeId] == CONNECTING)
       {
-        fprintf(stderr,
-                "update_connections while CONNECTING, nodeId:%d, error:%d\n",
-                nodeId,
-                code);
+        g_eventLogger->info(
+            "update_connections while CONNECTING, nodeId:%d, error:%d", nodeId,
+            code);
         /* Failed during CONNECTING -> we are still DISCONNECTED */
         assert(!t->isConnected());
         assert(false);

@@ -365,7 +365,7 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
-      fprintf(stderr, "Shared memory not supported on this platform\n");
+      g_eventLogger->info("Shared memory not supported on this platform");
       detach_shm(false);
       DBUG_RETURN(false);
     }
@@ -506,7 +506,7 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
                    localNodeId, remoteNodeId, __LINE__));
     if (setupBuffers())
     {
-      fprintf(stderr, "Shared memory not supported on this platform\n");
+      g_eventLogger->info("Shared memory not supported on this platform");
       detach_shm(false);
       DBUG_RETURN(false);
     }

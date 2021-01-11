@@ -1349,9 +1349,8 @@ TransporterFacade::unlock_recv_thread_cpu()
     int ret_code = Ndb_UnlockCPU(theReceiveThread);
     if (ret_code)
     {
-      fprintf(stderr, "Failed to unlock thread %d, ret_code: %d",
-              NdbThread_GetTid(theReceiveThread),
-              ret_code);
+      g_eventLogger->info("Failed to unlock thread %d, ret_code: %d",
+                          NdbThread_GetTid(theReceiveThread), ret_code);
       return ret_code;
     }
   }
@@ -1367,10 +1366,8 @@ TransporterFacade::lock_recv_thread_cpu()
     int ret_code = Ndb_LockCPU(theReceiveThread, cpu_id);
     if (ret_code)
     {
-      fprintf(stderr, "Failed to lock thread %d to CPU %u, ret_code: %d",
-              NdbThread_GetTid(theReceiveThread),
-              cpu_id,
-              ret_code);
+      g_eventLogger->info("Failed to lock thread %d to CPU %u, ret_code: %d",
+                          NdbThread_GetTid(theReceiveThread), cpu_id, ret_code);
       return ret_code;
     }
   }

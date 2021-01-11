@@ -2115,8 +2115,7 @@ extern void NdbOut_Init();
 static int
 testmain()
 {
-  my_init();
-  NdbOut_Init();
+  ndb_init();
   signal(SIGABRT, SIG_DFL);
   { const char* p = NdbEnv_GetEnv("TEST_NDB_PACK_VERBOSE", (char*)0, 0);
     if (p != 0)
@@ -2140,6 +2139,7 @@ testmain()
   }
   // do not print "ok" in TAPTEST
   ndbout << "passed" << endl;
+  ndb_end(0);
   return 0;
 }
 

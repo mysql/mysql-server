@@ -27,6 +27,8 @@
 #include <cstring>
 
 #include <NdbMutex.h>
+#include <EventLogger.hpp>
+extern EventLogger *g_eventLogger;
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
 #include "NdbMutex_DeadlockDetector.h"
@@ -376,8 +378,10 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
 #ifndef NDEBUG
   if (result && result != EBUSY)
   {
-    fprintf(stderr, "NdbMutex_TryLock, unexpected result %d returned from "
-            "pthread_mutex_trylock: '%s'\n", result, strerror(result));
+    g_eventLogger->info(
+        "NdbMutex_TryLock, unexpected result %d returned from "
+        "pthread_mutex_trylock: '%s'",
+        result, strerror(result));
   }
 #endif
   assert(result == 0 || result == EBUSY);

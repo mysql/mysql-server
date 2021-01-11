@@ -29,6 +29,9 @@
 #include <NdbMutex.h>
 #include "NdbTick.h"
 
+#include <EventLogger.hpp>
+extern EventLogger *g_eventLogger;
+
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME
 static clockid_t clock_id = CLOCK_REALTIME;
@@ -92,9 +95,8 @@ nogo:
   }
   
   clock_id = CLOCK_REALTIME;
-  fprintf(stderr, 
-          "Failed to use CLOCK_MONOTONIC for pthread_condition res: %u\n", 
-          res);
+  g_eventLogger->info(
+      "Failed to use CLOCK_MONOTONIC for pthread_condition res: %u", res);
   fflush(stderr);
   return;
 #else

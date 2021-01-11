@@ -1347,8 +1347,8 @@ Ndb_cluster_connection_impl::do_test()
       for (int i= 0; i < n; i++)
       {
 	init_get_next_node(iter);
-	fprintf(stderr, "%d dead:(", g);
-	id= 0;
+        g_eventLogger->info("%d dead:(", g);
+        id= 0;
 	while (id == 0)
 	{
 	  if ((id= get_next_node(iter)) == 0)
@@ -1357,20 +1357,19 @@ Ndb_cluster_connection_impl::do_test()
 	  {
 	    if (nodes[j] == id)
 	    {
-	      fprintf(stderr, " %d", id);
-	      id= 0;
+              g_eventLogger->info(" %d", id);
+              id= 0;
 	      break;
 	    }
 	  }
 	}
-	fprintf(stderr, ")");
-	if (id == 0)
+        g_eventLogger->info(")");
+        if (id == 0)
 	{
 	  break;
 	}
-	fprintf(stderr, " %d\n", id);
+        g_eventLogger->info(" %d", id);
       }
-      fprintf(stderr, "\n");
     }
   }
   delete [] nodes;

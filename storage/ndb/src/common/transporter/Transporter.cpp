@@ -484,18 +484,10 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
                                                  size_t len) const
 {
   /* Timestamped event showing issue, followed by details */
-  /* As eventLogger and stderr may not be in-sync, put details together */
-  g_eventLogger->error("Transporter::checksum_state::compute() failed");
-  fprintf(stderr,
-          "checksum_state::compute() failed "
-          "with sum 0x%x.\n"
-          "Input sum 0x%x compute offset %llu len %u "
-          "bufflen %llu\n",
-          badSum,
-          inputSum,
-          Uint64(offset),
-          sig_remaining,
-          Uint64(len));
+  g_eventLogger->error(
+      "Transporter::checksum_state::compute() failed with sum 0x%x", badSum);
+  g_eventLogger->info("Input sum 0x%x compute offset %llu len %u  bufflen %llu",
+                      inputSum, Uint64(offset), sig_remaining, Uint64(len));
   /* Next dump buf content, with word alignment
    * Buffer is a byte aligned window on signals made of words
    * remaining bytes to end of multiple-of-word sized signal
@@ -511,13 +503,13 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       /* Partial first word */
       Uint32 word = 0;
       memcpy(&word, data, firstWordBytes);
-      fprintf(stderr, "\n-%4x  : 0x%08x\n", 4 - firstWordBytes, word);
+      g_eventLogger->info("-%4x  : 0x%08x", 4 - firstWordBytes, word);
       buf_remain -= firstWordBytes;
       pos += firstWordBytes;
     }
 
     if (buf_remain)
-      fprintf(stderr, "\n %4x  : ", pos);
+      g_eventLogger->info(" %4x  : ", pos);
 
     while (buf_remain > 4)
     {
@@ -525,18 +517,17 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       memcpy(&word, data+pos, 4);
       pos += 4;
       buf_remain -= 4;
-      fprintf(stderr, "0x%08x ", word);
+      g_eventLogger->info("0x%08x ", word);
       if (((pos + firstWordBytes) % 24) == 0)
-        fprintf(stderr, "\n %4x  : ", pos);
+        g_eventLogger->info(" %4x  : ", pos);
     }
     if (buf_remain > 0)
     {
       /* Partial last word */
       Uint32 word = 0;
       memcpy(&word, data + pos, buf_remain);
-      fprintf(stderr, "0x%08x\n", word);
+      g_eventLogger->info("0x%08x", word);
     }
-    fprintf(stderr, "\n\n");
   }
 }
 

@@ -69,9 +69,9 @@ SHM_Transporter::ndb_shm_create()
                    shmId,
                    errno,
                    strerror(errno)));
-    fprintf(stderr,
-      "ERROR: Failed to create SHM segment of size %u with errno: %d(%s)\n",
-      shmSize, errno, strerror(errno));
+    g_eventLogger->info(
+        "ERROR: Failed to create SHM segment of size %u with errno: %d(%s)",
+        shmSize, errno, strerror(errno));
     require(false);
     return false;
   }
@@ -94,9 +94,9 @@ SHM_Transporter::ndb_shm_get()
                    strerror(errno)));
     if (errno != ENOENT)
     {
-      fprintf(stderr,
-        "ERROR: Failed to get SHM segment of size %u with errno: %d(%s)\n",
-        shmSize, errno, strerror(errno));
+      g_eventLogger->info(
+          "ERROR: Failed to get SHM segment of size %u with errno: %d(%s)",
+          shmSize, errno, strerror(errno));
       require(false);
     }
     return false;

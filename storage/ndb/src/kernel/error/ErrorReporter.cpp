@@ -345,7 +345,8 @@ WriteMessage(int thrdMessageID,
     stream = fopen(theErrorFileName, "w");
     if(stream == NULL)
     {
-      fprintf(stderr,"Unable to open error log file: %s\n", theErrorFileName);
+      g_eventLogger->info("Unable to open error log file: %s",
+                          theErrorFileName);
       return -1;
     }
     fprintf(stream, "%s%u%s", "Current byte-offset of file-pointer is: ", 69,

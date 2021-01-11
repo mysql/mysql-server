@@ -197,8 +197,9 @@ public:
     int fd = ndb_socket_get_native(sock);
     if (fd < 0 || fd >= FD_SETSIZE)
     {
-      fprintf(stderr, "Maximum value for FD_SETSIZE: %d exceeded when"
-        "trying to add fd: %d", FD_SETSIZE, fd);
+      g_eventLogger->info(
+          "Maximum value for FD_SETSIZE: %d exceeded when trying to add fd: %d",
+          FD_SETSIZE, fd);
       fflush(stderr);
       abort();
     }
@@ -306,8 +307,8 @@ public:
         if (timeout <= 0)
           return 0; // Timeout occurred
 
-        //fprintf(stderr, "Got interrupted, retrying... timeout left: %d\n",
-        //        timeout_millis);
+        //g_eventLogger->info("Got interrupted, retrying... timeout left: %d",
+        //                    timeout_millis);
 
         continue; // Retry interrupted poll
       }

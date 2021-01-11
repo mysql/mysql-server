@@ -925,13 +925,11 @@ bool AsyncFile::check_odirect_request(const char* buf,
         (((UintPtr)buf) % NDB_O_DIRECT_WRITE_ALIGNMENT) ||
         (offset % NDB_O_DIRECT_WRITE_ALIGNMENT))
     {
-      fprintf(stderr,
-              "Error r/w of size %llu using buf %p to offset %llu in "
-              "file %s not O_DIRECT aligned\n",
-              (long long unsigned) sz,
-              buf,
-              (long long unsigned) offset,
-              theFileName.c_str());
+      g_eventLogger->info(
+          "Error r/w of size %llu using buf %p to offset %llu in "
+          "file %s not O_DIRECT aligned",
+          (long long unsigned)sz, buf, (long long unsigned)offset,
+          theFileName.c_str());
       return false;
     }
   }

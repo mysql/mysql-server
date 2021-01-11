@@ -241,9 +241,9 @@ void *ndbd_malloc_watched(size_t size, volatile Uint32* watch_dog)
     {
       size_t s_m, s_k, s_b;
       xxx(size, &s_m, &s_k, &s_b);
-      fprintf(stderr, "%p malloc(%um %uk %ub)", p, s_m, s_k, s_b);
+      g_eventLogger->info("%p malloc(%um %uk %ub)", p, s_m, s_k, s_b);
       xxx(g_allocated_memory, &s_m, &s_k, &s_b);
-      fprintf(stderr, "\t\ttotal(%um %uk %ub)\n", s_m, s_k, s_b);
+      g_eventLogger->info("\t\ttotal(%um %uk %ub)", s_m, s_k, s_b);
     }
 #endif
   }
@@ -270,7 +270,7 @@ void ndbd_free(void *p, size_t size)
   {
     g_allocated_memory -= size;
 #ifdef TRACE_MALLOC
-    fprintf(stderr, "%p free(%d)\n", p, size);
+    g_eventLogger->info("%p free(%d)", p, size);
 #endif
   }
 }
