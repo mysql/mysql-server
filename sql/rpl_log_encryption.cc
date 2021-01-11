@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,18 +28,20 @@
 #include "libbinlogevents/include/event_reader.h"
 #include "mutex_lock.h"
 #include "my_byteorder.h"
+#include "scope_guard.h"
 #include "sql/basic_istream.h"
 #include "sql/basic_ostream.h"
 #include "sql/sql_class.h"
 
 #ifdef MYSQL_SERVER
+#include "keyring_operations_helper.h"
 #include "libbinlogevents/include/byteorder.h"
 #include "my_aes.h"
 #include "my_rnd.h"
 #include "mysql/components/services/log_builtins.h"
-#include "mysql/service_mysql_keyring.h"
 #include "sql/binlog.h"
 #include "sql/rpl_slave.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 
 Rpl_encryption rpl_encryption;
 
@@ -467,14 +469,19 @@ Rpl_encryption::fetch_key_from_keyring(const std::string &key_id,
   DBUG_TRACE;
   size_t key_len = 0;
   char *retrieved_key_type = nullptr;
-  void *key = nullptr;
+  unsigned char *key = nullptr;
   Keyring_status error = Keyring_status::SUCCESS;
+
+  auto fetch_key = [&]() -> int {
+    return keyring_operations_helper::read_secret(
+        srv_keyring_reader, key_id.c_str(), nullptr, &key, &key_len,
+        &retrieved_key_type, PSI_INSTRUMENT_ME);
+  };
 
   /* Error fetching the key */
   if (DBUG_EVALUATE_IF("failed_to_fetch_master_key_seqno_from_keyring", true,
                        false) ||
-      my_key_fetch(key_id.c_str(), &retrieved_key_type, nullptr, &key,
-                   &key_len)) {
+      fetch_key() == -1) {
     assert(key == nullptr);
     error = Keyring_status::KEYRING_ERROR_FETCHING;
   } else {
@@ -748,8 +755,8 @@ bool Rpl_encryption::set_seqno_on_keyring(std::string key_id, uint32_t seqno) {
   int4store(key, seqno);
   DBUG_PRINT("debug", ("key_id= '%s'. seqno= %u", key_id.c_str(), seqno));
 #ifdef NDEBUG
-  if (my_key_store(key_id.c_str(), SEQNO_KEY_TYPE, nullptr, key,
-                   SEQNO_KEY_LENGTH)) {
+  if (srv_keyring_writer->store(key_id.c_str(), nullptr, key, SEQNO_KEY_LENGTH,
+                                SEQNO_KEY_TYPE) == true) {
 #else
   if ((DBUG_EVALUATE_IF("rpl_encryption_first_time_enable_1", true, false) &&
        key_id.compare(get_new_master_key_seqno_key_id()) == 0) ||
@@ -767,8 +774,8 @@ bool Rpl_encryption::set_seqno_on_keyring(std::string key_id, uint32_t seqno) {
       (DBUG_EVALUATE_IF("fail_to_set_last_purged_master_key_seqno_on_keyring",
                         true, false) &&
        key_id.compare(get_last_purged_master_key_seqno_key_id()) == 0) ||
-      my_key_store(key_id.c_str(), SEQNO_KEY_TYPE, nullptr, key,
-                   SEQNO_KEY_LENGTH)) {
+      srv_keyring_writer->store(key_id.c_str(), nullptr, key, SEQNO_KEY_LENGTH,
+                                SEQNO_KEY_TYPE) == true) {
 #endif
     report_keyring_error(Keyring_status::KEYRING_ERROR_STORING);
     return true;
@@ -779,7 +786,7 @@ bool Rpl_encryption::set_seqno_on_keyring(std::string key_id, uint32_t seqno) {
 bool Rpl_encryption::remove_key_from_keyring(std::string key_id) {
   DBUG_TRACE;
 #ifdef NDEBUG
-  if (my_key_remove(key_id.c_str(), nullptr)) {
+  if (srv_keyring_writer->remove(key_id.c_str(), nullptr) == true) {
 #else
   if (DBUG_EVALUATE_IF("rpl_encryption_first_time_enable_4", true, false) ||
       (DBUG_EVALUATE_IF("fail_to_remove_master_key_from_keyring", true,
@@ -797,7 +804,7 @@ bool Rpl_encryption::remove_key_from_keyring(std::string key_id) {
       (DBUG_EVALUATE_IF("fail_to_remove_unused_key_from_keyring",
                         !current_thd->is_error(), false) &&
        key_id.compare(get_master_key_seqno_key_id()) != 0) ||
-      my_key_remove(key_id.c_str(), nullptr)) {
+      srv_keyring_writer->remove(key_id.c_str(), nullptr) == true) {
 #endif
     report_keyring_error(Keyring_status::KEYRING_ERROR_REMOVING);
     return true;
@@ -922,8 +929,9 @@ bool Rpl_encryption::generate_master_key_on_keyring(uint32 seqno) {
   /* Generate the new key */
   if (DBUG_EVALUATE_IF("rpl_encryption_first_time_enable_2", true, false) ||
       DBUG_EVALUATE_IF("fail_to_generate_key_on_keyring", true, false) ||
-      my_key_generate(key_id.c_str(), Rpl_encryption_header_v1::KEY_TYPE,
-                      nullptr, Rpl_encryption_header_v1::KEY_LENGTH) != 0) {
+      srv_keyring_generator->generate(
+          key_id.c_str(), nullptr, Rpl_encryption_header_v1::KEY_TYPE,
+          Rpl_encryption_header_v1::KEY_LENGTH) == true) {
     Rpl_encryption::report_keyring_error(
         Keyring_status::KEYRING_ERROR_GENERATING);
     return true;

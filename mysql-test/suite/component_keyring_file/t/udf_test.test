@@ -1,0 +1,6 @@
+--source include/have_component_keyring_file.inc
+# Keyring UDF tests with component_keyring_file
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/mats/keyring_udf_test.inc
+--source ../inc/teardown_component.inc

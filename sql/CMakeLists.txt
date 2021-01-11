@@ -577,6 +577,7 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
+  daemon_proxy_keyring/daemon_proxy_keyring.cc
 )
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>

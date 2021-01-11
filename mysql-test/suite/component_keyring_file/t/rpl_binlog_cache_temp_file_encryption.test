@@ -1,0 +1,11 @@
+--source include/have_component_keyring_file.inc
+--source include/not_group_replication_plugin.inc
+--source include/have_binlog_format_row.inc
+# Restrict the test runs to only debug builds, since we set DEBUG point in the test.
+--source include/have_debug.inc
+
+--source ../inc/rpl_setup_component.inc
+
+--source include/keyring_tests/binlog/rpl_binlog_cache_temp_file_encryption.inc
+
+--source ../inc/rpl_teardown_component.inc

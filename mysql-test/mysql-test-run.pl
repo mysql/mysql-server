@@ -264,6 +264,7 @@ our @DEFAULT_SUITES = qw(
   test_service_sql_api
   test_services
   x
+  component_keyring_file
 );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
@@ -319,6 +320,8 @@ our $excluded_string;
 our $exe_libtool;
 our $exe_mysql;
 our $exe_mysql_ssl_rsa_setup;
+our $exe_mysql_migrate_keyring;
+our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $glob_mysql_test_dir;
@@ -696,7 +699,7 @@ sub main {
   }
 
   # Read definitions from include/plugin.defs
-  read_plugin_defs("include/plugin.defs");
+  read_plugin_defs("include/plugin.defs", 0);
 
  # Also read from plugin.defs files in internal and internal/cloud if they exist
   my @plugin_defs = ("$basedir/internal/mysql-test/include/plugin.defs",
@@ -723,6 +726,8 @@ sub main {
     # Reserve 10 extra ports per worker process
     $ports_per_thread = $ports_per_thread + 10;
   }
+
+  create_manifest_file();
 
   # Create child processes
   my %children;
@@ -769,6 +774,14 @@ sub main {
       }
     }
   }
+
+  # Remove config files for components
+  read_plugin_defs("include/plugin.defs", 1);
+  for my $plugin_def (@plugin_defs) {
+    read_plugin_defs($plugin_def, 1) if -e $plugin_def;
+  }
+
+  remove_manifest_file();
 
   if (not $completed) {
     mtr_error("Test suite aborted");
@@ -2232,6 +2245,52 @@ sub command_line_setup {
   executable_setup();
 }
 
+# Create global manifest file
+sub create_manifest_file {
+  use strict;
+  use File::Basename;
+  my $config_content = "{ \"read_local_manifest\": true }";
+  my $manifest_file_ext = ".my";
+  my $exe_mysqld = find_mysqld($basedir);
+  my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
+  my $manifest_file_path = $path.$exename.$manifest_file_ext;
+  open(my $mh, "> $manifest_file_path") or die;
+  print $mh $config_content or die;
+  close($mh);
+}
+
+# Delete global manifest file
+sub remove_manifest_file {
+  use strict;
+  use File::Basename;
+  my $manifest_file_ext = ".my";
+  my $exe_mysqld = find_mysqld($basedir);
+  my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
+  my $manifest_file_path = $path.$exename.$manifest_file_ext;
+  unlink $manifest_file_path;
+}
+
+# Create config for one component
+sub create_one_config($$) {
+  my($component, $location) = @_;
+  use strict;
+  my $config_content = "{ \"read_local_config\": true }";
+  my $config_file_ext = ".cnf";
+  my $config_file_path = $location."\/".$component.$config_file_ext;
+  open(my $mh, "> $config_file_path") or die;
+  print $mh $config_content or die;
+  close($mh);
+}
+
+# Delete config for one component
+sub remove_one_config($$) {
+  my($component, $location) = @_;
+  use strict;
+  my $config_file_ext = ".cnf";
+  my $config_file_path = $location."\/".$component.$config_file_ext;
+  unlink $config_file_path;
+}
+
 # To make it easier for different devs to work on the same host, an
 # environment variable can be used to control all ports. A small number
 # is to be used, 0 - 16 or similar.
@@ -2534,6 +2593,12 @@ sub executable_setup () {
   $exe_mysql      = mtr_exe_exists("$path_client_bindir/mysql");
   $exe_mysql_ssl_rsa_setup =
     mtr_exe_exists("$path_client_bindir/mysql_ssl_rsa_setup");
+  $exe_mysql_migrate_keyring =
+    mtr_exe_exists("$path_client_bindir/mysql_migrate_keyring");
+  $exe_mysql_keyring_encryption_test =
+    my_find_bin($bindir,
+                [ "runtime_output_directory", "libexec", "sbin", "bin" ],
+                "mysql_keyring_encryption_test");
 
   if ($ndbcluster_enabled) {
     # Look for single threaded NDB
@@ -2778,8 +2843,8 @@ sub find_plugin($$) {
 }
 
 # Read plugin defintions file
-sub read_plugin_defs($) {
-  my ($defs_file) = @_;
+sub read_plugin_defs($$) {
+  my ($defs_file, $remove_config) = @_;
   my $running_debug = 0;
 
   open(PLUGDEF, '<', $defs_file) or
@@ -2792,12 +2857,13 @@ sub read_plugin_defs($) {
 
   while (<PLUGDEF>) {
     next if /^#/;
-    my ($plug_file, $plug_loc, $plug_var, $plug_names) = split;
+    my ($plug_file, $plug_loc, $requires_config, $plug_var, $plug_names) = split;
 
     # Allow empty lines
     next unless $plug_file;
-    mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
+    mtr_error("Lines in $defs_file must have 4 or 5 items") unless $plug_var;
 
+    my $orig_plug_file = $plug_file;
     # If running debug server, plugins will be in 'debug' subdirectory
     $plug_file = "debug/$plug_file" if $running_debug && !$source_dist;
 
@@ -2805,36 +2871,51 @@ sub read_plugin_defs($) {
 
     # Set env. variables that tests may use, set to empty if plugin
     # listed in def. file but not found.
-    if ($plugin) {
-      $ENV{$plug_var}            = basename($plugin);
-      $ENV{ $plug_var . '_DIR' } = dirname($plugin);
-      $ENV{ $plug_var . '_OPT' } = "--plugin-dir=" . dirname($plugin);
-
-      if ($plug_names) {
-        my $lib_name       = basename($plugin);
-        my $load_var       = "--plugin_load=";
-        my $early_load_var = "--early-plugin_load=";
-        my $load_add_var   = "--plugin_load_add=";
-        my $semi           = '';
-
-        foreach my $plug_name (split(',', $plug_names)) {
-          $load_var       .= $semi . "$plug_name=$lib_name";
-          $early_load_var .= $semi . "$plug_name=$lib_name";
-          $load_add_var   .= $semi . "$plug_name=$lib_name";
-          $semi = ';';
+    if ($remove_config) {
+      if ($plugin) {
+        if ($requires_config =~ "yes") {
+          my $component_location = dirname($plugin);
+          remove_one_config($orig_plug_file, $component_location);
         }
-
-        $ENV{ $plug_var . '_LOAD' }       = $load_var;
-        $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
-        $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
       }
     } else {
-      $ENV{$plug_var}            = "";
-      $ENV{ $plug_var . '_DIR' } = "";
-      $ENV{ $plug_var . '_OPT' } = "";
-      $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
+      if ($plugin) {
+
+        if ($requires_config =~ "yes") {
+          my $component_location = dirname($plugin);
+          create_one_config($orig_plug_file, $component_location);
+        }
+
+        $ENV{$plug_var}            = basename($plugin);
+        $ENV{ $plug_var . '_DIR' } = dirname($plugin);
+        $ENV{ $plug_var . '_OPT' } = "--plugin-dir=" . dirname($plugin);
+
+        if ($plug_names) {
+          my $lib_name       = basename($plugin);
+          my $load_var       = "--plugin_load=";
+          my $early_load_var = "--early-plugin_load=";
+          my $load_add_var   = "--plugin_load_add=";
+          my $semi           = '';
+
+          foreach my $plug_name (split(',', $plug_names)) {
+            $load_var       .= $semi . "$plug_name=$lib_name";
+            $early_load_var .= $semi . "$plug_name=$lib_name";
+            $load_add_var   .= $semi . "$plug_name=$lib_name";
+            $semi = ';';
+          }
+
+          $ENV{ $plug_var . '_LOAD' }       = $load_var;
+          $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
+          $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
+        }
+      } else {
+        $ENV{$plug_var}            = "";
+        $ENV{ $plug_var . '_DIR' } = "";
+        $ENV{ $plug_var . '_OPT' } = "";
+        $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
+        $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
+        $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
+      }
     }
   }
   close PLUGDEF;
@@ -3041,6 +3122,8 @@ sub environment_setup {
   $ENV{'MYSQL_UPGRADE'}       = client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
+  $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
+  $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;
   $ENV{'PATH_CONFIG_FILE'}    = $path_config_file;
   $ENV{'MYSQL_CLIENT_BIN_PATH'}    = $path_client_bindir;
   $ENV{'MYSQLBACKUP_PLUGIN_DIR'} = mysqlbackup_plugin_dir()

@@ -88,7 +88,7 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 "MY-011952", "MY-011323", "MY-010902", "MY-000000",
 "MY-012937", "MY-012366", "MY-000067", "MY-010159",
 "MY-013602", "MY-010069", "MY-013595", "MY-010108",
-"MY-012363", "MY-011953")
+"MY-012363", "MY-011953", "MY-013711")
 ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-010116	Server
@@ -150,7 +150,7 @@ AND prio!="Note"
    AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
 "MY-010931", "MY-010116", "MY-011810", "MY-000000",
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
-"MY-010108", "MY-012363")
+"MY-010108", "MY-012363", "MY-013711")
 ORDER BY logged;
 prio	error_code	subsystem	data
 System	MY-013576	InnoDB	InnoDB initialization has started.

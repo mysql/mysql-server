@@ -1,0 +1,457 @@
+################################################################################
+# InnoDB transparent tablespace data encryption for general shared tablespace.
+# This test case will test
+#    - Table movement from one tablespace to another tablespace
+#    - Partitoned Table create/alter with different combination of tablespace at
+#      table level and partition level.
+################################################################################
+
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=10000
+
+--disable_query_log
+call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
+--enable_query_log
+
+--echo #########################################################################
+--echo # START : WITHOUT KEYRING PLUGIN
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+--echo #########
+--echo # SETUP #
+--echo #########
+
+--echo #########################################################################
+--echo # RESTART 1 : WITH KEYRING PLUGIN
+--echo #########################################################################
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT --performance-schema-consumer-events-stages-current=ON;
+--source include/restart_mysqld_no_echo.inc
+
+--echo #########################################################################
+--echo # Non Partitioned Table                                                 #
+--echo #########################################################################
+--echo
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--echo # Create an Encrypted and an Unencrypted tablespace
+CREATE TABLESPACE encrypt_ts add datafile 'encrypt_ts.ibd' ENCRYPTION='Y';
+CREATE TABLESPACE unencrypt_ts add datafile 'unencrypt_ts.ibd' ENCRYPTION='N';
+
+--echo # Create table with "encryption" option in general tablespace
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='y';
+SHOW WARNINGS;
+DROP TABLE t1;
+--error ER_INVALID_ENCRYPTION_REQUEST
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='n';
+SHOW WARNINGS;
+--error ER_INVALID_ENCRYPTION_REQUEST
+CREATE TABLE t1 (c int) TABLESPACE=innodb_system ENCRYPTION='y';
+SHOW WARNINGS;
+CREATE TABLE t1 (c int) TABLESPACE=innodb_system ENCRYPTION='n';
+SHOW WARNINGS;
+DROP TABLE t1;
+
+--echo #-------------------------------------------------------
+
+--echo #  general [encrypted] => general [unencrypted]
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='Y';
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 TABLESPACE=unencrypt_ts ENCRYPTION='N', ALGORITHM=INPLACE;
+
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 TABLESPACE=unencrypt_ts ENCRYPTION='N', ALGORITHM=COPY;
+
+--echo #  general [unencrypted] => general [encrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=INPLACE;
+
+--echo #  Changing encryption type without explicit ENCRYPTION clause fails.
+--error ER_INVALID_ENCRYPTION_REQUEST
+ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=COPY;
+
+--error ER_INVALID_ENCRYPTION_REQUEST
+ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=INPLACE;
+
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=COPY;
+
+--echo #-------------------------------------------------------
+
+--echo #  general [encrypted] => file-per-table [unencrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='Y';
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n', ALGORITHM=INPLACE;
+
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #  general [encrypted] => file-per-table [encrypted]
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION= 'Y';
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y', ALGORITHM=INPLACE;
+
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+
+--echo #-------------------------------------------------------
+
+--echo #  general [unencrypted] => file-per-table [unencrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+
+--echo #  general [unencrypted] => file-per-table [encrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+SHOW CREATE TABLE t1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y', ALGORITHM=INPLACE;
+
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+
+--echo #  general [unencrypted] => file-per-table [unencrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+
+--echo #-------------------------------------------------------
+
+--echo #  file-per-table [unencrypted] => general [encrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+CREATE TABLE t1 (c int) ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+
+--echo #  file-per-table [encrypted] => general [encrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) ENCRYPTION='y';
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=INPLACE;
+
+DROP TABLE t1;
+CREATE TABLE t1 (c int) ENCRYPTION='y';
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=encrypt_ts, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+
+--echo #  file-per-table [encrypted] => general [unencrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) ENCRYPTION='y';
+SHOW CREATE TABLE t1;
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 TABLESPACE=unencrypt_ts ENCRYPTION='N', ALGORITHM=INPLACE;
+
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 TABLESPACE=unencrypt_ts ENCRYPTION='N', ALGORITHM=COPY;
+
+--echo #  file-per-table [unencrypted] => general [unencrypted]
+DROP TABLE t1;
+CREATE TABLE t1 (c int) ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=unencrypt_ts, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+CREATE TABLE t1 (c int) ENCRYPTION='n';
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 TABLESPACE=unencrypt_ts, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #-------------------------------------------------------
+--echo # ALTER TABLE ADD COLUMN/INDEX WITH MOVING TO DIFFERENT TABLESPACE
+
+CREATE TABLESPACE encrypt_ts1 add datafile 'encrypt_ts1.ibd' ENCRYPTION='Y';
+CREATE TABLESPACE unencrypt_ts1 add datafile 'unencrypt_ts1.ibd' ENCRYPTION='N';
+
+--echo # ALGORITHM=DEFAULT
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='Y';
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts ENCRYPTION='N';
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=encrypt_ts1;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c), TABLESPACE=encrypt_ts;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts1;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c), TABLESPACE=unencrypt_ts;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c2), TABLESPACE=encrypt_ts ENCRYPTION='Y';
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # ALGORITHM=INPLACE
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='Y';
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts ENCRYPTION='N', ALGORITHM=INPLACE;
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=encrypt_ts1 ENCRYPTION='Y', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c), TABLESPACE=encrypt_ts, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts1, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c), TABLESPACE=unencrypt_ts, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD INDEX (c2), TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo # ALGORITHM=COPY
+CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='Y';
+--error ER_TARGET_TABLESPACE_UNENCRYPTED
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts ENCRYPTION='N', ALGORITHM=COPY;
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=encrypt_ts1, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c), TABLESPACE=encrypt_ts, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (c int) TABLESPACE=unencrypt_ts;
+ALTER TABLE t1 ADD c2 char(10), TABLESPACE=unencrypt_ts1, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c), TABLESPACE=unencrypt_ts, ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD INDEX (c2), TABLESPACE=encrypt_ts ENCRYPTION='Y', ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #########################################################################
+--echo # Partitioned Table                                                     #
+--echo #########################################################################
+--echo
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--echo # Create table without explicit tablespace name
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+--echo # Try to ALTER TABLE to have general tablespace at table level
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 TABLESPACE=unencrypt_ts;
+SHOW WARNINGS;
+--echo # Alter encryption option
+ALTER TABLE t1 ENCRYPTION='Y';
+DROP TABLE t1;
+
+--echo # Create table with general tablespace at table level
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	TABLESPACE=encrypt_ts ENCRYPTION='Y'
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+SHOW WARNINGS;
+
+--echo # Create table with system tablespace at table level
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	TABLESPACE=innodb_system
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+SHOW WARNINGS;
+
+--echo # Create table with innodb_file_per_table tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	TABLESPACE=innodb_file_per_table
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+DROP TABLE t1;
+
+--echo # Create table with general tablespace at partition level
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (id INT, name VARCHAR(50)) ENCRYPTION='Y'
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30) TABLESPACE=encrypt_ts);
+SHOW WARNINGS;
+
+--echo # Create table with system tablespace at partition level
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30) TABLESPACE=innodb_system);
+SHOW WARNINGS;
+
+--echo # Create table with innodb_file_per_table tablespace at partition level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30) TABLESPACE=innodb_file_per_table);
+DROP TABLE t1;
+
+--echo # Create table with ENCRYPTION='y' option
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	ENCRYPTION='Y'
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+INSERT INTO t1 VALUES (5,'test');
+INSERT INTO t1 VALUES (12,'test1');
+INSERT INTO t1 VALUES (22,'test2');
+
+--echo # Truncate specific partition of encrypted table
+ALTER TABLE t1 TRUNCATE PARTITION p0;
+
+--echo # Alter encryption option
+ALTER TABLE t1 ENCRYPTION='N';
+DROP TABLE t1;
+
+--echo # Create table with ENCRYPTION='y' option and innodb_file_per_table
+--echo # tablespace at table level
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	ENCRYPTION='Y' TABLESPACE=innodb_file_per_table
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+
+--echo # Alter encryption option
+ALTER TABLE t1 ENCRYPTION='N';
+
+--echo # Alter table to move a partition to general tablespace.
+--error ER_INVALID_ENCRYPTION_REQUEST
+ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
+	PARTITION P2 VALUES LESS THAN (30) TABLESPACE=encrypt_ts);
+SHOW WARNINGS;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
+	PARTITION P2 VALUES LESS THAN (30) TABLESPACE=unencrypt_ts);
+SHOW WARNINGS;
+
+--echo # Alter table to move a partition to system tablespace.
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
+	PARTITION P2 VALUES LESS THAN (30) TABLESPACE=innodb_system);
+SHOW WARNINGS;
+
+--echo # Alter table to move a partition to file_per_table tablespace.
+ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
+	PARTITION P2 VALUES LESS THAN (30) TABLESPACE=innodb_file_per_table);
+
+SHOW CREATE TABLE t1;
+
+--echo # Alter table to add a new partition in general tablespace
+--error ER_INVALID_ENCRYPTION_REQUEST
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p3 VALUES LESS THAN (40) tablespace=encrypt_ts);
+SHOW WARNINGS;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p3 VALUES LESS THAN (40) tablespace=unencrypt_ts);
+SHOW WARNINGS;
+
+--echo # Alter table to add a new partition in innodb_system tablespace
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p3 VALUES LESS THAN (40) tablespace=innodb_system);
+SHOW WARNINGS;
+
+--echo # Alter table to add a new partition in innodb_file_per_table tablespace
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p3 VALUES LESS THAN (40) tablespace=innodb_file_per_table);
+
+--echo # Alter table to add a new partition without giving tablespace
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p4 VALUES LESS THAN (50));
+
+SHOW CREATE TABLE t1;
+
+--echo # Alter table to add a new partition with encryption option at partition
+--echo # level.
+--error ER_PARSE_ERROR
+ALTER TABLE t1 ADD PARTITION (
+	PARTITION p5 VALUES LESS THAN (60) encryption='Y');
+
+DROP TABLE t1;
+
+--echo # Create table with ENCRYPTION='y' option and general tablespace
+--echo # at table level
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	ENCRYPTION='Y' TABLESPACE=encrypt_ts
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30));
+SHOW WARNINGS;
+
+--echo # Create table with ENCRYPTION='y' option and general tablespace
+--echo # at partition level
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE t1 (id INT, name VARCHAR(50))
+	ENCRYPTION='Y'
+	PARTITION BY RANGE(id) (
+		PARTITION p0 VALUES LESS THAN (10),
+		PARTITION p1 VALUES LESS THAN (20),
+		PARTITION p2 VALUES LESS THAN (30) TABLESPACE=encrypt_ts);
+SHOW WARNINGS;
+
+--echo ###########
+--echo # Cleanup #
+--echo ###########
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+DROP TABLESPACE encrypt_ts;
+DROP TABLESPACE encrypt_ts1;
+DROP TABLESPACE unencrypt_ts;
+DROP TABLESPACE unencrypt_ts1;

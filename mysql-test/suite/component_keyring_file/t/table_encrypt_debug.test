@@ -1,0 +1,20 @@
+--source include/have_component_keyring_file.inc
+#------------------------------------------------------------------------------
+# InnoDB transparent tablespace data encryption
+# This test case will test basic recovery from known DBUG_SUICIDE point .
+#  - ib_crash_during_rotation_for_encryption (assert during key rotation)
+#  - ib_crash_during_create_for_encryption (assert during create)
+#  - ib_crash_during_decrypt_page (assert during page decryption)
+#------------------------------------------------------------------------------
+
+ --source include/no_valgrind_without_big.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+# innodb-force-recovery-crash needs debug
+--source include/have_debug.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/table_encrypt_debug.inc
+--source ../inc/teardown_component.inc

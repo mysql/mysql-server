@@ -1,0 +1,32 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# Setup
+# Stop the running server.
+# ----------------------------------------------------------------------
+# Keyring encryption tests
+TIMESTAMP [Note] [MY-013713] [Keyring] Component component_keyring_file reported: 'Keyring component initialized successfully.'
+TIMESTAMP [Note] [MY-013721] [Keyring] Component component_keyring_file reported: 'Could not find the data corresponding to Data ID: 'aes_key_invalid', Auth ID: 'keyring_aes_test'.'
+TIMESTAMP [Note] [MY-013719] [Keyring] Component component_keyring_file reported: 'Key identified by Data ID: 'secret_key_1' and Auth ID: 'keyring_aes_test' is not of type AES.'
+Plaintext: 'Quick brown fox jumped over the lazy dog.'
+Successfully encrypted plaintext using AES-CBC-256
+TIMESTAMP [Note] [MY-013721] [Keyring] Component component_keyring_file reported: 'Could not find the data corresponding to Data ID: 'aes_key_invalid', Auth ID: 'keyring_aes_test'.'
+TIMESTAMP [Note] [MY-013719] [Keyring] Component component_keyring_file reported: 'Key identified by Data ID: 'secret_key_1' and Auth ID: 'keyring_aes_test' is not of type AES.'
+Successfully decrypted plaintext using AES-CBC-256
+Decrypted plaintext: 'Quick brown fox jumped over the lazy dog.'
+Successfully tested AES functionality
+# ----------------------------------------------------------------------
+# Cleanup
+# Restart server
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

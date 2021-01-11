@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -8727,7 +8727,7 @@ ER_IB_MSG_1064
   eng "Cannot create log files in read-only mode"
 
 ER_IB_MSG_1065
-  eng "Redo log encryption is enabled, but the keyring plugin is not loaded."
+  eng "Redo log encryption is enabled, but the keyring is not loaded."
 
 ER_IB_MSG_1066
   eng "Cannot create file for log file %s."
@@ -8805,7 +8805,7 @@ ER_IB_MSG_1090
   eng "Created %llu undo tablespaces."
 
 ER_IB_MSG_1091
-  eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring plugin is initialized correctly"
+  eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring is initialized correctly"
 
 ER_IB_MSG_1092
   eng "Encryption is enabled for undo tablespace number %lu."
@@ -9538,7 +9538,7 @@ ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%s'@'%s'. SUPER or AUDIT_ADMIN needed to perform operation"
 
 ER_AUDIT_LOG_NO_KEYRING_PLUGIN_INSTALLED
-  eng "No keyring plugin installed."
+  eng "No keyring installed."
 
 ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
   eng "Invalid character in the host name."
@@ -9898,10 +9898,10 @@ ER_INNODB_INVALID_INNODB_UNDO_DIRECTORY_LOCATION
   eng "The innodb_undo_directory is not allowed to be an ancestor of the datadir."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
-  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
+  eng "Failed to fetch key from keyring, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_KEY_NOT_FOUND
-  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+  eng "Can't find key from keyring, please check in the server log if a keyring is loaded and initialized successfully."
 
 ER_SERVER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
   eng "Fetched an invalid key from keyring."
@@ -9916,22 +9916,22 @@ ER_SERVER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
   eng "Key %s exists unexpected."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
-  eng "Failed to generate key, please check if keyring plugin is loaded."
+  eng "Failed to generate key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
-  eng "Failed to store key, please check if keyring plugin is loaded."
+  eng "Failed to store key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
-  eng "Failed to remove key, please check if keyring plugin is loaded."
+  eng "Failed to remove key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
-  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
+  eng "Unable to recover binlog encryption master key, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE
-  eng "Failed to initialize binlog encryption, please check if keyring plugin is loaded."
+  eng "Failed to initialize binlog encryption, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_ROTATE_MASTER_KEY_AT_STARTUP
-  eng "Failed to rotate binlog encryption master key at startup, please check if keyring plugin is loaded."
+  eng "Failed to rotate binlog encryption master key at startup, please check if keyring is loaded."
 
 ER_SERVER_RPL_ENCRYPTION_IGNORE_ROTATE_MASTER_KEY_AT_STARTUP
   eng "Ignoring binlog_rotate_encryption_master_key_at_startup because binlog_encryption option is disabled."
@@ -10156,7 +10156,7 @@ ER_SERVER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
   eng "Unable to recover binary log master key, the combination of new_master_key_seqno=%u, master_key_seqno=%u and old_master_key_seqno=%u are wrong."
 
 ER_SERVER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
-  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
 OBSOLETE_ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE
   eng "AuthId `%.64s`@`%.64s` is set as mandatory_roles. Cannot grant the '%s' privilege."
@@ -10377,13 +10377,13 @@ ER_AUDIT_LOG_INVALID_FILE_CONTENT
   eng "Invalid audit log file content: '%s'"
 
 ER_AUDIT_LOG_CANNOT_READ_PASSWORD
-  eng "Cannot read password: '%.32s'"
+  eng "Cannot read password: '%.32s'."
 
 ER_AUDIT_LOG_CANNOT_STORE_PASSWORD
-  eng "Cannot store password: '%.32s'"
+  eng "Cannot store password: '%.32s'."
 
 ER_AUDIT_LOG_CANNOT_REMOVE_PASSWORD
-  eng "Cannot remove password: '%.32s'"
+  eng "Cannot remove password: '%.32s'."
 
 ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
   eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
@@ -11198,6 +11198,63 @@ ER_AUDIT_LOG_FILE_PRUNE_FAILED
 
 ER_AUDIT_LOG_FILE_AUTO_PRUNED
   eng "File '%s' auto-pruned"
+
+ER_COMPONENTS_INFRASTRUCTURE_MANIFEST_INIT
+  eng "Received an error while processing components from manifest file: %s"
+
+ER_COMPONENTS_INFRASTRUCTURE_MANIFEST_DEINIT
+  eng "Received an error while unloading components read from manifest file: %s"
+
+ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_NOT_RO
+  eng "Manifest file '%s' is not read-only. For better security, please make sure that the file is read-only."
+
+ER_NO_KEYRING_COMPONENT_SERVICE_FOUND
+  eng "No suitable '%s' service implementation found to fulfill the request."
+
+ER_NOTE_KEYRING_COMPONENT_INITIALIZED
+  eng "Keyring component initialized successfully."
+
+ER_KEYRING_COMPONENT_NOT_INITIALIZED
+  eng "Keyring component is not initialized properly. Make sure that configuration is proper and use keyring_reload service to reinitialize the component."
+
+ER_KEYRING_COMPONENT_EXCEPTION
+  eng "Keyring component encountered an exception while executing : '%s' API of service: '%s'"
+
+ER_KEYRING_COMPONENT_MEMORY_ALLOCATION_ERROR
+  eng "Failed to allocated memory for '%s' while executing: '%s' API of service: '%s'"
+
+ER_NOTE_KEYRING_COMPONENT_AES_INVALID_MODE_BLOCK_SIZE
+  eng "Empty or 0 values for AES encryption mode and/or block size are not permitted."
+
+ER_NOTE_KEYRING_COMPONENT_AES_DATA_IDENTIFIER_EMPTY
+  eng "A valid data identifier is required in order to fetch the key required for the AES operation."
+
+ER_NOTE_KEYRING_COMPONENT_AES_INVALID_KEY
+  eng "Key identified by Data ID: '%s' and Auth ID: '%s' is not of type AES."
+
+ER_NOTE_KEYRING_COMPONENT_AES_OPERATION_ERROR
+  eng "Encountered error: '%s' while executing '%s' API of keyring_aes service. Key details are Data ID: '%s' and Auth ID: '%s'."
+
+ER_NOTE_KEYRING_COMPONENT_READ_DATA_NOT_FOUND
+  eng "Could not find the data corresponding to Data ID: '%s', Auth ID: '%s'."
+
+ER_NOTE_KEYRING_COMPONENT_WRITE_MAXIMUM_DATA_LENGTH
+  eng "Maximum permissible size of data is '%zu' bits"
+
+ER_NOTE_KEYRING_COMPONENT_STORE_FAILED
+  eng "Error writing data for Data ID: '%s', Auth ID: '%s'. Either data already exists with same identifier or keyring backend encountered an error."
+
+ER_NOTE_KEYRING_COMPONENT_REMOVE_FAILED
+  eng "Error removing data for Data ID: '%s', Auth ID: '%s'. Either data already exists with same identifier or keyring backend encountered an error."
+
+ER_NOTE_KEYRING_COMPONENT_GENERATE_FAILED
+  eng "Error generating data for Data ID: '%s', Auth ID: '%s'. Either data already exists with same identifier or keyring backend encountered an error."
+
+ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_FETCH_FAILED
+  eng "Failed to get metadata from current keys metadata iterator position."
+
+ER_NOTE_KEYRING_COMPONENT_METADATA_ITERATOR_INVALID_OUT_PARAM
+  eng "Key and value length parameters must not be null."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

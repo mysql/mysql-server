@@ -1,0 +1,121 @@
+/* Copyright (c) 2021, Oracle and/or its affiliates.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+/**
+  @page PAGE_KEYRING_COMPONENT Keyring Component
+
+  @section keyring_component_introduction Introduction
+
+  MySQL Keyring infrastructure consists of following parts:
+  1. Keyring component Implementation
+     A shared library that communicates to key server and handles key management.
+  2. Keyring component service APIs
+     A set of APIs through which a program or a shared library can communicate to a
+     keyring component to manage keys.
+
+  One of the most important usecase for using keyring infrastructure is to support
+  encryption for data at rest. A program like MySQL server stores data on file system.
+  If someone gets access to this data, all sensitive information will be exposed.
+  In order to protect such an offline threat, data should be stored in an encrypted manner.
+  Keyring infrastructure helps managing key(s) secure. By using keyring component APIs,
+  program does not have to worry about how keyring server manages these keys.
+
+  In order to support transparent data encryption usecase, it is imperative that
+  keyring is available very early in start-up sequence. That's why keyring component
+  should be able to load only using minmal chassis framework.
+  See @ref sect_components_minimal_chassis for more details on minimal chassis.
+
+  @section keyring_component_service_apis  Keyring Component Services
+
+  Keyring component services provide a way for a binary to communicate to diffierent
+  key management server/backend in a uniform manner. The complexity to use the actual
+  key management server/backend are hidden by these services.
+
+  Keyring component services can be devided in 4 parts:
+  @subsection data_mangement_services Data management
+    These services provide ways to manage sensitive data
+    Examples: fetch, generate, store, remove sensitive data.
+
+    List of services:
+    1. Keyring reader with status: Provides ability to fetch sensitive data from
+                                   key management server/backend. It returns one of
+                                   the three states:
+                                   a> Key present b> Key absent c> component error
+    2. Keyring writer: A service that allows adding and removing sensitive data to/from
+                       key management server/backend.
+    3. Keyring generator: A service to generate and store sensitive data in
+                          key management server/backend. If server has built-in
+                          capability to generate data, same shall be used.
+    4. Keys metadata iterator: A service to iterate over metadata associated with keys
+
+  @subsection operation_services Operations
+    These services provide functionality using data stored in keyring.
+    Examples: encryption services using keys stored in keyring
+
+    List of services:
+    1. AES encryption/decryption: Provides ability to perform AES encryption/decryption
+                                  operations using key identifiers provided by callers.
+                                  Actual key never leaves keyring component.
+
+  @subsection load_services Initialization/Re-initialization
+    These services are responisble for making sure that keyring is operational.
+    Examples: load service
+
+    List of services:
+    1. Keyring load: A service to initialize or re-initialize keyring
+
+  @subsection status_services Status
+    These services provide information about keyring component's status.
+    Example: component metadata in {key, value} format
+
+    List of services:
+    1. Keyring status: A service that provides status of keyring component - whether it
+                       is ready or not.
+    2. Keyring metadata query: A service to provide {key, value} pair based information
+                               about keyring component. Component choose the exact information
+                               to expose. Examples: Name of component, implementation name
+                               of services, component configuration parameters.
+
+  Refer to @ref group_keyring_component_services_inventory for details of keyring
+  component services.
+
+  @section keyring_component_additional_information Additional Information
+
+  1. See: @subpage PAGE_KEYRING_COMPONENT_IMPLEMENTATION Keyring Component Implementation
+
+  2. See: @subpage PAGE_COMPONENT_KEYRING_COMMON Common Keyring Implementation Infrastructure
+*/
+
+/**
+  @page PAGE_KEYRING_COMPONENT_IMPLEMENTATION Keyring Component Implementation
+
+  1. @subpage PAGE_COMPONENT_KEYRING_FILE "File Based Keyring Component"
+
+  2. @subpage PAGE_COMPONENT_KEYRING_ENCRYPTED_FILE "Encrypted File Based Keyring Component"
+
+  3. @subpage PAGE_COMPONENT_KEYRING_MYSQL_SERVER "Server component's lockable keyring implementation"
+
+  4. @subpage PAGE_COMPONENT_DAEMON_KEYRING_PROXY "Proxy keyring component over keyring plugin"
+
+  5. @subpage PAGE_COMPONENT_KEYRING_WRITE_NEW "How to write a new keyring component"
+*/
+

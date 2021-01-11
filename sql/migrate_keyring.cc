@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,87 @@
 #include "violite.h"
 
 using std::string;
+using keyring_load_t = SERVICE_TYPE_NO_CONST(keyring_load);
+using keyring_writer_t = SERVICE_TYPE_NO_CONST(keyring_writer);
+
+Destination_keyring_component::Destination_keyring_component(
+    const std::string component_path, const std::string implementation_name)
+    : component_path_(component_path),
+      keyring_load_service_(nullptr),
+      keyring_writer_service_(nullptr),
+      component_loaded_(false),
+      ok_(false) {
+  {
+    my_service<SERVICE_TYPE(registry_registration)> registrator(
+        "registry_registration", srv_registry);
+    const char *urn[] = {component_path_.c_str()};
+    bool load_status = dynamic_loader_srv->load(urn, 1);
+    if (load_status == true) return;
+    component_loaded_ = true;
+  }
+
+  std::string load_service_name("keyring_load");
+  load_service_name += "." + implementation_name;
+
+  my_h_service h_keyring_load_service = nullptr;
+  my_h_service h_keyring_writer_service = nullptr;
+
+  auto local_cleanup = [&]() {
+    if (h_keyring_load_service != nullptr)
+      srv_registry->release(h_keyring_load_service);
+    h_keyring_load_service = nullptr;
+
+    if (h_keyring_writer_service != nullptr)
+      srv_registry->release(h_keyring_writer_service);
+    h_keyring_writer_service = nullptr;
+  };
+
+  if (srv_registry->acquire(load_service_name.c_str(),
+                            &h_keyring_load_service) ||
+      srv_registry->acquire_related("keyring_writer", h_keyring_load_service,
+                                    &h_keyring_writer_service)) {
+    local_cleanup();
+    return;
+  }
+
+  keyring_load_service_ =
+      reinterpret_cast<const_keyring_load_t *>(h_keyring_load_service);
+  keyring_writer_service_ =
+      reinterpret_cast<const_keyring_writer_t *>(h_keyring_writer_service);
+
+  if (keyring_load_service_->load(opt_plugin_dir) == true) {
+    return;
+  }
+
+  ok_ = true;
+}
+
+Destination_keyring_component::~Destination_keyring_component() {
+  if (keyring_load_service_)
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<keyring_load_t *>(keyring_load_service_)));
+  keyring_load_service_ = nullptr;
+
+  if (keyring_writer_service_ != nullptr)
+    srv_registry->release(reinterpret_cast<my_h_service>(
+        const_cast<keyring_writer_t *>(keyring_writer_service_)));
+  keyring_writer_service_ = nullptr;
+
+  if (component_loaded_ == true) {
+    my_service<SERVICE_TYPE(registry_registration)> registrator(
+        "registry_registration", srv_registry);
+    const char *urn[] = {component_path_.c_str()};
+    dynamic_loader_srv->unload(urn, 1);
+  }
+  component_loaded_ = false;
+  ok_ = false;
+}
 
 Migrate_keyring::Migrate_keyring() {
   m_source_plugin_handle = nullptr;
   m_destination_plugin_handle = nullptr;
   mysql = nullptr;
+  m_destination_component = nullptr;
 }
 
 /**
@@ -42,15 +118,23 @@ Migrate_keyring::Migrate_keyring() {
     2. Get plugin_dir value.
     3. Get a connection handle by connecting to server.
 
-   @param [in] argc               Pointer to argc of original program
-   @param [in] argv               Pointer to argv of original program
-   @param [in] source_plugin      Pointer to source plugin option
-   @param [in] destination_plugin Pointer to destination plugin option
-   @param [in] user               User to login to server
-   @param [in] host               Host on which to connect to server
-   @param [in] password           Password used to connect to server
-   @param [in] socket             The socket file to use for connection
-   @param [in] port               Port number to use for connection
+   @param [in] argc                            Pointer to argc of original
+  program
+   @param [in] argv                            Pointer to argv of original
+  program
+   @param [in] source_plugin                   Pointer to source plugin option
+   @param [in] destination_plugin              Pointer to destination plugin
+  option
+   @param [in] user                            User to login to server
+   @param [in] host                            Host on which to connect to
+  server
+   @param [in] password                        Password used to connect to
+  server
+   @param [in] socket                          The socket file to use for
+  connection
+   @param [in] port                            Port number to use for connection
+   @param [in] migrate_to_component            Migrate from plugin to component
+  destination component
 
    @return 0 Success
    @return 1 Failure
@@ -58,7 +142,8 @@ Migrate_keyring::Migrate_keyring() {
 */
 bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
                            char *destination_plugin, char *user, char *host,
-                           char *password, char *socket, ulong port) {
+                           char *password, char *socket, ulong port,
+                           bool migrate_to_component) {
   DBUG_TRACE;
 
   std::size_t found = std::string::npos;
@@ -104,6 +189,20 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Invalid destination plugin option value.");
     return true;
+  }
+
+  m_migrate_to_component = migrate_to_component;
+  if (m_migrate_to_component) {
+    /* If we are migrating to component, construct complete URI */
+    std::string uri("file://");
+    if (check_valid_path(m_destination_plugin_option.c_str(),
+                         m_destination_plugin_option.length())) {
+      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
+             "No paths allowed for shared library");
+      return true;
+    }
+    uri.append(m_destination_plugin_name);
+    m_destination_plugin_option = uri;
   }
 
   /* if connect options are provided then initiate connection */
@@ -197,11 +296,19 @@ bool Migrate_keyring::execute() {
     goto error;
   }
 
-  /* Load destination plugin. */
-  if (load_plugin(enum_plugin_type::DESTINATION_PLUGIN)) {
-    LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
-           "Failed to initialize destination keyring");
-    goto error;
+  if (!m_migrate_to_component) {
+    /* Load destination plugin. */
+    if (load_plugin(enum_plugin_type::DESTINATION_PLUGIN)) {
+      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
+             "Failed to initialize destination keyring");
+      goto error;
+    }
+  } else {
+    if (load_component()) {
+      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
+             "Failed to initialize destination keyring");
+      goto error;
+    }
   }
 
   /* skip program name */
@@ -237,6 +344,24 @@ error:
   */
   if (migrate_connect_options) enable_keyring_operations();
   return true;
+}
+
+/**
+  Load component.
+
+  @return false Success
+  @return true Failure
+*/
+bool Migrate_keyring::load_component() {
+  m_destination_component = new (std::nothrow) Destination_keyring_component(
+      m_destination_plugin_option, m_destination_plugin_name);
+
+  if (m_destination_component && !m_destination_component->ok()) {
+    delete m_destination_component;
+    m_destination_component = nullptr;
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -315,12 +440,17 @@ bool Migrate_keyring::fetch_and_store_keys() {
   size_t key_len = 0;
   char *key_type = nullptr;
   void *key_iterator = nullptr;
+  const_keyring_writer_t *keyring_writer_service = nullptr;
 
   m_source_plugin_handle->mysql_key_iterator_init(&key_iterator);
   if (key_iterator == nullptr) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Initializing source keyring iterator failed.");
     return true;
+  }
+
+  if (m_migrate_to_component) {
+    keyring_writer_service = m_destination_component->writer();
   }
   while (!error) {
     if (m_source_plugin_handle->mysql_key_iterator_get_key(key_iterator, key_id,
@@ -335,14 +465,18 @@ bool Migrate_keyring::fetch_and_store_keys() {
           "Fetching key (" + string(key_id) + ") from source plugin failed.";
       LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED, errmsg.c_str());
       error = true;
-    } else /* store the fetched key into destination plugin */
-    {
-      if (m_destination_plugin_handle->mysql_key_store(key_id, key_type,
-                                                       user_id, key, key_len)) {
+    } else /* store the fetched key into destination plugin */ {
+      error =
+          m_migrate_to_component
+              ? keyring_writer_service->store(
+                    key_id, user_id, static_cast<const unsigned char *>(key),
+                    key_len, key_type)
+              : m_destination_plugin_handle->mysql_key_store(
+                    key_id, key_type, user_id, key, key_len);
+      if (error) {
         string errmsg = "Storing key (" + string(key_id) +
                         ") into destination plugin failed.";
         LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED, errmsg.c_str());
-        error = true;
       } else {
         /*
          keep track of keys stored in successfully so that they can be
@@ -410,11 +544,13 @@ bool Migrate_keyring::enable_keyring_operations() {
   Standard destructor to close connection handle.
 */
 Migrate_keyring::~Migrate_keyring() {
+  delete[] m_argv;
+  m_argv = nullptr;
   if (mysql) {
-    delete[] m_argv;
-    m_argv = nullptr;
     mysql_close(mysql);
     mysql = nullptr;
     if (migrate_connect_options) vio_end();
   }
+  if (m_destination_component != nullptr) delete m_destination_component;
+  m_destination_component = nullptr;
 }

@@ -5,11 +5,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Function 'keyring_file' already exists");
 call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Slave: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
-call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key, please check the keyring is loaded.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("Error 'Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Slave: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.");
+call mtr.add_suppression("\\[Error\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring is loaded.");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 [On Master]
 
@@ -117,7 +117,7 @@ c1	c2
 2	ccccc
 
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Installing keyring_file plugin on master.
 INSTALL PLUGIN keyring_file SONAME 'keyring_file.so';
 # Cleanup

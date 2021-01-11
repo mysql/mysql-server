@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -90,6 +90,7 @@ usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
 usr/lib/mysql/plugin/debug/component_audit_api_message_emit.so
+usr/lib/mysql/plugin/debug/component_keyring_file.so
 ")
 
 SET (DEB_INSTALL_DEBUG_TEST_PLUGINS
@@ -195,6 +196,7 @@ usr/lib/mysql/plugin/debug/openssl_udf.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 usr/lib/mysql/plugin/debug/component_test_page_track_component.so
+usr/lib/mysql/plugin/debug/component_keyring_encrypted_file.so
 ")
   ENDIF()
   IF (DEB_AWS_SDK)

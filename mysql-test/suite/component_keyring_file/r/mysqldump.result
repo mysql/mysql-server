@@ -1,0 +1,352 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+# This test run output (.sql) of mysqldump from 5.7, 8.0.12 and 8.0.13
+# in 8.0.15.
+#
+# The .sql files contain notes with tag wl12261 describing the
+# modifications done to .sql to make it run on MySQL 8.0.15.
+# It basically does two things a) removes ENCRYPTION=y for CVS and
+# MEMORY engines. b) Adds a explicit ENCRYPTION='y' for tables
+# using encryped general tablespace.
+#
+# The behavior of executing .sql with following variables would be
+# same as the test behavior seen by encryption.* test results.
+#
+# - Setting table_encryption_privilege_check to true/false.
+# - Setting default_table_encryption to true/false.
+# - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
+SHOW CREATE DATABASE db1;
+Database	Create Database
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW CREATE TABLE db1.i1;
+Table	Create Table
+i1	CREATE TABLE `i1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.i2;
+Table	Create Table
+i2	CREATE TABLE `i2` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='y'
+SHOW CREATE TABLE db1.i3;
+Table	Create Table
+i3	CREATE TABLE `i3` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.i4;
+Table	Create Table
+i4	CREATE TABLE `i4` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.i_ts1;
+Table	Create Table
+i_ts1	CREATE TABLE `i_ts1` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.i_ts2;
+Table	Create Table
+i_ts2	CREATE TABLE `i_ts2` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.i_ts3;
+Table	Create Table
+i_ts3	CREATE TABLE `i_ts3` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.i_part1;
+Table	Create Table
+i_part1	CREATE TABLE `i_part1` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.i_part2;
+Table	Create Table
+i_part2	CREATE TABLE `i_part2` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 ENCRYPTION='y'
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.i_part3;
+Table	Create Table
+i_part3	CREATE TABLE `i_part3` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.c1;
+Table	Create Table
+c1	CREATE TABLE `c1` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.c2;
+Table	Create Table
+c2	CREATE TABLE `c2` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.c3;
+Table	Create Table
+c3	CREATE TABLE `c3` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.h1;
+Table	Create Table
+h1	CREATE TABLE `h1` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.h2;
+Table	Create Table
+h2	CREATE TABLE `h2` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+SHOW CREATE TABLE db1.h3;
+Table	Create Table
+h3	CREATE TABLE `h3` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+DROP DATABASE db1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd';
+SHOW CREATE DATABASE db1;
+Database	Create Database
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW CREATE TABLE db1.i1;
+Table	Create Table
+i1	CREATE TABLE `i1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i2;
+Table	Create Table
+i2	CREATE TABLE `i2` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.i3;
+Table	Create Table
+i3	CREATE TABLE `i3` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i4;
+Table	Create Table
+i4	CREATE TABLE `i4` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_ts1;
+Table	Create Table
+i_ts1	CREATE TABLE `i_ts1` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_ts2;
+Table	Create Table
+i_ts2	CREATE TABLE `i_ts2` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_ts3;
+Table	Create Table
+i_ts3	CREATE TABLE `i_ts3` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_part1;
+Table	Create Table
+i_part1	CREATE TABLE `i_part1` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.i_part2;
+Table	Create Table
+i_part2	CREATE TABLE `i_part2` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.i_part3;
+Table	Create Table
+i_part3	CREATE TABLE `i_part3` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.c1;
+Table	Create Table
+c1	CREATE TABLE `c1` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.c2;
+Table	Create Table
+c2	CREATE TABLE `c2` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.c3;
+Table	Create Table
+c3	CREATE TABLE `c3` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.h1;
+Table	Create Table
+h1	CREATE TABLE `h1` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.h2;
+Table	Create Table
+h2	CREATE TABLE `h2` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.h3;
+Table	Create Table
+h3	CREATE TABLE `h3` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE db1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE TABLESPACE ts2 ADD DATAFILE 'ts2.ibd' ENCRYPTION='n';
+CREATE TABLESPACE ts3 ADD DATAFILE 'ts3.ibd' ENCRYPTION='y';
+CREATE TABLESPACE ts4 ADD DATAFILE 'ts4.ibd';
+SHOW CREATE DATABASE db1;
+Database	Create Database
+db1	CREATE DATABASE `db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+SHOW CREATE TABLE db1.i1;
+Table	Create Table
+i1	CREATE TABLE `i1` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i2;
+Table	Create Table
+i2	CREATE TABLE `i2` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+SHOW CREATE TABLE db1.i3;
+Table	Create Table
+i3	CREATE TABLE `i3` (
+  `f1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_ts1;
+Table	Create Table
+i_ts1	CREATE TABLE `i_ts1` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_ts2;
+Table	Create Table
+i_ts2	CREATE TABLE `i_ts2` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_ts3;
+Table	Create Table
+i_ts3	CREATE TABLE `i_ts3` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
+SHOW CREATE TABLE db1.i_ts4;
+Table	Create Table
+i_ts4	CREATE TABLE `i_ts4` (
+  `f1` int DEFAULT NULL
+) /*!50100 TABLESPACE `ts4` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.i_part1;
+Table	Create Table
+i_part1	CREATE TABLE `i_part1` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.i_part2;
+Table	Create Table
+i_part2	CREATE TABLE `i_part2` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.i_part3;
+Table	Create Table
+i_part3	CREATE TABLE `i_part3` (
+  `id` int DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`id`)
+(PARTITION p0 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (30) ENGINE = InnoDB) */
+SHOW CREATE TABLE db1.c1;
+Table	Create Table
+c1	CREATE TABLE `c1` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.c2;
+Table	Create Table
+c2	CREATE TABLE `c2` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.c3;
+Table	Create Table
+c3	CREATE TABLE `c3` (
+  `f1` int NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.h1;
+Table	Create Table
+h1	CREATE TABLE `h1` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.h2;
+Table	Create Table
+h2	CREATE TABLE `h2` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE db1.h3;
+Table	Create Table
+h3	CREATE TABLE `h3` (
+  `f1` int DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE db1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+DROP TABLESPACE ts3;
+DROP TABLESPACE ts4;
+# Cleanup
+DROP USER u1@localhost;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

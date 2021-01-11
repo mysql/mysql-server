@@ -293,6 +293,7 @@
   @page PAGE_SECURITY Security
 
   @subpage AUTHORIZATION_PAGE
+  @subpage PAGE_KEYRING_COMPONENT
 */
 
 
@@ -793,6 +794,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_callback.h"  // MUSQL_CALLBACK
 #include "sql/sql_class.h"     // THD
+#include "sql/sql_component.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_error.h"
 #include "sql/sql_initialize.h"  // opt_initialize_insecure
@@ -917,6 +919,7 @@
 #include "sql/server_component/component_sys_var_service_imp.h"
 #include "sql/server_component/log_builtins_filter_imp.h"
 #include "sql/server_component/log_builtins_imp.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
 
@@ -1141,6 +1144,7 @@ ulong opt_keyring_migration_port = 0;
 bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
+bool opt_keyring_migration_to_component = false;
 
 #if defined(_WIN32)
 /*
@@ -1305,6 +1309,12 @@ bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
+
+/**
+  This variable holds handle to the object that's responsible
+  for loading/unloading components from manifest file
+*/
+Deployed_components *g_deployed_components = nullptr;
 
 /**
   Limit of the total number of prepared statements in the server.
@@ -1899,6 +1909,7 @@ const char *component_urns[] = {"file://component_reference_cache"};
   @retval true failure
 */
 static bool component_infrastructure_init() {
+  bool retval = false;
   if (initialize_minimal_chassis(&srv_registry)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
@@ -1949,7 +1960,7 @@ static bool component_infrastructure_init() {
   mysql_service_mysql_runtime_error =
       reinterpret_cast<SERVICE_TYPE(mysql_runtime_error) *>(error_service);
 
-  return false;
+  return retval;
 }
 
 /**
@@ -1994,6 +2005,7 @@ static bool mysql_component_infrastructure_init() {
 */
 static bool component_infrastructure_deinit() {
   persistent_dynamic_loader_deinit();
+  bool retval = false;
 
   srv_registry->release(reinterpret_cast<my_h_service>(
       const_cast<loader_scheme_type_t *>(scheme_file_srv)));
@@ -2008,9 +2020,36 @@ static bool component_infrastructure_deinit() {
 
   if (deinitialize_minimal_chassis(srv_registry)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
+    retval = true;
+  }
+  return retval;
+}
+
+static bool initialize_manifest_file_components() {
+  /*
+    Read components from manifest file
+
+    Note that the word 'components' is used differently in the server.
+    Here we address the component service infrastructure, but in other places,
+    like init_server_components() the word is used in bit different context
+    and may mean general idea of modularity.
+  */
+  g_deployed_components = new (std::nothrow) Deployed_components(my_progname);
+  if (g_deployed_components == nullptr ||
+      g_deployed_components->valid() == false) {
+    /*Error would have been raised by Deployed_components constructor */
+    g_deployed_components = nullptr;
     return true;
   }
   return false;
+}
+
+static void deinitialize_manifest_file_components() {
+  if (g_deployed_components != nullptr) {
+    /* Error if any would have been raised */
+    delete g_deployed_components;
+    g_deployed_components = nullptr;
+  }
 }
 
 /**
@@ -2408,6 +2447,9 @@ static void clean_up(bool print_message) {
 
   memcached_shutdown();
 
+  release_keyring_handles();
+  keyring_lockable_deinit();
+
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
@@ -2504,6 +2546,7 @@ static void clean_up(bool print_message) {
   }
 #endif
   deinit_tls_psi_keys();
+  deinitialize_manifest_file_components();
   component_infrastructure_deinit();
   /*
     component unregister_variable() api depends on system_variable_hash.
@@ -5918,6 +5961,13 @@ static int init_server_components() {
     unireg_abort(1);
   }
 
+  /*
+    If keyring component was loaded through manifest file, services provided
+    by such a component should get priority over keyring plugin. That's why
+    we have to set defaults before proxy keyring services are loaded.
+  */
+  set_srv_keyring_implementation_as_default();
+
   /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
   if (plugin_register_builtin_and_init_core_se(&remaining_argc,
                                                remaining_argv)) {
@@ -6909,6 +6959,8 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);  // Will do exit
   }
 
+  keyring_lockable_init();
+
   my_init_signals();
 
   size_t guardize = 0;
@@ -7034,30 +7086,36 @@ int mysqld_main(int argc, char **argv)
   */
   if (opt_keyring_migration_source || opt_keyring_migration_destination ||
       migrate_connect_options) {
-    Migrate_keyring mk;
-    my_getopt_skip_unknown = TRUE;
-    if (mk.init(remaining_argc, remaining_argv, opt_keyring_migration_source,
-                opt_keyring_migration_destination, opt_keyring_migration_user,
-                opt_keyring_migration_host, opt_keyring_migration_password,
-                opt_keyring_migration_socket, opt_keyring_migration_port)) {
-      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
+    int exit_state = MYSQLD_ABORT_EXIT;
+    while (true) {
+      Migrate_keyring mk;
+      my_getopt_skip_unknown = TRUE;
+      if (mk.init(remaining_argc, remaining_argv, opt_keyring_migration_source,
+                  opt_keyring_migration_destination, opt_keyring_migration_user,
+                  opt_keyring_migration_host, opt_keyring_migration_password,
+                  opt_keyring_migration_socket, opt_keyring_migration_port,
+                  opt_keyring_migration_to_component)) {
+        LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
+        log_error_dest = "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      if (mk.execute()) {
+        LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
+        log_error_dest = "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      my_getopt_skip_unknown = false;
+      LogErr(INFORMATION_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
       log_error_dest = "stderr";
       flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
+      exit_state = MYSQLD_SUCCESS_EXIT;
+      break;
     }
-
-    if (mk.execute()) {
-      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
-      log_error_dest = "stderr";
-      flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
-
-    my_getopt_skip_unknown = false;
-    LogErr(INFORMATION_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
-    log_error_dest = "stderr";
-    flush_error_log_messages();
-    unireg_abort(MYSQLD_SUCCESS_EXIT);
+    unireg_abort(exit_state);
   }
 
   /*
@@ -7072,10 +7130,12 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT); /* purecov: inspected */
   }
 
-  /*
-   The subsequent calls may take a long time : e.g. innodb log read.
-   Thus set the long running service control manager timeout
-  */
+  if (initialize_manifest_file_components()) unireg_abort(MYSQLD_ABORT_EXIT);
+
+    /*
+     The subsequent calls may take a long time : e.g. innodb log read.
+     Thus set the long running service control manager timeout
+    */
 #if defined(_WIN32)
   if (windows_service) {
     if (setup_service_status_cmd_processed_handle())
@@ -8096,9 +8156,7 @@ struct my_option my_long_early_options[] = {
      &opt_keyring_migration_source, &opt_keyring_migration_source, nullptr,
      GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"keyring-migration-destination", OPT_KEYRING_MIGRATION_DESTINATION,
-     "Keyring plugin to which the keys are "
-     "migrated to. This option must be specified along with "
-     "--keyring-migration-source.",
+     "Keyring plugin or component to which the keys are migrated to.",
      &opt_keyring_migration_destination, &opt_keyring_migration_destination,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"keyring-migration-user", OPT_KEYRING_MIGRATION_USER,
@@ -8121,6 +8179,10 @@ struct my_option my_long_early_options[] = {
      "Port number to use for connection.", &opt_keyring_migration_port,
      &opt_keyring_migration_port, nullptr, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"keyring-migration-to-component", OPT_KEYRING_MIGRATION_TO_COMPONENT,
+     "Migrate from keyring plugin to keyring component.",
+     &opt_keyring_migration_to_component, &opt_keyring_migration_to_component,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-dd-upgrade", 0,
      "Abort restart if automatic upgrade or downgrade of the data dictionary "
      "is needed. Deprecated option. Use --upgrade=NONE instead.",

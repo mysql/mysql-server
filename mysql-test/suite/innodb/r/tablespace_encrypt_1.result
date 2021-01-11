@@ -2,10 +2,10 @@
 # START : WITHOUT KEYRING PLUGIN
 #########################################################################
 CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB encryption='Y';
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB;
 ALTER TABLESPACE encrypt_ts ENCRYPTION="Y";
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 DROP TABLESPACE encrypt_ts;
 #########################################################################
 # RESTART 1 : WITH KEYRING PLUGIN
@@ -606,7 +606,7 @@ c1	c2
 # RESTART 2 : WITHOUT KEYRING PLUGIN
 #########################################################################
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
 # RESTART 3 : WITH KEYRING PLUGIN
 #########################################################################

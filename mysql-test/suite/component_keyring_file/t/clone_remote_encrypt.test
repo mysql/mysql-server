@@ -1,0 +1,11 @@
+--source include/have_component_keyring_file.inc
+# Test remote clone with different table types with debug sync
+
+--source include/have_innodb_max_16k.inc
+
+--let $HOST = 127.0.0.1
+--let $PORT =`select @@port`
+--let $USER = root
+--let remote_clone = 1
+
+--source clone_local_encrypt.test

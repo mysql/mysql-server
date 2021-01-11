@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1747,6 +1747,9 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
       break;
     case ALTER_INSTANCE_DISABLE_INNODB_REDO:
       alter_instance = new Innodb_redo_log(thd, false);
+      break;
+    case RELOAD_KEYRING:
+      alter_instance = new Reload_keyring(thd);
       break;
     default:
       assert(false);

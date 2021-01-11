@@ -1,0 +1,174 @@
+# InnoDB transparent tablespace data encryption
+# This test case will test export/import encrypted tablespace.
+
+--disable_query_log
+call mtr.add_suppression("Trying to import a encrypted tablespace, but could not get encryption information from .cfp file");
+call mtr.add_suppression("Operating system error number .* in a file operation");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("'delete' returned OS error 7");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Table is not in an encrypted tablespace, but the data file intended for import is an encrypted tablespace");
+--enable_query_log
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+--echo # Create a table with encryption
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+
+SELECT * FROM t1 LIMIT 10;
+
+--echo # Test export/import encrypted tablespace.
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+if(!$source_db) {
+	let $source_db = test;
+}
+
+if(!$dest_db) {
+	let $dest_db = test;
+}
+
+eval FLUSH TABLES $source_db.t1 FOR EXPORT;
+
+--copy_file $MYSQLD_DATADIR/$source_db/t1.cfg $MYSQLD_DATADIR/t1.cfg_back
+--copy_file $MYSQLD_DATADIR/$source_db/t1.cfp $MYSQLD_DATADIR/t1.cfp_back
+--copy_file $MYSQLD_DATADIR/$source_db/t1.ibd $MYSQLD_DATADIR/t1.ibd_back
+
+UNLOCK TABLES;
+
+if($source_db != $dest_db) {
+	eval USE $dest_db;
+	let $create1 = query_get_value(SHOW CREATE TABLE $source_db.t1, Create Table, 1);
+	eval $create1;
+}
+
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/$dest_db/t1.cfg
+--copy_file $MYSQLD_DATADIR/t1.cfp_back $MYSQLD_DATADIR/$dest_db/t1.cfp
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/$dest_db/t1.ibd
+
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+
+eval CHECK TABLE $dest_db.t1;
+eval SHOW CREATE TABLE $dest_db.t1;
+eval SELECT * FROM $dest_db.t1 LIMIT 10;
+
+if($source_db != $dest_db) {
+	eval DROP TABLE $dest_db.t1;
+}
+
+--let $restart_parameters= restart: $PLUGIN_DIR_OPT
+--source include/restart_mysqld_no_echo.inc
+
+eval SELECT * FROM $dest_db.t1 LIMIT 10;
+
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/$dest_db/t1.cfg
+--copy_file $MYSQLD_DATADIR/t1.cfp_back $MYSQLD_DATADIR/$dest_db/t1.cfp
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/$dest_db/t1.ibd
+
+--echo # Try import in another session.
+connect (con1,localhost,root);
+--disable_warnings
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+--enable_warnings
+disconnect con1;
+
+connection default;
+
+eval SELECT * FROM $dest_db.t1 LIMIT 10;
+
+# Try negative case
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+
+--echo # Import without .cfg file is posible
+--echo # copying .cfp and .ibd file
+--copy_file $MYSQLD_DATADIR/t1.cfp_back $MYSQLD_DATADIR/$dest_db/t1.cfp
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/$dest_db/t1.ibd
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+eval SELECT * FROM $dest_db.t1 LIMIT 10;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+eval SELECT * FROM $dest_db.t1 LIMIT 10;
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+
+
+--echo # Import without .cfp file
+--echo # copying .cfg and .ibd file
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/$dest_db/t1.ibd
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/$dest_db/t1.cfg
+--error 1808
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+--remove_file $MYSQLD_DATADIR/$dest_db/t1.ibd
+--remove_file $MYSQLD_DATADIR/$dest_db/t1.cfg
+
+--echo # Import without .idb file
+--echo # copying .cfp and .cfg file
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/$dest_db/t1.cfg
+--copy_file $MYSQLD_DATADIR/t1.cfp_back $MYSQLD_DATADIR/$dest_db/t1.cfp
+--error 1815
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+--remove_file $MYSQLD_DATADIR/$dest_db/t1.cfg
+--remove_file $MYSQLD_DATADIR/$dest_db/t1.cfp
+
+--echo # Schema mismatch dest table without encryption - fix result
+DROP TABLE t1;
+eval CREATE TABLE $dest_db.t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+--copy_file $MYSQLD_DATADIR/t1.cfp_back $MYSQLD_DATADIR/$dest_db/t1.cfp
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/$dest_db/t1.ibd
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/$dest_db/t1.cfg
+--error 1808
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+
+--echo # Import got expected error.
+DROP TABLE t1;
+--remove_file $MYSQLD_DATADIR/$dest_db/t1.cfg
+--remove_file $MYSQLD_DATADIR/$dest_db/t1.cfp
+--remove_file $MYSQLD_DATADIR/$dest_db/t1.ibd
+eval CREATE TABLE $dest_db.t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+--copy_file $MYSQLD_DATADIR/t1.cfp_back $MYSQLD_DATADIR/$dest_db/t1.cfp
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/$dest_db/t1.ibd
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/$dest_db/t1.cfg
+SET SESSION DEBUG="+d, fsp_header_rotate_encryption_failure";
+--error ER_GET_ERRNO
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+
+# Cleanup
+--disable_query_log
+eval DROP TABLE IF EXISTS $dest_db.t1;
+eval DROP TABLE IF EXISTS $source_db.t1;
+--enable_query_log
+--remove_files_wildcard $MYSQLD_DATADIR/$dest_db/ t1.*
+--remove_file $MYSQLD_DATADIR/t1.cfg_back
+--remove_file $MYSQLD_DATADIR/t1.cfp_back
+--remove_file $MYSQLD_DATADIR/t1.ibd_back
