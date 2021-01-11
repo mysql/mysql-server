@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -2721,6 +2721,9 @@ static void initialize_readline(char *name) {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
 
+  /* Accept all locales. */
+  setlocale(LC_ALL, "");
+
   /* Tell the completer that we want a crack first. */
 #if defined(EDITLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function = &new_mysql_completion;
@@ -2728,7 +2731,6 @@ static void initialize_readline(char *name) {
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
 #elif defined(EDITLINE_HAVE_COMPLETION_INT)
-  setlocale(LC_ALL, ""); /* so as libedit use isprint */
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
   rl_add_defun("magic-space", &fake_magic_space, -1);
