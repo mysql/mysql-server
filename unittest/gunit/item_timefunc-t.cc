@@ -317,6 +317,16 @@ TEST_F(ItemTimeFuncTest, TimeToSecMetadata) {
   }
 }
 
+// Verifies that the results returned by the MICROSECOND function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, MicrosecondMetadata) {
+  auto arg = new Item_string(STRING_WITH_LEN("10:11:12.123456789"),
+                             &my_charset_utf8mb4_0900_ai_ci);
+  auto microsecond = new Item_func_microsecond(POS(), arg);
+  // The result gets rounded to six digits.
+  CheckMetadataAndResult(thd(), microsecond, 123457);
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
