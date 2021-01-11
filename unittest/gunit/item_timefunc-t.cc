@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <initializer_list>
 #include <limits>
 #include <sstream>
 #include <string>
@@ -498,4 +499,64 @@ TEST_P(ItemTimeFuncTruncFracTestP, secToTime) {
 
   testItemTimeFunctions(time, &ltime, sec->decimals);
 }
+
+struct TimestampDiffParam {
+  std::string first_arg;
+  std::string second_arg;
+  interval_type interval;
+  int64_t expected_result;
+};
+
+class ItemFuncTimestampDiffTest
+    : public ::testing::TestWithParam<TimestampDiffParam> {
+ protected:
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
+  Server_initializer initializer;
+};
+
+// Verifies that the results returned by the TIMESTAMPDIFF function are
+// consistent with the metadata.
+TEST_P(ItemFuncTimestampDiffTest, CheckMetadataAndResult) {
+  const TimestampDiffParam &param = GetParam();
+  auto arg1 = new Item_string(param.first_arg.data(), param.first_arg.size(),
+                              &my_charset_utf8mb4_0900_ai_ci);
+  auto arg2 = new Item_string(param.second_arg.data(), param.second_arg.size(),
+                              &my_charset_utf8mb4_0900_ai_ci);
+  auto diff = new Item_func_timestamp_diff(POS(), arg1, arg2, param.interval);
+  CheckMetadataAndResult(initializer.thd(), diff, param.expected_result);
+}
+
+// TIMESTAMPDIFF(arg1, arg2) == -TIMESTAMPDIFF(arg2, arg1)
+TEST_P(ItemFuncTimestampDiffTest, CheckMetadataAndResultArgsSwapped) {
+  const TimestampDiffParam &param = GetParam();
+  auto arg1 = new Item_string(param.second_arg.data(), param.second_arg.size(),
+                              &my_charset_utf8mb4_0900_ai_ci);
+  auto arg2 = new Item_string(param.first_arg.data(), param.first_arg.size(),
+                              &my_charset_utf8mb4_0900_ai_ci);
+  auto diff = new Item_func_timestamp_diff(POS(), arg1, arg2, param.interval);
+  CheckMetadataAndResult(initializer.thd(), diff, -param.expected_result);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    a, ItemFuncTimestampDiffTest,
+    ::testing::ValuesIn(std::initializer_list<TimestampDiffParam>{
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999",
+         INTERVAL_MICROSECOND, 315569433599999999},
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999", INTERVAL_SECOND,
+         315569433599},
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999", INTERVAL_MINUTE,
+         5259490559},
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999", INTERVAL_HOUR,
+         87658175},
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999", INTERVAL_DAY,
+         3652423},
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999", INTERVAL_WEEK,
+         521774},
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999", INTERVAL_MONTH,
+         12 * 10000 - 1},
+        {"0000-01-01 00:00:00", "9999-12-31 23:59:59.999999", INTERVAL_QUARTER,
+         4 * 10000 - 1},
+    }));
+
 }  // namespace item_timefunc_unittest
