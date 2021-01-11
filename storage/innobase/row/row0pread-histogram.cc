@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2019, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -222,7 +222,9 @@ void Histogram_sampler::buffer_end() {
   return;
 }
 
-dberr_t Histogram_sampler::run() { return (m_parallel_reader.run()); }
+dberr_t Histogram_sampler::run() {
+  return m_parallel_reader.run(m_parallel_reader.max_threads());
+}
 
 dberr_t Histogram_sampler::sample_rec(const Parallel_reader::Ctx *reader_ctx,
                                       const rec_t *rec, ulint *offsets,

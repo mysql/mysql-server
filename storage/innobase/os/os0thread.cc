@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -55,8 +55,23 @@ std::atomic_int os_thread_count;
 void IB_thread::start() {
   ut_a(state() == State::NOT_STARTED);
   m_state->store(State::ALLOWED_TO_START);
+
+#ifdef _WIN32
+  unsigned int cnt = 0;
+#endif /* _WIN32 */
+
   while (state() == State::ALLOWED_TO_START) {
     UT_RELAX_CPU();
+
+#ifdef _WIN32
+    /* When the number of threads to be spawned exceeds the number of cores of
+    a machine, it's seen that we cannot just rely on UT_RELAX_CPU(). So in such
+    a case, allow the thread to release its time slice to any thread wanting
+    control. */
+    if (++cnt > 500) {
+      os_thread_yield();
+    }
+#endif /* _WIN32 */
   }
   const auto state_after_start = state();
 
