@@ -1487,5 +1487,5 @@ KEY (i)
 );
 INSERT INTO t(i) VALUES (5853267), (32766);
 SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
-ERROR 22003: BIGINT value is out of range in '(`test`.`t`.`i` * from_unixtime(1536999224))'
+ERROR 22003: BIGINT value is out of range in '(`test`.`t`.`i` * <cache>(from_unixtime(1536999224)))'
 DROP TABLE t;

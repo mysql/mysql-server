@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -406,6 +406,32 @@ void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
   }
   PushDownJoinConditions(thd, expr->left, table_filters);
   PushDownJoinConditions(thd, expr->right, table_filters);
+}
+
+/**
+  Find constant expressions in join conditions, and add caches around them.
+  Similar to work done in JOIN::finalize_table_conditions() in the old
+  optimizer. Non-join predicates are done near the end in MakeJoinHypergraph().
+ */
+bool CacheConstantExpressionsInJoinConditions(THD *thd,
+                                              RelationalExpression *expr) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return false;
+  }
+  assert(expr->equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+  for (Item *&condition : expr->join_conditions) {
+    cache_const_expr_arg cache_arg;
+    cache_const_expr_arg *analyzer_arg = &cache_arg;
+    condition = condition->compile(
+        &Item::cache_const_expr_analyzer, pointer_cast<uchar **>(&analyzer_arg),
+        &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
+    if (condition == nullptr) {
+      return true;
+    }
+  }
+  return CacheConstantExpressionsInJoinConditions(thd, expr->left) ||
+         CacheConstantExpressionsInJoinConditions(thd, expr->right);
 }
 
 /**
@@ -834,6 +860,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
         /*is_join_condition_for_expr=*/false, &table_filters);
   }
 
+  if (CacheConstantExpressionsInJoinConditions(thd, root)) {
+    return true;
+  }
   MakeHashJoinConditions(thd, root);
   MakeCartesianProducts(root);
 
@@ -910,6 +939,18 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     assert(IsSingleBitSet(pred.total_eligibility_set));
     pred.selectivity = EstimateSelectivity(thd, condition, trace);
     graph->predicates.push_back(pred);
+  }
+
+  // Cache constant expressions in predicates. (We did join conditions earlier.)
+  for (Predicate &predicate : graph->predicates) {
+    cache_const_expr_arg cache_arg;
+    cache_const_expr_arg *analyzer_arg = &cache_arg;
+    predicate.condition = predicate.condition->compile(
+        &Item::cache_const_expr_analyzer, pointer_cast<uchar **>(&analyzer_arg),
+        &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
+    if (predicate.condition == nullptr) {
+      return true;
+    }
   }
 
   if (graph->predicates.size() > sizeof(table_map) * CHAR_BIT) {
