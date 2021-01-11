@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/minimal_chassis.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
+#include <mysql/components/services/keyring_aes.h>
+#include <mysql/components/services/keyring_generator.h>
+#include <mysql/components/services/keyring_keys_metadata_iterator.h>
+#include <mysql/components/services/keyring_load.h>
+#include <mysql/components/services/keyring_metadata_query.h>
+#include <mysql/components/services/keyring_reader_with_status.h>
+#include <mysql/components/services/keyring_writer.h>
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
 #include <mysql/components/services/mysql_psi_system_service.h>
@@ -57,6 +64,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_ongoing_transaction_query_imp.h"
 #include "mysql_page_track_imp.h"
 #include "mysql_runtime_error_imp.h"
+#include "mysql_server_keyring_lockable_imp.h"
 #include "mysql_server_runnable_imp.h"
 #include "mysql_string_service_imp.h"
 #include "mysqld_error.h"
@@ -328,6 +336,48 @@ mysql_query_attributes_imp::string_get END_SERVICE_IMPLEMENTATION();
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_query_attribute_isnull)
 mysql_query_attributes_imp::isnull_get END_SERVICE_IMPLEMENTATION();
 
+using namespace keyring_lockable::keyring_common::service_definition;
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_aes)
+Keyring_aes_service_impl::get_size, Keyring_aes_service_impl::encrypt,
+    Keyring_aes_service_impl::decrypt END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_generator)
+Keyring_generator_service_impl::generate END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_keys_metadata_iterator)
+Keyring_keys_metadata_iterator_service_impl::init,
+    Keyring_keys_metadata_iterator_service_impl::deinit,
+    Keyring_keys_metadata_iterator_service_impl::is_valid,
+    Keyring_keys_metadata_iterator_service_impl::next,
+    Keyring_keys_metadata_iterator_service_impl::get_length,
+    Keyring_keys_metadata_iterator_service_impl::get
+    END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_component_status)
+Keyring_metadata_query_service_impl::is_initialized
+END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_component_metadata_query)
+Keyring_metadata_query_service_impl::init,
+    Keyring_metadata_query_service_impl::deinit,
+    Keyring_metadata_query_service_impl::is_valid,
+    Keyring_metadata_query_service_impl::next,
+    Keyring_metadata_query_service_impl::get_length,
+    Keyring_metadata_query_service_impl::get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_reader_with_status)
+Keyring_reader_service_impl::init, Keyring_reader_service_impl::deinit,
+    Keyring_reader_service_impl::fetch_length,
+    Keyring_reader_service_impl::fetch END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_load)
+Keyring_load_service_impl::load END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_writer)
+Keyring_writer_service_impl::store,
+    Keyring_writer_service_impl::remove END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -424,7 +474,15 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, mysql_query_attributes_iterator),
     PROVIDES_SERVICE(mysql_server, mysql_query_attribute_string),
     PROVIDES_SERVICE(mysql_server, mysql_query_attribute_isnull),
-    END_COMPONENT_PROVIDES();
+
+    PROVIDES_SERVICE(mysql_server, keyring_aes),
+    PROVIDES_SERVICE(mysql_server, keyring_generator),
+    PROVIDES_SERVICE(mysql_server, keyring_keys_metadata_iterator),
+    PROVIDES_SERVICE(mysql_server, keyring_component_status),
+    PROVIDES_SERVICE(mysql_server, keyring_component_metadata_query),
+    PROVIDES_SERVICE(mysql_server, keyring_reader_with_status),
+    PROVIDES_SERVICE(mysql_server, keyring_load),
+    PROVIDES_SERVICE(mysql_server, keyring_writer), END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

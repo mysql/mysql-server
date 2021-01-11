@@ -7,6 +7,7 @@
 #
 # PLUGVAR: name of plugin file including extension .so or .dll
 # PLUGVAR_DIR: name of directory where plugin was found
+# REQUIRES_CONFIG: yes|no - Whether global config file should be created or not
 # PLUGVAR_OPT: mysqld option --plugin_dir=....
 # PLUGVAR_LOAD: option --plugin_load=.... if the 4th element is present
 # PLUGVAR_LOAD_ADD: option --plugin_load_add=.... if the 4th element is present
@@ -29,126 +30,129 @@
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
 
-auth_test_plugin                        plugin_output_directory PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
-mysql_clone                             plugin_output_directory CLONE_PLUGIN    clone
-qa_auth_interface                       plugin_output_directory PLUGIN_AUTH_INTERFACE qa_auth_interface
-qa_auth_server                          plugin_output_directory PLUGIN_AUTH_SERVER    qa_auth_server
-qa_auth_client                          plugin_output_directory PLUGIN_AUTH_CLIENT    qa_auth_client
-udf_example                             plugin_output_directory UDF_EXAMPLE_LIB
-ha_example                              plugin_output_directory EXAMPLE_PLUGIN         EXAMPLE
-semisync_master                         plugin_output_directory SEMISYNC_MASTER_PLUGIN
-semisync_slave                          plugin_output_directory SEMISYNC_SLAVE_PLUGIN
-ha_archive                              plugin_output_directory ARCHIVE_PLUGIN
-ha_blackhole                            plugin_output_directory BLACKHOLE_PLUGIN
-ha_federated                            plugin_output_directory FEDERATED_PLUGIN
-ha_partition                            plugin_output_directory PARTITION_PLUGIN  partition
-ha_mock                                 plugin_output_directory MOCK_PLUGIN
-mypluglib                               plugin_output_directory SIMPLE_PARSER
-libpluginmecab                          plugin_output_directory MECAB
-adt_null                                plugin_output_directory AUDIT_NULL
-keyring_udf                             plugin_output_directory KEYRING_UDF keyring_udf
-keyring_file                            plugin_output_directory KEYRING_PLUGIN        keyring_file
-test_security_context                   plugin_output_directory TEST_SECURITY_CONTEXT  test_security_context
-libdaemon_example                       plugin_output_directory DAEMONEXAMPLE
-replication_observers_example_plugin    plugin_output_directory RPL_OBS_EXAMPLE
-libmemcached                            plugin_output_directory DAEMON_MEMCACHED
-# libmemcached     			plugin_output_directory DAEMON_MEMCACHED daemon_memcached
-innodb_engine      			plugin_output_directory INNODB_ENGINE
-validate_password  			plugin_output_directory VALIDATE_PASSWORD validate_password
-rewrite_example    			plugin_output_directory REWRITE_EXAMPLE
-ddl_rewriter                            plugin_output_directory DDL_REWRITER
-rewriter           			plugin_output_directory REWRITER
-mysql_no_login     			plugin_output_directory MYSQL_NO_LOGIN    mysql_no_login
-test_udf_services  			plugin_output_directory TESTUDFSERVICES
-test_udf_services  			plugin_output_directory TESTUDFREGISTRATION test_udf_registration
-test_udf_services  			plugin_output_directory TESTUDFEXTENSIONSERVICES test_udf_extension_services
-group_replication  			plugin_output_directory GROUP_REPLICATION
-locking_service    			plugin_output_directory LOCKING_SERVICE
-version_token      			plugin_output_directory VERSION_TOKEN
+auth_test_plugin                        plugin_output_directory  no PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
+mysql_clone                             plugin_output_directory  no CLONE_PLUGIN    clone
+qa_auth_interface                       plugin_output_directory  no PLUGIN_AUTH_INTERFACE qa_auth_interface
+qa_auth_server                          plugin_output_directory  no PLUGIN_AUTH_SERVER    qa_auth_server
+qa_auth_client                          plugin_output_directory  no PLUGIN_AUTH_CLIENT    qa_auth_client
+udf_example                             plugin_output_directory  no UDF_EXAMPLE_LIB
+ha_example                              plugin_output_directory  no EXAMPLE_PLUGIN         EXAMPLE
+semisync_master                         plugin_output_directory  no SEMISYNC_MASTER_PLUGIN
+semisync_slave                          plugin_output_directory  no SEMISYNC_SLAVE_PLUGIN
+ha_archive                              plugin_output_directory  no ARCHIVE_PLUGIN
+ha_blackhole                            plugin_output_directory  no BLACKHOLE_PLUGIN
+ha_federated                            plugin_output_directory  no FEDERATED_PLUGIN
+ha_partition                            plugin_output_directory  no PARTITION_PLUGIN  partition
+ha_mock                                 plugin_output_directory  no MOCK_PLUGIN
+mypluglib                               plugin_output_directory  no SIMPLE_PARSER
+libpluginmecab                          plugin_output_directory  no MECAB
+adt_null                                plugin_output_directory  no AUDIT_NULL
+keyring_udf                             plugin_output_directory  no KEYRING_UDF keyring_udf
+keyring_file                            plugin_output_directory  no KEYRING_PLUGIN        keyring_file
+test_security_context                   plugin_output_directory  no TEST_SECURITY_CONTEXT  test_security_context
+libdaemon_example                       plugin_output_directory  no DAEMONEXAMPLE
+replication_observers_example_plugin    plugin_output_directory  no RPL_OBS_EXAMPLE
+libmemcached                            plugin_output_directory  no DAEMON_MEMCACHED
+# libmemcached     			plugin_output_directory  no DAEMON_MEMCACHED daemon_memcached
+innodb_engine      			plugin_output_directory  no INNODB_ENGINE
+validate_password  			plugin_output_directory  no VALIDATE_PASSWORD validate_password
+rewrite_example    			plugin_output_directory  no REWRITE_EXAMPLE
+ddl_rewriter                            plugin_output_directory  no DDL_REWRITER
+rewriter           			plugin_output_directory  no REWRITER
+mysql_no_login     			plugin_output_directory  no MYSQL_NO_LOGIN    mysql_no_login
+test_udf_services  			plugin_output_directory  no TESTUDFSERVICES
+test_udf_services  			plugin_output_directory  no TESTUDFREGISTRATION test_udf_registration
+test_udf_services  			plugin_output_directory  no TESTUDFEXTENSIONSERVICES test_udf_extension_services
+group_replication  			plugin_output_directory  no GROUP_REPLICATION
+locking_service    			plugin_output_directory  no LOCKING_SERVICE
+version_token      			plugin_output_directory  no VERSION_TOKEN
 # Test services framework
-libtest_services                        plugin_output_directory TESTSERVICES
-libtest_services_threaded               plugin_output_directory TESTSERVICESTHREADED
-test_services_plugin_registry           plugin_output_directory TEST_SERVICES_PLUGIN_REGISTRY
+libtest_services                        plugin_output_directory  no TESTSERVICES
+libtest_services_threaded               plugin_output_directory  no TESTSERVICESTHREADED
+test_services_plugin_registry           plugin_output_directory  no TEST_SERVICES_PLUGIN_REGISTRY
 # Test session API
-libtest_session_in_thd                  plugin_output_directory TEST_SESSION_IN_THD
-libtest_x_sessions_init                 plugin_output_directory TEST_X_SESSIONS_INIT
-libtest_x_sessions_deinit               plugin_output_directory TEST_X_SESSIONS_DEINIT
-libtest_session_detach                  plugin_output_directory TEST_SESSION_DETACH
-libtest_session_attach                  plugin_output_directory TEST_SESSION_ATTACH
-libtest_session_info                    plugin_output_directory TEST_SESSION_INFO
+libtest_session_in_thd                  plugin_output_directory  no TEST_SESSION_IN_THD
+libtest_x_sessions_init                 plugin_output_directory  no TEST_X_SESSIONS_INIT
+libtest_x_sessions_deinit               plugin_output_directory  no TEST_X_SESSIONS_DEINIT
+libtest_session_detach                  plugin_output_directory  no TEST_SESSION_DETACH
+libtest_session_attach                  plugin_output_directory  no TEST_SESSION_ATTACH
+libtest_session_info                    plugin_output_directory  no TEST_SESSION_INFO
 # Test SQL API
-libtest_sql_complex                     plugin_output_directory TEST_SQL_COMPLEX
-libtest_sql_2_sessions                  plugin_output_directory TEST_SQL_2_SESSIONS
-libtest_sql_cmds_1                      plugin_output_directory TEST_SQL_CMDS_1
-libtest_sql_all_col_types               plugin_output_directory TEST_SQL_ALL_COL_TYPES
-libtest_sql_processlist                 plugin_output_directory TEST_SQL_PROCESSLIST
-libtest_sql_shutdown                    plugin_output_directory TEST_SQL_SHUTDOWN
-libtest_sql_stored_procedures_functions plugin_output_directory TEST_SQL_STORED_PROCEDURES_FUNCTIONS
-libtest_sql_views_triggers              plugin_output_directory TEST_SQL_VIEWS_TRIGGERS
-libtest_sql_commit                      plugin_output_directory TEST_SQL_COMMIT
-libtest_sql_lock                        plugin_output_directory TEST_SQL_LOCK
-libtest_sql_sqlmode                     plugin_output_directory TEST_SQL_SQLMODE
-libtest_sql_replication                 plugin_output_directory TEST_SQL_REPLICATION
-libtest_sql_errors                      plugin_output_directory TEST_SQL_ERRORS
-libtest_sql_stmt                        plugin_output_directory TEST_SQL_STMT
-libtest_sql_sleep_is_connected          plugin_output_directory TEST_SQL_SLEEP_IS_CONNECTED
-libtest_sql_reset_connection            plugin_output_directory TEST_SQL_RESET_CONNECTION
-connection_control                      plugin_output_directory  CONNECTION_CONTROL_PLUGIN    connection_control
+libtest_sql_complex                     plugin_output_directory  no TEST_SQL_COMPLEX
+libtest_sql_2_sessions                  plugin_output_directory  no TEST_SQL_2_SESSIONS
+libtest_sql_cmds_1                      plugin_output_directory  no TEST_SQL_CMDS_1
+libtest_sql_all_col_types               plugin_output_directory  no TEST_SQL_ALL_COL_TYPES
+libtest_sql_processlist                 plugin_output_directory  no TEST_SQL_PROCESSLIST
+libtest_sql_shutdown                    plugin_output_directory  no TEST_SQL_SHUTDOWN
+libtest_sql_stored_procedures_functions plugin_output_directory  no TEST_SQL_STORED_PROCEDURES_FUNCTIONS
+libtest_sql_views_triggers              plugin_output_directory  no TEST_SQL_VIEWS_TRIGGERS
+libtest_sql_commit                      plugin_output_directory  no TEST_SQL_COMMIT
+libtest_sql_lock                        plugin_output_directory  no TEST_SQL_LOCK
+libtest_sql_sqlmode                     plugin_output_directory  no TEST_SQL_SQLMODE
+libtest_sql_replication                 plugin_output_directory  no TEST_SQL_REPLICATION
+libtest_sql_errors                      plugin_output_directory  no TEST_SQL_ERRORS
+libtest_sql_stmt                        plugin_output_directory  no TEST_SQL_STMT
+libtest_sql_sleep_is_connected          plugin_output_directory  no TEST_SQL_SLEEP_IS_CONNECTED
+libtest_sql_reset_connection            plugin_output_directory  no TEST_SQL_RESET_CONNECTION
+connection_control                      plugin_output_directory  no CONNECTION_CONTROL_PLUGIN    connection_control
 # Test component
-component_example_component1    plugin_output_directory  EXAMPLE_COMPONENT_1
-component_example_component2    plugin_output_directory  EXAMPLE_COMPONENT_2
-component_example_component3    plugin_output_directory  EXAMPLE_COMPONENT_3
+component_example_component1    plugin_output_directory  no  EXAMPLE_COMPONENT_1
+component_example_component2    plugin_output_directory  no  EXAMPLE_COMPONENT_2
+component_example_component3    plugin_output_directory  no  EXAMPLE_COMPONENT_3
 
-component_test_string_service   plugin_output_directory  TEST_STRING_SERVICE
-component_test_string_service_long   plugin_output_directory  TEST_STRING_SERVICE_LONG
-component_test_string_service_charset   plugin_output_directory  TEST_STRING_SERVICE_CHARSET
+component_test_string_service   plugin_output_directory  no  TEST_STRING_SERVICE
+component_test_string_service_long   plugin_output_directory  no  TEST_STRING_SERVICE_LONG
+component_test_string_service_charset   plugin_output_directory  no  TEST_STRING_SERVICE_CHARSET
 
-component_test_backup_lock_service   plugin_output_directory  TEST_BACKUP_LOCK_SERVICE
+component_test_backup_lock_service   plugin_output_directory  no  TEST_BACKUP_LOCK_SERVICE
 # Test Performance Schema services
-component_test_pfs_notification         plugin_output_directory  TEST_PFS_NOTIFICATION_SERVICE
-component_test_pfs_resource_group       plugin_output_directory  TEST_PFS_RESOURCE_GROUP_SERVICE
-component_log_sink_json         plugin_output_directory  LOGGING_COMPONENTS
+component_test_pfs_notification         plugin_output_directory  no  TEST_PFS_NOTIFICATION_SERVICE
+component_test_pfs_resource_group       plugin_output_directory  no  TEST_PFS_RESOURCE_GROUP_SERVICE
+component_log_sink_json         plugin_output_directory  no  LOGGING_COMPONENTS
 
 # Test-only component to reset the state of X plugin
-component_mysqlx_global_reset   plugin_output_directory    MYSQLXGLOBALRESET
+component_mysqlx_global_reset   plugin_output_directory  no    MYSQLXGLOBALRESET
 
 # pfs_example_plugin_employee plugin
-pfs_example_plugin_employee    plugin_output_directory  PFS_EXAMPLE_PLUGIN_EMPLOYEE pfs_example_plugin_employee
+pfs_example_plugin_employee    plugin_output_directory  no  PFS_EXAMPLE_PLUGIN_EMPLOYEE pfs_example_plugin_employee
 # pfs_example_component_population component
-component_pfs_example_component_population    plugin_output_directory PFS_EXAMPLE_COMPONENT_POPULATION
+component_pfs_example_component_population    plugin_output_directory  no PFS_EXAMPLE_COMPONENT_POPULATION
 
-component_test_udf_registration    plugin_output_directory  TEST_UDF_REGISTRATION
-component_test_udf_services    plugin_output_directory  TEST_UDF_SERVICES  component_test_udf_services
-component_audit_api_message_emit    plugin_output_directory  AUDIT_API_MESSAGE_EMIT component_audit_api_message_emit
-component_udf_reg_3_func   plugin_output_directory  UDF_REG_3_FUNC       component_udf_reg_3_func
-component_udf_reg_only_3_func plugin_output_directory UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
-component_udf_unreg_3_func   plugin_output_directory  UDF_UNREG_3_FUNC component_udf_unreg_3_func
-component_test_component_sys_var_service   plugin_output_directory  TEST_COM_SYS_VAR_SERVICES_OPT
-component_test_sys_var_service plugin_output_directory SYS_VAR_SERVICE component_test_sys_var_service
-component_test_sys_var_service_same plugin_output_directory SYS_VAR_SERVICE_SAME component_test_sys_var_service_same
-component_test_status_var_service plugin_output_directory STATUS_VAR_SERVICE component_test_status_var_service
+component_test_udf_registration    plugin_output_directory  no  TEST_UDF_REGISTRATION
+component_test_udf_services    plugin_output_directory  no  TEST_UDF_SERVICES  component_test_udf_services
+component_audit_api_message_emit    plugin_output_directory  no  AUDIT_API_MESSAGE_EMIT component_audit_api_message_emit
+component_udf_reg_3_func   plugin_output_directory  no  UDF_REG_3_FUNC       component_udf_reg_3_func
+component_udf_reg_only_3_func plugin_output_directory  no UDF_REG_ONLY_3_FUNC component_udf_reg_only_3_func
+component_udf_unreg_3_func   plugin_output_directory  no  UDF_UNREG_3_FUNC component_udf_unreg_3_func
+component_test_component_sys_var_service   plugin_output_directory  no  TEST_COM_SYS_VAR_SERVICES_OPT
+component_test_sys_var_service plugin_output_directory  no SYS_VAR_SERVICE component_test_sys_var_service
+component_test_sys_var_service_same plugin_output_directory  no SYS_VAR_SERVICE_SAME component_test_sys_var_service_same
+component_test_status_var_service plugin_output_directory  no STATUS_VAR_SERVICE component_test_status_var_service
 
 # pfs_example
-component_pfs_example    plugin_output_directory  PFS_EXAMPLE
+component_pfs_example    plugin_output_directory  no  PFS_EXAMPLE
 
 # Test system_variable_source service
-component_test_system_variable_source plugin_output_directory TEST_SYSTEM_VARIABLE_SOURCE
+component_test_system_variable_source plugin_output_directory  no TEST_SYSTEM_VARIABLE_SOURCE
 
 # password validation component
-component_validate_password     plugin_output_directory  VALIDATE_PASSWORD_COMPONENT
+component_validate_password     plugin_output_directory  no  VALIDATE_PASSWORD_COMPONENT
 
 # test application signal
-component_test_host_application_signal  plugin_output_directory  TEST_HOST_APPLICATION_SIGNAL_COMPONENT
-test_services_host_application_signal  plugin_output_directory  TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN
-component_test_mysql_current_thread_reader  plugin_output_directory  TEST_MYSQL_CURRENT_THREAD_READER_COMPONENT
+component_test_host_application_signal  plugin_output_directory  no  TEST_HOST_APPLICATION_SIGNAL_COMPONENT
+test_services_host_application_signal  plugin_output_directory  no  TEST_SERVICES_HOST_APPLICATION_SIGNAL_PLUGIN
+component_test_mysql_current_thread_reader  plugin_output_directory  no  TEST_MYSQL_CURRENT_THREAD_READER_COMPONENT
 
 # test mysql_runtime_error service
-component_test_mysql_runtime_error  plugin_output_directory  TEST_MYSQL_RUNTIME_ERROR_COMPONENT
+component_test_mysql_runtime_error  plugin_output_directory  no  TEST_MYSQL_RUNTIME_ERROR_COMPONENT
 
 # mysqlbackup component
-component_mysqlbackup           plugin_output_directory  MYSQLBACKUP_COMPONENT
+component_mysqlbackup           plugin_output_directory  no  MYSQLBACKUP_COMPONENT
 
-component_query_attributes      plugin_output_directory  QUERY_ATTRIBUTES_COMPONENT
+component_query_attributes      plugin_output_directory  no  QUERY_ATTRIBUTES_COMPONENT
 
 # component_reference_cache
-component_reference_cache      plugin_output_directory REFERENCE_CACHE_COMPONENT
+component_reference_cache      plugin_output_directory  no  REFERENCE_CACHE_COMPONENT
+
+# keyring file component
+component_keyring_file          plugin_output_directory  yes  KEYRING_FILE_COMPONENT component_keyring_file

@@ -481,9 +481,8 @@ The following options may be given as the first argument:
  --key-cache-division-limit=# 
  The minimum percentage of warm blocks in key cache
  --keyring-migration-destination=name 
- Keyring plugin to which the keys are migrated to. This
- option must be specified along with
- --keyring-migration-source.
+ Keyring plugin or component to which the keys are
+ migrated to.
  --keyring-migration-host=name 
  Connect to host.
  -p, --keyring-migration-password[=name] 
@@ -496,6 +495,8 @@ The following options may be given as the first argument:
  Keyring plugin from where the keys needs to be migrated
  to. This option must be specified along with
  --keyring-migration-destination.
+ --keyring-migration-to-component 
+ Migrate from keyring plugin to keyring component.
  --keyring-migration-user=name 
  User to login to server.
  -L, --language=name Client error messages in given language. May be given as
@@ -1585,6 +1586,7 @@ keyring-migration-destination (No default value)
 keyring-migration-host (No default value)
 keyring-migration-port 0
 keyring-migration-source (No default value)
+keyring-migration-to-component FALSE
 keyring-migration-user (No default value)
 large-pages FALSE
 lc-messages en_US

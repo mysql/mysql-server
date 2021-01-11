@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -202,6 +202,48 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #endif /* HAVE_UNISTD_H */
 
 #ifndef UNIV_HOTBACKUP
+
+namespace innobase {
+namespace component_services {
+SERVICE_TYPE(registry) *reg_srv = nullptr;
+
+/** Initialize component service handles */
+static bool intitialize_service_handles() {
+  DBUG_TRACE;
+
+  auto cleanup = [&]() {
+    /* Add module specific deinitialization here */
+    innobase::encryption::deinit_keyring_services(reg_srv);
+    mysql_plugin_registry_release(reg_srv);
+  };
+
+  reg_srv = mysql_plugin_registry_acquire();
+  if (reg_srv == nullptr) {
+    return false;
+  }
+
+  /* Add module specific initialization here */
+  if (innobase::encryption::init_keyring_services(reg_srv) == false) {
+    cleanup();
+    return false;
+  }
+
+  return true;
+}
+
+/** Deinitialize compoent service handles */
+static void deinitialize_service_handles() {
+  DBUG_TRACE;
+
+  innobase::encryption::deinit_keyring_services(reg_srv);
+  if (reg_srv != nullptr) {
+    mysql_plugin_registry_release(reg_srv);
+  }
+}
+
+}  // namespace component_services
+}  // namespace innobase
+
 /** Stop printing warnings, if the count exceeds this threshold. */
 static const size_t MOVED_FILES_PRINT_THRESHOLD = 32;
 
@@ -1353,6 +1395,8 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
 
     os_event_global_destroy();
   }
+
+  innobase::component_services::deinitialize_service_handles();
 
   return 0;
 }
@@ -2986,6 +3030,7 @@ static int innodb_init_abort() {
   DBUG_TRACE;
   srv_shutdown_exit_threads();
   innodb_space_shutdown();
+  innobase::component_services::deinitialize_service_handles();
   return 1;
 }
 
@@ -4914,6 +4959,11 @@ static int innodb_init(void *p) {
 
   /* After this point, error handling has to use
   innodb_init_abort(). */
+
+  /* Initialize component service handles */
+  if (innobase::component_services::intitialize_service_handles() == false) {
+    return innodb_init_abort();
+  }
 
   if (!srv_sys_space.parse_params(innobase_data_file_path, true)) {
     ib::error(ER_IB_MSG_545)

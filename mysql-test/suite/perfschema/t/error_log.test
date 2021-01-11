@@ -118,6 +118,8 @@ SELECT prio,error_code,subsystem,data
 # MY-012363: InnoDB-page-size changed, for chtest
 # MY-011953: InnoDB page cleaner. Timing-dependent and thus indeterministic.
 # MY-000000: sql_print_(error|warning|information)
+# MY-013711: Manifest file RO check. Depends on how MTR creates manifest
+#            file and thus indeterministic.
 
 SELECT prio,error_code,subsystem
   FROM performance_schema.error_log
@@ -128,7 +130,7 @@ SELECT prio,error_code,subsystem
                          "MY-011952", "MY-011323", "MY-010902", "MY-000000",
                          "MY-012937", "MY-012366", "MY-000067", "MY-010159",
                          "MY-013602", "MY-010069", "MY-013595", "MY-010108",
-                         "MY-012363", "MY-011953")
+                         "MY-012363", "MY-011953", "MY-013711")
  ORDER BY logged, error_code;
 
 --echo
@@ -148,6 +150,7 @@ SELECT prio,error_code,subsystem
 # MY-010116: ER_STARTING_AS (variable part: PID)
 # MY-011810: see above (also, variable part: path)
 # MY-010159, MY-000067, MY-000000, MY-010108, MY-013602,MY-013595: see above
+# MY-013711: Manifest file RO check (variable part: path)
 SELECT prio,error_code,subsystem,data
   FROM performance_schema.error_log
  WHERE logged>=@startup
@@ -155,7 +158,7 @@ SELECT prio,error_code,subsystem,data
    AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
                          "MY-010931", "MY-010116", "MY-011810", "MY-000000",
                          "MY-000067", "MY-010159", "MY-013595", "MY-013602",
-                         "MY-010108", "MY-012363")
+                         "MY-010108", "MY-012363", "MY-013711")
  ORDER BY logged;
 
 --echo

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -793,4 +793,7 @@ extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
    mysql_server component */
 extern SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
 extern SERVICE_TYPE(dynamic_loader) * dynamic_loader_srv;
+
+class Deployed_components;
+extern Deployed_components *g_deployed_components;
 #endif /* MYSQLD_INCLUDED */

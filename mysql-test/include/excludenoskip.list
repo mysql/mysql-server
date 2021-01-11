@@ -284,3 +284,6 @@ not_partial_revokes.inc
 # 29. This file is used for skipping tests which cannot be run successfully
 # with the hypergraph optimizer yet.
 not_hypergraph.inc
+
+# 30. Keyring_file component - can be skipped based on cmake configuration
+have_component_keyring_file.inc

@@ -7727,7 +7727,7 @@ ER_INVALID_ENCRYPTION_OPTION
   eng "Invalid encryption option."
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
-  eng "Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+  eng "Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully."
 
 ER_CAPACITY_EXCEEDED_IN_PARSER
   eng "Parser bailed out for this query."
@@ -7736,7 +7736,7 @@ ER_UNSUPPORTED_ALTER_ENCRYPTION_INPLACE
   eng "Cannot alter encryption attribute by inplace algorithm."
 
 ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-  eng "Function '%s' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using."
+  eng "Function '%s' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using."
 
 ER_USER_COLUMN_OLD_LENGTH
   eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please perform the MySQL upgrade procedure."
@@ -8761,10 +8761,10 @@ ER_GR_HOLD_MEMBER_STATUS_ERROR
   eng "Held statement was aborted due to member being in error state, while backlog is being applied during Group Replication primary election."
 
 ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
-  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
+  eng "Failed to fetch key from keyring, please check if keyring is loaded."
 
 ER_RPL_ENCRYPTION_KEY_NOT_FOUND
-  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
+  eng "Can't find key from keyring, please check in the server log if a keyring is loaded and initialized successfully."
 
 ER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
   eng "Fetched an invalid key from keyring."
@@ -8779,19 +8779,19 @@ ER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
   eng "Key %s exists unexpected."
 
 ER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
-  eng "Failed to generate key, please check if keyring plugin is loaded."
+  eng "Failed to generate key, please check if keyring is loaded."
 
 ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
-  eng "Failed to store key, please check if keyring plugin is loaded."
+  eng "Failed to store key, please check if keyring is loaded."
 
 ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
-  eng "Failed to remove key, please check if keyring plugin is loaded."
+  eng "Failed to remove key, please check if keyring is loaded."
 
 ER_RPL_ENCRYPTION_UNABLE_TO_CHANGE_OPTION
   eng "Failed to change binlog_encryption value. %-.80s."
 
 ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
-  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
+  eng "Unable to recover binlog encryption master key, please check if keyring is loaded."
 
 ER_SLOW_LOG_MODE_IGNORED_WHEN_NOT_LOGGING_TO_FILE
   eng "slow query log file format changed as requested, but setting will have no effect when not actually logging to a file."
@@ -8830,7 +8830,7 @@ ER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
   eng "Unable to recover binary log master key, the combination of new_master_key_seqno=%u, master_key_seqno=%u and old_master_key_seqno=%u are wrong."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
-  eng "Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files."
+  eng "Failed to operate binary log master key on keyring, please check if keyring is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS
   eng "Failed to rotate one or more binary or relay log files. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key."
@@ -8839,10 +8839,10 @@ ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
   eng "%s. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS
-  eng "Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+  eng "Failed to remove unused binary log encryption keys from the keyring, please check if keyring is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
-  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
 ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
   eng "An expression of non-boolean type specified to a check constraint '%-.192s'."
@@ -9531,6 +9531,9 @@ ER_INVALID_CAST_POLYGON_RING_DIRECTION 22S04
 
 ER_GIS_DIFFERENT_SRIDS_AGGREGATION 22S05
   eng "Arguments to function %s contains geometries with different SRIDs: %u and %u. All geometries must have the same SRID."
+
+ER_RELOAD_KEYRING_FAILURE
+  eng "Keyring reload failed. Please check error log for more details."
 
 #
 #  End of 8.0 error messages (server-to-client).

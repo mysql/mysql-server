@@ -1,5 +1,5 @@
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .* Encryption can't find master key, please check the keyring is loaded.");
 call mtr.add_suppression("\\[ERROR\\] .* Can't set undo tablespace 'innodb_undo_001' to be encrypted");
 --enable_query_log
 

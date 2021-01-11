@@ -1,0 +1,10 @@
+--source include/have_component_keyring_file.inc
+# InnoDB transparent tablespace data encryption
+# This test case will test export/import encrypted tablespace.
+
+--source include/no_valgrind_without_big.inc
+--source include/have_debug.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/table_encrypt_4.inc
+--source ../inc/teardown_component.inc

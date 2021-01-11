@@ -170,8 +170,11 @@
   - added table
   performance_schema.replication_asynchronous_connection_failover_managed
 
+  80024:
+  performance_schema tables changed in MySQL 8.0.24
+  - WL#13446 added performance_schema.keyring_component_status
 */
 
-static const uint PFS_DD_VERSION = 80023;
+static const uint PFS_DD_VERSION = 80024;
 
 #endif /* PFS_DD_VERSION_H */

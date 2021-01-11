@@ -1356,6 +1356,8 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> SOURCE_ZSTD_COMPRESSION_LEVEL_SYM 1188   /* MYSQL */
 
 %token<lexer.keyword> ST_COLLECT_SYM 1189                      /* MYSQL */
+
+%token<lexer.keyword> KEYRING_SYM 1190                         /* MYSQL */
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -15245,6 +15247,7 @@ ident_keywords_unambiguous:
         | JSON_SYM
         | JSON_VALUE_SYM
         | KEY_BLOCK_SIZE
+        | KEYRING_SYM
         | LAST_SYM
         | LEAVES
         | LESS_SYM
@@ -16090,6 +16093,9 @@ alter_instance_action:
               MYSQL_YYABORT;
             }
             $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
+          }
+        | RELOAD KEYRING_SYM {
+            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR);
           }
         ;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,9 @@
 #include "mysql/plugin_keyring.h"
 #include "sql_common.h"  // NET_SERVER
 
+#include <mysql/components/services/keyring_load.h>
+#include <mysql/components/services/keyring_writer.h>
+
 class THD;
 
 #define MAX_KEY_LEN 16384
@@ -51,6 +54,28 @@ class Key_info {
   std::string m_user_id;
 };
 
+using const_keyring_writer_t = SERVICE_TYPE(keyring_writer);
+using const_keyring_load_t = SERVICE_TYPE(keyring_load);
+
+class Destination_keyring_component final {
+ public:
+  Destination_keyring_component(const std::string component_path,
+                                const std::string implementation_name);
+  ~Destination_keyring_component();
+
+  const_keyring_writer_t *writer() { return keyring_writer_service_; }
+  const_keyring_load_t *initializer() { return keyring_load_service_; }
+
+  bool ok() { return ok_; }
+
+ private:
+  const std::string component_path_;
+  const_keyring_load_t *keyring_load_service_;
+  const_keyring_writer_t *keyring_writer_service_;
+  bool component_loaded_;
+  bool ok_;
+};
+
 class Migrate_keyring {
  public:
   /**
@@ -62,7 +87,7 @@ class Migrate_keyring {
   */
   bool init(int argc, char **argv, char *source_plugin,
             char *destination_plugin, char *user, char *host, char *password,
-            char *socket, ulong port);
+            char *socket, ulong port, bool migrate_to_component);
   /**
     Migrate keys from source keyring to destination keyring.
   */
@@ -77,6 +102,10 @@ class Migrate_keyring {
     Load source or destination plugin.
   */
   bool load_plugin(enum_plugin_type plugin_type);
+  /**
+    Load component
+  */
+  bool load_component();
   /**
     Fetch keys from source plugin and store in destination plugin.
   */
@@ -103,6 +132,8 @@ class Migrate_keyring {
   std::vector<Key_info> m_source_keys;
   MYSQL *mysql;
   NET_SERVER server_extn;
+  bool m_migrate_to_component;
+  Destination_keyring_component *m_destination_component;
 };
 
 #endif /* MIGRATE_KEYRING_H_INCLUDED */

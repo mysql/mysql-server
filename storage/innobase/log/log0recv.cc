@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -3521,8 +3521,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
       ut_free(log_block_buf_ptr);
       ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
                                    " information in log file header, please"
-                                   " check if keyring plugin loaded and"
-                                   " the key file exists.";
+                                   " check if keyring is loaded.";
       return (false);
     }
   }

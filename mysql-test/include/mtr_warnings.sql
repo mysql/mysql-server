@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -302,6 +302,11 @@ INSERT INTO global_suppressions VALUES
  */
  ("NOTIFY_SOCKET not set in environment. sd_notify messages will not be sent!"),
  ("Invalid systemd notify socket, cannot send: "),
+
+ /*
+   Manifest file processing
+ */
+ ("Manifest file '.*' is not read-only. For better security, please make sure that the file is read-only."),
 
  ("THE_LAST_SUPPRESSION");
 

@@ -22,4 +22,5 @@
 
 ADD_LIBRARY(library_mysys STATIC
   my_memory.cc
+  my_hex_tools.cc
 )

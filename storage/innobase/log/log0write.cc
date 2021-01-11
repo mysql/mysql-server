@@ -2814,7 +2814,7 @@ bool log_read_encryption() {
     if (!Encryption::check_keyring()) {
       ut_free(log_block_buf_ptr);
       ib::error(ER_IB_MSG_1238) << "Redo log was encrypted,"
-                                << " but keyring plugin is not loaded.";
+                                << " but keyring is not loaded.";
       return (false);
     }
 
@@ -2842,8 +2842,7 @@ bool log_read_encryption() {
       ut_free(log_block_buf_ptr);
       ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
                                    " information in log file header, please"
-                                   " check if keyring plugin loaded and"
-                                   " the key file exists.";
+                                   " check if keyring is loaded.";
       return (false);
     }
   }
