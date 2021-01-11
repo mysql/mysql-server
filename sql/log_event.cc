@@ -1393,7 +1393,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   const char *error= 0;
   Log_event *res=  0;
 #if !defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
-  ulong log_max_allowed_packet;
+  ulong log_max_allowed_packet = 0;
   mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET,
                    &log_max_allowed_packet);
 #else
