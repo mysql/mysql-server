@@ -295,6 +295,28 @@ TEST_F(ItemTimeFuncTest, CastAsYearMetadata) {
       thd(), new Item_typecast_year(POS(), new Item_int(2155)), 2155);
 }
 
+// Verifies that the results returned by the TIME_TO_SEC function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, TimeToSecMetadata) {
+  static_assert(TIME_MAX_HOUR == 838,
+                "TIME_MAX_HOUR has changed. Update the test case to test the "
+                "new maximum value.");
+
+  {
+    auto arg = new Item_string(STRING_WITH_LEN("838:59:59"),
+                               &my_charset_utf8mb4_0900_ai_ci);
+    auto time_to_sec = new Item_func_time_to_sec(POS(), arg);
+    CheckMetadataAndResult(thd(), time_to_sec, 3020399);
+  }
+
+  {
+    auto arg = new Item_string(STRING_WITH_LEN("-838:59:59"),
+                               &my_charset_utf8mb4_0900_ai_ci);
+    auto time_to_sec = new Item_func_time_to_sec(POS(), arg);
+    CheckMetadataAndResult(thd(), time_to_sec, -3020399);
+  }
+}
+
 struct test_data {
   const char *secs;
   unsigned int hour;
