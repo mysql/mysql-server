@@ -1242,14 +1242,15 @@ NdbReceiver::handle_rec_attrs(NdbRecAttr* rec_attr_list,
           back attributes in the wrong order).
           So dump some info for debugging, and abort.
         */
-        ndbout_c("NdbReceiver::handle_rec_attrs: attrId: %d currRecAttr: %p rec_attr_list: %p "
-                 "attrSize: %d %d",
-	         attrId, currRecAttr, rec_attr_list, attrSize,
-                 currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
+        g_eventLogger->info(
+            "NdbReceiver::handle_rec_attrs:"
+            " attrId: %d currRecAttr: %p rec_attr_list: %p attrSize: %d %d",
+            attrId, currRecAttr, rec_attr_list, attrSize,
+            currRecAttr ? currRecAttr->get_size_in_bytes() : 0);
         currRecAttr = rec_attr_list;
         while(currRecAttr != 0){
-	  ndbout_c("%d ", currRecAttr->attrId());
-	  currRecAttr = currRecAttr->next();
+          g_eventLogger->info("%d ", currRecAttr->attrId());
+          currRecAttr = currRecAttr->next();
         }
         abort();
         return -1;

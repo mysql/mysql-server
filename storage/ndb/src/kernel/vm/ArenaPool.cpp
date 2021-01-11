@@ -22,7 +22,7 @@
 
 #include "ArenaPool.hpp"
 #include <ndbd_exit_codes.h>
-#include <NdbOut.hpp>
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 309
 
@@ -48,8 +48,8 @@ computeBlockSize(Uint32 blockSz, Uint32 wpp)
     }
   }
 #ifdef VM_TRACE
-  ndbout_c("blockSz: %u, wpp: %u -> %u (%u)",
-           blockSz, wpp, minspill_bs, minspill);
+  g_eventLogger->info("blockSz: %u, wpp: %u -> %u (%u)", blockSz, wpp,
+                      minspill_bs, minspill);
 #endif
   return minspill_bs;
 }
@@ -141,7 +141,7 @@ require(sizeof(T) <= sz);
   Uint32 off = m_record_info.m_offset_magic;
 
   if (0)
-    ndbout_c("pos: %u sz: %u (sum: %u) bs: %u",
+    g_eventLogger->info("pos: %u sz: %u (sum: %u) bs: %u",
              pos, sz, (pos + sz), bs);
 
   if (pos + sz <= bs)

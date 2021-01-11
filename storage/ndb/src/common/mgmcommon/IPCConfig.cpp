@@ -34,6 +34,8 @@
 #include <mgmapi_configuration.hpp>
 #include <NdbSpin.h>
 
+#include <EventLogger.hpp>
+extern EventLogger *g_eventLogger;
 
 /* Return true if node with "nodeId" is a MGM node */
 static bool is_mgmd(Uint32 nodeId, const ndb_mgm_configuration * config)
@@ -100,8 +102,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     {
       // Transporter exist in TransporterRegistry but not
       // in configuration
-      ndbout_c("The connection to node %d could not "
-               "be removed at this time", i);
+      g_eventLogger->info(
+          "The connection to node %d could not be removed at this time", i);
       result= false; // Need restart
     }
   }
@@ -208,8 +210,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
         DBUG_PRINT("error", ("Failed to configure SHM Transporter "
                              "from %d to %d",
 	           conf.localNodeId, conf.remoteNodeId));
-	ndbout_c("Failed to configure SHM Transporter to node %d",
-                conf.remoteNodeId);
+        g_eventLogger->info("Failed to configure SHM Transporter to node %d",
+                            conf.remoteNodeId);
         result = false;
       }
       DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
@@ -238,8 +240,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       conf.type = tt_TCP_TRANSPORTER;
       
       if(!tr.configureTransporter(&conf)){
-	ndbout_c("Failed to configure TCP Transporter to node %d",
-                 conf.remoteNodeId);
+        g_eventLogger->info("Failed to configure TCP Transporter to node %d",
+                            conf.remoteNodeId);
         result= false;
       }
       DBUG_PRINT("info", ("Configured TCP Transporter: sendBufferSize = %d, "
@@ -273,7 +275,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
     loopback_conf.tcp.tcpOverloadLimit = 768*1024;
     if (!tr.configureTransporter(&loopback_conf))
     {
-      ndbout_c("Failed to configure Loopback Transporter");
+      g_eventLogger->info("Failed to configure Loopback Transporter");
       result= false;
     }
   }

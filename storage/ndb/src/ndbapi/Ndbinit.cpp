@@ -117,7 +117,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     // theImpl->theWaiter.m_mutex must be set before this
     theEventBuffer= new NdbEventBuffer(this);
     if (theEventBuffer == NULL) {
-      ndbout_c("Failed NdbEventBuffer()");
+      g_eventLogger->info("Failed NdbEventBuffer()");
       exit(-1);
     }
   }

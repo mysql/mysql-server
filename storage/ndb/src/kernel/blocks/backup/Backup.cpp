@@ -429,16 +429,16 @@ Backup::handle_overflow(Uint64& overflow_disk_write,
   {
     jam();
 #ifdef DEBUG_CHECKPOINTSPEED
-    ndbout_c("Overflow of %u bytes (max/period is %u bytes)",
-             overflowThisPeriod * 4, curr_disk_write_speed * 4);
+    g_eventLogger->info("Overflow of %u bytes (max/period is %u bytes)",
+                        overflowThisPeriod * 4, curr_disk_write_speed * 4);
 #endif
     if (remainingOverFlow)
     {
       jam();
 #ifdef DEBUG_CHECKPOINTSPEED
-      ndbout_c("  Extra overflow : %u bytes, will take %u further periods"
-               " to clear", remainingOverFlow * 4,
-                 remainingOverFlow / curr_disk_write_speed);
+      g_eventLogger->info(
+          "  Extra overflow : %u bytes, will take %u further periods to clear",
+          remainingOverFlow * 4, remainingOverFlow / curr_disk_write_speed);
 #endif
     }
   }
@@ -2901,53 +2901,57 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
     const Uint64 resetElapsed = NdbTick_Elapsed(m_reset_disk_speed_time,now).milliSec();
     const Uint64 millisPassed = NdbTick_Elapsed(m_monitor_snapshot_start,now).milliSec();
     /* Dump measured disk write speed since last RESET_DISK_SPEED */
-    ndbout_c("m_curr_disk_write_speed: %ukb  m_words_written_this_period:"
-             " %u kwords  m_overflow_disk_write: %u kb",
-              Uint32(4 * m_curr_disk_write_speed / 1024),
-              Uint32(m_words_written_this_period / 1024),
-              Uint32(m_overflow_disk_write / 1024));
-    ndbout_c("m_backup_curr_disk_write_speed: %ukb  "
-             "m_backup_words_written_this_period:"
-             " %u kwords  m_backup_overflow_disk_write: %u kb",
-              Uint32(4 * m_curr_backup_disk_write_speed / 1024),
-              Uint32(m_backup_words_written_this_period / 1024),
-              Uint32(m_backup_overflow_disk_write / 1024));
-    ndbout_c("m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
-             m_reset_delay_used, resetElapsed);
+    g_eventLogger->info(
+        "m_curr_disk_write_speed: %ukb  m_words_written_this_period:"
+        " %u kwords  m_overflow_disk_write: %u kb",
+        Uint32(4 * m_curr_disk_write_speed / 1024),
+        Uint32(m_words_written_this_period / 1024),
+        Uint32(m_overflow_disk_write / 1024));
+    g_eventLogger->info(
+        "m_backup_curr_disk_write_speed: %ukb  "
+        "m_backup_words_written_this_period:"
+        " %u kwords  m_backup_overflow_disk_write: %u kb",
+        Uint32(4 * m_curr_backup_disk_write_speed / 1024),
+        Uint32(m_backup_words_written_this_period / 1024),
+        Uint32(m_backup_overflow_disk_write / 1024));
+    g_eventLogger->info(
+        "m_reset_delay_used: %u  time since last RESET_DISK_SPEED: %llu millis",
+        m_reset_delay_used, resetElapsed);
     /* Dump measured rate since last snapshot start */
     Uint64 byteRate = (4000 * m_monitor_words_written) / (millisPassed + 1);
-    ndbout_c("m_monitor_words_written : %llu, duration : %llu millis, rate :"
-             " %llu bytes/s : (%u pct of config)",
-             m_monitor_words_written, millisPassed, 
-             byteRate,
-             (Uint32) ((100 * byteRate / (4 * 10)) /
-                       (m_curr_disk_write_speed + 1)));
+    g_eventLogger->info(
+        "m_monitor_words_written : %llu, duration : %llu millis, rate :"
+        " %llu bytes/s : (%u pct of config)",
+        m_monitor_words_written, millisPassed, byteRate,
+        (Uint32)((100 * byteRate / (4 * 10)) / (m_curr_disk_write_speed + 1)));
     byteRate = (4000 * m_backup_monitor_words_written) / (millisPassed + 1);
-    ndbout_c("m_backup_monitor_words_written : %llu, duration : %llu"
-             " millis, rate :"
-             " %llu bytes/s : (%u pct of config)",
-             m_backup_monitor_words_written, millisPassed, 
-             byteRate,
-             (Uint32) ((100 * byteRate / (4 * 10)) /
-                       (m_curr_backup_disk_write_speed + 1)));
+    g_eventLogger->info(
+        "m_backup_monitor_words_written : %llu, duration : %llu"
+        " millis, rate :"
+        " %llu bytes/s : (%u pct of config)",
+        m_backup_monitor_words_written, millisPassed, byteRate,
+        (Uint32)((100 * byteRate / (4 * 10)) /
+                 (m_curr_backup_disk_write_speed + 1)));
 
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
     {
-      ndbout_c("BackupRecord %u:  BackupId: %u  MasterRef: %x  ClientRef: %x",
-               ptr.i, ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
-      ndbout_c(" State: %u", ptr.p->slaveState.getState());
-      ndbout_c(" noOfByte: %llu  noOfRecords: %llu",
-               ptr.p->noOfBytes, ptr.p->noOfRecords);
-      ndbout_c(" noOfLogBytes: %llu  noOfLogRecords: %llu",
-               ptr.p->noOfLogBytes, ptr.p->noOfLogRecords);
-      ndbout_c(" errorCode: %u", ptr.p->errorCode);
+      g_eventLogger->info(
+          "BackupRecord %u:  BackupId: %u  MasterRef: %x  ClientRef: %x", ptr.i,
+          ptr.p->backupId, ptr.p->masterRef, ptr.p->clientRef);
+      g_eventLogger->info(" State: %u", ptr.p->slaveState.getState());
+      g_eventLogger->info(" noOfByte: %llu  noOfRecords: %llu",
+                          ptr.p->noOfBytes, ptr.p->noOfRecords);
+      g_eventLogger->info(" noOfLogBytes: %llu  noOfLogRecords: %llu",
+                          ptr.p->noOfLogBytes, ptr.p->noOfLogRecords);
+      g_eventLogger->info(" errorCode: %u", ptr.p->errorCode);
       BackupFilePtr filePtr;
       for(ptr.p->files.first(filePtr); filePtr.i != RNIL; 
 	  ptr.p->files.next(filePtr))
       {
-	ndbout_c(" file %u:  type: %u  flags: H'%x  tableId: %u  fragmentId: %u",
-                 filePtr.i, filePtr.p->fileType, filePtr.p->m_flags,
-                 filePtr.p->tableId, filePtr.p->fragmentNo);
+        g_eventLogger->info(
+            " file %u:  type: %u  flags: H'%x  tableId: %u  fragmentId: %u",
+            filePtr.i, filePtr.p->fileType, filePtr.p->m_flags,
+            filePtr.p->tableId, filePtr.p->fragmentNo);
       }
       if (ptr.p->slaveState.getState() == SCANNING && ptr.p->dataFilePtr[0] != RNIL)
       {
@@ -2957,7 +2961,8 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
         Uint32 sz = 0;
         bool eof = false;
         bool ready = op.dataBuffer.getReadPtr(&tmp, &sz, &eof);
-        ndbout_c("ready: %s  eof: %s", ready ? "true" : "false", eof ? "true" : "false");
+        g_eventLogger->info("ready: %s  eof: %s", ready ? "true" : "false",
+                            eof ? "true" : "false");
       }
     }
     return;
@@ -3046,10 +3051,10 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   if (signal->theData[0] == DumpStateOrd::BackupErrorInsert)
   {
     if (signal->getLength() == 1)
-      ndbout_c("BACKUP: setting error %u", signal->theData[1]);
+      g_eventLogger->info("BACKUP: setting error %u", signal->theData[1]);
     else
-      ndbout_c("BACKUP: setting error %u, %u",
-               signal->theData[1], signal->theData[2]);
+      g_eventLogger->info("BACKUP: setting error %u, %u", signal->theData[1],
+                          signal->theData[2]);
     SET_ERROR_INSERT_VALUE2(signal->theData[1], signal->theData[2]);
   }
 }
@@ -3781,8 +3786,8 @@ Backup::execBACKUP_CONF(Signal* signal)
 {
   jamEntry();
   BackupConf * conf = (BackupConf*)signal->getDataPtr();
-  
-  ndbout_c("Backup %u has started", conf->backupId);
+
+  g_eventLogger->info("Backup %u has started", conf->backupId);
 }
 
 void
@@ -3791,7 +3796,8 @@ Backup::execBACKUP_REF(Signal* signal)
   jamEntry();
   BackupRef * ref = (BackupRef*)signal->getDataPtr();
 
-  ndbout_c("Backup (%u) has NOT started %d", ref->senderData, ref->errorCode);
+  g_eventLogger->info("Backup (%u) has NOT started %d", ref->senderData,
+                      ref->errorCode);
 }
 
 void
@@ -3802,8 +3808,8 @@ Backup::execBACKUP_COMPLETE_REP(Signal* signal)
  
   const NDB_TICKS now = NdbTick_getCurrentTicks();
   const Uint64 elapsed = NdbTick_Elapsed(startTime,now).milliSec();
-  
-  ndbout_c("Backup %u has completed", rep->backupId);
+
+  g_eventLogger->info("Backup %u has completed", rep->backupId);
   const Uint64 bytes =
     rep->noOfBytesLow + (((Uint64)rep->noOfBytesHigh) << 32);
   const Uint64 records =
@@ -3834,8 +3840,9 @@ Backup::execBACKUP_ABORT_REP(Signal* signal)
 {
   jamEntry();
   BackupAbortRep* rep = (BackupAbortRep*)signal->getDataPtr();
-  
-  ndbout_c("Backup %u has been aborted %d", rep->backupId, rep->reason);
+
+  g_eventLogger->info("Backup %u has been aborted %d", rep->backupId,
+                      rep->reason);
 }
 
 const TriggerEvent::Value triggerEventValues[] = {
@@ -3898,8 +3905,8 @@ Backup::CompoundState::setState(State newState){
   state = newState;
 #ifdef DEBUG_ABORT
   if (newState != currState) {
-    ndbout_c("%u: Old state = %u, new state = %u, abort state = %u",
-	     id, currState, newState, abortState);
+    g_eventLogger->info("%u: Old state = %u, new state = %u, abort state = %u",
+                        id, currState, newState, abortState);
   }
 #endif
 }
@@ -3917,8 +3924,9 @@ Backup::CompoundState::forceState(State newState)
   state = newState;
 #ifdef DEBUG_ABORT
   if (newState != currState) {
-    ndbout_c("%u: FORCE: Old state = %u, new state = %u, abort state = %u",
-	     id, currState, newState, abortState);
+    g_eventLogger->info(
+        "%u: FORCE: Old state = %u, new state = %u, abort state = %u", id,
+        currState, newState, abortState);
   }
 #endif
 }
@@ -3999,7 +4007,7 @@ Backup::execNODE_FAILREP(Signal* signal)
   }//if
   
 #ifdef DEBUG_ABORT
-  ndbout_c("****************** Node fail rep ******************");
+  g_eventLogger->info("****************** Node fail rep ******************");
 #endif
 
   NodeId newCoordinator = c_masterNodeId;
@@ -4125,8 +4133,8 @@ Backup::checkNodeFail(Signal* signal,
     jam();
     CRASH_INSERTION((10001));
 #ifdef DEBUG_ABORT
-    ndbout_c("**** Master: Node failed: Master id = %u", 
-	     refToNode(ptr.p->masterRef));
+    g_eventLogger->info("**** Master: Node failed: Master id = %u",
+                        refToNode(ptr.p->masterRef));
 #endif
 
     Uint32 gsn, len, pos;
@@ -4214,7 +4222,7 @@ Backup::checkNodeFail(Signal* signal,
         // send only one reply to self per node on behalf of BackupProxy
         sendSignal(reference(), gsn, signal, len, JBB);
 #ifdef DEBUG_ABORT
-        ndbout_c("sending %d to self from %d", gsn, i);
+        g_eventLogger->info("sending %d to self from %d", gsn, i);
 #endif
       }
     }
@@ -4775,8 +4783,9 @@ Backup::haveAllSignals(BackupRecordPtr ptr, Uint32 gsn, Uint32 nodeId)
     if (ERROR_INSERTED(10051) || ERROR_INSERTED(10052) ||
         ERROR_INSERTED(10053))
     {
-      ndbout_c("Received duplicate signal from non-master node %u for gsn %u",
-               nodeId, gsn);
+      g_eventLogger->info(
+          "Received duplicate signal from non-master node %u for gsn %u",
+          nodeId, gsn);
       CLEAR_ERROR_INSERT_VALUE;
     }
   }
@@ -5199,8 +5208,10 @@ Backup::createTrigReply(Signal* signal, BackupRecordPtr ptr)
     ref->backupId = ptr.p->backupId;
     ref->errorCode = ptr.p->errorCode;
     ref->nodeId = getOwnNodeId();
-    ndbout_c("Backup::createTrigReply : CREATE_TRIG_IMPL error %d, backup id %u node %d",
-             ref->errorCode, ref->backupId, ref->nodeId);
+    g_eventLogger->info(
+        "Backup::createTrigReply :"
+        " CREATE_TRIG_IMPL error %d, backup id %u node %d",
+        ref->errorCode, ref->backupId, ref->nodeId);
     sendSignal(ptr.p->senderRef, GSN_START_BACKUP_REF, signal,
                StartBackupRef::SignalLength, JBB);
     return;
@@ -6173,7 +6184,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
 {
   jam();
 #ifdef DEBUG_ABORT
-  ndbout_c("************ masterAbort");
+  g_eventLogger->info("************ masterAbort");
 #endif
 
   ndbassert(ptr.p->masterRef == reference());
@@ -6688,7 +6699,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
                                    maxInsertLcp);
       if (msg != 0)
       {
-        ndbout_c("setup msg = %s, i = %u", msg, i);
+        g_eventLogger->info("setup msg = %s, i = %u", msg, i);
         ndbabort();
       }
       files[i].p->operation.m_bytes_total = 0;
@@ -10585,7 +10596,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 {
 
 #ifdef DEBUG_ABORT
-  //  ndbout_c("---- check file filePtr.i = %u", filePtr.i);
+  //  g_eventLogger->info("---- check file filePtr.i = %u", filePtr.i);
 #endif
 
   OperationRecord & op = filePtr.p->operation;
@@ -10658,8 +10669,8 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     {
       if (ERROR_INSERTED(10045))
       {
-        ndbout_c("BF_SCAN_THREAD = %u",
-                 (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD));
+        g_eventLogger->info("BF_SCAN_THREAD = %u",
+                            (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD));
       }
 
       if ((ERROR_INSERTED(10044) &&
@@ -10668,11 +10679,11 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
            (filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD)))
       { 
         jam();
-        ndbout_c("REFing on append to data file for table %u, fragment %u, "
-                 "BF_SCAN_THREAD running : %u",
-                 filePtr.p->tableId,
-                 filePtr.p->fragmentNo,
-                 filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD);
+        g_eventLogger->info(
+            "REFing on append to data file for table %u, fragment %u, "
+            "BF_SCAN_THREAD running : %u",
+            filePtr.p->tableId, filePtr.p->fragmentNo,
+            filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD);
         FsRef* ref = (FsRef *)signal->getDataPtrSend();
         ref->userPointer = filePtr.i;
         ref->errorCode = FsRef::fsErrInvalidParameters;
@@ -11250,7 +11261,8 @@ Backup::closeFiles(Signal* sig, BackupRecordPtr ptr)
     {
       jam();
 #ifdef DEBUG_ABORT
-      ndbout_c("Close files fileRunning == 1, filePtr.i=%u", filePtr.i);
+      g_eventLogger->info("Close files fileRunning == 1, filePtr.i=%u",
+                          filePtr.i);
 #endif
     } 
     else 
@@ -11309,8 +11321,8 @@ Backup::closeFile(Signal* signal,
   }
 
 #ifdef DEBUG_ABORT
-  ndbout_c("***** a FSCLOSEREQ filePtr.i = %u flags: %x", 
-	   filePtr.i, filePtr.p->m_flags);
+  g_eventLogger->info("***** a FSCLOSEREQ filePtr.i = %u flags: %x", filePtr.i,
+                      filePtr.p->m_flags);
 #endif
   sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 
@@ -11399,7 +11411,7 @@ Backup::execFSCLOSECONF(Signal* signal)
   c_backupFilePool.getPtr(filePtr, filePtrI);
 
 #ifdef DEBUG_ABORT
-  ndbout_c("***** FSCLOSECONF filePtrI = %u", filePtrI);
+  g_eventLogger->info("***** FSCLOSECONF filePtrI = %u", filePtrI);
 #endif
 
   ndbrequire(filePtr.p->m_flags == (BackupFile::BF_OPEN |
@@ -11574,10 +11586,10 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
   const Uint32 senderData = ord->senderData;
   
 #ifdef DEBUG_ABORT
-  ndbout_c("******** ABORT_BACKUP_ORD ********* nodeId = %u", 
-	   refToNode(signal->getSendersBlockRef()));
-  ndbout_c("backupId = %u, requestType = %u, senderData = %u, ",
-	   backupId, requestType, senderData);
+  g_eventLogger->info("******** ABORT_BACKUP_ORD ********* nodeId = %u",
+                      refToNode(signal->getSendersBlockRef()));
+  g_eventLogger->info("backupId = %u, requestType = %u, senderData = %u, ",
+                      backupId, requestType, senderData);
   dumpUsedResources();
 #endif
 
@@ -11596,7 +11608,8 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
       jam();
       // forward to master
 #ifdef DEBUG_ABORT
-      ndbout_c("---- Forward to master nodeId = %u", getMasterNodeId());
+      g_eventLogger->info("---- Forward to master nodeId = %u",
+                          getMasterNodeId());
 #endif
       sendSignal(ptr.p->masterRef, GSN_ABORT_BACKUP_ORD,
 		 signal, AbortBackupOrd::SignalLength, JBB);
@@ -11609,8 +11622,8 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
     } else { 
       jam();
 #ifdef DEBUG_ABORT
-      ndbout_c("Backup: abort request type=%u on id=%u,%u not found",
-	       requestType, backupId, senderData);
+      g_eventLogger->info("Backup: abort request type=%u on id=%u,%u not found",
+                          requestType, backupId, senderData);
 #endif
       return;
     }
@@ -11700,10 +11713,9 @@ Backup::dumpUsedResources()
 
   if (get_backup_record(ptr))
   {
-    ndbout_c("Backup id=%u, slaveState.getState = %u, errorCode=%u",
-	     ptr.p->backupId,
-	     ptr.p->slaveState.getState(),
-	     ptr.p->errorCode);
+    g_eventLogger->info("Backup id=%u, slaveState.getState = %u, errorCode=%u",
+                        ptr.p->backupId, ptr.p->slaveState.getState(),
+                        ptr.p->errorCode);
 
     TablePtr tabPtr;
     for(ptr.p->tables.first(tabPtr);
@@ -11716,11 +11728,9 @@ Backup::dumpUsedResources()
 	if(tabPtr.p->triggerAllocated[j]) {
 	  jam();
 	  c_triggerPool.getPtr(trigPtr, tabPtr.p->triggerIds[j]);
-	  ndbout_c("Allocated[%u] Triggerid = %u, event = %u",
-		 j,
-		 tabPtr.p->triggerIds[j],
-		 trigPtr.p->event);
-	}//if
+          g_eventLogger->info("Allocated[%u] Triggerid = %u, event = %u", j,
+                              tabPtr.p->triggerIds[j], trigPtr.p->event);
+        }//if
       }//for
     }//for
     
@@ -11729,8 +11739,8 @@ Backup::dumpUsedResources()
 	filePtr.i != RNIL;
 	ptr.p->files.next(filePtr)) {
       jam();
-      ndbout_c("filePtr.i = %u, flags: H'%x ",
-	       filePtr.i, filePtr.p->m_flags);
+      g_eventLogger->info("filePtr.i = %u, flags: H'%x ", filePtr.i,
+                          filePtr.p->m_flags);
     }//for
   }
 }
@@ -16200,10 +16210,9 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
   if (ptr.p->errorCode != 0)
   {
     jam();
-    ndbout_c("Fatal : LCP Frag scan failed with error %u"
-             " file error is: %d",
-             ptr.p->errorCode,
-             filePtr.p->errorCode);
+    g_eventLogger->info(
+        "Fatal : LCP Frag scan failed with error %u file error is: %d",
+        ptr.p->errorCode, filePtr.p->errorCode);
     ndbrequire(filePtr.p->errorCode == ptr.p->errorCode);
     
     if ((filePtr.p->m_flags & BackupFile::BF_SCAN_THREAD) == 0)
@@ -17504,15 +17513,16 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
           else
           {
             jam();
-            ndbout_c("Unusual LCP prepare state in LCP_STATUS_REQ() : %u",
-                     ptr.p->prepareState);
+            g_eventLogger->info(
+                "Unusual LCP prepare state in LCP_STATUS_REQ() : %u",
+                ptr.p->prepareState);
             state = LcpStatusConf::LCP_IDLE;
           }
           break;
         default:
           jam();
-          ndbout_c("Unusual LCP state in LCP_STATUS_REQ() : %u",
-                   ptr.p->slaveState.getState());
+          g_eventLogger->info("Unusual LCP state in LCP_STATUS_REQ() : %u",
+                              ptr.p->slaveState.getState());
           state = LcpStatusConf::LCP_IDLE;
         };
       }

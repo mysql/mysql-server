@@ -254,7 +254,7 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     {
       if (ErrorMaxSegmentsToSeize == 0)
       {
-        ndbout_c("append exhausted on first segment");
+        g_eventLogger->info("append exhausted on first segment");
         return false;
       }
     }
@@ -312,7 +312,8 @@ appendToSection(SPC_ARG Uint32& firstSegmentIVal, const Uint32* src, Uint32 len)
     {
       if (0 == remainSegs--)
       {
-        ndbout_c("Append exhausted on segment %d", ErrorMaxSegmentsToSeize);
+        g_eventLogger->info("Append exhausted on segment %d",
+                            ErrorMaxSegmentsToSeize);
         firstPtr.p->m_lastSegment= prevPtr.i;
         firstPtr.p->m_sz-= len;
         return false;
@@ -353,7 +354,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   {
     if (ErrorMaxSegmentsToSeize == 0)
     {
-      ndbout_c("Import exhausted on first segment");
+      g_eventLogger->info("Import exhausted on first segment");
       return false;
     }
   }
@@ -369,7 +370,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   if(g_sectionSegmentPool.seize(SPC_SEIZE_ARG first)){
     ;
   } else {
-    ndbout_c("No Segmented Sections for import");
+    g_eventLogger->info("No Segmented Sections for import");
     return false;
   }
 
@@ -394,8 +395,8 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
     {
       if (0 == remainSegs--)
       {
-        ndbout_c("Import exhausted on segment %d", 
-                 ErrorMaxSegmentsToSeize);
+        g_eventLogger->info("Import exhausted on segment %d",
+                            ErrorMaxSegmentsToSeize);
         first.p->m_lastSegment= prevPtr.i;
         first.p->m_sz-= len;
         prevPtr.p->m_nextSegment = RNIL;
@@ -413,7 +414,7 @@ import(SPC_ARG Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
       first.p->m_lastSegment = prevPtr.i;
       first.p->m_sz-= len;
       prevPtr.p->m_nextSegment = RNIL;
-      ndbout_c("Not enough Segmented Sections during import");
+      g_eventLogger->info("Not enough Segmented Sections during import");
       return false;
     }
   }

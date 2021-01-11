@@ -158,7 +158,7 @@ void
 Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
 {
   const Uint32 limit = 512;
-  ndbout_c("dirty pages");
+  g_eventLogger->info("dirty pages");
   for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
     printf("  %d : ", i);
@@ -174,9 +174,8 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     {
       ndbout << "MAXLIMIT ";
     }
-    ndbout_c(" ");
   }
-  ndbout_c("page requests");
+  g_eventLogger->info("page requests");
   for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
     printf("  %d : ", i);
@@ -192,10 +191,9 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     {
       ndbout << "MAXLIMIT ";
     }
-    ndbout_c(" ");
   }
 
-  ndbout_c("Extent matrix");
+  g_eventLogger->info("Extent matrix");
   for(Uint32 i = 0; i<alloc.SZ; i++)
   {
     printf("  %d : ", i);
@@ -210,7 +208,6 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     {
       ndbout << "MAXLIMIT ";
     }
-    ndbout_c(" ");
   }
 
   if (alloc.m_curr_extent_info_ptr_i != RNIL)

@@ -193,8 +193,9 @@ int Ndb_cluster_connection::start_connect_thread(int (*connect_callback)(void))
 		       NDB_THREAD_PRIO_LOW);
     if (m_impl.m_connect_thread == NULL)
     {
-      ndbout_c("Ndb_cluster_connection::start_connect_thread: "
-               "Failed to create thread for cluster connection.");
+      g_eventLogger->info(
+          "Ndb_cluster_connection::start_connect_thread: "
+          "Failed to create thread for cluster connection.");
       assert(m_impl.m_connect_thread != NULL);
       DBUG_RETURN(-1);
     }

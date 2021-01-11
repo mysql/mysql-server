@@ -3060,7 +3060,7 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     {
       Uint32 t = sleep + 10 * (rand() % mod);
 #ifdef VM_TRACE
-      ndbout_c("retry sleep %ums on error %u", t, m_error.code);
+      g_eventLogger->info("retry sleep %ums on error %u", t, m_error.code);
 #endif
       NdbSleep_MilliSleep(t);
     }
@@ -5980,8 +5980,8 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
     if (col_impl) {
       evnt.m_facade->addColumn(*(col_impl->m_facade));
     } else {
-      ndbout_c("Attr id %u in table %s not found", evnt.m_attrIds[i],
-	       evnt.getTableName());
+      g_eventLogger->info("Attr id %u in table %s not found", evnt.m_attrIds[i],
+                          evnt.getTableName());
       m_error.code= 4713;
       ERR_RETURN(getNdbError(), -1);
     }
@@ -6191,7 +6191,7 @@ NdbDictInterface::createEvent(NdbEventImpl & evnt,
 	evnt.m_tableImpl->m_version    != evntConf->getTableVersion() ||
 	//evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
 	evnt.mi_type           != evntConf->getEventType()) {
-      ndbout_c("ERROR*************");
+      g_eventLogger->info("ERROR*************");
       m_buffer.clear();
       m_tableData.clear();
       ERR_RETURN(getNdbError(), 1);

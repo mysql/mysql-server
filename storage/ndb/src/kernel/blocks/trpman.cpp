@@ -593,7 +593,7 @@ Trpman::execNDB_TAMPER(Signal* signal)
     {
       MAX_RECEIVED_SIGNALS = 1 + (rand() % 128);
     }
-    ndbout_c("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
+    g_eventLogger->info("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
     CLEAR_ERROR_INSERT_VALUE;
   }
 #endif
@@ -648,7 +648,7 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     {
       signal->theData[0] = i;
       sendSignal(calcQmgrBlockRef(db),GSN_API_FAILREQ, signal, 1, JBA);
-      ndbout_c("stopping %u using %u", i, db);
+      g_eventLogger->info("stopping %u using %u", i, db);
     }
     CLEAR_ERROR_INSERT_VALUE;
   }
@@ -702,8 +702,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
       else
       {
-        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
-                 arg, nodeId);
+        g_eventLogger->info("TRPMAN : Ignoring dump %u for node %u", arg,
+                            nodeId);
       }
     }
   }
@@ -713,8 +713,9 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
     if (signal->getLength() > 1)
     {
       pattern = signal->theData[1];
-      ndbout_c("TRPMAN : Blocking receive from all ndbds matching pattern -%s-",
-               ((pattern == 1)? "Other side":"Unknown"));
+      g_eventLogger->info(
+          "TRPMAN : Blocking receive from all ndbds matching pattern -%s-",
+          ((pattern == 1) ? "Other side" : "Unknown"));
     }
 
     TransporterReceiveHandle * recvdata = mt_get_trp_receive_handle(instance());
@@ -811,8 +812,8 @@ Trpman::execDUMP_STATE_ORD(Signal* signal)
       }
       else
       {
-        ndbout_c("TRPMAN : Ignoring dump %u for node %u",
-                 arg, nodeId);
+        g_eventLogger->info("TRPMAN : Ignoring dump %u for node %u", arg,
+                            nodeId);
       }
     }
 

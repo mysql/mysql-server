@@ -1392,7 +1392,7 @@ Dbacc::execACCKEY_ORD(Signal* signal,
   {
   }
 
-  ndbout_c("bits: %.8x state: %.8x", opbits, opstate);
+  g_eventLogger->info("bits: %.8x state: %.8x", opbits, opstate);
   ndbabort();
 }
 
@@ -9659,7 +9659,7 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
       if (found &&
           opRecPtr.p->m_op_bits != Operationrec::OP_INITIAL)
       {
-        ndbout_c("ACC_OP(3): %u", opRecPtr.i);
+        g_eventLogger->info("ACC_OP(3): %u", opRecPtr.i);
         jam();
 
         FragmentrecPtr fp;

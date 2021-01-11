@@ -521,8 +521,6 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
   TriggerActionTime::Value ttime = TriggerInfo::getTriggerActionTime(tinfo);
   TriggerEvent::Value tevent = TriggerInfo::getTriggerEvent(tinfo);
 
-  //  ndbout_c("Drop TupTrigger %u = %u %u %u %u by %u", triggerId, table, ttype, ttime, tevent, sender);
-
   int cnt;
   struct {
     TriggerEvent::Value event;

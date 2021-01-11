@@ -54,7 +54,8 @@ SHM_Transporter::ndb_shm_create()
 {
   if (!isServer)
   {
-    ndbout_c("Trying to create shared memory segment on the client side");
+    g_eventLogger->info(
+        "Trying to create shared memory segment on the client side");
     return false;
   }
   shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);

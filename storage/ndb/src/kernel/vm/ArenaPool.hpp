@@ -179,8 +179,8 @@ require(sizeof(T) <= sz*sizeof(Uint32));
   Uint32 off = m_record_info.m_offset_magic;
 
   if (0)
-    ndbout_c("pos: %u sz: %u (sum: %u) bs: %u",
-             pos, sz, (pos + sz), bs);
+    g_eventLogger->info("pos: %u sz: %u (sum: %u) bs: %u", pos, sz, (pos + sz),
+                        bs);
 
   if (pos + sz <= bs)
   {

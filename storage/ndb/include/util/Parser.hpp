@@ -34,9 +34,9 @@ template<class T> struct ParserRow;
 
 //#define PARSER_DEBUG
 #ifdef PARSER_DEBUG
-#include "NdbOut.hpp"
-#define DEBUG(x) \
-  ndbout_c("%s:%d:%s", __FILE__, __LINE__, x);
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+#define DEBUG(x) g_eventLogger->info("%s:%d:%s", __FILE__, __LINE__, x);
 #else 
 #define DEBUG(x)
 #endif

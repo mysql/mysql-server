@@ -322,7 +322,7 @@ static void dump_buf_hex(unsigned char *p, Uint32 bytes)
     }
     sprintf(q+3*i, " %02X", p[i]);
   }
-  ndbout_c("%8p: %s", p, buf);
+  g_eventLogger->info("%8p: %s", p, buf);
 }
 #endif
 

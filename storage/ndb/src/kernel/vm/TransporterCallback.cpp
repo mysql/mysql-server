@@ -266,11 +266,11 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   // if this node is not MT LQH then instance bits are stripped at execute
 
 #ifdef TRACE_DISTRIBUTED
-  ndbout_c("recv: %s(%d) from (%s, %d)",
-	   getSignalName(header->theVerId_signalNumber), 
-	   header->theVerId_signalNumber,
-	   getBlockName(refToBlock(header->theSendersBlockRef)),
-	   refToNode(header->theSendersBlockRef));
+  g_eventLogger->info("recv: %s(%d) from (%s, %d)",
+                      getSignalName(header->theVerId_signalNumber),
+                      header->theVerId_signalNumber,
+                      getBlockName(refToBlock(header->theSendersBlockRef)),
+                      refToNode(header->theSendersBlockRef));
 #endif
 
   bool ok = true;
@@ -485,7 +485,8 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
                                             const char *info)
 {
 #ifdef DEBUG_TRANSPORTER
-  ndbout_c("reportError (%d, 0x%x) %s", nodeId, errorCode, info ? info : "");
+  g_eventLogger->info("reportError (%d, 0x%x) %s", nodeId, errorCode,
+                      info ? info : "");
 #endif
 
   DBUG_ENTER("reportError");

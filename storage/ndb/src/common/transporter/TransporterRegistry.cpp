@@ -232,15 +232,12 @@ TransporterReceiveData::epoll_add(Transporter *t)
        * have permission problems or the socket doesn't support
        * epoll!!
        */
-      ndbout_c("Failed to %s epollfd: %u fd " MY_SOCKET_FORMAT
-               " node %u to epoll-set,"
-               " errno: %u %s",
-               add ? "ADD" : "DEL",
-               m_epoll_fd,
-               MY_SOCKET_FORMAT_VALUE(sock_fd),
-               node_id,
-               error,
-               strerror(error));
+      g_eventLogger->info("Failed to %s epollfd: %u fd " MY_SOCKET_FORMAT
+                          " node %u to epoll-set,"
+                          " errno: %u %s",
+                          add ? "ADD" : "DEL", m_epoll_fd,
+                          MY_SOCKET_FORMAT_VALUE(sock_fd), node_id, error,
+                          strerror(error));
       abort();
     }
     ndbout << "We lacked memory to add the socket for node id ";
@@ -2321,7 +2318,7 @@ TransporterRegistry::setMixologyLevel(Uint32 l)
   
   if (m_mixology_level & MIXOLOGY_MIX_INCOMING_SIGNALS)
   {
-    ndbout_c("MIXOLOGY_MIX_INCOMING_SIGNALS on");
+    g_eventLogger->info("MIXOLOGY_MIX_INCOMING_SIGNALS on");
     /* Max one signal per transporter */
     MAX_RECEIVED_SIGNALS = 1;
   }

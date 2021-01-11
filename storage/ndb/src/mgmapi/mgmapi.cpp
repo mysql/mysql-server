@@ -44,6 +44,8 @@
 #include <ConfigObject.hpp>
 #include <ndb_base64.h>
 #include <ndb_limits.h>
+#include <EventLogger.hpp>
+extern EventLogger *g_eventLogger;
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \
@@ -1132,7 +1134,7 @@ status_ackumulate(struct ndb_mgm_node_state * state,
   } else if(strcmp("is_single_user", field) == 0){
     // Do nothing
   } else {
-    ndbout_c("Unknown field: %s", field);
+    g_eventLogger->info("Unknown field: %s", field);
   }
   return 0;
 }
@@ -1164,7 +1166,7 @@ status_ackumulate2(struct ndb_mgm_node_state2 * state,
     strncpy(state->connect_address, value, sizeof(state->connect_address));
     state->connect_address[sizeof(state->connect_address)-1]= 0;
   } else {
-    ndbout_c("Unknown field: %s", field);
+    g_eventLogger->info("Unknown field: %s", field);
   }
   return 0;
 }

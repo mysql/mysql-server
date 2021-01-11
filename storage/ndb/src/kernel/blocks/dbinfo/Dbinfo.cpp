@@ -106,27 +106,27 @@ void Dbinfo::execDUMP_STATE_ORD(Signal* signal)
   {
   case DumpStateOrd::DbinfoListTables:
     jam();
-    ndbout_c("--- BEGIN NDB$INFO.TABLES ---");
+    g_eventLogger->info("--- BEGIN NDB$INFO.TABLES ---");
     for(int i = 0; i < Ndbinfo::getNumTables(); i++)
     {
       const Ndbinfo::Table& tab = Ndbinfo::getTable(i);
-      ndbout_c("%d,%s", i, tab.m.name);
+      g_eventLogger->info("%d,%s", i, tab.m.name);
     }
-    ndbout_c("--- END NDB$INFO.TABLES ---");
+    g_eventLogger->info("--- END NDB$INFO.TABLES ---");
     break;
 
   case DumpStateOrd::DbinfoListColumns:
     jam();
-    ndbout_c("--- BEGIN NDB$INFO.COLUMNS ---");
+    g_eventLogger->info("--- BEGIN NDB$INFO.COLUMNS ---");
     for(int i = 0; i < Ndbinfo::getNumTables(); i++)
     {
       const Ndbinfo::Table& tab = Ndbinfo::getTable(i);
 
       for(int j = 0; j < tab.m.ncols; j++)
-        ndbout_c("%d,%d,%s,%d", i, j,
-                 tab.col[j].name, tab.col[j].coltype);
+        g_eventLogger->info("%d,%d,%s,%d", i, j, tab.col[j].name,
+                            tab.col[j].coltype);
     }
-    ndbout_c("--- END NDB$INFO.COLUMNS ---");
+    g_eventLogger->info("--- END NDB$INFO.COLUMNS ---");
     break;
 
   };
@@ -153,8 +153,8 @@ switchRef(Uint32 block, Uint32 node)
 {
   const Uint32 ref = numberToRef(block, node);
 #ifdef DBINFO_SCAN_TRACE
-  ndbout_c("Dbinfo: switching to %s in node %d, ref: 0x%.8x",
-           getBlockName(block, "<unknown>"), node, ref);
+  g_eventLogger->info("Dbinfo: switching to %s in node %d, ref: 0x%.8x",
+                      getBlockName(block, "<unknown>"), node, ref);
 #endif
   return ref;
 }

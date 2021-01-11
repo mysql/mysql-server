@@ -26,6 +26,7 @@
 #define NDB_INTERPRETER_HPP
 
 #include <ndb_types.h>
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 215
 

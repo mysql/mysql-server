@@ -146,11 +146,11 @@ Undo_buffer::free_copy_tuple(Local_key* key)
     page->m_words_used= 0;
     if (m_first_free == key->m_page_no)
     {
-      //ndbout_c("resetting page");
+      // g_eventLogger->info("resetting page");
     }
     else 
     {
-      //ndbout_c("returning page");
+      // g_eventLogger->info("returning page");
       m_mm->release_page(RT_DBTUP_COPY_PAGE, key->m_page_no);
     }
   }

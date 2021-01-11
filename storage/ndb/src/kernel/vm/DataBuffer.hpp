@@ -406,8 +406,8 @@ DataBuffer<sz, Pool, Type_id>::seize(Uint32 n)
   }
 
   if (0)
-    ndbout_c("seize(%u) used: %u rest: %u firstItem: 0x%x",
-             n, head.used, rest, head.firstItem);
+    g_eventLogger->info("seize(%u) used: %u rest: %u firstItem: 0x%x", n,
+                        head.used, rest, head.firstItem);
 
   if (rest >= n)
   {

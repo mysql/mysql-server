@@ -2894,7 +2894,7 @@ NdbTransaction::receiveTCKEY_FAILCONF(const TcKeyFailConf * failConf)
     return 0;
   } else {
 #ifdef VM_TRACE
-    ndbout_c("Recevied TCKEY_FAILCONF wo/ operation");
+    g_eventLogger->info("Recevied TCKEY_FAILCONF wo/ operation");
 #endif
   }
   return -1;
@@ -2939,7 +2939,7 @@ NdbTransaction::receiveTCKEY_FAILREF(const NdbApiSignal* aSignal)
     return 0;
   } else {
 #ifdef VM_TRACE
-    ndbout_c("Recevied TCKEY_FAILREF wo/ operation");
+    g_eventLogger->info("Recevied TCKEY_FAILREF wo/ operation");
 #endif
   }
   return -1;

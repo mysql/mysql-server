@@ -384,7 +384,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     if (ERROR_INSERTED(11009))
     {
       page_cnt = 25;
-      ndbout_c("Setting page_cnt = %u", page_cnt);
+      g_eventLogger->info("Setting page_cnt = %u", page_cnt);
     }
 
     m_param.m_max_pages = page_cnt;
@@ -6804,20 +6804,16 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
       ((100 * locked) / avail_for_extent_pages) : 0;
     Uint32 lockedpct3 = (max_pages > 0) ? ((100 * locked) / max_pages) : 0;
 
-    ndbout_c("pgman(%u)\n"
-             " page_entry_pool: size %u used: %u (%u %%)\n"
-             " high: %u (%u %%)\n"
-             " locked pages: %u\n"
-             " \t related to entries %u (%u %%)\n"
-             " \t related to available pages for extent pages %u (%u %%)\n"
-             " \t related to Total pages in disk page buffer memory %u (%u %%)\n",
-             instance(),
-             size, used, usedpct,
-             high, highpct,
-             locked,
-             size, lockedpct,
-             avail_for_extent_pages, lockedpct2,
-             max_pages, lockedpct3);
+    g_eventLogger->info(
+        "pgman(%u)"
+        " page_entry_pool: size %u used: %u (%u %%)"
+        " high: %u (%u %%)"
+        " locked pages: %u"
+        " related to entries %u (%u %%)"
+        " related to available pages for extent pages %u (%u %%)"
+        " related to Total pages in disk page buffer memory %u (%u %%)",
+        instance(), size, used, usedpct, high, highpct, locked, size, lockedpct,
+        avail_for_extent_pages, lockedpct2, max_pages, lockedpct3);
   }
 
   if (signal->theData[0] == 11101)

@@ -40,6 +40,8 @@
 #include "DictCache.hpp"
 #include <signaldata/DictSignal.hpp>
 #include "my_byteorder.h"
+#include <EventLogger.hpp>
+extern EventLogger *g_eventLogger;
 
 class ListTablesReq;
 
@@ -498,9 +500,7 @@ public:
   const NdbDictionary::Column * getEventColumn(unsigned no) const;
 
   void print() {
-    ndbout_c("NdbEventImpl: id=%d, key=%d",
-	     m_eventId,
-	     m_eventKey);
+    g_eventLogger->info("NdbEventImpl: id=%d, key=%d", m_eventId, m_eventKey);
   }
 
   Uint32 m_eventId;

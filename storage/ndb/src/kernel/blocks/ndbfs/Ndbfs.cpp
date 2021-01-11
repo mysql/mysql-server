@@ -648,8 +648,8 @@ ndbabort();
   }
   
   if (getenv("NDB_TRACE_OPEN"))
-    ndbout_c("open(%s) bound: %u", file->theFileName.c_str(), bound);
-  
+    g_eventLogger->info("open(%s) bound: %u", file->theFileName.c_str(), bound);
+
   Request* request = theRequestPool->get();
   request->action = Request::open;
   request->error = 0;
@@ -748,7 +748,7 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
   }
 
   if (getenv("NDB_TRACE_OPEN"))
-    ndbout_c("close(%s)", openFile->theFileName.c_str());
+    g_eventLogger->info("close(%s)", openFile->theFileName.c_str());
 
   Request *request = theRequestPool->get();
   if( fsCloseReq->getRemoveFileFlag(fsCloseReq->fileFlag) == true ) {
@@ -1260,8 +1260,8 @@ Ndbfs::createAsyncFile()
                file,
                file->isOpen() ?"OPEN" : "CLOSED");
     }
-    ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
-              m_maxFiles, theFiles.size());
+    g_eventLogger->info("m_maxFiles: %u, theFiles.size() = %u", m_maxFiles,
+                        theFiles.size());
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile: creating more than MaxNoOfOpenFiles");
   }
 
@@ -1303,7 +1303,7 @@ Ndbfs::createIoThread(bool bound)
   if (thr)
   {
 #ifdef VM_TRACE
-    ndbout_c("NDBFS: Created new file thread %d", theThreads.size());
+    g_eventLogger->info("NDBFS: Created new file thread %d", theThreads.size());
 #endif
 
     struct NdbThread* thrptr = thr->doStart();
@@ -1878,7 +1878,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     Uint32 file= signal->theData[1];
     AsyncFile* openFile = theOpenFiles.find(file);
     ndbrequire(openFile != 0);
-    ndbout_c("File: %s %p", openFile->theFileName.c_str(), openFile);
+    g_eventLogger->info("File: %s %p", openFile->theFileName.c_str(), openFile);
     Request* curr = openFile->m_current_request;
     Request* last = openFile->m_last_request;
     if(curr)
@@ -1904,9 +1904,10 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
       AsyncFile* file = theFiles[i];
       if (file == 0)
         continue;
-      ndbout_c("%u : %s %s", i,
-               file->theFileName.c_str() ? file->theFileName.c_str() : "",
-               file->isOpen() ? "OPEN" : "CLOSED");
+      g_eventLogger->info(
+          "%u : %s %s", i,
+          file->theFileName.c_str() ? file->theFileName.c_str() : "",
+          file->isOpen() ? "OPEN" : "CLOSED");
     }
   }
 }//Ndbfs::execDUMP_STATE_ORD()

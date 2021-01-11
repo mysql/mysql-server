@@ -26,7 +26,6 @@
 #include <mgmapi.h>
 #include <mgmapi_internal.h>
 
-#include <NdbOut.hpp>
 #include <Properties.hpp>
 #include <InputStream.hpp>
 #include <NdbTick.h>
@@ -35,6 +34,7 @@
 #include <kernel/NodeBitmask.hpp>
 
 #include "ndb_logevent.hpp"
+extern EventLogger *g_eventLogger;
 
 extern
 int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[],
@@ -565,7 +565,7 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
       break;
 
     if ( strcmp("<PING>\n", buf) )
-      ndbout_c("skipped: %s", buf);
+      g_eventLogger->info("skipped: %s", buf);
 
     if(in.timedout())
       return 0;
@@ -608,7 +608,7 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
   {
     if ( p.get(ndb_logevent_header[i].token, &val) == 0 )
     {
-      ndbout_c("missing: %s\n", ndb_logevent_header[i].token);
+      g_eventLogger->info("missing: %s", ndb_logevent_header[i].token);
       h->m_error= NDB_LEH_MISSING_EVENT_SPECIFIER;
       return -1;
     }
@@ -628,7 +628,7 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
   /* fill in rest of header info event_lookup */
   if (EventLoggerBase::event_lookup(dst->type,category,level,severity,text_fn))
   {
-    ndbout_c("unknown type: %d\n", dst->type);
+    g_eventLogger->info("unknown type: %d", dst->type);
     h->m_error= NDB_LEH_UNKNOWN_EVENT_TYPE;
     return -1;
   }

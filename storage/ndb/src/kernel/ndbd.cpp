@@ -1215,7 +1215,7 @@ ndbd_run(bool foreground, int report_fd,
       BaseString::snprintf(buf, sizeof(buf), "BLOCK=%s", p);
       for (char* q = buf; *q != 0; q++)
         *q = toupper(toascii(*q));
-      ndbout_c("Turning on signal logging using block spec.: '%s'", buf);
+      g_eventLogger->info("Turning on signal logging using block spec.: '%s'", buf);
       globalSignalLoggers.log(SignalLoggerManager::LogInOut, buf);
       globalData.testOn = 1;
     }
@@ -1223,8 +1223,8 @@ ndbd_run(bool foreground, int report_fd,
   else
   {
     // Failed to open signal log, print an error and ignore
-    ndbout_c("Failed to open signal logging file '%s', errno: %d",
-             signal_log_name, errno);
+    g_eventLogger->info("Failed to open signal logging file '%s', errno: %d",
+                        signal_log_name, errno);
   }
   free(signal_log_name);
 #endif
@@ -1274,7 +1274,7 @@ ndbd_run(bool foreground, int report_fd,
   globalTransporterRegistry.startSending();
   globalTransporterRegistry.startReceiving();
   if (!globalTransporterRegistry.start_service(*globalEmulatorData.m_socket_server)){
-    ndbout_c("globalTransporterRegistry.start_service() failed");
+    g_eventLogger->info("globalTransporterRegistry.start_service() failed");
     ndbd_exit(-1);
   }
   // Re-use the mgm handle as a transporter
@@ -1286,7 +1286,7 @@ ndbd_run(bool foreground, int report_fd,
   NdbThread* pTrp = globalTransporterRegistry.start_clients();
   if (pTrp == 0)
   {
-    ndbout_c("globalTransporterRegistry.start_clients() failed");
+    g_eventLogger->info("globalTransporterRegistry.start_clients() failed");
     ndbd_exit(-1);
   }
   NdbThread* pSockServ = globalEmulatorData.m_socket_server->startServer();

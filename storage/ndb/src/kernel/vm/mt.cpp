@@ -617,9 +617,8 @@ struct alignas(NDB_CL) thr_safe_pool
                                              false);
                 if (returned != 0)
                 {
-                  ndbout_c("seize_list: returns %u from instance %u",
-                           returned,
-                           i);
+                  g_eventLogger->info("seize_list: returns %u from instance %u",
+                                      returned, i);
                   return returned;
                 }
               }
@@ -3995,7 +3994,7 @@ static
 void
 job_buffer_full(struct thr_data* selfptr)
 {
-  ndbout_c("job buffer full");
+  g_eventLogger->info("job buffer full");
   dumpJobQueues();
   abort();
 }
@@ -4005,7 +4004,7 @@ static
 void
 out_of_job_buffer(struct thr_data* selfptr)
 {
-  ndbout_c("out of job buffer");
+  g_eventLogger->info("out of job buffer");
   dumpJobQueues();
   abort();
 }
@@ -4169,7 +4168,7 @@ scan_queue(struct thr_data* selfptr, Uint32 cnt, Uint32 end, Uint32* ptr)
       const SignalHeader *s = reinterpret_cast<SignalHeader*>(page + pos);
       const Uint32 *data = page + pos + (sizeof(*s)>>2);
       if (0)
-	ndbout_c("found %p val: %d end: %d", s, val & 0xFFFF, end);
+        g_eventLogger->info("found %p val: %d end: %d", s, val & 0xFFFF, end);
       /*
        * ToDo: Do measurements of the frequency of these prio A timed signals.
        *
@@ -4517,14 +4516,12 @@ senddelay(Uint32 thr_no, const SignalHeader* s, Uint32 delay)
   memcpy(ptr, s, 4*siglen);
 
   if (0)
-    ndbout_c("now: %d alarm: %d send %s from %s to %s delay: %d idx: %x %p",
-	     selfptr->m_tq.m_current_time,
-	     alarm,
-	     getSignalName(s->theVerId_signalNumber),
-	     getBlockName(refToBlock(s->theSendersBlockRef)),
-	     getBlockName(s->theReceiversBlockNumber),
-	     delay,
-	     idx, ptr);
+    g_eventLogger->info(
+        "now: %d alarm: %d send %s from %s to %s delay: %d idx: %x %p",
+        selfptr->m_tq.m_current_time, alarm,
+        getSignalName(s->theVerId_signalNumber),
+        getBlockName(refToBlock(s->theSendersBlockRef)),
+        getBlockName(s->theReceiversBlockNumber), delay, idx, ptr);
 
   Uint32 i;
   Uint32 cnt = *cntptr;
@@ -4658,13 +4655,12 @@ dumpJobQueues(void)
         {
           tmp.appfmt(" HIGH LOAD (free:%d)", free);
         }
-        tmp.appfmt("\n");
       }
     }
   }
   if (!tmp.empty())
   {
-    ndbout_c("Dumping non-empty job queues:\n%s", tmp.c_str());
+    g_eventLogger->info("Dumping non-empty job queues: %s", tmp.c_str());
   }
 }
 
@@ -7769,9 +7765,10 @@ loop:
        * we've slept for 1ms...run a bit anyway
        */
       selfptr->m_max_signals_per_jb = 1;
-      ndbout_c("thr_no:%u - sleeploop 10!! "
-               "(Worker thread blocked (>= 1ms) by slow consumer threads)",
-               selfptr->m_thr_no);
+      g_eventLogger->info(
+          "thr_no:%u - sleeploop 10!! "
+          "(Worker thread blocked (>= 1ms) by slow consumer threads)",
+          selfptr->m_thr_no);
       return true;
     }
 
@@ -10107,8 +10104,9 @@ FastScheduler::traceDumpPrepare(NdbShutdownType& nst)
     {
       nst = NST_Watchdog; // Make this abort fast
     }
-    ndbout_c("Warning: %d thread(s) did not stop before starting crash dump.",
-             waitFor_count - g_thr_repository->stopped_threads);
+    g_eventLogger->info(
+        "Warning: %d thread(s) did not stop before starting crash dump.",
+        waitFor_count - g_thr_repository->stopped_threads);
   }
   NdbMutex_Unlock(&g_thr_repository->stop_for_crash_mutex);
 

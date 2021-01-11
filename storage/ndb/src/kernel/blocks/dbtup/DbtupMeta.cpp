@@ -106,7 +106,8 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   if (regTabPtr.p->tableStatus != NOT_DEFINED)
   {
     jam();
-    ndbout_c("regTabPtr.p->tableStatus : %u", regTabPtr.p->tableStatus);
+    g_eventLogger->info("regTabPtr.p->tableStatus : %u",
+                        regTabPtr.p->tableStatus);
     terrorCode = CreateTableRef::TableAlreadyExist;
     goto sendref;
   }
@@ -1120,9 +1121,10 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
         case Fragrecord::FS_REORG_COMMIT_NEW:
           jam();
           if (0)
-            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
-                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                     "FS_REORG_COMMIT_NEW", "FS_REORG_COMPLETE_NEW");
+            g_eventLogger->info(
+                "tab: %u frag: %u toggle fragstate from %s to %s",
+                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                "FS_REORG_COMMIT_NEW", "FS_REORG_COMPLETE_NEW");
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMPLETE_NEW;
           break;
         default:
@@ -1149,10 +1151,10 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
         case Fragrecord::FS_REORG_COMMIT:
           jam();
           if (0)
-            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s (gci: %u)",
-                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                     "FS_REORG_COMMIT", "FS_REORG_COMPLETE",
-                   gci);
+            g_eventLogger->info(
+                "tab: %u frag: %u toggle fragstate from %s to %s (gci: %u)",
+                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                "FS_REORG_COMMIT", "FS_REORG_COMPLETE", gci);
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMPLETE;
           break;
         default:
@@ -1431,17 +1433,19 @@ Dbtup::handleAlterTableCommit(Signal *signal,
           jam();
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT;
           if (0)
-            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
-                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                     "FS_ONLINE", "FS_REORG_COMMIT");
+            g_eventLogger->info(
+                "tab: %u frag: %u toggle fragstate from %s to %s",
+                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                "FS_ONLINE", "FS_REORG_COMMIT");
           break;
         case Fragrecord::FS_REORG_NEW:
           jam();
           regFragPtr.p->fragStatus = Fragrecord::FS_REORG_COMMIT_NEW;
           if (0)
-            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
-                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                     "FS_REORG_NEW", "FS_REORG_COMMIT_NEW");
+            g_eventLogger->info(
+                "tab: %u frag: %u toggle fragstate from %s to %s",
+                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                "FS_REORG_NEW", "FS_REORG_COMMIT_NEW");
           break;
         default:
           jamLine(regFragPtr.p->fragStatus);
@@ -1473,17 +1477,19 @@ Dbtup::handleAlterTableComplete(Signal *signal,
         case Fragrecord::FS_REORG_COMPLETE:
           jam();
           if (0)
-            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
-                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                     "FS_REORG_COMPLETE", "FS_ONLINE");
+            g_eventLogger->info(
+                "tab: %u frag: %u toggle fragstate from %s to %s",
+                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                "FS_REORG_COMPLETE", "FS_ONLINE");
           regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
           break;
         case Fragrecord::FS_REORG_COMPLETE_NEW:
           jam();
           if (0)
-            ndbout_c("tab: %u frag: %u toggle fragstate from %s to %s",
-                     regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
-                     "FS_REORG_COMPLETE_NEW", "FS_ONLINE");
+            g_eventLogger->info(
+                "tab: %u frag: %u toggle fragstate from %s to %s",
+                regFragPtr.p->fragTableId, regFragPtr.p->fragmentId,
+                "FS_REORG_COMPLETE_NEW", "FS_ONLINE");
           regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
           break;
         default:

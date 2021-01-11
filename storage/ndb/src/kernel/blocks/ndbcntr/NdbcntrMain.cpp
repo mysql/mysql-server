@@ -2467,7 +2467,7 @@ Ndbcntr::startWaitingNodes(Signal * signal){
 
     {
       char buf[NdbNodeBitmask::TextLength + 1];
-      ndbout_c("starting (TO) %s", c_start.m_waitTO.getText(buf));
+      g_eventLogger->info("starting (TO) %s", c_start.m_waitTO.getText(buf));
     }
 
     /**
@@ -3297,7 +3297,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
     g_eventLogger->info("Start NDB start phase 5 (only to DBDIH)");
     //#define TRACE_STTOR
 #ifdef TRACE_STTOR
-    ndbout_c("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
+    g_eventLogger->info("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
 #endif
     sendSignal(DBDIH_REF, GSN_NDB_STTOR, signal, 
 	       NdbSttor::SignalLength, JBB);
@@ -3354,7 +3354,7 @@ void Ndbcntr::waitpoint52Lab(Signal* signal)
     req->typeOfStart = cdihStartType;
     req->masterNodeId = cmasterNodeId;
 #ifdef TRACE_STTOR
-    ndbout_c("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
+    g_eventLogger->info("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
 #endif
     sendSignal(DBDIH_REF, GSN_NDB_STTOR, signal, 
 	       NdbSttor::SignalLength, JBB);
@@ -4409,9 +4409,8 @@ void Ndbcntr::sendNdbSttor(Signal* signal)
   
   //#define MAX_STARTPHASE 2
 #ifdef TRACE_STTOR
-  ndbout_c("sending NDB_STTOR(%d) to %s",
-	   cinternalStartphase, 
-	   getBlockName( refToBlock(ndbBlocksPtr.p->blockref)));
+  g_eventLogger->info("sending NDB_STTOR(%d) to %s", cinternalStartphase,
+                      getBlockName(refToBlock(ndbBlocksPtr.p->blockref)));
 #endif
   if (refToBlock(ndbBlocksPtr.p->blockref) == DBDIH)
     req->typeOfStart = cdihStartType;
@@ -4670,7 +4669,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
       ERROR_INSERTED(1024))
   {
     jam();
-    ndbout_c("Extending TcTimeout by 5000 millis");
+    g_eventLogger->info("Extending TcTimeout by 5000 millis");
     c_stopRec.stopReq.transactionTimeout += 5000;
   }
 
@@ -4688,7 +4687,7 @@ Ndbcntr::execSTOP_REQ(Signal* signal)
     NdbNodeBitmask mask;
     mask.assign(NdbNodeBitmask::Size, c_stopRec.stopReq.nodes);
     infoEvent("Initiating shutdown abort of %s", mask.getText(buf));
-    ndbout_c("Initiating shutdown abort of %s", mask.getText(buf));    
+    g_eventLogger->info("Initiating shutdown abort of %s", mask.getText(buf));
 
     WaitGCPReq * req = (WaitGCPReq*)&signal->theData[0];
     req->senderRef = reference();
@@ -5274,7 +5273,7 @@ Ndbcntr::execSTOP_CONF(Signal* signal)
     NdbNodeBitmask mask;
     mask.assign(NdbNodeBitmask::Size, c_stopRec.stopReq.nodes);
     infoEvent("Stopping of %s", mask.getText(buf));
-    ndbout_c("Stopping of %s", mask.getText(buf));    
+    g_eventLogger->info("Stopping of %s", mask.getText(buf));
 
     /**
      * Kill any node...
@@ -5534,11 +5533,9 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal)
 #endif
 
 #ifdef TRACE_STTOR
-	ndbout_c("sending STTOR(%d) to %s(ref=%x index=%d)", 
-		 currentStartPhase,
-		 getBlockName( refToBlock(ref)),
-		 ref,
-		 currentBlockIndex);
+        g_eventLogger->info("sending STTOR(%d) to %s(ref=%x index=%d)",
+                            currentStartPhase, getBlockName(refToBlock(ref)),
+                            ref, currentBlockIndex);
 #endif
         if (refToBlock(ref) == DBDIH)
           signal->theData[7] = cntr.cdihStartType;

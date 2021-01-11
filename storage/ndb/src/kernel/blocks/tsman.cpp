@@ -331,14 +331,14 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 
     if(req->reply.errorCode == 0){
       jam();
-      ndbout_c("Success");
-      ndbout_c("page: %d %d count: %d", 
+      g_eventLogger->info("Success");
+      g_eventLogger->info("page: %d %d count: %d",
 	       req->reply.page_id.m_file_no,
 	       req->reply.page_id.m_page_no,
 	       req->reply.page_count);
     } else {
       jam();
-      ndbout_c("Error: %d", req->reply.errorCode); 
+      g_eventLogger->info("Error: %d", req->reply.errorCode);
     }
   }
 
@@ -361,14 +361,14 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 
     if(req->reply.errorCode == 0){
       jam();
-      ndbout_c("Success");
-      ndbout_c("page: %d %d bits: %d", 
+      g_eventLogger->info("Success");
+      g_eventLogger->info("page: %d %d bits: %d",
 	       req->key.m_file_no,
 	       req->key.m_page_no,
 	       req->bits);
     } else {
       jam();
-      ndbout_c("Error: %d", req->reply.errorCode); 
+      g_eventLogger->info("Error: %d", req->reply.errorCode);
     }
   }
 
@@ -389,7 +389,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
       switch((rand() * sz) % 2){
       case 0:
       {
-	ndbout_c("case 0");
+	g_eventLogger->info("case 0");
 	AllocExtentReq* req = (AllocExtentReq*)signal->theData;
 	req->request.tablespace_id = id;
 	req->request.table_id = 0;
@@ -400,7 +400,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 	  c.start_page = req->reply.page_id;
 	  c.page_count = req->reply.page_count;
 	  Uint32 words = File_formats::Datafile::extent_header_words(c.page_count);
-	  ndbout_c("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d(%d)", 
+	  g_eventLogger->info("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d(%d)",
 		   c.start_page.m_file_no,
 		   c.start_page.m_page_no,
 		   c.page_count,
@@ -409,12 +409,12 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 	  chunks.push_back(c);
 	  chunks.back().bitmask.fill(words, zero);
 
-	  ndbout_c("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d", 
+	  g_eventLogger->info("execALLOC_EXTENT_REQ - OK - [ %d %d ] count: %d",
 		   chunks.back().start_page.m_file_no,
 		   chunks.back().start_page.m_page_no,
 		   chunks.back().page_count);
 	} else {
-	  ndbout_c("Error: %d", req->reply.errorCode); 
+	  g_eventLogger->info("Error: %d", req->reply.errorCode);
 	}
 	break;
       }
@@ -423,7 +423,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 	Uint32 chunk = rand() % sz;
 	Uint32 count = chunks[chunk].page_count;
 	Uint32 page = rand() % count;
-	ndbout_c("case 1 - %d %d %d", chunk, count, page);
+	g_eventLogger->info("case 1 - %d %d %d", chunk, count, page);
 	
 	File_formats::Datafile::Extent_header* header =
 	  (File_formats::Datafile::Extent_header*)
@@ -3077,10 +3077,10 @@ Tsman::end_lcp(Signal* signal, Uint32 ptrI, Uint32 list, Uint32 filePtrI)
   if(file.p->m_online.m_lcp_free_extent_head != RNIL)
   {
     jam();
-    ndbout_c("moving extents (%d %d) to real free list %d",
-	     file.p->m_online.m_lcp_free_extent_head,
-	     file.p->m_online.m_lcp_free_extent_tail,
-	     file.p->m_online.m_first_free_extent);
+    g_eventLogger->info("moving extents (%d %d) to real free list %d",
+                        file.p->m_online.m_lcp_free_extent_head,
+                        file.p->m_online.m_lcp_free_extent_tail,
+                        file.p->m_online.m_first_free_extent);
 
     // Update the used extents of the tablespace
     ts_ptr.p->m_total_used_extents -=

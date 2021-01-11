@@ -369,8 +369,8 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
   if (unlikely(helloLen > OldMaxHandshakeBytesLimit))
   {
     /* Cannot send this many bytes to older versions */
-    ndbout_c("Failed handshake string length %u : \"%s\"",
-             helloLen, helloBuf);
+    g_eventLogger->info("Failed handshake string length %u : \"%s\"", helloLen,
+                        helloBuf);
     abort();
   }
 

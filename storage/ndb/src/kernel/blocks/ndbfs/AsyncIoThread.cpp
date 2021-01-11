@@ -186,7 +186,7 @@ AsyncIoThread::run()
     request = theMemoryChannelPtr->readChannel();
     if (!request || request->action == Request::end)
     {
-      DEBUG(ndbout_c("Nothing read from Memory Channel in AsyncFile"));
+      DEBUG(g_eventLogger->info("Nothing read from Memory Channel in AsyncFile"));
       theStartFlag = false;
       return;
     }//if
@@ -261,7 +261,7 @@ AsyncIoThread::run()
         return;
       }
     default:
-      DEBUG(ndbout_c("Invalid Request"));
+      DEBUG(g_eventLogger->info("Invalid Request"));
       abort();
       break;
     }//switch

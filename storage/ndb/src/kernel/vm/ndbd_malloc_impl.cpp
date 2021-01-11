@@ -141,8 +141,8 @@ static inline int
 log_and_fake_success(const char func[], int line,
                      const char msg[], void* p, size_t s)
 {
-  ndbout_c("DEBUG: %s: %u: %s: p %p: len %zu",
-           func, line, msg, p, s);
+  g_eventLogger->info("DEBUG: %s: %u: %s: p %p: len %zu", func, line, msg, p,
+                      s);
   return 0;
 }
 
@@ -214,19 +214,18 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
       *watchCounter = 9;
     if (rc == 0)
     {
-      ndbout_c("%s: Reserved address space for %u 8GiB regions at %p.",
-               __func__,
-              space_regions,
-              space);
+      g_eventLogger->info(
+          "%s: Reserved address space for %u 8GiB regions at %p.", __func__,
+          space_regions, space);
       break;
     }
     space_regions = (space_regions - 1 + least_region_count) / 2;
   }
   if (rc == -1)
   {
-    ndbout_c("%s: Failed reserved address space for at least %u 8GiB regions.",
-             __func__,
-             least_region_count);
+    g_eventLogger->info(
+        "%s: Failed reserved address space for at least %u 8GiB regions.",
+        __func__, least_region_count);
     return false;
   }
 
@@ -274,11 +273,8 @@ Ndbd_mem_manager::do_virtual_alloc(Uint32 pages,
                               m_random_start_page_id;
 #endif
     const Uint32 last_page = first_page + chunks[i].m_cnt - 1;
-    ndbout_c("%s: Populated space with pages %u to %u at %p.",
-             __func__,
-             first_page,
-             last_page,
-             chunks[i].m_ptr);
+    g_eventLogger->info("%s: Populated space with pages %u to %u at %p.",
+                        __func__, first_page, last_page, chunks[i].m_ptr);
     require(last_page < (zone_bound[i] << PAGES_PER_REGION_LOG));
   }
   *base_address = space - first_region[0] * 8 * Uint64(32768);
@@ -342,8 +338,9 @@ retry:
         /**
          * Unusable memory :(
          */
-        ndbout_c("sbrk(%lluMb) => %p which is less than baseaddress!!",
-                 Uint64((sizeof(Alloc_page) * sz) >> 20), ptr);
+        g_eventLogger->info(
+            "sbrk(%lluMb) => %p which is less than baseaddress!!",
+            Uint64((sizeof(Alloc_page) * sz) >> 20), ptr);
         f_method_idx++;
         goto retry;
       }
@@ -362,8 +359,9 @@ retry:
       ptr = NdbMem_AlignedAlloc(sizeof(Alloc_page), sizeof(Alloc_page) * sz);
       if (UintPtr(ptr) < UintPtr(baseaddress))
       {
-        ndbout_c("malloc(%lluMb) => %p which is less than baseaddress!!",
-                 Uint64((sizeof(Alloc_page) * sz) >> 20), ptr);
+        g_eventLogger->info(
+            "malloc(%lluMb) => %p which is less than baseaddress!!",
+            Uint64((sizeof(Alloc_page) * sz) >> 20), ptr);
         free(ptr);
         ptr = 0;
       }
@@ -406,7 +404,7 @@ retry:
   }
 
 #ifdef UNIT_TEST
-  ndbout_c("do_malloc(%d) -> %p %d", pages, ptr, chunk->m_cnt);
+  g_eventLogger->info("do_malloc(%d) -> %p %d", pages, ptr, chunk->m_cnt);
   if (1)
   {
     Uint32 sum = 0;
@@ -870,8 +868,8 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, Uint32 max_pages , bool alloc_less_
 
       assert(Uint64(pages) + Uint64(m_random_start_page_id) <= 0xFFFFFFFF);
 
-      ndbout_c("using m_random_start_page_id: %u (%.8x)",
-               m_random_start_page_id, m_random_start_page_id);
+      g_eventLogger->info("using m_random_start_page_id: %u (%.8x)",
+                          m_random_start_page_id, m_random_start_page_id);
     }
   }
 #endif
@@ -1155,11 +1153,11 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
 
   if (start != (start_bmp << BPP_2LOG))
   {
-    
-    ndbout_c("ndbd_malloc_impl.cpp:%d:grow(%d, %d) %d!=%d not using %uMb"
-	     " - Unable to use due to bitmap pages missaligned!!",
-	     __LINE__, start, cnt, start, (start_bmp << BPP_2LOG),
-	     (cnt >> (20 - 15)));
+    g_eventLogger->info(
+        "ndbd_malloc_impl.cpp:%d:grow(%d, %d) %d!=%d not using %uMb"
+        " - Unable to use due to bitmap pages missaligned!!",
+        __LINE__, start, cnt, start, (start_bmp << BPP_2LOG),
+        (cnt >> (20 - 15)));
     g_eventLogger->error("ndbd_malloc_impl.cpp:%d:grow(%d, %d) not using %uMb"
                          " - Unable to use due to bitmap pages missaligned!!",
                          __LINE__, start, cnt,
@@ -1170,7 +1168,7 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
   }
   
 #ifdef UNIT_TEST
-  ndbout_c("creating bitmap page %d", start_bmp);
+  g_eventLogger->info("creating bitmap page %d", start_bmp);
 #endif
 
   if (m_mapped_pages_new_count > 0 &&
