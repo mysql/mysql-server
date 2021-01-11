@@ -1034,35 +1034,35 @@ DbUtil::mutex_unlocked(Signal* signal, Uint32 ptrI, Uint32 retVal){
 void
 DbUtil::execUTIL_SEQUENCE_REF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_SEQUENCE_REF" << endl;
+  g_eventLogger->info("UTIL_SEQUENCE_REF");
   printUTIL_SEQUENCE_REF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void
 DbUtil::execUTIL_SEQUENCE_CONF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_SEQUENCE_CONF" << endl;
+  g_eventLogger->info("UTIL_SEQUENCE_CONF");
   printUTIL_SEQUENCE_CONF(stdout, signal->getDataPtrSend(), signal->length(),0);
 }
 
 void
 DbUtil::execUTIL_PREPARE_CONF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_PREPARE_CONF" << endl;
+  g_eventLogger->info("UTIL_PREPARE_CONF");
   printUTIL_PREPARE_CONF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void
 DbUtil::execUTIL_PREPARE_REF(Signal* signal){
   jamEntry();
-  ndbout << "UTIL_PREPARE_REF" << endl;
+  g_eventLogger->info("UTIL_PREPARE_REF");
   printUTIL_PREPARE_REF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void 
 DbUtil::execUTIL_EXECUTE_CONF(Signal* signal) {
   jamEntry();
-  ndbout << "UTIL_EXECUTE_CONF" << endl;
+  g_eventLogger->info("UTIL_EXECUTE_CONF");
   printUTIL_EXECUTE_CONF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
@@ -1070,21 +1070,21 @@ void
 DbUtil::execUTIL_EXECUTE_REF(Signal* signal) {
   jamEntry();
 
-  ndbout << "UTIL_EXECUTE_REF" << endl;
+  g_eventLogger->info("UTIL_EXECUTE_REF");
   printUTIL_EXECUTE_REF(stdout, signal->getDataPtrSend(), signal->length(), 0);
 }
 
 void 
 DbUtil::execUTIL_RELEASE_CONF(Signal* signal) {
   jamEntry();
-  ndbout << "UTIL_RELEASE_CONF" << endl;
+  g_eventLogger->info("UTIL_RELEASE_CONF");
 }
 
 void 
 DbUtil::execUTIL_RELEASE_REF(Signal* signal) {
   jamEntry();
 
-  ndbout << "UTIL_RELEASE_REF" << endl;
+  g_eventLogger->info("UTIL_RELEASE_REF");
 }
 
 void

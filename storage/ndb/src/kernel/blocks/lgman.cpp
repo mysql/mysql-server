@@ -2183,7 +2183,9 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
   }
   
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD lgman: fg id:" << ptr.p->m_logfile_group_id << " undo buffer pages/bytes:" << (requested-pages) << "/" << (requested-pages)*File_formats::NDB_PAGE_SIZE << endl;
+  g_eventLogger->info("DD lgman: fg id: %u undo buffer pages/bytes: %u/%u",
+                      ptr.p->m_logfile_group_id, requested - pages,
+                      (requested - pages) * File_formats::NDB_PAGE_SIZE);
 #endif
   
   init_logbuffer_pointers(ptr);
@@ -2390,7 +2392,8 @@ Lgman::Undofile::Undofile(const struct CreateFileImplReq* req, Uint32 ptrI)
   m_file_size = Uint32(pages);
   m_requestInfo = req->requestInfo;
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD lgman: file id:" << m_file_id << " undofile pages/bytes:" << m_file_size << "/" << m_file_size*GLOBAL_PAGE_SIZE << endl;
+  g_eventLogger->info("DD lgman: file id: %u undofile pages/bytes: %u/%u",
+                      m_file_id, m_file_size, m_file_size * GLOBAL_PAGE_SIZE);
 #endif
 
   m_create.m_senderRef = req->senderRef; // During META

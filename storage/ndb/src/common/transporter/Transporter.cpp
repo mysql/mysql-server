@@ -103,8 +103,10 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   else
   {
     if (!isServer) {
-      ndbout << "Unable to setup transporter. Node " << rNodeId 
-	     << " must have hostname. Update configuration." << endl; 
+      g_eventLogger->info(
+          "Unable to setup transporter. Node %u must have hostname."
+          " Update configuration.",
+          rNodeId);
       exit(-1);
     }
     remoteHostName[0]= 0;

@@ -333,7 +333,7 @@ SimpleProperties::pack(Writer & it, const void * __src,
 
 void
 SimpleProperties::Reader::printAll(NdbOut& ndbout){
-  char tmp[1024];
+  char tmp[MAX_LOG_MESSAGE_SIZE];
   for(first(); valid(); next()){
     switch(getValueType()){
     case SimpleProperties::Uint32Value:
@@ -343,7 +343,7 @@ SimpleProperties::Reader::printAll(NdbOut& ndbout){
       break;
     case SimpleProperties::BinaryValue:
     case SimpleProperties::StringValue:
-      if(getValueLen() < 1024){
+      if(getValueLen() < MAX_LOG_MESSAGE_SIZE){
 	getString(tmp);
 	ndbout << "Key: " << getKey()
 	       << " value(" << getValueLen() << ") : " 
@@ -362,6 +362,31 @@ SimpleProperties::Reader::printAll(NdbOut& ndbout){
   }
 }
 
+void SimpleProperties::Reader::printAll() {
+  char tmp[MAX_LOG_MESSAGE_SIZE];
+  for (first(); valid(); next()) {
+    switch (getValueType()) {
+      case SimpleProperties::Uint32Value:
+        g_eventLogger->info("Key: %u value(%u) : %u", getKey(), getValueLen(),
+                            getUint32());
+        break;
+      case SimpleProperties::BinaryValue:
+      case SimpleProperties::StringValue:
+        if (getValueLen() < MAX_LOG_MESSAGE_SIZE) {
+          getString(tmp);
+          g_eventLogger->info("Key: %u value(%u) : \"%s\"", getKey(),
+                              getValueLen(), tmp);
+        } else {
+          g_eventLogger->info("Key: %u value(%u) : \"<TOO LONG>\"", getKey(),
+                              getValueLen());
+        }
+        break;
+      default:
+        g_eventLogger->info("Unknown type for key: %u type: %u", getKey(),
+                            (Uint32)getValueType());
+    }
+  }
+}
 SimplePropertiesLinearReader::SimplePropertiesLinearReader
 (const Uint32 * src, Uint32 len){
   m_src = src;

@@ -5026,12 +5026,18 @@ Dblqh::accminupdate(Signal* signal, Uint32 opId, const Local_key* key)
     FragrecordPtr regFragptr;
     regFragptr.i = regTcPtr.p->fragmentptr;
     c_fragment_pool.getPtr(regFragptr);
-    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY)
-      ndbout << " LK: " << *key;
+    if (regFragptr.p->m_copy_started_state == Fragrecord::AC_NR_COPY) {
+      char buf[MAX_LOG_MESSAGE_SIZE];
+      g_eventLogger->info(" LK: %s",
+                          printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, *key));
+    }
   }
 
-  if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713))
-    ndbout << " LK: " << *key;
+  if (ERROR_INSERTED(5712) || ERROR_INSERTED(5713)) {
+    char buf[MAX_LOG_MESSAGE_SIZE];
+    g_eventLogger->info(" LK: %s",
+                        printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, *key));
+  }
   regTcPtr.p->m_row_id = *key;
 }
 

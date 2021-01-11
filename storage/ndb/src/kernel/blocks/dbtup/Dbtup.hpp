@@ -719,6 +719,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   };
   
   void dump_disk_alloc(Disk_alloc_info&);
+  void printPtr(const Ptr<Dbtup::Page> & ptr);
+  void printPtr(const Ptr<Dbtup::Page_request> & ptr);
+  void printPtr(const Ptr<Dbtup::Extent_info> & ptr);
 
   static constexpr Uint32 FREE_PAGE_BIT = 0x80000000;
   static constexpr Uint32 LCP_SCANNED_BIT = 0x40000000;

@@ -4872,7 +4872,7 @@ Dbdict::restart_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    ndbout << "error: " << tx_ptr.p->m_error << endl;
+    tx_ptr.p->m_error.print();
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -4915,7 +4915,7 @@ Dbdict::restartEndPass_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    ndbout << "error: " << tx_ptr.p->m_error << endl;
+    tx_ptr.p->m_error.print();
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -5310,7 +5310,7 @@ Dbdict::restartCreateObj_parse(Signal* signal,
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    ndbout << "error: " << error << endl;
+    error.print();
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -5406,7 +5406,7 @@ Dbdict::restartDropObj(Signal* signal,
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    ndbout << "error: " << error << endl;
+    error.print();
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -24669,7 +24669,9 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
       createFilegroupPtr.p->m_warningFlags |= CreateFilegroupConf::WarnExtentRoundUp;
     }
 #if defined VM_TRACE || defined ERROR_INSERT
-    ndbout << "DD dict: ts id:" << "?" << " extent bytes:" << fg_ptr.p->m_tablespace.m_extent_size << " warn:" << hex << createFilegroupPtr.p->m_warningFlags << endl;
+    g_eventLogger->info("DD dict: ts id:? extent bytes: %u warn: 0x%x",
+                        fg_ptr.p->m_tablespace.m_extent_size,
+                        createFilegroupPtr.p->m_warningFlags);
 #endif
     fg_ptr.p->m_tablespace.m_default_logfile_group_id = fg.TS_LogfileGroupId;
 
@@ -24705,7 +24707,9 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
       createFilegroupPtr.p->m_warningFlags |= CreateFilegroupConf::WarnUndobufferRoundUp;
     }
 #if defined VM_TRACE || defined ERROR_INSERT
-    ndbout << "DD dict: fg id:" << "?" << " undo buffer bytes:" << fg_ptr.p->m_logfilegroup.m_undo_buffer_size << " warn:" << hex << createFilegroupPtr.p->m_warningFlags << endl;
+    g_eventLogger->info("DD dict: fg id:? undo buffer bytes: %u warn: 0x%x",
+                        fg_ptr.p->m_logfilegroup.m_undo_buffer_size,
+                        createFilegroupPtr.p->m_warningFlags);
 #endif
     fg_ptr.p->m_logfilegroup.m_files.init();
     //fg.LF_UndoGrow = ;
@@ -34545,6 +34549,16 @@ Dbdict::ErrorInfo::print(NdbOut& out) const
   out << " key: " << errorKey;
   out << " name: '" << errorObjectName << "'";
   out << " ]";
+}
+
+void
+Dbdict::ErrorInfo::print() const
+{
+  g_eventLogger->error(
+      "error: [ code: %u line: %u node: %u count: %u"
+      " status: %u key: %u name: '%s' ]",
+      errorCode, errorLine, errorNodeId, errorCount, errorStatus, errorKey,
+      errorObjectName);
 }
 
 #ifdef VM_TRACE

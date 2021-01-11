@@ -610,6 +610,18 @@ BaseString::snprintf(char *str, size_t size, const char *format, ...)
   return(ret);
 }
 
+int
+BaseString::snappend(char *str, size_t size, const char *format, ...)
+{
+  size_t n = strlen(str);
+  if (n >= size - 1) return -1;
+  va_list ap;
+  va_start(ap, format);
+  int ret = std::vsnprintf(str + n, size - n, format, ap);
+  va_end(ap);
+  return (ret);
+}
+
 BaseString
 BaseString::getText(unsigned size, const Uint32 data[])
 {
@@ -857,6 +869,20 @@ TAPTEST(BaseString)
       v.clear();
     }
 
+    {
+      printf("Testing snappend\n");
+      char strnbuf[10];
+      strnbuf[0] = '\0';
+
+      BaseString::snappend(strnbuf, 10, "123");
+      OK(!strncmp(strnbuf, "123", 10));
+      BaseString::snappend(strnbuf, 10, "4567");
+      OK(!strncmp(strnbuf, "1234567", 10));
+      BaseString::snappend(strnbuf, 10, "89");
+      OK(!strncmp(strnbuf, "123456789", 10));
+      BaseString::snappend(strnbuf, 10, "extra");
+      OK(!strncmp(strnbuf, "123456789", 10));
+    }
     return 1; // OK
 }
 

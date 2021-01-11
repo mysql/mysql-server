@@ -603,10 +603,18 @@ template class Vector<Chunk>;
 NdbOut&
 operator<<(NdbOut& out, const Local_key & key)
 {
-  out << "[ m_page_no: " << dec << key.m_page_no 
-      << " m_file_no: " << dec << key.m_file_no 
-      << " m_page_idx: " << dec << key.m_page_idx << "]";
+  out << "[ m_page_no: " << dec << key.m_page_no << " m_file_no: " << dec
+      << key.m_file_no << " m_page_idx: " << dec << key.m_page_idx << "]";
   return out;
+}
+
+char*
+printLocal_Key(char buf[], int bufsize, const Local_key& key)
+{
+  BaseString::snprintf(buf, bufsize,
+                       "[ m_page_no: %u m_file_no: %u m_page_idx: %u ]",
+                       key.m_page_no, key.m_file_no, key.m_page_idx);
+  return buf;
 }
 
 static

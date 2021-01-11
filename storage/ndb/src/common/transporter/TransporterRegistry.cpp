@@ -240,8 +240,8 @@ TransporterReceiveData::epoll_add(Transporter *t)
                           strerror(error));
       abort();
     }
-    ndbout << "We lacked memory to add the socket for node id ";
-    ndbout << node_id << endl;
+    g_eventLogger->info("We lacked memory to add the socket for node id %u",
+                        node_id);
     return false;
   }
 

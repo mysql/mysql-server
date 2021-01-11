@@ -250,8 +250,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
       loopback_conf = conf; // reuse it...
       break;
     default:
-      ndbout << "Unknown transporter type from: " << nodeId << 
-	" to: " << remoteNodeId << endl;
+      g_eventLogger->info("Unknown transporter type from: %u to: %u", nodeId,
+                          remoteNodeId);
       break;
     } // switch
   } // for

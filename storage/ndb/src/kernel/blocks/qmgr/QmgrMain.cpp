@@ -3941,15 +3941,15 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
       !remove_failconf_block(failedNodePtr, block))
   {
     jam();
-    ndbout << "execAPI_FAILCONF from " << block
-           << " failedNodePtr.p->failState = "
-	   << (Uint32)(failedNodePtr.p->failState)
-           << " blocks: ";
+    char logbuf[512] = "";
     for (Uint32 i = 0;i<NDB_ARRAY_SIZE(failedNodePtr.p->m_failconf_blocks);i++)
     {
-      printf("%u ", failedNodePtr.p->m_failconf_blocks[i]);
+      BaseString::snappend(logbuf, 512, "%u ",
+                           failedNodePtr.p->m_failconf_blocks[i]);
     }
-    ndbout << endl;
+    g_eventLogger->info(
+        "execAPI_FAILCONF from %u failedNodePtr.p->failState = %d blocks: %s",
+        block, (Uint32)(failedNodePtr.p->failState), logbuf);
     systemErrorLab(signal, __LINE__);
   }//if
 

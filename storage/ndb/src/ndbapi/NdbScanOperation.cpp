@@ -1976,7 +1976,7 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
   case 2:
     return retVal;
   case -1:
-    ndbout << "1:4008 on connection " << theNdbCon->ptr2int() << endl;
+    g_eventLogger->info("1:4008 on connection %d", theNdbCon->ptr2int());
     setErrorCode(4008); // Timeout
     break;
   case -2:
@@ -3889,7 +3889,7 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
       if (ret_code == 0 && seq == impl->getNodeSequence(nodeId))
         continue;
       if(ret_code == -1){
-        ndbout << "2:4008 on connection " << theNdbCon->ptr2int() << endl;
+        g_eventLogger->info("2:4008 on connection %d", theNdbCon->ptr2int());
         setErrorCode(4008);
       } else {
         setErrorCode(4028);
@@ -4014,7 +4014,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
-      ndbout << "3:4008 on connection " << theNdbCon->ptr2int() << endl;
+      g_eventLogger->info("3:4008 on connection %d", theNdbCon->ptr2int());
       setErrorCode(4008);
       // Fall through
     case -2:
@@ -4086,7 +4086,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case 0:
       break;
     case -1:
-      ndbout << "4:4008 on connection " << theNdbCon->ptr2int() << endl;
+      g_eventLogger->info("4:4008 on connection %d", theNdbCon->ptr2int());
       setErrorCode(4008);
       // Fall through
     case -2:

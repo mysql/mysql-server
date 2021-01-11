@@ -392,7 +392,7 @@ Pgman::execREAD_CONFIG_REQ(Signal* signal)
     // how many page entries per buffer pages
     Uint32 entries = 0;
     ndb_mgm_get_int_parameter(p, CFG_DB_DISK_PAGE_BUFFER_ENTRIES, &entries);
-    ndbout << "pgman: page buffer entries = " << entries << endl;
+    g_eventLogger->info("pgman: page buffer entries = %u", entries);
     if (entries > 0) // should be
     {
       // param name refers to unbound entries ending up on stack
@@ -2281,7 +2281,7 @@ Pgman::handle_prepare_lcp(Signal *signal, FragmentRecordPtr fragPtr)
         (state & Page_entry::LOCKED) ||
         (! (state & Page_entry::BOUND)))
     {
-      ndbout << ptr << endl;
+      print(ptr);
       ndbrequire(false);
     }
     if (state & Page_entry::PAGEOUT ||
@@ -2408,7 +2408,7 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
         (state & Page_entry::LOCKED) ||
         (! (state & Page_entry::BOUND)))
     {
-      ndbout << ptr << endl;
+      print(ptr);
       ndbabort();
     }
 
@@ -6620,6 +6620,44 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
   return out;
 }
 
+void print(Ptr<Pgman::Page_request> ptr) {
+  char logbuf[MAX_LOG_MESSAGE_SIZE];
+  logbuf[0] = '\0';
+  const Pgman::Page_request &pr = *ptr.p;
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "PR");
+  if (ptr.i != RNIL)
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " [%u]", ptr.i);
+
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " block=%X", pr.m_block);
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " flags=%X", pr.m_flags);
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE,
+                       " flags=%d"
+                       ",",
+                       pr.m_flags & Pgman::Page_request::OP_MASK);
+  {
+    if (pr.m_flags & Pgman::Page_request::LOCK_PAGE)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "lock_page");
+    if (pr.m_flags & Pgman::Page_request::EMPTY_PAGE)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "empty_page");
+    if (pr.m_flags & Pgman::Page_request::ALLOC_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "alloc_req");
+    if (pr.m_flags & Pgman::Page_request::COMMIT_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "commit_req");
+    if (pr.m_flags & Pgman::Page_request::ABORT_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "abort_req");
+    if (pr.m_flags & Pgman::Page_request::UNDO_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "undo_req");
+    if (pr.m_flags & Pgman::Page_request::UNDO_GET_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "undo_get_req");
+    if (pr.m_flags & Pgman::Page_request::DIRTY_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "dirty_req");
+    if (pr.m_flags & Pgman::Page_request::CORR_REQ)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "corr_req");
+    if (pr.m_flags & Pgman::Page_request::DISK_SCAN)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "disk_scan");
+  }
+}
+
 NdbOut&
 operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
 {
@@ -6713,6 +6751,99 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
   }
 #endif
   return out;
+}
+
+void print(Ptr<Pgman::Page_entry> ptr) {
+  const Pgman::Page_entry &pe = *ptr.p;
+  char logbuf[MAX_LOG_MESSAGE_SIZE];
+  logbuf[0] = '\0';
+  Uint32 list_no = Pgman::get_sublist_no(pe.m_state);
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "PE [%u] state=%X", ptr.i,
+                       pe.m_state);
+  {
+    if (pe.m_state & Pgman::Page_entry::REQUEST)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",request");
+    if (pe.m_state & Pgman::Page_entry::EMPTY)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",empty");
+    if (pe.m_state & Pgman::Page_entry::BOUND)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",bound");
+    if (pe.m_state & Pgman::Page_entry::MAPPED)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",mapped");
+    if (pe.m_state & Pgman::Page_entry::DIRTY)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",dirty");
+    if (pe.m_state & Pgman::Page_entry::USED)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",used");
+    if (pe.m_state & Pgman::Page_entry::BUSY)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",busy");
+    if (pe.m_state & Pgman::Page_entry::LOCKED)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",locked");
+    if (pe.m_state & Pgman::Page_entry::PAGEIN)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",pagein");
+    if (pe.m_state & Pgman::Page_entry::PAGEOUT)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",pageout");
+    if (pe.m_state & Pgman::Page_entry::LOGSYNC)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",logsync");
+    if (pe.m_state & Pgman::Page_entry::LCP)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",lcp");
+    if (pe.m_state & Pgman::Page_entry::WAIT_LCP)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",wait_lcp");
+    if (pe.m_state & Pgman::Page_entry::HOT)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",hot");
+    if (pe.m_state & Pgman::Page_entry::ONSTACK)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",onstack");
+    if (pe.m_state & Pgman::Page_entry::ONQUEUE)
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, ",onqueue");
+  }
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " list=");
+  if (list_no == ZNIL)
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "NONE");
+  else {
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "%u,%s", list_no,
+                         Pgman::get_sublist_name(list_no));
+  }
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " diskpage=%u,%u",
+                       pe.m_file_no, pe.m_page_no);
+  if (pe.m_real_page_i == RNIL)
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "realpage=RNIL");
+  else {
+    BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " realpage=%u",
+                         pe.m_real_page_i);
+#ifdef VM_TRACE
+    if (pe.m_state & Pgman::Page_entry::MAPPED) {
+      Ptr<GlobalPage> gptr;
+      pe.m_this->m_global_page_pool.getPtr(gptr, pe.m_real_page_i);
+      Uint32 hash_result[4];
+      /* NOTE: Assuming "data" is 64 bit aligned as required by 'md5_hash' */
+      md5_hash(hash_result, (Uint64 *)gptr.p->data,
+               sizeof(gptr.p->data) / sizeof(Uint32));
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE,
+                           " md5=%08x%08x%08x%08x", hash_result[0],
+                           hash_result[1], hash_result[2], hash_result[3]);
+    }
+#endif
+  }
+  BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " lsn=%llu busy_count=%u",
+                       pe.m_lsn, pe.m_busy_count);
+#ifdef VM_TRACE
+  {
+    Pgman::Page_stack &pl_stack = pe.m_this->m_page_stack;
+    if (!pl_stack.hasNext(ptr))
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " top");
+    if (!pl_stack.hasPrev(ptr))
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " bottom");
+  }
+  {
+    Pgman::Local_page_request_list req_list(ptr.p->m_this->m_page_request_pool,
+                                            ptr.p->m_requests);
+    if (!req_list.isEmpty()) {
+      Ptr<Pgman::Page_request> req_ptr;
+      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " req:");
+      for (req_list.first(req_ptr); req_ptr.i != RNIL; req_list.next(req_ptr)) {
+        print(req_ptr);
+      }
+    }
+  }
+#endif
 }
 
 void

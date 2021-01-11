@@ -1648,8 +1648,8 @@ NdbTransaction::doSend()
     theNdb->insert_completed_list(this); 
     DBUG_RETURN(0);
   default:
-    ndbout << "Inconsistent theSendStatus = "
-	   << (Uint32) theSendStatus << endl;
+    g_eventLogger->info("Inconsistent theSendStatus = %d",
+                        (Uint32)theSendStatus);
     abort();
     break;
   }//switch
@@ -2048,16 +2048,20 @@ NdbTransaction::checkSchemaObjects(const NdbTableImpl *tab,
                && (dictTab->getObjectVersion() == tab->getObjectVersion())
                && (tab != &(NdbTableImpl::getImpl(*dictTab))))
     {
-      ndbout << "Schema object ownership check failed: table " << tab->getName() 
-             << " not owned by connection" << endl;
+      g_eventLogger->info(
+          "Schema object ownership check failed:"
+          " table %s not owned by connection",
+          tab->getName());
       ret = false;
     }
     if(idx && dictIdx && (dictTab->getObjectId() == idx->getObjectId())
                && (dictIdx->getObjectVersion() == idx->getObjectVersion())
                && (idx != &(NdbIndexImpl::getImpl(*dictIdx))))
     {
-      ndbout << "Schema object ownership check failed: index " 
-             << idx->getName() << " not owned by connection" << endl;
+      g_eventLogger->info(
+          "Schema object ownership check failed:"
+          " index %s not owned by connection",
+          idx->getName());
       ret = false;
     }
   }

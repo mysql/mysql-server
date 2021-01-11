@@ -392,8 +392,8 @@ TransporterFacade::deliver_signal(SignalHeader * const header,
     else if(header->theVerId_signalNumber != GSN_API_REGREQ)
     {
       TRP_DEBUG( "TransporterFacade received signal to unknown block no." );
-      ndbout << "BLOCK NO: "  << tRecBlockNo << " sig " 
-             << header->theVerId_signalNumber  << endl;
+      g_eventLogger->info("BLOCK NO: %u sig %u", tRecBlockNo,
+                          header->theVerId_signalNumber);
       ndbout << *header << "-- Signal Data --" << endl;
       ndbout.hexdump(theData, MAX(header->theLength, 25)) << flush;
       abort();
@@ -1840,9 +1840,9 @@ TransporterFacade::configure(NodeId nodeId,
     if (!m_send_buffer.init(total_send_buffer_size_t,
                             reserved_send_buffer_size_t))
     {
-      ndbout << "Unable to allocate "
-             << total_send_buffer_size_t
-             << " bytes of memory for send buffers!!" << endl;
+      g_eventLogger->info(
+          "Unable to allocate %lu bytes of memory for send buffers!!",
+          total_send_buffer_size_t);
       DBUG_RETURN(false);
     }
   }
@@ -2329,8 +2329,8 @@ TransporterFacade::sendSignal(trp_client* clnt,
   }
   else
   {
-    ndbout << "ERR: SigLen = " << Tlen << " BlockRec = " << TBno;
-    ndbout << " SignalNo = " << aSignal->theVerId_signalNumber << endl;
+    g_eventLogger->info("ERR: SigLen = %u BlockRec = %u SignalNo = %d", Tlen,
+                        TBno, aSignal->theVerId_signalNumber);
     assert(0);
   }//if
   return -1; // Node Dead

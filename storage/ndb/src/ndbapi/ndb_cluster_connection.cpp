@@ -1479,7 +1479,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
   }
   m_latest_error = 1;
   m_latest_error_msg.assfmt("Configuration error: %s", erString);
-  ndbout << get_latest_error_msg() << endl;
+  g_eventLogger->info("%s", get_latest_error_msg());
   DBUG_PRINT("exit", ("connect failed, '%s' ret: -1", erString));
   DBUG_RETURN(-1);
 }

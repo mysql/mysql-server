@@ -9701,7 +9701,7 @@ ThreadConfig::init()
   if (glob_num_tc_threads == 0)
     glob_num_tc_threads = 1;
 
-  ndbout << "NDBMT: number of block threads=" << glob_num_threads << endl;
+  g_eventLogger->info("NDBMT: number of block threads=%u", glob_num_threads);
 
   ::rep_init(g_thr_repository, glob_num_threads,
              globalEmulatorData.m_mem_manager);

@@ -871,6 +871,8 @@ private:
   static const char* get_sublist_name(Uint32 list_no);
   friend class NdbOut& operator<<(NdbOut&, Ptr<Page_request>);
   friend class NdbOut& operator<<(NdbOut&, Ptr<Page_entry>);
+  friend void print(Ptr<Pgman::Page_request> ptr);
+  friend void print(Ptr<Pgman::Page_entry> ptr);
 };
 
 class NdbOut& operator<<(NdbOut&, Ptr<Pgman::Page_request>);

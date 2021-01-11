@@ -6834,8 +6834,9 @@ static int scanEventTable(Ndb* pNdb,
     {
       if (retryAttempt >= retryMax)
       {
-        ndbout << "ERROR: has retried this operation " << retryAttempt 
-               << " times, failing!" << endl;
+        g_eventLogger->info(
+            "ERROR: has retried this operation %d times, failing!",
+            retryAttempt);
         goto error;
       }
       if (pTrans)

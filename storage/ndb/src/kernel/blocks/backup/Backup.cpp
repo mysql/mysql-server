@@ -571,35 +571,38 @@ Backup::monitor_disk_write_speed(const NDB_TICKS curr_time,
      * than allowed by the quota (DiskCheckpointSpeed), including
      * transient spikes due to a single MaxBackupWriteSize write
      */
-    ndbout << "Backup : Excessive Backup/LCP write rate in last"
-           << " monitoring period - recorded = "
-           << (m_monitor_words_written * 4 * 1000) / millisPassed
-           << " bytes/s, "
-           << endl
-           << "Recorded writes to backup: "
-           << (m_backup_monitor_words_written * 4 * 1000) / millisPassed
-           << " bytes/s, "
-           << endl;
-    ndbout << "Current speed is = "
-           << m_curr_disk_write_speed *
-                CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS
-           << " bytes/s"
-           << endl;
-    ndbout << "Current backup speed is = "
-           << m_curr_backup_disk_write_speed *
-                CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS
-           << " bytes/s"
-           << endl;
-    ndbout << "Backup : Monitoring period : " << millisPassed
-           << " millis. Bytes written : " << (m_monitor_words_written * 4)
-           << ".  Max allowed : " << (maxExpectedWords * 4) << endl;
-    ndbout << "Backup : Monitoring period : " << millisPassed
-           << " millis. Bytes written : "
-           << (m_backup_monitor_words_written * 4)
-           << ".  Max allowed : " << (maxExpectedWordsBackup * 4) << endl;
-    ndbout << "Actual number of periods in this monitoring interval: ";
-    ndbout << m_periods_passed_in_monitor_period;
-    ndbout << " calculated number was: " << periodsPassed << endl;
+    g_eventLogger->info(
+        "Backup : Excessive Backup/LCP write rate in last"
+        " monitoring period - recorded = %llu bytes/s, ",
+        (m_monitor_words_written * 4 * 1000) / millisPassed);
+
+    g_eventLogger->info(
+        "Recorded writes to backup: %llu bytes/s, ",
+        (m_backup_monitor_words_written * 4 * 1000) / millisPassed);
+
+    g_eventLogger->info(
+        "Current speed is = %llu bytes/s",
+        m_curr_disk_write_speed * CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS);
+
+    g_eventLogger->info("Current backup speed is = %llu bytes/s",
+                        m_curr_backup_disk_write_speed *
+                            CURR_DISK_SPEED_CONVERSION_FACTOR_TO_SECONDS);
+
+    g_eventLogger->info(
+        "Backup : Monitoring period : %llu"
+        " millis. Bytes written : %llu.  Max allowed : %llu",
+        millisPassed, (m_monitor_words_written * 4), (maxExpectedWords * 4));
+
+    g_eventLogger->info(
+        "Backup : Monitoring period : %llu"
+        " millis. Bytes written : %llu.  Max allowed : %llu",
+        millisPassed, (m_backup_monitor_words_written * 4),
+        (maxExpectedWordsBackup * 4));
+
+    g_eventLogger->info(
+        "Actual number of periods in this"
+        " monitoring interval: %u calculated number was: %llu",
+        m_periods_passed_in_monitor_period, periodsPassed);
   }
   report_disk_write_speed_report(4 * m_monitor_words_written,
                                  4 * m_backup_monitor_words_written,
@@ -3737,8 +3740,7 @@ struct Number {
   Uint64 val;
 };
 
-NdbOut &
-operator<< (NdbOut & out, const Number & val){
+char *printNumber(char buf[], int n, const Number &val) {
   char p = 0;
   Uint32 loop = 1;
   while(val.val > loop){
@@ -3771,14 +3773,14 @@ operator<< (NdbOut & out, const Number & val){
   Uint32 tmp = (Uint32)((val.val + (loop >> 1)) / loop);
 #if 1
   if(p > 0)
-    out << tmp << str;
+    BaseString::snprintf(buf, n, "%u%s", tmp, str);
   else
-    out << tmp;
+    BaseString::snprintf(buf, n, "%u", tmp);
 #else
   out << val.val;
 #endif
 
-  return out;
+  return buf;
 }
 
 void
@@ -3818,21 +3820,34 @@ Backup::execBACKUP_COMPLETE_REP(Signal* signal)
   Number rps = xps(records, elapsed);
   Number bps = xps(bytes, elapsed);
 
-  ndbout << " Data [ "
-	 << Number(records) << " rows " 
-	 << Number(bytes) << " bytes " << elapsed << " ms ] " 
-	 << " => "
-	 << rps << " row/s & " << bps << "b/s" << endl;
+  static constexpr size_t MAX_UINT64_STR = 21;
+
+  char records_str[MAX_UINT64_STR];
+  printNumber(records_str, sizeof(records_str), Number(records));
+
+  char bytes_str[MAX_UINT64_STR];
+  printNumber(bytes_str, sizeof(bytes_str), Number(bytes));
+
+  char rps_str[MAX_UINT64_STR];
+  printNumber(rps_str, sizeof(rps_str), rps);
+
+  char bps_str[MAX_UINT64_STR];
+  printNumber(bps_str, sizeof(bps_str), bps);
+
+  g_eventLogger->info(" Data [ %s rows %s bytes %llu ms ] => %s row/s & %s b/s",
+                      records_str, bytes_str, elapsed, rps_str, bps_str);
 
   bps = xps(rep->noOfLogBytes, elapsed);
   rps = xps(rep->noOfLogRecords, elapsed);
 
-  ndbout << " Log [ "
-	 << Number(rep->noOfLogRecords) << " log records " 
-	 << Number(rep->noOfLogBytes) << " bytes " << elapsed << " ms ] " 
-	 << " => "
-	 << rps << " records/s & " << bps << "b/s" << endl;
+  printNumber(records_str, sizeof(records_str), Number(rep->noOfLogRecords));
+  printNumber(bytes_str, sizeof(bytes_str), Number(rep->noOfLogBytes));
+  printNumber(rps_str, sizeof(rps_str), rps);
+  printNumber(bps_str, sizeof(bps_str), bps);
 
+  g_eventLogger->info(
+      " Log [ %s log records %s bytes %llu ms ] => %s records/s & %s b/s",
+      records_str, bytes_str, elapsed, rps_str, bps_str);
 }
 
 void
@@ -5911,8 +5926,8 @@ Backup::execDROP_TRIG_IMPL_REF(Signal* signal)
 
   if(ref->triggerId != ~(Uint32) 0)
   {
-    ndbout << "ERROR DROPPING TRIGGER: " << ref->triggerId;
-    ndbout << " Err: " << ref->errorCode << endl << endl;
+    g_eventLogger->info("ERROR DROPPING TRIGGER: %u Err: %u", ref->triggerId,
+                        ref->errorCode);
   }
 
   dropTrigReply(signal, ptr);
@@ -10841,7 +10856,7 @@ Backup::get_log_buffer(Signal* signal,
   else if(trigPtr.p->event==2)
     logEntry->TriggerEvent= htonl(TriggerEvent::TE_DELETE);
   else {
-    ndbout << "Bad Event: " << trigPtr.p->event << endl;
+    g_eventLogger->info("Bad Event: %u", trigPtr.p->event);
     ndbabort();
   }
 

@@ -93,6 +93,8 @@ struct Local_key
 class NdbOut&
 operator<<(class NdbOut&, const struct Local_key&);
 
+char *printLocal_Key(char buf[], int bufsize, const Local_key &key);
+
 inline
 Uint32 
 table_version_major(Uint32 ver)

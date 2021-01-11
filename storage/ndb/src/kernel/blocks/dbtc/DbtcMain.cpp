@@ -1902,7 +1902,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	    }
             if (errCode)
             {
-              ndbout << "error: " << errCode << " on " << tapiPointer << endl;
+              g_eventLogger->error("error: %u on %u", errCode, tapiPointer);
               signal->theData[0] = tapiPointer;
               signal->theData[1] = errCode;
               sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
@@ -1933,7 +1933,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
   }
   ndbrequire(terrorCode != ZOK);
 
-  ndbout << "4006 on " << tapiPointer << endl;
+  g_eventLogger->info("4006 on %u", tapiPointer);
   signal->theData[0] = tapiPointer;
   signal->theData[1] = terrorCode;
   sendSignal(tapiBlockref, GSN_TCSEIZEREF, signal, 2, JBB);
@@ -2076,29 +2076,38 @@ void Dbtc::printState(Signal* signal, int place, ApiConnectRecordPtr const apiCo
 
   if (!force_trace)
     return;
-  
-  ndbout << "-- Dbtc::printState -- " << endl;
-  ndbout << "Received from place = " << place
-	 << " apiConnectptr.i = " << apiConnectptr.i
-	 << " apiConnectstate = " << apiConnectptr.p->apiConnectstate << endl;
-  ndbout << "ctcTimer = " << ctcTimer
-	 << " ndbapiBlockref = " << hex <<apiConnectptr.p->ndbapiBlockref
-	 << " Transid = " << apiConnectptr.p->transid[0]
-	 << " " << apiConnectptr.p->transid[1] << endl;
-  ndbout << "apiTimer = " << getApiConTimer(apiConnectptr)
-	 << " counter = " << apiConnectptr.p->counter
-	 << " lqhkeyconfrec = " << apiConnectptr.p->lqhkeyconfrec
-	 << " lqhkeyreqrec = " << apiConnectptr.p->lqhkeyreqrec
-         << " cascading_scans = " << apiConnectptr.p->cascading_scans_count
-         << endl;
-  ndbout << "executing_trigger_ops = "
-         << apiConnectptr.p->m_executing_trigger_ops
-         << " abortState = " << apiConnectptr.p->abortState
-	 << " apiScanRec = " << apiConnectptr.p->apiScanRec
-	 << " returncode = " << apiConnectptr.p->returncode << endl;
-  ndbout << "tckeyrec = " << apiConnectptr.p->tckeyrec
-	 << " returnsignal = " << apiConnectptr.p->returnsignal
-	 << " apiFailState = " << apiConnectptr.p->apiFailState << endl;
+
+  g_eventLogger->info(
+      "-- Dbtc::printState -- "
+      "Received from place = %d"
+      " apiConnectptr.i = %u"
+      " apiConnectstate = %d "
+      "ctcTimer = %u"
+      " ndbapiBlockref = %X"
+      " Transid = %u"
+      " %u "
+      "apiTimer = %u"
+      " counter = %u"
+      " lqhkeyconfrec = %u"
+      " lqhkeyreqrec = %u"
+      " cascading_scans = %u "
+      "executing_trigger_ops = %u,"
+      " abortState = %d"
+      " apiScanRec = %u"
+      " returncode = %u "
+      "tckeyrec = %u"
+      " returnsignal = %d"
+      " apiFailState = %u",
+      place, apiConnectptr.i, apiConnectptr.p->apiConnectstate, ctcTimer,
+      apiConnectptr.p->ndbapiBlockref, apiConnectptr.p->transid[0],
+      apiConnectptr.p->transid[1], getApiConTimer(apiConnectptr),
+      apiConnectptr.p->counter, apiConnectptr.p->lqhkeyconfrec,
+      apiConnectptr.p->lqhkeyreqrec, apiConnectptr.p->cascading_scans_count,
+      apiConnectptr.p->m_executing_trigger_ops, apiConnectptr.p->abortState,
+      apiConnectptr.p->apiScanRec, apiConnectptr.p->returncode,
+      apiConnectptr.p->tckeyrec, apiConnectptr.p->returnsignal,
+      apiConnectptr.p->apiFailState);
+
   if (apiConnectptr.p->cachePtr != RNIL)
   {
     jam();
@@ -2117,10 +2126,13 @@ void Dbtc::printState(Signal* signal, int place, ApiConnectRecordPtr const apiCo
     {
       jam();
       CacheRecord * const regCachePtr = cachePtr.p;
-      ndbout << "currReclenAi = " << regCachePtr->currReclenAi
-             << " attrlength = " << regCachePtr->attrlength
-	     << " tableref = " << regCachePtr->tableref
-	     << " keylen = " << regCachePtr->keylen << endl;
+      g_eventLogger->info(
+          "currReclenAi = %u"
+          " attrlength = %u"
+          " tableref = %u"
+          " keylen = %u",
+          regCachePtr->currReclenAi, regCachePtr->attrlength,
+          regCachePtr->tableref, regCachePtr->keylen);
     } else {
       jam();
       systemErrorLab(signal, __LINE__);

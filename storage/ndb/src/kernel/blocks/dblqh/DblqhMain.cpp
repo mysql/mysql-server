@@ -2325,15 +2325,14 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 #if defined VM_TRACE || defined ERROR_INSERT
   if (cmaxLogFilesInPageZero_DUMP != 0)
   {
-    ndbout << "LQH DUMP 2396 " << cmaxLogFilesInPageZero_DUMP;
+    g_eventLogger->info("LQH DUMP 2396 %u", cmaxLogFilesInPageZero_DUMP);
     if (cmaxLogFilesInPageZero_DUMP > cmaxLogFilesInPageZero)
     {
-      ndbout << ": max allowed is " << cmaxLogFilesInPageZero << endl;
+      g_eventLogger->info(": max allowed is %d", cmaxLogFilesInPageZero);
       // do not continue with useless test
       ndbabort();
     }
     cmaxLogFilesInPageZero = cmaxLogFilesInPageZero_DUMP;
-    ndbout << endl;
   }
 #endif
 
@@ -28443,7 +28442,7 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
      */
     jam();
     m_sr_exec_sr_conf.clear(nodeId);
-    ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
+    g_eventLogger->info("delay: reqs=%u", cnoOutstandingExecFragReq);
     ndbabort();
     sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
                         signal, 10, signal->getLength());
@@ -35052,23 +35051,23 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       while(tcRec.i != RNIL)
       {
         ndbrequire(tcConnect_pool.getValidPtr(tcRec));
-	ndbout << "TcConnectionrec " << tcRec.i;
-	signal->theData[0] = DumpStateOrd::LqhDumpOneTcRec;
+        g_eventLogger->info("TcConnectionrec %u", tcRec.i);
+        signal->theData[0] = DumpStateOrd::LqhDumpOneTcRec;
 	signal->theData[1] = tcRec.i;
 	execDUMP_STATE_ORD(signal);
 	tcRec.i = tcRec.p->nextHashRec;
         bucketLen[i]++;
       }
     }
-    ndbout << "LQH transid hash bucket lengths : " << endl;
+    g_eventLogger->info("LQH transid hash bucket lengths : ");
     for (Uint32 i = 0; i < TRANSID_HASH_SIZE; i++)
     {
       if (bucketLen[i] > 0)
       {
-        ndbout << " bucket " << i << " len " << bucketLen[i] << endl;
+        g_eventLogger->info("bucket %u len %u", i, bucketLen[i]);
       }
     }
-    ndbout << "Done." << endl;
+    g_eventLogger->info("Done.");
   }
 
   if (arg == DumpStateOrd::LqhDumpOneTcRec || arg == 2308)
@@ -35080,92 +35079,105 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       jam();
       return;
     }
-    
-    ndbout << " transactionState = " << tcRec.p->transactionState<<endl;
-    ndbout << " operation = " << tcRec.p->operation<<endl;
-    ndbout << " tcNodeFailrec = " << tcRec.p->tcNodeFailrec
-	   << " seqNoReplica = " << tcRec.p->seqNoReplica
-	   << endl;
-    ndbout << " replicaType = " << tcRec.p->replicaType
-	   << " reclenAiLqhkey = " << tcRec.p->reclenAiLqhkey
-	   << " opExec = " << tcRec.p->opExec
-	   << endl;
-    ndbout << " opSimple = " << tcRec.p->opSimple
-	   << " nextSeqNoReplica = " << tcRec.p->nextSeqNoReplica
-	   << " lockType = " << tcRec.p->lockType
-	   << endl;
-    ndbout << " lastReplicaNo = " << tcRec.p->lastReplicaNo
-	   << " indTakeOver = " << tcRec.p->indTakeOver
-	   << " dirtyOp = " << tcRec.p->dirtyOp
-	   << endl;
-    ndbout << " activeCreat = " << tcRec.p->activeCreat
-	   << " tcBlockref = " << hex << tcRec.p->tcBlockref
-	   << " primKeyLen = " << tcRec.p->primKeyLen
-	   << " nrcopyflag = " << LqhKeyReq::getNrCopyFlag(tcRec.p->reqinfo) 
-	   << endl;
-    ndbout << " nextReplica = " << tcRec.p->nextReplica
-	   << " tcBlockref = " << hex << tcRec.p->tcBlockref
-	   << " reqBlockref = " << hex << tcRec.p->reqBlockref
-	   << " primKeyLen = " << tcRec.p->primKeyLen
-	   << endl;
-    ndbout << " logStopPageNo = " << tcRec.p->logStopPageNo
-	   << " logStartPageNo = " << tcRec.p->logStartPageNo
-	   << " logStartPageIndex = " << tcRec.p->logStartPageIndex
-	   << endl;
-    ndbout << " errorCode = " << tcRec.p->errorCode
-	   << " clientBlockref = " << hex << tcRec.p->clientBlockref
-	   << " applRef = " << hex << tcRec.p->applRef
-	   << " totSendlenAi = " << tcRec.p->totSendlenAi
-	   << endl;
-    ndbout << " totReclenAi = " << tcRec.p->totReclenAi
-	   << " tcScanRec = " << tcRec.p->tcScanRec
-	   << " tcScanInfo = " << tcRec.p->tcScanInfo
-	   << " tcOprec = " << hex << tcRec.p->tcOprec
-	   << endl;
-    ndbout << " tableref = " << tcRec.p->tableref
-	   << " schemaVersion = " << tcRec.p->schemaVersion
-	   << endl;
-    ndbout << " reqinfo = " << tcRec.p->reqinfo
-	   << " reqRef = " << tcRec.p->reqRef
-	   << " readlenAi = " << tcRec.p->readlenAi
-	   << endl;
-    ndbout << " prevLogTcrec = " << tcRec.p->prevLogTcrec
-	   << " prevHashRec = " << tcRec.p->prevHashRec
-	   << " nodeAfterNext0 = " << tcRec.p->nodeAfterNext[0]
-	   << " nodeAfterNext1 = " << tcRec.p->nodeAfterNext[1]
-	   << endl;
-    ndbout << " nextTcConnectrec = " << tcRec.p->nextTcConnectrec
-	   << " nextTcLogQueue = " << tcRec.p->nextTcLogQueue
-	   << " prevTcLogQueue = " << tcRec.p->prevTcLogQueue
-	   << " nextLogTcrec = " << tcRec.p->nextLogTcrec
-	   << endl;
-    ndbout << " nextHashRec = " << tcRec.p->nextHashRec
-	   << " logWriteState = " << tcRec.p->logWriteState
-	   << " logStartFileNo = " << tcRec.p->logStartFileNo
-	   << endl;
-    ndbout << " gci_hi = " << tcRec.p->gci_hi
-           << " gci_lo = " << tcRec.p->gci_lo
-	   << " fragmentptr = " << tcRec.p->fragmentptr
-	   << " fragmentid = " << tcRec.p->fragmentid
-	   << endl;
-    ndbout << " hashValue = " << tcRec.p->hashValue
-           << " currTupAiLen = " << tcRec.p->currTupAiLen
-	   << " currReclenAi = " << tcRec.p->currReclenAi
-	   << endl;
-    ndbout << " tcTimer = " << tcRec.p->tcTimer
-	   << " clientConnectrec = " << tcRec.p->clientConnectrec
-	   << " applOprec = " << hex << tcRec.p->applOprec
-	   << " abortState = " << tcRec.p->abortState
-	   << endl;
-    ndbout << " transid0 = " << hex << tcRec.p->transid[0]
-	   << " transid1 = " << hex << tcRec.p->transid[1]
-	   << " key[0] = " << getKeyInfoWordOrZero(tcRec.p, 0)
-	   << " key[1] = " << getKeyInfoWordOrZero(tcRec.p, 1)
-	   << endl;
-    ndbout << " key[2] = " << getKeyInfoWordOrZero(tcRec.p, 2)
-	   << " key[3] = " << getKeyInfoWordOrZero(tcRec.p, 3)
-	   << " m_nr_delete.m_cnt = " << tcRec.p->m_nr_delete.m_cnt
-	   << endl;
+
+    g_eventLogger->info(
+        " transactionState = %u  operation = %u"
+        " tcNodeFailrec = %u seqNoReplica = %u",
+        tcRec.p->transactionState, tcRec.p->operation, tcRec.p->tcNodeFailrec,
+        tcRec.p->seqNoReplica);
+
+    g_eventLogger->info(" replicaType = %u reclenAiLqhkey = %u opExec = %u",
+                        tcRec.p->replicaType, tcRec.p->reclenAiLqhkey,
+                        tcRec.p->opExec);
+
+    g_eventLogger->info(" opSimple = %u nextSeqNoReplica = %u lockType = %u",
+                        tcRec.p->opSimple, tcRec.p->nextSeqNoReplica,
+                        tcRec.p->lockType);
+
+    g_eventLogger->info(" lastReplicaNo = %u indTakeOver = %u dirtyOp = %u",
+                        tcRec.p->lastReplicaNo, tcRec.p->indTakeOver,
+                        tcRec.p->dirtyOp);
+
+    g_eventLogger->info(
+        " activeCreat = %u tcBlockref = %X"
+        " primKeyLen = %u nrcopyflag = %u",
+        tcRec.p->activeCreat, tcRec.p->tcBlockref, tcRec.p->primKeyLen,
+        LqhKeyReq::getNrCopyFlag(tcRec.p->reqinfo));
+
+    g_eventLogger->info(
+        " nextReplica = %u tcBlockref = %X"
+        " reqBlockref = %X primKeyLen = %u",
+        tcRec.p->nextReplica, tcRec.p->tcBlockref, tcRec.p->reqBlockref,
+        tcRec.p->primKeyLen);
+
+    g_eventLogger->info(
+        " logStopPageNo = %u logStartPageNo = %u"
+        " logStartPageIndex = %u",
+        tcRec.p->logStopPageNo, tcRec.p->logStartPageNo,
+        tcRec.p->logStartPageIndex);
+
+    g_eventLogger->info(
+        " errorCode = %u clientBlockref = %X"
+        " applRef = %X totSendlenAi = %u",
+        tcRec.p->errorCode, tcRec.p->clientBlockref, tcRec.p->applRef,
+        tcRec.p->totSendlenAi);
+
+    g_eventLogger->info(
+        " totReclenAi = %u tcScanRec = %u"
+        " tcScanInfo = %u tcOprec = %X",
+        tcRec.p->totReclenAi, tcRec.p->tcScanRec, tcRec.p->tcScanInfo,
+        tcRec.p->tcOprec);
+
+    g_eventLogger->info(" tableref = %u schemaVersion = %u", tcRec.p->tableref,
+                        tcRec.p->schemaVersion);
+
+    g_eventLogger->info(" reqinfo = %u reqRef = %u readlenAi = %u",
+                        tcRec.p->reqinfo, tcRec.p->reqRef, tcRec.p->readlenAi);
+
+    g_eventLogger->info(
+        " prevLogTcrec = %p prevHashRec = %u"
+        " nodeAfterNext0 = %u nodeAfterNext1 = %u",
+        tcRec.p->prevLogTcrec, tcRec.p->prevHashRec, tcRec.p->nodeAfterNext[0],
+        tcRec.p->nodeAfterNext[1]);
+
+    g_eventLogger->info(
+        " nextTcConnectrec = %u nextTcLogQueue = %p"
+        " prevTcLogQueue = %p nextLogTcrec = %p",
+        tcRec.p->nextTcConnectrec, tcRec.p->nextTcLogQueue,
+        tcRec.p->prevTcLogQueue, tcRec.p->nextLogTcrec);
+
+    g_eventLogger->info(
+        " nextHashRec = %u logWriteState = %d"
+        " logStartFileNo = %u",
+        tcRec.p->nextHashRec, tcRec.p->logWriteState, tcRec.p->logStartFileNo);
+
+    g_eventLogger->info(
+        " gci_hi = %u gci_lo = %u"
+        " fragmentptr = %u fragmentid = %u",
+        tcRec.p->gci_hi, tcRec.p->gci_lo, tcRec.p->fragmentptr,
+        tcRec.p->fragmentid);
+
+    g_eventLogger->info(
+        " hashValue = %u currTupAiLen = %u"
+        " currReclenAi = %u",
+        tcRec.p->hashValue, tcRec.p->currTupAiLen, tcRec.p->currReclenAi);
+
+    g_eventLogger->info(
+        " tcTimer = %u clientConnectrec = %u"
+        " applOprec = %X abortState = %d",
+        tcRec.p->tcTimer, tcRec.p->clientConnectrec, tcRec.p->applOprec,
+        tcRec.p->abortState);
+
+    g_eventLogger->info(" transid0 = %X transid1 = %X key[0] = %u key[1] = %u",
+                        tcRec.p->transid[0], tcRec.p->transid[1],
+                        getKeyInfoWordOrZero(tcRec.p, 0),
+                        getKeyInfoWordOrZero(tcRec.p, 1));
+
+    g_eventLogger->info(" key[2] = %u key[3] = %u m_nr_delete.m_cnt = %u",
+                        getKeyInfoWordOrZero(tcRec.p, 2),
+                        getKeyInfoWordOrZero(tcRec.p, 3),
+                        tcRec.p->m_nr_delete.m_cnt);
+
     switch (tcRec.p->transactionState) {
 	
     case TcConnectionrec::SCAN_STATE_USED:
@@ -35174,38 +35186,44 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	ScanRecordPtr TscanPtr;
         TscanPtr.i = tcRec.p->tcScanRec;
 	ndbrequire(c_scanRecordPool.getValidPtr(TscanPtr));
-	ndbout << " scanState = " << TscanPtr.p->scanState << endl;
-	//TscanPtr.p->scanLocalref[2];
-	ndbout << " copyPtr="<<TscanPtr.p->copyPtr
-	       << " scanAccPtr="<<TscanPtr.p->scanAccPtr
-	       << " scanAiLength="<<TscanPtr.p->scanAiLength
-	       << endl;
-	ndbout << " m_curr_batch_size_rows="<<
-	  TscanPtr.p->m_curr_batch_size_rows
-	       << " m_max_batch_size_rows="<<
-	  TscanPtr.p->m_max_batch_size_rows
-	       << " scanErrorCounter="<<TscanPtr.p->scanErrorCounter
-	       << endl;
-	ndbout << " scanSchemaVersion="<<TscanPtr.p->scanSchemaVersion
-	       << "  scanStoredProcId="<<TscanPtr.p->scanStoredProcId
-	       << "  scanTcrec="<<TscanPtr.p->scanTcrec
-	       << endl;
-	ndbout << "  scanType="<<TscanPtr.p->scanType
-	       << "  scanApiBlockref="<<TscanPtr.p->scanApiBlockref
-	       << "  scanNodeId="<<TscanPtr.p->scanNodeId
-	       << "  scanCompletedStatus="<<TscanPtr.p->scanCompletedStatus
-	       << endl;
-	ndbout << "  scanFlag="<<TscanPtr.p->scanFlag
-	       << "  scanLockHold="<<TscanPtr.p->scanLockHold
-	       << "  scanLockMode="<<TscanPtr.p->scanLockMode
-	       << "  scanNumber="<<TscanPtr.p->scanNumber
-	       << endl;
-	ndbout << "  scanReleaseCounter="<<TscanPtr.p->scanReleaseCounter
-	       << "  scanTcWaiting="<<TscanPtr.p->scanTcWaiting
-	       << "  scanKeyinfoFlag="<<TscanPtr.p->scanKeyinfoFlag
-	       << endl;
+
+        g_eventLogger->info("  scanState = %d", TscanPtr.p->scanState);
+        //TscanPtr.p->scanLocalref[2];
+
+        g_eventLogger->info("  copyPtr=%u scanAccPtr=%u scanAiLength=%u",
+                            TscanPtr.p->copyPtr, TscanPtr.p->scanAccPtr,
+                            TscanPtr.p->scanAiLength);
+
+        g_eventLogger->info(
+            "  m_curr_batch_size_rows=%u m_max_batch_size_rows=%u"
+            " scanErrorCounter=%u",
+            TscanPtr.p->m_curr_batch_size_rows,
+            TscanPtr.p->m_max_batch_size_rows, TscanPtr.p->scanErrorCounter);
+
+        g_eventLogger->info(
+            "  scanSchemaVersion= %u scanStoredProcId= %u scanTcrec=%u",
+            TscanPtr.p->scanSchemaVersion, TscanPtr.p->scanStoredProcId,
+            TscanPtr.p->scanTcrec);
+
+        g_eventLogger->info(
+            "  scanType=%d  scanApiBlockref=%u"
+            "  scanNodeId=%u  scanCompletedStatus=%u",
+            TscanPtr.p->scanType, TscanPtr.p->scanApiBlockref,
+            TscanPtr.p->scanNodeId, TscanPtr.p->scanCompletedStatus);
+
+        g_eventLogger->info(
+            "  scanFlag=%u  scanLockHold=%u"
+            "  scanLockMode=%u  scanNumber=%u",
+            TscanPtr.p->scanFlag, TscanPtr.p->scanLockHold,
+            TscanPtr.p->scanLockMode, TscanPtr.p->scanNumber);
+
+        g_eventLogger->info(
+            "  scanReleaseCounter=%u  scanTcWaiting=%u"
+            "  scanKeyinfoFlag=%u",
+            TscanPtr.p->scanReleaseCounter, TscanPtr.p->scanTcWaiting,
+            TscanPtr.p->scanKeyinfoFlag);
       } else{
-	ndbout << "No connected scan record found" << endl;
+        g_eventLogger->info("No connected scan record found");
       }
       break;
     default:

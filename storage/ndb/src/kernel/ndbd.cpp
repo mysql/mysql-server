@@ -715,23 +715,21 @@ get_multithreaded_config(EmulatorData& ed)
   // multithreaded is compiled in ndbd/ndbmtd for now
   if (!globalData.isNdbMt)
   {
-    ndbout << "NDBMT: non-mt" << endl;
+    g_eventLogger->info("NDBMT: non-mt");
     return 0;
   }
 
   THRConfig & conf = ed.theConfiguration->m_thr_config;
   Uint32 threadcount = conf.getThreadCount();
-  ndbout << "NDBMT: MaxNoOfExecutionThreads=" << threadcount << endl;
+  g_eventLogger->info("NDBMT: MaxNoOfExecutionThreads=%u", threadcount);
 
   if (!globalData.isNdbMtLqh)
     return 0;
 
-  ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
-         << " threads=" << globalData.ndbMtLqhThreads
-         << " tc=" << globalData.ndbMtTcThreads
-         << " send=" << globalData.ndbMtSendThreads
-         << " receive=" << globalData.ndbMtReceiveThreads
-         << endl;
+  g_eventLogger->info("NDBMT: workers=%u threads=%u tc=%u send=%u receive=%u",
+                      globalData.ndbMtLqhWorkers, globalData.ndbMtLqhThreads,
+                      globalData.ndbMtTcThreads, globalData.ndbMtSendThreads,
+                      globalData.ndbMtReceiveThreads);
 
   return 0;
 }

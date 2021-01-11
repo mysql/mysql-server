@@ -175,7 +175,7 @@ Ndb::init(int aMaxNoOfTransactions)
   DBUG_RETURN(0);
   
 error_handler:
-  ndbout << "error_handler" << endl;
+  g_eventLogger->info("error_handler");
   releaseTransactionArrays();
   delete theDictionary;
   theImpl->close();
@@ -1512,10 +1512,10 @@ Ndb::completedTransaction(NdbTransaction* aCon)
       theImpl->wakeHandler->notifyTransactionCompleted(this);
     }
   } else {
-    ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
-    ndbout << " theListState = " << (int) aCon->theListState;
-    ndbout << " theTransArrayIndex = " << aCon->theTransArrayIndex;
-    ndbout << endl << flush;
+    g_eventLogger->info(
+        "theNoOfSentTransactions = %d theListState = %d"
+        " theTransArrayIndex = %d",
+        theNoOfSentTransactions, aCon->theListState, aCon->theTransArrayIndex);
 #ifdef VM_TRACE
     printState("completedTransaction abort");
     //abort();
@@ -1563,9 +1563,9 @@ Ndb::pollCompleted(NdbTransaction** aCopyArray)
     for (i = 0; i < tNoCompletedTransactions; i++) {
       aCopyArray[i] = theCompletedTransactionsArray[i];
       if (aCopyArray[i]->theListState != NdbTransaction::InCompletedList) {
-        ndbout << "pollCompleted error ";
-        ndbout << (int) aCopyArray[i]->theListState << endl;
-	abort();
+        g_eventLogger->info("pollCompleted error %d",
+                            (int)aCopyArray[i]->theListState);
+        abort();
       }//if
       theCompletedTransactionsArray[i] = NULL;
       aCopyArray[i]->theListState = NdbTransaction::NotInList;

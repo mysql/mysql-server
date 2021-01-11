@@ -36,6 +36,7 @@
 #include <mgmapi_internal.h>
 #include <ConfigValues.hpp>
 #include <DnsCache.hpp>
+#include <EventLogger.hpp>
 
 //****************************************************************************
 //****************************************************************************
@@ -386,7 +387,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
           setError(CR_ERROR, tmp.c_str());
           return false;
         }
-        ndbout << "Warning: " << tmp << endl;
+        g_eventLogger->info("Warning: %s", tmp.c_str());
       }
     }
 
@@ -397,7 +398,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
           setError(CR_ERROR, tmp.c_str());
           return false;
         }
-        ndbout << "Warning: " << tmp << endl;
+        g_eventLogger->info("Warning: %s", tmp.c_str());
       }
     }
   }

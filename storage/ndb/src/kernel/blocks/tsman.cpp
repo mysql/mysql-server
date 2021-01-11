@@ -505,16 +505,16 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal)
   sendSignal(senderRef, GSN_CREATE_FILEGROUP_IMPL_REF, signal,
 	     CreateFilegroupImplRef::SignalLength, JBB);
 }
-NdbOut&
-operator<<(NdbOut& out, const File_formats::Datafile::Extent_data & obj)
+
+char*
+print(char buf[], int n, const File_formats::Datafile::Extent_data &obj)
 {
+  buf[0] = '\0';
   for(Uint32 i = 0; i<32; i++)
   {
-    char t[2];
-    BaseString::snprintf(t, sizeof(t), "%x", obj.get_free_bits(i));
-    out << t;
+    BaseString::snappend(buf, n, "%x", obj.get_free_bits(i));
   }
-  return out;
+  return buf;
 }
 
 void
@@ -1061,10 +1061,11 @@ Tsman::open_file(Signal* signal,
   req->file_size_hi = hi;
   req->file_size_lo = lo;
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD tsman: file id:" << ptr.p->m_file_id
-         << " datafile pages/bytes:" << data_pages
-         << "/" << data_pages*File_formats::NDB_PAGE_SIZE
-         << " extent pages:" << extent_pages << endl;
+  g_eventLogger->info(
+      "DD tsman: file id: %u datafile pages/bytes: %llu/%llu"
+      " extent pages: %llu",
+      ptr.p->m_file_id, data_pages, data_pages * File_formats::NDB_PAGE_SIZE,
+      extent_pages);
 #endif
 
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
@@ -2046,9 +2047,9 @@ Tsman::Tablespace::Tablespace(Tsman* ts, const CreateFilegroupImplReq* req)
   
   m_extent_size = (Uint32)DIV(req->tablespace.extent_size, File_formats::NDB_PAGE_SIZE);
 #if defined VM_TRACE || defined ERROR_INSERT
-  ndbout << "DD tsman: ts id:" << m_tablespace_id << " extent pages/bytes:"
-         << m_extent_size << "/" << m_extent_size*File_formats::NDB_PAGE_SIZE
-         << endl;
+  g_eventLogger->info("DD tsman: ts id: %u extent pages/bytes: %u/%u",
+                      m_tablespace_id, m_extent_size,
+                      m_extent_size * File_formats::NDB_PAGE_SIZE);
 #endif
 }
 
@@ -2244,8 +2245,10 @@ Tsman::execFREE_EXTENT_REQ(Signal* signal)
   Ptr<Datafile> file_ptr;
   FreeExtentReq req = *(FreeExtentReq*)signal->getDataPtr();
   FreeExtentReq::ErrorCode err = (FreeExtentReq::ErrorCode)0;
-  
-  ndbout << "Free extent: " << req.request.key << endl;
+
+  char logbuf[MAX_LOG_MESSAGE_SIZE];
+  printLocal_Key(logbuf, MAX_LOG_MESSAGE_SIZE, req.request.key);
+  g_eventLogger->info("Free extent: %s", logbuf);
 
   Datafile file_key;
   file_key.m_file_no = req.request.key.m_file_no;
@@ -2482,10 +2485,14 @@ Tsman::update_page_free_bits(Signal* signal,
                               val.m_extent_size,
                               v2);
       thrjam(jamBuf);
-      ndbout << "table: " << *ext_table_id
-             << " fragment: " << *ext_fragment_id << " "
-             << "update page free bits page: " << *key 
-             << " " << *ext_data << endl;
+
+      char key_str[MAX_LOG_MESSAGE_SIZE];
+      printLocal_Key(key_str, MAX_LOG_MESSAGE_SIZE, *key);
+      char data_str[MAX_LOG_MESSAGE_SIZE];
+      print(data_str, MAX_LOG_MESSAGE_SIZE, *ext_data);
+      g_eventLogger->info(
+          "table: %u fragment: %u update page free bits page: %s %s",
+          *ext_table_id, *ext_fragment_id, key_str, data_str);
     }
     ndbrequire((*ext_table_id) != RNIL);
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
@@ -2671,10 +2678,14 @@ Tsman::unmap_page(Signal* signal, Local_key *key, Uint32 uncommitted_bits)
                               val.m_extent_size,
                               v2);
       thrjam(jamBuf);
-      ndbout << "table: " << *ext_table_id
-             << " fragment: " << *ext_fragment_id << " "
-             << "trying to unmap page: " << *key 
-             << " " << *ext_data << endl;
+
+      char key_str[MAX_LOG_MESSAGE_SIZE];
+      printLocal_Key(key_str, MAX_LOG_MESSAGE_SIZE, *key);
+      char data_str[MAX_LOG_MESSAGE_SIZE];
+      print(data_str, MAX_LOG_MESSAGE_SIZE, *ext_data);
+
+      g_eventLogger->info("table: %u fragment: %u trying to unmap page: %s %s",
+                          *ext_table_id, *ext_fragment_id, key_str, data_str);
       ndbabort();
     }
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
