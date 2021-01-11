@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,10 +346,18 @@ bool Sql_cmd_create_table::execute(THD *thd) {
       result = new (thd->mem_root)
           Query_result_create(create_table, &query_block->fields,
                               lex->duplicates, query_expression_tables);
-      if (result == nullptr) return true;
-      if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK, 0)) return true;
-      if (!thd->stmt_arena->is_regular() && lex->save_cmd_properties(thd))
+      if (result == nullptr) {
+        lex->link_first_table_back(create_table, link_to_local);
         return true;
+      }
+      if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK, 0)) {
+        lex->link_first_table_back(create_table, link_to_local);
+        return true;
+      }
+      if (!thd->stmt_arena->is_regular() && lex->save_cmd_properties(thd)) {
+        lex->link_first_table_back(create_table, link_to_local);
+        return true;
+      }
     } else {
       result = down_cast<Query_result_create *>(
           unit->query_result() != nullptr ? unit->query_result()
