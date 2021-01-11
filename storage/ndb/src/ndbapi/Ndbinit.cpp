@@ -37,7 +37,6 @@
 #include <NdbEnv.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
 static bool g_first_create_ndb = true;

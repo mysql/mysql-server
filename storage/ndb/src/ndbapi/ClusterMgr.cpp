@@ -52,7 +52,6 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 #if 0
 #define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)

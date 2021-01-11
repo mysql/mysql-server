@@ -38,7 +38,6 @@
 
 #include <NdbTick.h>
 
-extern EventLogger * g_eventLogger;
 
 extern "C" 
 void* 

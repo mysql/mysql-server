@@ -28,7 +28,6 @@
 #include <debugger/DebuggerNames.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 bool
 printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo){

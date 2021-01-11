@@ -58,7 +58,6 @@
 
 #define JAM_FILE_ID 414
 
-extern EventLogger* g_eventLogger;
 
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {

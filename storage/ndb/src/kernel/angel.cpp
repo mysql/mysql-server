@@ -39,7 +39,6 @@
 
 #include <EventLogger.hpp>
 #include <NdbTCP.h>
-extern EventLogger * g_eventLogger;
 
 static void
 angel_exit(int code)

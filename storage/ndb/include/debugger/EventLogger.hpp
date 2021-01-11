@@ -150,5 +150,7 @@ private:
   static constexpr Uint32 MAX_TEXT_LENGTH = 384;
 };
 
+extern EventLogger * g_eventLogger;
+
 extern void getRestartAction(Uint32 action, BaseString &str);
 #endif

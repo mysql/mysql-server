@@ -52,7 +52,6 @@
 
 #define JAM_FILE_ID 420
 
-extern EventLogger * g_eventLogger;
 
 void Dbtup::initData() 
 {

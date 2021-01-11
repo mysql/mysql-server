@@ -30,7 +30,6 @@
 #include <NdbHW.hpp>
 #include <EventLogger.hpp>
 
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 #define DEBUG_AUTO_THREAD_CONFIG 1

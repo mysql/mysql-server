@@ -41,7 +41,6 @@
 #include <signaldata/DictSignal.hpp>
 #include "my_byteorder.h"
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 class ListTablesReq;
 

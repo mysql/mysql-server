@@ -49,7 +49,6 @@
 
 #define JAM_FILE_ID 384
 
-extern EventLogger* g_eventLogger;
 
 
 PosixAsyncFile::PosixAsyncFile(Ndbfs& fs) :

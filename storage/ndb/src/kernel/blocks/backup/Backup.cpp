@@ -77,7 +77,6 @@
 #include <dbtup/Dbtup.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #include <math.h>
 

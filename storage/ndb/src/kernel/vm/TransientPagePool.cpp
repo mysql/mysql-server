@@ -30,7 +30,6 @@
 
 #define JAM_FILE_ID 503
 
-extern EventLogger * g_eventLogger;
 
 TransientPagePool::TransientPagePool()
 : m_mem_manager(NULL),

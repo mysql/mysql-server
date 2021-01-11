@@ -45,7 +45,6 @@
 
 #define JAM_FILE_ID 329
 
-extern EventLogger * g_eventLogger;
 
 /**
  * Declare the global variables 

@@ -39,7 +39,6 @@
 
 #define JAM_FILE_ID 485
 
-extern EventLogger * g_eventLogger;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
   opt_initialstart, opt_verbose;

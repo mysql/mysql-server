@@ -37,7 +37,6 @@
 #include <bitset>
 
 #include <EventLogger.hpp>
-extern EventLogger* g_eventLogger;
 
 //#define DEBUG_MALLOC 1
 #ifdef DEBUG_MALLOC

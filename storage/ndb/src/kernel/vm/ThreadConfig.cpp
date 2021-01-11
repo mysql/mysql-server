@@ -39,7 +39,6 @@
 #include <WatchDog.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #include <signaldata/StartOrd.hpp>
 

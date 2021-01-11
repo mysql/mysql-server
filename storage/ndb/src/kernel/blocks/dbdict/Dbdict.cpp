@@ -103,9 +103,6 @@
 
 #include <NdbEnv.h>
 
-#include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
-
 #include <signaldata/SchemaTrans.hpp>
 #include <DebuggerNames.hpp>
 

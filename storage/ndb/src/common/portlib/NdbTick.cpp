@@ -26,7 +26,6 @@
 #include <ndb_global.h>
 #include <NdbTick.h>
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 #define NANOSEC_PER_SEC  1000000000
 #define MICROSEC_PER_SEC 1000000

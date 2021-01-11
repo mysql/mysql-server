@@ -33,7 +33,6 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 typedef socklen_t ndb_socket_len_t;
 

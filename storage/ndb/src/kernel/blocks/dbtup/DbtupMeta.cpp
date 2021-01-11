@@ -57,7 +57,6 @@
 
 #define JAM_FILE_ID 424
 
-extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
 //#define DEBUG_DISK 1

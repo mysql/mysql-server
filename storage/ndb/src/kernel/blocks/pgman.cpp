@@ -43,7 +43,6 @@
 
 #define JAM_FILE_ID 335
 
-extern EventLogger *g_eventLogger;
 
 /**
  * Requests that make page dirty

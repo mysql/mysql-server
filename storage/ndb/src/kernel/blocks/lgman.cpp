@@ -42,7 +42,6 @@
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #include <record_types.hpp>
 

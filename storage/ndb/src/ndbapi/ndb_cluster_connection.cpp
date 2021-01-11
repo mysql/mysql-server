@@ -46,7 +46,6 @@ NdbMutex *ndb_print_state_mutex= NULL;
 #endif
 
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 static int g_ndb_connection_count = 0;
 

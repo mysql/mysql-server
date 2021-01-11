@@ -30,7 +30,6 @@
 
 #include <EventLogger.hpp>
 #include <NdbMutex.h>
-extern EventLogger * g_eventLogger;
 
 //#define DEBUG_OBJECTMAP
 

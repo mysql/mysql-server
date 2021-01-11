@@ -39,7 +39,6 @@
 
 #define JAM_FILE_ID 388
 
-extern EventLogger * g_eventLogger;
 
 AsyncIoThread::AsyncIoThread(class Ndbfs& fs, bool bound)
   : m_fs(fs),

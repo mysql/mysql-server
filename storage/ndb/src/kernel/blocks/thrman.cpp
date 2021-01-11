@@ -60,7 +60,6 @@ static bool g_freeze_wakeup = 0;
 
 //define HIGH_DEBUG_CPU_USAGE 1
 //#define DEBUG_CPU_USAGE 1
-extern EventLogger * g_eventLogger;
 
 Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
   SimulatedBlock(THRMAN, ctx, instanceno),

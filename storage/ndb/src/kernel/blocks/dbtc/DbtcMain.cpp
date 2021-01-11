@@ -123,7 +123,6 @@
 
 #define TC_TIME_SIGNAL_DELAY 50
 
-extern EventLogger * g_eventLogger;
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product

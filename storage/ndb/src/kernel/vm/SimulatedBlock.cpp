@@ -70,7 +70,6 @@
 
 #define JAM_FILE_ID 252
 
-extern EventLogger * g_eventLogger;
 
 //
 // Constructor, Destructor

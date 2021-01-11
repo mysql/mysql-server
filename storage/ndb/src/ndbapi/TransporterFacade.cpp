@@ -54,7 +54,6 @@
 #include <signaldata/CloseComReqConf.hpp>
 #include <EventLogger.hpp>
 
-extern EventLogger *g_eventLogger;
 
 //#define REPORT_TRANSPORTER
 //#define API_TRACE

@@ -35,7 +35,6 @@
 
 #define JAM_FILE_ID 437
 
-extern EventLogger *g_eventLogger;
 
 LocalProxy::LocalProxy(BlockNumber blockNumber, Block_context& ctx) :
   SimulatedBlock(blockNumber, ctx)

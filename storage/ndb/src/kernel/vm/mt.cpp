@@ -71,7 +71,6 @@
 static constexpr Uint32 NUM_JOB_BUFFERS_PER_THREAD = 32;
 static constexpr Uint32 SIGNAL_RNIL = 0xFFFFFFFF;
 
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1

@@ -71,8 +71,6 @@
 
 #define ZREPORT_MEMORY_USAGE 1000
 
-// Used here only to print event reports on stdout/console.
-extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
 
 // Index pages used by ACC instances

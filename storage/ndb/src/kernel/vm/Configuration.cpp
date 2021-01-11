@@ -52,7 +52,6 @@
 
 #define JAM_FILE_ID 301
 
-extern EventLogger * g_eventLogger;
 
 extern Uint32 g_start_type;
 

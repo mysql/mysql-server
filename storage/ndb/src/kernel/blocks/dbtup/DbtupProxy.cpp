@@ -32,7 +32,6 @@
 
 #define JAM_FILE_ID 413
 
-extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
 //#define DEBUG_TUP_RESTART_ 1

@@ -58,7 +58,6 @@
 
 #define JAM_FILE_ID 393
 
-extern EventLogger * g_eventLogger;
 /**
  * NDBFS has two types of async IO file threads : Bound and non-bound.
  * These threads are kept in two distinct idle pools.

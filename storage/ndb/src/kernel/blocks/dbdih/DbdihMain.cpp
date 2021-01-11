@@ -101,7 +101,6 @@
 
 static const Uint32 WaitTableStateChangeMillis = 10;
 
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1

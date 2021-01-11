@@ -33,7 +33,6 @@
 
 #define JAM_FILE_ID 508
 
-extern EventLogger * g_eventLogger;
 
 /**
  * StaticSlotPool

@@ -30,7 +30,6 @@
 #include "NdbTick.h"
 
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 static int init = 0;
 #ifdef HAVE_CLOCK_GETTIME

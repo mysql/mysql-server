@@ -34,7 +34,6 @@
 #include <kernel/NodeBitmask.hpp>
 
 #include "ndb_logevent.hpp"
-extern EventLogger *g_eventLogger;
 
 extern
 int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[],

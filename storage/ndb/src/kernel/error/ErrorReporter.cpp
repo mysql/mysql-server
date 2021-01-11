@@ -34,7 +34,6 @@
 #include <NdbConfig.h>
 #include <Configuration.hpp>
 #include "EventLogger.hpp"
-extern EventLogger * g_eventLogger;
 
 #include "ndb_stacktrace.h"
 #include "TimeModule.hpp"

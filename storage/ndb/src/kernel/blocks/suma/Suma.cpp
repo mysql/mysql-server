@@ -77,7 +77,6 @@
 
 #define JAM_FILE_ID 467
 
-extern EventLogger * g_eventLogger;
 
 //#define HANDOVER_DEBUG
 //#define NODEFAIL_DEBUG

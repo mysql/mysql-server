@@ -45,7 +45,6 @@
 #include <trpman.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_MULTI_TRP 1

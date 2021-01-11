@@ -46,7 +46,6 @@
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
-extern EventLogger * g_eventLogger;
 
 /**
    const char * name;

@@ -28,7 +28,6 @@
 
 #include <NdbMutex.h>
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
 #include "NdbMutex_DeadlockDetector.h"

@@ -50,7 +50,6 @@
 #include <NdbTick.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>

@@ -33,7 +33,6 @@
 #include <signaldata/SignalDataPrint.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 static const char *            localSignalNames[MAX_GSN+1];
 static SignalDataPrintFunction localPrintFunctions[MAX_GSN+1];

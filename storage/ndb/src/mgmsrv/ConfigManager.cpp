@@ -38,7 +38,6 @@
 #include <ndb_version.h>
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 extern "C" const char* opt_ndb_connectstring;
 extern "C" int opt_ndb_nodeid;

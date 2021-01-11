@@ -28,7 +28,6 @@
 #include <time.h>
 
 #include <ndb_global.h>
-#include <EventLogger.hpp>
 #include <portlib/NdbMem.h>
 
 #define JAM_FILE_ID 296
@@ -53,7 +52,6 @@ void *sbrk(int increment)
 }
 #endif
 
-extern EventLogger * g_eventLogger;
 
 static int f_method_idx = 0;
 #ifdef NDBD_MALLOC_METHOD_SBRK

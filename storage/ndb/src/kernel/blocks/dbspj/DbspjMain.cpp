@@ -57,7 +57,6 @@
 
 #define JAM_FILE_ID 479
 
-extern EventLogger* g_eventLogger;
 extern Uint32 ErrorSignalReceive;
 extern Uint32 ErrorMaxSegmentsToSeize;
 

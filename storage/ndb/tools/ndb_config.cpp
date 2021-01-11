@@ -872,7 +872,6 @@ noconnect:
 #include "../src/mgmsrv/Config.hpp"
 #include <EventLogger.hpp>
 
-extern EventLogger *g_eventLogger;
 
 static ndb_mgm_configuration*
 load_configuration()

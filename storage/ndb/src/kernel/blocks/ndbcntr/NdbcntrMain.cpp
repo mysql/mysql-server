@@ -87,7 +87,6 @@
 #define JAM_FILE_ID 458
 
 
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_NODE_STOP 1

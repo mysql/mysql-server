@@ -39,7 +39,6 @@
 #define JAM_FILE_ID 418
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_INDEX_BUILD 1

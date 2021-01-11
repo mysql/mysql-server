@@ -103,7 +103,6 @@ MgmtSrvr::logLevelThread_C(void* m)
   return 0;
 }
 
-extern EventLogger * g_eventLogger;
 
 #ifdef NOT_USED
 static NdbOut&

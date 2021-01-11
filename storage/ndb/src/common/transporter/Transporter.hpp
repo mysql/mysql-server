@@ -27,6 +27,7 @@
 
 #include <ndb_global.h>
 
+#include <EventLogger.hpp>
 #include <SocketClient.hpp>
 
 #include <TransporterRegistry.hpp>
@@ -37,9 +38,8 @@
 #include <NdbMutex.h>
 #include <NdbThread.h>
 
-#include <EventLogger.hpp>
 #include "ndb_socket.h"
-extern EventLogger *g_eventLogger;
+
 
 #define DISCONNECT_ERRNO(e, sz) ( \
                 (sz == 0) || \

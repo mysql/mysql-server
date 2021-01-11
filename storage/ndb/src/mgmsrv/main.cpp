@@ -45,7 +45,6 @@
 #include <LogBuffer.hpp>
 #include <OutputStream.hpp>
 
-extern EventLogger * g_eventLogger;
 
 #if defined VM_TRACE || defined ERROR_INSERT
 extern int g_errorInsert;

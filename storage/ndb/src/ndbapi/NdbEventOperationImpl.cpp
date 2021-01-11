@@ -43,7 +43,6 @@
 #include "ndb_internal.hpp"
 
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 /**
  * Page allocation of memory (mmap) depends on MAP_ANONYMOUS being available

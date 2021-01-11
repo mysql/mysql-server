@@ -35,7 +35,6 @@
 #include <NdbSpin.h>
 
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 /* Return true if node with "nodeId" is a MGM node */
 static bool is_mgmd(Uint32 nodeId, const ndb_mgm_configuration * config)

@@ -29,7 +29,6 @@
 #include <util/File.hpp>
 #include <NdbOut.hpp>
 #include <EventLogger.hpp>
-extern EventLogger * g_eventLogger;
 
 //
 // PUBLIC

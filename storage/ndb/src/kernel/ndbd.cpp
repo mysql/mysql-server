@@ -55,7 +55,6 @@
 
 #define JAM_FILE_ID 484
 
-extern EventLogger * g_eventLogger;
 
 static void
 systemInfo(const Configuration & config, const LogLevel & logLevel)

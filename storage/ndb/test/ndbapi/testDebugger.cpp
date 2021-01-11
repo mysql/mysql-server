@@ -26,7 +26,6 @@
 #include <NDBT_Test.hpp>
 #include <EventLogger.hpp>
 
-extern EventLogger* g_eventLogger;
 
 static
 Uint64

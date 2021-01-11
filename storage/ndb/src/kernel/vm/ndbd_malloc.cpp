@@ -40,7 +40,6 @@
 
 #define JAM_FILE_ID 287
 
-extern EventLogger * g_eventLogger;
 
 #define TOUCH_PARALLELISM 8
 #define MIN_START_THREAD_SIZE (128 * 1024 * 1024)

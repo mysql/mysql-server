@@ -38,7 +38,6 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #define MAX_RECEIVED_SIGNALS 1024
 #endif
 
-extern EventLogger* g_eventLogger;
 
 void
 TransporterRegistry::dump_and_report_bad_message(const char file[], unsigned line,

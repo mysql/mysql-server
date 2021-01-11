@@ -35,7 +35,6 @@
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
 
-extern EventLogger *g_eventLogger;
 
 const int MAX_LINE_LENGTH = 1024;  // Max length of line of text in config file
 static void trim(char *);

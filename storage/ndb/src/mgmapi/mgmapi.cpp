@@ -45,7 +45,6 @@
 #include <ndb_base64.h>
 #include <ndb_limits.h>
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 //#define MGMAPI_LOG
 #define MGM_CMD(name, fun, desc) \

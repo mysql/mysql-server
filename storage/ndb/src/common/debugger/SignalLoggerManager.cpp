@@ -31,7 +31,6 @@
 #include <NdbTick.h>
 #include <NdbEnv.h>
 #include <EventLogger.hpp>
-extern EventLogger *g_eventLogger;
 
 #ifdef VM_TRACE_TIME
 static char* mytime()
