@@ -1579,11 +1579,7 @@ class Item_func_microsecond final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "microsecond"; }
   enum Functype functype() const override { return MICROSECOND_FUNC; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_valid_arguments_processor(uchar *) override {
     return !has_time_args();

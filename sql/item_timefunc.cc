@@ -3214,6 +3214,12 @@ longlong Item_func_microsecond::val_int() {
   return get_arg0_time(&ltime) ? 0 : ltime.second_part;
 }
 
+bool Item_func_microsecond::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_timestamp_diff::val_int() {
   MYSQL_TIME ltime1, ltime2;
   longlong seconds;
