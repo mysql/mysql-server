@@ -231,8 +231,13 @@ int AggregateIterator::Read() {
           // no input rows.
 
           // Calculate aggregate functions for no rows
-          for (Item *item : VisibleFields(*m_join->get_current_fields())) {
-            item->no_rows_in_result();
+          for (Item *item : *m_join->get_current_fields()) {
+            if (!item->hidden ||
+                (item->type() == Item::SUM_FUNC_ITEM &&
+                 down_cast<Item_sum *>(item)->aggr_query_block ==
+                     m_join->query_block)) {
+              item->no_rows_in_result();
+            }
           }
 
           /*
