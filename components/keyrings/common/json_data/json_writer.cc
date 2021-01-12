@@ -121,11 +121,6 @@ bool Json_writer::add_element(const meta::Metadata &metadata,
   return document_.HasParseError();
 }
 
-/**
-  Remove an element from document
-
-  @param [in] metadata Metadata
-*/
 bool Json_writer::remove_element(const meta::Metadata &metadata,
                                  const Json_data_extension &) {
   bool retval = true;

@@ -44,8 +44,9 @@ typedef struct {
 
 /** Error info - generated from error message file */
 static st_error global_error_names[] = {
+#ifndef IN_DOXYGEN
 #include "mysqld_ername.h"
-
+#endif /* IN_DOXYGEN */
     {nullptr, 0, nullptr, nullptr, nullptr, 0}};
 
 /**
