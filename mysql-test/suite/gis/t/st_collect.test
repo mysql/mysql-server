@@ -99,6 +99,7 @@ SELECT ST_ASTEXT(ST_COLLECT(geometry)) AS t FROM multi_srs_table;
 --echo # one
 --echo # Multipoint((38 77)) with SRID 0. There is some rounding issue on the
 --echo # result, bug #31535105
+--sorted_result
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 
@@ -110,6 +111,7 @@ multi_srs_table GROUP BY ST_SRID(geometry) WITH ROLLUP;
 --echo # Triggering a codepath for geometrycollection in temp tables
 INSERT INTO multi_srs_table( geometry ) VALUES
 (ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(60 -24))'         ,4326));
+--sorted_result
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 

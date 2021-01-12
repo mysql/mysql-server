@@ -157,8 +157,8 @@ ERROR 22S05: Arguments to function st_collect contains geometries with different
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 st_srid(geometry)	t
-4326	MULTIPOINT((60 -24),(61.00000000000001 -24))
 0	MULTIPOINT((38 77))
+4326	MULTIPOINT((60 -24),(61.00000000000001 -24))
 Rollup needs all SRIDs to be the same. 
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry) WITH ROLLUP;
@@ -169,8 +169,8 @@ INSERT INTO multi_srs_table( geometry ) VALUES
 SELECT st_srid(geometry),ST_ASTEXT(ST_COLLECT( geometry )) AS t FROM
 multi_srs_table GROUP BY ST_SRID(geometry);
 st_srid(geometry)	t
-4326	GEOMETRYCOLLECTION(POINT(60 -24),POINT(61.00000000000001 -24),GEOMETRYCOLLECTION(POINT(60 -24)))
 0	MULTIPOINT((38 77))
+4326	GEOMETRYCOLLECTION(POINT(60 -24),POINT(61.00000000000001 -24),GEOMETRYCOLLECTION(POINT(60 -24)))
 #teardown of testing handling of multiple SRS
 DROP TABLE multi_srs_table;
 # setup of testing handling different geometry types
