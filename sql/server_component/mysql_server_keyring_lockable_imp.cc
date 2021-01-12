@@ -215,18 +215,6 @@ static bool check_service(const void *service,
 
 /* AES Encryption Service */
 
-/**
-  Retrieve required out buffer length information
-
-    @param [in]  input_length Length of input text
-    @param [in]  mode         AES mode
-    @param [in]  block_size   AES block size information
-    @param [out] out_size     Size of output buffer
-
-    @returns Output buffer length or error
-      @retval true  Success
-      @retval false Error processing given mode and/or block size
-*/
 DEFINE_BOOL_METHOD(Keyring_aes_service_impl::get_size,
                    (size_t input_length, const char *mode, size_t block_size,
                     size_t *out_size)) {
@@ -236,27 +224,6 @@ DEFINE_BOOL_METHOD(Keyring_aes_service_impl::get_size,
   return internal_keyring_aes->get_size(input_length, mode, block_size,
                                         out_size);
 }
-
-/**
-  Encrypt given piece of plaintext
-
-  @param [in]  data_id            Name of the key
-  @param [in]  auth_id            Owner of the key
-  @param [in]  mode               AES mode
-  @param [in]  block_size         AES block size information
-  @param [in]  iv                 Initialization vector
-  @param [in]  padding            padding preference
-  @param [in]  data_buffer        Input buffer
-  @param [in]  data_buffer_length Input buffer lenth
-  @param [out] out_buffer         Output buffer
-  @param [in]  out_buffer_length  Output buffer length
-  @param [out] out_length         Length of encrypted data
-
-  @returns status of the operation
-    @retval true  Success
-    @retval false Failure
-
-*/
 
 DEFINE_BOOL_METHOD(Keyring_aes_service_impl::encrypt,
                    (const char *data_id, const char *auth_id, const char *mode,
@@ -271,26 +238,6 @@ DEFINE_BOOL_METHOD(Keyring_aes_service_impl::encrypt,
       data_id, auth_id, mode, block_size, iv, padding, data_buffer,
       data_buffer_length, out_buffer, out_buffer_length, out_length);
 }
-
-/**
-  Decrypt given piece ciphertext
-
-  @param [in]  data_id            Name of the key
-  @param [in]  auth_id            Owner of the key
-  @param [in]  mode               AES mode
-  @param [in]  block_size         AES block size information
-  @param [in]  iv                 Initialization vector
-  @param [in]  padding            padding preference
-  @param [in]  data_buffer        Input buffer
-  @param [in]  data_buffer_length Input buffer lenth
-  @param [out] out_buffer         Output buffer
-  @param [in]  out_buffer_length  Output buffer length
-  @param [out] out_length         Length of decrypted data
-
-  @returns status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_aes_service_impl::decrypt,
                    (const char *data_id, const char *auth_id, const char *mode,
@@ -307,18 +254,6 @@ DEFINE_BOOL_METHOD(Keyring_aes_service_impl::decrypt,
 }
 
 /* keyring_generator */
-/**
-  Generate data and store in keyring
-
-  @param [in]  data_id   Data Identifier
-  @param [in]  auth_id   Authorization ID
-  @param [in]  data_type Type of data. Assumed null terminated.
-  @param [in]  data_size Size of the data to be generated
-
-  @returns status of the operation
-    @retval true  Success - Key generated and stored in keyring.
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_generator_service_impl::generate,
                    (const char *data_id, const char *auth_id,
@@ -334,15 +269,6 @@ DEFINE_BOOL_METHOD(Keyring_generator_service_impl::generate,
 }
 
 /* keyring_keys_metdata_iterator */
-/**
-  Forward iterator initialization
-
-  @param [out] forward_iterator metadata iterator
-
-  @returns Status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::init,
                    (my_h_keyring_keys_metadata_iterator * forward_iterator)) {
@@ -365,18 +291,6 @@ DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::init,
       reinterpret_cast<my_h_keyring_keys_metadata_iterator>(local_object);
   return retval;
 }
-
-/**
-  Iterator deinitialization
-
-  Note: forward_iterator should not be used after call to deinit
-
-  @param [in, out] forward_iterator metadata iterator
-
-  @returns Status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::deinit,
                    (my_h_keyring_keys_metadata_iterator forward_iterator)) {
@@ -403,15 +317,6 @@ DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::deinit,
   return retval;
 }
 
-/**
-  Check validity of the iterator
-
-  @param [in] forward_iterator metadata iterator
-
-  @returns Validty of the iterator
-    @retval true  Iterator is valid
-    @retval false Iterator is invalid
-*/
 DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::is_valid,
                    (my_h_keyring_keys_metadata_iterator forward_iterator)) {
   if (check_service(internal_keyring_keys_metadata_iterator,
@@ -427,17 +332,6 @@ DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::is_valid,
       local_object->iterator_);
 }
 
-/**
-  Fetch length of metadata for current key pointed by iterator
-
-  @param [in]   forward_iterator Forward_iterator metadata iterator
-  @param [out]  data_id_length   Length of data_id buffer
-  @param [out]  auth_id_length   Length of auth_id buffer
-
-  @returns Status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::get_length,
                    (my_h_keyring_keys_metadata_iterator forward_iterator,
                     size_t *data_id_length, size_t *auth_id_length)) {
@@ -454,16 +348,6 @@ DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::get_length,
       local_object->iterator_, data_id_length, auth_id_length);
 }
 
-/**
-  Move iterator forward.
-
-  @param [in,out] forward_iterator metadata iterator
-
-  @returns Status of the operation
-    @retval true  Success - indicates that iterator is pointing to next entry
-    @retval false Failure - indicates that iterator has reached the end
-*/
-
 DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::next,
                    (my_h_keyring_keys_metadata_iterator forward_iterator)) {
   if (check_service(internal_keyring_keys_metadata_iterator,
@@ -478,19 +362,6 @@ DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::next,
   return internal_keyring_keys_metadata_iterator->next(local_object->iterator_);
 }
 
-/**
-  Fetch metadata for current key pointed by iterator
-
-  @param [in]  forward_iterator forward_iterator metadata iterator
-  @param [out] data_id          ID information of current data
-  @param [in]  data_id_length   Length of data_id buffer
-  @param [out] auth_id          Owner of the key
-  @param [in]  auth_id_length   Length of auth_id buffer
-
-  @returns Status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::get,
                    (my_h_keyring_keys_metadata_iterator forward_iterator,
                     char *data_id, size_t data_id_length, char *auth_id,
@@ -510,21 +381,13 @@ DEFINE_BOOL_METHOD(Keyring_keys_metadata_iterator_service_impl::get,
 }
 
 /* keyring_component_metadata_query */
-/** Returns status of the keyring component */
+
 DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::is_initialized, ()) {
   if (check_service(internal_keyring_component_status, COMPONENT_STATUS))
     return false;
   return internal_keyring_component_status->is_initialized();
 }
-/**
-  Initialize metadata iterator
 
-  @param [out] metadata_iterator Metadata iterator handle
-
-  @returns Status of iterator initialization
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::init,
                    (my_h_keyring_component_metadata_iterator *
                     metadata_iterator)) {
@@ -536,15 +399,6 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::init,
   return internal_keyring_component_metadata_query->init(metadata_iterator);
 }
 
-/**
-  Deinitialize metadata iterator
-
-  @param [in, out] metadata_iterator Metadata iterator handle
-
-  @returns Status of iterator deinitialization
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(
     Keyring_metadata_query_service_impl::deinit,
     (my_h_keyring_component_metadata_iterator metadata_iterator)) {
@@ -556,15 +410,6 @@ DEFINE_BOOL_METHOD(
   return internal_keyring_component_metadata_query->deinit(metadata_iterator);
 }
 
-/**
-  Check validity of iterator
-
-  @param [in] metadata_iterator Metadata iterator handle
-
-  @returns Validity of the the iterator
-    @retval true  Iterator valid
-    @retval false Iterator invalid
-*/
 DEFINE_BOOL_METHOD(
     Keyring_metadata_query_service_impl::is_valid,
     (my_h_keyring_component_metadata_iterator metadata_iterator)) {
@@ -576,15 +421,6 @@ DEFINE_BOOL_METHOD(
   return internal_keyring_component_metadata_query->is_valid(metadata_iterator);
 }
 
-/**
-  Move iterator forward
-
-  @param [in, out] metadata_iterator Metadata iterator handle
-
-  @returns Status of operation
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(
     Keyring_metadata_query_service_impl::next,
     (my_h_keyring_component_metadata_iterator metadata_iterator)) {
@@ -596,17 +432,6 @@ DEFINE_BOOL_METHOD(
   return internal_keyring_component_metadata_query->next(metadata_iterator);
 }
 
-/**
-  Get length information about metadata key and value
-
-  @param [in]  metadata_iterator   Metadata iterator handle
-  @param [out] key_buffer_length   Length of the key buffer
-  @param [out] value_buffer_length Length of the value buffer
-
-  @returns Get length information about key and value
-    @retval true  Success check out paramters
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::get_length,
                    (my_h_keyring_component_metadata_iterator metadata_iterator,
                     size_t *key_buffer_length, size_t *value_buffer_length)) {
@@ -619,19 +444,6 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::get_length,
       metadata_iterator, key_buffer_length, value_buffer_length);
 }
 
-/**
-  Get name and value of metadata at current position
-
-  @param [in]  metadata_iterator   Metadata iterator handle
-  @param [out] key_buffer          Output buffer for key
-  @param [in]  key_buffer_length   Length of key buffer
-  @param [out] value_buffer        Output buffer for value
-  @param [in]  value_buffer_length Length of value buffer
-
-  @returns Status of fetch operation
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::get,
                    (my_h_keyring_component_metadata_iterator metadata_iterator,
                     char *key_buffer, size_t key_buffer_length,
@@ -647,17 +459,6 @@ DEFINE_BOOL_METHOD(Keyring_metadata_query_service_impl::get,
 }
 
 /* keyring_reader_with_status */
-/**
-  Initialize reader
-
-  @param [in]  data_id          Data Identifier
-  @param [in]  auth_id          Authorization ID
-  @param [out] reader_object    Reader object
-
-  @returns status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_reader_service_impl::init,
                    (const char *data_id, const char *auth_id,
                     my_h_keyring_reader_object *reader_object)) {
@@ -680,15 +481,6 @@ DEFINE_BOOL_METHOD(Keyring_reader_service_impl::init,
   return retval;
 }
 
-/**
-  Deinitialize reader
-
-  @param [in] reader_object    Reader object
-
-  @returns status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_reader_service_impl::deinit,
                    (my_h_keyring_reader_object reader_object)) {
   if (check_service(internal_keyring_reader, READER_WITH_STATUS)) return true;
@@ -709,17 +501,7 @@ DEFINE_BOOL_METHOD(Keyring_reader_service_impl::deinit,
   delete local_object;
   return retval;
 }
-/**
-  Fetch length of the data
 
-  @param [in]  reader_object      reader object
-  @param [out] data_size          Size of fetched data
-  @param [out] data_type_size     Size of data type
-
-  @returns status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 DEFINE_BOOL_METHOD(Keyring_reader_service_impl::fetch_length,
                    (my_h_keyring_reader_object reader_object, size_t *data_size,
                     size_t *data_type_size)) {
@@ -732,22 +514,6 @@ DEFINE_BOOL_METHOD(Keyring_reader_service_impl::fetch_length,
   return internal_keyring_reader->fetch_length(local_object->object_, data_size,
                                                data_type_size);
 }
-
-/**
-  Fetches data from keyring
-
-  @param [in]  reader_object           reader object
-  @param [out] data_buffer             Out buffer for data
-  @param [in]  data_buffer_length      Length of out buffer
-  @param [out] data_size               Size of fetched data
-  @param [out] data_type               Data type buffer
-  @param [in]  data_type_buffer_length Datatype buffer length
-  @param [in]  data_type_size          Size of data type buffer
-
-  @returns status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_reader_service_impl::fetch,
                    (my_h_keyring_reader_object reader_object,
@@ -766,15 +532,6 @@ DEFINE_BOOL_METHOD(Keyring_reader_service_impl::fetch,
 }
 
 /* keyring_load */
-/**
-  Load keyring
-
-  @param [in] component_path Location of component
-
-  @retval Status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
                    (const char *component_path)) {
@@ -787,19 +544,6 @@ DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
 }
 
 /* keyring_writer */
-/**
-  Store data in keyring
-
-  @param [in]  data_id        Data Identifier
-  @param [in]  auth_id        Authorization ID
-  @param [in]  data           Data to be stored
-  @param [in]  data_size      Size of data to be stored
-  @param [in]  data_type      Type of data
-
-  @returns status of the operation
-    @retval true  Success
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_writer_service_impl::store,
                    (const char *data_id, const char *auth_id,
@@ -813,17 +557,6 @@ DEFINE_BOOL_METHOD(Keyring_writer_service_impl::store,
   return internal_keyring_writer->store(data_id, auth_id, data, data_size,
                                         data_type);
 }
-
-/**
-  Remove data from keyring
-
-  @param [in] data_id Data Identifier
-  @param [in] auth_id Authorization ID
-
-  @returns status of the operation
-    @retval true  Success - Key removed successfully or key not present.
-    @retval false Failure
-*/
 
 DEFINE_BOOL_METHOD(Keyring_writer_service_impl::remove,
                    (const char *data_id, const char *auth_id)) {

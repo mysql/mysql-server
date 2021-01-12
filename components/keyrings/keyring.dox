@@ -110,7 +110,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   1. @subpage PAGE_COMPONENT_KEYRING_FILE "File Based Keyring Component"
 
-  2. @subpage PAGE_COMPONENT_KEYRING_ENCRYPTED_FILE "Encrypted File Based Keyring Component"
+  2. Encrypted File Based Keyring Component
 
   3. @subpage PAGE_COMPONENT_KEYRING_MYSQL_SERVER "Server component's lockable keyring implementation"
 
