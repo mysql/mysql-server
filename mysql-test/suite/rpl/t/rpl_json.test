@@ -1,6 +1,10 @@
 # Created: 2014-06-26  Lalit Choudhary
 # WL#7909
 # JSON datatype and funtions testing with replication.
+
+--let $skip_configuration_privilege_checks_user= 'skip'
+--let $rpl_privilege_checks_user_grant_all= 1
+
 --source include/master-slave.inc
 
 --connection master
