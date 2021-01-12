@@ -410,17 +410,20 @@ void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
 
 /**
   Find constant expressions in join conditions, and add caches around them.
+  Also add cast nodes if there are incompatible arguments in comparisons.
+
   Similar to work done in JOIN::finalize_table_conditions() in the old
   optimizer. Non-join predicates are done near the end in MakeJoinHypergraph().
  */
-bool CacheConstantExpressionsInJoinConditions(THD *thd,
-                                              RelationalExpression *expr) {
+bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
   if (expr->type == RelationalExpression::TABLE) {
     return false;
   }
   assert(expr->equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
   for (Item *&condition : expr->join_conditions) {
+    condition->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+
     cache_const_expr_arg cache_arg;
     cache_const_expr_arg *analyzer_arg = &cache_arg;
     condition = condition->compile(
@@ -430,8 +433,8 @@ bool CacheConstantExpressionsInJoinConditions(THD *thd,
       return true;
     }
   }
-  return CacheConstantExpressionsInJoinConditions(thd, expr->left) ||
-         CacheConstantExpressionsInJoinConditions(thd, expr->right);
+  return CanonicalizeJoinConditions(thd, expr->left) ||
+         CanonicalizeJoinConditions(thd, expr->right);
 }
 
 /**
@@ -860,7 +863,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
         /*is_join_condition_for_expr=*/false, &table_filters);
   }
 
-  if (CacheConstantExpressionsInJoinConditions(thd, root)) {
+  if (CanonicalizeJoinConditions(thd, root)) {
     return true;
   }
   MakeHashJoinConditions(thd, root);
@@ -941,8 +944,12 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     graph->predicates.push_back(pred);
   }
 
-  // Cache constant expressions in predicates. (We did join conditions earlier.)
+  // Cache constant expressions in predicates, and add cast nodes if there are
+  // incompatible arguments in comparisons. (We did join conditions earlier.)
   for (Predicate &predicate : graph->predicates) {
+    predicate.condition->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
+                              nullptr);
+
     cache_const_expr_arg cache_arg;
     cache_const_expr_arg *analyzer_arg = &cache_arg;
     predicate.condition = predicate.condition->compile(
