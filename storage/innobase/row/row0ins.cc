@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -704,7 +704,7 @@ static void row_ins_foreign_trx_print(trx_t *trx) /*!< in: transaction */
   {
     /** lock_number_of_rows_locked() requires global exclusive latch, and so
     does accessing trx_locks with trx->mutex */
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     n_rec_locks = lock_number_of_rows_locked(&trx->lock);
     n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
     heap_size = mem_heap_get_size(trx->lock.lock_heap);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2149,7 +2149,7 @@ withdraw_retry:
 
     {
       /* lock_trx_print_wait_and_mvcc_state() requires exclusive global latch */
-      locksys::Global_exclusive_latch_guard guard{};
+      locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
       trx_sys_mutex_enter();
       bool found = false;
       for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->mysql_trx_list);

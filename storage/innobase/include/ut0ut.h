@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2020, Oracle and/or its affiliates.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -89,11 +89,11 @@ typedef time_t ib_time_t;
 typedef int64_t ib_time_monotonic_t;
 
 /** Number of milliseconds read from the monotonic clock (returned by
- * ut_time_monotonic_ms()). */
+ ut_time_monotonic_ms()). */
 typedef int64_t ib_time_monotonic_ms_t;
 
 /** Number of microseconds read from the monotonic clock (returned by
- * ut_time_monotonic_us()). */
+ ut_time_monotonic_us()). */
 typedef int64_t ib_time_monotonic_us_t;
 
 #ifndef UNIV_HOTBACKUP
@@ -154,6 +154,15 @@ performance. */
 #else                  /* !UNIV_HOTBACKUP */
 #define UT_RELAX_CPU() /* No op */
 #endif                 /* !UNIV_HOTBACKUP */
+
+namespace ut {
+struct Location {
+  const char *filename;
+  size_t line;
+};
+}  // namespace ut
+
+#define UT_LOCATION_HERE (ut::Location{__FILE__, __LINE__})
 
 #define ut_max std::max
 #define ut_min std::min
