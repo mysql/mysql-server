@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -69,30 +69,42 @@ MACRO(GET_PACKAGE_FILE_NAME Var)
         ENDIF()
       ENDIF()
     ELSEIF(APPLE)
-      IF(CMAKE_OSX_DEPLOYMENT_TARGET)
-        SET(DEFAULT_PLATFORM "osx${CMAKE_OSX_DEPLOYMENT_TARGET}")
-      ELSE()
-        SET(VER "${CMAKE_SYSTEM_VERSION}")
-        STRING(REGEX REPLACE "([0-9]+)\\.[0-9]+\\.[0-9]+" "\\1" VER "${VER}")
-        # Subtract 4 from Darwin version to get correct osx10.X
-        MATH(EXPR VER  "${VER} -4")
-        SET(DEFAULT_PLATFORM "osx10.${VER}")
+      # CMAKE_SYSTEM_PROCESSOR seems to based on 'uname -r'
+      # CMAKE_SYSTEM_VERSION cannot be trusted for version information:
+
+      # CMAKE_SYSTEM_VERSION 19.2.0
+      # sw_vers
+      # ProductName:    Mac OS X
+      # ProductVersion: 10.15.2
+      # BuildVersion:   19C57
+
+      # CMAKE_SYSTEM_VERSION  20.2.0
+      # sw_vers
+      # ProductName:    macOS
+      # ProductVersion: 11.1
+      # BuildVersion:   20C69
+
+      EXECUTE_PROCESS(COMMAND sw_vers
+        OUTPUT_VARIABLE SW_VERS_OUTPUT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+      STRING(REPLACE "\n" ";" SW_VERS_OUTPUT_LIST "${SW_VERS_OUTPUT}")
+      LIST(GET SW_VERS_OUTPUT_LIST 0 SW_VERS_PRODUCTNAME)
+      LIST(GET SW_VERS_OUTPUT_LIST 1 SW_VERS_PRODUCTVERSION)
+
+      STRING(REGEX MATCH
+        "ProductVersion:[\n\t ]*([0-9]+)\\.([0-9]+)" UNUSED ${SW_VERS_PRODUCTVERSION})
+      IF(NOT CMAKE_MATCH_1 OR NOT CMAKE_MATCH_2)
+        MESSAGE(FATAL_ERROR "Could not run sw_vers")
       ENDIF()
 
-      IF(CMAKE_OSX_ARCHITECTURES)
-        LIST(LENGTH CMAKE_OSX_ARCHITECTURES LEN)
-        IF(LEN GREATER 1)
-          SET(DEFAULT_MACHINE "universal")
-        ELSE()
-          SET(DEFAULT_MACHINE "${CMAKE_OSX_ARCHITECTURES}")
-        ENDIF()
-      ELSE()
-        IF(64BIT)
-          SET(DEFAULT_MACHINE "x86_64")
-        ENDIF()
-      ENDIF()
+      SET(DEFAULT_PLATFORM "macos${CMAKE_MATCH_1}.${CMAKE_MATCH_2}")
 
-      IF(DEFAULT_MACHINE MATCHES "i386")
+      MESSAGE(STATUS "DEFAULT_PLATFORM ${DEFAULT_PLATFORM}")
+
+      IF(64BIT)
+        SET(DEFAULT_MACHINE "x86_64")
+      ELSE()
         SET(DEFAULT_MACHINE "x86")
       ENDIF()
     ENDIF()

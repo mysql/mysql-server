@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ SET(HEAP_SOURCES
   hp_write.cc
   )
 
-IF(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+IF(NOT BUILD_IS_SINGLE_CONFIG OR CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
   LIST(APPEND HEAP_SOURCES _check.cc)
 ENDIF()
 
