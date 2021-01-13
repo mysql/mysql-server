@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2503,7 +2503,7 @@ void trx_print_latched(FILE *f, const trx_t *trx, ulint max_query_len) {
 
 void trx_print(FILE *f, const trx_t *trx, ulint max_query_len) {
   /* trx_print_latched() requires exclusive global latch */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
   mutex_enter(&trx_sys->mutex);
   trx_print_latched(f, trx, max_query_len);
   mutex_exit(&trx_sys->mutex);

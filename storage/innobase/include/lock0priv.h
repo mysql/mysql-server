@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -537,19 +537,19 @@ locks, so that also the waiting locks are transformed to granted gap type
 locks on the inserted record. */
 
 /* LOCK COMPATIBILITY MATRIX
- *    IS IX S  X  AI
- * IS +	 +  +  -  +
- * IX +	 +  -  -  +
- * S  +	 -  +  -  -
- * X  -	 -  -  -  -
- * AI +	 +  -  -  -
+    IS IX S  X  AI
+ IS +	 +  +  -  +
+ IX +	 +  -  -  +
+ S  +	 -  +  -  -
+ X  -	 -  -  -  -
+ AI +	 +  -  -  -
  *
- * Note that for rows, InnoDB only acquires S or X locks.
- * For tables, InnoDB normally acquires IS or IX locks.
- * S or X table locks are only acquired for LOCK TABLES.
- * Auto-increment (AI) locks are needed because of
- * statement-level MySQL binlog.
- * See also lock_mode_compatible().
+ Note that for rows, InnoDB only acquires S or X locks.
+ For tables, InnoDB normally acquires IS or IX locks.
+ S or X table locks are only acquired for LOCK TABLES.
+ Auto-increment (AI) locks are needed because of
+ statement-level MySQL binlog.
+ See also lock_mode_compatible().
  */
 static const byte lock_compatibility_matrix[5][5] = {
     /**         IS     IX       S     X       AI */
@@ -560,13 +560,13 @@ static const byte lock_compatibility_matrix[5][5] = {
     /* AI */ {TRUE, TRUE, FALSE, FALSE, FALSE}};
 
 /* STRONGER-OR-EQUAL RELATION (mode1=row, mode2=column)
- *    IS IX S  X  AI
- * IS +  -  -  -  -
- * IX +  +  -  -  -
- * S  +  -  +  -  -
- * X  +  +  +  +  +
- * AI -  -  -  -  +
- * See lock_mode_stronger_or_eq().
+    IS IX S  X  AI
+ IS +  -  -  -  -
+ IX +  +  -  -  -
+ S  +  -  +  -  -
+ X  +  +  +  +  +
+ AI -  -  -  -  +
+ See lock_mode_stronger_or_eq().
  */
 static const byte lock_strength_matrix[5][5] = {
     /**         IS     IX       S     X       AI */
@@ -1100,7 +1100,9 @@ namespace locksys {
 class Unsafe_global_latch_manipulator {
  public:
   static void exclusive_unlatch() { lock_sys->latches.global_latch.x_unlock(); }
-  static void exclusive_latch() { lock_sys->latches.global_latch.x_lock(); }
+  static void exclusive_latch(ut::Location location) {
+    lock_sys->latches.global_latch.x_lock(location);
+  }
 };
 }  // namespace locksys
 

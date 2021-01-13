@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1350,7 +1350,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
 
   ret = true;
   if (nowait) {
-    locksys::Global_exclusive_try_latch guard{};
+    locksys::Global_exclusive_try_latch guard{UT_LOCATION_HERE};
     if (guard.owns_lock()) {
       srv_printf_locks_and_transactions(file, trx_start_pos);
     } else {
@@ -1358,7 +1358,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
       ret = false;
     }
   } else {
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     srv_printf_locks_and_transactions(file, trx_start_pos);
   }
 
