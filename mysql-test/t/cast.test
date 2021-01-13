@@ -1048,3 +1048,19 @@ SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
 
 SET SQL_MODE=DEFAULT;
 
+--echo #
+--echo # Bug#32371039: ITEM->MAX_LENGTH FIELD IS NOT ACCURATE FOR
+--echo #               FROM_BASE64 FUNCTION
+--echo #
+
+# CREATE TABLE used to fail because the created columns were too small
+# to store the values returned by the SELECT statement. The maximum
+# length of the CAST expressions was wrong because it didn't take the
+# potential overflow into account.
+CREATE TABLE t AS
+  SELECT CONCAT(CAST(-1 AS UNSIGNED)) AS col1,
+         1.0 + CAST(-1 AS UNSIGNED) AS col2,
+         CONCAT(CAST(9223372036854775808 AS SIGNED)) AS col3;
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+DROP TABLE t;
