@@ -242,6 +242,7 @@ SET(SERVER_TESTS
   hypergraph_optimizer
   initialize_password
   insert_delayed
+  interesting_orders
   into_syntax
   item
   item_filter

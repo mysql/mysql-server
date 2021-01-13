@@ -66,6 +66,7 @@ int chars_2_decimal(const char *chars, my_decimal *to);
 class Server_initializer {
  public:
   Server_initializer() : m_thd(nullptr) {}
+  ~Server_initializer() { TearDown(); }
 
   // Invoke these from corresponding functions in test fixture classes.
   void SetUp();

@@ -1,0 +1,489 @@
+/* Copyright (c) 2021, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#ifndef SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H
+#define SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H
+
+/**
+  @file
+
+  Tracks which tuple streams follow which orders, and in particular whether
+  they follow interesting orders.
+
+  An interesting order (and/or grouping) is one that we might need to sort by
+  at some point during query execution (e.g. to satisfy an ORDER BY predicate);
+  if the rows already are produced in that order, for instance because we
+  scanned along the right index, we can skip the sort and get a lower cost.
+
+  We generally follow these papers:
+
+    [Neu04] Neumann and Moerkotte: “An efficient framework for order
+      optimization”
+    [Neu04b] Neumann and Moerkotte: “A Combined Framework for
+      Grouping and Order Optimization”
+
+  [Neu04b] is an updated version of [Neu04] that also deals with interesting
+  groupings but omits some details to make more space, so both are needed.
+  A combined and updated version of the same material is available in
+  Moerkotte's “Query compilers” PDF.
+
+  Some further details, like order homogenization, come from
+
+    [Sim96] Simmen et al: “Fundamental Techniques for Order Optimization”
+
+  All three papers deal with the issue of _logical_ orderings, where any
+  row stream may follow more than one order simultaneously, as inferred
+  through functional dependencies (FDs). For instance, if we have an ordering
+  (ab) but also an active FD {a} → c (c is uniquely determined by a,
+  for instance because a is a primary key in the same table as c), this means
+  we also implicitly follow the orders (acb) and (abc). In addition,
+  we trivially follow the orders (a), (ac) and (ab). However, note that we
+  do _not_ necessarily follow the order (cab).
+
+  Similarly, equivalences, such as WHERE conditions and joins, give rise
+  to a stronger form of FDs. If we have an ordering (ab) and the FD b = c,
+  we can be said to follow (ac), (acb) or (abc). The former would not be
+  inferrable from {b} → c and {c} → b alone. Equivalences with constants
+  are perhaps even stronger, e.g. WHERE x=3 would give rise to {} → x,
+  which could extend (a) to (xa), (ax) or (x).
+
+  Neumann et al solve this by modelling which ordering we're following as a
+  state in a non-deterministic finite state machine (NFSM). By repeatedly
+  applying FDs (which become edges in the NFSM), we can build up all possible
+  orderings from a base (which can be either the empty ordering, ordering from
+  scanning along an index, or one produced by an explicit sort) and then
+  checking whether we are in a state matching the ordering we are interested
+  in. (There can be quite a bit of states, so we need a fair amount of pruning
+  to keep the count manageable, or else performance will suffer.) Of course,
+  since NFSMs are nondeterministic, a base ordering and a set of FDs can
+  necessarily put us in a number of states, so we need to convert the NFSM
+  to a DFSM (using the standard powerset construction for NFAs; see
+  ConvertNFSMToDFSM()). This means that the ordering state for an access path
+  is only a single integer, the DFSM state number. When we activate more FDs,
+  for instance because we apply joins, we will move throughout the DFSM into
+  more attractive states. By checking simple precomputed lookup tables,
+  we can quickly find whether a given DFSM state follows a given ordering.
+
+  The other kind of edges we follow are from the artificial starting state;
+  they represent setting a specific ordering (e.g. because we sort by that
+  ordering). This is set up in the NFSM and preserved in the DFSM.
+
+  The actual collection of FDs and interesting orders happen outside this
+  class, in the caller.
+
+
+  The operations related to interesting orders, in particular the concept
+  of functional dependencies, are related to the ones we are doing when
+  checking ONLY_FULL_GROUP_BY legality in sql/aggregate_check.h. However,
+  there are some key differences as well:
+
+   - Orderings are lexical, while groupings are just a bag of attributes.
+     This increases the state space for orderings significantly; groupings
+     can add elements at will and just grow the set freely, while orderings
+     need more care. In particular, this means that groupings only need
+     FDs on the form S → x (where S is a set), while orderings also benefit
+     from those of the type x = y, which replace an element instead of
+     adding a new one.
+
+   - ONLY_FULL_GROUP_BY is for correctness of rejecting or accepting the
+     query, while interesting orders is just an optimization, so not
+     recognizing rare cases is more acceptable.
+
+   - ONLY_FULL_GROUP_BY testing only cares about the set of FDs that hold
+     at one specific point (GROUP BY testing, naturally), while interesting
+     orders must be tracked throughout the entire operator tree. In particular,
+     if using interesting orders for merge join, the status at nearly every
+     join is relevant. Also, performance matters much more.
+
+  Together, these mean that the code ends up being fairly different,
+  and some cases are recognized by ONLY_FULL_GROUP_BY but not by interesting
+  orders. (The actual FD collection happens in BuildInterestingOrders in
+  join_optimizer.cc; see the comment there for FD differences.)
+
+  A note about nomenclature: Like Neumann et al, we use the term “ordering”
+  (and “grouping”) instead of “order”, with the special exception of the
+  already-established term “interesting order”.
+ */
+
+#include "sql/join_optimizer/interesting_orders_defs.h"
+#include "sql/mem_root_array.h"
+#include "sql/sql_array.h"
+
+#include <bitset>
+#include <string>
+
+// Represents a (potentially interesting) ordering or grouping;
+// OrderElement::direction will signify which one. Immutable,
+// and usually lives on the MEM_ROOT.
+using Ordering = Bounds_checked_array<OrderElement>;
+
+struct FunctionalDependency {
+  enum {
+    // A special “empty” kind of edge in the FSM that signifies
+    // adding no functional dependency, ie., a state we can reach
+    // with no further effort. This can happen in two ways:
+    //
+    //  1. An ordering can drop its last element, ie.,
+    //     if a tuple stream is ordered on (a,b,c), it is also
+    //     ordered on (a,b).
+    //  2. An ordering can be converted to a grouping, i.e,
+    //     if a tuple stream is ordered on (a,b,c), it is also
+    //     grouped on {a,b,c}.
+    //
+    // head must be empty, tail must be 0. Often called ϵ.
+    // Must be the first in the edge list.
+    DECAY,
+
+    // A standard functional dependency {a} → b; if a row tuple
+    // is ordered on all elements of a and this FD is applied,
+    // it is also ordered on b. A typical example is if {a}
+    // is an unique key in a table, and b is a column of the
+    // same table. head can be empty.
+    FD,
+
+    // An equivalence a = b; implies a → b and b → a, but is
+    // stronger (e.g. if ordered on (a,c), there is also an
+    // ordering on (b,c), which wouldn't be true just from
+    // applying FDs individually). head must be a single element.
+    EQUIVALENCE
+  } type;
+
+  Bounds_checked_array<ItemHandle> head;
+  ItemHandle tail;
+};
+
+class LogicalOrderings {
+ public:
+  explicit LogicalOrderings(THD *thd);
+
+  // Maps the Item to an opaque integer handle. Deduplicates items as we go,
+  // inserting new ones if needed.
+  ItemHandle GetHandle(Item *item);
+
+  Item *item(ItemHandle item) const { return m_items[item].item; }
+
+  // These are only available before Build() has been called.
+
+  // Mark an interesting ordering (or grouping) as interesting,
+  // returning an index that can be given to SetOrder() later.
+  // Will deduplicate against previous entries; if not deduplicated
+  // away, a copy will be taken.
+  // The empty ordering/grouping is always index 0.
+  int AddOrdering(THD *thd, Ordering order) {
+    return AddOrderingInternal(thd, order, /*is_homogenized=*/false);
+  }
+
+  // NOTE: Will include the empty ordering.
+  int num_orderings() const { return m_orderings.size(); }
+
+  Ordering ordering(int ordering_idx) const {
+    return m_orderings[ordering_idx].ordering;
+  }
+
+  // Add a functional dependency that may be applied at some point
+  // during the query planning. Same guarantees as AddOrdering().
+  // The special “decay” FD is always index 0.
+  int AddFunctionalDependency(THD *thd, FunctionalDependency fd);
+
+  // NOTE: Will include the decay (epsilon) FD.
+  int num_fds() const { return m_fds.size(); }
+
+  // Builds the actual FSMs; all information about orderings and FDs is locked,
+  // optimized and then the state machine is built. After this, you can no
+  // longer add new orderings or FDs, ie., you are moving into the actual
+  // planning phase.
+  //
+  // Build() may prune away orderings and FDs, and it may also add homogenized
+  // orderings, ie., orderings derived from given interesting orders but
+  // modified so that they only require a single table (but will become an
+  // actual interesting order later, after the FDs have been applied). These are
+  // usually at the end, but may also be deduplicated against uninteresting
+  // orders, which will then be marked as interesting.
+  //
+  // trace can be nullptr; if not, it get human-readable optimizer trace
+  // appended to it.
+  void Build(THD *thd, std::string *trace);
+
+  // These are only available after Build() has been called.
+  // They are stateless and used in the actual planning phase.
+
+  using StateIndex = int;
+
+  StateIndex SetOrder(int ordering_idx) const {
+    assert(m_built);
+    return m_orderings[ordering_idx].state_idx;
+  }
+
+  // Get a bitmap representing the given functional dependency. The bitmap
+  // can be all-zero if the given FD is optimized away, or outside the range
+  // of the representable bits. The bitmaps may be ORed together, but are
+  // otherwise to be treated as opaque to the client.
+  FunctionalDependencySet GetFDSet(int fd_idx) const {
+    FunctionalDependencySet fd_set;
+    int new_fd_idx = m_optimized_fd_mapping[fd_idx];
+    if (new_fd_idx >= 1 && new_fd_idx <= kMaxSupportedFDs) {
+      fd_set.set(new_fd_idx - 1);
+    }
+    return fd_set;
+  }
+
+  // For a given state, see what other (better) state we can move to given a
+  // set of active functional dependencies, e.g. if we are in state ((),a) and
+  // the FD a=b becomes active, we can set its bit (see GetFDSet()) in the FD
+  // mask and use that to move to the state ((),a,b,ab,ba). Note that “fds”
+  // should contain the entire set of active FDs, not just newly-applied ones.
+  // This is because “old” FDs can suddenly become relevant when new logical
+  // orderings are possible, and the DFSM is not always able to bake this in.
+  StateIndex ApplyFDs(StateIndex state_idx, FunctionalDependencySet fds) const;
+
+  bool DoesFollowOrder(StateIndex state_idx, int ordering_idx) const {
+    assert(m_built);
+    if (ordering_idx == 0) {
+      return true;
+    }
+    if (ordering_idx >= kMaxSupportedOrderings) {
+      return false;
+    }
+    return m_dfsm_states[state_idx].follows_interesting_order.test(
+        ordering_idx);
+  }
+
+  // Whether "a" follows any interesting orders than "b" does not.
+  // If !MoreOrderedThan(a, b) && !MoreOrderedThan(b, a), the states follow
+  // the same interesting orders. It is possible to have MoreOrderedThan(a, b)
+  // && MoreOrderedThan(b, a), e.g. if they simply follow disjunct orders.
+  //
+  // This is used in the planner, when pruning access paths -- an AP A can be
+  // kept even if it has higher cost than AP B, if it follows orders that B does
+  // not. Why is it enough to check interesting orders -- must we also not check
+  // uninteresting orders, since they could lead to new interesting orders
+  // later? This is because in the planner, two states will only ever be
+  // compared if the same functional dependencies have been applied to both
+  // sides:
+  //
+  // The set of logical orders, and thus the state, is uniquely determined
+  // by the initial ordering and applied FDs. Thus, if A has _uninteresting_
+  // orders that B does not, the initial ordering must have differed -- but the
+  // initial states only contain (and thus differ in) interesting orders.
+  // Thus, the additional uninteresting orders must have been caused by
+  // additional interesting orders (that do not go away), so testing the
+  // interesting ones really suffices in planner context.
+  //
+  // Note that this also means that in planner context, !MoreOrderedThan(a, b)
+  // && !MoreOrderedThan(b, a) implies that a == b.
+  bool MoreOrderedThan(StateIndex a_idx, StateIndex b_idx) const {
+    assert(m_built);
+    std::bitset<kMaxSupportedOrderings> a =
+        m_dfsm_states[a_idx].follows_interesting_order;
+    std::bitset<kMaxSupportedOrderings> b =
+        m_dfsm_states[b_idx].follows_interesting_order;
+    return (a & b) != a;
+  }
+
+ private:
+  bool m_built = false;
+
+  struct ItemInfo {
+    // Used to translate Item * to ItemHandle and back.
+    Item *item;
+
+    // Points to the head of this item's equivalence class. (If the item
+    // is not equivalent to anything, points to itself.) The equivalence class
+    // is defined by EQUIVALENCE FDs, transitively, and the head is the one with
+    // the lowest index. So if we have FDs a = b and b = c, all three {a,b,c}
+    // will point to a here. This is useful for pruning and homogenization;
+    // if two elements have the same equivalence class (ie., the same canonical
+    // item), they could become equivalent after applying FDs. See also
+    // m_can_be_added_by_fd, which deals with non-EQUIVALENCE FDs.
+    //
+    // Set by BuildEquivalenceClasses().
+    ItemHandle canonical_item;
+
+    // Whether the given item (after canonicalization by means of
+    // m_canonical_item[]) shows up as the tail of any functional dependency.
+    //
+    // Set by FindElementsThatCanBeAddedByFDs();
+    bool can_be_added_by_fd = false;
+
+    // Whether the given item ever shows up in orderings as ASC or DESC,
+    // respectively. Used to see whether adding the item in that direction
+    // is worthwhile or not. Note that this is propagated through equivalences,
+    // so if a = b and any ordering contains b DESC and a is the head of that
+    // equivalence class, then a is also marked as used_desc = true.
+    bool used_asc = false;
+    bool used_desc = false;
+  };
+  // All items we have seen in use (in orderings or FDs), deduplicated
+  // and indexed by ItemHandle.
+  Mem_root_array<ItemInfo> m_items;
+
+  struct NFSMState {
+    enum { INTERESTING, ARTIFICIAL, DELETED } type;
+    Mem_root_array<int> outgoing_edges;
+    Ordering satisfied_ordering;
+    int satisfied_ordering_idx;  // Only for type == INTERESTING.
+  };
+  struct DFSMState {
+    Mem_root_array<int> outgoing_edges;  // Index into dfsm_edges.
+    Mem_root_array<int> nfsm_states;     // Index into states.
+
+    // Structures derived from the above, but in forms for faster access.
+
+    // Indexed by FD.
+    Bounds_checked_array<int> next_state;
+
+    // Indexed by ordering.
+    std::bitset<kMaxSupportedOrderings> follows_interesting_order{0};
+
+    // Whether applying the given functional dependency will take us to a
+    // different state from this one. Used to quickly intersect with the
+    // available FDs to find out what we can apply.
+    FunctionalDependencySet can_use_fd{0};
+  };
+
+  struct NFSMEdge {
+    // Which FD is required to follow this edge. Index into m_fd, with one
+    // exception; from the initial state (0), we have constructor edges for
+    // setting a specific order without following an FD. Such edges have
+    // required_fd_idx = INT_MIN + order_idx, ie., they are negative.
+    int required_fd_idx;
+
+    // Destination state (index into m_states).
+    int state_idx;
+
+    const FunctionalDependency *required_fd(
+        const LogicalOrderings *orderings) const {
+      return &orderings->m_fds[required_fd_idx];
+    }
+    const NFSMState *state(const LogicalOrderings *orderings) const {
+      return &orderings->m_states[state_idx];
+    }
+  };
+  struct DFSMEdge {
+    int required_fd_idx;
+    int state_idx;
+
+    const FunctionalDependency *required_fd(
+        const LogicalOrderings *orderings) const {
+      return &orderings->m_fds[required_fd_idx];
+    }
+    const DFSMState *state(const LogicalOrderings *orderings) const {
+      return &orderings->m_dfsm_states[state_idx];
+    }
+  };
+
+  struct OrderingWithInfo {
+    Ordering ordering;
+    bool is_homogenized;
+
+    // Which initial state to use for this ordering (in SetOrder()).
+    StateIndex state_idx = 0;
+  };
+
+  Mem_root_array<OrderingWithInfo> m_orderings;
+
+  // The longest ordering in m_orderings.
+  int m_longest_ordering = 0;
+
+  Mem_root_array<FunctionalDependency> m_fds;
+
+  // NFSM. 0 is the initial state, all others are found by following edges.
+  Mem_root_array<NFSMState> m_states;
+  Mem_root_array<NFSMEdge> m_edges;
+
+  // DFSM. 0 is the initial state, all others are found by following edges.
+  Mem_root_array<DFSMState> m_dfsm_states;
+  Mem_root_array<DFSMEdge> m_dfsm_edges;
+
+  // After PruneFDs() has run, maps from the old indexes to the new indexes.
+  Bounds_checked_array<int> m_optimized_fd_mapping;
+
+  // Helper for AddOrdering().
+  int AddOrderingInternal(THD *thd, Ordering order, bool is_homogenized);
+
+  // See comment in .cc file.
+  void PruneFDs(THD *thd);
+
+  // See comment in .cc file.
+  bool ImpliedByEarlierElements(ItemHandle item, Ordering prefix) const;
+
+  // Populates ItemInfo::canonical_item.
+  void BuildEquivalenceClasses();
+
+  // Populates ItemInfo::can_be_added_by_fd.
+  void FindElementsThatCanBeAddedByFDs();
+
+  // See comment in .cc file.
+  Ordering ReduceOrdering(Ordering ordering, OrderElement *tmpbuf) const;
+  void CreateHomogenizedOrderings(THD *thd);
+  void AddHomogenizedOrderingIfPossible(
+      THD *thd, Ordering reduced_ordering, int table_idx,
+      Bounds_checked_array<std::pair<ItemHandle, ItemHandle>> reverse_canonical,
+      OrderElement *tmpbuf);
+
+  // See comment in .cc file.
+  bool CouldBecomeInterestingOrdering(Ordering ordering) const;
+
+  void BuildNFSM(THD *thd);
+  void TryAddingOrderWithElementInserted(THD *thd, int state_idx, int fd_idx,
+                                         Ordering old_ordering,
+                                         size_t start_point,
+                                         ItemHandle item_to_add,
+                                         enum_order direction,
+                                         OrderElement *tmpbuf);
+  void PruneNFSM(THD *thd);
+  void ConvertNFSMToDFSM(THD *thd);
+
+  // Populates state_idx for every ordering in m_ordering.
+  void FindInitialStatesForOrdering();
+
+  // If a state with the given ordering already exists (artificial or not),
+  // returns its index. Otherwise, adds an artificial state with the given
+  // order and returns its index.
+  int AddArtificialState(THD *thd, Ordering ordering);
+
+  // Add an edge from state_idx to an state with the given ordering; if there is
+  // no such state, adds an artificial state with it (taking a copy, so does not
+  // need to take ownership).
+  void AddEdge(THD *thd, int state_idx, int required_fd_idx, Ordering ordering);
+
+  // Returns true if the given (non-DECAY) functional dependency applies to the
+  // given ordering, and the index of the element from which the FD is active
+  // (ie., the last element that was part of the head). One can start inserting
+  // the tail element at any point _after_ this index; if it is an EQUIVALENCE
+  // FD, one can instead choose to replace the element at start_point entirely.
+  bool FunctionalDependencyApplies(const FunctionalDependency &fd,
+                                   const Ordering ordering,
+                                   int *start_point) const;
+
+  // Used for optimizer trace.
+
+  std::string PrintOrdering(Ordering ordering) const;
+  std::string PrintFunctionalDependency(const FunctionalDependency &fd,
+                                        bool html) const;
+  void PrintFunctionalDependencies(std::string *trace);
+  void PrintInterestingOrders(std::string *trace);
+  void PrintNFSMDottyGraph(std::string *trace) const;
+  void PrintDFSMDottyGraph(std::string *trace) const;
+};
+
+#endif  // SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H

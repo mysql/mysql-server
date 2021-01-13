@@ -151,8 +151,11 @@ void Server_initializer::SetUp() {
 }
 
 void Server_initializer::TearDown() {
-  m_thd->cleanup_after_query();
-  delete m_thd;
+  if (m_thd != nullptr) {
+    m_thd->cleanup_after_query();
+    delete m_thd;
+    m_thd = nullptr;
+  }
 }
 
 Mock_error_handler::Mock_error_handler(THD *thd, uint expected_error)
