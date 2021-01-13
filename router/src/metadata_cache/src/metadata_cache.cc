@@ -483,8 +483,8 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
   log_debug("Waiting for failover to happen in '%s' for %lds",
             replicaset_name.c_str(), static_cast<long>(timeout.count()));
 
-  const auto start = std::chrono::steady_clock::now();
-  std::chrono::milliseconds timeout_left = timeout;
+  using clock_type = std::chrono::steady_clock;
+  const auto end_time = clock_type::now() + timeout;
   do {
     if (terminated_) {
       return false;
@@ -493,15 +493,11 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
       return true;
     }
     std::unique_lock<std::mutex> lock(refresh_completed_mtx_);
-    const auto wait_res = refresh_completed_.wait_for(lock, timeout_left);
+    const auto wait_res = refresh_completed_.wait_until(lock, end_time);
     if (wait_res == std::cv_status::timeout) {
       return false;
     }
-    const auto time_passed =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            start - std::chrono::steady_clock::now());
-    timeout_left -= time_passed;
-  } while (timeout_left > 0ms);
+  } while (clock_type::now() < end_time);
 
   return replicasets_with_unreachable_nodes_.count(replicaset_name) == 0;
 }
