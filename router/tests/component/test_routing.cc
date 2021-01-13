@@ -23,30 +23,13 @@
 */
 
 #include <chrono>
-#include <cstring>
-#include <initializer_list>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <typeinfo>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#ifndef _WIN32
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/file.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
 
 #include "config_builder.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
@@ -55,10 +38,23 @@
 #include "mysql_session.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
-#include "socket_operations.h"
+#include "socket_operations.h"  // socket_t
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
+
+namespace std {
+
+// pretty printer for std::chrono::duration<>
+template <class T, class R>
+std::ostream &operator<<(std::ostream &os,
+                         const std::chrono::duration<T, R> &duration) {
+  return os << std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+                   .count()
+            << "ms";
+}
+
+}  // namespace std
 
 using mysqlrouter::MySQLSession;
 
@@ -115,6 +111,120 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   ASSERT_TRUE(router_bootstrapping.expect_output(
       "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
+}
+
+/**
+ * check connect-timeout is honored.
+ */
+TEST_F(RouterRoutingTest, ConnectTimeout) {
+  const auto router_port = port_pool_.get_next_available();
+
+  const auto router_connect_timeout = 1s;
+  const auto client_connect_timeout = 10s;
+
+  // the test requires a address:port which is not responding to SYN packets:
+  //
+  // - all the TEST-NET-* return "network not reachable" right away.
+  // - RFC2606 defines example.org and its TCP port 81 is currently blocking
+  // packets (which is what this test needs)
+  //
+  // if there is no DNS or no network, the test may fail.
+
+  SCOPED_TRACE("// build router config with connect_timeout=" +
+               std::to_string(router_connect_timeout.count()));
+  const auto routing_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:timeout",
+      {{"bind_port", std::to_string(router_port)},
+       {"mode", "read-write"},
+       {"connect_timeout", std::to_string(router_connect_timeout.count())},
+       {"destinations", "example.org:81"}});
+
+  std::string conf_file =
+      create_config_file(get_test_temp_dir_name(), routing_section);
+
+  // launch the router with simple static routing configuration
+  /*auto &router_static =*/launch_router({"-c", conf_file});
+
+  SCOPED_TRACE("// connect and trigger a timeout in the router");
+  mysqlrouter::MySQLSession sess;
+
+  using clock_type = std::chrono::steady_clock;
+
+  const auto start = clock_type::now();
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "",
+                 client_connect_timeout.count());
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2003) << e.what();
+    EXPECT_THAT(
+        e.what(),
+        ::testing::HasSubstr(
+            "Can't connect to remote MySQL server for client connected to"))
+        << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+  const auto end = clock_type::now();
+
+  // check the wait was long enough, but not too long.
+  EXPECT_GE(end - start, router_connect_timeout);
+  EXPECT_LT(end - start, router_connect_timeout + 5s);
+}
+
+/**
+ * check connect-timeout doesn't block shutdown.
+ */
+TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
+  const auto router_port = port_pool_.get_next_available();
+
+  const auto router_connect_timeout = 10s;
+  const auto client_connect_timeout = 1s;
+
+  // the test requires a address:port which is not responding to SYN packets:
+  //
+  // - all the TEST-NET-* return "network not reachable" right away.
+  // - RFC2606 defines example.org and its TCP port 81 is currently blocking
+  // packets (which is what this test needs)
+  //
+  // if there is no DNS or no network, the test may fail.
+
+  SCOPED_TRACE("// build router config with connect_timeout=" +
+               std::to_string(router_connect_timeout.count()));
+  const auto routing_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:timeout",
+      {{"bind_port", std::to_string(router_port)},
+       {"mode", "read-write"},
+       {"connect_timeout", std::to_string(router_connect_timeout.count())},
+       {"destinations", "example.org:81"}});
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  // launch the router with simple static routing configuration
+  /*auto &router_static =*/launch_router({"-c", conf_file});
+
+  SCOPED_TRACE("// connect and trigger a timeout in the router");
+  mysqlrouter::MySQLSession sess;
+
+  using clock_type = std::chrono::steady_clock;
+
+  const auto start = clock_type::now();
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "",
+                 client_connect_timeout.count());
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2013) << e.what();
+    EXPECT_THAT(e.what(), ::testing::HasSubstr("Lost connection")) << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+  const auto end = clock_type::now();
+
+  // check the wait was long enough, but not too long.
+  EXPECT_GE(end - start, client_connect_timeout);
+  EXPECT_LT(end - start, client_connect_timeout + 5s);
 }
 
 TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
@@ -174,8 +284,8 @@ template <class T>
 
     return ::testing::AssertionSuccess();
   } catch (...) {
-    // as T may be std::exception we can't use it as default case and need to do
-    // this extra round
+    // as T may be std::exception we can't use it as default case and need to
+    // do this extra round
     try {
       throw;
     } catch (const std::exception &e) {
@@ -194,8 +304,8 @@ template <class T>
                 // on Unix, they're implemented using Unix sockets
 TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   /**
-   * @test Verify that unix socket has the required file permissions so that it
-   *       can be connected to by all users. According to man 7 unix, only r+w
+   * @test Verify that unix socket has the required file permissions so that
+   * it can be connected to by all users. According to man 7 unix, only r+w
    *       permissions are required, but Server sets x as well, so we do the
    * same.
    */
@@ -345,10 +455,10 @@ static void make_bad_connection(uint16_t port) {
 
   // MySQL protocol handshake phase
   // To simplify code, instead of alternating between reading and writing
-  // protocol packets, we write a lot of garbage upfront, and then read whatever
-  // Router sends back. Router will read what we wrote in chunks, inbetween its
-  // writes, thinking they're replies to its handshake packets. Eventually it
-  // will finish the handshake with error and disconnect.
+  // protocol packets, we write a lot of garbage upfront, and then read
+  // whatever Router sends back. Router will read what we wrote in chunks,
+  // inbetween its writes, thinking they're replies to its handshake packets.
+  // Eventually it will finish the handshake with error and disconnect.
   std::vector<char> bogus_data(1024, 0);
   const auto write_res =
       net::impl::socket::write(sock, bogus_data.data(), bogus_data.size());
@@ -404,11 +514,11 @@ TEST_F(RouterRoutingTest, error_counters) {
   SCOPED_TRACE(
       "// make good and bad connections (connect() + 1024 0-bytes) to check "
       "blocked client gets reset");
-  // we loop just for good measure, to additionally test that this behaviour is
-  // repeatable
+  // we loop just for good measure, to additionally test that this behaviour
+  // is repeatable
   for (int i = 0; i < 5; i++) {
-    // good connection, followed by 2 bad ones. Good one should reset the error
-    // counter
+    // good connection, followed by 2 bad ones. Good one should reset the
+    // error counter
     try {
       mysqlrouter::MySQLSession client;
       client.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
@@ -424,8 +534,8 @@ TEST_F(RouterRoutingTest, error_counters) {
   // blocking us
   make_bad_connection(router_port);
 
-  // we loop just for good measure, to additionally test that this behaviour is
-  // repeatable
+  // we loop just for good measure, to additionally test that this behaviour
+  // is repeatable
   for (int i = 0; i < 5; i++) {
     // now trying to make a good connection should fail due to blockage
     mysqlrouter::MySQLSession client;
