@@ -439,7 +439,7 @@ class Keyring_proxy_imp {
     try {
       unsigned char *key = nullptr;
       char *key_type = nullptr;
-      size_t key_size;
+      size_t key_size = 0;
       bool retval = iterate_plugins([&](st_mysql_keyring *keyring) {
         return keyring->mysql_key_fetch(data_id, &key_type, auth_id,
                                         (void **)&key, &key_size);
