@@ -23,6 +23,7 @@
 
 #include "sql/item.h"
 
+#include "integer_digits.h"
 #include "my_compiler.h"
 #include "my_config.h"
 
@@ -6513,6 +6514,32 @@ LEX_CSTRING Item_hex_string::make_hex_str(const char *str, size_t str_length) {
   }
   *ptr = 0;  // needed if printed in error message
   return ret;
+}
+
+uint Item_hex_string::decimal_precision() const {
+  switch (max_length) {
+    case 0:
+      return count_digits(0U);
+    case 1:
+      return count_digits(0xFFU);
+    case 2:
+      return count_digits(0xFFFFU);
+    case 3:
+      return count_digits(0xFFFFFFU);
+    case 4:
+      return count_digits(0xFFFFFFFFU);
+    case 5:
+      return count_digits(0xFFFFFFFFFFU);
+    case 6:
+      return count_digits(0xFFFFFFFFFFFFU);
+    case 7:
+      return count_digits(0xFFFFFFFFFFFFFFU);
+    default:
+      // val_int() and val_decimal() look at the first eight bytes. Longer
+      // values are truncated.
+      assert(max_length >= 8);
+      return count_digits(0xFFFFFFFFFFFFFFFFU);
+  }
 }
 
 void Item_hex_string::hex_string_init(const char *str, uint str_length) {

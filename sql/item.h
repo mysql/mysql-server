@@ -5290,6 +5290,7 @@ class Item_hex_string : public Item_basic_constant {
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   static LEX_CSTRING make_hex_str(const char *str, size_t str_length);
+  uint decimal_precision() const override;
 
  private:
   void hex_string_init(const char *str, uint str_length);

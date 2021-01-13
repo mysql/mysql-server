@@ -978,9 +978,6 @@ class Item_typecast_signed : public Item_int_func {
   bool resolve_type(THD *thd) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  uint decimal_precision() const override {
-    return args[0]->decimal_precision();
-  }
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
@@ -992,6 +989,7 @@ class Item_typecast_unsigned final : public Item_typecast_signed {
   }
   const char *func_name() const override { return "cast_as_unsigned"; }
   longlong val_int() override;
+  bool resolve_type(THD *thd) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   enum Functype functype() const override { return TYPECAST_FUNC; }

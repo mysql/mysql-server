@@ -45,6 +45,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "integer_digits.h"
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
@@ -1690,8 +1691,11 @@ void Item_typecast_signed::print(const THD *thd, String *str,
 bool Item_typecast_signed::resolve_type(THD *thd) {
   if (args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG, false, true))
     return true;
-  fix_char_length(std::min<uint32>(args[0]->max_char_length(),
-                                   MY_INT64_NUM_DECIMAL_DIGITS));
+
+  const unsigned max_digits = max(1, args[0]->decimal_int_part());
+  // Max character length is the max number of digits plus one for the sign.
+  fix_char_length(min(max_digits + 1, MY_INT64_NUM_DECIMAL_DIGITS));
+
   return reject_geometry_args(arg_count, args, this);
 }
 
@@ -1721,10 +1725,25 @@ longlong Item_typecast_signed::val_int() {
   if (args[0]->cast_to_int_type() != STRING_RESULT || args[0]->is_temporal()) {
     value = args[0]->val_int();
     null_value = args[0]->null_value;
-    return value;
+  } else {
+    value = val_int_from_str();
   }
 
-  value = val_int_from_str();
+#ifndef NDEBUG
+  if (null_value) {
+    assert(is_nullable());
+  } else if (value >= 0) {
+    const int digits = count_digits(static_cast<ulonglong>(value));
+    assert(digits <= decimal_int_part());
+    assert(static_cast<unsigned>(digits) <= max_length);
+  } else {
+    const int digits =
+        count_digits(ulonglong{0} - static_cast<ulonglong>(value));
+    assert(digits <= decimal_int_part());
+    assert(static_cast<unsigned>(digits) + 1 <= max_length);
+  }
+#endif
+
   return value;
 }
 
@@ -1735,24 +1754,31 @@ void Item_typecast_unsigned::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN(" as unsigned)"));
 }
 
+bool Item_typecast_unsigned::resolve_type(THD *thd) {
+  if (reject_geometry_args(arg_count, args, this)) return true;
+  return args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG, false, true);
+}
+
 longlong Item_typecast_unsigned::val_int() {
-  longlong value;
+  longlong value = 0;
 
   if (args[0]->cast_to_int_type() == DECIMAL_RESULT) {
     my_decimal tmp, *dec = args[0]->val_decimal(&tmp);
-    if (!(null_value = args[0]->null_value))
+    null_value = args[0]->null_value;
+    if (!null_value) {
       my_decimal2int(E_DEC_FATAL_ERROR, dec, !dec->sign(), &value);
-    else
-      value = 0;
-    return value;
+    }
   } else if (args[0]->cast_to_int_type() != STRING_RESULT ||
              args[0]->is_temporal()) {
     value = args[0]->val_int();
     null_value = args[0]->null_value;
-    return value;
+  } else {
+    value = val_int_from_str();
   }
 
-  value = val_int_from_str();
+  assert(!null_value || is_nullable());
+  assert(count_digits(static_cast<ulonglong>(value)) <= decimal_int_part());
+
   return value;
 }
 
