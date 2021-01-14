@@ -268,6 +268,67 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
       std::runtime_error, "Too many connections to MySQL Router (1040)");
 }
 
+/**
+ * @test
+ * This test verifies that:
+ *   1. When the server returns an error when the client expects Greetings
+ *      message this error is correctly forwarded to the clinet
+ *   2. This scenario is not treated as connection error (connection error is
+ *      not incremented)
+ */
+TEST_F(RouterRoutingTest, RoutingTooManyServerConnections) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  // doesn't really matter which file we use here, we are not going to do any
+  // queries
+  const std::string json_stmts =
+      get_data_dir().join("handshake_too_many_con_error.js").str();
+
+  // launch the server mock
+  launch_mysql_server_mock(json_stmts, server_port, false);
+
+  // create a config with routing that has max_connections == 2
+  const std::string routing_section =
+      "[routing:basic]\n"
+      "bind_port = " +
+      std::to_string(router_port) +
+      "\n"
+      "mode = read-write\n"
+      "destinations = 127.0.0.1:" +
+      std::to_string(server_port) + "\n";
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  // launch the router with the created configuration
+  auto &router = launch_router({"-c", conf_file});
+
+  // try to make a connection, the client should get the error from server
+  // forwarded
+  mysqlrouter::MySQLSession client;
+
+  // The client should get the original server error about the connections limit
+  // being reached
+  ASSERT_THROW_LIKE(
+      client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
+      std::runtime_error, "Too many connections");
+
+  // The Router log should contain debug info with the error while waiting
+  // for the Greeting message
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "DEBUG .* Error from the server while waiting for greetings "
+      "message: 1040, 'Too many connections'",
+      5s));
+
+  // There should be no trace of the connection errors counter incremented as a
+  // result of the result from error
+  const auto log_content = router.get_full_logfile();
+  const std::string pattern = "1 connection errors for 127.0.0.1";
+  ASSERT_FALSE(pattern_found(log_content, pattern)) << log_content;
+}
+
 template <class T>
 ::testing::AssertionResult ThrowsExceptionWith(std::function<void()> callable,
                                                const char *expected_text) {
@@ -470,7 +531,7 @@ static void make_bad_connection(uint16_t port) {
 
 /**
  * @test
- * This test Verifies that:
+ * This test verifies that:
  *   1. Router will block a misbehaving client after consecutive
  *      <max_connect_errors> connection errors
  *   2. Router will reset its connection error counter if client establishes a
@@ -502,14 +563,6 @@ TEST_F(RouterRoutingTest, error_counters) {
 
   // launch the router with the created configuration
   launch_router({"-c", conf_file});
-  EXPECT_TRUE(wait_for_port_ready(router_port));
-  {
-    // Make a good connection to reset the error counter that might have been
-    // increased by the wait_for_port_ready()
-    mysqlrouter::MySQLSession client;
-    EXPECT_NO_THROW(
-        client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""));
-  }
 
   SCOPED_TRACE(
       "// make good and bad connections (connect() + 1024 0-bytes) to check "

@@ -161,6 +161,16 @@ class ProtocolBase {
 
 class StatementReaderBase {
  public:
+  struct handshake_data {
+    stdx::expected<ErrorResponse, void> error;
+
+    stdx::expected<std::string, void> username;
+    stdx::expected<std::string, void> password;
+    bool cert_required{false};
+    stdx::expected<std::string, void> cert_subject;
+    stdx::expected<std::string, void> cert_issuer;
+  };
+
   /** @brief Returns the data about the next statement from the
    *         json file. If there is no more statements it returns
    *         empty statement.
@@ -180,15 +190,7 @@ class StatementReaderBase {
                          std::error_code>
   server_greeting(bool with_tls) = 0;
 
-  struct account_data {
-    stdx::expected<std::string, void> username;
-    stdx::expected<std::string, void> password;
-    bool cert_required{false};
-    stdx::expected<std::string, void> cert_subject;
-    stdx::expected<std::string, void> cert_issuer;
-  };
-
-  virtual stdx::expected<account_data, std::error_code> account() = 0;
+  virtual stdx::expected<handshake_data, std::error_code> handshake() = 0;
 
   virtual std::chrono::microseconds server_greeting_exec_time() = 0;
 
