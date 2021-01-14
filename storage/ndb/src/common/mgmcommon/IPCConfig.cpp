@@ -37,11 +37,10 @@ static bool is_mgmd(Uint32 nodeId,
                     const struct ndb_mgm_configuration & config)
 {
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
-  if (iter.find(CFG_NODE_ID, nodeId))
-    abort();
+  require(iter.find(CFG_NODE_ID, nodeId) == 0);
+
   Uint32 type;
-  if(iter.get(CFG_TYPE_OF_SECTION, &type))
-    abort();
+  require(iter.get(CFG_TYPE_OF_SECTION, &type) == 0);
 
   return (type == NODE_TYPE_MGM);
 }
@@ -211,13 +210,8 @@ IPCConfig::configureTransporters(Uint32 nodeId,
                 conf.remoteNodeId);
         result = false;
       }
-#ifdef NDB_WIN32
-      ndbout_c("Shared memory transporters not supported on Windows");
-      result = false;
-#else
       DBUG_PRINT("info", ("Configured SHM Transporter using shmkey %d, "
 			  "buf size = %d", conf.shm.shmKey, conf.shm.shmSize));
-#endif
       break;
 
     case CONNECTION_TYPE_TCP:

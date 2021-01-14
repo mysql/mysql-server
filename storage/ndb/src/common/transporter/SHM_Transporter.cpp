@@ -71,9 +71,6 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
   shmKey(_shmKey),
   shmSize(_shmSize)
 {
-#ifndef _WIN32
-  shmId= 0;
-#endif
   _shmSegCreated = false;
   _attached = false;
 
@@ -113,9 +110,6 @@ SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 {
   shmKey = t->shmKey;
   shmSize = t->shmSize;
-#ifndef NDB_WIN32
-  shmId= 0;
-#endif
   _shmSegCreated = false;
   _attached = false;
 

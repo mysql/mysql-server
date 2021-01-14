@@ -1006,6 +1006,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
 
   DBUG_RETURN(true);
 #else
+  ndbout_c("Shared memory transporters not supported on Windows");
   return false;
 #endif
 }
