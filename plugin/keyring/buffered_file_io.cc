@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,7 +170,7 @@ bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer) {
     // do we have file format mismatch
     if (file_arch != native_arch) {
       // load data to temp buffer
-      std::unique_ptr<uchar> tmp(new uchar[input_buffer_size]);
+      auto tmp = std::make_unique<uchar[]>(input_buffer_size);
       if (file_io.read(file, tmp.get(), input_buffer_size, MYF(MY_WME)) !=
           input_buffer_size)
         return true;
