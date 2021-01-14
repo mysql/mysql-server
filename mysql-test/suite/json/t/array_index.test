@@ -1323,15 +1323,15 @@ WHERE event_name = 'memory/sql/JSON' AND
       (count_alloc <> count_free OR
        sum_number_of_bytes_alloc <> sum_number_of_bytes_free);
 
-# If the unique record filter is not properly closed by any of queries above,
-# then the TempTable plugin will have ref_count > 0 on restart. This should be
-# the at the very end of the test.
---let $restart_parameters= restart:
---source include/restart_mysqld.inc
-
 --echo #
 --echo # Bug#31301101 ASSERTION ".CONV_FIELD->HAS_CHARSET"
 --echo #
 CREATE TABLE t1(j char(1), KEY idxbn ((CAST('' AS CHAR(1) ARRAY))));
 ALTER TABLE t1 CONVERT TO CHARACTER SET latin1;
 DROP TABLE t1;
+
+# If the unique record filter is not properly closed by any of queries above,
+# then the TempTable plugin will have ref_count > 0 on restart. This should be
+# at the very end of the test.
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
