@@ -9204,8 +9204,8 @@ bool Item_cache_json::val_json(Json_wrapper *wr) {
 }
 
 /// Get the name of the cached field of an Item_cache_json instance.
-inline static const char *whence(const Field *cached_field) {
-  return cached_field ? cached_field->field_name : "?";
+inline static const char *whence(const Item_field *cached_field) {
+  return cached_field != nullptr ? cached_field->field_name : "?";
 }
 
 String *Item_cache_json::val_str(String *tmp) {

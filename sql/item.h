@@ -6310,14 +6310,14 @@ class Item_trigger_field final : public Item_field,
 
 class Item_cache : public Item_basic_constant {
  protected:
-  Item *example;
-  table_map used_table_map;
+  Item *example{nullptr};
+  table_map used_table_map{0};
   /**
     Field that this object will get value from. This is used by
     index-based subquery engines to detect and remove the equality injected
     by IN->EXISTS transformation.
   */
-  Field *cached_field;
+  Item_field *cached_field{nullptr};
   /*
     true <=> cache holds value of the last stored item (i.e actual value).
     store() stores item to be cached and sets this flag to false.
@@ -6325,25 +6325,17 @@ class Item_cache : public Item_basic_constant {
     cache_value() will be called to actually cache value of saved item.
     cache_value() will set this flag to true.
   */
-  bool value_cached;
+  bool value_cached{false};
 
   friend bool has_rollup_result(Item *item);
 
  public:
-  Item_cache()
-      : example(nullptr),
-        used_table_map(0),
-        cached_field(nullptr),
-        value_cached(false) {
+  Item_cache() {
     fixed = true;
     set_nullable(true);
     null_value = true;
   }
-  Item_cache(enum_field_types field_type_arg)
-      : example(nullptr),
-        used_table_map(0),
-        cached_field(nullptr),
-        value_cached(false) {
+  Item_cache(enum_field_types field_type_arg) {
     set_data_type(field_type_arg);
     fixed = true;
     set_nullable(true);
@@ -6366,9 +6358,9 @@ class Item_cache : public Item_basic_constant {
     unsigned_flag = item->unsigned_flag;
     add_accum_properties(item);
     if (item->type() == FIELD_ITEM) {
-      cached_field = ((Item_field *)item)->field;
-      if (((Item_field *)item)->table_ref)
-        used_table_map = ((Item_field *)item)->table_ref->map();
+      cached_field = down_cast<Item_field *>(item);
+      if (cached_field->table_ref != nullptr)
+        used_table_map = cached_field->table_ref->map();
     } else {
       used_table_map = item->used_tables();
     }
@@ -6382,7 +6374,7 @@ class Item_cache : public Item_basic_constant {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool eq_def(const Field *field) {
-    return cached_field && cached_field->eq_def(field);
+    return cached_field != nullptr && cached_field->field->eq_def(field);
   }
   bool eq(const Item *item, bool) const override { return this == item; }
   /**
@@ -6397,7 +6389,7 @@ class Item_cache : public Item_basic_constant {
 
     @return Pointer to field, or NULL if this is not a cache for a field value.
   */
-  Field *field() { return cached_field; }
+  Field *field() { return cached_field->field; }
 
   /**
     Assigns to the cache the expression to be cached. Does not evaluate it.
