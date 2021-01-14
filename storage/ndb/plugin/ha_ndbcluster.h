@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -513,7 +513,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
 #endif
   int get_metadata(Ndb *ndb, const char *dbname, const char *tabname,
                    const dd::Table *table_def);
-  void release_metadata(Ndb *ndb, bool invalidate_objects);
+  void release_metadata(NdbDictionary::Dictionary *dict,
+                        bool invalidate_objects);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_num) const;
   NDB_INDEX_TYPE get_index_type_from_key(uint index_num, KEY *key_info,

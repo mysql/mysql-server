@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2686,7 +2686,8 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint index_num,
               : ORDERED_INDEX);
 }
 
-void ha_ndbcluster::release_metadata(Ndb *ndb, bool invalidate) {
+void ha_ndbcluster::release_metadata(NdbDictionary::Dictionary *dict,
+                                     bool invalidate) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("invalidate: %d", invalidate));
 
@@ -2701,7 +2702,6 @@ void ha_ndbcluster::release_metadata(Ndb *ndb, bool invalidate) {
     invalidate = true;
   }
 
-  NDBDICT *dict = ndb->getDictionary();
   if (m_ndb_record != NULL) {
     dict->releaseRecord(m_ndb_record);
     m_ndb_record = NULL;
@@ -11365,7 +11365,8 @@ int ha_ndbcluster::open(const char *path MY_ATTRIBUTE((unused)),
   if ((res = update_stats(thd, 1)) || (res = info(HA_STATUS_CONST))) {
     release_key_fields();
     release_ndb_share();
-    release_metadata(thd_ndb->ndb, false);
+    NdbDictionary::Dictionary *const dict = thd_ndb->ndb->getDictionary();
+    release_metadata(dict, false);
     return res;
   }
 
@@ -11652,41 +11653,51 @@ inline void ha_ndbcluster::release_key_fields() {
   }
 }
 
+/**
+  Close an open ha_ndbcluster instance.
+
+  @note This function is called in several different contexts:
+   - By same thread which opened or have used NDB before. In this
+     case both THD and Thd_ndb is available.
+   - By thread which executes FLUSH TABLES or RESET SOURCE and thus closes all
+     cached table definitions (and thus the related ha_ndbcluster instance). In
+     this case only THD is available since thread hasn't used NDB before.
+   - By thread handling SIGHUP which closes all cached table definitions. In
+     this case there isn't even a THD available (this is intentional).
+
+  @note Since neither THD or Thd_ndb can't be assumed to be available (see
+  above explanation) an implementation has been choosen that does not rely on
+  any of them.
+
+  @return Function always return 0 and shouldn't really fail. Return code
+  from this function is normally not checked by caller.
+*/
+
 int ha_ndbcluster::close(void) {
   DBUG_TRACE;
 
   release_key_fields();
   release_ndb_share();
 
-  /*
-    In most cases the open ha_ndbcluster instance is closed by a THD which has
-    used NDB before and thus it already have a Thd_ndb object allocated.
-
-    But there are also cases where the ha_ndbcluster instance is closed by a
-    THD which hasn't used NDB previously, an example of this is when open
-    ha_ndbcluster instances that have been cached in the table definition cache
-    are closed by FLUSH TABLES or RESET MASTER command. Normally this would
-    mean that a new Thd_ndb and it's related Ndb object would need to be
-    allocated at this point. Since allocating Thd_ndb is quite costly, may
-    fail and in particular since release_metadata() just need a Ndb object for
-    releasing memory and removing references to the "global dict cache" it's
-    enough to use the global Ndb object for performing these release actions.
-    The g_ndb then acts as a facade for calling things which are kind of static
-    "factory functions", no communication with NDB takes place.
-  */
-
-  // Select Ndb object to use for releasing resources, use the global Ndb object
-  // unless thread has Thd_ndb
+  // During a FLUSH TABLE or when called from SIGHUP signal handler, the NDB
+  // table definitions in the "global dict cache" should be invalidated.
   const THD *thd = current_thd;
-  Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  Ndb *release_ndb = thd_ndb ? thd_ndb->ndb : g_ndb;
+  const bool invalidate_dict_cache =
+      thd == nullptr /* SIGHUP */ || thd_sql_command(thd) == SQLCOM_FLUSH;
 
-  // During a FLUSH TABLE the NDB table definitions in the "global dict cache"
-  // should be invalidated.
-  const bool invalidate_dict_cache = (thd_sql_command(thd) == SQLCOM_FLUSH);
+  /*
+    Release NDB table and index definitions from global dict cache in NdbApi.
 
-  // Release NDB table definition and related
-  release_metadata(release_ndb, invalidate_dict_cache);
+    NOTE! This uses the global Ndb object (g_ndb) acting as a facade for
+    calling things which are kind of static "factory functions" for releasing
+    resources. Those functions are thread safe and can thus be called
+    from any thread. Since using the global Ndb object, care must be taken in
+    the future not to call functions which are not thread safe. An alternative
+    solution to avoid using the global Ndb object is to store the dict pointer
+    in ha_ndbcluster when the table is opened.
+  */
+  NdbDictionary::Dictionary *const dict_factory = g_ndb->getDictionary();
+  release_metadata(dict_factory, invalidate_dict_cache);
 
   return 0;
 }
