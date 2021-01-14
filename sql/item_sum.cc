@@ -6391,7 +6391,7 @@ String *Item_sum_collect::val_str(String *str) {
       return error_str();
     }
     if (srs == nullptr) {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid.value());
       return error_str();
     }
   }
