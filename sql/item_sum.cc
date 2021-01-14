@@ -56,7 +56,6 @@
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometry_extraction.h"
 #include "sql/gis/relops.h"
-#include "sql/gis/rtree_support.h"
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
@@ -80,6 +79,7 @@
 #include "sql/sql_resolver.h"  // setup_order
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
+#include "sql/srs_fetcher.h"    // Srs_fetcher
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"  // Temp_table_param
@@ -6209,7 +6209,7 @@ bool Item_rollup_sum_switcher::aggregator_setup(THD *thd) {
 namespace {
 std::unique_ptr<gis::Geometrycollection> filtergeometries(
     std::unique_ptr<gis::Geometrycollection> geometrycollection,
-    dd::Spatial_reference_system *srs) {
+    const dd::Spatial_reference_system *srs) {
   assert(geometrycollection.get() != nullptr);
   auto filtered_geometries = std::unique_ptr<gis::Geometrycollection>(
       gis::Geometrycollection::create_geometrycollection(
@@ -6382,11 +6382,20 @@ String *Item_sum_collect::val_str(String *str) {
       if (add()) return error_str();
     }
   }
-  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
-      std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
-          current_thd->dd_client());
-  dd::Spatial_reference_system *srs =
-      this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+  const dd::Spatial_reference_system *srs = nullptr;
+  auto releaser = std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
+      current_thd->dd_client());
+  if (srid.has_value() && srid.value() != 0) {
+    Srs_fetcher fetcher(current_thd);
+    if (fetcher.acquire(srid.value(), &srs)) {
+      return error_str();
+    }
+    if (srs == nullptr) {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
+    }
+  }
+
   if (m_geometrycollection.get() == nullptr) {
     null_value = true;
     return error_str();
@@ -6413,11 +6422,35 @@ void Item_sum_collect::update_field() {
 
 void Item_sum_collect::store_result_field() {
   if (m_geometrycollection.get() != nullptr) {
-    std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser =
+    const dd::Spatial_reference_system *srs = nullptr;
+    auto releaser =
         std::make_unique<dd::cache::Dictionary_client::Auto_releaser>(
             current_thd->dd_client());
-    dd::Spatial_reference_system *srs =
-        this->srid.has_value() ? fetch_srs(this->srid.value()) : nullptr;
+    if (srid.has_value() && srid.value() != 0) {
+      if (Srs_fetcher(current_thd).acquire(srid.value(), &srs) ||
+          srs == nullptr) {
+        // We may end up here in two cases:
+        //
+        // 1) Something went wrong during DD lookup and an error has
+        // already been flagged in the thd. It's unclear if this may
+        // actually happen at this point.
+        //
+        // 2) The SRS doesn't exist. This should not happen since the
+        // SRS has been looked up earlier without error.
+        //
+        // Since this function doesn't have a way to signal errors, our
+        // only option is to make sure an error is flagged in the thd
+        // and return and hope it will caught by the caller. In case
+        // (2), we have to report a new error. In case (1), an error has
+        // already been reported, but it doesn't hurt to do it again.
+        //
+        // If any of these cases actually occur, the error handling in
+        // and around this function must be reviewed.
+        assert(false);
+        my_error(ER_SRS_NOT_FOUND, MYF(0), srid.value());
+        return;
+      }
+    }
 
     std::unique_ptr<gis::Geometrycollection> narrowerCollection;
     narrowerCollection =
