@@ -1699,19 +1699,17 @@ bool Item_typecast_signed::resolve_type(THD *thd) {
   return reject_geometry_args(arg_count, args, this);
 }
 
-longlong Item_typecast_signed::val_int_from_str() {
-  char buff[MAX_FIELD_WIDTH];
-  String tmp(buff, sizeof(buff), &my_charset_bin), *res;
-
+static longlong val_int_from_str(Item *item, bool unsigned_flag,
+                                 bool *null_value) {
   /*
     For a string result, we must first get the string and then convert it
     to a longlong
   */
-  if (!(res = args[0]->val_str(&tmp))) {
-    null_value = true;
-    return 0;
-  }
-  null_value = false;
+  StringBuffer<MAX_FIELD_WIDTH> tmp;
+  const String *res = item->val_str(&tmp);
+  *null_value = item->null_value;
+  if (*null_value) return 0;
+
   size_t length = res->length();
   const char *start = res->ptr();
   const char *end = start + length;
@@ -1726,7 +1724,7 @@ longlong Item_typecast_signed::val_int() {
     value = args[0]->val_int();
     null_value = args[0]->null_value;
   } else {
-    value = val_int_from_str();
+    value = val_int_from_str(args[0], unsigned_flag, &null_value);
   }
 
 #ifndef NDEBUG
@@ -1773,7 +1771,7 @@ longlong Item_typecast_unsigned::val_int() {
     value = args[0]->val_int();
     null_value = args[0]->null_value;
   } else {
-    value = val_int_from_str();
+    value = val_int_from_str(args[0], unsigned_flag, &null_value);
   }
 
   assert(!null_value || is_nullable());

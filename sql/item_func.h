@@ -967,24 +967,22 @@ class Item_func_connection_id final : public Item_int_func {
   }
 };
 
-class Item_typecast_signed : public Item_int_func {
+class Item_typecast_signed final : public Item_int_func {
  public:
   Item_typecast_signed(const POS &pos, Item *a) : Item_int_func(pos, a) {
     unsigned_flag = false;
   }
   const char *func_name() const override { return "cast_as_signed"; }
   longlong val_int() override;
-  longlong val_int_from_str();
   bool resolve_type(THD *thd) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
-class Item_typecast_unsigned final : public Item_typecast_signed {
+class Item_typecast_unsigned final : public Item_int_func {
  public:
-  Item_typecast_unsigned(const POS &pos, Item *a)
-      : Item_typecast_signed(pos, a) {
+  Item_typecast_unsigned(const POS &pos, Item *a) : Item_int_func(pos, a) {
     unsigned_flag = true;
   }
   const char *func_name() const override { return "cast_as_unsigned"; }
