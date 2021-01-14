@@ -82,6 +82,7 @@ LogicalOrderings::LogicalOrderings(THD *thd)
   FunctionalDependency decay_fd;
   decay_fd.type = FunctionalDependency::DECAY;
   decay_fd.tail = 0;
+  decay_fd.always_active = true;
   m_fds.push_back(decay_fd);
 }
 
@@ -233,13 +234,30 @@ void LogicalOrderings::PruneFDs(THD *thd) {
       }
     }
 
-    if (used_fd) {
+    if (!used_fd) {
+      m_optimized_fd_mapping[fd_idx] = -1;
+      continue;
+    }
+
+    if (m_fds[fd_idx].always_active) {
+      // Defer these for now, by moving them to the end. We will need to keep
+      // them in the array so that we can apply them under FSM construction,
+      // but they should not get a FD bitmap, and thus also not priority for
+      // the lowest index. We could have used a separate array, but the m_fds
+      // array probably already has the memory.
+      m_optimized_fd_mapping[fd_idx] = -1;
+      m_fds.push_back(m_fds[fd_idx]);
+    } else {
       m_optimized_fd_mapping[fd_idx] = new_length;
       m_fds[new_length++] = m_fds[fd_idx];
-    } else {
-      m_optimized_fd_mapping[fd_idx] = -1;
     }
   }
+
+  // Now include the always-on FDs we deferred earlier.
+  for (size_t fd_idx = old_length; fd_idx < m_fds.size(); ++fd_idx) {
+    m_fds[new_length++] = m_fds[fd_idx];
+  }
+
   m_fds.resize(new_length);
 }
 
@@ -917,6 +935,46 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
   }
 }
 
+bool LogicalOrderings::AlwaysActiveFD(int fd_idx) {
+  // Note: Includes ϵ-edges.
+  return fd_idx >= 0 && m_fds[fd_idx].always_active;
+}
+
+void LogicalOrderings::FinalizeDFSMState(THD *thd, int state_idx) {
+  LogicalOrderings::DFSMState &state = m_dfsm_states[state_idx];
+  for (int nfsm_state_idx : state.nfsm_states) {
+    int ordering_idx = m_states[nfsm_state_idx].satisfied_ordering_idx;
+    if (m_states[nfsm_state_idx].type == NFSMState::INTERESTING &&
+        ordering_idx < kMaxSupportedOrderings &&
+        m_orderings[ordering_idx].type == OrderingWithInfo::INTERESTING) {
+      state.follows_interesting_order.set(ordering_idx);
+    }
+    state.can_reach_interesting_order |=
+        m_states[nfsm_state_idx].can_reach_interesting_order;
+  }
+  state.next_state =
+      Bounds_checked_array<int>::Alloc(thd->mem_root, m_fds.size());
+  fill(state.next_state.begin(), state.next_state.end(), state_idx);
+}
+
+void LogicalOrderings::ExpandThroughAlwaysActiveFDs(
+    Mem_root_array<int> *nfsm_states, int *generation,
+    int extra_allowed_fd_idx) {
+  ++*generation;  // Effectively clear the “seen” flag in all NFSM states.
+  for (size_t i = 0; i < nfsm_states->size(); ++i) {
+    const NFSMState &state = m_states[(*nfsm_states)[i]];
+    for (int outgoing_edge_idx : state.outgoing_edges) {
+      const NFSMEdge &edge = m_edges[outgoing_edge_idx];
+      if ((AlwaysActiveFD(edge.required_fd_idx) ||
+           edge.required_fd_idx == extra_allowed_fd_idx) &&
+          m_states[edge.state_idx].seen != *generation) {
+        nfsm_states->push_back(edge.state_idx);
+        m_states[edge.state_idx].seen = *generation;
+      }
+    }
+  }
+}
+
 /**
   From the NFSM, convert an equivalent DFSM.
 
@@ -939,14 +997,24 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
   we don't create states eagerly for all 2^n possibilities.
  */
 void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
-  // Create the initial state.
+  // See NFSMState::seen.
+  int generation = 0;
+
+  // Create the initial DFSM state. It consists of everything in the initial
+  // NFSM state, and everything reachable from it with only always-active FDs.
   DFSMState initial;
   initial.nfsm_states.init(thd->mem_root);
   initial.nfsm_states.push_back(0);
-  initial.next_state =
-      Bounds_checked_array<int>::Alloc(thd->mem_root, m_fds.size());
-  fill(initial.next_state.begin(), initial.next_state.end(), 0);
+  ExpandThroughAlwaysActiveFDs(&initial.nfsm_states, &generation,
+                               /*extra_allowed_fd_idx=*/0);
   m_dfsm_states.push_back(move(initial));
+  FinalizeDFSMState(thd, /*state_idx=*/0);
+
+  // Reachability information set by FinalizeDFSMState() will include those
+  // that can be reached through SetOrder() nodes, so it's misleading.
+  // Clear it; this isn't 100% active if interesting orderings can be reached
+  // through FDs only, but it will ever cause too little pruning, not too much.
+  m_dfsm_states[0].can_reach_interesting_order.reset();
 
   // Used in iteration below.
   Mem_root_array<int> nfsm_states(thd->mem_root);
@@ -955,12 +1023,14 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
   for (size_t dfsm_state_idx = 0; dfsm_state_idx < m_dfsm_states.size();
        ++dfsm_state_idx) {
     // Take the union of all outgoing edges from the constituent NFSM m_states,
-    // ignoring ϵ-edges since we have special handling of them below.
+    // ignoring ϵ-edges and always active FDs, since we have special handling of
+    // them below.
     nfsm_edges.clear();
     for (int nfsm_state_idx : m_dfsm_states[dfsm_state_idx].nfsm_states) {
       for (const int edge_idx : m_states[nfsm_state_idx].outgoing_edges) {
-        if (m_edges[edge_idx].required_fd_idx != 0) {
-          nfsm_edges.push_back(m_edges[edge_idx]);
+        const NFSMEdge &edge = m_edges[edge_idx];
+        if (!AlwaysActiveFD(edge.required_fd_idx)) {
+          nfsm_edges.push_back(edge);
         }
       }
     }
@@ -1002,16 +1072,11 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
         }
       }
 
-      // Expand the set to contain any ϵ-edges, in a breadth-first manner.
-      // If they exist, they are always the first edge in the list,
-      // so they are easy to search for.
-      for (size_t i = 0; i < nfsm_states.size(); ++i) {
-        const NFSMState &state = m_states[nfsm_states[i]];
-        if (!state.outgoing_edges.empty() &&
-            m_edges[state.outgoing_edges[0]].required_fd_idx == 0) {
-          nfsm_states.push_back(m_edges[state.outgoing_edges[0]].state_idx);
-        }
-      }
+      // Expand the set to contain any ϵ-edges and always active FDs,
+      // in a breadth-first manner. Note that now, we might see new
+      // edges for the same FD, so we should follow those as well.
+      ExpandThroughAlwaysActiveFDs(&nfsm_states, &generation,
+                                   nfsm_edges[edge_idx].required_fd_idx);
 
       // Canonicalize: Sort and deduplicate.
       sort(nfsm_states.begin(), nfsm_states.end());
@@ -1033,22 +1098,9 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
         // There's none, so create a new one. The type doesn't really matter,
         // except for printing out the graph.
         DFSMState state;
-        for (int nfsm_state_idx : nfsm_states) {
-          int ordering_idx = m_states[nfsm_state_idx].satisfied_ordering_idx;
-          if (m_states[nfsm_state_idx].type == NFSMState::INTERESTING &&
-              ordering_idx < kMaxSupportedOrderings &&
-              m_orderings[ordering_idx].type == OrderingWithInfo::INTERESTING) {
-            state.follows_interesting_order.set(ordering_idx);
-          }
-          state.can_reach_interesting_order |=
-              m_states[nfsm_state_idx].can_reach_interesting_order;
-        }
         state.nfsm_states = move(nfsm_states);
-        state.next_state =
-            Bounds_checked_array<int>::Alloc(thd->mem_root, m_fds.size());
-        fill(state.next_state.begin(), state.next_state.end(),
-             m_dfsm_states.size() - 1);
         m_dfsm_states.push_back(move(state));
+        FinalizeDFSMState(thd, m_dfsm_states.size() - 1);
         target_dfsm_state_idx = m_dfsm_states.size() - 1;
       }
 
@@ -1141,8 +1193,12 @@ void LogicalOrderings::PrintFunctionalDependencies(string *trace) {
   } else {
     *trace += "\nFunctional dependencies (after pruning):\n";
     for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
-      *trace += " - " +
-                PrintFunctionalDependency(m_fds[fd_idx], /*html=*/false) + "\n";
+      *trace +=
+          " - " + PrintFunctionalDependency(m_fds[fd_idx], /*html=*/false);
+      if (m_fds[fd_idx].always_active) {
+        *trace += " [always active]";
+      }
+      *trace += "\n";
     }
     *trace += "\n";
   }

@@ -2420,6 +2420,54 @@ static void CollectFunctionalDependenciesFromJoins(
   }
 }
 
+static void CollectFunctionalDependenciesFromUniqueIndexes(
+    THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
+  // Collect functional dependencies from unique indexes.
+  for (JoinHypergraph::Node &node : graph->nodes) {
+    TABLE *table = node.table;
+    for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
+      KEY *key = &table->key_info[key_idx];
+      if (!Overlaps(actual_key_flags(key), HA_NOSAME)) {
+        // Not a unique index.
+        continue;
+      }
+      if (Overlaps(actual_key_flags(key), HA_NULL_PART_KEY)) {
+        // Some part of the index could be NULL,
+        // with special semantics; so ignore it.
+        continue;
+      }
+
+      FunctionalDependency fd;
+      fd.type = FunctionalDependency::FD;
+      fd.head = Bounds_checked_array<ItemHandle>::Alloc(thd->mem_root,
+                                                        actual_key_parts(key));
+      for (unsigned keypart_idx = 0; keypart_idx < actual_key_parts(key);
+           ++keypart_idx) {
+        fd.head[keypart_idx] = orderings->GetHandle(
+            new Item_field(key->key_part[keypart_idx].field));
+      }
+      fd.always_active = true;
+
+      // Add a FD for each field in the table that is not part of the key.
+      for (unsigned field_idx = 0; field_idx < table->s->fields; ++field_idx) {
+        Field *field = table->field[field_idx];
+        bool in_key = false;
+        for (unsigned keypart_idx = 0; keypart_idx < actual_key_parts(key);
+             ++keypart_idx) {
+          if (field->eq(key->key_part[keypart_idx].field)) {
+            in_key = true;
+            break;
+          }
+        }
+        if (!in_key) {
+          fd.tail = orderings->GetHandle(new Item_field(field));
+          orderings->AddFunctionalDependency(thd, fd);
+        }
+      }
+    }
+  }
+}
+
 static Ordering CollectInterestingOrder(THD *thd,
                                         const SQL_I_List<ORDER> &order_list,
                                         LogicalOrderings *orderings,
@@ -2527,6 +2575,7 @@ static void BuildInterestingOrders(
   // other FDs can use them as a stepping stone. Optimization in Build()
   // will remove them if they are indeed not useful.
   CollectFunctionalDependenciesFromJoins(thd, graph, orderings);
+  CollectFunctionalDependenciesFromUniqueIndexes(thd, graph, orderings);
 
   orderings->Build(thd, trace);
 

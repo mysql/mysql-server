@@ -1238,6 +1238,107 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
   query_block->join->filesorts_to_cleanup.shrink_to_fit();
 }
 
+TEST_F(HypergraphOptimizerTest, SortAheadDueToUniqueIndex) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t2.x FROM t1 JOIN t2 ON t1.x=t2.x "
+      "ORDER BY t1.x, t2.x, t2.y LIMIT 10",
+      /*nullable=*/true);
+
+  // Create a unique index on t2.x. This means that t2.y is now
+  // redundant, and can (will) be reduced away when creating the homogenized
+  // order.
+  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
+                                    /*column2=*/nullptr, /*unique=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, root->type);
+  EXPECT_EQ(10, root->limit_offset().limit);
+
+  // There should be no sort at the limit; join directly.
+  AccessPath *join = root->limit_offset().child;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, join->type);
+
+  // The outer side should have a sort, on t1 only.
+  AccessPath *outer = join->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::SORT, outer->type);
+  Filesort *sort = outer->sort().filesort;
+  ASSERT_EQ(1, sort->sort_order_length());
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  // And it should indeed be t1 that is sorted, since it's the
+  // smallest one.
+  AccessPath *t1 = outer->sort().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t1->type);
+  EXPECT_STREQ("t1", t1->table_scan().table->alias);
+
+  // The inner side should be t2, with the join condition pushed down into an
+  // EQ_REF.
+  AccessPath *inner = join->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::EQ_REF, inner->type);
+  EXPECT_STREQ("t2", inner->eq_ref().table->alias);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t2.x FROM t1 JOIN t2 ON t1.x=t2.x "
+      "ORDER BY t1.x, t2.x, t2.y LIMIT 10",
+      /*nullable=*/true);
+
+  // With a non-unique index, there is no functional dependency,
+  // and we should resort to sorting the largest table (t2).
+  // The rest of the test is equal to SortAheadDueToUniqueIndex,
+  // and we don't really verify it.
+  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
+                                    /*column2=*/nullptr, /*unique=*/false);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::LIMIT_OFFSET, root->type);
+  EXPECT_EQ(10, root->limit_offset().limit);
+
+  AccessPath *join = root->limit_offset().child;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, join->type);
+
+  // The outer side should have a sort, on t2 only.
+  AccessPath *outer = join->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::SORT, outer->type);
+  Filesort *sort = outer->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t2.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t2.y", ItemToString(sort->sortorder[1].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

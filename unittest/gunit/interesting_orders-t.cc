@@ -676,6 +676,66 @@ TEST_F(InterestingOrderingTableTest, SortByConst) {
   EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, ab_idx));
 }
 
+TEST_F(InterestingOrderingTableTest, AlwaysActiveFD) {
+  THD *thd = m_initializer.thd();
+
+  // Interesting orderings are ab and b.
+  array<OrderElement, 2> order_ab{OrderElement{a, ORDER_ASC},
+                                  OrderElement{b, ORDER_ASC}};
+  array<OrderElement, 1> order_b{OrderElement{a, ORDER_ASC}};
+  int ab_idx = m_orderings->AddOrdering(thd, Ordering(order_ab));
+  int b_idx = m_orderings->AddOrdering(thd, Ordering(order_b));
+
+  // Add {} → a and {} → b, but the former is always active.
+  array<ItemHandle, 0> head_empty{};
+
+  FunctionalDependency fd_empty_a;
+  fd_empty_a.type = FunctionalDependency::FD;
+  fd_empty_a.head = Bounds_checked_array<ItemHandle>(head_empty);
+  fd_empty_a.tail = a;
+  fd_empty_a.always_active = true;
+  int fd_empty_a_idx = m_orderings->AddFunctionalDependency(thd, fd_empty_a);
+
+  FunctionalDependency fd_empty_b;
+  fd_empty_b.type = FunctionalDependency::FD;
+  fd_empty_b.head = Bounds_checked_array<ItemHandle>(head_empty);
+  fd_empty_b.tail = b;
+  int fd_empty_b_idx = m_orderings->AddFunctionalDependency(thd, fd_empty_b);
+
+  array<ItemHandle, 1> head_a{a};
+  FunctionalDependency fd_equiv;
+  fd_equiv.type = FunctionalDependency::EQUIVALENCE;
+  fd_equiv.head = Bounds_checked_array<ItemHandle>(head_a);
+  fd_equiv.tail = b;
+  int fd_equiv_idx = m_orderings->AddFunctionalDependency(thd, fd_equiv);
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // Start with the empty ordering.
+  LogicalOrderings::StateIndex idx = m_orderings->SetOrder(0);
+  EXPECT_FALSE(m_orderings->DoesFollowOrder(idx, ab_idx));
+
+  // Now we should get ab simply by means of {} → b, since a is always-active.
+  // Note that in a sense, the code here can cheat, because it can reduce ab to
+  // b ahead of time if it wants. However, this does not hold for the next test.
+  FunctionalDependencySet fds = m_orderings->GetFDSet(fd_empty_b_idx);
+  idx = m_orderings->ApplyFDs(idx, fds);
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, ab_idx));
+
+  // Restart, then apply a = b. This should give us b.
+  idx = m_orderings->SetOrder(0);
+  fds = m_orderings->GetFDSet(fd_equiv_idx);
+  idx = m_orderings->ApplyFDs(idx, fds);
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, b_idx));
+
+  // The always-on FD should have no bitmap, so that we don't waste time trying
+  // to follow it at runtime.
+  EXPECT_TRUE(m_orderings->GetFDSet(fd_empty_a_idx).none());
+  EXPECT_FALSE(m_orderings->GetFDSet(fd_empty_b_idx).none());
+}
+
 TEST_F(InterestingOrderingTableTest, MoreOrderedThan) {
   THD *thd = m_initializer.thd();
 

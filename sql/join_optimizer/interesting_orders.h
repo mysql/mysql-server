@@ -169,6 +169,28 @@ struct FunctionalDependency {
 
   Bounds_checked_array<ItemHandle> head;
   ItemHandle tail;
+
+  // Whether this functional dependency can always be applied, ie.,
+  // there is never a point during query processing where it does not hold.
+  //
+  // Examples of not-always-active FDs include join conditions;
+  // e.g. for t1.x = t2.x, it is not true before the join has actually
+  // happened (and t1.x won't be the same order as t2.x before that,
+  // and thus cannot be used in e.g. a merge join).
+  //
+  // However, FDs that stem from unique indexes are always true; e.g. if
+  // t1.x is a primary key, {t1.x} → t1.y will always be true, and we can
+  // always reduce t1.y from an order if t1.x is present earlier.
+  // Similarly, WHERE conditions that are applied on the base table
+  // (ie., it is not delayed due to outer joins) will always be true,
+  // if t1.x = 3, we can safely assume {} → t1.x holds even before
+  // joining in t1, so a sort on (t1.x, t2.y) can be satisfied just by
+  // sorting t2 on y.
+  //
+  // Always-active FDs are baked into the DFSM, so that we need to follow
+  // fewer arcs during query processing. They can also be used for reducing
+  // the final order (to get more efficient sorting), but we don't do it yet.
+  bool always_active = false;
 };
 
 class LogicalOrderings {
@@ -350,6 +372,13 @@ class LogicalOrderings {
 
     // Indexed by ordering.
     std::bitset<kMaxSupportedOrderings> can_reach_interesting_order{0};
+
+    // Used during traversal, to keep track of which states we have
+    // already seen (for fast deduplication). We use the standard trick
+    // of using a generational counter instead of a bool, so that we don't
+    // have to clear it every time; we can just increase the generation
+    // and treat everything with lower/different “seen” as unseen.
+    int seen = 0;
   };
   struct DFSMState {
     Mem_root_array<int> outgoing_edges;  // Index into dfsm_edges.
@@ -491,6 +520,10 @@ class LogicalOrderings {
                                          enum_order direction,
                                          OrderElement *tmpbuf);
   void PruneNFSM(THD *thd);
+  bool AlwaysActiveFD(int fd_idx);
+  void FinalizeDFSMState(THD *thd, int state_idx);
+  void ExpandThroughAlwaysActiveFDs(Mem_root_array<int> *nfsm_states,
+                                    int *generation, int extra_allowed_fd_idx);
   void ConvertNFSMToDFSM(THD *thd);
 
   // Populates state_idx for every ordering in m_ordering.
