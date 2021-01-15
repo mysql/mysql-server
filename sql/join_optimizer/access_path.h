@@ -104,6 +104,10 @@ struct Predicate {
   hypergraph::NodeMap total_eligibility_set;
 
   double selectivity;
+
+  // See the equivalent fields in JoinPredicate.
+  FunctionalDependencySet functional_dependencies;
+  Mem_root_array<int> functional_dependencies_idx;
 };
 
 struct AppendPathParameters {

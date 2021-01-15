@@ -2325,3 +2325,29 @@ LEFT JOIN ( t1 AS t1i JOIN t2 AS t2i ON t1i.a = t2i.a ) ON t2.a = t2i.a
 WHERE t1i.a = '' OR t2i.a = '';
 a	a	a	a
 DROP TABLE t1, t2;
+#
+# Bug #32599784: WL#14325: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL_D
+#
+CREATE TABLE t1 (
+a INTEGER NOT NULL,
+KEY (a)
+);
+INSERT INTO t1 VALUES (1), (2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT *
+FROM t1 LEFT JOIN t1 AS t2 ON TRUE
+WHERE t1.a IS NULL OR t1.a = t2.a
+ORDER BY t2.a;
+a	a
+1	1
+2	2
+SELECT t1.a
+FROM t1 LEFT JOIN t1 AS t2 ON t1.a = t2.a
+WHERE t1.a IS NULL OR t1.a = t2.a
+GROUP BY t1.a;
+a
+1
+2
+DROP TABLE t1;

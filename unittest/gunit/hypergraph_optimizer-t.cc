@@ -1339,6 +1339,68 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
   query_block->join->filesorts_to_cleanup.shrink_to_fit();
 }
 
+TEST_F(HypergraphOptimizerTest, ElideSortDueToBaseFilters) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t1.y FROM t1 WHERE t1.x=3 ORDER BY t1.x, t1.y",
+      /*nullable=*/true);
+
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
+                                    /*column2=*/nullptr, /*unique=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The sort should be elided entirely due to the unique index
+  // and the constant lookup.
+  ASSERT_EQ(AccessPath::EQ_REF, root->type);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, ElideSortDueToDelayedFilters) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x, t1.y FROM t1 LEFT JOIN t2 ON t1.y=t2.y WHERE t2.x IS NULL "
+      "ORDER BY t2.x, t2.y ",
+      /*nullable=*/true);
+
+  m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
+                                    /*column2=*/nullptr, /*unique=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We should have the IS NULL at the root, and no sort, due to the
+  // functional dependency from t2.x to t2.y.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("(t2.x is null)", ItemToString(root->filter().condition));
+  WalkAccessPaths(root->filter().child, /*join=*/nullptr,
+                  WalkAccessPathPolicy::ENTIRE_TREE,
+                  [&](const AccessPath *path, const JOIN *) {
+                    EXPECT_NE(AccessPath::SORT, path->type);
+                    return false;
+                  });
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

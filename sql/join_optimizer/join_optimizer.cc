@@ -303,12 +303,14 @@ class CostingReceiver {
   void ApplyPredicatesForBaseTable(int node_idx, uint64_t applied_predicates,
                                    uint64_t subsumed_predicates,
                                    bool materialize_subqueries,
-                                   AccessPath *path);
+                                   AccessPath *path,
+                                   FunctionalDependencySet *new_fd_set);
   void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
                                        const AccessPath *left_path,
                                        const AccessPath *right_path,
                                        bool materialize_subqueries,
-                                       AccessPath *join_path);
+                                       AccessPath *join_path,
+                                       FunctionalDependencySet *new_fd_set);
 };
 
 /// Finds the set of supported access path types.
@@ -683,16 +685,19 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
       m_graph.table_num_to_node_num);
 
   for (bool materialize_subqueries : {false, true}) {
+    FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
                                 subsumed_predicates, materialize_subqueries,
-                                &path);
+                                &path, &new_fd_set);
+    path.ordering_state =
+        m_orderings->ApplyFDs(path.ordering_state, new_fd_set);
     path.applied_sargable_join_predicates |=
         applied_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
     path.subsumed_sargable_join_predicates |=
         subsumed_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
 
     ProposeAccessPathWithOrderings(
-        TableBitmap(node_idx), FunctionalDependencySet{0}, &path,
+        TableBitmap(node_idx), new_fd_set, &path,
         materialize_subqueries ? "mat. subq" : key->name);
 
     if (!Overlaps(path.filter_predicates, m_graph.materializable_predicates)) {
@@ -837,11 +842,13 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   assert(path.cost >= 0.0);
 
   for (bool materialize_subqueries : {false, true}) {
+    FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
                                 /*subsumed_predicates=*/0,
-                                materialize_subqueries, &path);
-    ProposeAccessPathWithOrderings(TableBitmap(node_idx),
-                                   FunctionalDependencySet{0}, &path,
+                                materialize_subqueries, &path, &new_fd_set);
+    path.ordering_state =
+        m_orderings->ApplyFDs(path.ordering_state, new_fd_set);
+    ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set, &path,
                                    materialize_subqueries ? "mat. subq" : "");
 
     if (!Overlaps(path.filter_predicates, m_graph.materializable_predicates)) {
@@ -873,11 +880,10 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
     be set as a child), as AccessPath::filter_predicates always assumes
     non-materialized subqueries.
  */
-void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
-                                                  uint64_t applied_predicates,
-                                                  uint64_t subsumed_predicates,
-                                                  bool materialize_subqueries,
-                                                  AccessPath *path) {
+void CostingReceiver::ApplyPredicatesForBaseTable(
+    int node_idx, uint64_t applied_predicates, uint64_t subsumed_predicates,
+    bool materialize_subqueries, AccessPath *path,
+    FunctionalDependencySet *new_fd_set) {
   double materialize_cost = 0.0;
 
   const NodeMap my_map = TableBitmap(node_idx);
@@ -885,8 +891,25 @@ void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
   path->cost = path->cost_before_filter;
   path->filter_predicates = 0;
   path->delayed_predicates = 0;
+  new_fd_set->reset();
   for (size_t i = 0; i < m_graph.num_where_predicates; ++i) {
     if (subsumed_predicates & (uint64_t{1} << i)) {
+      // Apply functional dependencies for the base table, but no others;
+      // this ensures we get the same functional dependencies set no matter what
+      // access path we choose. (The ones that refer to multiple tables,
+      // which are fairly rare, are not really relevant before the other
+      // table(s) have been joined in.)
+      if (m_graph.predicates[i].total_eligibility_set == my_map) {
+        *new_fd_set |= m_graph.predicates[i].functional_dependencies;
+      } else {
+        // We have a WHERE predicate that refers to multiple tables,
+        // that we can subsume as if it were a join condition
+        // (perhaps because it was identical to an actual join condition).
+        // The other side of the join will mark it as delayed, so we
+        // need to do so, too. Otherwise, we would never apply the
+        // associated functional dependency at the right time.
+        path->delayed_predicates |= uint64_t{1} << i;
+      }
       continue;
     }
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
@@ -906,6 +929,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(int node_idx,
       } else {
         path->num_output_rows *= m_graph.predicates[i].selectivity;
       }
+      *new_fd_set |= m_graph.predicates[i].functional_dependencies;
     } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
       path->delayed_predicates |= uint64_t{1} << i;
     }
@@ -1101,9 +1125,6 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   }
   join_path.cost = cost;
 
-  join_path.ordering_state =
-      m_orderings->ApplyFDs(m_orderings->SetOrder(0), new_fd_set);
-
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
     *m_trace += StringPrintf(
@@ -1118,18 +1139,31 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
     *wrote_trace = true;
   }
 
-  ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                  /*materialize_subqueries=*/false, &join_path);
-  ProposeAccessPathWithOrderings(left | right, new_fd_set, &join_path,
-                                 "hash join");
+  {
+    FunctionalDependencySet filter_fd_set;
+    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
+                                    /*materialize_subqueries=*/false,
+                                    &join_path, &filter_fd_set);
+    // Hash join destroys all ordering information (even from the left side,
+    // since we may have spill-to-disk).
+    join_path.ordering_state = m_orderings->ApplyFDs(
+        m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
+    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
+                                   &join_path, "hash join");
+  }
 
   if (Overlaps(join_path.filter_predicates,
                m_graph.materializable_predicates)) {
+    FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                    /*materialize_subqueries=*/true,
-                                    &join_path);
-    ProposeAccessPathWithOrderings(left | right, new_fd_set, &join_path,
-                                   "hash join, mat. subq");
+                                    /*materialize_subqueries=*/true, &join_path,
+                                    &filter_fd_set);
+    // Hash join destroys all ordering information (even from the left side,
+    // since we may have spill-to-disk).
+    join_path.ordering_state = m_orderings->ApplyFDs(
+        m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
+    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
+                                   &join_path, "hash join, mat. subq");
   }
 }
 
@@ -1138,7 +1172,12 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
 void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     NodeMap left, NodeMap right, const AccessPath *left_path,
     const AccessPath *right_path, bool materialize_subqueries,
-    AccessPath *join_path) {
+    AccessPath *join_path, FunctionalDependencySet *new_fd_set) {
+  // We build up a new FD set each time; it should be the same for the same
+  // left/right pair, so it is somewhat redundant, but it allows us to verify
+  // that property through the assert in ProposeAccessPathWithOrderings().
+  new_fd_set->reset();
+
   double materialize_cost = 0.0;
 
   // Keep the information about applied_sargable_join_predicates,
@@ -1165,6 +1204,7 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
         join_path->cost += cost.cost_if_not_materialized;
       }
       join_path->num_output_rows *= m_graph.predicates[pred_idx].selectivity;
+      *new_fd_set |= m_graph.predicates[pred_idx].functional_dependencies;
     } else {
       join_path->delayed_predicates |= uint64_t{1} << pred_idx;
     }
@@ -1309,22 +1349,27 @@ void CostingReceiver::ProposeNestedLoopJoin(
   join_path.ordering_state =
       m_orderings->ApplyFDs(left_path->ordering_state, new_fd_set);
 
-  ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                  /*materialize_subqueries=*/false, &join_path);
-  join_path.ordering_state =
-      m_orderings->ApplyFDs(join_path.ordering_state, new_fd_set);
-  ProposeAccessPathWithOrderings(left | right, new_fd_set, &join_path,
-                                 "nested loop");
+  {
+    FunctionalDependencySet filter_fd_set;
+    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
+                                    /*materialize_subqueries=*/false,
+                                    &join_path, &filter_fd_set);
+    join_path.ordering_state = m_orderings->ApplyFDs(
+        join_path.ordering_state, new_fd_set | filter_fd_set);
+    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
+                                   &join_path, "nested loop");
+  }
 
   if (Overlaps(join_path.filter_predicates,
                m_graph.materializable_predicates)) {
+    FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                    /*materialize_subqueries=*/true,
-                                    &join_path);
-    join_path.ordering_state =
-        m_orderings->ApplyFDs(join_path.ordering_state, new_fd_set);
-    ProposeAccessPathWithOrderings(left | right, new_fd_set, &join_path,
-                                   "nested loop, mat. subq");
+                                    /*materialize_subqueries=*/true, &join_path,
+                                    &filter_fd_set);
+    join_path.ordering_state = m_orderings->ApplyFDs(
+        join_path.ordering_state, new_fd_set | filter_fd_set);
+    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
+                                   &join_path, "nested loop, mat. subq");
   }
 }
 
@@ -2371,12 +2416,70 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       p.selectivity = EstimateSelectivity(thd, eq_item, trace);
       p.total_eligibility_set =
           ~0;  // Should never be applied as a WHERE predicate.
-      graph->predicates.push_back(p);
+      p.functional_dependencies_idx.init(thd->mem_root);
+      graph->predicates.push_back(std::move(p));
       predicate_index = graph->predicates.size() - 1;
       graph->sargable_join_predicates.emplace(eq_item, predicate_index);
     }
 
     node->sargable_predicates.push_back({predicate_index, field, right});
+  }
+}
+
+/**
+  Helper for CollectFunctionalDependenciesFromPredicates(); also used for
+  non-equijoin predicates in CollectFunctionalDependenciesFromJoins().
+ */
+static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
+                                                LogicalOrderings *orderings) {
+  if (condition->type() != Item::FUNC_ITEM) {
+    return -1;
+  }
+
+  // We treat IS NULL as item = const.
+  if (down_cast<Item_func *>(condition)->functype() == Item_func::ISNULL_FUNC) {
+    Item_func_isnull *isnull = down_cast<Item_func_isnull *>(condition);
+
+    FunctionalDependency fd;
+    fd.type = FunctionalDependency::FD;
+    fd.head = Bounds_checked_array<ItemHandle>();
+    fd.tail = orderings->GetHandle(isnull->arguments()[0]);
+
+    return orderings->AddFunctionalDependency(thd, fd);
+  }
+
+  if (down_cast<Item_func *>(condition)->functype() != Item_func::EQ_FUNC) {
+    // We only deal with equalities.
+    return -1;
+  }
+  Item_func_eq *eq = down_cast<Item_func_eq *>(condition);
+  Item *left = eq->arguments()[0];
+  Item *right = eq->arguments()[1];
+  if (left->const_for_execution()) {
+    if (right->const_for_execution()) {
+      // Ignore const = const.
+      return -1;
+    }
+    swap(left, right);
+  }
+  if (equality_determines_uniqueness(eq, left, right)) {
+    // item = const.
+    FunctionalDependency fd;
+    fd.type = FunctionalDependency::FD;
+    fd.head = Bounds_checked_array<ItemHandle>();
+    fd.tail = orderings->GetHandle(left);
+
+    return orderings->AddFunctionalDependency(thd, fd);
+  } else {
+    // item = item.
+    FunctionalDependency fd;
+    fd.type = FunctionalDependency::EQUIVALENCE;
+    ItemHandle head = orderings->GetHandle(left);
+    fd.head = Bounds_checked_array<ItemHandle>(&head, 1);
+    fd.tail = orderings->GetHandle(right);
+
+    // Takes a copy if needed, so the stack reference is safe.
+    return orderings->AddFunctionalDependency(thd, fd);
   }
 }
 
@@ -2405,16 +2508,43 @@ static void CollectFunctionalDependenciesFromJoins(
       continue;
     }
     pred.functional_dependencies_idx.init(thd->mem_root);
-    pred.functional_dependencies_idx.reserve(expr->equijoin_conditions.size());
+    pred.functional_dependencies_idx.reserve(expr->equijoin_conditions.size() +
+                                             expr->join_conditions.size());
     for (Item_func_eq *join_condition : expr->equijoin_conditions) {
-      FunctionalDependency fd;
-      fd.type = FunctionalDependency::EQUIVALENCE;
-      ItemHandle head = orderings->GetHandle(join_condition->get_arg(0));
-      fd.head = Bounds_checked_array<ItemHandle>(&head, 1);
-      fd.tail = orderings->GetHandle(join_condition->get_arg(1));
+      int fd_idx =
+          AddFunctionalDependencyFromCondition(thd, join_condition, orderings);
+      if (fd_idx != -1) {
+        pred.functional_dependencies_idx.push_back(fd_idx);
+      }
+    }
+    for (Item *join_condition : expr->join_conditions) {
+      int fd_idx =
+          AddFunctionalDependencyFromCondition(thd, join_condition, orderings);
+      if (fd_idx != -1) {
+        pred.functional_dependencies_idx.push_back(fd_idx);
+      }
+    }
+  }
+}
 
-      // Takes a copy if needed, so the stack reference is safe.
-      int fd_idx = orderings->AddFunctionalDependency(thd, fd);
+/**
+  Collect functional dependencies from non-join predicates.
+  Again, we only do item = item, and more interesting; we only take the
+  raw items, where we could have been much more sophisticated.
+  Imagine a predicate like a = b + c; we will add a FD saying exactly
+  that (which may or may not be useful, if b + c shows up in ORDER BY),
+  but we should probably also have added {b,c} → a, if b and c could
+  be generated somehow.
+
+  However, we _do_ special-case item = const, since they are so useful;
+  they become {} → item instead.
+ */
+static void CollectFunctionalDependenciesFromPredicates(
+    THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
+  for (Predicate &pred : graph->predicates) {
+    int fd_idx =
+        AddFunctionalDependencyFromCondition(thd, pred.condition, orderings);
+    if (fd_idx != -1) {
       pred.functional_dependencies_idx.push_back(fd_idx);
     }
   }
@@ -2559,8 +2689,8 @@ static void BuildInterestingOrders(
   // collect FDs from:
   //
   //  - Deterministic functions ({x} → f(x) for relevant items f(x)).
-  //  - Unique indexes.
-  //  - WHERE predicates.
+  //  - Unique indexes that are nullable, but that are made non-nullable
+  //    by WHERE predicates.
   //  - Generated columns. [*]
   //  - Join conditions from outer joins. [*]
   //  - Non-merged derived tables (including views and CTEs). [*]
@@ -2575,11 +2705,17 @@ static void BuildInterestingOrders(
   // other FDs can use them as a stepping stone. Optimization in Build()
   // will remove them if they are indeed not useful.
   CollectFunctionalDependenciesFromJoins(thd, graph, orderings);
+  CollectFunctionalDependenciesFromPredicates(thd, graph, orderings);
   CollectFunctionalDependenciesFromUniqueIndexes(thd, graph, orderings);
 
   orderings->Build(thd, trace);
 
   for (JoinPredicate &pred : graph->edges) {
+    for (int fd_idx : pred.functional_dependencies_idx) {
+      pred.functional_dependencies |= orderings->GetFDSet(fd_idx);
+    }
+  }
+  for (Predicate &pred : graph->predicates) {
     for (int fd_idx : pred.functional_dependencies_idx) {
       pred.functional_dependencies |= orderings->GetFDSet(fd_idx);
     }

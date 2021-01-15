@@ -1623,7 +1623,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
                                graph->table_num_to_node_num) |
         (total_eligibility_set & RAND_TABLE_BIT);
     pred.selectivity = EstimateSelectivity(thd, condition, trace);
-    graph->predicates.push_back(pred);
+    pred.functional_dependencies_idx.init(thd->mem_root);
+    graph->predicates.push_back(std::move(pred));
 
     if (trace != nullptr) {
       *trace += StringPrintf("Total eligibility set for %s: {",
@@ -1651,7 +1652,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
         (condition->used_tables() & RAND_TABLE_BIT);
     assert(IsSingleBitSet(pred.total_eligibility_set));
     pred.selectivity = EstimateSelectivity(thd, condition, trace);
-    graph->predicates.push_back(pred);
+    pred.functional_dependencies_idx.init(thd->mem_root);
+    graph->predicates.push_back(std::move(pred));
   }
 
   // Cache constant expressions in predicates, and add cast nodes if there are
