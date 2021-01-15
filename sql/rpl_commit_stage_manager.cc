@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,14 +96,15 @@ void Commit_stage_manager::init(PSI_mutex_key key_LOCK_flush_queue,
                                 PSI_mutex_key key_LOCK_sync_queue,
                                 PSI_mutex_key key_LOCK_commit_queue,
                                 PSI_mutex_key key_LOCK_done,
-                                PSI_cond_key key_COND_done) {
+                                PSI_cond_key key_COND_done,
+                                PSI_cond_key key_COND_flush_queue) {
   if (m_is_initialized) return;
   m_is_initialized = true;
 
   mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_done, &m_stage_cond_binlog);
   mysql_cond_init(key_COND_done, &m_stage_cond_commit_order);
-  mysql_cond_init(key_COND_done, &m_stage_cond_leader);
+  mysql_cond_init(key_COND_flush_queue, &m_stage_cond_leader);
 #ifndef NDEBUG
   leader_thd = nullptr;
 

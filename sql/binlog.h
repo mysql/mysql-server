@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,13 +158,18 @@ class MYSQL_BIN_LOG : public TC_LOG {
   PSI_mutex_key m_key_LOCK_index;
   /** The instrumentation key to use for @ LOCK_binlog_end_pos. */
   PSI_mutex_key m_key_LOCK_binlog_end_pos;
-
-  PSI_mutex_key m_key_COND_done;
-
+  /** The PFS instrumentation key for @ LOCK_commit_queue. */
   PSI_mutex_key m_key_LOCK_commit_queue;
+  /** The PFS instrumentation key for @ LOCK_done. */
   PSI_mutex_key m_key_LOCK_done;
+  /** The PFS instrumentation key for @ LOCK_flush_queue. */
   PSI_mutex_key m_key_LOCK_flush_queue;
+  /** The PFS instrumentation key for @ LOCK_sync_queue. */
   PSI_mutex_key m_key_LOCK_sync_queue;
+  /** The PFS instrumentation key for @ COND_done. */
+  PSI_mutex_key m_key_COND_done;
+  /** The PFS instrumentation key for @ COND_flush_queue. */
+  PSI_mutex_key m_key_COND_flush_queue;
   /** The instrumentation key to use for @ LOCK_commit. */
   PSI_mutex_key m_key_LOCK_commit;
   /** The instrumentation key to use for @ LOCK_sync. */
@@ -324,11 +329,12 @@ class MYSQL_BIN_LOG : public TC_LOG {
       PSI_mutex_key key_LOCK_flush_queue, PSI_mutex_key key_LOCK_log,
       PSI_mutex_key key_LOCK_binlog_end_pos, PSI_mutex_key key_LOCK_sync,
       PSI_mutex_key key_LOCK_sync_queue, PSI_mutex_key key_LOCK_xids,
-      PSI_cond_key key_COND_done, PSI_cond_key key_update_cond,
-      PSI_cond_key key_prep_xids_cond, PSI_file_key key_file_log,
-      PSI_file_key key_file_log_index, PSI_file_key key_file_log_cache,
-      PSI_file_key key_file_log_index_cache) {
+      PSI_cond_key key_COND_done, PSI_cond_key key_COND_flush_queue,
+      PSI_cond_key key_update_cond, PSI_cond_key key_prep_xids_cond,
+      PSI_file_key key_file_log, PSI_file_key key_file_log_index,
+      PSI_file_key key_file_log_cache, PSI_file_key key_file_log_index_cache) {
     m_key_COND_done = key_COND_done;
+    m_key_COND_flush_queue = key_COND_flush_queue;
 
     m_key_LOCK_commit_queue = key_LOCK_commit_queue;
     m_key_LOCK_done = key_LOCK_done;
