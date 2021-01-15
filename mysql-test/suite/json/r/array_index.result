@@ -282,9 +282,9 @@ x
 1
 explain select * from t1 where 11 member of  (concat(x,x));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t1	NULL	ref	k	k	9	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` where <cache>(11) member of (concat(`test`.`t1`.`x`,`test`.`t1`.`x`))
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1` where json'11' member of (cast(concat(`x`,`x`) as unsigned array))
 drop table t1;
 Test for error on array/object insertion into a scalar index
 create table t1(j json, key i1((cast(json_array(j) as unsigned array))));
@@ -314,9 +314,9 @@ j	sp_f
 {"data": [1, 2, 3]}	[1, 2, 3]
 explain select * from t1 where 2 member of(sp_f);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ref	sp_i	sp_i	9	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`sp_f` AS `sp_f` from `test`.`t1` where <cache>(2) member of (`test`.`t1`.`sp_f`)
+Note	1003	/* select#1 */ select `test`.`t1`.`j` AS `j`,`test`.`t1`.`sp_f` AS `sp_f` from `test`.`t1` where json'2' member of (cast(`sp_f` as unsigned array))
 drop table t1;
 create table t(vc varchar(10), key ((cast(vc->'$' as unsigned array))));
 insert into t values ('');
@@ -2384,4 +2384,75 @@ EVENT_NAME	COUNT_ALLOC	COUNT_FREE	SUM_NUMBER_OF_BYTES_ALLOC	SUM_NUMBER_OF_BYTES_
 CREATE TABLE t1(j char(1), KEY idxbn ((CAST('' AS CHAR(1) ARRAY))));
 ALTER TABLE t1 CONVERT TO CHARACTER SET latin1;
 DROP TABLE t1;
+#
+# Bug#30838807: MULTI-VALUED INDEX ON JSON COLUMN IS NOT USED
+#
+CREATE TABLE t(vc VARCHAR(10), j JSON DEFAULT (vc),
+KEY j_idx ((CAST(j AS UNSIGNED ARRAY))),
+KEY vc_idx ((CAST(vc AS UNSIGNED ARRAY))));
+INSERT INTO t(vc) VALUES ('[1,2,3]'), ('[2,3,4]'), ('[3,4,5]'), ('[4,5,6]');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+# Multi-valued index on a JSON column.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
+EXPLAIN
+-> Filter: json_overlaps(json'[2, 3]',cast(j as unsigned array))  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx  (cost=2.07 rows=5)
+
+SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
+vc	j
+[1,2,3]	[1, 2, 3]
+[2,3,4]	[2, 3, 4]
+[3,4,5]	[3, 4, 5]
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
+EXPLAIN
+-> Filter: json_contains(cast(j as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
+    -> Index range scan on t using j_idx  (cost=2.07 rows=5)
+
+SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
+vc	j
+[1,2,3]	[1, 2, 3]
+[2,3,4]	[2, 3, 4]
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (j);
+EXPLAIN
+-> Filter: json'3' member of (cast(j as unsigned array))  (cost=0.35 rows=1)
+    -> Index lookup on t using j_idx (cast(j as unsigned array)=json'3')  (cost=0.35 rows=1)
+
+SELECT * FROM t WHERE 3 MEMBER OF (j);
+vc	j
+[1,2,3]	[1, 2, 3]
+[2,3,4]	[2, 3, 4]
+[3,4,5]	[3, 4, 5]
+# Multi-valued index on a VARCHAR column.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
+EXPLAIN
+-> Filter: json_overlaps(json'[2, 3]',cast(vc as unsigned array))  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx  (cost=2.07 rows=5)
+
+SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
+vc	j
+[1,2,3]	[1, 2, 3]
+[2,3,4]	[2, 3, 4]
+[3,4,5]	[3, 4, 5]
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
+EXPLAIN
+-> Filter: json_contains(cast(vc as unsigned array),json'[2, 3]')  (cost=2.07 rows=5)
+    -> Index range scan on t using vc_idx  (cost=2.07 rows=5)
+
+SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
+vc	j
+[1,2,3]	[1, 2, 3]
+[2,3,4]	[2, 3, 4]
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (vc);
+EXPLAIN
+-> Filter: json'3' member of (cast(vc as unsigned array))  (cost=0.35 rows=1)
+    -> Index lookup on t using vc_idx (cast(vc as unsigned array)=json'3')  (cost=0.35 rows=1)
+
+SELECT * FROM t WHERE 3 MEMBER OF (vc);
+vc	j
+[1,2,3]	[1, 2, 3]
+[2,3,4]	[2, 3, 4]
+[3,4,5]	[3, 4, 5]
+DROP TABLE t;
 # restart:

@@ -6991,6 +6991,22 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
   return false;
 }
 
+bool Item::can_be_substituted_for_gc(bool array) const {
+  switch (type()) {
+    case FUNC_ITEM:
+    case COND_ITEM:
+      return true;
+    case FIELD_ITEM:
+      // Fields can be substituted with a generated column for a multi-valued
+      // index defined on the field. Otherwise, for non-arrays, we don't
+      // substitute fields with generated columns, since functional indexes
+      // cannot be defined on a plain column, only on expressions.
+      return array;
+    default:
+      return false;
+  }
+}
+
 /**
   Set the maximum number of characters required by any of the items in args.
 */

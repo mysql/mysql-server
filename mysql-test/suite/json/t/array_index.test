@@ -1330,6 +1330,51 @@ CREATE TABLE t1(j char(1), KEY idxbn ((CAST('' AS CHAR(1) ARRAY))));
 ALTER TABLE t1 CONVERT TO CHARACTER SET latin1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#30838807: MULTI-VALUED INDEX ON JSON COLUMN IS NOT USED
+--echo #
+CREATE TABLE t(vc VARCHAR(10), j JSON DEFAULT (vc),
+               KEY j_idx ((CAST(j AS UNSIGNED ARRAY))),
+               KEY vc_idx ((CAST(vc AS UNSIGNED ARRAY))));
+INSERT INTO t(vc) VALUES ('[1,2,3]'), ('[2,3,4]'), ('[3,4,5]'), ('[4,5,6]');
+ANALYZE TABLE t;
+
+--echo # Multi-valued index on a JSON column.
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
+--sorted_result
+SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', j);
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
+--sorted_result
+SELECT * FROM t WHERE JSON_CONTAINS(j, '[2,3]');
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (j);
+--sorted_result
+SELECT * FROM t WHERE 3 MEMBER OF (j);
+
+--echo # Multi-valued index on a VARCHAR column.
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
+--sorted_result
+SELECT * FROM t WHERE JSON_OVERLAPS('[2,3]', vc);
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
+--sorted_result
+SELECT * FROM t WHERE JSON_CONTAINS(vc, '[2,3]');
+
+--skip_if_hypergraph  # Multi-valued indexes are not supported yet.
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE 3 MEMBER OF (vc);
+--sorted_result
+SELECT * FROM t WHERE 3 MEMBER OF (vc);
+
+DROP TABLE t;
+
 # If the unique record filter is not properly closed by any of queries above,
 # then the TempTable plugin will have ref_count > 0 on restart. This should be
 # at the very end of the test.

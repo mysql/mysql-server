@@ -925,6 +925,8 @@ class Item_func_json_unquote : public Item_str_func {
 
   const char *func_name() const override { return "json_unquote"; }
 
+  enum Functype functype() const override { return JSON_UNQUOTE_FUNC; }
+
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
     set_nullable(true);

@@ -260,6 +260,7 @@ class Item_func : public Item_result_field {
     LEAST_FUNC,
     JSON_CONTAINS,
     JSON_OVERLAPS,
+    JSON_UNQUOTE_FUNC,
     MEMBER_OF_FUNC,
     STRCMP_FUNC,
     TRUE_FUNC
@@ -4001,7 +4002,7 @@ extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(THD *thd, Item *cond, bool *value);
-Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
+Item_field *get_gc_for_expr(const Item *func, Field *fld, Item_result type,
                             Field **found = nullptr);
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
