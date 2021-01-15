@@ -2291,7 +2291,7 @@ bool Item_xml_str_func::resolve_type(THD *thd) {
     /* UCS2 is not supported */
     my_printf_error(ER_UNKNOWN_ERROR,
                     "Character set '%s' is not supported by XPATH", MYF(0),
-                    collation.collation->csname);
+                    replace_utf8_utf8mb3(collation.collation->csname));
     return true;
   }
 

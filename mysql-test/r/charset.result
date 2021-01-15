@@ -98,7 +98,7 @@ SELECT '🐬';
 🐬
 🐬
 Warnings:
-Warning	1300	Invalid utf8 character string: 'F09F90'
+Warning	1300	Invalid utf8mb3 character string: 'F09F90'
 CREATE TABLE 🐬(a INT);
 ERROR HY000: Invalid utf8 character string: '\xF0\x9F\x90\xAC'
 CREATE TABLE t1(🐬 INT);

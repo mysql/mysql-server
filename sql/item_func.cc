@@ -6466,8 +6466,8 @@ String *Item_func_get_user_var::val_str(String *str) {
       char tmp[32];
       convert_to_printable(tmp, sizeof(tmp), res->ptr(), res->length(),
                            res->charset(), 6);
-      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), collation.collation->csname,
-               tmp);
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0),
+               replace_utf8_utf8mb3(collation.collation->csname), tmp);
       return error_str();
     }
     if (str->copy(tmpstr)) return error_str();

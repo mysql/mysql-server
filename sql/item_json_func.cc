@@ -3741,7 +3741,7 @@ static void print_cast_type(Cast_target cast_type, const Item *item,
         str->append_parenthesized(item->max_char_length());
         if (cs != &my_charset_utf8mb4_0900_bin) {
           str->append(STRING_WITH_LEN(" character set "));
-          str->append(cs->csname);
+          str->append(replace_utf8_utf8mb3(cs->csname));
         }
       }
       return;

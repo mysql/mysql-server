@@ -2148,13 +2148,13 @@ CHAR(0xff,0x8f USING utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 SELECT CHAR(0xff,0x8f USING utf8) IS NULL;
 CHAR(0xff,0x8f USING utf8) IS NULL
 1
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 SET SQL_MODE=@orig_sql_mode;
 select substring('abc', cast(2 as unsigned int));
 substring('abc', cast(2 as unsigned int))

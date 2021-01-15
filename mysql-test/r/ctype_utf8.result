@@ -1923,7 +1923,7 @@ crash
 37
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FFFFFC'
+Warning	1300	Invalid utf8mb3 character string: 'FFFFFC'
 DROP TABLE crashtest;
 DROP DATABASE crashtest;
 USE test;
@@ -2031,44 +2031,44 @@ char(0xff,0x8f using utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 select convert(char(0xff,0x8f) using utf8);
 convert(char(0xff,0x8f) using utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 set sql_mode=traditional;
 select char(0xff,0x8f using utf8);
 char(0xff,0x8f using utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 select char(195 using utf8);
 char(195 using utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'C3'
+Warning	1300	Invalid utf8mb3 character string: 'C3'
 select char(196 using utf8);
 char(196 using utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'C4'
+Warning	1300	Invalid utf8mb3 character string: 'C4'
 select char(2557 using utf8);
 char(2557 using utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FD'
+Warning	1300	Invalid utf8mb3 character string: 'FD'
 select convert(char(0xff,0x8f) using utf8);
 convert(char(0xff,0x8f) using utf8)
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF8F'
+Warning	1300	Invalid utf8mb3 character string: 'FF8F'
 select hex(convert(char(2557 using latin1) using utf8));
 hex(convert(char(2557 using latin1) using utf8))
 09C3BD
@@ -2273,42 +2273,42 @@ hex(char(0xFF using utf8))
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF'
+Warning	1300	Invalid utf8mb3 character string: 'FF'
 select hex(convert(0xFF using utf8));
 hex(convert(0xFF using utf8))
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF'
+Warning	1300	Invalid utf8mb3 character string: 'FF'
 select hex(_utf8 0x616263FF);
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 select hex(_utf8 X'616263FF');
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 select hex(_utf8 B'001111111111');
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 select (_utf8 X'616263FF');
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 set sql_mode=default;
 select hex(char(0xFF using utf8));
 hex(char(0xFF using utf8))
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF'
+Warning	1300	Invalid utf8mb3 character string: 'FF'
 select hex(convert(0xFF using utf8));
 hex(convert(0xFF using utf8))
 NULL
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1300	Invalid utf8 character string: 'FF'
+Warning	1300	Invalid utf8mb3 character string: 'FF'
 select hex(_utf8 0x616263FF);
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 select hex(_utf8 X'616263FF');
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 select hex(_utf8 B'001111111111');
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 select (_utf8 X'616263FF');
-ERROR HY000: Invalid utf8 character string: 'FF'
+ERROR HY000: Invalid utf8mb3 character string: 'FF'
 #
 # Bug#44131 Binary-mode "order by" returns records in incorrect order for UTF-8 strings
 #
