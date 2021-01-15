@@ -55,20 +55,28 @@ TEST(InterestingOrderingTest, DeduplicateOrderings) {
 
   array<OrderElement, 2> order_a{OrderElement{i1, ORDER_ASC},
                                  OrderElement{i2, ORDER_ASC}};
-  EXPECT_EQ(1, orderings.AddOrdering(thd, Ordering{order_a}));
+  EXPECT_EQ(
+      1, orderings.AddOrdering(thd, Ordering{order_a}, /*interesting=*/false));
+  EXPECT_FALSE(orderings.ordering_is_relevant_for_sortahead(1));
 
   array<OrderElement, 2> order_b{OrderElement{i1, ORDER_ASC},
                                  OrderElement{i3, ORDER_ASC}};
-  EXPECT_EQ(2, orderings.AddOrdering(thd, Ordering{order_b}));
-  EXPECT_EQ(1, orderings.AddOrdering(thd, Ordering{order_a}));
+  EXPECT_EQ(
+      2, orderings.AddOrdering(thd, Ordering{order_b}, /*interesting=*/true));
+  EXPECT_TRUE(orderings.ordering_is_relevant_for_sortahead(2));
+  EXPECT_EQ(
+      1, orderings.AddOrdering(thd, Ordering{order_a}, /*interesting=*/true));
+  EXPECT_TRUE(orderings.ordering_is_relevant_for_sortahead(1));
 
   array<OrderElement, 2> order_equiv_a{OrderElement{i1, ORDER_ASC},
                                        OrderElement{i2, ORDER_ASC}};
-  EXPECT_EQ(1, orderings.AddOrdering(thd, Ordering{order_equiv_a}));
+  EXPECT_EQ(1, orderings.AddOrdering(thd, Ordering{order_equiv_a},
+                                     /*interesting=*/true));
 
   array<OrderElement, 2> grouping_a{OrderElement{i1, ORDER_NOT_RELEVANT},
                                     OrderElement{i2, ORDER_NOT_RELEVANT}};
-  EXPECT_EQ(3, orderings.AddOrdering(thd, Ordering{grouping_a}));
+  EXPECT_EQ(3, orderings.AddOrdering(thd, Ordering{grouping_a},
+                                     /*interesting=*/true));
 }
 
 TEST(InterestingOrderingTest, DeduplicateFunctionalDependencies) {
@@ -124,7 +132,8 @@ TEST(InterestingOrderingTest, PruneFunctionalDependencies) {
   // i1 and i2 are part of an interesting order.
   array<OrderElement, 2> order_a{OrderElement{i1, ORDER_ASC},
                                  OrderElement{i2, ORDER_ASC}};
-  EXPECT_EQ(1, orderings.AddOrdering(thd, Ordering{order_a}));
+  EXPECT_EQ(
+      1, orderings.AddOrdering(thd, Ordering{order_a}, /*interesting=*/true));
 
   // Add i1 -> i3. It should be pruned, since i3 is not part of
   // an interesting order.
@@ -235,21 +244,24 @@ TEST_F(InterestingOrderingTableTest, HomogenizeOrderings) {
   // and (t2.a) due to the equivalence.
   array<OrderElement, 2> order_aa{OrderElement{t1_a, ORDER_ASC},
                                   OrderElement{t2_a, ORDER_ASC}};
-  EXPECT_EQ(1, m_orderings->AddOrdering(thd, Ordering{order_aa}));
+  EXPECT_EQ(1, m_orderings->AddOrdering(thd, Ordering{order_aa},
+                                        /*interesting=*/true));
 
   // Add the ordering (t2.a, t1.b, t1.c↓). It should be homogenized into
   // (t1.a, t1.c↓); the t1.b is optimized away due to the FD.
   array<OrderElement, 3> order_abc{OrderElement{t2_a, ORDER_ASC},
                                    OrderElement{t1_b, ORDER_ASC},
                                    OrderElement{t1_c, ORDER_DESC}};
-  EXPECT_EQ(2, m_orderings->AddOrdering(thd, Ordering{order_abc}));
+  EXPECT_EQ(2, m_orderings->AddOrdering(thd, Ordering{order_abc},
+                                        /*interesting=*/true));
 
   // And finally, (t1.a, t1.c, t2.a, t2.c), which cannot be homogenized
   // onto a single table.
   array<OrderElement, 4> order_acac{
       OrderElement{t1_a, ORDER_ASC}, OrderElement{t1_c, ORDER_ASC},
       OrderElement{t2_a, ORDER_ASC}, OrderElement{t2_c, ORDER_ASC}};
-  EXPECT_EQ(3, m_orderings->AddOrdering(thd, Ordering{order_acac}));
+  EXPECT_EQ(3, m_orderings->AddOrdering(thd, Ordering{order_acac},
+                                        /*interesting=*/true));
 
   string trace;
   m_orderings->Build(thd, &trace);
@@ -290,10 +302,14 @@ TEST_F(InterestingOrderingTableTest, SetOrder) {
   array<OrderElement, 1> order_b{OrderElement{b, ORDER_ASC}};
   array<OrderElement, 2> order_bc{OrderElement{b, ORDER_ASC},
                                   OrderElement{c, ORDER_ASC}};
-  int a_idx = m_orderings->AddOrdering(thd, Ordering(order_a));
-  int a_desc_idx = m_orderings->AddOrdering(thd, Ordering(order_a_desc));
-  int b_idx = m_orderings->AddOrdering(thd, Ordering(order_b));
-  int bc_idx = m_orderings->AddOrdering(thd, Ordering(order_bc));
+  int a_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_a), /*interesting=*/true);
+  int a_desc_idx = m_orderings->AddOrdering(thd, Ordering(order_a_desc),
+                                            /*interesting=*/true);
+  int b_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_b), /*interesting=*/true);
+  int bc_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_bc), /*interesting=*/true);
 
   string trace;
   m_orderings->Build(thd, &trace);
@@ -340,10 +356,14 @@ TEST_F(InterestingOrderingTableTest, BasicTest) {
   array<OrderElement, 4> order_abed{
       OrderElement{a, ORDER_ASC}, OrderElement{b, ORDER_ASC},
       OrderElement{e, ORDER_ASC}, OrderElement{d, ORDER_ASC}};
-  int ab_idx = m_orderings->AddOrdering(thd, Ordering(order_ab));
-  int abc_idx = m_orderings->AddOrdering(thd, Ordering(order_abc));
-  int de_idx = m_orderings->AddOrdering(thd, Ordering(order_de));
-  int abed_idx = m_orderings->AddOrdering(thd, Ordering(order_abed));
+  int ab_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ab), /*interesting=*/true);
+  int abc_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_abc), /*interesting=*/true);
+  int de_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_de), /*interesting=*/true);
+  int abed_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_abed), /*interesting=*/true);
 
   // Add b=d.
   array<ItemHandle, 1> head_b{b};
@@ -432,8 +452,10 @@ TEST_F(InterestingOrderingTableTest, AddReverseElement) {
   array<OrderElement, 1> order_a{OrderElement{a, ORDER_ASC}};
   array<OrderElement, 2> order_ab{OrderElement{a, ORDER_ASC},
                                   OrderElement{b, ORDER_DESC}};
-  int a_idx = m_orderings->AddOrdering(thd, Ordering(order_a));
-  int ab_idx = m_orderings->AddOrdering(thd, Ordering(order_ab));
+  int a_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_a), /*interesting=*/true);
+  int ab_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ab), /*interesting=*/true);
 
   // Add {a} → b.
   array<ItemHandle, 1> head_a{a};
@@ -471,8 +493,10 @@ TEST_F(InterestingOrderingTableTest, AddReverseElementThroughEquivalences) {
   array<OrderElement, 1> order_a{OrderElement{a, ORDER_ASC}};
   array<OrderElement, 2> order_ac{OrderElement{a, ORDER_ASC},
                                   OrderElement{c, ORDER_DESC}};
-  int a_idx = m_orderings->AddOrdering(thd, Ordering(order_a));
-  int ac_idx = m_orderings->AddOrdering(thd, Ordering(order_ac));
+  int a_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_a), /*interesting=*/true);
+  int ac_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ac), /*interesting=*/true);
 
   // Add {a} → b.
   array<ItemHandle, 1> head_a{a};
@@ -520,8 +544,10 @@ TEST_F(InterestingOrderingTableTest, DoesNotStrictlyPruneOnPrefixes) {
       OrderElement{c, ORDER_ASC}, OrderElement{d, ORDER_ASC}};
   array<OrderElement, 2> order_dc{OrderElement{d, ORDER_ASC},
                                   OrderElement{c, ORDER_ASC}};
-  int abcd_idx = m_orderings->AddOrdering(thd, Ordering(order_abcd));
-  int dc_idx = m_orderings->AddOrdering(thd, Ordering(order_dc));
+  int abcd_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_abcd), /*interesting=*/true);
+  int dc_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_dc), /*interesting=*/true);
 
   // Add b=d.
   array<ItemHandle, 1> head_b{b};
@@ -586,8 +612,10 @@ TEST_F(InterestingOrderingTableTest, TwoEquivalences) {
   array<OrderElement, 3> order_dec{OrderElement{d, ORDER_ASC},
                                    OrderElement{e, ORDER_ASC},
                                    OrderElement{c, ORDER_ASC}};
-  int abc_idx = m_orderings->AddOrdering(thd, Ordering(order_abc));
-  int dec_idx = m_orderings->AddOrdering(thd, Ordering(order_dec));
+  int abc_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_abc), /*interesting=*/true);
+  int dec_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_dec), /*interesting=*/true);
 
   // Add a=d and b=e.
   array<ItemHandle, 1> head_a{a};
@@ -633,7 +661,8 @@ TEST_F(InterestingOrderingTableTest, SortByConst) {
   // The only interesting order is ab.
   array<OrderElement, 2> order_ab{OrderElement{a, ORDER_ASC},
                                   OrderElement{b, ORDER_ASC}};
-  int ab_idx = m_orderings->AddOrdering(thd, Ordering(order_ab));
+  int ab_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ab), /*interesting=*/true);
 
   // Add b=c.
   array<ItemHandle, 1> head_b{b};
@@ -683,8 +712,10 @@ TEST_F(InterestingOrderingTableTest, AlwaysActiveFD) {
   array<OrderElement, 2> order_ab{OrderElement{a, ORDER_ASC},
                                   OrderElement{b, ORDER_ASC}};
   array<OrderElement, 1> order_b{OrderElement{a, ORDER_ASC}};
-  int ab_idx = m_orderings->AddOrdering(thd, Ordering(order_ab));
-  int b_idx = m_orderings->AddOrdering(thd, Ordering(order_b));
+  int ab_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ab), /*interesting=*/true);
+  int b_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_b), /*interesting=*/true);
 
   // Add {} → a and {} → b, but the former is always active.
   array<ItemHandle, 0> head_empty{};
@@ -744,9 +775,12 @@ TEST_F(InterestingOrderingTableTest, MoreOrderedThan) {
   array<OrderElement, 2> order_ab{OrderElement{a, ORDER_ASC},
                                   OrderElement{b, ORDER_ASC}};
   array<OrderElement, 1> order_c{OrderElement{c, ORDER_ASC}};
-  int a_order_idx = m_orderings->AddOrdering(thd, Ordering(order_a));
-  int ab_order_idx = m_orderings->AddOrdering(thd, Ordering(order_ab));
-  int c_order_idx = m_orderings->AddOrdering(thd, Ordering(order_c));
+  int a_order_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_a), /*interesting=*/true);
+  int ab_order_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ab), /*interesting=*/true);
+  int c_order_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_c), /*interesting=*/true);
 
   // Add a=c.
   array<ItemHandle, 1> head_a{a};
@@ -839,7 +873,8 @@ TEST_F(InterestingOrderingTableTest, HomogenizedOrderingsAreEquallyGood) {
   // Set up the ordering (t1.a). It should be homogenized into (t2.a)
   // and (t3.a) due to the equivalence.
   array<OrderElement, 1> order_a{OrderElement{t1_a, ORDER_ASC}};
-  EXPECT_EQ(1, m_orderings->AddOrdering(thd, Ordering{order_a}));
+  EXPECT_EQ(1, m_orderings->AddOrdering(thd, Ordering{order_a},
+                                        /*interesting=*/true));
 
   string trace;
   m_orderings->Build(thd, &trace);
@@ -869,4 +904,62 @@ TEST_F(InterestingOrderingTableTest, HomogenizedOrderingsAreEquallyGood) {
   // However, both of them should be more interesting than nothing.
   EXPECT_TRUE(m_orderings->MoreOrderedThan(t2a_idx, empty_idx));
   EXPECT_TRUE(m_orderings->MoreOrderedThan(t3a_idx, empty_idx));
+}
+
+TEST_F(InterestingOrderingTableTest, PruneUninterestingOrders) {
+  THD *thd = m_initializer.thd();
+
+  unique_ptr_destroy_only<Fake_TABLE> table(
+      new (thd->mem_root) Fake_TABLE(/*num_columns=*/3, /*nullable=*/true));
+  table->field[0]->field_name = "a";
+  table->field[1]->field_name = "b";
+  table->field[2]->field_name = "c";
+
+  ItemHandle a = m_orderings->GetHandle(new Item_field(table->field[0]));
+  ItemHandle b = m_orderings->GetHandle(new Item_field(table->field[1]));
+  ItemHandle c = m_orderings->GetHandle(new Item_field(table->field[2]));
+
+  // Interesting orders are a and bc.
+  array<OrderElement, 1> order_a{OrderElement{a, ORDER_ASC}};
+  array<OrderElement, 2> order_bc{OrderElement{b, ORDER_ASC},
+                                  OrderElement{c, ORDER_ASC}};
+  int a_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_a), /*interesting=*/true);
+  int bc_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_bc), /*interesting=*/true);
+
+  // Add b → c.
+  array<ItemHandle, 1> head_b{b};
+  FunctionalDependency fd_bc;
+  fd_bc.type = FunctionalDependency::FD;
+  fd_bc.head = Bounds_checked_array<ItemHandle>(head_b);
+  fd_bc.tail = c;
+  m_orderings->AddFunctionalDependency(thd, fd_bc);
+
+  // Uninteresting orders are b, c and abc. c should be pruned away,
+  // since there's no way we can reach anything interesting,
+  // but b should be kept, since it could become bc. abc should be
+  // shortened and deduplicated into a.
+  array<OrderElement, 1> order_b{OrderElement{b, ORDER_ASC}};
+  array<OrderElement, 1> order_c{OrderElement{c, ORDER_ASC}};
+  array<OrderElement, 3> order_abc{OrderElement{a, ORDER_ASC},
+                                   OrderElement{b, ORDER_ASC},
+                                   OrderElement{c, ORDER_ASC}};
+  int b_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_b), /*interesting=*/false);
+  int c_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_c), /*interesting=*/false);
+  int abc_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_abc), /*interesting=*/false);
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(0, m_orderings->RemapOrderingIndex(c_idx));
+  EXPECT_NE(0, m_orderings->RemapOrderingIndex(b_idx));
+  EXPECT_NE(m_orderings->RemapOrderingIndex(bc_idx),
+            m_orderings->RemapOrderingIndex(b_idx));
+  EXPECT_EQ(m_orderings->RemapOrderingIndex(a_idx),
+            m_orderings->RemapOrderingIndex(abc_idx));
 }

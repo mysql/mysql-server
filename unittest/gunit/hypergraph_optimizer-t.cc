@@ -68,7 +68,9 @@
 
 using hypergraph::NodeMap;
 using std::unordered_map;
+using testing::_;
 using testing::Pair;
+using testing::Return;
 
 // Base class for the hypergraph unit tests. Its parent class is a type
 // parameter, so that it can be used as a base class for both non-parametrized
@@ -1395,6 +1397,40 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToDelayedFilters) {
                     EXPECT_NE(AccessPath::SORT, path->type);
                     return false;
                   });
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x FROM t1 ORDER BY t1.x DESC",
+                      /*nullable=*/true);
+
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
+                                    /*column2=*/nullptr, /*unique=*/false);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+
+  // Mark the index as returning ordered results.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The sort should be elided entirely due to index.
+  ASSERT_EQ(AccessPath::INDEX_SCAN, root->type);
+  EXPECT_STREQ("t1", root->index_scan().table->alias);
+  EXPECT_EQ(0, root->index_scan().idx);
+  EXPECT_TRUE(root->index_scan().use_order);
+  EXPECT_TRUE(root->index_scan().reverse);
 
   // Maybe JOIN::destroy() should do this:
   query_block->join->filesorts_to_cleanup.clear();

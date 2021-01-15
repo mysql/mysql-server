@@ -90,6 +90,14 @@
   The actual collection of FDs and interesting orders happen outside this
   class, in the caller.
 
+  Neumann and Moerkotte distinguish between “tested-for” (O_T) and
+  “producing” (O_P) orderings, where all orders are interesting but only
+  some can be produced by explicit operators, such as sorts. Our implementation
+  is exactly opposite; we allow every ordering to be produced (by means of
+  sort-ahead), but there are orders that can be produced (e.g. when scanning
+  an index) that are not interesting in themselves. Such orders can be
+  pruned away early if we can show they do not produce anything interesting.
+
 
   The operations related to interesting orders, in particular the concept
   of functional dependencies, are related to the ones we are doing when
@@ -209,9 +217,18 @@ class LogicalOrderings {
   // returning an index that can be given to SetOrder() later.
   // Will deduplicate against previous entries; if not deduplicated
   // away, a copy will be taken.
+  //
+  // Uninteresting orderings are those that can be produced by some
+  // operator (for instance, index scan) but are not interesting to
+  // test for. They may be pruned away; if so, all later orderings
+  // will change index (see RemapOrderingIndex()). You do not need
+  // to worry about this if all orderings are marked as interesting.
+  //
   // The empty ordering/grouping is always index 0.
-  int AddOrdering(THD *thd, Ordering order) {
-    return AddOrderingInternal(thd, order, OrderingWithInfo::INTERESTING);
+  int AddOrdering(THD *thd, Ordering order, bool interesting) {
+    return AddOrderingInternal(thd, order,
+                               interesting ? OrderingWithInfo::INTERESTING
+                                           : OrderingWithInfo::UNINTERESTING);
   }
 
   // NOTE: Will include the empty ordering.
@@ -219,6 +236,10 @@ class LogicalOrderings {
 
   Ordering ordering(int ordering_idx) const {
     return m_orderings[ordering_idx].ordering;
+  }
+
+  bool ordering_is_relevant_for_sortahead(int ordering_idx) const {
+    return m_orderings[ordering_idx].type != OrderingWithInfo::UNINTERESTING;
   }
 
   // Add a functional dependency that may be applied at some point
@@ -247,6 +268,19 @@ class LogicalOrderings {
 
   // These are only available after Build() has been called.
   // They are stateless and used in the actual planning phase.
+
+  // Converts an index returned by AddOrdering() to one that can be given
+  // to SetOrder() or DoesFollowOrder(). They don't convert themselves
+  // since it's completely legitimate to iterate over all orderings using
+  // num_orderings() and orderings(), and those indexes should _not_ be
+  // remapped.
+  //
+  // If an ordering has been pruned away, will return zero (the empty ordering),
+  // which is a valid input to SetOrder().
+  int RemapOrderingIndex(int ordering_idx) const {
+    assert(m_built);
+    return m_optimized_ordering_mapping[ordering_idx];
+  }
 
   using StateIndex = int;
 
@@ -461,6 +495,13 @@ class LogicalOrderings {
       // to the same given the same FDs anyway (see MoreOrderedThan()), and
       // thus are equally good.
       HOMOGENIZED = 1,
+
+      // An ordering that is just added because it is easy to produce;
+      // e.g. because it is produced by scanning along an index. Such orderings
+      // can be shortened or pruned away entirely (in
+      // PruneUninterestingOrders())
+      // unless we find that they may lead to an interesting order.
+      UNINTERESTING = 0
     } type;
 
     // Which initial state to use for this ordering (in SetOrder()).
@@ -482,12 +523,19 @@ class LogicalOrderings {
   Mem_root_array<DFSMState> m_dfsm_states;
   Mem_root_array<DFSMEdge> m_dfsm_edges;
 
+  // After PruneUninterestingOrders has run, maps from the old indexes to the
+  // new indexes.
+  Bounds_checked_array<int> m_optimized_ordering_mapping;
+
   // After PruneFDs() has run, maps from the old indexes to the new indexes.
   Bounds_checked_array<int> m_optimized_fd_mapping;
 
   // Helper for AddOrdering().
   int AddOrderingInternal(THD *thd, Ordering order,
                           OrderingWithInfo::Type type);
+
+  // See comment in .cc file.
+  void PruneUninterestingOrders(THD *thd);
 
   // See comment in .cc file.
   void PruneFDs(THD *thd);

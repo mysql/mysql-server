@@ -15931,17 +15931,6 @@ OR
 col_datetime_5 = CURRENT_DATE()
 ORDER BY 1;
 c1	c2
-Warnings:
-Warning	1411	Incorrect datetime value: '03:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '08:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
-Warning	1411	Incorrect datetime value: '12:07' for function str_to_date
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 #

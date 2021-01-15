@@ -128,6 +128,14 @@ struct SortAheadOrdering {
   ORDER *order;
 };
 
+// An index that we can use in the query, either for index lookup (ref access)
+// or for scanning along to get an interesting ordering.
+struct ActiveIndexInfo {
+  TABLE *table;
+  int key_idx;
+  LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0;
+};
+
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
   based on cost. It receives subplans from DPhyp (see enumerate_subgraph.h),
@@ -151,7 +159,8 @@ class CostingReceiver {
       THD *thd, Query_block *query_block, const JoinHypergraph &graph,
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
-      bool need_rowid, uint64_t supported_access_path_types,
+      const Mem_root_array<ActiveIndexInfo> *active_indexes, bool need_rowid,
+      uint64_t supported_access_path_types,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
       : m_thd(thd),
@@ -159,6 +168,7 @@ class CostingReceiver {
         m_graph(graph),
         m_orderings(orderings),
         m_sort_ahead_orderings(sort_ahead_orderings),
+        m_active_indexes(active_indexes),
         m_need_rowid(need_rowid),
         m_supported_access_path_types(supported_access_path_types),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
@@ -238,6 +248,11 @@ class CostingReceiver {
   /// (because they are, or may eventually become, an interesting ordering).
   const Mem_root_array<SortAheadOrdering> *m_sort_ahead_orderings;
 
+  /// List of all indexes that are active and that we can apply in this query.
+  /// Indexes can be useful in several ways: We can use them for ref access,
+  /// for index-only scans, or to get interesting orderings.
+  const Mem_root_array<ActiveIndexInfo> *m_active_indexes;
+
   /// Whether we will be needing row IDs from our tables, typically for
   /// a later sort. If this happens, derived tables cannot use streaming,
   /// but need an actual materialization, since filesort expects to be
@@ -286,14 +301,20 @@ class CostingReceiver {
     return Overlaps(AccessPathTypeBitmap(type), m_supported_access_path_types);
   }
 
+  void ProposeAccessPathForBaseTable(int node_idx,
+                                     const char *description_for_trace,
+                                     AccessPath *path);
   void ProposeAccessPathWithOrderings(NodeMap nodes,
                                       FunctionalDependencySet fd_set,
                                       AccessPath *path,
                                       const char *description_for_trace);
   bool ProposeTableScan(TABLE *table, int node_idx,
                         bool is_recursive_reference);
-  bool ProposeRefAccess(TABLE *table, int node_idx, KEY *key, unsigned key_idx,
-                        table_map allowed_parameter_tables);
+  bool ProposeIndexScan(TABLE *table, int node_idx, unsigned key_idx,
+                        bool reverse, int ordering_idx);
+  bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
+                        bool reverse, table_map allowed_parameter_tables,
+                        int ordering_idx);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge,
                              FunctionalDependencySet new_fd_set);
@@ -361,44 +382,70 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
 
   if (!Overlaps(table->file->ha_table_flags(), HA_NO_INDEX_ACCESS) &&
       !tl->is_recursive_reference()) {
-    for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
-      // Propose ref access using only sargable predicates that reference no
-      // other table.
-      if (ProposeRefAccess(table, node_idx, &table->key_info[key_idx], key_idx,
-                           /*allowed_parameter_tables=*/0)) {
-        return true;
+    // Propose index scan (for getting interesting orderings).
+    // We only consider those that are more interesting than a table scan;
+    // for the others, we don't even need to create the access path and go
+    // through the tournament.
+    for (const ActiveIndexInfo &order_info : *m_active_indexes) {
+      if (order_info.table != table) {
+        continue;
       }
 
-      // Propose ref access using all sargable predicates that also refer to
-      // other tables (e.g. t1.x = t2.x). Such access paths can only be used on
-      // the inner side of a nested loop join, where all the other referenced
-      // tables are among the outer tables of the join. Such path is called a
-      // parametrized path.
-      //
-      // Since indexes can have multiple parts, the access path can also end up
-      // being parametrized on multiple outer tables. However, since
-      // parametrized paths are less flexible in joining than non-parametrized
-      // ones, it can be advantageous to not use all parts of the index; it's
-      // impossible to say locally. Thus, we enumerate all possible subsets of
-      // table parameters that may be useful, to make sure we don't miss any
-      // such paths.
-      table_map want_parameter_tables = 0;
-      for (unsigned pred_idx = 0;
-           pred_idx < m_graph.nodes[node_idx].sargable_predicates.size();
-           ++pred_idx) {
-        const SargablePredicate &sp =
-            m_graph.nodes[node_idx].sargable_predicates[pred_idx];
-        if (sp.field->table == table && sp.field->part_of_key.is_set(key_idx) &&
-            !Overlaps(sp.other_side->used_tables(),
-                      PSEUDO_TABLE_BITS | table->pos_in_table_list->map())) {
-          want_parameter_tables |= sp.other_side->used_tables();
+      const int forward_order =
+          m_orderings->RemapOrderingIndex(order_info.forward_order);
+      const int reverse_order =
+          m_orderings->RemapOrderingIndex(order_info.reverse_order);
+      for (bool reverse : {false, true}) {
+        if (reverse && reverse_order == 0) {
+          continue;
         }
-      }
-      for (table_map allowed_parameter_tables :
-           NonzeroSubsetsOf(want_parameter_tables)) {
-        if (ProposeRefAccess(table, node_idx, &table->key_info[key_idx],
-                             key_idx, allowed_parameter_tables)) {
+        const int order = reverse ? reverse_order : forward_order;
+        if (order != 0) {
+          if (ProposeIndexScan(table, node_idx, order_info.key_idx, reverse,
+                               order)) {
+            return true;
+          }
+        }
+
+        // Propose ref access using only sargable predicates that reference no
+        // other table.
+        if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
+                             /*allowed_parameter_tables=*/0, order)) {
           return true;
+        }
+
+        // Propose ref access using all sargable predicates that also refer to
+        // other tables (e.g. t1.x = t2.x). Such access paths can only be used
+        // on the inner side of a nested loop join, where all the other
+        // referenced tables are among the outer tables of the join. Such path
+        // is called a parametrized path.
+        //
+        // Since indexes can have multiple parts, the access path can also end
+        // up being parametrized on multiple outer tables. However, since
+        // parametrized paths are less flexible in joining than non-parametrized
+        // ones, it can be advantageous to not use all parts of the index; it's
+        // impossible to say locally. Thus, we enumerate all possible subsets of
+        // table parameters that may be useful, to make sure we don't miss any
+        // such paths.
+        table_map want_parameter_tables = 0;
+        for (unsigned pred_idx = 0;
+             pred_idx < m_graph.nodes[node_idx].sargable_predicates.size();
+             ++pred_idx) {
+          const SargablePredicate &sp =
+              m_graph.nodes[node_idx].sargable_predicates[pred_idx];
+          if (sp.field->table == table &&
+              sp.field->part_of_key.is_set(order_info.key_idx) &&
+              !Overlaps(sp.other_side->used_tables(),
+                        PSEUDO_TABLE_BITS | table->pos_in_table_list->map())) {
+            want_parameter_tables |= sp.other_side->used_tables();
+          }
+        }
+        for (table_map allowed_parameter_tables :
+             NonzeroSubsetsOf(want_parameter_tables)) {
+          if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
+                               allowed_parameter_tables, order)) {
+            return true;
+          }
         }
       }
     }
@@ -447,13 +494,13 @@ bool ContainsSubqueries(Item *item_arg) {
   });
 }
 
-bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
-                                       unsigned key_idx,
-                                       table_map allowed_parameter_tables) {
-  // NOTE: visible_index claims to contain “visible and enabled” indexes,
-  // but we still need to check keys_in_use to ignore disabled indexes.
-  if (!table->keys_in_use_for_query.is_set(key_idx) ||
-      (key->flags & HA_FULLTEXT)) {
+bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
+                                       unsigned key_idx, bool reverse,
+                                       table_map allowed_parameter_tables,
+                                       int ordering_idx) {
+  KEY *key = &table->key_info[key_idx];
+
+  if (key->flags & HA_FULLTEXT) {
     return false;
   }
 
@@ -669,14 +716,24 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx, KEY *key,
     path.eq_ref().table = table;
     path.eq_ref().ref = ref;
     path.eq_ref().use_order = false;
+
+    // We could set really any ordering here if we wanted to.
+    // It's very rare that it should matter, though.
+    path.ordering_state = m_orderings->SetOrder(ordering_idx);
   } else {
     path.type = AccessPath::REF;
     path.ref().table = table;
     path.ref().ref = ref;
-    path.ref().use_order = false;
-    path.ref().reverse = false;
+    path.ref().reverse = reverse;
+
+    // TODO(sgunders): Some storage engines, like NDB, can benefit from
+    // use_order = false if we don't actually need the ordering later.
+    // Consider adding a cost model for this, and then proposing both
+    // with and without order.
+    path.ordering_state = m_orderings->SetOrder(ordering_idx);
+    path.ref().use_order = (path.ordering_state != 0);
   }
-  path.ordering_state = 0;
+
   path.num_output_rows_before_filter = num_output_rows;
   path.cost_before_filter = cost;
   path.init_cost = path.init_once_cost = 0.0;
@@ -841,23 +898,76 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   }
   assert(path.cost >= 0.0);
 
+  ProposeAccessPathForBaseTable(node_idx, /*description_for_trace=*/"", &path);
+  return false;
+}
+
+bool CostingReceiver::ProposeIndexScan(TABLE *table, int node_idx,
+                                       unsigned key_idx, bool reverse,
+                                       int ordering_idx) {
+  AccessPath path;
+  path.type = AccessPath::INDEX_SCAN;
+  path.index_scan().table = table;
+  path.index_scan().idx = key_idx;
+  path.index_scan().use_order = true;
+  path.index_scan().reverse = reverse;
+  path.count_examined_rows = true;
+  path.ordering_state = m_orderings->SetOrder(ordering_idx);
+
+  double num_output_rows = table->file->stats.records;
+  double cost;
+
+  // If a table scan and a primary key scan is the very same thing,
+  // they should also have the same cost. However, read_cost()
+  // is based on number of rows, and table_scan_cost() is based on
+  // on-disk size, so it's complete potluck which one gives the
+  // higher number. We force primary scan cost to be table scan cost
+  // plus an arbitrary 0.1% factor, so that we will always prefer
+  // table scans if we don't need the ordering (both for user experience,
+  // and in case there _is_ a performance difference in the storage
+  // engine), but primary index scans otherwise.
+  //
+  // Note that this will give somewhat more access paths than is
+  // required in some cases.
+  if (table->s->primary_key == key_idx &&
+      table->file->primary_key_is_clustered()) {
+    cost = table->file->table_scan_cost().total_cost() * 1.001;
+  } else if (table->covering_keys.is_set(key_idx)) {
+    // The index is covering, so we can do an index-only scan.
+    cost =
+        table->file->index_scan_cost(key_idx, /*ranges=*/1.0, num_output_rows)
+            .total_cost();
+  } else {
+    cost = table->file->read_cost(key_idx, /*ranges=*/1.0, num_output_rows)
+               .total_cost();
+  }
+
+  path.num_output_rows_before_filter = num_output_rows;
+  path.init_cost = path.init_once_cost = 0.0;
+  path.cost_before_filter = path.cost = cost;
+
+  ProposeAccessPathForBaseTable(node_idx, table->key_info[key_idx].name, &path);
+  return false;
+}
+
+void CostingReceiver::ProposeAccessPathForBaseTable(
+    int node_idx, const char *description_for_trace, AccessPath *path) {
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
                                 /*subsumed_predicates=*/0,
-                                materialize_subqueries, &path, &new_fd_set);
-    path.ordering_state =
-        m_orderings->ApplyFDs(path.ordering_state, new_fd_set);
-    ProposeAccessPathWithOrderings(TableBitmap(node_idx), new_fd_set, &path,
-                                   materialize_subqueries ? "mat. subq" : "");
+                                materialize_subqueries, path, &new_fd_set);
+    path->ordering_state =
+        m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
+    ProposeAccessPathWithOrderings(
+        TableBitmap(node_idx), new_fd_set, path,
+        materialize_subqueries ? "mat. subq" : description_for_trace);
 
-    if (!Overlaps(path.filter_predicates, m_graph.materializable_predicates)) {
+    if (!Overlaps(path->filter_predicates, m_graph.materializable_predicates)) {
       // Nothing to try to materialize.
-      break;
+      return;
     }
-  }  // namespace
-
-  return false;
+  }
 }
 
 /**
@@ -2643,14 +2753,16 @@ static ORDER *BuildSortAheadOrdering(THD *thd,
   Build all structures we need for keeping track of interesting orders.
   We collect the actual relevant orderings (e.g. from ORDER BY) and any
   functional dependencies we can find, then ask LogicalOrderings to create
-  its state machine. The result is said state machine and a list of
-  potential sort-ahead orderings.
+  its state machine. The result is said state machine, a list of potential
+  sort-ahead orderings, and a list of what indexes we can use to scan
+  each table (including what orderings they yield, if they are interesting).
  */
 static void BuildInterestingOrders(
     THD *thd, JoinHypergraph *graph, Query_block *query_block,
     LogicalOrderings *orderings,
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
-    int *order_by_ordering_idx, string *trace) {
+    int *order_by_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
+    string *trace) {
   // Collect ordering from ORDER BY.
   if (query_block->is_ordered()) {
     table_map used_tables;
@@ -2662,7 +2774,8 @@ static void BuildInterestingOrders(
     if (Overlaps(used_tables, RAND_TABLE_BIT)) {
       // We can never sort-ahead with nondeterministic functions.
     } else {
-      *order_by_ordering_idx = orderings->AddOrdering(thd, ordering);
+      *order_by_ordering_idx =
+          orderings->AddOrdering(thd, ordering, /*interesting=*/true);
 
       // We cannot reuse query_block->order_list, because if a temporary table
       // is inserted, its fields may be rewritten to match that table, which is
@@ -2673,7 +2786,24 @@ static void BuildInterestingOrders(
     }
   }
 
-  // Early exit if we don't have any orderings.
+  // Collect list of all active indexes. We will be needing this for ref access
+  // even if we don't have any interesting orders.
+  for (unsigned node_idx = 0; node_idx < graph->nodes.size(); ++node_idx) {
+    TABLE *table = graph->nodes[node_idx].table;
+    for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {
+      // NOTE: visible_index claims to contain “visible and enabled” indexes,
+      // but we still need to check keys_in_use to ignore disabled indexes.
+      if (!table->keys_in_use_for_query.is_set(key_idx)) {
+        continue;
+      }
+      ActiveIndexInfo index_info;
+      index_info.table = table;
+      index_info.key_idx = key_idx;
+      active_indexes->push_back(index_info);
+    }
+  }
+
+  // Early exit if we don't have any interesting orderings.
   if (orderings->num_orderings() <= 1) {
     if (trace != nullptr) {
       *trace +=
@@ -2682,6 +2812,58 @@ static void BuildInterestingOrders(
     }
     orderings->Build(thd, trace);
     return;
+  }
+
+  // Collect orderings from indexes. Note that these are not interesting
+  // in themselves, so they will be rapidly pruned away if they cannot lead
+  // to an interesting order.
+  for (ActiveIndexInfo &index_info : *active_indexes) {
+    TABLE *table = index_info.table;
+    KEY *key = &table->key_info[index_info.key_idx];
+
+    // Find out how many usable keyparts there are. We have to stop
+    // at the first that is partial (if any), or if the index is
+    // nonorderable (e.g. a hash index), which we can seemingly only
+    // query by keypart.
+    int sortable_key_parts = 0;
+    for (unsigned keypart_idx = 0; keypart_idx < actual_key_parts(key);
+         ++keypart_idx, ++sortable_key_parts) {
+      if (Overlaps(key->key_part[keypart_idx].key_part_flag, HA_PART_KEY_SEG) ||
+          !Overlaps(
+              table->file->index_flags(index_info.key_idx, keypart_idx, true),
+              HA_READ_ORDER)) {
+        break;
+      }
+    }
+
+    // First add the forward order.
+    Ordering ordering = Ordering::Alloc(thd->mem_root, sortable_key_parts);
+    for (int keypart_idx = 0; keypart_idx < sortable_key_parts; ++keypart_idx) {
+      const KEY_PART_INFO &key_part = key->key_part[keypart_idx];
+      ordering[keypart_idx].item =
+          orderings->GetHandle(new Item_field(key_part.field));
+      ordering[keypart_idx].direction =
+          Overlaps(key_part.key_part_flag, HA_REVERSE_SORT) ? ORDER_DESC
+                                                            : ORDER_ASC;
+    }
+    index_info.forward_order =
+        orderings->AddOrdering(thd, ordering, /*interesting=*/false);
+
+    // And now the reverse, if the index allows it.
+    if (Overlaps(table->file->index_flags(index_info.key_idx,
+                                          sortable_key_parts - 1, true),
+                 HA_READ_PREV)) {
+      for (int keypart_idx = 0; keypart_idx < sortable_key_parts;
+           ++keypart_idx) {
+        if (ordering[keypart_idx].direction == ORDER_ASC) {
+          ordering[keypart_idx].direction = ORDER_DESC;
+        } else {
+          ordering[keypart_idx].direction = ORDER_ASC;
+        }
+      }
+      index_info.reverse_order =
+          orderings->AddOrdering(thd, ordering, /*interesting=*/false);
+    }
   }
 
   // Collect functional dependencies. Currently, there are many kinds
@@ -2710,6 +2892,11 @@ static void BuildInterestingOrders(
 
   orderings->Build(thd, trace);
 
+  if (*order_by_ordering_idx != -1) {
+    *order_by_ordering_idx =
+        orderings->RemapOrderingIndex(*order_by_ordering_idx);
+  }
+
   for (JoinPredicate &pred : graph->edges) {
     for (int fd_idx : pred.functional_dependencies_idx) {
       pred.functional_dependencies |= orderings->GetFDSet(fd_idx);
@@ -2721,12 +2908,22 @@ static void BuildInterestingOrders(
     }
   }
 
+  // Get the updated ordering indexes, since Build() may have moved them around.
+  for (SortAheadOrdering &ordering : *sort_ahead_orderings) {
+    ordering.ordering_idx =
+        orderings->RemapOrderingIndex(ordering.ordering_idx);
+  }
+
   // After Build(), there may be more interesting orders that we can try
   // as sort-ahead; in particular homogenized orderings. (The ones we already
   // added will not have moved around, as per the contract.) Scan for them,
   // create orders that filesort can use, and add them to the list.
   for (int ordering_idx = sort_ahead_orderings->size();
        ordering_idx < orderings->num_orderings(); ++ordering_idx) {
+    if (!orderings->ordering_is_relevant_for_sortahead(ordering_idx)) {
+      continue;
+    }
+
     table_map used_tables = 0;
     for (OrderElement element : orderings->ordering(ordering_idx)) {
       used_tables |= orderings->item(element.item)->used_tables();
@@ -2825,9 +3022,11 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // (later: GROUP BY).
   LogicalOrderings orderings(thd);
   Mem_root_array<SortAheadOrdering> sort_ahead_orderings(thd->mem_root);
+  Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
   int order_by_ordering_idx = -1;
   BuildInterestingOrders(thd, &graph, query_block, &orderings,
-                         &sort_ahead_orderings, &order_by_ordering_idx, trace);
+                         &sort_ahead_orderings, &order_by_ordering_idx,
+                         &active_indexes, trace);
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
@@ -2840,9 +3039,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
-  CostingReceiver receiver(
-      thd, query_block, graph, &orderings, &sort_ahead_orderings, need_rowid,
-      SupportedAccessPathTypes(thd), secondary_engine_cost_hook, trace);
+  CostingReceiver receiver(thd, query_block, graph, &orderings,
+                           &sort_ahead_orderings, &active_indexes, need_rowid,
+                           SupportedAccessPathTypes(thd),
+                           secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");

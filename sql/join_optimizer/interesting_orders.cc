@@ -77,7 +77,7 @@ LogicalOrderings::LogicalOrderings(THD *thd)
 
   // Add the empty ordering/grouping.
   m_orderings.push_back(
-      OrderingWithInfo{Ordering{nullptr, 0}, OrderingWithInfo::INTERESTING});
+      OrderingWithInfo{Ordering{nullptr, 0}, OrderingWithInfo::UNINTERESTING});
 
   FunctionalDependency decay_fd;
   decay_fd.type = FunctionalDependency::DECAY;
@@ -90,18 +90,22 @@ int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
                                           OrderingWithInfo::Type type) {
   assert(!m_built);
 
-  for (OrderElement element : order) {
-    if (element.direction == ORDER_ASC) {
-      m_items[element.item].used_asc = true;
-    }
-    if (element.direction == ORDER_DESC) {
-      m_items[element.item].used_desc = true;
+  if (type != OrderingWithInfo::UNINTERESTING) {
+    for (OrderElement element : order) {
+      if (element.direction == ORDER_ASC) {
+        m_items[element.item].used_asc = true;
+      }
+      if (element.direction == ORDER_DESC) {
+        m_items[element.item].used_desc = true;
+      }
     }
   }
 
   // Deduplicate against all the existing ones.
   for (size_t i = 0; i < m_orderings.size(); ++i) {
     if (OrderingsAreEqual(m_orderings[i].ordering, order)) {
+      // Potentially promote the existing one.
+      m_orderings[i].type = std::max(m_orderings[i].type, type);
       return i;
     }
   }
@@ -149,6 +153,7 @@ void LogicalOrderings::Build(THD *thd, string *trace) {
     PrintFunctionalDependencies(trace);
   }
   FindElementsThatCanBeAddedByFDs();
+  PruneUninterestingOrders(thd);
   if (trace != nullptr) {
     PrintInterestingOrders(trace);
   }
@@ -192,6 +197,52 @@ LogicalOrderings::StateIndex LogicalOrderings::ApplyFDs(
     // there will be one or two edges to follow, but in extreme cases,
     // there could be O(k²) in the number of FDs.
   }
+}
+
+/**
+  Try to get rid of uninteresting orders, possibly by discarding irrelevant
+  suffixes and merging them with others. In a typical query, this removes a
+  large amount of index-created orderings that will never get to something
+  interesting, reducing the end FSM size (and thus, reducing the number of
+  different access paths we have to keep around).
+
+  This step is the only one that can move orderings around, and thus also
+  populates m_optimized_ordering_mapping.
+ */
+void LogicalOrderings::PruneUninterestingOrders(THD *thd) {
+  m_optimized_ordering_mapping =
+      Bounds_checked_array<int>::Alloc(thd->mem_root, m_orderings.size());
+  int new_length = 0;
+  for (size_t ordering_idx = 0; ordering_idx < m_orderings.size();
+       ++ordering_idx) {
+    if (m_orderings[ordering_idx].type == OrderingWithInfo::UNINTERESTING) {
+      // Shorten this ordering one by one element, until it can (heuristically)
+      // become an interesting ordering with the FDs we have. Note that it might
+      // become the empty ordering, and if so, it will be deleted entirely
+      // in the step below.
+      Ordering &ordering = m_orderings[ordering_idx].ordering;
+      while (!ordering.empty() && !CouldBecomeInterestingOrdering(ordering)) {
+        ordering.resize(ordering.size() - 1);
+      }
+    }
+
+    // Since some orderings may have changed, we need to re-deduplicate.
+    m_optimized_ordering_mapping[ordering_idx] = new_length;
+    for (int i = 0; i < new_length; ++i) {
+      if (OrderingsAreEqual(m_orderings[i].ordering,
+                            m_orderings[ordering_idx].ordering)) {
+        m_optimized_ordering_mapping[ordering_idx] = i;
+        m_orderings[i].type =
+            std::max(m_orderings[i].type, m_orderings[ordering_idx].type);
+        break;
+      }
+    }
+    if (m_optimized_ordering_mapping[ordering_idx] == new_length) {
+      // Not a duplicate of anything earlier, so keep it.
+      m_orderings[new_length++] = m_orderings[ordering_idx];
+    }
+  }
+  m_orderings.resize(new_length);
 }
 
 void LogicalOrderings::PruneFDs(THD *thd) {
@@ -439,6 +490,9 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
   int num_original_orderings = m_orderings.size();
   for (int ordering_idx = 1; ordering_idx < num_original_orderings;
        ++ordering_idx) {
+    if (m_orderings[ordering_idx].type != OrderingWithInfo::INTERESTING) {
+      continue;
+    }
     Ordering reduced_ordering =
         ReduceOrdering(m_orderings[ordering_idx].ordering, tmpbuf);
     if (reduced_ordering.empty()) {
@@ -571,9 +625,11 @@ ItemHandle LogicalOrderings::GetHandle(Item *item) {
 bool LogicalOrderings::CouldBecomeInterestingOrdering(Ordering ordering) const {
   for (OrderingWithInfo other_ordering : m_orderings) {
     const Ordering interesting_ordering = other_ordering.ordering;
-    if (interesting_ordering.size() < ordering.size()) {
+    if (other_ordering.type != OrderingWithInfo::INTERESTING ||
+        interesting_ordering.size() < ordering.size()) {
       continue;
     }
+
     bool match = true;
     for (size_t i = 0, j = 0;
          i < ordering.size() || j < interesting_ordering.size();) {
@@ -679,18 +735,19 @@ static void DeduplicateOrdering(Ordering *ordering) {
 }
 
 void LogicalOrderings::BuildNFSM(THD *thd) {
-  // Add a state for each interesting ordering.
+  // Add a state for each producable ordering.
   for (size_t i = 0; i < m_orderings.size(); ++i) {
     NFSMState state;
     state.satisfied_ordering = m_orderings[i].ordering;
     state.satisfied_ordering_idx = i;
     state.outgoing_edges.init(thd->mem_root);
-    state.type = m_orderings[i].ordering.empty() ? NFSMState::ARTIFICIAL
-                                                 : NFSMState::INTERESTING;
+    state.type = m_orderings[i].type == OrderingWithInfo::INTERESTING
+                     ? NFSMState::INTERESTING
+                     : NFSMState::ARTIFICIAL;
     m_states.push_back(move(state));
   }
 
-  // Add an edge from the initial state to each interesting ordering.
+  // Add an edge from the initial state to each producable ordering.
   for (size_t i = 1; i < m_orderings.size(); ++i) {
     NFSMEdge edge;
     edge.required_fd_idx = INT_MIN + i;
@@ -851,8 +908,8 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
     // interesting orders, and m_states that are not reachable from
     // the initial node (the latter can only happen as the result
     // of other prunings).
-    for (int i = m_orderings.size(); i < N; ++i) {
-      if (m_states[i].type == NFSMState::DELETED) {
+    for (int i = 1; i < N; ++i) {
+      if (m_states[i].type != NFSMState::ARTIFICIAL) {
         continue;
       }
 
@@ -864,7 +921,8 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
 
       bool can_reach_interesting = false;
       for (int j = 1; j < static_cast<int>(m_orderings.size()); ++j) {
-        if (reachable[i * N + j]) {
+        if (reachable[i * N + j] &&
+            m_states[j].type == NFSMState::INTERESTING) {
           can_reach_interesting = true;
           break;
         }
@@ -875,18 +933,18 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       }
     }
 
-    // For each interesting order, remove edges to m_states that cannot
+    // For each producing order, remove edges to m_states that cannot
     // reach any _other_ interesting orders. This often helps dislodging
     // such m_states from the graph as a whole, removing them in some later
     // step. This supersedes the same-destination merging step from [Neu04].
     for (size_t i = 1; i < m_orderings.size(); ++i) {
       NFSMState &state = m_states[i];
-      assert(state.type == NFSMState::INTERESTING);
       for (size_t j = 0; j < state.outgoing_edges.size(); ++j) {
         const int next_state_idx = m_edges[state.outgoing_edges[j]].state_idx;
         bool can_reach_other_interesting = false;
         for (size_t k = 1; k < m_orderings.size(); ++k) {
-          if (k != i && reachable[next_state_idx * N + k]) {
+          if (k != i && m_states[k].type == NFSMState::INTERESTING &&
+              reachable[next_state_idx * N + k]) {
             can_reach_other_interesting = true;
             break;
           }
@@ -995,6 +1053,12 @@ void LogicalOrderings::ExpandThroughAlwaysActiveFDs(
   we get fewer since our orderings generally only increase, not decrease.
   We only generate DFSM states by following FDs from the initial NFSM state;
   we don't create states eagerly for all 2^n possibilities.
+
+  When creating DFSM states, we always include states that can be reached by
+  means of always-active FDs. The ϵ edge (drop the last element from the
+  ordering) is always active, and the client can also mark others as such.
+  This means we get fewer DFSM states and fewer FDs to follow. See
+  FunctionalDependency::always_active.
  */
 void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
   // See NFSMState::seen.
@@ -1222,6 +1286,8 @@ void LogicalOrderings::PrintInterestingOrders(string *trace) {
     }
     if (ordering.type == OrderingWithInfo::HOMOGENIZED) {
       *trace += " [homogenized from other ordering]";
+    } else if (ordering.type == OrderingWithInfo::UNINTERESTING) {
+      *trace += " [support order]";
     }
     *trace += "\n";
   }

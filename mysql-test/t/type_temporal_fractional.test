@@ -6535,6 +6535,8 @@ INSERT INTO t1 VALUES
   ('0000-00-00 00:00:00.00','0000-00-00 00:00:00.00000','00:20:04','23:19:52','2011-07-19 17:37:13.26725'),
   ('0000-00-00 00:00:00.00','2008-06-04 23:05:50.03642','00:20:03','22:28:03','2011-07-19 17:37:14.26725'),
   ('2000-10-22 23:52:09.01',NULL,'00:20:07','00:20:07','2011-07-19 17:37:15.26725');
+# Different warnings in the hypergraph optimizer.
+--disable_warnings
 SELECT col_datetime_2_not_null_key AS c1, col_time_not_null AS c2
 FROM t1
 WHERE
@@ -6545,6 +6547,7 @@ WHERE
 OR
   col_datetime_5 = CURRENT_DATE()
 ORDER BY 1;
+--enable_warnings
 DROP TABLE t1;
 SET timestamp=DEFAULT;
 
