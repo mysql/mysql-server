@@ -161,7 +161,8 @@ class Table_trigger_dispatcher : public Table_trigger_field_support {
     if (!m_has_unparseable_trigger) {
       m_has_unparseable_trigger = true;
       strncpy(m_parse_error_message, error_message,
-              sizeof(m_parse_error_message));
+              sizeof(m_parse_error_message) - 1);
+      m_parse_error_message[sizeof(m_parse_error_message) - 1] = '\n';
     }
   }
 

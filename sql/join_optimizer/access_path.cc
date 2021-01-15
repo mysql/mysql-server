@@ -477,7 +477,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         // than too small).
         estimated_build_rows = 1048576.0;
       }
-      JoinType join_type;
+      JoinType join_type{JoinType::INNER};
       switch (join_predicate->expr->type) {
         case RelationalExpression::INNER_JOIN:
         case RelationalExpression::CARTESIAN_PRODUCT:

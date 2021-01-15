@@ -29,6 +29,8 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
           "strict-aliasing"
           "unused-parameter"
           "cast-qual"
+          # Downgrade -Werror=restrict for gcc10 optimized build
+          "error=restrict"
           # Downgrade -Werror=deprecated-copy to warning for gcc 9
           "error=deprecated-copy"
           # Downgrade -Werror to warning for "may be used uninitialized"
