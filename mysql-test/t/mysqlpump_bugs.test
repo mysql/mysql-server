@@ -81,4 +81,24 @@ DROP DATABASE db2;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug83144.cnf
 --remove_file $MYSQLTEST_VARDIR/tmp/bug83144.dump
 
+
+--echo #
+--echo # Bug #32067013: MYSQLPUMP SEGMENTATION FAULT
+--echo #
+
+CREATE DATABASE B32067013;
+CREATE TABLE B32067013.t1(v1 INT, v2 INT);
+CREATE TABLE B32067013.t2(v1 INT, v2 INT);
+CREATE VIEW B32067013.t123 AS SELECT * FROM B32067013.t1;
+DROP TABLE B32067013.t1;
+
+--echo # Test criteria: shouldn't crash
+--error 76
+--exec $MYSQL_PUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug32067013.dump 2>&1
+
+#cleanup
+DROP DATABASE B32067013;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug32067013.dump
+
+
 --echo # End of 8.0 tests
