@@ -306,7 +306,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -327,7 +327,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -348,7 +348,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -369,7 +369,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
@@ -598,7 +598,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -619,7 +619,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -640,7 +640,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -661,7 +661,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|
@@ -803,8 +803,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET character_set_client  = utf8mb3 */ ;
+/*!50003 SET character_set_results = utf8mb3 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -837,8 +837,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET character_set_client  = utf8mb3 */ ;
+/*!50003 SET character_set_results = utf8mb3 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -879,8 +879,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET character_set_client  = utf8mb3 */ ;
+/*!50003 SET character_set_results = utf8mb3 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -913,8 +913,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
+/*!50003 SET character_set_client  = utf8mb3 */ ;
+/*!50003 SET character_set_results = utf8mb3 */ ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
@@ -1024,7 +1024,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE p2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -1045,7 +1045,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p3|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -1066,7 +1066,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE PROCEDURE mysqltest2.p4|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -1087,7 +1087,7 @@ COLLATION(_koi8r    '�����') AS c6,
 @@character_set_client AS c8;
 SET парам1 = 'a';
 SET парам2 = 'b';
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW PROCEDURE STATUS LIKE 'p1'|

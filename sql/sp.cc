@@ -1311,7 +1311,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
     protocol->store_null();
 
   // character_set_client
-  protocol->store(cs_info->csname, system_charset_info);
+  protocol->store(replace_utf8_utf8mb3(cs_info->csname), system_charset_info);
   // connection_collation
   cs_info = dd_get_mysql_charset(routine->connection_collation_id());
   protocol->store(cs_info->name, system_charset_info);
@@ -2520,7 +2520,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
         buf.length(0);
 
         buf.append('_');
-        buf.append(result->charset()->csname);
+        buf.append(replace_utf8_utf8mb3(result->charset()->csname));
         if (cs->escape_with_backslash_is_dangerous) buf.append(' ');
         append_query_string(thd, cs, result, &buf);
         buf.append(" COLLATE '");

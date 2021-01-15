@@ -1969,7 +1969,7 @@ void sp_head::returns_type(THD *thd, String *result) const {
 
   if (field->has_charset()) {
     result->append(STRING_WITH_LEN(" CHARSET "));
-    result->append(m_return_field_def.charset->csname);
+    result->append(replace_utf8_utf8mb3(m_return_field_def.charset->csname));
     if (!(m_return_field_def.charset->state & MY_CS_PRIMARY)) {
       result->append(STRING_WITH_LEN(" COLLATE "));
       result->append(m_return_field_def.charset->name);

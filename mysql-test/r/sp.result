@@ -3319,15 +3319,15 @@ begin
 lâbel: begin end;
 label: begin end;
 label1: begin end;
-end	utf8	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+end	utf8mb3	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create procedure bug7088_1|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug7088_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_1`()
-label1: begin end label1	utf8	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+label1: begin end label1	utf8mb3	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 show create procedure bug7088_2|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug7088_2		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug7088_2`()
-läbel1: begin end	utf8	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+läbel1: begin end	utf8mb3	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
