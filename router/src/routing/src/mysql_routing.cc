@@ -526,6 +526,7 @@ class Connector : public ConnectorBase {
                    make_error_condition(std::errc::operation_would_block)) {
       return State::CONNECT_FINISH;
     } else {
+      last_ec_ = connect_res.error();
       log_warning("%d: connect(%s) failed: %s - %s", __LINE__,
                   mysqlrouter::to_string(server_endpoint_).c_str(),
                   mysqlrouter::to_string(connect_res.error()).c_str(),
