@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3507,7 +3507,7 @@ void MYSQL_BIN_LOG::init_pthread_objects() {
   if (!is_relay_log) {
     Commit_stage_manager::get_instance().init(
         m_key_LOCK_flush_queue, m_key_LOCK_sync_queue, m_key_LOCK_commit_queue,
-        m_key_LOCK_done, m_key_COND_done);
+        m_key_LOCK_done, m_key_COND_done, m_key_COND_flush_queue);
   }
 }
 

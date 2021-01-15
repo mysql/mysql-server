@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -194,7 +194,7 @@ class Commit_stage_manager {
   void init(PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_done,
-            PSI_cond_key key_COND_done);
+            PSI_cond_key key_COND_done, PSI_cond_key key_COND_flush_queue);
 
   /**
     Deinitializes m_stage_cond_binlog, m_stage_cond_commit_order,

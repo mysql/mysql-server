@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,15 +199,14 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
   DBUG_TRACE;
 
 #ifdef HAVE_PSI_INTERFACE
-  relay_log.set_psi_keys(key_RELAYLOG_LOCK_index, key_RELAYLOG_LOCK_commit,
-                         key_RELAYLOG_LOCK_commit_queue, key_RELAYLOG_LOCK_done,
-                         key_RELAYLOG_LOCK_flush_queue, key_RELAYLOG_LOCK_log,
-                         key_RELAYLOG_LOCK_log_end_pos, key_RELAYLOG_LOCK_sync,
-                         key_RELAYLOG_LOCK_sync_queue, key_RELAYLOG_LOCK_xids,
-                         key_RELAYLOG_COND_done, key_RELAYLOG_update_cond,
-                         key_RELAYLOG_prep_xids_cond, key_file_relaylog,
-                         key_file_relaylog_index, key_file_relaylog_cache,
-                         key_file_relaylog_index_cache);
+  relay_log.set_psi_keys(
+      key_RELAYLOG_LOCK_index, key_RELAYLOG_LOCK_commit, PSI_NOT_INSTRUMENTED,
+      PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED, key_RELAYLOG_LOCK_log,
+      key_RELAYLOG_LOCK_log_end_pos, key_RELAYLOG_LOCK_sync,
+      PSI_NOT_INSTRUMENTED, key_RELAYLOG_LOCK_xids, PSI_NOT_INSTRUMENTED,
+      PSI_NOT_INSTRUMENTED, key_RELAYLOG_update_cond, PSI_NOT_INSTRUMENTED,
+      key_file_relaylog, key_file_relaylog_index, key_file_relaylog_cache,
+      key_file_relaylog_index_cache);
 #endif
 
   group_relay_log_name[0] = event_relay_log_name[0] = group_master_log_name[0] =
