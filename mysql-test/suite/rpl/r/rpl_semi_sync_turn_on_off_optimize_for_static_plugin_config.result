@@ -258,6 +258,7 @@ replication_sender_observe_commit_only = 0;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1,
 replication_sender_observe_commit_only = 1;
 [connection server_1]
+[connection server_1]
 include/rpl_sync.inc
 [connection server_2]
 include/rpl_sync.inc
