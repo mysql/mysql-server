@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2501,8 +2501,9 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   digest.reset(token_array, max_digest_length);
   thd->m_digest = &digest;
 
-  enable_digest_if_any_plugin_needs_it(thd, &parser_state);
-  if (is_audit_plugin_class_active(thd, MYSQL_AUDIT_GENERAL_CLASS))
+  // we produce digest if it's not explicitly turned off
+  // by setting maximum digest length to zero
+  if (get_max_digest_length() != 0)
     parser_state.m_input.m_compute_digest = true;
 
   thd->m_parser_state = &parser_state;

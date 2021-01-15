@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,12 +83,6 @@ void invoke_pre_parse_rewrite_plugins(THD *thd) {
                                          plugin_da->returned_sqlstate());
     plugin_da->reset_diagnostics_area();
   }
-}
-
-void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps) {
-  if (is_audit_plugin_class_active(
-          thd, static_cast<unsigned long>(MYSQL_AUDIT_PARSE_CLASS)))
-    ps->m_input.m_compute_digest = true;
 }
 
 bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared) {
