@@ -1,7 +1,7 @@
 ###################
 Cleanup and server setup
 ###################
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 server2
 RESET MASTER;
 server1
