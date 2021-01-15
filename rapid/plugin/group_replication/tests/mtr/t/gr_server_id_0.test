@@ -46,8 +46,9 @@ SET SESSION sql_log_bin= 1;
 --echo # 1. Restart server with server_id=0, slave infrastructure
 --echo #    will not be initialized.
 --let $allow_rpl_inited= 1
---let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --server_id=0
---replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --server_id=0 --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 # Needed as we are not using rpl_restart_server.inc
 --let $rpl_server_number= 1
@@ -88,8 +89,8 @@ START GROUP_REPLICATION;
 --echo #    slave infrastructure will be initialized, and RESET
 --echo #    SLAVE operations on group_replication_end.inc do work.
 --let $allow_rpl_inited= 1
---let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --server_id=$_server_id
---replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --server_id=$_server_id --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 # Needed as we are not using rpl_restart_server.inc
 --let $rpl_server_number= 1

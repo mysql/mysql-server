@@ -67,8 +67,9 @@ set session sql_log_bin=1;
 --echo
 --echo ## 3B. Test GR start on boot when lower_case_table_names matches.
 --echo
---let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=1
---replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=1 --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 
 #Needed as we are not using rpl_restart_server.inc
@@ -83,8 +84,8 @@ set session sql_log_bin=1;
 --echo ##     does not match.
 --echo
 
---let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=2
---replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=2 --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 
 #Needed as we are not using rpl_restart_server.inc

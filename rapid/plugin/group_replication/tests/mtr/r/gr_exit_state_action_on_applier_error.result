@@ -83,6 +83,7 @@ DELETE FROM t1 WHERE a = 2;
 SET SESSION sql_log_bin= 1;
 SET @@global.group_replication_group_seeds="GROUP_SEEDS_SERVER1";
 SET @@global.group_replication_local_address="LOCAL_ADDRESS_SERVER1";
+SET @@global.group_replication_ip_whitelist="GROUP_REPLICATION_GROUP_WHITELIST";
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
 

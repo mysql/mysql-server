@@ -19,7 +19,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    assert failures on SQL service
 #    Srv_session::deinit_thread().
 [connection server4]
-# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=0 --group_replication_start_on_boot=1
+# restart:--group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_bootstrap_group=0 --group_replication_start_on_boot=1 --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 include/rpl_reconnect.inc
 
 ############################################################
