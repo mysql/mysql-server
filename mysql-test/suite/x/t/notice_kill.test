@@ -5,6 +5,7 @@
 ## Verify that MySQL Server send notice on X Protocol connections
 ## when it forces to close by sql query 'kill'
 
+--source include/big_test.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
