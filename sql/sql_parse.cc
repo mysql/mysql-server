@@ -1,4 +1,4 @@
-/* Copyright (c) 1999, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 1999, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1821,6 +1821,11 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       Parser_state parser_state;
       if (parser_state.init(thd, thd->query().str, thd->query().length)) break;
+
+      // we produce digest if it's not explicitly turned off
+      // by setting maximum digest length to zero
+      if (get_max_digest_length() != 0)
+        parser_state.m_input.m_compute_digest = true;
 
       // Initially, prepare and optimize the statement for the primary
       // storage engine. If an eligible secondary storage engine is
@@ -4881,7 +4886,10 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
   invoke_pre_parse_rewrite_plugins(thd);
   thd->m_parser_state = nullptr;
 
-  enable_digest_if_any_plugin_needs_it(thd, parser_state);
+  // we produce digest if it's not explicitly turned off
+  // by setting maximum digest length to zero
+  if (get_max_digest_length() != 0)
+    parser_state->m_input.m_compute_digest = true;
 
   LEX *lex = thd->lex;
   const char *found_semicolon = nullptr;
