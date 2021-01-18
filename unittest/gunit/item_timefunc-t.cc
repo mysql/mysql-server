@@ -306,6 +306,28 @@ TEST_F(ItemTimeFuncTest, CastAsYearMetadata) {
       thd(), new Item_typecast_year(POS(), new Item_int(2155)), 2155);
 }
 
+// Verifies that the results returned by the WEEKDAY function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, WeekdayMetadata) {
+  for (int i = 0; i < 7; i++) {
+    // WEEKDAY returns 0 for Monday and 6 for Sunday.
+    CheckMetadataAndResult(
+        thd(), new Item_func_weekday(POS(), new Item_int(20210104 + i), false),
+        i);
+  }
+}
+
+// Verifies that the results returned by the DAYOFWEEK function are consistent
+// with the metadata.
+TEST_F(ItemTimeFuncTest, DayOfWeekMetadata) {
+  for (int i = 0; i < 7; i++) {
+    // DAYOFWEEK returns 1 for Sunday and 7 for Saturday.
+    CheckMetadataAndResult(
+        thd(), new Item_func_weekday(POS(), new Item_int(20210103 + i), true),
+        i + 1);
+  }
+}
+
 // Verifies that the results returned by the TIME_TO_SEC function are consistent
 // with the metadata.
 TEST_F(ItemTimeFuncTest, TimeToSecMetadata) {
