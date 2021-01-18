@@ -771,7 +771,7 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
   if (table_function->init()) return true;
 
   // Create the result table for the materialization
-  if (table_function->create_result_table(0LL, alias))
+  if (table_function->create_result_table(thd, 0LL, alias))
     return true; /* purecov: inspected */
   table = table_function->table;
   table->pos_in_table_list = this;

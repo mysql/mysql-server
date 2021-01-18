@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2793,7 +2793,7 @@ void TABLE_LIST::print(const THD *thd, String *str,
   } else {
     const char *cmp_name;  // Name to compare with alias
     if (is_table_function()) {
-      table_function->print(str, query_type);
+      table_function->print(thd, str, query_type);
       cmp_name = table_name;
     } else if (is_derived() && !is_merged() && !common_table_expr()) {
       // A derived table that is materialized or without specified algorithm
