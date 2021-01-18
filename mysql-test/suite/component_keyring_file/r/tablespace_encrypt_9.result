@@ -56,7 +56,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 Pattern "CORRUPT LOG RECORD FOUND" found
 # Server shouldn't have restarted, so query should fail.
 SELECT * from test.t1 limit 10;
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 #########################################################################
 # RESTART 2 : WITH KEYRING PLUGIN
 #########################################################################

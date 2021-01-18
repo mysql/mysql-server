@@ -2,6 +2,7 @@
 # InnoDB tablespace import with compression + encryption
 --source include/have_lowercase0.inc
 --source include/have_innodb_16k.inc
+--source include/have_punch_hole.inc
 
 --source ../inc/setup_component.inc
 --source include/keyring_tests/innodb/import_compress_encrypt.inc

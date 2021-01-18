@@ -79,7 +79,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo # Restart after crash without Keyring plugin loaded
 --source include/keyring_tests/helper/instance_backup_manifest.inc
 --error 1,42
---exec $MYSQLD_CMD --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
+--exec $MYSQLD_CMD $PLUGIN_DIR_OPT --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
 # Search the failure pattern in error log
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -87,7 +87,7 @@ let SEARCH_PATTERN=CORRUPT LOG RECORD FOUND;
 --source include/search_pattern.inc
 
 --echo # Server shouldn't have restarted, so query should fail.
---error CR_SERVER_GONE_ERROR
+--error CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 SELECT * from test.t1 limit 10;
 
 --echo #########################################################################
