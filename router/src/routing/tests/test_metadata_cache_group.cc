@@ -100,8 +100,9 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
 
   MOCK_METHOD2(mark_instance_reachability,
                void(const std::string &, InstanceStatus));
-  MOCK_METHOD2(wait_primary_failover,
-               bool(const std::string &, const std::chrono::seconds &));
+  MOCK_METHOD3(wait_primary_failover,
+               bool(const std::string &, const std::string &,
+                    const std::chrono::seconds &));
 
   MOCK_METHOD0(force_instance_update_on_refresh, void());
 

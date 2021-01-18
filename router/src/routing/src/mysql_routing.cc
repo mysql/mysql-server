@@ -517,23 +517,18 @@ class Connector : public ConnectorBase {
     }
 
     const auto connect_res = server_sock_.connect(server_endpoint_);
-
-    if (connect_res) {
-      return State::CONNECTED;
-    } else if (connect_res.error() ==
-                   make_error_condition(std::errc::operation_in_progress) ||
-               connect_res.error() ==
-                   make_error_condition(std::errc::operation_would_block)) {
-      return State::CONNECT_FINISH;
-    } else {
-      last_ec_ = connect_res.error();
-      log_warning("%d: connect(%s) failed: %s - %s", __LINE__,
-                  mysqlrouter::to_string(server_endpoint_).c_str(),
-                  mysqlrouter::to_string(connect_res.error()).c_str(),
-                  connect_res.error().message().c_str());
-      // try the next endpoint
-      return State::NEXT_ENDPOINT;
+    if (!connect_res) {
+      const auto &ec = connect_res.error();
+      if (ec == make_error_condition(std::errc::operation_in_progress) ||
+          ec == make_error_condition(std::errc::operation_would_block)) {
+        // connect in progress, wait for completion.
+        return State::CONNECT_FINISH;
+      } else {
+        return connect_failed(ec);
+      }
     }
+
+    return State::CONNECTED;
   }
 
   State connect_finish() {
@@ -541,18 +536,18 @@ class Connector : public ConnectorBase {
     const auto getopt_res = server_sock_.get_option(sock_err);
 
     if (!getopt_res) {
-      last_ec_ = getopt_res.error();
-
-      return State::NEXT_ENDPOINT;
+      return connect_failed(getopt_res.error());
     }
 
     if (sock_err.value() != 0) {
+      return connect_failed({
+        sock_err.value(),
 #if defined(_WIN32)
-      last_ec_ = std::error_code{sock_err.value(), std::system_category()};
+            std::system_category()
 #else
-      last_ec_ = std::error_code{sock_err.value(), std::generic_category()};
+            std::generic_category()
 #endif
-      return State::NEXT_ENDPOINT;
+      });
     }
 
     return State::CONNECTED;
@@ -674,12 +669,23 @@ class Connector : public ConnectorBase {
 #endif
 
     // this looks like a no op as the socket should be writable already, but
-    // leads to moving the Connector into its io-thread which makes the acceptor
-    // thread faster
+    // leads to moving the Connector into its io-thread which makes the
+    // acceptor thread faster
     client_sock_.async_wait(net::socket_base::wait_write, std::move(*this));
   }
 
  private:
+  State connect_failed(const std::error_code &ec) {
+    log_debug("connect(%s) failed: %s - %s. Trying next endpoint",
+              mysqlrouter::to_string(server_endpoint_).c_str(),
+              mysqlrouter::to_string(ec).c_str(), ec.message().c_str());
+
+    last_ec_ = ec;
+
+    // try the next endpoint
+    return State::NEXT_ENDPOINT;
+  }
+
   friend std::ostream &operator<<(std::ostream &os,
                                   Connector<ClientProtocol>::State &state);
   MySQLRouting *r_;
@@ -966,11 +972,12 @@ class Acceptor {
    *
    * - async_wait(..., std::move(*this));
    *
-   * will invoke the move-constructor and destroys the moved-from object, which
-   * should be a no-op.
+   * will invoke the move-constructor and destroys the moved-from object,
+   * which should be a no-op.
    *
-   * In case the acceptor's operator() finishes without calling async_wait(), it
-   * exits and it will be destroyed, and close its socket as it is the last-one.
+   * In case the acceptor's operator() finishes without calling async_wait(),
+   * it exits and it will be destroyed, and close its socket as it is the
+   * last-one.
    */
   Owner last_one_;
 };
@@ -1004,13 +1011,13 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   if (!destinations()->empty() ||
       (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
        is_destination_standalone)) {
-    // For standalone destination with first-available strategy we always try to
-    // open a listening socket, even if there are no destinations.
+    // For standalone destination with first-available strategy we always try
+    // to open a listening socket, even if there are no destinations.
     auto res = start_accepting_connections(env);
     // If the routing started at the exact moment as when the metadata had it
     // initial refresh then it may start the acceptors even if metadata do not
-    // allow for it to happen, in that case we will force instance update on the
-    // next refresh.
+    // allow for it to happen, in that case we will force instance update on
+    // the next refresh.
     if (!is_destination_standalone) destination_->md_force_instance_update();
     // If we failed to start accepting connections on startup then router
     // should fail.
@@ -1040,9 +1047,9 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
           stop_socket_acceptors();
         } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
           if (!start_accepting_connections(env)) {
-            // We could not start acceptor (e.g. the port is used by other app)
-            // In that case we should retry on the next md refresh with the
-            // latest instance information.
+            // We could not start acceptor (e.g. the port is used by other
+            // app) In that case we should retry on the next md refresh with
+            // the latest instance information.
             destination_->md_force_instance_update();
           }
         }

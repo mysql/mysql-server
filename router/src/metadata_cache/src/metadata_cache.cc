@@ -478,28 +478,64 @@ void MetadataCache::mark_instance_reachability(
   }
 }
 
+/**
+ * check if primary has changed.
+ *
+ * - hidden members are ignored
+ *
+ * @param members container current membership info
+ * @param primary_server_uuid server-uuid of the previous PRIMARY
+ */
+static bool primary_has_changed(
+    const std::vector<metadata_cache::ManagedInstance> &members,
+    const std::string &primary_server_uuid) {
+  // if we have a member, that's PRIMARY and not "server_uuid" -> success
+  for (auto const &member : members) {
+    if (member.hidden) continue;
+
+    if (member.mode != metadata_cache::ServerMode::ReadWrite) continue;
+
+    if (member.mysql_server_uuid != primary_server_uuid) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
+                                          const std::string &server_uuid,
                                           const std::chrono::seconds &timeout) {
-  log_debug("Waiting for failover to happen in '%s' for %lds",
-            replicaset_name.c_str(), static_cast<long>(timeout.count()));
+  log_debug(
+      "Waiting for PRIMARY of replicaset '%s' to change from [%s] to another "
+      "member for %lds",
+      replicaset_name.c_str(), server_uuid.c_str(),
+      static_cast<long>(timeout.count()));
 
   using clock_type = std::chrono::steady_clock;
   const auto end_time = clock_type::now() + timeout;
   do {
-    if (terminated_) {
-      return false;
-    }
-    if (replicasets_with_unreachable_nodes_.count(replicaset_name) == 0) {
+    if (terminated_) return false;
+
+    // if we have a member, that's PRIMARY and not "server_uuid" -> success
+    if (primary_has_changed(replicaset_lookup(replicaset_name), server_uuid)) {
       return true;
     }
+
+    // wait until a refresh finished.
     std::unique_lock<std::mutex> lock(refresh_completed_mtx_);
     const auto wait_res = refresh_completed_.wait_until(lock, end_time);
     if (wait_res == std::cv_status::timeout) {
-      return false;
+      // timed out waiting for refresh to finish.
+      //
+      // Either the wait-time was smaller than the metadata-cache-ttl or the
+      // metadata-cache refresh took longer than expected.
+      break;
     }
   } while (clock_type::now() < end_time);
 
-  return replicasets_with_unreachable_nodes_.count(replicaset_name) == 0;
+  // if we have a member, that's PRIMARY and not "server_uuid" -> success
+  return primary_has_changed(replicaset_lookup(replicaset_name), server_uuid);
 }
 
 void MetadataCache::add_listener(
