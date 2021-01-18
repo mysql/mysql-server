@@ -1453,6 +1453,15 @@ longlong Item_func_yearweek::val_int() {
   return week + year * 100;
 }
 
+bool Item_func_weekday::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DATETIME)) return true;
+  // Always one digit (either [0, 6] or [1, 7], depending on whether it's called
+  // as WEEKDAY or DAYOFWEEK). Add one character for the sign.
+  fix_char_length(2);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_weekday::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
