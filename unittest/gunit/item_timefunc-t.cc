@@ -198,6 +198,16 @@ TEST_F(ItemTimeFuncTest, DayOfMonthMetadata) {
   }
 }
 
+// Verifies that the results returned by the MONTH function are consistent with
+// the metadata.
+TEST_F(ItemTimeFuncTest, MonthMetadata) {
+  for (int month = 1; month <= 12; ++month) {
+    CheckMetadataAndResult(
+        thd(), new Item_func_month(POS(), new Item_int(20210001 + month * 100)),
+        month);
+  }
+}
+
 // Verifies that the results returned by the DAYOFYEAR function are consistent
 // with the metadata.
 TEST_F(ItemTimeFuncTest, DayOfYearMetadata) {

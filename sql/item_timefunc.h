@@ -161,12 +161,7 @@ class Item_func_month final : public Item_func {
   const char *func_name() const override { return "month"; }
   enum Functype functype() const override { return MONTH_FUNC; }
   enum Item_result result_type() const override { return INT_RESULT; }
-  bool resolve_type(THD *thd) override {
-    if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
-    fix_char_length(2);
-    set_nullable(true);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_valid_arguments_processor(uchar *) override {
     return !has_date_args();
