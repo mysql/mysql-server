@@ -1214,7 +1214,7 @@ bool PT_table_factor_function::contextualize(Parse_context *pc) {
     return true;  // OOM
 
   auto jtf = new (pc->mem_root)
-      Table_function_json(pc->thd, m_table_alias.str, m_expr, root_list);
+      Table_function_json(m_table_alias.str, m_expr, root_list);
   if (jtf == nullptr) return true;  // OOM
 
   LEX_CSTRING alias;

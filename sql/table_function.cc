@@ -57,7 +57,7 @@
   Implementation of Table_function
 ******************************************************************************/
 
-bool Table_function::create_result_table(ulonglong options,
+bool Table_function::create_result_table(THD *thd, ulonglong options,
                                          const char *table_alias) {
   assert(table == nullptr);
 
@@ -71,7 +71,7 @@ bool Table_function::write_row() {
 
   if ((error = table->file->ha_write_row(table->record[0]))) {
     if (!table->file->is_ignorable_error(error) &&
-        create_ondisk_from_heap(thd, table, error, true, nullptr))
+        create_ondisk_from_heap(current_thd, table, error, true, nullptr))
       return true;  // Not a table_is_full error
   }
   return false;
@@ -93,11 +93,11 @@ bool Table_function::init_args() {
 /******************************************************************************
   Implementation of JSON_TABLE function
 ******************************************************************************/
-Table_function_json::Table_function_json(THD *thd_arg, const char *alias,
-                                         Item *a, List<Json_table_column> *cols)
-    : Table_function(thd_arg),
+Table_function_json::Table_function_json(const char *alias, Item *a,
+                                         List<Json_table_column> *cols)
+    : Table_function(),
       m_columns(cols),
-      m_all_columns(thd->mem_root),
+      m_all_columns(current_thd->mem_root),
       m_table_alias(alias),
       is_source_parsed(false),
       source(a) {}
@@ -124,7 +124,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
     This need to be set up once per statement, as it doesn't change between
     EXECUTE calls.
   */
-  Prepared_stmt_arena_holder ps_arena_holder(thd);
+  Prepared_stmt_arena_holder ps_arena_holder(current_thd);
 
   while ((col = li++)) {
     String buffer;
@@ -140,7 +140,7 @@ bool Table_function_json::init_json_table_col_lists(uint *nest_idx,
       if ((col->sql_type == MYSQL_TYPE_ENUM ||
            col->sql_type == MYSQL_TYPE_SET) &&
           !col->interval)
-        col->interval = create_typelib(thd->mem_root, col);
+        col->interval = create_typelib(current_thd->mem_root, col);
     }
     m_all_columns.push_back(col);
 
@@ -230,7 +230,7 @@ bool Table_function_json::do_init_args() {
   assert(!is_source_parsed);
 
   Item *dummy = source;
-  if (source->fix_fields(thd, &dummy)) return true;
+  if (source->fix_fields(current_thd, &dummy)) return true;
 
   /*
     For the default type of '?', two choices make sense: VARCHAR and JSON. The
@@ -267,13 +267,13 @@ bool Table_function_json::do_init_args() {
     if (col->m_jtc_type != enum_jt_column::JTC_PATH) continue;
     assert(col->m_field_idx >= 0);
     if (col->m_on_empty == Json_on_response_type::DEFAULT) {
-      if (save_json_to_field(thd, get_field(col->m_field_idx),
+      if (save_json_to_field(current_thd, get_field(col->m_field_idx),
                              &col->m_default_empty_json, false)) {
         return true;
       }
     }
     if (col->m_on_error == Json_on_response_type::DEFAULT) {
-      if (save_json_to_field(thd, get_field(col->m_field_idx),
+      if (save_json_to_field(current_thd, get_field(col->m_field_idx),
                              &col->m_default_error_json, false)) {
         return true;
       }
@@ -551,7 +551,7 @@ bool Table_function_json::fill_json_table() {
   // The column being processed
   uint col_idx = 0;
   jt_skip_reason skip_subtree;
-  const enum_check_fields check_save = thd->check_for_truncated_fields;
+  const enum_check_fields check_save = current_thd->check_for_truncated_fields;
 
   do {
     skip_subtree = JTS_NONE;
@@ -596,7 +596,7 @@ bool Table_function_json::fill_json_table() {
     }
   } while (nested.size() != 0 || skip_subtree != JTS_EOD);
 
-  thd->check_for_truncated_fields = check_save;
+  current_thd->check_for_truncated_fields = check_save;
   return false;
 }
 
@@ -732,10 +732,11 @@ static bool print_nested_path(const THD *thd, const TABLE *table,
   return str->append(')');
 }
 
-bool Table_function_json::print(String *str, enum_query_type query_type) const {
+bool Table_function_json::print(const THD *thd, String *str,
+                                enum_query_type query_type) const {
   if (str->append(STRING_WITH_LEN("json_table("))) return true;
   source->print(thd, str, query_type);
-  return (thd->is_error() || str->append(STRING_WITH_LEN(", ")) ||
+  return (str->append(STRING_WITH_LEN(", ")) ||
           print_nested_path(thd, table, m_columns->head(), query_type, str) ||
           str->append(')'));
 }
