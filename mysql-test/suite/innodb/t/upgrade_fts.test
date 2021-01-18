@@ -2,6 +2,7 @@
 # Bug#29992589 MYSQL UPGRADE TO 8.X FAILS IF TABLE NAME CONTAINS 'FTS' AND ' TFTS'
 ##################################################################################
 
+--source include/big_test.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/have_case_sensitive_file_system.inc

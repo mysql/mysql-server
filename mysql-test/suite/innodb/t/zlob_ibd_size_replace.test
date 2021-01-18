@@ -1,4 +1,4 @@
---source include/no_valgrind_without_big.inc
+--source include/big_test.inc
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
 
