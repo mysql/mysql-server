@@ -3056,6 +3056,7 @@ DROP TABLE test_ref;
 
 CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
 INSERT INTO t VALUES(0,0);
+ANALYZE TABLE t;
 
 # Test if adjacent ranges when rounded off to the same value by range
 # optimizer return correct results. Note that range scan is not chosen as the

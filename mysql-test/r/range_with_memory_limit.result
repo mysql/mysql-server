@@ -4469,6 +4469,9 @@ DROP TABLE test_ref;
 #
 CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
 INSERT INTO t VALUES(0,0);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 SELECT f1,f2 FROM t WHERE f1 NOT IN(-0.1,0.1);
 f1	f2
 0	0
