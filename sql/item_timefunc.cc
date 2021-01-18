@@ -1249,6 +1249,17 @@ longlong Item_func_dayofmonth::val_int() {
   return get_arg0_date(&ltime, TIME_FUZZY_DATE) ? 0 : (longlong)ltime.day;
 }
 
+bool Item_func_month::resolve_type(THD *thd) {
+  if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_DATETIME)) return true;
+  // Returns a value in the range [1, 12], so max two digits. Add one to the
+  // character length for the sign.
+  fix_char_length(3);
+  assert(decimal_precision() == 2);
+  assert(decimal_int_part() == 2);
+  set_nullable(true);
+  return false;
+}
+
 longlong Item_func_month::val_int() {
   assert(fixed == 1);
   MYSQL_TIME ltime;
