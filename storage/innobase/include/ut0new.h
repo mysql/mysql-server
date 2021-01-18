@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020 Oracle and/or its affiliates.
+Copyright (c) 2014, 2021 Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1590,8 +1590,7 @@ class aligned_array_pointer {
       Underlying instances of type T are accessed through the conversion
       operator.
 
-      @param[in] args Any number and type of arguments that type T can be
-      constructed with.
+      @param[in] size Number of T elements in an array.
     */
   void alloc(size_t size) {
     ut_ad(ptr == nullptr);
