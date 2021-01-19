@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,7 +209,7 @@ static void *my_raw_malloc(size_t size, myf my_flags) {
 
   if (point == nullptr) {
     set_my_errno(errno);
-    if (my_flags & MY_FAE) error_handler_hook = fatal_error_handler_hook;
+    if (my_flags & MY_FAE) error_handler_hook = my_message_stderr;
     if (my_flags & (MY_FAE + MY_WME))
       my_error(EE_OUTOFMEMORY, MYF(ME_ERRORLOG + ME_FATALERROR), size);
     DBUG_EXECUTE_IF("simulate_out_of_memory",

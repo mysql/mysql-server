@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ class View_metadata_updater_error_handler final
   }
 
  private:
-  void (*m_old_error_handler_hook)(uint, const char *, myf);
+  ErrorHandlerFunctionPointer m_old_error_handler_hook;
 
  private:
   uint m_sql_errno = 0;

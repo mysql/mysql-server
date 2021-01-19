@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,11 +165,8 @@ ulong my_default_record_cache_size = RECORD_CACHE_SIZE;
 USED_MEM *my_once_root_block = nullptr; /* pointer to first block */
 uint my_once_extra = ONCE_ALLOC_INIT;   /* Memory to alloc / block */
 
-/* from errors.c */
-void (*error_handler_hook)(uint error, const char *str,
-                           myf MyFlags) = my_message_stderr;
-void (*fatal_error_handler_hook)(uint error, const char *str,
-                                 myf MyFlags) = my_message_stderr;
+std::atomic<ErrorHandlerFunctionPointer> error_handler_hook{my_message_stderr};
+
 void (*local_message_hook)(enum loglevel ll, uint ecode,
                            va_list args) = my_message_local_stderr;
 

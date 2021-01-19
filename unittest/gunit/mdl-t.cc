@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,10 +160,10 @@ class MDLTest : public ::testing::Test, public Test_MDL_context_owner {
   CHARSET_INFO *m_charset;
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLTest);
 
-  static void (*m_old_error_handler_hook)(uint, const char *, myf);
+  static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 
-void (*MDLTest::m_old_error_handler_hook)(uint, const char *, myf);
+ErrorHandlerFunctionPointer MDLTest::m_old_error_handler_hook;
 
 /*
   Will grab a lock on table_name of given type in the run() function.

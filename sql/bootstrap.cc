@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"  // create_scope_guard
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bootstrap_impl.h"
 #include "sql/error_handler.h"  // Internal_error_handler
@@ -317,6 +318,10 @@ static void *handle_bootstrap(void *arg) {
     // if the server is started with --transaction-read-only=true.
     thd->variables.transaction_read_only = false;
     thd->tx_read_only = false;
+    ErrorHandlerFunctionPointer existing_hook = error_handler_hook;
+    auto grd =
+        create_scope_guard([&]() { error_handler_hook = existing_hook; });
+    if (opt_initialize) error_handler_hook = my_message_sql;
 
     bootstrap_functor handler = args->m_bootstrap_handler;
     if (handler) {

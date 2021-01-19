@@ -51,6 +51,8 @@
 #include <sys/types.h>
 #include <time.h>
 
+#include <atomic>  // error_handler_hook
+
 #include "m_string.h" /* IWYU pragma: keep */
 #include "my_compiler.h"
 #include "my_compress.h"
@@ -221,9 +223,9 @@ extern uint my_get_large_page_size(void);
 
 extern char *home_dir;          /* Home directory for user */
 extern const char *my_progname; /* program-name (printed in errors) */
-extern void (*error_handler_hook)(uint my_err, const char *str, myf MyFlags);
-extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
-                                        myf MyFlags);
+
+using ErrorHandlerFunctionPointer = void (*)(uint, const char *, myf);
+extern std::atomic<ErrorHandlerFunctionPointer> error_handler_hook;
 extern void (*local_message_hook)(enum loglevel ll, uint ecode, va_list args);
 
 extern MYSQL_PLUGIN_IMPORT ulong my_thread_stack_size;

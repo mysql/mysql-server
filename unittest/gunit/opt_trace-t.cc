@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,10 +99,10 @@ class TraceContentTest : public ::testing::Test {
   }
   void TearDown() override { error_handler_hook = m_old_error_handler_hook; }
 
-  static void (*m_old_error_handler_hook)(uint, const char *, myf);
+  static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 bool TraceContentTest::oom;
-void (*TraceContentTest::m_old_error_handler_hook)(uint, const char *, myf);
+ErrorHandlerFunctionPointer TraceContentTest::m_old_error_handler_hook;
 
 void my_error_handler(uint error, const char *, myf) {
   const uint EE = static_cast<uint>(EE_OUTOFMEMORY);
