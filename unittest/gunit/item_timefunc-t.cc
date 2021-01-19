@@ -110,6 +110,7 @@ static void CheckMetadataConsistency(THD *thd, Item *item) {
 // returns an integer. Additionally, check that the expected result is returned.
 static void CheckMetadataAndResult(THD *thd, Item *item,
                                    int64_t expected_result) {
+  SCOPED_TRACE(ItemToString(item));
   CheckMetadataConsistency(thd, item);
   EXPECT_EQ(expected_result, item->val_int());
   EXPECT_FALSE(item->null_value);
