@@ -101,7 +101,9 @@ call mtr.add_suppression("Unsafe statement written to the binary log using state
 
 --echo #### Setup tables ####
 
-CREATE TABLE t0 (a CHAR(100));
+# t0.a must be big enough to hold the result from
+# CONCAT(@@hostname, @@hostname), which can be 2*255 characters wide.
+CREATE TABLE t0 (a VARCHAR(510));
 CREATE TABLE t1 (a CHAR(100));
 CREATE TABLE t2 (a CHAR(100));
 CREATE TABLE ta0 (a CHAR(100));
