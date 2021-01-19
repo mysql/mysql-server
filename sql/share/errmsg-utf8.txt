@@ -7787,6 +7787,9 @@ ER_GROUPING_ON_TIMESTAMP_IN_DST
 ER_CANT_START_SERVER_NAMED_PIPE
   eng "Can't start server : Named Pipe \"%s\" already in use."
 
+ER_WRITE_SET_EXCEEDS_LIMIT
+  eng "The size of writeset data for the current transaction exceeds a limit imposed by an external component. If using Group Replication check 'group_replication_transaction_size_limit'."
+
 #
 #  End of 5.7 error messages.
 #
