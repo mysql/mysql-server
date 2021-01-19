@@ -8490,11 +8490,11 @@ struct my_option my_long_options[] = {
      "Option used by mysql-test for debugging and testing of replication.",
      &opt_sporadic_binlog_dump_fail, &opt_sporadic_binlog_dump_fail, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"ssl", 0,
+    {"ssl", OPT_USE_SSL,
      "Enable SSL for connection (automatically enabled with other flags).",
      &opt_use_ssl, &opt_use_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0, 0, nullptr,
      0, nullptr},
-    {"admin-ssl", 0,
+    {"admin-ssl", OPT_USE_ADMIN_SSL,
      "Enable SSL for admin interface (automatically enabled with other flags).",
      &opt_use_admin_ssl, &opt_use_admin_ssl, nullptr, GET_BOOL, OPT_ARG, 1, 0,
      0, nullptr, 0, nullptr},
@@ -9756,6 +9756,19 @@ bool mysqld_get_one_option(int optid,
         One can disable SSL later by using --skip-ssl or --ssl=0.
       */
       opt_use_ssl = true;
+      break;
+    case OPT_USE_ADMIN_SSL:
+      if (opt_use_admin_ssl)
+        push_deprecated_warn_no_replacement(nullptr, "--admin-ssl=on");
+      else
+        push_deprecated_warn(nullptr, "--admin-ssl=off",
+                             "--admin-tls-version=invalid");
+      break;
+    case OPT_USE_SSL:
+      if (opt_use_ssl)
+        push_deprecated_warn_no_replacement(nullptr, "--ssl=on");
+      else
+        push_deprecated_warn(nullptr, "--ssl=off", "--tls-version=invalid");
       break;
     case OPT_ADMIN_SSL_KEY:
     case OPT_ADMIN_SSL_CERT:

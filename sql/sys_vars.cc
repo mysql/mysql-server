@@ -5566,7 +5566,7 @@ static SHOW_COMP_OPTION have_ssl_func(THD *thd MY_ATTRIBUTE((unused))) {
 enum SHOW_COMP_OPTION Sys_var_have_func::dummy_;
 
 static Sys_var_have_func Sys_have_openssl("have_openssl", "have_openssl",
-                                          have_ssl_func);
+                                          have_ssl_func, DEPRECATED_VAR(""));
 
 static Sys_var_have Sys_have_profiling(
     "have_profiling", "have_profiling",
@@ -5586,7 +5586,9 @@ static Sys_var_have Sys_have_rtree_keys(
     "have_rtree_keys", "have_rtree_keys",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_rtree_keys), NO_CMD_LINE);
 
-static Sys_var_have_func Sys_have_ssl("have_ssl", "have_ssl", have_ssl_func);
+static Sys_var_have_func Sys_have_ssl(
+    "have_ssl", "have_ssl", have_ssl_func,
+    DEPRECATED_VAR("performance_schema.tls_channel_status table"));
 
 static Sys_var_have Sys_have_symlink(
     "have_symlink", "have_symlink",

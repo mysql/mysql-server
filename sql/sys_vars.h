@@ -1894,15 +1894,19 @@ class Sys_var_have_func : public Sys_var_have {
     @param name_arg The name of the variable
     @param comment  Explanation of what the variable does
     @param func     The function to call when in need to read the global value
+    @param substitute If the variable is deprecated what to use instead
   */
   Sys_var_have_func(const char *name_arg, const char *comment,
-                    enum SHOW_COMP_OPTION (*func)(THD *))
+                    enum SHOW_COMP_OPTION (*func)(THD *),
+                    const char *substitute = nullptr)
       /*
         Note: it doesn't really matter what variable we use, as long as we are
         using one. So we use a local static dummy
       */
       : Sys_var_have(name_arg, comment,
-                     READ_ONLY NON_PERSIST GLOBAL_VAR(dummy_), NO_CMD_LINE),
+                     READ_ONLY NON_PERSIST GLOBAL_VAR(dummy_), NO_CMD_LINE,
+                     nullptr, VARIABLE_NOT_IN_BINLOG, nullptr, nullptr,
+                     substitute),
         func_(func) {}
 
   const uchar *global_value_ptr(THD *thd, LEX_STRING *) override {
