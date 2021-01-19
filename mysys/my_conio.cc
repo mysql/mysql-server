@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,8 +197,8 @@ static size_t my_mbstou16s(const CHARSET_INFO *cs, const uchar *from,
 void my_win_console_write(const CHARSET_INFO *cs, const char *data,
                           size_t datalen) {
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
-  size_t nchars =
-      my_mbstou16s(cs, (const uchar *)data, datalen, u16buf, sizeof(u16buf));
+  size_t nchars = my_mbstou16s(cs, (const uchar *)data, datalen, u16buf,
+                               sizeof(u16buf) / sizeof(u16buf[0]));
   DWORD nwritten;
   WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), u16buf, (DWORD)nchars,
                 &nwritten, NULL);
