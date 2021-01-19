@@ -7931,31 +7931,48 @@ int binlog_log_row(TABLE* table,
   {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
     {
-      if (before_record && after_record)
+      try
       {
-        size_t length= table->s->reclength;
-        uchar* temp_image=(uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
-                                             length,
-                                             MYF(MY_WME));
-        if (!temp_image)
+        if (before_record && after_record)
         {
-          sql_print_error("Out of memory on transaction write set extraction");
-          return 1;
+          size_t length= table->s->reclength;
+          uchar* temp_image=(uchar*) my_malloc(PSI_NOT_INSTRUMENTED,
+                                               length,
+                                               MYF(MY_WME));
+          if (!temp_image)
+          {
+            sql_print_error("Out of memory on transaction write set extraction");
+            return 1;
+          }
+          if (add_pke(table, thd))
+          {
+            my_free(temp_image);
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
+
+          memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
+          memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
+
+          if (add_pke(table, thd))
+          {
+            my_free(temp_image);
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
+
+          memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
+
+          my_free(temp_image);
         }
-        add_pke(table, thd);
-
-        memcpy(temp_image, table->record[0],(size_t) table->s->reclength);
-        memcpy(table->record[0],table->record[1],(size_t) table->s->reclength);
-
-        add_pke(table, thd);
-
-        memcpy(table->record[0], temp_image, (size_t) table->s->reclength);
-
-        my_free(temp_image);
+        else
+        {
+          if (add_pke(table, thd))
+            return HA_ERR_RBR_LOGGING_FAILED;
+        }
       }
-      else
+      catch (const std::bad_alloc &)
       {
-        add_pke(table, thd);
+        my_error(ER_OUT_OF_RESOURCES, MYF(0));
+        return HA_ERR_RBR_LOGGING_FAILED;
       }
     }
     DBUG_DUMP("read_set 10", (uchar*) table->read_set->bitmap,

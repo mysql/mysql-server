@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -411,7 +411,7 @@ public:
     m_savepoints= NULL;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();
-    m_transaction_write_set_ctx.clear_write_set();
+    m_transaction_write_set_ctx.reset_state();
     free_root(&m_mem_root,MYF(MY_KEEP_PREALLOC));
     DBUG_VOID_RETURN;
   }

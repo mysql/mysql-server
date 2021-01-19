@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ static struct rpl_transaction_ctx_service_st rpl_transaction_ctx_handler= {
 };
 
 static struct transaction_write_set_service_st transaction_write_set_handler= {
-  get_transaction_write_set,
+  get_transaction_write_set, require_full_write_set, set_write_set_memory_size_limit, update_write_set_memory_size_limit,
 };
 
 static struct mysql_locking_service_st locking_service_handler=

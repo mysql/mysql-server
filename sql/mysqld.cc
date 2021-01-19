@@ -3106,6 +3106,11 @@ int init_common_variables()
   else
     mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
 
+  my_atomic_store64(&mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size,
+                    static_cast<int64>(mysql_bin_log.m_dependency_tracker.
+                        get_writeset()->m_opt_max_history_size_base_var));
+
+
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
     VAR= ALT;
