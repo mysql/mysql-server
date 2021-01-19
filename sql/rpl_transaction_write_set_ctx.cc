@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,17 @@
 #include "sql_class.h"                               // THD
 #include "sql_parse.h"                               // Find_thd_with_id
 #include "debug_sync.h"                              // debug_sync_set_action
+#include "binlog.h"                              // get_opt_max_history_size
 
+int32 Rpl_transaction_write_set_ctx::m_global_component_requires_write_sets(0);
+int64 Rpl_transaction_write_set_ctx::m_global_write_set_memory_size_limit(0);
 
-Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx():
-  m_has_missing_keys(false), m_has_related_foreign_keys(false)
+Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
+    : m_has_missing_keys(false),
+      m_has_related_foreign_keys(false),
+      m_ignore_write_set_memory_limit(false),
+      m_local_allow_drop_write_set(false),
+      m_local_has_reached_write_set_limit(false)
 {
   DBUG_ENTER("Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx");
   /*
@@ -43,12 +50,39 @@ Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx():
   DBUG_VOID_RETURN;
 }
 
-void Rpl_transaction_write_set_ctx::add_write_set(uint64 hash)
+bool Rpl_transaction_write_set_ctx::add_write_set(uint64 hash)
 {
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::add_write_set");
-  write_set.push_back(hash);
-  write_set_unique.insert(hash);
-  DBUG_VOID_RETURN;
+  DBUG_EXECUTE_IF("add_write_set_no_memory", throw std::bad_alloc(););
+
+  if (!m_local_has_reached_write_set_limit) {
+    ulong binlog_trx_dependency_history_size =
+        mysql_bin_log.m_dependency_tracker.get_writeset()
+            ->get_opt_max_history_size();
+    bool is_full_writeset_required =
+        m_global_component_requires_write_sets && !m_local_allow_drop_write_set;
+
+    if (!is_full_writeset_required) {
+      if (write_set.size() >= binlog_trx_dependency_history_size) {
+        m_local_has_reached_write_set_limit = true;
+        clear_write_set();
+        return false;
+      }
+    }
+
+    uint64 mem_limit = m_global_write_set_memory_size_limit;
+    if (mem_limit && !m_ignore_write_set_memory_limit) {
+      // Check if adding a new element goes over the limit
+      if (sizeof(uint64) + write_set_memory_size() > mem_limit) {
+        my_error(ER_WRITE_SET_EXCEEDS_LIMIT, MYF(0));
+        return true;
+      }
+    }
+
+    write_set.push_back(hash);
+    write_set_unique.insert(hash);
+  }
+
+  return false;
 }
 
 std::set<uint64>* Rpl_transaction_write_set_ctx::get_write_set()
@@ -57,15 +91,17 @@ std::set<uint64>* Rpl_transaction_write_set_ctx::get_write_set()
   DBUG_RETURN(&write_set_unique);
 }
 
-void Rpl_transaction_write_set_ctx::clear_write_set()
-{
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::clear_write_set");
+void Rpl_transaction_write_set_ctx::reset_state() {
+  clear_write_set();
+  m_has_missing_keys = m_has_related_foreign_keys = false;
+  m_local_has_reached_write_set_limit = false;
+}
+
+void Rpl_transaction_write_set_ctx::clear_write_set() {
   write_set.clear();
   write_set_unique.clear();
   savepoint.clear();
   savepoint_list.clear();
-  m_has_missing_keys= m_has_related_foreign_keys= false;
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::set_has_missing_keys()
@@ -92,6 +128,57 @@ bool Rpl_transaction_write_set_ctx::get_has_related_foreign_keys()
 {
   DBUG_ENTER("Transaction_context_log_event::get_has_related_foreign_keys");
   DBUG_RETURN(m_has_related_foreign_keys);
+}
+
+bool Rpl_transaction_write_set_ctx::was_write_set_limit_reached() {
+  return m_local_has_reached_write_set_limit;
+}
+
+size_t Rpl_transaction_write_set_ctx::write_set_memory_size() {
+  return sizeof(uint64) * write_set.size();
+}
+
+void Rpl_transaction_write_set_ctx::set_global_require_full_write_set(
+    bool requires_ws) {
+  DBUG_ASSERT(!requires_ws || !m_global_component_requires_write_sets);
+  if (requires_ws)
+    my_atomic_store32(&m_global_component_requires_write_sets, 1);
+  else
+    my_atomic_store32(&m_global_component_requires_write_sets, 0);
+}
+
+void require_full_write_set(int requires_ws) {
+  Rpl_transaction_write_set_ctx::set_global_require_full_write_set(requires_ws);
+}
+
+void Rpl_transaction_write_set_ctx::set_global_write_set_memory_size_limit(int64 limit) {
+  DBUG_ASSERT(m_global_write_set_memory_size_limit == 0);
+  m_global_write_set_memory_size_limit = limit;
+}
+
+void Rpl_transaction_write_set_ctx::update_global_write_set_memory_size_limit(
+    int64 limit) {
+  m_global_write_set_memory_size_limit = limit;
+}
+
+void set_write_set_memory_size_limit(long long size_limit) {
+  Rpl_transaction_write_set_ctx::set_global_write_set_memory_size_limit(
+      size_limit);
+}
+
+void update_write_set_memory_size_limit(long long size_limit) {
+  Rpl_transaction_write_set_ctx::update_global_write_set_memory_size_limit(
+      size_limit);
+}
+
+void Rpl_transaction_write_set_ctx::set_local_ignore_write_set_memory_limit(
+    bool ignore_limit) {
+  m_ignore_write_set_memory_limit = ignore_limit;
+}
+
+void Rpl_transaction_write_set_ctx::set_local_allow_drop_write_set(
+    bool allow_drop_write_set) {
+  m_local_allow_drop_write_set = allow_drop_write_set;
 }
 
 /**

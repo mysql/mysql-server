@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,8 @@ struct st_channel_info
   int connect_retry;             //How many seconds to wait between retries.
   int retry_count;               //Limits the number of reconnection attempts
   bool preserve_relay_logs;      //If the logs should be preserved on creation
+  bool m_ignore_write_set_memory_limit; //Shall ignore write set mem limits
+  bool m_allow_drop_write_set; //Shall not require write set to be preserved
 };
 typedef struct st_channel_info Channel_creation_info;
 
