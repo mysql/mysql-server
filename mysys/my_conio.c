@@ -215,7 +215,7 @@ my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen)
 {
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
   size_t nchars= my_mbstou16s(cs, (const uchar *) data, datalen,
-                              u16buf, sizeof(u16buf));
+                              u16buf, sizeof(u16buf) / sizeof(u16buf[0]));
   DWORD nwritten;
   WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE),
                 u16buf, (DWORD) nchars, &nwritten, NULL);
