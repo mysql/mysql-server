@@ -6056,7 +6056,7 @@ static int init_server_components() {
    */
   init_optimizer_cost_module(true);
   {  // New scope in which the error handler hook is modified.
-    auto ehh_val = error_handler_hook;
+    ErrorHandlerFunctionPointer ehh_val = error_handler_hook;
     auto restore_ehh = create_scope_guard([ehh_val]() {
       assert(ehh_val == my_message_stderr);
       error_handler_hook = ehh_val;

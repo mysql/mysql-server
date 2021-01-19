@@ -119,6 +119,25 @@ a
 # Remove the subdirectory which is not accepted, and start the server with --initialize again.
 # Remove data dir and log file.
 #
+# Bug#31496943: INITIALIZE WITH INNODB_PAGE_SIZE=4096 GETS
+# "SPECIFIED KEY WAS TOO LONG" ERRORS
+#
+# Create bootstrap file which creates test schema (needed for
+# wait_until_connected
+# Run the server with --initialize-insecure and 4K pages.
+# Look for error messages from my_message_stderr (there should be none)
+# Restart the server against the 4k DDIR to make sure it can be started
+SELECT * FROM information_schema.schemata;
+CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH	DEFAULT_ENCRYPTION
+def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	information_schema	utf8	utf8_general_ci	NULL	NO
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL	NO
+# Shut server down
+# Server is down
+# Remove 4k data dir, log, and bootstrap file.
+#
 # Cleanup
 #
 # Restarting the server
