@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,8 @@ public:
     @param priority      The channel priority on event application
     @param retry_count   The number of retries when connecting
     @param preserve_logs If logs should be always preserved
+    @param ignore_ws_mem_limit Shall ignore write set mem limits
+    @param allow_drop_write_set Shall not require write set to be preserved
 
     @return the operation status
       @retval 0      OK
@@ -93,7 +95,9 @@ public:
                          bool ssl_verify_server_cert,
                          int priority,
                          int retry_count,
-                         bool preserve_logs);
+                         bool preserve_logs,
+                         bool ignore_ws_mem_limit,
+                         bool allow_drop_write_set);
 
   /**
     Start the Applier/Receiver threads according to the given options.

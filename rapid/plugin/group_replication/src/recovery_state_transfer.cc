@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -529,7 +529,7 @@ int Recovery_state_transfer::initialize_donor_connection()
                                                        recovery_ssl_crlpath,
                                                        recovery_ssl_verify_server_cert,
                                                        DEFAULT_THREAD_PRIORITY,
-                                                       1, false);
+                                                       1, false, true, true);
 
   if (!error)
   {
@@ -721,7 +721,7 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos()
                                                   NULL,
                                                   NULL,
                                                   DEFAULT_THREAD_PRIORITY,
-                                                  1, false);
+                                                  1, false, true, true);
 
   DBUG_RETURN(error);
 }
