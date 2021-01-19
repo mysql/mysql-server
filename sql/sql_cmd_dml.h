@@ -199,6 +199,15 @@ class Sql_cmd_dml : public Sql_cmd {
   /// Save command properties, such as prepared query details and table props
   virtual bool save_cmd_properties(THD *thd);
 
+  /**
+    Helper function that checks if the command is eligible for secondary engine
+    and if that's true returns the name of that eligible secondary storage
+    engine.
+
+    @return nullptr if not eligible or the name of the engine otherwise
+  */
+  const MYSQL_LEX_CSTRING *get_eligible_secondary_engine() const;
+
  protected:
   LEX *lex;              ///< Pointer to LEX for this statement
   Query_result *result;  ///< Pointer to object for handling of the result

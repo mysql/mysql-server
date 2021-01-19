@@ -6621,8 +6621,12 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
 
   // Replace the TABLE objects in the TABLE_LIST with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
-  for (TABLE_LIST *tl = lex->query_tables; tl != nullptr;
-       tl = tl->next_global) {
+  TABLE_LIST *tl = lex->query_tables;
+  // For INSERT INTO SELECT statements, the table to insert into does not have
+  // to have a secondary engine. This table is always first in the list.
+  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr)
+    tl = tl->next_global;
+  for (; tl != nullptr; tl = tl->next_global) {
     if (tl->is_placeholder()) continue;
     TABLE *primary_table = tl->table;
     tl->table = nullptr;
