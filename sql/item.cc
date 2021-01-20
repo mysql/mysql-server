@@ -10187,16 +10187,6 @@ bool Item_field::strip_db_table_name_processor(uchar *) {
   return false;
 }
 
-bool Item_ref::references_select_expr_of(uchar *arg) {
-  const Query_block *sl = pointer_cast<const Query_block *>(arg);
-  if (depended_from)  // outer reference
-  {
-    if (depended_from == sl) return true;
-  } else if (context->query_block == sl)
-    return true;
-  return false;
-}
-
 string ItemToString(const Item *item) {
   if (item == nullptr) return "(none)";
   String str;
