@@ -1,4 +1,5 @@
 --source include/have_component_keyring_file.inc
+--source include/big_test.inc
 --source include/not_parallel.inc
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc

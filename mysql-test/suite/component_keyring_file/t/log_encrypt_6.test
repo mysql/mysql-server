@@ -1,4 +1,5 @@
 --source include/have_component_keyring_file.inc
+--source include/big_test.inc
 --source include/not_parallel.inc
 # Test tries restart after redo log encryption is enabled
 # - Error   :restart without keyring
