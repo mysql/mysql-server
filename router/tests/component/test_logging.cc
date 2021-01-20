@@ -2136,8 +2136,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
 }
 
 /**
- * @test Checks that the logs Router continues to log to the file when the
- * SIGHUP gets sent to it and no file replacement is done.
+ * @test Checks that the log file will be recreated after a router restart.
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   TempDirectory conf_dir;
@@ -2173,26 +2172,41 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
 }
 
 /**
- * @test Checks that the logs Router continues to log to the file when the
- * SIGHUP gets sent to it and no file replacement is done.
+ * @test Checks that sending SIGHUP when the log file is read only results in a
+ * failure.
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   TempDirectory conf_dir;
 
-  // launch the router with metadata-cache configuration
+  // We do not need metadata cache configuration, we just want to get to
+  // the ready notification
+  metadata_cache_section = "";
+  routing_section =
+      "[routing:test_default]\n"
+      "bind_port=" +
+      std::to_string(router_port) + "\n" + "destinations=127.0.0.1\n" +
+      "routing_strategy=first-available\n";
+
+  // launch the router with static routing configuration
   auto &router = launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE,
+      /*catch_stderr*/ true, /*wait_for_notify_ready*/ 5s);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
 
-  unsigned retries = 5;
-  auto kSleep = 100ms;
-  do {
-    RouterComponentTest::sleep_for(kSleep);
-  } while ((--retries > 0) && !log_file.exists());
+  auto wait_for_file = [](const mysql_harness::Path &file) {
+    unsigned retries = 5;
+    auto kSleep = 100ms;
+    while (retries > 0) {
+      if (file.exists()) return true;
+      RouterComponentTest::sleep_for(kSleep);
+      retries--;
+    }
+    return false;
+  };
 
-  EXPECT_TRUE(log_file.exists());
+  EXPECT_TRUE(wait_for_file(log_file));
 
   // move the log_file appending '.1' to its name
   auto log_file_1 = get_logging_dir();
@@ -2204,6 +2218,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
     std::ofstream logf(log_file.str());
     EXPECT_TRUE(logf.good());
   }
+  EXPECT_TRUE(wait_for_file(log_file));
   chmod(log_file.c_str(), S_IRUSR);
 
   // send the log-rotate signal
