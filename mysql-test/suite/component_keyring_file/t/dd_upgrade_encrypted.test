@@ -1,8 +1,8 @@
 --source include/have_component_keyring_file.inc
+--source include/big_test.inc
 --source include/not_parallel.inc
 --source include/have_case_sensitive_file_system.inc
 --source include/not_valgrind.inc
---source include/big_test.inc
 --source include/have_debug.inc
 
 --source ../inc/setup_component_customized.inc

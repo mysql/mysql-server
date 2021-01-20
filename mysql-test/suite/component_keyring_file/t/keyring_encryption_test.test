@@ -1,4 +1,5 @@
 --source include/have_component_keyring_file.inc
+--source include/big_test.inc
 --source include/not_parallel.inc
 --source ../inc/setup_component_customized.inc
 

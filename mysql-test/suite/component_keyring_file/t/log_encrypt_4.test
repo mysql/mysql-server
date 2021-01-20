@@ -1,4 +1,5 @@
 --source include/have_component_keyring_file.inc
+--source include/big_test.inc
 --source include/not_parallel.inc
 # InnoDB transparent encryption on redo log.
 # This test case will check innodb_redo_innodb/log_encrypt=ON/OFF with bootstrap
