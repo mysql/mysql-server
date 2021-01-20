@@ -4391,6 +4391,12 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   insertAlive(nodePtr);
   con_lineNodes++;
 
+  /*
+   * Reset default fragments per node which may depend the LDM count of all
+   * alive nodes.
+   */
+  c_fragments_per_node_ = 0;
+
   /*-------------------------------------------------------------------------*/
   //      WE WILL ALSO SEND THE INCLUDE NODE REQUEST TO THE LOCAL LQH BLOCK.
   /*-------------------------------------------------------------------------*/
@@ -9364,6 +9370,12 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       insertDeadNode(TNodePtr);
     }//if
   }//for
+
+  /*
+   * Reset default fragments per node which may depend the LDM count of all
+   * alive nodes.
+   */
+  c_fragments_per_node_ = 0;
 
   /*-------------------------------------------------------------------------*/
   // Verify that we can continue to operate the cluster. If we cannot we will
