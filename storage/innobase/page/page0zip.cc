@@ -1382,8 +1382,8 @@ ibool page_zip_validate_low(
 
   /* page_zip_decompress() expects the uncompressed page to be
   UNIV_PAGE_SIZE aligned. */
-  temp_page_buf = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-  temp_page = static_cast<byte *>(ut_align(temp_page_buf, UNIV_PAGE_SIZE));
+  temp_page =
+      static_cast<byte *>(ut::aligned_alloc(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
 
   UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
   UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
@@ -1527,7 +1527,7 @@ func_exit:
     page_zip_hexdump(page, UNIV_PAGE_SIZE);
     page_zip_hexdump(temp_page, UNIV_PAGE_SIZE);
   }
-  ut_free(temp_page_buf);
+  ut::aligned_free(temp_page);
   return (valid);
 }
 

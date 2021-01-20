@@ -664,11 +664,9 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   size_t page_size = UNIV_PAGE_SIZE_MAX;
   dberr_t err = DB_ERROR;
 
-  byte *first_page_buf =
-      static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
   /* Align the memory for a possible read from a raw device */
-  byte *first_page =
-      static_cast<byte *>(ut_align(first_page_buf, UNIV_PAGE_SIZE));
+  byte *first_page = static_cast<byte *>(
+      ut::aligned_alloc(UNIV_PAGE_SIZE_MAX, UNIV_PAGE_SIZE));
 
   /* Don't want unnecessary complaints about partial reads. */
   request.disable_partial_io_warnings();
@@ -678,7 +676,7 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
 
   if (err != DB_SUCCESS) {
     ib::info(ER_IB_MSG_1076, space->name, ut_strerr(err));
-    ut_free(first_page_buf);
+    ut::aligned_free(first_page);
     return (err);
   }
 
@@ -691,7 +689,7 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   /* Return if the encryption metadata is empty. */
   if (memcmp(first_page + offset, Encryption::KEY_MAGIC_V3,
              Encryption::MAGIC_SIZE) != 0) {
-    ut_free(first_page_buf);
+    ut::aligned_free(first_page);
     return (DB_SUCCESS);
   }
 
@@ -702,11 +700,11 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     ut_ad(err == DB_SUCCESS);
   } else {
-    ut_free(first_page_buf);
+    ut::aligned_free(first_page);
     return (DB_FAIL);
   }
 
-  ut_free(first_page_buf);
+  ut::aligned_free(first_page);
 
   return (DB_SUCCESS);
 }

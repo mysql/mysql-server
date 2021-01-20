@@ -564,9 +564,6 @@ struct recv_sys_t {
   /** Possible incomplete last recovered log block */
   byte *last_block;
 
-  /** The nonaligned start address of the preceding buffer */
-  byte *last_block_buf_start;
-
   /** Buffer for parsing log records */
   byte *buf;
 

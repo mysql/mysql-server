@@ -459,13 +459,13 @@ static void recv_sys_finish() {
   }
 
   ut_free(recv_sys->buf);
-  ut_free(recv_sys->last_block_buf_start);
+  ut::aligned_free(recv_sys->last_block);
   UT_DELETE(recv_sys->metadata_recover);
 
   recv_sys->buf = nullptr;
   recv_sys->spaces = nullptr;
   recv_sys->metadata_recover = nullptr;
-  recv_sys->last_block_buf_start = nullptr;
+  recv_sys->last_block = nullptr;
 }
 
 /** Release recovery system mutexes. */
@@ -626,11 +626,8 @@ void recv_sys_init(ulint max_mem) {
   recv_sys->apply_batch_on = false;
   recv_sys->is_cloned_db = false;
 
-  recv_sys->last_block_buf_start =
-      static_cast<byte *>(ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
-
   recv_sys->last_block = static_cast<byte *>(
-      ut_align(recv_sys->last_block_buf_start, OS_FILE_LOG_BLOCK_SIZE));
+      ut::aligned_alloc(OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE));
 
   recv_sys->found_corrupt_log = false;
   recv_sys->found_corrupt_fs = false;
@@ -3522,18 +3519,14 @@ bool meb_read_log_encryption(IORequest &encryption_request,
                              byte *encryption_info) {
   space_id_t log_space_id = dict_sys_t::s_log_space_first_id;
   const page_id_t page_id(log_space_id, 0);
-  byte *log_block_buf_ptr;
   byte *log_block_buf;
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
   fil_space_t *space = fil_space_get(log_space_id);
   dberr_t err;
 
-  log_block_buf_ptr =
-      static_cast<byte *>(ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
-  memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
-  log_block_buf =
-      static_cast<byte *>(ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+  log_block_buf = static_cast<byte *>(
+      ut::aligned_zalloc(OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE));
 
   if (encryption_info != nullptr) {
     /* encryption info was given as a parameter */
@@ -3566,7 +3559,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
         ib::info(ER_IB_MSG_1239) << "Read redo log encryption"
                                  << " metadata successful.";
       } else {
-        ut_free(log_block_buf_ptr);
+        ut::aligned_free(log_block_buf);
         ib::error(ER_IB_MSG_1240) << "Can't set redo log tablespace"
                                   << " encryption metadata.";
         return (false);
@@ -3577,7 +3570,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
 
       encryption_request.encryption_algorithm(Encryption::AES);
     } else {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
                                    " information in log file header, please"
                                    " check if keyring is loaded.";
@@ -3585,7 +3578,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
     }
   }
 
-  ut_free(log_block_buf_ptr);
+  ut::aligned_free(log_block_buf);
   return (true);
 }
 #endif /* UNIV_HOTBACKUP */

@@ -65,24 +65,15 @@ struct Buffer {
       : m_n_bytes(n_pages * univ_page_size.physical()) {
     ut_a(n_pages > 0);
 
-    auto n_bytes = m_n_bytes + univ_page_size.physical();
-
-    m_ptr_unaligned = static_cast<byte *>(ut_zalloc_nokey(n_bytes));
-
-    m_ptr = static_cast<byte *>(ut_align(m_ptr_unaligned, UNIV_PAGE_SIZE));
-
-    ut_a(ptrdiff_t(m_ptr - m_ptr_unaligned) <=
-         (ssize_t)univ_page_size.physical());
+    m_ptr = static_cast<byte *>(ut::aligned_zalloc(m_n_bytes, UNIV_PAGE_SIZE));
 
     m_next = m_ptr;
   }
 
   /** Destructor */
   ~Buffer() noexcept {
-    if (m_ptr_unaligned != nullptr) {
-      ut_free(m_ptr_unaligned);
-    }
-    m_ptr_unaligned = nullptr;
+    ut::aligned_free(m_ptr);
+    m_ptr = nullptr;
   }
 
   /** Add the contents of ptr upto n_bytes to the buffer.
@@ -128,9 +119,6 @@ struct Buffer {
 
   /** Start of  next write to the buffer. */
   byte *m_next{};
-
-  /** Pointer to m_ptr, but unaligned */
-  byte *m_ptr_unaligned{};
 
   /** Size of the unaligned (raw) buffer. */
   const size_t m_n_bytes{};
