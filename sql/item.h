@@ -773,6 +773,31 @@ class Item_tree_walker {
   const Item *stopped_at_item;
 };
 
+/**
+  Base class that is used to represent any kind of expression in a
+  relational query. The class provides subclasses for simple components, like
+  literal (constant) values, column references and variable references,
+  as well as more complex expressions like comparison predicates,
+  arithmetic and string functions, row objects, function references and
+  subqueries.
+
+  The lifetime of an Item class object is often the same as a relational
+  statement, which may be used for several executions, but in some cases
+  it may also be generated for an optimized statement and thus be valid
+  only for one execution.
+
+  For Item objects with longer lifespan than one execution, we must take
+  special precautions when referencing objects with shorter lifespan.
+  For example, TABLE and Field objects against most tables are valid only for
+  one execution. For such objects, Item classes should rather reference
+  TABLE_LIST and Item_field objects instead of TABLE and Field, because
+  these classes support dynamic rebinding of objects before each execution.
+  See Item::bind_fields() which binds new objects per execution and
+  Item::cleanup() that deletes references to such objects.
+
+  These mechanisms can also be used to handle other objects with shorter
+  lifespan, such as function references and variable references.
+*/
 class Item : public Parse_tree_node {
   typedef Parse_tree_node super;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1110,7 +1110,7 @@ class Item_func_weight_string final : public Item_str_func {
   uint flags;
   const uint num_codepoints;
   const uint result_length;
-  Field *field;
+  Item_field *m_field_ref{nullptr};
   const bool as_binary;
 
  public:
@@ -1121,7 +1121,6 @@ class Item_func_weight_string final : public Item_str_func {
         flags(flags_arg),
         num_codepoints(num_codepoints_arg),
         result_length(result_length_arg),
-        field(nullptr),
         as_binary(as_binary_arg) {}
 
   bool itemize(Parse_context *pc, Item **res) override;

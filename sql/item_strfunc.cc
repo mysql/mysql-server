@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3170,17 +3170,16 @@ bool Item_func_weight_string::resolve_type(THD *thd) {
   const CHARSET_INFO *cs = args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
   flags = my_strxfrm_flag_normalize(flags);
-  field = args[0]->type() == FIELD_ITEM && args[0]->is_temporal()
-              ? ((Item_field *)(args[0]))->field
-              : (Field *)nullptr;
+  if (args[0]->type() == FIELD_ITEM && args[0]->is_temporal())
+    m_field_ref = down_cast<Item_field *>(args[0]);
   /*
     Use result_length if it was given explicitly in constructor,
     otherwise calculate max_length using argument's max_length
     and "num_codepoints".
   */
   uint len;
-  if (field != nullptr) {
-    len = field->pack_length();
+  if (m_field_ref != nullptr) {
+    len = m_field_ref->field->pack_length();
   } else if (result_length > 0) {
     len = result_length;
   } else {
@@ -3251,12 +3250,13 @@ String *Item_func_weight_string::val_str(String *str) {
     from argument and "num_codepoints".
   */
   output_buf_size =
-      field ? field->pack_length()
-            : result_length
-                  ? result_length
-                  : cs->coll->strnxfrmlen(
-                        cs, cs->mbmaxlen *
-                                max<size_t>(input->length(), num_codepoints));
+      m_field_ref != nullptr
+          ? m_field_ref->field->pack_length()
+          : result_length > 0
+                ? result_length
+                : cs->coll->strnxfrmlen(
+                      cs, cs->mbmaxlen *
+                              max<size_t>(input->length(), num_codepoints));
 
   /*
     my_strnxfrm() with an odd number of bytes is illegal for some collations;
@@ -3273,9 +3273,10 @@ String *Item_func_weight_string::val_str(String *str) {
 
   if (tmp_value.alloc(output_buf_size)) return error_str();
 
-  if (field) {
-    output_length = field->pack_length();
-    field->make_sort_key((uchar *)tmp_value.ptr(), output_buf_size);
+  if (m_field_ref != nullptr) {
+    output_length = m_field_ref->field->pack_length();
+    m_field_ref->field->make_sort_key(pointer_cast<uchar *>(tmp_value.ptr()),
+                                      output_buf_size);
   } else {
     size_t input_length = input->length();
     size_t used_num_codepoints = num_codepoints;

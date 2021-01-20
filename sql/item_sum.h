@@ -1112,6 +1112,10 @@ class Item_sum_hybrid_field : public Item_result_field {
     func_arg->banned_function_name = func_name();
     return true;
   }
+  void cleanup() override {
+    field = nullptr;
+    Item_result_field::cleanup();
+  }
 };
 
 /**
