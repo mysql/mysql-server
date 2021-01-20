@@ -53,3 +53,18 @@ Rows_sent: 8  Rows_examined: 8 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0
 Rows_sent: 8  Rows_examined: 8 Thread_id: 0 Errno: 0 Killed: 0 Bytes_received: 0 Bytes_sent: 106 Read_first: 1 Read_last: 0 Read_key: 1 Read_next: 0 Read_prev: 0 Read_rnd: 0 Read_rnd_next: 9 Sort_merge_passes: 0 Sort_range_count: 0 Sort_rows: 0 Sort_scan_count: 0 Created_tmp_disk_tables: 0 Created_tmp_tables: 0
 SET @@global.slow_query_log_file=@save_sqlf;
 SET GLOBAL slow_query_log=1;
+#
+# Bug#30769965: WITH LOG_SLOW_EXTRA=ON ERRNO: INFO NOT GETTING UPDATED
+# CORRECTLY FOR ERROR
+#
+SET @save_sqlf=@@global.slow_query_log_file;
+SET GLOBAL slow_query_log_file= '.../my_extra_slow3.log';
+SET long_query_time=0;
+CREATE TABLE b(id INT NOT NULL AUTO_INCREMENT);
+ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
+# Look for Errnos in slow log. There should be two,
+# both SET and CREATE will be logged as slow.
+# Found Errno: 0 in slow log
+# Found Errno: 1075 in slow log
+SET @@global.slow_query_log_file=@save_sqlf;
+SET GLOBAL slow_query_log=1;
