@@ -492,20 +492,20 @@ test.t1	analyze	status	OK
 test.t2	analyze	status	OK
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	26	100.00	Using where
-1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	38	100.00	NULL
+1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	28	100.00	Using where
+1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	28	100.00	NULL
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	26	100.00	Using where
-1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	38	100.00	NULL
+1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	28	100.00	Using where
+1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	28	100.00	NULL
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	27	100.00	Using where
-1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	38	100.00	NULL
+1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	28	100.00	Using where
+1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	28	100.00	NULL
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	27	100.00	Using where
-1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	38	100.00	NULL
+1	SIMPLE	#	NULL	range	uid_index	uid_index	4	#	28	100.00	Using where
+1	SIMPLE	#	NULL	ref	uid_index	uid_index	4	#	28	100.00	NULL
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 id	name	uid	id	name	uid
 1257	A	1	1257	A	1

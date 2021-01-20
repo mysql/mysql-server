@@ -402,13 +402,13 @@ select count(*) from t2;
 
 analyze table t1,t2;
 --disable_warnings
---replace_column 3 # 9 #
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
---replace_column 3 # 9 #
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
---replace_column 3 # 9 #
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
---replace_column 3 # 9 #
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
 --enable_warnings
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
