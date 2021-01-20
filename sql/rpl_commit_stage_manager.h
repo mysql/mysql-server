@@ -190,6 +190,7 @@ class Commit_stage_manager {
     @param key_LOCK_commit_queue mutex instrumentation key
     @param key_LOCK_done mutex instrumentation key
     @param key_COND_done cond instrumentation key
+    @param key_COND_flush_queue cond instrumentation key
   */
   void init(PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
