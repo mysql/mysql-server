@@ -1060,8 +1060,8 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
     li.rewind();
     if (!(*ord->item)->can_be_substituted_for_gc()) continue;
     while ((gc = li++)) {
-      Item_func *tmp = down_cast<Item_func *>(*ord->item);
-      Item_field *const field = get_gc_for_expr(&tmp, gc, gc->result_type());
+      Item_field *const field =
+          get_gc_for_expr(*ord->item, gc, gc->result_type());
       if (field != nullptr) {
         changed = true;
         /* Add new field to field list. */

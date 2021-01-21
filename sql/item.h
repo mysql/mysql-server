@@ -3149,11 +3149,15 @@ class Item : public Parse_tree_node {
     Check if this item is of a type that is eligible for GC
     substitution. All items that belong to subclasses of Item_func are
     eligible for substitution. @see substitute_gc()
+    Item_fields can also be eligible if they are given as an argument to
+    a function that takes an array (the field can be substituted with a
+    generated column that backs a multi-valued index on that field).
+
+    @param array true if the item is an argument to a function that takes an
+                 array, or false otherwise
+    @return true if the expression is eligible for substitution, false otherwise
   */
-  bool can_be_substituted_for_gc() const {
-    const Type t = type();
-    return t == FUNC_ITEM || t == COND_ITEM;
-  }
+  bool can_be_substituted_for_gc(bool array = false) const;
 
   void aggregate_decimal_properties(Item **item, uint nitems);
   void aggregate_float_properties(Item **item, uint nitems);
