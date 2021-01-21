@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.24"
+VERSION="autotest-run.sh version 1.25"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -271,7 +271,7 @@ choose(){
         i=1
         while [ $# -gt 0 ]
         do
-                sed -e s,"CHOOSE_host$i",$1,g < $TMP1 > $TMP2
+                sed -r s/"CHOOSE_host${i}[ ]*(, |\$)"/"${1}\1"/g < $TMP1 > $TMP2
                 mv $TMP2 $TMP1
                 shift
                 i=`expr $i + 1`
