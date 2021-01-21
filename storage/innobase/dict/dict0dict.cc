@@ -653,7 +653,6 @@ static ulint dict_table_get_v_col_pos_for_mysql(const dict_table_t *table,
   ulint i;
 
   ut_ad(table);
-  ut_ad(col_nr < static_cast<ulint>(table->n_t_def));
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
   for (i = 0; i < table->n_v_def; i++) {
@@ -665,6 +664,8 @@ static ulint dict_table_get_v_col_pos_for_mysql(const dict_table_t *table,
   if (i == table->n_v_def) {
     return (ULINT_UNDEFINED);
   }
+
+  ut_ad(col_nr < static_cast<ulint>(table->n_t_def));
 
   return (i);
 }
