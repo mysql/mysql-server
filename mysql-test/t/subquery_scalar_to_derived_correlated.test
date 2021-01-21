@@ -582,6 +582,24 @@ set sql_mode=default;
 DROP TABLE t1;
 DROP view view_t1;
 
+--echo #
+--echo # Bug#32365780:MYSQL SREVER CRASH - SEGMENTATION FAULT IN
+--echo #	      QUERY_BLOCK::DECORRELATE_DERIVED_SCALAR_SUBQUERY_POST
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER, f2 INTEGER, f3 INTEGER, f4 INTEGER);
+
+let $query =
+SELECT f1 FROM t1 AS table1
+ WHERE f2 <> (SELECT f1 FROM t1 WHERE table1.f3 = (SELECT f4 FROM t1));
+
+#Query should see transformation happening and also should not crash the
+#server
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
 SET optimizer_switch = 'subquery_to_derived=default';
 # Local Variables:
 # mode: sql
