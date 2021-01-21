@@ -3,10 +3,10 @@
  *  memcached - memory caching daemon
  *
  *       http://www.danga.com/memcached/
- *  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *  Copyright 2003 Danga Interactive, Inc.  All rights reserved.
  *  This file was modified by Oracle on 28-08-2015 and 23-03-2016.
- *  Modifications copyright (c) 2015, 2016, Oracle and/or its affiliates.
+ *  Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *  All rights reserved.
  *
  *  Use and distribution licensed under the BSD license.  See
@@ -16,7 +16,7 @@
  *      Anatoly Vorobey <mellon@pobox.com>
  *      Brad Fitzpatrick <brad@danga.com>
  *
- *  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2011, 2021, Oracle and/or its affiliates.
  */
 #include "config.h"
 #include "config_static.h"
