@@ -6564,6 +6564,9 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
       // already present
       if (selected_field == nullptr || f->field != selected_field->field) {
         m_added_non_hidden_fields++;
+        // Mark the field as visible field. An earlier transformation could
+        // have added this as a hidden item to the fields list.
+        f->hidden = false;
 
         // select_n_where_fields is counted, so safe to add to base_ref_items
         base_ref_items[fields.size()] = f;
