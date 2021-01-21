@@ -1313,7 +1313,7 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     before attempting to close the connection or wait_timeout occurs on
     the server.
   */
-  net_clear(&mysql->net, 0);
+  net_clear(&mysql->net, false);
 
   MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
   MYSQL_TRACE(SEND_COMMAND, mysql,
@@ -1499,7 +1499,7 @@ net_async_status cli_advanced_command_nonblocking(
       the result before attempting to close the connection.
     */
     assert(command <= COM_END);
-    net_clear(&mysql->net, 0);
+    net_clear(&mysql->net, false);
     net_async->async_send_command_status = NET_ASYNC_SEND_COMMAND_WRITE_COMMAND;
   }
 
@@ -7298,7 +7298,7 @@ int STDCALL mysql_send_query(MYSQL *mysql, const char *query, ulong length) {
     return 1;
   int ret = (*mysql->methods->advanced_command)(
       mysql, COM_QUERY, ret_data, ret_data_length,
-      pointer_cast<const uchar *>(query), length, 1, NULL);
+      pointer_cast<const uchar *>(query), length, true, NULL);
   if (ret_data) my_free(ret_data);
   return ret;
 }
@@ -7331,7 +7331,7 @@ static net_async_status mysql_send_query_nonblocking_inner(MYSQL *mysql,
   if ((*mysql->methods->advanced_command_nonblocking)(
           mysql, COM_QUERY, async_context->async_qp_data,
           async_context->async_qp_data_length,
-          pointer_cast<const uchar *>(query), length, 1, NULL,
+          pointer_cast<const uchar *>(query), length, true, NULL,
           &ret) == NET_ASYNC_NOT_READY) {
     return NET_ASYNC_NOT_READY;
   }

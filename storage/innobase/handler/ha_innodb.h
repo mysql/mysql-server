@@ -789,9 +789,9 @@ UNIV_INLINE
 int validate_autoextend_size_value(uint64_t ext_size) {
   ut_ad(ext_size > 0);
 
-  page_no_t extent_size_pages =
-      fsp_get_extent_size_in_pages({static_cast<uint32_t>(srv_page_size),
-                                    static_cast<uint32_t>(srv_page_size), 0});
+  page_no_t extent_size_pages = fsp_get_extent_size_in_pages(
+      {static_cast<uint32_t>(srv_page_size),
+       static_cast<uint32_t>(srv_page_size), false});
 
   /* Validate following for the AUTOEXTEND_SIZE attribute
   1. The autoextend_size should be a multiple of size of 4 extents

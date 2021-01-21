@@ -263,7 +263,7 @@ bool Commit_stage_manager::enroll_for(StageID stage, THD *thd,
       With setting the status the follower ensures it won't execute anything
       including thread-specific code.
     */
-    thd->get_transaction()->m_flags.ready_preempt = 1;
+    thd->get_transaction()->m_flags.ready_preempt = true;
     if (leader_await_preempt_status) mysql_cond_signal(&m_cond_preempt);
 #endif
     while (thd->tx_commit_pending) {

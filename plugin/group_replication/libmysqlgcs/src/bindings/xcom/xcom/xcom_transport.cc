@@ -1476,7 +1476,7 @@ int sender_task(task_arg arg) {
     while (is_connected(&ep->s->con)) {
       int64_t ret;
       assert(!ep->link);
-      if (0 && link_empty(&ep->s->outgoing.data)) {
+      if (false && link_empty(&ep->s->outgoing.data)) {
         TASK_DELAY(0.1 * xcom_drand48());
       }
       /* FWD_ITER(&ep->s->outgoing.data, msg_link, IFDBG(D_NONE, FN;

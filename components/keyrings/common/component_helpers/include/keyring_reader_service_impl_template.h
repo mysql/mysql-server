@@ -73,12 +73,12 @@ bool init_reader_template(
 
     if (data_id == nullptr || !*data_id) {
       assert(false);
-      return 0;
+      return false;
     }
 
     Metadata metadata(data_id, auth_id);
     if (keyring_operations.init_read_iterator(it, metadata) == true) {
-      return 0;
+      return false;
     }
 
     if (keyring_operations.is_valid(it) == false) {
@@ -86,10 +86,10 @@ bool init_reader_template(
                       ER_NOTE_KEYRING_COMPONENT_READ_DATA_NOT_FOUND, data_id,
                       (auth_id == nullptr || !*auth_id) ? "NULL" : auth_id);
       keyring_operations.deinit_forward_iterator(it);
-      return 0;
+      return false;
     }
 
-    return 1;
+    return true;
   } catch (...) {
     LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_EXCEPTION, "init",
                     "keyring_reader_with_status");

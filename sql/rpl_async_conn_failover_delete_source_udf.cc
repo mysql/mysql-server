@@ -159,7 +159,7 @@ bool Rpl_async_conn_failover_delete_source::delete_source_init(
       Udf_charset_service::set_args_charset(args))
     return true;
 
-  init_id->maybe_null = 0;
+  init_id->maybe_null = false;
   return false;
 }
 

@@ -1587,7 +1587,7 @@ static ulint ibuf_rec_get_volume_func(
 
   data_size = ibuf_rec_get_size(ibuf_rec, types, n_fields, comp);
 
-  return (data_size + rec_get_converted_extra_size(data_size, n_fields, 0) +
+  return (data_size + rec_get_converted_extra_size(data_size, n_fields, false) +
           page_dir_calc_reserved_space(1));
 }
 
@@ -2648,7 +2648,7 @@ static ulint ibuf_get_volume_buffered_count_func(
 
       len = ibuf_rec_get_size(rec, types, n_fields, 0);
 
-      return (len + rec_get_converted_extra_size(len, n_fields, 0) +
+      return (len + rec_get_converted_extra_size(len, n_fields, false) +
               page_dir_calc_reserved_space(1));
     case 1:
       /* This ROW_TYPE=COMPACT record does not include an

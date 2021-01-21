@@ -4917,7 +4917,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
             ER_THD(thd,
                    ER_RPL_SLAVE_APPLY_LOG_EVENT_FAILED_INVALID_NON_ROW_FORMAT),
             rli->mi->get_channel());
-        rli->abort_slave = 1;
+        rli->abort_slave = true;
         mysql_mutex_unlock(&rli->data_lock);
         delete ev;
         return 1;
@@ -9937,10 +9937,10 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     auto auto_position = mi->is_auto_position();
     switch (lex_mi->auto_position) {
       case LEX_MASTER_INFO::LEX_MI_ENABLE:
-        auto_position = 1;
+        auto_position = true;
         break;
       case LEX_MASTER_INFO::LEX_MI_DISABLE:
-        auto_position = 0;
+        auto_position = false;
         break;
       case LEX_MASTER_INFO::LEX_MI_UNCHANGED:
         break;

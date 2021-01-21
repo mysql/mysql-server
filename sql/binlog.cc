@@ -8256,7 +8256,7 @@ void MYSQL_BIN_LOG::init_thd_variables(THD *thd, bool all, bool skip_commit) {
      execute any thread-specific write access code in this method, which is
      the case as of current.
   */
-  thd->get_transaction()->m_flags.ready_preempt = 0;
+  thd->get_transaction()->m_flags.ready_preempt = false;
 #endif
 }
 

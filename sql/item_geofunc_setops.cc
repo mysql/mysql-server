@@ -155,7 +155,7 @@ class BG_setop_wrapper {
 
   BG_setop_wrapper(Item_func_spatial_operation *ifso) {
     m_ifso = ifso;
-    null_value = 0;
+    null_value = false;
   }
 
   bool get_null_value() const { return null_value; }

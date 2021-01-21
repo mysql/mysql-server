@@ -253,7 +253,7 @@ static bool warn_self_signed_ca_certs(const char *ssl_ca,
   };
 
   if (ssl_ca && ssl_ca[0]) {
-    if (warn_one(ssl_ca)) return 1;
+    if (warn_one(ssl_ca)) return true;
   }
   if (ssl_capath && ssl_capath[0]) {
     /* We have ssl-capath. So search all files in the dir */
