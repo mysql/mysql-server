@@ -196,6 +196,32 @@ HeartbeatIntervalDbApi=5000
 TransactionDeadlockDetectionTimeout=2500
 
 #
+# .16node
+#
+
+[cluster_config.16node]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host1,CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5,CHOOSE_host6,CHOOSE_host7,CHOOSE_host8,CHOOSE_host9,CHOOSE_host10,CHOOSE_host11,CHOOSE_host12,CHOOSE_host13,CHOOSE_host14,CHOOSE_host15,CHOOSE_host16
+ndbapi = CHOOSE_host1,CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,CHOOSE_host5,CHOOSE_host6
+
+NoOfReplicas = 2
+DataMemory = 3G
+CompressedLCP = 1
+CompressedBackup = 1
+ODirect = 1
+MaxNoOfAttributes = 2000
+FragmentLogFileSize = 256M
+NoOfFragmentLogFiles = 8
+TimeBetweenEpochsTimeout = 4000
+TimeBetweenGlobalCheckpointsTimeout = 60000
+StartPartialTimeout = 120000
+
+SharedGlobalMemory = 256M
+DiskPageBufferMemory = 256M
+InitialLogfileGroup = undo_buffer_size=64M;undofile01.dat:512M;undofile02.dat:512M
+InitialTablespace = datafile01.dat:256M;datafile02.dat:256M
+
+#
 # .3node3rpl
 #
 
