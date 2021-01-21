@@ -770,11 +770,10 @@ static void sort_copy_func(const Query_block *query_block,
   const auto without_reference_to_select_expr =
       [query_block](const Func_ptr &ptr) {
         Item *const item_to_copy = ptr.func();
+        const bool check_aliases_only = !item_to_copy->created_by_in2exists();
         return !WalkItem(
             item_to_copy, enum_walk::SUBQUERY_PREFIX,
-            [query_block,
-             check_aliases_only =
-                 !item_to_copy->created_by_in2exists()](const Item *item) {
+            [query_block, check_aliases_only](const Item *item) {
               if (item->type() != Item::REF_ITEM) {
                 return false;  // Check references only.
               }
