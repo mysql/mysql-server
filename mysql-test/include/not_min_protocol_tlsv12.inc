@@ -48,5 +48,5 @@ EOF
 
 if ($min_protocol_tlsv1_2)
 {
-  --Skip Test requires TLS protocol <= 1.1, while OpenSSL policy sets MinProtocol TLSv1.2
+  --Skip Test requires TLS protocol lesser than 1.2, while OpenSSL policy sets MinProtocol TLSv1.2
 }

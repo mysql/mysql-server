@@ -8,7 +8,7 @@
 let $buf_pool_size = `SELECT @@innodb_buffer_pool_size`;
 
 if ($buf_pool_size != 5242880) {
-  --skip "Test requires 5M buffer pool size"
+  --skip Test requires 5M buffer pool size
 }
 
 # Test max inline field length should < 16384.
