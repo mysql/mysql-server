@@ -432,6 +432,7 @@ bool FollowTailIterator::Init() {
     // Just continue where we left off last time.
   }
 
+  m_inited = true;
   return false;
 }
 
@@ -511,5 +512,11 @@ int FollowTailIterator::Read() {
 }
 
 bool FollowTailIterator::RepositionCursorAfterSpillToDisk() {
+  if (!m_inited) {
+    // Spill-to-disk happened before we got to read a single row,
+    // so the table has not been initialized yet. It will start
+    // at the first row when we actually get to Init(), which is fine.
+    return false;
+  }
   return reposition_innodb_cursor(table(), m_read_rows);
 }
