@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 This program is free software; you can redistribute it and/or modify

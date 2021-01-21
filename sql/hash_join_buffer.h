@@ -1,7 +1,7 @@
 #ifndef SQL_HASH_JOIN_BUFFER_H_
 #define SQL_HASH_JOIN_BUFFER_H_
 
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

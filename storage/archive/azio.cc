@@ -8,7 +8,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  * This file was modified by Oracle on 2015-01-23.
- * Modifications copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  */
 
 /* @(#) $Id$ */
