@@ -1,4 +1,4 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates */
+/* Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates. */
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #include <stdlib.h>
 #include <string.h>

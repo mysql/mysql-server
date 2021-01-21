@@ -1,4 +1,4 @@
-/* Modifications copyright (c) 2015, Oracle and/or its affiliates
+/* Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 */
 #ifndef UTIL_H
 #define UTIL_H
