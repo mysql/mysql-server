@@ -481,6 +481,7 @@ class FollowTailIterator final : public TableRowIterator {
   bool RepositionCursorAfterSpillToDisk();
 
  private:
+  bool m_inited = false;
   uchar *const m_record;
   const double m_expected_rows;
   ha_rows *const m_examined_rows;
