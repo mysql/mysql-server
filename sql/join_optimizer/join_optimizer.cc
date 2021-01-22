@@ -1798,8 +1798,10 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
   // Don't bother trying sort-ahead if we are done joining;
   // there's no longer anything to be ahead of, so the regular
   // sort operations will take care of it.
-  if (nodes == TablesBetween(0, m_graph.nodes.size())) {
-    return;
+  if (!m_query_block->is_grouped()) {
+    if (nodes == TablesBetween(0, m_graph.nodes.size())) {
+      return;
+    }
   }
 
   // Don't try to sort-ahead parametrized paths; see the comment in
@@ -2297,7 +2299,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   // If we have grouping followed by a sort, we need to bounce via
   // the buffers of a temporary table. See the comments on
   // CreateTemporaryTableForSortingAggregates().
-  if (query_block->is_grouped()) {
+  if (query_block->is_explicitly_grouped()) {
     temp_table = CreateTemporaryTableForSortingAggregates(thd, query_block,
                                                           &temp_table_param);
     // Filesort now only needs to worry about one input -- this temporary
@@ -2710,6 +2712,7 @@ static void CollectFunctionalDependenciesFromUniqueIndexes(
 
 static Ordering CollectInterestingOrder(THD *thd,
                                         const SQL_I_List<ORDER> &order_list,
+                                        bool unwrap_rollup,
                                         LogicalOrderings *orderings,
                                         table_map *used_tables) {
   Ordering ordering = Ordering::Alloc(thd->mem_root, order_list.size());
@@ -2718,6 +2721,9 @@ static Ordering CollectInterestingOrder(THD *thd,
   for (ORDER *order = order_list.first; order != nullptr;
        order = order->next, ++i) {
     Item *item = *order->item;
+    if (unwrap_rollup) {
+      item = unwrap_rollup_group(item);
+    }
     ordering[i].item = orderings->GetHandle(item);
     ordering[i].direction = order->direction;
     *used_tables |= item->used_tables();
@@ -2761,12 +2767,13 @@ static void BuildInterestingOrders(
     THD *thd, JoinHypergraph *graph, Query_block *query_block,
     LogicalOrderings *orderings,
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
-    int *order_by_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
-    string *trace) {
+    int *order_by_ordering_idx, int *group_by_ordering_idx,
+    Mem_root_array<ActiveIndexInfo> *active_indexes, string *trace) {
   // Collect ordering from ORDER BY.
   if (query_block->is_ordered()) {
     table_map used_tables;
     Ordering ordering = CollectInterestingOrder(thd, query_block->order_list,
+                                                /*unwrap_rollup=*/false,
                                                 orderings, &used_tables);
 
     NodeMap required_nodes = GetNodeMapFromTableMap(
@@ -2783,6 +2790,32 @@ static void BuildInterestingOrders(
       ORDER *order = BuildSortAheadOrdering(thd, orderings, ordering);
       sort_ahead_orderings->push_back(
           SortAheadOrdering{*order_by_ordering_idx, required_nodes, order});
+    }
+  }
+
+  // Collect grouping from GROUP BY.
+  if (query_block->is_explicitly_grouped()) {
+    table_map used_tables;
+    Ordering ordering = CollectInterestingOrder(thd, query_block->group_list,
+                                                /*unwrap_rollup=*/true,
+                                                orderings, &used_tables);
+    std::sort(ordering.begin(), ordering.end(),
+              [](const OrderElement &a, const OrderElement &b) {
+                return a.item < b.item;
+              });
+    ordering.resize(std::unique(ordering.begin(), ordering.end()) -
+                    ordering.begin());
+
+    NodeMap required_nodes = GetNodeMapFromTableMap(
+        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
+    if (Overlaps(used_tables, RAND_TABLE_BIT)) {
+      // We can never sort-ahead with nondeterministic functions.
+    } else {
+      *group_by_ordering_idx =
+          orderings->AddOrdering(thd, ordering, /*interesting=*/true);
+      sort_ahead_orderings->push_back(
+          SortAheadOrdering{*group_by_ordering_idx, required_nodes,
+                            query_block->group_list.first});
     }
   }
 
@@ -3018,15 +3051,15 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
   }
 
-  // Collect interesting orders; for now, this means ORDER BY only
-  // (later: GROUP BY).
+  // Collect interesting orders from ORDER BY and GROUP BY.
   LogicalOrderings orderings(thd);
   Mem_root_array<SortAheadOrdering> sort_ahead_orderings(thd->mem_root);
   Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
   int order_by_ordering_idx = -1;
+  int group_by_ordering_idx = -1;
   BuildInterestingOrders(thd, &graph, query_block, &orderings,
                          &sort_ahead_orderings, &order_by_ordering_idx,
-                         &active_indexes, trace);
+                         &group_by_ordering_idx, &active_indexes, trace);
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
@@ -3156,7 +3189,11 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (query_block->is_explicitly_grouped()) {
+      bool elide_group = (group_by_ordering_idx != -1 &&
+                          orderings.DoesFollowOrder(root_path->ordering_state,
+                                                    group_by_ordering_idx));
+
+      if (query_block->is_explicitly_grouped() && !elide_group) {
         Mem_root_array<TABLE *> tables =
             CollectTables(query_block, GetUsedTables(root_path));
         Filesort *filesort = new (thd->mem_root) Filesort(
@@ -3184,7 +3221,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           NewAggregateAccessPath(thd, root_path, rollup);
       EstimateAggregateCost(aggregate_path);
 
-      receiver.ProposeAccessPath(aggregate_path, &new_root_candidates, "");
+      receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
+                                 elide_group ? "group elided" : "");
     }
     root_candidates = std::move(new_root_candidates);
 

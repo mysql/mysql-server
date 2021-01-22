@@ -400,6 +400,7 @@ class LogicalOrderings {
     // equivalence class, then a is also marked as used_desc = true.
     bool used_asc = false;
     bool used_desc = false;
+    bool used_in_grouping = false;
   };
   // All items we have seen in use (in orderings or FDs), deduplicated
   // and indexed by ItemHandle.
@@ -571,6 +572,8 @@ class LogicalOrderings {
   bool CouldBecomeInterestingOrdering(Ordering ordering) const;
 
   void BuildNFSM(THD *thd);
+  void AddGroupingFromOrdering(THD *thd, int state_idx, Ordering ordering,
+                               OrderElement *tmpbuf);
   void TryAddingOrderWithElementInserted(THD *thd, int state_idx, int fd_idx,
                                          Ordering old_ordering,
                                          size_t start_point,

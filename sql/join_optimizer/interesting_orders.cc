@@ -61,6 +61,8 @@ bool IsGrouping(Ordering ordering) {
 }
 
 bool OrderingsAreEqual(Ordering a, Ordering b) {
+  // Groupings are sorted by item, so this comparison works for both orderings
+  // and groupings.
   return equal(a.begin(), a.end(), b.begin(), b.end());
 }
 
@@ -91,6 +93,16 @@ int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
                                           OrderingWithInfo::Type type) {
   assert(!m_built);
 
+#ifndef NDEBUG
+  if (IsGrouping(order)) {
+    // Verify that the grouping is sorted and deduplicated.
+    for (size_t i = 1; i < order.size(); ++i) {
+      assert(order[i].item > order[i - 1].item);
+      assert(order[i].direction == ORDER_NOT_RELEVANT);
+    }
+  }
+#endif
+
   if (type != OrderingWithInfo::UNINTERESTING) {
     for (OrderElement element : order) {
       if (element.direction == ORDER_ASC) {
@@ -98,6 +110,9 @@ int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
       }
       if (element.direction == ORDER_DESC) {
         m_items[element.item].used_desc = true;
+      }
+      if (element.direction == ORDER_NOT_RELEVANT) {
+        m_items[element.item].used_in_grouping = true;
       }
     }
   }
@@ -218,12 +233,28 @@ void LogicalOrderings::PruneUninterestingOrders(THD *thd) {
   for (size_t ordering_idx = 0; ordering_idx < m_orderings.size();
        ++ordering_idx) {
     if (m_orderings[ordering_idx].type == OrderingWithInfo::UNINTERESTING) {
+      Ordering &ordering = m_orderings[ordering_idx].ordering;
+
+      // We are not prepared for uninteresting groupings yet.
+      assert(!IsGrouping(ordering));
+
+      // Find the longest prefix that contains only elements that are used in
+      // interesting groupings. We will never shorten the uninteresting ordering
+      // below this; it is overconservative in some cases, but it makes sure
+      // we never miss a path to an interesting grouping.
+      size_t minimum_prefix_len = 0;
+      while (ordering.size() > minimum_prefix_len &&
+             m_items[m_items[ordering[minimum_prefix_len].item].canonical_item]
+                 .used_in_grouping) {
+        ++minimum_prefix_len;
+      }
+
       // Shorten this ordering one by one element, until it can (heuristically)
       // become an interesting ordering with the FDs we have. Note that it might
       // become the empty ordering, and if so, it will be deleted entirely
       // in the step below.
-      Ordering &ordering = m_orderings[ordering_idx].ordering;
-      while (!ordering.empty() && !CouldBecomeInterestingOrdering(ordering)) {
+      while (ordering.size() > minimum_prefix_len &&
+             !CouldBecomeInterestingOrdering(ordering)) {
         ordering.resize(ordering.size() - 1);
       }
     }
@@ -278,11 +309,13 @@ void LogicalOrderings::PruneFDs(THD *thd) {
     // ordering.
     bool used_fd = false;
     ItemHandle tail = m_items[fd.tail].canonical_item;
-    if (m_items[tail].used_asc || m_items[tail].used_desc) {
+    if (m_items[tail].used_asc || m_items[tail].used_desc ||
+        m_items[tail].used_in_grouping) {
       used_fd = true;
     } else if (fd.type == FunctionalDependency::EQUIVALENCE) {
       ItemHandle head = m_items[fd.head[0]].canonical_item;
-      if (m_items[head].used_asc || m_items[head].used_desc) {
+      if (m_items[head].used_asc || m_items[head].used_desc ||
+          m_items[head].used_in_grouping) {
         used_fd = true;
       }
     }
@@ -352,6 +385,8 @@ void LogicalOrderings::BuildEquivalenceClasses() {
       m_items[duplicate_item].canonical_item = canonical_item;
       m_items[canonical_item].used_asc |= m_items[duplicate_item].used_asc;
       m_items[canonical_item].used_desc |= m_items[duplicate_item].used_desc;
+      m_items[canonical_item].used_in_grouping |=
+          m_items[duplicate_item].used_in_grouping;
       done_anything = true;
     }
   } while (done_anything);
@@ -382,7 +417,8 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
     // We only care about items that are used in some ordering,
     // not any used as base in FDs or the likes.
     const ItemHandle canonical_idx = m_items[item_idx].canonical_item;
-    if (!m_items[canonical_idx].used_asc && !m_items[canonical_idx].used_desc) {
+    if (!m_items[canonical_idx].used_asc && !m_items[canonical_idx].used_desc &&
+        !m_items[canonical_idx].used_in_grouping) {
       continue;
     }
 
@@ -678,6 +714,15 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
       return;
     }
   }
+
+  if (IsGrouping(reduced_ordering)) {
+    // We've replaced some items, so we need to re-sort.
+    sort(tmpbuf, tmpbuf + length,
+         [](const OrderElement &a, const OrderElement &b) {
+           return a.item < b.item;
+         });
+  }
+
   AddOrderingInternal(thd, Ordering(tmpbuf, length),
                       OrderingWithInfo::HOMOGENIZED);
 }
@@ -728,6 +773,15 @@ bool LogicalOrderings::CouldBecomeInterestingOrdering(Ordering ordering) const {
       continue;
     }
 
+    // Groupings can never become orderings. Orderings can become groupings,
+    // but for simplicity, we require them to immediately become groupings then,
+    // or else be pruned away.
+    if (IsGrouping(ordering) != IsGrouping(interesting_ordering)) {
+      continue;
+    }
+
+    // Since groupings are ordered by item, we can use the same comparison
+    // for ordering-ordering and grouping-grouping comparisons.
     bool match = true;
     for (size_t i = 0, j = 0;
          i < ordering.size() || j < interesting_ordering.size();) {
@@ -753,8 +807,7 @@ bool LogicalOrderings::CouldBecomeInterestingOrdering(Ordering ordering) const {
         continue;
       }
 
-      // We don't have this item, and it can not be generated by any FD,
-      // so give up.
+      // We don't have this item, and it can not be added later, so give up.
       match = false;
       break;
     }
@@ -845,7 +898,7 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
     m_states.push_back(move(state));
   }
 
-  // Add an edge from the initial state to each producable ordering.
+  // Add an edge from the initial state to each producable ordering/grouping.
   for (size_t i = 1; i < m_orderings.size(); ++i) {
     NFSMEdge edge;
     edge.required_fd_idx = INT_MIN + i;
@@ -861,10 +914,19 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
   OrderElement *tmpbuf2 =
       thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
   for (size_t state_idx = 0; state_idx < m_states.size(); ++state_idx) {
-    // Apply the special decay FD.
-    if (m_states[state_idx].satisfied_ordering.size() > 1) {
-      AddEdge(thd, state_idx, /*required_fd_idx=*/0,
-              m_states[state_idx].satisfied_ordering.without_back());
+    {
+      Ordering old_ordering = m_states[state_idx].satisfied_ordering;
+      if (!IsGrouping(old_ordering)) {
+        // Apply the special decay FD; first to shorten the ordering,
+        // then to convert it to a grouping.
+        if (old_ordering.size() > 1) {
+          AddEdge(thd, state_idx, /*required_fd_idx=*/0,
+                  old_ordering.without_back());
+        }
+        if (!old_ordering.empty()) {
+          AddGroupingFromOrdering(thd, state_idx, old_ordering, tmpbuf);
+        }
+      }
     }
 
     for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
@@ -905,22 +967,50 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
       }
 
       // On S -> b, try to add b everywhere after the last element of S.
-      bool add_asc = m_items[m_items[item_to_add].canonical_item].used_asc;
-      bool add_desc = m_items[m_items[item_to_add].canonical_item].used_desc;
-      assert(add_asc || add_desc);  // Enforced by PruneFDs().
-
-      if (add_asc) {
-        TryAddingOrderWithElementInserted(thd, state_idx, fd_idx, old_ordering,
-                                          start_point + 1, item_to_add,
-                                          ORDER_ASC, tmpbuf2);
-      }
-      if (add_desc) {
-        TryAddingOrderWithElementInserted(thd, state_idx, fd_idx, old_ordering,
-                                          start_point + 1, item_to_add,
-                                          ORDER_DESC, tmpbuf2);
+      if (IsGrouping(old_ordering)) {
+        if (m_items[m_items[item_to_add].canonical_item].used_in_grouping) {
+          TryAddingOrderWithElementInserted(
+              thd, state_idx, fd_idx, old_ordering, /*start_point=*/0,
+              item_to_add, ORDER_NOT_RELEVANT, tmpbuf2);
+        }
+      } else {
+        // NOTE: We could have neither add_asc nor add_desc, if the item is used
+        // only in groupings. If so, we don't add it at all, before we convert
+        // it to a grouping.
+        bool add_asc = m_items[m_items[item_to_add].canonical_item].used_asc;
+        bool add_desc = m_items[m_items[item_to_add].canonical_item].used_desc;
+        if (add_asc) {
+          TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
+                                            old_ordering, start_point + 1,
+                                            item_to_add, ORDER_ASC, tmpbuf2);
+        }
+        if (add_desc) {
+          TryAddingOrderWithElementInserted(thd, state_idx, fd_idx,
+                                            old_ordering, start_point + 1,
+                                            item_to_add, ORDER_DESC, tmpbuf2);
+        }
       }
     }
   }
+}
+
+void LogicalOrderings::AddGroupingFromOrdering(THD *thd, int state_idx,
+                                               Ordering ordering,
+                                               OrderElement *tmpbuf) {
+  memcpy(tmpbuf, &ordering[0], sizeof(*tmpbuf) * ordering.size());
+  for (size_t i = 0; i < ordering.size(); ++i) {
+    tmpbuf[i].direction = ORDER_NOT_RELEVANT;
+    if (!m_items[m_items[tmpbuf[i].item].canonical_item].used_in_grouping) {
+      // Pruned away.
+      return;
+    }
+  }
+  sort(tmpbuf, tmpbuf + ordering.size(),
+       [](const OrderElement &a, const OrderElement &b) {
+         return a.item < b.item;
+       });
+  AddEdge(thd, state_idx, /*required_fd_idx=*/0,
+          Ordering(tmpbuf, ordering.size()));
 }
 
 void LogicalOrderings::TryAddingOrderWithElementInserted(
@@ -933,6 +1023,22 @@ void LogicalOrderings::TryAddingOrderWithElementInserted(
 
   for (size_t add_pos = start_point; add_pos <= old_ordering.size();
        ++add_pos) {
+    if (direction == ORDER_NOT_RELEVANT) {
+      // For groupings, we just deduplicate right away.
+      if (add_pos < old_ordering.size() &&
+          old_ordering[add_pos].item == item_to_add) {
+        break;
+      }
+
+      // For groupings, only insert in the sorted sequence.
+      // (If we have found the right insertion spot, we immediately
+      // exit after this at the end of the loop.)
+      if (add_pos < old_ordering.size() &&
+          old_ordering[add_pos].item < item_to_add) {
+        continue;
+      }
+    }
+
     if (add_pos > 0) {
       memcpy(tmpbuf, &old_ordering[0], sizeof(*tmpbuf) * (add_pos));
     }
@@ -947,6 +1053,10 @@ void LogicalOrderings::TryAddingOrderWithElementInserted(
 
     if (CouldBecomeInterestingOrdering(new_ordering)) {
       AddEdge(thd, state_idx, fd_idx, new_ordering);
+    }
+
+    if (direction == ORDER_NOT_RELEVANT) {
+      break;
     }
   }
 }
@@ -1372,7 +1482,10 @@ void LogicalOrderings::PrintInterestingOrders(string *trace) {
     const OrderingWithInfo &ordering = m_orderings[order_idx];
     *trace += StringPrintf(" - %zu: ", order_idx);
     bool first = true;
-    for (OrderElement element : ordering.ordering) {
+    if (IsGrouping(ordering.ordering)) {
+      *trace += "group ";
+    }
+    for (OrderElement element : m_orderings[order_idx].ordering) {
       if (!first) {
         *trace += ", ";
       }

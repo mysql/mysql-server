@@ -42,7 +42,10 @@ using ItemHandle = int;
 // will need to make a Filesort element out of it eventually.
 struct OrderElement {
   ItemHandle item;
-  enum_order direction;  // ORDER_NOT_RELEVANT for a group specification.
+
+  // ORDER_NOT_RELEVANT for a group specification. Groupings are by convention
+  // sorted by item.
+  enum_order direction;
 };
 
 inline bool operator==(const OrderElement &a, const OrderElement &b) {

@@ -1195,7 +1195,10 @@ SELECT * FROM t1, t2, t3
 WHERE t2.b = t1.b AND t2.b = t3.b
 AND t3.d = 1 AND t3.e = 1 AND t1.a = 2
 GROUP BY t1.b;
+# Hypergraph optimizer has different warnings here.
+--disable_warnings
 eval $show_trace;
+--enable_warnings
 
 # Remove t3.d = 1, IS NOT NULL is not enough of course.
 --error ER_WRONG_FIELD_WITH_GROUP

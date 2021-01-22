@@ -1002,3 +1002,91 @@ TEST_F(InterestingOrderingTableTest, PruneUninterestingOrders) {
   EXPECT_EQ(m_orderings->RemapOrderingIndex(a_idx),
             m_orderings->RemapOrderingIndex(abc_idx));
 }
+
+TEST_F(InterestingOrderingTableTest, Groupings) {
+  THD *thd = m_initializer.thd();
+
+  // Interesting orders are ab, {a} and {abc} ({} means grouping).
+  array<OrderElement, 2> order_ab{OrderElement{a, ORDER_ASC},
+                                  OrderElement{b, ORDER_ASC}};
+  array<OrderElement, 1> group_a{OrderElement{a, ORDER_NOT_RELEVANT}};
+  array<OrderElement, 3> group_abc{OrderElement{a, ORDER_NOT_RELEVANT},
+                                   OrderElement{b, ORDER_NOT_RELEVANT},
+                                   OrderElement{c, ORDER_NOT_RELEVANT}};
+  int ab_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ab), /*interesting=*/true);
+  int group_a_idx =
+      m_orderings->AddOrdering(thd, Ordering(group_a), /*interesting=*/true);
+  int group_abc_idx =
+      m_orderings->AddOrdering(thd, Ordering(group_abc), /*interesting=*/true);
+
+  // Add b → c.
+  array<ItemHandle, 1> head_b{b};
+
+  FunctionalDependency fd_bc;
+  fd_bc.type = FunctionalDependency::FD;
+  fd_bc.head = Bounds_checked_array<ItemHandle>(head_b);
+  fd_bc.tail = c;
+  int fd_bc_idx = m_orderings->AddFunctionalDependency(thd, fd_bc);
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // Start at ab.
+  LogicalOrderings::StateIndex idx = m_orderings->SetOrder(ab_idx);
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, ab_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_a_idx));
+  EXPECT_FALSE(m_orderings->DoesFollowOrder(idx, group_abc_idx));
+
+  // Apply b → c.
+  idx = m_orderings->ApplyFDs(idx, m_orderings->GetFDSet(fd_bc_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, ab_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_a_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_abc_idx));
+}
+
+TEST_F(InterestingOrderingTableTest, UninterestingOrderingsCanBecomeGroupings) {
+  THD *thd = m_initializer.thd();
+
+  // {ac} is interesting, cba is uninteresting. We should be able to
+  // build the former from the latter with c → a FD (see below).
+  array<OrderElement, 3> order_cba{OrderElement{c, ORDER_ASC},
+                                   OrderElement{b, ORDER_ASC},
+                                   OrderElement{a, ORDER_ASC}};
+  array<OrderElement, 2> group_ac{OrderElement{a, ORDER_NOT_RELEVANT},
+                                  OrderElement{c, ORDER_NOT_RELEVANT}};
+  int cba_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_cba), /*interesting=*/false);
+  int group_ac_idx =
+      m_orderings->AddOrdering(thd, Ordering(group_ac), /*interesting=*/true);
+
+  // Add c → a.
+  array<ItemHandle, 1> head_c{c};
+
+  FunctionalDependency fd_ca;
+  fd_ca.type = FunctionalDependency::FD;
+  fd_ca.head = Bounds_checked_array<ItemHandle>(head_c);
+  fd_ca.tail = a;
+  int fd_ca_idx = m_orderings->AddFunctionalDependency(thd, fd_ca);
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // cba should not be pruned away entirely, since we can use (c) to convert
+  // into {c} and then continue on to {ac} later.
+  cba_idx = m_orderings->RemapOrderingIndex(cba_idx);
+  group_ac_idx = m_orderings->RemapOrderingIndex(group_ac_idx);
+
+  EXPECT_NE(0, cba_idx);
+  EXPECT_NE(0, group_ac_idx);
+
+  // Start at cba.
+  LogicalOrderings::StateIndex idx = m_orderings->SetOrder(cba_idx);
+  EXPECT_FALSE(m_orderings->DoesFollowOrder(idx, group_ac_idx));
+
+  // Apply c → a.
+  idx = m_orderings->ApplyFDs(idx, m_orderings->GetFDSet(fd_ca_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_ac_idx));
+}
