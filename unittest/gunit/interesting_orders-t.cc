@@ -767,6 +767,45 @@ TEST_F(InterestingOrderingTableTest, AlwaysActiveFD) {
   EXPECT_FALSE(m_orderings->GetFDSet(fd_empty_b_idx).none());
 }
 
+TEST_F(InterestingOrderingTableTest, FDsFromComputedItems) {
+  THD *thd = m_initializer.thd();
+
+  // Add a new item for b + 1.
+  Item *bplus1_item =
+      new Item_func_plus(new Item_field(m_table->field[1]), new Item_int(1));
+  bplus1_item->update_used_tables();
+  ItemHandle bplus1 = m_orderings->GetHandle(bplus1_item);
+
+  // The interesting orders are a and a, b + 1.
+  array<OrderElement, 1> order_a{OrderElement{a, ORDER_ASC}};
+  array<OrderElement, 2> order_ab{OrderElement{a, ORDER_ASC},
+                                  OrderElement{bplus1, ORDER_ASC}};
+  int a_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_a), /*interesting=*/true);
+  int ab_idx =
+      m_orderings->AddOrdering(thd, Ordering(order_ab), /*interesting=*/true);
+
+  // Add a → b, which is always active.
+  array<ItemHandle, 1> head_a{a};
+  FunctionalDependency fd_ab;
+  fd_ab.type = FunctionalDependency::FD;
+  fd_ab.head = Bounds_checked_array<ItemHandle>(head_a);
+  fd_ab.tail = b;
+  fd_ab.always_active = true;
+  int fd_ab_idx = m_orderings->AddFunctionalDependency(thd, fd_ab);
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // Start with a. Now we should also have a, b + 1 (there should be
+  // an implict b → b + 1 FD), even though b is not in the ordering.
+  LogicalOrderings::StateIndex idx = m_orderings->SetOrder(a_idx);
+  idx = m_orderings->ApplyFDs(idx, m_orderings->GetFDSet(fd_ab_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, a_idx));
+  EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, ab_idx));
+}
+
 TEST_F(InterestingOrderingTableTest, MoreOrderedThan) {
   THD *thd = m_initializer.thd();
 

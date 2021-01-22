@@ -90,6 +90,13 @@
   The actual collection of FDs and interesting orders happen outside this
   class, in the caller.
 
+  A weakness in the approach is that transitive FDs are not always followed
+  correctly. E.g., if we have an ordering (a), and FDs {a} → b and {b} → c,
+  we will create (ab) and (abc), but _not_ (ac). This is not a problem for
+  equivalences, though, and most of the FDs we collect are equivalences.
+  We do have some heuristics to produce a new FD {a} → c where it is relevant,
+  but they are not always effective.
+
   Neumann and Moerkotte distinguish between “tested-for” (O_T) and
   “producing” (O_P) orderings, where all orders are interesting but only
   some can be produced by explicit operators, such as sorts. Our implementation
@@ -545,6 +552,9 @@ class LogicalOrderings {
 
   // Populates ItemInfo::canonical_item.
   void BuildEquivalenceClasses();
+
+  // See comment in .cc file.
+  void AddFDsFromComputedItems(THD *thd);
 
   // Populates ItemInfo::can_be_added_by_fd.
   void FindElementsThatCanBeAddedByFDs();

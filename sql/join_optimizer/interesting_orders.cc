@@ -24,6 +24,7 @@
 #include <algorithm>
 #include <type_traits>
 #include "sql/item.h"
+#include "sql/item_func.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/sql_class.h"
@@ -147,6 +148,7 @@ int LogicalOrderings::AddFunctionalDependency(THD *thd,
 
 void LogicalOrderings::Build(THD *thd, string *trace) {
   BuildEquivalenceClasses();
+  AddFDsFromComputedItems(thd);
   CreateHomogenizedOrderings(thd);
   PruneFDs(thd);
   if (trace != nullptr) {
@@ -353,6 +355,102 @@ void LogicalOrderings::BuildEquivalenceClasses() {
       done_anything = true;
     }
   } while (done_anything);
+}
+
+/**
+  Try to add new FDs from items that are not base items; e.g., if we have
+  an item (a + 1), we add {a} → (a + 1) (since addition is deterministic).
+  This can help reducing orderings that are on such derived items.
+  For simplicity, we only bother doing this for items that derive from a
+  single base field; i.e., from (a + b), we don't add {a,b} → (a + b)
+  even though we could. Also note that these are functional dependencies,
+  not equivalences; even though ORDER BY (a + 1) could be satisfied by an
+  ordering on (a) (barring overflow issues), this does not hold in general,
+  e.g. ORDER BY (-a) is _not_ satisfied by an ordering on (a), not to mention
+  ORDER BY (a*a). We do not have the framework in Item to understand which
+  functions are monotonous, so we do not attempt to create equivalences.
+
+  This is really the only the case where we can get transitive FDs that are not
+  equivalences. Since our approach does not apply FDs transitively without
+  adding the intermediate item (e.g., for {a} → b and {b} → c, we won't extend
+  (a) to (ac), only to (abc)), we extend any existing FDs here when needed.
+ */
+void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
+  int num_original_items = m_items.size();
+  int num_original_fds = m_fds.size();
+  for (int item_idx = 0; item_idx < num_original_items; ++item_idx) {
+    // We only care about items that are used in some ordering,
+    // not any used as base in FDs or the likes.
+    const ItemHandle canonical_idx = m_items[item_idx].canonical_item;
+    if (!m_items[canonical_idx].used_asc && !m_items[canonical_idx].used_desc) {
+      continue;
+    }
+
+    // We only want to look at items that are not already Item_field,
+    // and that are generated from a single field. Some quick heuristics
+    // will eliminate most of these for us.
+    Item *item = m_items[item_idx].item;
+    const table_map used_tables = item->used_tables();
+    if (item->type() == Item::FIELD_ITEM || used_tables == 0 ||
+        Overlaps(used_tables, PSEUDO_TABLE_BITS) ||
+        !IsSingleBitSet(used_tables)) {
+      continue;
+    }
+
+    Item_field *base_field = nullptr;
+    bool error =
+        WalkItem(item, enum_walk::POSTFIX, [&base_field](Item *sub_item) {
+          if (sub_item->type() == Item::FUNC_ITEM &&
+              down_cast<Item_func *>(sub_item)->functype() ==
+                  Item_func::ROLLUP_GROUP_ITEM_FUNC) {
+            // Rollup items are nondeterministic, yet don't always set
+            // RAND_TABLE_BIT.
+            return true;
+          }
+          if (sub_item->type() == Item::FIELD_ITEM) {
+            if (base_field != nullptr &&
+                !base_field->eq(sub_item, /*binary_cmp=*/true)) {
+              // More than one field in use.
+              return true;
+            }
+            base_field = down_cast<Item_field *>(sub_item);
+          }
+          return false;
+        });
+    if (error || base_field == nullptr) {
+      // More than one field in use, or no fields in use
+      // (can happen even when used_tables is set, e.g. for
+      // an Item_view_ref to a constant).
+      continue;
+    }
+
+    if (!base_field->field->binary()) {
+      // Fields with collations can have equality (with no tiebreaker)
+      // even with fields that contain differing binary data.
+      // Thus, functions do not always preserve equality; a == b
+      // does not mean f(a) == f(b), and thus, the FD does not
+      // hold either.
+      continue;
+    }
+
+    ItemHandle head_item = GetHandle(base_field);
+    FunctionalDependency fd;
+    fd.type = FunctionalDependency::FD;
+    fd.head = Bounds_checked_array<ItemHandle>(&head_item, 1);
+    fd.tail = item_idx;
+    AddFunctionalDependency(thd, fd);
+
+    // Extend existing FDs transitively (see function comment).
+    // E.g. if we have S → base, also add S → item.
+    for (int fd_idx = 0; fd_idx < num_original_fds; ++fd_idx) {
+      if (m_fds[fd_idx].type == FunctionalDependency::FD &&
+          m_fds[fd_idx].tail == head_item && m_fds[fd_idx].always_active) {
+        fd = m_fds[fd_idx];
+        fd.tail = item_idx;
+        AddFunctionalDependency(thd, fd);
+      }
+    }
+  }
 }
 
 void LogicalOrderings::FindElementsThatCanBeAddedByFDs() {
