@@ -2419,7 +2419,6 @@ read in, or also for a page already in the buffer pool.
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
                                 read page
 @param[in,out]	block		buffer block */
-/* TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
 void recv_recover_page_func(
 #ifndef UNIV_HOTBACKUP
     bool just_read_in,
@@ -2560,7 +2559,7 @@ void recv_recover_page_func(
     ut_ad(end_lsn <= max_lsn);
 #endif /* !UNIV_HOTBACKUP */
 
-    byte *buf;
+    byte *buf = nullptr;
 
     if (recv->len > RECV_DATA_BLOCK_SIZE) {
       /* We have to copy the record body to a separate
@@ -2569,8 +2568,13 @@ void recv_recover_page_func(
       buf = static_cast<byte *>(ut_malloc_nokey(recv->len));
 
       recv_data_copy_to_buf(buf, recv);
-    } else {
+    } else if (recv->data != nullptr) {
       buf = ((byte *)(recv->data)) + sizeof(recv_data_t);
+    } else {
+      /* Redo record that does not have a payload, such as MLOG_UNDO_ERASE_END,
+       * MLOG_COMP_PAGE_CREATE, MLOG_INIT_FILE_PAGE2 etc. */
+      ut_ad(recv->data == nullptr);
+      ut_ad(recv->len == 0);
     }
 
     if (recv->type == MLOG_INIT_FILE_PAGE) {
@@ -2613,8 +2617,15 @@ void recv_recover_page_func(
                             " %s len " ULINTPF " page %u:%u",
                             recv->start_lsn, get_mlog_string(recv->type),
                             recv->len, recv_addr->space, recv_addr->page_no));
-
-      recv_parse_or_apply_log_rec_body(recv->type, buf, buf + recv->len,
+      /* Since buf can be a nullptr for record types without a payload we can
+      end up with nullptr + 0 if we calc buf + recv->len. This is undefined
+      behaviour. Avoid this by only calculating the end_ptr when there's
+      actual data to work with, otherwise set it to nullptr. */
+      unsigned char *buf_end = nullptr;
+      if (buf != nullptr) {
+        buf_end = buf + recv->len;
+      }
+      recv_parse_or_apply_log_rec_body(recv->type, buf, buf_end,
                                        recv_addr->space, recv_addr->page_no,
                                        block, &mtr, ULINT_UNDEFINED, LSN_MAX);
 

@@ -774,9 +774,6 @@ byte *fsp_parse_init_file_page(
     byte *end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
     buf_block_t *block)                   /*!< in: block or NULL */
 {
-  ut_ad(ptr != nullptr);
-  ut_ad(end_ptr != nullptr);
-
   if (block) {
     fsp_init_file_page_low(block);
   }

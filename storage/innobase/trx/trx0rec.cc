@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mach0data.h"
 #include "mtr0log.h"
 #include "trx0undo.h"
+#include "ut0dbg.h"
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "fsp0sysspace.h"
@@ -2107,9 +2108,6 @@ byte *trx_undo_parse_erase_page_end(
     page_t *page,                         /*!< in: page or NULL */
     mtr_t *mtr)                           /*!< in: mtr or NULL */
 {
-  ut_ad(ptr != nullptr);
-  ut_ad(end_ptr != nullptr);
-
   if (page == nullptr) {
     return (ptr);
   }

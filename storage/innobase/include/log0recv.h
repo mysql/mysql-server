@@ -84,8 +84,7 @@ read in, or also for a page already in the buffer pool.
 
 
 @param[in,out]	block		buffer block */
-/* TODO(Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
-void recv_recover_page_func(buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
+void recv_recover_page_func(buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the
@@ -171,9 +170,7 @@ read in, or also for a page already in the buffer pool.
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
                                 read page
 @param[in,out]	block		buffer block */
-/* TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
-void recv_recover_page_func(bool just_read_in,
-                            buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
+void recv_recover_page_func(bool just_read_in, buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the
