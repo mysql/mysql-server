@@ -58,7 +58,7 @@ class Mts_submode {
   enum_mts_parallel_type type;
 
  public:
-  Mts_submode() {}
+  Mts_submode() = default;
   inline enum_mts_parallel_type get_type() { return type; }
   // pure virtual methods. Should be extended in the derieved class
 
@@ -91,7 +91,7 @@ class Mts_submode {
     return false;
   }
 
-  virtual ~Mts_submode() {}
+  virtual ~Mts_submode() = default;
 };
 
 /**
@@ -109,7 +109,7 @@ class Mts_submode_database : public Mts_submode {
   Slave_worker *get_least_occupied_worker(Relay_log_info *,
                                           Slave_worker_array *ws,
                                           Log_event *) override;
-  ~Mts_submode_database() override {}
+  ~Mts_submode_database() override = default;
   int wait_for_workers_to_finish(Relay_log_info *rli,
                                  Slave_worker *ignore = nullptr) override;
   bool set_multi_threaded_applier_context(const Relay_log_info &rli,
@@ -205,7 +205,7 @@ class Mts_submode_logical_clock : public Mts_submode {
 
   longlong get_lwm_timestamp(Relay_log_info *rli, bool need_lock);
   longlong estimate_lwm_timestamp() { return last_lwm_timestamp.load(); }
-  ~Mts_submode_logical_clock() override {}
+  ~Mts_submode_logical_clock() override = default;
 };
 
 #endif /*MTS_SUBMODE_H*/

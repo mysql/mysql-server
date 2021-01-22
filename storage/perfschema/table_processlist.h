@@ -83,7 +83,7 @@ class PFS_index_processlist_by_processlist_id : public PFS_index_threads {
   PFS_index_processlist_by_processlist_id()
       : PFS_index_threads(&m_key), m_key("ID") {}
 
-  ~PFS_index_processlist_by_processlist_id() override {}
+  ~PFS_index_processlist_by_processlist_id() override = default;
 
   virtual bool match(PFS_thread *pfs) override;
 
@@ -125,7 +125,7 @@ class table_processlist : public cursor_by_thread {
   int set_access(void);
 
  public:
-  ~table_processlist() override {}
+  ~table_processlist() override = default;
 
  private:
   virtual int make_row(PFS_thread *pfs) override;

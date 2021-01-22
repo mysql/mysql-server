@@ -112,7 +112,7 @@ class Create_func {
 
  protected:
   Create_func() = default;
-  virtual ~Create_func() {}
+  virtual ~Create_func() = default;
 };
 
 /**
@@ -148,9 +148,9 @@ class Create_qfunc : public Create_func {
 
  protected:
   /** Constructor. */
-  Create_qfunc() {}
+  Create_qfunc() = default;
   /** Destructor. */
-  ~Create_qfunc() override {}
+  ~Create_qfunc() override = default;
 };
 
 /**
@@ -191,9 +191,9 @@ class Create_udf_func : public Create_func {
 
  protected:
   /** Constructor. */
-  Create_udf_func() {}
+  Create_udf_func() = default;
   /** Destructor. */
-  ~Create_udf_func() override {}
+  ~Create_udf_func() override = default;
 };
 
 /**

@@ -39,7 +39,7 @@ class Replication_thread_api {
 
   Replication_thread_api();
 
-  ~Replication_thread_api() {}
+  ~Replication_thread_api() = default;
 
   /**
     Set the channel name to be used on the interface method invocation.

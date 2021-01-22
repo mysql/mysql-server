@@ -176,7 +176,7 @@ class Explain {
   }
 
  public:
-  virtual ~Explain() {}
+  virtual ~Explain() = default;
 
   bool send();
 

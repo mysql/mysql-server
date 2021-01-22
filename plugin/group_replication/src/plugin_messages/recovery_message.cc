@@ -30,7 +30,7 @@ Recovery_message::Recovery_message(Recovery_message_type type,
   member_uuid.assign(uuid);
 }
 
-Recovery_message::~Recovery_message() {}
+Recovery_message::~Recovery_message() = default;
 
 Recovery_message::Recovery_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_RECOVERY_MESSAGE) {

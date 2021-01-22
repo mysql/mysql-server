@@ -44,7 +44,7 @@ class View_table : virtual public Weak_object {
   typedef tables::View_table_usage DD_table;
 
  public:
-  ~View_table() override {}
+  ~View_table() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // View table catalog name.

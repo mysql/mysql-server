@@ -54,7 +54,7 @@ Session::Session(MYSQL_THD current_session)
     : m_previous_session(current_session),
       m_current_session(mysql_parser_open_session()) {}
 
-Condition_handler::~Condition_handler() {}
+Condition_handler::~Condition_handler() = default;
 
 /**
   Bridge function between the C++ API offered by this module and the C API of

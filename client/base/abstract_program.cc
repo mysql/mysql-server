@@ -90,7 +90,7 @@ void Abstract_program::run(int argc, char **argv) {
   exit(result);
 }
 
-Abstract_program::~Abstract_program() {}
+Abstract_program::~Abstract_program() = default;
 
 void Abstract_program::init_name(char *name_from_cmd_line) {
 #ifdef _WIN32

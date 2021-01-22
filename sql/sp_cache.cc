@@ -42,7 +42,7 @@ class sp_cache {
  public:
   sp_cache() : m_hashtable(system_charset_info, key_memory_sp_cache) {}
 
-  ~sp_cache() {}
+  ~sp_cache() = default;
 
   /**
    Inserts a sp_head object into a hash table.

@@ -945,7 +945,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
     cols = 0;
 }
 
-GRANT_TABLE::~GRANT_TABLE() {}
+GRANT_TABLE::~GRANT_TABLE() = default;
 
 bool GRANT_TABLE::init(TABLE *col_privs) {
   int error;

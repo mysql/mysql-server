@@ -33,7 +33,7 @@
 class ReplSemiSyncSlave : public ReplSemiSyncBase {
  public:
   ReplSemiSyncSlave() : slave_enabled_(false) {}
-  ~ReplSemiSyncSlave() {}
+  ~ReplSemiSyncSlave() = default;
 
   void setTraceLevel(unsigned long trace_level) { trace_level_ = trace_level; }
 

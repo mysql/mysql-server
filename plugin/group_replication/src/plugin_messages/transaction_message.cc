@@ -26,7 +26,7 @@
 Transaction_message::Transaction_message()
     : Transaction_message_interface(CT_TRANSACTION_MESSAGE) {}
 
-Transaction_message::~Transaction_message() {}
+Transaction_message::~Transaction_message() = default;
 
 bool Transaction_message::write(const unsigned char *buffer, my_off_t length) {
   m_data.insert(m_data.end(), buffer, buffer + length);

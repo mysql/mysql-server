@@ -33,7 +33,7 @@
 #include <cstring>
 #include <stdexcept>
 
-RouterSystemLayout::RouterSystemLayout() {}
+RouterSystemLayout::RouterSystemLayout() = default;
 
 void RouterSystemLayout::init_system_layout_dir(
     const mysql_harness::Path &myslrouter_path,

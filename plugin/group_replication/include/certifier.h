@@ -57,7 +57,7 @@ class Gtid_set_ref : public Gtid_set {
         reference_counter(0),
         parallel_applier_sequence_number(parallel_applier_sequence_number) {}
 
-  virtual ~Gtid_set_ref() {}
+  virtual ~Gtid_set_ref() = default;
 
   /**
     Increment the number of references by one.
@@ -173,7 +173,7 @@ class Certifier_broadcast_thread {
 
 class Certifier_interface : public Certifier_stats {
  public:
-  ~Certifier_interface() override {}
+  ~Certifier_interface() override = default;
   virtual void handle_view_change() = 0;
   virtual int handle_certifier_data(
       const uchar *data, ulong len,

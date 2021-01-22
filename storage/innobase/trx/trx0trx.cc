@@ -374,7 +374,7 @@ struct TrxFactory {
 
 /** The lock strategy for TrxPool */
 struct TrxPoolLock {
-  TrxPoolLock() {}
+  TrxPoolLock() = default;
 
   /** Create the mutex */
   void create() { mutex_create(LATCH_ID_TRX_POOL, &m_mutex); }
@@ -394,7 +394,7 @@ struct TrxPoolLock {
 
 /** The lock strategy for the TrxPoolManager */
 struct TrxPoolManagerLock {
-  TrxPoolManagerLock() {}
+  TrxPoolManagerLock() = default;
 
   /** Create the mutex */
   void create() { mutex_create(LATCH_ID_TRX_POOL_MANAGER, &m_mutex); }

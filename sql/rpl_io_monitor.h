@@ -128,7 +128,7 @@ class Source_IO_monitor {
   Source_IO_monitor();
 
   /* Source_IO_monitor class destructor */
-  ~Source_IO_monitor() {}
+  ~Source_IO_monitor() = default;
 
   /* Source_IO_monitor class copy constructor (restricted) */
   Source_IO_monitor(const Source_IO_monitor &) = delete;

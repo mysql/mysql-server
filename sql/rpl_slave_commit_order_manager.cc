@@ -47,7 +47,7 @@ Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
   unset_rollback_status();
 }
 
-Commit_order_manager::~Commit_order_manager() {}
+Commit_order_manager::~Commit_order_manager() = default;
 
 void Commit_order_manager::init_worker_context(Slave_worker &worker) {
   this->m_workers[worker.id].m_mdl_context = &worker.info_thd->mdl_context;

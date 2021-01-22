@@ -308,7 +308,7 @@ void FileHandler::do_log(const Record &record) {
 // satisfy ODR
 constexpr const char *FileHandler::kDefaultName;
 
-FileHandler::~FileHandler() {}
+FileHandler::~FileHandler() = default;
 
 }  // namespace logging
 

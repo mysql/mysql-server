@@ -191,7 +191,7 @@ class Plugin_gcs_message {
   enum_cargo_type m_cargo_type;
 
  public:
-  virtual ~Plugin_gcs_message() {}
+  virtual ~Plugin_gcs_message() = default;
 
   /**
    @return the value of the version field.

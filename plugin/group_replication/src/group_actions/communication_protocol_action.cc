@@ -33,7 +33,7 @@ Communication_protocol_action::Communication_protocol_action(
     Gcs_protocol_version gcs_protocol)
     : m_diagnostics(), m_gcs_protocol(gcs_protocol), m_protocol_change_done() {}
 
-Communication_protocol_action::~Communication_protocol_action() {}
+Communication_protocol_action::~Communication_protocol_action() = default;
 
 // Group_action implementation
 void Communication_protocol_action::get_action_message(

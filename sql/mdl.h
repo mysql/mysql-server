@@ -83,7 +83,7 @@ bool test_drive_fix_pins(MDL_context *);
 
 class MDL_context_owner {
  public:
-  virtual ~MDL_context_owner() {}
+  virtual ~MDL_context_owner() = default;
 
   /**
     Enter a condition wait.
@@ -741,7 +741,7 @@ struct MDL_key {
           const char *name_arg) {
     mdl_key_init(namespace_arg, db_arg, name_arg);
   }
-  MDL_key() {} /* To use when part of MDL_request. */
+  MDL_key() = default; /* To use when part of MDL_request. */
 
   /**
     Get thread state name to be used in case when we have to
@@ -875,7 +875,7 @@ class MDL_request {
       Locked_tables_list::rename_locked_table(), a move assignment is actually
       what is intended.
   */
-  MDL_request() {}
+  MDL_request() = default;
 
   MDL_request(const MDL_request &rhs)
       : type(rhs.type), duration(rhs.duration), ticket(nullptr), key(rhs.key) {}
@@ -1298,7 +1298,7 @@ class MDL_ticket_store {
 
 class MDL_savepoint {
  public:
-  MDL_savepoint() {}
+  MDL_savepoint() = default;
 
  private:
   MDL_savepoint(MDL_ticket *stmt_ticket, MDL_ticket *trans_ticket)
@@ -1361,7 +1361,7 @@ class MDL_wait {
 
 class MDL_release_locks_visitor {
  public:
-  virtual ~MDL_release_locks_visitor() {}
+  virtual ~MDL_release_locks_visitor() = default;
   /**
     Check if the given ticket represents a lock that should be released.
 
@@ -1376,7 +1376,7 @@ class MDL_release_locks_visitor {
 
 class MDL_context_visitor {
  public:
-  virtual ~MDL_context_visitor() {}
+  virtual ~MDL_context_visitor() = default;
   virtual void visit_context(const MDL_context *ctx) = 0;
 };
 

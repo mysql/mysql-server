@@ -102,7 +102,7 @@ Handler::Handler(handlerton *hton, TABLE_SHARE *table_share_arg)
 #endif /* HAVE_WINNUMA */
 }
 
-Handler::~Handler() {}
+Handler::~Handler() = default;
 
 int Handler::create(const char *table_name, TABLE *mysql_table,
                     HA_CREATE_INFO *, dd::Table *) {

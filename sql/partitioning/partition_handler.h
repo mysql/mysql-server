@@ -192,8 +192,8 @@ class Partition_share : public Handler_share {
 */
 class Partition_handler {
  public:
-  Partition_handler() {}
-  virtual ~Partition_handler() {}
+  Partition_handler() = default;
+  virtual ~Partition_handler() = default;
 
   /**
     Get dynamic table information from partition.

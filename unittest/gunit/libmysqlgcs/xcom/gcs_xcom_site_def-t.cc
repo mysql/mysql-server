@@ -30,8 +30,8 @@ namespace xcom_site_def_unittest {
 
 class XcomSiteDef : public GcsBaseTest {
  protected:
-  XcomSiteDef() {}
-  ~XcomSiteDef() override {}
+  XcomSiteDef() = default;
+  ~XcomSiteDef() override = default;
 };
 
 TEST_F(XcomSiteDef, config_max_boot_key) {

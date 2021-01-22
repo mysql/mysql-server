@@ -82,7 +82,7 @@ using Arch_Dblwr_Blocks = std::vector<Arch_Dblwr_Block>;
 class Arch_Dblwr_Ctx {
  public:
   /** Constructor: Initialize members */
-  Arch_Dblwr_Ctx() {}
+  Arch_Dblwr_Ctx() = default;
 
   /** Destructor: Close open file and free resources */
   ~Arch_Dblwr_Ctx() {
@@ -134,7 +134,7 @@ class Arch_Page_Sys::Recv {
   Recv(const char *dir_name) : m_arch_dir_name(dir_name) {}
 
   /** Destructor: Close open file and free resources */
-  ~Recv() {}
+  ~Recv() = default;
 
   /** Initialise the archiver's recovery system.
   @return error code. */

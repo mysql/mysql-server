@@ -192,7 +192,7 @@ class Gcs_xcom_communication_interface : public Gcs_communication_interface {
   virtual void process_user_data_packet(
       Gcs_packet &&packet, std::unique_ptr<Gcs_xcom_nodes> &&xcom_nodes) = 0;
 
-  ~Gcs_xcom_communication_interface() override {}
+  ~Gcs_xcom_communication_interface() override = default;
 };
 
 /**

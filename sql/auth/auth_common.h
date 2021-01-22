@@ -101,9 +101,9 @@ enum ACL_internal_access_result {
 */
 class ACL_internal_table_access {
  public:
-  ACL_internal_table_access() {}
+  ACL_internal_table_access() = default;
 
-  virtual ~ACL_internal_table_access() {}
+  virtual ~ACL_internal_table_access() = default;
 
   /**
     Check access to an internal table.
@@ -136,9 +136,9 @@ class ACL_internal_table_access {
 */
 class ACL_internal_schema_access {
  public:
-  ACL_internal_schema_access() {}
+  ACL_internal_schema_access() = default;
 
-  virtual ~ACL_internal_schema_access() {}
+  virtual ~ACL_internal_schema_access() = default;
 
   /**
     Check access to an internal schema.
@@ -181,9 +181,9 @@ class ACL_internal_schema_registry {
 */
 class IS_internal_schema_access : public ACL_internal_schema_access {
  public:
-  IS_internal_schema_access() {}
+  IS_internal_schema_access() = default;
 
-  ~IS_internal_schema_access() override {}
+  ~IS_internal_schema_access() override = default;
 
   ACL_internal_access_result check(ulong want_access,
                                    ulong *save_priv) const override;
@@ -418,7 +418,7 @@ class User_table_schema {
   // Added in 8.0.14
   virtual uint user_attributes_idx() = 0;
 
-  virtual ~User_table_schema() {}
+  virtual ~User_table_schema() = default;
 };
 
 /*
@@ -684,7 +684,7 @@ class User_table_schema_factory {
   }
 
   virtual bool is_old_user_table_schema(TABLE *table);
-  virtual ~User_table_schema_factory() {}
+  virtual ~User_table_schema_factory() = default;
 };
 
 extern bool mysql_user_table_is_in_short_password_format;

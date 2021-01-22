@@ -37,7 +37,7 @@ namespace gcs_member_info_unittest {
 
 class ClusterMemberInfoTest : public ::testing::Test {
  protected:
-  ClusterMemberInfoTest() {}
+  ClusterMemberInfoTest() = default;
 
   void SetUp() override {
     string hostname("pc_hostname");
@@ -116,7 +116,7 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest) {
 
 class ClusterMemberInfoManagerTest : public ::testing::Test {
  protected:
-  ClusterMemberInfoManagerTest() {}
+  ClusterMemberInfoManagerTest() = default;
 
   void SetUp() override {
     string hostname("pc_hostname");

@@ -8056,7 +8056,7 @@ and PART_REORGED_DROPPED
 class alter_part {
  public:
   /** Virtual destructor */
-  virtual ~alter_part() {}
+  virtual ~alter_part() = default;
 
   /** Return the partition id */
   virtual uint part_id() const { return (m_part_id); }
@@ -8304,7 +8304,7 @@ class alter_part_factory {
         m_file_per_table(srv_file_per_table) {}
 
   /** Destructor */
-  ~alter_part_factory() {}
+  ~alter_part_factory() = default;
 
   /** Create the alter_part_* objects according to the given
   partition states
@@ -8525,7 +8525,7 @@ class alter_part_normal : public alter_part {
         alter_part(nullptr, part_id, state, (*old)->name.m_name, old) {}
 
   /** Destructor */
-  ~alter_part_normal() override {}
+  ~alter_part_normal() override = default;
 
   /** Prepare
   @param[in,out]	altered_table	Table definition after the ALTER
@@ -8610,7 +8610,7 @@ class alter_part_add : public alter_part {
   }
 
   /** Destructor */
-  ~alter_part_add() override {}
+  ~alter_part_add() override = default;
 
   /** Prepare
   @param[in,out]	altered_table	Table definition after the ALTER
@@ -8760,7 +8760,7 @@ class alter_part_drop : public alter_part {
         m_conflict(conflict) {}
 
   /** Destructor */
-  ~alter_part_drop() override {}
+  ~alter_part_drop() override = default;
 
   /** Try to commit
   @param[in]	table		Table definition before the ALTER
@@ -8879,7 +8879,7 @@ class alter_part_change : public alter_part {
   }
 
   /** Destructor */
-  ~alter_part_change() override {}
+  ~alter_part_change() override = default;
 
   /** Prepare
   @param[in,out]	altered_table	Table definition after the ALTER

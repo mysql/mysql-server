@@ -192,14 +192,14 @@ class Object_creation_ctx {
   void restore_env(THD *thd, Object_creation_ctx *backup_ctx);
 
  protected:
-  Object_creation_ctx() {}
+  Object_creation_ctx() = default;
   virtual Object_creation_ctx *create_backup_ctx(THD *thd) const = 0;
   virtual void delete_backup_ctx() = 0;
 
   virtual void change_env(THD *thd) const = 0;
 
  public:
-  virtual ~Object_creation_ctx() {}
+  virtual ~Object_creation_ctx() = default;
 };
 
 /*************************************************************************/
@@ -580,7 +580,7 @@ class Table_check_intact {
 
  public:
   Table_check_intact() : has_keys(false) {}
-  virtual ~Table_check_intact() {}
+  virtual ~Table_check_intact() = default;
 
   /**
     Checks whether a table is intact. Should be done *just* after the table has
@@ -3766,7 +3766,7 @@ class Field_iterator_natural_join : public Field_iterator {
 
  public:
   Field_iterator_natural_join() : cur_column_ref(nullptr) {}
-  ~Field_iterator_natural_join() override {}
+  ~Field_iterator_natural_join() override = default;
   void set(TABLE_LIST *table) override;
   void next() override;
   bool end_of_fields() override { return !cur_column_ref; }

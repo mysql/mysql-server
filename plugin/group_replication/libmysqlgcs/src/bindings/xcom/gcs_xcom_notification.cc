@@ -32,7 +32,7 @@ Finalize_notification::Finalize_notification(Gcs_xcom_engine *gcs_engine,
                                              xcom_finalize_functor *functor)
     : m_gcs_engine(gcs_engine), m_functor(functor) {}
 
-Finalize_notification::~Finalize_notification() {}
+Finalize_notification::~Finalize_notification() = default;
 
 void Finalize_notification::do_execute() {
   /*
@@ -55,7 +55,7 @@ Initialize_notification::Initialize_notification(
     xcom_initialize_functor *functor)
     : m_functor(functor) {}
 
-Initialize_notification::~Initialize_notification() {}
+Initialize_notification::~Initialize_notification() = default;
 
 void Initialize_notification::do_execute() {
   if (m_functor) (*m_functor)();
@@ -74,7 +74,7 @@ Data_notification::Data_notification(xcom_receive_data_functor *functor,
       m_size(size),
       m_data(data) {}
 
-Data_notification::~Data_notification() {}
+Data_notification::~Data_notification() = default;
 
 void Data_notification::do_execute() {
   (*m_functor)(m_message_id, m_xcom_nodes, m_last_removed, m_size, m_data);
@@ -84,7 +84,7 @@ Status_notification::Status_notification(xcom_status_functor *functor,
                                          int status)
     : m_functor(functor), m_status(status) {}
 
-Status_notification::~Status_notification() {}
+Status_notification::~Status_notification() = default;
 
 void Status_notification::do_execute() { (*m_functor)(m_status); }
 
@@ -100,7 +100,7 @@ Global_view_notification::Global_view_notification(
       m_event_horizon(event_horizon),
       m_max_synode(max_synode) {}
 
-Global_view_notification::~Global_view_notification() {}
+Global_view_notification::~Global_view_notification() = default;
 
 void Global_view_notification::do_execute() {
   (*m_functor)(m_config_id, m_message_id, m_xcom_nodes, m_event_horizon,
@@ -116,7 +116,7 @@ Local_view_notification::Local_view_notification(
       m_xcom_nodes(xcom_nodes),
       m_max_synode(max_synode) {}
 
-Local_view_notification::~Local_view_notification() {}
+Local_view_notification::~Local_view_notification() = default;
 
 void Local_view_notification::do_execute() {
   (*m_functor)(m_config_id, m_xcom_nodes, m_max_synode);
@@ -125,7 +125,7 @@ void Local_view_notification::do_execute() {
 Expel_notification::Expel_notification(xcom_expel_functor *functor)
     : m_functor(functor) {}
 
-Expel_notification::~Expel_notification() {}
+Expel_notification::~Expel_notification() = default;
 
 void Expel_notification::do_execute() { (*m_functor)(); }
 
@@ -133,7 +133,7 @@ Control_notification::Control_notification(xcom_control_functor *functor,
                                            Gcs_control_interface *control_if)
     : m_functor(functor), m_control_if(control_if) {}
 
-Control_notification::~Control_notification() {}
+Control_notification::~Control_notification() = default;
 
 void Control_notification::do_execute() {
   static_cast<void>((*m_functor)(m_control_if));
@@ -145,7 +145,7 @@ Protocol_change_notification::Protocol_change_notification(
     Gcs_tagged_lock::Tag const tag)
     : m_functor(functor), m_protocol_changer(protocol_changer), m_tag(tag) {}
 
-Protocol_change_notification::~Protocol_change_notification() {}
+Protocol_change_notification::~Protocol_change_notification() = default;
 
 void Protocol_change_notification::do_execute() {
   (*m_functor)(m_protocol_changer, m_tag);

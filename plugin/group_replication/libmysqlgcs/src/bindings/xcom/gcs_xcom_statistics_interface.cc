@@ -35,7 +35,7 @@ Gcs_xcom_statistics::Gcs_xcom_statistics()
       max_message_length(0),
       last_message_timestamp(0) {}
 
-Gcs_xcom_statistics::~Gcs_xcom_statistics() {}
+Gcs_xcom_statistics::~Gcs_xcom_statistics() = default;
 
 long Gcs_xcom_statistics::get_total_messages_sent() {
   return total_messages_sent;

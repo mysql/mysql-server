@@ -341,7 +341,7 @@ class COPY_INFO {
      This class allocates its memory in a MEM_ROOT, so there's nothing to
      delete.
   */
-  virtual ~COPY_INFO() {}
+  virtual ~COPY_INFO() = default;
 };
 
 #endif  // SQL_DATA_CHANGE_INCLUDED

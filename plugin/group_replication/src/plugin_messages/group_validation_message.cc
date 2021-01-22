@@ -30,7 +30,7 @@ Group_validation_message::Group_validation_message(bool has_channels,
       has_channels(has_channels),
       member_weight(member_weight_arg) {}
 
-Group_validation_message::~Group_validation_message() {}
+Group_validation_message::~Group_validation_message() = default;
 
 Group_validation_message::Group_validation_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_GROUP_VALIDATION_MESSAGE) {

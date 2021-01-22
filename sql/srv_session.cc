@@ -271,7 +271,7 @@ class Mutexed_map_thd_srv_session {
  public:
   class Do_Impl {
    public:
-    virtual ~Do_Impl() {}
+    virtual ~Do_Impl() = default;
     /**
       Work on the session
 

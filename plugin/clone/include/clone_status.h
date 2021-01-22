@@ -55,7 +55,7 @@ class Table_pfs {
   Table_pfs(uint32_t num_rows);
 
   /** Destructor. */
-  virtual ~Table_pfs() {}
+  virtual ~Table_pfs() = default;
 
   /** Read column at index of current row. Implementation
   is specific to table.

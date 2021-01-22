@@ -31,7 +31,7 @@ namespace gcs_allowlist_unittest {
 
 class GcsAllowlist : public GcsBaseTest {
  protected:
-  GcsAllowlist() {}
+  GcsAllowlist() = default;
 };
 
 TEST_F(GcsAllowlist, ValidIPs) {

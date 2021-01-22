@@ -31,7 +31,7 @@ namespace unittests {
 
 class Unique_ptr_test : public ::testing::Test {
  protected:
-  Unique_ptr_test() {}
+  Unique_ptr_test() = default;
   virtual void SetUp() {}
   virtual void TearDown() {}
 };

@@ -190,4 +190,4 @@ std::error_code HttpAuthBackendHtpasswd::authenticate(
   }
 }
 
-HttpAuthBackend::~HttpAuthBackend() {}
+HttpAuthBackend::~HttpAuthBackend() = default;

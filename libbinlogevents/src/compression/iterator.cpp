@@ -94,7 +94,7 @@ Iterable_buffer::iterator::iterator(Iterable_buffer &parent)
 Iterable_buffer::iterator::iterator(const iterator &rhs) { (*this) = rhs; }
 Iterable_buffer::iterator::iterator(iterator &&rhs) { (*this) = rhs; }
 
-Iterable_buffer::iterator::~iterator() {}
+Iterable_buffer::iterator::~iterator() = default;
 
 Iterable_buffer::iterator &Iterable_buffer::iterator::operator=(
     const Iterable_buffer::iterator &rhs) {

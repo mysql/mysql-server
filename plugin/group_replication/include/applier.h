@@ -78,7 +78,7 @@ class Action_packet : public Packet {
   Action_packet(enum_packet_action action)
       : Packet(ACTION_PACKET_TYPE), packet_action(action) {}
 
-  ~Action_packet() override {}
+  ~Action_packet() override = default;
 
   enum_packet_action packet_action;
 };
@@ -97,7 +97,7 @@ class View_change_packet : public Packet {
   View_change_packet(std::string &view_id_arg)
       : Packet(VIEW_CHANGE_PACKET_TYPE), view_id(view_id_arg) {}
 
-  ~View_change_packet() override {}
+  ~View_change_packet() override = default;
 
   std::string view_id;
   std::vector<std::string> group_executed_set;
@@ -119,7 +119,7 @@ class Single_primary_action_packet : public Packet {
   Single_primary_action_packet(enum enum_action action_arg)
       : Packet(SINGLE_PRIMARY_PACKET_TYPE), action(action_arg) {}
 
-  ~Single_primary_action_packet() override {}
+  ~Single_primary_action_packet() override = default;
 
   enum enum_action action;
 };
@@ -170,7 +170,7 @@ class Transaction_prepared_action_packet : public Packet {
     }
   }
 
-  ~Transaction_prepared_action_packet() override {}
+  ~Transaction_prepared_action_packet() override = default;
 
   const bool m_sid_specified;
   const rpl_gno m_gno;
@@ -201,7 +201,7 @@ class Sync_before_execution_action_packet : public Packet {
         m_thread_id(thread_id),
         m_gcs_member_id(gcs_member_id.get_member_id()) {}
 
-  ~Sync_before_execution_action_packet() override {}
+  ~Sync_before_execution_action_packet() override = default;
 
   const my_thread_id m_thread_id;
   const Gcs_member_identifier m_gcs_member_id;
@@ -225,7 +225,7 @@ class Leaving_members_action_packet : public Packet {
       : Packet(LEAVING_MEMBERS_PACKET_TYPE),
         m_leaving_members(leaving_members) {}
 
-  ~Leaving_members_action_packet() override {}
+  ~Leaving_members_action_packet() override = default;
 
   const std::vector<Gcs_member_identifier> m_leaving_members;
 };
@@ -238,7 +238,7 @@ typedef enum enum_applier_state {
 
 class Applier_module_interface {
  public:
-  virtual ~Applier_module_interface() {}
+  virtual ~Applier_module_interface() = default;
   virtual Certification_handler *get_certification_handler() = 0;
   virtual int wait_for_applier_complete_suspension(
       bool *abort_flag, bool wait_for_execution = true) = 0;

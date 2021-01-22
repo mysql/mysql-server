@@ -2510,8 +2510,8 @@ class Query_tables_list {
     These constructor and destructor serve for creation/destruction
     of Query_tables_list instances which are used as backup storage.
   */
-  Query_tables_list() {}
-  ~Query_tables_list() {}
+  Query_tables_list() = default;
+  ~Query_tables_list() = default;
 
   /* Initializes (or resets) Query_tables_list object for "real" use. */
   void reset_query_tables_list(bool init);

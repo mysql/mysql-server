@@ -121,7 +121,7 @@ class Manifest_reader final {
     valid_ = true;
   }
 
-  ~Manifest_reader() {}
+  ~Manifest_reader() = default;
 
   bool file_present() const { return file_present_; }
   bool empty() const { return !file_present_ || empty_; }

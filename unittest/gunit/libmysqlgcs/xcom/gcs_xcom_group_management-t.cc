@@ -110,7 +110,7 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
 
 class XcomGroupManagementTest : public GcsBaseTest {
  protected:
-  XcomGroupManagementTest() {}
+  XcomGroupManagementTest() = default;
 
   void SetUp() override {
     group_id = new Gcs_group_identifier("only_group");

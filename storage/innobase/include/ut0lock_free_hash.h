@@ -53,7 +53,7 @@ class ut_hash_interface_t {
   static const int64_t NOT_FOUND = INT64_MAX;
 
   /** Destructor. */
-  virtual ~ut_hash_interface_t() {}
+  virtual ~ut_hash_interface_t() = default;
 
   /** Get the value mapped to a given key.
   @param[in]	key	key to look for

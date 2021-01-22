@@ -60,7 +60,7 @@ class Trigger : virtual public Entity_object {
   enum class enum_action_timing { AT_BEFORE = 1, AT_AFTER };
 
  public:
-  ~Trigger() override {}
+  ~Trigger() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // schema.

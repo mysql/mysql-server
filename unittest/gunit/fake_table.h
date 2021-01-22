@@ -64,8 +64,8 @@ static const uint MAX_TABLE_COLUMNS = sizeof(int) * 8;
 */
 class Fake_TABLE_LIST : public TABLE_LIST {
  public:
-  Fake_TABLE_LIST() {}
-  ~Fake_TABLE_LIST() {}
+  Fake_TABLE_LIST() = default;
+  ~Fake_TABLE_LIST() = default;
 };
 
 /*
@@ -94,7 +94,7 @@ class Fake_TABLE_SHARE : public TABLE_SHARE {
     EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields));
     bitmap_set_above(&all_set, 0, true);
   }
-  ~Fake_TABLE_SHARE() {}
+  ~Fake_TABLE_SHARE() = default;
 };
 
 /*

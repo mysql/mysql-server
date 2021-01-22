@@ -55,7 +55,7 @@ class PFS_index_ews_by_account_by_event_name : public PFS_engine_index {
         m_key_2("HOST"),
         m_key_3("EVENT_NAME") {}
 
-  ~PFS_index_ews_by_account_by_event_name() override {}
+  ~PFS_index_ews_by_account_by_event_name() override = default;
 
   virtual bool match(PFS_account *pfs);
   virtual bool match_view(uint view);
@@ -135,7 +135,7 @@ class table_ews_by_account_by_event_name : public PFS_engine_table {
   table_ews_by_account_by_event_name();
 
  public:
-  ~table_ews_by_account_by_event_name() override {}
+  ~table_ews_by_account_by_event_name() override = default;
 
  protected:
   int make_row(PFS_account *account, PFS_instr_class *klass);

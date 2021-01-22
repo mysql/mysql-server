@@ -78,7 +78,7 @@ class PFS_index_rpl_async_conn_failover : public PFS_engine_index {
         m_key_4("NETWORK_NAMESPACE"),
         m_key_5("MANAGED_NAME") {}
 
-  ~PFS_index_rpl_async_conn_failover() override {}
+  ~PFS_index_rpl_async_conn_failover() override = default;
 
   /**
     Match fetched row with searched values.

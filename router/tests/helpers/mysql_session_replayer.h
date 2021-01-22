@@ -109,7 +109,7 @@ class MySQLSessionReplayer : public mysqlrouter::MySQLSession {
 
  private:
   struct CallInfo {
-    CallInfo() {}
+    CallInfo() = default;
     CallInfo(const CallInfo &ci);
 
     enum Type { Connect, Execute, Query, QueryOne };

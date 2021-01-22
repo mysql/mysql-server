@@ -68,7 +68,7 @@ class IError_handler {
   /**
     Virtual destructor.
   */
-  virtual ~IError_handler() {}
+  virtual ~IError_handler() = default;
   /**
     Error reporting method.
 

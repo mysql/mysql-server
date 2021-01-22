@@ -201,7 +201,7 @@ class SE_cost_constants {
         m_memory_block_read_cost_default(true),
         m_io_block_read_cost_default(true) {}
 
-  virtual ~SE_cost_constants() {}
+  virtual ~SE_cost_constants() = default;
 
   /**
     Cost of reading one random block from an in-memory database buffer.

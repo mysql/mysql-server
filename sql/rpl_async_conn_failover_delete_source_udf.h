@@ -33,8 +33,8 @@ class Rpl_async_conn_failover_delete_source : public Udf_service_impl {
   bool m_initialized{false};
 
  public:
-  Rpl_async_conn_failover_delete_source() {}
-  ~Rpl_async_conn_failover_delete_source() override {}
+  Rpl_async_conn_failover_delete_source() = default;
+  ~Rpl_async_conn_failover_delete_source() override = default;
 
   /**
     Initialize variables, acquires the mysql_service_mysql_udf_metadata from the

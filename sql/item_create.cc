@@ -986,7 +986,7 @@ class Function_factory : public Create_func {
   }
 
  private:
-  Function_factory() {}
+  Function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1013,7 +1013,7 @@ class Odd_argcount_function_factory : public Create_func {
   }
 
  private:
-  Odd_argcount_function_factory() {}
+  Odd_argcount_function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1040,7 +1040,7 @@ class Even_argcount_function_factory : public Create_func {
   }
 
  private:
-  Even_argcount_function_factory() {}
+  Even_argcount_function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1075,7 +1075,7 @@ class Internal_function_factory : public Create_func {
   }
 
  private:
-  Internal_function_factory() {}
+  Internal_function_factory() = default;
   Instantiator_fn m_instantiator;
 };
 
@@ -1097,9 +1097,9 @@ class Create_sp_func : public Create_qfunc {
 
  protected:
   /** Constructor. */
-  Create_sp_func() {}
+  Create_sp_func() = default;
   /** Destructor. */
-  ~Create_sp_func() override {}
+  ~Create_sp_func() override = default;
 };
 
 Item *Create_qfunc::create_func(THD *thd, LEX_STRING name,

@@ -39,7 +39,7 @@ const char dummy_digest[] = "01234567890123456789012345678901";
 class Checker : public keyring::Keyring_alloc {
  public:
   Checker(std::string file_version) : file_version(file_version) {}
-  virtual ~Checker() {}
+  virtual ~Checker() = default;
   virtual bool check_file_structure(File file, size_t file_size, Digest *digest,
                                     Converter::Arch *type = nullptr);
   static const my_off_t EOF_TAG_SIZE;

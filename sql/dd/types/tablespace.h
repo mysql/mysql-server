@@ -77,7 +77,7 @@ class Tablespace : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  ~Tablespace() override {}
+  ~Tablespace() override = default;
 
   /**
     Check if the tablespace is empty, i.e., whether it has any tables.

@@ -602,7 +602,7 @@ class Group_member_info : public Plugin_gcs_message {
  */
 class Group_member_info_manager_interface {
  public:
-  virtual ~Group_member_info_manager_interface() {}
+  virtual ~Group_member_info_manager_interface() = default;
 
   /**
     Number of members in the group.

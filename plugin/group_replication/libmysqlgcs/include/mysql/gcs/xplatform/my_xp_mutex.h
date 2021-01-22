@@ -95,7 +95,7 @@ class My_xp_mutex {
 
   virtual mysql_mutex_t *get_native_mutex() = 0;
 
-  virtual ~My_xp_mutex() {}
+  virtual ~My_xp_mutex() = default;
 };
 
 #ifndef XCOM_STANDALONE
@@ -121,8 +121,8 @@ class My_xp_mutex_impl : public My_xp_mutex_server
 #endif
 {
  public:
-  explicit My_xp_mutex_impl() {}
-  ~My_xp_mutex_impl() override {}
+  explicit My_xp_mutex_impl() = default;
+  ~My_xp_mutex_impl() override = default;
 };
 
 class My_xp_mutex_util {

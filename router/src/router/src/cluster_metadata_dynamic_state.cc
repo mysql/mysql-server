@@ -61,7 +61,7 @@ ClusterMetadataDynamicState::ClusterMetadataDynamicState(
   pimpl_->base_state_ = base_config;
 }
 
-ClusterMetadataDynamicState::~ClusterMetadataDynamicState() {}
+ClusterMetadataDynamicState::~ClusterMetadataDynamicState() = default;
 
 void ClusterMetadataDynamicState::save_section() {
   JsonValue section(rapidjson::kObjectType);

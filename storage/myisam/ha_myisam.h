@@ -64,7 +64,7 @@ ICP_RESULT index_cond_func_myisam(void *arg);
 class Myisam_handler_share : public Handler_share {
  public:
   Myisam_handler_share() : m_share(nullptr) {}
-  ~Myisam_handler_share() override {}
+  ~Myisam_handler_share() override = default;
   MYISAM_SHARE *m_share;
 };
 
@@ -77,7 +77,7 @@ class ha_myisam : public handler {
 
  public:
   ha_myisam(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_myisam() override {}
+  ~ha_myisam() override = default;
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
   const char *table_type() const override { return "MyISAM"; }
   enum ha_key_alg get_default_index_algorithm() const override {

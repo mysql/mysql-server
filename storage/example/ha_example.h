@@ -67,7 +67,7 @@ class ha_example : public handler {
 
  public:
   ha_example(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_example() override {}
+  ~ha_example() override = default;
 
   /** @brief
     The name that will be used for display purposes.

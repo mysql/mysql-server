@@ -26,7 +26,7 @@
 
 class PumpObjectParserTest : public ::testing::Test {
  protected:
-  PumpObjectParserTest() {}
+  PumpObjectParserTest() = default;
 
   std::vector<std::pair<std::string, std::string>> list;
   std::string err;

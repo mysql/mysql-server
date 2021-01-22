@@ -852,7 +852,7 @@ class Load_log_processor {
 
  public:
   Load_log_processor() : file_names() {}
-  ~Load_log_processor() {}
+  ~Load_log_processor() = default;
 
   void init_by_dir_name(const char *dir) {
     target_dir_name_len =

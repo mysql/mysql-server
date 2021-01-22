@@ -679,7 +679,7 @@ static void test_single(const std::string &group) {
 
 class Log_test_disturber {
  public:
-  virtual ~Log_test_disturber() {}
+  virtual ~Log_test_disturber() = default;
 
   virtual void disturb() = 0;
 };

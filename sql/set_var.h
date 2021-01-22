@@ -171,7 +171,7 @@ class sys_var {
           on_check_function on_check_func, on_update_function on_update_func,
           const char *substitute, int parse_flag);
 
-  virtual ~sys_var() {}
+  virtual ~sys_var() = default;
 
   /**
     All the cleanup procedures should be performed here
@@ -366,8 +366,8 @@ class sys_var {
 */
 class set_var_base {
  public:
-  set_var_base() {}
-  virtual ~set_var_base() {}
+  set_var_base() = default;
+  virtual ~set_var_base() = default;
   virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
   virtual int check(THD *thd) = 0;    ///< Evaluate the expression
   virtual int update(THD *thd) = 0;   ///< Set the value

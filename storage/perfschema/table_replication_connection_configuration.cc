@@ -130,7 +130,7 @@ table_replication_connection_configuration::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_connection_configuration::
-    ~table_replication_connection_configuration() {}
+    ~table_replication_connection_configuration() = default;
 
 void table_replication_connection_configuration::reset_position(void) {
   m_pos.m_index = 0;

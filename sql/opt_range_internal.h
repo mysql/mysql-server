@@ -609,7 +609,7 @@ class SEL_ARG {
 
   bool is_ascending;  ///< true - ASC order, false - DESC
 
-  SEL_ARG() {}
+  SEL_ARG() = default;
   SEL_ARG(SEL_ARG &);
   SEL_ARG(Field *, const uchar *, const uchar *, bool asc);
   SEL_ARG(Field *field, uint8 part, uchar *min_value, uchar *max_value,
@@ -1094,7 +1094,7 @@ class RANGE_OPT_PARAM {
 
   bool has_errors() const { return (error_handler.has_errors()); }
 
-  virtual ~RANGE_OPT_PARAM() {}
+  virtual ~RANGE_OPT_PARAM() = default;
 };
 
 /*

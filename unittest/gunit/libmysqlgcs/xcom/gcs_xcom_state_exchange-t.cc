@@ -137,7 +137,7 @@ class mock_gcs_xcom_communication_interface
 
 class XComStateExchangeTest : public GcsBaseTest {
  protected:
-  XComStateExchangeTest() {}
+  XComStateExchangeTest() = default;
 
   void SetUp() override {
     control_mock = new mock_gcs_control_interface();

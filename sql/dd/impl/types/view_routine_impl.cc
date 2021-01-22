@@ -47,7 +47,7 @@ namespace dd {
 // View_routine_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-View_routine_impl::View_routine_impl() {}
+View_routine_impl::View_routine_impl() = default;
 
 View_routine_impl::View_routine_impl(View_impl *view) : m_view(view) {}
 

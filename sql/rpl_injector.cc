@@ -250,7 +250,7 @@ injector::transaction::binlog_pos injector::transaction::next_pos() const {
 */
 
 /* This constructor is called below */
-inline injector::injector() {}
+inline injector::injector() = default;
 
 static injector *s_injector = nullptr;
 injector *injector::instance() {

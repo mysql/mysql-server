@@ -32,9 +32,9 @@ namespace json_data {
 /* Base class for data extensions */
 class Json_data_extension {
  public:
-  Json_data_extension() {}
+  Json_data_extension() = default;
   virtual std::string version() { return std::string{"1.0"}; }
-  virtual ~Json_data_extension() {}
+  virtual ~Json_data_extension() = default;
 };
 
 }  // namespace json_data

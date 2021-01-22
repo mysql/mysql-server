@@ -173,7 +173,7 @@ class Integrals_lockfree_queue_test : public ::testing::Test {
   }
 
  protected:
-  Integrals_lockfree_queue_test() {}
+  Integrals_lockfree_queue_test() = default;
   virtual void SetUp() {}
   virtual void TearDown() {}
 };

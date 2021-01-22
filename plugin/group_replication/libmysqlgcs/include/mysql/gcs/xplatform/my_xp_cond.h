@@ -107,7 +107,7 @@ class My_xp_cond {
 
   virtual mysql_cond_t *get_native_cond() = 0;
 
-  virtual ~My_xp_cond() {}
+  virtual ~My_xp_cond() = default;
 };
 
 #ifndef XCOM_STANDALONE
@@ -134,8 +134,8 @@ class My_xp_cond_impl : public My_xp_cond_server
 #endif
 {
  public:
-  explicit My_xp_cond_impl() {}
-  ~My_xp_cond_impl() override {}
+  explicit My_xp_cond_impl() = default;
+  ~My_xp_cond_impl() override = default;
 };
 
 #endif  // MY_XP_COND_INCLUDED

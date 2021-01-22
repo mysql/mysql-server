@@ -342,7 +342,7 @@ class MetadataRecover {
 
  public:
   /** Default constructor */
-  MetadataRecover() UNIV_NOTHROW {}
+  MetadataRecover() UNIV_NOTHROW = default;
 
   /** Destructor */
   ~MetadataRecover();

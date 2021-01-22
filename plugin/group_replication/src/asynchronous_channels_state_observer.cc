@@ -26,7 +26,8 @@
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
 
-Asynchronous_channels_state_observer::Asynchronous_channels_state_observer() {}
+Asynchronous_channels_state_observer::Asynchronous_channels_state_observer() =
+    default;
 
 int Asynchronous_channels_state_observer::thread_start(
     Binlog_relay_IO_param *param) {

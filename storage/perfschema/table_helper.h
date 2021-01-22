@@ -1133,7 +1133,7 @@ class PFS_key_long : public PFS_engine_key {
  public:
   PFS_key_long(const char *name) : PFS_engine_key(name), m_key_value(0) {}
 
-  ~PFS_key_long() override {}
+  ~PFS_key_long() override = default;
 
   static enum ha_rkey_function stateless_read(PFS_key_reader &reader,
                                               enum ha_rkey_function find_flag,
@@ -1163,7 +1163,7 @@ class PFS_key_ulong : public PFS_engine_key {
  public:
   PFS_key_ulong(const char *name) : PFS_engine_key(name), m_key_value(0) {}
 
-  ~PFS_key_ulong() override {}
+  ~PFS_key_ulong() override = default;
 
   static enum ha_rkey_function stateless_read(PFS_key_reader &reader,
                                               enum ha_rkey_function find_flag,
@@ -1190,7 +1190,7 @@ class PFS_key_longlong : public PFS_engine_key {
  public:
   PFS_key_longlong(const char *name) : PFS_engine_key(name), m_key_value(0) {}
 
-  ~PFS_key_longlong() override {}
+  ~PFS_key_longlong() override = default;
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override {
     m_find_flag = reader.read_longlong(find_flag, m_is_null, &m_key_value);
@@ -1214,7 +1214,7 @@ class PFS_key_ulonglong : public PFS_engine_key {
  public:
   PFS_key_ulonglong(const char *name) : PFS_engine_key(name), m_key_value(0) {}
 
-  ~PFS_key_ulonglong() override {}
+  ~PFS_key_ulonglong() override = default;
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override {
     m_find_flag = reader.read_ulonglong(find_flag, m_is_null, &m_key_value);
@@ -1235,7 +1235,7 @@ class PFS_key_thread_id : public PFS_key_ulonglong {
  public:
   PFS_key_thread_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_thread_id() override {}
+  ~PFS_key_thread_id() override = default;
 
   bool match(ulonglong thread_id);
   bool match(const PFS_thread *pfs);
@@ -1251,7 +1251,7 @@ class PFS_key_event_id : public PFS_key_ulonglong {
  public:
   PFS_key_event_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_event_id() override {}
+  ~PFS_key_event_id() override = default;
 
   bool match(ulonglong event_id);
   bool match(const PFS_events *pfs);
@@ -1265,7 +1265,7 @@ class PFS_key_processlist_id : public PFS_key_ulonglong {
  public:
   PFS_key_processlist_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_processlist_id() override {}
+  ~PFS_key_processlist_id() override = default;
 
   bool match(const PFS_thread *pfs);
 };
@@ -1274,7 +1274,7 @@ class PFS_key_engine_transaction_id : public PFS_key_ulonglong {
  public:
   PFS_key_engine_transaction_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_engine_transaction_id() override {}
+  ~PFS_key_engine_transaction_id() override = default;
 
   bool match(ulonglong engine_transaction_id);
 };
@@ -1283,7 +1283,7 @@ class PFS_key_thread_os_id : public PFS_key_ulonglong {
  public:
   PFS_key_thread_os_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_thread_os_id() override {}
+  ~PFS_key_thread_os_id() override = default;
 
   bool match(const PFS_thread *pfs);
 };
@@ -1292,7 +1292,7 @@ class PFS_key_statement_id : public PFS_key_ulonglong {
  public:
   PFS_key_statement_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_statement_id() override {}
+  ~PFS_key_statement_id() override = default;
 
   bool match(const PFS_prepared_stmt *pfs);
 };
@@ -1301,7 +1301,7 @@ class PFS_key_worker_id : public PFS_key_ulonglong {
  public:
   PFS_key_worker_id(const char *name) : PFS_key_ulonglong(name) {}
 
-  ~PFS_key_worker_id() override {}
+  ~PFS_key_worker_id() override = default;
 
   bool match_not_null(ulonglong worker_id);
 };
@@ -1310,7 +1310,7 @@ class PFS_key_socket_id : public PFS_key_long {
  public:
   PFS_key_socket_id(const char *name) : PFS_key_long(name) {}
 
-  ~PFS_key_socket_id() override {}
+  ~PFS_key_socket_id() override = default;
 
   bool match(const PFS_socket *pfs);
 };
@@ -1319,7 +1319,7 @@ class PFS_key_port : public PFS_key_long {
  public:
   PFS_key_port(const char *name) : PFS_key_long(name) {}
 
-  ~PFS_key_port() override {}
+  ~PFS_key_port() override = default;
 
   bool match(const PFS_socket *pfs);
 
@@ -1335,7 +1335,7 @@ class PFS_key_error_number : public PFS_key_long {
  public:
   PFS_key_error_number(const char *name) : PFS_key_long(name) {}
 
-  ~PFS_key_error_number() override {}
+  ~PFS_key_error_number() override = default;
 
   bool match_error_index(uint error_index);
 };
@@ -1344,7 +1344,7 @@ class PFS_key_pstring : public PFS_engine_key {
  public:
   PFS_key_pstring(const char *name) : PFS_engine_key(name) {}
 
-  ~PFS_key_pstring() override {}
+  ~PFS_key_pstring() override = default;
 
   static enum ha_rkey_function stateless_read(PFS_key_reader &reader,
                                               enum ha_rkey_function find_flag,
@@ -1379,7 +1379,7 @@ class PFS_key_string : public PFS_key_pstring {
   PFS_key_string(const char *name)
       : PFS_key_pstring(name), m_key_value_length(0) {}
 
-  ~PFS_key_string() override {}
+  ~PFS_key_string() override = default;
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override {
     m_find_flag = stateless_read(reader, find_flag, m_is_null, m_key_value,
@@ -1405,7 +1405,7 @@ class PFS_key_thread_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
  public:
   PFS_key_thread_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_thread_name() override {}
+  ~PFS_key_thread_name() override = default;
 
   bool match(const PFS_thread *pfs);
   bool match(const PFS_thread_class *klass);
@@ -1415,7 +1415,7 @@ class PFS_key_event_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
  public:
   PFS_key_event_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_event_name() override {}
+  ~PFS_key_event_name() override = default;
 
   bool match(const PFS_instr_class *klass);
   bool match(const PFS_mutex *pfs);
@@ -1430,7 +1430,7 @@ class PFS_key_user : public PFS_key_string<USERNAME_LENGTH> {
  public:
   PFS_key_user(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_user() override {}
+  ~PFS_key_user() override = default;
 
   bool match(const PFS_thread *pfs);
   bool match(const PFS_user *pfs);
@@ -1442,7 +1442,7 @@ class PFS_key_host : public PFS_key_string<HOSTNAME_LENGTH> {
  public:
   PFS_key_host(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_host() override {}
+  ~PFS_key_host() override = default;
 
   bool match(const PFS_thread *pfs);
   bool match(const PFS_host *pfs);
@@ -1455,7 +1455,7 @@ class PFS_key_role : public PFS_key_string<ROLENAME_LENGTH> {
  public:
   PFS_key_role(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_role() override {}
+  ~PFS_key_role() override = default;
 
   bool match(const PFS_setup_actor *pfs);
 };
@@ -1464,7 +1464,7 @@ class PFS_key_schema : public PFS_key_string<NAME_CHAR_LEN> {
  public:
   PFS_key_schema(const char *schema) : PFS_key_string(schema) {}
 
-  ~PFS_key_schema() override {}
+  ~PFS_key_schema() override = default;
 
   bool match(const PFS_statements_digest_stat *pfs);
 };
@@ -1473,7 +1473,7 @@ class PFS_key_digest : public PFS_key_string<MAX_KEY_LENGTH> {
  public:
   PFS_key_digest(const char *digest) : PFS_key_string(digest) {}
 
-  ~PFS_key_digest() override {}
+  ~PFS_key_digest() override = default;
 
   bool match(PFS_statements_digest_stat *pfs);
 };
@@ -1482,7 +1482,7 @@ class PFS_key_bucket_number : public PFS_key_ulong {
  public:
   PFS_key_bucket_number(const char *name) : PFS_key_ulong(name) {}
 
-  ~PFS_key_bucket_number() override {}
+  ~PFS_key_bucket_number() override = default;
 
   bool match(ulong value);
 };
@@ -1492,7 +1492,7 @@ class PFS_key_name : public PFS_key_string<NAME_CHAR_LEN> {
  public:
   PFS_key_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_name() override {}
+  ~PFS_key_name() override = default;
 
   bool match(const LEX_CSTRING *name);
   bool match(const char *name, size_t name_length);
@@ -1504,7 +1504,7 @@ class PFS_key_group_name : public PFS_key_string<NAME_CHAR_LEN> {
  public:
   PFS_key_group_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_group_name() override {}
+  ~PFS_key_group_name() override = default;
 
   bool match(const LEX_STRING *name);
   bool match(const char *name, size_t name_length);
@@ -1515,7 +1515,7 @@ class PFS_key_variable_name : public PFS_key_string<NAME_CHAR_LEN> {
  public:
   PFS_key_variable_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_variable_name() override {}
+  ~PFS_key_variable_name() override = default;
 
   bool match(const System_variable *pfs);
   bool match(const Status_variable *pfs);
@@ -1527,7 +1527,7 @@ class PFS_key_engine_name : public PFS_key_string<32> {
  public:
   PFS_key_engine_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_engine_name() override {}
+  ~PFS_key_engine_name() override = default;
 
   bool match(const char *engine_name, size_t length);
 };
@@ -1537,7 +1537,7 @@ class PFS_key_engine_lock_id : public PFS_key_string<128> {
  public:
   PFS_key_engine_lock_id(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_engine_lock_id() override {}
+  ~PFS_key_engine_lock_id() override = default;
 
   bool match(const char *engine_lock_id, size_t length);
 };
@@ -1549,7 +1549,7 @@ class PFS_key_ip : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH>  // FIXME
  public:
   PFS_key_ip(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_ip() override {}
+  ~PFS_key_ip() override = default;
 
   bool match(const PFS_socket *pfs);
   bool match(const char *ip, size_t ip_length);
@@ -1559,7 +1559,7 @@ class PFS_key_statement_name : public PFS_key_string<PFS_MAX_INFO_NAME_LENGTH> {
  public:
   PFS_key_statement_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_statement_name() override {}
+  ~PFS_key_statement_name() override = default;
 
   bool match(const PFS_prepared_stmt *pfs);
 };
@@ -1570,7 +1570,7 @@ class PFS_key_file_name
  public:
   PFS_key_file_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_file_name() override {}
+  ~PFS_key_file_name() override = default;
 
   bool match(const PFS_file *pfs);
 };
@@ -1579,7 +1579,7 @@ class PFS_key_object_schema : public PFS_key_string<NAME_CHAR_LEN> {
  public:
   PFS_key_object_schema(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_object_schema() override {}
+  ~PFS_key_object_schema() override = default;
 
   bool match(const PFS_table_share *pfs);
   bool match(const PFS_program *pfs);
@@ -1594,7 +1594,7 @@ class PFS_key_object_name : public PFS_key_string<NAME_CHAR_LEN> {
  public:
   PFS_key_object_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_object_name() override {}
+  ~PFS_key_object_name() override = default;
 
   bool match(const PFS_table_share *pfs);
   bool match(const PFS_program *pfs);
@@ -1610,7 +1610,7 @@ class PFS_key_column_name : public PFS_key_string<NAME_CHAR_LEN> {
  public:
   PFS_key_column_name(const char *name) : PFS_key_string(name) {}
 
-  ~PFS_key_column_name() override {}
+  ~PFS_key_column_name() override = default;
 
   bool match(const PFS_column_row *pfs);
 };
@@ -1620,7 +1620,7 @@ class PFS_key_object_type : public PFS_engine_key {
   PFS_key_object_type(const char *name)
       : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE) {}
 
-  ~PFS_key_object_type() override {}
+  ~PFS_key_object_type() override = default;
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override;
 
@@ -1639,7 +1639,7 @@ class PFS_key_object_type_enum : public PFS_engine_key {
   PFS_key_object_type_enum(const char *name)
       : PFS_engine_key(name), m_object_type(NO_OBJECT_TYPE) {}
 
-  ~PFS_key_object_type_enum() override {}
+  ~PFS_key_object_type_enum() override = default;
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override;
 
@@ -1658,7 +1658,7 @@ class PFS_key_object_instance : public PFS_engine_key {
   PFS_key_object_instance(const char *name)
       : PFS_engine_key(name), m_identity(nullptr) {}
 
-  ~PFS_key_object_instance() override {}
+  ~PFS_key_object_instance() override = default;
 
   void read(PFS_key_reader &reader, enum ha_rkey_function find_flag) override {
     ulonglong object_instance_begin{0};

@@ -44,7 +44,7 @@ static int num_iterations = 2000;
 
 class CallocTest : public ::testing::Test {
  protected:
-  CallocTest() {}
+  CallocTest() = default;
 
   void malloc_test(int count);
   void calloc_test(int count);

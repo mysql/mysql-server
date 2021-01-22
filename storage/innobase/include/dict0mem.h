@@ -2322,7 +2322,7 @@ class PersistentTableMetadata {
 class Persister {
  public:
   /** Virtual desctructor */
-  virtual ~Persister() {}
+  virtual ~Persister() = default;
 
   /** Write the dynamic metadata of a table, we can pre-calculate
   the size by calling get_write_size()

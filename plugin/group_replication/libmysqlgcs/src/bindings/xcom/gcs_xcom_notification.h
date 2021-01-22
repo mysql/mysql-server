@@ -66,7 +66,7 @@ class Gcs_xcom_notification {
     execution returns true.
   */
 
-  explicit Gcs_xcom_notification() {}
+  explicit Gcs_xcom_notification() = default;
 
   /**
     Task implemented by this notification which calls do_execute.
@@ -78,7 +78,7 @@ class Gcs_xcom_notification {
     Destructor for the Gcs_xcom_notification.
   */
 
-  virtual ~Gcs_xcom_notification() {}
+  virtual ~Gcs_xcom_notification() = default;
 
  private:
   /*
@@ -207,13 +207,13 @@ class Parameterized_notification : public Gcs_xcom_notification {
     Constructor for Parameterized_notification.
   */
 
-  explicit Parameterized_notification() {}
+  explicit Parameterized_notification() = default;
 
   /**
     Destructor for Parameterized_notification.
   */
 
-  ~Parameterized_notification() override {}
+  ~Parameterized_notification() override = default;
 
   /**
     Task implemented by this notification which calls do_execute.

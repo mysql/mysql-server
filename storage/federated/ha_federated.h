@@ -132,7 +132,7 @@ class ha_federated : public handler {
 
  public:
   ha_federated(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_federated() override {}
+  ~ha_federated() override = default;
   /* The name that will be used for display purposes */
   const char *table_type() const override { return "FEDERATED"; }
   /*

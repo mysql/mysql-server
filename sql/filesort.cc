@@ -121,8 +121,7 @@ namespace {
 struct Mem_compare_queue_key {
   Mem_compare_queue_key() : m_compare_length(0), m_param(nullptr) {}
 
-  Mem_compare_queue_key(const Mem_compare_queue_key &that)
-      : m_compare_length(that.m_compare_length), m_param(that.m_param) {}
+  Mem_compare_queue_key(const Mem_compare_queue_key &that) = default;
 
   bool operator()(const uchar *s1, const uchar *s2) const {
     if (m_param)

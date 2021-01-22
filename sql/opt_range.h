@@ -262,7 +262,7 @@ class QUICK_SELECT_I {
 
   QUICK_SELECT_I();
   QUICK_SELECT_I(const QUICK_SELECT_I &) = default;
-  virtual ~QUICK_SELECT_I() {}
+  virtual ~QUICK_SELECT_I() = default;
 
   /*
     Do post-constructor initialization.

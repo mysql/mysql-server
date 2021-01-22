@@ -92,7 +92,7 @@ class Abstract_table : virtual public Entity_object {
   virtual bool update_aux_key(Aux_key *) const { return true; }
 
  public:
-  ~Abstract_table() override {}
+  ~Abstract_table() override = default;
 
  public:
   /**

@@ -49,7 +49,7 @@ class Event_impl : public Entity_object_impl, public Event {
   Event_impl();
   Event_impl(const Event_impl &);
 
-  ~Event_impl() override {}
+  ~Event_impl() override = default;
 
  public:
   const Object_table &object_table() const override;

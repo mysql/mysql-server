@@ -76,7 +76,7 @@ class Ofstream : public std::ofstream {
   // that is inherited by default, a new solution has to be found.
   //
   // using std::ofstream::ofstream;
-  ~Ofstream() override {}
+  ~Ofstream() override = default;
   virtual void open(const char *filename,
                     std::ios_base::openmode mode = std::ios_base::out) = 0;
   virtual void open(const std::string &filename,

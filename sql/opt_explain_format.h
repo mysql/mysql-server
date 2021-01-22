@@ -100,7 +100,7 @@ enum Extra_tag {
 */
 class Lazy {
  public:
-  virtual ~Lazy() {}
+  virtual ~Lazy() = default;
 
   /**
     Deferred evaluation of encapsulated expression
@@ -357,7 +357,7 @@ class qep_row {
         derived_clone_id(0),
         m_windows(nullptr) {}
 
-  virtual ~qep_row() {}
+  virtual ~qep_row() = default;
 
   void cleanup() {
     col_id.cleanup();
@@ -511,7 +511,7 @@ class Explain_format {
 
  public:
   Explain_format() : output(nullptr) {}
-  virtual ~Explain_format() {}
+  virtual ~Explain_format() = default;
 
   /**
     A hierarchical text or a plain table

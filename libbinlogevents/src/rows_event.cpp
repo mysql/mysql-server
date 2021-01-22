@@ -483,7 +483,7 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
   BAPI_VOID_RETURN;
 }
 
-Rows_event::~Rows_event() {}
+Rows_event::~Rows_event() = default;
 
 bool Rows_event::Extra_row_info::compare_extra_row_info(
     const unsigned char *ndb_info_arg, int part_id_arg,

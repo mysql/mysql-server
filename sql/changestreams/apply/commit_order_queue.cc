@@ -58,8 +58,7 @@ cs::apply::Commit_order_queue::Iterator::Iterator(Commit_order_queue &queue,
                                                   index_type current)
     : m_target{&queue}, m_current{queue.m_commit_queue, current} {}
 
-cs::apply::Commit_order_queue::Iterator::Iterator(const Iterator &rhs)
-    : m_target{rhs.m_target}, m_current{rhs.m_current} {}
+cs::apply::Commit_order_queue::Iterator::Iterator(const Iterator &) = default;
 
 cs::apply::Commit_order_queue::Iterator::Iterator(Iterator &&rhs)
     : m_target{rhs.m_target}, m_current{rhs.m_current} {
@@ -68,11 +67,7 @@ cs::apply::Commit_order_queue::Iterator::Iterator(Iterator &&rhs)
 }
 
 cs::apply::Commit_order_queue::Iterator &
-cs::apply::Commit_order_queue::Iterator::operator=(const Iterator &rhs) {
-  this->m_target = rhs.m_target;
-  this->m_current = rhs.m_current;
-  return (*this);
-}
+cs::apply::Commit_order_queue::Iterator::operator=(const Iterator &) = default;
 
 cs::apply::Commit_order_queue::Iterator &
 cs::apply::Commit_order_queue::Iterator::operator=(Iterator &&rhs) {

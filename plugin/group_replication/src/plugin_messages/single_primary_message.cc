@@ -38,7 +38,7 @@ Single_primary_message::Single_primary_message(std::string &uuid,
       primary_uuid(uuid),
       election_mode(mode) {}
 
-Single_primary_message::~Single_primary_message() {}
+Single_primary_message::~Single_primary_message() = default;
 
 Single_primary_message::Single_primary_message(const uchar *buf, size_t len)
     : Plugin_gcs_message(CT_SINGLE_PRIMARY_MESSAGE),

@@ -2073,7 +2073,7 @@ class TRP_SKIP_SCAN : public TABLE_READ_PLAN {
     records = read_records;
   }
 
-  ~TRP_SKIP_SCAN() override {}
+  ~TRP_SKIP_SCAN() override = default;
 
   QUICK_SELECT_I *make_quick(PARAM *param, bool retrieve_full_rows,
                              MEM_ROOT *parent_alloc) override;

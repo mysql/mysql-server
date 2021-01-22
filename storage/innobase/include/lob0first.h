@@ -78,7 +78,7 @@ struct first_page_t : public basic_page_t {
   static const ulint LOB_PAGE_TRAILER_LEN = FIL_PAGE_DATA_END;
 
   /** The default constructor. */
-  first_page_t() {}
+  first_page_t() = default;
 
   /** Constructor.
   @param[in]	block	Buffer block of the first page.

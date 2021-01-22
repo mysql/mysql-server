@@ -24,7 +24,7 @@
 #include "plugin/group_replication/include/observer_trans.h"
 #include "plugin/group_replication/include/plugin_psi.h"
 
-Group_transaction_listener::~Group_transaction_listener() {}
+Group_transaction_listener::~Group_transaction_listener() = default;
 
 Group_transaction_observation_manager::Group_transaction_observation_manager() {
   transaction_observer_list_lock = new Checkable_rwlock(

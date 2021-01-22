@@ -511,7 +511,7 @@ class Item_in_optimizer final : public Item_bool_func {
 /// Abstract factory interface for creating comparison predicates.
 class Comp_creator {
  public:
-  virtual ~Comp_creator() {}
+  virtual ~Comp_creator() = default;
   virtual Item_bool_func *create(Item *a, Item *b) const = 0;
 
   /// This interface is only used by Item_allany_subselect.
@@ -1510,7 +1510,7 @@ class in_vector {
    */
   explicit in_vector(uint elements) : count(elements), used_count(elements) {}
 
-  virtual ~in_vector() {}
+  virtual ~in_vector() = default;
 
   /**
     Calls item->val_int() or item->val_str() etc.
@@ -1716,8 +1716,8 @@ class in_decimal final : public in_vector {
 
 class cmp_item {
  public:
-  cmp_item() {}
-  virtual ~cmp_item() {}
+  cmp_item() = default;
+  virtual ~cmp_item() = default;
   virtual void store_value(Item *item) = 0;
   /**
      @returns result (true, false or UNKNOWN) of

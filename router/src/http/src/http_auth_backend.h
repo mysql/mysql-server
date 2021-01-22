@@ -80,7 +80,7 @@ struct FileMeta {
  */
 class FileModified {
  public:
-  FileModified() {}
+  FileModified() = default;
   explicit FileModified(const FileMeta &meta) : meta_(meta) {}
 
   /**

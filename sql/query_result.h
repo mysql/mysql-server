@@ -69,7 +69,7 @@ class Query_result {
   double estimated_cost;
 
   Query_result() : unit(nullptr), estimated_rowcount(0), estimated_cost(0) {}
-  virtual ~Query_result() {}
+  virtual ~Query_result() = default;
 
   virtual bool needs_file_privilege() const { return false; }
 

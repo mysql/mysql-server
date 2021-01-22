@@ -2785,7 +2785,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 
 /** Destruct ha_innobase handler. */
 
-ha_innobase::~ha_innobase() {}
+ha_innobase::~ha_innobase() = default;
 
 /** Updates the user_thd field in a handle and also allocates a new InnoDB
  transaction handle if needed, and updates the transaction fields in the
@@ -18528,7 +18528,7 @@ struct ShowStatus {
   };
 
   /** Constructor */
-  ShowStatus() {}
+  ShowStatus() = default;
 
   /** Callback for collecting the stats
   @param[in]	latch_meta		Latch meta data

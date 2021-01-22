@@ -30,7 +30,7 @@
 
 class Poll_socket_listener {
  public:
-  Poll_socket_listener() {}
+  Poll_socket_listener() = default;
 
   bool listen_on_sockets() {
     return poll(m_fds.data(), m_fds.size(), 1000 /*1 Second timeout*/);

@@ -154,7 +154,7 @@ class PFS_index_data_locks : public PFS_engine_index {
                        PFS_engine_key *key_3, PFS_engine_key *key_4)
       : PFS_engine_index(key_1, key_2, key_3, key_4) {}
 
-  ~PFS_index_data_locks() override {}
+  ~PFS_index_data_locks() override = default;
 
   virtual bool match_engine(const char *engine MY_ATTRIBUTE((unused)),
                             size_t engine_length MY_ATTRIBUTE((unused))) {
@@ -198,7 +198,7 @@ class PFS_index_data_locks_by_lock_id : public PFS_index_data_locks {
         m_key_1("ENGINE_LOCK_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_locks_by_lock_id() override {}
+  ~PFS_index_data_locks_by_lock_id() override = default;
 
   bool match_lock_id(const char *engine_lock_id,
                      size_t engine_lock_id_length) override {
@@ -233,7 +233,7 @@ class PFS_index_data_locks_by_transaction_id : public PFS_index_data_locks {
         m_key_1("ENGINE_TRANSACTION_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_locks_by_transaction_id() override {}
+  ~PFS_index_data_locks_by_transaction_id() override = default;
 
   bool match_transaction_id(ulonglong engine_transaction_id) override {
     if (m_fields >= 1) {
@@ -267,7 +267,7 @@ class PFS_index_data_locks_by_thread_id : public PFS_index_data_locks {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_data_locks_by_thread_id() override {}
+  ~PFS_index_data_locks_by_thread_id() override = default;
 
   bool match_thread_id_event_id(ulonglong thread_id,
                                 ulonglong event_id) override {
@@ -300,7 +300,7 @@ class PFS_index_data_locks_by_object : public PFS_index_data_locks {
         m_key_3("PARTITION_NAME"),
         m_key_4("SUBPARTITION_NAME") {}
 
-  ~PFS_index_data_locks_by_object() override {}
+  ~PFS_index_data_locks_by_object() override = default;
 
   bool match_object(const char *table_schema, size_t table_schema_length,
                     const char *table_name, size_t table_name_length,
@@ -346,7 +346,7 @@ class PFS_index_data_lock_waits : public PFS_engine_index {
   PFS_index_data_lock_waits(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_data_lock_waits() override {}
+  ~PFS_index_data_lock_waits() override = default;
 
   virtual bool match_engine(const char *engine MY_ATTRIBUTE((unused)),
                             size_t engine_length MY_ATTRIBUTE((unused))) {
@@ -396,7 +396,7 @@ class PFS_index_data_lock_waits_by_requesting_lock_id
         m_key_1("REQUESTING_ENGINE_LOCK_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_requesting_lock_id() override {}
+  ~PFS_index_data_lock_waits_by_requesting_lock_id() override = default;
 
   bool match_requesting_lock_id(const char *engine_lock_id,
                                 size_t engine_lock_id_length) override {
@@ -432,7 +432,7 @@ class PFS_index_data_lock_waits_by_blocking_lock_id
         m_key_1("BLOCKING_ENGINE_LOCK_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_blocking_lock_id() override {}
+  ~PFS_index_data_lock_waits_by_blocking_lock_id() override = default;
 
   bool match_blocking_lock_id(const char *engine_lock_id,
                               size_t engine_lock_id_length) override {
@@ -468,7 +468,7 @@ class PFS_index_data_lock_waits_by_requesting_transaction_id
         m_key_1("REQUESTING_ENGINE_TRANSACTION_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_requesting_transaction_id() override {}
+  ~PFS_index_data_lock_waits_by_requesting_transaction_id() override = default;
 
   bool match_requesting_transaction_id(
       ulonglong engine_transaction_id) override {
@@ -504,7 +504,7 @@ class PFS_index_data_lock_waits_by_blocking_transaction_id
         m_key_1("BLOCKING_ENGINE_TRANSACTION_ID"),
         m_key_2("ENGINE") {}
 
-  ~PFS_index_data_lock_waits_by_blocking_transaction_id() override {}
+  ~PFS_index_data_lock_waits_by_blocking_transaction_id() override = default;
 
   bool match_blocking_transaction_id(ulonglong engine_transaction_id) override {
     if (m_fields >= 1) {
@@ -539,7 +539,7 @@ class PFS_index_data_lock_waits_by_requesting_thread_id
         m_key_1("REQUESTING_THREAD_ID"),
         m_key_2("REQUESTING_EVENT_ID") {}
 
-  ~PFS_index_data_lock_waits_by_requesting_thread_id() override {}
+  ~PFS_index_data_lock_waits_by_requesting_thread_id() override = default;
 
   bool match_requesting_thread_id_event_id(ulonglong thread_id,
                                            ulonglong event_id) override {
@@ -571,7 +571,7 @@ class PFS_index_data_lock_waits_by_blocking_thread_id
         m_key_1("BLOCKING_THREAD_ID"),
         m_key_2("BLOCKING_EVENT_ID") {}
 
-  ~PFS_index_data_lock_waits_by_blocking_thread_id() override {}
+  ~PFS_index_data_lock_waits_by_blocking_thread_id() override = default;
 
   bool match_blocking_thread_id_event_id(ulonglong thread_id,
                                          ulonglong event_id) override {

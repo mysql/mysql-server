@@ -62,7 +62,7 @@ class RowIterator {
   // NOTE: Iterators should typically be instantiated using NewIterator,
   // in sql/timing_iterator.h.
   RowIterator(THD *thd) : m_thd(thd) {}
-  virtual ~RowIterator() {}
+  virtual ~RowIterator() = default;
 
   /**
     Initialize or reinitialize the iterator. You must always call Init()

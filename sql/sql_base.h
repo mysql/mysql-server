@@ -386,7 +386,7 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
 
 class Prelocking_strategy {
  public:
-  virtual ~Prelocking_strategy() {}
+  virtual ~Prelocking_strategy() = default;
 
   virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,

@@ -60,7 +60,7 @@ class dyn_buf_t {
       init();
     }
 
-    ~block_t() {}
+    ~block_t() = default;
 
     /**
     Gets the number of used bytes in a block.

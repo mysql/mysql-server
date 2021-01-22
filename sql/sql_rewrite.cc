@@ -387,7 +387,7 @@ I_rewriter::I_rewriter(THD *thd, Consumer_type type)
   assert(thd);
 }
 
-I_rewriter::~I_rewriter() {}
+I_rewriter::~I_rewriter() = default;
 /**
   Reset the previous consumer type.
 

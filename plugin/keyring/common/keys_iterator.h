@@ -31,7 +31,7 @@ namespace keyring {
 
 class Keys_iterator {
  public:
-  Keys_iterator() {}
+  Keys_iterator() = default;
   Keys_iterator(ILogger *logger);
   void init(void);
   bool get_key(Key_metadata **km);

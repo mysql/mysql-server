@@ -445,7 +445,7 @@ inline Allocator<T, AllocationScheme>::Allocator(Allocator<U> &&other) noexcept
     : m_state(std::move(other.m_state)), m_shared_block(other.m_shared_block) {}
 
 template <class T, class AllocationScheme>
-inline Allocator<T, AllocationScheme>::~Allocator() {}
+inline Allocator<T, AllocationScheme>::~Allocator() = default;
 
 template <class T, class AllocationScheme>
 template <class U>

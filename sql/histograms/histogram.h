@@ -322,7 +322,7 @@ class Histogram {
   Histogram(const Histogram &other) = delete;
 
   /// Destructor.
-  virtual ~Histogram() {}
+  virtual ~Histogram() = default;
 
   /// @return the MEM_ROOT that this histogram uses for allocations
   MEM_ROOT *get_mem_root() const { return m_mem_root; }

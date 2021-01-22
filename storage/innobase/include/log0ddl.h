@@ -407,7 +407,7 @@ class Log_DDL {
   Log_DDL();
 
   /** Deconstructor */
-  ~Log_DDL() {}
+  ~Log_DDL() = default;
 
   /** Write DDL log for freeing B-tree
   @param[in,out]	trx		transaction

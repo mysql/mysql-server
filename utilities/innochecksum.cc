@@ -164,7 +164,7 @@ static TYPELIB innochecksum_algorithms_typelib = {
 /** Error logging classes. */
 namespace ib {
 
-logger::~logger() {}
+logger::~logger() = default;
 
 info::~info() {
   std::cerr << "[INFO] innochecksum: " << m_oss.str() << std::endl;

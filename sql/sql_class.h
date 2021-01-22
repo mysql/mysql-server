@@ -198,7 +198,7 @@ class thd_scheduler {
 
   thd_scheduler() : data(nullptr) {}
 
-  ~thd_scheduler() {}
+  ~thd_scheduler() = default;
 };
 
 PSI_thread *thd_get_psi(THD *thd);
@@ -407,7 +407,7 @@ class Prepared_statement_map {
 class Item_change_record : public ilink<Item_change_record> {
  private:
   // not used
-  Item_change_record() {}
+  Item_change_record() = default;
 
  public:
   Item_change_record(Item **place, Item *new_value)

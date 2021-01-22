@@ -280,7 +280,7 @@ class Is_target_geometry {
 
 class Rtree_entry_compare {
  public:
-  Rtree_entry_compare() {}
+  Rtree_entry_compare() = default;
 
   bool operator()(const BG_rtree_entry &re1, const BG_rtree_entry &re2) const {
     return re1.second < re2.second;

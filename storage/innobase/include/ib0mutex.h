@@ -574,7 +574,7 @@ struct PolicyMutex {
 #endif /* UNIV_PFS_MUTEX */
   }
 
-  ~PolicyMutex() {}
+  ~PolicyMutex() = default;
 
   /** @return non-const version of the policy */
   Policy &policy() UNIV_NOTHROW { return (m_impl.policy()); }

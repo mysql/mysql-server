@@ -452,7 +452,7 @@ class PFS_variable_cache {
   Destructor.
 */
 template <class Var_type>
-PFS_variable_cache<Var_type>::~PFS_variable_cache() {}
+PFS_variable_cache<Var_type>::~PFS_variable_cache() = default;
 
 /**
   Get a validated THD from the thread manager. Execute callback function while
@@ -646,7 +646,7 @@ class PFS_system_variable_info_cache : public PFS_system_variable_cache {
  public:
   PFS_system_variable_info_cache(bool external_init)
       : PFS_system_variable_cache(external_init) {}
-  ~PFS_system_variable_info_cache() override {}
+  ~PFS_system_variable_info_cache() override = default;
 
  private:
   /* Global and Session - THD */
@@ -660,7 +660,7 @@ class PFS_system_persisted_variables_cache : public PFS_system_variable_cache {
  public:
   PFS_system_persisted_variables_cache(bool external_init)
       : PFS_system_variable_cache(external_init) {}
-  ~PFS_system_persisted_variables_cache() override {}
+  ~PFS_system_persisted_variables_cache() override = default;
 
  private:
   /* Global and Session - THD */

@@ -280,7 +280,7 @@ Format_description_event::Format_description_event(
   BAPI_VOID_RETURN;
 }
 
-Format_description_event::~Format_description_event() {}
+Format_description_event::~Format_description_event() = default;
 
 Stop_event::Stop_event(const char *buf, const Format_description_event *fde)
     : Binary_log_event(&buf, fde) {
@@ -387,7 +387,7 @@ Transaction_payload_event::Transaction_payload_event(const char *payload,
                                 transaction::compression::type::NONE,
                                 payload_size) {}
 
-Transaction_payload_event::~Transaction_payload_event() {}
+Transaction_payload_event::~Transaction_payload_event() = default;
 
 Transaction_payload_event::Transaction_payload_event(
     const char *buf, const Format_description_event *fde)

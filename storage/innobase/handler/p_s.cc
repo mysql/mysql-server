@@ -184,7 +184,7 @@ class Innodb_trx_scan_state {
         m_end_trx_id_range(SCAN_RANGE),
         m_next_trx_id_range(TRX_ID_MAX) {}
 
-  ~Innodb_trx_scan_state() {}
+  ~Innodb_trx_scan_state() = default;
 
   scan_pass get_pass() { return m_scan_pass; }
 
@@ -401,9 +401,9 @@ static const trx_t *fetch_trx_in_trx_list(uint64_t filter_trx_immutable_id,
   return nullptr;
 }
 
-Innodb_data_lock_inspector::Innodb_data_lock_inspector() {}
+Innodb_data_lock_inspector::Innodb_data_lock_inspector() = default;
 
-Innodb_data_lock_inspector::~Innodb_data_lock_inspector() {}
+Innodb_data_lock_inspector::~Innodb_data_lock_inspector() = default;
 
 PSI_engine_data_lock_iterator *
 Innodb_data_lock_inspector::create_data_lock_iterator() {
@@ -567,9 +567,9 @@ int scan_lock_id(const char *lock_id, uint64_t *trx_immutable_id,
   return lock_type;
 }
 
-Innodb_data_lock_iterator::Innodb_data_lock_iterator() {}
+Innodb_data_lock_iterator::Innodb_data_lock_iterator() = default;
 
-Innodb_data_lock_iterator::~Innodb_data_lock_iterator() {}
+Innodb_data_lock_iterator::~Innodb_data_lock_iterator() = default;
 
 bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
                                      bool with_lock_data) {
@@ -838,11 +838,9 @@ size_t Innodb_data_lock_iterator::scan_trx(
   return found;
 }
 
-Innodb_data_lock_wait_iterator::Innodb_data_lock_wait_iterator()
+Innodb_data_lock_wait_iterator::Innodb_data_lock_wait_iterator() = default;
 
-{}
-
-Innodb_data_lock_wait_iterator::~Innodb_data_lock_wait_iterator() {}
+Innodb_data_lock_wait_iterator::~Innodb_data_lock_wait_iterator() = default;
 
 bool Innodb_data_lock_wait_iterator::scan(
     PSI_server_data_lock_wait_container *container) {

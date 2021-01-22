@@ -28,7 +28,7 @@
 
 class Get_running_transactions : public Do_THD_Impl {
  public:
-  Get_running_transactions() {}
+  Get_running_transactions() = default;
 
   /*
    This method relies on the assumption that a thread running query will either

@@ -60,8 +60,8 @@ class Session_consistency_gtids_ctx {
    */
   class Ctx_change_listener {
    public:
-    Ctx_change_listener() {}
-    virtual ~Ctx_change_listener() {}
+    Ctx_change_listener() = default;
+    virtual ~Ctx_change_listener() = default;
     virtual void notify_session_gtids_ctx_change() = 0;
 
    private:

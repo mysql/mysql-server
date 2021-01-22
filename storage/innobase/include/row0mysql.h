@@ -936,7 +936,7 @@ struct row_prebuilt_t {
 
 /** Callback for row_mysql_sys_index_iterate() */
 struct SysIndexCallback {
-  virtual ~SysIndexCallback() {}
+  virtual ~SysIndexCallback() = default;
 
   /** Callback method
   @param mtr current mini-transaction

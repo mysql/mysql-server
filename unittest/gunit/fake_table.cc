@@ -28,4 +28,4 @@ int Fake_TABLE::highest_table_id = 5;
   This member method exists in sqllib but we need it for
   merge_test_small.cc
 */
-GRANT_INFO::GRANT_INFO() {}
+GRANT_INFO::GRANT_INFO() = default;

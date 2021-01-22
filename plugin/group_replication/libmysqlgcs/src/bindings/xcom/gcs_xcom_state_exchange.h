@@ -368,7 +368,7 @@ class Xcom_member_state {
 */
 class Gcs_xcom_state_exchange_interface {
  public:
-  virtual ~Gcs_xcom_state_exchange_interface() {}
+  virtual ~Gcs_xcom_state_exchange_interface() = default;
 
   /**
     Accomplishes all necessary initialization steps.
@@ -714,7 +714,7 @@ class Gcs_xcom_state_exchange : public Gcs_xcom_state_exchange_interface {
 */
 class Gcs_xcom_view_change_control_interface {
  public:
-  virtual ~Gcs_xcom_view_change_control_interface() {}
+  virtual ~Gcs_xcom_view_change_control_interface() = default;
 
   virtual void start_view_exchange() = 0;
   virtual void end_view_exchange() = 0;

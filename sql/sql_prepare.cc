@@ -2203,7 +2203,7 @@ bool ask_to_reprepare(THD *thd) {
  * Server_runnable
  *******************************************************************/
 
-Server_runnable::~Server_runnable() {}
+Server_runnable::~Server_runnable() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 

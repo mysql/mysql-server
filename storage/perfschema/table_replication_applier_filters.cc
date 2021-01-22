@@ -93,7 +93,8 @@ table_replication_applier_filters::table_replication_applier_filters()
       m_pos(0),
       m_next_pos(0) {}
 
-table_replication_applier_filters::~table_replication_applier_filters() {}
+table_replication_applier_filters::~table_replication_applier_filters() =
+    default;
 
 void table_replication_applier_filters::reset_position(void) {
   m_pos.m_index = 0;

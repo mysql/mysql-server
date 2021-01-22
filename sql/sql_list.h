@@ -642,7 +642,7 @@ class List_STL_Iterator {
   T *operator->() const { return static_cast<T *>(m_current->info); }
 
   // DefaultConstructible (required for ForwardIterator).
-  List_STL_Iterator() {}
+  List_STL_Iterator() = default;
 
   // ForwardIterator.
   List_STL_Iterator operator++(int) {

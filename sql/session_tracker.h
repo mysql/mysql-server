@@ -83,7 +83,7 @@ class State_tracker {
   State_tracker() : m_enabled(false), m_changed(false) {}
 
   /** Destructor */
-  virtual ~State_tracker() {}
+  virtual ~State_tracker() = default;
 
   /** Getters */
   bool is_enabled() const { return m_enabled; }
@@ -126,10 +126,10 @@ class Session_tracker {
   Session_tracker &operator=(Session_tracker const &) = delete;
 
   /** Constructor */
-  Session_tracker() {}
+  Session_tracker() = default;
 
   /** Destructor */
-  ~Session_tracker() {}
+  ~Session_tracker() = default;
   /**
     Initialize Session_tracker objects and enable them based on the
     tracker_xxx variables' value that the session inherit from global

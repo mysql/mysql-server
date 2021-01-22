@@ -803,7 +803,7 @@ class rec_printer : public std::ostringstream {
   }
 
   /** Destructor */
-  virtual ~rec_printer() {}
+  virtual ~rec_printer() = default;
 
  private:
   /** Copy constructor */

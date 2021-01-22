@@ -64,8 +64,8 @@ class TC_LOG {
   */
   bool using_heuristic_recover();
 
-  TC_LOG() {}
-  virtual ~TC_LOG() {}
+  TC_LOG() = default;
+  virtual ~TC_LOG() = default;
 
   enum enum_result { RESULT_SUCCESS, RESULT_ABORTED, RESULT_INCONSISTENT };
 
@@ -134,7 +134,7 @@ class TC_LOG {
 class TC_LOG_DUMMY : public TC_LOG  // use it to disable the logging
 {
  public:
-  TC_LOG_DUMMY() {}
+  TC_LOG_DUMMY() = default;
   int open(const char *) override { return 0; }
   void close() override {}
   enum_result commit(THD *thd, bool all) override;

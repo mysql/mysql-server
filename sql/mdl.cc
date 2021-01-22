@@ -2571,9 +2571,9 @@ bool MDL_lock::has_pending_conflicting_lock(enum_mdl_type type) {
   return result;
 }
 
-MDL_wait_for_graph_visitor::~MDL_wait_for_graph_visitor() {}
+MDL_wait_for_graph_visitor::~MDL_wait_for_graph_visitor() = default;
 
-MDL_wait_for_subgraph::~MDL_wait_for_subgraph() {}
+MDL_wait_for_subgraph::~MDL_wait_for_subgraph() = default;
 
 /**
   Check if ticket represents metadata lock of "stronger" or equal type

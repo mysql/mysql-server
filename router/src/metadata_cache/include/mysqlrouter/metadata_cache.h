@@ -444,7 +444,7 @@ class METADATA_API MetadataCacheAPIBase
   // must be explicitly defined though.
   explicit MetadataCacheAPIBase(const MetadataCacheAPIBase &) = delete;
   MetadataCacheAPIBase &operator=(const MetadataCacheAPIBase &) = delete;
-  ~MetadataCacheAPIBase() override {}
+  ~MetadataCacheAPIBase() override = default;
 
   struct RefreshStatus {
     uint64_t refresh_failed;

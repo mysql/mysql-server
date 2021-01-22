@@ -43,7 +43,7 @@ Group_action_information::Group_action_information()
       execution_message_area(new Group_action_diagnostics()),
       action_result(Group_action::GROUP_ACTION_RESULT_END) {}
 
-Group_action_information::~Group_action_information() {}
+Group_action_information::~Group_action_information() = default;
 
 /**
  The 'action' / 'action information' object life cycle:

@@ -164,7 +164,7 @@ table_replication_asynchronous_connection_failover::
       read_error{false} {}
 
 table_replication_asynchronous_connection_failover::
-    ~table_replication_asynchronous_connection_failover() {}
+    ~table_replication_asynchronous_connection_failover() = default;
 
 void table_replication_asynchronous_connection_failover::reset_position(void) {
   DBUG_TRACE;

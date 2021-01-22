@@ -40,7 +40,7 @@ namespace dd_properties_unittest {
 
 class PropertiesTest : public ::testing::Test {
  protected:
-  PropertiesTest() {}
+  PropertiesTest() = default;
 
   void SetUp() override { m_props = new dd::Properties_impl(); }
 

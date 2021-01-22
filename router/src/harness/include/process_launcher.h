@@ -89,7 +89,7 @@ class HARNESS_EXPORT SpawnedProcess {
 
   SpawnedProcess(const SpawnedProcess &) = default;
 
-  virtual ~SpawnedProcess() {}
+  virtual ~SpawnedProcess() = default;
 
   std::string get_cmd_line() const;
 

@@ -1151,7 +1151,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
 */
 class DD_table_access_error_handler : public Internal_error_handler {
  public:
-  DD_table_access_error_handler() {}
+  DD_table_access_error_handler() = default;
 
   bool handle_condition(THD *, uint sql_errno, const char *,
                         Sql_condition::enum_severity_level *,

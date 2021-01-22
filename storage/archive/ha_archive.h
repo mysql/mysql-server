@@ -105,7 +105,7 @@ class ha_archive : public handler {
 
  public:
   ha_archive(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_archive() override {}
+  ~ha_archive() override = default;
   const char *table_type() const override { return "ARCHIVE"; }
   ulonglong table_flags() const override {
     return (HA_NO_TRANSACTIONS | HA_CAN_BIT_FIELD | HA_BINLOG_ROW_CAPABLE |

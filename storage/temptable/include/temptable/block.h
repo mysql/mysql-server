@@ -296,7 +296,7 @@ static inline void deallocate_from(Source src, size_t size,
   }
 }
 
-inline Block::Block() noexcept {}
+inline Block::Block() noexcept = default;
 
 inline Block::Block(Chunk chunk) noexcept : Header(chunk.block()) {
   assert(!is_empty());

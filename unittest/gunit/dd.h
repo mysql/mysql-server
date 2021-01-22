@@ -85,7 +85,7 @@ class Mock_dd_HANDLER : public Base_mock_HANDLER {
   Mock_dd_HANDLER(handlerton *hton, TABLE_SHARE *share)
       : Base_mock_HANDLER(hton, share) {}
 
-  virtual ~Mock_dd_HANDLER() {}
+  virtual ~Mock_dd_HANDLER() = default;
 };
 
 /**
@@ -123,7 +123,7 @@ class Mock_dd_field_longlong : public Base_mock_field_longlong {
 
   Mock_dd_field_longlong() : Base_mock_field_longlong() {}
 
-  virtual ~Mock_dd_field_longlong() {}
+  virtual ~Mock_dd_field_longlong() = default;
 };
 
 /**
@@ -162,7 +162,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   Mock_dd_field_varstring(uint32 length, TABLE_SHARE *share)
       : Base_mock_field_varstring(length, share) {}
 
-  virtual ~Mock_dd_field_varstring() {}
+  virtual ~Mock_dd_field_varstring() = default;
 };
 
 /**

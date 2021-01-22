@@ -51,7 +51,7 @@ class PolyLock {
   virtual void rdlock() = 0;
   virtual void wrlock() = 0;
   virtual void unlock() = 0;
-  virtual ~PolyLock() {}
+  virtual ~PolyLock() = default;
 };
 
 class PolyLock_mutex : public PolyLock {

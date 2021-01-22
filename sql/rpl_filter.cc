@@ -85,11 +85,11 @@ Rpl_pfs_filter::Rpl_pfs_filter(const Rpl_pfs_filter &other) {
   if (!other.m_filter_rule.is_empty()) m_filter_rule.copy(other.m_filter_rule);
 }
 
-Rpl_pfs_filter::~Rpl_pfs_filter() {}
+Rpl_pfs_filter::~Rpl_pfs_filter() = default;
 
 Rpl_filter_statistics::Rpl_filter_statistics() { reset(); }
 
-Rpl_filter_statistics::~Rpl_filter_statistics() {}
+Rpl_filter_statistics::~Rpl_filter_statistics() = default;
 
 void Rpl_filter_statistics::reset() {
   m_configured_by = CONFIGURED_BY_STARTUP_OPTIONS;

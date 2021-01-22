@@ -849,7 +849,7 @@ class Sys_var_version : public Sys_var_charptr {
       : Sys_var_charptr(name_arg, comment, flag_args, off, size, getopt,
                         is_os_charset_arg, def_val) {}
 
-  ~Sys_var_version() override {}
+  ~Sys_var_version() override = default;
 
   const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
     const uchar *value = Sys_var_charptr::global_value_ptr(thd, base);

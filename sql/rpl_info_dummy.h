@@ -41,7 +41,7 @@ class Server_ids;
 class Rpl_info_dummy : public Rpl_info_handler {
  public:
   Rpl_info_dummy(const int nparam);
-  ~Rpl_info_dummy() override {}
+  ~Rpl_info_dummy() override = default;
 
  private:
   int do_init_info() override;

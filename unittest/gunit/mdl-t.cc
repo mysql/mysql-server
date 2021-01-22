@@ -3793,7 +3793,7 @@ TEST_F(MDLTest, ExhaustPinbox) {
 
 class MDLHtonNotifyTest : public MDLTest {
  protected:
-  MDLHtonNotifyTest() {}
+  MDLHtonNotifyTest() = default;
 
   void SetUp() override {
     MDLTest::SetUp();
@@ -4280,7 +4280,7 @@ TEST_F(MDLHtonNotifyTest, NotifyClone) {
 
 class MDLKeyTest : public ::testing::Test {
  protected:
-  MDLKeyTest() {}
+  MDLKeyTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDLKeyTest);

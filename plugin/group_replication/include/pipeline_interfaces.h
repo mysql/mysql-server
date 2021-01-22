@@ -51,7 +51,7 @@ class Packet {
   */
   Packet(int type) : packet_type(type) {}
 
-  virtual ~Packet() {}
+  virtual ~Packet() = default;
 
   /**
    @return the packet type
@@ -501,7 +501,7 @@ class Pipeline_action {
  public:
   Pipeline_action(int action_type) { type = action_type; }
 
-  virtual ~Pipeline_action() {}
+  virtual ~Pipeline_action() = default;
 
   /**
     Returns this action type.
@@ -531,7 +531,7 @@ class Event_handler {
  public:
   Event_handler() : next_in_pipeline(nullptr) {}
 
-  virtual ~Event_handler() {}
+  virtual ~Event_handler() = default;
 
   /**
     Initialization as defined in the handler implementation.

@@ -92,7 +92,7 @@ table_replication_applier_global_filters::
       m_next_pos(0) {}
 
 table_replication_applier_global_filters::
-    ~table_replication_applier_global_filters() {}
+    ~table_replication_applier_global_filters() = default;
 
 void table_replication_applier_global_filters::reset_position(void) {
   m_pos.m_index = 0;

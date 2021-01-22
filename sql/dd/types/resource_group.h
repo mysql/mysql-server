@@ -55,7 +55,7 @@ class Resource_group : virtual public Entity_object {
   typedef Void_key Aux_key;
 
  public:
-  ~Resource_group() override {}
+  ~Resource_group() override = default;
 
   virtual bool update_id_key(Id_key *key) const {
     return update_id_key(key, id());

@@ -35,7 +35,7 @@ using mysqlrouter::strtoi_checked;
 using mysqlrouter::strtoui_checked;
 IMPORT_LOG_FUNCTIONS()
 
-ARClusterMetadata::~ARClusterMetadata() {}
+ARClusterMetadata::~ARClusterMetadata() = default;
 
 ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
     const std::vector<metadata_cache::ManagedInstance> &instances,

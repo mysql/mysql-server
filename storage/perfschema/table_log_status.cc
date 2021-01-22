@@ -77,7 +77,7 @@ PFS_engine_table *table_log_status::create(PFS_engine_table_share *) {
 table_log_status::table_log_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_log_status::~table_log_status() {}
+table_log_status::~table_log_status() = default;
 
 void table_log_status::reset_position(void) {
   m_pos.m_index = 0;

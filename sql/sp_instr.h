@@ -66,7 +66,7 @@ class sp_printable {
  public:
   virtual void print(const THD *thd, String *str) = 0;
 
-  virtual ~sp_printable() {}
+  virtual ~sp_printable() = default;
 };
 
 /**
@@ -91,7 +91,7 @@ class sp_branch_instr {
   */
   virtual void backpatch(uint dest) = 0;
 
-  virtual ~sp_branch_instr() {}
+  virtual ~sp_branch_instr() = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////

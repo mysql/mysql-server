@@ -390,7 +390,7 @@ static bool get_options(int *argc, char ***argv) {
 /** Error logging classes. */
 namespace ib {
 
-logger::~logger() {}
+logger::~logger() = default;
 
 info::~info() {
   std::cerr << "[INFO] ibd2sdi: " << m_oss.str() << "." << std::endl;
@@ -514,14 +514,7 @@ class ib_tablespace {
 
   /** Copy Constructor.
   @param[in]	copy	another object of ib_tablespace */
-  ib_tablespace(const ib_tablespace &copy)
-      : m_space_id(copy.m_space_id),
-        m_page_size(copy.m_page_size),
-        m_file_vec(copy.m_file_vec),
-        m_page_num_recs(copy.m_page_num_recs),
-        m_max_recs_per_page(copy.m_max_recs_per_page),
-        m_sdi_root(copy.m_sdi_root),
-        m_tot_pages(copy.m_tot_pages) {}
+  ib_tablespace(const ib_tablespace &copy) = default;
 
   /** Add Datafile to vector of datafiles. Also
   resize of vector of pages.

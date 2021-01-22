@@ -43,7 +43,7 @@ namespace thd_manager_unittest {
 
 class ThreadManagerTest : public ::testing::Test {
  protected:
-  ThreadManagerTest() {}
+  ThreadManagerTest() = default;
 
   void SetUp() override {
     Global_THD_manager::create_instance();

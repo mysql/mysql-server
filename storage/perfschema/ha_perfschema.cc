@@ -1540,7 +1540,7 @@ mysql_declare_plugin_end;
 ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
     : handler(hton, share), m_table_share(nullptr), m_table(nullptr) {}
 
-ha_perfschema::~ha_perfschema() {}
+ha_perfschema::~ha_perfschema() = default;
 
 int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
   DBUG_TRACE;

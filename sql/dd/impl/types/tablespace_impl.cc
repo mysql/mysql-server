@@ -100,7 +100,7 @@ Tablespace_impl::Tablespace_impl()
       m_se_private_data(),
       m_files() {} /* purecov: tested */
 
-Tablespace_impl::~Tablespace_impl() {}
+Tablespace_impl::~Tablespace_impl() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -1917,7 +1917,7 @@ struct PageCallback {
   /** Default constructor */
   PageCallback() : m_page_size(0, 0, false), m_filepath() UNIV_NOTHROW {}
 
-  virtual ~PageCallback() UNIV_NOTHROW {}
+  virtual ~PageCallback() UNIV_NOTHROW = default;
 
   /** Called for page 0 in the tablespace file at the start.
   @param file_size size of the file in bytes

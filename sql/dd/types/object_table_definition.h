@@ -46,7 +46,7 @@ class Table;
 
 class Object_table_definition {
  public:
-  virtual ~Object_table_definition() {}
+  virtual ~Object_table_definition() = default;
 
   /**
     Set the name of the table.

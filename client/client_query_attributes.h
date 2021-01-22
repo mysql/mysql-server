@@ -29,7 +29,7 @@
 
 class client_query_attributes {
  public:
-  client_query_attributes() {}
+  client_query_attributes() = default;
   ~client_query_attributes() { clear(); }
   bool push_param(char *name, char *value);
   int set_params(MYSQL *mysql);

@@ -104,7 +104,7 @@ PFS_engine_table *table_replication_applier_status::create(
 table_replication_applier_status::table_replication_applier_status()
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-table_replication_applier_status::~table_replication_applier_status() {}
+table_replication_applier_status::~table_replication_applier_status() = default;
 
 void table_replication_applier_status::reset_position(void) {
   m_pos.m_index = 0;

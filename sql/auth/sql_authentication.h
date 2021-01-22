@@ -119,7 +119,7 @@ class Rsa_authentication_keys {
         m_pem_public_key(nullptr),
         m_private_key_path(private_key_path),
         m_public_key_path(public_key_path) {}
-  ~Rsa_authentication_keys() {}
+  ~Rsa_authentication_keys() = default;
 
   void free_memory();
   void *allocate_pem_buffer(size_t buffer_len);

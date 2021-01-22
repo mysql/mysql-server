@@ -35,8 +35,7 @@ Expect_condition_field::Expect_condition_field(const std::string &value)
                        value) {}
 
 Expect_condition_field::Expect_condition_field(
-    const Expect_condition_field &other)
-    : Expect_condition(other) {}
+    const Expect_condition_field &other) = default;
 
 Expect_condition_field::Expect_condition_ptr Expect_condition_field::clone() {
   return Expect_condition_ptr{new Expect_condition_field(*this)};

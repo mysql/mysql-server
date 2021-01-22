@@ -133,7 +133,7 @@ class Parse_tree_node_tmpl {
   }
 
  public:
-  virtual ~Parse_tree_node_tmpl() {}
+  virtual ~Parse_tree_node_tmpl() = default;
 
 #ifndef NDEBUG
   bool is_contextualized() const { return contextualized; }

@@ -150,7 +150,7 @@ class Semijoin_mat_exec {
         inner_table_index(inner_table_index),
         table_param(),
         table(nullptr) {}
-  ~Semijoin_mat_exec() {}
+  ~Semijoin_mat_exec() = default;
   TABLE_LIST *const sj_nest;     ///< Semi-join nest for this materialization
   const bool is_scan;            ///< true if executing a scan, false if lookup
   const uint table_count;        ///< Number of tables in the sj-nest

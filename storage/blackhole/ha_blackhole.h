@@ -47,7 +47,7 @@ class ha_blackhole : public handler {
 
  public:
   ha_blackhole(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_blackhole() override {}
+  ~ha_blackhole() override = default;
   /* The name that will be used for display purposes */
   const char *table_type() const override { return "BLACKHOLE"; }
   enum ha_key_alg get_default_index_algorithm() const override {

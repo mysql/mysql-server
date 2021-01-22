@@ -266,7 +266,7 @@ class Latches {
      https://reviews.llvm.org/D45898
   So, this declaration is just to make clang 6.0.0 and 7.0.0 happy.
   */
-  ~Latches() {}
+  ~Latches() = default;
 
 #ifdef UNIV_DEBUG
   /**

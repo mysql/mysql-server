@@ -50,7 +50,7 @@ class Base_codec : public binary_log::codecs::Codec {
                                       unsigned char *to,
                                       std::size_t size) const override = 0;
 
-  ~Base_codec() override {}
+  ~Base_codec() override = default;
 };
 
 /**
@@ -58,7 +58,7 @@ class Base_codec : public binary_log::codecs::Codec {
  */
 class Transaction_payload : public Base_codec {
  public:
-  Transaction_payload() {}
+  Transaction_payload() = default;
   /**
      This member function shall decode the contents of the buffer provided and
      fill in the event referenced. Note that the event provided needs to be of

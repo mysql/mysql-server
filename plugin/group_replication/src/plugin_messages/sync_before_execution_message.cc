@@ -34,7 +34,7 @@ Sync_before_execution_message::Sync_before_execution_message(
   decode(buf, len);
 }
 
-Sync_before_execution_message::~Sync_before_execution_message() {}
+Sync_before_execution_message::~Sync_before_execution_message() = default;
 
 void Sync_before_execution_message::encode_payload(
     std::vector<unsigned char> *buffer) const {

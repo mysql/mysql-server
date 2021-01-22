@@ -75,6 +75,6 @@ void Keys_iterator::deinit() {
   this->key_metadata_list.clear();
 }
 
-Keys_iterator::~Keys_iterator() {}
+Keys_iterator::~Keys_iterator() = default;
 
 }  // namespace keyring

@@ -1767,7 +1767,7 @@ class HazardPointer {
   }
 
   /** Destructor */
-  virtual ~HazardPointer() {}
+  virtual ~HazardPointer() = default;
 
   /** Get current value */
   buf_page_t *get() const {
@@ -1825,7 +1825,7 @@ class FlushHp : public HazardPointer {
       : HazardPointer(buf_pool, mutex) {}
 
   /** Destructor */
-  ~FlushHp() override {}
+  ~FlushHp() override = default;
 
   /** Adjust the value of hp. This happens when some
   other thread working on the same list attempts to
@@ -1844,7 +1844,7 @@ class LRUHp : public HazardPointer {
       : HazardPointer(buf_pool, mutex) {}
 
   /** Destructor */
-  ~LRUHp() override {}
+  ~LRUHp() override = default;
 
   /** Adjust the value of hp. This happens when some
   other thread working on the same list attempts to
@@ -1866,7 +1866,7 @@ class LRUItr : public LRUHp {
       : LRUHp(buf_pool, mutex) {}
 
   /** Destructor */
-  ~LRUItr() override {}
+  ~LRUItr() override = default;
 
   /** Selects from where to start a scan. If we have scanned
   too deep into the LRU list it resets the value to the tail

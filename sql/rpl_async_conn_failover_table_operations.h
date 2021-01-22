@@ -62,7 +62,7 @@ class Rpl_async_conn_failover_table_operations {
       enum thr_lock_type lock_type = TL_WRITE)
       : m_lock_type(lock_type) {}
 
-  virtual ~Rpl_async_conn_failover_table_operations() {}
+  virtual ~Rpl_async_conn_failover_table_operations() = default;
 
   /**
     Insert row for a unmanaged sender on

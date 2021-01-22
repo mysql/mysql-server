@@ -64,7 +64,7 @@ typedef ulonglong nested_join_map;
 class Optimize_table_order {
  public:
   Optimize_table_order(THD *thd_arg, JOIN *join_arg, TABLE_LIST *sjm_nest_arg);
-  ~Optimize_table_order() {}
+  ~Optimize_table_order() = default;
   /**
     Entry point to table join order optimization.
     For further description, see class header and private function headers.

@@ -276,7 +276,7 @@ struct row_import {
 class RecIterator {
  public:
   /** Default constructor */
-  RecIterator() UNIV_NOTHROW {}
+  RecIterator() UNIV_NOTHROW = default;
 
   /** Position the cursor on the first user record. */
   void open(buf_block_t *block) UNIV_NOTHROW {
@@ -333,7 +333,7 @@ class IndexPurge {
   }
 
   /** Descructor */
-  ~IndexPurge() UNIV_NOTHROW {}
+  ~IndexPurge() UNIV_NOTHROW = default;
 
   /** Purge delete marked records.
   @return DB_SUCCESS or error code. */
@@ -600,7 +600,7 @@ struct FetchIndexRootPages : public AbstractCallback {
       : AbstractCallback(trx), m_table(table) UNIV_NOTHROW {}
 
   /** Destructor */
-  ~FetchIndexRootPages() UNIV_NOTHROW override {}
+  ~FetchIndexRootPages() UNIV_NOTHROW override = default;
 
   /**
   @retval the space id of the tablespace being iterated over */

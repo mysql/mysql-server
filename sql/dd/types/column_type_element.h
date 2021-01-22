@@ -46,7 +46,7 @@ class Column_type_element : virtual public Weak_object {
   typedef tables::Column_type_elements DD_table;
 
  public:
-  ~Column_type_element() override {}
+  ~Column_type_element() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // Name

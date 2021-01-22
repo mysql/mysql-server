@@ -193,7 +193,7 @@ class Opt_hints {
         resolved(false),
         resolved_children(0) {}
 
-  virtual ~Opt_hints() {}
+  virtual ~Opt_hints() = default;
 
   bool is_specified(opt_hints_enum type_arg) const {
     return hints_map.is_specified(type_arg);
@@ -505,7 +505,7 @@ class Compound_key_hint {
     pt_hint = nullptr;
   }
 
-  virtual ~Compound_key_hint() {}
+  virtual ~Compound_key_hint() = default;
 
   void set_pt_hint(PT_key_level_hint *pt_hint_arg) { pt_hint = pt_hint_arg; }
   PT_key_level_hint *get_pt_hint() { return pt_hint; }

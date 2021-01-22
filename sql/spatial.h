@@ -62,7 +62,7 @@ class point_xy {
  public:
   double x;
   double y;
-  point_xy() {}
+  point_xy() = default;
   point_xy(double x_arg, double y_arg) : x(x_arg), y(y_arg) {}
   double distance(const point_xy &p) const;
   /**
@@ -335,7 +335,7 @@ class Geometry {
     const char *m_data_end;
 
    public:
-    wkb_container() {}
+    wkb_container() = default;
     wkb_container(const char *data, const char *data_end) {
       set(data, data_end);
     }
@@ -1226,7 +1226,7 @@ class Gis_point : public Geometry {
 
   Gis_point(const self &pt);
 
-  ~Gis_point() override {}
+  ~Gis_point() override = default;
 
   Gis_point &operator=(const Gis_point &rhs);
 
@@ -1369,7 +1369,7 @@ class Gis_wkb_vector_const_iterator {
     m_owner = const_cast<owner_t *>(owner);
   }
 
-  ~Gis_wkb_vector_const_iterator() {}
+  ~Gis_wkb_vector_const_iterator() = default;
   //@}
 
   ////////////////////////////////////////////////////////////////////
@@ -1680,7 +1680,7 @@ class Gis_wkb_vector_iterator : public Gis_wkb_vector_const_iterator<T> {
   Gis_wkb_vector_iterator(index_type idx, const owner_t *owner)
       : base(idx, owner) {}
 
-  ~Gis_wkb_vector_iterator() {}
+  ~Gis_wkb_vector_iterator() = default;
   //@}
 
   ////////////////////////////////////////////////////////////////////
@@ -2148,7 +2148,7 @@ class Gis_line_string : public Gis_wkb_vector<Gis_point> {
     set_geotype(wkb_linestring);
   }
 
-  Gis_line_string(const self &ls) : base_type(ls) {}
+  Gis_line_string(const self &ls) = default;
 
   Gis_line_string &operator=(const Gis_line_string &) = default;
 };
@@ -2164,7 +2164,7 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
   typedef Gis_wkb_vector<Gis_point> base;
   typedef Gis_polygon_ring self;
 
-  ~Gis_polygon_ring() override {}
+  ~Gis_polygon_ring() override = default;
   Gis_polygon_ring(const void *wkb, size_t nbytes, const Flags_t &flags,
                    gis::srid_t srid)
       : base(wkb, nbytes, flags, srid, true) {
@@ -2173,7 +2173,7 @@ class Gis_polygon_ring : public Gis_wkb_vector<Gis_point> {
 
   // Coordinate data type, closed-ness and direction will never change, thus no
   // need for the template version of copy constructor.
-  Gis_polygon_ring(const self &r) : base(r) {}
+  Gis_polygon_ring(const self &r) = default;
 
   Gis_polygon_ring &operator=(const Gis_polygon_ring &) = default;
 
@@ -2335,7 +2335,7 @@ class Gis_multi_point : public Gis_wkb_vector<Gis_point> {
     set_geotype(wkb_multipoint);
   }
 
-  Gis_multi_point(const self &mpts) : base_type(mpts) {}
+  Gis_multi_point(const self &mpts) = default;
 };
 
 /***************************** MultiLineString *******************************/
@@ -2375,7 +2375,7 @@ class Gis_multi_line_string : public Gis_wkb_vector<Gis_line_string> {
     set_geotype(wkb_multilinestring);
   }
 
-  Gis_multi_line_string(const self &mls) : base(mls) {}
+  Gis_multi_line_string(const self &mls) = default;
 };
 
 /***************************** MultiPolygon *******************************/
@@ -2412,7 +2412,7 @@ class Gis_multi_polygon : public Gis_wkb_vector<Gis_polygon> {
     set_geotype(wkb_multipolygon);
   }
 
-  Gis_multi_polygon(const self &mpl) : base(mpl) {}
+  Gis_multi_polygon(const self &mpl) = default;
 };
 
 /*********************** GeometryCollection *******************************/
@@ -2465,7 +2465,7 @@ struct Geometry_buffer {
 
 class WKB_scanner_event_handler {
  public:
-  virtual ~WKB_scanner_event_handler() {}
+  virtual ~WKB_scanner_event_handler() = default;
 
   /**
     Notified when scanner sees the start of a geometry WKB.

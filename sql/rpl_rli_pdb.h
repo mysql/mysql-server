@@ -107,7 +107,7 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
 #define SLAVE_INIT_DBS_IN_GROUP 4  // initial allocation for CGEP dynarray
 
 struct Slave_job_group {
-  Slave_job_group() {}
+  Slave_job_group() = default;
 
   /*
     We need a custom copy constructor and assign operator because std::atomic<T>
@@ -283,7 +283,7 @@ class circular_buffer_queue {
     m_Q.resize(size);
   }
   circular_buffer_queue() : m_Q(PSI_INSTRUMENT_ME), inited_queue(false) {}
-  ~circular_buffer_queue() {}
+  ~circular_buffer_queue() = default;
 
   /**
      Content of the being dequeued item is copied to the arg-pointer

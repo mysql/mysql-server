@@ -546,7 +546,7 @@ class system_context;
 // 13.18 [async.system.exec]
 class system_executor {
  public:
-  system_executor() {}
+  system_executor() = default;
 
   system_context &context() const noexcept;
 

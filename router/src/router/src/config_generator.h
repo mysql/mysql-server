@@ -171,7 +171,7 @@ class ConfigGenerator {
 
       operator bool() const { return port > 0 || !socket.empty(); }
     };
-    Options() {}
+    Options() = default;
 
     Endpoint rw_endpoint;
     Endpoint ro_endpoint;

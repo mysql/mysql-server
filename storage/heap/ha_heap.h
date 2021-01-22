@@ -41,7 +41,7 @@ class ha_heap : public handler {
 
  public:
   ha_heap(handlerton *hton, TABLE_SHARE *table);
-  ~ha_heap() override {}
+  ~ha_heap() override = default;
   handler *clone(const char *name, MEM_ROOT *mem_root) override;
   const char *table_type() const override;
   enum ha_key_alg get_default_index_algorithm() const override {

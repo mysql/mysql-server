@@ -164,7 +164,7 @@ class Dictionary {
 
  public:
   // Destructor to cleanup data dictionary instance upon server shutdown.
-  virtual ~Dictionary() {}
+  virtual ~Dictionary() = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////

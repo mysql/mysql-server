@@ -73,7 +73,7 @@ Gcs_xcom_communication::Gcs_xcom_communication(
                                      group_id.get_group_id().size());
 }
 
-Gcs_xcom_communication::~Gcs_xcom_communication() {}
+Gcs_xcom_communication::~Gcs_xcom_communication() = default;
 
 std::map<int, const Gcs_communication_event_listener &>
     *Gcs_xcom_communication::get_event_listeners() {

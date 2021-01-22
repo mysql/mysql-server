@@ -157,8 +157,8 @@ enum enum_log_table_type {
 */
 class Log_event_handler {
  public:
-  Log_event_handler() {}
-  virtual ~Log_event_handler() {}
+  Log_event_handler() = default;
+  virtual ~Log_event_handler() = default;
 
   /**
      Log a query to the slow log.

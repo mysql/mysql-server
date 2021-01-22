@@ -57,7 +57,7 @@ class View_impl : public Abstract_table_impl, public View {
  public:
   View_impl();
 
-  ~View_impl() override {}
+  ~View_impl() override = default;
 
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);

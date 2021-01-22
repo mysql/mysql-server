@@ -37,7 +37,7 @@ namespace unittests {
 
 class Rpl_commit_order_queue_test : public ::testing::Test {
  protected:
-  Rpl_commit_order_queue_test() {}
+  Rpl_commit_order_queue_test() = default;
   virtual void SetUp() {}
   virtual void TearDown() {}
 

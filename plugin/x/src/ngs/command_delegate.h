@@ -54,8 +54,8 @@ class Command_delegate {
   using Field_types = std::vector<Field_type>;
 
  public:
-  Command_delegate() {}
-  virtual ~Command_delegate() {}
+  Command_delegate() = default;
+  virtual ~Command_delegate() = default;
 
   Command_delegate(const Command_delegate &) = default;
   Command_delegate(Command_delegate &&) = default;

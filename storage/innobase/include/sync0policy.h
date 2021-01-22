@@ -131,7 +131,7 @@ class MutexDebug {
   }
 
   /* Destructor */
-  virtual ~MutexDebug() {}
+  virtual ~MutexDebug() = default;
 
   /** Mutex is being destroyed. */
   void destroy() UNIV_NOTHROW {
@@ -194,7 +194,7 @@ class MutexDebug {
 template <typename Mutex>
 struct NoPolicy {
   /** Default constructor. */
-  NoPolicy() {}
+  NoPolicy() = default;
 
   void init(const Mutex &, latch_id_t, const char *, uint32_t) UNIV_NOTHROW {}
   void destroy() UNIV_NOTHROW {}
@@ -226,7 +226,7 @@ struct GenericPolicy
   }
 
   /** Destructor */
-  ~GenericPolicy() {}
+  ~GenericPolicy() = default;
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.
@@ -346,7 +346,7 @@ class BlockMutexPolicy
   }
 
   /** Destructor */
-  ~BlockMutexPolicy() {}
+  ~BlockMutexPolicy() = default;
 
   /** Called when the mutex is "created". Note: Not from the constructor
   but when the mutex is initialised.

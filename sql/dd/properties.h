@@ -307,7 +307,7 @@ class Properties {
 
   Properties &operator=(const Properties &) = delete;
 
-  virtual ~Properties() {}
+  virtual ~Properties() = default;
 };
 
 ///////////////////////////////////////////////////////////////////////////

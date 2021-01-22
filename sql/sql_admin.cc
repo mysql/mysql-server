@@ -1698,7 +1698,7 @@ class Alter_instance_reload_tls : public Alter_instance {
     if (!res) my_ok(m_thd);
     return res;
   }
-  ~Alter_instance_reload_tls() override {}
+  ~Alter_instance_reload_tls() override = default;
 
  protected:
   bool match_channel_name() {

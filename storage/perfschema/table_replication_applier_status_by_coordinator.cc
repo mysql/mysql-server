@@ -151,7 +151,7 @@ table_replication_applier_status_by_coordinator::
     : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_applier_status_by_coordinator::
-    ~table_replication_applier_status_by_coordinator() {}
+    ~table_replication_applier_status_by_coordinator() = default;
 
 void table_replication_applier_status_by_coordinator::reset_position(void) {
   m_pos.m_index = 0;

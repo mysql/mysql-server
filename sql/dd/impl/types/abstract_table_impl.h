@@ -188,7 +188,7 @@ class Abstract_table_impl : public Entity_object_impl,
  protected:
   Abstract_table_impl();
 
-  ~Abstract_table_impl() override {}
+  ~Abstract_table_impl() override = default;
 
  private:
   // Fields.

@@ -59,7 +59,7 @@ class PFS_index_events_statements : public PFS_engine_index {
         m_key_1("THREAD_ID"),
         m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_statements() override {}
+  ~PFS_index_events_statements() override = default;
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events *pfs);
@@ -208,7 +208,7 @@ class table_events_statements_common : public PFS_engine_table {
   table_events_statements_common(const PFS_engine_table_share *share,
                                  void *pos);
 
-  ~table_events_statements_common() override {}
+  ~table_events_statements_common() override = default;
 
   int make_row_part_1(PFS_events_statements *statement,
                       sql_digest_storage *digest);
@@ -242,7 +242,7 @@ class table_events_statements_current : public table_events_statements_common {
   table_events_statements_current();
 
  public:
-  ~table_events_statements_current() override {}
+  ~table_events_statements_current() override = default;
 
  private:
   friend class table_events_statements_history;
@@ -284,7 +284,7 @@ class table_events_statements_history : public table_events_statements_common {
   table_events_statements_history();
 
  public:
-  ~table_events_statements_history() override {}
+  ~table_events_statements_history() override = default;
 
  private:
   /** Table share lock. */
@@ -321,7 +321,7 @@ class table_events_statements_history_long
   table_events_statements_history_long();
 
  public:
-  ~table_events_statements_history_long() override {}
+  ~table_events_statements_history_long() override = default;
 
  private:
   /** Table share lock. */

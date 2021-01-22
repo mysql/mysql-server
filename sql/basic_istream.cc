@@ -26,7 +26,7 @@
 #include <mysql/psi/mysql_file.h>
 #include "my_dbug.h"
 
-IO_CACHE_istream::IO_CACHE_istream() {}
+IO_CACHE_istream::IO_CACHE_istream() = default;
 
 IO_CACHE_istream::~IO_CACHE_istream() { close(); }
 
@@ -81,7 +81,7 @@ bool IO_CACHE_istream::seek(my_off_t offset) {
   return res;
 }
 
-Stdin_istream::Stdin_istream() {}
+Stdin_istream::Stdin_istream() = default;
 
 Stdin_istream::~Stdin_istream() { close(); }
 

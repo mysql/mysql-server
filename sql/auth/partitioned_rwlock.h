@@ -48,7 +48,7 @@
 
 class Partitioned_rwlock {
  public:
-  Partitioned_rwlock() {}
+  Partitioned_rwlock() = default;
 
   /**
     @param parts    Number of partitions.

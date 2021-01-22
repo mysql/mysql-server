@@ -661,8 +661,8 @@ class sp_rcontext;
 
 class Settable_routine_parameter {
  public:
-  Settable_routine_parameter() {}
-  virtual ~Settable_routine_parameter() {}
+  Settable_routine_parameter() = default;
+  virtual ~Settable_routine_parameter() = default;
   /**
     Set required privileges for accessing the parameter.
 
@@ -1048,11 +1048,13 @@ class Item : public Parse_tree_node {
   */
   explicit Item(const POS &);
 
-  ~Item() override {
 #ifdef EXTRA_DEBUG
+  ~Item() override {
     item_name.set(0);
+  }
+#else
+  ~Item() override = default;
 #endif
-  } /*lint -e1509 */
 
  private:
   /*
@@ -2675,7 +2677,7 @@ class Item : public Parse_tree_node {
     int8 m_location{0};
     Item *m_join_condition_context{nullptr};
     bool m_collect_unconditionally{false};
-    Collect_scalar_subquery_info() {}
+    Collect_scalar_subquery_info() = default;
     friend class Item_sum;
     friend class Item_singlerow_subselect;
   };

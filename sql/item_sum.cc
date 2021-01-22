@@ -4843,7 +4843,7 @@ void Item_percent_rank::clear() {
   m_last_peer_visited = false;
 }
 
-Item_percent_rank::~Item_percent_rank() {}
+Item_percent_rank::~Item_percent_rank() = default;
 
 bool Item_nth_value::check_wf_semantics2(Window_evaluation_requirements *r) {
   /*

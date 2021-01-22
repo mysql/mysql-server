@@ -86,9 +86,9 @@ Parallel_reader::Scan_ctx::Iter::~Iter() {
   m_heap = nullptr;
 }
 
-Parallel_reader::Ctx::~Ctx() {}
+Parallel_reader::Ctx::~Ctx() = default;
 
-Parallel_reader::Scan_ctx::~Scan_ctx() {}
+Parallel_reader::Scan_ctx::~Scan_ctx() = default;
 
 Parallel_reader::~Parallel_reader() {
   mutex_destroy(&m_mutex);

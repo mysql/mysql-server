@@ -48,12 +48,12 @@
 */
 class Gcs_xcom_proxy {
  public:
-  explicit Gcs_xcom_proxy() {}
+  explicit Gcs_xcom_proxy() = default;
 
   /**
     The destructor.
   */
-  virtual ~Gcs_xcom_proxy() {}
+  virtual ~Gcs_xcom_proxy() = default;
 
   /**
     This is an utility member function that is used to call into XCom for
@@ -804,8 +804,8 @@ class Gcs_xcom_proxy {
 */
 class Gcs_xcom_proxy_base : public Gcs_xcom_proxy {
  public:
-  explicit Gcs_xcom_proxy_base() {}
-  ~Gcs_xcom_proxy_base() override {}
+  explicit Gcs_xcom_proxy_base() = default;
+  ~Gcs_xcom_proxy_base() override = default;
 
   bool xcom_boot_node(Gcs_xcom_node_information &node,
                       uint32_t group_id_hash) override;
@@ -999,9 +999,9 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
  */
 class Gcs_xcom_app_cfg {
  public:
-  explicit Gcs_xcom_app_cfg() {}
+  explicit Gcs_xcom_app_cfg() = default;
 
-  virtual ~Gcs_xcom_app_cfg() {}
+  virtual ~Gcs_xcom_app_cfg() = default;
 
   /**
     Initializes the data structures to communicate with

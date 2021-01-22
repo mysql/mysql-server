@@ -640,7 +640,7 @@ int channel_stop_all(int threads_to_stop, long timeout,
 
 class Kill_binlog_dump : public Do_THD_Impl {
  public:
-  Kill_binlog_dump() {}
+  Kill_binlog_dump() = default;
 
   void operator()(THD *thd_to_kill) override {
     if (thd_to_kill->get_command() == COM_BINLOG_DUMP ||

@@ -58,7 +58,7 @@ class PFS_index_accounts_by_user_host : public PFS_index_accounts {
         m_key_1("USER"),
         m_key_2("HOST") {}
 
-  ~PFS_index_accounts_by_user_host() override {}
+  ~PFS_index_accounts_by_user_host() override = default;
 
   bool match(PFS_account *pfs) override;
 
@@ -84,7 +84,7 @@ class table_accounts : public cursor_by_account {
   table_accounts();
 
  public:
-  ~table_accounts() override {}
+  ~table_accounts() override = default;
 
   int index_init(uint idx, bool sorted) override;
 

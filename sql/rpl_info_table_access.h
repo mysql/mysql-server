@@ -37,7 +37,7 @@ enum enum_return_id { FOUND_ID = 1, NOT_FOUND_ID, ERROR_ID };
 class Rpl_info_table_access : public System_table_access {
  public:
   Rpl_info_table_access() : thd_created(false) {}
-  ~Rpl_info_table_access() override {}
+  ~Rpl_info_table_access() override = default;
 
   /**
     Prepares before opening table.

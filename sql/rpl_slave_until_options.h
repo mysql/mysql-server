@@ -54,7 +54,7 @@ class Relay_log_info;
 */
 class Until_option {
  public:
-  virtual ~Until_option() {}
+  virtual ~Until_option() = default;
 
   /**
      Check if the until option is already satisfied at coordinator starting.
@@ -129,7 +129,7 @@ class Until_option {
 */
 class Until_position : public Until_option {
  public:
-  ~Until_position() override {}
+  ~Until_position() override = default;
 
   /**
      Initialize the until position when starting the slave.
@@ -242,7 +242,7 @@ class Until_relay_position : public Until_position {
  */
 class Until_gtids : public Until_option {
  public:
-  ~Until_gtids() override {}
+  ~Until_gtids() override = default;
 
   /**
      Initialize the until gtids when starting the slave.

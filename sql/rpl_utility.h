@@ -252,7 +252,7 @@ class table_def {
     containing an uninitialized table_def object which is only conditionally
     initialized. See Table_map_log_event::do_apply_event().
   */
-  table_def() {}
+  table_def() = default;
 
   /**
     Constructor.

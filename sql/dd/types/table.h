@@ -73,7 +73,7 @@ class Table : virtual public Abstract_table {
                              Object_id se_private_id);
 
  public:
-  ~Table() override {}
+  ~Table() override = default;
 
  public:
   enum enum_row_format {

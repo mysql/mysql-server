@@ -57,7 +57,7 @@ HttpUri::HttpUri(
 }
 
 HttpUri::HttpUri(HttpUri &&) = default;
-HttpUri::~HttpUri() {}
+HttpUri::~HttpUri() = default;
 
 HttpUri::operator bool() const { return pImpl_->uri.operator bool(); }
 
@@ -209,7 +209,7 @@ std::vector<uint8_t> HttpBuffer::pop_front(size_t len) {
 }
 
 HttpBuffer::HttpBuffer(HttpBuffer &&) = default;
-HttpBuffer::~HttpBuffer() {}
+HttpBuffer::~HttpBuffer() = default;
 
 // wrap evkeyvalq
 
@@ -249,7 +249,7 @@ HttpHeaders::Iterator HttpHeaders::begin() { return pImpl_->hdrs->tqh_first; }
 HttpHeaders::Iterator HttpHeaders::end() { return *(pImpl_->hdrs->tqh_last); }
 
 HttpHeaders::HttpHeaders(HttpHeaders &&) = default;
-HttpHeaders::~HttpHeaders() {}
+HttpHeaders::~HttpHeaders() = default;
 
 // wrap evhttp_request
 
@@ -352,7 +352,7 @@ HttpRequest::HttpRequest(HttpRequest::RequestHandler cb, void *cb_arg) {
 
 HttpRequest::HttpRequest(HttpRequest &&rhs) : pImpl_{std::move(rhs.pImpl_)} {}
 
-HttpRequest::~HttpRequest() {}
+HttpRequest::~HttpRequest() = default;
 
 void HttpRequest::socket_error_code(std::error_code error_code) {
   pImpl_->socket_error_code_ = error_code;

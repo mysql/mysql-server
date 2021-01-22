@@ -1892,7 +1892,7 @@ static void init_fts_doc_id_for_ref(
 /* A functor for decrementing counters. */
 class ib_dec_counter {
  public:
-  ib_dec_counter() {}
+  ib_dec_counter() = default;
 
   void operator()(upd_node_t *node) {
     ut_ad(node->table->n_foreign_key_checks_running > 0);

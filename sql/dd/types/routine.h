@@ -94,7 +94,7 @@ class Routine : virtual public Entity_object {
   };
 
  public:
-  ~Routine() override {}
+  ~Routine() override = default;
 
  public:
   /////////////////////////////////////////////////////////////////////////

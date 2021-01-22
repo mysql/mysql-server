@@ -48,7 +48,7 @@ using ::testing::SetErrnoAndReturn;
 
 class MockWrite {
  public:
-  virtual ~MockWrite() {}
+  virtual ~MockWrite() = default;
   MOCK_METHOD3(mockwrite, ssize_t(int, const void *, size_t));
 };
 

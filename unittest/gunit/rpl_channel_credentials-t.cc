@@ -32,7 +32,7 @@ namespace credential_struct_unittest {
 
 class CredentialStructTesting : public ::testing::Test {
  protected:
-  CredentialStructTesting() {}
+  CredentialStructTesting() = default;
 
   void SetUp() override {
     user[0] = 0;

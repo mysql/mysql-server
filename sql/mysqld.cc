@@ -10947,7 +10947,7 @@ enum_server_operational_state get_server_state() {
 */
 class Reset_thd_status : public Do_THD_Impl {
  public:
-  Reset_thd_status() {}
+  Reset_thd_status() = default;
   void operator()(THD *thd) override {
     /* Update the global status if not done so already. */
     if (!thd->status_var_aggregated) {

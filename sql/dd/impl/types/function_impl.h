@@ -52,7 +52,7 @@ class Function_impl : public Routine_impl, public Function {
  public:
   Function_impl();
 
-  ~Function_impl() override {}
+  ~Function_impl() override = default;
 
   bool update_routine_name_key(Name_key *key, Object_id schema_id,
                                const String_type &name) const override;

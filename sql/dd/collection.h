@@ -139,7 +139,7 @@ class Collection {
   };
 
  public:
-  Collection() {}
+  Collection() = default;
 
   ~Collection() { clear_all_items(); }
 

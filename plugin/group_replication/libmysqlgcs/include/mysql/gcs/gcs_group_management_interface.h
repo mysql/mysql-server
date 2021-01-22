@@ -84,7 +84,7 @@ class Gcs_group_management_interface {
   */
   virtual enum_gcs_error set_write_concurrency(uint32_t write_concurrency) = 0;
 
-  virtual ~Gcs_group_management_interface() {}
+  virtual ~Gcs_group_management_interface() = default;
 };
 
 #endif  // GCS_GROUP_MANAGEMENT_INTERFACE_INCLUDED

@@ -30,7 +30,8 @@ Transaction_with_guarantee_message::Transaction_with_guarantee_message(
   assert(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
 }
 
-Transaction_with_guarantee_message::~Transaction_with_guarantee_message() {}
+Transaction_with_guarantee_message::~Transaction_with_guarantee_message() =
+    default;
 
 bool Transaction_with_guarantee_message::write(const unsigned char *buffer,
                                                my_off_t length) {

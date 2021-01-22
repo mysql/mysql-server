@@ -530,8 +530,8 @@ class Rpl_filter {
 */
 class Rpl_global_filter : public Rpl_filter {
  public:
-  Rpl_global_filter() {}
-  ~Rpl_global_filter() override {}
+  Rpl_global_filter() = default;
+  ~Rpl_global_filter() override = default;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /**
@@ -587,7 +587,7 @@ class Sql_cmd_change_repl_filter : public Sql_cmd {
         wild_ignore_table_list(nullptr),
         rewrite_db_pair_list(nullptr) {}
 
-  ~Sql_cmd_change_repl_filter() override {}
+  ~Sql_cmd_change_repl_filter() override = default;
 
   enum_sql_command sql_command_code() const override {
     return SQLCOM_CHANGE_REPLICATION_FILTER;

@@ -147,11 +147,7 @@ class Encryption {
   }
 
   /** Copy constructor */
-  Encryption(const Encryption &other) noexcept
-      : m_type(other.m_type),
-        m_key(other.m_key),
-        m_klen(other.m_klen),
-        m_iv(other.m_iv) {}
+  Encryption(const Encryption &other) noexcept = default;
 
   Encryption &operator=(const Encryption &) = default;
 

@@ -51,7 +51,7 @@ class Internal_error_handler {
     return m_prev_internal_handler;
   }
 
-  virtual ~Internal_error_handler() {}
+  virtual ~Internal_error_handler() = default;
 
  public:
   /**

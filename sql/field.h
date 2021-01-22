@@ -500,7 +500,7 @@ class Value_generator {
     expr_str.str = nullptr;
     expr_str.length = 0;
   }
-  ~Value_generator() {}
+  ~Value_generator() = default;
   enum_field_types get_real_type() const { return field_type; }
 
   void set_field_type(enum_field_types fld_type) { field_type = fld_type; }
@@ -4577,7 +4577,7 @@ class Send_field {
     Protocol_classic and descendants.
   */
   bool field;
-  Send_field() {}
+  Send_field() = default;
 };
 
 /**

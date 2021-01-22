@@ -81,7 +81,7 @@ class Handler_start_action : public Pipeline_action {
  public:
   Handler_start_action() : Pipeline_action(HANDLER_START_ACTION) {}
 
-  ~Handler_start_action() override {}
+  ~Handler_start_action() override = default;
 };
 
 /**
@@ -93,7 +93,7 @@ class Handler_stop_action : public Pipeline_action {
  public:
   Handler_stop_action() : Pipeline_action(HANDLER_STOP_ACTION) {}
 
-  ~Handler_stop_action() override {}
+  ~Handler_stop_action() override = default;
 };
 
 /**
@@ -136,7 +136,7 @@ class Handler_applier_configuration_action : public Pipeline_action {
         group_sidno(0),
         initialization_conf(false) {}
 
-  ~Handler_applier_configuration_action() override {}
+  ~Handler_applier_configuration_action() override = default;
 
   /**
     @return the applier's name

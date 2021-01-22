@@ -54,7 +54,7 @@ class Binlog_sender {
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
                 Gtid_set *exclude_gtids, uint32 flag);
 
-  ~Binlog_sender() {}
+  ~Binlog_sender() = default;
 
   /**
     It checks the dump reqest and sends events to the client until it finish

@@ -106,7 +106,7 @@ class Column : virtual public Entity_object {
     HT_HIDDEN_USER = 4
   };
 
-  ~Column() override {}
+  ~Column() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // Table.

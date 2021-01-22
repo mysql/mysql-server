@@ -73,7 +73,7 @@ class GcsXComXComCache : public GcsBaseTest {
         m_sd(nullptr),
         m_thread(nullptr),
         m_run(false) {}
-  ~GcsXComXComCache() override {}
+  ~GcsXComXComCache() override = default;
 
   void SetUp() override {
     m_synode = {1, 1, 0};

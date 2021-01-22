@@ -98,7 +98,7 @@ class Event : virtual public Entity_object {
   enum enum_on_completion { OC_DROP = 1, OC_PRESERVE };
 
  public:
-  ~Event() override {}
+  ~Event() override = default;
 
  public:
   /////////////////////////////////////////////////////////////////////////

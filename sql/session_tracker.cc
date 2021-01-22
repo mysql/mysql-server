@@ -233,8 +233,8 @@ static const unsigned int EXTRA_ALLOC = 1024;
 */
 class Session_gtids_ctx_encoder {
  public:
-  Session_gtids_ctx_encoder() {}
-  virtual ~Session_gtids_ctx_encoder() {}
+  Session_gtids_ctx_encoder() = default;
+  virtual ~Session_gtids_ctx_encoder() = default;
 
   /*
    This function SHALL encode the collected GTIDs into the buffer.
@@ -263,8 +263,8 @@ class Session_gtids_ctx_encoder {
 
 class Session_gtids_ctx_encoder_string : public Session_gtids_ctx_encoder {
  public:
-  Session_gtids_ctx_encoder_string() {}
-  ~Session_gtids_ctx_encoder_string() override {}
+  Session_gtids_ctx_encoder_string() = default;
+  ~Session_gtids_ctx_encoder_string() override = default;
 
   ulonglong encoding_specification() override { return 0; }
 

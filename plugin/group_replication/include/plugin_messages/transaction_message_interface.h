@@ -39,7 +39,7 @@ class Transaction_message_interface : public Plugin_gcs_message,
  public:
   explicit Transaction_message_interface(enum_cargo_type cargo_type)
       : Plugin_gcs_message(cargo_type) {}
-  ~Transaction_message_interface() override {}
+  ~Transaction_message_interface() override = default;
 
   /**
      Length of data in data vector

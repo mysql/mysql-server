@@ -118,7 +118,7 @@ class Blocked_transaction_handler {
 template <typename T>
 class Synchronized_queue_interface {
  public:
-  virtual ~Synchronized_queue_interface() {}
+  virtual ~Synchronized_queue_interface() = default;
 
   /**
     Checks if the queue is empty
@@ -257,7 +257,7 @@ class Abortable_synchronized_queue : public Synchronized_queue<T> {
  public:
   Abortable_synchronized_queue() : Synchronized_queue<T>(), m_abort(false) {}
 
-  ~Abortable_synchronized_queue() override {}
+  ~Abortable_synchronized_queue() override = default;
 
   /**
     Inserts an element in the queue.

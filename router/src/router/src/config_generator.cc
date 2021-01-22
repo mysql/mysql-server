@@ -178,7 +178,7 @@ ConfigGenerator::ConfigGenerator(std::ostream &out_stream,
 {
 }
 
-ConfigGenerator::~ConfigGenerator() {}
+ConfigGenerator::~ConfigGenerator() = default;
 
 // throws std::logic_error, std::runtime_error, Error(runtime_error)
 /*static*/

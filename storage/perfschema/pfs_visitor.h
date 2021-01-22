@@ -71,8 +71,8 @@ struct PFS_connection_slice;
 */
 class PFS_connection_visitor {
  public:
-  PFS_connection_visitor() {}
-  virtual ~PFS_connection_visitor() {}
+  PFS_connection_visitor() = default;
+  virtual ~PFS_connection_visitor() = default;
   /** Visit all connections. */
   virtual void visit_global() {}
   /** Visit all connections of a host. */
@@ -160,8 +160,8 @@ class PFS_connection_iterator {
 */
 class PFS_instance_visitor {
  public:
-  PFS_instance_visitor() {}
-  virtual ~PFS_instance_visitor() {}
+  PFS_instance_visitor() = default;
+  virtual ~PFS_instance_visitor() = default;
   /** Visit a mutex class. */
   virtual void visit_mutex_class(PFS_mutex_class *) {}
   /** Visit a rwlock class. */
@@ -268,8 +268,8 @@ class PFS_instance_iterator {
 */
 class PFS_object_visitor {
  public:
-  PFS_object_visitor() {}
-  virtual ~PFS_object_visitor() {}
+  PFS_object_visitor() = default;
+  virtual ~PFS_object_visitor() = default;
   /** Visit global data. */
   virtual void visit_global() {}
   /** Visit a table share. */

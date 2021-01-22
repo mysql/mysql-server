@@ -135,7 +135,7 @@ class Sql_condition {
                 const char *message_text);
 
   /** Destructor. */
-  ~Sql_condition() {}
+  ~Sql_condition() = default;
 
   /**
     Copy optional condition items attributes.

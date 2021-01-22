@@ -38,9 +38,9 @@ class Sql_service_context_base {
     Sql_service_context_base constructor
     resets all variables
   */
-  Sql_service_context_base() {}
+  Sql_service_context_base() = default;
 
-  virtual ~Sql_service_context_base() {}
+  virtual ~Sql_service_context_base() = default;
 
   /** Getting metadata **/
   /**

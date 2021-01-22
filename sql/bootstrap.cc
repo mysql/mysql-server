@@ -94,7 +94,7 @@ static char *mysql_file_fgets_fn(char *buffer, size_t size, MYSQL_FILE *input,
   return line;
 }
 
-File_command_iterator::~File_command_iterator() {}
+File_command_iterator::~File_command_iterator() = default;
 
 static void bootstrap_log_error(const char *message) {
   my_printf_error(ER_UNKNOWN_ERROR, "%s", MYF(0), message);

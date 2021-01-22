@@ -144,7 +144,7 @@ class PFS_index_rpl_applier_status_by_worker : public PFS_engine_index {
                                          PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_rpl_applier_status_by_worker() override {}
+  ~PFS_index_rpl_applier_status_by_worker() override = default;
 
   virtual bool match(Master_info *mi) = 0;
   virtual bool match(Master_info *mi, Slave_worker *w) = 0;
@@ -158,7 +158,7 @@ class PFS_index_rpl_applier_status_by_worker_by_channel
         m_key_1("CHANNEL_NAME"),
         m_key_2("WORKER_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_channel() override {}
+  ~PFS_index_rpl_applier_status_by_worker_by_channel() override = default;
 
   bool match(Master_info *mi) override;
   bool match(Master_info *mi, Slave_worker *w) override;
@@ -174,7 +174,7 @@ class PFS_index_rpl_applier_status_by_worker_by_thread
   PFS_index_rpl_applier_status_by_worker_by_thread()
       : PFS_index_rpl_applier_status_by_worker(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_applier_status_by_worker_by_thread() override {}
+  ~PFS_index_rpl_applier_status_by_worker_by_thread() override = default;
 
   bool match(Master_info *mi) override;
   bool match(Master_info *mi, Slave_worker *w) override;

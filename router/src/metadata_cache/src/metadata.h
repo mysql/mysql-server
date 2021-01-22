@@ -92,7 +92,7 @@ class METADATA_API MetaData {
   // must be explicitly defined though.
   explicit MetaData(const MetaData &) = delete;
   MetaData &operator=(const MetaData &) = delete;
-  virtual ~MetaData() {}
+  virtual ~MetaData() = default;
 };
 
 #endif  // METADATA_CACHE_METADATA_INTERFACE_INCLUDED

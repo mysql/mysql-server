@@ -717,7 +717,7 @@ class Segment {
         m_end(m_start + (n_pages * univ_page_size.physical())) {}
 
   /** Destructor. */
-  virtual ~Segment() {}
+  virtual ~Segment() = default;
 
   /** Write to the segment.
   @param[in] ptr                Start writing from here.

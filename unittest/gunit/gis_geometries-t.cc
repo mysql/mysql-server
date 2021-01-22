@@ -66,9 +66,9 @@ struct Geographic_types {
 template <typename Types>
 class GeometriesTest : public ::testing::Test {
  public:
-  GeometriesTest() {}
+  GeometriesTest() = default;
 
-  ~GeometriesTest() override {}
+  ~GeometriesTest() override = default;
 };
 
 typedef ::testing::Types<Cartesian_types, Geographic_types> Types;

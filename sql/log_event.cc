@@ -10515,7 +10515,7 @@ Table_map_log_event::Table_map_log_event(
   assert(header()->type_code == binary_log::TABLE_MAP_EVENT);
 }
 
-Table_map_log_event::~Table_map_log_event() {}
+Table_map_log_event::~Table_map_log_event() = default;
 
 /*
   Return value is an error code, one of:
@@ -12496,7 +12496,7 @@ Ignorable_log_event::Ignorable_log_event(
   DBUG_TRACE;
 }
 
-Ignorable_log_event::~Ignorable_log_event() {}
+Ignorable_log_event::~Ignorable_log_event() = default;
 
 #ifdef MYSQL_SERVER
 /* Pack info for its unrecognized ignorable event */

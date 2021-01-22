@@ -143,8 +143,8 @@ class SortingIterator final : public RowIterator {
   // TODO: If we need to add TimingIterator directly on this iterator,
   // switch to allocating it on the MEM_ROOT.
   union IteratorHolder {
-    IteratorHolder() {}
-    ~IteratorHolder() {}
+    IteratorHolder() {}   // NOLINT(modernize-use-equals-default)
+    ~IteratorHolder() {}  // NOLINT(modernize-use-equals-default)
 
     SortBufferIterator<true> sort_buffer_packed_addons;
     SortBufferIterator<false> sort_buffer;

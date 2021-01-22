@@ -180,9 +180,9 @@
 */
 /* clang-format on */
 
-PFS_data_cache::PFS_data_cache() {}
+PFS_data_cache::PFS_data_cache() = default;
 
-PFS_data_cache::~PFS_data_cache() {}
+PFS_data_cache::~PFS_data_cache() = default;
 
 const char *PFS_data_cache::cache_data(const char *ptr, size_t length) {
   /*
@@ -202,7 +202,7 @@ void PFS_data_cache::clear() { m_set.clear(); }
 PFS_data_lock_container::PFS_data_lock_container()
     : m_logical_row_index(0), m_filter(nullptr) {}
 
-PFS_data_lock_container::~PFS_data_lock_container() {}
+PFS_data_lock_container::~PFS_data_lock_container() = default;
 
 const char *PFS_data_lock_container::cache_string(const char *string) {
   return m_cache.cache_data(string, strlen(string));
@@ -361,7 +361,7 @@ row_data_lock *PFS_data_lock_container::get_row(size_t index) {
 PFS_data_lock_wait_container::PFS_data_lock_wait_container()
     : m_logical_row_index(0), m_filter(nullptr) {}
 
-PFS_data_lock_wait_container::~PFS_data_lock_wait_container() {}
+PFS_data_lock_wait_container::~PFS_data_lock_wait_container() = default;
 
 const char *PFS_data_lock_wait_container::cache_string(const char *string) {
   return m_cache.cache_data(string, strlen(string));

@@ -413,10 +413,7 @@ sqlstring::sqlstring(const char *format_string, const sqlstringformat format)
   append(consume_until_next_escape());
 }
 
-sqlstring::sqlstring(const sqlstring &copy)
-    : _formatted(copy._formatted),
-      _format_string_left(copy._format_string_left),
-      _format(copy._format) {}
+sqlstring::sqlstring(const sqlstring &) = default;
 
 sqlstring::sqlstring() : _format(0) {}
 

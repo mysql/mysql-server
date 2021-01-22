@@ -354,7 +354,7 @@ class Multi_value_entry_builder {
         m_mv_data(nullptr),
         m_mv_field_no(0) {}
 
-  virtual ~Multi_value_entry_builder() {}
+  virtual ~Multi_value_entry_builder() = default;
 
   /** Get the first index entry. If the multi-value field on the index
   is null, then it's the entry including the null field, otherwise,

@@ -42,7 +42,7 @@ namespace detail {
 template <class T>
 class PFS_allocator : public std::allocator<T> {
  public:
-  PFS_allocator() {}
+  PFS_allocator() = default;
 
   template <class U>
   PFS_allocator(PFS_allocator<U> const &) {}

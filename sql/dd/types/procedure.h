@@ -45,7 +45,7 @@ class Procedure : virtual public Routine {
                               const String_type &name);
 
  public:
-  ~Procedure() override {}
+  ~Procedure() override = default;
 
  public:
   /**

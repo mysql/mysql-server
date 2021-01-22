@@ -72,7 +72,7 @@ class Ename_POS {
   unsigned int m_index;
 
  public:
-  ~Ename_POS() {}
+  ~Ename_POS() = default;
   Ename_POS() { m_index = 0; }
 
   bool has_more() {
@@ -94,7 +94,7 @@ class Ename_POS {
 
 class Ename_index {
  public:
-  virtual ~Ename_index() {}
+  virtual ~Ename_index() = default;
   virtual bool match(Ename_Record *record) = 0;
 };
 

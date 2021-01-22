@@ -1613,7 +1613,7 @@ bool Certifier::is_conflict_detection_enable() {
 Gtid_Executed_Message::Gtid_Executed_Message()
     : Plugin_gcs_message(CT_CERTIFICATION_MESSAGE) {}
 
-Gtid_Executed_Message::~Gtid_Executed_Message() {}
+Gtid_Executed_Message::~Gtid_Executed_Message() = default;
 
 void Gtid_Executed_Message::append_gtid_executed(uchar *gtid_data, size_t len) {
   data.insert(data.end(), gtid_data, gtid_data + len);

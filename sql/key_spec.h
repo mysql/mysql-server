@@ -234,7 +234,7 @@ class Key_spec {
     while ((column = it++)) columns.push_back(column);
   }
 
-  virtual ~Key_spec() {}
+  virtual ~Key_spec() = default;
 };
 
 class Foreign_key_spec : public Key_spec {

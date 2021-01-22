@@ -159,7 +159,7 @@ class MySQLSession {
   class ResultRow {
    public:
     ResultRow(Row row) : row_{std::move(row)} {}
-    virtual ~ResultRow() {}
+    virtual ~ResultRow() = default;
     size_t size() const { return row_.size(); }
     const char *&operator[](size_t i) { return row_[i]; }
 

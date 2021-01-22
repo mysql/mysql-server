@@ -159,8 +159,8 @@ class Parse_tree_root {
   void operator=(const Parse_tree_root &) = delete;
 
  protected:
-  virtual ~Parse_tree_root() {}
-  Parse_tree_root() {}
+  virtual ~Parse_tree_root() = default;
+  Parse_tree_root() = default;
 
  public:
   virtual Sql_cmd *make_cmd(THD *thd) = 0;
@@ -177,7 +177,7 @@ class PT_table_ddl_stmt_base : public Parse_tree_root {
   Alter_info m_alter_info;
 };
 
-inline PT_table_ddl_stmt_base::~PT_table_ddl_stmt_base() {}
+inline PT_table_ddl_stmt_base::~PT_table_ddl_stmt_base() = default;
 
 /**
   Parse context for the table DDL (ALTER TABLE and CREATE TABLE) nodes.
@@ -568,7 +568,7 @@ class PT_joined_table : public PT_table_reference {
   bool contextualize_tabs(Parse_context *pc);
 };
 
-inline PT_joined_table::~PT_joined_table() {}
+inline PT_joined_table::~PT_joined_table() = default;
 
 class PT_cross_join : public PT_joined_table {
   typedef PT_joined_table super;
@@ -2320,7 +2320,7 @@ class PT_ddl_table_option : public Table_ddl_node {
   virtual bool is_rename_table() const { return false; }
 };
 
-inline PT_ddl_table_option::~PT_ddl_table_option() {}
+inline PT_ddl_table_option::~PT_ddl_table_option() = default;
 
 /**
   Base class for CREATE TABLE option nodes
@@ -2340,7 +2340,7 @@ class PT_create_table_option : public PT_ddl_table_option {
   }
 };
 
-inline PT_create_table_option::~PT_create_table_option() {}
+inline PT_create_table_option::~PT_create_table_option() = default;
 
 /**
   A template for options that set a single property in HA_CREATE_INFO, and
@@ -2631,7 +2631,7 @@ class PT_create_table_secondary_engine_option : public PT_create_table_option {
   using super = PT_create_table_option;
 
  public:
-  explicit PT_create_table_secondary_engine_option() {}
+  explicit PT_create_table_secondary_engine_option() = default;
   explicit PT_create_table_secondary_engine_option(
       const LEX_CSTRING &secondary_engine)
       : m_secondary_engine(secondary_engine) {}

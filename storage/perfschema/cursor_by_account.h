@@ -45,7 +45,7 @@ class PFS_index_accounts : public PFS_engine_index {
   PFS_index_accounts(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_accounts() override {}
+  ~PFS_index_accounts() override = default;
 
   virtual bool match(PFS_account *pfs) = 0;
 };
@@ -66,7 +66,7 @@ class cursor_by_account : public PFS_engine_table {
   cursor_by_account(const PFS_engine_table_share *share);
 
  public:
-  ~cursor_by_account() override {}
+  ~cursor_by_account() override = default;
 
  protected:
   virtual int make_row(PFS_account *account) = 0;

@@ -85,7 +85,7 @@ struct Column_parse_context : public Parse_context {
 */
 class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
  protected:
-  PT_column_attr_base() {}
+  PT_column_attr_base() = default;
 
  public:
   typedef decltype(Alter_info::flags) alter_info_flags_t;

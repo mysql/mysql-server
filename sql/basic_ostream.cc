@@ -27,7 +27,7 @@
 #include "mysqld_error.h"
 #include "sql/log.h"
 
-IO_CACHE_ostream::IO_CACHE_ostream() {}
+IO_CACHE_ostream::IO_CACHE_ostream() = default;
 IO_CACHE_ostream::~IO_CACHE_ostream() { close(); }
 
 bool IO_CACHE_ostream::open(
@@ -90,7 +90,7 @@ bool IO_CACHE_ostream::sync() {
 
 Compressed_ostream::Compressed_ostream() : m_compressor(nullptr) {}
 
-Compressed_ostream::~Compressed_ostream() {}
+Compressed_ostream::~Compressed_ostream() = default;
 
 binary_log::transaction::compression::Compressor *
 Compressed_ostream::get_compressor() {

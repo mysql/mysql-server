@@ -41,7 +41,7 @@ class BaseProtocol;
 
 class ROUTING_EXPORT MySQLRoutingAPI {
  public:
-  MySQLRoutingAPI() {}
+  MySQLRoutingAPI() = default;
 
   MySQLRoutingAPI(std::shared_ptr<MySQLRouting> r) : r_{std::move(r)} {}
 

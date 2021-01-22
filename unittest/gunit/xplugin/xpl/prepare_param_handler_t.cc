@@ -92,7 +92,7 @@ namespace {
 
 class Value {
  public:
-  Value() {}
+  Value() = default;
   explicit Value(const unsigned v) {
     int8store(buf.data(), static_cast<uint64_t>(v));
   }

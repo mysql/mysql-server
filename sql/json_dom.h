@@ -182,7 +182,7 @@ class Json_dom {
   void set_parent(Json_container *parent) { m_parent = parent; }
 
  public:
-  virtual ~Json_dom() {}
+  virtual ~Json_dom() = default;
 
   /**
     Allocate space on the heap for a Json_dom object.

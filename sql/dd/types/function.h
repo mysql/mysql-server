@@ -47,7 +47,7 @@ class Function : virtual public Routine {
                               const String_type &name);
 
  public:
-  ~Function() override {}
+  ~Function() override = default;
 
  public:
   /////////////////////////////////////////////////////////////////////////

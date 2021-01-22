@@ -38,7 +38,7 @@ namespace gcs_xcom_stages_unittest {
 
 class XcomStagesTest : public GcsBaseTest {
  protected:
-  XcomStagesTest() {}
+  XcomStagesTest() = default;
 
  public:
   static const unsigned long long LARGE_PAYLOAD_LEN;
@@ -508,7 +508,7 @@ class Gcs_new_stage_1 : public Gcs_message_stage {
  public:
   explicit Gcs_new_stage_1() : m_id(std::rand()) {}
 
-  virtual ~Gcs_new_stage_1() override {}
+  virtual ~Gcs_new_stage_1() override = default;
 
   virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -527,9 +527,9 @@ const unsigned short Gcs_new_stage_1::MESSAGE_ID_SIZE;
  */
 class Gcs_new_stage_2 : public Gcs_new_stage_1 {
  public:
-  explicit Gcs_new_stage_2() {}
+  explicit Gcs_new_stage_2() = default;
 
-  ~Gcs_new_stage_2() override {}
+  ~Gcs_new_stage_2() override = default;
 
   Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -538,9 +538,9 @@ class Gcs_new_stage_2 : public Gcs_new_stage_1 {
 
 class Gcs_new_stage_3 : public Gcs_new_stage_1 {
  public:
-  explicit Gcs_new_stage_3() {}
+  explicit Gcs_new_stage_3() = default;
 
-  ~Gcs_new_stage_3() override {}
+  ~Gcs_new_stage_3() override = default;
 
   Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -552,7 +552,7 @@ class Gcs_new_stage_split_4 : public Gcs_message_stage_split_v2 {
   explicit Gcs_new_stage_split_4(bool enabled, unsigned long long threshold)
       : Gcs_message_stage_split_v2(enabled, threshold) {}
 
-  ~Gcs_new_stage_split_4() override {}
+  ~Gcs_new_stage_split_4() override = default;
 
   virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -564,7 +564,7 @@ class Gcs_new_stage_lz4_5 : public Gcs_message_stage_lz4 {
   explicit Gcs_new_stage_lz4_5(bool enable, unsigned long long threshold)
       : Gcs_message_stage_lz4(enable, threshold) {}
 
-  ~Gcs_new_stage_lz4_5() override {}
+  ~Gcs_new_stage_lz4_5() override = default;
 
   virtual Stage_code get_stage_code() const override { return my_stage_code(); }
 
@@ -573,7 +573,7 @@ class Gcs_new_stage_lz4_5 : public Gcs_message_stage_lz4 {
 
 class XcomMultipleStagesTest : public GcsBaseTest {
  protected:
-  XcomMultipleStagesTest() {}
+  XcomMultipleStagesTest() = default;
 
   void SetUp() override {}
 

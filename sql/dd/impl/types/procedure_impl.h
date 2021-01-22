@@ -46,9 +46,9 @@ class Object_table;
 
 class Procedure_impl : public Routine_impl, public Procedure {
  public:
-  Procedure_impl() {}
+  Procedure_impl() = default;
 
-  ~Procedure_impl() override {}
+  ~Procedure_impl() override = default;
 
  public:
   bool update_routine_name_key(Name_key *key, Object_id schema_id,

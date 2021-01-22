@@ -75,7 +75,7 @@ class Column_statistics : virtual public Entity_object {
 
   bool update_aux_key(Aux_key *) const { return true; }
 
-  ~Column_statistics() override {}
+  ~Column_statistics() override = default;
 
   virtual const String_type &schema_name() const = 0;
   virtual void set_schema_name(const String_type &schema_name) = 0;

@@ -96,7 +96,7 @@ class Gcs_view_identifier {
     return !(*this == other);
   }
 
-  virtual ~Gcs_view_identifier() {}
+  virtual ~Gcs_view_identifier() = default;
 
  private:
   virtual bool equals(const Gcs_view_identifier &other) const = 0;

@@ -28,7 +28,7 @@
 #include "my_dbug.h"
 #include "plugin/group_replication/include/plugin.h"
 
-Applier_handler::Applier_handler() {}
+Applier_handler::Applier_handler() = default;
 
 int Applier_handler::initialize() {
   DBUG_TRACE;

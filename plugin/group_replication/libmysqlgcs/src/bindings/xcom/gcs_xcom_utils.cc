@@ -62,7 +62,7 @@ static const uint64_t DEFAULT_XCOM_MAX_CACHE_SIZE = 1073741824;
 */
 static const uint64_t MIN_XCOM_MAX_CACHE_SIZE = 134217728;
 
-Gcs_xcom_utils::~Gcs_xcom_utils() {}
+Gcs_xcom_utils::~Gcs_xcom_utils() = default;
 
 u_long Gcs_xcom_utils::build_xcom_group_id(Gcs_group_identifier &group_id) {
   std::string group_id_str = group_id.get_group_id();

@@ -32,7 +32,7 @@ namespace compatibility_module_unittest {
 
 class CompatibilityModuleTest : public ::testing::Test {
  protected:
-  CompatibilityModuleTest() {}
+  CompatibilityModuleTest() = default;
 
   void SetUp() override {
     local_version = new Member_version(0x010203);  // version: 1.2.3

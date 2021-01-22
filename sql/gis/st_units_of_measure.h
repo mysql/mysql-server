@@ -35,7 +35,7 @@ struct Unit {
   double conversion_factor;
   std::string description;
 
-  Unit() {}
+  Unit() = default;
 
   Unit(const Unit_Type unit_type, const double conversion_factor)
       : unit_type(unit_type), conversion_factor(conversion_factor) {}

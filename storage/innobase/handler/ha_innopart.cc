@@ -617,7 +617,7 @@ ha_innopart::ha_innopart(handlerton *hton, TABLE_SHARE *table_arg)
 }
 
 /** Destruct ha_innopart handler. */
-ha_innopart::~ha_innopart() {}
+ha_innopart::~ha_innopart() = default;
 
 /** Returned supported alter table flags.
 @param[in]	flags	Flags to support.

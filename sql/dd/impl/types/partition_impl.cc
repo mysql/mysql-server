@@ -115,7 +115,7 @@ Partition_impl::Partition_impl(Table_impl *table, Partition_impl *parent)
   m_table->add_leaf_partition(this);
 }
 
-Partition_impl::~Partition_impl() {}
+Partition_impl::~Partition_impl() = default;
 
 ///////////////////////////////////////////////////////////////////////////
 

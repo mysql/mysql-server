@@ -76,7 +76,7 @@ class Gcs_message_stage_lz4 : public Gcs_message_stage {
                                  unsigned long long compress_threshold)
       : Gcs_message_stage(enabled), m_threshold(compress_threshold) {}
 
-  ~Gcs_message_stage_lz4() override {}
+  ~Gcs_message_stage_lz4() override = default;
 
   /*
    Return the stage code.
@@ -130,7 +130,7 @@ class Gcs_message_stage_lz4_v2 : public Gcs_message_stage_lz4 {
                                     unsigned long long compress_threshold)
       : Gcs_message_stage_lz4(enabled, compress_threshold) {}
 
-  ~Gcs_message_stage_lz4_v2() override {}
+  ~Gcs_message_stage_lz4_v2() override = default;
 
   /*
    Return the stage code.

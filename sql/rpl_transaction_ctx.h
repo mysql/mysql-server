@@ -34,7 +34,7 @@
 class Rpl_transaction_ctx {
  public:
   Rpl_transaction_ctx();
-  virtual ~Rpl_transaction_ctx() {}
+  virtual ~Rpl_transaction_ctx() = default;
 
   /**
     Set transaction context, that is, notify the server that for

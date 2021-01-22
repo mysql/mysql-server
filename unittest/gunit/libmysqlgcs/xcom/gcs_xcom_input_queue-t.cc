@@ -40,12 +40,12 @@ class MockGcsMpscQueue : public Gcs_mpsc_queue<xcom_input_request,
   MOCK_METHOD1(push, bool(xcom_input_request *payload));
 
   MockGcsMpscQueue() { ON_CALL(*this, push(_)).WillByDefault(Return(false)); }
-  ~MockGcsMpscQueue() {}
+  ~MockGcsMpscQueue() = default;
 };
 
 class GcsXcomInputQueueTest : public GcsBaseTest {
  protected:
-  GcsXcomInputQueueTest() {}
+  GcsXcomInputQueueTest() = default;
 
   void SetUp() override {}
 

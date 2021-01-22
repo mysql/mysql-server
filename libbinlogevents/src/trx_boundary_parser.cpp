@@ -40,7 +40,7 @@ static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
   -----------------------------------------
 */
 
-Transaction_boundary_parser::~Transaction_boundary_parser() {}
+Transaction_boundary_parser::~Transaction_boundary_parser() = default;
 
 /**
    Reset the transaction boundary parser.

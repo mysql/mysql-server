@@ -493,7 +493,7 @@ class Keyring_operations {
     load_cache();
   }
 
-  ~Keyring_operations() {}
+  ~Keyring_operations() = default;
 
   /**
     Insert API to populate cache

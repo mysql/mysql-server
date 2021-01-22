@@ -41,7 +41,7 @@ class Bitset {
   Bitset() : m_bitset(nullptr), m_size(0) {}
 
   /** Destructor */
-  ~Bitset() {}
+  ~Bitset() = default;
 
   /** Initialize the bitset with a byte array and size
   @param[in]    bitset  byte array for this bitset

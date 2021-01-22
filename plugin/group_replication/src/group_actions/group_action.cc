@@ -92,7 +92,7 @@ void Group_action_diagnostics::clear_info() {
   warning_message.clear();
 }
 
-Group_action::~Group_action() {}
+Group_action::~Group_action() = default;
 
 PSI_stage_key Group_action::get_action_stage_termination_key() {
   return -1; /* purecov: inspected */

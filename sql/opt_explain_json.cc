@@ -223,7 +223,7 @@ class context : public Explain_context {
           context *parent_arg)
       : Explain_context(type_arg), name(name_arg), parent(parent_arg) {}
 
-  virtual ~context() {}
+  virtual ~context() = default;
 
   /**
     Pass the node with its child nodes to a JSON formatter

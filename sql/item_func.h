@@ -2061,7 +2061,7 @@ class Item_udf_func : public Item_func {
       : Item_func(pos, opt_list), udf(udf_arg) {
     null_on_null = false;
   }
-  ~Item_udf_func() override {}
+  ~Item_udf_func() override = default;
 
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
@@ -3095,7 +3095,7 @@ class user_var_entry {
   query_id_t m_used_query_id;
 
  public:
-  user_var_entry() {} /* Remove gcc warning */
+  user_var_entry() = default; /* Remove gcc warning */
 
   THD *owner_session() const { return m_owner; }
 

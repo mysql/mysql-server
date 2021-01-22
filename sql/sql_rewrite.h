@@ -48,7 +48,7 @@ enum class Consumer_type {
 */
 class Rewrite_params {
  protected:
-  virtual ~Rewrite_params() {}
+  virtual ~Rewrite_params() = default;
 };
 
 /**

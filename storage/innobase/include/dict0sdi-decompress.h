@@ -42,7 +42,7 @@ class Sdi_Decompressor {
     ut_ad(m_comp_sdi != nullptr);
   }
 
-  ~Sdi_Decompressor() {}
+  ~Sdi_Decompressor() = default;
 
   /** Decompress the SDI and store in the buffer passed. */
   inline void decompress() {

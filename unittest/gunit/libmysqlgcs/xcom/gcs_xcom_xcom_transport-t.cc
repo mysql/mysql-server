@@ -36,8 +36,8 @@ namespace xcom_transport_unittest {
 
 class XcomTransport : public GcsBaseTest {
  protected:
-  XcomTransport() {}
-  ~XcomTransport() override {}
+  XcomTransport() = default;
+  ~XcomTransport() override = default;
 };
 
 TEST_F(XcomTransport, SerializeTooManySynodes) {

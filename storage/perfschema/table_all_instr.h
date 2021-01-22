@@ -63,7 +63,7 @@ class PFS_index_all_instr : public PFS_engine_index {
  public:
   PFS_index_all_instr(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_all_instr() override {}
+  ~PFS_index_all_instr() override = default;
 
   virtual bool match(PFS_mutex *) { return false; }
   virtual bool match(PFS_rwlock *) { return false; }
@@ -97,7 +97,7 @@ class table_all_instr : public PFS_engine_table {
   table_all_instr(const PFS_engine_table_share *share);
 
  public:
-  ~table_all_instr() override {}
+  ~table_all_instr() override = default;
 
  protected:
   /**

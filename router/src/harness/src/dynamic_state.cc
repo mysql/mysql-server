@@ -95,7 +95,7 @@ DynamicState::DynamicState(const std::string &file_name)
   pimpl_->json_state_doc_.SetObject();
 }
 
-DynamicState::~DynamicState() {}
+DynamicState::~DynamicState() = default;
 
 std::ifstream DynamicState::open_for_read() {
   std::ifstream input_file(file_name_);

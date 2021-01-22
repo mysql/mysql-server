@@ -43,7 +43,7 @@ namespace value_map_unittest {
 
 class ValueMapTest : public ::testing::Test {
  public:
-  ValueMapTest() {}
+  ValueMapTest() = default;
 };
 
 TEST_F(ValueMapTest, LongLongValueMap) {

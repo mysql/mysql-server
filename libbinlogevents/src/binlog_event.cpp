@@ -257,7 +257,7 @@ Binary_log_event::Binary_log_event(const char **buf,
 /*
   The destructor is pure virtual to prevent instantiation of the class.
 */
-Binary_log_event::~Binary_log_event() {}
+Binary_log_event::~Binary_log_event() = default;
 
 /**
   This event type should never occur. It is never written to a binary log.

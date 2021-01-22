@@ -190,7 +190,7 @@ Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {
   m_last_used_gtid = std::unique_ptr<Gtid>(new Gtid{0, 0});
 }
 
-Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() {}
+Last_used_gtid_tracker_ctx::~Last_used_gtid_tracker_ctx() = default;
 
 void Last_used_gtid_tracker_ctx::set_last_used_gtid(const Gtid &gtid) {
   (*m_last_used_gtid).set(gtid.sidno, gtid.gno);

@@ -150,7 +150,7 @@ class Sql_cmd_common_server : public Sql_cmd {
 
   Sql_cmd_common_server() : table(nullptr) {}
 
-  ~Sql_cmd_common_server() override {}
+  ~Sql_cmd_common_server() override = default;
 
   /**
      Check permissions and open the mysql.servers table.

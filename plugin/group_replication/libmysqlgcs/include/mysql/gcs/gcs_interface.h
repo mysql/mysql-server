@@ -189,7 +189,7 @@ class Gcs_interface {
   */
   virtual enum_gcs_error set_logger(Logger_interface *logger) = 0;
 
-  virtual ~Gcs_interface() {}
+  virtual ~Gcs_interface() = default;
 };
 
 /**

@@ -60,9 +60,9 @@ std::string hash_key_from_digest(const uchar *digest) {
   Implementation of the Rewriter class's member functions.
 */
 
-Rewriter::Rewriter() {}
+Rewriter::Rewriter() = default;
 
-Rewriter::~Rewriter() {}
+Rewriter::~Rewriter() = default;
 
 bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
   std::unique_ptr<Rule> memrule_ptr(new Rule);

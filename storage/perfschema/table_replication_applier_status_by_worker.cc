@@ -227,7 +227,7 @@ table_replication_applier_status_by_worker::
     : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
 table_replication_applier_status_by_worker::
-    ~table_replication_applier_status_by_worker() {}
+    ~table_replication_applier_status_by_worker() = default;
 
 void table_replication_applier_status_by_worker::reset_position(void) {
   m_pos.reset();

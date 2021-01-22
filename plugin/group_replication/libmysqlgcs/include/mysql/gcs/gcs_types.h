@@ -115,7 +115,7 @@ class Gcs_interface_parameters {
 
   Gcs_interface_parameters() : parameters() {}
 
-  virtual ~Gcs_interface_parameters() {}
+  virtual ~Gcs_interface_parameters() = default;
 
  private:
   std::map<std::string, std::string> parameters;

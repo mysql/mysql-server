@@ -122,7 +122,7 @@ class PFS_index_rpl_connection_config : public PFS_engine_index {
   PFS_index_rpl_connection_config()
       : PFS_engine_index(&m_key), m_key("CHANNEL_NAME") {}
 
-  ~PFS_index_rpl_connection_config() override {}
+  ~PFS_index_rpl_connection_config() override = default;
 
   virtual bool match(Master_info *mi);
 

@@ -108,8 +108,8 @@ union storage_t {
   using value_type = T;
   using error_type = E;
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   template <bool B = std::is_default_constructible<T>::value,
             std::enable_if_t<B> * = nullptr>
@@ -176,8 +176,8 @@ union storage_t<T, void> {
   using value_type = T;
   using error_type = void;
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   template <bool B = std::is_default_constructible<T>::value,
             std::enable_if_t<B> * = nullptr>
@@ -231,8 +231,8 @@ union storage_t<void, E> {
 
   static_assert(!std::is_void<E>::value, "E must not be void");
 
-  storage_t() {}
-  ~storage_t() {}
+  storage_t() {}   // NOLINT(modernize-use-equals-default)
+  ~storage_t() {}  // NOLINT(modernize-use-equals-default)
 
   void construct_error(error_type const &e) { new (&error_) error_type(e); }
   void construct_error(error_type &&e) {

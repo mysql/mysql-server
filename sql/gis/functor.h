@@ -164,7 +164,7 @@ template <typename T>
 class Functor {
  public:
   virtual T operator()(const Geometry *g1, const Geometry *g2) const = 0;
-  virtual ~Functor() {}
+  virtual ~Functor() = default;
 
  protected:
   template <typename F>
@@ -614,7 +614,7 @@ template <typename T>
 class Unary_functor {
  public:
   virtual T operator()(const Geometry &) const = 0;
-  virtual ~Unary_functor() {}
+  virtual ~Unary_functor() = default;
 
  protected:
   template <class F>

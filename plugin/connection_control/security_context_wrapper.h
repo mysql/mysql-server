@@ -29,7 +29,7 @@ namespace connection_control {
 class Security_context_wrapper {
  public:
   Security_context_wrapper(MYSQL_THD thd);
-  ~Security_context_wrapper() {}
+  ~Security_context_wrapper() = default;
   const char *get_proxy_user();
   const char *get_priv_user();
   const char *get_priv_host();

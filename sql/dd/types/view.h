@@ -57,7 +57,7 @@ class View : virtual public Abstract_table {
   enum enum_security_type { ST_DEFAULT = 1, ST_INVOKER, ST_DEFINER };
 
  public:
-  ~View() override {}
+  ~View() override = default;
 
   /////////////////////////////////////////////////////////////////////////
   // regular/system view flag.

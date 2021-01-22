@@ -46,7 +46,7 @@ void thd_unlock_thread_count();
 
 class Do_THD_Impl {
  public:
-  virtual ~Do_THD_Impl() {}
+  virtual ~Do_THD_Impl() = default;
   virtual void operator()(THD *) = 0;
 };
 
@@ -58,7 +58,7 @@ class Do_THD_Impl {
 
 class Find_THD_Impl {
  public:
-  virtual ~Find_THD_Impl() {}
+  virtual ~Find_THD_Impl() = default;
   /**
     Override this operator to provide implementation to find specific thd.
 

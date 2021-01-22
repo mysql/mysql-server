@@ -40,7 +40,7 @@ Group_service_message::Group_service_message(const uchar *buf, size_t len)
   decode(buf, len);
 }
 
-Group_service_message::~Group_service_message() {}
+Group_service_message::~Group_service_message() = default;
 
 bool Group_service_message::set_data(const uchar *data,
                                      const size_t data_length) {

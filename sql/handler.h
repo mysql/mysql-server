@@ -1036,7 +1036,7 @@ class Ha_clone_cbk {
   virtual int apply_buffer_cbk(uchar *&to_buffer, uint &len) = 0;
 
   /** virtual destructor. */
-  virtual ~Ha_clone_cbk() {}
+  virtual ~Ha_clone_cbk() = default;
 
   /** Set current storage engine handlerton.
   @param[in]  hton  SE handlerton */
@@ -2872,11 +2872,11 @@ struct KEY_PAIR {
 
 class inplace_alter_handler_ctx {
  public:
-  inplace_alter_handler_ctx() {}
+  inplace_alter_handler_ctx() = default;
 
   virtual void set_shared_data(
       const inplace_alter_handler_ctx *ctx MY_ATTRIBUTE((unused))) {}
-  virtual ~inplace_alter_handler_ctx() {}
+  virtual ~inplace_alter_handler_ctx() = default;
 };
 
 /**
@@ -3649,8 +3649,8 @@ uint calculate_key_len(TABLE *table, uint key, key_part_map keypart_map);
 /** Base class to be used by handlers different shares */
 class Handler_share {
  public:
-  Handler_share() {}
-  virtual ~Handler_share() {}
+  Handler_share() = default;
+  virtual ~Handler_share() = default;
 };
 
 /**

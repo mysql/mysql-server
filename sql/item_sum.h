@@ -113,7 +113,7 @@ class Aggregator {
 
  public:
   Aggregator(Item_sum *arg) : item_sum(arg) {}
-  virtual ~Aggregator() {}
+  virtual ~Aggregator() = default;
 
   enum Aggregator_type { SIMPLE_AGGREGATOR, DISTINCT_AGGREGATOR };
   virtual Aggregator_type Aggrtype() = 0;

@@ -127,7 +127,7 @@ table_rpl_async_connection_failover_managed::
       read_error{false} {}
 
 table_rpl_async_connection_failover_managed::
-    ~table_rpl_async_connection_failover_managed() {}
+    ~table_rpl_async_connection_failover_managed() = default;
 
 void table_rpl_async_connection_failover_managed::reset_position(void) {
   DBUG_TRACE;

@@ -97,7 +97,7 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
  * Disconnect and release the connection to the metadata node.
  * (RAII will close the connection in metadata_connection_)
  */
-ClusterMetadata::~ClusterMetadata() {}
+ClusterMetadata::~ClusterMetadata() = default;
 
 bool ClusterMetadata::do_connect(MySQLSession &connection,
                                  const metadata_cache::ManagedInstance &mi) {

@@ -509,9 +509,9 @@ void finalize_xcom() { extern_xcom_control_if->do_leave(); }
 
 class XComControlTest : public GcsBaseTest {
  protected:
-  XComControlTest() {}
+  XComControlTest() = default;
 
-  ~XComControlTest() override {}
+  ~XComControlTest() override = default;
 
   void SetUp() override {
     m_wait_called = false;

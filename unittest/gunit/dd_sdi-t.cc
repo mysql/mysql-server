@@ -242,7 +242,7 @@ class SdiTest : public ::testing::Test {
 
   void TearDown() override {}
 
-  SdiTest() {}
+  SdiTest() = default;
 
  private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(SdiTest);

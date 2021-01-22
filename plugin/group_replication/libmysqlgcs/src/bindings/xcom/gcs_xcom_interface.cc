@@ -196,7 +196,7 @@ Gcs_xcom_interface::Gcs_xcom_interface()
   srand(static_cast<unsigned int>(time(nullptr)));
 }
 
-Gcs_xcom_interface::~Gcs_xcom_interface() {}
+Gcs_xcom_interface::~Gcs_xcom_interface() = default;
 
 enum_gcs_error Gcs_xcom_interface::initialize_logging(
     const std::string *debug_file, const std::string *debug_path) {

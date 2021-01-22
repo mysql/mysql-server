@@ -132,8 +132,7 @@ class Parallel_reader {
 
     /** Copy constructor.
     @param[in] scan_range       Instance to copy from. */
-    Scan_range(const Scan_range &scan_range)
-        : m_start(scan_range.m_start), m_end(scan_range.m_end) {}
+    Scan_range(const Scan_range &scan_range) = default;
 
     /** Constructor.
     @param[in] start            Start key
@@ -172,12 +171,8 @@ class Parallel_reader {
     /** Copy constructor.
     @param[in] config           Instance to copy from. */
     Config(const Config &config)
-        : m_scan_range(config.m_scan_range),
-          m_index(config.m_index),
-          m_is_compact(config.m_is_compact),
-          m_page_size(config.m_page_size),
-          m_read_level(config.m_read_level),
-          m_partition_id(config.m_partition_id) {}
+
+        = default;
 
     /** Range to scan. */
     const Scan_range m_scan_range;

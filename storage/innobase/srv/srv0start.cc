@@ -2864,7 +2864,7 @@ files_checked:
 /** Applier of dynamic metadata */
 struct metadata_applier {
   /** Default constructor */
-  metadata_applier() {}
+  metadata_applier() = default;
   /** Visitor.
   @param[in]      table   table to visit */
   void operator()(dict_table_t *table) const {

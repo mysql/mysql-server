@@ -72,7 +72,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   }
 }
 
-Cached_item::~Cached_item() {}
+Cached_item::~Cached_item() = default;
 
 Cached_item_str::Cached_item_str(THD *thd, Item *arg)
     : Cached_item(arg),
