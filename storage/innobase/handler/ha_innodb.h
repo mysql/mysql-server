@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <assert.h>
 #include <sys/types.h>
 #include "handler.h"
+#include "mysql/components/services/clone_protocol_service.h"
 
 #include "row0pread-adapter.h"
 #include "row0pread-histogram.h"
@@ -40,6 +41,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
+
+/** Clone protocol service. */
+extern SERVICE_TYPE(clone_protocol) * clone_protocol_svc;
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */

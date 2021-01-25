@@ -247,9 +247,9 @@ static void deinitialize_service_handles() {
 /** Stop printing warnings, if the count exceeds this threshold. */
 static const size_t MOVED_FILES_PRINT_THRESHOLD = 32;
 
-SERVICE_TYPE(registry) *reg_svc = nullptr;
-my_h_service h_ret_sysvar_source_svc = nullptr;
-SERVICE_TYPE(system_variable_source) *sysvar_source_svc = nullptr;
+SERVICE_TYPE(registry) * reg_svc;
+SERVICE_TYPE(system_variable_source) * sysvar_source_svc;
+SERVICE_TYPE(clone_protocol) * clone_protocol_svc;
 
 static const uint64_t KB = 1024;
 static const uint64_t MB = KB * 1024;
@@ -350,37 +350,59 @@ static double get_mem_sysconf() {
 #define get_sys_mem get_mem_sysconf
 #endif /* defined(_WIN32) || defined(_WIN64) */
 
-static void release_sysvar_source_service() {
-  if (reg_svc != nullptr) {
-    if (h_ret_sysvar_source_svc != nullptr) {
-      /* Release system_variable_source services */
-      reg_svc->release(h_ret_sysvar_source_svc);
-      h_ret_sysvar_source_svc = nullptr;
-      sysvar_source_svc = nullptr;
-    }
-    /* Release registry service */
-    mysql_plugin_registry_release(reg_svc);
-    reg_svc = nullptr;
+/** Release all acquired services from mysql server. */
+static void release_plugin_services() {
+  if (reg_svc == nullptr) {
+    return;
   }
+
+  if (sysvar_source_svc != nullptr) {
+    using sysvar_source_svc_t = SERVICE_TYPE_NO_CONST(system_variable_source);
+    reg_svc->release(reinterpret_cast<my_h_service>(
+        const_cast<sysvar_source_svc_t *>(sysvar_source_svc)));
+    sysvar_source_svc = nullptr;
+  }
+
+  if (clone_protocol_svc != nullptr) {
+    using clone_protocol_t = SERVICE_TYPE_NO_CONST(clone_protocol);
+    reg_svc->release(reinterpret_cast<my_h_service>(
+        const_cast<clone_protocol_t *>(clone_protocol_svc)));
+    clone_protocol_svc = nullptr;
+  }
+
+  /* Release registry service */
+  mysql_plugin_registry_release(reg_svc);
+  reg_svc = nullptr;
 }
 
-static void acquire_sysvar_source_service() {
+/** Acquire required services from mysql server. */
+static void acquire_plugin_services() {
   /* Acquire mysql_server's registry service */
-
   reg_svc = mysql_plugin_registry_acquire();
 
-  /* Acquire system_variable_source service */
+  if (reg_svc == nullptr) {
+    ib::warn(ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE, "plugin registry");
+    return;
+  }
 
-  if (!reg_svc ||
-      reg_svc->acquire("system_variable_source", &h_ret_sysvar_source_svc)) {
-    release_sysvar_source_service();
+  my_h_service service;
+
+  /* Acquire system_variable_source service */
+  if (reg_svc->acquire("system_variable_source", &service)) {
+    ib::warn(ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE, "system_variable_source");
 
   } else {
-    /* Type cast this handler to proper service handle */
-
     sysvar_source_svc =
-        reinterpret_cast<SERVICE_TYPE(system_variable_source) *>(
-            h_ret_sysvar_source_svc);
+        reinterpret_cast<SERVICE_TYPE(system_variable_source) *>(service);
+  }
+
+  /* Acquire clone protocol service handle. */
+  if (reg_svc->acquire("clone_protocol", &service)) {
+    ib::warn(ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE, "clone_protocol");
+
+  } else {
+    clone_protocol_svc =
+        reinterpret_cast<SERVICE_TYPE(clone_protocol) *>(service);
   }
 }
 
@@ -4132,20 +4154,23 @@ static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 /** Validate innodb_undo_tablespaces. Log a warning if it was set
 explicitly. */
 static void innodb_undo_tablespaces_deprecate() {
-  acquire_sysvar_source_service();
-  if (sysvar_source_svc != nullptr) {
-    static const char *variable_name = "innodb_undo_tablespaces";
-    enum enum_variable_source source;
-    if (!sysvar_source_svc->get(
-            variable_name, static_cast<unsigned int>(strlen(variable_name)),
-            &source)) {
-      if (source != COMPILED) {
-        ib::warn(ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES);
-        srv_undo_tablespaces = FSP_IMPLICIT_UNDO_TABLESPACES;
-      }
-    }
+  if (sysvar_source_svc == nullptr) {
+    return;
   }
-  release_sysvar_source_service();
+
+  static const char *variable_name = "innodb_undo_tablespaces";
+  enum enum_variable_source source;
+
+  if (sysvar_source_svc->get(variable_name,
+                             static_cast<unsigned int>(strlen(variable_name)),
+                             &source)) {
+    return;
+  }
+
+  if (source != COMPILED) {
+    ib::warn(ER_IB_MSG_DEPRECATED_INNODB_UNDO_TABLESPACES);
+    srv_undo_tablespaces = FSP_IMPLICIT_UNDO_TABLESPACES;
+  }
 }
 
 /** Initialize and normalize innodb_buffer_pool_size. */
@@ -4154,7 +4179,6 @@ static void innodb_buffer_pool_size_init() {
   ulong srv_buf_pool_instances_org = srv_buf_pool_instances;
 #endif /* UNIV_DEBUG */
 
-  acquire_sysvar_source_service();
   /* If innodb_dedicated_server == ON */
   if (srv_dedicated_server && sysvar_source_svc != nullptr) {
     static const char *variable_name = "innodb_buffer_pool_size";
@@ -4181,7 +4205,6 @@ static void innodb_buffer_pool_size_init() {
       }
     }
   }
-  release_sysvar_source_service();
 
   if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
     if (srv_buf_pool_instances == srv_buf_pool_instances_default) {
@@ -4249,8 +4272,6 @@ static int innodb_log_file_size_init() {
 
   ut_a(srv_log_file_size % UNIV_PAGE_SIZE == 0);
   ut_a(srv_log_file_size > 0);
-
-  acquire_sysvar_source_service();
 
   if (srv_dedicated_server && sysvar_source_svc != nullptr) {
     double auto_buf_pool_size_in_gb;
@@ -4334,8 +4355,6 @@ static int innodb_log_file_size_init() {
       }
     }
   }
-
-  release_sysvar_source_service();
 
   if (srv_n_log_files * srv_log_file_size >=
       512ULL * 1024ULL * 1024ULL * 1024ULL) {
@@ -4609,7 +4628,6 @@ static int innodb_init_params() {
 #endif
 
 #ifndef _WIN32
-  acquire_sysvar_source_service();
   /* Check if innodb_dedicated_server == ON and O_DIRECT is supported */
   if (srv_dedicated_server && sysvar_source_svc != nullptr &&
       os_is_o_direct_supported()) {
@@ -4631,7 +4649,6 @@ static int innodb_init_params() {
       }
     }
   }
-  release_sysvar_source_service();
 
   srv_unix_file_flush_method =
       static_cast<srv_unix_flush_t>(innodb_flush_method);
@@ -4739,6 +4756,8 @@ static void innobase_post_ddl(THD *thd) {
 @retval 0 on success */
 static int innodb_init(void *p) {
   DBUG_TRACE;
+
+  acquire_plugin_services();
 
   handlerton *innobase_hton = (handlerton *)p;
   innodb_hton_ptr = innobase_hton;
@@ -4990,6 +5009,12 @@ static int innodb_init(void *p) {
     return innodb_init_abort();
   }
 
+  return 0;
+}
+
+/** De initialize the InnoDB storage engine plugin. */
+static int innodb_deinit(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+  release_plugin_services();
   return 0;
 }
 
@@ -22707,9 +22732,9 @@ mysql_declare_plugin(innobase){
     PLUGIN_AUTHOR_ORACLE,
     "Supports transactions, row-level locking, and foreign keys",
     PLUGIN_LICENSE_GPL,
-    innodb_init, /* Plugin Init */
-    nullptr,     /* Plugin Check uninstall */
-    nullptr,     /* Plugin Deinit */
+    innodb_init,   /* Plugin Init */
+    nullptr,       /* Plugin Check uninstall */
+    innodb_deinit, /* Plugin Deinit */
     INNODB_VERSION_SHORT,
     innodb_status_variables_export, /* status variables */
     innobase_system_variables,      /* system variables */

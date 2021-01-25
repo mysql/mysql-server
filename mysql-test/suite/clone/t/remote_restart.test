@@ -27,7 +27,20 @@ SET GLOBAL CLONE_MAX_CONCURRENCY = 8;
 SHOW VARIABLES LIKE '%CLONE_MAX_CONCURRENCY%';
 SET GLOBAL CLONE_MAX_CONCURRENCY = default;
 
-# Clone data
+--echo # Clone failure by forcing network error and disabling restart
+SET GLOBAL CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE = 0;
+SHOW VARIABLES LIKE 'CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE';
+
+SET global debug="+d,clone_restart_apply";
+--let $clone_err = ER_CLONE_DONOR
+--source ../include/clone_command.inc
+--let $clone_err = 0
+SET global debug="-d,clone_restart_apply";
+--force-rmdir $CLONE_DATADIR
+
+--echo # Clone by forcing network error and allowing restart
+SET GLOBAL CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE = 15;
+SHOW VARIABLES LIKE 'CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE';
 SET global debug="+d,clone_restart_apply";
 --source ../include/clone_command.inc
 SET global debug="-d,clone_restart_apply";

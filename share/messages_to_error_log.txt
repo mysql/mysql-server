@@ -11256,6 +11256,9 @@ ER_NOTE_KEYRING_COMPONENT_KEYS_METADATA_ITERATOR_FETCH_FAILED
 ER_NOTE_KEYRING_COMPONENT_METADATA_ITERATOR_INVALID_OUT_PARAM
   eng "Key and value length parameters must not be null."
 
+ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE
+  eng "Innodb could not acquire service : %s"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
