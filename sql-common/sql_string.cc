@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql_string.h"
+#include "sql/sql_const.h"
 
 #include <assert.h>
 #include <algorithm>
@@ -179,8 +180,8 @@ bool String::set_real(double num, uint decimals, const CHARSET_INFO *cs) {
   uint dummy_errors;
 
   if (decimals >= DECIMAL_NOT_SPECIFIED) {
-    size_t len = my_gcvt(num, MY_GCVT_ARG_DOUBLE,
-                         static_cast<int>(sizeof(buff)) - 1, buff, nullptr);
+    size_t len =
+        my_gcvt(num, MY_GCVT_ARG_DOUBLE, MAX_DOUBLE_STR_LENGTH, buff, nullptr);
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
   size_t len = my_fcvt(num, decimals, buff, nullptr);
