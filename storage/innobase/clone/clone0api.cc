@@ -256,6 +256,10 @@ user opens a table. Clone needs to read this from innodb space object.
 @param[in,out]	thd	session THD */
 static void clone_init_compression(THD *thd);
 
+/** Open all Innodb tablespaces.
+@param[in,out]	thd	session THD */
+static void clone_init_tablespaces(THD *thd);
+
 /** Set security context to skip privilege check.
 @param[in,out]	thd	session THD
 @param[in,out]	sctx	security context */
@@ -404,8 +408,10 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     mutex_exit(clone_sys->get_mutex());
     err = clone_hdl->add_task(thd, nullptr, 0, task_id);
 
-    /* Initialize compression option for all compressed tablesapces. */
+    /* 1. Open all tablespaces in Innodb if not done during bootstrap.
+       2. Initialize compression option for all compressed tablesapces. */
     if (err == 0 && task_id == 0) {
+      clone_init_tablespaces(thd);
       clone_init_compression(thd);
     }
 
@@ -2392,4 +2398,88 @@ static void clone_init_compression(THD *thd) {
                                   dd_index->tablespace_id());
   }
   compression_initialized = true;
+}
+
+static void clone_init_tablespaces(THD *thd) {
+  if (clone_sys->is_space_initialized()) {
+    return;
+  }
+  auto dc = dd::get_dd_client(thd);
+  Releaser releaser(dc);
+
+  /* We don't bother about MDL lock here as clone holds X backup lock
+  preventing all DDL. */
+  DD_Objs<dd::Tablespace> dd_spaces;
+
+  if (dc->fetch_global_components(&dd_spaces)) {
+    ut_ad(false);
+    return;
+  }
+
+  for (auto dd_space : dd_spaces) {
+    /* Ignore non-innodb tablespaces. */
+    if (dd_space->engine() != innobase_hton_name) {
+      continue;
+    }
+
+    /* Get SE private data and extract space ID, name & flags */
+    const auto &se_data = dd_space->se_private_data();
+
+    /* Get space name. */
+    const char *space_name = dd_space->name().c_str();
+
+    /* Get space ID. */
+    space_id_t space_id;
+    if (!se_data.exists(dd_space_key_strings[DD_SPACE_ID]) ||
+        se_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id)) {
+      ib::error(ER_IB_CLONE_INTERNAL)
+          << "Clone Error getting ID from DD, space: : " << space_name;
+      ut_ad(false);
+      continue;
+    }
+
+    /* This function has a side effect to adjust space name. The operation
+    is idempotent and done under shard mutex. We check first without acquiring
+    expensive dict sys mutex to skip tables that are already loaded. */
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
+      continue;
+    }
+
+    /* Get space flags. */
+    uint32_t space_flags = 0;
+    if (!se_data.exists(dd_space_key_strings[DD_SPACE_FLAGS]) ||
+        se_data.get(dd_space_key_strings[DD_SPACE_FLAGS], &space_flags)) {
+      ib::error(ER_IB_CLONE_INTERNAL)
+          << "Clone Error getting flags from DD, space: : " << space_name;
+      ut_ad(false);
+      continue;
+    }
+
+    /* Get the filename. */
+    const auto file = *dd_space->files().begin();
+    std::string filename;
+    filename.assign(file->filename().c_str());
+
+    /* Acquire dict mutex to prevent race against concurrent DML trying to
+    load the space. */
+    IB_mutex_guard sys_mutex(&dict_sys->mutex);
+
+    /* Re-check if space exists after acquiring dict sys mutex. Concurrent
+    DML could have already loaded the space. Space name is already adjusted
+    in previous call. */
+    if (fil_space_exists_in_mem(space_id, space_name, false, false)) {
+      continue;
+    }
+
+    auto err = fil_ibd_open(false, FIL_TYPE_TABLESPACE, space_id, space_flags,
+                            space_name, filename.c_str(), false, false);
+
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_CLONE_INTERNAL)
+          << "Clone Error opening space: " << space_name
+          << " File: " << filename;
+    }
+  }
+
+  clone_sys->set_space_initialized();
 }

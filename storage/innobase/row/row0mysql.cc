@@ -3758,7 +3758,7 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   dberr_t err = DB_SUCCESS;
 
   /* If the tablespace is not in the cache, just delete the file. */
-  if (!fil_space_exists_in_mem(space_id, nullptr, true, false, nullptr, 0)) {
+  if (!fil_space_exists_in_mem(space_id, nullptr, true, false)) {
     /* Force a delete of any discarded or temporary files. */
     if (fil_delete_file(filepath)) {
       ib::info(ER_IB_MSG_989) << "Removed datafile " << filepath;

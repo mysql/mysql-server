@@ -2563,10 +2563,10 @@ files_checked:
 
       fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
       if (space == nullptr) {
-        dberr_t error = fil_ibd_open(
-            true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id, predefined_flags,
-            dict_sys_t::s_dd_space_name, dict_sys_t::s_dd_space_name,
-            dict_sys_t::s_dd_space_file_name, true, false);
+        dberr_t error =
+            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+                         predefined_flags, dict_sys_t::s_dd_space_name,
+                         dict_sys_t::s_dd_space_file_name, true, false);
         if (error != DB_SUCCESS) {
           ib::error(ER_IB_MSG_1142);
           return (srv_init_abort(DB_ERROR));

@@ -3861,8 +3861,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   dict_name::convert_to_space(tablespace_name);
 
   err = fil_ibd_open(true, FIL_TYPE_IMPORT, table->space, fsp_flags,
-                     tablespace_name.c_str(), table->name.m_name, filepath,
-                     true, false);
+                     tablespace_name.c_str(), filepath, true, false);
 
   DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
                   err = DB_TABLESPACE_NOT_FOUND;);

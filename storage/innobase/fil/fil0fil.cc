@@ -1103,16 +1103,12 @@ class Fil_shard {
   @param[in]	space_id	Tablespace ID
   @param[in]	name		Tablespace name used in fil_space_create().
   @param[in]	print_err	Print detailed error information to the
-                                  error log if a matching tablespace is
-                                  not found from memory.
+                                error log if a matching tablespace is
+                                not found from memory.
   @param[in]	adjust_space	Whether to adjust space id on mismatch
-  @param[in]	heap			Heap memory
-  @param[in]	table_id		table id
   @return true if a matching tablespace exists in the memory cache */
   bool space_check_exists(space_id_t space_id, const char *name, bool print_err,
-                          bool adjust_space, mem_heap_t *heap,
-                          table_id_t table_id)
-      MY_ATTRIBUTE((warn_unused_result));
+                          bool adjust_space) MY_ATTRIBUTE((warn_unused_result));
 
   /** Read or write log file data synchronously.
   @param[in]	type		IO context
@@ -5770,36 +5766,9 @@ dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Open a single-table tablespace and optionally check the space id is
-right in it. If not successful, print an error message to the error log. This
-function is used to open a tablespace when we start up mysqld, and also in
-IMPORT TABLESPACE.
-NOTE that we assume this operation is used either at the database startup
-or under the protection of the dictionary mutex, so that two users cannot
-race here.
-
-The fil_node_t::handle will not be left open.
-
-@param[in]	validate	whether we should validate the tablespace
-                                (read the first page of the file and
-                                check that the space id in it matches id)
-@param[in]	purpose		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
-@param[in]	space_id	Tablespace ID
-@param[in]	flags		tablespace flags
-@param[in]	space_name	tablespace name of the datafile
-                                If file-per-table, it is the table name in the
-                                databasename/tablename format
-@param[in]	table_name	table name in case need to build filename
-from it
-@param[in]	path_in		expected filepath, usually read from dictionary
-@param[in]	strict		whether to report error when open ibd failed
-@param[in]	old_space	whether it is a 5.7 tablespace opening
-                                by upgrade
-@return DB_SUCCESS or error code */
 dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
                      uint32_t flags, const char *space_name,
-                     const char *table_name, const char *path_in, bool strict,
-                     bool old_space) {
+                     const char *path_in, bool strict, bool old_space) {
   Datafile df;
   bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
   bool for_import = (purpose == FIL_TYPE_IMPORT);
@@ -6353,20 +6322,8 @@ bool Fil_shard::adjust_space_name(fil_space_t *space,
   return (replace_general || replace_undo);
 }
 
-/** Returns true if a matching tablespace exists in the InnoDB
-tablespace memory cache.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name used in fil_space_create().
-@param[in]	print_err	Print detailed error information to the
-                                error log if a matching tablespace is
-                                not found from memory.
-@param[in]	adjust_space	Whether to adjust space id on mismatch
-@param[in]	heap			Heap memory
-@param[in]	table_id		table id
-@return true if a matching tablespace exists in the memory cache */
 bool Fil_shard::space_check_exists(space_id_t space_id, const char *name,
-                                   bool print_err, bool adjust_space,
-                                   mem_heap_t *heap, table_id_t table_id) {
+                                   bool print_err, bool adjust_space) {
   fil_space_t *fnamespace = nullptr;
 
   mutex_acquire();
@@ -6472,24 +6429,11 @@ bool Fil_shard::space_check_exists(space_id_t space_id, const char *name,
   return false;
 }
 
-/** Returns true if a matching tablespace exists in the InnoDB tablespace
-memory cache.
-@param[in]	space_id	Tablespace ID
-@param[in]	name		Tablespace name used in space_create().
-@param[in]	print_err	Print detailed error information to the
-                                error log if a matching tablespace is
-                                not found from memory.
-@param[in]	adjust_space	Whether to adjust space id on mismatch
-@param[in]	heap		Heap memory
-@param[in]	table_id	table ID
-@return true if a matching tablespace exists in the memory cache */
 bool fil_space_exists_in_mem(space_id_t space_id, const char *name,
-                             bool print_err, bool adjust_space,
-                             mem_heap_t *heap, table_id_t table_id) {
+                             bool print_err, bool adjust_space) {
   auto shard = fil_system->shard_by_id(space_id);
 
-  return shard->space_check_exists(space_id, name, print_err, adjust_space,
-                                   heap, table_id);
+  return shard->space_check_exists(space_id, name, print_err, adjust_space);
 }
 #endif /* !UNIV_HOTBACKUP */
 
