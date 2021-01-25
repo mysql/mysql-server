@@ -595,28 +595,42 @@ class Item_func_json_extract final : public Item_json_func {
   bool eq(const Item *item, bool binary_cmp) const override;
 };
 
-/**
-  Represents the JSON function JSON_ARRAY_APPEND()
-*/
-class Item_func_json_array_append : public Item_json_func {
+/// Base class for all the functions that take a JSON document as the first
+/// argument and one of more pairs of a JSON path and a value to insert into the
+/// JSON document, and returns the modified JSON document.
+class Item_func_modify_json_in_path : public Item_json_func {
+ protected:
+  template <typename... Args>
+  explicit Item_func_modify_json_in_path(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {
+    // The function does not necessarily return NULL when an argument is NULL.
+    // It returns NULL only if the first argument is NULL, or if one of the JSON
+    // path arguments is null. The set of tables for which the function is
+    // null-rejecting, is calculated in resolve_type() and possibly updated in
+    // update_used_tables().
+    null_on_null = false;
+  }
   String m_doc_value;
 
  public:
+  bool resolve_type(THD *thd) final;
+  void update_used_tables() final;
+
+ private:
+  /// Calculates the set of tables to return from not_used_tables(). The
+  /// returned value is cached by resolve_type() and update_used_tables().
+  table_map calculate_not_null_tables() const;
+};
+
+/**
+  Represents the JSON function JSON_ARRAY_APPEND()
+*/
+class Item_func_json_array_append final : public Item_func_modify_json_in_path {
+ public:
   Item_func_json_array_append(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_func_modify_json_in_path(thd, pos, a) {}
 
   const char *func_name() const override { return "json_array_append"; }
-
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
 
   bool val_json(Json_wrapper *wr) override;
 };
@@ -624,25 +638,12 @@ class Item_func_json_array_append : public Item_json_func {
 /**
   Represents the JSON function JSON_INSERT()
 */
-class Item_func_json_insert : public Item_json_func {
-  String m_doc_value;
-
+class Item_func_json_insert : public Item_func_modify_json_in_path {
  public:
   Item_func_json_insert(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_func_modify_json_in_path(thd, pos, a) {}
 
   const char *func_name() const override { return "json_insert"; }
-
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
 
   bool val_json(Json_wrapper *wr) override;
 };
@@ -650,25 +651,12 @@ class Item_func_json_insert : public Item_json_func {
 /**
   Represents the JSON function JSON_ARRAY_INSERT()
 */
-class Item_func_json_array_insert : public Item_json_func {
-  String m_doc_value;
-
+class Item_func_json_array_insert final : public Item_func_modify_json_in_path {
  public:
   Item_func_json_array_insert(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_func_modify_json_in_path(thd, pos, a) {}
 
   const char *func_name() const override { return "json_array_insert"; }
-
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
 
   bool val_json(Json_wrapper *wr) override;
 };
@@ -676,41 +664,29 @@ class Item_func_json_array_insert : public Item_json_func {
 /**
   Common base class for JSON_SET() and JSON_REPLACE().
 */
-class Item_func_json_set_replace : public Item_json_func {
+class Item_func_json_set_replace : public Item_func_modify_json_in_path {
   /// True if this is JSON_SET, false if it is JSON_REPLACE.
   const bool m_json_set;
-  String m_doc_value;
   Json_path_clone m_path;
   bool can_use_in_partial_update() const override { return true; }
 
  protected:
   template <typename... Args>
-  Item_func_json_set_replace(bool json_set, Args &&... parent_args)
-      : Item_json_func(std::forward<Args>(parent_args)...),
+  explicit Item_func_json_set_replace(bool json_set, Args &&... parent_args)
+      : Item_func_modify_json_in_path(std::forward<Args>(parent_args)...),
         m_json_set(json_set) {}
 
  public:
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
-
   bool val_json(Json_wrapper *wr) override;
 };
 
 /**
   Represents the JSON function JSON_SET()
 */
-class Item_func_json_set : public Item_func_json_set_replace {
+class Item_func_json_set final : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_set(Args &&... parent_args)
+  explicit Item_func_json_set(Args &&... parent_args)
       : Item_func_json_set_replace(true, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_set"; }
@@ -719,10 +695,10 @@ class Item_func_json_set : public Item_func_json_set_replace {
 /**
   Represents the JSON function JSON_REPLACE()
 */
-class Item_func_json_replace : public Item_func_json_set_replace {
+class Item_func_json_replace final : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_replace(Args &&... parent_args)
+  explicit Item_func_json_replace(Args &&... parent_args)
       : Item_func_json_set_replace(false, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_replace"; }
@@ -731,11 +707,15 @@ class Item_func_json_replace : public Item_func_json_set_replace {
 /**
   Represents the JSON function JSON_ARRAY()
 */
-class Item_func_json_array : public Item_json_func {
+class Item_func_json_array final : public Item_json_func {
  public:
   template <typename... Args>
-  Item_func_json_array(Args &&... parent_args)
-      : Item_json_func(std::forward<Args>(parent_args)...) {}
+  explicit Item_func_json_array(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {
+    // Does not return NULL on NULL input. A NULL argument is interpreted as the
+    // JSON null literal.
+    null_on_null = false;
+  }
 
   const char *func_name() const override { return "json_array"; }
 
@@ -751,12 +731,17 @@ class Item_func_json_array : public Item_json_func {
 /**
   Represents the JSON function JSON_OBJECT()
 */
-class Item_func_json_row_object : public Item_json_func {
+class Item_func_json_row_object final : public Item_json_func {
   String tmp_key_value;
 
  public:
   Item_func_json_row_object(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_json_func(thd, pos, a) {
+    // Does not return NULL on NULL input. If a key argument is NULL, an error
+    // is raised. If a value argument is NULL, it is interpreted as the JSON
+    // null literal.
+    null_on_null = false;
+  }
 
   const char *func_name() const override { return "json_object"; }
 

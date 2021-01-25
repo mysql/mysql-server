@@ -2055,7 +2055,7 @@ class Item : public Parse_tree_node {
   /* bit map of tables used by item */
   virtual table_map used_tables() const { return (table_map)0L; }
 
-  /*
+  /**
     Return table map of tables that can't be NULL tables (tables that are
     used in a context where if they would contain a NULL row generated
     by a LEFT or RIGHT join, the item would not be true).
