@@ -63,6 +63,7 @@ class Table_function {
   /**
     Create, but not instantiate the result table
 
+    @param thd         thread handler
     @param options     options to create table
     @param table_alias table's alias
 
@@ -134,6 +135,7 @@ class Table_function {
   /**
     Print table function
 
+    @param thd         thread handler
     @param str         string to print to
     @param query_type  type of the query
 
@@ -370,6 +372,7 @@ class Table_function_json final : public Table_function {
   /**
     JSON_TABLE printout
 
+    @param thd        thread handler
     @param str        string to print to
     @param query_type type of query
 
