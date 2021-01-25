@@ -4903,6 +4903,8 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
     found_semicolon = parser_state->m_lip.found_semicolon;
   }
 
+  DEBUG_SYNC_C("sql_parse_before_rewrite");
+
   if (!err) {
     /*
       Rewrite the query for logging and for the Performance Schema
@@ -4946,6 +4948,8 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
       }
     }
   }
+
+  DEBUG_SYNC_C("sql_parse_after_rewrite");
 
   if (!err) {
     thd->m_statement_psi = MYSQL_REFINE_STATEMENT(

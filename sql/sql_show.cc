@@ -2765,9 +2765,13 @@ class List_process_list : public Do_THD_Impl {
         query_str = inspect_thd->rewritten_query().ptr();
       }
       /*
-        Otherwise, use the original query.
+        Otherwise, use the original query. If the query contains password in
+        plain text, we have the query re-written immediately after parsing and
+        password string is replaced. However, there is a unsafe window before
+        rewrite is done and in such case we should not display the plain text
+        password.
       */
-      else {
+      else if (inspect_thd->safe_to_display()) {
         query_length = inspect_thd->query().length;
         query_str = inspect_thd->query().str;
       }
@@ -2981,9 +2985,13 @@ class Fill_process_list : public Do_THD_Impl {
         query_str = inspect_thd->rewritten_query().ptr();
       }
       /*
-        Otherwise, use the original query.
+        Otherwise, use the original query. If the query contains password in
+        plain text, we have the query re-written immediately after parsing and
+        password string is replaced. However, there is a unsafe window before
+        rewrite is done and in such case we should not display the plain text
+        password.
       */
-      else {
+      else if (inspect_thd->safe_to_display()) {
         query_length = inspect_thd->query().length;
         query_str = inspect_thd->query().str;
       }

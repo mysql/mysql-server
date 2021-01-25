@@ -876,6 +876,7 @@ class THD : public MDL_context_owner,
   */
   LEX_CSTRING m_query_string;
   String m_normalized_query;
+  std::atomic<bool> m_safe_to_display;
 
   /**
     Currently selected catalog.
@@ -3805,7 +3806,8 @@ class THD : public MDL_context_owner,
   const String normalized_query();
 
   /**
-    Set query to be displayed in performance schema (threads table etc.).
+    Set query to be displayed in performance schema (threads table etc.). Also
+    mark the query safe to display for information_schema.process_list.
   */
   void set_query_for_display(const char *query_arg MY_ATTRIBUTE((unused)),
                              size_t query_length_arg MY_ATTRIBUTE((unused))) {
@@ -3817,8 +3819,20 @@ class THD : public MDL_context_owner,
     PSI_THREAD_CALL(set_thread_info)
     (query_arg, static_cast<uint>(query_length_arg));
 #endif
+    m_safe_to_display.store(true);
   }
-  void reset_query_for_display(void) { set_query_for_display(nullptr, 0); }
+
+  /**
+    Reset query string to be displayed in PFS. Also reset the safety flag
+    for information_schema.process_list for next query.
+  */
+  void reset_query_for_display() {
+    set_query_for_display(nullptr, 0);
+    m_safe_to_display.store(false);
+  }
+
+  /** @return true, if safe to display the query string. */
+  bool safe_to_display() const { return m_safe_to_display.load(); }
 
   /**
     Assign a new value to thd->m_query_string.
