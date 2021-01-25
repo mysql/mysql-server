@@ -239,7 +239,7 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::try_or_spin_exclusive_lock(
   {
     this->spin_exclusive_lock();
   }
-  my_atomic_store64(&this->m_exclusive_owner, self);
+  my_atomic_store64(&this->m_exclusive_owner, int64(self));
   return (*this);
 }
 
