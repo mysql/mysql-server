@@ -2429,7 +2429,8 @@ static void clone_init_tablespaces(THD *thd) {
     const char *space_name = dd_space->name().c_str();
 
     /* Get space ID. */
-    space_id_t space_id;
+    space_id_t space_id = dict_sys_t::s_invalid_space_id;
+
     if (!se_data.exists(dd_space_key_strings[DD_SPACE_ID]) ||
         se_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id)) {
       ib::error(ER_IB_CLONE_INTERNAL)
