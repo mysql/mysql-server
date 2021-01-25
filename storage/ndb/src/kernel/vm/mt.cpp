@@ -4647,7 +4647,7 @@ dumpJobQueues(void)
       if (used > 0)
       {
         tmp.appfmt(" job buffer %d --> %d, used %d",
-                   to, from, used);
+                   from, to, used);
         unsigned free = compute_free_buffers_in_queue(q);
         if (free <= 0)
         {
