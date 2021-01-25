@@ -2526,21 +2526,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   // Resetting THD::where to its default value
   thd->where = THD::DEFAULT_WHERE;
-  /*
-    Check that the function is called with all specified arguments.
 
-    If it is not, use my_error() to report an error, or it will not terminate
-    the invoking query properly.
-  */
-  if (argcount != m_root_parsing_ctx->context_var_count()) {
-    /*
-      Need to use my_error here, or it will not terminate the
-      invoking query properly.
-    */
-    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "FUNCTION", m_qname.str,
-             m_root_parsing_ctx->context_var_count(), argcount);
-    return true;
-  }
+  // Number of arguments has been checked during resolving
+  assert(argcount == m_root_parsing_ctx->context_var_count());
 
   /*
     Prepare arena and memroot for objects which lifetime is whole
