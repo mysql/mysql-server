@@ -76,6 +76,9 @@ static char *clone_ssl_cert;
 /** Clone system variable: SSL Certificate authority */
 static char *clone_ssl_ca;
 
+/** Clone system variable: timeout for clone restart after n/w failure */
+uint clone_restart_timeout;
+
 /** Key for registering clone allocations with performance schema */
 PSI_memory_key clone_mem_key;
 
@@ -579,19 +582,35 @@ static MYSQL_SYSVAR_STR(ssl_ca, clone_ssl_ca,
                         "SSL path name for Certificate Authority (CA) file",
                         nullptr, nullptr, nullptr);
 
+/** Donor allows an on going clone operation to resume after short network
+failures. This is the time in minutes up to which the donor allows recipient to
+re-connect and resume after a network failure. After timeout, donor drops the
+current snapshot and the clone operation can no longer be resumed. */
+static MYSQL_SYSVAR_UINT(donor_timeout_after_network_failure,
+                         clone_restart_timeout, PLUGIN_VAR_RQCMDARG,
+                         "Time in minutes up to which donor allows recipient"
+                         " to re-connect and restart cloning after network"
+                         " failure.",
+                         nullptr, nullptr, 5, /* Default =   5 min */
+                         0,                   /* Minimum =   0 min: no wait */
+                         30,                  /* Maximum =  30 min */
+                         1);                  /* Step    =   1 min */
+
 /** Clone system variables */
-static SYS_VAR *clone_system_variables[] = {MYSQL_SYSVAR(buffer_size),
-                                            MYSQL_SYSVAR(ddl_timeout),
-                                            MYSQL_SYSVAR(max_concurrency),
-                                            MYSQL_SYSVAR(max_network_bandwidth),
-                                            MYSQL_SYSVAR(max_data_bandwidth),
-                                            MYSQL_SYSVAR(enable_compression),
-                                            MYSQL_SYSVAR(autotune_concurrency),
-                                            MYSQL_SYSVAR(valid_donor_list),
-                                            MYSQL_SYSVAR(ssl_key),
-                                            MYSQL_SYSVAR(ssl_cert),
-                                            MYSQL_SYSVAR(ssl_ca),
-                                            nullptr};
+static SYS_VAR *clone_system_variables[] = {
+    MYSQL_SYSVAR(buffer_size),
+    MYSQL_SYSVAR(ddl_timeout),
+    MYSQL_SYSVAR(max_concurrency),
+    MYSQL_SYSVAR(max_network_bandwidth),
+    MYSQL_SYSVAR(max_data_bandwidth),
+    MYSQL_SYSVAR(enable_compression),
+    MYSQL_SYSVAR(autotune_concurrency),
+    MYSQL_SYSVAR(valid_donor_list),
+    MYSQL_SYSVAR(ssl_key),
+    MYSQL_SYSVAR(ssl_cert),
+    MYSQL_SYSVAR(ssl_ca),
+    MYSQL_SYSVAR(donor_timeout_after_network_failure),
+    nullptr};
 
 /** Declare clone plugin */
 mysql_declare_plugin(clone_plugin){

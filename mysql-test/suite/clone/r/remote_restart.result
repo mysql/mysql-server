@@ -17,6 +17,35 @@ SHOW VARIABLES LIKE '%CLONE_MAX_CONCURRENCY%';
 Variable_name	Value
 clone_max_concurrency	8
 SET GLOBAL CLONE_MAX_CONCURRENCY = default;
+# Clone failure by forcing network error and disabling restart
+SET GLOBAL CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE = 0;
+SHOW VARIABLES LIKE 'CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE';
+Variable_name	Value
+clone_donor_timeout_after_network_failure	0
+SET global debug="+d,clone_restart_apply";
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+ERROR HY000: Clone Donor Error: 1815 : Internal error: Innodb Clone Restart could not find existing clone.
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Failed	3862
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Failed
+1	FILE COPY	Not Started
+1	PAGE COPY	Not Started
+1	REDO COPY	Not Started
+1	FILE SYNC	Not Started
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+SET global debug="-d,clone_restart_apply";
+# Clone by forcing network error and allowing restart
+SET GLOBAL CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE = 15;
+SHOW VARIABLES LIKE 'CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE';
+Variable_name	Value
+clone_donor_timeout_after_network_failure	15
 SET global debug="+d,clone_restart_apply";
 SET GLOBAL clone_autotune_concurrency = OFF;
 SET GLOBAL clone_max_concurrency = 8;

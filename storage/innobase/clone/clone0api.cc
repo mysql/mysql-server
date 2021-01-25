@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/strfunc.h"
 
 #include "dict0dd.h"
+#include "ha_innodb.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
 #include "sql/dd/impl/dictionary_impl.h"  // dd::dd_tablespace_id()
@@ -498,6 +499,46 @@ int innodb_clone_ack(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   return (err);
 }
 
+/** Timeout while waiting for recipient after network failure.
+@param[in,out]	thd	server thread handle
+@return donor timeout in minutes. */
+static Clone_Min get_donor_timeout(THD *thd) {
+  int timeout = 5;
+
+  ut_ad(clone_protocol_svc != nullptr);
+  if (clone_protocol_svc == nullptr) {
+    return Clone_Min(timeout);
+  }
+
+  /* Get timeout configuration in string format and convert to integer.
+  Currently there is no interface to get the integer value directly. The
+  variable is in clone plugin and innodb cannot access it directly. */
+  Mysql_Clone_Key_Values timeout_confs = {
+      {"clone_donor_timeout_after_network_failure", ""}};
+
+  auto err = clone_protocol_svc->mysql_clone_get_configs(thd, timeout_confs);
+
+  std::string err_str(
+      "Error reading clone_donor_timeout_after_network_failure"
+      " configuration");
+  if (err != 0) {
+    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
+    return Clone_Min(timeout);
+  }
+
+  try {
+    timeout = std::stoi(timeout_confs[0].second);
+  } catch (const std::exception &e) {
+    err_str.append(" Exception: ");
+    err_str.append(e.what());
+    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
+    ut_ad(false);
+    timeout = 5;
+  }
+
+  return Clone_Min(timeout);
+}
+
 int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
                      uint task_id, int in_err) {
   /* Acquire clone system mutex which would automatically get released
@@ -558,14 +599,25 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
     return (0);
   }
 
-  auto da = thd->get_stmt_da();
-  ib::info(ER_IB_CLONE_RESTART)
-      << "Clone Master wait for restart"
-      << " after n/w error code: " << in_err << ": "
-      << ((da == nullptr || !da->is_error()) ? "" : da->message_text());
-
   ut_ad(clone_hdl->is_copy_clone());
   ut_ad(is_master);
+
+  auto da = thd->get_stmt_da();
+  ib::info(ER_IB_CLONE_RESTART)
+      << "Clone Master n/w error code: " << in_err << ": "
+      << ((da == nullptr || !da->is_error()) ? "" : da->message_text());
+
+  auto time_out = get_donor_timeout(thd);
+
+  if (time_out.count() <= 0) {
+    ib::info(ER_IB_CLONE_RESTART)
+        << "Clone Master Skip wait after n/w error. Dropping Snapshot.";
+    clone_sys->drop_clone(clone_hdl);
+    return (0);
+  }
+
+  ib::info(ER_IB_CLONE_RESTART) << "Clone Master wait " << time_out.count()
+                                << " minutes for restart after n/w error";
 
   /* Set state to idle and wait for re-connect */
   clone_hdl->set_state(CLONE_STATE_IDLE);
@@ -573,9 +625,8 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   Clone_Msec sleep_time(Clone_Sec(1));
   /* Generate alert message every minute. */
   Clone_Sec alert_interval(Clone_Min(1));
-  /* Wait for 5 minutes for client to reconnect back */
-  Clone_Sec time_out(Clone_Min(5));
 
+  /* Wait for client to reconnect back */
   bool is_timeout = false;
   auto err = Clone_Sys::wait(
       sleep_time, time_out, alert_interval,
@@ -616,9 +667,10 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
       clone_sys->get_mutex(), is_timeout);
 
   if (err == 0 && is_timeout && clone_hdl->is_idle()) {
-    ib::info(ER_IB_CLONE_TIMEOUT) << "Clone End Master wait "
-                                     "for restart timed out after "
-                                     "5 Minutes. Dropping Snapshot";
+    ib::info(ER_IB_CLONE_TIMEOUT)
+        << "Clone End Master wait "
+           "for restart timed out after "
+        << time_out.count() << " minutes. Dropping Snapshot";
   }
   /* Last task should drop the clone handle. */
   clone_sys->drop_clone(clone_hdl);
