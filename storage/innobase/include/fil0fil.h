@@ -1697,8 +1697,6 @@ The fil_node_t::handle will not be left open.
 @param[in]	space_name	tablespace name of the datafile
                                 If file-per-table, it is the table name in the
                                 databasename/tablename format
-@param[in]	table_name	table name in case need to build filename
-from it
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
 @param[in]	old_space	whether it is a 5.7 tablespace opening
@@ -1706,8 +1704,8 @@ from it
 @return DB_SUCCESS or error code */
 dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
                      uint32_t flags, const char *space_name,
-                     const char *table_name, const char *path_in, bool strict,
-                     bool old_space) MY_ATTRIBUTE((warn_unused_result));
+                     const char *path_in, bool strict, bool old_space)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache.
@@ -1717,12 +1715,9 @@ memory cache.
                                 error log if a matching tablespace is
                                 not found from memory.
 @param[in]	adjust_space	Whether to adjust space id on mismatch
-@param[in]	heap		Heap memory
-@param[in]	table_id	table ID
 @return true if a matching tablespace exists in the memory cache */
 bool fil_space_exists_in_mem(space_id_t space_id, const char *name,
-                             bool print_err, bool adjust_space,
-                             mem_heap_t *heap, table_id_t table_id)
+                             bool print_err, bool adjust_space)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Extends all tablespaces to the size stored in the space header. During the

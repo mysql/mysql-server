@@ -3982,8 +3982,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   }
 
   auto is_already_opened = [&]() {
-    if (fil_space_exists_in_mem(table->space, space_name, false, true, heap,
-                                table->id)) {
+    if (fil_space_exists_in_mem(table->space, space_name, false, true)) {
       dd_get_and_save_data_dir_path(table, dd_table, true);
       ut_free(shared_space_name);
       return true;
@@ -4043,7 +4042,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   false because we do not have an x-lock on dict_operation_lock */
   dberr_t err =
       fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, expected_fsp_flags,
-                   space_name, tbl_name, filepath, true, false);
+                   space_name, filepath, true, false);
 
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
@@ -6344,7 +6343,7 @@ bool dd_tablespace_update_cache(THD *thd) {
 
       /* It's safe to pass space_name in tablename charset
       because filename is already in filename charset. */
-      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name, nullptr,
+      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name,
                                  filename, false, false);
       switch (err) {
         case DB_SUCCESS:

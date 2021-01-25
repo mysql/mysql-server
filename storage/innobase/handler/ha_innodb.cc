@@ -3324,7 +3324,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     /* Check if IBD tablespaces exist in mem correctly. This call also adjusts
     the tablespace name for undo and general tablespace. We still need to check
     if the data files are moved. */
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, heap, 0)) {
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
       if (fsp_is_undo_tablespace(space_id) &&
           !apply_dd_undo_state(space_id, dd_tablespace)) {
         /* Undo tablespaces are always opened first. But in case they have
@@ -3490,9 +3490,8 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     /* The IBD filename from the DD has not yet been opened. Try to open it.
     It's safe to pass space_name in tablename charset because filename is
     already in filename charset. */
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, nullptr, filename, false, false);
+    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
+                               fsp_flags, space_name, filename, false, false);
 
     switch (err) {
       case DB_SUCCESS: {
@@ -3547,6 +3546,8 @@ dberr_t Validate_files::validate(const DD_tablespaces &tablespaces,
   }
 
   fil_set_max_space_id_if_bigger(get_space_max_id());
+
+  clone_sys->set_space_initialized();
 
   return (DB_SUCCESS);
 }
@@ -5071,7 +5072,6 @@ static bool dd_open_hardcoded(space_id_t space_id, const char *filename) {
     fil_space_release(space);
 
   } else if (fil_ibd_open(true, FIL_TYPE_TABLESPACE, space_id, 0,
-                          dict_sys_t::s_dd_space_name,
                           dict_sys_t::s_dd_space_name, filename, true,
                           false) == DB_SUCCESS) {
     /* Set fil_space_t::size, which is 0 initially. */
