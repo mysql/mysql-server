@@ -895,6 +895,7 @@ DROP DATABASE tde_db;
 --echo #########################################################################
 DROP TABLESPACE encrypt_ts;
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup;
 
 --echo # Restarting server without keyring to restore server state
 let $restart_parameters = restart: ;

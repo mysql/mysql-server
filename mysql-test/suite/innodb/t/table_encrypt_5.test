@@ -609,4 +609,5 @@ let $restart_parameters = restart: ;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 --remove_file $MYSQL_TMP_DIR/mydummy_keyring
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
+--remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring_new
