@@ -491,6 +491,7 @@ void recv_sys_close() {
 
   call_destructor(&recv_sys->deleted);
   call_destructor(&recv_sys->missing_ids);
+  call_destructor(&recv_sys->saved_recs);
 
   mutex_free(&recv_sys->mutex);
 
@@ -639,6 +640,10 @@ void recv_sys_init(ulint max_mem) {
   new (&recv_sys->deleted) recv_sys_t::Missing_Ids();
 
   new (&recv_sys->missing_ids) recv_sys_t::Missing_Ids();
+
+  new (&recv_sys->saved_recs) recv_sys_t::Mlog_records();
+
+  recv_sys->saved_recs.resize(recv_sys_t::MAX_SAVED_MLOG_RECS);
 
   recv_sys->metadata_recover = UT_NEW_NOKEY(MetadataRecover());
 
@@ -2990,6 +2995,8 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
       return (true);
     }
 
+    recv_sys->save_rec(n_recs, space_id, page_no, type, body, len);
+
     recv_previous_parsed_rec_type = type;
 
     recv_previous_parsed_rec_offset = recv_sys->recovered_offset + total_len;
@@ -3029,18 +3036,22 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
   ptr = recv_sys->buf + recv_sys->recovered_offset;
 
-  for (;;) {
+  for (ulint i = 0; i < n_recs; i++) {
     lsn_t old_lsn = recv_sys->recovered_lsn;
 
     /* This will apply MLOG_FILE_ records. */
+    space_id_t space_id = 0;
+    page_no_t page_no = 0;
 
     mlog_id_t type = MLOG_BIGGEST_TYPE;
-    byte *body;
-    page_no_t page_no = 0;
-    space_id_t space_id = 0;
 
-    ulint len =
-        recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
+    byte *body = nullptr;
+    size_t len = 0;
+
+    /* Avoid parsing if we have the record saved already. */
+    if (!recv_sys->get_saved_rec(i, space_id, page_no, type, body, len)) {
+      len = recv_parse_log_rec(&type, ptr, end_ptr, &space_id, &page_no, &body);
+    }
 
     if (recv_sys->found_corrupt_log &&
         !recv_report_corrupt_log(ptr, type, space_id, page_no)) {
