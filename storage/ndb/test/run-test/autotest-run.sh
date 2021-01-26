@@ -102,7 +102,7 @@ done
 #################################
 #Make sure the configfile exists#
 #if it does not exit. if it does#
-# (.) load it			# 
+# (.) load it			#
 #################################
 
 install_dir=${install_dir:-$install_dir0}
@@ -271,7 +271,7 @@ choose(){
         i=1
         while [ $# -gt 0 ]
         do
-                sed -r s/"CHOOSE_host${i}[ ]*(, |\$)"/"${1}\1"/g < $TMP1 > $TMP2
+                sed -r s/"CHOOSE_host${i}([^0-9]|\$)"/"${1}\1"/g < $TMP1 > $TMP2
                 mv $TMP2 $TMP1
                 shift
                 i=`expr $i + 1`
@@ -340,7 +340,7 @@ rm -rf $res_dir/* $run_dir/*
 ###
 #
 # Do sed substitiutions
-# 
+#
 cd $run_dir
 mkdir run
 
