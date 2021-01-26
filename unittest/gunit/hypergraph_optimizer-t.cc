@@ -1437,6 +1437,44 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
   query_block->join->filesorts_to_cleanup.shrink_to_fit();
 }
 
+// This case is tricky; the order given by the index is (x, y), but the
+// interesting order is just (y). Normally, we only grow orders into interesting
+// orders, but here, we have to reduce them as well.
+TEST_F(HypergraphOptimizerTest, IndexTailGetsUsed) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x, t1.y FROM t1 WHERE t1.x=42 ORDER BY t1.y",
+                      /*nullable=*/true);
+
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
+                                    m_fake_tables["t1"]->field[1],
+                                    /*unique=*/false);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+
+  // Mark the index as returning ordered results.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The sort should be elided entirely due to index.
+  ASSERT_EQ(AccessPath::REF, root->type);
+  EXPECT_STREQ("t1", root->ref().table->alias);
+  EXPECT_EQ(0, root->ref().ref->key);
+  EXPECT_EQ(true, root->ref().use_order);
+  EXPECT_EQ(false, root->ref().reverse);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
 TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   Query_block *query_block =
       ParseAndResolve("SELECT t1.x FROM t1 GROUP BY t1.x",

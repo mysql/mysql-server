@@ -227,9 +227,8 @@ class LogicalOrderings {
   //
   // Uninteresting orderings are those that can be produced by some
   // operator (for instance, index scan) but are not interesting to
-  // test for. They may be pruned away; if so, all later orderings
-  // will change index (see RemapOrderingIndex()). You do not need
-  // to worry about this if all orderings are marked as interesting.
+  // test for. Orderings may be merged, pruned (if uninteresting)
+  // and moved around after Build(); see RemapOrderingIndex().
   //
   // The empty ordering/grouping is always index 0.
   int AddOrdering(THD *thd, Ordering order, bool interesting) {
@@ -549,7 +548,8 @@ class LogicalOrderings {
   void PruneFDs(THD *thd);
 
   // See comment in .cc file.
-  bool ImpliedByEarlierElements(ItemHandle item, Ordering prefix) const;
+  bool ImpliedByEarlierElements(ItemHandle item, Ordering prefix,
+                                bool all_fds) const;
 
   // Populates ItemInfo::canonical_item.
   void BuildEquivalenceClasses();
@@ -561,7 +561,9 @@ class LogicalOrderings {
   void FindElementsThatCanBeAddedByFDs();
 
   // See comment in .cc file.
-  Ordering ReduceOrdering(Ordering ordering, OrderElement *tmpbuf) const;
+  Ordering ReduceOrdering(Ordering ordering, bool all_fds,
+                          OrderElement *tmpbuf) const;
+  void PreReduceOrderings(THD *thd);
   void CreateHomogenizedOrderings(THD *thd);
   void AddHomogenizedOrderingIfPossible(
       THD *thd, Ordering reduced_ordering, int table_idx,

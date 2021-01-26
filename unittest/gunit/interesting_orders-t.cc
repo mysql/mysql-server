@@ -315,6 +315,11 @@ TEST_F(InterestingOrderingTableTest, SetOrder) {
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
+  a_idx = m_orderings->RemapOrderingIndex(a_idx);
+  a_desc_idx = m_orderings->RemapOrderingIndex(a_desc_idx);
+  b_idx = m_orderings->RemapOrderingIndex(b_idx);
+  bc_idx = m_orderings->RemapOrderingIndex(bc_idx);
+
   LogicalOrderings::StateIndex idx;
 
   idx = m_orderings->SetOrder(a_idx);
@@ -400,6 +405,11 @@ TEST_F(InterestingOrderingTableTest, BasicTest) {
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
+  ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
+  abc_idx = m_orderings->RemapOrderingIndex(abc_idx);
+  de_idx = m_orderings->RemapOrderingIndex(de_idx);
+  abed_idx = m_orderings->RemapOrderingIndex(abed_idx);
+
   LogicalOrderings::StateIndex idx;
   FunctionalDependencySet fds{0};
 
@@ -469,6 +479,9 @@ TEST_F(InterestingOrderingTableTest, AddReverseElement) {
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
+  a_idx = m_orderings->RemapOrderingIndex(a_idx);
+  ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
+
   LogicalOrderings::StateIndex idx;
   FunctionalDependencySet fds{0};
 
@@ -517,6 +530,9 @@ TEST_F(InterestingOrderingTableTest, AddReverseElementThroughEquivalences) {
   string trace;
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  a_idx = m_orderings->RemapOrderingIndex(a_idx);
+  ac_idx = m_orderings->RemapOrderingIndex(ac_idx);
 
   LogicalOrderings::StateIndex idx;
   FunctionalDependencySet fds{0};
@@ -569,6 +585,9 @@ TEST_F(InterestingOrderingTableTest, DoesNotStrictlyPruneOnPrefixes) {
   string trace;
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  dc_idx = m_orderings->RemapOrderingIndex(dc_idx);
+  abcd_idx = m_orderings->RemapOrderingIndex(abcd_idx);
 
   LogicalOrderings::StateIndex idx;
   FunctionalDependencySet fds{0};
@@ -636,6 +655,9 @@ TEST_F(InterestingOrderingTableTest, TwoEquivalences) {
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
+  abc_idx = m_orderings->RemapOrderingIndex(abc_idx);
+  dec_idx = m_orderings->RemapOrderingIndex(dec_idx);
+
   LogicalOrderings::StateIndex idx;
   FunctionalDependencySet fds{0};
 
@@ -691,6 +713,8 @@ TEST_F(InterestingOrderingTableTest, SortByConst) {
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
+  ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
+
   // Start with the empty ordering.
   LogicalOrderings::StateIndex idx = m_orderings->SetOrder(0);
   EXPECT_FALSE(m_orderings->DoesFollowOrder(idx, ab_idx));
@@ -743,6 +767,9 @@ TEST_F(InterestingOrderingTableTest, AlwaysActiveFD) {
   string trace;
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
+  b_idx = m_orderings->RemapOrderingIndex(b_idx);
 
   // Start with the empty ordering.
   LogicalOrderings::StateIndex idx = m_orderings->SetOrder(0);
@@ -798,6 +825,9 @@ TEST_F(InterestingOrderingTableTest, FDsFromComputedItems) {
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
+  a_idx = m_orderings->RemapOrderingIndex(a_idx);
+  ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
+
   // Start with a. Now we should also have a, b + 1 (there should be
   // an implict b → b + 1 FD), even though b is not in the ordering.
   LogicalOrderings::StateIndex idx = m_orderings->SetOrder(a_idx);
@@ -832,6 +862,10 @@ TEST_F(InterestingOrderingTableTest, MoreOrderedThan) {
   string trace;
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  a_order_idx = m_orderings->RemapOrderingIndex(a_order_idx);
+  ab_order_idx = m_orderings->RemapOrderingIndex(ab_order_idx);
+  c_order_idx = m_orderings->RemapOrderingIndex(c_order_idx);
 
   // Start at a and apply a = c, which should give us a and c.
   LogicalOrderings::StateIndex ac_idx = m_orderings->SetOrder(a_order_idx);
@@ -1032,6 +1066,10 @@ TEST_F(InterestingOrderingTableTest, Groupings) {
   string trace;
   m_orderings->Build(thd, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  ab_idx = m_orderings->RemapOrderingIndex(ab_idx);
+  group_a_idx = m_orderings->RemapOrderingIndex(group_a_idx);
+  group_abc_idx = m_orderings->RemapOrderingIndex(group_abc_idx);
 
   // Start at ab.
   LogicalOrderings::StateIndex idx = m_orderings->SetOrder(ab_idx);

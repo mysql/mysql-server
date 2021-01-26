@@ -164,6 +164,7 @@ int LogicalOrderings::AddFunctionalDependency(THD *thd,
 void LogicalOrderings::Build(THD *thd, string *trace) {
   BuildEquivalenceClasses();
   AddFDsFromComputedItems(thd);
+  PreReduceOrderings(thd);
   CreateHomogenizedOrderings(thd);
   PruneFDs(thd);
   if (trace != nullptr) {
@@ -525,16 +526,17 @@ static bool Contains(Ordering prefix, ItemHandle item) {
   be that it is not confluent for _groupings_, which is correct.
   We make no attempt at optimality.
 
-  We consider all functional dependencies here, including those that may
-  not always be active; e.g. a FD a=b may come from a join, and thus does
-  not hold before the join is actually done, but we assume it holds anyway.
-  This is OK because we are only called during order homogenization,
-  which is concerned with making orderings that will turn into the desired
-  interesting ordering (e.g. for ORDER BY) only after all joins have been
-  done. It would not be OK if we were to use it for merge joins somehow.
+  If all_fds is true, we consider all functional dependencies, including those
+  that may not always be active; e.g. a FD a=b may come from a join, and thus
+  does not hold before the join is actually done, but we assume it holds anyway.
+  This is OK from order homogenization, which is concerned with making orderings
+  that will turn into the desired interesting ordering (e.g. for ORDER BY) only
+  after all joins have been done. It would not be OK if we were to use it for
+  merge joins somehow.
  */
 bool LogicalOrderings::ImpliedByEarlierElements(ItemHandle item,
-                                                Ordering prefix) const {
+                                                Ordering prefix,
+                                                bool all_fds) const {
   // First, search for straight-up duplicates (ignoring ASC/DESC).
   if (Contains(prefix, item)) {
     return true;
@@ -543,6 +545,9 @@ bool LogicalOrderings::ImpliedByEarlierElements(ItemHandle item,
   // Check if this item is implied by any of the functional dependencies.
   for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
     const FunctionalDependency &fd = m_fds[fd_idx];
+    if (!all_fds && !fd.always_active) {
+      continue;
+    }
     if (fd.type == FunctionalDependency::FD) {
       if (fd.tail != item) {
         continue;
@@ -572,6 +577,40 @@ bool LogicalOrderings::ImpliedByEarlierElements(ItemHandle item,
     }
   }
   return false;
+}
+
+/**
+  Do safe reduction on all orderings (some of them may get merged by
+  PruneUninterestingOrders() later), ie., remove all items that may be removed
+  using only FDs that always are active.
+
+  There's a problem in [Neu04] that is never adequately addressed; orderings are
+  only ever expanded, and then eventually compared against interesting orders.
+  But the interesting order itself is not necessarily extended, due to pruning.
+  For instance, if an index could yield (x,y) and we have {} → x, there's no way
+  we could get it to match the interesting order (y) even though they are
+  logically equivalent. For an even trickier case, imagine an index (x,y) and
+  an interesting order (y,z), with {} → x and y → z. For this to match, we'd
+  need to have a “super-order” (x,y,z) and infer that from both orderings.
+
+  Instead, we do a pre-step related to Simmen's “Test Ordering” procedure;
+  we reduce the orderings. In the example above, both will be reduced to (y),
+  and then match. This is mostly a band-aid around the problem; for instance,
+  it cannot deal with FDs that are not always active, and it does not deal
+  adequately with groupings (since reduction does not).
+
+  Note that this could make the empty ordering interesting after merging.
+ */
+void LogicalOrderings::PreReduceOrderings(THD *thd) {
+  OrderElement *tmpbuf =
+      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
+  for (OrderingWithInfo &ordering : m_orderings) {
+    Ordering reduced_ordering = ReduceOrdering(ordering.ordering,
+                                               /*all_fds=*/false, tmpbuf);
+    if (reduced_ordering.size() < ordering.ordering.size()) {
+      ordering.ordering = DuplicateArray(thd, reduced_ordering);
+    }
+  }
 }
 
 /**
@@ -627,8 +666,8 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
     if (m_orderings[ordering_idx].type != OrderingWithInfo::INTERESTING) {
       continue;
     }
-    Ordering reduced_ordering =
-        ReduceOrdering(m_orderings[ordering_idx].ordering, tmpbuf);
+    Ordering reduced_ordering = ReduceOrdering(
+        m_orderings[ordering_idx].ordering, /*all_fds=*/true, tmpbuf);
     if (reduced_ordering.empty()) {
       continue;
     }
@@ -650,12 +689,12 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
 
   tmpbuf is used as the memory store for the new ordering.
  */
-Ordering LogicalOrderings::ReduceOrdering(Ordering ordering,
+Ordering LogicalOrderings::ReduceOrdering(Ordering ordering, bool all_fds,
                                           OrderElement *tmpbuf) const {
   size_t reduced_length = 0;
   for (size_t part_idx = 0; part_idx < ordering.size(); ++part_idx) {
     if (ImpliedByEarlierElements(ordering[part_idx].item,
-                                 ordering.prefix(part_idx))) {
+                                 ordering.prefix(part_idx), all_fds)) {
       // Delete this element.
     } else {
       tmpbuf[reduced_length++] = ordering[part_idx];
@@ -675,7 +714,8 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
   for (OrderElement element : reduced_ordering) {
     if (IsSubset(m_items[element.item].item->used_tables(), available_tables)) {
       // Already OK.
-      if (!ImpliedByEarlierElements(element.item, Ordering(tmpbuf, length))) {
+      if (!ImpliedByEarlierElements(element.item, Ordering(tmpbuf, length),
+                                    /*all_fds=*/true)) {
         tmpbuf[length++] = element;
       }
       continue;
@@ -697,7 +737,8 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
     bool found = false;
     for (auto it = first; it != last; ++it) {
       if (IsSubset(m_items[it->second].item->used_tables(), available_tables)) {
-        if (ImpliedByEarlierElements(it->second, Ordering(tmpbuf, length))) {
+        if (ImpliedByEarlierElements(it->second, Ordering(tmpbuf, length),
+                                     /*all_fds=*/true)) {
           // Unneeded in the new order, so delete it.
           // Similar to the reduction process above.
         } else {
@@ -1478,14 +1519,18 @@ void LogicalOrderings::PrintFunctionalDependencies(string *trace) {
 
 void LogicalOrderings::PrintInterestingOrders(string *trace) {
   *trace += "Interesting orders:\n";
-  for (size_t order_idx = 1; order_idx < m_orderings.size(); ++order_idx) {
+  for (size_t order_idx = 0; order_idx < m_orderings.size(); ++order_idx) {
     const OrderingWithInfo &ordering = m_orderings[order_idx];
+    if (order_idx == 0 && ordering.type == OrderingWithInfo::UNINTERESTING) {
+      continue;
+    }
+
     *trace += StringPrintf(" - %zu: ", order_idx);
     bool first = true;
     if (IsGrouping(ordering.ordering)) {
       *trace += "group ";
     }
-    for (OrderElement element : m_orderings[order_idx].ordering) {
+    for (OrderElement element : ordering.ordering) {
       if (!first) {
         *trace += ", ";
       }
@@ -1494,6 +1539,9 @@ void LogicalOrderings::PrintInterestingOrders(string *trace) {
       if (element.direction == ORDER_DESC) {
         *trace += " DESC";
       }
+    }
+    if (ordering.ordering.empty()) {
+      *trace += "()";
     }
     if (ordering.type == OrderingWithInfo::HOMOGENIZED) {
       *trace += " [homogenized from other ordering]";

@@ -2543,6 +2543,7 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
   non-equijoin predicates in CollectFunctionalDependenciesFromJoins().
  */
 static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
+                                                bool always_active,
                                                 LogicalOrderings *orderings) {
   if (condition->type() != Item::FUNC_ITEM) {
     return -1;
@@ -2556,6 +2557,7 @@ static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
     fd.type = FunctionalDependency::FD;
     fd.head = Bounds_checked_array<ItemHandle>();
     fd.tail = orderings->GetHandle(isnull->arguments()[0]);
+    fd.always_active = always_active;
 
     return orderings->AddFunctionalDependency(thd, fd);
   }
@@ -2580,6 +2582,7 @@ static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
     fd.type = FunctionalDependency::FD;
     fd.head = Bounds_checked_array<ItemHandle>();
     fd.tail = orderings->GetHandle(left);
+    fd.always_active = always_active;
 
     return orderings->AddFunctionalDependency(thd, fd);
   } else {
@@ -2589,6 +2592,7 @@ static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
     ItemHandle head = orderings->GetHandle(left);
     fd.head = Bounds_checked_array<ItemHandle>(&head, 1);
     fd.tail = orderings->GetHandle(right);
+    fd.always_active = always_active;
 
     // Takes a copy if needed, so the stack reference is safe.
     return orderings->AddFunctionalDependency(thd, fd);
@@ -2623,15 +2627,15 @@ static void CollectFunctionalDependenciesFromJoins(
     pred.functional_dependencies_idx.reserve(expr->equijoin_conditions.size() +
                                              expr->join_conditions.size());
     for (Item_func_eq *join_condition : expr->equijoin_conditions) {
-      int fd_idx =
-          AddFunctionalDependencyFromCondition(thd, join_condition, orderings);
+      int fd_idx = AddFunctionalDependencyFromCondition(
+          thd, join_condition, /*always_active=*/false, orderings);
       if (fd_idx != -1) {
         pred.functional_dependencies_idx.push_back(fd_idx);
       }
     }
     for (Item *join_condition : expr->join_conditions) {
-      int fd_idx =
-          AddFunctionalDependencyFromCondition(thd, join_condition, orderings);
+      int fd_idx = AddFunctionalDependencyFromCondition(
+          thd, join_condition, /*always_active=*/false, orderings);
       if (fd_idx != -1) {
         pred.functional_dependencies_idx.push_back(fd_idx);
       }
@@ -2654,8 +2658,11 @@ static void CollectFunctionalDependenciesFromJoins(
 static void CollectFunctionalDependenciesFromPredicates(
     THD *thd, JoinHypergraph *graph, LogicalOrderings *orderings) {
   for (Predicate &pred : graph->predicates) {
-    int fd_idx =
-        AddFunctionalDependencyFromCondition(thd, pred.condition, orderings);
+    bool always_active =
+        !Overlaps(pred.total_eligibility_set, PSEUDO_TABLE_BITS) &&
+        IsSingleBitSet(pred.total_eligibility_set);
+    int fd_idx = AddFunctionalDependencyFromCondition(thd, pred.condition,
+                                                      always_active, orderings);
     if (fd_idx != -1) {
       pred.functional_dependencies_idx.push_back(fd_idx);
     }
