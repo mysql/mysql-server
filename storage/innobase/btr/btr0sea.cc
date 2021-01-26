@@ -1354,7 +1354,7 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
       }
     }
 
-    os_thread_yield();
+    std::this_thread::yield();
   }
 }
 
@@ -1417,7 +1417,7 @@ void btr_drop_ahi_for_index(dict_index_t *index) {
       }
     }
 
-    os_thread_yield();
+    std::this_thread::yield();
   }
 }
 
@@ -1974,7 +1974,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
     give other queries a chance to run. */
     if ((i != 0) && ((i % chunk_size) == 0)) {
       btr_search_x_unlock_all();
-      os_thread_yield();
+      std::this_thread::yield();
       btr_search_x_lock_all();
 
       ulint curr_cell_count =
@@ -2083,7 +2083,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
     give other queries a chance to run. */
     if (i != 0) {
       btr_search_x_unlock_all();
-      os_thread_yield();
+      std::this_thread::yield();
       btr_search_x_lock_all();
 
       ulint curr_cell_count =

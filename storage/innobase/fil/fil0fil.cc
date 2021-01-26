@@ -2161,7 +2161,7 @@ bool Fil_shard::close_file(space_id_t space_id) {
     while (file.in_use > 0) {
       mutex_release();
 
-      os_thread_sleep(10000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
       mutex_acquire();
     }
@@ -2777,7 +2777,7 @@ bool Fil_shard::open_file(fil_node_t *file, bool extend) {
 
     mutex_release();
 
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     mutex_acquire();
   }
@@ -2965,7 +2965,7 @@ void Fil_shard::wait_for_io_to_stop(const fil_space_t *space) {
 #endif /* UNIV_HOTBACKUP */
 
     /* Give the IO threads some time to work. */
-    os_thread_yield();
+    std::this_thread::yield();
   }
 }
 
@@ -3042,7 +3042,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
   be released after the file is opened. */
 
   while (!reserve_open_slot(m_id)) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
   auto begin_time = ut_time_monotonic();
@@ -3056,7 +3056,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
 
     fil_system->flush_file_spaces(type);
 
-    os_thread_yield();
+    std::this_thread::yield();
 
     /* Reserve an open slot for this shard. So that this
     shard's open file succeeds. */
@@ -3082,7 +3082,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
     performed */
     os_aio_simulated_wake_handler_threads();
 
-    os_thread_yield();
+    std::this_thread::yield();
 #endif /* !UNIV_HOTBACKUP */
   }
 
@@ -4196,7 +4196,7 @@ dberr_t Fil_shard::wait_for_pending_operations(space_id_t space_id,
     mutex_release();
 
     if (count > 0) {
-      os_thread_sleep(20000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
   } while (count > 0);
@@ -4227,7 +4227,7 @@ dberr_t Fil_shard::wait_for_pending_operations(space_id_t space_id,
     mutex_release();
 
     if (count > 0) {
-      os_thread_sleep(20000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
   } while (count > 0);
@@ -4645,7 +4645,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
       /* Release and reacquire the mutex because we want the IO to complete. */
       mutex_release();
 
-      os_thread_yield();
+      std::this_thread::yield();
 
       mutex_acquire();
     }
@@ -5205,7 +5205,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
         start_time = ut_time_monotonic();
       }
 
-      os_thread_sleep(1000000);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
 
       continue;
 
@@ -5317,7 +5317,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
       break;
     }
 
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     if (flush) {
       mutex_acquire();
@@ -6577,9 +6577,9 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     mutex_release();
 
     if (!tbsp_extend_and_initialize) {
-      os_thread_sleep(20);
+      std::this_thread::sleep_for(std::chrono::microseconds(20));
     } else {
-      os_thread_sleep(100000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
 

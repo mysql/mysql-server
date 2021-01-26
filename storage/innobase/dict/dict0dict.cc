@@ -2558,8 +2558,8 @@ static void dict_index_remove_from_cache_low(
     row_log_free(index->online_log);
   }
 
-  /* We always create search info whether or not adaptive
-  hash index is enabled or not. */
+  /* We always create search info whether adaptive hash index is enabled or not.
+   */
   info = btr_search_get_info(index);
   ut_ad(info);
 
@@ -2580,7 +2580,7 @@ static void dict_index_remove_from_cache_low(
     }
 
     /* Sleep for 10ms before trying again. */
-    os_thread_sleep(10000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     ++retries;
 
     if (retries % 500 == 0) {
@@ -2888,7 +2888,7 @@ void dict_table_wait_for_bg_threads_to_exit(
   while (fts->bg_threads > 0) {
     mutex_exit(&fts->bg_threads_mutex);
 
-    os_thread_sleep(delay);
+    std::this_thread::sleep_for(std::chrono::microseconds(delay));
 
     mutex_enter(&fts->bg_threads_mutex);
   }

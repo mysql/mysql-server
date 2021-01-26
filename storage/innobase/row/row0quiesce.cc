@@ -820,8 +820,7 @@ void row_quiesce_table_complete(dict_table_t *table, trx_t *trx) {
           << "Waiting for quiesce of " << table->name << " to complete";
     }
 
-    /* Sleep for a second. */
-    os_thread_sleep(1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     ++count;
   }

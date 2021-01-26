@@ -1222,9 +1222,9 @@ static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
 
   trx->in_innodb |= TRX_FORCE_ROLLBACK | TRX_FORCE_ROLLBACK_ASYNC;
 
-  os_thread_id_t thread_id = os_thread_get_curr_id();
+  std::thread::id thread_id = std::this_thread::get_id();
 
-  os_thread_id_t zero = 0;
+  std::thread::id zero{};
   ut_a(trx->killed_by.compare_exchange_strong(zero, thread_id));
 
   hit_list.push_back(hit_list_t::value_type(trx));

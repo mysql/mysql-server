@@ -148,7 +148,7 @@ performance. */
       if (limit <= 0 || (diff > 0 && ((uint64_t)diff) > ((uint64_t)limit))) { \
         break;                                                                \
       }                                                                       \
-      os_thread_sleep(2000 /* 2 ms */);                                       \
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));              \
     }                                                                         \
   } while (0)
 #else                  /* !UNIV_HOTBACKUP */

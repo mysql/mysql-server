@@ -57,7 +57,7 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   ib::error(ER_IB_MSG_1273)
       << "Assertion failure: " << innobase_basename(file) << ":" << line
       << ((expr != nullptr) ? ":" : "") << ((expr != nullptr) ? expr : "")
-      << " thread " << os_thread_handle();
+      << " thread " << to_string(std::this_thread::get_id());
 
   flush_error_log_messages();
 
@@ -71,9 +71,10 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   fprintf(stderr,
           "InnoDB: Assertion failure: %s:" ULINTPF
           "%s%s\n"
-          "InnoDB: thread " UINT64PF,
+          "InnoDB: thread %s",
           filename, line, expr != nullptr ? ":" : "",
-          expr != nullptr ? expr : "", os_thread_handle());
+          expr != nullptr ? expr : "",
+          to_string(std::this_thread::get_id()).c_str());
 #endif /* !UNIV_HOTBACKUP */
 
   fputs(

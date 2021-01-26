@@ -339,7 +339,8 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     /* Record the lock wait time for this thread */
     thd_set_lock_wait_time(trx->mysql_thd, diff_time);
 
-    DBUG_EXECUTE_IF("lock_instrument_slow_query_log", os_thread_sleep(1000););
+    DBUG_EXECUTE_IF("lock_instrument_slow_query_log",
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1)););
   }
 
   /* The transaction is chosen as deadlock victim during sleep. */

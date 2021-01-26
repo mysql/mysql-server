@@ -656,7 +656,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     os_rmb;
     while (buf_pool->n_pend_reads >
            buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-      os_thread_sleep(500000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     dberr_t err;
@@ -730,7 +730,7 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
 
     while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
       os_aio_simulated_wake_handler_threads();
-      os_thread_sleep(10000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
       count++;
 

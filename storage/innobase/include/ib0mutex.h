@@ -506,7 +506,7 @@ struct TTASEventMutex {
 
       ++n_waits;
 
-      os_thread_yield();
+      std::this_thread::yield();
 
       /* The 4 below is a heuristic that has existed for a
       very long time now. It is unclear if changing this

@@ -128,7 +128,7 @@ void row_wait_for_background_drop_list_empty() {
     mutex_enter(&row_drop_list_mutex);
     empty = (UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
     mutex_exit(&row_drop_list_mutex);
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 #endif /* UNIV_DEBUG */
@@ -136,7 +136,8 @@ void row_wait_for_background_drop_list_empty() {
 /** Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
 static void row_mysql_delay_if_needed(void) {
   if (srv_dml_needed_delay) {
-    os_thread_sleep(srv_dml_needed_delay);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(srv_dml_needed_delay));
   }
 }
 
@@ -3196,7 +3197,7 @@ loop:
   }
 
   DBUG_EXECUTE_IF("row_drop_tables_in_background_sleep",
-                  os_thread_sleep(5000000););
+                  std::this_thread::sleep_for(std::chrono::seconds(5)););
 
   /* TODO: NewDD: we cannot get MDL lock here, as thd could be NULL */
   table = dd_table_open_on_name(thd, nullptr, drop->table_name, false,
@@ -4239,7 +4240,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   for (retry = 0; retry < 100 && table->n_foreign_key_checks_running > 0;
        ++retry) {
     row_mysql_unlock_data_dictionary(trx);
-    os_thread_yield();
+    std::this_thread::yield();
     row_mysql_lock_data_dictionary(trx);
   }
 

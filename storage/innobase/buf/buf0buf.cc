@@ -281,8 +281,8 @@ the read requests for the whole area.
 
 #ifndef UNIV_HOTBACKUP
 /** Value in microseconds */
-static const int WAIT_FOR_READ = 100;
-static const int WAIT_FOR_WRITE = 100;
+static const int WAIT_FOR_READ_US = 100;
+static const int WAIT_FOR_WRITE_US = 100;
 /** Number of attempts made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 /** Number of pages to read ahead */
@@ -1212,13 +1212,9 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
 
   CPU_SET(instance_no % n_cores, &cpuset);
 
-  os_thread_id_t thread_id;
-
-  thread_id = os_thread_get_curr_id();
-
   buf_pool->stat.reset();
 
-  if (pthread_setaffinity_np(thread_id, sizeof(cpuset), &cpuset) == -1) {
+  if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset) == -1) {
     ib::error(ER_IB_ERR_SCHED_SETAFFNINITY_FAILED)
         << "sched_setaffinity() failed!";
   }
@@ -2178,7 +2174,7 @@ withdraw_retry:
   if (should_retry_withdraw) {
     ib::info(ER_IB_MSG_62) << "Will retry to withdraw " << retry_interval
                            << " seconds later.";
-    os_thread_sleep(retry_interval * 1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(retry_interval));
 
     if (retry_interval > 5) {
       retry_interval = 10;
@@ -2197,9 +2193,9 @@ withdraw_retry:
 
     while (should_wait) {
       should_wait = false;
-      DBUG_EXECUTE_IF("ib_buf_pool_resize_wait_before_resize",
-                      should_wait = true;
-                      os_thread_sleep(10000););
+      DBUG_EXECUTE_IF(
+          "ib_buf_pool_resize_wait_before_resize", should_wait = true;
+          std::this_thread::sleep_for(std::chrono::milliseconds(10)););
     }
   }
 #endif /* UNIV_DEBUG */
@@ -3201,7 +3197,8 @@ got_block:
       mutex_exit(block_mutex);
 
       if (io_fix == BUF_IO_READ) {
-        os_thread_sleep(WAIT_FOR_READ);
+        std::this_thread::sleep_for(
+            std::chrono::microseconds(WAIT_FOR_READ_US));
       } else {
         break;
       }
@@ -3504,7 +3501,7 @@ dberr_t Buf_fetch_normal::get(buf_block_t *&block) noexcept {
           /* The page is during IO and can't be released. We wait some to not go
            into loop that would consume CPU. This is not something that he will
            hit frequently. */
-          os_thread_sleep(100);
+          std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
         /* The hash lock was released, we should try again lookup for the page
          until it's gone - it should disappear eventually when the IO ends. */
@@ -3555,7 +3552,7 @@ dberr_t Buf_fetch_other::get(buf_block_t *&block) noexcept {
           /* The page is during IO and can't be released. We wait some to not go
           into loop that would consume CPU. This is not something that he will
           hit frequently. */
-          os_thread_sleep(100);
+          std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
         /* The hash lock was released, we should try again lookup for the page
         until it's gone - it should disappear eventually when the IO ends. */
@@ -3710,7 +3707,7 @@ dberr_t Buf_fetch<T>::zip_page_handler(buf_block_t *&fix_block) {
     buf_block_unfix(fix_block);
 
     /* The block is buffer-fixed or I/O-fixed.  Try again later. */
-    os_thread_sleep(WAIT_FOR_READ);
+    std::this_thread::sleep_for(std::chrono::microseconds(WAIT_FOR_READ_US));
 
     return (DB_FAIL);
   }
@@ -3861,7 +3858,8 @@ dberr_t Buf_fetch<T>::check_state(buf_block_t *&block) {
 
           buf_block_unfix(block);
 
-          os_thread_sleep(WAIT_FOR_WRITE);
+          std::this_thread::sleep_for(
+              std::chrono::microseconds(WAIT_FOR_WRITE_US));
 
           return (DB_FAIL);
         }
@@ -5259,7 +5257,7 @@ bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage,
   rw_lock_s_unlock(hash_lock);
 
   DBUG_EXECUTE_IF("buf_page_free_stale_delay_lru_mutex_acquisition",
-                  os_thread_sleep(10000););
+                  std::this_thread::sleep_for(std::chrono::milliseconds(10)););
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 

@@ -1560,7 +1560,7 @@ static void srv_start_wait_for_purge_to_start() {
       case PURGE_STATE_INIT:
         ib::info(ER_IB_MSG_1097);
 
-        os_thread_sleep(50000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
         break;
 
       case PURGE_STATE_EXIT:
@@ -1737,7 +1737,8 @@ void srv_shutdown_exit_threads() {
 
     bool active = os_thread_any_active();
 
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
 
     if (!active) {
       break;
@@ -1852,7 +1853,8 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
         count = 0;
       }
     }
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
 
   } while (buf_pool_check_no_pending_io());
 
@@ -3123,7 +3125,7 @@ void srv_pre_dd_shutdown() {
       break;
     }
     ib::warn(ER_IB_MSG_1154, threads_count);
-    os_thread_sleep(1000000);  // 1s
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
   /* Crash if some query threads are still alive. */
   ut_a(srv_conc_get_active_threads() == 0);
@@ -3188,7 +3190,8 @@ void srv_pre_dd_shutdown() {
         ib::info(ER_IB_MSG_1249, total_trx);
         count = 0;
       }
-      os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+      std::this_thread::sleep_for(
+          std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
     }
   }
 
@@ -3214,7 +3217,8 @@ void srv_pre_dd_shutdown() {
     if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
       ib::info(ER_IB_MSG_WAIT_FOR_ENCRYPT_THREAD);
     }
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
 
   /* Wait until the master thread exits its main loop and notices that:
@@ -3234,7 +3238,8 @@ void srv_pre_dd_shutdown() {
     if (count % SHUTDOWN_SLEEP_ROUNDS == 0) {
       ib::info(ER_IB_MSG_1152);
     }
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
   switch (trx_purge_state()) {
     case PURGE_STATE_INIT:
@@ -3351,7 +3356,8 @@ static void srv_shutdown_cleanup_and_master_stop() {
           static_cast<int>(srv_shutdown_state.load()) + 1));
     }
 
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
     ++count;
   }
 
@@ -3377,7 +3383,8 @@ static void srv_shutdown_page_cleaners() {
       count = 0;
     }
     os_event_set(buf_flush_event);
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
 
   for (uint32_t count = 0;; ++count) {
@@ -3391,7 +3398,8 @@ static void srv_shutdown_page_cleaners() {
       ib::info(ER_IB_MSG_1252, pending_io);
       count = 0;
     }
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
   }
 }
 
@@ -3492,7 +3500,8 @@ static void srv_shutdown_arch() {
 
   while (arch_wake_threads()) {
     ++count;
-    os_thread_sleep(SHUTDOWN_SLEEP_TIME_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SHUTDOWN_SLEEP_TIME_US));
 
     if (count > SHUTDOWN_SLEEP_ROUNDS) {
       ib::info(ER_IB_MSG_1246);
@@ -3507,12 +3516,12 @@ void srv_thread_delay_cleanup_if_needed(bool wait_for_signal) {
       os_event_wait(srv_threads.m_shutdown_cleanup_dbg);
     } else {
       /* In some cases we cannot wait for the signal, because we would otherwise
-      never reach the end of pre_dd_shutdown, becase pre_dd_shutdown is waiting
+      never reach the end of pre_dd_shutdown, because pre_dd_shutdown is waiting
       for this thread before it ends. Then we would never reach shutdown phase
       in which the signal becomes signalled. Still we would like to have a way
       to detect situation in which someone broke the code and pre_dd_shutdown
       no longer waits for this thread. */
-      os_thread_sleep(1000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   });
 }
