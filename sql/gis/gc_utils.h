@@ -91,7 +91,7 @@ void gc_union(double semi_major, double semi_minor,
 /// @param[in] geometrycollection Geometrycollection to be narroweed down.
 /// @return The narrowest type that can contain all the geometries in the input.
 std::unique_ptr<gis::Geometrycollection> narrowest_multigeometry(
-    std::unique_ptr<gis::Geometrycollection> geometrycollection);
+    std::unique_ptr<Geometrycollection> geometrycollection);
 }  // namespace gis
 
 #endif  // SQL_GIS_GC_UTILS_H_INCLUDED
