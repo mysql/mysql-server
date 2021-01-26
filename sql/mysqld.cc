@@ -210,9 +210,33 @@
     - @subpage page_protocol_connection_lifecycle
 */
 
-// placeholder in TOC
-/**
-  @page mysqlx_protocol X %Protocol
+/** @page page_mysqlx_protocol X %Protocol
+
+@par Topics in this section:
+
+- @subpage mysqlx_protocol_lifecycle
+- @subpage mysqlx_protocol_authentication
+- @subpage mysqlx_protocol_messages
+- @subpage mysqlx_protocol_expectations
+- @subpage mysqlx_protocol_notices
+- @subpage mysqlx_protocol_xplugin
+- @subpage mysqlx_protocol_use_cases
+- @subpage mysqlx_protocol_implementation
+- @subpage mysqlx_protocol_comparison
+- @subpage mysqlx_community_connector
+
+The X %Protocol is implemented by the X Plugin and the following
+MySQL clients support the protocol:
+
+-  MYSQLXSHELL
+
+-  MySQL for Visual Studio 2.0.2 or higher
+
+-  MySQL Connector/J 6.0.2 or higher
+
+-  MySQL Connector/Net 7.0.2 or higher
+
+-  MySQL Connector/Node.js
 */
 
 
