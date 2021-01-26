@@ -655,6 +655,26 @@ void print_on_empty_or_error(const THD *thd, String *str,
     str->append(STRING_WITH_LEN(" on error"));
 }
 
+/// Prints the type of a column in a JSON_TABLE expression.
+static bool print_json_table_column_type(const Field *field, String *str) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> type;
+  field->sql_type(type);
+  if (str->append(type)) return true;
+  if (field->has_charset()) {
+    // Append the character set.
+    if (str->append(STRING_WITH_LEN(" character set ")) ||
+        str->append(field->charset()->csname))
+      return true;
+    // Append the collation, if it is not the primary collation of the
+    // character set.
+    if ((field->charset()->state & MY_CS_PRIMARY) == 0 &&
+        (str->append(STRING_WITH_LEN(" collate ")) ||
+         str->append(field->charset()->name)))
+      return true;
+  }
+  return false;
+}
+
 /**
   Helper function to print a single NESTED PATH column.
 
@@ -686,21 +706,13 @@ static bool print_nested_path(const THD *thd, const TABLE *table,
       case enum_jt_column::JTC_PATH: {
         append_identifier(thd, str, jtc.field_name, strlen(jtc.field_name));
         if (str->append(' ')) return true;
-        const Field *field = table->field[jtc.m_field_idx];
-        StringBuffer<STRING_BUFFER_USUAL_SIZE> type;
-        field->sql_type(type);
-        if (str->append(type)) return true;
-        if (field->has_charset()) {
-          // Append the character set.
-          if (str->append(STRING_WITH_LEN(" character set ")) ||
-              str->append(field->charset()->csname))
+        if (table == nullptr) {
+          if (str->append(STRING_WITH_LEN("<column type not resolved yet>"))) {
             return true;
-          // Append the collation, if it is not the primary collation of the
-          // character set.
-          if ((field->charset()->state & MY_CS_PRIMARY) == 0 &&
-              (str->append(STRING_WITH_LEN(" collate ")) ||
-               str->append(field->charset()->name)))
-            return true;
+          }
+        } else if (print_json_table_column_type(table->field[jtc.m_field_idx],
+                                                str)) {
+          return true;
         }
         if (jtc.m_jtc_type == enum_jt_column::JTC_EXISTS) {
           if (str->append(STRING_WITH_LEN(" exists"))) return true;
