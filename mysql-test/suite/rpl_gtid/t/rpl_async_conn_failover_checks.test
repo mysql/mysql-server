@@ -108,7 +108,9 @@ START SLAVE;
 --echo # 6. Clean up.
 --echo #
 
-CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0, SOURCE_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0;
+SET @@global.gtid_mode = ON_PERMISSIVE;
+SET @@global.gtid_mode = ON;
 
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -32,4 +32,10 @@ include/start_slave.inc
 include/assert.inc [Table mysql.slave_relay_log_info has info for channel and PRIVILEGE_CHECKS_USER = NULL]
 [connection master]
 DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL relay_log_info_repository="FILE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+include/start_slave.inc
 include/rpl_end.inc

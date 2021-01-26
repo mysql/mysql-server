@@ -378,4 +378,21 @@ RESET SLAVE;
 --source include/assert.inc
 
 source include/start_slave.inc;
+--connection master
+drop table t;
+--source include/sync_slave_sql_with_master.inc
+
+let $rpl_only_running_threads= 1;
+
+source include/stop_slave.inc;
+--connection slave
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '';
+# Reset the gtid mode if the test started with gtid_mode=OFF
+if ($gtid_mode_on == 0) {
+  --let $rpl_gtid_mode = 0
+  --let $rpl_set_enforce_gtid_consistency = 0
+}
+--let $no_extra_info = 1
+--source include/rpl_set_gtid_mode.inc
+
 source include/rpl_end.inc;

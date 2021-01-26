@@ -270,5 +270,7 @@ SET @@SESSION.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 --source include/stop_slave_sql.inc
 --source include/end_replace_combination.inc
 
+--connection slave
+SET GLOBAL SLAVE_EXEC_MODE = STRICT;
 --let $rpl_only_running_threads= 1
 --source include/rpl_end.inc

@@ -280,4 +280,10 @@ CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = ON;
  --source include/assert.inc
 --echo # Cleanup
 
+--source include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+--let $rpl_gtid_mode = OFF
+--let $rpl_set_enforce_gtid_consistency = 0
+--source include/rpl_set_gtid_mode.inc
+
 --source include/rpl_end.inc

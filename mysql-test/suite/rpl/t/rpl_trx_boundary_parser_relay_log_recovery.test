@@ -30,9 +30,9 @@ DROP TABLE t1;
 --source include/rpl_connection_master.inc
 --source include/sync_slave_io_with_master.inc
 
-# Restart the slave enabling relay_log_recovery
+# Restart the slave, relay_log_recovery enabled in the .opt file
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --relay_log_recovery=ON
+--let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
 
 # File to GREP

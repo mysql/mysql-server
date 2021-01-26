@@ -199,6 +199,10 @@ SET @@GLOBAL.master_info_repository= "TABLE";
 
 DROP TABLE test;
 --source include/sync_slave_sql_with_master.inc
+--connection slave
+--source include/stop_slave.inc
+SET @@GLOBAL.master_info_repository= "TABLE";
+--source include/start_slave.inc
 
 #Cleanup
 --source include/rpl_end.inc

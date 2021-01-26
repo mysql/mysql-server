@@ -779,7 +779,7 @@ START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --let $assert_text = Found 5 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
@@ -803,6 +803,13 @@ DROP USER 'replication_applier'@'localhost';
 --remove_file $MYSQL_TMP_DIR/assert_channel_config_with_table_repo.inc
 --remove_file $MYSQL_TMP_DIR/assert_channel_invalid_config_update_of_table_repo_entry.inc
 
+--source include/stop_slave.inc
+RESET REPLICA ALL;
+--connection slave
+SET @@global.relay_log_info_repository=FILE;
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST="127.0.0.1", SOURCE_PORT=$MASTER_MYPORT;
+--source include/start_slave.inc
 --let $rpl_channel_name=
 --let $rpl_skip_sync= 1
 source include/rpl_end.inc;
