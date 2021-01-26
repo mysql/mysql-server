@@ -71,7 +71,7 @@ void IB_thread::start() {
     a case, allow the thread to release its time slice to any thread wanting
     control. */
     if (++cnt > 500) {
-      os_thread_yield();
+      std::this_thread::yield();
     }
 #endif /* _WIN32 */
   }
