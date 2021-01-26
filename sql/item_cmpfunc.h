@@ -290,23 +290,24 @@ class Arg_comparator {
 };
 
 class Item_bool_func : public Item_int_func {
- public:
-  Item_bool_func() : Item_int_func(), m_created_by_in2exists(false) {}
-  explicit Item_bool_func(const POS &pos)
-      : Item_int_func(pos), m_created_by_in2exists(false) {}
+ protected:
+  Item_bool_func() : Item_int_func() {}
+  explicit Item_bool_func(const POS &pos) : Item_int_func(pos) {}
 
-  Item_bool_func(Item *a) : Item_int_func(a), m_created_by_in2exists(false) {}
-  Item_bool_func(const POS &pos, Item *a)
-      : Item_int_func(pos, a), m_created_by_in2exists(false) {}
+  explicit Item_bool_func(Item *a) : Item_int_func(a) {}
+  Item_bool_func(const POS &pos, Item *a) : Item_int_func(pos, a) {}
 
-  Item_bool_func(Item *a, Item *b)
-      : Item_int_func(a, b), m_created_by_in2exists(false) {}
-  Item_bool_func(const POS &pos, Item *a, Item *b)
-      : Item_int_func(pos, a, b), m_created_by_in2exists(false) {}
+  Item_bool_func(Item *a, Item *b, Item *c) : Item_int_func(a, b, c) {}
+  Item_bool_func(Item *a, Item *b) : Item_int_func(a, b) {}
+  Item_bool_func(const POS &pos, Item *a, Item *b) : Item_int_func(pos, a, b) {}
+  Item_bool_func(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_int_func(pos, a, b, c) {}
 
   Item_bool_func(THD *thd, Item_bool_func *item)
       : Item_int_func(thd, item),
         m_created_by_in2exists(item->m_created_by_in2exists) {}
+
+ public:
   bool is_bool_func() const override { return true; }
   bool resolve_type(THD *thd) override {
     max_length = 1;
@@ -328,7 +329,7 @@ class Item_bool_func : public Item_int_func {
     True <=> this item was added by IN->EXISTS subquery transformation, and
     should thus be deleted if we switch to materialization.
   */
-  bool m_created_by_in2exists;
+  bool m_created_by_in2exists{false};
 };
 
 /**
@@ -602,22 +603,34 @@ class Le_creator : public Comp_creator {
   bool l_op() const override { return true; }
 };
 
-class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
+/// Base class for functions that usually take two arguments, which are possibly
+/// strings, and perform some kind of comparison on the two arguments and return
+/// a boolean. The functions may take more than two arguments (for example, LIKE
+/// takes an optional third argument in the ESCAPE clause), but all of the
+/// functions perform a comparison between the first two arguments, and extra
+/// arguments are modifiers that affect how the comparison is performed.
+class Item_bool_func2 : public Item_bool_func {
  private:
   bool convert_constant_arg(THD *thd, Item *field, Item **item,
                             bool *converted);
 
  protected:
   Arg_comparator cmp;
-  bool abort_on_null;
+  bool abort_on_null{false};
 
- public:
   Item_bool_func2(Item *a, Item *b)
-      : Item_bool_func(a, b), cmp(args, args + 1), abort_on_null(false) {}
+      : Item_bool_func(a, b), cmp(args, args + 1) {}
+
+  Item_bool_func2(Item *a, Item *b, Item *c)
+      : Item_bool_func(a, b, c), cmp(args, args + 1) {}
 
   Item_bool_func2(const POS &pos, Item *a, Item *b)
-      : Item_bool_func(pos, a, b), cmp(args, args + 1), abort_on_null(false) {}
+      : Item_bool_func(pos, a, b), cmp(args, args + 1) {}
 
+  Item_bool_func2(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_bool_func(pos, a, b, c), cmp(args, args + 1) {}
+
+ public:
   bool resolve_type(THD *) override;
   bool set_cmp_func() { return cmp.set_cmp_func(this, args, args + 1, true); }
   /**
@@ -2241,10 +2254,6 @@ class Item_func_isnotnull final : public Item_bool_func {
 };
 
 class Item_func_like final : public Item_bool_func2 {
-  typedef Item_bool_func2 super;
-
-  Item *escape_item;
-
   /// True if escape clause is const (a literal)
   bool escape_is_const = false;
   /// Tells if the escape clause has been evaluated.
@@ -2254,20 +2263,17 @@ class Item_func_like final : public Item_bool_func2 {
   int m_escape;
 
  public:
-  Item_func_like(Item *a, Item *b)
-      : Item_bool_func2(a, b), escape_item(nullptr) {}
+  Item_func_like(Item *a, Item *b) : Item_bool_func2(a, b) {}
   Item_func_like(Item *a, Item *b, Item *escape_arg)
-      : Item_bool_func2(a, b), escape_item(escape_arg) {
+      : Item_bool_func2(a, b, escape_arg) {
     assert(escape_arg != nullptr);
   }
   Item_func_like(const POS &pos, Item *a, Item *b, Item *escape_arg)
-      : Item_bool_func2(pos, a, b), escape_item(escape_arg) {
+      : Item_bool_func2(pos, a, b, escape_arg) {
     assert(escape_arg != nullptr);
   }
   Item_func_like(const POS &pos, Item *a, Item *b)
-      : Item_bool_func2(pos, a, b), escape_item(nullptr) {}
-
-  bool itemize(Parse_context *pc, Item **res) override;
+      : Item_bool_func2(pos, a, b) {}
 
   longlong val_int() override;
   enum Functype functype() const override { return LIKE_FUNC; }
@@ -2278,15 +2284,15 @@ class Item_func_like final : public Item_bool_func2 {
   bool resolve_type(THD *) override;
   void cleanup() override;
   Item *replace_scalar_subquery(uchar *) override;
-  void update_used_tables() override;
-  // Overridden because Item_bool_func2::print() doesn't print escape_item.
+  // Overridden because Item_bool_func2::print() doesn't print the ESCAPE
+  // clause.
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   /**
     @retval true non default escape char specified
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
   */
-  bool escape_was_used_in_parsing() const { return escape_item != nullptr; }
+  bool escape_was_used_in_parsing() const { return arg_count > 2; }
 
   /// Returns the escape character.
   int escape() const {
