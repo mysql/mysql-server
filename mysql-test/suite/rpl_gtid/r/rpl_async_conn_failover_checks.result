@@ -42,5 +42,7 @@ ERROR HY000: Failed to enable Asynchronous Replication Connection Failover featu
 #
 # 6. Clean up.
 #
-CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0, SOURCE_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0;
+SET @@global.gtid_mode = ON_PERMISSIVE;
+SET @@global.gtid_mode = ON;
 include/rpl_end.inc

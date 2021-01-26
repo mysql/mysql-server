@@ -13,7 +13,7 @@ DROP TABLE t1;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
-include/rpl_restart_server.inc [server_number=2 parameters: --relay_log_recovery=ON]
+include/rpl_restart_server.inc [server_number=2]
 include/assert_grep.inc [Found no lines about reading events on the relay log.]
 [connection slave]
 include/start_slave.inc

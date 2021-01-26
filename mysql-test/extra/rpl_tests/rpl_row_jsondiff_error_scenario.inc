@@ -251,7 +251,7 @@ if (!$skip_case)
   --source include/rpl_connection_slave.inc
   --replace_result $MASTER_MYPORT MASTER_PORT
   --disable_warnings
-  eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=$MASTER_MYPORT,SOURCE_HOST='localhost';
+  eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root',SOURCE_PORT=$MASTER_MYPORT,SOURCE_HOST='127.0.0.1';
   --enable_warnings
   --source include/start_slave.inc
 

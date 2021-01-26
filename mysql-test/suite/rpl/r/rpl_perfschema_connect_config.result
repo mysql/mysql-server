@@ -80,4 +80,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # 2) Test for Auto_position= 1.
 
 include/assert.inc [Value returned by SSS and PS table for Auto_Position should be same.]
+CHANGE REPLICATION SOURCE to
+SOURCE_AUTO_POSITION= 0,
+SOURCE_SSL_CRL= '',
+SOURCE_SSL_CRLPATH= '',
+SOURCE_SSL_CA= '',
+SOURCE_SSL_CERT= '',
+SOURCE_SSL_KEY='';
+include/rpl_set_gtid_mode.inc
+drop user replssl@localhost;
+drop user replssl@localhost;
 include/rpl_end.inc

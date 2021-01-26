@@ -165,15 +165,18 @@ REPLICATE_IGNORE_DB = (my_initfiledb3) FOR CHANNEL '';
 SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
 SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
 
---source include/start_slave.inc
-
 # Cleanup
---source include/rpl_connection_master.inc
-DROP TABLE test.t1;
-DROP TABLE test.t2;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=() FOR CHANNEL '';
+CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=() FOR CHANNEL '';
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(),REPLICATE_DO_DB = (),
+REPLICATE_IGNORE_DB = () FOR CHANNEL '';
+--source include/start_slave.inc
+--connection master
+SET sql_log_bin=0;
 DROP DATABASE db1;
 DROP DATABASE db11;
-#--connection slave and sync with master
+SET sql_log_bin=1;
+DROP TABLE t1,t2;
 --source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc
