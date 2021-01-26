@@ -152,10 +152,13 @@ extern sync_array_t **sync_wait_array;
 #define sync_array_enter(a) mutex_enter(&(a)->mutex)
 
 /** Gets the nth cell in array.
+ @param[in] arr Sync array to get cell from.
+ @param[in] n Index of cell to retrieve.
  @return cell */
-sync_cell_t *sync_array_get_nth_cell(sync_array_t *arr, /*!< in: sync array */
-                                     ulint n);          /*!< in: index */
+sync_cell_t *sync_array_get_nth_cell(sync_array_t *arr, ulint n);
 
-/** Reports info of a wait array cell. */
-void sync_array_cell_print(FILE *file,         /*!< in: file where to print */
-                           sync_cell_t *cell); /*!< in: sync cell */
+/** Reports info of a wait array cell into a file.
+ @param[in] file File where to print.
+ @param[in] cell Sync array cell to report.
+ */
+void sync_array_cell_print(FILE *file, sync_cell_t *cell);
