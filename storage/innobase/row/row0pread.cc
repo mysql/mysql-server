@@ -271,7 +271,7 @@ void PCursor::yield() {
   m_mtr->commit();
 
   /* Yield so that another thread can proceed. */
-  os_thread_yield();
+  std::this_thread::yield();
 
   m_mtr->start();
 
@@ -947,7 +947,7 @@ dberr_t Parallel_reader::Scan_ctx::create_ranges(const Scan_range &scan_range,
       }
 
       /* Since we are already at the requested level use the current page
-       * cursor. */
+       cursor. */
       memcpy(&level_page_cursor, &page_cursor, sizeof(level_page_cursor));
     }
 

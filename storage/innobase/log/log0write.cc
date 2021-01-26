@@ -923,7 +923,7 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
     ready_lsn = log_buffer_ready_for_write_lsn(log);
   }
   if (ready_lsn < end_lsn) {
-    os_thread_yield();
+    std::this_thread::yield();
     ready_lsn = log_buffer_ready_for_write_lsn(log);
   }
   while (ready_lsn < end_lsn) {
@@ -967,7 +967,7 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
   lsn_t write_lsn = log.write_lsn.load(std::memory_order_relaxed);
   for (uint64_t step = 0; write_lsn < ready_lsn; ++step) {
     if (step % 1024 == 0) {
-      /* The first loop or just after os_thread_sleep(0) */
+      /* The first loop or just after std::this_thread::sleep_for(0) */
       const lsn_t limit_lsn =
           flush_to_disk
               ? log.flushed_to_disk_lsn.load(std::memory_order_acquire)
@@ -983,7 +983,7 @@ static Wait_stats log_self_write_up_to(log_t &log, lsn_t end_lsn,
     if ((step + 1) % 1024 == 0) {
       /* approximate per srv_log_write_ahead_size * 1024 written. */
       log_writer_mutex_exit(log);
-      os_thread_sleep(0);
+      std::this_thread::sleep_for(std::chrono::seconds(0));
       log_writer_mutex_enter(log);
     }
 
@@ -1973,7 +1973,8 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
     log_request_checkpoint(log, false);
 
     count++;
-    os_thread_sleep(SLEEP_BETWEEN_RETRIES_IN_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SLEEP_BETWEEN_RETRIES_IN_US));
 
     MONITOR_INC(MONITOR_LOG_WRITER_ON_FREE_SPACE_WAITS);
 
@@ -2053,7 +2054,8 @@ static void log_writer_wait_on_archiver(log_t &log, lsn_t last_write_lsn,
     }
 
     count++;
-    os_thread_sleep(SLEEP_BETWEEN_RETRIES_IN_US);
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(SLEEP_BETWEEN_RETRIES_IN_US));
 
     MONITOR_INC(MONITOR_LOG_WRITER_ON_ARCHIVER_WAITS);
 
@@ -2213,7 +2215,7 @@ void log_writer(log_t *log_ptr) {
 
         log_writer_mutex_exit(log);
 
-        os_thread_sleep(0);
+        std::this_thread::sleep_for(std::chrono::seconds(0));
 
         log_writer_mutex_enter(log);
       }
@@ -2459,7 +2461,7 @@ void log_flusher(log_t *log_ptr) {
         if (step % 1024 == 0) {
           log_flusher_mutex_exit(log);
 
-          os_thread_sleep(0);
+          std::this_thread::sleep_for(std::chrono::seconds(0));
 
           log_flusher_mutex_enter(log);
         }
@@ -2650,7 +2652,7 @@ void log_write_notifier(log_t *log_ptr) {
     if (step % 1024 == 0) {
       log_write_notifier_mutex_exit(log);
 
-      os_thread_sleep(0);
+      std::this_thread::sleep_for(std::chrono::seconds(0));
 
       log_write_notifier_mutex_enter(log);
     }
@@ -2768,7 +2770,7 @@ void log_flush_notifier(log_t *log_ptr) {
     if (step % 1024 == 0) {
       log_flush_notifier_mutex_exit(log);
 
-      os_thread_sleep(0);
+      std::this_thread::sleep_for(std::chrono::seconds(0));
 
       log_flush_notifier_mutex_enter(log);
     }

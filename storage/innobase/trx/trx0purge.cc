@@ -1872,7 +1872,7 @@ static void trx_purge_choose_next_log(void) {
     trx_purge_read_undo_rec(purge_sys, page_size);
   } else {
     /* There is nothing to do yet. */
-    os_thread_yield();
+    std::this_thread::yield();
   }
 }
 
@@ -2023,8 +2023,8 @@ static MY_ATTRIBUTE((warn_unused_result))
     return nullptr;
   }
 
-  /* fprintf(stderr, "Thread %lu purging trx %llu undo record %llu\n",
-  os_thread_get_curr_id(), iter->trx_no, iter->undo_no); */
+  /* fprintf(stderr, "Thread %s purging trx %llu undo record %llu\n",
+  to_string(std::this_thread::get_id()), iter->trx_no, iter->undo_no); */
 
   *roll_ptr = trx_undo_build_roll_ptr(FALSE, purge_sys->rseg->space_id,
                                       purge_sys->page_no, purge_sys->offset);
@@ -2241,13 +2241,13 @@ static void trx_purge_wait_for_workers_to_complete() {
   /* Ensure that the work queue empties out. */
   while (purge_sys->n_completed.load() != n_submitted) {
     if (++i < 10) {
-      os_thread_yield();
+      std::this_thread::yield();
     } else {
       if (srv_get_task_queue_length() > 0) {
         srv_release_threads(SRV_WORKER, 1);
       }
 
-      os_thread_sleep(20);
+      std::this_thread::sleep_for(std::chrono::microseconds(20));
       i = 0;
     }
   }
@@ -2434,7 +2434,7 @@ void trx_purge_stop(void) {
 
       rw_lock_x_unlock(&purge_sys->latch);
 
-      os_thread_sleep(10000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
       rw_lock_x_lock(&purge_sys->latch);
     }

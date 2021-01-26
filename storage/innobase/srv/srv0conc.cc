@@ -184,7 +184,7 @@ static dberr_t srv_conc_enter_innodb_with_atomics(
       srv_thread_sleep_delay = static_cast<ulong>(sleep_in_us);
     }
 
-    os_thread_sleep(sleep_in_us);
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_in_us));
 
     trx->op_info = "";
 

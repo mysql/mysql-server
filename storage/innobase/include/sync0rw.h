@@ -558,9 +558,13 @@ struct rw_lock_t
   volatile ulint sx_recursive;
 
   /** Thread id of writer thread. Is only guaranteed to have non-stale value if
-  recursive flag is set, otherwise it may contain native thread handle of a
+  recursive flag is set, otherwise it may contain native thread ID of a
   thread which already released or passed the lock. */
-  std::atomic<os_thread_id_t> writer_thread;
+  std::atomic<std::thread::id> writer_thread;
+
+  /** XOR of reader threads' IDs. If there is exactly one reader it should allow
+   to retrieve the thread ID of that reader. */
+  Atomic_xor_of_thread_id reader_thread;
 
   /** Used by sync0arr.cc for thread queueing */
   os_event_t event;
@@ -626,13 +630,13 @@ struct rw_lock_t
 /** The structure for storing debug info of an rw-lock.  All access to this
 structure must be protected by rw_lock_debug_mutex_enter(). */
 struct rw_lock_debug_t {
-  os_thread_id_t thread_id; /*!< The thread id of the thread which
+  std::thread::id thread_id; /*!< The thread id of the thread which
                          locked the rw-lock */
-  ulint pass;               /*!< Pass value given in the lock operation */
-  ulint lock_type;          /*!< Type of the lock: RW_LOCK_X,
-                            RW_LOCK_S, RW_LOCK_X_WAIT */
-  const char *file_name;    /*!< File name where the lock was obtained */
-  ulint line;               /*!< Line where the rw-lock was locked */
+  ulint pass;                /*!< Pass value given in the lock operation */
+  ulint lock_type;           /*!< Type of the lock: RW_LOCK_X,
+                             RW_LOCK_S, RW_LOCK_X_WAIT */
+  const char *file_name;     /*!< File name where the lock was obtained */
+  ulint line;                /*!< Line where the rw-lock was locked */
   UT_LIST_NODE_T(rw_lock_debug_t) list;
   /*!< Debug structs are linked in a two-way
   list */

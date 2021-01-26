@@ -794,10 +794,10 @@ AIO *AIO::s_sync;
 
 #if defined(LINUX_NATIVE_AIO)
 /** timeout for each io_getevents() call = 500ms. */
-static const ulint OS_AIO_REAP_TIMEOUT = 500000000UL;
+static constexpr uint64_t OS_AIO_REAP_TIMEOUT = 500000000UL;
 
-/** time to sleep, in microseconds if io_setup() returns EAGAIN. */
-static const ulint OS_AIO_IO_SETUP_RETRY_SLEEP = 500000UL;
+/** time to sleep, in milliseconds if io_setup() returns EAGAIN. */
+static constexpr uint64_t OS_AIO_IO_SETUP_RETRY_SLEEP_MS = 500UL;
 
 /** number of attempts before giving up on io_setup(). */
 static const int OS_AIO_IO_SETUP_RETRY_ATTEMPTS = 5;
@@ -1008,7 +1008,7 @@ file::Block *os_alloc_block() noexcept {
       break;
     }
 
-    os_thread_yield();
+    std::this_thread::yield();
 
     ++retry;
   }
@@ -1511,7 +1511,7 @@ static bool os_aio_validate_skip() {
 #define USE_FILE_LOCK
 #if defined(UNIV_HOTBACKUP) || defined(_WIN32)
 /* InnoDB Hot Backup does not lock the data files.
- * On Windows, mandatory locking is used.
+ On Windows, mandatory locking is used.
  */
 #undef USE_FILE_LOCK
 #endif /* UNIV_HOTBACKUP || _WIN32 */
@@ -2631,7 +2631,8 @@ bool AIO::linux_create_io_ctx(ulint max_events, io_context_t *io_ctx) {
 
           ib::warn(ER_IB_MSG_758) << "io_setup() attempt " << n_retries << ".";
 
-          os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
+          std::this_thread::sleep_for(
+              std::chrono::milliseconds(OS_AIO_IO_SETUP_RETRY_SLEEP_MS));
 
           continue;
         }
@@ -2889,7 +2890,7 @@ static int os_file_fsync_posix(os_file_t file) {
         }
 
         /* 0.2 sec */
-        os_thread_sleep(200000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         break;
 
       case EIO:
@@ -3309,7 +3310,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
       ib::info(ER_IB_MSG_780) << "Retrying to lock the first data file";
 
       for (int i = 0; i < 100; i++) {
-        os_thread_sleep(1000000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         if (!os_file_lock(file.m_file, name)) {
           *success = true;
@@ -4556,7 +4557,7 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
     }
 
     /* Sleep for a 0.1 second */
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     if (count > 20) {
       return (false);
@@ -4998,7 +4999,7 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
 }
 #endif /* !_WIN32*/
 
-/** Does a syncronous read or write depending upon the type specified
+/** Does a synchronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]	in_type		IO flags
@@ -5404,13 +5405,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
 
     case OS_FILE_SHARING_VIOLATION:
 
-      os_thread_sleep(10000000); /* 10 sec */
+      std::this_thread::sleep_for(std::chrono::seconds(10));
       return (true);
 
     case OS_FILE_OPERATION_ABORTED:
     case OS_FILE_INSUFFICIENT_RESOURCE:
 
-      os_thread_sleep(100000); /* 100 ms */
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
       return (true);
 
     case OS_FILE_NAME_TOO_LONG:
@@ -6561,7 +6562,7 @@ void os_create_block_cache() {
     ut_a(it->m_ptr == nullptr);
 
     /* Allocate double of max page size memory, since
-    compress could generate more bytes than orgininal
+    compress could generate more bytes than original
     data. */
     it->m_ptr = static_cast<byte *>(ut_malloc_nokey(BUFFER_BLOCK_SIZE));
 

@@ -57,8 +57,8 @@ enum fts_table_state_enum {
 
 typedef enum fts_table_state_enum fts_table_state_t;
 
-/** The default time to wait for the background thread (in microsecnds). */
-#define FTS_MAX_BACKGROUND_THREAD_WAIT 10000
+/** The default time to wait for the background thread (in microseconds). */
+#define FTS_MAX_BACKGROUND_THREAD_WAIT_US 10000
 
 /** Maximum number of iterations to wait before we complain */
 #define FTS_BACKGROUND_THREAD_WAIT_COUNT 1000

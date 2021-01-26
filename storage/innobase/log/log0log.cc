@@ -821,23 +821,23 @@ void log_stop_background_threads(log_t &log) {
   /* Wait until threads are closed. */
   while (log_writer_is_active()) {
     os_event_set(log.writer_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_write_notifier_is_active()) {
     os_event_set(log.write_notifier_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_flusher_is_active()) {
     os_event_set(log.flusher_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_flush_notifier_is_active()) {
     os_event_set(log.flush_notifier_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_checkpointer_is_active()) {
     os_event_set(log.checkpointer_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
 
   log_background_threads_inactive_validate(log);
@@ -908,7 +908,7 @@ static void log_resume_writer_threads(log_t &log) {
     /* confirms *_notifier_resume_lsn have been accepted */
     while (log.write_notifier_resume_lsn.load(std::memory_order_acquire) != 0 ||
            log.flush_notifier_resume_lsn.load(std::memory_order_acquire) != 0) {
-      os_thread_sleep(1000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
       ut_a(log_write_notifier_is_active());
       ut_a(log_flush_notifier_is_active());
       os_event_set(log.writer_threads_resume_event);

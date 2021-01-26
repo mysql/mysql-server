@@ -375,7 +375,7 @@ static void buf_flush_yield(buf_pool_t *buf_pool, buf_page_t *bpage) {
 
   mutex_exit(block_mutex);
   /* Try and force a context switch. */
-  os_thread_yield();
+  std::this_thread::yield();
 
   mutex_enter(&buf_pool->LRU_list_mutex);
 
@@ -578,7 +578,7 @@ rescan:
       /* Remove was unsuccessful, we have to try again
       by scanning the entire list from the end.
       This also means that we never released the
-      flust list mutex. Therefore we can trust the prev
+      flush list mutex. Therefore we can trust the prev
       pointer.
       buf_flush_or_remove_page() released the
       flush list mutex but not the LRU list mutex.
@@ -670,7 +670,7 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
     ut_ad(buf_flush_validate(buf_pool));
 
     if (err == DB_FAIL) {
-      os_thread_sleep(2000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 
     if (err == DB_INTERRUPTED && observer != nullptr) {
@@ -821,7 +821,7 @@ scan_again:
   mutex_exit(&buf_pool->LRU_list_mutex);
 
   if (!all_freed) {
-    os_thread_sleep(20000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     goto scan_again;
   }
@@ -1323,7 +1323,7 @@ loop:
 
   if (n_iterations > 1) {
     MONITOR_INC(MONITOR_LRU_GET_FREE_WAITS);
-    os_thread_sleep(10000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
   /* No free block was found: try to flush the LRU list.
@@ -1709,7 +1709,7 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
 
   mutex_exit(block_mutex);
   DBUG_EXECUTE_IF("buf_lru_free_page_delay_block_mutex_reacquisition",
-                  os_thread_sleep(100););
+                  std::this_thread::sleep_for(std::chrono::microseconds(100)););
 
   rw_lock_x_lock(hash_lock);
   mutex_enter(block_mutex);

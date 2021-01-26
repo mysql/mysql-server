@@ -3093,7 +3093,7 @@ static void buf_flush_page_cleaner_disabled_loop(void) {
   while (innodb_page_cleaner_disabled_debug &&
          srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP &&
          page_cleaner->is_running) {
-    os_thread_sleep(100000); /* [A] */
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); /* [A] */
   }
 
   /* We need to wait for threads exiting here, otherwise we would
@@ -3176,7 +3176,7 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
 
     mutex_exit(&page_cleaner->mutex);
 
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 #endif /* UNIV_DEBUG */
@@ -3487,7 +3487,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
     /* We sleep only if there are no pages to flush */
     if (n_flushed == 0) {
-      os_thread_sleep(100000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   } while (srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
 
@@ -3812,7 +3812,7 @@ void FlushObserver::flush() {
   /* Wait for all dirty pages were flushed. */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     while (!is_complete(i)) {
-      os_thread_sleep(2000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
   }
 }

@@ -34,11 +34,12 @@ SET(TESTS
   log0log
   mem0mem
   os0thread-create
+  srv0conc
+  sync0rw
   ut0crc32
   ut0lock_free_hash
   ut0mem
   ut0new
-  srv0conc
 )
 
 SET(ALL_INNODB_TESTS)

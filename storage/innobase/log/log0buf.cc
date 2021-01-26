@@ -592,11 +592,11 @@ void log_buffer_x_lock_enter(log_t &log) {
       closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
     }
     if (closed_lsn < current_lsn) {
-      os_thread_yield();
+      std::this_thread::yield();
       closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
     }
     while (closed_lsn < current_lsn) {
-      os_thread_sleep(20);
+      std::this_thread::sleep_for(std::chrono::microseconds(20));
       log.recent_closed.advance_tail();
       closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
     }
@@ -1035,7 +1035,7 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
   while (!log.recent_written.has_space(start_lsn)) {
     os_event_set(log.writer_event);
     ++wait_loops;
-    os_thread_sleep(20);
+    std::this_thread::sleep_for(std::chrono::microseconds(20));
   }
 
   if (unlikely(wait_loops != 0)) {
@@ -1088,7 +1088,7 @@ void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
 
   while (!log.recent_closed.has_space(lsn)) {
     ++wait_loops;
-    os_thread_sleep(20);
+    std::this_thread::sleep_for(std::chrono::microseconds(20));
   }
 
   if (unlikely(wait_loops != 0)) {

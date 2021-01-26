@@ -768,7 +768,7 @@ void trx_recovery_rollback_thread() {
     if (srv_shutdown_state.load() >= SRV_SHUTDOWN_RECOVERY_ROLLBACK) {
       break;
     }
-    os_thread_sleep(1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   trx_rollback_or_clean_recovered(TRUE);

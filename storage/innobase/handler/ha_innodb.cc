@@ -568,8 +568,8 @@ void srv_debug_loop(void) {
   ibool set = TRUE;
 
   while (set) {
-    os_thread_yield();
-    os_thread_sleep(100);
+    std::this_thread::yield();
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
   }
 }
 #endif /* UNIV_DEBUG */
@@ -5802,7 +5802,7 @@ static int innobase_close_connection(
 
     if (trx_in_innodb.is_aborted()) {
       while (trx_is_started(trx)) {
-        os_thread_sleep(20);
+        std::this_thread::sleep_for(std::chrono::microseconds(20));
       }
     }
 
@@ -20532,7 +20532,7 @@ static void innodb_buffer_pool_evict_update(THD *thd, SYS_VAR *var,
           return;
         }
 
-        os_thread_sleep(10000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
 
       /* We failed to evict all uncompressed pages. */
@@ -22769,7 +22769,7 @@ static void innobase_commit_concurrency_init_default() {
 }
 
 /****************************************************************************
- * DS-MRR implementation
+ DS-MRR implementation
  ***************************************************************************/
 
 /**

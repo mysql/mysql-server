@@ -688,7 +688,7 @@ class ut_allocator {
         break;
       }
 
-      os_thread_sleep(1000000 /* 1 second */);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     if (ptr == nullptr) {
@@ -791,7 +791,7 @@ class ut_allocator {
         break;
       }
 
-      os_thread_sleep(1000000 /* 1 second */);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     if (pfx_new == nullptr) {

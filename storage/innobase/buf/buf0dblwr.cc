@@ -1147,7 +1147,7 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage, file::Block *e_block,
   Segment *segment{};
 
   while (!s_single_segments->dequeue(segment)) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
   single_write(segment, bpage, e_block, e_len);
@@ -1475,7 +1475,7 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
                                               : s_flush_list_batch_segments;
 
   while (!segments->dequeue(batch_segment)) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
   batch_segment->start(this);
@@ -1789,7 +1789,7 @@ void Double_write::write_complete(buf_page_t *bpage,
           fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
           while (!segments->enqueue(batch_segment)) {
-            os_thread_yield();
+            std::this_thread::yield();
           }
         }
       }

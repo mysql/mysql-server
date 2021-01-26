@@ -806,7 +806,7 @@ static void recv_writer_thread() {
       return state == SRV_SHUTDOWN_NONE || state == SRV_SHUTDOWN_EXIT_THREADS;
     }));
 
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     mutex_enter(&recv_sys->writer_mutex);
 
@@ -1229,7 +1229,7 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 
     mutex_exit(&recv_sys->mutex);
 
-    os_thread_sleep(500000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
   }
 
   if (!allow_ibuf) {
@@ -1306,7 +1306,7 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
   while (recv_sys->n_addrs != 0) {
     mutex_exit(&recv_sys->mutex);
 
-    os_thread_sleep(500000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
     mutex_enter(&recv_sys->mutex);
   }
@@ -2577,7 +2577,7 @@ void recv_recover_page_func(
       buf = ((byte *)(recv->data)) + sizeof(recv_data_t);
     } else {
       /* Redo record that does not have a payload, such as MLOG_UNDO_ERASE_END,
-       * MLOG_COMP_PAGE_CREATE, MLOG_INIT_FILE_PAGE2 etc. */
+       MLOG_COMP_PAGE_CREATE, MLOG_INIT_FILE_PAGE2 etc. */
       ut_ad(recv->data == nullptr);
       ut_ad(recv->len == 0);
     }
@@ -4013,7 +4013,7 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
   while (recv_writer_is_active()) {
     ++count;
 
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     if (count >= 600) {
       ib::info(ER_IB_MSG_738);

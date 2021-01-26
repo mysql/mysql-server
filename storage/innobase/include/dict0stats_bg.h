@@ -67,11 +67,11 @@ void dict_stats_recalc_pool_del(
 /** Yield the data dictionary latch when waiting
 for the background thread to stop accessing a table.
 @param trx transaction holding the data dictionary locks */
-#define DICT_STATS_BG_YIELD(trx)           \
-  do {                                     \
-    row_mysql_unlock_data_dictionary(trx); \
-    os_thread_sleep(250000);               \
-    row_mysql_lock_data_dictionary(trx);   \
+#define DICT_STATS_BG_YIELD(trx)                                 \
+  do {                                                           \
+    row_mysql_unlock_data_dictionary(trx);                       \
+    std::this_thread::sleep_for(std::chrono::milliseconds(250)); \
+    row_mysql_lock_data_dictionary(trx);                         \
   } while (0)
 
 /** Request the background collection of statistics to stop for a table.
