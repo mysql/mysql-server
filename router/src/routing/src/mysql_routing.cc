@@ -999,7 +999,6 @@ void MySQLRouting::notify_socket_acceptors() { acceptor_cond_.notify_one(); }
 
 stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     mysql_harness::PluginFuncEnv *env) {
-  mysql_harness::on_service_ready(env);
   destination_->start(env);
 
   if (!destinations()->empty() ||
@@ -1017,6 +1016,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     // should fail.
     if (!res) return stdx::make_unexpected(res.error());
   }
+  mysql_harness::on_service_ready(env);
 
   auto allowed_nodes_changed =
       [&](const AllowedNodes &existing_connections_nodes,
