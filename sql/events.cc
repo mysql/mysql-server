@@ -809,9 +809,9 @@ static bool send_show_create_event(THD *thd, Event_timed *et,
                          system_charset_info);
   protocol->store_string(show_str.c_ptr(), show_str.length(),
                          et->m_creation_ctx->get_client_cs());
-  protocol->store_string(et->m_creation_ctx->get_client_cs()->csname,
-                         strlen(et->m_creation_ctx->get_client_cs()->csname),
-                         system_charset_info);
+  const char *csname =
+      replace_utf8_utf8mb3(et->m_creation_ctx->get_client_cs()->csname);
+  protocol->store_string(csname, strlen(csname), system_charset_info);
   protocol->store_string(et->m_creation_ctx->get_connection_cl()->name,
                          strlen(et->m_creation_ctx->get_connection_cl()->name),
                          system_charset_info);

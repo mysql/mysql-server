@@ -2359,7 +2359,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2372,7 +2372,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2385,7 +2385,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2398,7 +2398,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW EVENTS LIKE 'ev1'|
@@ -2496,7 +2496,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2509,7 +2509,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2522,7 +2522,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2535,7 +2535,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW EVENTS LIKE 'ev1'|
@@ -2616,8 +2616,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8 */ ;;
-/*!50003 SET character_set_results = utf8 */ ;;
+/*!50003 SET character_set_client  = utf8mb3 */ ;;
+/*!50003 SET character_set_results = utf8mb3 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2644,8 +2644,8 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8 */ ;;
-/*!50003 SET character_set_results = utf8 */ ;;
+/*!50003 SET character_set_client  = utf8mb3 */ ;;
+/*!50003 SET character_set_results = utf8mb3 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2683,8 +2683,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8 */ ;;
-/*!50003 SET character_set_results = utf8 */ ;;
+/*!50003 SET character_set_client  = utf8mb3 */ ;;
+/*!50003 SET character_set_results = utf8mb3 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2711,8 +2711,8 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8mb3 COLLATE utf8_unicode_ci ;;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;;
 /*!50003 SET @saved_col_connection = @@collation_connection */ ;;
-/*!50003 SET character_set_client  = utf8 */ ;;
-/*!50003 SET character_set_results = utf8 */ ;;
+/*!50003 SET character_set_client  = utf8mb3 */ ;;
+/*!50003 SET character_set_results = utf8mb3 */ ;;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;;
 /*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;;
@@ -2771,7 +2771,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT ev2|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2784,7 +2784,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2797,7 +2797,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 SHOW CREATE EVENT mysqltest2.ev3|
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
@@ -2810,7 +2810,7 @@ COLLATION(_utf8 '—Ç–µ–∫—Å—Ç') AS c3,
 COLLATION(_koi8r    '‘≈À”‘') AS c4,
 @@collation_connection AS c5,
 @@character_set_client AS c6;
-END	utf8	utf8_general_ci	utf8_unicode_ci
+END	utf8mb3	utf8_general_ci	utf8_unicode_ci
 
 
 SHOW EVENTS LIKE 'ev1'|
