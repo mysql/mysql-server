@@ -30,7 +30,7 @@ insert into t3 values ('1 - 01', '2 - 01');
 insert into t3 values ('1 - 02', '2 - 02');
 insert into t3 values ('1 - 03', '2 - 03');
 insert into t3 values ('1 - 04', '2 - 04');
-
+ANALYZE TABLE t1, t2, t3;
 # Indexed columns
 create table t1i (a1 char(8), a2 char(8)) charset utf8mb4;
 create table t2i (b1 char(8), b2 char(8)) charset utf8mb4;
@@ -50,6 +50,7 @@ create index it3i3 on t3i (c1, c2);
 insert into t1i select * from t1;
 insert into t2i select * from t2;
 insert into t3i select * from t3;
+ANALYZE TABLE t1i, t2i, t3i;
 
 /******************************************************************************
 * Simple tests.
@@ -328,7 +329,7 @@ insert into t2bit values (b'001', b'101');
 insert into t2bit values (b'010', b'110');
 insert into t2bit values (b'110', b'111');
 
-
+ANALYZE TABLE t1bit, t2bit;
 explain select bin(a1), bin(a2)
 from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
@@ -350,7 +351,7 @@ insert into t1bb values (b'010', '110');
 insert into t2bb values (b'001', '101');
 insert into t2bb values (b'010', '110');
 insert into t2bb values (b'110', '111');
-
+ANALYZE TABLE t1bb, t2bb;
 explain select bin(a1), a2
 from t1bb
 where (a1, a2) in (select b1, b2 from t2bb);
@@ -399,20 +400,20 @@ insert into t3 values (10);
 insert into t3 values (10);
 insert into t3 values (20);
 insert into t3 values (30);
-
+ANALYZE TABLE t1, t2, t3;
 explain
 select a from t1 where a in (select c from t2 where d >= 20);
 select a from t1 where a in (select c from t2 where d >= 20);
 
 create index it1a on t1(a);
-
+ANALYZE TABLE t1;
 explain
 select a from t1 where a in (select c from t2 where d >= 20);
 select a from t1 where a in (select c from t2 where d >= 20);
 
 # the first outer row has a matching inner row
 insert into t2 values (1,10);
-
+ANALYZE TABLE t2;
 explain
 select a from t1 where a in (select c from t2 where d >= 20);
 select a from t1 where a in (select c from t2 where d >= 20);
@@ -425,6 +426,7 @@ select a from t1 group by a having a in (select c from t2 where d >= 20);
 
 # create an index that can be used for the outer query GROUP BY 
 create index iab on t1(a, b);
+ANALYZE TABLE t1;
 explain
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 select a from t1 group by a having a in (select c from t2 where d >= 20);
@@ -460,7 +462,7 @@ drop table t2;
 create table t1 (a1 int key);
 create table t2 (b1 int);
 insert into t1 values (5);
-
+ANALYZE TABLE t1, t2;
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 explain select min(a1) from t1 where 7 in (select b1 from t2);
@@ -473,7 +475,7 @@ drop table t1,t2;
 create table t1 (a char(2), b varchar(10));
 insert into t1 values ('a',  'aaa');
 insert into t1 values ('aa', 'aaaa');
-
+ANALYZE TABLE t1;
 explain select a,b from t1 where b in (select a from t1);
 select a,b from t1 where b in (select a from t1);
 prepare st1 from "select a,b from t1 where b in (select a from t1)";
@@ -489,13 +491,13 @@ CREATE TABLE t1 (a varchar(5), b varchar(10)) charset utf8mb4;
 INSERT INTO t1 VALUES
   ('AAA', 5), ('BBB', 4), ('BBB', 1), ('CCC', 2),
   ('CCC', 7), ('AAA', 2), ('AAA', 4), ('BBB', 3), ('AAA', 8);
-
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 EXPLAIN
 SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a);
 
 ALTER TABLE t1 ADD INDEX(a);
-
+ANALYZE TABLE t1;
 --let $query=SELECT * FROM t1 WHERE (a,b) = ANY (SELECT a, max(b) FROM t1 GROUP BY a)
 FLUSH STATUS;
 --eval $query
@@ -513,6 +515,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2);
+ANALYZE TABLE t1;
 EXPLAIN SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 GROUP BY a);
 EXPLAIN SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
 DROP TABLE t1;
@@ -532,7 +535,7 @@ INSERT INTO t1 VALUES (1); # Note: t1 must be const table
 INSERT INTO t2 VALUES (1),(2);
 INSERT INTO t3 VALUES (1),(2);
 INSERT INTO t4 VALUES (1),(2);
-
+ANALYZE TABLE t1, t2, t3, t4;
 --echo
 EXPLAIN 
 SELECT t1i
@@ -569,7 +572,7 @@ CREATE TABLE empty1 (a int);
 INSERT INTO t1 VALUES (1,'c'),(2,NULL);
 INSERT INTO t2 VALUES (3,'m'),(4,NULL);
 INSERT INTO t3 VALUES (1,'n');
-
+ANALYZE TABLE t1, t2, t3;
 --echo
 --echo #
 --echo # 1) Test that subquery materialization is setup for query with
@@ -693,7 +696,7 @@ CREATE TABLE t2 (j INTEGER);
 INSERT INTO t2 VALUES (5);
 
 CREATE TABLE t3 (k INTEGER);
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
@@ -844,17 +847,17 @@ CREATE TABLE t1 (
   pk int NOT NULL,
   f1 int DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 CREATE TABLE t2 (
   pk int NOT NULL,
   f1 int DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES (10,0);
 INSERT INTO t2 VALUES (10,0),(11,0);
-
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT * FROM t1 JOIN t2 USING (f1)
 WHERE t1.f1 IN (SELECT t1.pk FROM t1 ORDER BY t1.f1);
@@ -939,7 +942,7 @@ CREATE TABLE t1(a int);
 INSERT INTO t1 values(1),(2);
 CREATE TABLE t2(a int);
 INSERT INTO t2 values(1),(2);
-
+ANALYZE TABLE t1, t2;
 EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
 FLUSH STATUS;
 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2);
@@ -956,20 +959,20 @@ DROP TABLE t1,t2,t3;
 
 CREATE TABLE t1 (
   col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES ('b');
 
 CREATE TABLE t2 (
   col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES ('k');
 
 CREATE TABLE t3 (
   col_varchar_nokey varchar(1) NOT NULL
-) ENGINE=MyISAM;
-
+) ENGINE=INNODB;
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT STRAIGHT_JOIN *
 FROM t1 LEFT JOIN t2 ON t1.col_varchar_nokey IN (SELECT col_varchar_nokey
@@ -987,10 +990,10 @@ DROP TABLE t1, t2, t3;
 --echo # in join_read_const_table()
 --echo #
 
-CREATE TABLE t1 (v INTEGER) ENGINE=MyISAM;
+CREATE TABLE t1 (v INTEGER) ENGINE=INNODB;
 INSERT INTO t1 VALUES(1);
 
-CREATE TABLE t2 (v INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (v INTEGER) ENGINE=INNODB;
 
 SELECT *
 FROM t1 LEFT JOIN t2
@@ -1011,7 +1014,7 @@ CREATE TABLE t1 (
   col_int_key int DEFAULT NULL,
   PRIMARY KEY (pk),
   KEY col_int_key (col_int_key)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES (1,2,4), (2,150,62);
 
@@ -1019,10 +1022,10 @@ CREATE TABLE t2 (
   pk int NOT NULL,
   col_int_key int DEFAULT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES (1,7);
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT table1.pk, table2.pk
 FROM t2 AS table1 LEFT JOIN t2 AS table2
@@ -1055,7 +1058,7 @@ create table t1(a int not null);
 create table t2(a int not null);
 insert into t1 values(1),(2);
 insert into t2 values(1),(2);
-
+ANALYZE TABLE t1, t2;
 --echo Test in SELECT list
 
 --echo
@@ -1083,13 +1086,14 @@ eval $query;
 
 --echo
 alter table t2 modify a int;
+ANALYZE TABLE t2;
 let $query=select t1.a, t2.a, (t1.a,t1.a) in (select a,a from t2 as t3)
 from t1 join t2 on t1.a+t2.a=1000;
 --echo two nullable inner cols => no subq materialization
 eval explain $query;
 eval $query;
 alter table t2 modify a int not null;
-
+ANALYZE TABLE t2;
 --echo
 --echo Test in WHERE
 --echo
@@ -1160,7 +1164,7 @@ create table t1(a int, b int);
 create table t2(a int);
 insert into t1 values(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
 insert into t2 values(10),(20);
-
+ANALYZE TABLE t1, t2;
 let $query=select t1.a as z, sum(t1.b) from t1 group by t1.a
 having (z in (select * from t2)) is null;
 
@@ -1202,7 +1206,7 @@ create table t2(a int);
 insert into t1 values(1),(2),(3),(4),(5),(6);
 insert into t1 select * from t1; # t1 has 12 rows
 insert into t2 values(10),(20),(NULL);
-
+ANALYZE TABLE t1, t2, t3;
 let $query=select a, (a in (select * from t2)) from t1;
 
 eval explain $query;
@@ -1225,7 +1229,7 @@ CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES(1),(2),(3);
 CREATE TABLE t2(a INT);
 INSERT INTO t2 VALUES(1),(2),(4);
-
+ANALYZE TABLE t1, t2;
 --echo # subquery materialization used for SELECT:
 EXPLAIN SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
@@ -1233,6 +1237,7 @@ SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 --echo # Also used for INSERT SELECT:
 # a) all different tables:
 CREATE TABLE t3 SELECT * FROM t1;
+ANALYZE TABLE t3;
 EXPLAIN INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 --sorted_result
@@ -1241,6 +1246,7 @@ SELECT * FROM t3;
 # b) insert into subquery's selected table
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
+ANALYZE TABLE t2;
 --sorted_result
 SELECT * FROM t2;
 
@@ -1270,13 +1276,14 @@ EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t2);
 
 # Put some content so that future queries have rows to modify:
 UPDATE t2 SET a=3 WHERE a=0;
-
+ANALYZE TABLE t2;
 --echo # Used for multi-table UPDATE, DELETE:
 
 # a) all different tables
 EXPLAIN SELECT * FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 EXPLAIN UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
+ANALYZE TABLE t2, t3;
 --sorted_result
 SELECT * FROM t2;
 EXPLAIN DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
@@ -1305,6 +1312,7 @@ create table t1 (a varchar(3));
 create table t2 (a varchar(2));
 insert into t1 values('aaa'), ('aaa');
 insert into t2 values('aa'), ('aa');
+ANALYZE TABLE t1, t2;
 let $query=select * from t1 where a in (select a from t2);
 eval explain $query;
 flush status;
@@ -1350,7 +1358,7 @@ CREATE TABLE t4 (
 );
 
 INSERT INTO t4 VALUES (1,'x');
-
+ANALYZE TABLE t1, t2, t3, t4;
 let $query=
 SELECT outr.pk, outr.col_varchar_nokey, outr2.col_varchar_nokey
 FROM t2 AS outr2
@@ -1395,7 +1403,7 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES
  (7,'14:03:03','2001-11-28 00:50:27'), (1,'01:46:09','2007-10-09 19:53:04');
-
+ANALYZE TABLE t1, t2;
 let $query=
 SELECT col_datetime_nokey AS x
 FROM t2 AS outr
@@ -1426,6 +1434,7 @@ CREATE TABLE t3
 (c4 int,pk INT,c1 bigint,cyk year,cy year,key (cyk))
 ENGINE=InnoDB;
 INSERT INTO t3 VALUES(0,8,'',0,'');
+ANALYZE TABLE t1, t2, t3;
 let $query=
 SELECT o.c2 AS x FROM t1 AS o
 WHERE o.c1 IN
@@ -1678,7 +1687,7 @@ SELECT (NULL, NULL) IN (SELECT 1, 2);
 SELECT NULL IN (SELECT 1 FROM s);
 SELECT (SELECT NULL, NULL FROM DUAL) IN (SELECT 1, 2 FROM s) FROM s;
 SELECT (SELECT NULL,NULL) IN (SELECT 1, 2);
-CREATE TABLE u(a INT, b INT) ENGINE=MyISAM;
+CREATE TABLE u(a INT, b INT) ENGINE=INNODB;
 INSERT INTO u VALUES (NULL, NULL);
 SELECT (SELECT * FROM u) IN (SELECT 1, 2 FROM s) FROM s;
 SELECT (SELECT * FROM u) IN (SELECT 1, 2);
