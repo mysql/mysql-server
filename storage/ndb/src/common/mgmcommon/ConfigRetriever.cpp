@@ -270,7 +270,8 @@ ConfigRetriever::getErrorString(){
 
 
 bool
-ConfigRetriever::verifyConfig(const ndb_mgm_configuration * conf, Uint32 nodeid)
+ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
+                              Uint32 nodeid, bool validate_port)
 {
   char buf[255];
   ndb_mgm_configuration_iterator it(* conf, CFG_SECTION_NODE);
@@ -313,9 +314,12 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration * conf, Uint32 nodeid)
     return false;
   }
 
-  // Get portnumber if node type is management node.
+  /**
+   * Get portnumber if node type is management node and ports should
+   * be validated.
+   */
   Uint32 port = 0;
-  if (_type == NODE_TYPE_MGM) {
+  if (_type == NODE_TYPE_MGM && validate_port) {
     if (it.get(CFG_MGM_PORT, &port)) {
       BaseString::snprintf(buf, 255,
                            "Unable to get Port of node(%d) from config",
