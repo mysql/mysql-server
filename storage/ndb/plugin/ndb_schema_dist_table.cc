@@ -465,8 +465,8 @@ bool Ndb_schema_dist_table::get_schema_uuid(std::string *schema_uuid) const {
 
   NdbError ndb_err;
   if (!ndb_trans_retry(get_ndb(), get_thd(), ndb_err, read_ndb_schema_func)) {
-    push_warning("Failed to read the schema UUID tuple: %s(%d).",
-                 ndb_err.message, ndb_err.code);
+    ndb_log_warning("Failed to read the schema UUID tuple: %s(%d).",
+                    ndb_err.message, ndb_err.code);
     return false;
   }
 
@@ -548,7 +548,7 @@ bool Ndb_schema_dist_table::update_schema_uuid_in_NDB(
 
   NdbError ndb_err;
   if (!ndb_trans_retry(get_ndb(), get_thd(), ndb_err, write_schema_op_func)) {
-    push_warning(
+    ndb_log_warning(
         "Failed to update schema UUID in 'mysql.ndb_schema' table. Code : %d. "
         "Error : %s",
         ndb_err.code, ndb_err.message);

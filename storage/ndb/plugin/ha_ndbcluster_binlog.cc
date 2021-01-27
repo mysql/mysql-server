@@ -778,17 +778,18 @@ class Ndb_binlog_setup {
      @brief Detect whether the binlog is being setup after an initial system
             start/restart or after a normal system start/restart.
 
-     @param thd_ndb  The Thd_ndb object
+     @param      thd_ndb           The Thd_ndb object
+     @param[out] initial_restart   Set to true if this is an initial system
+                                   start/restart, false otherwise.
 
-     @return true if this is an initial system start/restart, false otherwise.
+     @return true if the method succeeded in detecting, false otherwise.
    */
-  bool detect_initial_restart(Thd_ndb *thd_ndb) {
+  bool detect_initial_restart(Thd_ndb *thd_ndb, bool *initial_restart) {
     DBUG_TRACE;
 
     // Retrieve the old schema UUID stored in DD.
     dd::String_type dd_schema_uuid;
     if (!ndb_dd_get_schema_uuid(m_thd, &dd_schema_uuid)) {
-      assert(false);
       ndb_log_warning("Failed to read the schema UUID of DD");
       return false;
     }
@@ -801,6 +802,7 @@ class Ndb_binlog_setup {
         code simple and due to the fact that the upgrade is probably being done
         from a 5.x or a non GA 8.0.x versions to a 8.0.x cluster GA version.
       */
+      *initial_restart = true;
       ndb_log_info("Detected an initial system start");
       return true;
     }
@@ -812,6 +814,7 @@ class Ndb_binlog_setup {
         The ndb_schema table does not exist in NDB yet but the DD already has a
         schema UUID. This is an initial system restart.
       */
+      *initial_restart = true;
       ndb_log_info("Detected an initial system restart");
       return true;
     }
@@ -820,7 +823,7 @@ class Ndb_binlog_setup {
     std::string ndb_schema_uuid;
     if (!schema_dist_table.open() ||
         !schema_dist_table.get_schema_uuid(&ndb_schema_uuid)) {
-      assert(false);
+      ndb_log_warning("Failed to read the schema UUID tuple from NDB");
       return false;
     }
     /*
@@ -836,8 +839,9 @@ class Ndb_binlog_setup {
         upgrade. Any upgrade from versions having schema UUID to another newer
         version will be handled here.
       */
+      *initial_restart = false;
       ndb_log_info("Detected a normal system restart");
-      return false;
+      return true;
     }
 
     /*
@@ -848,6 +852,7 @@ class Ndb_binlog_setup {
       From this mysqld's perspective, this will be treated as an
       initial system restart.
     */
+    *initial_restart = true;
     ndb_log_info("Detected an initial system restart");
     return true;
   }
@@ -891,7 +896,11 @@ class Ndb_binlog_setup {
     }
 
     // Check if this is a initial restart/start
-    const bool initial_system_restart = detect_initial_restart(thd_ndb);
+    bool initial_system_restart;
+    if (!detect_initial_restart(thd_ndb, &initial_system_restart)) {
+      // Failed to detect if this was a initial restart
+      return false;
+    }
 
     Ndb_dd_sync dd_sync(m_thd, thd_ndb);
     if (initial_system_restart) {
