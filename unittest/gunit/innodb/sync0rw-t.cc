@@ -236,6 +236,7 @@ TEST(sync0rw, rw_lock_reader_thread) {
 
   for (auto &rw_lock : rw_locks) {
     rw_lock_free(rw_lock);
+    free(rw_lock);
   }
 
   sync_check_close();
