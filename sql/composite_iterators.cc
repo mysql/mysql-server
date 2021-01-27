@@ -1264,7 +1264,7 @@ int WeedoutIterator::Read() {
   }
 }
 
-RemoveDuplicatesIterator::RemoveDuplicatesIterator(
+RemoveDuplicatesOnIndexIterator::RemoveDuplicatesOnIndexIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, const TABLE *table,
     KEY *key, size_t key_len)
     : RowIterator(thd),
@@ -1274,12 +1274,12 @@ RemoveDuplicatesIterator::RemoveDuplicatesIterator(
       m_key_buf(new (thd->mem_root) uchar[key_len]),
       m_key_len(key_len) {}
 
-bool RemoveDuplicatesIterator::Init() {
+bool RemoveDuplicatesOnIndexIterator::Init() {
   m_first_row = true;
   return m_source->Init();
 }
 
-int RemoveDuplicatesIterator::Read() {
+int RemoveDuplicatesOnIndexIterator::Read() {
   for (;;) {
     int err = m_source->Read();
     if (err != 0) {

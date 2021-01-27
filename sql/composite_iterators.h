@@ -804,11 +804,11 @@ class WeedoutIterator final : public RowIterator {
   if the data is already ordered/grouped correctly, as the removal can
   happen before the join, and it does not need a temporary table.
  */
-class RemoveDuplicatesIterator final : public RowIterator {
+class RemoveDuplicatesOnIndexIterator final : public RowIterator {
  public:
-  RemoveDuplicatesIterator(THD *thd,
-                           unique_ptr_destroy_only<RowIterator> source,
-                           const TABLE *table, KEY *key, size_t key_len);
+  RemoveDuplicatesOnIndexIterator(THD *thd,
+                                  unique_ptr_destroy_only<RowIterator> source,
+                                  const TABLE *table, KEY *key, size_t key_len);
 
   bool Init() override;
   int Read() override;
@@ -834,9 +834,9 @@ class RemoveDuplicatesIterator final : public RowIterator {
 
 /**
   An iterator that is semantically equivalent to a semijoin NestedLoopIterator
-  immediately followed by a RemoveDuplicatesIterator. It is used to implement
-  the “loose scan” strategy in queries with multiple tables on the inside of a
-  semijoin, like
+  immediately followed by a RemoveDuplicatesOnIndexIterator. It is used to
+  implement the “loose scan” strategy in queries with multiple tables on the
+  inside of a semijoin, like
 
     ... FROM t1 WHERE ... IN ( SELECT ... FROM t2 JOIN t3 ... )
 

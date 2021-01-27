@@ -182,9 +182,10 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
       WalkAccessPaths(path->weedout().child, join, cross_query_blocks,
                       std::forward<Func &&>(func), post_order_traversal);
       break;
-    case AccessPath::REMOVE_DUPLICATES:
-      WalkAccessPaths(path->remove_duplicates().child, join, cross_query_blocks,
-                      std::forward<Func &&>(func), post_order_traversal);
+    case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
+      WalkAccessPaths(path->remove_duplicates_on_index().child, join,
+                      cross_query_blocks, std::forward<Func &&>(func),
+                      post_order_traversal);
       break;
     case AccessPath::ALTERNATIVE:
       WalkAccessPaths(path->alternative().child, join, cross_query_blocks,

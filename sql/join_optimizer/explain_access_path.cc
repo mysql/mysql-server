@@ -748,10 +748,10 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       children.push_back({path->weedout().child});
       break;
     }
-    case AccessPath::REMOVE_DUPLICATES:
+    case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
       description.push_back(string("Remove duplicates from input sorted on ") +
-                            path->remove_duplicates().key->name);
-      children.push_back({path->remove_duplicates().child});
+                            path->remove_duplicates_on_index().key->name);
+      children.push_back({path->remove_duplicates_on_index().child});
       break;
     case AccessPath::ALTERNATIVE: {
       const TABLE *table =

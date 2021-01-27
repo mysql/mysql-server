@@ -2175,8 +2175,8 @@ AccessPath *FinishPendingOperations(
         remove_duplicates_loose_scan_qep_tab;  // For short.
     KEY *key = qep_tab->table()->key_info + qep_tab->index();
     AccessPath *old_path = path;
-    path = NewRemoveDuplicatesAccessPath(thd, path, qep_tab->table(), key,
-                                         qep_tab->loosescan_key_len);
+    path = NewRemoveDuplicatesOnIndexAccessPath(
+        thd, path, qep_tab->table(), key, qep_tab->loosescan_key_len);
     CopyBasicProperties(*old_path, path);  // We have nothing better.
   }
 
@@ -2687,11 +2687,11 @@ static AccessPath *ConnectJoins(
     // Multi-table LooseScans will be handled by
     // NestedLoopSemiJoinWithDuplicateRemovalIterator
     // (which is essentially a semijoin NestedLoopIterator and
-    // RemoveDuplicatesIterator in one).
+    // RemoveDuplicatesOnIndexIterator in one).
     if (qep_tab->do_loosescan() && qep_tab->match_tab == i) {
       KEY *key = qep_tab->table()->key_info + qep_tab->index();
       AccessPath *old_path = table_path;
-      table_path = NewRemoveDuplicatesAccessPath(
+      table_path = NewRemoveDuplicatesOnIndexAccessPath(
           thd, table_path, qep_tab->table(), key, qep_tab->loosescan_key_len);
       CopyBasicProperties(*old_path, table_path);  // We have nothing better.
     }

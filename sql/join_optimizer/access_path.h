@@ -179,7 +179,7 @@ struct AccessPath {
     APPEND,
     WINDOWING,
     WEEDOUT,
-    REMOVE_DUPLICATES,
+    REMOVE_DUPLICATES_ON_INDEX,
     ALTERNATIVE,
     CACHE_INVALIDATOR
   } type;
@@ -589,13 +589,13 @@ struct AccessPath {
     assert(type == WEEDOUT);
     return u.weedout;
   }
-  auto &remove_duplicates() {
-    assert(type == REMOVE_DUPLICATES);
-    return u.remove_duplicates;
+  auto &remove_duplicates_on_index() {
+    assert(type == REMOVE_DUPLICATES_ON_INDEX);
+    return u.remove_duplicates_on_index;
   }
-  const auto &remove_duplicates() const {
-    assert(type == REMOVE_DUPLICATES);
-    return u.remove_duplicates;
+  const auto &remove_duplicates_on_index() const {
+    assert(type == REMOVE_DUPLICATES_ON_INDEX);
+    return u.remove_duplicates_on_index;
   }
   auto &alternative() {
     assert(type == ALTERNATIVE);
@@ -818,7 +818,7 @@ struct AccessPath {
       TABLE *table;
       KEY *key;
       unsigned loosescan_key_len;
-    } remove_duplicates;
+    } remove_duplicates_on_index;
     struct {
       AccessPath *table_scan_path;
 
@@ -1277,15 +1277,15 @@ inline AccessPath *NewWeedoutAccessPath(THD *thd, AccessPath *child,
   return path;
 }
 
-inline AccessPath *NewRemoveDuplicatesAccessPath(THD *thd, AccessPath *child,
-                                                 TABLE *table, KEY *key,
-                                                 unsigned loosescan_key_len) {
+inline AccessPath *NewRemoveDuplicatesOnIndexAccessPath(
+    THD *thd, AccessPath *child, TABLE *table, KEY *key,
+    unsigned loosescan_key_len) {
   AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::REMOVE_DUPLICATES;
-  path->remove_duplicates().child = child;
-  path->remove_duplicates().table = table;
-  path->remove_duplicates().key = key;
-  path->remove_duplicates().loosescan_key_len = loosescan_key_len;
+  path->type = AccessPath::REMOVE_DUPLICATES_ON_INDEX;
+  path->remove_duplicates_on_index().child = child;
+  path->remove_duplicates_on_index().table = table;
+  path->remove_duplicates_on_index().key = key;
+  path->remove_duplicates_on_index().loosescan_key_len = loosescan_key_len;
   return path;
 }
 

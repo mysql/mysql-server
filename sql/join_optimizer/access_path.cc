@@ -202,8 +202,8 @@ table_map GetUsedTables(const AccessPath *path) {
       return GetUsedTables(path->windowing().child);
     case AccessPath::WEEDOUT:
       return GetUsedTables(path->weedout().child);
-    case AccessPath::REMOVE_DUPLICATES:
-      return GetUsedTables(path->remove_duplicates().child);
+    case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
+      return GetUsedTables(path->remove_duplicates_on_index().child);
     case AccessPath::ALTERNATIVE:
       assert(GetUsedTables(path->alternative().child) ==
              path->alternative()
@@ -722,11 +722,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           thd, move(child), param.weedout_table, param.tables_to_get_rowid_for);
       break;
     }
-    case AccessPath::REMOVE_DUPLICATES: {
-      const auto &param = path->remove_duplicates();
+    case AccessPath::REMOVE_DUPLICATES_ON_INDEX: {
+      const auto &param = path->remove_duplicates_on_index();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
-      iterator = NewIterator<RemoveDuplicatesIterator>(
+      iterator = NewIterator<RemoveDuplicatesOnIndexIterator>(
           thd, move(child), param.table, param.key, param.loosescan_key_len);
       break;
     }
