@@ -1950,6 +1950,34 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
   return std::equal(args, args + arg_count, item_json->args, cmp);
 }
 
+bool Item_func_modify_json_in_path::resolve_type(THD *thd) {
+  if (Item_json_func::resolve_type(thd)) return true;
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+  if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
+  if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
+  for (uint i = 2; i < arg_count; i += 2) {
+    args[i]->mark_json_as_scalar();
+  }
+  not_null_tables_cache = calculate_not_null_tables();
+  return false;
+}
+
+void Item_func_modify_json_in_path::update_used_tables() {
+  Item_json_func::update_used_tables();
+  not_null_tables_cache = calculate_not_null_tables();
+}
+
+table_map Item_func_modify_json_in_path::calculate_not_null_tables() const {
+  // If the first argument (the JSON document) is NULL, the function returns
+  // NULL.
+  table_map tables = args[0]->not_null_tables();
+  // If any of the JSON path arguments is NULL, the function returns NULL.
+  for (uint i = 1; i < arg_count; i += 2) {
+    tables |= args[i]->not_null_tables();
+  }
+  return tables;
+}
+
 #ifndef NDEBUG
 /**
   Is this a path that could possibly return the root node of a JSON document?
