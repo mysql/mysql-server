@@ -4981,7 +4981,7 @@ CREATE FUNCTION mysqltest2.bug16211_f4() RETURNS CHAR(10) CHARSET koi8r
 RETURN ""|
 SHOW CREATE FUNCTION bug16211_f1|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
+bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8mb3
 RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION bug16211_f2|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -4989,7 +4989,7 @@ bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS 
 RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
+bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8mb3
 RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -5018,16 +5018,12 @@ char(10)
 SELECT CHARSET(bug16211_f1())|
 CHARSET(bug16211_f1())
 utf8mb3
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CHARSET(bug16211_f2())|
 CHARSET(bug16211_f2())
 koi8r
 SELECT CHARSET(mysqltest2.bug16211_f3())|
 CHARSET(mysqltest2.bug16211_f3())
 utf8mb3
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT CHARSET(mysqltest2.bug16211_f4())|
 CHARSET(mysqltest2.bug16211_f4())
 koi8r
@@ -5035,7 +5031,7 @@ ALTER DATABASE mysqltest1 CHARACTER SET cp1251|
 ALTER DATABASE mysqltest2 CHARACTER SET cp1251|
 SHOW CREATE FUNCTION bug16211_f1|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8
+bug16211_f1		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f1`() RETURNS char(10) CHARSET utf8mb3
 RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION bug16211_f2|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -5043,7 +5039,7 @@ bug16211_f2		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f2`() RETURNS 
 RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f3|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8
+bug16211_f3		CREATE DEFINER=`root`@`localhost` FUNCTION `bug16211_f3`() RETURNS char(10) CHARSET utf8mb3
 RETURN ""	utf8mb4	utf8mb4_0900_ai_ci	utf8_general_ci
 SHOW CREATE FUNCTION mysqltest2.bug16211_f4|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -5115,10 +5111,6 @@ CHARSET(p2)	COLLATION(p2)
 utf8mb3	utf8_general_ci
 CHARSET(p3)	COLLATION(p3)
 utf8mb3	utf8_general_ci
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CALL bug16676_p2('a', @v2, @v3)|
 CHARSET(p1)	COLLATION(p1)
 koi8r	koi8r_general_ci
@@ -6803,7 +6795,6 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 call `p2`('s s s s s s');
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop procedure `p2`;
 drop table if exists t1;

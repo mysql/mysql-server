@@ -624,13 +624,13 @@ triggers	trg_t1_after_update	UPDATE	AFTER	1
 triggers	trg1	DELETE	AFTER	1
 SHOW CREATE TRIGGER triggers.trg_t1_after_insert_3;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg_t1_after_insert_3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg_t1_after_insert_3` AFTER INSERT ON `t1` FOR EACH ROW insert into t2 values('After Insert 3rd Trigger executed for t1')	utf8	utf8_general_ci	latin1_swedish_ci	#
+trg_t1_after_insert_3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg_t1_after_insert_3` AFTER INSERT ON `t1` FOR EACH ROW insert into t2 values('After Insert 3rd Trigger executed for t1')	utf8mb3	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER triggers.trg1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8	utf8_general_ci	latin1_swedish_ci	#
+trg1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `trg1` AFTER DELETE ON `t1` FOR EACH ROW begin set@a=1; end	utf8mb3	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER triggers.t1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'ÂÌÁÂÌÁÂÌÁ'	utf8	utf8_general_ci	latin1_swedish_ci	#
+t1_bi	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `t1_bi` BEFORE INSERT ON `t1` FOR EACH ROW SET @a:=_koi8r'ÂÌÁÂÌÁÂÌÁ'	utf8mb3	utf8_general_ci	latin1_swedish_ci	#
 SHOW CREATE TRIGGER test.tr1_bi;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 tr1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1_bi` BEFORE INSERT ON `vt2` FOR EACH ROW SET @a:=1	latin1	latin1_swedish_ci	latin1_swedish_ci	#

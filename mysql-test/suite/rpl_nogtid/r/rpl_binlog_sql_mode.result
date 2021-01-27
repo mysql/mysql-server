@@ -134,37 +134,37 @@ p1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER="
 SELECT 1	utf8mb3	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE TRIGGER db1.t_DB2;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_DB2` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.63
+t_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_DB2` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.63
 SHOW CREATE TRIGGER db1.t_MAXDB;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MAXDB` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.63
+t_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MAXDB` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.63
 SHOW CREATE TRIGGER db1.t_MSSQL;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_MSSQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MSSQL` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.64
+t_MSSQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MSSQL` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.64
 SHOW CREATE TRIGGER db1.t_MYSQL323;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_MYSQL323	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MYSQL323` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.64
+t_MYSQL323	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MYSQL323` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.64
 SHOW CREATE TRIGGER db1.t_MYSQL40;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_MYSQL40	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MYSQL40` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.65
+t_MYSQL40	HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MYSQL40` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.65
 SHOW CREATE TRIGGER db1.t_NO_FIELD_OPTIONS;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_NO_FIELD_OPTIONS		CREATE DEFINER=`root`@`localhost` TRIGGER `t_NO_FIELD_OPTIONS` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.65
+t_NO_FIELD_OPTIONS		CREATE DEFINER=`root`@`localhost` TRIGGER `t_NO_FIELD_OPTIONS` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.65
 SHOW CREATE TRIGGER db1.t_NO_KEY_OPTIONS;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_NO_KEY_OPTIONS		CREATE DEFINER=`root`@`localhost` TRIGGER `t_NO_KEY_OPTIONS` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.66
+t_NO_KEY_OPTIONS		CREATE DEFINER=`root`@`localhost` TRIGGER `t_NO_KEY_OPTIONS` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.66
 SHOW CREATE TRIGGER db1.t_NO_TABLE_OPTIONS;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_NO_TABLE_OPTIONS		CREATE DEFINER=`root`@`localhost` TRIGGER `t_NO_TABLE_OPTIONS` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.66
+t_NO_TABLE_OPTIONS		CREATE DEFINER=`root`@`localhost` TRIGGER `t_NO_TABLE_OPTIONS` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.66
 SHOW CREATE TRIGGER db1.t_ORACLE;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_ORACLE` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.67
+t_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_ORACLE` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.67
 SHOW CREATE TRIGGER db1.t_POSTGRESQL;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_POSTGRESQL` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.67
+t_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_POSTGRESQL` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.67
 SHOW CREATE TRIGGER db1.t1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t1` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.68
+t1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t1` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8mb3	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.68
 ==== Clean up ====
 DROP SCHEMA db1;
 include/stop_slave_sql.inc

@@ -4857,7 +4857,6 @@ t1
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	dd_table	NULL	index	NULL	name	195	NULL	2	100.00	Using where; Using index
 Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select `test`.`dd_table`.`name` AS `table_name` from `test`.`dd_table` where ((`test`.`dd_table`.`name` collate utf8_tolower_ci) = <cache>(id@0))
 DROP PROCEDURE sub1;
 DROP VIEW view1;
