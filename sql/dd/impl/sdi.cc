@@ -57,6 +57,7 @@
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"      // dd::Column
 #include "sql/dd/types/index.h"       // dd::Index
+#include "sql/dd/types/partition.h"   // dd::Partition
 #include "sql/dd/types/schema.h"      // dd::Schema
 #include "sql/dd/types/table.h"       // dd::Table
 #include "sql/dd/types/tablespace.h"  // dd::Tablespace
@@ -670,6 +671,24 @@ bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp) {
   });
 }
 
+namespace {
+template <typename DDT>
+bool drop_all_impl(THD *thd, const DDT *tp) {
+  const DDT &t = ptr_as_cref(tp);
+  const handlerton &hton = ptr_as_cref(resolve_hton(thd, t));
+  assert(hton.sdi_get != nullptr && hton.sdi_delete != nullptr);
+
+  return checked_return(sdi_tablespace::drop_all_sdi(thd, hton, t));
+}
+}  // namespace
+
+bool drop_all_for_table(THD *thd, const Table *tp) {
+  return drop_all_impl(thd, tp);
+}
+
+bool drop_all_for_part(THD *thd, const Partition *pp) {
+  return drop_all_impl(thd, pp);
+}
 }  // namespace sdi
 }  // namespace dd
 /** @{ */  // end of group sdi_api

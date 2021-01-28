@@ -84,6 +84,7 @@
 #include "sql/dd/dd_table.h"    // dd::drop_table, dd::update_keys...
 #include "sql/dd/dictionary.h"  // dd::Dictionary
 #include "sql/dd/properties.h"  // dd::Properties
+#include "sql/dd/sdi_api.h"     // dd::sdi::drop_sdis
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/check_constraint.h"  // dd::Check_constraint
@@ -92,6 +93,7 @@
 #include "sql/dd/types/foreign_key_element.h"  // dd::Foreign_key_element
 #include "sql/dd/types/index.h"                // dd::Index
 #include "sql/dd/types/index_element.h"        // dd::Index_element
+#include "sql/dd/types/partition.h"            // dd::Partition
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"  // dd::Table
 #include "sql/dd/types/trigger.h"
@@ -10948,6 +10950,56 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
   if (error) {
     table_list->table->file->print_error(error, MYF(0));
   } else {
+    // When we have imported a tablespace we need to remove any old SDIs stored
+    // in it because new SDIs need not have the same keys as those found in the
+    // tablspace.
+    if ((m_alter_info->flags & Alter_info::ALTER_IMPORT_TABLESPACE)) {
+      // When we have imported tablespaces for individual partitions, we must
+      // limit SDI removal to the tablespaces for the mentioned partitions.
+      if (m_alter_info->partition_names.elements > 0) {
+        DBUG_PRINT("ddsdi", ("Import partition tablespace for query:%s",
+                             thd->query().str));
+        const auto &pi = *table_list->table->part_info;
+#ifndef NDEBUG
+        for (const auto &pn : *table_list->partition_names) {
+          DBUG_PRINT("ddsdi", ("Importing partition %s", pn.ptr()));
+        }
+        const auto &part_name_hash =
+            *static_cast<Partition_share *>(table_list->table->s->ha_share)
+                 ->partition_name_hash;
+#endif /* NDEBUG */
+        uint pa_id = 0;
+        for (const auto &lp : *table_def->leaf_partitions()) {
+#ifndef NDEBUG
+          // Verify that part_id corresponds to index in leaf partition vector.
+          auto part_def = find_or_nullptr(
+              part_name_hash,
+              std::string(lp->name().c_str(), lp->name().length()));
+          assert(part_def != nullptr);
+          assert(part_def->part_id == pa_id);
+#endif /* NDEBUG */
+          DBUG_PRINT("ddsdi",
+                     ("Checking leaf partition %s, is_used(pa_id:%u):%s",
+                      lp->name().c_str(), pa_id,
+                      pi.is_partition_used(pa_id) ? "true" : "false"));
+          if (pi.is_partition_used(pa_id) &&
+              dd::sdi::drop_all_for_part(thd, lp)) {
+            error = 1;
+            break;
+          }
+          ++pa_id;
+        }
+      } else {
+        assert(m_alter_info->partition_names.elements == 0);
+        // We get here when we have imported a table tablespace, or all
+        // partition tablespaces. In this case, we remove SDIs from all
+        // tablespaces associated with the table.
+        if (dd::sdi::drop_all_for_table(thd, table_def)) {
+          error = 1;
+        }
+      }
+    }
+
     /*
       Storage engine supporting atomic DDL can fully rollback discard/
       import if any problem occurs. This will happen during statement
@@ -10957,7 +11009,8 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
       have been updated by SE. If this step or subsequent write to binary
       log fail then statement rollback will also restore status quo ante.
     */
-    if (is_non_tmp_table && (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+    if (!error && is_non_tmp_table &&
+        (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
         thd->dd_client()->update(table_def))
       error = 1;
 
