@@ -304,7 +304,7 @@ CREATE TABLE ÔÁÂÌÉÃÁ (ÐÏÌÑ VARCHAR(30) CHARACTER SET ujis COLLATE uji
 CREATE VIEW `±í¸ñ` AS SELECT _ujis'×Ö¶ÎÒ»';
 Warnings:
 Warning	1300	Invalid ujis character string: 'C397C3'
-Warning	1300	Cannot convert string '\xC3\x97\xC3\x96\xC2\xB6...' from ujis to utf8
+Warning	1300	Cannot convert string '\xC3\x97\xC3\x96\xC2\xB6...' from ujis to utf8mb3
 INSERT INTO ÔÁÂÌÉÃÁ VALUES (_ujis'MYSQLPUMP'), (_ujis'한글입력기');
 Warnings:
 Warning	1300	Invalid ujis character string: 'ED959C'

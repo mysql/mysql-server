@@ -1570,13 +1570,15 @@ bool THD::convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
                          from_length, from_cs, 6);
     if (report_error) {
       my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff,
-               from_cs->csname, to_cs->csname);
+               replace_utf8_utf8mb3(from_cs->csname),
+               replace_utf8_utf8mb3(to_cs->csname));
       return true;
     } else {
       push_warning_printf(this, Sql_condition::SL_WARNING,
                           ER_INVALID_CHARACTER_STRING,
                           ER_THD(this, ER_CANNOT_CONVERT_STRING),
-                          printable_buff, from_cs->csname, to_cs->csname);
+                          printable_buff, replace_utf8_utf8mb3(from_cs->csname),
+                          replace_utf8_utf8mb3(to_cs->csname));
     }
   }
 

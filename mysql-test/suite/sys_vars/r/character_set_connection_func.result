@@ -32,7 +32,7 @@ SELECT 'ЁЂЃЄ' AS utf_text;
 utf_text
 ????
 Warnings:
-Warning	1300	Cannot convert string '\xD0\x81\xD0\x82\xD0\x83...' from utf8 to latin1
+Warning	1300	Cannot convert string '\xD0\x81\xD0\x82\xD0\x83...' from utf8mb3 to latin1
 SET @@session.character_set_connection = utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -43,7 +43,7 @@ utf_text
 SET @@session.character_set_connection = ascii;
 INSERT INTO t1 VALUES('ЁЂЃЄ');
 Warnings:
-Warning	1300	Cannot convert string '\xD0\x81\xD0\x82\xD0\x83...' from utf8 to ascii
+Warning	1300	Cannot convert string '\xD0\x81\xD0\x82\xD0\x83...' from utf8mb3 to ascii
 SELECT * FROM t1;
 b
 ????

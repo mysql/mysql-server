@@ -64,25 +64,25 @@ DROP DATABASE db21958734;
 USE test;
 SET NAMES utf8mb4;
 SELECT 'x' AS '🐬';
-ERROR HY000: Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+ERROR HY000: Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8mb3
 SELECT '🐬';
 ?
 🐬
 CREATE TABLE 🐬(a INT);
 Warnings:
-Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8mb3
 CREATE TABLE t1(🐬 INT);
 Warnings:
-Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8mb3
 CREATE TABLE t2(a INT COMMENT "🐬");
 Warnings:
-Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8mb3
 CREATE TABLE t3(a INT);
 CREATE VIEW v1 AS SELECT 'x' AS'🐬';
-ERROR HY000: Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+ERROR HY000: Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8mb3
 DROP TABLE 🐬;
 Warnings:
-Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8
+Warning	1300	Cannot convert string '\xF0\x9F\x90\xAC' from utf8mb4 to utf8mb3
 DROP TABLE t1, t2, t3;
 PREPARE stmt FROM "SELECT 'x' AS '🐬'";
 EXECUTE stmt;
