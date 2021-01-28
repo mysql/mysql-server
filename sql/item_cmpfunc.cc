@@ -6355,6 +6355,19 @@ void Item_func_like::update_used_tables() {
   if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
 }
 
+void Item_func_like::print(const THD *thd, String *str,
+                           enum_query_type query_type) const {
+  str->append('(');
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" like "));
+  args[1]->print(thd, str, query_type);
+  if (escape_was_used_in_parsing()) {
+    str->append(STRING_WITH_LEN(" escape "));
+    escape_item->print(thd, str, query_type);
+  }
+  str->append(')');
+}
+
 bool Item_func_xor::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;

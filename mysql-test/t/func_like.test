@@ -343,3 +343,34 @@ prepare s from 'select 1 from t1 where a like ?';
 execute s using @pattern;
 
 drop table t1;
+
+--echo #
+--echo # Bug#26086751: LIKE LOSES ESCAPE CLAUSE WHEN USED IN VIEW
+--echo # Bug#29224931: LIKE ... ESCAPE IS NOT WRITTEN TO DICTIONARY
+--echo # Bug#30211596: `EXPLAIN ... LIKE ... ESCAPE` DOESN'T OUTPUT `ESCAPE`
+--echo #               CLAUSE IN THE WARNING
+--echo #
+
+# Used to miss the ESCAPE clause.
+EXPLAIN SELECT 'abba' LIKE 'abba' ESCAPE 'b';
+
+CREATE TABLE t(x VARCHAR(10),
+               gc INTEGER GENERATED ALWAYS AS (x LIKE 'abba' ESCAPE 'b'));
+INSERT INTO t(x) VALUES ('abba'), ('aba'), ('abbbba');
+
+# Used to miss the ESCAPE clause.
+SHOW CREATE TABLE t;
+
+# Used to return the wrong row.
+SELECT x FROM t WHERE gc <> 0;
+
+CREATE VIEW v AS SELECT x, 'abba' LIKE x ESCAPE 'b' AS y FROM t;
+
+# Used to miss the ESCAPE clause.
+SHOW CREATE VIEW v;
+
+# Used to return the wrong row.
+SELECT x FROM v WHERE y <> 0;
+
+DROP VIEW v;
+DROP TABLE t;

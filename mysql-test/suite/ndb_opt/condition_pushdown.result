@@ -2560,7 +2560,7 @@ explain select * from escapetest where emailaddress like "test|_%" escape '|';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	escapetest	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`escapetest`.`emailaddress` AS `emailaddress`,`test`.`escapetest`.`id` AS `id` from `test`.`escapetest` where (`test`.`escapetest`.`emailaddress` like 'test|_%')
+Note	1003	/* select#1 */ select `test`.`escapetest`.`emailaddress` AS `emailaddress`,`test`.`escapetest`.`id` AS `id` from `test`.`escapetest` where (`test`.`escapetest`.`emailaddress` like 'test|_%' escape '|')
 select * from escapetest where emailaddress like "test|_%" escape '|';
 emailaddress	id
 test_data@test.org	1
