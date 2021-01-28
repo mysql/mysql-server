@@ -43,6 +43,10 @@
 #include <algorithm>
 
 #include <mysql/components/services/log_builtins.h>
+#include <mysql/thread_pool_priv.h>
+#include "../sql/current_thd.h"
+#include "../sql/sql_class.h"
+#include "../sql/sql_thd_internal_api.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -1380,7 +1384,17 @@ static bool net_read_raw_loop(NET *net, size_t count) {
     if (net->pkt_nr == 0 && vio_was_timeout(net->vio)) {
       net->last_errno = ER_CLIENT_INTERACTION_TIMEOUT;
       /* Socket should be closed after trying to write/send error. */
-      LogErr(INFORMATION_LEVEL, ER_NET_WAIT_ERROR);
+      THD *thd = current_thd;
+      if (thd) {
+        Security_context *sctx = thd->security_context();
+        std::string timeout{std::to_string(thd_get_net_wait_timeout(thd))};
+        std::string userhost;
+        userhost.append(sctx->user().str).append("@").append(sctx->host().str);
+        LogErr(INFORMATION_LEVEL, ER_NET_WAIT_ERROR2, timeout.c_str(),
+               userhost.c_str());
+      } else {
+        LogErr(INFORMATION_LEVEL, ER_NET_WAIT_ERROR);
+      }
     }
     net->error = NET_ERROR_SOCKET_NOT_READABLE;
     /*

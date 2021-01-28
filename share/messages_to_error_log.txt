@@ -11262,6 +11262,9 @@ ER_IB_WRN_FAILED_TO_ACQUIRE_SERVICE
 ER_IB_WRN_OLD_GEOMETRY_TYPE
   eng "Column %s of type GEOMETRY is in old (5.6) format which could be deprecated in the future. To change the format to latest, please consider rebuilding the table after the upgrade."
 
+ER_NET_WAIT_ERROR2
+  eng "'wait_timeout' period of %s seconds was exceeded for %s. The idle time since last command was too long."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
