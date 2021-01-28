@@ -260,3 +260,42 @@ XA COMMIT 'xid1';
 
 DROP TABLE t1;
 --disable_connect_log
+
+
+--echo #
+--echo # Bug#32025408: MAIN.XA_PREPARED_BINLOG_OFF,BINLOG.BINLOG_XA_PREPARED_DISCON FAILS ON ASAN/UBSAN
+--echo #
+
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1(i INT);
+
+--echo # Create a connection which as non-prepared XA trans.
+connect(conA,localhost,root,,);
+XA START 'trx1';
+INSERT INTO t1 set i=0;
+XA END 'trx1';
+
+--echo # Create new connection which will execute XA COMMIT and be blocked between search in transaction cache and
+--echo # accessing xid_state (to see if txn can be committed).
+connect(conB,localhost,root,,);
+SET DEBUG_SYNC="before_accessing_xid_state SIGNAL proceed_disconnect WAIT_FOR proceed_check_xid_state";
+--send XA COMMIT 'trx1'
+
+--echo # Terminate conA which will delete the Transaction_ctx and with it the XID_STATE
+--connection conA
+SET DEBUG_SYNC="now WAIT_FOR proceed_disconnect";
+--disconnect conA
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Unblock XA COMMIT. Without fix this will access the now freed memory, and trigger ASAN error.
+SET DEBUG_SYNC="now SIGNAL proceed_check_xid_state";
+
+--connection conB
+--error ER_XAER_NOTA
+--reap
+--disconnect conB
+
+--connection default
+DROP TABLE t1;

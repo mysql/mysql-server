@@ -46,6 +46,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"  // Scope_guard
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"  // is_transaction_empty
 #include "sql/clone_handler.h"
@@ -92,12 +93,16 @@ static mysql_mutex_t LOCK_transaction_cache;
 static malloc_unordered_map<std::string, std::shared_ptr<Transaction_ctx>>
     transaction_cache{key_memory_xa_transaction_contexts};
 
+// Used to create keys for the map
+static std::string to_string(const XID &xid) {
+  return std::string(pointer_cast<const char *>(xid.key()), xid.key_length());
+}
+
 static const uint MYSQL_XID_PREFIX_LEN = 8;  // must be a multiple of 8
 static const uint MYSQL_XID_OFFSET = MYSQL_XID_PREFIX_LEN + sizeof(server_id);
 static const uint MYSQL_XID_GTRID_LEN = MYSQL_XID_OFFSET + sizeof(my_xid);
 
 static void attach_native_trx(THD *thd);
-static std::shared_ptr<Transaction_ctx> transaction_cache_search(XID *xid);
 static bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 static bool transaction_cache_insert_recovery(XID *xid);
 
@@ -473,36 +478,43 @@ find_trn_for_recover_and_check_its_state(THD *thd,
   }
 
   /*
-    Note, that there is no race condition here between
-    transaction_cache_search and transaction_cache_delete,
-    since we always delete our own XID
-    (m_xid == thd->transaction().xid_state().m_xid).
-    The only case when m_xid != thd->transaction.xid_state.m_xid
-    and xid_state->in_thd == 0 is in the function
-    transaction_cache_insert_recovery(XID), which is called before starting
-    client connections, and thus is always single-threaded.
+    There is a race between transaction_cache_delete() and our reading of the
+    result from transaction_cache.find(), since THD destruction might be
+    about to delete the transaction returned by the search. Once we have
+    established that the returned transaction has been detached
+    (xs->is_in_recovery() == true), there is no race because then the
+    Transaction_ctx found by the search is not owned by a THD.
   */
-  std::shared_ptr<Transaction_ctx> transaction =
-      transaction_cache_search(xid_for_trn_in_recover);
+  mysql_mutex_lock(&LOCK_transaction_cache);
+  auto grd =
+      create_scope_guard([]() { mysql_mutex_unlock(&LOCK_transaction_cache); });
 
-  XID_STATE *xs = (transaction ? transaction->xid_state() : nullptr);
-
-  /*
-    Check if formatID of transaction matches and transaction is in recovery
-    state.
-  */
-  if (!xs || !xs->get_xid()->eq(xid_for_trn_in_recover) ||
-      !xs->is_in_recovery()) {
+  auto foundit = transaction_cache.find(to_string(*xid_for_trn_in_recover));
+  if (foundit == transaction_cache.end()) {
     my_error(ER_XAER_NOTA, MYF(0));
     return nullptr;
-  } else if (thd->in_active_multi_stmt_transaction()) {
+  }
+
+  DEBUG_SYNC(thd, "before_accessing_xid_state");
+  assert(foundit->second);
+  const XID_STATE *xs = foundit->second->xid_state();
+
+  // Check if formatID of transaction matches and transaction is in recovery
+  // state. Note that XID_STATE::eq() does NOT implement the same comparison
+  // as that used to compare keys in transaction_cache, which only compares
+  // the XID_STATE key, and ignores formatID.
+  if (!xs->get_xid()->eq(xid_for_trn_in_recover) || !xs->is_in_recovery()) {
+    my_error(ER_XAER_NOTA, MYF(0));
+    return nullptr;
+  }
+  if (thd->in_active_multi_stmt_transaction()) {
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
     return nullptr;
   }
 
   assert(xs->is_in_recovery());
 
-  return transaction;
+  return foundit->second;
 }
 
 /**
@@ -1453,10 +1465,6 @@ char *XID::xid_to_str(char *buf) const {
 }
 #endif
 
-static inline std::string to_string(const XID &xid) {
-  return std::string(pointer_cast<const char *>(xid.key()), xid.key_length());
-}
-
 /**
   Callback that is called to do cleanup.
 
@@ -1500,28 +1508,6 @@ void transaction_cache_free() {
     transaction_cache.clear();
     mysql_mutex_destroy(&LOCK_transaction_cache);
   }
-}
-
-/**
-  Search information about XA transaction by a XID value.
-
-  @param xid    Pointer to a XID structure that identifies a XA transaction.
-
-  @return  pointer to a Transaction_ctx that describes the whole transaction
-           including XA-specific information (XID_STATE).
-    @retval  NULL     failure
-    @retval  != NULL  success
-*/
-
-static std::shared_ptr<Transaction_ctx> transaction_cache_search(XID *xid) {
-  std::shared_ptr<Transaction_ctx> res{nullptr};
-  mysql_mutex_lock(&LOCK_transaction_cache);
-
-  const auto it = transaction_cache.find(to_string(*xid));
-  if (it != transaction_cache.end()) res = it->second;
-
-  mysql_mutex_unlock(&LOCK_transaction_cache);
-  return res;
 }
 
 /**
