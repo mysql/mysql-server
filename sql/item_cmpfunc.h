@@ -2283,6 +2283,9 @@ class Item_func_like final : public Item_bool_func2 {
   void cleanup() override;
   Item *replace_scalar_subquery(uchar *) override;
   void update_used_tables() override;
+  // Overridden because Item_bool_func2::print() doesn't print escape_item.
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   /**
     @retval true non default escape char specified
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
