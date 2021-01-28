@@ -194,8 +194,10 @@ drop user foo@localhost;
 drop user xplugin@localhost;
 update mysql.user set password_last_changed = @passwordchanged where host = 'localhost' and user='x_root';
 flush privileges;
+--remove_file $MYSQL_TMP_DIR/connection_expect_expired_user_xplugin.tmp
 --remove_file $MYSQL_TMP_DIR/connection_expire_x_root.tmp
 --remove_file $MYSQL_TMP_DIR/connection_expire.tmp
+--remove_file $MYSQL_TMP_DIR/connection_expire_empty.tmp
 --remove_file $MYSQL_TMP_DIR/connection_expire_user.tmp
 --remove_file $MYSQL_TMP_DIR/connection_expire_x_root_wrongpwd.tmp
 --remove_file $MYSQL_TMP_DIR/connection_expire_user_xplugin.tmp
