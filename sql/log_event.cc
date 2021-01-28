@@ -13862,7 +13862,7 @@ end:
 
 Log_event::enum_skip_reason Transaction_payload_log_event::do_shall_skip(
     Relay_log_info *rli) {
-  return Log_event::continue_group(rli);
+  return Log_event::do_shall_skip(rli);
 }
 
 bool Transaction_payload_log_event::write(Basic_ostream *ostream) {
