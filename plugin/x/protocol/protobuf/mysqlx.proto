@@ -266,13 +266,13 @@ message Error {
   /** severity of the error message */
   optional Severity severity = 1 [ default = ERROR ];
 
-  /** error-code */
+  /** error code */
   required uint32 code = 2;
 
   /** SQL state */
   required string sql_state = 4;
 
-  /** human readable error message */
+  /** human-readable error message */
   required string msg = 3;
 
   enum Severity {
