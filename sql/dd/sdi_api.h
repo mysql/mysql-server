@@ -181,6 +181,18 @@ bool check_privileges(THD *thd, const Import_target &t);
 */
 MDL_request *mdl_request(const Import_target &t, MEM_ROOT *mem_root);
 
+/**
+  Drop all SDIs from all tablespaces associated with table. For a partitioned
+  table SDIs are deleted from all the partition tablespaces.
+*/
+bool drop_all_for_table(THD *, const Table *);
+
+/**
+  Drop all SDIs from all tablespaces associated with partition or
+  sub-partition. For a top-level partition of a sub-partitioned table, SDIs are
+  removed for all sub-partitions of that partition.
+*/
+bool drop_all_for_part(THD *, const Partition *);
 }  // namespace sdi
 }  // namespace dd
 

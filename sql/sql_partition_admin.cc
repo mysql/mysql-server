@@ -43,6 +43,7 @@
 #include "sql/auth/auth_common.h"            // check_access
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/properties.h"               // dd::Properties
+#include "sql/dd/sdi_api.h"                  // dd::sdi:drop_all
 #include "sql/dd/types/table.h"              // dd::Table
 #include "sql/dd_table_share.h"              // open_table_def
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
@@ -447,6 +448,10 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
 
   DEBUG_SYNC(thd, "swap_partition_before_exchange");
 
+  if (dd::sdi::drop_all_for_table(thd, swap_table_def) ||
+      dd::sdi::drop_all_for_table(thd, part_table_def)) {
+    return true;
+  }
   int ha_error = part_handler->exchange_partition(swap_part_id, part_table_def,
                                                   swap_table_def);
 
