@@ -1999,6 +1999,7 @@ static AccessPath *CreateHashJoinAccessPath(
   path->hash_join().allow_spill_to_disk = allow_spill_to_disk;
   // Will be set later if we get a weedout access path as parent.
   path->hash_join().store_rowids = false;
+  path->hash_join().rewrite_semi_to_inner = false;
   path->hash_join().tables_to_get_rowid_for = 0;
 
   SetCostOnHashJoinAccessPath(*thd->cost_model(), qep_tab->position(), path);

@@ -178,7 +178,10 @@ class SortBufferIterator final : public RowIterator {
   bool Init() override;
   int Read() override;
   void UnlockRow() override {}
-  void SetNullRowFlag(bool is_null_row) override;
+  void SetNullRowFlag(bool) override {
+    // Handled by SortingIterator.
+    assert(false);
+  }
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
@@ -215,7 +218,10 @@ class SortBufferIndirectIterator final : public RowIterator {
   ~SortBufferIndirectIterator() override;
   bool Init() override;
   int Read() override;
-  void SetNullRowFlag(bool is_null_row) override;
+  void SetNullRowFlag(bool) override {
+    // Handled by SortingIterator.
+    assert(false);
+  }
   void UnlockRow() override {}
 
  private:
@@ -248,7 +254,10 @@ class SortFileIterator final : public RowIterator {
   bool Init() override { return false; }
   int Read() override;
   void UnlockRow() override {}
-  void SetNullRowFlag(bool is_null_row) override;
+  void SetNullRowFlag(bool) override {
+    // Handled by SortingIterator.
+    assert(false);
+  }
 
  private:
   uchar *const m_rec_buf;
@@ -282,7 +291,10 @@ class SortFileIndirectIterator final : public RowIterator {
 
   bool Init() override;
   int Read() override;
-  void SetNullRowFlag(bool is_null_row) override;
+  void SetNullRowFlag(bool) override {
+    // Handled by SortingIterator.
+    assert(false);
+  }
   void UnlockRow() override {}
 
  private:

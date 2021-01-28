@@ -139,6 +139,7 @@
   already-established term “interesting order”.
  */
 
+#include "my_table_map.h"
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_array.h"
@@ -230,11 +231,22 @@ class LogicalOrderings {
   // test for. Orderings may be merged, pruned (if uninteresting)
   // and moved around after Build(); see RemapOrderingIndex().
   //
+  // If used_at_end is true, the ordering is assumed to be used only
+  // after all joins have happened, so all FDs are assumed to be
+  // active. This enables reducing the ordering more (which can in
+  // some cases help with better sortahead or the likes), but is not
+  // correct if the ordering wants to be used earlier on, e.g.
+  // in merge join or for semijoin duplicate removal. If it is true,
+  // then it is also only attempted homogenized onto the given set
+  // of tables (otherwise, it is ignored).
+  //
   // The empty ordering/grouping is always index 0.
-  int AddOrdering(THD *thd, Ordering order, bool interesting) {
+  int AddOrdering(THD *thd, Ordering order, bool interesting, bool used_at_end,
+                  table_map homogenize_tables) {
     return AddOrderingInternal(thd, order,
                                interesting ? OrderingWithInfo::INTERESTING
-                                           : OrderingWithInfo::UNINTERESTING);
+                                           : OrderingWithInfo::UNINTERESTING,
+                               used_at_end, homogenize_tables);
   }
 
   // NOTE: Will include the empty ordering.
@@ -354,16 +366,18 @@ class LogicalOrderings {
   //
   // Note that this also means that in planner context, !MoreOrderedThan(a, b)
   // && !MoreOrderedThan(b, a) implies that a == b.
-  bool MoreOrderedThan(StateIndex a_idx, StateIndex b_idx) const {
+  bool MoreOrderedThan(
+      StateIndex a_idx, StateIndex b_idx,
+      std::bitset<kMaxSupportedOrderings> ignored_orderings) const {
     assert(m_built);
     std::bitset<kMaxSupportedOrderings> a =
-        m_dfsm_states[a_idx].follows_interesting_order;
+        m_dfsm_states[a_idx].follows_interesting_order & ~ignored_orderings;
     std::bitset<kMaxSupportedOrderings> b =
-        m_dfsm_states[b_idx].follows_interesting_order;
+        m_dfsm_states[b_idx].follows_interesting_order & ~ignored_orderings;
     std::bitset<kMaxSupportedOrderings> future_a =
-        m_dfsm_states[a_idx].can_reach_interesting_order;
+        m_dfsm_states[a_idx].can_reach_interesting_order & ~ignored_orderings;
     std::bitset<kMaxSupportedOrderings> future_b =
-        m_dfsm_states[b_idx].can_reach_interesting_order;
+        m_dfsm_states[b_idx].can_reach_interesting_order & ~ignored_orderings;
     return (a & b) != a || (future_a & future_b) != future_a;
   }
 
@@ -511,6 +525,11 @@ class LogicalOrderings {
       UNINTERESTING = 0
     } type;
 
+    bool used_at_end;
+
+    // Only used if used_at_end = true (see AddOrdering()).
+    table_map homogenize_tables = 0;
+
     // Which initial state to use for this ordering (in SetOrder()).
     StateIndex state_idx = 0;
   };
@@ -538,8 +557,8 @@ class LogicalOrderings {
   Bounds_checked_array<int> m_optimized_fd_mapping;
 
   // Helper for AddOrdering().
-  int AddOrderingInternal(THD *thd, Ordering order,
-                          OrderingWithInfo::Type type);
+  int AddOrderingInternal(THD *thd, Ordering order, OrderingWithInfo::Type type,
+                          bool used_at_end, table_map homogenize_tables);
 
   // See comment in .cc file.
   void PruneUninterestingOrders(THD *thd);
@@ -566,7 +585,7 @@ class LogicalOrderings {
   void PreReduceOrderings(THD *thd);
   void CreateHomogenizedOrderings(THD *thd);
   void AddHomogenizedOrderingIfPossible(
-      THD *thd, Ordering reduced_ordering, int table_idx,
+      THD *thd, Ordering reduced_ordering, bool used_at_end, int table_idx,
       Bounds_checked_array<std::pair<ItemHandle, ItemHandle>> reverse_canonical,
       OrderElement *tmpbuf);
 

@@ -79,8 +79,9 @@ LogicalOrderings::LogicalOrderings(THD *thd)
   GetHandle(nullptr);  // Always has the zero handle.
 
   // Add the empty ordering/grouping.
-  m_orderings.push_back(
-      OrderingWithInfo{Ordering{nullptr, 0}, OrderingWithInfo::UNINTERESTING});
+  m_orderings.push_back(OrderingWithInfo{Ordering{nullptr, 0},
+                                         OrderingWithInfo::UNINTERESTING,
+                                         /*used_at_end=*/true});
 
   FunctionalDependency decay_fd;
   decay_fd.type = FunctionalDependency::DECAY;
@@ -90,7 +91,9 @@ LogicalOrderings::LogicalOrderings(THD *thd)
 }
 
 int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
-                                          OrderingWithInfo::Type type) {
+                                          OrderingWithInfo::Type type,
+                                          bool used_at_end,
+                                          table_map homogenize_tables) {
   assert(!m_built);
 
 #ifndef NDEBUG
@@ -122,10 +125,12 @@ int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
     if (OrderingsAreEqual(m_orderings[i].ordering, order)) {
       // Potentially promote the existing one.
       m_orderings[i].type = std::max(m_orderings[i].type, type);
+      m_orderings[i].homogenize_tables |= homogenize_tables;
       return i;
     }
   }
-  m_orderings.push_back(OrderingWithInfo{DuplicateArray(thd, order), type});
+  m_orderings.push_back(OrderingWithInfo{DuplicateArray(thd, order), type,
+                                         used_at_end, homogenize_tables});
   m_longest_ordering = std::max<int>(m_longest_ordering, order.size());
 
   return m_orderings.size() - 1;
@@ -261,6 +266,8 @@ void LogicalOrderings::PruneUninterestingOrders(THD *thd) {
     }
 
     // Since some orderings may have changed, we need to re-deduplicate.
+    // Note that at this point, we no longer care about used_at_end;
+    // it was only used for reducing orderings in homogenization.
     m_optimized_ordering_mapping[ordering_idx] = new_length;
     for (int i = 0; i < new_length; ++i) {
       if (OrderingsAreEqual(m_orderings[i].ordering,
@@ -667,15 +674,26 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
       continue;
     }
     Ordering reduced_ordering = ReduceOrdering(
-        m_orderings[ordering_idx].ordering, /*all_fds=*/true, tmpbuf);
+        m_orderings[ordering_idx].ordering,
+        /*all_fds=*/m_orderings[ordering_idx].used_at_end, tmpbuf);
     if (reduced_ordering.empty()) {
       continue;
     }
 
     // Now try to homogenize it onto all tables in turn.
-    for (int table_idx : BitsSetIn(seen_tables)) {
-      AddHomogenizedOrderingIfPossible(thd, reduced_ordering, table_idx,
-                                       reverse_canonical, tmpbuf2);
+    table_map homogenize_tables;
+    if (m_orderings[ordering_idx].used_at_end) {
+      // Try all tables.
+      homogenize_tables = seen_tables;
+    } else {
+      // Try only the ones we were asked to (because it's not relevant
+      // for later tables anyway).
+      homogenize_tables = m_orderings[ordering_idx].homogenize_tables;
+    }
+    for (int table_idx : BitsSetIn(homogenize_tables)) {
+      AddHomogenizedOrderingIfPossible(thd, reduced_ordering,
+                                       m_orderings[ordering_idx].used_at_end,
+                                       table_idx, reverse_canonical, tmpbuf2);
     }
   }
 }
@@ -705,7 +723,7 @@ Ordering LogicalOrderings::ReduceOrdering(Ordering ordering, bool all_fds,
 
 /// Helper function for CreateHomogenizedOrderings().
 void LogicalOrderings::AddHomogenizedOrderingIfPossible(
-    THD *thd, Ordering reduced_ordering, int table_idx,
+    THD *thd, Ordering reduced_ordering, bool used_at_end, int table_idx,
     Bounds_checked_array<pair<ItemHandle, ItemHandle>> reverse_canonical,
     OrderElement *tmpbuf) {
   const table_map available_tables = table_map{1} << table_idx;
@@ -715,7 +733,7 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
     if (IsSubset(m_items[element.item].item->used_tables(), available_tables)) {
       // Already OK.
       if (!ImpliedByEarlierElements(element.item, Ordering(tmpbuf, length),
-                                    /*all_fds=*/true)) {
+                                    /*all_fds=*/used_at_end)) {
         tmpbuf[length++] = element;
       }
       continue;
@@ -738,7 +756,7 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
     for (auto it = first; it != last; ++it) {
       if (IsSubset(m_items[it->second].item->used_tables(), available_tables)) {
         if (ImpliedByEarlierElements(it->second, Ordering(tmpbuf, length),
-                                     /*all_fds=*/true)) {
+                                     /*all_fds=*/used_at_end)) {
           // Unneeded in the new order, so delete it.
           // Similar to the reduction process above.
         } else {
@@ -765,7 +783,8 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
   }
 
   AddOrderingInternal(thd, Ordering(tmpbuf, length),
-                      OrderingWithInfo::HOMOGENIZED);
+                      OrderingWithInfo::HOMOGENIZED, used_at_end,
+                      /*homogenize_tables=*/0);
 }
 
 ItemHandle LogicalOrderings::GetHandle(Item *item) {

@@ -120,16 +120,6 @@ bool SortFileIndirectIterator::Init() {
   return false;
 }
 
-void SortFileIndirectIterator::SetNullRowFlag(bool is_null_row) {
-  for (TABLE *table : m_tables) {
-    if (is_null_row) {
-      table->set_null_row();
-    } else {
-      table->reset_null_row();
-    }
-  }
-}
-
 static int HandleError(THD *thd, TABLE *table, int error) {
   if (thd->killed) {
     thd->send_kill_message();
@@ -244,17 +234,6 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 }
 
 template <bool Packed_addon_fields>
-void SortFileIterator<Packed_addon_fields>::SetNullRowFlag(bool is_null_row) {
-  for (TABLE *table : m_tables) {
-    if (is_null_row) {
-      table->set_null_row();
-    } else {
-      table->reset_null_row();
-    }
-  }
-}
-
-template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
     THD *thd, Mem_root_array<TABLE *> tables, Filesort_info *sort,
     Sort_result *sort_result, ha_rows *examined_rows)
@@ -307,17 +286,6 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
     ++*m_examined_rows;
   }
   return 0;
-}
-
-template <bool Packed_addon_fields>
-void SortBufferIterator<Packed_addon_fields>::SetNullRowFlag(bool is_null_row) {
-  for (TABLE *table : m_tables) {
-    if (is_null_row) {
-      table->set_null_row();
-    } else {
-      table->reset_null_row();
-    }
-  }
 }
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
@@ -408,16 +376,6 @@ int SortBufferIndirectIterator::Read() {
       ++*m_examined_rows;
     }
     return 0;
-  }
-}
-
-void SortBufferIndirectIterator::SetNullRowFlag(bool is_null_row) {
-  for (TABLE *table : m_tables) {
-    if (is_null_row) {
-      table->set_null_row();
-    } else {
-      table->reset_null_row();
-    }
   }
 }
 
@@ -522,6 +480,16 @@ bool SortingIterator::Init() {
   }
 
   return m_result_iterator->Init();
+}
+
+void SortingIterator::SetNullRowFlag(bool is_null_row) {
+  for (TABLE *table : m_filesort->tables) {
+    if (is_null_row) {
+      table->set_null_row();
+    } else {
+      table->reset_null_row();
+    }
+  }
 }
 
 /*

@@ -249,6 +249,24 @@ bool IsInnerJoin(RelationalExpression::Type type) {
 // checking wheher it is null-rejecting on {t1,t2,t3} (b.left), we will
 // erroneously create a conflict rule {t2} → {t1}, since we believe the
 // LJ34 predicate is not null-rejecting on its left side.
+//
+// A special note on semijoins not covered in [Moe13]: If the inner side
+// is known to be free of duplicates on the key (e.g. because we removed
+// them), semijoin is equivalent to inner join and is both commutative
+// and associative. (We use this in the join optimizer.) However, we don't
+// actually need to care about this here, because the way semijoin is
+// defined, it is impossible to do an associate rewrite without there being
+// degenerate join predicates, and we already accept missing some rewrites
+// for them. Ie., for associativity to matter, one would need to have a
+// rewrite like
+//
+//   (t1 SJ12 t2) J23 t3 === t1 SJ12 (t2 J23 t3)
+//
+// but there's no way we could have a condition J23 on the left side
+// to begin with; semijoin in SQL comes from IN or EXISTS, which makes
+// the attributes from t2 inaccessible after the join. Thus, J23 would
+// have to be J3 (degenerate). The same argument explains why we don't
+// need to worry about r-asscom, and semijoins are already l-asscom.
 bool OperatorsAreAssociative(const RelationalExpression &a,
                              const RelationalExpression &b) {
   // Table 2 from [Moe13]; which operator pairs are associative.

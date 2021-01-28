@@ -1757,6 +1757,7 @@ void JOIN::destroy() {
 
   // Run Cached_item DTORs!
   group_fields.destroy_elements();
+  semijoin_deduplication_fields.destroy_elements();
 
   tmp_table_param.cleanup();
 

@@ -9736,8 +9736,8 @@ FROM t1 JOIN t2 ON t2.col_varchar_key = t1.col_varchar_key
 WHERE t2.col_int_key = 1
 );
 col_int_nokey	col_varchar_key
-8	o
 2	q
+8	o
 DROP TABLE t1, t2, t4;
 # End of test for bug#12664936.
 #

@@ -1264,6 +1264,50 @@ int WeedoutIterator::Read() {
   }
 }
 
+RemoveDuplicatesIterator::RemoveDuplicatesIterator(
+    THD *thd, unique_ptr_destroy_only<RowIterator> source, JOIN *join,
+    Item **group_items, int group_items_size)
+    : RowIterator(thd), m_source(move(source)) {
+  m_caches = Bounds_checked_array<Cached_item *>::Alloc(thd->mem_root,
+                                                        group_items_size);
+  for (int i = 0; i < group_items_size; ++i) {
+    m_caches[i] = new_Cached_item(thd, group_items[i]);
+    join->semijoin_deduplication_fields.push_back(m_caches[i]);
+  }
+}
+
+bool RemoveDuplicatesIterator::Init() {
+  m_first_row = true;
+  return m_source->Init();
+}
+
+int RemoveDuplicatesIterator::Read() {
+  for (;;) {
+    int err = m_source->Read();
+    if (err != 0) {
+      return err;
+    }
+
+    if (thd()->killed) {  // Aborted by user.
+      thd()->send_kill_message();
+      return 1;
+    }
+
+    bool any_changed = false;
+    for (Cached_item *cache : m_caches) {
+      any_changed |= cache->cmp();
+    }
+
+    if (m_first_row || any_changed) {
+      m_first_row = false;
+      return 0;
+    }
+
+    // Same as previous row, so keep scanning.
+    continue;
+  }
+}
+
 RemoveDuplicatesOnIndexIterator::RemoveDuplicatesOnIndexIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source, const TABLE *table,
     KEY *key, size_t key_len)

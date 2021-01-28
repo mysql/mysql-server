@@ -4840,6 +4840,7 @@ WHERE (col_int_nokey, col_varchar_key) IN
 );
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2, t4;

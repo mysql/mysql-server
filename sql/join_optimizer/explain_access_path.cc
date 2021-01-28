@@ -534,7 +534,10 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     case AccessPath::HASH_JOIN: {
       const JoinPredicate *predicate = path->hash_join().join_predicate;
-      string ret = HashJoinTypeToString(predicate->expr->type);
+      RelationalExpression::Type type = path->hash_join().rewrite_semi_to_inner
+                                            ? RelationalExpression::INNER_JOIN
+                                            : predicate->expr->type;
+      string ret = HashJoinTypeToString(type);
 
       if (predicate->expr->equijoin_conditions.empty()) {
         ret.append(" (no condition)");
@@ -746,6 +749,18 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       ret += " rows using temporary table (weedout)";
       description.push_back(ret);
       children.push_back({path->weedout().child});
+      break;
+    }
+    case AccessPath::REMOVE_DUPLICATES: {
+      string ret = "Remove duplicates from input grouped on ";
+      for (int i = 0; i < path->remove_duplicates().group_items_size; ++i) {
+        if (i != 0) {
+          ret += ", ";
+        }
+        ret += ItemToString(path->remove_duplicates().group_items[i]);
+      }
+      description.push_back(std::move(ret));
+      children.push_back({path->remove_duplicates().child});
       break;
     }
     case AccessPath::REMOVE_DUPLICATES_ON_INDEX:

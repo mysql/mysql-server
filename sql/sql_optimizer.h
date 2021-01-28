@@ -304,6 +304,10 @@ class JOIN {
   mem_root_deque<Item *> *fields;
   List<Cached_item> group_fields{};
   List<Cached_item> group_fields_cache{};
+
+  // For destroying fields otherwise owned by RemoveDuplicatesIterator.
+  List<Cached_item> semijoin_deduplication_fields{};
+
   Item_sum **sum_funcs{nullptr};
   /**
      Describes a temporary table.

@@ -57,6 +57,7 @@
 #include "sql/table.h"
 #include "sql_string.h"
 
+class Cached_item;
 class FollowTailIterator;
 class Item;
 class JOIN;
@@ -797,12 +798,44 @@ class WeedoutIterator final : public RowIterator {
 
 /**
   An iterator that removes consecutive rows that are the same according to
-  a given index (or more accurately, its keypart), so-called “loose scan”
+  a set of items (typically the join key), so-called “loose scan”
   (not to be confused with “loose index scan”, which is a QUICK_SELECT_I).
   This is similar in spirit to WeedoutIterator above (removing duplicates
   allows us to treat the semijoin as a normal join), but is much cheaper
   if the data is already ordered/grouped correctly, as the removal can
   happen before the join, and it does not need a temporary table.
+ */
+class RemoveDuplicatesIterator final : public RowIterator {
+ public:
+  RemoveDuplicatesIterator(THD *thd,
+                           unique_ptr_destroy_only<RowIterator> source,
+                           JOIN *join, Item **group_items,
+                           int group_items_size);
+
+  bool Init() override;
+  int Read() override;
+
+  void SetNullRowFlag(bool is_null_row) override {
+    m_source->SetNullRowFlag(is_null_row);
+  }
+
+  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
+  void EndPSIBatchModeIfStarted() override {
+    m_source->EndPSIBatchModeIfStarted();
+  }
+  void UnlockRow() override { m_source->UnlockRow(); }
+
+ private:
+  unique_ptr_destroy_only<RowIterator> m_source;
+  Bounds_checked_array<Cached_item *> m_caches;
+  bool m_first_row;
+};
+
+/**
+  Much like RemoveDuplicatesIterator, but works on the basis of a given index
+  (or more accurately, its keypart), not an arbitrary list of grouped fields.
+  This is only used in the non-hypergraph optimizer; the hypergraph optimizer
+  can deal with groupings that come from e.g. sorts.
  */
 class RemoveDuplicatesOnIndexIterator final : public RowIterator {
  public:

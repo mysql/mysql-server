@@ -202,6 +202,8 @@ table_map GetUsedTables(const AccessPath *path) {
       return GetUsedTables(path->windowing().child);
     case AccessPath::WEEDOUT:
       return GetUsedTables(path->weedout().child);
+    case AccessPath::REMOVE_DUPLICATES:
+      return GetUsedTables(path->remove_duplicates().child);
     case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
       return GetUsedTables(path->remove_duplicates_on_index().child);
     case AccessPath::ALTERNATIVE:
@@ -517,7 +519,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           join_type = JoinType::ANTI;
           break;
         case RelationalExpression::SEMIJOIN:
-          join_type = JoinType::SEMI;
+          join_type =
+              param.rewrite_semi_to_inner ? JoinType::INNER : JoinType::SEMI;
           break;
         case RelationalExpression::TABLE:
         default:
@@ -720,6 +723,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
       iterator = NewIterator<WeedoutIterator>(
           thd, move(child), param.weedout_table, param.tables_to_get_rowid_for);
+      break;
+    }
+    case AccessPath::REMOVE_DUPLICATES: {
+      const auto &param = path->remove_duplicates();
+      unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
+          thd, param.child, join, eligible_for_batch_mode);
+      iterator = NewIterator<RemoveDuplicatesIterator>(
+          thd, move(child), join, param.group_items, param.group_items_size);
       break;
     }
     case AccessPath::REMOVE_DUPLICATES_ON_INDEX: {

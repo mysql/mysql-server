@@ -84,6 +84,17 @@ struct JoinPredicate {
   // (FunctionalDependencySet bitmaps are only available after all functional
   // indexes have been collected and Build() has been called).
   Mem_root_array<int> functional_dependencies_idx;
+
+  // If this is a suitable semijoin: Contains the grouping given by the
+  // join key. If the rows are in this grouping, then the join optimizer will
+  // consider deduplicating on it and inverting the join. -1 otherwise.
+  int ordering_idx_needed_for_semijoin_rewrite = -1;
+
+  // Same as ordering_idx_needed_for_semijoin_rewrite, but given to the
+  // RemoveDuplicatesIterator for doing the actual grouping. Allocated
+  // on the MEM_ROOT. Can be empty, in which case a LIMIT 1 would do.
+  Item **semijoin_group = nullptr;
+  int semijoin_group_size = 0;
 };
 
 /**
@@ -179,6 +190,7 @@ struct AccessPath {
     APPEND,
     WINDOWING,
     WEEDOUT,
+    REMOVE_DUPLICATES,
     REMOVE_DUPLICATES_ON_INDEX,
     ALTERNATIVE,
     CACHE_INVALIDATOR
@@ -589,6 +601,14 @@ struct AccessPath {
     assert(type == WEEDOUT);
     return u.weedout;
   }
+  auto &remove_duplicates() {
+    assert(type == REMOVE_DUPLICATES);
+    return u.remove_duplicates;
+  }
+  const auto &remove_duplicates() const {
+    assert(type == REMOVE_DUPLICATES);
+    return u.remove_duplicates;
+  }
   auto &remove_duplicates_on_index() {
     assert(type == REMOVE_DUPLICATES_ON_INDEX);
     return u.remove_duplicates_on_index;
@@ -713,6 +733,7 @@ struct AccessPath {
       const JoinPredicate *join_predicate;
       bool allow_spill_to_disk;
       bool store_rowids;  // Whether we are below a weedout or not.
+      bool rewrite_semi_to_inner;
       table_map tables_to_get_rowid_for;
     } hash_join;
     struct {
@@ -813,6 +834,11 @@ struct AccessPath {
       SJ_TMP_TABLE *weedout_table;
       table_map tables_to_get_rowid_for;
     } weedout;
+    struct {
+      AccessPath *child;
+      Item **group_items;
+      int group_items_size;
+    } remove_duplicates;
     struct {
       AccessPath *child;
       TABLE *table;
@@ -1274,6 +1300,17 @@ inline AccessPath *NewWeedoutAccessPath(THD *thd, AccessPath *child,
   path->weedout().weedout_table = weedout_table;
   path->weedout().tables_to_get_rowid_for =
       0;  // Must be handled by the caller.
+  return path;
+}
+
+inline AccessPath *NewRemoveDuplicatesAccessPath(THD *thd, AccessPath *child,
+                                                 Item **group_items,
+                                                 int group_items_size) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::REMOVE_DUPLICATES;
+  path->remove_duplicates().child = child;
+  path->remove_duplicates().group_items = group_items;
+  path->remove_duplicates().group_items_size = group_items_size;
   return path;
 }
 

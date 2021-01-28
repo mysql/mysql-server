@@ -1509,6 +1509,66 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   query_block->join->filesorts_to_cleanup.shrink_to_fit();
 }
 
+TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x IN (SELECT t2.x FROM t2)",
+                      /*nullable=*/true);
+
+  // Make t1 large and with a relevant index, and t2 small
+  // and with none. The best plan then will be to remove
+  // duplicates from t2 and then do lookups into t1.
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
+                                    /*column2=*/nullptr,
+                                    /*unique=*/true);
+  m_fake_tables["t1"]->file->stats.records = 1000000;
+  m_fake_tables["t1"]->file->stats.data_file_length = 10000e6;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The join should be changed to an _inner_ join, and the inner side
+  // should be an EQ_REF on t1.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
+
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::EQ_REF, inner->type);
+  EXPECT_STREQ("t1", inner->eq_ref().table->alias);
+
+  // The outer side is slightly trickier. There should first be
+  // a duplicate removal on the join key...
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::REMOVE_DUPLICATES, outer->type);
+  ASSERT_EQ(1, outer->remove_duplicates().group_items_size);
+  EXPECT_EQ("t2.x", ItemToString(outer->remove_duplicates().group_items[0]));
+
+  // ...then a sort to get the grouping...
+  AccessPath *sort = outer->remove_duplicates().child;
+  ASSERT_EQ(AccessPath::SORT, sort->type);
+  Filesort *filesort = sort->sort().filesort;
+  ASSERT_EQ(1, filesort->sort_order_length());
+  EXPECT_EQ("t2.x", ItemToString(filesort->sortorder[0].item));
+
+  // Note that ideally, we'd have true here instead of the duplicate removal,
+  // but we can't track duplicates-removed status through AccessPaths yet.
+  EXPECT_FALSE(filesort->m_remove_duplicates);
+
+  // ...and then finally a table scan.
+  AccessPath *t2 = sort->sort().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
+  EXPECT_STREQ("t2", t2->table_scan().table->alias);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

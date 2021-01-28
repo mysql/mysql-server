@@ -81,6 +81,7 @@ using hypergraph::Hyperedge;
 using hypergraph::Hypergraph;
 using hypergraph::NodeMap;
 using std::array;
+using std::bitset;
 using std::min;
 using std::string;
 using std::swap;
@@ -99,6 +100,8 @@ constexpr double kSortOneRowCost = 0.1;
 constexpr double kHashBuildOneRowCost = 0.1;
 constexpr double kHashProbeOneRowCost = 0.1;
 constexpr double kMaterializeOneRowCost = 0.1;
+
+using OrderingSet = std::bitset<kMaxSupportedOrderings>;
 
 void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order);
 
@@ -198,6 +201,7 @@ class CostingReceiver {
 
   void ProposeAccessPath(AccessPath *path,
                          Prealloced_array<AccessPath *, 4> *existing_paths,
+                         OrderingSet obsolete_orderings,
                          const char *description_for_trace) const;
 
   bool HasSecondaryEngineCostHook() const {
@@ -223,6 +227,19 @@ class CostingReceiver {
   struct AccessPathSet {
     Prealloced_array<AccessPath *, 4> paths;
     FunctionalDependencySet active_functional_dependencies{0};
+
+    // Once-interesting orderings that we don't care about anymore,
+    // e.g. because they were interesting for a semijoin but that semijoin
+    // is now done (with or without using the ordering). This reduces
+    // the number of access paths we have to keep in play, since they are
+    // de-facto equivalent.
+    //
+    // Note that if orderings were merged, this could falsely prune out
+    // orderings that we would actually need, but as long as all of the
+    // relevant ones are semijoin orderings (which are never identical,
+    // and never merged with the relevant-at-end orderings), this
+    // should not happen.
+    OrderingSet obsolete_orderings{0};
   };
 
   /**
@@ -306,6 +323,7 @@ class CostingReceiver {
                                      AccessPath *path);
   void ProposeAccessPathWithOrderings(NodeMap nodes,
                                       FunctionalDependencySet fd_set,
+                                      OrderingSet obsolete_orderings,
                                       AccessPath *path,
                                       const char *description_for_trace);
   bool ProposeTableScan(TABLE *table, int node_idx,
@@ -317,10 +335,14 @@ class CostingReceiver {
                         int ordering_idx);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge,
-                             FunctionalDependencySet new_fd_set);
+                             bool rewrite_semi_to_inner,
+                             FunctionalDependencySet new_fd_set,
+                             OrderingSet new_obsolete_orderings);
   void ProposeHashJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                        AccessPath *right_path, const JoinPredicate *edge,
-                       FunctionalDependencySet new_fd_set, bool *wrote_trace);
+                       FunctionalDependencySet new_fd_set,
+                       OrderingSet new_obsolete_orderings,
+                       bool rewrite_semi_to_inner, bool *wrote_trace);
   void ApplyPredicatesForBaseTable(int node_idx, uint64_t applied_predicates,
                                    uint64_t subsumed_predicates,
                                    bool materialize_subqueries,
@@ -754,7 +776,7 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
         subsumed_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
 
     ProposeAccessPathWithOrderings(
-        TableBitmap(node_idx), new_fd_set, &path,
+        TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, &path,
         materialize_subqueries ? "mat. subq" : key->name);
 
     if (!Overlaps(path.filter_predicates, m_graph.materializable_predicates)) {
@@ -960,7 +982,7 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
     ProposeAccessPathWithOrderings(
-        TableBitmap(node_idx), new_fd_set, path,
+        TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, path,
         materialize_subqueries ? "mat. subq" : description_for_trace);
 
     if (!Overlaps(path->filter_predicates, m_graph.materializable_predicates)) {
@@ -1085,6 +1107,20 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   bool is_commutative = OperatorIsCommutative(*edge->expr);
 
+  // If we have an equi-semijoin, and the inner side is deduplicated
+  // on the group given by the join predicates, we can rewrite it to an
+  // inner join, which is commutative. This is a win in some cases
+  // where we have an index on the outer side but not the inner side.
+  // (It is rarely a significant win in hash join, especially as we
+  // don't propagate orders through it, but we propose it anyway for
+  // simplicity.)
+  //
+  // See the comment on OperatorsAreAssociative() for why we don't
+  // also need to change the rules about associativity or l-asscom.
+  bool can_rewrite_semi_to_inner =
+      edge->expr->type == RelationalExpression::SEMIJOIN &&
+      edge->ordering_idx_needed_for_semijoin_rewrite != -1;
+
   // Enforce that recursive references need to be leftmost.
   if (Overlaps(right, forced_leftmost_table)) {
     if (!is_commutative) {
@@ -1098,6 +1134,7 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
   }
   if (Overlaps(left, forced_leftmost_table)) {
     is_commutative = false;
+    can_rewrite_semi_to_inner = false;
   }
 
   auto left_it = m_access_paths.find(left);
@@ -1109,6 +1146,14 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       left_it->second.active_functional_dependencies |
       right_it->second.active_functional_dependencies |
       edge->functional_dependencies;
+  OrderingSet new_obsolete_orderings =
+      left_it->second.obsolete_orderings | right_it->second.obsolete_orderings;
+  if (edge->ordering_idx_needed_for_semijoin_rewrite >= 1 &&
+      edge->ordering_idx_needed_for_semijoin_rewrite < kMaxSupportedOrderings) {
+    // This ordering won't be needed anymore after the join is done,
+    // so mark it as obsolete.
+    new_obsolete_orderings.set(edge->ordering_idx_needed_for_semijoin_rewrite);
+  }
 
   bool wrote_trace = false;
 
@@ -1123,25 +1168,33 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       if (is_commutative && m_secondary_engine_cost_hook == nullptr) {
         if (left_path->num_output_rows < right_path->num_output_rows) {
           ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
-                          &wrote_trace);
+                          new_obsolete_orderings,
+                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
         } else {
           ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
-                          &wrote_trace);
+                          new_obsolete_orderings,
+                          /*rewrite_semi_to_inner=*/false, &wrote_trace);
         }
       } else {
         ProposeHashJoin(left, right, left_path, right_path, edge, new_fd_set,
-                        &wrote_trace);
-        if (is_commutative) {
+                        new_obsolete_orderings,
+                        /*rewrite_semi_to_inner=*/false, &wrote_trace);
+        if (is_commutative || can_rewrite_semi_to_inner) {
           ProposeHashJoin(right, left, right_path, left_path, edge, new_fd_set,
+                          new_obsolete_orderings,
+                          /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner,
                           &wrote_trace);
         }
       }
 
       ProposeNestedLoopJoin(left, right, left_path, right_path, edge,
-                            new_fd_set);
-      if (is_commutative) {
-        ProposeNestedLoopJoin(right, left, right_path, left_path, edge,
-                              new_fd_set);
+                            /*rewrite_semi_to_inner=*/false, new_fd_set,
+                            new_obsolete_orderings);
+      if (is_commutative || can_rewrite_semi_to_inner) {
+        ProposeNestedLoopJoin(
+            right, left, right_path, left_path, edge,
+            /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
+            new_obsolete_orderings);
       }
 
       if (m_access_paths.size() > 100000) {
@@ -1162,23 +1215,50 @@ double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
   const double selectivity = edge->selectivity / already_applied_selectivity;
   if (edge->expr->type == RelationalExpression::ANTIJOIN) {
     return outer_rows * (1.0 - selectivity);
-  } else if (edge->expr->type == RelationalExpression::SEMIJOIN) {
-    return outer_rows * selectivity;
   } else {
     double num_output_rows = outer_rows * inner_rows * selectivity;
     if (edge->expr->type == RelationalExpression::LEFT_JOIN) {
       num_output_rows = std::max(num_output_rows, outer_rows);
     }
+    if (edge->expr->type == RelationalExpression::SEMIJOIN) {
+      num_output_rows =
+          std::min(num_output_rows, outer_rows / already_applied_selectivity);
+      num_output_rows =
+          std::min(num_output_rows, inner_rows / already_applied_selectivity);
+    }
     return num_output_rows;
   }
 }
 
-void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
-                                      AccessPath *left_path,
-                                      AccessPath *right_path,
-                                      const JoinPredicate *edge,
-                                      FunctionalDependencySet new_fd_set,
-                                      bool *wrote_trace) {
+/**
+  Build an access path that deduplicates its input on a certain grouping.
+  This is used for converting semijoins to inner joins. If the grouping is
+  empty, all rows are the same, and we make a simple LIMIT 1 instead.
+ */
+AccessPath *DeduplicateForSemijoin(THD *thd, AccessPath *path,
+                                   Item **semijoin_group,
+                                   int semijoin_group_size) {
+  AccessPath *dedup_path;
+  if (semijoin_group_size == 0) {
+    dedup_path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
+                                          /*calc_found_rows=*/false,
+                                          /*reject_multiple_rows=*/false,
+                                          /*send_records_override=*/nullptr);
+  } else {
+    dedup_path = NewRemoveDuplicatesAccessPath(thd, path, semijoin_group,
+                                               semijoin_group_size);
+    CopyBasicProperties(*path, dedup_path);
+    // TODO(sgunders): Model the actual reduction in rows somehow.
+    dedup_path->cost += kAggregateOneRowCost * path->num_output_rows;
+  }
+  return dedup_path;
+}
+
+void CostingReceiver::ProposeHashJoin(
+    NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
+    const JoinPredicate *edge, FunctionalDependencySet new_fd_set,
+    OrderingSet new_obsolete_orderings, bool rewrite_semi_to_inner,
+    bool *wrote_trace) {
   if (!SupportedAccessPathType(AccessPath::HASH_JOIN)) return;
 
   if (Overlaps(left_path->parameter_tables, right) ||
@@ -1198,11 +1278,29 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
   join_path.hash_join().inner = right_path;
   join_path.hash_join().join_predicate = edge;
   join_path.hash_join().store_rowids = false;
+  join_path.hash_join().rewrite_semi_to_inner = rewrite_semi_to_inner;
   join_path.hash_join().tables_to_get_rowid_for = 0;
   join_path.hash_join().allow_spill_to_disk = true;
 
-  double num_output_rows = FindOutputRowsForJoin(
-      left_path, right_path, edge, /*already_applied_selectivity=*/1.0);
+  // See the equivalent code in ProposeNestedLoopJoin().
+  if (rewrite_semi_to_inner) {
+    int ordering_idx = edge->ordering_idx_needed_for_semijoin_rewrite;
+    assert(ordering_idx != -1);
+    if (ordering_idx != 0 && !m_orderings->DoesFollowOrder(
+                                 left_path->ordering_state, ordering_idx)) {
+      return;
+    }
+    assert(edge->expr->type == RelationalExpression::SEMIJOIN);
+
+    // NOTE: We purposefully don't overwrite left_path here, so that we
+    // don't have to worry about copying ordering_state etc.
+    join_path.hash_join().outer = DeduplicateForSemijoin(
+        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
+  }
+
+  double num_output_rows =
+      FindOutputRowsForJoin(left_path, right_path, edge,
+                            /*already_applied_selectivity=*/1.0);
 
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   const double build_cost =
@@ -1259,7 +1357,8 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
     join_path.ordering_state = m_orderings->ApplyFDs(
         m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   &join_path, "hash join");
+                                   new_obsolete_orderings, &join_path,
+                                   "hash join");
   }
 
   if (Overlaps(join_path.filter_predicates,
@@ -1273,7 +1372,8 @@ void CostingReceiver::ProposeHashJoin(NodeMap left, NodeMap right,
     join_path.ordering_state = m_orderings->ApplyFDs(
         m_orderings->SetOrder(0), new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   &join_path, "hash join, mat. subq");
+                                   new_obsolete_orderings, &join_path,
+                                   "hash join, mat. subq");
   }
 }
 
@@ -1337,7 +1437,8 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
 
 void CostingReceiver::ProposeNestedLoopJoin(
     NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
-    const JoinPredicate *edge, FunctionalDependencySet new_fd_set) {
+    const JoinPredicate *edge, bool rewrite_semi_to_inner,
+    FunctionalDependencySet new_fd_set, OrderingSet new_obsolete_orderings) {
   if (!SupportedAccessPathType(AccessPath::NESTED_LOOP_JOIN)) return;
 
   if (Overlaps(left_path->parameter_tables, right)) {
@@ -1351,15 +1452,44 @@ void CostingReceiver::ProposeNestedLoopJoin(
   join_path.parameter_tables =
       (left_path->parameter_tables | right_path->parameter_tables) &
       ~(left | right);
+  join_path.nested_loop_join().pfs_batch_mode = false;
   join_path.nested_loop_join().outer = left_path;
   join_path.nested_loop_join().inner = right_path;
-  if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
+  if (rewrite_semi_to_inner) {
+    // This join is a semijoin (which is non-commutative), but the caller wants
+    // us to try to invert it anyway; or to be precise, it has already inverted
+    // it for us, and wants us to make sure that's OK. This is only
+    // allowed if we can remove the duplicates from the outer (originally inner)
+    // side, so check that it is grouped correctly, and then deduplicate on it.
+    //
+    // Note that in many cases, the grouping/ordering here would be due to an
+    // earlier sort-ahead inserted into the tree. (The other case is due to
+    // scanning along an index, but then, we'd usually prefer to
+    // use that index for lookups instead of inverting the join. It is possible,
+    // though.) If so, it would have been nice to just do a deduplicating sort
+    // instead, but it would require is to track deduplication information in
+    // the access paths (possibly as part of the ordering state somehow) and
+    // track them throughout the join tree, which we don't do at the moment.
+    // Thus, there may be an inefficiency here.
+    assert(edge->expr->type == RelationalExpression::SEMIJOIN);
+    int ordering_idx = edge->ordering_idx_needed_for_semijoin_rewrite;
+    assert(ordering_idx != -1);
+    if (ordering_idx != 0 && !m_orderings->DoesFollowOrder(
+                                 left_path->ordering_state, ordering_idx)) {
+      return;
+    }
+    join_path.nested_loop_join().join_type = JoinType::INNER;
+
+    // NOTE: We purposefully don't overwrite left_path here, so that we
+    // don't have to worry about copying ordering_state etc.
+    join_path.nested_loop_join().outer = DeduplicateForSemijoin(
+        m_thd, left_path, edge->semijoin_group, edge->semijoin_group_size);
+  } else if (edge->expr->type == RelationalExpression::STRAIGHT_INNER_JOIN) {
     join_path.nested_loop_join().join_type = JoinType::INNER;
   } else {
     join_path.nested_loop_join().join_type =
         static_cast<JoinType>(edge->expr->type);
   }
-  join_path.nested_loop_join().pfs_batch_mode = false;
 
   const uint64_t applied_sargable_join_predicates =
       left_path->applied_sargable_join_predicates |
@@ -1466,8 +1596,10 @@ void CostingReceiver::ProposeNestedLoopJoin(
                                     &join_path, &filter_fd_set);
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
-    ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   &join_path, "nested loop");
+    ProposeAccessPathWithOrderings(
+        left | right, new_fd_set | filter_fd_set, new_obsolete_orderings,
+        &join_path,
+        rewrite_semi_to_inner ? "dedup to inner nested loop" : "nested loop");
   }
 
   if (Overlaps(join_path.filter_predicates,
@@ -1479,7 +1611,10 @@ void CostingReceiver::ProposeNestedLoopJoin(
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,
-                                   &join_path, "nested loop, mat. subq");
+                                   new_obsolete_orderings, &join_path,
+                                   rewrite_semi_to_inner
+                                       ? "dedup to inner nested loop, mat. subq"
+                                       : "nested loop, mat. subq");
   }
 }
 
@@ -1502,8 +1637,8 @@ enum class PathComparisonResult {
 // only matters if we have a LIMIT or nested loop semijoin somewhere in the
 // query, and it might not matter for secondary engine.
 static inline PathComparisonResult CompareAccessPaths(
-    const LogicalOrderings &orderings, const AccessPath &a,
-    const AccessPath &b) {
+    const LogicalOrderings &orderings, const AccessPath &a, const AccessPath &b,
+    OrderingSet obsolete_orderings) {
   bool a_is_better = false, b_is_better = false;
   if (a.cost < b.cost) {
     a_is_better = true;
@@ -1540,10 +1675,12 @@ static inline PathComparisonResult CompareAccessPaths(
   // paths down in such situations.)
   const int a_ordering_state = (a.parameter_tables == 0) ? a.ordering_state : 0;
   const int b_ordering_state = (b.parameter_tables == 0) ? b.ordering_state : 0;
-  if (orderings.MoreOrderedThan(a_ordering_state, b_ordering_state)) {
+  if (orderings.MoreOrderedThan(a_ordering_state, b_ordering_state,
+                                obsolete_orderings)) {
     a_is_better = true;
   }
-  if (orderings.MoreOrderedThan(b_ordering_state, a_ordering_state)) {
+  if (orderings.MoreOrderedThan(b_ordering_state, a_ordering_state,
+                                obsolete_orderings)) {
     b_is_better = true;
   }
 
@@ -1655,7 +1792,7 @@ void EstimateSortCost(AccessPath *path) {
  */
 void CostingReceiver::ProposeAccessPath(
     AccessPath *path, Prealloced_array<AccessPath *, 4> *existing_paths,
-    const char *description_for_trace) const {
+    OrderingSet obsolete_orderings, const char *description_for_trace) const {
   if (m_secondary_engine_cost_hook != nullptr) {
     // If an error was raised by a previous invocation of the hook, reject all
     // paths.
@@ -1689,8 +1826,8 @@ void CostingReceiver::ProposeAccessPath(
   AccessPath *insert_position = nullptr;
   int num_dominated = 0;
   for (size_t i = 0; i < existing_paths->size(); ++i) {
-    PathComparisonResult result =
-        CompareAccessPaths(*m_orderings, *path, *((*existing_paths)[i]));
+    PathComparisonResult result = CompareAccessPaths(
+        *m_orderings, *path, *((*existing_paths)[i]), obsolete_orderings);
     if (result == PathComparisonResult::DIFFERENT_STRENGTHS) {
       continue;
     }
@@ -1780,20 +1917,23 @@ void CostingReceiver::ProposeAccessPath(
 }
 
 void CostingReceiver::ProposeAccessPathWithOrderings(
-    NodeMap nodes, FunctionalDependencySet fd_set, AccessPath *path,
+    NodeMap nodes, FunctionalDependencySet fd_set,
+    OrderingSet obsolete_orderings, AccessPath *path,
     const char *description_for_trace) {
   // Insert an empty array if none exists.
   auto it_and_inserted = m_access_paths.emplace(
       nodes,
       AccessPathSet{Prealloced_array<AccessPath *, 4>{PSI_NOT_INSTRUMENTED},
-                    fd_set});
+                    fd_set, obsolete_orderings});
   if (!it_and_inserted.second) {
     assert(fd_set ==
            it_and_inserted.first->second.active_functional_dependencies);
+    assert(obsolete_orderings ==
+           it_and_inserted.first->second.obsolete_orderings);
   }
 
   ProposeAccessPath(path, &it_and_inserted.first->second.paths,
-                    description_for_trace);
+                    obsolete_orderings, description_for_trace);
 
   // Don't bother trying sort-ahead if we are done joining;
   // there's no longer anything to be ahead of, so the regular
@@ -1822,7 +1962,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
 
     LogicalOrderings::StateIndex new_state = m_orderings->ApplyFDs(
         m_orderings->SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
-    if (!m_orderings->MoreOrderedThan(new_state, path->ordering_state)) {
+    if (!m_orderings->MoreOrderedThan(new_state, path->ordering_state,
+                                      obsolete_orderings)) {
       continue;
     }
 
@@ -1855,7 +1996,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
                  sort_ahead_ordering.ordering_idx);
       }
     }
-    ProposeAccessPath(&sort_path, &it_and_inserted.first->second.paths, buf);
+    ProposeAccessPath(&sort_path, &it_and_inserted.first->second.paths,
+                      obsolete_orderings, buf);
   }
 }
 
@@ -2385,7 +2527,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       root_path = CreateMaterializationPathForSortingAggregates(
           thd, join, root_path, temp_table, temp_table_param,
           /*using_addon_fields=*/!need_rowid);
-      receiver.ProposeAccessPath(root_path, &new_root_candidates, "");
+      receiver.ProposeAccessPath(root_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
   }
@@ -2404,7 +2547,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
             /*reject_multiple_rows=*/false,
             /*send_records_override=*/nullptr);
-        receiver.ProposeAccessPath(limit_path, &new_root_candidates, "");
+        receiver.ProposeAccessPath(limit_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0, "");
       } else {
         AccessPath *sort_path =
             NewSortAccessPath(thd, root_path, filesort_for_distinct,
@@ -2414,7 +2558,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (!filesort_for_distinct->using_addon_fields()) {
           FindTablesToGetRowidFor(sort_path);
         }
-        receiver.ProposeAccessPath(sort_path, &new_root_candidates, "");
+        receiver.ProposeAccessPath(sort_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0, "");
       }
     }
     root_candidates = std::move(new_root_candidates);
@@ -2443,7 +2588,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
           orderings.DoesFollowOrder(root_path->ordering_state,
                                     order_by_ordering_idx)) {
         receiver.ProposeAccessPath(root_path, &new_root_candidates,
-                                   "sort elided");
+                                   /*obsolete_orderings=*/0, "sort elided");
       } else {
         AccessPath *sort_path =
             NewSortAccessPath(thd, root_path, filesort,
@@ -2453,7 +2598,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (!filesort->using_addon_fields()) {
           FindTablesToGetRowidFor(sort_path);
         }
-        receiver.ProposeAccessPath(sort_path, &new_root_candidates, "");
+        receiver.ProposeAccessPath(sort_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0, "");
       }
     }
     root_candidates = std::move(new_root_candidates);
@@ -2762,6 +2908,39 @@ static ORDER *BuildSortAheadOrdering(THD *thd,
   return order;
 }
 
+static int AddSortAheadOrdering(
+    THD *thd, const JoinHypergraph *graph, Ordering ordering,
+    ORDER *order_for_filesort, bool used_at_end, table_map homogenize_tables,
+    table_map used_tables, LogicalOrderings *orderings,
+    Mem_root_array<SortAheadOrdering> *sort_ahead_orderings) {
+  NodeMap required_nodes = GetNodeMapFromTableMap(
+      used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
+  if (Overlaps(used_tables, RAND_TABLE_BIT)) {
+    // We can never sort-ahead with nondeterministic functions.
+    return -1;
+  } else if (ordering.empty()) {
+    return 0;
+  } else {
+    int ordering_idx = orderings->AddOrdering(
+        thd, ordering, /*interesting=*/true, used_at_end, homogenize_tables);
+    if (order_for_filesort == nullptr) {
+      order_for_filesort = BuildSortAheadOrdering(thd, orderings, ordering);
+    }
+    sort_ahead_orderings->push_back(
+        SortAheadOrdering{ordering_idx, required_nodes, order_for_filesort});
+    return ordering_idx;
+  }
+}
+
+static void CanonicalizeGrouping(Ordering *ordering) {
+  std::sort(ordering->begin(), ordering->end(),
+            [](const OrderElement &a, const OrderElement &b) {
+              return a.item < b.item;
+            });
+  ordering->resize(std::unique(ordering->begin(), ordering->end()) -
+                   ordering->begin());
+}
+
 /**
   Build all structures we need for keeping track of interesting orders.
   We collect the actual relevant orderings (e.g. from ORDER BY) and any
@@ -2782,22 +2961,11 @@ static void BuildInterestingOrders(
     Ordering ordering = CollectInterestingOrder(thd, query_block->order_list,
                                                 /*unwrap_rollup=*/false,
                                                 orderings, &used_tables);
-
-    NodeMap required_nodes = GetNodeMapFromTableMap(
-        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
-    if (Overlaps(used_tables, RAND_TABLE_BIT)) {
-      // We can never sort-ahead with nondeterministic functions.
-    } else {
-      *order_by_ordering_idx =
-          orderings->AddOrdering(thd, ordering, /*interesting=*/true);
-
-      // We cannot reuse query_block->order_list, because if a temporary table
-      // is inserted, its fields may be rewritten to match that table, which is
-      // the wrong thing for sort-ahead.
-      ORDER *order = BuildSortAheadOrdering(thd, orderings, ordering);
-      sort_ahead_orderings->push_back(
-          SortAheadOrdering{*order_by_ordering_idx, required_nodes, order});
-    }
+    *order_by_ordering_idx =
+        AddSortAheadOrdering(thd, graph, ordering,
+                             /*order_for_filesort=*/nullptr,
+                             /*used_at_end=*/true, /*homogenize_tables=*/0,
+                             used_tables, orderings, sort_ahead_orderings);
   }
 
   // Collect grouping from GROUP BY.
@@ -2806,24 +2974,48 @@ static void BuildInterestingOrders(
     Ordering ordering = CollectInterestingOrder(thd, query_block->group_list,
                                                 /*unwrap_rollup=*/true,
                                                 orderings, &used_tables);
-    std::sort(ordering.begin(), ordering.end(),
-              [](const OrderElement &a, const OrderElement &b) {
-                return a.item < b.item;
-              });
-    ordering.resize(std::unique(ordering.begin(), ordering.end()) -
-                    ordering.begin());
+    CanonicalizeGrouping(&ordering);
 
-    NodeMap required_nodes = GetNodeMapFromTableMap(
-        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
-    if (Overlaps(used_tables, RAND_TABLE_BIT)) {
-      // We can never sort-ahead with nondeterministic functions.
-    } else {
-      *group_by_ordering_idx =
-          orderings->AddOrdering(thd, ordering, /*interesting=*/true);
-      sort_ahead_orderings->push_back(
-          SortAheadOrdering{*group_by_ordering_idx, required_nodes,
-                            query_block->group_list.first});
+    *group_by_ordering_idx = AddSortAheadOrdering(
+        thd, graph, ordering, query_block->group_list.first,
+        /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables, orderings,
+        sort_ahead_orderings);
+  }
+
+  // Collect groupings from semijoins (because we might want to do duplicate
+  // removal on the inner side, which will allow us to convert the join to an
+  // inner join and invert it).
+  for (JoinPredicate &pred : graph->edges) {
+    if (pred.expr->type != RelationalExpression::SEMIJOIN) {
+      continue;
     }
+    if (!pred.expr->join_conditions.empty()) {
+      // Most semijoins (e.g. from IN) are pure equijoins, but due to
+      // outer references, there may also be non-equijoin conditions
+      // involved. If so, we can no longer rewrite to a regular inner
+      // join (at least not in the general case), so skip these.
+      continue;
+    }
+    const table_map inner_tables = pred.expr->right->tables_in_subtree;
+    Ordering ordering =
+        Ordering::Alloc(thd->mem_root, pred.expr->equijoin_conditions.size());
+    table_map used_tables = 0;
+    for (size_t i = 0; i < pred.expr->equijoin_conditions.size(); ++i) {
+      Item *item = pred.expr->equijoin_conditions[i]->get_arg(1);
+      if (!IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS, inner_tables)) {
+        item = pred.expr->equijoin_conditions[i]->get_arg(0);
+        assert(
+            IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS, inner_tables));
+      }
+      ordering[i].item = orderings->GetHandle(item);
+      used_tables |= item->used_tables();
+    }
+    CanonicalizeGrouping(&ordering);
+
+    pred.ordering_idx_needed_for_semijoin_rewrite = AddSortAheadOrdering(
+        thd, graph, ordering, /*order_for_filesort=*/nullptr,
+        /*used_at_end=*/false, /*homogenize_tables=*/inner_tables, used_tables,
+        orderings, sort_ahead_orderings);
   }
 
   // Collect list of all active indexes. We will be needing this for ref access
@@ -2887,7 +3079,8 @@ static void BuildInterestingOrders(
                                                             : ORDER_ASC;
     }
     index_info.forward_order =
-        orderings->AddOrdering(thd, ordering, /*interesting=*/false);
+        orderings->AddOrdering(thd, ordering, /*interesting=*/false,
+                               /*used_at_end=*/true, /*homogenize_tables=*/0);
 
     // And now the reverse, if the index allows it.
     if (Overlaps(table->file->index_flags(index_info.key_idx,
@@ -2902,7 +3095,8 @@ static void BuildInterestingOrders(
         }
       }
       index_info.reverse_order =
-          orderings->AddOrdering(thd, ordering, /*interesting=*/false);
+          orderings->AddOrdering(thd, ordering, /*interesting=*/false,
+                                 /*used_at_end=*/true, /*homogenize_tables=*/0);
     }
   }
 
@@ -2937,6 +3131,11 @@ static void BuildInterestingOrders(
         orderings->RemapOrderingIndex(*order_by_ordering_idx);
   }
 
+  if (*group_by_ordering_idx != -1) {
+    *group_by_ordering_idx =
+        orderings->RemapOrderingIndex(*group_by_ordering_idx);
+  }
+
   for (JoinPredicate &pred : graph->edges) {
     for (int fd_idx : pred.functional_dependencies_idx) {
       pred.functional_dependencies |= orderings->GetFDSet(fd_idx);
@@ -2952,6 +3151,28 @@ static void BuildInterestingOrders(
   for (SortAheadOrdering &ordering : *sort_ahead_orderings) {
     ordering.ordering_idx =
         orderings->RemapOrderingIndex(ordering.ordering_idx);
+  }
+
+  for (JoinPredicate &pred : graph->edges) {
+    if (pred.ordering_idx_needed_for_semijoin_rewrite != -1) {
+      pred.ordering_idx_needed_for_semijoin_rewrite =
+          orderings->RemapOrderingIndex(
+              pred.ordering_idx_needed_for_semijoin_rewrite);
+
+      // Set up the elements to deduplicate against. Note that we don't do this
+      // before after Build(), because Build() may have simplified away some
+      // (or all) elements using functional dependencies.
+      Ordering grouping =
+          orderings->ordering(pred.ordering_idx_needed_for_semijoin_rewrite);
+      pred.semijoin_group_size = grouping.size();
+      if (!grouping.empty()) {
+        pred.semijoin_group =
+            thd->mem_root->ArrayAlloc<Item *>(grouping.size());
+        for (size_t i = 0; i < grouping.size(); ++i) {
+          pred.semijoin_group[i] = orderings->item(grouping[i].item);
+        }
+      }
+    }
   }
 
   // After Build(), there may be more interesting orders that we can try
@@ -3058,7 +3279,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
   }
 
-  // Collect interesting orders from ORDER BY and GROUP BY.
+  // Collect interesting orders from ORDER BY, GROUP BY and semijoins.
+  // See BuildInterestingOrders() for more detailed information.
   LogicalOrderings orderings(thd);
   Mem_root_array<SortAheadOrdering> sort_ahead_orderings(thd->mem_root);
   Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
@@ -3173,6 +3395,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         }
 
         receiver.ProposeAccessPath(&path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0,
                                    materialize_subqueries ? "mat. subq" : "");
 
         if (!contains_subqueries) {
@@ -3229,6 +3452,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       EstimateAggregateCost(aggregate_path);
 
       receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0,
                                  elide_group ? "group elided" : "");
     }
     root_candidates = std::move(new_root_candidates);
@@ -3276,7 +3500,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                                 .cost_if_not_materialized;
       filter_path.num_output_rows_before_filter = filter_path.num_output_rows;
       filter_path.cost_before_filter = filter_path.cost;
-      receiver.ProposeAccessPath(&filter_path, &new_root_candidates, "");
+      receiver.ProposeAccessPath(&filter_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
   }
@@ -3301,7 +3526,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           query_expression->offset_limit_cnt, join->calc_found_rows,
           /*reject_multiple_rows=*/false,
           /*send_records_override=*/nullptr);
-      receiver.ProposeAccessPath(limit_path, &new_root_candidates, "");
+      receiver.ProposeAccessPath(limit_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
   }
