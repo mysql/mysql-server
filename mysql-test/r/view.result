@@ -6709,3 +6709,33 @@ SHOW FIELDS FROM v;
 Field	Type	Null	Key	Default	Extra
 c	varchar(1)	YES		NULL	
 DROP VIEW v;
+#
+# Bug#32050275 - can't create synonym of information_schema using create_synonym_db()
+#
+PREPARE stmt FROM "CREATE VIEW v1 AS SELECT * FROM
+                   JSON_TABLE('[]', '$[*]' COLUMNS (c1 INT PATH '$.x')) AS jt";
+EXECUTE stmt;
+EXECUTE stmt;
+ERROR 42S01: Table 'v1' already exists
+DROP VIEW v1;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+PREPARE stmt FROM "CREATE VIEW v1 AS WITH RECURSIVE cte (n) AS
+                    (
+                      SELECT 1
+                      UNION ALL
+                      SELECT n + 1 FROM cte WHERE n < 5
+                    )
+                    SELECT * FROM cte";
+EXECUTE stmt;
+EXECUTE stmt;
+ERROR 42S01: Table 'v1' already exists
+DROP VIEW v1;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+call sys.create_synonym_db("INFORMATION_SCHEMA", "I_S");
+summary
+Created XX views in the `I_S` database
+DROP DATABASE I_S;

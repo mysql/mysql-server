@@ -570,9 +570,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       object.
     */
     if (tbl->table) {
-      /* is this table temporary and is not view? */
-      if (tbl->table->s->tmp_table != NO_TMP_TABLE &&
-          !tbl->is_view_or_derived() && !tbl->schema_table) {
+      /*
+        is this table temporary and is not a derived table, a view, a recursive
+        reference, a table function or a schema table?
+      */
+      if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->is_placeholder()) {
         my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
         res = true;
         goto err;
