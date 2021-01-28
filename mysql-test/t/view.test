@@ -6220,3 +6220,38 @@ CREATE VIEW v AS SELECT null AS 'c' UNION SELECT 'a' AS 'c';
 --echo # varchar(1). With fix type is listed correctly.
 SHOW FIELDS FROM v;
 DROP VIEW v;
+
+
+--echo #
+--echo # Bug#32050275 - can't create synonym of information_schema using create_synonym_db()
+--echo #
+# Without fix creating view with JSON_TABLE / recursive CTE fails using prepared
+# statement.
+PREPARE stmt FROM "CREATE VIEW v1 AS SELECT * FROM
+                   JSON_TABLE('[]', '$[*]' COLUMNS (c1 INT PATH '$.x')) AS jt";
+EXECUTE stmt;
+--error ER_TABLE_EXISTS_ERROR
+EXECUTE stmt;
+DROP VIEW v1;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+
+PREPARE stmt FROM "CREATE VIEW v1 AS WITH RECURSIVE cte (n) AS
+                    (
+                      SELECT 1
+                      UNION ALL
+                      SELECT n + 1 FROM cte WHERE n < 5
+                    )
+                    SELECT * FROM cte";
+EXECUTE stmt;
+--error ER_TABLE_EXISTS_ERROR
+EXECUTE stmt;
+DROP VIEW v1;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+DROP VIEW v1;
+
+--replace_regex /[0-9][0-9]/XX/
+call sys.create_synonym_db("INFORMATION_SCHEMA", "I_S");
+DROP DATABASE I_S;
