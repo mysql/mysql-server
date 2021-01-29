@@ -6200,15 +6200,7 @@ bool Item_func_like::itemize(Parse_context *pc, Item **res) {
   if (super::itemize(pc, res) ||
       (escape_item != nullptr && escape_item->itemize(pc, &escape_item)))
     return true;
-
-  if (escape_item == nullptr) {
-    THD *thd = pc->thd;
-    escape_item =
-        ((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
-             ? new (pc->mem_root) Item_string("", 0, &my_charset_latin1)
-             : new (pc->mem_root) Item_string("\\", 1, &my_charset_latin1));
-  }
-  return escape_item == nullptr;
+  return false;
 }
 
 longlong Item_func_like::val_int() {
@@ -6300,16 +6292,16 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   args[0]->real_item()->set_can_use_prefix_key();
 
   if (Item_bool_func2::fix_fields(thd, ref) ||
-      fix_func_arg(thd, &escape_item)) {
+      (escape_item != nullptr && fix_func_arg(thd, &escape_item))) {
     fixed = false;
     return true;
   }
 
   if (param_type_is_default(thd, 0, 1)) return true;
-  if (escape_item->propagate_type(thd)) return true;
+  if (escape_item != nullptr && escape_item->propagate_type(thd)) return true;
 
   // ESCAPE clauses that vary per row are not valid:
-  if (!escape_item->const_for_execution()) {
+  if (escape_item != nullptr && !escape_item->const_for_execution()) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
     return true;
   }
@@ -6321,11 +6313,12 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
     TODO: If we move this into escape_is_evaluated(), which is called later,
     it could be that we could optimize more cases.
   */
-  escape_is_const = escape_item->const_item();
-  if (escape_is_const &&
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
-    if (eval_escape_clause(thd)) return true;
-    if (check_covering_prefix_keys(thd)) return true;
+  if (escape_item == nullptr || escape_item->const_item()) {
+    escape_is_const = true;
+    if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
+      if (eval_escape_clause(thd)) return true;
+      if (check_covering_prefix_keys(thd)) return true;
+    }
   }
 
   return false;
@@ -6346,6 +6339,16 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
   assert(!escape_evaluated);
   escape_evaluated = true;
 
+  const bool no_backslash_escapes =
+      thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES;
+
+  // No ESCAPE clause is specified. The default escape character is backslash,
+  // unless NO_BACKSLASH_ESCAPES mode is enabled.
+  if (escape_item == nullptr) {
+    m_escape = no_backslash_escapes ? 0 : '\\';
+    return false;
+  }
+
   String buf;
   const String *escape_str = escape_item->val_str(&buf);
   if (thd->is_error()) return true;
@@ -6361,8 +6364,7 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
   // An empty escape sequence means there is no escape character. An empty
   // escape sequence is not accepted in NO_BACKSLASH_ESCAPES mode.
   if (escape_str->is_empty()) {
-    if (escape_used_in_parsing &&
-        (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)) {
+    if (no_backslash_escapes) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
       return true;
     }
@@ -6420,10 +6422,12 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
 
 void Item_func_like::update_used_tables() {
   Item_bool_func2::update_used_tables();
-  escape_item->update_used_tables();
-  used_tables_cache |= escape_item->used_tables();
-  add_accum_properties(escape_item);
-  if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
+  if (escape_item != nullptr) {
+    escape_item->update_used_tables();
+    used_tables_cache |= escape_item->used_tables();
+    add_accum_properties(escape_item);
+    if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
+  }
 }
 
 void Item_func_like::print(const THD *thd, String *str,
@@ -6432,7 +6436,7 @@ void Item_func_like::print(const THD *thd, String *str,
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" like "));
   args[1]->print(thd, str, query_type);
-  if (escape_was_used_in_parsing()) {
+  if (escape_item != nullptr) {
     str->append(STRING_WITH_LEN(" escape "));
     escape_item->print(thd, str, query_type);
   }

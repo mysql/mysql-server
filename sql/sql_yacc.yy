@@ -10254,7 +10254,7 @@ predicate:
           }
         | bit_expr LIKE simple_expr
           {
-            $$ = NEW_PTN Item_func_like(@$, $1, $3, nullptr);
+            $$ = NEW_PTN Item_func_like(@$, $1, $3);
           }
         | bit_expr LIKE simple_expr ESCAPE_SYM simple_expr %prec LIKE
           {
@@ -10262,7 +10262,7 @@ predicate:
           }
         | bit_expr not LIKE simple_expr
           {
-            auto item = NEW_PTN Item_func_like(@$, $1, $4, nullptr);
+            auto item = NEW_PTN Item_func_like(@$, $1, $4);
             $$ = NEW_PTN Item_func_not(@$, item);
           }
         | bit_expr not LIKE simple_expr ESCAPE_SYM simple_expr %prec LIKE

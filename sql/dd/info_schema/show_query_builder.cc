@@ -190,8 +190,8 @@ Item *Select_lex_builder::prepare_like_item(const LEX_CSTRING &field_name,
   if (wild_string == nullptr) return nullptr;
 
   /* ... field_name LIKE <value> ... */
-  Item_func_like *func_like = new (m_thd->mem_root)
-      Item_func_like(*m_pos, ident_field, wild_string, nullptr);
+  Item_func_like *func_like =
+      new (m_thd->mem_root) Item_func_like(*m_pos, ident_field, wild_string);
 
   return func_like;
 }

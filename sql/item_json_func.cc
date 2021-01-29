@@ -2739,9 +2739,8 @@ bool Item_func_json_search::fix_fields(THD *thd, Item **items) {
   Item *like_string_item = args[2];
 
   // Get the escape character, if any
-  Item *escape_item;
   if (arg_count > 3) {
-    escape_item = args[3];
+    Item *escape_item = args[3];
     /*
       For a standalone LIKE expression,
       the escape clause only has to be constant during execution.
@@ -2750,18 +2749,16 @@ bool Item_func_json_search::fix_fields(THD *thd, Item **items) {
       and copy the results from the JSON_SEARCH() args into the arguments
       for the LIKE node which we're fabricating.
     */
-    if (!args[3]->const_item()) {
+    if (!escape_item->const_item()) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
       return true;
     }
+    m_like_node =
+        new Item_func_like(m_source_string_item, like_string_item, escape_item);
   } else {
-    escape_item =
-        new Item_string(STRING_WITH_LEN("\\"), &my_charset_utf8mb4_bin);
-    if (escape_item == nullptr) return true;
+    m_like_node = new Item_func_like(m_source_string_item, like_string_item);
   }
 
-  m_like_node = new Item_func_like(m_source_string_item, like_string_item,
-                                   escape_item, true);
   if (m_like_node == nullptr) return true; /* purecov: inspected */
 
   Item *like = m_like_node;

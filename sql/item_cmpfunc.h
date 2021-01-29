@@ -2245,7 +2245,6 @@ class Item_func_like final : public Item_bool_func2 {
 
   Item *escape_item;
 
-  bool escape_used_in_parsing;
   /// True if escape clause is const (a literal)
   bool escape_is_const = false;
   /// Tells if the escape clause has been evaluated.
@@ -2255,14 +2254,18 @@ class Item_func_like final : public Item_bool_func2 {
   int m_escape;
 
  public:
-  Item_func_like(Item *a, Item *b, Item *escape_arg, bool escape_used)
-      : Item_bool_func2(a, b),
-        escape_item(escape_arg),
-        escape_used_in_parsing(escape_used) {}
-  Item_func_like(const POS &pos, Item *a, Item *b, Item *opt_escape_arg)
-      : super(pos, a, b),
-        escape_item(opt_escape_arg),
-        escape_used_in_parsing(opt_escape_arg != nullptr) {}
+  Item_func_like(Item *a, Item *b)
+      : Item_bool_func2(a, b), escape_item(nullptr) {}
+  Item_func_like(Item *a, Item *b, Item *escape_arg)
+      : Item_bool_func2(a, b), escape_item(escape_arg) {
+    assert(escape_arg != nullptr);
+  }
+  Item_func_like(const POS &pos, Item *a, Item *b, Item *escape_arg)
+      : Item_bool_func2(pos, a, b), escape_item(escape_arg) {
+    assert(escape_arg != nullptr);
+  }
+  Item_func_like(const POS &pos, Item *a, Item *b)
+      : Item_bool_func2(pos, a, b), escape_item(nullptr) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 
@@ -2283,7 +2286,7 @@ class Item_func_like final : public Item_bool_func2 {
     @retval true non default escape char specified
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
   */
-  bool escape_was_used_in_parsing() const { return escape_used_in_parsing; }
+  bool escape_was_used_in_parsing() const { return escape_item != nullptr; }
 
   /// Returns the escape character.
   int escape() const {

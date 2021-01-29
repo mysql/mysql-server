@@ -228,9 +228,8 @@ static Query_block *build_query(const POS &pos, THD *thd,
     if (wild_string == nullptr) return nullptr;
 
     /* ... Variable_name LIKE <value> ... */
-    Item_func_like *func_like;
-    func_like = new (thd->mem_root)
-        Item_func_like(pos, ident_name_where, wild_string, nullptr);
+    Item_func_like *func_like =
+        new (thd->mem_root) Item_func_like(pos, ident_name_where, wild_string);
     if (func_like == nullptr) return nullptr;
 
     /* ... WHERE Variable_name LIKE <value> ... */
