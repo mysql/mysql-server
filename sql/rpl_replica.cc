@@ -2546,7 +2546,8 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi) {
 
   mi->reset_network_error();
 
-  sprintf(query, "SET @replica_uuid= '%s'", server_uuid);
+  sprintf(query, "SET @slave_uuid = '%s', @replica_uuid = '%s'", server_uuid,
+          server_uuid);
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) &&
       !check_io_slave_killed(mi->info_thd, mi, nullptr))
     goto err;
@@ -2864,13 +2865,14 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
 
   if (mi->heartbeat_period != 0.0) {
     char llbuf[22];
-    const char query_format[] = "SET @master_heartbeat_period= %s";
-    char query[sizeof(query_format) - 2 + sizeof(llbuf)];
+    const char query_format[] =
+        "SET @master_heartbeat_period = %s, @source_heartbeat_period = %s";
+    char query[sizeof(query_format) - 2 * 2 + 2 * sizeof(llbuf) + 1];
     /*
        the period is an ulonglong of nano-secs.
     */
     llstr((ulonglong)(mi->heartbeat_period * 1000000000UL), llbuf);
-    sprintf(query, query_format, llbuf);
+    sprintf(query, query_format, llbuf, llbuf);
 
     if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))) {
       if (check_io_slave_killed(mi->info_thd, mi, nullptr))
@@ -2905,8 +2907,11 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   */
   if (DBUG_EVALUATE_IF("simulate_replica_unaware_checksum", 0, 1)) {
     int rc;
+    // Set both variables, so that it works equally on both old and new
+    // source server.
     const char query[] =
-        "SET @master_binlog_checksum= @@global.binlog_checksum";
+        "SET @master_binlog_checksum = @@global.binlog_checksum, "
+        "@source_binlog_checksum = @@global.binlog_checksum";
     master_res = nullptr;
     // initially undefined
     mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_UNDEF;
@@ -2948,8 +2953,10 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
       }
     } else {
       mysql_free_result(mysql_store_result(mysql));
+      // Read back the user variable that we just set, to verify that
+      // the source recognized the checksum algorithm.
       if (!mysql_real_query(
-              mysql, STRING_WITH_LEN("SELECT @master_binlog_checksum")) &&
+              mysql, STRING_WITH_LEN("SELECT @source_binlog_checksum")) &&
           (master_res = mysql_store_result(mysql)) &&
           (master_row = mysql_fetch_row(master_res)) &&
           (master_row[0] != nullptr)) {

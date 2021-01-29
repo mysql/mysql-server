@@ -24,6 +24,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <stddef.h>
+#include <string>  // std::string
 
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
@@ -114,5 +115,23 @@ void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
                        Gtid_set *gtid_set, uint32 flags);
 
 bool reset_master(THD *thd, bool unlock_read_lock);
+
+class user_var_entry;
+/**
+  Read a user variable that may exist under two different names.
+
+  @param thd The session to read from.
+
+  @param alt1 The first variable name alternative.
+
+  @param alt2 The second variable name alternative.
+
+  @retval If there exists a user variable in the current session with
+  the first name, return that. Otherwise, if the second one exists,
+  return that. Otherwise, return NULL.
+*/
+const user_var_entry *get_user_var_from_alternatives(const THD *thd,
+                                                     const std::string alt1,
+                                                     const std::string alt2);
 
 #endif /* RPL_SOURCE_H_INCLUDED */

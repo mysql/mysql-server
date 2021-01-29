@@ -73,52 +73,69 @@ static int repl_semi_reset_slave(Binlog_relay_IO_param *) {
   return 0;
 }
 
+/**
+  Send a query to source server to determine if it supports semisync.
+
+  This checks if rpl_semi_sync_source_enabled or
+  rpl_semi_sync_master_enabled is defined on the source.
+
+  @param mysql Existing connection to the source server.
+
+  @param name The name to use for the "source" part of the variable
+  name in this check: either "source" or "master".
+
+  @retval 1 Source supports semisync.
+
+  @retval 0 Source does not support semisync.
+
+  @retval -1 Error occurred while checking if source supports semisync.
+  This function reports an error to the log in this case.
+*/
+static int has_source_semisync(MYSQL *mysql, std::string name) {
+  /* Check if source server has semi-sync plugin installed */
+  std::string query = "SELECT @@global.rpl_semi_sync_" + name + "_enabled";
+  if (mysql_real_query(mysql, query.c_str(),
+                       static_cast<ulong>(query.length()))) {
+    uint mysql_error = mysql_errno(mysql);
+    if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE)
+      return 0;
+    else {
+      LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_EXECUTION_FAILED_ON_MASTER,
+                   query.c_str(), mysql_error);
+      return -1;
+    }
+  }
+  /* Mandatory ritual required to reset the connection state */
+  MYSQL_RES *res = mysql_store_result(mysql);
+  (void)mysql_fetch_row(res);
+  mysql_free_result(res);
+
+  return 1;
+}
+
 static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
   MYSQL *mysql = param->mysql;
-  MYSQL_RES *res = nullptr;
-#ifndef NDEBUG
-  MYSQL_ROW row = nullptr;
-#endif
-  const char *query;
-  uint mysql_error = 0;
 
   if (!repl_semisync->getSlaveEnabled()) return 0;
 
-  /* Check if master server has semi-sync plugin installed */
-  query = "SELECT @@global.rpl_semi_sync_source_enabled";
-  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) ||
-      !(res = mysql_store_result(mysql))) {
-    mysql_error = mysql_errno(mysql);
-    if (mysql_error != ER_UNKNOWN_SYSTEM_VARIABLE) {
-      LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_EXECUTION_FAILED_ON_MASTER, query,
-                   mysql_error);
-      return 1;
+  int source_state = has_source_semisync(mysql, "source");
+  if (source_state == 0) {
+    source_state = has_source_semisync(mysql, "master");
+    if (source_state == 0) {
+      /* Source does not support semi-sync */
+      LogPluginErr(WARNING_LEVEL, ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER);
+      rpl_semi_sync_replica_status = 0;
+      return 0;
     }
-  } else {
-#ifndef NDEBUG
-    row =
-#endif
-        mysql_fetch_row(res);
   }
-
-  assert(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
-         strtoul(row[0], nullptr, 10) == 0 ||
-         strtoul(row[0], nullptr, 10) == 1);
-
-  if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE) {
-    /* Master does not support semi-sync */
-    LogPluginErr(WARNING_LEVEL, ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER);
-    rpl_semi_sync_replica_status = 0;
-    mysql_free_result(res);
-    return 0;
-  }
-  mysql_free_result(res);
+  if (source_state == -1) return 1;
 
   /*
     Tell master dump thread that we want to do semi-sync
     replication
   */
-  query = "SET @rpl_semi_sync_replica= 1";
+  const char *query =
+      "SET @rpl_semi_sync_replica = 1, @rpl_semi_sync_slave = 1";
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))) {
     LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_SET_FAILED);
     return 1;

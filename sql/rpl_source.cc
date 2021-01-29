@@ -1018,6 +1018,17 @@ void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
   sender.run();
 }
 
+const user_var_entry *get_user_var_from_alternatives(const THD *thd,
+                                                     const std::string alt1,
+                                                     const std::string alt2) {
+  mysql_mutex_assert_owner(&thd->LOCK_thd_data);
+  const auto &uv = thd->user_vars;
+  auto it = uv.find(alt1);
+  if (it == uv.end()) it = uv.find(alt2);
+  if (it == uv.end()) return nullptr;
+  return it->second.get();
+}
+
 /**
   An auxiliary function extracts slave UUID.
 
@@ -1032,9 +1043,13 @@ String *get_replica_uuid(THD *thd, String *value) {
   /* Protects thd->user_vars. */
   MUTEX_LOCK(lock_guard, &thd->LOCK_thd_data);
 
-  const auto it = thd->user_vars.find("replica_uuid");
-  if (it != thd->user_vars.end() && it->second->length() > 0) {
-    value->copy(it->second->ptr(), it->second->length(), nullptr);
+  // Get user_var.
+  const auto &uv =
+      get_user_var_from_alternatives(thd, "replica_uuid", "slave_uuid");
+
+  // Get value of user_var.
+  if (uv && uv->length() > 0) {
+    value->copy(uv->ptr(), uv->length(), nullptr);
     return value;
   }
   return nullptr;
