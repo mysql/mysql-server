@@ -1111,6 +1111,22 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
   string digraph;
   digraph =
       StringPrintf("digraph G {  # %zu edges\n", graph.graph.edges.size() / 2);
+
+  // Create new internal node names for all nodes, resolving conflicts between
+  // aliases as we go.
+  vector<string> aliases;
+  for (const JoinHypergraph::Node &node : graph.nodes) {
+    string alias = node.table->alias;
+    while (std::find(aliases.begin(), aliases.end(), alias) != aliases.end()) {
+      alias += '_';
+    }
+    if (alias != node.table->alias) {
+      digraph += StringPrintf("  %s [label=\"%s\"];\n", alias.c_str(),
+                              node.table->alias);
+    }
+    aliases.push_back(std::move(alias));
+  }
+
   for (size_t edge_idx = 0; edge_idx < graph.graph.edges.size();
        edge_idx += 2) {
     const Hyperedge &e = graph.graph.edges[edge_idx];
@@ -1125,7 +1141,7 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
         if (!first) {
           label += ",";
         }
-        label += graph.nodes[node_idx].table->alias;
+        label += aliases[node_idx];
         first = false;
       }
       label += "} -> {";
@@ -1134,7 +1150,7 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
         if (!first) {
           label += ",";
         }
-        label += graph.nodes[node_idx].table->alias;
+        label += aliases[node_idx];
         first = false;
       }
       label += "}]";
@@ -1145,9 +1161,9 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
       // Simple edge.
       int left_node = FindLowestBitSet(e.left);
       int right_node = FindLowestBitSet(e.right);
-      digraph += StringPrintf(
-          "  %s -> %s [label=\"%s\"]\n", graph.nodes[left_node].table->alias,
-          graph.nodes[right_node].table->alias, label.c_str());
+      digraph += StringPrintf("  %s -> %s [label=\"%s\"]\n",
+                              aliases[left_node].c_str(),
+                              aliases[right_node].c_str(), label.c_str());
     } else {
       // Hyperedge; draw it as a tiny “virtual node”.
       digraph += StringPrintf(
@@ -1165,16 +1181,16 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
       // Left side of the edge.
       for (int left_node : BitsSetIn(e.left)) {
         digraph += StringPrintf("  %s -> e%zu [arrowhead=none,label=\"%s\"]\n",
-                                graph.nodes[left_node].table->alias, edge_idx,
+                                aliases[left_node].c_str(), edge_idx,
                                 left_label.c_str());
         left_label = "";
       }
 
       // Right side of the edge.
       for (int right_node : BitsSetIn(e.right)) {
-        digraph += StringPrintf("  e%zu -> %s [label=\"%s\"]\n", edge_idx,
-                                graph.nodes[right_node].table->alias,
-                                right_label.c_str());
+        digraph +=
+            StringPrintf("  e%zu -> %s [label=\"%s\"]\n", edge_idx,
+                         aliases[right_node].c_str(), right_label.c_str());
         right_label = "";
       }
     }
