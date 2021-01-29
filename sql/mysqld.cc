@@ -8482,6 +8482,11 @@ struct my_option my_long_options[] = {
      "Include user and password in SHOW REPLICAS statements.",
      &opt_show_replica_auth_info, &opt_show_replica_auth_info, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"show-slave-auth-info", OPT_SHOW_SLAVE_AUTH_INFO_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use show-replica-auth-info instead.",
+     &opt_show_replica_auth_info, &opt_show_replica_auth_info, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", nullptr,
      nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
@@ -9739,6 +9744,10 @@ bool mysqld_get_one_option(int optid,
     case OPT_LC_MESSAGES_DIRECTORY:
       strmake(lc_messages_dir, argument, sizeof(lc_messages_dir) - 1);
       lc_messages_dir_ptr = lc_messages_dir;
+      break;
+    case OPT_SHOW_SLAVE_AUTH_INFO_DEPRECATED:
+      push_deprecated_warn(nullptr, "show-slave-auth-info",
+                           "show-replica-auth-info");
       break;
     case OPT_BINLOG_FORMAT:
       binlog_format_used = true;
