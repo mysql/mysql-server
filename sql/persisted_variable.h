@@ -147,7 +147,12 @@ class Persisted_variables_cache {
   static String *get_variable_value(THD *thd, sys_var *system_var, String *str,
                                     bool *is_null);
   /* Helper function to get variable name */
-  static const char *get_variable_name(sys_var *system_var);
+  static const char *get_variable_name(const sys_var *system_var);
+  /**
+    If the variable has an alias, return the name for the alias.
+  */
+  static const char *get_variable_alias(const sys_var *system_var);
+  static const char *get_variable_alias(const char *system_var);
   /* Helper function to construct json formatted string */
   static String *construct_json_string(std::string name, std::string value,
                                        ulonglong timestamp, std::string user,
@@ -156,6 +161,11 @@ class Persisted_variables_cache {
   /* Helper function to extract variables from json formatted string */
   bool extract_variables_from_json(const Json_dom *dom,
                                    bool is_read_only = false);
+  /**
+    After extracting the variables from the JSON, we duplicate any
+    variable definition that relates to an alias.
+  */
+  void load_aliases();
 
  private:
   /* Helper functions for file IO */

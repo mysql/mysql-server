@@ -321,11 +321,13 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
   String utf8_str;
   bool is_null = false;
 
-  struct st_persist_var tmp_var(thd);
   sys_var *system_var = setvar->var;
 
   const char *var_name =
       Persisted_variables_cache::get_variable_name(system_var);
+
+  // 1. Fetch value into local variable var_value.
+
   const char *var_value = val_buf;
   if (setvar->type == OPT_PERSIST_ONLY) {
     String str(val_buf, sizeof(val_buf), system_charset_info), *res;
@@ -372,42 +374,55 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
     var_value = utf8_str.c_ptr_quick();
   }
 
-  /* structured variables may have basename if specified */
-  tmp_var.key =
-      (setvar->base.str ? string(setvar->base.str).append(".").append(var_name)
-                        : string(var_name));
-  tmp_var.value = var_value;
-  tmp_var.is_null = is_null;
+  // 2. Store local variable var_value into member st_persist_var object.
 
-  /* modification to in-memory must be thread safe */
-  lock();
-  DEBUG_SYNC(thd, "in_set_persist_variables");
-  /* if present update variable with new value else insert into hash */
-  if ((setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly()) ||
-      setvar->var->is_persist_readonly())
-    m_persist_ro_variables[tmp_var.key] = tmp_var;
-  else {
-    /*
-     if element is present remove from current position and insert
-     at end of vector to restore insertion order.
-    */
-    string str = tmp_var.key;
-    auto itt =
-        std::find_if(m_persist_variables.begin(), m_persist_variables.end(),
-                     [str](st_persist_var const &s) { return s.key == str; });
-    if (itt != m_persist_variables.end()) m_persist_variables.erase(itt);
-    m_persist_variables.push_back(tmp_var);
-    /* for plugin variables update m_persist_plugin_variables */
-    if (setvar->var->cast_pluginvar()) {
-      auto it = std::find_if(
-          m_persist_plugin_variables.begin(), m_persist_plugin_variables.end(),
-          [str](st_persist_var const &s) { return s.key == str; });
-      if (it != m_persist_plugin_variables.end())
-        m_persist_plugin_variables.erase(it);
-      m_persist_plugin_variables.push_back(tmp_var);
+  auto assign_value = [&](const char *name) {
+    struct st_persist_var tmp_var(thd);
+
+    /* structured variables may have basename if specified */
+    tmp_var.key =
+        (setvar->base.str ? string(setvar->base.str).append(".").append(name)
+                          : string(name));
+    tmp_var.value = var_value;
+    tmp_var.is_null = is_null;
+
+    /* modification to in-memory must be thread safe */
+    lock();
+    DEBUG_SYNC(thd, "in_set_persist_variables");
+    if ((setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly()) ||
+        setvar->var->is_persist_readonly())
+      /* if present update variable with new value else insert into hash */
+      m_persist_ro_variables[tmp_var.key] = tmp_var;
+    else {
+      /*
+       if element is present remove from current position and insert
+       at end of vector to restore insertion order.
+      */
+      string str = tmp_var.key;
+      auto itt =
+          std::find_if(m_persist_variables.begin(), m_persist_variables.end(),
+                       [str](st_persist_var const &s) { return s.key == str; });
+      if (itt != m_persist_variables.end()) m_persist_variables.erase(itt);
+      m_persist_variables.push_back(tmp_var);
+      /* for plugin variables update m_persist_plugin_variables */
+      if (setvar->var->cast_pluginvar()) {
+        auto it = std::find_if(
+            m_persist_plugin_variables.begin(),
+            m_persist_plugin_variables.end(),
+            [str](st_persist_var const &s) { return s.key == str; });
+        if (it != m_persist_plugin_variables.end())
+          m_persist_plugin_variables.erase(it);
+        m_persist_plugin_variables.push_back(tmp_var);
+      }
     }
-  }
-  unlock();
+    unlock();
+  };
+
+  assign_value(var_name);
+
+  const char *alias_var_name = get_variable_alias(system_var);
+  if (alias_var_name) assign_value(alias_var_name);
+
   return false;
 }
 
@@ -457,8 +472,22 @@ String *Persisted_variables_cache::get_variable_value(THD *thd,
    @return
      Pointer to buffer holding the name
 */
-const char *Persisted_variables_cache::get_variable_name(sys_var *system_var) {
+const char *Persisted_variables_cache::get_variable_name(
+    const sys_var *system_var) {
   return system_var->name.str;
+}
+
+const char *Persisted_variables_cache::get_variable_alias(
+    const sys_var *system_var) {
+  if (system_var->m_persisted_alias)
+    return get_variable_name(system_var->m_persisted_alias);
+  return nullptr;
+}
+
+const char *Persisted_variables_cache::get_variable_alias(const char *name) {
+  sys_var *sysvar = intern_find_sys_var(name, strlen(name));
+  if (sysvar) return get_variable_alias(sysvar);
+  return nullptr;
 }
 
 /**
@@ -755,70 +784,85 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
              var_name.c_str());
       continue;
     }
-    switch (sysvar->show_type()) {
-      case SHOW_INT:
-      case SHOW_LONG:
-      case SHOW_LONGLONG:
-      case SHOW_HA_ROWS:
-        res = new (thd->mem_root)
-            Item_uint(iter->value.c_str(), (uint)iter->value.length());
-        break;
-      case SHOW_SIGNED_INT:
-      case SHOW_SIGNED_LONG:
-      case SHOW_SIGNED_LONGLONG:
-        res = new (thd->mem_root)
-            Item_int(iter->value.c_str(), (uint)iter->value.length());
-        break;
-      case SHOW_CHAR:
-      case SHOW_LEX_STRING:
-      case SHOW_BOOL:
-      case SHOW_MY_BOOL:
-        res = new (thd->mem_root) Item_string(
-            iter->value.c_str(), iter->value.length(), &my_charset_utf8mb4_bin);
-        break;
-      case SHOW_CHAR_PTR:
-        if (iter->is_null)
-          res = new (thd->mem_root) Item_null();
-        else
+    /*
+      For aliases with the m_is_persisted_deprecated flag set, the
+      non-alias has its own entry in m_persist_variables.  Therefore,
+      we rely on setting the value for the non-alias and skip setting
+      the value for the alias.
+
+      It would be harmless to set the value also for the alias, except
+      it would generate an extra deprecation warning.  The correct
+      deprecation warning was already generated, if needed, in the
+      previous call to load_aliases().
+    */
+    if (!(get_variable_alias(sysvar) && sysvar->m_is_persisted_deprecated)) {
+      switch (sysvar->show_type()) {
+        case SHOW_INT:
+        case SHOW_LONG:
+        case SHOW_LONGLONG:
+        case SHOW_HA_ROWS:
+          res = new (thd->mem_root)
+              Item_uint(iter->value.c_str(), (uint)iter->value.length());
+          break;
+        case SHOW_SIGNED_INT:
+        case SHOW_SIGNED_LONG:
+        case SHOW_SIGNED_LONGLONG:
+          res = new (thd->mem_root)
+              Item_int(iter->value.c_str(), (uint)iter->value.length());
+          break;
+        case SHOW_CHAR:
+        case SHOW_LEX_STRING:
+        case SHOW_BOOL:
+        case SHOW_MY_BOOL:
           res = new (thd->mem_root)
               Item_string(iter->value.c_str(), iter->value.length(),
                           &my_charset_utf8mb4_bin);
-        break;
-      case SHOW_DOUBLE:
-        res = new (thd->mem_root)
-            Item_float(iter->value.c_str(), (uint)iter->value.length());
-        break;
-      default:
-        my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
+          break;
+        case SHOW_CHAR_PTR:
+          if (iter->is_null)
+            res = new (thd->mem_root) Item_null();
+          else
+            res = new (thd->mem_root)
+                Item_string(iter->value.c_str(), iter->value.length(),
+                            &my_charset_utf8mb4_bin);
+          break;
+        case SHOW_DOUBLE:
+          res = new (thd->mem_root)
+              Item_float(iter->value.c_str(), (uint)iter->value.length());
+          break;
+        default:
+          my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
+          result = true;
+          goto err;
+      }
+
+      var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, base_name, res);
+      tmp_var_list.push_back(var);
+
+      if (sql_set_variables(thd, &tmp_var_list, false)) {
+        /*
+         If there is a connection and an error occurred during install
+         plugin then report error at sql layer, else log the error in
+         server log.
+        */
+        if (current_thd && plugin_options) {
+          if (thd->is_error())
+            LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+                   thd->get_stmt_da()->message_text());
+          else
+            my_error(ER_CANT_SET_PERSISTED, MYF(0));
+        } else {
+          if (thd->is_error())
+            LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+                   thd->get_stmt_da()->message_text());
+          else
+            LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
+        }
         result = true;
         goto err;
-    }
-
-    var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, base_name, res);
-    tmp_var_list.push_back(var);
-
-    if (sql_set_variables(thd, &tmp_var_list, false)) {
-      /*
-       If there is a connection and an error occurred during install plugin
-       then report error at sql layer, else log the error in server log.
-      */
-      if (current_thd && plugin_options) {
-        if (thd->is_error())
-          LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
-                 thd->get_stmt_da()->message_text());
-        else
-          my_error(ER_CANT_SET_PERSISTED, MYF(0));
-      } else {
-        if (thd->is_error())
-          LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
-                 thd->get_stmt_da()->message_text());
-        else
-          LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
       }
-      result = true;
-      goto err;
+      tmp_var_list.clear();
     }
-    tmp_var_list.clear();
     /*
       Once persisted variables are SET in the server,
       update variables source/user/timestamp/host from m_persist_variables.
@@ -1013,6 +1057,67 @@ err:
   return true;
 }
 
+void Persisted_variables_cache::load_aliases() {
+  // Store deprecation warnings in a set, so that we can report them
+  // in alphabetic order. This makes test cases more deterministic.
+  std::map<std::string, std::string> deprecated;
+
+  std::unordered_set<std::string> var_set;
+  for (auto &var : m_persist_variables) var_set.insert(var.key);
+
+  /*
+    If variable has an alias, and it does not exist in the container,
+    insert the alias in container.
+
+    This lambda is agnostic to container type, taking arguments that
+    are functions that check for existing elements and insert
+    elements.
+  */
+  auto insert_alias =
+      [&](std::function<bool(const char *)> exists,
+          std::function<void(st_persist_var &)> insert_in_container,
+          st_persist_var &var) {
+        auto *sysvar = intern_find_sys_var(var.key.c_str(), var.key.length());
+        if (sysvar) {
+          const char *alias = get_variable_alias(sysvar);
+          if (alias) {
+            if (!exists(alias)) {
+              st_persist_var alias_var{var};
+              alias_var.key = alias;
+              insert_in_container(alias_var);
+              if (sysvar->m_is_persisted_deprecated)
+                deprecated[alias] = var.key;
+            }
+          }
+        }
+      };
+  lock();
+  size_t size = m_persist_variables.size();
+  for (size_t i = 0; i < size; i++) {
+    auto var = m_persist_variables[i];
+    insert_alias(
+        [&](const char *name) -> bool {
+          return var_set.find(name) != var_set.end();
+        },
+        [&](st_persist_var &v) { m_persist_variables.push_back(v); }, var);
+  }
+  for (auto pair : m_persist_ro_variables) {
+    insert_alias(
+        [&](const char *name) -> bool {
+          return m_persist_ro_variables.find(name) !=
+                 m_persist_ro_variables.end();
+        },
+        [&](st_persist_var &v) { m_persist_ro_variables[v.key] = v; },
+        pair.second);
+  }
+  unlock();
+
+  // Generate deprecation warnings
+  for (auto pair : deprecated)
+    LogErr(WARNING_LEVEL, ER_DEPRECATED_PERSISTED_VARIABLE_WITH_ALIAS,
+           pair.second.c_str(), pair.first.c_str());
+}
+
 /**
   read_persist_file() reads the persisted config file
 
@@ -1081,6 +1186,9 @@ int Persisted_variables_cache::read_persist_file() {
   }
   /* Extract key/value pair and populate in a global hash map */
   if (extract_variables_from_json(iter->second.get())) return 1;
+
+  load_aliases();
+
   return 0;
 }
 
@@ -1176,13 +1284,10 @@ err:
 bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
                                                           const char *name,
                                                           bool if_exists) {
-  bool result = false, flush = false, not_present = true;
-  string var_name;
+  bool result = false, found = false;
   bool reset_all = (name ? 0 : 1);
-  var_name = (name ? name : string());
   /* update on m_persist_variables/m_persist_ro_variables must be thread safe */
   lock();
-  auto it_ro = m_persist_ro_variables.find(var_name);
 
   if (reset_all) {
     /* check for necessary privileges */
@@ -1191,64 +1296,74 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
 
     if (!m_persist_variables.empty()) {
       m_persist_variables.clear();
-      flush = true;
+      found = true;
     }
     if (!m_persist_ro_variables.empty()) {
       m_persist_ro_variables.clear();
-      flush = true;
+      found = true;
     }
     /* remove plugin variables if any */
     if (!m_persist_plugin_variables.empty()) {
       m_persist_plugin_variables.clear();
-      flush = true;
+      found = true;
     }
   } else {
-    auto checkvariable = [&var_name](st_persist_var const &s) -> bool {
-      return s.key == var_name;
+    auto erase_variable = [&](const char *name_cptr) -> bool {
+      string name_str{name_cptr};
+      auto checkvariable = [&name_str](st_persist_var const &s) -> bool {
+        return s.key == name_str;
+      };
+      if (m_persist_variables.size()) {
+        auto it = std::find_if(m_persist_variables.begin(),
+                               m_persist_variables.end(), checkvariable);
+        if (it != m_persist_variables.end()) {
+          /* if variable is present in config file remove it */
+          if (check_priv(thd, false)) return true;
+          m_persist_variables.erase(it);
+          found = true;
+        }
+      }
+      if (m_persist_plugin_variables.size()) {
+        auto it = std::find_if(m_persist_plugin_variables.begin(),
+                               m_persist_plugin_variables.end(), checkvariable);
+        if (it != m_persist_plugin_variables.end()) {
+          if (check_priv(thd, false)) return true;
+          m_persist_plugin_variables.erase(it);
+          found = true;
+        }
+      }
+      auto it_ro = m_persist_ro_variables.find(name_str);
+      if (it_ro != m_persist_ro_variables.end()) {
+        if (check_priv(thd, true)) return true;
+        /* if static variable is present in config file remove it */
+        m_persist_ro_variables.erase(it_ro);
+        found = true;
+      }
+      return false;
     };
-    if (m_persist_variables.size()) {
-      auto it = std::find_if(m_persist_variables.begin(),
-                             m_persist_variables.end(), checkvariable);
-      if (it != m_persist_variables.end()) {
-        /* if variable is present in config file remove it */
-        if (check_priv(thd, false)) goto end;
-        m_persist_variables.erase(it);
-        flush = true;
-        not_present = false;
-      }
-    }
-    if (m_persist_plugin_variables.size()) {
-      auto it = std::find_if(m_persist_plugin_variables.begin(),
-                             m_persist_plugin_variables.end(), checkvariable);
-      if (it != m_persist_plugin_variables.end()) {
-        if (check_priv(thd, false)) goto end;
-        m_persist_plugin_variables.erase(it);
-        flush = true;
-        not_present = false;
-      }
-    }
-    if (it_ro != m_persist_ro_variables.end()) {
-      if (check_priv(thd, true)) goto end;
-      /* if static variable is present in config file remove it */
-      m_persist_ro_variables.erase(it_ro);
-      flush = true;
-      not_present = false;
-    }
-    if (not_present) {
-      /* if not present and if exists is specified, report warning */
+
+    // Erase the named variable
+    if (erase_variable(name)) goto end;
+
+    // If the variable has an alias, erase that too.
+    const char *alias = get_variable_alias(name);
+    if (alias && erase_variable(alias)) goto end;
+
+    if (!found) {
+      /* if not present and IF EXISTS is specified, report warning */
       if (if_exists) {
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_VAR_DOES_NOT_EXIST,
-            ER_THD(thd, ER_VAR_DOES_NOT_EXIST), var_name.c_str());
-      } else /* report error */
-      {
-        my_error(ER_VAR_DOES_NOT_EXIST, MYF(0), var_name.c_str());
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
+                            ER_VAR_DOES_NOT_EXIST,
+                            ER_THD(thd, ER_VAR_DOES_NOT_EXIST), name);
+      } else {
+        /* without IF EXISTS, report error */
+        my_error(ER_VAR_DOES_NOT_EXIST, MYF(0), name);
         result = true;
       }
     }
   }
   unlock();
-  if (flush) flush_to_file();
+  if (found) flush_to_file();
 
   return result;
 

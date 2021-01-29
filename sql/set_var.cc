@@ -223,6 +223,14 @@ bool check_priv(THD *thd, bool static_variable) {
   string describes what one should use instead. If an empty string,
   the variable is deprecated but no replacement is offered.
   @param parse_flag either PARSE_EARLY or PARSE_NORMAL
+  @param persisted_alias If this variable is persisted, it will
+                   appear in the file both under its own name, and using
+                   'persisted_alias'.
+  @param is_persisted_deprecated If this variable is found in the
+                   persisted, variables file, and its alias is not
+                   found, a deprecation warning will be issued if
+                   is_persisted_deprecated is true.  This flag must be
+                   false if persisted_alias is null.
 */
 sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  const char *comment, int flags_arg, ptrdiff_t off,
@@ -231,8 +239,11 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
                  enum binlog_status_enum binlog_status_arg,
                  on_check_function on_check_func,
                  on_update_function on_update_func, const char *substitute,
-                 int parse_flag)
+                 int parse_flag, sys_var *persisted_alias,
+                 bool is_persisted_deprecated)
     : next(nullptr),
+      m_persisted_alias(persisted_alias),
+      m_is_persisted_deprecated(is_persisted_deprecated),
       binlog_status(binlog_status_arg),
       flags(flags_arg),
       m_parse_flag(parse_flag),
@@ -256,6 +267,9 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   */
   assert(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
+  // the is_persist_deprecated flag is only applicable for aliases
+  if (!persisted_alias) assert(!is_persisted_deprecated);
+
   name.str = name_arg;  // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length = strlen(name_arg);  // and so does this.
   assert(name.length <= NAME_CHAR_LEN);
@@ -277,6 +291,8 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
 
   memset(source.m_path_name, 0, FN_REFLEN);
   option.arg_source = &source;
+
+  if (persisted_alias) persisted_alias->m_persisted_alias = this;
 
   if (chain->last)
     chain->last->next = this;

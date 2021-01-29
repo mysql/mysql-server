@@ -6671,6 +6671,14 @@ int mysqld_main(int argc, char **argv)
   strmake(mysql_real_data_home, get_relative_path(MYSQL_DATADIR),
           sizeof(mysql_real_data_home) - 1);
 
+  /* Must be initialized early for comparison of options name */
+  system_charset_info = &my_charset_utf8_general_ci;
+
+  /* Write mysys error messages to the error log. */
+  local_message_hook = error_log_print;
+
+  sys_var_init();
+
   /*
    Initialize variables cache for persisted variables, load persisted
    config file and append read only persisted variables to command line
@@ -6688,12 +6696,6 @@ int mysqld_main(int argc, char **argv)
 
   init_variable_default_paths();
 
-  /* Must be initialized early for comparison of options name */
-  system_charset_info = &my_charset_utf8_general_ci;
-
-  /* Write mysys error messages to the error log. */
-  local_message_hook = error_log_print;
-
   int heo_error;
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -6706,7 +6708,6 @@ int mysqld_main(int argc, char **argv)
   heo_error = handle_early_options();
 
   init_sql_statement_names();
-  sys_var_init();
   ulong requested_open_files = 0;
 
   //  Init error log subsystem. This does not actually open the log yet.
@@ -9703,6 +9704,36 @@ bool mysqld_get_one_option(int optid,
   Rpl_filter *rpl_filter = nullptr;
   char *filter_val;
   char *channel_name;
+
+  auto *sysvar = intern_find_sys_var(opt->name, strlen(opt->name));
+  if (sysvar && sysvar->m_persisted_alias &&
+      sysvar->m_is_persisted_deprecated) {
+    /*
+      At this point, my_handle_options (through setval and
+      setval_source) has set the source for itself.  It was set using
+      direct access to the my_option object, so it is really the
+      source object that is a member of this sysvar that has been set.
+      In case this is a deprecated alias, that does not help, because
+      the high-level getters and setters will get and set the value in
+      the base variable, not the alias.  Therefore, we copy the source
+      from the alias to the base variable, using a low-level getter in
+      the alias and a high-level setter in the alias.
+    */
+    auto *source = sysvar->get_option()->arg_source;
+    sysvar->set_source(source->m_source);
+    sysvar->set_source_name(source->m_path_name);
+    if (source->m_source != PERSISTED) {
+      /*
+        Generate the deprecation warning.  But not if we are loading
+        it from the persisted variables file (i.e., this is a variable
+        having the PERSIST_AS_READONLY flag set): in that case a more
+        specific warning was already generated when loading the
+        persisted variable.
+      */
+      const char *ds = sysvar->get_deprecation_substitute();
+      if (ds) push_deprecated_warn(nullptr, opt->name, ds);
+    }
+  }
 
   switch (optid) {
     case '#':
