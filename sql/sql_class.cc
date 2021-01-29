@@ -466,7 +466,6 @@ THD::THD(bool enable_plugins)
   query_start_usec_used = false;
   check_for_truncated_fields = CHECK_FIELD_IGNORE;
   killed = NOT_KILLED;
-  col_access = 0;
   is_slave_error = thread_specific_used = false;
   tmp_table = 0;
   num_truncated_fields = 0L;

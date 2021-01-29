@@ -8905,19 +8905,22 @@ longlong Item_func_can_access_view::val_int() {
   //
   // Check for ACL's
   //
-
-  if ((thd->col_access & (SHOW_VIEW_ACL | SELECT_ACL)) ==
-      (SHOW_VIEW_ACL | SELECT_ACL))
-    return 1;
-
   TABLE_LIST table_list;
-  uint view_access;
   table_list.db = schema_name_ptr->ptr();
+  table_list.db_length = schema_name_ptr->length();
   table_list.table_name = table_name_ptr->ptr();
-  table_list.grant.privilege = thd->col_access;
-  view_access = get_table_grant(thd, &table_list);
-  if ((view_access & (SHOW_VIEW_ACL | SELECT_ACL)) ==
-      (SHOW_VIEW_ACL | SELECT_ACL))
+  table_list.table_name_length = table_name_ptr->length();
+  if (lower_case_table_names == 2) {
+    /*
+      Be consistent with CAN_ACCESS_TABLE() case. Although lowercasing
+      is not strictly necessary until bug#20356 is fixed.
+    */
+    table_list.table_name_length =
+        my_casedn_str(files_charset_info, table_name_ptr->ptr());
+  }
+
+  if (!check_table_access(thd, (SHOW_VIEW_ACL | SELECT_ACL), &table_list, false,
+                          1, true))
     return 1;
 
   return 0;

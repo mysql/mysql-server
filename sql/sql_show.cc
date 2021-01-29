@@ -231,13 +231,15 @@ bool Sql_cmd_show_schema_base::check_privileges(THD *thd) {
   const char *dst_db_name = thd->lex->query_block->db;
   assert(dst_db_name != nullptr);
 
-  // Check if the user has global access
-  if (check_access(thd, SELECT_ACL, dst_db_name, &thd->col_access, nullptr,
+  // Get user's global and db-level privileges.
+  ulong global_db_privs;
+  if (check_access(thd, SELECT_ACL, dst_db_name, &global_db_privs, nullptr,
                    false, false))
     return true;
 
-  // Now check, if user has access to any of database/table/column/routine
-  if (!(thd->col_access & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
+  // Now check, if user has access on global level or to any of database/
+  // table/column/routine.
+  if (!(global_db_privs & DB_OP_ACLS) && check_grant_db(thd, dst_db_name)) {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              thd->security_context()->priv_user().str,
              thd->security_context()->priv_host().str, dst_db_name);
