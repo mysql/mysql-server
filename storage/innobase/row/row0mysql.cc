@@ -2752,14 +2752,6 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   trx->dict_operation_lock_mode = 0;
 }
 
-/** Creates a table for MySQL. On success the in-memory table could be
-kept in non-LRU list while on failure the 'table' object will be freed.
-@param[in]	table		table definition(will be freed, or on
-                                DB_SUCCESS added to the data dictionary cache)
-@param[in]	compression	compression algorithm to use, can be nullptr
-@param[in]	create_info     HA_CREATE_INFO object
-@param[in,out]	trx		transaction
-@return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
                                    const HA_CREATE_INFO *create_info,
                                    trx_t *trx) {

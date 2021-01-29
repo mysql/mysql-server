@@ -4343,12 +4343,6 @@ static inline dberr_t init_before_processing(fil_space_t *space,
                      : init_before_decrypt_processing(space, space_id));
 }
 
-/** Encrypt/Unencrypt a tablespace.
-@param[in]	thd		current thread
-@param[in]	space_id	Tablespace id
-@param[in]	to_encrypt	true if to encrypt, false if to decrypt
-@param[in,out]	dd_space_in	dd tablespace object
-@return 0 for success, otherwise error code */
 dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
                                      bool to_encrypt, void *dd_space_in) {
   dberr_t err = DB_SUCCESS;

@@ -1367,7 +1367,7 @@ fil_type_t fil_space_get_type(space_id_t space_id)
 /** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
-Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
+Now we change it to FIL_TYPE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
 @param[in]	space_id	Tablespace ID */
 void fil_space_set_imported(space_id_t space_id);
@@ -1437,7 +1437,7 @@ and the number of pages that it should be extended. An undo tablespace is
 extended by larger amounts than normal tablespaces. It starts at 16Mb and
 is increased during aggressive growth and decreased when the growth is slower.
 @param[in]  space_id     Tablespace ID
-@param]in]  use_current  If true, use the current size in pages as the initial
+@param[in]  use_current  If true, use the current size in pages as the initial
                          size. If false, use UNDO_INITIAL_SIZE_IN_PAGES. */
 void fil_space_set_undo_size(space_id_t space_id, bool use_current);
 

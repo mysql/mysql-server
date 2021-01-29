@@ -3283,12 +3283,6 @@ bool dd_tablespace_is_implicit(dd::cache::Dictionary_client *client,
   return fail;
 }
 
-/** Get the autoextend_size attribute value for the tablespace with id
-dd_space_id
-@param[in,out]	dd_client	data dictionary client
-@param[in]	dd_space_id	tablespace id
-@param[out]	autoextend_size autoextend_size attribute value
-@return false if successful */
 bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
                                    const dd::Object_id dd_space_id,
                                    uint64_t *autoextend_size) {
@@ -3317,14 +3311,6 @@ bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
   return false;
 }
 
-/** Alter an implicit tablespace
-@param[in,out]  dd_client       data dictionary client
-@param[in,out]  thd             THD object
-@param[in]      dd_space_id     dd tablespace id
-@param[in]      create_info     HA_CREATE_INFO object
-@return false   On success
-@return true    On failure
-*/
 bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
                                   THD *thd, dd::Object_id dd_space_id,
                                   HA_CREATE_INFO *create_info) {
@@ -5294,19 +5280,6 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
   return true;
 }
 
-/** Process one mysql.tablespaces record and get info
-@param[in]      heap            temp memory heap
-@param[in,out]  rec	            mysql.tablespaces record
-@param[in,out]	space_id        space id
-@param[in,out]  name            space name
-@param[in,out]  flags           space flags
-@param[in,out]  server_version  server version
-@param[in,out]  space_version   space version
-@param[out]     is_encrypted    true if tablespace is encrypted
-@param[out]     autoextend_size autoextend_size attribute value
-@param[in,out]  state           space state
-@param[in]      dd_spaces       dict_table_t obj of mysql.tablespaces
-@return true if data is retrived */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint32_t *flags, uint32 *server_version,

@@ -1912,7 +1912,7 @@ class Fixup_data {
   bool m_drop;
 };
 
-/** All configuration tables for which data should not be cloned. From
+/* All configuration tables for which data should not be cloned. From
 replication configurations only clone slave_master_info table needed by GR. */
 const std::array<const char *, Fixup_data::S_NUM_CONFIG_TABLES>
     Fixup_data::s_config_tables = {};

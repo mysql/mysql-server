@@ -1218,7 +1218,7 @@ class Fil_shard {
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Release the slot reserved for opening a file.
-  @param[in]	shard_id	ID of shard relasing the slot */
+  @param[in]	shard_id	ID of shard releasing the slot */
   static void release_open_slot(size_t shard_id);
 
   /** We are going to do a rename file and want to stop new I/O
@@ -2082,8 +2082,6 @@ bool Fil_shard::reserve_open_slot(size_t shard_id) {
   return s_open_slot.compare_exchange_weak(expected, shard_id);
 }
 
-/** Release the slot reserved for opening a file.
-@param[in]	shard_id	ID of shard releasing the slot */
 void Fil_shard::release_open_slot(size_t shard_id) {
   size_t expected = shard_id;
 
@@ -2364,12 +2362,6 @@ fil_type_t fil_space_get_type(space_id_t space_id) {
 
 #endif /* UNIV_DEBUG */
 
-/** Note that a tablespace has been imported.
-It is initially marked as FIL_TYPE_IMPORT so that no logging is
-done during the import process when the space ID is stamped to each page.
-Now we change it to FIL_TYPE_TABLESPACE to start redo and undo logging.
-NOTE: temporary tablespaces are never imported.
-@param[in]	space_id	Tablespace ID */
 void fil_space_set_imported(space_id_t space_id) {
   auto shard = fil_system->shard_by_id(space_id);
 
@@ -10172,10 +10164,6 @@ bool Fil_system::open_for_recovery(space_id_t space_id) {
   return false;
 }
 
-/** Open the tabelspace and also get the tablespace filenames, space_id must
-already be known.
-@param[in]	space_id	Tablespace ID to lookup
-@return true if open was successful */
 bool fil_tablespace_open_for_recovery(space_id_t space_id) {
   return fil_system->open_for_recovery(space_id);
 }

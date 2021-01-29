@@ -58,19 +58,6 @@
 # include/m_ctype.h:*
 #===========================================================================
 
-# BUG#32245569 - FIX MORE DOXYGEN WARNINGS IN INNODB CODE
-# 07-DEC-2020 Erlend Dahl
-storage/innobase/fil/fil0fil.cc:*
-storage/innobase/include/buf0flu.h:*
-storage/innobase/include/dict0crea.h:*
-storage/innobase/include/dict0dd.h:*
-storage/innobase/include/dict0dict.h:*
-storage/innobase/include/fil0fil.h:*
-storage/innobase/include/fsp0fsp.h:*
-storage/innobase/include/row0mysql.h:*
-storage/temptable/include/temptable/handler.h:*
-storage/innobase/clone/clone0api.cc:*
-#
 # BUG#31354781 - FIX DOXYGEN WARNINGS IN RPL CODE
 # 07-DEC-2020 Erlend Dahl
 sql/rpl_binlog_sender.cc:*

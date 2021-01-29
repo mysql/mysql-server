@@ -5697,8 +5697,6 @@ size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
   return (size);
 }
 
-/** Close SDI table.
-@param[in]	table		the in-memory SDI table object */
 void dict_sdi_close_table(dict_table_t *table) {
   ut_ad(dict_table_is_sdi(table->id));
   dict_table_close(table, true, false);
@@ -5884,32 +5882,6 @@ bool dict_table_is_system(table_id_t table_id) {
   return (false);
 }
 
-/** Acquire exclusive MDL on SDI tables. This is acquired to
-prevent concurrent DROP table/tablespace when there is purge
-happening on SDI table records. Purge will acquired shared
-MDL on SDI table.
-
-Exclusive MDL is transactional(released on trx commit). So
-for successful acquisition, there should be valid thd with
-trx associated.
-
-Acquisition order of SDI MDL and SDI table has to be in same
-order:
-
-1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innodb_drop_tablespace()
-   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
-
-In purge:
-
-1. dd_sdi_acquire_shared_mdl
-2. dd_table_open_on_id()
-
-@param[in]	thd		server thread instance
-@param[in]	space_id	InnoDB tablespace id
-@param[in,out]	sdi_mdl		MDL ticket on SDI table
-@retval	DB_SUCESS		on success
-@retval	DB_LOCK_WAIT_TIMEOUT	on error */
 dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
                                      MDL_ticket **sdi_mdl) {
   /* Exclusive MDL always need trx context and is
@@ -5946,28 +5918,6 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
   return (DB_SUCCESS);
 }
 
-/** Acquire shared MDL on SDI tables. This is acquired by purge to
-prevent concurrent DROP table/tablespace.
-DROP table/tablespace will acquire exclusive MDL on SDI table
-
-Acquisition order of SDI MDL and SDI table has to be in same
-order:
-
-1. dd_sdi_acquire_exclusive_mdl
-2. row_drop_table_from_cache()/innodb_drop_tablespace()
-   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
-
-In purge:
-
-1. dd_sdi_acquire_shared_mdl
-2. dd_table_open_on_id()
-
-MDL should be released by caller
-@param[in]	thd		server thread instance
-@param[in]	space_id	InnoDB tablespace id
-@param[in,out]	sdi_mdl		MDL ticket on SDI table
-@retval	DB_SUCESS		on success
-@retval	DB_LOCK_WAIT_TIMEOUT	on error */
 dberr_t dd_sdi_acquire_shared_mdl(THD *thd, space_id_t space_id,
                                   MDL_ticket **sdi_mdl) {
   ut_ad(sdi_mdl != nullptr);

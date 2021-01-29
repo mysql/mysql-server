@@ -953,7 +953,7 @@ dberr_t fsp_has_sdi(space_id_t space_id);
 /** Encrypt/Unencrypt a tablespace.
 @param[in]	thd		current thread
 @param[in]	space_id	Tablespace id
-@param[in]	to_encrypt	true if to encrypt, false if to unencrypt
+@param[in]	to_encrypt	true if to encrypt, false if to decrypt
 @param[in,out]	dd_space_in	dd tablespace object
 @return 0 for success, otherwise error code */
 dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
