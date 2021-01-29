@@ -13488,6 +13488,8 @@ static TRP_SKIP_SCAN *get_best_skip_scan(PARAM *param, SEL_TREE *tree,
     cause = "not_single_table";
   else if (table->s->keys == 0) /* There are no indexes to use. */
     cause = "no_index";
+  else if (param->order_direction == ORDER_DESC)
+    cause = "cannot_do_reverse_ordering";
   else if (!join->group_list.empty())
     cause = "has_group_by";
   else if (!tree)
