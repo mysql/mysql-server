@@ -2510,7 +2510,9 @@ static Exit_status check_master_version() {
      necessary checksummed.
      That preference is specified below.
   */
-  if (mysql_query(mysql, "SET @master_binlog_checksum='NONE'")) {
+  if (mysql_query(mysql,
+                  "SET @master_binlog_checksum = 'NONE', "
+                  "@source_binlog_checksum = 'NONE'")) {
     error(
         "Could not notify source server about checksum awareness."
         "Server returned '%s'",

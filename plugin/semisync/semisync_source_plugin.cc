@@ -127,11 +127,16 @@ static int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
   long long semi_sync_slave = 0;
 
   /*
-    semi_sync_slave will be 0 if the user variable doesn't exist. Otherwise, it
-    will be set to the value of the user variable.
-    'rpl_semi_sync_replica = 0' means that it is not a semisync slave.
+    Check if the replica has identified itself as a semisync replica
+    by setting a user variable.  The old library sets the user
+    variable rpl_semi_sync_slave on the session, and the new library
+    sets rpl_semi_sync_replica.  The value returned through the
+    argument will be whatever the replica has set it to in the
+    session, or 0 if the replica has not set it.
   */
   get_user_var_int("rpl_semi_sync_replica", &semi_sync_slave, nullptr);
+  if (semi_sync_slave == 0)
+    get_user_var_int("rpl_semi_sync_slave", &semi_sync_slave, nullptr);
 
   if (semi_sync_slave != 0) {
     if (ack_receiver->add_slave(current_thd)) {
