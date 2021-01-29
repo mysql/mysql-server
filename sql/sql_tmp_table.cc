@@ -194,6 +194,12 @@ Field *create_tmp_field_from_field(THD *thd, const Field *org_field,
   */
   new_field->gcol_info = nullptr;
   new_field->stored_in_db = true;
+  /*
+    Invisible column is explicitly referred in the column list. Mark it as
+    VISIBLE column in the internal temporary table.
+  */
+  if (new_field->is_hidden_by_user())
+    new_field->set_hidden(dd::Column::enum_hidden_type::HT_VISIBLE);
 
   return new_field;
 }

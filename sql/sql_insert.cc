@@ -2696,13 +2696,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     });
     assert(!cr_field->is_array);
 
-    /*
-      If INVISIBLE field is explicitly used in the column list of SELECT query
-      then mark it as VISIBLE column in the table being created.
-    */
-    if (cr_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_USER)
-      cr_field->hidden = dd::Column::enum_hidden_type::HT_VISIBLE;
-
     alter_info->create_list.push_back(cr_field);
   }
 
