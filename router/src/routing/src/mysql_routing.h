@@ -91,7 +91,9 @@ class SocketContainer {
   using protocol_type = Protocol;
   using socket_type = typename protocol_type::socket;
 
-  // as a ref is returned, we a list to store the sockets
+  // as a ref will get returned, the socket_type' object needs a stable address.
+  // - std::list<socket_type> provide that.
+  // - std::vector<std::unique_ptr<socket_type>> should work too.
   using container_type = std::list<socket_type>;
 
  public:
@@ -104,6 +106,20 @@ class SocketContainer {
     std::lock_guard<std::mutex> lk(mtx_);
 
     sockets_.push_back(std::move(sock));
+
+    return sockets_.back();
+  }
+
+  /**
+   * move ownership of socket_type to the container.
+   *
+   * @return a ref to the stored socket.
+   */
+  template <class... Args>
+  socket_type &emplace_back(Args &&... args) {
+    std::lock_guard<std::mutex> lk(mtx_);
+
+    sockets_.emplace_back(std::forward<Args>(args)...);
 
     return sockets_.back();
   }
@@ -452,6 +468,9 @@ class MySQLRouting {
   net::ip::tcp::acceptor service_tcp_;
   net::ip::tcp::endpoint service_tcp_endpoint_;
   SocketContainer<net::ip::tcp> tcp_connector_container_;
+
+  // container for sockets while the Connector runs.
+  SocketContainer<net::ip::tcp> server_sock_container_;
 
 #if !defined(_WIN32)
   /** @brief Socket descriptor of the named socket service */

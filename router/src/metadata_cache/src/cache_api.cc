@@ -210,10 +210,12 @@ void MetadataCacheAPI::mark_instance_reachability(
 }
 
 bool MetadataCacheAPI::wait_primary_failover(
-    const std::string &replicaset_name, const std::chrono::seconds &timeout) {
+    const std::string &replicaset_name, const std::string &primary_server_uuid,
+    const std::chrono::seconds &timeout) {
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
-  return g_metadata_cache->wait_primary_failover(replicaset_name, timeout);
+  return g_metadata_cache->wait_primary_failover(replicaset_name,
+                                                 primary_server_uuid, timeout);
 }
 
 void MetadataCacheAPI::add_listener(

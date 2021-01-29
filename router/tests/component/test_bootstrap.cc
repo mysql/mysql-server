@@ -1820,6 +1820,32 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
+TEST_F(ErrorReportTest, bootstrap_conf_base_port_hex) {
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+  const uint16_t server_port = port_pool_.get_next_available();
+
+  TempDirectory bootstrap_directory;
+
+  // launch the router in bootstrap mode
+  auto &router = launch_router_for_bootstrap(
+      {
+          "--bootstrap", "127.0.0.1:" + std::to_string(server_port),  //
+          "--connect-timeout", "1",                                   //
+          "--conf-base-port", "0x0",                                  //
+          "--report-host", my_hostname,                               //
+          "-d", bootstrap_directory.name(),                           //
+      },
+      EXIT_FAILURE);
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ",
+                           kRootPassword + "\n"s);
+
+  check_exit_code(router, EXIT_FAILURE);
+  EXPECT_THAT(router.get_full_output(),
+              ::testing::HasSubstr("Error: Invalid base-port number 0x0; "
+                                   "please pick a value between 0 and 65532"));
+}
+
 // unfortunately it's not (reasonably) possible to make folders read-only on
 // Windows, therefore we can run the following tests only on Unix
 //

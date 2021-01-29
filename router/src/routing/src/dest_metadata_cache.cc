@@ -394,6 +394,8 @@ class MetadataCacheDestination : public Destination {
         server_uuid_{std::move(server_uuid)} {}
 
   void connect_status(std::error_code ec) override {
+    last_ec_ = ec;
+
     if (ec != std::error_code{}) {
       balancer_->cache_api()->mark_instance_reachability(
           server_uuid_, metadata_cache::InstanceStatus::Unreachable);
@@ -411,10 +413,16 @@ class MetadataCacheDestination : public Destination {
     }
   }
 
+  std::string server_uuid() const { return server_uuid_; }
+
+  std::error_code last_error_code() const { return last_ec_; }
+
  private:
   DestMetadataCacheGroup *balancer_;
 
   std::string server_uuid_;
+
+  std::error_code last_ec_;
 };
 
 // the first round of destinations didn't succeed.
@@ -433,12 +441,40 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
   } else {
     // Group Replication
     if (server_role() == DestMetadataCacheGroup::ServerRole::Primary) {
-      // if connecting to the primary failed, wait for failover and fetch a new
-      // list of candidates.
+      // verify preconditions.
+      assert(!previous_dests.empty() &&
+             "previous destinations MUST NOT be empty");
+      assert(previous_dests.primary() &&
+             "previous destinations MUST a primary");
+
+      if (previous_dests.empty()) {
+        return stdx::make_unexpected();
+      }
+      if (!previous_dests.primary()) {
+        return stdx::make_unexpected();
+      }
+
+      // if connecting to the primary failed differentiate between:
       //
-      // in case of timeout, fail
+      // - network failure
+      // - member failure
+      //
+      // On network failure (timeout, network-not-reachable, ...), fail
+      // directly.
+      //
+      // On member failure (connection refused, ...) wait for failover and use
+      // the new primary.
+
+      auto const *primary_member = dynamic_cast<MetadataCacheDestination *>(
+          previous_dests.begin()->get());
+
+      if (primary_member->last_error_code() ==
+          make_error_condition(std::errc::timed_out)) {
+        return stdx::make_unexpected();
+      }
 
       if (cache_api_->wait_primary_failover(ha_replicaset_,
+                                            primary_member->server_uuid(),
                                             kPrimaryFailoverTimeout)) {
         return primary_destinations();
       }

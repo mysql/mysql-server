@@ -464,7 +464,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
                       view_id);
   }
 
-  SCOPED_TRACE("// Create a router state file the 3 members");
+  SCOPED_TRACE("// Create a router state file with 3 members");
   const std::string state_file = create_state_file(
       temp_test_dir.name(),
       create_state_file_content(cluster_id, cluster_nodes_ports, view_id));
@@ -496,14 +496,14 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
       "// Check our state file content, it should first contain all 3 members");
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
-  SCOPED_TRACE(
-      "// Now let's change the md on the PRIMARY: different cluster_id and "
-      "increased view_id");
+  SCOPED_TRACE("// Now let's change the md on the PRIMARY: " + cluster_id +
+               ", " + std::to_string(view_id) + " (cluster_id, view_id) to " +
+               changed_cluster_id + ", " + std::to_string(view_id + 1));
   set_mock_metadata(cluster_http_ports[0], changed_cluster_id,
                     {cluster_nodes_ports[0], cluster_nodes_ports[1]}, 0,
                     view_id + 1);
 
-  SCOPED_TRACE("// Wait untill the router sees this change");
+  SCOPED_TRACE("// Wait until the router sees this change");
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(

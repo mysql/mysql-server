@@ -122,16 +122,33 @@ class METADATA_API MetadataCache
   void mark_instance_reachability(const std::string &instance_id,
                                   metadata_cache::InstanceStatus status);
 
-  /** @brief Wait until there's a primary member in the replicaset
+  /** Wait until PRIMARY changes in a replicaset.
    *
-   * To be called when the primary member of a single-primary replicaset is down
-   * and we want to wait until one becomes elected.
+   * wait until a change of the PRIMARY is noticed
+   *
+   * leave early if
+   *
+   * - 'timeout' expires
+   * - process shutdown is requested
+   *
+   * function has to handle two scenarios:
+   *
+   * connection to PRIMARY fails because:
+   *
+   * 1. PRIMARY died and group relects a new member
+   * 2. network to PRIMARY lost, but GR sees no fault and PRIMARY does not
+   * change.
+   *
+   * Therefore, if the connection to PRIMARY fails, wait for change of the
+   * membership or timeout, whatever happens earlier.
    *
    * @param replicaset_name name of the replicaset
+   * @param server_uuid server-uuid of the PRIMARY that we failed to connect
    * @param timeout - amount of time to wait for a failover
    * @return true if a primary member exists
    */
   bool wait_primary_failover(const std::string &replicaset_name,
+                             const std::string &server_uuid,
                              const std::chrono::seconds &timeout);
 
   /** @brief refresh replicaset information */

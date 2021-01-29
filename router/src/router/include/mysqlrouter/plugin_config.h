@@ -25,13 +25,6 @@
 #ifndef MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 #define MYSQLROUTER_PLUGIN_CONFIG_INCLUDED
 
-#include "mysql/harness/config_parser.h"
-#include "mysql/harness/filesystem.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysqlrouter/utils.h"
-#include "tcp_address.h"
-
-#include <cassert>
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
@@ -40,10 +33,11 @@
 #include <sstream>
 #include <string>
 
-#ifdef _WIN32
-#pragma push_macro("max")
-#undef max
-#endif
+#include "mysql/harness/config_parser.h"
+#include "mysql/harness/filesystem.h"
+#include "mysql/harness/logging/logging.h"
+#include "mysqlrouter/utils.h"
+#include "tcp_address.h"
 
 namespace mysqlrouter {
 
@@ -75,7 +69,7 @@ class BasePluginConfig {
 
   /** @brief Constructor
    */
-  BasePluginConfig() {}
+  BasePluginConfig() = default;
 
   /**
    * destructor
@@ -199,7 +193,7 @@ class BasePluginConfig {
 
     char *rest;
     errno = 0;
-    long long tol = std::strtoll(value.c_str(), &rest, 0);
+    long long tol = std::strtoll(value.c_str(), &rest, 10);
     T result = static_cast<T>(tol);
 
     if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value ||
@@ -256,9 +250,6 @@ class BasePluginConfig {
       const mysql_harness::ConfigSection *section, const std::string &option,
       bool require_port = false, int default_port = -1);
 
-  int get_option_tcp_port(const mysql_harness::ConfigSection *section,
-                          const std::string &option);
-
   /** @brief Gets location of a named socket
    *
    * Gets location of a named socket. The option value is checked first
@@ -276,9 +267,5 @@ class BasePluginConfig {
 };
 
 }  // namespace mysqlrouter
-
-#ifdef _WIN32
-#pragma pop_macro("max")
-#endif
 
 #endif  // MYSQLROUTER_PLUGIN_CONFIG_INCLUDED

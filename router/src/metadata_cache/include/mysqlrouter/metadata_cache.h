@@ -368,10 +368,13 @@ class METADATA_API MetadataCacheAPIBase
    * and we want to wait until one becomes elected.
    *
    * @param replicaset_name - the name of the replicaset
+   * @param primary_server_uuid - server_uuid of the PRIMARY that shall be
+   * failover from.
    * @param timeout - amount of time to wait for a failover, in seconds
    * @return true if a primary member exists
    */
   virtual bool wait_primary_failover(const std::string &replicaset_name,
+                                     const std::string &primary_server_uuid,
                                      const std::chrono::seconds &timeout) = 0;
 
   /**
@@ -496,6 +499,7 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
                                   InstanceStatus status) override;
 
   bool wait_primary_failover(const std::string &replicaset_name,
+                             const std::string &primary_server_uuid,
                              const std::chrono::seconds &timeout) override;
 
   void add_listener(const std::string &replicaset_name,
