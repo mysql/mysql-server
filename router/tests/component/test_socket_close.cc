@@ -924,8 +924,10 @@ TEST_P(FailToOpenSocketOnStartup, FailOnStartup) {
   routing_section += get_metadata_cache_routing_section(
       router_ro_x_port, "SECONDARY", "round-robin", "", "x_ro", "x");
 
-  launch_router(metadata_cache_section, routing_section, EXIT_FAILURE,
-                /*wait_for_notify_ready=*/5s);
+  auto &router =
+      launch_router(metadata_cache_section, routing_section, EXIT_FAILURE,
+                    /*wait_for_notify_ready=*/-1s);
+  EXPECT_NE(router.wait_for_exit(), 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(
