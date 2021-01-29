@@ -33,8 +33,8 @@ loose-innodb_read_io_threads=     2
 
 master-retry-count=         10
 
-# Values reported by slave when it connect to master
-# and shows up in SHOW SLAVE STATUS;
+# Values reported by source when a replica has connected and shows up
+# in SHOW REPLICAS.
 report-host=                127.0.0.1
 report-port=                @mysqld.2.port
 report-user=                root

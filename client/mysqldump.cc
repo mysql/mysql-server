@@ -147,8 +147,8 @@ static bool ansi_quotes_mode = false;
 static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 
-#define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
-#define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
+#define MYSQL_OPT_SOURCE_DATA_EFFECTIVE_SQL 1
+#define MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL 2
 #define MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL 2
 static uint opt_enable_cleartext_plugin = 0;
@@ -240,9 +240,14 @@ static struct my_option my_long_options[] = {
     {"allow-keywords", OPT_KEYWORDS,
      "Allow creation of column names that are keywords.", &opt_keywords,
      &opt_keywords, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"apply-replica-statements", OPT_MYSQLDUMP_SLAVE_APPLY,
+    {"apply-replica-statements", OPT_MYSQLDUMP_REPLICA_APPLY,
      "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom "
      "of dump.",
+     &opt_slave_apply, &opt_slave_apply, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
+     nullptr, 0, nullptr},
+    {"apply-slave-statements", OPT_MYSQLDUMP_SLAVE_APPLY_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use apply-replica-statements instead.",
      &opt_slave_apply, &opt_slave_apply, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
@@ -311,10 +316,15 @@ static struct my_option my_long_options[] = {
     {"default-character-set", OPT_DEFAULT_CHARSET,
      "Set the default character set.", &default_charset, &default_charset,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"delete-source-logs", OPT_DELETE_MASTER_LOGS,
+    {"delete-source-logs", OPT_DELETE_SOURCE_LOGS,
      "Rotate logs before the backup, equivalent to FLUSH LOGS, and purge "
      "all old binary logs after the backup, equivalent to PURGE LOGS. This "
      "automatically enables --source-data.",
+     &opt_delete_master_logs, &opt_delete_master_logs, nullptr, GET_BOOL,
+     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"delete-master-logs", OPT_DELETE_MASTER_LOGS_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use delete-source-logs instead.",
      &opt_delete_master_logs, &opt_delete_master_logs, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"disable-keys", 'K',
@@ -322,7 +332,7 @@ static struct my_option my_long_options[] = {
      "TABLE tb_name ENABLE KEYS */; will be put in the output.",
      &opt_disable_keys, &opt_disable_keys, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
-    {"dump-replica", OPT_MYSQLDUMP_SLAVE_DATA,
+    {"dump-replica", OPT_MYSQLDUMP_REPLICA_DATA,
      "This causes the binary log position and filename of the source to be "
      "appended to the dumped data output. Setting the value to 1, will print"
      "it as a CHANGE MASTER command in the dumped data output; if equal"
@@ -333,6 +343,11 @@ static struct my_option my_long_options[] = {
      "- don't forget to read about --single-transaction below). In all cases "
      "any action on logs will happen at the exact moment of the dump."
      "Option automatically turns --lock-tables off.",
+     &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
+     MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
+    {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use dump-replica instead.",
      &opt_slave_data, &opt_slave_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
      MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
     {"events", 'E', "Dump events.", &opt_events, &opt_events, nullptr, GET_BOOL,
@@ -400,9 +415,15 @@ static struct my_option my_long_options[] = {
      "--ignore-table=database.table.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"include-source-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
+    {"include-source-host-port", OPT_MYSQLDUMP_INCLUDE_SOURCE_HOST_PORT,
      "Adds 'MASTER_HOST=<host>, MASTER_PORT=<port>' to 'CHANGE MASTER TO..' "
      "in dump produced with --dump-replica.",
+     &opt_include_master_host_port, &opt_include_master_host_port, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"include-master-host-port",
+     OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use include-source-host-port instead.",
      &opt_include_master_host_port, &opt_include_master_host_port, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
@@ -424,7 +445,7 @@ static struct my_option my_long_options[] = {
      "Append warnings and errors to given file.", &log_error_file,
      &log_error_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"source-data", OPT_MASTER_DATA,
+    {"source-data", OPT_SOURCE_DATA,
      "This causes the binary log position and filename to be appended to the "
      "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"
      " to 2, that command will be prefixed with a comment symbol. "
@@ -436,7 +457,12 @@ static struct my_option my_long_options[] = {
      "any action on logs will happen at the exact moment of the dump. "
      "Option automatically turns --lock-tables off.",
      &opt_master_data, &opt_master_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
-     MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
+     MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
+    {"master-data", OPT_MASTER_DATA_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use source-data instead.",
+     &opt_master_data, &opt_master_data, nullptr, GET_UINT, OPT_ARG, 0, 0,
+     MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL, nullptr, 0, nullptr},
     {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
      "The maximum packet length to send to or receive from server.",
      &opt_max_allowed_packet, &opt_max_allowed_packet, nullptr, GET_ULONG,
@@ -890,13 +916,30 @@ static bool get_one_option(int optid, const struct my_option *opt,
     case '?':
       usage();
       exit(0);
-    case (int)OPT_MASTER_DATA:
+    case (int)OPT_MASTER_DATA_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--master-data", "--source-data");
+      // FALLTHROUGH
+    case (int)OPT_SOURCE_DATA:
       if (!argument) /* work like in old versions */
-        opt_master_data = MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL;
+        opt_master_data = MYSQL_OPT_SOURCE_DATA_EFFECTIVE_SQL;
       break;
-    case (int)OPT_MYSQLDUMP_SLAVE_DATA:
+    case (int)OPT_MYSQLDUMP_SLAVE_APPLY_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--apply-slave-statements",
+                             "--apply-replica-statements");
+      break;
+    case (int)OPT_DELETE_MASTER_LOGS_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--delete-master-logs", "--delete-source-logs");
+      break;
+    case (int)OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--dump-slave", "--dump-replica");
+      // FALLTHROUGH
+    case (int)OPT_MYSQLDUMP_REPLICA_DATA:
       if (!argument) /* work like in old versions */
         opt_slave_data = MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL;
+      break;
+    case (int)OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT_DEPRECATED:
+      CLIENT_WARN_DEPRECATED("--include-master-host-port",
+                             "--include-source-host-port");
       break;
     case (int)OPT_OPTIMIZE:
       extended_insert = opt_drop = opt_lock = quick = create_options =
@@ -1018,7 +1061,7 @@ static int get_options(int *argc, char ***argv) {
 
   /* Ensure consistency of the set of binlog & locking options */
   if (opt_delete_master_logs && !opt_master_data)
-    opt_master_data = MYSQL_OPT_MASTER_DATA_COMMENTED_SQL;
+    opt_master_data = MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL;
   if (opt_single_transaction && opt_lock_all_tables) {
     fprintf(stderr,
             "%s: You can't use --single-transaction and "
@@ -4935,7 +4978,7 @@ static int do_show_master_status(MYSQL *mysql_con) {
   MYSQL_ROW row;
   MYSQL_RES *master;
   const char *comment_prefix =
-      (opt_master_data == MYSQL_OPT_MASTER_DATA_COMMENTED_SQL) ? "-- " : "";
+      (opt_master_data == MYSQL_OPT_SOURCE_DATA_COMMENTED_SQL) ? "-- " : "";
   if (mysql_query_with_error_report(mysql_con, &master, "SHOW MASTER STATUS")) {
     return 1;
   } else {

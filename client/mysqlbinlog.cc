@@ -1892,6 +1892,11 @@ static struct my_option my_long_options[] = {
      "This is an alias for read-from-remote-source=BINLOG-DUMP-NON-GTIDS.",
      &opt_remote_alias, &opt_remote_alias, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"read-from-remote-master", OPT_READ_FROM_REMOTE_MASTER_DEPRECATED,
+     "This option is deprecated and will be removed in a future version. "
+     "Use read-from-remote-source instead.",
+     &opt_remote_proto_str, &opt_remote_proto_str, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"read-from-remote-source", OPT_REMOTE_PROTO,
      "Read binary logs from a MySQL server through the COM_BINLOG_DUMP or "
      "COM_BINLOG_DUMP_GTID commands by setting the option to either "
@@ -2233,6 +2238,10 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       opt_remote_alias = true;
       opt_remote_proto = BINLOG_DUMP_NON_GTID;
       break;
+    case OPT_READ_FROM_REMOTE_MASTER_DEPRECATED:
+      warning(CLIENT_WARN_DEPRECATED_MSG("--read-from-remote-master",
+                                         "--read-from-remote-source"));
+      /* FALLTHROUGH */
     case OPT_REMOTE_PROTO:
       opt_remote_proto = (enum_remote_proto)(
           find_type_or_exit(argument, &remote_proto_typelib, opt->name) - 1);
