@@ -11373,6 +11373,9 @@ ER_AUTH_KERBEROS_LOGGER_GENERIC_MSG
 ER_INSTALL_PLUGIN_CONFLICT_LOG
   eng "Cannot install the %.192s plugin when the %.192s plugin is installed."
 
+ER_DEPRECATED_PERSISTED_VARIABLE_WITH_ALIAS
+  eng "The variable %s has been renamed to %s, and the old name deprecated. Only the old name was found in the persisted variable file. Next time the file is saved, both names will be stored. Issue any SET PERSIST command to save the file, get rid of this warning, and prepare the persisted configuration for when the variable is removed in a future version."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

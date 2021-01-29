@@ -327,6 +327,242 @@ typedef Sys_var_integer<ulonglong, GET_ULL, SHOW_LONGLONG, false>
 typedef Sys_var_integer<long, GET_LONG, SHOW_SIGNED_LONG, true> Sys_var_long;
 
 /**
+  A sys_var that is an alias for another sys_var.
+
+  The two variables effectively share (almost) all members, so
+  whenever you change one of them, it affects both.
+
+  Usually you want to use Sys_var_deprecated_alias instead.
+*/
+class Sys_var_alias : public sys_var {
+ private:
+  sys_var &m_base_var;
+
+ protected:
+  /**
+    Special constructor used to implement Sys_var_deprecated alias.
+
+    @param name_arg The name of this sys_var.
+
+    @param base_var The "parent" sys_var that this sys_var is an alias
+    for.
+
+    @param deprecation_substitute_arg The deprecation_substitute to
+    use for this variable. While other fields in the created variable
+    are inherited from real_var, the deprecation_substitute can be set
+    using this parameter.
+
+    @param persisted_alias When this variable is persisted, it will
+    duplicate the entry in the persisted variables file: It will be
+    stored both using the variable name name_arg, and the name of
+    persisted_alias.
+
+    @param is_persisted_deprecated If true, this variable is
+    deprecated when appearing in the persisted variables file.
+  */
+  Sys_var_alias(const char *name_arg, sys_var &base_var,
+                const char *deprecation_substitute_arg,
+                sys_var *persisted_alias, bool is_persisted_deprecated)
+      : sys_var(&all_sys_vars, name_arg, base_var.option.comment,
+                base_var.flags, base_var.offset, base_var.option.id,
+                base_var.option.arg_type, base_var.show_val_type,
+                base_var.option.def_value, base_var.guard,
+                base_var.binlog_status, base_var.on_check, base_var.on_update,
+                deprecation_substitute_arg, base_var.m_parse_flag,
+                persisted_alias, is_persisted_deprecated),
+        m_base_var(base_var) {
+    option = base_var.option;
+    option.name = name_arg;
+  }
+
+ public:
+  Sys_var_alias(const char *name_arg, sys_var &base_var)
+      : Sys_var_alias(name_arg, base_var, base_var.deprecation_substitute,
+                      nullptr, false) {}
+
+  sys_var &get_base_var() { return m_base_var; }
+
+  virtual void cleanup() override { m_base_var.cleanup(); }
+  virtual sys_var_pluginvar *cast_pluginvar() override {
+    return m_base_var.cast_pluginvar();
+  }
+  virtual void update_default(longlong new_def_value) override {
+    m_base_var.update_default(new_def_value);
+  }
+  virtual longlong get_default() override { return m_base_var.get_default(); }
+  virtual longlong get_min_value() override {
+    return m_base_var.get_min_value();
+  }
+  virtual ulonglong get_max_value() override {
+    return m_base_var.get_max_value();
+  }
+  virtual ulong get_var_type() override { return m_base_var.get_var_type(); }
+  virtual void set_arg_source(get_opt_arg_source *arg_source) override {
+    m_base_var.set_arg_source(arg_source);
+  }
+  virtual void set_is_plugin(bool is_plugin) override {
+    m_base_var.set_is_plugin(is_plugin);
+  }
+  virtual bool is_non_persistent() override {
+    return m_base_var.is_non_persistent();
+  }
+  virtual void saved_value_to_string(THD *thd, set_var *var,
+                                     char *def_val) override {
+    return m_base_var.saved_value_to_string(thd, var, def_val);
+  }
+  virtual bool check_update_type(Item_result type) override {
+    return m_base_var.check_update_type(type);
+  }
+  virtual enum_variable_source get_source() override {
+    return m_base_var.get_source();
+  }
+  virtual const char *get_source_name() override {
+    return m_base_var.get_source_name();
+  }
+  virtual void set_source(enum_variable_source src) override {
+    m_base_var.set_source(src);
+  }
+  virtual bool set_source_name(const char *path) override {
+    return m_base_var.set_source_name(path);
+  }
+  virtual bool set_user(const char *usr) override {
+    return m_base_var.set_user(usr);
+  }
+  virtual const char *get_user() override { return m_base_var.get_user(); }
+  virtual const char *get_host() override { return m_base_var.get_host(); }
+  virtual bool set_host(const char *hst) override {
+    return m_base_var.set_host(hst);
+  }
+  virtual ulonglong get_timestamp() const override {
+    return m_base_var.get_timestamp();
+  }
+  virtual void set_user_host(THD *thd) override {
+    m_base_var.set_user_host(thd);
+  }
+  virtual void set_timestamp() override { m_base_var.set_timestamp(); }
+  virtual void set_timestamp(ulonglong ts) override {
+    m_base_var.set_timestamp(ts);
+  }
+
+ private:
+  virtual bool do_check(THD *thd, set_var *var) override {
+    return m_base_var.do_check(thd, var);
+  }
+  virtual void session_save_default(THD *thd, set_var *var) override {
+    return m_base_var.session_save_default(thd, var);
+  }
+  virtual void global_save_default(THD *thd, set_var *var) override {
+    return m_base_var.global_save_default(thd, var);
+  }
+  virtual bool session_update(THD *thd, set_var *var) override {
+    return m_base_var.session_update(thd, var);
+  }
+  virtual bool global_update(THD *thd, set_var *var) override {
+    return m_base_var.global_update(thd, var);
+  }
+
+ protected:
+  virtual const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                         LEX_STRING *base) override {
+    return m_base_var.session_value_ptr(running_thd, target_thd, base);
+  }
+  virtual const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
+    return m_base_var.global_value_ptr(thd, base);
+  }
+};
+
+/**
+  A deprecated alias for a variable.
+
+  This tool allows us to rename system variables without breaking
+  backward compatibility.
+
+  Procedure for a developer to create a new name for a variable in
+  version X and remove the old name in version X+1:
+
+  - In version X:
+
+    - Change the string passed to the Sys_var constructor for the
+      variable the new new name.  All existing code for this should
+      remain as it is.
+
+    - Create a Sys_var_deprecated_alias taking the old name as the
+      first argument and the Sys_var object having the new name as the
+      second argument.
+
+  - In version X+1:
+
+    - Remove the Sys_var_deprecated_alias.
+
+  This has the following effects in version X:
+
+  - Both variables coexist. They are both visible in
+    performance_schema tables and accessible in SET statements and
+    SELECT @@variable statements. Both variables always have the same
+    values.
+
+  - A SET statement using either the old name or the new name changes
+    the value of both variables.
+
+  - A SET statement using the old name generates a deprecation
+    warning.
+
+  - The procedure that loads persisted variables from file accepts
+    either the old name, or the new name, or both.  It generates a
+    deprecation warning in case only the old name exists in the file.
+    A SET PERSIST statement writes both variables to the file.
+
+  The procedures for a user to upgrade or downgrade are:
+
+  - After upgrade from version X-1 to X, all persisted variables
+    retain their persisted values.  User will see deprecation warnings
+    when loading the persisted variables file, with instructions to
+    run a SET PERSIST statement any time before the next upgrade to
+    X+1.
+
+  - While on version X, user needs to run a SET PERSIST statement any
+    time before upgrading to X+1. Due to the logic described above, it
+    will write both variables to the file.
+
+  - While on version X, user needs to change their cnf files,
+    command-line arguments, and @@variables accessed through
+    application logic, to use the new names, before upgrading to X+1.
+    The deprecation warnings will help identify the relevant places to
+    update.
+
+  - After upgrade from X to X+1, the server will read the old
+    variables from the file.  Since this version does not know about
+    the old variables, it will ignore them and print a warning.  The
+    user can remove the unknown variable from the persisted variable
+    file, and get rid of the warning, using RESET PERSIST
+    OLD_VARIABLE_NAME.
+
+  - After downgrade from verson X+1 to version X, all persisted
+    variables retain their values.  User will not see deprecation
+    warnings.  If user needs to further downgrade to version X-1, user
+    needs to first run SET PERSIST for some variable in order to
+    rewrite the file so that the old variable names exist in the file.
+
+  - After downgrade from version X to version X-1, all persisted
+    variables retain their values.  If the new variable names exist in
+    the persisted variables file, a warning will be printed stating
+    that the variable is not known and will be ignored.  User can get
+    rid of the warning by running RESET PERSIST NEW_VARIABLE_NAME.
+*/
+class Sys_var_deprecated_alias : public Sys_var_alias {
+ private:
+  std::string m_comment;
+
+ public:
+  Sys_var_deprecated_alias(const char *name_arg, sys_var &base_var)
+      : Sys_var_alias{name_arg, base_var, base_var.name.str, &base_var, true} {
+    m_comment = std::string("This option is deprecated. Use ") +
+                base_var.get_option()->name + " instead.";
+    option.comment = m_comment.c_str();
+  }
+};
+
+/**
   Helper class for variables that take values from a TYPELIB
 */
 class Sys_var_typelib : public sys_var {
