@@ -463,8 +463,13 @@ class PFS_buffer_scalable_container {
 
   size_t get_row_count() {
     size_t page_count = m_max_page_index.m_size_t.load();
+    size_t result = page_count * PFS_PAGE_SIZE;
 
-    return page_count * PFS_PAGE_SIZE;
+    if ((page_count > 0) && (m_last_page_size != PFS_PAGE_SIZE)) {
+      /* Bounded allocation, the last page may be incomplete. */
+      result = result - PFS_PAGE_SIZE + m_last_page_size;
+    }
+    return result;
   }
 
   size_t get_row_size() const { return sizeof(value_type); }
