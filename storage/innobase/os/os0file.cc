@@ -2852,10 +2852,9 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
   return (OS_FILE_ERROR_MAX + err);
 }
 
-/** Wrapper to fsync(2)/fdatasync(2) that retries the call on some errors.
+/** Wrapper to fsync(2) that retries the call on some errors.
 Returns the value 0 if successful; otherwise the value -1 is returned and
-the global variable errno is set to indicate the error. srv_use_fdatasync
-determines whether fsync or fdatasync will be used. (true -> fdatasync)
+the global variable errno is set to indicate the error.
 @param[in]	file		open file handle
 @return 0 if success, -1 otherwise */
 static int os_file_fsync_posix(os_file_t file) {
@@ -2873,11 +2872,7 @@ static int os_file_fsync_posix(os_file_t file) {
     meb_mutex.unlock();
 #endif /* UNIV_HOTBACKUP */
 
-#if defined(HAVE_FDATASYNC) && defined(HAVE_DECL_FDATASYNC)
-    const auto ret = srv_use_fdatasync ? fdatasync(file) : fsync(file);
-#else
-    const auto ret = fsync(file);
-#endif
+    int ret = fsync(file);
 
     if (ret == 0) {
       return (ret);
