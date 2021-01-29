@@ -9198,6 +9198,13 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_ALL},
     {"Prepared_stmt_count", (char *)&show_prepared_stmt_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
+    {"Replica_open_temp_tables", (char *)&show_replica_open_temp_tables,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
+#ifndef NDEBUG
+    {"Replica_rows_last_search_algorithm_used",
+     (char *)&show_replica_rows_last_search_algorithm_used, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
+#endif
     {"Queries", (char *)&show_queries, SHOW_FUNC, SHOW_SCOPE_ALL},
     {"Questions", (char *)offsetof(System_status_var, questions),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
@@ -9217,7 +9224,7 @@ SHOW_VAR status_vars[] = {
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Select_scan", (char *)offsetof(System_status_var, select_scan_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
-    {"Replica_open_temp_tables", (char *)&show_replica_open_temp_tables,
+    {"Slave_open_temp_tables", (char *)&show_replica_open_temp_tables,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Slave_retried_transactions", (char *)&show_slave_retried_trans, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
@@ -9228,7 +9235,7 @@ SHOW_VAR status_vars[] = {
     {"Slave_last_heartbeat", (char *)&show_slave_last_heartbeat, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
 #ifndef NDEBUG
-    {"Replica_rows_last_search_algorithm_used",
+    {"Slave_rows_last_search_algorithm_used",
      (char *)&show_replica_rows_last_search_algorithm_used, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
 #endif
