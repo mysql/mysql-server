@@ -6244,8 +6244,8 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
         Item_field *new_field = new Item_field(field);
         if (!suv || !new_field) return true;  // Fatal error
         mem_root_deque<Item *> list(thd->mem_root);
-        list.push_back(new_field);
-        suv->set_arguments(&list, true);
+        if (list.push_back(new_field)) return true;
+        if (suv->set_arguments(&list, true)) return true;
         new_item = suv;
       } else
         new_item = item;

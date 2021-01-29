@@ -650,9 +650,7 @@ bool Item_bool_func2::convert_constant_arg(THD *thd, Item *field, Item **item,
         (*item)->result_type() == STRING_RESULT)) {
     if (convert_constant_item(thd, field_item, item, converted)) return true;
     if (*converted) {
-      if (cmp.set_cmp_func(this, m_embedded_arguments, m_embedded_arguments + 1,
-                           INT_RESULT))
-        return true;
+      if (cmp.set_cmp_func(this, args, args + 1, INT_RESULT)) return true;
       field->cmp_context = (*item)->cmp_context = INT_RESULT;
     }
   }

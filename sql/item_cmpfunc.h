@@ -613,20 +613,13 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
 
  public:
   Item_bool_func2(Item *a, Item *b)
-      : Item_bool_func(a, b),
-        cmp(m_embedded_arguments, m_embedded_arguments + 1),
-        abort_on_null(false) {}
+      : Item_bool_func(a, b), cmp(args, args + 1), abort_on_null(false) {}
 
   Item_bool_func2(const POS &pos, Item *a, Item *b)
-      : Item_bool_func(pos, a, b),
-        cmp(m_embedded_arguments, m_embedded_arguments + 1),
-        abort_on_null(false) {}
+      : Item_bool_func(pos, a, b), cmp(args, args + 1), abort_on_null(false) {}
 
   bool resolve_type(THD *) override;
-  bool set_cmp_func() {
-    return cmp.set_cmp_func(this, m_embedded_arguments,
-                            m_embedded_arguments + 1, true);
-  }
+  bool set_cmp_func() { return cmp.set_cmp_func(this, args, args + 1, true); }
   /**
      When comparing strings, compare at most max_str_length bytes.
      @param max_str_length how much to compare

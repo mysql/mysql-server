@@ -194,20 +194,17 @@ static inline bool test_if_sum_overflows_ull(ulonglong arg1, ulonglong arg2) {
   return ULLONG_MAX - arg1 < arg2;
 }
 
-void Item_func::set_arguments(mem_root_deque<Item *> *list, bool context_free) {
+bool Item_func::set_arguments(mem_root_deque<Item *> *list, bool context_free) {
   allowed_arg_cols = 1;
-  arg_count = list->size();
-  args = m_embedded_arguments;  // If 2 arguments
-  if (arg_count <= 2 || (args = (*THR_MALLOC)->ArrayAlloc<Item *>(arg_count))) {
-    Item **save_args = args;
-
-    for (Item *item : *list) {
-      *(save_args++) = item;
-      if (!context_free) add_accum_properties(item);
+  if (alloc_args(*THR_MALLOC, list->size())) return true;
+  std::copy(list->begin(), list->end(), args);
+  if (!context_free) {
+    for (const Item *arg : make_array(args, arg_count)) {
+      add_accum_properties(arg);
     }
-  } else
-    arg_count = 0;  // OOM
-  list->clear();    // Fields are used
+  }
+  list->clear();  // Fields are used
+  return false;
 }
 
 Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
@@ -225,15 +222,8 @@ Item_func::Item_func(THD *thd, const Item_func *item)
       allowed_arg_cols(item->allowed_arg_cols),
       used_tables_cache(item->used_tables_cache),
       not_null_tables_cache(item->not_null_tables_cache) {
-  arg_count = item->arg_count;
-  if (arg_count) {
-    if (arg_count <= 2)
-      args = m_embedded_arguments;
-    else {
-      if (!(args = (Item **)thd->alloc(sizeof(Item *) * arg_count))) return;
-    }
-    memcpy((char *)args, (char *)item->args, sizeof(Item *) * arg_count);
-  }
+  if (alloc_args(thd->mem_root, item->arg_count)) return;
+  std::copy_n(item->args, arg_count, args);
 }
 
 bool Item_func::itemize(Parse_context *pc, Item **res) {
