@@ -286,4 +286,16 @@ let $count_sessions=1;
 connection default;
 select * from performance_schema.memory_summary_global_by_event_name where event_name like 'memory/temptable%';
 
+--echo #
+--echo # Bug #31091089 TEMPTABLE: ASSERTION `P - M_MYSQL_BUF < M_LENGTH' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  f1 CHAR(0) NOT NULL,
+  f2 INT NOT NULL
+);
+INSERT INTO t1(f1, f2) VALUES('', 1);
+SELECT AVG(f1) from t1 GROUP BY f2, f1;
+DROP TABLE t1;
+
 SET @@GLOBAL.internal_tmp_mem_storage_engine = default;
