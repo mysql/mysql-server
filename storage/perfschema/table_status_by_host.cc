@@ -119,32 +119,21 @@ table_status_by_host::table_status_by_host()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(true),
       m_pos(),
-      m_next_pos(),
-      m_context(nullptr) {}
+      m_next_pos() {}
 
 void table_status_by_host::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_status_by_host::rnd_init(bool scan) {
+int table_status_by_host::rnd_init(bool /* scan */) {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_status_by_host_context *)current_thd->alloc(
-      sizeof(table_status_by_host_context));
-  new (m_context) table_status_by_host_context(status_version, !scan);
   return 0;
 }
 
 int table_status_by_host::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   /*
     For each host, build a cache of status variables using totals from all
     threads associated with the host.
@@ -170,11 +159,6 @@ int table_status_by_host::rnd_next(void) {
 }
 
 int table_status_by_host::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   set_position(pos);
   assert(m_pos.m_index_1 < global_host_container.get_row_count());
 
@@ -194,12 +178,6 @@ int table_status_by_host::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
    * materializing. */
   m_status_cache.initialize_client_session();
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_status_by_host_context *)current_thd->alloc(
-      sizeof(table_status_by_host_context));
-  new (m_context) table_status_by_host_context(status_version, false);
-
   PFS_index_status_by_host *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_status_by_host);
@@ -209,11 +187,6 @@ int table_status_by_host::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_status_by_host::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   /*
     For each host, build a cache of status variables using totals from all
     threads associated with the host.

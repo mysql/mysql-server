@@ -99,32 +99,21 @@ table_session_status::table_session_status()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(false),
       m_pos(0),
-      m_next_pos(0),
-      m_context(nullptr) {}
+      m_next_pos(0) {}
 
 void table_session_status::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_session_status::rnd_init(bool scan) {
+int table_session_status::rnd_init(bool /* scan */) {
   /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_session_status_context *)current_thd->alloc(
-      sizeof(table_session_status_context));
-  new (m_context) table_session_status_context(status_version, !scan);
   return 0;
 }
 
 int table_session_status::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     if (m_status_cache.is_materialized()) {
@@ -142,11 +131,6 @@ int table_session_status::rnd_next(void) {
 }
 
 int table_session_status::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   set_position(pos);
   assert(m_pos.m_index < m_status_cache.size());
 
@@ -164,12 +148,6 @@ int table_session_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   /* Build a cache of all status variables for this thread. */
   m_status_cache.materialize_all(current_thd);
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_session_status_context *)current_thd->alloc(
-      sizeof(table_session_status_context));
-  new (m_context) table_session_status_context(status_version, false);
-
   PFS_index_session_status *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_session_status);
@@ -179,11 +157,6 @@ int table_session_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_session_status::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     if (m_status_cache.is_materialized()) {

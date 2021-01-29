@@ -62,36 +62,6 @@ struct time_normalizer;
 */
 
 /**
-  Store and retrieve table state information during a query.
-*/
-class PFS_table_context {
- public:
-  PFS_table_context(ulonglong current_version, bool restore, THR_PFS_key key);
-  PFS_table_context(ulonglong current_version, ulong map_size, bool restore,
-                    THR_PFS_key key);
-  ~PFS_table_context(void);
-
-  bool initialize(void);
-  bool is_initialized(void) { return m_initialized; }
-  ulonglong current_version(void) { return m_current_version; }
-  ulonglong last_version(void) { return m_last_version; }
-  bool versions_match(void) { return m_last_version == m_current_version; }
-  void set_item(ulong n);
-  bool is_item_set(ulong n);
-  THR_PFS_key m_thr_key;
-
- private:
-  ulonglong m_current_version;
-  ulonglong m_last_version;
-  ulong *m_map;
-  ulong m_map_size;
-  ulong m_word_size;
-  bool m_restore;
-  bool m_initialized;
-  ulong m_last_item;
-};
-
-/**
   An abstract PERFORMANCE_SCHEMA table.
   Every table implemented in the performance schema schema and storage engine
   derives from this class.
@@ -710,7 +680,5 @@ struct PFS_triple_index {
 };
 
 /** @} */
-
-extern thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 #endif

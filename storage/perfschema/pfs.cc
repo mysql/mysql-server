@@ -2114,7 +2114,6 @@ PSI_TLS_CHANNEL_CALL(unregister_tls_channel)(...)
 */
 
 thread_local PFS_thread *THR_PFS = nullptr;
-thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 static inline PFS_thread *my_thread_get_THR_PFS() { return THR_PFS; }
 
