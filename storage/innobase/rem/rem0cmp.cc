@@ -936,7 +936,7 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
   bool null_eq = false;
 
   ut_ad(rec_offs_n_fields(offsets1) >= n_uniq);
-  ut_ad(rec_offs_n_fields(offsets2) == rec_offs_n_fields(offsets2));
+  ut_ad(rec_offs_n_fields(offsets1) == rec_offs_n_fields(offsets2));
 
   ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
 
