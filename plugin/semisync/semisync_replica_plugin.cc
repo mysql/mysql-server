@@ -30,6 +30,22 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "plugin/semisync/semisync_replica.h"
+#include "sql/current_thd.h"
+#include "sql/derror.h"       // ER_THD
+#include "sql/raii/sentry.h"  // raii::Sentry
+#include "sql/sql_error.h"
+#include "sql/sql_lex.h"  // thd->lex
+
+#ifdef USE_OLD_SEMI_SYNC_TERMINOLOGY
+#define SEMI_SYNC_PLUGIN_NAME "rpl_semi_sync_slave"
+#define OTHER_SEMI_SYNC_PLUGIN_NAME "rpl_semi_sync_replica"
+#define STATUS_VAR_PREFIX "Rpl_semi_sync_slave_"
+#define DEPRECATED_SEMISYNC_LIBRARY
+#else
+#define SEMI_SYNC_PLUGIN_NAME "rpl_semi_sync_replica"
+#define OTHER_SEMI_SYNC_PLUGIN_NAME "rpl_semi_sync_slave"
+#define STATUS_VAR_PREFIX "Rpl_semi_sync_replica_"
+#endif
 
 ReplSemiSyncSlave *repl_semisync = nullptr;
 
@@ -186,7 +202,7 @@ static SYS_VAR *semi_sync_slave_system_vars[] = {
 
 /* plugin status variables */
 static SHOW_VAR semi_sync_slave_status_vars[] = {
-    {"Rpl_semi_sync_replica_status", (char *)&rpl_semi_sync_replica_status,
+    {STATUS_VAR_PREFIX "status", (char *)&rpl_semi_sync_replica_status,
      SHOW_BOOL, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
 };
@@ -205,20 +221,74 @@ Binlog_relay_IO_observer relay_io_observer = {
     repl_semi_apply_slave          // apply
 };
 
+/**
+  Return true if this is the new library and the old library is installed, or
+  vice versa.
+
+  @retval true This is semisync_master, and semisync_source is
+  installed already, or this is semisync_source, and semisync_master
+  is installed already.
+
+  @retval false Otherwise
+*/
+static bool is_other_semi_sync_replica_plugin_installed() {
+  return is_sysvar_defined(OTHER_SEMI_SYNC_PLUGIN_NAME "_enabled");
+}
+
 static int semi_sync_slave_plugin_init(void *p) {
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
+  bool success = false;
+  raii::Sentry<> logging_service_guard{[&]() {
+    if (!success) deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
+  }};
+
+  // Check for duplicate libraries.
+  bool is_client =
+      current_thd && current_thd->lex->sql_command == SQLCOM_INSTALL_PLUGIN;
+  if (is_other_semi_sync_replica_plugin_installed()) {
+    /*
+      Unfortunately, two semisync libraries don't make one sync library. :-)
+      If user installs both the old-named library and the new-named
+      library, we generate an error, since they would interfere with
+      each other.
+    */
+    if (is_client)
+      my_error(ER_INSTALL_PLUGIN_CONFLICT_CLIENT, MYF(0), SEMI_SYNC_PLUGIN_NAME,
+               OTHER_SEMI_SYNC_PLUGIN_NAME);
+    else
+      LogErr(ERROR_LEVEL, ER_INSTALL_PLUGIN_CONFLICT_LOG, SEMI_SYNC_PLUGIN_NAME,
+             OTHER_SEMI_SYNC_PLUGIN_NAME);
+    return 1;
+  }
+
+#ifdef DEPRECATED_SEMISYNC_LIBRARY
+  /*
+    This function can be invoked in two contexts: either from the SQL
+    statement INSTALL PLUGIN executed by a client, or during server
+    startup, for example, in case --plugin-load is used.
+
+    For INSTALL PLUGIN, return a warning to the client, so the person
+    that issued INSTALL PLUGIN gets notified.
+
+    In both cases, write a warning to the log, because the
+    administrator needs to know that we are using an old library and
+    make the new library available if it is not.
+  */
+  if (is_client)
+    push_warning_printf(current_thd, Sql_condition::SL_NOTE,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        ER_THD(current_thd, ER_WARN_DEPRECATED_SYNTAX),
+                        "rpl_semi_sync_slave", "rpl_semi_sync_replica");
+  LogErr(WARNING_LEVEL, ER_DEPRECATE_MSG_WITH_REPLACEMENT,
+         "rpl_semi_sync_slave", "rpl_semi_sync_replica");
+#endif
 
   repl_semisync = new ReplSemiSyncSlave();
-  if (repl_semisync->initObject()) {
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-    return 1;
-  }
-  if (register_binlog_relay_io_observer(&relay_io_observer, p)) {
-    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-    return 1;
-  }
+  if (repl_semisync->initObject()) return 1;
+  if (register_binlog_relay_io_observer(&relay_io_observer, p)) return 1;
 
+  success = true;
   return 0;
 }
 
@@ -236,10 +306,11 @@ struct Mysql_replication semi_sync_slave_plugin = {
 /*
   Plugin library descriptor
 */
+
 mysql_declare_plugin(semi_sync_slave){
     MYSQL_REPLICATION_PLUGIN,
     &semi_sync_slave_plugin,
-    "rpl_semi_sync_replica",
+    SEMI_SYNC_PLUGIN_NAME,
     PLUGIN_AUTHOR_ORACLE,
     "Replica-side semi-synchronous replication.",
     PLUGIN_LICENSE_GPL,

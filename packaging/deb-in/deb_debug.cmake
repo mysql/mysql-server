@@ -85,6 +85,8 @@ usr/lib/mysql/plugin/debug/mypluglib.so
 usr/lib/mysql/plugin/debug/mysql_clone.so
 usr/lib/mysql/plugin/debug/mysql_no_login.so
 usr/lib/mysql/plugin/debug/rewriter.so
+usr/lib/mysql/plugin/debug/semisync_master.so
+usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/semisync_source.so
 usr/lib/mysql/plugin/debug/semisync_replica.so
 usr/lib/mysql/plugin/debug/validate_password.so

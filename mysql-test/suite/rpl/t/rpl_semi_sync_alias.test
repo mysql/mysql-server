@@ -1,0 +1,453 @@
+# ==== Purpose ====
+#
+# Verify the functionality of old-named semisync libraries:
+# - old-named semisync libraries exist,
+# - installing old-named semisync libraries generates deprecation warning
+# - old-named semisync libraries use the old variable names,
+# - replication works with the old-named libraries,
+# - replication works between mixes of old and new source and replica,
+# - it's prohibited to load both old and new source libraries or
+#   both old and new replica libraries on the same node at the same time.
+#
+# ==== Requirements ====
+#
+# R1. old source library uses old variable names and new source library
+#     uses new variable names
+# R2. old replica library uses old variable names and new replica library
+#     uses new variable names
+# R3. replication old source library -> old replica library shall work
+# R4. replication old source library -> new replica library shall work
+# R5. replication new source library -> old replica library shall work
+# R6. old source library and new replica library installed on
+#     the same node shall work.
+# R7. new source library and old replica library installed on
+#     the same node shall work.
+# R8. mixing old and new source library or old and new replica library
+#     on the same node gives an error:
+#     R6.1. Error installing first old source and then new source.
+#     R6.2. Error installing first new source and then old source.
+#     R6.3. Error installing first old replica and then new replica.
+#     R6.4. Error installing first new replica and then old replica.
+#     The above errors shall be generated in the following contexts:
+#     a) when installing libraries dynamically using INSTALL PLUGIN
+#     b) when installing libraries on server start using --plugin-load
+#     c) when installing libraries on server start using --init-file
+# R9. Installing the old libraries shall generate deprecation warnings:
+#     9.1. when installing libraries dynamically using INSTALL PLUGIN
+#     9.2. when installing libraries on server start using --plugin-load
+#     9.3. when installing libraries on server start using --init-file
+
+# Test is binlog_format-agnostic
+--source include/have_binlog_format_row.inc
+
+--source include/master-slave.inc
+
+--echo ==== Setup ====
+
+--source include/save_error_log_position.inc
+
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT);
+--source include/sync_slave_sql_with_master.inc
+--source include/save_error_log_position.inc
+
+--source include/stop_slave.inc
+--source include/rpl_connection_master.inc
+--source include/stop_dump_threads.inc
+
+let $messages =
+.*A message intended for a client cannot be sent there as no client-session is attached.*Got an error reading communication packets.*
+;
+--source include/suppress_messages.inc
+
+--let $messages = rpl_semi_sync.*is deprecated and will be removed in a future release.*
+--let $suppress_mode = IGNORE_GLOBAL_SUPPRESSIONS
+--source include/suppress_messages.inc
+
+--let $_enabled_text = _enabled
+--let $_status_text = _status
+--let $_yes_tx_text = _yes_tx
+--let $assert_escape = 1
+
+--let $extra_debug_sql = SHOW STATUS LIKE 'rpl_semi_sync_%'
+
+--let $proc_dir = $MYSQLTEST_VARDIR/tmp
+
+# $install_plugins
+# Install plugins on both servers, using names specified by parameters.
+#
+# Parameters:
+# - $source_name - master or source, the term to use for the source library
+# - $replica_name - slave or replica, the term to use for the replica library
+# - $source_connection - the connection to use to install the source library
+# - $replica_connection - the connection to use to install the replica library
+--let $install_plugins = $proc_dir/install_plugins.inc
+--write_file $install_plugins END_OF_PROCEDURE
+  --let $rpl_connection_name = $source_connection
+  --source include/rpl_connection.inc
+  if ($source_name == master) {
+    --replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN
+    eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+    --let $error_pattern = .*rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.
+    --source include/assert_error_log.inc
+  }
+  if ($source_name == source) {
+    --replace_result $SEMISYNC_SOURCE_PLUGIN SEMISYNC_SOURCE_PLUGIN
+    eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
+  }
+  --echo # R1. source variable name matches source library name
+  eval SET @@global.rpl_semi_sync_$source_name$_enabled_text = 1;
+
+  --let $rpl_connection_name = $replica_connection
+  --source include/rpl_connection.inc
+  if ($replica_name == slave) {
+    --replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN
+    eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+    --let $error_pattern = .*rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.
+    --source include/assert_error_log.inc
+  }
+  if ($replica_name == replica) {
+    --replace_result $SEMISYNC_REPLICA_PLUGIN SEMISYNC_REPLICA_PLUGIN
+    eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
+  }
+  --echo # R2. replica variable name matches replica library name
+  eval SET @@global.rpl_semi_sync_$replica_name$_enabled_text = 1;
+END_OF_PROCEDURE
+
+# $uninstall_plugins
+# Uninstall plugins on both servers, using names specified by parameters.
+# Parameters:
+# - $source_name - master or source, the term to use for the source library
+# - $replica_name - slave or replica, the term to use for the replica library
+# - $source_connection - the connection to use to install the source library
+# - $replica_connection - the connection to use to install the replica library
+--let $uninstall_plugins = $proc_dir/uninstall_plugins.inc
+--write_file $uninstall_plugins END_OF_PROCEDURE
+  --let $rpl_connection_name = $source_connection
+  --source include/rpl_connection.inc
+  --source include/stop_dump_threads.inc
+  eval UNINSTALL PLUGIN rpl_semi_sync_$source_name;
+
+  --let $rpl_connection_name = $replica_connection
+  --source include/rpl_connection.inc
+  --source include/stop_dump_threads.inc
+  eval UNINSTALL PLUGIN rpl_semi_sync_$replica_name;
+END_OF_PROCEDURE
+
+# $check_replication
+#
+# Verifies that semisync replication works for one transaction:
+# - The replica applies the transaction
+# - The source receives an ack,
+# - The plugins remain enabled.
+#
+# Parameters:
+# $source_name - "master" or "source", the name to use to check that
+#   the library is loaded.
+# $replica_name - "slave" or "replica", the name to use to check that
+#   the library is loaded.
+# $replica_connection - The connection to the replica - usually "slave",
+#   but use "master" to reverse the direction.
+# $source_connection - The connection to the source - usually "master",
+#   but use "slave" to reverse the direction.
+--let $check_replication = $proc_dir/check_replication.inc
+--write_file $check_replication END_OF_PROCEDURE
+  --let $rpl_connection_name = $replica_connection
+  --source include/rpl_connection.inc
+  --source include/start_slave.inc
+
+  --let $rpl_connection_name = $source_connection
+  --source include/rpl_connection.inc
+
+  --let $assert_cond = '[SHOW STATUS LIKE 'Rpl_semi_sync_$source_name$_yes_tx_text', Value, 1]' = '0'
+  --let $assert_text = Initially no acked transactions
+  --source include/assert.inc
+
+  INSERT INTO t1() VALUES ();
+
+  --let $assert_cond = [SHOW STATUS LIKE 'Rpl_semi_sync_$source_name$_yes_tx_text', Value, 1] = 1
+  --let $assert_text = After one transaction is committed, one transaction got acked
+  --source include/assert.inc
+
+  --let $sync_slave_connection = $replica_connection
+  --source include/sync_slave_sql_with_master.inc
+  --let $sync_slave_connection =
+
+  --let $rpl_connection_name = $source_connection
+  --source include/rpl_connection.inc
+
+  --let $assert_cond = '[SHOW STATUS LIKE 'Rpl_semi_sync_$source_name$_status_text', Value, 1]' = 'ON'
+  --let $assert_text = Semisync $source_name library should remain enabled on $source_connection
+  --source include/assert.inc
+
+  --let $rpl_connection_name = $replica_connection
+  --source include/rpl_connection.inc
+
+  --let $assert_cond = '[SHOW STATUS LIKE 'Rpl_semi_sync_$replica_name$_status_text', Value, 1]' = 'ON'
+  --let $assert_text = Semisync $replica_name library should remain enabled on $replica_connection
+  --source include/assert.inc
+
+  --source include/stop_slave.inc
+END_OF_PROCEDURE
+
+--echo ==== R3. Replication: old source library -> old replica library ====
+
+--let $source_connection = master
+--let $replica_connection = slave
+
+--let $source_name = master
+--let $replica_name = slave
+--source $install_plugins
+--source $check_replication
+--source $uninstall_plugins
+
+--echo ==== R4. Replication: old source library -> new replica library ====
+
+--let $source_name = master
+--let $replica_name = replica
+--source $install_plugins
+--source $check_replication
+--source $uninstall_plugins
+
+--echo ==== R5. Replication: new source library -> old replica library ====
+
+--let $source_name = source
+--let $replica_name = slave
+--source $install_plugins
+--source $check_replication
+--source $uninstall_plugins
+
+--echo ==== R6. New source and old replica on the same node works, and R7. Old source and new replica on the same node works ====
+
+--echo # Reconfigure toplogy and install plugins.
+
+# Use a topology like:
+#
+# master ------> slave
+# 1                  2
+# replica <---- source
+#
+# Do not enable semisync on both connections at the same time, since
+# semisync doesn't work with circular replication. When the replica
+# commits a replicated transaction, it waits for an ack from the
+# source in the reverse replication channel. But the source filters
+# out the transaction because it was already applied, so no ack will
+# arrive, and so semisync times out.
+
+--let $rpl_topology = 1->2->1
+--source include/rpl_change_topology.inc
+
+--let $source_name = master
+--let $replica_name = slave
+--source $install_plugins
+
+--let $source_connection = slave
+--let $replica_connection = master
+--let $source_name = source
+--let $replica_name = replica
+--source $install_plugins
+
+--echo # Check that replication works in the usual direction
+
+--connection slave
+SET @@global.rpl_semi_sync_source_enabled = 0;
+--connection master
+SET @@global.rpl_semi_sync_replica_enabled = 0;
+
+--let $source_connection = master
+--let $replica_connection = slave
+--let $source_name = master
+--let $replica_name = slave
+--source $check_replication
+
+--echo # Check that replication works in reverse direction
+
+--connection master
+SET @@global.rpl_semi_sync_replica_enabled = 1;
+SET @@global.rpl_semi_sync_master_enabled = 0;
+--connection slave
+SET @@global.rpl_semi_sync_source_enabled = 1;
+SET @@global.rpl_semi_sync_slave_enabled = 0;
+
+--let $source_connection = slave
+--let $replica_connection = master
+--let $source_name = source
+--let $replica_name = replica
+--source $check_replication
+
+--echo # Uninstall plugins
+
+--let $source_connection = master
+--let $replica_connection = slave
+--let $source_name = master
+--let $replica_name = slave
+--source $uninstall_plugins
+
+--let $source_connection = slave
+--let $replica_connection = master
+--let $source_name = source
+--let $replica_name = replica
+--source $uninstall_plugins
+
+--echo ==== R8. Error installing conflicting plugins. ====
+
+# $check_install_plugin_conflict
+#
+# Installs a semisync library and then installs the other duplicate
+# library (new vs old name).  Verifies that the second INSTALL
+# generates an error, that the first library remains installed, and
+# that the second library remains not installed.
+#
+# Parameters:
+# $plugin1 - Suffix of first plugin: "source", "master", "replica", or "slave".
+# $plugin2 - Suffix of second plugin: "source", "master", "replica", or "slave".
+# $library1 - Full name of first library: one of the environment variables
+#   $SEMISYNC_SOURCE_PLUGIN etc.
+# $library2 - Full name of second library: one of the environment variables
+#   $SEMISYNC_SOURCE_PLUGIN etc.
+--let $check_install_plugin_conflict = $proc_dir/check_install_plugin_conflict.inc
+--write_file $check_install_plugin_conflict END_OF_PROCEDURE
+  --echo * Case a) Use INSTALL PLUGIN dynamically
+  --replace_result $library1 PLUGIN_NAME
+  eval INSTALL PLUGIN rpl_semi_sync_$plugin1 SONAME '$library1';
+  --echo # R9.1. deprecation warnings for dynamic plugin load using INSTALL PLUGIN
+  if ($plugin1 == master) {
+    --let $error_pattern = .rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.
+    --source include/assert_error_log.inc
+  }
+  if ($plugin1 == slave) {
+    --let $error_pattern = .rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.
+    --source include/assert_error_log.inc
+  }
+  --replace_result $library2 PLUGIN_NAME
+  --error ER_INSTALL_PLUGIN_CONFLICT_CLIENT
+  eval INSTALL PLUGIN rpl_semi_sync_$plugin2 SONAME '$library2';
+  --let $error_pattern = Plugin 'rpl_semi_sync_$plugin2' init function returned error.
+  --source include/assert_error_log.inc
+  --let $assert_text = rpl_semi_sync_$plugin1 should remain installed
+  --let $assert_cond = [SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'rpl_semi_sync_$plugin1%'] > 0
+  --source include/assert.inc
+  --let $assert_text = rpl_semi_sync_$plugin2 should not be installed
+  --let $assert_cond = [SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'rpl_semi_sync_$plugin2%'] = 0
+  --source include/assert.inc
+  eval UNINSTALL PLUGIN rpl_semi_sync_$plugin1;
+
+  --echo * Case b) Restart server with --plugin-load
+  --let $rpl_server_parameters = --plugin-load=rpl_semi_sync_$plugin1=$library1;rpl_semi_sync_$plugin2=$library2
+  --let $rpl_omit_print_server_parameters = 1
+  --let $rpl_server_number = 1
+  --source include/rpl_restart_server.inc
+  let $error_pattern =
+Cannot install the rpl_semi_sync_$plugin1 plugin when the rpl_semi_sync_$plugin2 plugin is installed.
+Plugin .rpl_semi_sync_$plugin1. init function returned error.
+Cannot install the rpl_semi_sync_$plugin2 plugin when the rpl_semi_sync_$plugin1 plugin is installed.
+Plugin .rpl_semi_sync_$plugin2. init function returned error.
+;
+  --source include/assert_error_log.inc
+  --let $assert_text = No semisync plugin should be installed
+  --let $assert_cond = [SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE 'rpl_semi_sync_%'] = 0
+  --source include/assert.inc
+
+  --echo * Case c) Restart server with --init-file
+  --delimiter ||
+  let $write_var = escape(\',
+    INSTALL PLUGIN rpl_semi_sync_$plugin1 SONAME '$library1';
+    INSTALL PLUGIN rpl_semi_sync_$plugin2 SONAME '$library2';
+  )||
+  --delimiter ;
+
+  --let $write_to_file = GENERATE
+  --source include/write_var_to_file.inc
+  --let $init_file = $write_to_file
+  --let $write_to_file =
+  --let $rpl_server_parameters = --init-file=$init_file
+  --let $rpl_omit_print_server_parameters = 1
+  --let $rpl_server_number = 1
+  --source include/rpl_restart_server.inc
+
+  --remove_file $init_file
+
+  --echo # R9.3. deprecation warnings for --init-file
+  --let $error_pattern =
+  if ($plugin1 == master) {
+    --let $error_pattern = .rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.
+  }
+  if ($plugin1 == slave) {
+    --let $error_pattern = .rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.
+  }
+  let $error_pattern = $error_pattern
+Plugin 'rpl_semi_sync_$plugin2' init function returned error.
+Cannot install the rpl_semi_sync_$plugin2 plugin when the rpl_semi_sync_$plugin1 plugin is installed.
+  ;
+  --source include/assert_error_log.inc
+
+  eval UNINSTALL PLUGIN rpl_semi_sync_$plugin1;
+
+END_OF_PROCEDURE
+
+--echo ==== R8.1 Error installing first old and then new source library ====
+
+--let $plugin1 = master
+--let $library1 = $SEMISYNC_MASTER_PLUGIN
+--let $plugin2 = source
+--let $library2 = $SEMISYNC_SOURCE_PLUGIN
+--source $check_install_plugin_conflict
+
+--echo ==== R8.2 Error installing first new and then old source library ====
+
+--let $plugin1 = source
+--let $library1 = $SEMISYNC_SOURCE_PLUGIN
+--let $plugin2 = master
+--let $library2 = $SEMISYNC_MASTER_PLUGIN
+--source $check_install_plugin_conflict
+
+--echo ==== R8.3. Error installing first old and then new replica library ====
+
+--let $plugin1 = slave
+--let $library1 = $SEMISYNC_SLAVE_PLUGIN
+--let $plugin2 = replica
+--let $library2 = $SEMISYNC_REPLICA_PLUGIN
+--source $check_install_plugin_conflict
+
+--echo ==== R8.4. Error installing first new and then old replica library ====
+
+--let $plugin1 = replica
+--let $library1 = $SEMISYNC_REPLICA_PLUGIN
+--let $plugin2 = slave
+--let $library2 = $SEMISYNC_SLAVE_PLUGIN
+--source $check_install_plugin_conflict
+
+--echo ==== R9.2. Deprecation warnings generated for --plugin-load ====
+
+--let $rpl_server_parameters = --plugin-load=rpl_semi_sync_master=$SEMISYNC_MASTER_PLUGIN;rpl_semi_sync_slave=$SEMISYNC_SLAVE_PLUGIN
+--let $rpl_omit_print_server_parameters = 1
+--let $rpl_server_number = 1
+--source include/rpl_restart_server.inc
+let $error_pattern =
+.rpl_semi_sync_master. is deprecated and will be removed in a future release. Please use rpl_semi_sync_source instead.
+.rpl_semi_sync_slave. is deprecated and will be removed in a future release. Please use rpl_semi_sync_replica instead.
+;
+--source include/assert_error_log.inc
+
+--echo ==== Clean up ====
+
+--let $rpl_server_number = 1
+--let $rpl_server_parameters =
+--source include/rpl_restart_server.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+# Since we configured replication 1->2->1, let replication start on
+# source too, to make rpl_end.inc happy.  It will auto-start on
+# the previous rpl_restart_server.inc, since mysqld.1 is not configured
+# with --skip-replica-start, so we just need to wait for it to happen.
+--source include/wait_for_slave_to_start.inc
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc
+
+--remove_file $install_plugins
+--remove_file $uninstall_plugins
+--remove_file $check_replication
+--remove_file $check_install_plugin_conflict

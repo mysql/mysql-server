@@ -35,8 +35,25 @@ MYSQL_ADD_PLUGIN(semisync_source
 
 MYSQL_ADD_PLUGIN(semisync_replica
   semisync.cc
-  semisync_replica.cc 
+  semisync_replica.cc
   semisync_replica_plugin.cc
   MODULE_ONLY
   MODULE_OUTPUT_NAME "semisync_replica"
+  )
+
+MYSQL_ADD_PLUGIN(semisync_master
+  semisync.cc
+  semisync_source.cc
+  semisync_source_ack_receiver.cc
+  semisync_source_plugin_old.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "semisync_master"
+  )
+
+MYSQL_ADD_PLUGIN(semisync_slave
+  semisync.cc
+  semisync_replica.cc
+  semisync_replica_plugin_old.cc
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "semisync_slave"
   )
