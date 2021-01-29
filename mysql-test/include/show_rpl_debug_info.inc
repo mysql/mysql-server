@@ -20,10 +20,11 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_only_current_connection= 1]
-# [--let $extra_debug_info= some text]
-# [--let $extra_debug_eval= expression parsable by include/eval.inc]
-# [--let $extra_debug_table= DB.TABLE]
+# [--let $rpl_only_current_connection = 1]
+# [--let $extra_debug_info = some text]
+# [--let $extra_debug_eval = expression parsable by include/eval.inc]
+# [--let $extra_debug_table = DB.TABLE]
+# [--let $extra_debug_sql = STATEMENT]
 # --source include/show_rpl_debug_info.inc
 #
 # Parameters:
@@ -47,10 +48,19 @@
 #     Fully qualified table name. The script will run SELECT * FROM $table
 #     on this table, if given.
 #
+#   $extra_debug_sql
+#     If this is set to a statement, the statement will be executed on
+#     each connection.  This can also be a list of statements,
+#     delimited by semicolons.  Therefore, a good way to use this is to
+#     append to it, like:
+#     --let $extra_debug_sql = $extra_debug_sql ; STATEMENT
+#     In case some test utility has set the variable, appending to it
+#     this way does not remove existing debug info.
+#
 # ==== Side effects ====
 #
 # Turns on enable_query_log, enable_result_log, enable_warnings,
-# horizontal_results, and enable_abort_on_error.
+# horizontal_results, and disable_abort_on_error.
 #
 # Prints non-deterministic output to the query log.  This file should
 # never be called in a test that does not fail.
@@ -196,9 +206,17 @@ while ($_rpl_server)
   if ($extra_debug_table)
   {
     --echo
-    --echo **** $extra_debug_table ****
+    --echo **** extra_debug_table ****
+    --echo # $extra_debug_table
     eval SHOW CREATE TABLE $extra_debug_table;
     eval SELECT * FROM $extra_debug_table;
+  }
+
+  if ($extra_debug_sql != '') {
+    --echo
+    --echo **** extra_debug_sql ****
+    --echo # $extra_debug_sql
+    --eval $extra_debug_sql
   }
 
   --let $_rpl_is_first_server= 0

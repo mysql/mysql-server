@@ -11370,6 +11370,9 @@ ER_PLUGIN_INVALID_TABLE_DEFINITION
 ER_AUTH_KERBEROS_LOGGER_GENERIC_MSG
   eng "%s"
 
+ER_INSTALL_PLUGIN_CONFLICT_LOG
+  eng "Cannot install the %.192s plugin when the %.192s plugin is installed."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
