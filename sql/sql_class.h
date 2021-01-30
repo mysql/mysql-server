@@ -3819,7 +3819,7 @@ class THD : public MDL_context_owner,
     PSI_THREAD_CALL(set_thread_info)
     (query_arg, static_cast<uint>(query_length_arg));
 #endif
-    m_safe_to_display.store(true);
+    set_safe_display(true);
   }
 
   /**
@@ -3833,6 +3833,10 @@ class THD : public MDL_context_owner,
 
   /** @return true, if safe to display the query string. */
   bool safe_to_display() const { return m_safe_to_display.load(); }
+
+  /** Set if the query string to be safe to display.
+  @param[in]  safe  if it is safe to display query string */
+  void set_safe_display(bool safe) { m_safe_to_display.store(safe); }
 
   /**
     Assign a new value to thd->m_query_string.
