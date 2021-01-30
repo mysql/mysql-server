@@ -3053,6 +3053,7 @@ static int innodb_init_abort() {
   srv_shutdown_exit_threads();
   innodb_space_shutdown();
   innobase::component_services::deinitialize_service_handles();
+  release_plugin_services();
   return 1;
 }
 
