@@ -84,7 +84,7 @@ class Dictionary_client;
 class ha_innobase : public handler {
  public:
   ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
-  ~ha_innobase() override;
+  ~ha_innobase() override = default;
 
   row_type get_real_row_type(const HA_CREATE_INFO *create_info) const override;
 

@@ -225,7 +225,7 @@ class ha_innopart : public ha_innobase,
  public:
   ha_innopart(handlerton *hton, TABLE_SHARE *table_arg);
 
-  ~ha_innopart() override;
+  ~ha_innopart() override = default;
 
   /** Clone this handler, used when needing more than one cursor
   to the same table.

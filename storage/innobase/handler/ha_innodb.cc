@@ -2783,10 +2783,6 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
       m_stored_select_lock_type(LOCK_NONE_UNSET),
       m_mysql_has_locked() {}
 
-/** Destruct ha_innobase handler. */
-
-ha_innobase::~ha_innobase() = default;
-
 /** Updates the user_thd field in a handle and also allocates a new InnoDB
  transaction handle if needed, and updates the transaction fields in the
  m_prebuilt struct. */

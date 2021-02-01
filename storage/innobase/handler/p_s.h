@@ -39,8 +39,8 @@ This class is used by the performance schema to extract lock data.
 */
 class Innodb_data_lock_inspector : public PSI_engine_data_lock_inspector {
  public:
-  Innodb_data_lock_inspector();
-  ~Innodb_data_lock_inspector() override;
+  Innodb_data_lock_inspector() = default;
+  ~Innodb_data_lock_inspector() override = default;
 
   PSI_engine_data_lock_iterator *create_data_lock_iterator() override;
   PSI_engine_data_lock_wait_iterator *create_data_lock_wait_iterator() override;

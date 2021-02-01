@@ -462,7 +462,7 @@ class Parallel_reader::Scan_ctx {
 
  public:
   /** Destructor. */
-  ~Scan_ctx();
+  ~Scan_ctx() = default;
 
  private:
   /** Boundary of the range to scan. */
@@ -679,7 +679,7 @@ class Parallel_reader::Ctx {
 
  public:
   /** Destructor. */
-  ~Ctx();
+  ~Ctx() = default;
 
  public:
   /** @return the context ID. */

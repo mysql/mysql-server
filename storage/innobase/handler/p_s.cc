@@ -308,8 +308,8 @@ class Innodb_data_lock_iterator : public PSI_engine_data_lock_iterator {
 class Innodb_data_lock_wait_iterator
     : public PSI_engine_data_lock_wait_iterator {
  public:
-  Innodb_data_lock_wait_iterator();
-  ~Innodb_data_lock_wait_iterator() override;
+  Innodb_data_lock_wait_iterator() = default;
+  ~Innodb_data_lock_wait_iterator() override = default;
 
   bool scan(PSI_server_data_lock_wait_container *container) override;
 
@@ -400,10 +400,6 @@ static const trx_t *fetch_trx_in_trx_list(uint64_t filter_trx_immutable_id,
 
   return nullptr;
 }
-
-Innodb_data_lock_inspector::Innodb_data_lock_inspector() = default;
-
-Innodb_data_lock_inspector::~Innodb_data_lock_inspector() = default;
 
 PSI_engine_data_lock_iterator *
 Innodb_data_lock_inspector::create_data_lock_iterator() {
@@ -837,10 +833,6 @@ size_t Innodb_data_lock_iterator::scan_trx(
 
   return found;
 }
-
-Innodb_data_lock_wait_iterator::Innodb_data_lock_wait_iterator() = default;
-
-Innodb_data_lock_wait_iterator::~Innodb_data_lock_wait_iterator() = default;
 
 bool Innodb_data_lock_wait_iterator::scan(
     PSI_server_data_lock_wait_container *container) {

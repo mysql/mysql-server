@@ -164,7 +164,7 @@ class Block : private Header {
 
  public:
   /** Default constructor which creates an empty Block. */
-  Block() noexcept;
+  Block() noexcept = default;
 
   /** Constructor which creates a Block of given size from the given
    * memory source.
@@ -295,8 +295,6 @@ static inline void deallocate_from(Source src, size_t size,
     Memory<Source::MMAP_FILE>::deallocate(block_address, size);
   }
 }
-
-inline Block::Block() noexcept = default;
 
 inline Block::Block(Chunk chunk) noexcept : Header(chunk.block()) {
   assert(!is_empty());
