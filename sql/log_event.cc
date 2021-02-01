@@ -4823,10 +4823,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           query_start_status = thd->status_var;
         }
 
-        /*
-          Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
-        */
-        thd->reset_rewritten_query();
         dispatch_sql_command(thd, &parser_state);
 
         enum_sql_command command = thd->lex->sql_command;
@@ -5102,6 +5098,7 @@ end:
   thd->set_catalog(NULL_CSTR);
   thd->set_db(NULL_CSTR); /* will free the current database */
   thd->reset_query();
+  thd->reset_rewritten_query();
   thd->lex->sql_command = SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
 
