@@ -235,7 +235,7 @@ NdbBackup::getBackupDataDirForNode(int node_id)
   }
   
   // Find section for node with given node id
-  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(conf.get(), CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, node_id)) {
     ndbout << "Invalid configuration fetched, no section for nodeid: "
            << node_id << endl;

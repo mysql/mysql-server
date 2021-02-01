@@ -375,12 +375,10 @@ int runTestMgmApiGetConfigTimeout(NDBT_Context* ctx, NDBT_Step* step)
 
     ndb_mgm_set_timeout(h,2500);
 
-    struct ndb_mgm_configuration *c= ndb_mgm_get_configuration(h,0);
+    // Get configuration, will fail when error has been inserted
+    ndb_mgm_config_unique_ptr c(ndb_mgm_get_configuration(h, 0));
 
-    if(c!=NULL)
-      ndb_mgm_destroy_configuration(c);
-
-    if(error_ins!=0 && c!=NULL)
+    if (error_ins!=0 && c)
     {
       ndbout << "FAILED: got a ndb_mgm_configuration back" << endl;
       result= NDBT_FAILED;
@@ -783,8 +781,7 @@ int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
   for (int l= 0; l < loops; l++){
     g_info << l << ": ";
 
-    struct ndb_mgm_configuration* conf=
-      ndb_mgm_get_configuration(mgmd.handle(), 0);
+    ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(mgmd.handle(), 0));
     if (!conf)
     {
       g_err << "ndb_mgm_get_configuration failed, error: "
@@ -792,9 +789,7 @@ int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
 
-    int r= ndb_mgm_set_configuration(mgmd.handle(), conf);
-    ndb_mgm_destroy_configuration(conf);
-
+    const int r= ndb_mgm_set_configuration(mgmd.handle(), conf.get());
     if (r != 0)
     {
       g_err << "ndb_mgm_set_configuration failed, error: " << endl
@@ -828,11 +823,9 @@ int runGetConfig(NDBT_Context* ctx, NDBT_Step* step)
   int loops= ctx->getNumLoops();
   for (int l= 0; l < loops; l++){
     g_info << l << ": ";
-    struct ndb_mgm_configuration* conf=
-      ndb_mgm_get_configuration(mgmd.handle(), 0);
+    ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(mgmd.handle(), 0));
     if (!conf)
       return NDBT_FAILED;
-    ndb_mgm_destroy_configuration(conf);
   }
   return NDBT_OK;
 }

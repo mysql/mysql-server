@@ -274,7 +274,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
                               Uint32 nodeid, bool validate_port)
 {
   char buf[255];
-  ndb_mgm_configuration_iterator it(* conf, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator it(conf, CFG_SECTION_NODE);
 
   if(it.find(CFG_NODE_ID, nodeid)){
     BaseString::snprintf(buf, 255, "Unable to find node with id: %d", nodeid);
@@ -358,7 +358,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
    * Check hostnames
    */
   LocalDnsCache dnsCache;
-  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_CONNECTION);
+  ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
 
     Uint32 type = CONNECTION_TYPE_TCP + 1;

@@ -47,7 +47,6 @@
 NdbRestarter::NdbRestarter(const char* _addr, Ndb_cluster_connection * con):
   handle(NULL),
   connected(false),
-  m_config(nullptr),
   m_reconnect(false),
   m_cluster_connection(con)
 {
@@ -60,7 +59,6 @@ NdbRestarter::NdbRestarter(const char* _addr, Ndb_cluster_connection * con):
 
 NdbRestarter::~NdbRestarter(){
   disconnect();
-  ndb_mgm_destroy_configuration(m_config);
 }
 
 
@@ -1055,14 +1053,17 @@ int NdbRestarter::exitSingleUserMode(){
   return reply.return_code;  
 }
 
-ndb_mgm_configuration*
-NdbRestarter::getConfig(){
-  if(m_config) return m_config;
+/*
+   Fetch configuration from ndb_mgmd unless config has already been fetched
+   (and thus cached earlier). Return pointer to configuration.
+*/
+const ndb_mgm_configuration* NdbRestarter::getConfig(){
+  if(m_config) return m_config.get();
 
   if (!isConnected())
     return 0;
-  m_config = ndb_mgm_get_configuration(handle, 0);
-  return m_config;
+  m_config.reset(ndb_mgm_get_configuration(handle, 0));
+  return m_config.get();
 }
 
 int

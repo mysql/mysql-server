@@ -977,7 +977,7 @@ Ndb_cluster_connection_impl::set_service_uri(const char * scheme,
 
 int
 Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
-                               const ndb_mgm_configuration &config)
+                               const ndb_mgm_configuration *config)
 {
   DBUG_ENTER("Ndb_cluster_connection_impl::init_nodes_vector");
   Uint32 my_location_domain_id = m_location_domain_id[nodeid];
@@ -1202,7 +1202,7 @@ Ndb_cluster_connection_impl::get_unconnected_nodes() const
 
 int
 Ndb_cluster_connection_impl::configure(Uint32 nodeId,
-                                       const ndb_mgm_configuration &config)
+                                       const ndb_mgm_configuration* config)
 {
   DBUG_ENTER("Ndb_cluster_connection_impl::configure");
   {
@@ -1213,34 +1213,34 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
     // Configure scan settings
     Uint32 scan_batch_size= 0;
     if (!iter.get(CFG_MAX_SCAN_BATCH_SIZE, &scan_batch_size)) {
-      m_config.m_scan_batch_size= scan_batch_size;
+      m_ndbapiconfig.m_scan_batch_size= scan_batch_size;
     }
     Uint32 batch_byte_size= 0;
     if (!iter.get(CFG_BATCH_BYTE_SIZE, &batch_byte_size)) {
-      m_config.m_batch_byte_size= batch_byte_size;
+      m_ndbapiconfig.m_batch_byte_size= batch_byte_size;
     }
     Uint32 batch_size= 0;
     if (!iter.get(CFG_BATCH_SIZE, &batch_size)) {
-      m_config.m_batch_size= batch_size;
+      m_ndbapiconfig.m_batch_size= batch_size;
     }
 
     Uint32 queue = 0;
     if (!iter.get(CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &queue))
     {
-      m_config.m_default_queue_option = queue;
+      m_ndbapiconfig.m_default_queue_option = queue;
     }
 
     Uint32 default_hashmap_size = 0;
     if (!iter.get(CFG_DEFAULT_HASHMAP_SIZE, &default_hashmap_size) &&
         default_hashmap_size != 0)
     {
-      m_config.m_default_hashmap_size = default_hashmap_size;
+      m_ndbapiconfig.m_default_hashmap_size = default_hashmap_size;
     }
 
     Uint32 verbose= 0;
     if (!iter.get(CFG_API_VERBOSE, &verbose))
     {
-      m_config.m_verbose = verbose;
+      m_ndbapiconfig.m_verbose = verbose;
     }
 
     // If DefaultHashmapSize is not set or zero, use the minimum
@@ -1264,7 +1264,7 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       if (default_hashmap_size == 0)
         default_hashmap_size = NDB_DEFAULT_HASHMAP_BUCKETS;
 
-      m_config.m_default_hashmap_size = default_hashmap_size;
+      m_ndbapiconfig.m_default_hashmap_size = default_hashmap_size;
     }
 
     memset(&m_location_domain_id[0], 0, sizeof(m_location_domain_id));
@@ -1303,7 +1303,7 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
         if (tmp1 > timeout)
           timeout = tmp1;
       }
-      m_config.m_waitfor_timeout = timeout;
+      m_ndbapiconfig.m_waitfor_timeout = timeout;
       m_max_api_nodeid = max_node_id;
     }
   }
@@ -1446,17 +1446,17 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       break;
     }
 
-    ndb_mgm_config_unique_ptr props = m_config_retriever->getConfig(nodeId);
-    if(props == 0)
+    ndb_mgm_config_unique_ptr config = m_config_retriever->getConfig(nodeId);
+    if (!config)
       break;
 
-    if (configure(nodeId, *props))
+    if (configure(nodeId, config.get()))
     {
       DBUG_PRINT("exit", ("malloc failure, ret: -1"));
       DBUG_RETURN(-1);
     }
 
-    if (m_transporter_facade->start_instance(nodeId, props.get()) < 0)
+    if (m_transporter_facade->start_instance(nodeId, config.get()) < 0)
     {
       DBUG_RETURN(-1);
     }

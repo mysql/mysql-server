@@ -687,11 +687,9 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
     m_location_domain_id[i] = 0;
   }
 
-  ndb_mgm_configuration *p =
-    m_ctx.m_config.getClusterConfig();
   ndb_mgm_configuration_iterator *p_iter =
-    ndb_mgm_create_configuration_iterator(p, CFG_SECTION_NODE);
-
+    ndb_mgm_create_configuration_iterator(m_ctx.m_config.getClusterConfig(),
+                                          CFG_SECTION_NODE);
   for (ndb_mgm_first(p_iter);
        ndb_mgm_valid(p_iter);
        ndb_mgm_next(p_iter))

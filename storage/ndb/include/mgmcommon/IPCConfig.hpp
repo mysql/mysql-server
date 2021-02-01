@@ -25,11 +25,13 @@
 #ifndef IPCConfig_H
 #define IPCConfig_H
 
+#include <ndb_types.h>         // Uint32
+
+struct ndb_mgm_configuration;
+
 struct IPCConfig
 {
   /*
-    configure_transporters
-
     Create and configure transporters in TransporterRegistry
 
     Returns:
@@ -38,7 +40,7 @@ struct IPCConfig
               or (re)configured
   */
   static bool configureTransporters(Uint32 nodeId,
-                                    const struct ndb_mgm_configuration &,
+                                    const ndb_mgm_configuration *,
                                     class TransporterRegistry &,
                                     bool transporter_to_self = false);
 };

@@ -94,7 +94,6 @@ Configuration::Configuration()
   _backupPath = 0;
   _initialStart = false;
   m_config_retriever= 0;
-  m_clusterConfigIter= 0;
   m_logLevel= 0;
 }
 
@@ -113,6 +112,7 @@ Configuration::~Configuration(){
   if(m_logLevel) {
     delete m_logLevel;
   }
+  ndb_mgm_destroy_iterator(m_clusterConfigIter);
 }
 
 void
@@ -211,7 +211,7 @@ Configuration::fetch_configuration(const char* _connect_string,
 
   {
     Uint32 generation;
-    ndb_mgm_configuration_iterator sys_iter(*m_clusterConfig.get(),
+    ndb_mgm_configuration_iterator sys_iter(m_clusterConfig.get(),
                                             CFG_SECTION_SYSTEM);
     char sockaddr_buf[512];
     char* sockaddr_string =
@@ -231,7 +231,7 @@ Configuration::fetch_configuration(const char* _connect_string,
     }
   }
 
-  ndb_mgm_configuration_iterator iter(*m_clusterConfig.get(), CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(m_clusterConfig.get(), CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, globalData.ownId)) {
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
               "DB missing");
@@ -304,7 +304,7 @@ Configuration::setupConfiguration(){
   }
 
   if (!IPCConfig::configureTransporters(globalData.ownId,
-                                        *m_clusterConfig.get(),
+                                        m_clusterConfig.get(),
                                         globalTransporterRegistry))
   {
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -315,7 +315,7 @@ Configuration::setupConfiguration(){
   /**
    * Setup cluster configuration for this node
    */
-  ndb_mgm_configuration_iterator iter(*m_clusterConfig.get(), CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(m_clusterConfig.get(), CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, globalData.ownId)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
   }
@@ -546,8 +546,7 @@ Configuration::setupConfiguration(){
 
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
 
-  if(m_clusterConfigIter)
-    ndb_mgm_destroy_iterator(m_clusterConfigIter);
+  ndb_mgm_destroy_iterator(m_clusterConfigIter);
   m_clusterConfigIter = ndb_mgm_create_configuration_iterator(
       m_clusterConfig.get(), CFG_SECTION_NODE);
 
@@ -778,7 +777,7 @@ Configuration::getClusterConfigIterator() const {
 Uint32 
 Configuration::get_config_generation() const {
   Uint32 generation = ~0;
-  ndb_mgm_configuration_iterator sys_iter(*m_clusterConfig,
+  ndb_mgm_configuration_iterator sys_iter(m_clusterConfig.get(),
                                           CFG_SECTION_SYSTEM);
   sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation);
   return generation;
@@ -854,8 +853,9 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig)
     { CFG_DB_RESERVED_TRANS_BUFFER_MEM, &reservedTransactionBufferBytes, true },
   };
 
-  ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
-  
+  ndb_mgm_configuration_iterator db(
+      reinterpret_cast<ndb_mgm_configuration *>(ownConfig), 0);
+
   const int sz = sizeof(tmp)/sizeof(AttribStorage);
   for(int i = 0; i<sz; i++){
     if(ndb_mgm_get_int_parameter(&db, tmp[i].paramId, tmp[i].storage)){
@@ -904,20 +904,20 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig)
   }
   
   // tmp
-  ndb_mgm_configuration_iterator * p = m_clusterConfigIter;
+  ndb_mgm_configuration_iterator * iter = m_clusterConfigIter;
 
   Uint32 nodeNo = noOfNodes = 0;
   NodeBitmask nodes;
-  for(ndb_mgm_first(p); ndb_mgm_valid(p); ndb_mgm_next(p), nodeNo++){
+  for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter), nodeNo++){
     
     Uint32 nodeId;
     Uint32 nodeType;
     
-    if(ndb_mgm_get_int_parameter(p, CFG_NODE_ID, &nodeId)){
+    if(ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &nodeId)){
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Id) missing");
     }
     
-    if(ndb_mgm_get_int_parameter(p, CFG_TYPE_OF_SECTION, &nodeType)){
+    if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &nodeType)){
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Type) missing");
     }
     
@@ -1327,8 +1327,7 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig)
 
   require(cfg.commit(true));
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();
-  m_ownConfigIterator = ndb_mgm_create_configuration_iterator
-    (m_ownConfig, 0);
+  m_ownConfigIterator = ndb_mgm_create_configuration_iterator(m_ownConfig, 0);
 }
 
 void

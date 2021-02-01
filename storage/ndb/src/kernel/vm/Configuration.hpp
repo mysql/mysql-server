@@ -187,7 +187,8 @@ private:
   UtilBuffer m_clusterConfigPacked_v1;
   UtilBuffer m_clusterConfigPacked_v2;
 
-  ndb_mgm_configuration_iterator * m_clusterConfigIter;
+  // Iterator for nodes in the config
+  ndb_mgm_configuration_iterator * m_clusterConfigIter{nullptr};
   ndb_mgm_configuration_iterator * m_ownConfigIterator;
   
   ConfigRetriever *m_config_retriever;
