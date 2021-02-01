@@ -6182,9 +6182,9 @@ longlong Item_func_like::val_int() {
 
   return my_wildcmp(cmp.cmp_collation.collation, res->ptr(),
                     res->ptr() + res->length(), res2->ptr(),
-                    res2->ptr() + res2->length(), escape,
-                    (escape == wild_one) ? -1 : wild_one,
-                    (escape == wild_many) ? -1 : wild_many)
+                    res2->ptr() + res2->length(), escape(),
+                    (escape() == wild_one) ? -1 : wild_one,
+                    (escape() == wild_many) ? -1 : wild_many)
              ? 0
              : 1;
 }
@@ -6229,7 +6229,7 @@ bool Item_func_like::check_covering_prefix_keys(THD *thd) {
       if (thd->is_error()) return true;
       if (second_arg->null_value) return false;
       if (my_is_prefixidx_cand(wild_str->charset(), wild_str->ptr(),
-                               wild_str->ptr() + wild_str->length(), escape,
+                               wild_str->ptr() + wild_str->length(), escape(),
                                wild_many, &prefix_length))
         field->table->update_covering_prefix_keys(field, prefix_length,
                                                   &covering_keys);
@@ -6281,9 +6281,10 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   if (escape_is_const &&
       !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
     if (eval_escape_clause(thd)) return true;
+    if (check_covering_prefix_keys(thd)) return true;
   }
 
-  return check_covering_prefix_keys(thd);
+  return false;
 }
 
 void Item_func_like::cleanup() {
@@ -6319,7 +6320,7 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
       int rc =
           cs->cset->mb_wc(cs, &wc, (const uchar *)escape_str_ptr,
                           (const uchar *)escape_str_ptr + escape_str->length());
-      escape = (int)(rc > 0 ? wc : '\\');
+      m_escape = static_cast<int>(rc > 0 ? wc : '\\');
     } else {
       /*
         In the case of 8bit character set, we pass native
@@ -6335,12 +6336,12 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
         size_t cnvlen =
             copy_and_convert(&ch, 1, cs, escape_str_ptr, escape_str->length(),
                              escape_str->charset(), &errors);
-        escape = cnvlen ? static_cast<uchar>(ch) : '\\';
+        m_escape = cnvlen ? static_cast<uchar>(ch) : '\\';
       } else
-        escape = escape_str_ptr ? static_cast<uchar>(*escape_str_ptr) : '\\';
+        m_escape = escape_str_ptr ? static_cast<uchar>(*escape_str_ptr) : '\\';
     }
   } else
-    escape = '\\';
+    m_escape = '\\';
 
   escape_evaluated = true;
 

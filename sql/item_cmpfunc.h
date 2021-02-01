@@ -2258,10 +2258,10 @@ class Item_func_like final : public Item_bool_func2 {
   /// Tells if the escape clause has been evaluated.
   bool escape_evaluated = false;
   bool eval_escape_clause(THD *thd);
+  /// The escape character (0 if no escape character).
+  int m_escape;
 
  public:
-  int escape;
-
   Item_func_like(Item *a, Item *b, Item *escape_arg, bool escape_used)
       : Item_bool_func2(a, b),
         escape_item(escape_arg),
@@ -2291,6 +2291,12 @@ class Item_func_like final : public Item_bool_func2 {
                  using "expr LIKE pat ESCAPE 'escape_char'" syntax
   */
   bool escape_was_used_in_parsing() const { return escape_used_in_parsing; }
+
+  /// Returns the escape character.
+  int escape() const {
+    assert(escape_is_evaluated());
+    return m_escape;
+  }
 
   /**
     Has the escape clause been evaluated? It only needs to be evaluated
