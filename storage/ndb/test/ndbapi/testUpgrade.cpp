@@ -2248,8 +2248,8 @@ runSkipIfCannotKeepFS(NDBT_Context* ctx, NDBT_Step* step)
     if (isDowngrade &&
         versionsSpanBoundary(preVersion, postVersion, problemBoundary))
     {
-      ndbout_c("Cannot run with these versions as they do not support "
-               "non initial downgrades (WL#12876)");
+      ndbout_c("Cannot run with these versions as data nodes require "
+               "initial restart for downgrades(WL#12876)");
       return NDBT_SKIPPED;
     }
   }
