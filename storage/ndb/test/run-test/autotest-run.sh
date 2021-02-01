@@ -283,7 +283,7 @@ choose(){
         i=1
         while [ $# -gt 0 ]
         do
-                sed -r s/"CHOOSE_host${i}([^0-9]|\$)"/"${1}\1"/g < $TMP1 > $TMP2
+                sed -E s/"CHOOSE_host${i}([^0-9]|\$)"/"${1}\1"/g < $TMP1 > $TMP2
                 mv $TMP2 $TMP1
                 shift
                 i=`expr $i + 1`
