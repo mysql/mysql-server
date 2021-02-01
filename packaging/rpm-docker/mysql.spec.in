@@ -508,7 +508,7 @@ rm -r $(readlink var) var
 - Added component_keyring_encrypted_file component
 - Added mysql_migrate_keyring
 
-* Wed May 18 2020 Ivo Roylev <ivo.roylev@oracle.com> - 8.0.20-1
+* Mon May 18 2020 Ivo Roylev <ivo.roylev@oracle.com> - 8.0.20-1
 - added keyring_oci plugin
 
 * Wed Jan 8 2020 Piotr Obrzut <piotr.obrzut@oracle.com> - 8.0.20-1
