@@ -1415,7 +1415,8 @@ The following options may be given as the first argument:
  engine is allowed to allocate from the main memory (RAM)
  before starting to store data on disk.
  --temptable-use-mmap 
- Use mmap files for temptables
+ Use mmap files for temptables. This variable is
+ deprecated and will be removed in a future release.
  (Defaults to on; use --skip-temptable-use-mmap to disable.)
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse

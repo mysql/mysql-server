@@ -1754,6 +1754,14 @@ static bool check_charset_db(sys_var *self, THD *thd, set_var *var) {
     var->save_result.ptr = thd->db_charset;
   return false;
 }
+
+static bool update_deprecated_with_removal_message(sys_var *self, THD *thd,
+                                                   enum_var_type) {
+  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
+                      self->name.str);
+  return false;
+}
 static bool update_deprecated(sys_var *self, THD *thd, enum_var_type) {
   push_warning_printf(
       thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT,
@@ -4957,10 +4965,14 @@ static Sys_var_ulonglong Sys_temptable_max_mmap(
     GLOBAL_VAR(temptable_max_mmap), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */), BLOCK_SIZE(1));
 
-static Sys_var_bool Sys_temptable_use_mmap("temptable_use_mmap",
-                                           "Use mmap files for temptables",
-                                           GLOBAL_VAR(temptable_use_mmap),
-                                           CMD_LINE(OPT_ARG), DEFAULT(true));
+static Sys_var_bool Sys_temptable_use_mmap(
+    "temptable_use_mmap",
+    "Use mmap files for temptables. "
+    "This variable is deprecated and will be removed in a future release.",
+    GLOBAL_VAR(temptable_use_mmap), CMD_LINE(OPT_ARG), DEFAULT(true),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
+    ON_UPDATE(update_deprecated_with_removal_message), nullptr,
+    sys_var::PARSE_NORMAL);
 
 static Sys_var_plugin Sys_default_tmp_storage_engine(
     "default_tmp_storage_engine",
