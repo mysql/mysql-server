@@ -426,11 +426,13 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
   encryption flags for that scenario. */
   if ((FSP_FLAGS_GET_ENCRYPTION(flags) != FSP_FLAGS_GET_ENCRYPTION(m_flags)) &&
       fsp_is_shared_tablespace(flags)) {
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
     /* Note this tablespace id down and assert that it is in the list of
     tablespaces for which encryption is being resumed. */
     flag_mismatch_spaces.push_back(space_id);
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
     if (!((m_flags ^ flags) &
           ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |

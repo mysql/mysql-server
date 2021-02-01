@@ -133,9 +133,9 @@ meb::Mutex apply_log_mutex;
 /** Print important values from a page header.
 @param[in]	page	page */
 void meb_print_page_header(const page_t *page) {
-  ib::trace_1() << "space " << mach_read_from_4(page + FIL_PAGE_SPACE_ID)
-                << " nr " << mach_read_from_4(page + FIL_PAGE_OFFSET) << " lsn "
-                << mach_read_from_8(page + FIL_PAGE_LSN) << " type "
+  ib::trace_1() << "space_id " << mach_read_from_4(page + FIL_PAGE_SPACE_ID)
+                << " page_nr " << mach_read_from_4(page + FIL_PAGE_OFFSET)
+                << " lsn " << mach_read_from_8(page + FIL_PAGE_LSN) << " type "
                 << mach_read_from_2(page + FIL_PAGE_TYPE);
 }
 #endif /* UNIV_HOTBACKUP */
@@ -495,7 +495,9 @@ void recv_sys_close() {
 
   mutex_free(&recv_sys->mutex);
 
+#ifndef UNIV_HOTBACKUP
   ut_ad(!recv_writer_is_active());
+#endif /* !UNIV_HOTBACKUP */
   mutex_free(&recv_sys->writer_mutex);
 
   ut_free(recv_sys);
@@ -1441,10 +1443,10 @@ void meb_apply_log_record(recv_addr_t *recv_addr, buf_block_t *block) {
   const page_size_t &page_size =
       fil_space_get_page_size(recv_addr->space, &found);
 
-  ib::trace_3() << "recv_addr {State: " << recv_addr->state
-                << ", Space id: " << recv_addr->space
-                << ", Page no: " << recv_addr->page_no
-                << ", Page size: " << page_size << ", found: " << found << "\n";
+  ib::trace_3() << "meb_apply_log_record: recv state " << recv_addr->state
+                << " space_id " << recv_addr->space << " page_nr "
+                << recv_addr->page_no << " page size " << page_size << " found "
+                << found;
 
   if (!found) {
     recv_addr->state = RECV_DISCARDED;
@@ -1741,13 +1743,13 @@ static byte *recv_parse_or_apply_log_rec_body(
 #endif /* UNIV_DEBUG */
 
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_DEBUG)
-  ib::trace_3() << "recv_parse_or_apply_log_rec_body { type: "
-                << get_mlog_string(type) << ", space_id: " << space_id
-                << ", page_no: " << page_no
-                << ", ptr : " << static_cast<const void *>(ptr)
-                << ", end_ptr: " << static_cast<const void *>(end_ptr)
-                << ", block: " << static_cast<const void *>(block)
-                << ", mtr: " << static_cast<const void *>(mtr) << " }";
+  ib::trace_3() << "recv_parse_or_apply_log_rec_body: type "
+                << get_mlog_string(type) << " space_id " << space_id
+                << " page_nr " << page_no << " ptr "
+                << static_cast<const void *>(ptr) << " end_ptr "
+                << static_cast<const void *>(end_ptr) << " block "
+                << static_cast<const void *>(block) << " mtr "
+                << static_cast<const void *>(mtr);
 #endif /* UNIV_HOTBACKUP && UNIV_DEBUG */
 
   if (applying_redo) {
@@ -2492,8 +2494,8 @@ void recv_recover_page_func(
   ut_d(max_lsn = log_sys->scanned_lsn);
 #endif /* UNIV_DEBUG */
 #else  /* !UNIV_HOTBACKUP */
-  ib::trace_2() << "Applying log to space " << recv_addr->space << " page "
-                << recv_addr->page_no;
+  ib::trace_2() << "Applying log to space_id " << recv_addr->space
+                << " page_nr " << recv_addr->page_no;
 #endif /* !UNIV_HOTBACKUP */
 
   recv_addr->state = RECV_BEING_PROCESSED;

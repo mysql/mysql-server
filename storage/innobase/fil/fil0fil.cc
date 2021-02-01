@@ -3843,6 +3843,7 @@ void Fil_shard::close_all_files() {
 
 /** Close all open files. */
 void Fil_system::close_all_files() {
+#ifndef UNIV_HOTBACKUP
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   bool should_validate_space_reference_count = srv_fast_shutdown == 0;
   DBUG_EXECUTE_IF("buf_disable_space_reference_count_check",
@@ -3855,6 +3856,7 @@ void Fil_system::close_all_files() {
     }
   }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
   for (auto shard : m_shards) {
     shard->mutex_acquire();
@@ -6786,7 +6788,7 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 #else  /* !UNIV_HOTBACKUP */
   ib::trace_2() << "Extended space : " << space->name << " from " << prev_size
                 << " pages to " << space->size << " pages "
-                << ", desired space size : " << size << " pages.";
+                << ", desired space size : " << size << " pages";
 #endif /* !UNIV_HOTBACKUP */
 
   space_flush(space->id);
@@ -11353,6 +11355,7 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
 }
 
 void Fil_system::rename_partition_files(bool revert) {
+#ifndef UNIV_HOTBACKUP
   /* If revert, then we are downgrading after upgrade failure from 5.7 */
   ut_ad(!revert || srv_downgrade_partition_files);
 
@@ -11360,7 +11363,6 @@ void Fil_system::rename_partition_files(bool revert) {
     return;
   }
 
-#ifndef UNIV_HOTBACKUP
   ut_ad(!lower_case_file_system);
 
   for (auto &old_path : m_old_paths) {

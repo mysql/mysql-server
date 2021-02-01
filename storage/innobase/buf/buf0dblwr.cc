@@ -2513,6 +2513,7 @@ void dblwr::recv::check_missing_tablespaces(const recv::Pages *pages) noexcept {
 
 namespace dblwr {
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 static bool is_encrypted_page(const byte *page) noexcept {
   ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
@@ -2551,5 +2552,6 @@ bool has_encrypted_pages() noexcept {
   return st;
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 }  // namespace dblwr
