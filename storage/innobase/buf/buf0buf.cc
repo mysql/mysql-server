@@ -6530,9 +6530,9 @@ void meb_page_init(const page_id_t &page_id, const page_size_t &page_size,
     page_zip_set_size(&block->page.zip, 0);
   }
 
-  ib::trace_1() << "meb_page_init: block  Space: " << block->page.id.space()
-                << " , zip_size: " << block->page.size.physical()
-                << " unzip_size: " << block->page.size.logical() << " }\n";
+  ib::trace_1() << "meb_page_init: space_id " << block->page.id.space()
+                << " zip_size " << block->page.size.physical() << " page_size "
+                << block->page.size.logical();
 }
 
 #endif /* !UNIV_HOTBACKUP */

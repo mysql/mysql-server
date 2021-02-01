@@ -171,6 +171,7 @@ struct Find_page {
   mtr_memo_slot_t *m_slot;
 };
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 struct Mtr_memo_contains {
   Mtr_memo_contains(const mtr_t *mtr, mtr_memo_type_t type)
@@ -201,6 +202,7 @@ bool mtr_t::conflicts_with(const mtr_t *mtr2) const {
   return !m_impl.m_memo.for_each_block_in_reverse(iterator);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /** Release latches and decrement the buffer fix count.
 @param[in]	slot	memo slot */

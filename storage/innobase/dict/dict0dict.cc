@@ -4003,9 +4003,11 @@ dirty_dict_tables list if necessary.
 void dict_table_mark_dirty(dict_table_t *table) {
   ut_ad(!table->is_temporary());
 
+#ifndef UNIV_HOTBACKUP
   /* We should not adding dynamic metadata so late in shutdown phase and
   this data would only be retrieved during recovery. */
   ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
+#endif /* !UNIV_HOTBACKUP */
 
   mutex_enter(&dict_persist->mutex);
 
@@ -5382,7 +5384,6 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
 
   return (metadata);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic metadata of table
 @param[in]	id		Table id
@@ -5414,6 +5415,7 @@ void Persister::write_log(table_id_t id,
 
   mlog_close(mtr, log_ptr);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Write the corrupted indexes of a table, we can pre-calculate the size
 by calling get_write_size()
