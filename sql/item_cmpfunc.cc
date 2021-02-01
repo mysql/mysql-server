@@ -6346,50 +6346,76 @@ void Item_func_like::cleanup() {
  */
 bool Item_func_like::eval_escape_clause(THD *thd) {
   assert(!escape_evaluated);
+  escape_evaluated = true;
 
   String buf;
-  String *escape_str = escape_item->val_str(&buf);
+  const String *escape_str = escape_item->val_str(&buf);
   if (thd->is_error()) return true;
-  if (escape_str) {
-    const char *escape_str_ptr = escape_str->ptr();
+
+  // Use backslash as escape character if the escape clause evaluates to NULL.
+  // (For backward compatibility. The SQL standard says the LIKE expression
+  // should evaluate to NULL in this case.)
+  if (escape_item->null_value) {
+    m_escape = '\\';
+    return false;
+  }
+
+  // An empty escape sequence means there is no escape character. An empty
+  // escape sequence is not accepted in NO_BACKSLASH_ESCAPES mode.
+  if (escape_str->is_empty()) {
     if (escape_used_in_parsing &&
-        ((((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
-           escape_str->numchars() != 1) ||
-          escape_str->numchars() > 1))) {
+        (thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
       return true;
     }
+    m_escape = 0;
+    return false;
+  }
 
-    if (use_mb(cmp.cmp_collation.collation)) {
-      const CHARSET_INFO *cs = escape_str->charset();
-      my_wc_t wc;
-      int rc =
-          cs->cset->mb_wc(cs, &wc, (const uchar *)escape_str_ptr,
-                          (const uchar *)escape_str_ptr + escape_str->length());
-      m_escape = static_cast<int>(rc > 0 ? wc : '\\');
-    } else {
-      /*
-        In the case of 8bit character set, we pass native
-        code instead of Unicode code as "escape" argument.
-        Convert to "cs" if charset of escape differs.
-      */
-      const CHARSET_INFO *cs = cmp.cmp_collation.collation;
-      size_t unused;
-      if (escape_str->needs_conversion(escape_str->length(),
-                                       escape_str->charset(), cs, &unused)) {
-        char ch;
-        uint errors;
-        size_t cnvlen =
-            copy_and_convert(&ch, 1, cs, escape_str_ptr, escape_str->length(),
-                             escape_str->charset(), &errors);
-        m_escape = cnvlen ? static_cast<uchar>(ch) : '\\';
-      } else
-        m_escape = escape_str_ptr ? static_cast<uchar>(*escape_str_ptr) : '\\';
+  // Accept at most one character.
+  if (escape_str->numchars() > 1) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+    return true;
+  }
+
+  const char *escape_str_ptr = escape_str->ptr();
+
+  // For multi-byte character sets, we store the Unicode code point of the
+  // escape character.
+  if (use_mb(cmp.cmp_collation.collation)) {
+    const CHARSET_INFO *cs = escape_str->charset();
+    my_wc_t wc;
+    int rc = cs->cset->mb_wc(
+        cs, &wc, pointer_cast<const uchar *>(escape_str_ptr),
+        pointer_cast<const uchar *>(escape_str_ptr) + escape_str->length());
+    if (rc <= 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+      return true;
     }
-  } else
-    m_escape = '\\';
+    m_escape = wc;
+    return false;
+  }
 
-  escape_evaluated = true;
+  // For single-byte character sets, we store the native code instead of the
+  // Unicode code point. The escape character is converted to the character set
+  // of the comparator if they differ.
+  const CHARSET_INFO *cs = cmp.cmp_collation.collation;
+  size_t unused;
+  if (escape_str->needs_conversion(escape_str->length(), escape_str->charset(),
+                                   cs, &unused)) {
+    char ch;
+    uint errors;
+    size_t cnvlen =
+        copy_and_convert(&ch, 1, cs, escape_str_ptr, escape_str->length(),
+                         escape_str->charset(), &errors);
+    if (cnvlen == 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+      return true;
+    }
+    m_escape = static_cast<uchar>(ch);
+  } else {
+    m_escape = static_cast<uchar>(escape_str_ptr[0]);
+  }
 
   return false;
 }
