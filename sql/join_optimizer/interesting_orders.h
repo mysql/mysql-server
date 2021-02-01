@@ -189,7 +189,7 @@ class LogicalOrderings {
   // away, a copy will be taken.
   // The empty ordering/grouping is always index 0.
   int AddOrdering(THD *thd, Ordering order) {
-    return AddOrderingInternal(thd, order, /*is_homogenized=*/false);
+    return AddOrderingInternal(thd, order, OrderingWithInfo::INTERESTING);
   }
 
   // NOTE: Will include the empty ordering.
@@ -267,10 +267,12 @@ class LogicalOrderings {
         ordering_idx);
   }
 
-  // Whether "a" follows any interesting orders than "b" does not.
-  // If !MoreOrderedThan(a, b) && !MoreOrderedThan(b, a), the states follow
-  // the same interesting orders. It is possible to have MoreOrderedThan(a, b)
-  // && MoreOrderedThan(b, a), e.g. if they simply follow disjunct orders.
+  // Whether "a" follows any interesting orders than "b" does not, or could
+  // do so in the future. If !MoreOrderedThan(a, b) && !MoreOrderedThan(b, a)
+  // the states are equal (they follow the same interesting orders, and could
+  // lead to the same interesting orders given the same FDs -- see below).
+  // It is possible to have MoreOrderedThan(a, b) && MoreOrderedThan(b, a), e.g.
+  // if they simply follow disjunct orders.
   //
   // This is used in the planner, when pruning access paths -- an AP A can be
   // kept even if it has higher cost than AP B, if it follows orders that B does
@@ -296,7 +298,11 @@ class LogicalOrderings {
         m_dfsm_states[a_idx].follows_interesting_order;
     std::bitset<kMaxSupportedOrderings> b =
         m_dfsm_states[b_idx].follows_interesting_order;
-    return (a & b) != a;
+    std::bitset<kMaxSupportedOrderings> future_a =
+        m_dfsm_states[a_idx].can_reach_interesting_order;
+    std::bitset<kMaxSupportedOrderings> future_b =
+        m_dfsm_states[b_idx].can_reach_interesting_order;
+    return (a & b) != a || (future_a & future_b) != future_a;
   }
 
  private:
@@ -341,6 +347,9 @@ class LogicalOrderings {
     Mem_root_array<int> outgoing_edges;
     Ordering satisfied_ordering;
     int satisfied_ordering_idx;  // Only for type == INTERESTING.
+
+    // Indexed by ordering.
+    std::bitset<kMaxSupportedOrderings> can_reach_interesting_order{0};
   };
   struct DFSMState {
     Mem_root_array<int> outgoing_edges;  // Index into dfsm_edges.
@@ -353,6 +362,13 @@ class LogicalOrderings {
 
     // Indexed by ordering.
     std::bitset<kMaxSupportedOrderings> follows_interesting_order{0};
+
+    // Interesting orders that this state can eventually reach,
+    // given that all FDs are applied (a superset of follows_interesting_order).
+    // We track this instead of the producing orders (e.g. which homogenized
+    // order are we following), because it allows for more access paths to
+    // compare equal. See also OrderingWithInfo::Type::HOMOGENIZED.
+    std::bitset<kMaxSupportedOrderings> can_reach_interesting_order{0};
 
     // Whether applying the given functional dependency will take us to a
     // different state from this one. Used to quickly intersect with the
@@ -393,7 +409,30 @@ class LogicalOrderings {
 
   struct OrderingWithInfo {
     Ordering ordering;
-    bool is_homogenized;
+
+    // Status of the ordering. Note that types with higher indexes dominate
+    // lower, ie., two orderings can be collapsed into the one with the higher
+    // type index if they are otherwise equal.
+    enum Type {
+      // An ordering that is interesting in its own right,
+      // e.g. because it is given to ORDER BY.
+      INTERESTING = 2,
+
+      // An ordering that is derived from an interesting order, but refers to
+      // one table only (or conceptually, a subset of tables -- but we don't
+      // support that in this implementation). Guaranteed to reach some
+      // interesting order at some point, but we don't track it as interesting
+      // in the FSM states. This means that these orderings don't get state bits
+      // in follows_interesting_order for themselves, but they will always have
+      // one or more interesting orders in can_reach_interesting_order.
+      // This helps us collapse access paths more efficiently; if we have
+      // an interesting order t3.x and create homogenized orderings t1.x
+      // and t2.x (due to some equality with t3.x), an access path following one
+      // isn't better than an access path following the other. They will lead
+      // to the same given the same FDs anyway (see MoreOrderedThan()), and
+      // thus are equally good.
+      HOMOGENIZED = 1,
+    } type;
 
     // Which initial state to use for this ordering (in SetOrder()).
     StateIndex state_idx = 0;
@@ -418,7 +457,8 @@ class LogicalOrderings {
   Bounds_checked_array<int> m_optimized_fd_mapping;
 
   // Helper for AddOrdering().
-  int AddOrderingInternal(THD *thd, Ordering order, bool is_homogenized);
+  int AddOrderingInternal(THD *thd, Ordering order,
+                          OrderingWithInfo::Type type);
 
   // See comment in .cc file.
   void PruneFDs(THD *thd);

@@ -741,3 +741,72 @@ TEST_F(InterestingOrderingTableTest, MoreOrderedThan) {
   EXPECT_TRUE(m_orderings->MoreOrderedThan(ac_idx, c_idx));
   EXPECT_FALSE(m_orderings->MoreOrderedThan(ac_idx, ac_idx));
 }
+
+TEST_F(InterestingOrderingTableTest, HomogenizedOrderingsAreEquallyGood) {
+  THD *thd = m_initializer.thd();
+
+  // Add three tables, with one column each.
+  unique_ptr_destroy_only<Fake_TABLE> t1(
+      new (thd->mem_root) Fake_TABLE(/*num_columns=*/1, /*nullable=*/true));
+  t1->field[0]->field_name = "t1.a";
+  ItemHandle t1_a = m_orderings->GetHandle(new Item_field(t1->field[0]));
+
+  unique_ptr_destroy_only<Fake_TABLE> t2(
+      new (thd->mem_root) Fake_TABLE(/*num_columns=*/1, /*nullable=*/true));
+  t2->field[0]->field_name = "t2.a";
+  ItemHandle t2_a = m_orderings->GetHandle(new Item_field(t2->field[0]));
+
+  unique_ptr_destroy_only<Fake_TABLE> t3(
+      new (thd->mem_root) Fake_TABLE(/*num_columns=*/1, /*nullable=*/true));
+  t3->field[0]->field_name = "t3.a";
+  ItemHandle t3_a = m_orderings->GetHandle(new Item_field(t3->field[0]));
+
+  // And t1.a = t2.a.
+  array<ItemHandle, 1> head_t1_a{t1_a};
+  FunctionalDependency fd_12;
+  fd_12.type = FunctionalDependency::EQUIVALENCE;
+  fd_12.head = Bounds_checked_array<ItemHandle>(head_t1_a);
+  fd_12.tail = t2_a;
+  m_orderings->AddFunctionalDependency(thd, fd_12);
+
+  // And t1.a = t3.a.
+  FunctionalDependency fd_13;
+  fd_13.type = FunctionalDependency::EQUIVALENCE;
+  fd_13.head = Bounds_checked_array<ItemHandle>(head_t1_a);
+  fd_13.tail = t3_a;
+  m_orderings->AddFunctionalDependency(thd, fd_13);
+
+  // Set up the ordering (t1.a). It should be homogenized into (t2.a)
+  // and (t3.a) due to the equivalence.
+  array<OrderElement, 1> order_a{OrderElement{t1_a, ORDER_ASC}};
+  EXPECT_EQ(1, m_orderings->AddOrdering(thd, Ordering{order_a}));
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // Just make sure we have the right indexes.
+  ASSERT_EQ(4, m_orderings->num_orderings());
+  ASSERT_THAT(m_orderings->ordering(1),
+              testing::ElementsAre(OrderElement{t1_a, ORDER_ASC}));
+  ASSERT_THAT(m_orderings->ordering(2),
+              testing::ElementsAre(OrderElement{t2_a, ORDER_ASC}));
+  ASSERT_THAT(m_orderings->ordering(3),
+              testing::ElementsAre(OrderElement{t3_a, ORDER_ASC}));
+  LogicalOrderings::StateIndex empty_idx = m_orderings->SetOrder(0);
+  LogicalOrderings::StateIndex t1a_idx = m_orderings->SetOrder(1);
+  LogicalOrderings::StateIndex t2a_idx = m_orderings->SetOrder(2);
+  LogicalOrderings::StateIndex t3a_idx = m_orderings->SetOrder(3);
+
+  // (t1.a) is better than both (t2.a) and (t3.a), but the two are,
+  // crucially, equivalent to each other.
+  EXPECT_TRUE(m_orderings->MoreOrderedThan(t1a_idx, t2a_idx));
+  EXPECT_TRUE(m_orderings->MoreOrderedThan(t1a_idx, t3a_idx));
+
+  EXPECT_FALSE(m_orderings->MoreOrderedThan(t2a_idx, t3a_idx));
+  EXPECT_FALSE(m_orderings->MoreOrderedThan(t3a_idx, t2a_idx));
+
+  // However, both of them should be more interesting than nothing.
+  EXPECT_TRUE(m_orderings->MoreOrderedThan(t2a_idx, empty_idx));
+  EXPECT_TRUE(m_orderings->MoreOrderedThan(t3a_idx, empty_idx));
+}

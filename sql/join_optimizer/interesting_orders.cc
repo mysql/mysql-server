@@ -77,7 +77,7 @@ LogicalOrderings::LogicalOrderings(THD *thd)
 
   // Add the empty ordering/grouping.
   m_orderings.push_back(
-      OrderingWithInfo{Ordering{nullptr, 0}, /*is_homogenized=*/false});
+      OrderingWithInfo{Ordering{nullptr, 0}, OrderingWithInfo::INTERESTING});
 
   FunctionalDependency decay_fd;
   decay_fd.type = FunctionalDependency::DECAY;
@@ -86,18 +86,8 @@ LogicalOrderings::LogicalOrderings(THD *thd)
 }
 
 int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
-                                          bool is_homogenized) {
+                                          OrderingWithInfo::Type type) {
   assert(!m_built);
-
-  // Deduplicate against all the existing ones.
-  for (size_t i = 0; i < m_orderings.size(); ++i) {
-    if (OrderingsAreEqual(m_orderings[i].ordering, order)) {
-      return i;
-    }
-  }
-  m_orderings.push_back(
-      OrderingWithInfo{DuplicateArray(thd, order), is_homogenized});
-  m_longest_ordering = std::max<int>(m_longest_ordering, order.size());
 
   for (OrderElement element : order) {
     if (element.direction == ORDER_ASC) {
@@ -107,6 +97,15 @@ int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
       m_items[element.item].used_desc = true;
     }
   }
+
+  // Deduplicate against all the existing ones.
+  for (size_t i = 0; i < m_orderings.size(); ++i) {
+    if (OrderingsAreEqual(m_orderings[i].ordering, order)) {
+      return i;
+    }
+  }
+  m_orderings.push_back(OrderingWithInfo{DuplicateArray(thd, order), type});
+  m_longest_ordering = std::max<int>(m_longest_ordering, order.size());
 
   return m_orderings.size() - 1;
 }
@@ -509,7 +508,8 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
       return;
     }
   }
-  AddOrderingInternal(thd, Ordering(tmpbuf, length), /*is_homogenized=*/true);
+  AddOrderingInternal(thd, Ordering(tmpbuf, length),
+                      OrderingWithInfo::HOMOGENIZED);
 }
 
 ItemHandle LogicalOrderings::GetHandle(Item *item) {
@@ -785,6 +785,8 @@ void LogicalOrderings::TryAddingOrderWithElementInserted(
   [Neu04]; it is unclear exactly what is meant, but it would seem the state
   removal/merging there is either underdefined or simply does not do anything
   except remove trivially bad nodes (those that cannot reach anything).
+
+  This also sets the can_reach_interesting_order bitmap on each NFSM node.
  */
 void LogicalOrderings::PruneNFSM(THD *thd) {
   // Find the transitive closure of the NFSM; ie., whether state A can reach
@@ -897,6 +899,22 @@ void LogicalOrderings::PruneNFSM(THD *thd) {
       state.outgoing_edges.resize(num_kept);
     }
   } while (pruned_anything);
+
+  // Set the bitmask of what each node can reach.
+  for (size_t order_idx = 0; order_idx < m_orderings.size(); ++order_idx) {
+    if (m_orderings[order_idx].type != OrderingWithInfo::INTERESTING ||
+        order_idx >= kMaxSupportedOrderings) {
+      continue;
+    }
+    for (int i = 0; i < N; ++i) {
+      if (m_states[i].type == NFSMState::DELETED) {
+        continue;
+      }
+      if (reachable[i * N + order_idx]) {
+        m_states[i].can_reach_interesting_order.set(order_idx);
+      }
+    }
+  }
 }
 
 /**
@@ -1016,12 +1034,14 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
         // except for printing out the graph.
         DFSMState state;
         for (int nfsm_state_idx : nfsm_states) {
+          int ordering_idx = m_states[nfsm_state_idx].satisfied_ordering_idx;
           if (m_states[nfsm_state_idx].type == NFSMState::INTERESTING &&
-              m_states[nfsm_state_idx].satisfied_ordering_idx <
-                  kMaxSupportedOrderings) {
-            state.follows_interesting_order.set(
-                m_states[nfsm_state_idx].satisfied_ordering_idx);
+              ordering_idx < kMaxSupportedOrderings &&
+              m_orderings[ordering_idx].type == OrderingWithInfo::INTERESTING) {
+            state.follows_interesting_order.set(ordering_idx);
           }
+          state.can_reach_interesting_order |=
+              m_states[nfsm_state_idx].can_reach_interesting_order;
         }
         state.nfsm_states = move(nfsm_states);
         state.next_state =
@@ -1144,7 +1164,7 @@ void LogicalOrderings::PrintInterestingOrders(string *trace) {
         *trace += " DESC";
       }
     }
-    if (ordering.is_homogenized) {
+    if (ordering.type == OrderingWithInfo::HOMOGENIZED) {
       *trace += " [homogenized from other ordering]";
     }
     *trace += "\n";
