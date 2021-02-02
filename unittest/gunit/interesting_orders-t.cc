@@ -1145,3 +1145,36 @@ TEST_F(InterestingOrderingTableTest, UninterestingOrderingsCanBecomeGroupings) {
   idx = m_orderings->ApplyFDs(idx, m_orderings->GetFDSet(fd_ca_idx));
   EXPECT_TRUE(m_orderings->DoesFollowOrder(idx, group_ac_idx));
 }
+
+TEST_F(InterestingOrderingTableTest, GroupCover) {
+  THD *thd = m_initializer.thd();
+
+  // Interesting orders are {abc}, {d} and (b↓a).
+  array<OrderElement, 3> group_abc{OrderElement{a, ORDER_NOT_RELEVANT},
+                                   OrderElement{b, ORDER_NOT_RELEVANT},
+                                   OrderElement{c, ORDER_NOT_RELEVANT}};
+  array<OrderElement, 1> group_d{OrderElement{d, ORDER_NOT_RELEVANT}};
+  array<OrderElement, 2> order_ba{OrderElement{b, ORDER_DESC},
+                                  OrderElement{a, ORDER_ASC}};
+
+  AddOrdering(thd, group_abc, /*interesting=*/true, m_orderings.get());
+  AddOrdering(thd, group_d, /*interesting=*/true, m_orderings.get());
+  AddOrdering(thd, order_ba, /*interesting=*/true, m_orderings.get());
+
+  string trace;
+  m_orderings->Build(thd, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  // We should have two new orderings: (b↓ac) and (d).
+  ASSERT_EQ(6, m_orderings->num_orderings());
+
+  // (b↓ac).
+  EXPECT_THAT(m_orderings->ordering(4),
+              testing::ElementsAre(OrderElement{b, ORDER_DESC},
+                                   OrderElement{a, ORDER_ASC},
+                                   OrderElement{c, ORDER_ASC}));
+
+  // (d).
+  EXPECT_THAT(m_orderings->ordering(5),
+              testing::ElementsAre(OrderElement{d, ORDER_ASC}));
+}

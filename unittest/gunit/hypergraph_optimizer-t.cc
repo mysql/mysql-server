@@ -1475,6 +1475,48 @@ TEST_F(HypergraphOptimizerTest, IndexTailGetsUsed) {
   query_block->join->filesorts_to_cleanup.shrink_to_fit();
 }
 
+TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x FROM t1, t2 GROUP BY t1.x, t1.y ORDER BY t1.y DESC",
+      /*nullable=*/true);
+
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The root should be a group, and it should _not_ have a sort beneath it
+  // (it should be elided due to sortahead).
+  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
+  AccessPath *join = root->aggregate().child;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, join->type);
+  AccessPath *outer = join->nested_loop_join().outer;
+
+  // The outer table should be sorted on (y↓, x); it is compatible with the
+  // grouping (even though it was on {x, y}), and also compatible with the
+  // ordering.
+  ASSERT_EQ(AccessPath::SORT, outer->type);
+  Filesort *filesort = outer->sort().filesort;
+  ASSERT_EQ(2, filesort->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(filesort->sortorder[0].item));
+  EXPECT_TRUE(filesort->sortorder[0].reverse);
+  EXPECT_EQ("t1.x", ItemToString(filesort->sortorder[1].item));
+  EXPECT_FALSE(filesort->sortorder[1].reverse);
+
+  // We don't test the inner side.
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
 TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   Query_block *query_block =
       ParseAndResolve("SELECT t1.x FROM t1 GROUP BY t1.x",

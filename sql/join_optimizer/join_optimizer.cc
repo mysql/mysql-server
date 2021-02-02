@@ -197,6 +197,12 @@ class CostingReceiver {
     return it->second.paths;
   }
 
+  FunctionalDependencySet active_fds_at_root() const {
+    const auto it = m_access_paths.find(TablesBetween(0, m_graph.nodes.size()));
+    assert(it != m_access_paths.end());
+    return it->second.active_functional_dependencies;
+  }
+
   size_t num_access_paths() const { return m_access_paths.size(); }
 
   void ProposeAccessPath(AccessPath *path,
@@ -2600,8 +2606,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (order_by_ordering_idx != -1 &&
-          orderings.DoesFollowOrder(root_path->ordering_state,
+      if (orderings.DoesFollowOrder(root_path->ordering_state,
                                     order_by_ordering_idx)) {
         receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
@@ -2924,28 +2929,32 @@ static ORDER *BuildSortAheadOrdering(THD *thd,
   return order;
 }
 
-static int AddSortAheadOrdering(
+static int AddOrdering(
     THD *thd, const JoinHypergraph *graph, Ordering ordering,
     ORDER *order_for_filesort, bool used_at_end, table_map homogenize_tables,
     table_map used_tables, LogicalOrderings *orderings,
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings) {
-  NodeMap required_nodes = GetNodeMapFromTableMap(
-      used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
-  if (Overlaps(used_tables, RAND_TABLE_BIT)) {
-    // We can never sort-ahead with nondeterministic functions.
-    return -1;
-  } else if (ordering.empty()) {
+  if (ordering.empty()) {
     return 0;
-  } else {
-    int ordering_idx = orderings->AddOrdering(
-        thd, ordering, /*interesting=*/true, used_at_end, homogenize_tables);
+  }
+
+  const int ordering_idx = orderings->AddOrdering(
+      thd, ordering, /*interesting=*/true, used_at_end, homogenize_tables);
+
+  // See if we can use this for sort-ahead. (For groupings, LogicalOrderings
+  // will create its own sort-ahead orderings for us, so we shouldn't do it
+  // here.)
+  if (!Overlaps(used_tables, RAND_TABLE_BIT) && !IsGrouping(ordering)) {
+    NodeMap required_nodes = GetNodeMapFromTableMap(
+        used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
     if (order_for_filesort == nullptr) {
       order_for_filesort = BuildSortAheadOrdering(thd, orderings, ordering);
     }
     sort_ahead_orderings->push_back(
         SortAheadOrdering{ordering_idx, required_nodes, order_for_filesort});
-    return ordering_idx;
   }
+
+  return ordering_idx;
 }
 
 static void CanonicalizeGrouping(Ordering *ordering) {
@@ -2978,10 +2987,10 @@ static void BuildInterestingOrders(
                                                 /*unwrap_rollup=*/false,
                                                 orderings, &used_tables);
     *order_by_ordering_idx =
-        AddSortAheadOrdering(thd, graph, ordering,
-                             /*order_for_filesort=*/nullptr,
-                             /*used_at_end=*/true, /*homogenize_tables=*/0,
-                             used_tables, orderings, sort_ahead_orderings);
+        AddOrdering(thd, graph, ordering,
+                    /*order_for_filesort=*/nullptr,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
+                    orderings, sort_ahead_orderings);
   }
 
   // Collect grouping from GROUP BY.
@@ -2992,10 +3001,10 @@ static void BuildInterestingOrders(
                                                 orderings, &used_tables);
     CanonicalizeGrouping(&ordering);
 
-    *group_by_ordering_idx = AddSortAheadOrdering(
-        thd, graph, ordering, query_block->group_list.first,
-        /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables, orderings,
-        sort_ahead_orderings);
+    *group_by_ordering_idx =
+        AddOrdering(thd, graph, ordering, query_block->group_list.first,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
+                    orderings, sort_ahead_orderings);
   }
 
   // Collect groupings from semijoins (because we might want to do duplicate
@@ -3028,10 +3037,10 @@ static void BuildInterestingOrders(
     }
     CanonicalizeGrouping(&ordering);
 
-    pred.ordering_idx_needed_for_semijoin_rewrite = AddSortAheadOrdering(
-        thd, graph, ordering, /*order_for_filesort=*/nullptr,
-        /*used_at_end=*/false, /*homogenize_tables=*/inner_tables, used_tables,
-        orderings, sort_ahead_orderings);
+    pred.ordering_idx_needed_for_semijoin_rewrite =
+        AddOrdering(thd, graph, ordering, /*order_for_filesort=*/nullptr,
+                    /*used_at_end=*/false, /*homogenize_tables=*/inner_tables,
+                    used_tables, orderings, sort_ahead_orderings);
   }
 
   // Collect list of all active indexes. We will be needing this for ref access
@@ -3363,6 +3372,17 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   if (trace != nullptr) {
     *trace += "Adding final predicates\n";
   }
+  FunctionalDependencySet fd_set = receiver.active_fds_at_root();
+  for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+    // Apply any predicates that don't belong to any
+    // specific table, or which are nondeterministic.
+    if (!Overlaps(graph.predicates[i].total_eligibility_set,
+                  TablesBetween(0, graph.nodes.size())) ||
+        Overlaps(graph.predicates[i].total_eligibility_set, RAND_TABLE_BIT)) {
+      fd_set |= graph.predicates[i].functional_dependencies;
+    }
+  }
+
   {
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (const AccessPath *root_path : root_candidates) {
@@ -3390,6 +3410,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
             path.num_output_rows *= graph.predicates[i].selectivity;
           }
         }
+        path.ordering_state = orderings.ApplyFDs(path.ordering_state, fd_set);
 
         const bool contains_subqueries =
             Overlaps(path.filter_predicates, graph.materializable_predicates);
@@ -3435,16 +3456,38 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      bool elide_group = (group_by_ordering_idx != -1 &&
-                          orderings.DoesFollowOrder(root_path->ordering_state,
-                                                    group_by_ordering_idx));
+      const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
+      const bool group_needs_sort =
+          query_block->is_explicitly_grouped() &&
+          !orderings.DoesFollowOrder(root_path->ordering_state,
+                                     group_by_ordering_idx);
+      if (!group_needs_sort) {
+        // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
+        AccessPath *aggregate_path =
+            NewAggregateAccessPath(thd, root_path, rollup);
+        EstimateAggregateCost(aggregate_path);
 
-      if (query_block->is_explicitly_grouped() && !elide_group) {
+        receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0, "sort elided");
+        continue;
+      }
+
+      // We need to sort. Try all sort-ahead, not just the one directly derived
+      // from GROUP BY clause, because a broader one might help us elide ORDER
+      // BY or DISTINCT later.
+      for (const SortAheadOrdering &sort_ahead_ordering :
+           sort_ahead_orderings) {
+        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
+            orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
+        if (!orderings.DoesFollowOrder(ordering_state, group_by_ordering_idx)) {
+          continue;
+        }
+
         Mem_root_array<TABLE *> tables =
             CollectTables(query_block, GetUsedTables(root_path));
         Filesort *filesort = new (thd->mem_root) Filesort(
             thd, std::move(tables), /*keep_buffers=*/false,
-            query_block->group_list.first,
+            sort_ahead_ordering.order,
             /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
             /*remove_duplicates=*/false, /*force_sort_positions=*/false,
             /*unwrap_rollup=*/true);
@@ -3453,23 +3496,25 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
             NewSortAccessPath(thd, root_path, filesort,
                               /*count_examined_rows=*/false);
         EstimateSortCost(sort_path);
-
-        root_path = sort_path;
+        sort_path->ordering_state = ordering_state;
 
         if (!filesort->using_addon_fields()) {
           FindTablesToGetRowidFor(sort_path);
         }
+
+        // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
+        AccessPath *aggregate_path =
+            NewAggregateAccessPath(thd, sort_path, rollup);
+        EstimateAggregateCost(aggregate_path);
+
+        char description[256];
+        if (trace != nullptr) {
+          snprintf(description, sizeof(description), "sort(%d)",
+                   sort_ahead_ordering.ordering_idx);
+        }
+        receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0, description);
       }
-
-      // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
-      const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
-      AccessPath *aggregate_path =
-          NewAggregateAccessPath(thd, root_path, rollup);
-      EstimateAggregateCost(aggregate_path);
-
-      receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
-                                 /*obsolete_orderings=*/0,
-                                 elide_group ? "group elided" : "");
     }
     root_candidates = std::move(new_root_candidates);
 

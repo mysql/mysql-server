@@ -56,10 +56,6 @@ Bounds_checked_array<T> DuplicateArray(THD *thd,
   return {items, array.size()};
 }
 
-bool IsGrouping(Ordering ordering) {
-  return !ordering.empty() && ordering[0].direction == ORDER_NOT_RELEVANT;
-}
-
 bool OrderingsAreEqual(Ordering a, Ordering b) {
   // Groupings are sorted by item, so this comparison works for both orderings
   // and groupings.
@@ -67,6 +63,10 @@ bool OrderingsAreEqual(Ordering a, Ordering b) {
 }
 
 }  // namespace
+
+bool IsGrouping(Ordering ordering) {
+  return !ordering.empty() && ordering[0].direction == ORDER_NOT_RELEVANT;
+}
 
 LogicalOrderings::LogicalOrderings(THD *thd)
     : m_items(thd->mem_root),
@@ -170,6 +170,7 @@ void LogicalOrderings::Build(THD *thd, string *trace) {
   BuildEquivalenceClasses();
   AddFDsFromComputedItems(thd);
   PreReduceOrderings(thd);
+  CreateOrderingsFromGroupings(thd);
   CreateHomogenizedOrderings(thd);
   PruneFDs(thd);
   if (trace != nullptr) {
@@ -621,6 +622,109 @@ void LogicalOrderings::PreReduceOrderings(THD *thd) {
 }
 
 /**
+  We don't currently have any operators that only group and do not sort
+  (e.g. hash grouping), so we always implement grouping by sorting.
+  This function makes that representation explicit -- for each grouping,
+  it will make sure there is at least one ordering representing that
+  grouping. This means we never need to “sort by a grouping”, which
+  would destroy ordering information that could be useful later.
+
+  As an example, take SELECT ... GROUP BY a, b ORDER BY a. This needs to
+  group first by {a,b} (assume we're using filesort, not an index),
+  then sort by (a). If we just represent the sort we're doing as going
+  directly to {a,b}, we can't elide the sort on (a). Instead, we create
+  a sort (a,b) (implicitly convertible to {a,b}), which makes the FSM
+  understand that we're _both_ sorted on (a,b) and grouped on {a,b},
+  and then also sorted on (a).
+
+  Any given grouping would be satisfied by lots of different orderings:
+  {a,b} could be (a,b), (b,a), (a DESC, b) etc.. We look through all
+  interesting orders that are a subset of our grouping, and if they are,
+  we extend them arbitrarily to complete the grouping. E.g., if our
+  grouping is {a,b,c,d} and the ordering (c DESC, b) is interesting,
+  we make a homogenized ordering (c DESC, b, a, d). This is roughly
+  equivalent to Simmen's “Cover Order” procedure. If we cannot make
+  such a cover, we simply make a new last-resort ordering (a,b,c,d).
+
+  We don't consider equivalences here; perhaps we should, at least
+  for at-end groupings.
+ */
+void LogicalOrderings::CreateOrderingsFromGroupings(THD *thd) {
+  OrderElement *tmpbuf =
+      thd->mem_root->ArrayAlloc<OrderElement>(m_longest_ordering);
+
+  int num_original_orderings = m_orderings.size();
+  for (int grouping_idx = 1; grouping_idx < num_original_orderings;
+       ++grouping_idx) {
+    Ordering grouping = m_orderings[grouping_idx].ordering;
+    if (!IsGrouping(grouping) ||
+        m_orderings[grouping_idx].type != OrderingWithInfo::INTERESTING) {
+      continue;
+    }
+
+    bool has_cover = false;
+    for (int ordering_idx = 1; ordering_idx < num_original_orderings;
+         ++ordering_idx) {
+      Ordering ordering = m_orderings[ordering_idx].ordering;
+      if (IsGrouping(ordering) ||
+          m_orderings[ordering_idx].type != OrderingWithInfo::INTERESTING ||
+          ordering.size() > grouping.size()) {
+        continue;
+      }
+      bool can_cover = true;
+      for (size_t i = 0; i < ordering.size(); ++i) {
+        if (!Contains(grouping, ordering[i].item)) {
+          can_cover = false;
+          break;
+        }
+      }
+      if (!can_cover) {
+        continue;
+      }
+
+      has_cover = true;
+
+      // On a full match, just note that we have a cover, don't make a new
+      // ordering. We assume both are free of duplicates.
+      if (ordering.size() == grouping.size()) {
+        continue;
+      }
+
+      for (size_t i = 0; i < ordering.size(); ++i) {
+        tmpbuf[i] = ordering[i];
+      }
+      int len = ordering.size();
+      for (size_t i = 0; i < grouping.size(); ++i) {
+        if (!Contains(ordering, grouping[i].item)) {
+          tmpbuf[len].item = grouping[i].item;
+          tmpbuf[len].direction = ORDER_ASC;  // Arbitrary.
+          ++len;
+        }
+      }
+      assert(len == static_cast<int>(grouping.size()));
+
+      AddOrderingInternal(thd, Ordering(tmpbuf, len),
+                          OrderingWithInfo::HOMOGENIZED,
+                          m_orderings[grouping_idx].used_at_end,
+                          /*homogenize_tables=*/0);
+    }
+
+    // Make a fallback ordering if no cover was found.
+    if (!has_cover) {
+      for (size_t i = 0; i < grouping.size(); ++i) {
+        tmpbuf[i].item = grouping[i].item;
+        tmpbuf[i].direction = ORDER_ASC;  // Arbitrary.
+      }
+
+      AddOrderingInternal(thd, Ordering(tmpbuf, grouping.size()),
+                          OrderingWithInfo::HOMOGENIZED,
+                          m_orderings[grouping_idx].used_at_end,
+                          /*homogenize_tables=*/0);
+    }
+  }
+}
+
+/**
   For each interesting ordering, see if we can homogenize it onto each table.
   A homogenized ordering is one that refers to fewer tables than the original
   one -- in our case, a single table. (If we wanted to, we could homogenize down
@@ -670,7 +774,13 @@ void LogicalOrderings::CreateHomogenizedOrderings(THD *thd) {
   int num_original_orderings = m_orderings.size();
   for (int ordering_idx = 1; ordering_idx < num_original_orderings;
        ++ordering_idx) {
-    if (m_orderings[ordering_idx].type != OrderingWithInfo::INTERESTING) {
+    if (m_orderings[ordering_idx].type == OrderingWithInfo::UNINTERESTING) {
+      continue;
+    }
+    if (IsGrouping(m_orderings[ordering_idx].ordering)) {
+      // We've already made orderings out of these, which will be
+      // homogenized, so we don't need to homogenize the grouping itself,
+      // too.
       continue;
     }
     Ordering reduced_ordering = ReduceOrdering(
@@ -960,6 +1070,10 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
 
   // Add an edge from the initial state to each producable ordering/grouping.
   for (size_t i = 1; i < m_orderings.size(); ++i) {
+    if (IsGrouping(m_orderings[i].ordering)) {
+      // Not directly producable, but we've made an ordering out of it earlier.
+      continue;
+    }
     NFSMEdge edge;
     edge.required_fd_idx = INT_MIN + i;
     edge.state_idx = i;

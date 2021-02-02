@@ -583,6 +583,7 @@ class LogicalOrderings {
   Ordering ReduceOrdering(Ordering ordering, bool all_fds,
                           OrderElement *tmpbuf) const;
   void PreReduceOrderings(THD *thd);
+  void CreateOrderingsFromGroupings(THD *thd);
   void CreateHomogenizedOrderings(THD *thd);
   void AddHomogenizedOrderingIfPossible(
       THD *thd, Ordering reduced_ordering, bool used_at_end, int table_idx,
@@ -640,5 +641,7 @@ class LogicalOrderings {
   void PrintNFSMDottyGraph(std::string *trace) const;
   void PrintDFSMDottyGraph(std::string *trace) const;
 };
+
+bool IsGrouping(Ordering ordering);
 
 #endif  // SQL_JOIN_OPTIMIZER_INTERESTING_ORDERS_H
