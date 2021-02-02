@@ -4256,3 +4256,12 @@ localtimestamp(6),
 (json_arrayagg("") and rtrim("")) <=> 0
 );
 ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+#
+# Bug#32449181: CHARACTER SET ENCODING ISSUES WITH JSON_SEARCH
+#
+SELECT JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16));
+JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16))
+"$[0]"
+SELECT JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16));
+JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16))
+"$[0]"

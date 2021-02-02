@@ -6251,15 +6251,10 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   args[0]->real_item()->set_can_use_prefix_key();
 
   if (Item_bool_func2::fix_fields(thd, ref) ||
-      escape_item->fix_fields(thd, &escape_item) ||
-      escape_item->check_cols(1)) {
+      fix_func_arg(thd, &escape_item)) {
     fixed = false;
     return true;
   }
-
-  used_tables_cache |= escape_item->used_tables();
-  if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
-  add_accum_properties(escape_item);
 
   if (param_type_is_default(thd, 0, 1)) return true;
   if (escape_item->propagate_type(thd)) return true;

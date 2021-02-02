@@ -2938,3 +2938,9 @@ do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
       localtimestamp(6),
       (json_arrayagg("") and rtrim("")) <=> 0
 );
+
+--echo #
+--echo # Bug#32449181: CHARACTER SET ENCODING ISSUES WITH JSON_SEARCH
+--echo #
+SELECT JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16));
+SELECT JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16));

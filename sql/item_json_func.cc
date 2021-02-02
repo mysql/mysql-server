@@ -2732,54 +2732,43 @@ bool Item_func_json_search::fix_fields(THD *thd, Item **items) {
   // Fabricate a LIKE node
 
   m_source_string_item = new Item_string(&my_charset_utf8mb4_bin);
-  Item_string *default_escape = new Item_string(&my_charset_utf8mb4_bin);
-  if (m_source_string_item == nullptr || default_escape == nullptr)
+  if (m_source_string_item == nullptr) {
     return true; /* purecov: inspected */
+  }
 
   Item *like_string_item = args[2];
-  bool escape_initialized = false;
 
   // Get the escape character, if any
+  Item *escape_item;
   if (arg_count > 3) {
-    Item *orig_escape = args[3];
-
+    escape_item = args[3];
     /*
-      Evaluate the escape clause. For a standalone LIKE expression,
+      For a standalone LIKE expression,
       the escape clause only has to be constant during execution.
       However, we require a stronger condition: it must be constant.
       That means that we can evaluate the escape clause at resolution time
       and copy the results from the JSON_SEARCH() args into the arguments
       for the LIKE node which we're fabricating.
     */
-    if (!orig_escape->const_item()) {
+    if (!args[3]->const_item()) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
       return true;
     }
-
-    StringBuffer<16> buffer;  // larger than common case: one character + '\0'
-    String *escape_str = orig_escape->val_str(&buffer);
-    if (thd->is_error()) return true;
-    if (escape_str) {
-      uint escape_length = static_cast<uint>(escape_str->length());
-      default_escape->set_str_with_copy(escape_str->ptr(), escape_length);
-      escape_initialized = true;
-    }
-  }
-
-  if (!escape_initialized) {
-    default_escape->set_str_with_copy("\\", 1);
+  } else {
+    escape_item =
+        new Item_string(STRING_WITH_LEN("\\"), &my_charset_utf8mb4_bin);
+    if (escape_item == nullptr) return true;
   }
 
   m_like_node = new Item_func_like(m_source_string_item, like_string_item,
-                                   default_escape, true);
+                                   escape_item, true);
   if (m_like_node == nullptr) return true; /* purecov: inspected */
 
-  Item *like_args[3];
-  like_args[0] = m_source_string_item;
-  like_args[1] = like_string_item;
-  like_args[2] = default_escape;
+  Item *like = m_like_node;
+  if (m_like_node->fix_fields(thd, &like)) return true;
 
-  if (m_like_node->fix_fields(thd, like_args)) return true;
+  // Don't expect the LIKE node to be replaced during resolving.
+  assert(like == m_like_node);
 
   // resolving the LIKE node may overwrite its arguments
   Item **resolved_like_args = m_like_node->arguments();
@@ -2826,7 +2815,7 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
       // Evaluate the LIKE node on the JSON string.
       const char *data = wrapper.get_data();
       uint len = static_cast<uint>(wrapper.get_data_length());
-      source_string->set_str_with_copy(data, len);
+      source_string->set_str_with_copy(data, len, &my_charset_utf8mb4_bin);
       if (like_node->val_int()) {
         // Got a match with the LIKE node. Save the path of the JSON string.
         std::pair<String_set::iterator, bool> res =
