@@ -180,7 +180,7 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
   for (size_t j = 0; j < i; ++j) {
     p += mysql_index.key_part[j].store_length;
   }
-  assert(p - m_mysql_buf < m_length);
+  assert(p - m_mysql_buf + mysql_key_part->store_length <= m_length);
 
   bool is_null;
   if (mysql_field->is_nullable()) {
