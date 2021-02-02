@@ -1369,7 +1369,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
 
 Thd_ndb::~Thd_ndb()
 {
-  DBUG_ASSERT(global_schema_lock_count == 0);
+  assert(global_schema_lock_count == 0);
 
   if (opt_ndb_extra_logging > 1)
   {
@@ -2583,7 +2583,7 @@ ndb_set_record_specification(uint field_no,
                              const NdbDictionary::Column *ndb_column)
 {
   DBUG_ENTER("ndb_set_record_specification");
-  DBUG_ASSERT(ndb_column);
+  assert(ndb_column);
   spec->column= ndb_column;
   spec->offset= Uint32(table->field[field_no]->ptr - table->record[0]);
   if (table->field[field_no]->real_maybe_null())
@@ -4622,7 +4622,7 @@ ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
 {
   Ndb *ndb= get_ndb(thd);
   DBUG_ENTER("ha_ndbcluster::set_auto_inc_val");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char buff[22];
   DBUG_PRINT("info", 
              ("Trying to set next auto increment value to %s",
@@ -9276,7 +9276,7 @@ Ndb_plugin_reference::~Ndb_plugin_reference() {
 
 bool Ndb_server_hooks::register_applier_start(hook_t *hook_func) {
   // Only allow one applier_start hook to be installed
-  DBUG_ASSERT(!m_binlog_relay_io_observer);
+  assert(!m_binlog_relay_io_observer);
 
   Ndb_plugin_reference ndbcluster_plugin;
 
@@ -10587,7 +10587,7 @@ int ha_ndbcluster::create(const char *name,
       create a temporary table as long as the HTON_TEMPORARY_NOT_SUPPORTED
       flag is set on the handlerton.
     */
-    DBUG_ASSERT(false);
+    assert(false);
 
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ndbcluster_hton_name, "TEMPORARY");
@@ -10660,8 +10660,8 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
 
     // Check that the table name is temporary ie. starts with #sql
-    DBUG_ASSERT(!is_user_table(form));
-    DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
+    assert(!is_user_table(form));
+    assert(is_prefix(form->s->table_name.str, tmp_file_prefix));
 
     if (!THDVAR(thd, allow_copying_alter_table) &&
         (thd->lex->alter_info.requested_algorithm ==
@@ -15045,12 +15045,12 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     at the cost of a possible mem leak, by "renaming" the share
   */
   // As share is now NSS_DROPPED, it should not be in the open_tables list
-  DBUG_ASSERT(share->state == NSS_DROPPED);
-  DBUG_ASSERT(my_hash_delete(&ndbcluster_open_tables, (uchar*)share) != 0);
+  assert(share->state == NSS_DROPPED);
+  assert(my_hash_delete(&ndbcluster_open_tables, (uchar*)share) != 0);
 
   // Remove entry with existing 'key' from dropped_tables list
   bool was_dropped= (my_hash_delete(&ndbcluster_dropped_tables, (uchar*)share) == 0);
-  DBUG_ASSERT(was_dropped); (void)was_dropped;
+  assert(was_dropped); (void)was_dropped;
 
   {
     /*
@@ -15384,11 +15384,11 @@ ndbcluster_mark_share_dropped(NDB_SHARE** share)
   if ((*share)->state == NSS_DROPPED)
   {
     // A DROPPED share should not be in the open_tables list
-    DBUG_ASSERT(my_hash_delete(&ndbcluster_open_tables, (uchar*)(*share)) != 0);
+    assert(my_hash_delete(&ndbcluster_open_tables, (uchar*)(*share)) != 0);
     return;
   }
   // A non-DROPPED share should not be in dropped_tables list yet.
-  DBUG_ASSERT(my_hash_delete(&ndbcluster_dropped_tables, (uchar*)(*share)) != 0);
+  assert(my_hash_delete(&ndbcluster_dropped_tables, (uchar*)(*share)) != 0);
 
   (*share)->state= NSS_DROPPED;
   (*share)->use_count--;
@@ -17852,7 +17852,7 @@ create_table_set_up_partition_info(partition_info *part_info,
 
     for (uint i= 0; i < part_info->part_field_list.elements; i++)
     {
-      DBUG_ASSERT(fields[i]->stored_in_db);
+      assert(fields[i]->stored_in_db);
       NDBCOL *col= colIdMap.getColumn(ndbtab, fields[i]->field_index);
       DBUG_PRINT("info",("setting dist key on %s", col->getName()));
       col->setPartitionKey(TRUE);
@@ -18519,7 +18519,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   }
 
   // All unsupported cases should have returned directly
-  DBUG_ASSERT(result != HA_ALTER_INPLACE_NOT_SUPPORTED);
+  assert(result != HA_ALTER_INPLACE_NOT_SUPPORTED);
   DBUG_PRINT("info", ("Ndb supports ALTER online"));
   DBUG_RETURN(result);
 }

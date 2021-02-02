@@ -2453,7 +2453,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
         {
           // should never happen
-          DBUG_ASSERT(false);
+          assert(false);
           push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_CANT_DROP_FIELD_OR_KEY,
                               "INTERNAL ERROR: Could not find foreign key '%s'",
@@ -2489,7 +2489,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
       {
         // should never happen
-        DBUG_ASSERT(false);
+        assert(false);
         push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ALTER_INFO,
                             "INTERNAL ERROR: Could not find foreign key '%s'",

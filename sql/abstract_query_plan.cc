@@ -81,7 +81,7 @@ namespace AQP
     const plan_idx first_sj_inner= me->first_sj_inner();
     if (first_sj_inner != NO_PLAN_IDX)
     {
-      DBUG_ASSERT(me->get_sj_strategy() != SJ_OPT_NONE);
+      assert(me->get_sj_strategy() != SJ_OPT_NONE);
 
       /**
        * 'this' is a member in a semi join.
