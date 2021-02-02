@@ -85,7 +85,8 @@ public:
   /**
    * Verify config
    */
-  bool verifyConfig(const ndb_mgm_configuration *, Uint32 nodeid);
+  bool verifyConfig(const ndb_mgm_configuration *, Uint32 nodeid,
+                    bool validate_port = false);
 
   Uint32 get_mgmd_port() const;
   const char *get_mgmd_host() const;

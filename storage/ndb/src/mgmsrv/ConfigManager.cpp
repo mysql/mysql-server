@@ -702,7 +702,16 @@ bool
 ConfigManager::config_ok(const Config* conf)
 {
   assert(m_node_id);
-  if (!m_config_retriever.verifyConfig(conf->m_configuration, m_node_id))
+
+  /**
+   * Validation of Port number for management nodes happens only if its not
+   * started. validate_port is set to true when node is not started and set
+   * to false when node is started.
+   */
+  bool validate_port = false;
+  if (!m_started.get(m_node_id)) validate_port = true;
+  if (!m_config_retriever.verifyConfig(conf->m_configuration, m_node_id,
+                                       validate_port))
   {
     g_eventLogger->error("%s", m_config_retriever.getErrorString());
     return false;
