@@ -897,10 +897,10 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'A'
 SELECT DISTINCT a FROM t1 WHERE a=0;
 a
-A
 0
-Warnings:
+A
 Warning	1292	Truncated incorrect DOUBLE value: 'A'
+Warnings:
 DROP TABLE t1;
 CREATE TABLE t1 (a DATE);
 INSERT INTO t1 VALUES ('1972-07-29'), ('1972-02-06');
@@ -1187,8 +1187,8 @@ INSERT INTO t1 VALUES (1,3), (2,4), (1,5),
 (3,2), (3,1), (2,4);
 SELECT DISTINCT (COUNT(DISTINCT b) + 1) AS c FROM t1 GROUP BY a;
 c
-4
 3
+4
 DROP TABLE t1;
 # End of test for Bug#22686994
 #

@@ -1944,10 +1944,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
   // Don't bother trying sort-ahead if we are done joining;
   // there's no longer anything to be ahead of, so the regular
   // sort operations will take care of it.
-  if (!m_query_block->is_grouped()) {
-    if (nodes == TablesBetween(0, m_graph.nodes.size())) {
-      return;
-    }
+  if (nodes == TablesBetween(0, m_graph.nodes.size())) {
+    return;
   }
 
   // Don't try to sort-ahead parametrized paths; see the comment in
@@ -1990,6 +1988,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     sort_path.sort().filesort = nullptr;
     sort_path.sort().tables_to_get_rowid_for = 0;
     sort_path.sort().order = sort_ahead_ordering.order;
+    sort_path.sort().remove_duplicates = false;
+    sort_path.sort().unwrap_rollup = true;
     EstimateSortCost(&sort_path);
 
     char buf[256];
@@ -2008,16 +2008,22 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
 }
 
 /**
-  Create a table array from a table bitmap.
+  Create a table array from a table bitmap. temp_table, if given, is the one
+  used if RAND_TABLE_BIT is set (see GetUsedTables() for more information).
+  It can be nullptr if RAND_TABLE_BIT is not set.
  */
 Mem_root_array<TABLE *> CollectTables(const Query_block *query_block,
-                                      table_map tmap) {
+                                      table_map tmap, TABLE *temp_table) {
   Mem_root_array<TABLE *> tables(query_block->join->thd->mem_root);
   for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
        tl = tl->next_leaf) {
     if (tl->map() & tmap) {
       tables.push_back(tl->table);
     }
+  }
+  if (tmap & RAND_TABLE_BIT) {
+    assert(temp_table != nullptr);
+    tables.push_back(temp_table);
   }
   return tables;
 }
@@ -2304,6 +2310,10 @@ size_t EstimateRowWidth(const Query_block &query_block) {
 
 }  // namespace
 
+static ORDER *BuildSortAheadOrdering(THD *thd,
+                                     const LogicalOrderings *orderings,
+                                     Ordering ordering);
+
 FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
                               Query_block *outer_query_block) {
   FilterCost cost{0.0, 0.0, 0.0};
@@ -2426,8 +2436,12 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     THD *thd, const CostingReceiver &receiver,
     const LogicalOrderings &orderings, int order_by_ordering_idx,
-    Query_block *query_block, bool need_rowid_from_tables,
-    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
+    int distinct_ordering_idx, ORDER *distinct_order,
+    const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
+    FunctionalDependencySet fd_set, Query_block *query_block,
+    bool need_rowid_from_tables,
+    Prealloced_array<AccessPath *, 4> root_candidates, string *trace,
+    TABLE **temp_table) {
   JOIN *join = query_block->join;
   assert(join->select_distinct || query_block->is_ordered());
 
@@ -2437,12 +2451,12 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     return root_candidates;
   }
 
-  TABLE *temp_table = nullptr;
+  *temp_table = nullptr;
   Temp_table_param *temp_table_param = nullptr;
 
-  Mem_root_array<TABLE *> tables = CollectTables(
-      query_block,
-      GetUsedTables(root_candidates[0]));  // Should be same for all paths.
+  Mem_root_array<TABLE *> tables =
+      CollectTables(query_block, GetUsedTables(root_candidates[0]),
+                    /*temp_table=*/nullptr);  // Should be same for all paths.
 
   // If we have grouping followed by a sort, we need to bounce via
   // the buffers of a temporary table. See the comments on
@@ -2464,13 +2478,13 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       (*join->sum_funcs != nullptr ||
        join->rollup_state != JOIN::RollupState::NONE ||
        need_rowid_from_tables)) {
-    temp_table = CreateTemporaryTableForSortingAggregates(thd, query_block,
-                                                          &temp_table_param);
+    *temp_table = CreateTemporaryTableForSortingAggregates(thd, query_block,
+                                                           &temp_table_param);
     // Filesort now only needs to worry about one input -- this temporary
     // table. This holds whether we are actually materializing or just
     // using streaming.
     tables.clear();
-    tables.push_back(temp_table);
+    tables.push_back(*temp_table);
   }
 
   // Set up the filesort objects. They have some interactions
@@ -2491,7 +2505,6 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     need_rowid = !filesort->using_addon_fields();
   }
   Filesort *filesort_for_distinct = nullptr;
-  bool order_by_subsumed_by_distinct = false;
   if (join->select_distinct) {
     bool force_sort_positions = false;
     if (filesort != nullptr && !filesort->using_addon_fields()) {
@@ -2516,20 +2529,10 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       force_sort_positions = true;
     }
 
-    // If there's an ORDER BY on the query, it needs to be heeded in the
-    // re-sort for DISTINCT.
-    ORDER *desired_order =
-        query_block->is_ordered() ? query_block->order_list.first : nullptr;
-
-    ORDER *order = create_order_from_distinct(
-        thd, Ref_item_array(), desired_order, join->fields,
-        /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
-        &order_by_subsumed_by_distinct);
-
-    if (order != nullptr) {
+    if (distinct_order != nullptr) {
       filesort_for_distinct = new (thd->mem_root)
           Filesort(thd, std::move(tables),
-                   /*keep_buffers=*/false, order, HA_POS_ERROR,
+                   /*keep_buffers=*/false, distinct_order, HA_POS_ERROR,
                    /*force_stable_sort=*/false,
                    /*remove_duplicates=*/true, force_sort_positions,
                    /*unwrap_rollup=*/false);
@@ -2543,11 +2546,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   // Apply streaming between grouping and us, if needed (see above).
   // NOTE: If we elide the sort due to interesting orderings, this might
   // be redundant. It is fairly harmless, though.
-  if (temp_table != nullptr) {
+  if (*temp_table != nullptr) {
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       root_path = CreateMaterializationPathForSortingAggregates(
-          thd, join, root_path, temp_table, temp_table_param,
+          thd, join, root_path, *temp_table, temp_table_param,
           /*using_addon_fields=*/!need_rowid);
       receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
@@ -2563,7 +2566,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      if (filesort_for_distinct == nullptr) {
+      Ordering grouping = orderings.ordering(distinct_ordering_idx);
+      if (grouping.empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
@@ -2571,11 +2575,56 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             /*send_records_override=*/nullptr);
         receiver.ProposeAccessPath(limit_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
-      } else {
+        continue;
+      }
+      if (orderings.DoesFollowOrder(root_path->ordering_state,
+                                    distinct_ordering_idx)) {
+        // We don't need the sort, and can do with a simpler deduplication.
+        Item **group_items = thd->mem_root->ArrayAlloc<Item *>(grouping.size());
+        for (size_t i = 0; i < grouping.size(); ++i) {
+          group_items[i] = orderings.item(grouping[i].item);
+        }
+        AccessPath *dedup_path = NewRemoveDuplicatesAccessPath(
+            thd, root_path, group_items, grouping.size());
+        CopyBasicProperties(*root_path, dedup_path);
+        // TODO(sgunders): Model the actual reduction in rows somehow.
+        dedup_path->cost += kAggregateOneRowCost * root_path->num_output_rows;
+        receiver.ProposeAccessPath(dedup_path, &new_root_candidates,
+                                   /*obsolete_orderings=*/0, "sort elided");
+        continue;
+      }
+      // We need to sort. Try all sort-ahead, not just the one directly
+      // derived from DISTINCT clause, because a broader one might help us
+      // elide ORDER BY later.
+      for (const SortAheadOrdering &sort_ahead_ordering :
+           sort_ahead_orderings) {
+        LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
+            orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
+        if (!orderings.DoesFollowOrder(ordering_state, distinct_ordering_idx)) {
+          continue;
+        }
         AccessPath *sort_path =
             NewSortAccessPath(thd, root_path, filesort_for_distinct,
                               /*count_examined_rows=*/false);
         EstimateSortCost(sort_path);
+        sort_path->ordering_state = ordering_state;
+
+        // Swap out the ordering for the order we're actually using.
+        // filesort_for_distinct was only used for setting row ID status,
+        // and we can keep that information, but we need to use the right
+        // ordering.
+        sort_path->sort().filesort = nullptr;
+        sort_path->sort().remove_duplicates = true;
+        sort_path->sort().unwrap_rollup = false;
+        if (*temp_table != nullptr) {
+          ORDER *order_copy = BuildSortAheadOrdering(
+              thd, &orderings,
+              orderings.ordering(sort_ahead_ordering.ordering_idx));
+          ReplaceOrderItemsWithTempTableFields(thd, order_copy);
+          sort_path->sort().order = order_copy;
+        } else {
+          sort_path->sort().order = sort_ahead_ordering.order;
+        }
 
         if (!filesort_for_distinct->using_addon_fields()) {
           FindTablesToGetRowidFor(sort_path);
@@ -2588,18 +2637,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   }
 
   // Apply ORDER BY, if applicable.
-  if (query_block->is_ordered() && order_by_subsumed_by_distinct) {
-    // The ordering for DISTINCT already gave us the right sort order,
-    // so no need to sort again.
-    //
-    // TODO(sgunders): If there are elements in desired_order that are not
-    // in fields_list, consider whether it would be cheaper to add them on
-    // the end to avoid the second sort, even though it would make the
-    // first one more expensive. See e.g. main.distinct for a case.
-    if (trace != nullptr) {
-      *trace += "ORDER BY subsumed by sort for DISTINCT, ignoring\n";
-    }
-  } else if (query_block->is_ordered() && !order_by_subsumed_by_distinct) {
+  if (query_block->is_ordered()) {
     if (trace != nullptr) {
       *trace += "Applying sort for ORDER BY\n";
     }
@@ -2884,16 +2922,14 @@ static void CollectFunctionalDependenciesFromUniqueIndexes(
   }
 }
 
-static Ordering CollectInterestingOrder(THD *thd,
-                                        const SQL_I_List<ORDER> &order_list,
+static Ordering CollectInterestingOrder(THD *thd, ORDER *order, int order_len,
                                         bool unwrap_rollup,
                                         LogicalOrderings *orderings,
                                         table_map *used_tables) {
-  Ordering ordering = Ordering::Alloc(thd->mem_root, order_list.size());
+  Ordering ordering = Ordering::Alloc(thd->mem_root, order_len);
   int i = 0;
   *used_tables = 0;
-  for (ORDER *order = order_list.first; order != nullptr;
-       order = order->next, ++i) {
+  for (; order != nullptr; order = order->next, ++i) {
     Item *item = *order->item;
     if (unwrap_rollup) {
       item = unwrap_rollup_group(item);
@@ -2905,8 +2941,20 @@ static Ordering CollectInterestingOrder(THD *thd,
   return ordering;
 }
 
+// A convenience form of the above.
+static Ordering CollectInterestingOrder(THD *thd,
+                                        const SQL_I_List<ORDER> &order_list,
+                                        bool unwrap_rollup,
+                                        LogicalOrderings *orderings,
+                                        table_map *used_tables) {
+  return CollectInterestingOrder(thd, order_list.first, order_list.size(),
+                                 unwrap_rollup, orderings, used_tables);
+}
+
 // Build an ORDER * that we can give to Filesort. It is only suitable for
 // sort-ahead, since it assumes no temporary tables have been inserted.
+// Call ReplaceOrderItemsWithTempTableFields() on the ordering if you wish
+// to use it after the temporary table.
 static ORDER *BuildSortAheadOrdering(THD *thd,
                                      const LogicalOrderings *orderings,
                                      Ordering ordering) {
@@ -2958,6 +3006,9 @@ static int AddOrdering(
 }
 
 static void CanonicalizeGrouping(Ordering *ordering) {
+  for (OrderElement &elem : *ordering) {
+    elem.direction = ORDER_NOT_RELEVANT;
+  }
   std::sort(ordering->begin(), ordering->end(),
             [](const OrderElement &a, const OrderElement &b) {
               return a.item < b.item;
@@ -2979,6 +3030,7 @@ static void BuildInterestingOrders(
     LogicalOrderings *orderings,
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
     int *order_by_ordering_idx, int *group_by_ordering_idx,
+    int *distinct_ordering_idx, ORDER **distinct_order,
     Mem_root_array<ActiveIndexInfo> *active_indexes, string *trace) {
   // Collect ordering from ORDER BY.
   if (query_block->is_ordered()) {
@@ -3005,6 +3057,39 @@ static void BuildInterestingOrders(
         AddOrdering(thd, graph, ordering, query_block->group_list.first,
                     /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
                     orderings, sort_ahead_orderings);
+  }
+
+  // Collect grouping from DISTINCT.
+  //
+  // Note that we don't give in the ORDER BY ordering here, and thus also don't
+  // care about all_order_by_fields_used (which says whether the DISTINCT
+  // ordering was able to also satisfy the ORDER BY); group coverings will be
+  // dealt with by the more general intesting order framework, which can also
+  // combine e.g. GROUP BY groupings with ORDER BY.
+  if (query_block->join->select_distinct) {
+    bool all_order_fields_used = false;
+    ORDER *order = create_order_from_distinct(
+        thd, Ref_item_array(), /*order=*/nullptr, query_block->join->fields,
+        /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
+        &all_order_fields_used);
+
+    int order_len = 0;
+    for (ORDER *ptr = order; ptr != nullptr; ptr = ptr->next) {
+      ++order_len;
+    }
+
+    table_map used_tables;
+    Ordering ordering = CollectInterestingOrder(thd, order, order_len,
+                                                /*unwrap_rollup=*/false,
+                                                orderings, &used_tables);
+
+    CanonicalizeGrouping(&ordering);
+    *distinct_ordering_idx =
+        AddOrdering(thd, graph, ordering,
+                    /*order_for_filesort=*/order,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
+                    orderings, sort_ahead_orderings);
+    *distinct_order = order;
   }
 
   // Collect groupings from semijoins (because we might want to do duplicate
@@ -3155,10 +3240,13 @@ static void BuildInterestingOrders(
     *order_by_ordering_idx =
         orderings->RemapOrderingIndex(*order_by_ordering_idx);
   }
-
   if (*group_by_ordering_idx != -1) {
     *group_by_ordering_idx =
         orderings->RemapOrderingIndex(*group_by_ordering_idx);
+  }
+  if (*distinct_ordering_idx != -1) {
+    *distinct_ordering_idx =
+        orderings->RemapOrderingIndex(*distinct_ordering_idx);
   }
 
   for (JoinPredicate &pred : graph->edges) {
@@ -3311,9 +3399,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
   int order_by_ordering_idx = -1;
   int group_by_ordering_idx = -1;
+  int distinct_ordering_idx = -1;
+  ORDER *distinct_order = nullptr;
   BuildInterestingOrders(thd, &graph, query_block, &orderings,
                          &sort_ahead_orderings, &order_by_ordering_idx,
-                         &group_by_ordering_idx, &active_indexes, trace);
+                         &group_by_ordering_idx, &distinct_ordering_idx,
+                         &distinct_order, &active_indexes, trace);
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
@@ -3483,8 +3574,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           continue;
         }
 
-        Mem_root_array<TABLE *> tables =
-            CollectTables(query_block, GetUsedTables(root_path));
+        Mem_root_array<TABLE *> tables = CollectTables(
+            query_block, GetUsedTables(root_path), /*temp_table=*/nullptr);
         Filesort *filesort = new (thd->mem_root) Filesort(
             thd, std::move(tables), /*keep_buffers=*/false,
             sort_ahead_ordering.order,
@@ -3567,10 +3658,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     root_candidates = std::move(new_root_candidates);
   }
 
+  TABLE *temp_table = nullptr;
   if (join->select_distinct || query_block->is_ordered()) {
     root_candidates = ApplyDistinctAndOrder(
-        thd, receiver, orderings, order_by_ordering_idx, query_block,
-        need_rowid, std::move(root_candidates), trace);
+        thd, receiver, orderings, order_by_ordering_idx, distinct_ordering_idx,
+        distinct_order, sort_ahead_orderings, fd_set, query_block, need_rowid,
+        std::move(root_candidates), trace, &temp_table);
   }
 
   // Apply LIMIT, if applicable.
@@ -3623,10 +3716,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
 
     Temp_table_param *temp_table_param = nullptr;
-    TABLE *temp_table =
+    TABLE *buffer_temp_table =
         CreateTemporaryTableFromSelectList(thd, query_block, &temp_table_param);
-    root_path = CreateMaterializationPath(thd, join, root_path, temp_table,
-                                          temp_table_param);
+    root_path = CreateMaterializationPath(thd, join, root_path,
+                                          buffer_temp_table, temp_table_param);
   }
 
   if (trace != nullptr) {
@@ -3643,28 +3736,27 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 #endif
 
   // Create deferred Filesort objects.
-  WalkAccessPaths(root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-                  [thd, query_block](AccessPath *path, const JOIN *) {
-                    if (path->type == AccessPath::SORT &&
-                        path->sort().filesort == nullptr) {
-                      Mem_root_array<TABLE *> tables =
-                          CollectTables(query_block, GetUsedTables(path));
-                      path->sort().filesort = new (thd->mem_root)
-                          Filesort(thd, std::move(tables),
-                                   /*keep_buffers=*/false, path->sort().order,
-                                   /*limit_arg=*/HA_POS_ERROR,
-                                   /*force_stable_sort=*/false,
-                                   /*remove_duplicates=*/false,
-                                   /*force_sort_positions=*/false,
-                                   /*unwrap_rollup=*/true);
-                      query_block->join->filesorts_to_cleanup.push_back(
-                          path->sort().filesort);
-                      if (!path->sort().filesort->using_addon_fields()) {
-                        FindTablesToGetRowidFor(path);
-                      }
-                    }
-                    return false;
-                  });
+  WalkAccessPaths(
+      root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [thd, query_block, temp_table](AccessPath *path, const JOIN *) {
+        if (path->type == AccessPath::SORT &&
+            path->sort().filesort == nullptr) {
+          Mem_root_array<TABLE *> tables =
+              CollectTables(query_block, GetUsedTables(path), temp_table);
+          path->sort().filesort = new (thd->mem_root) Filesort(
+              thd, std::move(tables),
+              /*keep_buffers=*/false, path->sort().order,
+              /*limit_arg=*/HA_POS_ERROR,
+              /*force_stable_sort=*/false, path->sort().remove_duplicates,
+              /*force_sort_positions=*/false, path->sort().unwrap_rollup);
+          query_block->join->filesorts_to_cleanup.push_back(
+              path->sort().filesort);
+          if (!path->sort().filesort->using_addon_fields()) {
+            FindTablesToGetRowidFor(path);
+          }
+        }
+        return false;
+      });
 
   join->best_rowcount = lrint(root_path->num_output_rows);
   join->best_read = root_path->cost;

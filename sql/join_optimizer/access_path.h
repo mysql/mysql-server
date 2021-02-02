@@ -776,8 +776,10 @@ struct AccessPath {
       table_map tables_to_get_rowid_for;
 
       // If filesort is nullptr: A new filesort will be created at the
-      // end of optimization, using this order. Otherwise: Ignored.
+      // end of optimization, using this order and flags. Otherwise: Ignored.
       ORDER *order;
+      bool remove_duplicates;
+      bool unwrap_rollup;
     } sort;
     struct {
       AccessPath *child;

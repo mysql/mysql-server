@@ -1551,6 +1551,45 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   query_block->join->filesorts_to_cleanup.shrink_to_fit();
 }
 
+TEST_F(HypergraphOptimizerTest, SatisfyGroupingForDistinctWithIndex) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1",
+                      /*nullable=*/true);
+
+  m_fake_tables["t1"]->create_index(m_fake_tables["t1"]->field[0],
+                                    m_fake_tables["t1"]->field[1],
+                                    /*unique=*/false);
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+
+  // Mark the index as returning ordered results.
+  ON_CALL(*down_cast<Mock_HANDLER *>(m_fake_tables["t1"]->file),
+          index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_ORDER | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The root should be a duplicate removal node; no sort.
+  // Order of the group items doesn't matter.
+  ASSERT_EQ(AccessPath::REMOVE_DUPLICATES, root->type);
+  ASSERT_EQ(2, root->remove_duplicates().group_items_size);
+  EXPECT_EQ("t1.y", ItemToString(root->remove_duplicates().group_items[0]));
+  EXPECT_EQ("t1.x", ItemToString(root->remove_duplicates().group_items[1]));
+
+  // The grouping should be taking care of by the ordered index.
+  AccessPath *inner = root->remove_duplicates().child;
+  EXPECT_EQ(AccessPath::INDEX_SCAN, inner->type);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
 TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
   Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x IN (SELECT t2.x FROM t2)",
