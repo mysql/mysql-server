@@ -11,7 +11,7 @@ CREATE USER 'user2'@'127.0.0.1' IDENTIFIED BY 'user2_pass';
 GRANT SELECT ON xtest.* TO user1@'127.0.0.1';
 GRANT SELECT ON xtest.* TO user2@'127.0.0.1';
 
---write_file $MYSQL_TMP_DIR/mysqlx-verify-variables.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-verify-variables.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 -->varlet %OLD_SOCKET_ID% %ACTIVE_SOCKET_ID%
@@ -63,7 +63,7 @@ exec $MYSQLXTEST
   --host=127.0.0.1
   --schema=xtest
   --ssl-mode=DISABLED
-  --file=$MYSQL_TMP_DIR/mysqlx-verify-variables.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-verify-variables.xpl 2>&1;
 
 --echo
 --echo ############################################################
@@ -78,11 +78,10 @@ exec $MYSQLXTEST
   --host=127.0.0.1
   --schema=xtest
   --ssl-mode=DISABLED
-  --file=$MYSQL_TMP_DIR/mysqlx-verify-variables.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-verify-variables.xpl 2>&1;
 
 ## Cleanup
-DROP DATABASE xtest;
 DROP USER 'user1'@'127.0.0.1';
 DROP USER 'user2'@'127.0.0.1';
---remove_file $MYSQL_TMP_DIR/mysqlx-verify-variables.tmp
+--source ../include/xplugin_cleanup.inc
 

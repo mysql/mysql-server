@@ -292,4 +292,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;

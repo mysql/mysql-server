@@ -31,7 +31,7 @@ CREATE SCHEMA mysqlxcoll;
 --echo TEST START
 --echo ================================================================================
 
---write_file $MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.xpl
 
 -->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
 -->recvresult
@@ -886,9 +886,9 @@ SET SQL_SAFE_UPDATES = 1;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u updateitemmerge --password='updateitemmerge' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.tmp 2>&1
+--exec $MYSQLXTEST -u updateitemmerge --password='updateitemmerge' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.xpl 2>&1
 
 ## Cleanup
 DROP SCHEMA if EXISTS mysqlxcoll;
---remove_file $MYSQL_TMP_DIR/mysqlx-update_collection_itemmerge.tmp
+--source ../include/xplugin_cleanup.inc
 

@@ -33,7 +33,7 @@ CALL mtr.add_suppression("Error initializing session for connection: Too many co
 --echo #    c. Unblock X Plugin and show that the initialization was
 --echo #       successful
 
---let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.xpl
 --write_file $xtest_file
 SELECT "Some expected string" as result;
 EOF
@@ -43,7 +43,7 @@ EOF
 --echo #
 --echo # I.1
 
-let $restart_parameters = restart: --debug="+d,xplugin_init_wait" --max_connections=1 --loose-mysqlx_cache_cleaner=0;
+let $restart_parameters = restart: --debug="+d,xplugin_init_wait" --loose-mysqlx_cache_cleaner=0;
 --let $wait_for_tcpsocket_status=no_wait
 --let $wait_for_unixsocket_status=no_wait
 --source include/restart_mysqld.inc
@@ -86,12 +86,14 @@ connection default;
 --let $debug_point= xplugin_init_wait
 --source include/remove_debug_point.inc
 
+--source ../include/xplugin_wait_for_connection_closure.inc
+
 --let $wait_for_tcpsocket_status=valid_value
 --let $wait_for_unixsocket_status=valid_value
---source include/xplugin_preamble.inc
+--source include/xplugin_wait_for_interfaces.inc
 
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
+
 ## Cleanup
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

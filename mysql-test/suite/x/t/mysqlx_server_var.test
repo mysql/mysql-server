@@ -333,7 +333,7 @@ SET SESSION mysqlx_write_timeout=60;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL mysqlx_port=33060;
 
---write_file $MYSQL_TMP_DIR/mysqlx-variables.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-variables.xpl
 -->sql
 SET GLOBAL mysqlx_idle_worker_thread_timeout=7;
 SET @@global.mysqlx_idle_worker_thread_timeout=7;
@@ -352,7 +352,7 @@ SET @@global.mysqlx_connect_timeout=500;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-variables.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-variables.xpl 2>&1
 
 # Cleanup
 SET GLOBAL mysqlx_idle_worker_thread_timeout= DEFAULT;
@@ -360,6 +360,4 @@ SET GLOBAL mysqlx_max_allowed_packet= DEFAULT;
 SET GLOBAL mysqlx_max_connections= DEFAULT;
 SET GLOBAL mysqlx_min_worker_threads= DEFAULT;
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
---remove_file $MYSQL_TMP_DIR/mysqlx-variables.tmp
---source include/xplugin_drop_user.inc
-
+--source ../include/xplugin_cleanup.inc

@@ -4,7 +4,7 @@ call mtr.add_suppression("Capability expired password failed with error: Invalid
 --source include/xplugin_ssl_warnings_suppression.inc
 --source include/xplugin_create_user.inc
 
---write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesGet {
@@ -12,7 +12,7 @@ Mysqlx.Connection.CapabilitiesGet {
 -->recv
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get-success.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
@@ -207,7 +207,7 @@ Mysqlx.Connection.CapabilitiesSet {
 }
 -->recvtype Mysqlx.Error
 EOF
---write_file $MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-capabilities-failure.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
@@ -229,7 +229,7 @@ Mysqlx.Connection.CapabilitiesSet {
 -->recvtype Mysqlx.Error
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
@@ -328,7 +328,7 @@ Mysqlx.Connection.CapabilitiesSet {
 
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
@@ -503,7 +503,7 @@ Mysqlx.Connection.CapabilitiesSet {
 
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
@@ -624,37 +624,30 @@ Mysqlx.Connection.CapabilitiesSet {
 
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.xpl 2>&1
 
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-failure.xpl 2>&1
 
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.xpl 2>&1
 
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.xpl 2>&1
 
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.xpl 2>&1
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp 2>&1
+--exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.xpl 2>&1
 
 #check Get and Set capabilities with invalid user details
---exec $MYSQLXTEST -u invalid --password='invalid' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp 2>&1
+--exec $MYSQLXTEST -u invalid --password='invalid' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.xpl 2>&1
 
 --echo Restart server and verify if ssl callback works
 let $restart_parameters = restart: --ssl=1;
 --source include/restart_mysqld.inc
 
 --echo capabilities.result checks the presence of tls cap
---exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get.xpl 2>&1
 
 ## Cleanup
 --let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 
---remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp
---source include/xplugin_drop_user.inc
-
+--source ../include/xplugin_cleanup.inc

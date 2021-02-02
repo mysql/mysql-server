@@ -6,7 +6,7 @@
 
 create user abc@localhost identified by 'abc';
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -68,5 +68,4 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 
 ## Cleanup
 DROP USER abc@localhost;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

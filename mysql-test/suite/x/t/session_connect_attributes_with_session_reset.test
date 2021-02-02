@@ -11,6 +11,7 @@ GRANT ALL ON *.* TO xtest_client@localhost;
 
 --write_file $MYSQL_TMP_DIR/session_connect_attrs_with_session_reset.xpl
 -->varlet %TEST_KEY% custom_test_key
+-->import assert_status_variable.macro
 -->import connection_attributes.macro
 -->import connection.macro
 -->import mysqlx_session.macro
@@ -66,6 +67,8 @@ GRANT ALL ON *.* TO xtest_client@localhost;
 -->callmacro Check_connect_attributes	"%TEST_KEY%"	"nextValue"
 -->callmacro Check_connect_attributes_not_exist	"%TEST_KEY%"	"someValue"
 -->closesession
+
+-->callmacro Wait_for_global_status_variable	Mysqlx_sessions	1
 
 -->echo
 -->echo #
@@ -167,5 +170,4 @@ exec $MYSQLXTEST
 
 ## Cleanup
 DROP USER xtest_client@localhost;
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

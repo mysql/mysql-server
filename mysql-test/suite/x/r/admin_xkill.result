@@ -478,7 +478,7 @@ command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0
 Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
-Verify [Status variable "Mysqlx_sessions" needs to have a value of 51]
+Verify [Global status variable "Mysqlx_sessions" needs to have a value of 51]
 killing all newly connected clients except x_root,one by one
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 11]

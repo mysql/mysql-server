@@ -247,7 +247,7 @@ SELECT * FROM xplugintest.table1;
 -- connection master
 DROP DATABASE IF EXISTS xplugintest;
 
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 --source include/wait_until_count_sessions.inc
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

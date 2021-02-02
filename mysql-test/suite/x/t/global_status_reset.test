@@ -2,23 +2,21 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
---write_file $MYSQL_TMP_DIR/check.tmp
+--write_file $MYSQL_TMP_DIR/check.xpl
 -->sql
 SHOW SCHEMAS
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/reset.tmp
+--write_file $MYSQL_TMP_DIR/reset.xpl
 -->sql
 SELECT mysqlx_reset_global_status_variables()
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/check.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/check.xpl 2>&1
 
---let $wait_for_status_value = 1
---let $wait_for_status_variable = 'Mysqlx_connections_closed'
---source ../include/wait_for_status_variables.inc
+--source ../include/xplugin_wait_for_connection_closure.inc
 SHOW GLOBAL STATUS LIKE 'mysqlx%connections%';
 
 INSTALL COMPONENT "file://component_mysqlx_global_reset";
@@ -27,9 +25,8 @@ SELECT mysqlx_reset_global_status_variables();
 
 SHOW GLOBAL STATUS LIKE 'mysqlx%connections%';
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/reset.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/reset.xpl 2>&1
 
+## Cleanup
 UNINSTALL COMPONENT "file://component_mysqlx_global_reset";
---remove_file $MYSQL_TMP_DIR/check.tmp
---remove_file $MYSQL_TMP_DIR/reset.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

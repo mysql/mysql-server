@@ -4,7 +4,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
+--let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.xpl
 --write_file $xtest_result
 -->import assert_variable.macro
 
@@ -479,7 +479,7 @@ show session variables like 'default_storage_engine';
 EOF
 
 
---let $xtest_warnings= $MYSQL_TMP_DIR/stmtexecute_proc_warnings_mysqlx.tmp
+--let $xtest_warnings= $MYSQL_TMP_DIR/stmtexecute_proc_warnings_mysqlx.xpl
 --write_file $xtest_warnings
 -->import assert_variable.macro
 -->quiet
@@ -636,7 +636,7 @@ drop table worklog5743_8;
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
 EOF
 
---let $xtest_enable_notice= $MYSQL_TMP_DIR/enable_notice_mysqlx.tmp
+--let $xtest_enable_notice= $MYSQL_TMP_DIR/enable_notice_mysqlx.xpl
 --write_file $xtest_enable_notice
 -->import assert_status_variable.macro
 -->quiet
@@ -666,7 +666,7 @@ EOF
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
 EOF
 
---let $xtest_multiple_notices= $MYSQL_TMP_DIR/enable_multiple_notices_mysqlx.tmp
+--let $xtest_multiple_notices= $MYSQL_TMP_DIR/enable_multiple_notices_mysqlx.xpl
 --write_file $xtest_multiple_notices
 -->import assert_status_variable.macro
 -->quiet
@@ -683,7 +683,7 @@ EOF
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	1
 EOF
 
---let $xtest_stats= $MYSQL_TMP_DIR/stats_notices_mysqlx.tmp
+--let $xtest_stats= $MYSQL_TMP_DIR/stats_notices_mysqlx.xpl
 --write_file $xtest_stats
 -->import assert_status_variable.macro
 -->quiet
@@ -724,7 +724,7 @@ use mysql;
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	2
 EOF
 
---let $xtest_stats_noti= $MYSQL_TMP_DIR/stats_noti_mysqlx.tmp
+--let $xtest_stats_noti= $MYSQL_TMP_DIR/stats_noti_mysqlx.xpl
 --write_file $xtest_stats_noti
 -->import assert_status_variable.macro
 -->quiet
@@ -743,7 +743,7 @@ use mysql;
 -->callmacro Assert_status_variable	Mysqlx_stmt_list_notices	0
 EOF
 
---let $xtest_stats_noti_no_err= $MYSQL_TMP_DIR/stats_noti_no_err_mysqlx.tmp
+--let $xtest_stats_noti_no_err= $MYSQL_TMP_DIR/stats_noti_no_err_mysqlx.xpl
 --write_file $xtest_stats_noti_no_err
 -->import assert_status_variable.macro
 -->quiet
@@ -790,11 +790,4 @@ create user noti@localhost identified by 'noti';
 ## Cleanup
 drop user noti@localhost;
 drop user xplugin@localhost;
---remove_file $xtest_result
---remove_file $xtest_warnings
---remove_file $xtest_enable_notice
---remove_file $xtest_multiple_notices
---remove_file $xtest_stats
---remove_file $xtest_stats_noti
---remove_file $xtest_stats_noti_no_err
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

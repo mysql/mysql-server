@@ -6,7 +6,7 @@
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_ensure_collection_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_ensure_collection_mysqlx.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -147,6 +147,4 @@ SHOW STATUS like 'Mysqlx_stmt_ensure_collection';
 SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx';
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

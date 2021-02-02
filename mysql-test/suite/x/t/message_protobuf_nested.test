@@ -3,7 +3,7 @@
 --source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.xpl
 -->import wait_until_disconnect.macro
 -->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
 -->recvresult
@@ -178,7 +178,7 @@ EOF
 SET GLOBAL mysqlx_connect_timeout = 300;
 SET GLOBAL mysqlx_wait_timeout = 300;
 
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.xpl 2>&1
 
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl 2>&1
 
@@ -186,6 +186,4 @@ SET GLOBAL mysqlx_wait_timeout = 300;
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 DROP TABLE IF EXISTS coll;
---remove_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
---remove_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -29,7 +29,7 @@
 
 create schema xtest;
 
---write_file $MYSQL_TMP_DIR/crud_doc_criteria_args.tmp
+--write_file $MYSQL_TMP_DIR/crud_doc_criteria_args.xpl
 ## Test data
 -->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
 -->recvresult
@@ -1169,8 +1169,7 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_doc_criteria_args.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_doc_criteria_args.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/crud_doc_criteria_args.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

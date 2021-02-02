@@ -56,7 +56,7 @@ message Open {
       /** Check if X Protocol field exists */
       EXPECT_FIELD_EXIST = 2;
 
-      /** Check if X Protocol support document _id generation */
+      /** Check if X Protocol supports document _id generation */
       EXPECT_DOCID_GENERATED = 3;
     }
     enum ConditionOperation {

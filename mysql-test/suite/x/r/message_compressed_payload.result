@@ -386,4 +386,3 @@ ok
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;
-DROP SCHEMA xtest;

@@ -29,5 +29,4 @@ exec $MYSQLXTEST
 ## Cleanup
 let $restart_parameters = restart: ;
 --source include/restart_mysqld.inc
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

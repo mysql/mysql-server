@@ -8,7 +8,7 @@ call mtr.add_suppression("Access denied for user .*");
 
 ## Test starts here
 
---let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin.xpl
 --write_file $xtest_file
 -->quiet
 -->sql
@@ -53,6 +53,5 @@ GRANT ALL ON *.* TO xuser_sha256@localhost;
 
 ## Cleanup
 DROP USER xuser_native@localhost, xuser_sha256@localhost;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

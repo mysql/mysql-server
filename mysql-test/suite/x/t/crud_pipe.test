@@ -14,7 +14,7 @@ CREATE TABLE test.counttest1 ( i INT );
 
 
 # Send xmessage in group and do -->recvresult
---write_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+--write_file $MYSQL_TMP_DIR/stmtexecute_select.xpl
 -->echo Send SELECT SLEEP (?)
 #-- Select with sleep.Make server wait for 5 sec so other messages can be queued
 Mysqlx.Sql.StmtExecute {
@@ -109,15 +109,15 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/stmtexecute_select.xpl
 
 
 
 # Send 100 select command and retrive result at the end
 perl;
  my $dir = $ENV{'MYSQL_TMP_DIR'};
- open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ open ( OUTPUT, ">$dir/mysqlx-in.xpl") ;
  $message = <<"END_MESSAGE";
 Mysqlx.Sql.StmtExecute {
   stmt: "SELECT (100+?) "
@@ -157,8 +157,8 @@ END_MESSAGE
  close(OUTPUT);
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out1.tmp 2>&1 &
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out1.xpl 2>&1 &
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out2.xpl 2>&1
 let $wait_timeout= 90;
 let $wait_condition= select count(*)=2 from test.counttest1;
 --source include/wait_condition.inc
@@ -166,7 +166,4 @@ let $wait_condition= select count(*)=2 from test.counttest1;
 
 ## Cleanup
 DROP TABLE test.counttest1;
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out1.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

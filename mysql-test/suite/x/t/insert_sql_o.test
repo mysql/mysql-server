@@ -26,7 +26,7 @@ grant all on *.* to insertsqluser@localhost;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/mysqlx-insert_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_sql.xpl
 -->sql
  DROP SCHEMA if EXISTS mysqlxplugin;
  CREATE SCHEMA mysqlxplugin;
@@ -76,8 +76,8 @@ grant all on *.* to insertsqluser@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-insert_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_sql.tmp
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-insert_sql.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_sql.xpl
 
 --echo .
 --echo #---------- START NEGATIVE TEST ----------#
@@ -88,7 +88,7 @@ EOF
 ##                                           |
 ## ******************************************
 
---write_file $MYSQL_TMP_DIR/mysqlx-insert_sql_negative.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_sql_negative.xpl
 -->sql
 
 USE mysqlxplugin;
@@ -145,9 +145,9 @@ USE mysqlxplugin;
 EOF
 
 --replace_regex /categories.*\./Categories./
---exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-insert_sql_negative.tmp 2>&1
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-insert_sql_negative.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_sql_negative.tmp
+--source ../include/xplugin_cleanup.inc
 
 
