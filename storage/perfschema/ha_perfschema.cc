@@ -126,6 +126,22 @@ static handler *pfs_create_handler(handlerton *hton, TABLE_SHARE *table, bool,
   return new (mem_root) ha_perfschema(hton, table);
 }
 
+static size_t size_of_global_error_stat_buffer() {
+  size_t size = sizeof(PFS_error_single_stat) * max_global_server_errors;
+  return size;
+}
+
+static size_t size_of_session_error_stat_buffer() {
+  size_t size;
+  if (max_session_server_errors != 0) {
+    size = sizeof(PFS_error_stat) +
+           sizeof(PFS_error_single_stat) * max_session_server_errors;
+  } else {
+    size = 0;
+  }
+  return size;
+}
+
 /**
   SHOW ENGINE PERFORMANCE_SCHEMA STATUS.
   @param thd                Current thread
@@ -1192,77 +1208,98 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
         total_memory += size;
         break;
       case 228:
-        name = "events_error_summary_by_thread_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_thread_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 229:
-        name = "events_error_summary_by_thread_by_error.count";
+        name = "events_errors_summary_by_thread_by_error.count";
         size = global_thread_container.get_row_count() * error_class_max;
         break;
       case 230:
-        name = "events_error_summary_by_thread_by_error.memory";
+        name = "events_errors_summary_by_thread_by_error.memory";
         size = global_thread_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 231:
-        name = "events_error_summary_by_account_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_account_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 232:
-        name = "events_error_summary_by_account_by_error.count";
+        name = "events_errors_summary_by_account_by_error.count";
         size = global_account_container.get_row_count() * error_class_max;
         break;
       case 233:
-        name = "events_error_summary_by_account_by_error.memory";
+        name = "events_errors_summary_by_account_by_error.memory";
         size = global_account_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 234:
-        name = "events_error_summary_by_user_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_user_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 235:
-        name = "events_error_summary_by_user_by_error.count";
+        name = "events_errors_summary_by_user_by_error.count";
         size = global_user_container.get_row_count() * error_class_max;
         break;
       case 236:
-        name = "events_error_summary_by_user_by_error.memory";
+        name = "events_errors_summary_by_user_by_error.memory";
         size = global_user_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 237:
-        name = "events_error_summary_by_host_by_error.size";
-        size = sizeof(PFS_error_stat);
+        name = "events_errors_summary_by_host_by_error.size";
+        size = size_of_session_error_stat_buffer();
         break;
       case 238:
-        name = "events_error_summary_by_host_by_error.count";
+        name = "events_errors_summary_by_host_by_error.count";
         size = global_host_container.get_row_count() * error_class_max;
         break;
       case 239:
-        name = "events_error_summary_by_host_by_error.memory";
+        name = "events_errors_summary_by_host_by_error.memory";
         size = global_host_container.get_row_count() * error_class_max *
-               sizeof(PFS_error_stat);
+               size_of_session_error_stat_buffer();
         total_memory += size;
         break;
       case 240:
+        name = "events_errors_summary_global_by_error.size";
+        size = size_of_global_error_stat_buffer();
+        break;
+      case 241:
+        name = "events_errors_summary_global_by_error.count";
+        size = error_class_max;
+        break;
+      case 242:
+        name = "events_errors_summary_global_by_error.memory";
+        size = size_of_global_error_stat_buffer() * error_class_max;
+        total_memory += size;
+        break;
+      case 243:
         name = "(pfs_buffer_scalable_container).count";
         size = builtin_memory_scalable_buffer.m_stat.m_alloc_count -
                builtin_memory_scalable_buffer.m_stat.m_free_count;
         break;
-      case 241:
+      case 244:
         name = "(pfs_buffer_scalable_container).memory";
         size = builtin_memory_scalable_buffer.m_stat.m_alloc_size -
                builtin_memory_scalable_buffer.m_stat.m_free_size;
         total_memory += size;
         break;
+      case 245:
+        name = "(max_global_server_errors).count";
+        size = max_global_server_errors;
+        break;
+      case 246:
+        name = "(max_session_server_errors).count";
+        size = max_session_server_errors;
+        break;
       /*
         This case must be last,
         for aggregation in total_memory.
       */
-      case 242:
+      case 247:
         name = "performance_schema.memory";
         size = total_memory;
         break;

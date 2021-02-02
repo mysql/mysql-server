@@ -466,6 +466,12 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
 
   &builtin_memory_scalable_buffer,
 
+  /*
+    MAINTAINER:
+    When changing builtin memory,
+    make sure to adjust pfs_show_status() as well.
+  */
+
   nullptr};
 
 PFS_builtin_memory_class*
