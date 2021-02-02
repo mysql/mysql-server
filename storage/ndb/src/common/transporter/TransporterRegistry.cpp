@@ -2012,7 +2012,7 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
      * setup the transporter. Therefore we assert here to get a simple
      * handling of test failures such that we can fix the test config.
      */
-    //DBUG_ASSERT(false);
+    //assert(false);
     break;
   case DISCONNECTING:
     return;
