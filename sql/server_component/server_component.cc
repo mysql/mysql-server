@@ -431,7 +431,9 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, psi_error_v1),
     PROVIDES_SERVICE(performance_schema, psi_file_v2),
     PROVIDES_SERVICE(performance_schema, psi_idle_v1),
+    /* Deprecated, use psi_mdl_v1. */
     PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
+    PROVIDES_SERVICE(performance_schema, psi_mdl_v2),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_memory_v1), */
     PROVIDES_SERVICE(performance_schema, psi_memory_v2),
     PROVIDES_SERVICE(performance_schema, psi_mutex_v1),

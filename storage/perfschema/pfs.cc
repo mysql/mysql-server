@@ -7824,7 +7824,7 @@ void pfs_unlock_table_v1(PSI_table *table) {
   return;
 }
 
-PSI_metadata_lock *pfs_create_metadata_lock_v1(
+PSI_metadata_lock *pfs_create_metadata_lock_vc(
     void *identity, const MDL_key *mdl_key, opaque_mdl_type mdl_type,
     opaque_mdl_duration mdl_duration, opaque_mdl_status mdl_status,
     const char *src_file, uint src_line) {
@@ -7853,20 +7853,27 @@ PSI_metadata_lock *pfs_create_metadata_lock_v1(
   return reinterpret_cast<PSI_metadata_lock *>(pfs);
 }
 
-void pfs_set_metadata_lock_status_v1(PSI_metadata_lock *lock,
+void pfs_set_metadata_lock_status_vc(PSI_metadata_lock *lock,
                                      opaque_mdl_status mdl_status) {
   PFS_metadata_lock *pfs = reinterpret_cast<PFS_metadata_lock *>(lock);
   assert(pfs != nullptr);
   pfs->m_mdl_status = mdl_status;
 }
 
-void pfs_destroy_metadata_lock_v1(PSI_metadata_lock *lock) {
+void pfs_set_metadata_lock_duration_vc(PSI_metadata_lock *lock,
+                                       opaque_mdl_duration mdl_duration) {
+  PFS_metadata_lock *pfs = reinterpret_cast<PFS_metadata_lock *>(lock);
+  assert(pfs != nullptr);
+  pfs->m_mdl_duration = mdl_duration;
+}
+
+void pfs_destroy_metadata_lock_vc(PSI_metadata_lock *lock) {
   PFS_metadata_lock *pfs = reinterpret_cast<PFS_metadata_lock *>(lock);
   assert(pfs != nullptr);
   destroy_metadata_lock(pfs);
 }
 
-PSI_metadata_locker *pfs_start_metadata_wait_v1(
+PSI_metadata_locker *pfs_start_metadata_wait_vc(
     PSI_metadata_locker_state *state, PSI_metadata_lock *lock,
     const char *src_file, uint src_line) {
   PFS_metadata_lock *pfs_lock = reinterpret_cast<PFS_metadata_lock *>(lock);
@@ -7949,7 +7956,7 @@ PSI_metadata_locker *pfs_start_metadata_wait_v1(
   return reinterpret_cast<PSI_metadata_locker *>(state);
 }
 
-void pfs_end_metadata_wait_v1(PSI_metadata_locker *locker, int) {
+void pfs_end_metadata_wait_vc(PSI_metadata_locker *locker, int) {
   PSI_metadata_locker_state *state =
       reinterpret_cast<PSI_metadata_locker_state *>(locker);
   assert(state != nullptr);
@@ -8307,16 +8314,29 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_table_v1) = {
 
 PSI_mdl_service_v1 pfs_mdl_service_v1 = {
     /* Old interface, for plugins. */
-    pfs_create_metadata_lock_v1, pfs_set_metadata_lock_status_v1,
-    pfs_destroy_metadata_lock_v1, pfs_start_metadata_wait_v1,
-    pfs_end_metadata_wait_v1};
+    pfs_create_metadata_lock_vc, pfs_set_metadata_lock_status_vc,
+    pfs_destroy_metadata_lock_vc, pfs_start_metadata_wait_vc,
+    pfs_end_metadata_wait_vc};
+
+PSI_mdl_service_v2 pfs_mdl_service_v2 = {
+    /* Old interface, for plugins. */
+    pfs_create_metadata_lock_vc,       pfs_set_metadata_lock_status_vc,
+    pfs_set_metadata_lock_duration_vc, pfs_destroy_metadata_lock_vc,
+    pfs_start_metadata_wait_vc,        pfs_end_metadata_wait_vc};
 
 SERVICE_TYPE(psi_mdl_v1)
 SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v1) = {
     /* New interface, for components. */
-    pfs_create_metadata_lock_v1, pfs_set_metadata_lock_status_v1,
-    pfs_destroy_metadata_lock_v1, pfs_start_metadata_wait_v1,
-    pfs_end_metadata_wait_v1};
+    pfs_create_metadata_lock_vc, pfs_set_metadata_lock_status_vc,
+    pfs_destroy_metadata_lock_vc, pfs_start_metadata_wait_vc,
+    pfs_end_metadata_wait_vc};
+
+SERVICE_TYPE(psi_mdl_v2)
+SERVICE_IMPLEMENTATION(performance_schema, psi_mdl_v2) = {
+    /* New interface, for components. */
+    pfs_create_metadata_lock_vc,       pfs_set_metadata_lock_status_vc,
+    pfs_set_metadata_lock_duration_vc, pfs_destroy_metadata_lock_vc,
+    pfs_start_metadata_wait_vc,        pfs_end_metadata_wait_vc};
 
 PSI_idle_service_v1 pfs_idle_service_v1 = {
     /* Old interface, for plugins. */
@@ -8596,6 +8616,8 @@ static void *get_mdl_interface(int version) {
   switch (version) {
     case PSI_MDL_VERSION_1:
       return &pfs_mdl_service_v1;
+    case PSI_MDL_VERSION_2:
+      return &pfs_mdl_service_v2;
     default:
       return nullptr;
   }
@@ -8758,7 +8780,9 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_error_v1),
     PROVIDES_SERVICE(performance_schema, psi_file_v2),
     PROVIDES_SERVICE(performance_schema, psi_idle_v1),
+    /* Deprecated, use psi_mdl_v2. */
     PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
+    PROVIDES_SERVICE(performance_schema, psi_mdl_v2),
     /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_memory_v1), */
     PROVIDES_SERVICE(performance_schema, psi_memory_v2),
     PROVIDES_SERVICE(performance_schema, psi_mutex_v1),

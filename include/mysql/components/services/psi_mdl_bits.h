@@ -90,6 +90,9 @@ typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
 
+typedef void (*set_metadata_lock_duration_v2_t)(
+    PSI_metadata_lock *lock, opaque_mdl_duration mdl_duration);
+
 typedef void (*destroy_metadata_lock_v1_t)(PSI_metadata_lock *lock);
 
 typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
