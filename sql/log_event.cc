@@ -5098,7 +5098,6 @@ end:
   thd->set_catalog(NULL_CSTR);
   thd->set_db(NULL_CSTR); /* will free the current database */
   thd->reset_query();
-  thd->reset_rewritten_query();
   thd->lex->sql_command = SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
 
@@ -5108,6 +5107,7 @@ end:
   /* Maintain compatibility with the legacy processlist. */
   if (pfs_processlist_enabled) thd->reset_query_for_display();
 
+  thd->reset_rewritten_query();
   thd->m_statement_psi = nullptr;
   thd->m_digest = nullptr;
 
