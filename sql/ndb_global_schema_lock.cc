@@ -348,7 +348,7 @@ ndbcluster_global_schema_unlock(THD *thd)
     // the exact same error code is returned. Thus it's impossible to know
     // that there is actually no need to call unlock. Fix by allowing unlock
     // without doing anything since the trans is already closed.
-    DBUG_ASSERT(thd_ndb->global_schema_lock_trans == NULL);
+    assert(thd_ndb->global_schema_lock_trans == NULL);
     thd_ndb->global_schema_lock_count++;
   }
 
@@ -356,7 +356,7 @@ ndbcluster_global_schema_unlock(THD *thd)
   DBUG_ENTER("ndbcluster_global_schema_unlock");
   NdbTransaction *trans= thd_ndb->global_schema_lock_trans;
   // Don't allow decrementing from zero
-  DBUG_ASSERT(thd_ndb->global_schema_lock_count > 0);
+  assert(thd_ndb->global_schema_lock_count > 0);
   thd_ndb->global_schema_lock_count--;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                       thd_ndb->global_schema_lock_count));

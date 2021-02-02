@@ -4712,7 +4712,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     {
       requestInfo |= QN_ScanFragParameters::SFP_SORTED_ORDER;
       // Only supported for root yet.
-      DBUG_ASSERT(this == &getRoot());
+      assert(this == &getRoot());
     }
 
     param->requestInfo = requestInfo;

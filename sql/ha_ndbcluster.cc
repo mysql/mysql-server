@@ -1622,7 +1622,7 @@ bool ha_ndbcluster::get_error_message(int error,
     {
       //Drop table failure. get error from dictionary.
       err = dict->getNdbError();
-      DBUG_ASSERT(err.code == 21080);
+      assert(err.code == 21080);
     }
     temporary= (err.status==NdbError::TemporaryError);
 
@@ -1640,7 +1640,7 @@ bool ha_ndbcluster::get_error_message(int error,
     if (ndb->getNdbErrorDetail(err, &fully_qualified_fk_name[0],
                                sizeof(fully_qualified_fk_name)) == NULL)
     {
-      DBUG_ASSERT(false);
+      assert(false);
       ndb_to_mysql_error(&dict->getNdbError());
       DBUG_RETURN(temporary);
     }
@@ -1649,7 +1649,7 @@ bool ha_ndbcluster::get_error_message(int error,
     NdbDictionary::ForeignKey fk;
     if (dict->getForeignKey(fk, fully_qualified_fk_name) != 0)
     {
-      DBUG_ASSERT(false);
+      assert(false);
       ndb_to_mysql_error(&dict->getNdbError());
       DBUG_RETURN(temporary);
     }
@@ -1659,7 +1659,7 @@ bool ha_ndbcluster::get_error_message(int error,
                                                fk, 0, false,
                                                fk_string))
     {
-      DBUG_ASSERT(false);
+      assert(false);
       DBUG_RETURN(temporary);
     }
 
