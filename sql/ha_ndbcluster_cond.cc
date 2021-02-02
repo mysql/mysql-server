@@ -1436,7 +1436,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     }
     case NDB_LIKE_FUNC:
     {
-      DBUG_ASSERT(field == a && value == b);
+      assert(field == a && value == b);
       char buff[MAX_FIELD_WIDTH];
       String str(buff, sizeof(buff), field->get_field_charset());
       Item *value_item = const_cast<Item *>(value->get_item());
@@ -1454,7 +1454,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     }
     case NDB_NOTLIKE_FUNC:
     {
-      DBUG_ASSERT(field == a && value == b);
+      assert(field == a && value == b);
       char buff[MAX_FIELD_WIDTH];
       String str(buff, sizeof(buff), field->get_field_charset());
       Item *value_item = const_cast<Item *>(value->get_item());
@@ -1483,7 +1483,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       break;
     }
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
     if (need_explicit_null_check && filter->end() == -1) //Local AND group

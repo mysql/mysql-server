@@ -224,7 +224,7 @@ public:
   }
 
   const Item *get_item() const {
-    DBUG_ASSERT(this->type == NDB_VALUE);
+    assert(this->type == NDB_VALUE);
     return value.item;
   }
 

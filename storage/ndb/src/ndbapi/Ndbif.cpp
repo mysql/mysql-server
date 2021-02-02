@@ -1620,7 +1620,7 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
     int maxsleep = waitTime;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
     {
       maxsleep = waitTime > 10 ? 10 : waitTime;

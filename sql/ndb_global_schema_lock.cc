@@ -293,7 +293,7 @@ ndbcluster_global_schema_lock(THD *thd,
    */
   if (ndb_error.code != 4009)  //No cluster connection
   {
-    DBUG_ASSERT(thd_ndb->global_schema_lock_count == 1);
+    assert(thd_ndb->global_schema_lock_count == 1);
     thd_ndb->global_schema_lock_count= 0;
   }
 
@@ -411,7 +411,7 @@ notify_mdl_lock(THD *thd, bool lock, bool *victimized)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static
 const char*
 mdl_namespace_name(const MDL_key* mdl_key)
@@ -475,7 +475,7 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                        mdl_namespace_name(mdl_key),
                        mdl_key->db_name(), mdl_key->name()));
 
-  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
+  assert(notification == HA_NOTIFY_PRE_EVENT ||
               notification == HA_NOTIFY_POST_EVENT);
 
   bool victimized= false;
@@ -519,7 +519,7 @@ ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
                        mdl_namespace_name(mdl_key),
                        mdl_key->db_name(), mdl_key->name()));
 
-  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
+  assert(notification == HA_NOTIFY_PRE_EVENT ||
               notification == HA_NOTIFY_POST_EVENT);
 
   const bool result =
