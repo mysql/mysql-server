@@ -3401,7 +3401,7 @@ void Item_func_rand::seed_random(Item *arg) {
     args[0] is a constant.
   */
   uint32 tmp = (uint32)arg->val_int();
-  randominit(rand, (uint32)(tmp * 0x10001L + 55555555L),
+  randominit(m_rand, (uint32)(tmp * 0x10001L + 55555555L),
              (uint32)(tmp * 0x10000001L));
 }
 
@@ -3414,7 +3414,7 @@ bool Item_func_rand::resolve_type(THD *thd) {
 bool Item_func_rand::fix_fields(THD *thd, Item **ref) {
   if (Item_real_func::fix_fields(thd, ref)) return true;
 
-  if (arg_count) {  // Only use argument once in query
+  if (arg_count > 0) {  // Only use argument once in query
     /*
       Allocate rand structure once: we must use thd->stmt_arena
       to create rand in proper mem_root if it's a prepared statement or
@@ -3423,9 +3423,9 @@ bool Item_func_rand::fix_fields(THD *thd, Item **ref) {
       No need to send a Rand log event if seed was given eg: RAND(seed),
       as it will be replicated in the query as such.
     */
-    if (!rand &&
-        !(rand = (struct rand_struct *)thd->stmt_arena->alloc(sizeof(*rand))))
-      return true;
+    assert(m_rand == nullptr);
+    m_rand = pointer_cast<rand_struct *>(thd->alloc(sizeof(*m_rand)));
+    if (m_rand == nullptr) return true;
   } else {
     /*
       Save the seed only the first time RAND() is used in the query
@@ -3437,14 +3437,14 @@ bool Item_func_rand::fix_fields(THD *thd, Item **ref) {
       thd->rand_saved_seed1 = thd->rand.seed1;
       thd->rand_saved_seed2 = thd->rand.seed2;
     }
-    rand = &thd->rand;
   }
   return false;
 }
 
 double Item_func_rand::val_real() {
-  assert(fixed == 1);
-  if (arg_count) {
+  assert(fixed);
+  rand_struct *rand;
+  if (arg_count > 0) {
     if (!args[0]->const_for_execution())
       seed_random(args[0]);
     else if (first_eval) {
@@ -3456,6 +3456,7 @@ double Item_func_rand::val_real() {
       first_eval = false;
       seed_random(args[0]);
     }
+    rand = m_rand;
   } else {
     /*
       Save the seed only the first time RAND() is used in the query
@@ -3468,6 +3469,7 @@ double Item_func_rand::val_real() {
       thd->rand_saved_seed1 = thd->rand.seed1;
       thd->rand_saved_seed2 = thd->rand.seed2;
     }
+    rand = &thd->rand;
   }
   return my_rnd(rand);
 }
