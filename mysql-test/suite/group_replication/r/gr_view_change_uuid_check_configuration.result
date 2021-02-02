@@ -46,4 +46,7 @@ SET GLOBAL group_replication_group_name = "9f46e042-98a0-439d-a8fb-7130670ca49b"
 ERROR HY000: Variable 'group_replication_group_name' cannot be set to the value of '9f46e042-98a0-439d-a8fb-7130670ca49b'. The value is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC
 ####################################################################
 # 5. Cleanup
+RESET PERSIST;
 SET GLOBAL group_replication_view_change_uuid = VIEW_CHANGE_UUID;
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

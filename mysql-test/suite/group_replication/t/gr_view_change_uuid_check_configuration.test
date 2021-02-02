@@ -147,7 +147,14 @@ SET GLOBAL group_replication_group_name = "9f46e042-98a0-439d-a8fb-7130670ca49b"
 --echo ####################################################################
 --echo # 5. Cleanup
 
+RESET PERSIST;
 --replace_result $view_change_uuid_save VIEW_CHANGE_UUID
 --eval SET GLOBAL group_replication_view_change_uuid = $view_change_uuid_save
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group-replication-start-on-boot=OFF --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
+--source include/restart_mysqld_no_echo.inc
 
 --source include/gr_clear_configuration.inc

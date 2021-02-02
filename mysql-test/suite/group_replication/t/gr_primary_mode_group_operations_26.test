@@ -236,6 +236,11 @@ COMMIT;
 
 DROP TABLE t1;
 
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
 --let $rpl_group_replication_single_primary_mode=1
 --let $rpl_group_replication_reset_persistent_vars=1
 --source include/group_replication_end.inc

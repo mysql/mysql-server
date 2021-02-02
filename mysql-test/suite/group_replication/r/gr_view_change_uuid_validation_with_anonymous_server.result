@@ -124,4 +124,9 @@ SET session sql_log_bin=1;
 [connection server2]
 include/stop_group_replication.inc
 SET GLOBAL group_replication_view_change_uuid = VIEW_CHANGE_UUID;
+[connection server1]
+RESET PERSIST;
+include/rpl_reconnect.inc
 include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

@@ -181,6 +181,14 @@ UNLOCK TABLES;
 
 DROP TABLE t1;
 
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
 set session sql_log_bin=0;
 call mtr.add_suppression("Error while executing a group configuration operation: The appointed primary for election left the group, this operation will be aborted.*");
 set session sql_log_bin=1;

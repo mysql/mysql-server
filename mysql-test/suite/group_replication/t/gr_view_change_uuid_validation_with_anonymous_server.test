@@ -300,4 +300,17 @@ SET session sql_log_bin=1;
 --replace_result $view_change_uuid_save VIEW_CHANGE_UUID
 --eval SET GLOBAL group_replication_view_change_uuid = $view_change_uuid_save
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+RESET PERSIST;
+
+--let $allow_rpl_inited=1
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $restart_parameters=restart:--group-replication-start-on-boot=OFF --group-replication-group-name=$group_replication_group_name --group_replication_local_address
+--source include/restart_mysqld_no_echo.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
 --source include/group_replication_end.inc
