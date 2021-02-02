@@ -39,7 +39,7 @@ create table p1 (name varchar(255),
                  unique(parent_c1, parent_c2)
 )engine = ndb;
 
-create table c1(c1 varchar(100),
+create table c1(c1 int AUTO_INCREMENT,
                 id int(11),
                 primary key(c1),
                 unique key abc (id),
@@ -67,17 +67,14 @@ insert into p1(parent_id) select a from `rows`;
 select count(1) from test.p1;
 
 --echo -- Show Fks working
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
-
-
-
 
 --echo -- Normal NR
 --exec $_mgm_cmd -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
@@ -86,13 +83,13 @@ delete from test.c1;
 --exec $_waiter_cmd --not-started -w1 >> $NDB_TOOLS_OUTPUT
 
 --echo --- Show FKs working
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 
 --echo --- Startup node again
@@ -102,13 +99,13 @@ delete from test.c1;
 --exec $_waiter_cmd >> $NDB_TOOLS_OUTPUT
 
 --echo --- Show FKs working
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 
 
@@ -120,13 +117,13 @@ delete from test.c1;
 --exec $_waiter_cmd --not-started -w2 >> $NDB_TOOLS_OUTPUT
 
 --echo --- Show FKs working
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 
 --echo --- Startup node again
@@ -136,13 +133,13 @@ delete from test.c1;
 --exec $_waiter_cmd >> $NDB_TOOLS_OUTPUT
 
 --echo --- Show FKs working
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 
 --echo -- System restart
@@ -161,13 +158,13 @@ delete from test.c1;
 --source include/ndb_not_readonly.inc
 
 --echo --- Show FKs working
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 delete from test.p1;
 insert into p1(parent_id) select a from `rows`;
-set @n=0; insert into test.c1(c1,id) select @N:=@N+1,id from p1;
+insert into test.c1(id) select id from p1;
 delete from test.c1;
 
 delete from test.p1;

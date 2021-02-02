@@ -28,8 +28,10 @@ INSERT INTO t2 VALUES (1,1),(2,2);
 # verify that we get the data in the binlog
 --source include/show_binlog_events.inc
 select * from t2 order by a;
+SELECT epoch FROM
+  mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1 into @the_epoch;
 --replace_column 1 <the_epoch>
-SELECT @the_epoch:=epoch,inserts,updates,deletes,schemaops FROM 
+SELECT @the_epoch,inserts,updates,deletes,schemaops FROM
   mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
 let $the_epoch= `SELECT @the_epoch`;
 
@@ -55,8 +57,10 @@ connection server2;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE = NDB;
 INSERT INTO t1 VALUES (1),(2);
 --source include/show_binlog_events.inc
+select epoch FROM
+  mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1 into @the_epoch2;
 --replace_column 1 <the_epoch2>
-SELECT @the_epoch2:=epoch,inserts,updates,deletes,schemaops FROM 
+SELECT @the_epoch2,inserts,updates,deletes,schemaops FROM
   mysql.ndb_binlog_index ORDER BY epoch DESC LIMIT 1;
 let $the_epoch2= `SELECT @the_epoch2`;
 
