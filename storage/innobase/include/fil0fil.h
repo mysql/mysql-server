@@ -1221,6 +1221,9 @@ constexpr page_type_t FIL_PAGE_RTREE = 17854;
 /** Tablespace SDI Index page */
 constexpr page_type_t FIL_PAGE_SDI = 17853;
 
+/** This page type is unused. */
+constexpr page_type_t FIL_PAGE_TYPE_UNUSED = 1;
+
 /** Undo log page */
 constexpr page_type_t FIL_PAGE_UNDO_LOG = 2;
 
@@ -1311,7 +1314,7 @@ constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FRAG = 28;
 /** Index pages of fragment pages (compressed LOB). */
 constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY = 29;
 
-/** Used by i_s.cc to index into the text description. */
+/** Note the highest valid non-index page_type_t. */
 constexpr page_type_t FIL_PAGE_TYPE_LAST = FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY;
 
 /** Check whether the page type is index (Btree or Rtree or SDI) type */

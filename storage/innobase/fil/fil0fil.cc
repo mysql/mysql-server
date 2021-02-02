@@ -11976,39 +11976,14 @@ const char *fil_get_page_type_str(page_type_t type) noexcept {
 }
 
 bool fil_is_page_type_valid(page_type_t type) noexcept {
-  switch (type) {
-    case FIL_PAGE_INDEX:
-    case FIL_PAGE_RTREE:
-    case FIL_PAGE_SDI:
-    case FIL_PAGE_UNDO_LOG:
-    case FIL_PAGE_INODE:
-    case FIL_PAGE_IBUF_FREE_LIST:
-    case FIL_PAGE_TYPE_ALLOCATED:
-    case FIL_PAGE_IBUF_BITMAP:
-    case FIL_PAGE_TYPE_SYS:
-    case FIL_PAGE_TYPE_TRX_SYS:
-    case FIL_PAGE_TYPE_FSP_HDR:
-    case FIL_PAGE_TYPE_XDES:
-    case FIL_PAGE_TYPE_BLOB:
-    case FIL_PAGE_TYPE_ZBLOB:
-    case FIL_PAGE_TYPE_ZBLOB2:
-    case FIL_PAGE_TYPE_UNKNOWN:
-    case FIL_PAGE_COMPRESSED:
-    case FIL_PAGE_ENCRYPTED:
-    case FIL_PAGE_COMPRESSED_AND_ENCRYPTED:
-    case FIL_PAGE_ENCRYPTED_RTREE:
-    case FIL_PAGE_SDI_BLOB:
-    case FIL_PAGE_SDI_ZBLOB:
-    case FIL_PAGE_TYPE_LOB_INDEX:
-    case FIL_PAGE_TYPE_LOB_DATA:
-    case FIL_PAGE_TYPE_LOB_FIRST:
-    case FIL_PAGE_TYPE_ZLOB_FIRST:
-    case FIL_PAGE_TYPE_ZLOB_DATA:
-    case FIL_PAGE_TYPE_ZLOB_INDEX:
-    case FIL_PAGE_TYPE_ZLOB_FRAG:
-    case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
-      return true;
+  if (fil_page_type_is_index(type)) {
+    return true;
   }
+
+  if (type <= FIL_PAGE_TYPE_LAST && type != FIL_PAGE_TYPE_UNUSED) {
+    return true;
+  }
+
   ut_ad(0);
   return false;
 }
