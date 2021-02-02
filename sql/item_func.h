@@ -1374,11 +1374,10 @@ class Item_func_round final : public Item_func_num1 {
 class Item_func_rand final : public Item_real_func {
   typedef Item_real_func super;
 
-  struct rand_struct *rand;
-  bool first_eval;  // true if val_real() is called 1st time
+  rand_struct *m_rand{nullptr};
+  bool first_eval{true};  // true if val_real() is called 1st time
  public:
-  Item_func_rand(const POS &pos, Item *a)
-      : Item_real_func(pos, a), rand(nullptr), first_eval(true) {}
+  Item_func_rand(const POS &pos, Item *a) : Item_real_func(pos, a) {}
   explicit Item_func_rand(const POS &pos) : Item_real_func(pos) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
