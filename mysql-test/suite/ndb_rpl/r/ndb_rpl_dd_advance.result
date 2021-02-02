@@ -235,6 +235,10 @@ COUNT(*)
 ******** Run in some transactions ***************
 ***** Time to try slave sync ***********
 **** Must make sure slave is clean *****
+USE tpcb;
+SELECT COUNT(*) FROM account;
+COUNT(*)
+1000
 STOP SLAVE;
 RESET SLAVE;
 DROP PROCEDURE IF EXISTS tpcb.load;
