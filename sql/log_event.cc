@@ -5048,12 +5048,12 @@ end:
   thd->set_catalog(NULL_CSTR);
   thd->set_db(NULL_CSTR);                 /* will free the current database */
   thd->reset_query();
-  thd->reset_rewritten_query();
   thd->lex->sql_command= SQLCOM_END;
   DBUG_PRINT("info", ("end: query= 0"));
 
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->reset_rewritten_query();
   thd->m_statement_psi= NULL;
   thd->m_digest= NULL;
 
