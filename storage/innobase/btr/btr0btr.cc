@@ -1418,8 +1418,6 @@ byte *btr_parse_page_reorganize(
 {
   ulint level;
 
-  ut_ad(ptr != nullptr);
-  ut_ad(end_ptr != nullptr);
   ut_ad(index != nullptr);
 
   /* If dealing with a compressed page the record has the

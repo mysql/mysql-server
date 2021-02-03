@@ -2085,14 +2085,23 @@ static byte *recv_parse_or_apply_log_rec_body(
       break;
 
     case MLOG_PAGE_REORGANIZE:
+      ut_ad(!page || fil_page_type_is_index(page_type));
+      /* Uncompressed pages don't have any payload in the
+      MTR so ptr and end_ptr can be, and are nullptr */
+      mlog_parse_index(ptr, end_ptr, false, &index);
+      ut_a(!page ||
+           (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
+
+      ptr = btr_parse_page_reorganize(ptr, end_ptr, index, false, block, mtr);
+
+      break;
+
     case MLOG_COMP_PAGE_REORGANIZE:
     case MLOG_ZIP_PAGE_REORGANIZE:
 
       ut_ad(!page || fil_page_type_is_index(page_type));
 
-      if (nullptr !=
-          (ptr = mlog_parse_index(ptr, end_ptr, type != MLOG_PAGE_REORGANIZE,
-                                  &index))) {
+      if (nullptr != (ptr = mlog_parse_index(ptr, end_ptr, true, &index))) {
         ut_a(!page ||
              (ibool) !!page_is_comp(page) == dict_table_is_comp(index->table));
 
