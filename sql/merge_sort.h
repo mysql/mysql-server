@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ void merge_sort(Element_type **first, Element_type **last, Comp_func comp)
 
   for (uint i= 0; i < elements; i++)
   {
-    DBUG_ASSERT (cur1 < middle || cur2 < last);
+    assert (cur1 < middle || cur2 < last);
 
     if (cur1 == middle)
       merged.push(*cur2++);

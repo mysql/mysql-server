@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -109,7 +109,7 @@ public:                                                                 \
         guess= &_guess;                                                 \
       }                                                                 \
       else                                                              \
-        DBUG_ASSERT(*guess < n);                                        \
+        assert(*guess < n);                                             \
       bool ret;                                                         \
       do {                                                              \
         ret= atomic_compare_and_swap(guess, n);                         \

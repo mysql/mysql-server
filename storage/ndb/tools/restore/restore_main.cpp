@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -678,7 +678,7 @@ static my_bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:O,/tmp/ndb_restore.trace";
 #endif
   ndb_std_get_one_option(optid, opt, argument);

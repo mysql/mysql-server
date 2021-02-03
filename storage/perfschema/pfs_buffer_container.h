@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,7 @@ public:
 
   void free_array(array_type *array)
   {
-    DBUG_ASSERT(array->m_max > 0);
+    assert(array->m_max > 0);
 
     PFS_FREE_ARRAY(m_builtin_class,
                    array->m_max, sizeof(T), array->m_ptr);
@@ -259,7 +259,7 @@ public:
 
   iterator_type iterate(uint index)
   {
-    DBUG_ASSERT(index <= m_max);
+    assert(index <= m_max);
     return PFS_buffer_iterator<T, U, V>(this, index);
   }
 
@@ -319,7 +319,7 @@ public:
 
   inline value_type* get(uint index)
   {
-    DBUG_ASSERT(index < m_max);
+    assert(index < m_max);
 
     value_type *pfs= m_array.m_ptr + index;
     if (pfs->m_lock.is_populated())
@@ -364,7 +364,7 @@ public:
 private:
   value_type* scan_next(uint & index, uint * found_index)
   {
-    DBUG_ASSERT(index <= m_max);
+    assert(index <= m_max);
 
     value_type *pfs_first= m_array.get_first();
     value_type *pfs= pfs_first + index;
@@ -479,9 +479,9 @@ public:
       m_full= false;
     }
 
-    DBUG_ASSERT(m_max_page_count <= PFS_PAGE_COUNT);
-    DBUG_ASSERT(0 < m_last_page_size);
-    DBUG_ASSERT(m_last_page_size <= PFS_PAGE_SIZE);
+    assert(m_max_page_count <= PFS_PAGE_COUNT);
+    assert(0 < m_last_page_size);
+    assert(m_last_page_size <= PFS_PAGE_SIZE);
 
     native_mutex_init(& m_critical_section, NULL);
     return 0;
@@ -692,7 +692,7 @@ public:
         // ==================================================================
       }
 
-      DBUG_ASSERT(array != NULL);
+      assert(array != NULL);
       pfs= array->allocate(dirty_state);
       if (pfs != NULL)
       {
@@ -753,7 +753,7 @@ public:
 
   iterator_type iterate(uint index)
   {
-    DBUG_ASSERT(index <= m_max);
+    assert(index <= m_max);
     return PFS_buffer_scalable_iterator<T, PFS_PAGE_SIZE, PFS_PAGE_COUNT, U, V>(this, index);
   }
 
@@ -861,7 +861,7 @@ public:
 
   value_type* get(uint index)
   {
-    DBUG_ASSERT(index < m_max);
+    assert(index < m_max);
 
     uint index_1= index / PFS_PAGE_SIZE;
     array_type *page= m_pages[index_1];
@@ -958,13 +958,13 @@ private:
   {
     if (page_index + 1 < m_max_page_count)
       return PFS_PAGE_SIZE;
-    DBUG_ASSERT(page_index + 1 == m_max_page_count);
+    assert(page_index + 1 == m_max_page_count);
     return m_last_page_size;
   }
 
   value_type* scan_next(uint & index, uint * found_index)
   {
-    DBUG_ASSERT(index <= m_max);
+    assert(index <= m_max);
 
     uint index_1= index / PFS_PAGE_SIZE;
     uint index_2= index % PFS_PAGE_SIZE;
@@ -1179,7 +1179,7 @@ public:
 
   value_type *allocate(pfs_dirty_state *dirty_state, uint partition)
   {
-    DBUG_ASSERT(partition < PFS_PARTITION_COUNT);
+    assert(partition < PFS_PARTITION_COUNT);
 
     return m_partitions[partition]->allocate(dirty_state);
   }
@@ -1308,7 +1308,7 @@ private:
   value_type* scan_next(uint & partition_index, uint & sub_index, uint * found_partition, uint * found_sub_index)
   {
     value_type *record= NULL;
-    DBUG_ASSERT(partition_index < PFS_PARTITION_COUNT);
+    assert(partition_index < PFS_PARTITION_COUNT);
 
     while (partition_index < PFS_PARTITION_COUNT)
     {

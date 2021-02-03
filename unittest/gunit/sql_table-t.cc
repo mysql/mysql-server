@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -144,7 +144,7 @@ TEST_F(SqlTableTest, FileNameToTableName)
   name_length= filename_to_tablename(test_filename,
                                      test_tablename,
                                      sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                      , true
 #endif
                                      );
@@ -154,7 +154,7 @@ TEST_F(SqlTableTest, FileNameToTableName)
   name_length= filename_to_tablename(foo.str,
                                      test_tablename,
                                      sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                      , true
 #endif
                                      );

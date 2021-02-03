@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,7 +220,7 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res)
   {
     sp_head *sp= lex->sphead;
 
-    DBUG_ASSERT(sp);
+    assert(sp);
 
     /* We're compiling a stored procedure and found a variable */
     if (! lex->parsing_options.allows_variable)
@@ -289,9 +289,9 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res)
       return true;
     }
 
-    DBUG_ASSERT(!new_row ||
-                (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
-                 sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+    assert(!new_row ||
+           (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+            sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
     const bool read_only=
       !(new_row && sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE);
     Item_trigger_field *trg_fld= new (pc->mem_root)
@@ -302,7 +302,7 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res)
                                   read_only);
     if (trg_fld == NULL || trg_fld->itemize(pc, (Item **) &trg_fld))
       return true;
-    DBUG_ASSERT(trg_fld->type() == TRIGGER_FIELD_ITEM);
+    assert(trg_fld->type() == TRIGGER_FIELD_ITEM);
 
     /*
       Let us add this item to list of all Item_trigger_field objects

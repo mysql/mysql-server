@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 
   DBUG_ENTER("mysql_alter_tablespace");
 
-  DBUG_ASSERT(ts_info);
+  assert(ts_info);
   handlerton *hton= ts_info->storage_engine;
 
   /*

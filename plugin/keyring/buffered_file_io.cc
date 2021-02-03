@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,7 +212,7 @@ my_bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists()
 
 my_bool Buffered_file_io::init(std::string *keyring_filename)
 {
-  DBUG_ASSERT(keyring_filename->empty() == FALSE);
+  assert(keyring_filename->empty() == FALSE);
 #ifdef HAVE_PSI_INTERFACE
   keyring_init_psi_file_keys();
 #endif
@@ -273,7 +273,7 @@ my_bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object)
   }
 
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
+  assert(buffer != NULL);
   return buffer == NULL ||
          flush_buffer_to_file(buffer, backup_file) ||
          file_io.close(backup_file, MYF(MY_WME)) < 0;
@@ -303,8 +303,8 @@ my_bool Buffered_file_io::read_keyring_stat(File file)
 my_bool Buffered_file_io::flush_to_storage(ISerialized_object *serialized_object)
 {
   Buffer *buffer= dynamic_cast<Buffer*>(serialized_object);
-  DBUG_ASSERT(buffer != NULL);
-  DBUG_ASSERT(serialized_object->get_key_operation() != NONE);
+  assert(buffer != NULL);
+  assert(serialized_object->get_key_operation() != NONE);
 
   File keyring_file= file_io.open(keyring_file_data_key,
                                   this->keyring_filename.c_str(), O_CREAT | O_RDWR,

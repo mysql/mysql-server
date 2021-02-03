@@ -46,6 +46,7 @@ SET SESSION sql_log_bin = 1;
 --let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
 
 --echo
 --echo #########################################################################
@@ -161,6 +162,8 @@ SET SESSION sql_log_bin= 1;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
 --eval SET @@global.group_replication_local_address="$local_address_server1"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --source include/start_group_replication.inc
 
 --let $group_replication_number_of_members = 2

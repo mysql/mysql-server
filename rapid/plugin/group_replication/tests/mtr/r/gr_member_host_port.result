@@ -11,7 +11,7 @@ include/assert.inc [The performance_schema.replication_group_members.MEMBER_PORT
 # 2. Verify that when startup options report-host and report-port are
 # set, performance_schema.replication_group_members.MEMBER_HOST and
 # MEMBER_PORT are set equal to report-host and report-port.
-# restart:--report-host=server1-test-host --report-port=1999 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+# restart:--report-host=server1-test-host --report-port=1999 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 [connection server1]
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [The performance_schema.replication_group_members.MEMBER_HOST matches with report-host startup option]

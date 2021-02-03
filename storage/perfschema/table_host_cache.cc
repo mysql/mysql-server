@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -209,7 +209,7 @@ PFS_engine_table* table_host_cache::create(void)
   if (t != NULL)
   {
     THD *thd= current_thd;
-    DBUG_ASSERT(thd != NULL);
+    assert(thd != NULL);
     t->materialize(thd);
   }
   return t;
@@ -252,8 +252,8 @@ void table_host_cache::materialize(THD *thd)
   row_host_cache *rows;
   row_host_cache *row;
 
-  DBUG_ASSERT(m_all_rows == NULL);
-  DBUG_ASSERT(m_row_count == 0);
+  assert(m_all_rows == NULL);
+  assert(m_row_count == 0);
 
   hostname_cache_lock();
 
@@ -366,7 +366,7 @@ int table_host_cache::rnd_next(void)
 int table_host_cache::rnd_pos(const void *pos)
 {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_row_count);
+  assert(m_pos.m_index < m_row_count);
   m_row= &m_all_rows[m_pos.m_index];
   return 0;
 }
@@ -378,10 +378,10 @@ int table_host_cache::read_row_values(TABLE *table,
 {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -487,7 +487,7 @@ int table_host_cache::read_row_values(TABLE *table,
           f->set_null();
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,7 @@ template<typename Element_type,
 void Bounded_queue_boost<Element_type, Key_type, Key_generator, Key_compare>
   ::push(Element_type element)
 {
-  DBUG_ASSERT(pimpl != NULL);
+  assert(pimpl != NULL);
   if (m_num_elements == m_max_elements)
   {
     const heap_data<Key_type, Key_compare> &pq_top= pimpl->m_queue.top();

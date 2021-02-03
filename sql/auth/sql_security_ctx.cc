@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -179,7 +179,7 @@ change_security_context(THD *thd,
 
   DBUG_ENTER("Security_context::change_security_context");
 
-  DBUG_ASSERT(definer_user.str && definer_host.str);
+  assert(definer_user.str && definer_host.str);
 
   *backup= NULL;
   needs_change= (strcmp(definer_user.str,

@@ -317,7 +317,7 @@ First of all, notice that all of the debugger functions are implemented
 via preprocessor macros.
 This does not detract from the readability of the code and makes disabling
 all debug compilation trivial (a single preprocessor symbol, 
-.B DBUG_OFF ,
+.B NDEBUG ,
 forces the macro expansions to be null).
 .P
 Also notice the inclusion of the header file
@@ -867,14 +867,6 @@ EX:\fC
 .SP 1
 .LI DBUG_UNLOCK_FILE\ 
 Unlocks DBUG_FILE stream, that was locked with a DBUG_LOCK_FILE.
-.LI DBUG_ASSERT\ 
-This macro just does a regular assert(). The difference is that it will be
-disabled by DBUG_OFF togeher with the
-.I dbug
-library. So there will be no need to disable asserts separately with NDEBUG.
-.SP 1
-EX:\ \fCDBUG_ASSERT(\ a\ >\ 0\ );\fR
-.SP 1
 .LI DBUG_ABORT\ 
 This macro could be used instead of abort(). It flushes DBUG_FILE stream
 to ensure that no

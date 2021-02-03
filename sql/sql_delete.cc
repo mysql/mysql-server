@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -391,7 +391,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
 
       {
         Filesort fsort(&qep_tab, order, HA_POS_ERROR);
-        DBUG_ASSERT(usable_index == MAX_KEY);
+        assert(usable_index == MAX_KEY);
         table->sort.io_cache= (IO_CACHE *) my_malloc(key_memory_TABLE_sort_io_cache,
                                                      sizeof(IO_CACHE),
                                                      MYF(MY_FAE | MY_ZEROFILL));
@@ -560,7 +560,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
   } // End of scope for Modification_plan
 
 cleanup:
-  DBUG_ASSERT(!thd->lex->describe);
+  assert(!thd->lex->describe);
   /*
     Invalidate the table in the query cache if something changed. This must
     be before binlog writing and ha_autocommit_...
@@ -603,10 +603,10 @@ cleanup:
       }
     }
   }
-  DBUG_ASSERT(transactional_table ||
-              !deleted ||
-              thd->get_transaction()->cannot_safely_rollback(
-                  Transaction_ctx::STMT));
+  assert(transactional_table ||
+         !deleted ||
+         thd->get_transaction()->cannot_safely_rollback(
+                                                        Transaction_ctx::STMT));
   free_underlaid_joins(thd, select_lex);
   if (error < 0)
   {
@@ -682,7 +682,7 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
     tables.table = table_list->table;
     tables.alias = table_list->alias;
 
-    DBUG_ASSERT(!select->group_list.elements);
+    assert(!select->group_list.elements);
     if (select->setup_ref_array(thd))
       DBUG_RETURN(true);                     /* purecov: inspected */
     if (setup_order(thd, select->ref_pointer_array, &tables,
@@ -805,10 +805,10 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
     }
 
     // A view must be merged, and thus cannot have a TABLE 
-    DBUG_ASSERT(!table_ref->is_view() || table_ref->table == NULL);
+    assert(!table_ref->is_view() || table_ref->table == NULL);
 
     // Enable the following code if allowing LIMIT with multi-table DELETE
-    DBUG_ASSERT(select->select_limit == 0);
+    assert(select->select_limit == 0);
   }
 
   DBUG_RETURN(false);
@@ -879,7 +879,7 @@ bool Query_result_delete::initialize_tables(JOIN *join)
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
 
   SELECT_LEX *const select= unit->first_select();
-  DBUG_ASSERT(join == select->join);
+  assert(join == select->join);
 
   if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
       error_if_full_join(join))
@@ -971,7 +971,7 @@ bool Query_result_delete::initialize_tables(JOIN *join)
       DBUG_RETURN(true);                     /* purecov: inspected */
     *(table_ptr++)= table;
   }
-  DBUG_ASSERT(select == thd->lex->current_select());
+  assert(select == thd->lex->current_select());
 
   if (select->has_ft_funcs() && init_ftfuncs(thd, select))
     DBUG_RETURN(true);
@@ -1004,7 +1004,7 @@ bool Query_result_delete::send_data(List<Item> &values)
 
   JOIN *const join= unit->first_select()->join;
 
-  DBUG_ASSERT(thd->lex->current_select() == unit->first_select());
+  assert(thd->lex->current_select() == unit->first_select());
   int unique_counter= 0;
 
   for (uint i= 0; i < join->primary_tables; i++)
@@ -1019,7 +1019,7 @@ bool Query_result_delete::send_data(List<Item> &values)
 
     TABLE *const table= join->qep_tab[i].table();
 
-    DBUG_ASSERT(immediate || table == tables[unique_counter]);
+    assert(immediate || table == tables[unique_counter]);
 
     /*
       If not doing immediate deletion, increment unique_counter and assign
@@ -1150,7 +1150,7 @@ void Query_result_delete::abort_result_set()
     */
     error= 1;
     send_eof();
-    DBUG_ASSERT(error_handled);
+    assert(error_handled);
     DBUG_VOID_RETURN;
   }
   
@@ -1188,9 +1188,9 @@ void Query_result_delete::abort_result_set()
 int Query_result_delete::do_deletes()
 {
   DBUG_ENTER("Query_result_delete::do_deletes");
-  DBUG_ASSERT(do_delete);
+  assert(do_delete);
 
-  DBUG_ASSERT(thd->lex->current_select() == unit->first_select());
+  assert(thd->lex->current_select() == unit->first_select());
   do_delete= false;                                 // Mark called
   if (!found)
     DBUG_RETURN(0);
@@ -1375,7 +1375,7 @@ bool Query_result_delete::send_eof()
 
 bool Sql_cmd_delete::execute(THD *thd)
 {
-  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_DELETE);
+  assert(thd->lex->sql_command == SQLCOM_DELETE);
 
   LEX *const lex= thd->lex;
   SELECT_LEX *const select_lex= lex->select_lex;
@@ -1385,7 +1385,7 @@ bool Sql_cmd_delete::execute(THD *thd)
 
   if (delete_precheck(thd, all_tables))
     return true;
-  DBUG_ASSERT(select_lex->offset_limit == 0);
+  assert(select_lex->offset_limit == 0);
   unit->set_limit(select_lex);
 
   /* Push ignore / strict error handler */
@@ -1410,7 +1410,7 @@ bool Sql_cmd_delete::execute(THD *thd)
 
 bool Sql_cmd_delete_multi::execute(THD *thd)
 {
-  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_DELETE_MULTI);
+  assert(thd->lex->sql_command == SQLCOM_DELETE_MULTI);
 
   bool res= false;
   LEX *const lex= thd->lex;
@@ -1448,9 +1448,9 @@ bool Sql_cmd_delete_multi::execute(THD *thd)
   if (!thd->is_fatal_error &&
       (del_result= new Query_result_delete(aux_tables, del_table_count)))
   {
-    DBUG_ASSERT(select_lex->having_cond() == NULL &&
-                !select_lex->order_list.elements &&
-                !select_lex->group_list.elements);
+    assert(select_lex->having_cond() == NULL &&
+           !select_lex->order_list.elements &&
+           !select_lex->group_list.elements);
 
     Ignore_error_handler ignore_handler;
     Strict_error_handler strict_handler;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -231,7 +231,7 @@ void net_clear(NET *net,
   });
 #if !defined(EMBEDDED_LIBRARY)
   /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
-  DBUG_ASSERT(!check_buffer || (vio_pending(net->vio) <= 1));
+  assert(!check_buffer || (vio_pending(net->vio) <= 1));
 #endif
 
   /* Ready for new command */
@@ -781,8 +781,8 @@ static my_bool net_read_packet_header(NET *net)
   if (server_extension != NULL)
   {
     void *user_data= server_extension->m_user_data;
-    DBUG_ASSERT(server_extension->m_before_header != NULL);
-    DBUG_ASSERT(server_extension->m_after_header != NULL);
+    assert(server_extension->m_before_header != NULL);
+    assert(server_extension->m_after_header != NULL);
 
     server_extension->m_before_header(net, user_data, count);
     rc= net_read_raw_loop(net, count);
@@ -820,7 +820,7 @@ static my_bool net_read_packet_header(NET *net)
     my_message_local(ERROR_LEVEL,
                      "packets out of order (found %u, expected %u)",
                      (uint) pkt_nr, net->pkt_nr);
-    DBUG_ASSERT(pkt_nr == net->pkt_nr);
+    assert(pkt_nr == net->pkt_nr);
 #endif
     return TRUE;
   }
@@ -863,8 +863,8 @@ static size_t net_read_packet(NET *net, size_t *complen)
       The right-hand expression
       must match the size of the buffer allocated in net_realloc().
     */
-    DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
-                net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE);
+    assert(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
+           net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE);
 
     /*
       If the packet is compressed then complen > 0 and contains the
@@ -995,7 +995,7 @@ my_net_read(NET *net)
               multi_byte_packet on.
               Thus there shall never be a non-zero first_packet_offset here.
             */
-            DBUG_ASSERT(first_packet_offset == 0);
+            assert(first_packet_offset == 0);
             /* Remove packet header for second packet */
             memmove(net->buff + start_of_packet,
               net->buff + start_of_packet + NET_HEADER_SIZE,

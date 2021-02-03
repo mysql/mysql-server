@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -596,7 +596,7 @@ TEST_F(ItemTest, OutOfMemory)
   EXPECT_NE(null_item, item);
   delete null_item;
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   // Setting debug flags triggers enter/exit trace, so redirect to /dev/null.
   DBUG_SET("o," IF_WIN("NUL", "/dev/null"));
 

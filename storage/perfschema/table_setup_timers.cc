@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,7 @@ int table_setup_timers::rnd_next(void)
 int table_setup_timers::rnd_pos(const void *pos)
 {
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < COUNT_SETUP_TIMERS);
+  assert(m_pos.m_index < COUNT_SETUP_TIMERS);
   m_row= &all_setup_timers_data[m_pos.m_index];
   return 0;
 }
@@ -161,10 +161,10 @@ int table_setup_timers::read_row_values(TABLE *table,
 {
   Field *f;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)
   {
@@ -179,7 +179,7 @@ int table_setup_timers::read_row_values(TABLE *table,
         set_field_enum(f, *(m_row->m_timer_name_ptr));
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -195,7 +195,7 @@ int table_setup_timers::update_row_values(TABLE *table,
   Field *f;
   longlong value;
 
-  DBUG_ASSERT(m_row);
+  assert(m_row);
 
   for (; (f= *fields) ; fields++)
   {
@@ -213,7 +213,7 @@ int table_setup_timers::update_row_values(TABLE *table,
           return HA_ERR_WRONG_COMMAND;
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

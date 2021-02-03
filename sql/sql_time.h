@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,7 +171,7 @@ extern LEX_STRING interval_type_to_name[];
 /* Date/time rounding and truncation functions */
 inline long my_time_fraction_remainder(long nr, uint decimals)
 {
-  DBUG_ASSERT(decimals <= DATETIME_MAX_DECIMALS);
+  assert(decimals <= DATETIME_MAX_DECIMALS);
   return nr % (long) log_10_int[DATETIME_MAX_DECIMALS - decimals];
 }
 inline void my_time_trunc(MYSQL_TIME *ltime, uint decimals)
@@ -230,7 +230,7 @@ inline ulonglong TIME_to_ulonglong_round(const MYSQL_TIME *ltime)
   case MYSQL_TIMESTAMP_DATE:
     return TIME_to_ulonglong_date(ltime);
   default:
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -919,11 +919,11 @@ row_vers_old_has_index_entry(
 				NULL, NULL, NULL, &ext, heap);
 
 		if (dict_index_has_virtual(index)) {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 # define dbug_v_purge false
-#else /* DBUG_OFF */
+#else /* NDEBUG */
                         bool    dbug_v_purge = false;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 			DBUG_EXECUTE_IF(
 				"ib_purge_virtual_index_callback",

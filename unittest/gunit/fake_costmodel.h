@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_INCLUDED
 
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ public:
   {
     // Create default values for server cost constants
     m_server_cost_constants= new Server_cost_constants();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized= true;
 #endif
   }
@@ -64,7 +64,7 @@ public:
     // Allocate cost constants for operations on tables
     m_se_cost_constants= new SE_cost_constants();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized= true;
 #endif
   }

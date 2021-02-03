@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -343,11 +343,10 @@ void
 rw_lock_set_writer_id_and_recursion_flag(
 /*=====================================*/
 	rw_lock_t*	lock,		/*!< in/out: lock to work on */
-	bool		recursive)	/*!< in: true if recursion
+	bool		recursive,	/*!< in: true if recursion
 					allowed */
+	const os_thread_id_t curr_thread)/*!< in: current thread id */
 {
-	os_thread_id_t	curr_thread	= os_thread_get_curr_id();
-
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
 	os_thread_id_t	local_thread;
 	ibool		success;
@@ -455,6 +454,8 @@ rw_lock_x_lock_func_nowait(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
+	const os_thread_id_t curr_thread = os_thread_get_curr_id();
+
 	ibool success;
 
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
@@ -471,11 +472,11 @@ rw_lock_x_lock_func_nowait(
 
 #endif
 	if (success) {
-		rw_lock_set_writer_id_and_recursion_flag(lock, true);
+		rw_lock_set_writer_id_and_recursion_flag(lock, true,
+							 curr_thread);
 
 	} else if (lock->recursive
-		   && os_thread_eq(lock->writer_thread,
-				   os_thread_get_curr_id())) {
+		   && os_thread_eq(lock->writer_thread, curr_thread)) {
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */
@@ -890,8 +891,8 @@ directly this function!
 @return TRUE if success */
 UNIV_INLINE
 ibool
-pfs_rw_lock_sx_lock_low(
-/*====================*/
+pfs_rw_lock_sx_lock_func_nowait(
+/*============================*/
 	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
 	ulint		pass,	/*!< in: pass value; != 0, if the
 				lock will be passed to another
@@ -912,14 +913,14 @@ pfs_rw_lock_sx_lock_low(
 			PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK,
 			file_name, static_cast<uint>(line));
 
-		ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
+		ret = rw_lock_sx_lock_func_nowait(lock, pass, file_name, line);
 
 		if (locker != NULL) {
 			PSI_RWLOCK_CALL(end_rwlock_rdwait)(
 				locker, static_cast<int>(ret));
 		}
 	} else {
-		ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
+		ret = rw_lock_sx_lock_func_nowait(lock, pass, file_name, line);
 	}
 
 	return(ret);

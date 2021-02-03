@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -617,11 +617,11 @@ bool Trigger_loader::load_triggers(THD *thd,
 
   if (trg.definitions.is_empty())
   {
-    DBUG_ASSERT(trg.sql_modes.is_empty());
-    DBUG_ASSERT(trg.definers_list.is_empty());
-    DBUG_ASSERT(trg.client_cs_names.is_empty());
-    DBUG_ASSERT(trg.connection_cl_names.is_empty());
-    DBUG_ASSERT(trg.db_cl_names.is_empty());
+    assert(trg.sql_modes.is_empty());
+    assert(trg.definers_list.is_empty());
+    assert(trg.client_cs_names.is_empty());
+    assert(trg.connection_cl_names.is_empty());
+    assert(trg.db_cl_names.is_empty());
     DBUG_RETURN(false);
   }
 

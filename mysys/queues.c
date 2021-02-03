@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -221,7 +221,7 @@ void delete_queue(QUEUE *queue)
 void queue_insert(QUEUE *queue, uchar *element)
 {
   uint idx, next;
-  DBUG_ASSERT(queue->elements < queue->max_elements);
+  assert(queue->elements < queue->max_elements);
   queue->root[0]= element;
   idx= ++queue->elements;
   /* max_at_top swaps the comparison if we want to order by desc */
@@ -244,7 +244,7 @@ uchar *queue_remove(QUEUE *queue, uint idx)
   uchar *element;
   my_bool use_downheap;
 
-  DBUG_ASSERT(idx < queue->max_elements);
+  assert(idx < queue->max_elements);
   /*
     If we remove the top element in the queue, we use _downheap else queue_fix
     to maintain the heap property.
@@ -663,7 +663,7 @@ static my_bool is_tree_heap(uint index, QUEUE *queue)
 }
 
 // Check if queue is a valid heap
-static my_bool is_queue_valid(QUEUE *queue)
+my_bool is_queue_valid(QUEUE *queue)
 {
   unsigned i;
 

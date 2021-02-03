@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -333,7 +333,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     DBUG_RETURN(TRUE);
 
   /* At create, one of them must be set */
-  DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
+  assert(parse_data->expression || parse_data->execute_at);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, NULL, NULL, 0, 0))
     DBUG_RETURN(TRUE);
@@ -392,7 +392,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     if (!dropped)
     {
       /* Binlog the create event. */
-      DBUG_ASSERT(thd->query().str && thd->query().length);
+      assert(thd->query().str && thd->query().length);
       String log_query;
       if (create_query_string(thd, &log_query))
       {
@@ -412,7 +412,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     }
   }
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   thd->variables.binlog_format= save_binlog_format;
@@ -545,7 +545,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     }
 
     /* Binlog the alter event. */
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
     if (new_dbname)
@@ -554,7 +554,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     ret|= write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   thd->variables.binlog_format= save_binlog_format;
@@ -608,7 +608,7 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     if (event_queue)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
-    DBUG_ASSERT(thd->query().str && thd->query().length);
+    assert(thd->query().str && thd->query().length);
 
     thd->add_to_binlog_accessed_dbs(dbname.str);
     ret= write_bin_log(thd, TRUE, thd->query().str, thd->query().length);
@@ -804,7 +804,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */)
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     db= thd->lex->select_lex->db;
-    DBUG_ASSERT(db != NULL);
+    assert(db != NULL);
     /*
       Nobody has EVENT_ACL for I_S and P_S,
       even with a GRANT ALL to *.*,
@@ -923,8 +923,8 @@ Events::init(my_bool opt_noacl_or_bootstrap)
     goto end;
 
 
-  DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
-              opt_event_scheduler == Events::EVENTS_OFF);
+  assert(opt_event_scheduler == Events::EVENTS_ON ||
+         opt_event_scheduler == Events::EVENTS_OFF);
 
   if (!(event_queue= new Event_queue) ||
       !(scheduler= new Event_scheduler(event_queue)))

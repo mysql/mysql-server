@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ int my_copy(const char *from, const char *to, myf MyFlags)
 
   from_file=to_file= -1;
   memset(&new_stat_buff, 0, sizeof(MY_STAT));
-  DBUG_ASSERT(!(MyFlags & (MY_FNABP | MY_NABP))); /* for my_read/my_write */
+  assert(!(MyFlags & (MY_FNABP | MY_NABP))); /* for my_read/my_write */
   if (MyFlags & MY_HOLD_ORIGINAL_MODES)		/* Copy stat if possible */
     new_file_stat= MY_TEST(my_stat((char*) to, &new_stat_buff, MYF(0)));
 

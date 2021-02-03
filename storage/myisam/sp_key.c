@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,10 +64,10 @@ uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
     uint length = keyseg->length, start= keyseg->start;
     double val;
 
-    DBUG_ASSERT(length == sizeof(double));
-    DBUG_ASSERT(!(start % sizeof(double)));
-    DBUG_ASSERT(start < sizeof(mbr));
-    DBUG_ASSERT(keyseg->type == HA_KEYTYPE_DOUBLE);
+    assert(length == sizeof(double));
+    assert(!(start % sizeof(double)));
+    assert(start < sizeof(mbr));
+    assert(keyseg->type == HA_KEYTYPE_DOUBLE);
     
     val= mbr[start / sizeof (double)];
     if (my_isnan(val))

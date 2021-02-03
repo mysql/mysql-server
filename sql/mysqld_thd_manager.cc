@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,8 +132,8 @@ Global_THD_manager::Global_THD_manager()
 Global_THD_manager::~Global_THD_manager()
 {
   thread_ids.erase_unique(reserved_thread_id);
-  DBUG_ASSERT(thd_list.empty());
-  DBUG_ASSERT(thread_ids.empty());
+  assert(thd_list.empty());
+  assert(thread_ids.empty());
   mysql_mutex_destroy(&LOCK_thd_list);
   mysql_mutex_destroy(&LOCK_thd_remove);
   mysql_mutex_destroy(&LOCK_thread_ids);
@@ -164,7 +164,7 @@ void Global_THD_manager::add_thd(THD *thd)
 {
   DBUG_PRINT("info", ("Global_THD_manager::add_thd %p", thd));
   // Should have an assigned ID before adding to the list.
-  DBUG_ASSERT(thd->thread_id() != reserved_thread_id);
+  assert(thd->thread_id() != reserved_thread_id);
   mysql_mutex_lock(&LOCK_thd_list);
   // Technically it is not supported to compare pointers, but it works.
   std::pair<THD_array::iterator, bool> insert_result=
@@ -174,7 +174,7 @@ void Global_THD_manager::add_thd(THD *thd)
     ++global_thd_count;
   }
   // Adding the same THD twice is an error.
-  DBUG_ASSERT(insert_result.second);
+  assert(insert_result.second);
   mysql_mutex_unlock(&LOCK_thd_list);
 }
 
@@ -186,7 +186,7 @@ void Global_THD_manager::remove_thd(THD *thd)
   mysql_mutex_lock(&LOCK_thd_list);
 
   if (!unit_test)
-    DBUG_ASSERT(thd->release_resources_done());
+    assert(thd->release_resources_done());
 
   /*
     Used by binlog_reset_master.  It would be cleaner to use
@@ -199,7 +199,7 @@ void Global_THD_manager::remove_thd(THD *thd)
   if (num_erased == 1)
     --global_thd_count;
   // Removing a THD that was never added is an error.
-  DBUG_ASSERT(1 == num_erased);
+  assert(1 == num_erased);
   mysql_mutex_unlock(&LOCK_thd_remove);
   mysql_cond_broadcast(&COND_thd_list);
   mysql_mutex_unlock(&LOCK_thd_list);
@@ -225,13 +225,13 @@ void Global_THD_manager::release_thread_id(my_thread_id thread_id)
   const size_t num_erased MY_ATTRIBUTE((unused))=
     thread_ids.erase_unique(thread_id);
   // Assert if the ID was not found in the list.
-  DBUG_ASSERT(1 == num_erased);
+  assert(1 == num_erased);
 }
 
 
 void Global_THD_manager::set_thread_id_counter(my_thread_id new_id)
 {
-  DBUG_ASSERT(unit_test == true);
+  assert(unit_test == true);
   Mutex_lock lock(&LOCK_thread_ids);
   thread_id_counter= new_id;
 }

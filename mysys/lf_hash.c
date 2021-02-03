@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -279,8 +279,8 @@ static LF_SLIST *linsert(LF_SLIST * volatile *head, CHARSET_INFO *cs,
     else
     {
       node->link= (intptr)cursor.curr;
-      DBUG_ASSERT(node->link != (intptr)node); /* no circular references */
-      DBUG_ASSERT(cursor.prev != &node->link); /* no circular references */
+      assert(node->link != (intptr)node); /* no circular references */
+      assert(cursor.prev != &node->link); /* no circular references */
       if (my_atomic_casptr((void **)cursor.prev, (void **)&cursor.curr, node))
       {
         res= 1; /* inserted ok */
@@ -457,7 +457,7 @@ void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
   hash->get_key= get_key;
   hash->hash_function= hash_function ? hash_function : cset_hash_sort_adapter;
   hash->initialize= init;
-  DBUG_ASSERT(get_key ? !key_offset && !key_length : key_length);
+  assert(get_key ? !key_offset && !key_length : key_length);
 }
 
 void lf_hash_destroy(LF_HASH *hash)

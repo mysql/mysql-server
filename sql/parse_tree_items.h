@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,7 +346,7 @@ public:
 #endif
       {
         builder= find_qualified_function_builder(thd);
-        DBUG_ASSERT(builder);
+        assert(builder);
         *res= builder->create_func(thd, ident, opt_udf_expr_list);
       }
     }
@@ -400,7 +400,7 @@ public:
       return true;
 
     Create_qfunc *builder= find_qualified_function_builder(pc->thd);
-    DBUG_ASSERT(builder);
+    assert(builder);
     *res= builder->create(pc->thd, db, func, true, opt_expr_list);
     return *res == NULL || (*res)->itemize(pc, res);
   }
@@ -500,7 +500,7 @@ public:
       return true;
 
     uint repertoire= is_7bit ? MY_REPERTOIRE_ASCII : MY_REPERTOIRE_UNICODE30;
-    DBUG_ASSERT(my_charset_is_ascii_based(national_charset_info));
+    assert(my_charset_is_ascii_based(national_charset_info));
     init(literal.str, literal.length, national_charset_info,
          DERIVATION_COERCIBLE, repertoire);
     return false;
@@ -554,7 +554,7 @@ public:
     if (super::itemize(pc, res) || head->itemize(pc, &tmp_head))
       return true;
 
-    DBUG_ASSERT(tmp_head->type() == STRING_ITEM);
+    assert(tmp_head->type() == STRING_ITEM);
     Item_string *head_str= static_cast<Item_string *>(tmp_head);
 
     head_str->append(literal.str, literal.length);
@@ -1018,7 +1018,7 @@ public:
       parameter with "this" pointer of Item_param object, so we can skip
       the check and the assignment.
     */
-    DBUG_ASSERT(tmp_param == param_marker);
+    assert(tmp_param == param_marker);
 
     param_marker->limit_clause_param= true;
     *res= param_marker;
@@ -1048,9 +1048,9 @@ public:
       return true;
 
     // Ensure we're resetting parsing place of the right select
-    DBUG_ASSERT(pc->select->parsing_place == Context);
+    assert(pc->select->parsing_place == Context);
     pc->select->parsing_place= CTX_NONE;
-    DBUG_ASSERT(expr != NULL);
+    assert(expr != NULL);
     expr->top_level_item();
 
     *res= expr;

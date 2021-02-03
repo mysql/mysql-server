@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -173,13 +173,13 @@ struct PFS_instr_class
 
   bool is_progress() const
   {
-    DBUG_ASSERT(m_type == PFS_CLASS_STAGE);
+    assert(m_type == PFS_CLASS_STAGE);
     return m_flags & PSI_FLAG_STAGE_PROGRESS;
   }
 
   bool is_shared_exclusive() const
   {
-    DBUG_ASSERT(m_type == PFS_CLASS_RWLOCK);
+    assert(m_type == PFS_CLASS_RWLOCK);
     return m_flags & PSI_RWLOCK_FLAG_SX;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,8 +126,8 @@ void Keys_container::allocate_and_set_data_for_key(IKey *key,
 
 IKey*Keys_container::fetch_key(IKey *key)
 {
-  DBUG_ASSERT(key->get_key_data() == NULL);
-  DBUG_ASSERT(key->get_key_type()->empty());
+  assert(key->get_key_data() == NULL);
+  assert(key->get_key_type()->empty());
 
   IKey *fetched_key= get_key_from_hash(key);
 

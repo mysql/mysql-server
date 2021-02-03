@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,9 +70,9 @@ static uchar *program_hash_get_key(const uchar *entry, size_t *length,
   const PFS_program *program;
   const void *result;
   typed_entry= reinterpret_cast<const PFS_program* const *> (entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != NULL);
   program= *typed_entry;
-  DBUG_ASSERT(program != NULL);
+  assert(program != NULL);
   *length= program->m_key.m_key_length;
   result= program->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
@@ -109,8 +109,8 @@ static void set_program_key(PFS_program_key *key,
                             const char *object_name, uint object_name_length,
                             const char *schema_name, uint schema_name_length)
 {
-  DBUG_ASSERT(object_name_length <= COL_OBJECT_NAME_SIZE);
-  DBUG_ASSERT(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
+  assert(object_name_length <= COL_OBJECT_NAME_SIZE);
+  assert(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
 
   /*
     To make sure generated key is case insensitive,

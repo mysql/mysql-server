@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,9 +71,9 @@ static uchar *user_hash_get_key(const uchar *entry, size_t *length,
   const PFS_user *user;
   const void *result;
   typed_entry= reinterpret_cast<const PFS_user* const *> (entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != NULL);
   user= *typed_entry;
-  DBUG_ASSERT(user != NULL);
+  assert(user != NULL);
   *length= user->m_key.m_key_length;
   result= user->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
@@ -119,7 +119,7 @@ static LF_PINS* get_user_hash_pins(PFS_thread *thread)
 static void set_user_key(PFS_user_key *key,
                          const char *user, uint user_length)
 {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
+  assert(user_length <= USERNAME_LENGTH);
 
   char *ptr= &key->m_hash_key[0];
   if (user_length > 0)
@@ -293,7 +293,7 @@ void purge_user(PFS_thread *thread, PFS_user *user)
                     user->m_key.m_hash_key, user->m_key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    DBUG_ASSERT(*entry == user);
+    assert(*entry == user);
     if (user->get_refcount() == 0)
     {
       lf_hash_delete(&user_hash, pins,

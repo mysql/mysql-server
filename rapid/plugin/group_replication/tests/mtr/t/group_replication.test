@@ -48,8 +48,9 @@ SET GLOBAL group_replication_group_name= "8a94f357-aab4-11df-86ab-invalid";
 # Also it checks the shutdown hook that is provided as a part of WL#6821.
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
---let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1
---replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_bootstrap_group=1 --group_replication_ip_whitelist=$_group_replication_group_whitelist
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
 --source include/restart_mysqld.inc
 
 # After the server restart the group name is again set to NULL which will

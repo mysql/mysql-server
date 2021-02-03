@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,12 +182,12 @@ static void insert_offset_or_size(String *dest, size_t pos,
   char *to= const_cast<char*>(dest->ptr()) + pos;
   if (large)
   {
-    DBUG_ASSERT(pos + LARGE_OFFSET_SIZE <= dest->alloced_length());
+    assert(pos + LARGE_OFFSET_SIZE <= dest->alloced_length());
     int4store(to, static_cast<uint32>(offset_or_size));
   }
   else
   {
-    DBUG_ASSERT(pos + SMALL_OFFSET_SIZE <= dest->alloced_length());
+    assert(pos + SMALL_OFFSET_SIZE <= dest->alloced_length());
     int2store(to, static_cast<uint16>(offset_or_size));
   }
 }
@@ -500,7 +500,7 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
   size_t offset= dest->length() +
     size * (key_entry_size + value_entry_size) - start_pos;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const std::string *prev_key= NULL;
 #endif
 
@@ -511,13 +511,13 @@ serialize_json_object(const Json_object *object, String *dest, bool large,
     const std::string *key= &it->first;
     size_t len= key->length();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Check that the DOM returns the keys in the correct order.
     if (prev_key)
     {
-      DBUG_ASSERT(prev_key->length() <= len);
+      assert(prev_key->length() <= len);
       if (len == prev_key->length())
-        DBUG_ASSERT(memcmp(prev_key->data(), key->data(), len) < 0);
+        assert(memcmp(prev_key->data(), key->data(), len) < 0);
     }
     prev_key= key;
 #endif
@@ -597,7 +597,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
                      size_t depth, bool small_parent)
 {
   const size_t start_pos= dest->length();
-  DBUG_ASSERT(type_pos < start_pos);
+  assert(type_pos < start_pos);
 
   enum_serialization_result result;
 
@@ -804,8 +804,8 @@ Value::Value(enum_type t)
   : m_type(t), m_field_type(), m_data(), m_element_count(), m_length(),
     m_int_value(), m_double_value(), m_large()
 {
-  DBUG_ASSERT(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
-              t == ERROR);
+  assert(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
+         t == ERROR);
 }
 
 
@@ -814,7 +814,7 @@ Value::Value(enum_type t, int64 val)
   : m_type(t), m_field_type(), m_data(), m_element_count(), m_length(),
     m_int_value(val), m_double_value(), m_large()
 {
-  DBUG_ASSERT(t == INT || t == UINT);
+  assert(t == INT || t == UINT);
 }
 
 
@@ -838,7 +838,7 @@ Value::Value(enum_type t, const char *data, size_t bytes,
   : m_type(t), m_field_type(), m_data(data), m_element_count(element_count),
     m_length(bytes), m_int_value(), m_double_value(), m_large(large)
 {
-  DBUG_ASSERT(t == ARRAY || t == OBJECT);
+  assert(t == ARRAY || t == OBJECT);
 }
 
 
@@ -902,7 +902,7 @@ bool Value::is_valid() const
 */
 const char *Value::get_data() const
 {
-  DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
+  assert(m_type == STRING || m_type == OPAQUE);
   return m_data;
 }
 
@@ -913,7 +913,7 @@ const char *Value::get_data() const
 */
 size_t Value::get_data_length() const
 {
-  DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
+  assert(m_type == STRING || m_type == OPAQUE);
   return m_length;
 }
 
@@ -923,7 +923,7 @@ size_t Value::get_data_length() const
 */
 int64 Value::get_int64() const
 {
-  DBUG_ASSERT(m_type == INT);
+  assert(m_type == INT);
   return m_int_value;
 }
 
@@ -933,7 +933,7 @@ int64 Value::get_int64() const
 */
 uint64 Value::get_uint64() const
 {
-  DBUG_ASSERT(m_type == UINT);
+  assert(m_type == UINT);
   return static_cast<uint64>(m_int_value);
 }
 
@@ -943,7 +943,7 @@ uint64 Value::get_uint64() const
 */
 double Value::get_double() const
 {
-  DBUG_ASSERT(m_type == DOUBLE);
+  assert(m_type == DOUBLE);
   return m_double_value;
 }
 
@@ -954,7 +954,7 @@ double Value::get_double() const
 */
 size_t Value::element_count() const
 {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  assert(m_type == ARRAY || m_type == OBJECT);
   return m_element_count;
 }
 
@@ -965,7 +965,7 @@ size_t Value::element_count() const
 */
 enum_field_types Value::field_type() const
 {
-  DBUG_ASSERT(m_type == OPAQUE);
+  assert(m_type == OPAQUE);
   return m_field_type;
 }
 
@@ -1104,7 +1104,7 @@ static size_t read_offset_or_size(const char *data, bool large)
 static Value parse_array_or_object(Value::enum_type t, const char *data,
                                    size_t len, bool large)
 {
-  DBUG_ASSERT(t == Value::ARRAY || t == Value::OBJECT);
+  assert(t == Value::ARRAY || t == Value::OBJECT);
 
   /*
     Make sure the document is long enough to contain the two length fields
@@ -1189,7 +1189,7 @@ Value parse_binary(const char *data, size_t len)
 */
 Value Value::element(size_t pos) const
 {
-  DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
+  assert(m_type == ARRAY || m_type == OBJECT);
 
   if (pos >= m_element_count)
     return err();
@@ -1243,7 +1243,7 @@ Value Value::element(size_t pos) const
 */
 Value Value::key(size_t pos) const
 {
-  DBUG_ASSERT(m_type == OBJECT);
+  assert(m_type == OBJECT);
 
   if (pos >= m_element_count)
     return err();
@@ -1287,7 +1287,7 @@ Value Value::key(size_t pos) const
 */
 Value Value::lookup(const char *key, size_t len) const
 {
-  DBUG_ASSERT(m_type == OBJECT);
+  assert(m_type == OBJECT);
 
   const size_t offset_size=
     (m_large ? LARGE_OFFSET_SIZE : SMALL_OFFSET_SIZE);

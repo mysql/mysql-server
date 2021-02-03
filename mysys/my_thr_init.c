@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 
 static my_bool THR_KEY_mysys_initialized= FALSE;
 static my_bool my_thread_global_init_done= FALSE;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static uint    THR_thread_count= 0;
 static uint    my_thread_end_wait_time= 5;
 static my_thread_id thread_id= 0;
@@ -53,7 +53,7 @@ mysql_mutex_t THR_LOCK_malloc, THR_LOCK_open,
               THR_LOCK_lock, THR_LOCK_myisam, THR_LOCK_heap,
               THR_LOCK_net, THR_LOCK_charset,
               THR_LOCK_myisam_mmap;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 mysql_mutex_t THR_LOCK_threads;
 mysql_cond_t  THR_COND_threads;
 #endif
@@ -68,7 +68,7 @@ native_mutexattr_t my_errorcheck_mutexattr;
 static void install_sigabrt_handler();
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 struct st_my_thread_var
 {
   my_thread_id id;
@@ -77,14 +77,14 @@ struct st_my_thread_var
 
 static struct st_my_thread_var *mysys_thread_var()
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
+  assert(THR_KEY_mysys_initialized);
   return  (struct st_my_thread_var*)my_get_thread_local(THR_KEY_mysys);
 }
 
 
 static int set_mysys_thread_var(struct st_my_thread_var *mysys_var)
 {
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
+  assert(THR_KEY_mysys_initialized);
   return my_set_thread_local(THR_KEY_mysys, mysys_var);
 }
 #endif
@@ -101,7 +101,7 @@ static int set_mysys_thread_var(struct st_my_thread_var *mysys_var)
 
 void my_thread_global_reinit()
 {
-  DBUG_ASSERT(my_thread_global_init_done);
+  assert(my_thread_global_init_done);
 
 #ifdef HAVE_PSI_INTERFACE
   my_init_mysys_psi_keys();
@@ -125,7 +125,7 @@ void my_thread_global_reinit()
   mysql_mutex_destroy(&THR_LOCK_charset);
   mysql_mutex_init(key_THR_LOCK_charset, &THR_LOCK_charset, MY_MUTEX_INIT_FAST);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mysql_mutex_destroy(&THR_LOCK_threads);
   mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
 
@@ -178,8 +178,8 @@ my_bool my_thread_global_init()
                             PTHREAD_MUTEX_ERRORCHECK);
 #endif
 
-  DBUG_ASSERT(! THR_KEY_mysys_initialized);
-#ifndef DBUG_OFF
+  assert(! THR_KEY_mysys_initialized);
+#ifndef NDEBUG
   if ((pth_ret= my_create_thread_local_key(&THR_KEY_mysys, NULL)) != 0)
   { /* purecov: begin inspected */
     my_message_local(ERROR_LEVEL, "Can't initialize threads: error %d",
@@ -214,7 +214,7 @@ my_bool my_thread_global_init()
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_THR_COND_threads, &THR_COND_threads);
 #endif
@@ -225,7 +225,7 @@ my_bool my_thread_global_init()
 
 void my_thread_global_end()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   struct timespec abstime;
   my_bool all_threads_killed= TRUE;
 
@@ -256,8 +256,8 @@ void my_thread_global_end()
   mysql_mutex_unlock(&THR_LOCK_threads);
 #endif
 
-  DBUG_ASSERT(THR_KEY_mysys_initialized);
-#ifndef DBUG_OFF
+  assert(THR_KEY_mysys_initialized);
+#ifndef NDEBUG
   my_delete_thread_local_key(THR_KEY_mysys);
 #endif
   my_delete_thread_local_key(THR_KEY_myerrno);
@@ -279,7 +279,7 @@ void my_thread_global_end()
   mysql_mutex_destroy(&THR_LOCK_heap);
   mysql_mutex_destroy(&THR_LOCK_net);
   mysql_mutex_destroy(&THR_LOCK_charset);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (all_threads_killed)
   {
     mysql_mutex_destroy(&THR_LOCK_threads);
@@ -303,7 +303,7 @@ void my_thread_global_end()
 
 my_bool my_thread_init()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   struct st_my_thread_var *tmp;
 #endif
 
@@ -314,7 +314,7 @@ my_bool my_thread_init()
   install_sigabrt_handler();
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (mysys_thread_var())
     return FALSE;
 
@@ -342,7 +342,7 @@ my_bool my_thread_init()
 
 void my_thread_end()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   struct st_my_thread_var *tmp= mysys_thread_var();
 #endif
 
@@ -355,7 +355,7 @@ void my_thread_end()
   PSI_THREAD_CALL(delete_current_thread)();
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   if (tmp)
   {
     /* tmp->dbug is allocated inside DBUG library */
@@ -374,7 +374,7 @@ void my_thread_end()
       my_thread_init() and DBUG_xxxx
     */
     mysql_mutex_lock(&THR_LOCK_threads);
-    DBUG_ASSERT(THR_thread_count != 0);
+    assert(THR_thread_count != 0);
     if (--THR_thread_count == 0)
       mysql_cond_signal(&THR_COND_threads);
     mysql_mutex_unlock(&THR_LOCK_threads);
@@ -416,7 +416,7 @@ void set_thr_winerr(int winerr)
 #endif
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 my_thread_id my_thread_var_id()
 {
   return mysys_thread_var()->id;
@@ -433,7 +433,7 @@ struct _db_code_state_ **my_thread_var_dbug()
 {
   struct st_my_thread_var *tmp;
   /*
-    Instead of enforcing DBUG_ASSERT(THR_KEY_mysys_initialized) here,
+    Instead of enforcing assert(THR_KEY_mysys_initialized) here,
     which causes any DBUG_ENTER and related traces to fail when
     used in init / cleanup code, we are more tolerant:
     using DBUG_ENTER / DBUG_PRINT / DBUG_RETURN
@@ -444,7 +444,7 @@ struct _db_code_state_ **my_thread_var_dbug()
   tmp= mysys_thread_var();
   return tmp ? &tmp->dbug : NULL;
 }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 
 #ifdef _WIN32

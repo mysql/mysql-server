@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -115,7 +115,7 @@ public:
       first= new_item;
     if (last != NULL)
     {
-      DBUG_ASSERT(last->next == NULL);
+      assert(last->next == NULL);
       last->next= new_item;
     }
     new_item->previous= last;
@@ -151,7 +151,7 @@ public:
 
   bool is_empty()
   {
-    DBUG_ASSERT(((elements > 0) && (first != NULL)) || ((elements == 0) || (first == NULL)));
+    assert(((elements > 0) && (first != NULL)) || ((elements == 0) || (first == NULL)));
     return (elements == 0);
   }
 

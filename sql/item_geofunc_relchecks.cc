@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ const char *Item_func_spatial_mbr_rel::func_name() const
     case SP_COVEREDBY_FUNC:
       return "mbrcoveredby";
     default:
-      DBUG_ASSERT(0);  // Should never happened
+      assert(0);  // Should never happened
       return "mbrsp_unknown";
   }
 }
@@ -69,7 +69,7 @@ const char *Item_func_spatial_mbr_rel::func_name() const
 
 longlong Item_func_spatial_mbr_rel::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res1= args[0]->val_str(&cmp.value1);
   String *res2= args[1]->val_str(&cmp.value2);
   Geometry_buffer buffer1, buffer2;
@@ -122,7 +122,7 @@ longlong Item_func_spatial_mbr_rel::val_int()
       ret= mbr1.overlaps(&mbr2);
       break;
     case SP_CROSSES_FUNC:
-      DBUG_ASSERT(false);
+      assert(false);
       ret= 0;
       null_value= true;
       break;
@@ -179,7 +179,7 @@ const char *Item_func_spatial_rel::func_name() const
     case SP_OVERLAPS_FUNC:
       return "st_overlaps";
     default:
-      DBUG_ASSERT(0);  // Should never happened
+      assert(0);  // Should never happened
       return "sp_unknown";
   }
 }
@@ -188,7 +188,7 @@ const char *Item_func_spatial_rel::func_name() const
 longlong Item_func_spatial_rel::val_int()
 {
   DBUG_ENTER("Item_func_spatial_rel::val_int");
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res1= NULL;
   String *res2= NULL;
   Geometry_buffer buffer1, buffer2;
@@ -347,12 +347,12 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2)
   else if (spatial_rel == SP_EQUALS_FUNC)
     tres= geocol_equals_check<Coordsys>(gv1, gv2);
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   /* If doing contains check, need to switch back the two operands. */
   if (tmpg)
   {
-    DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC);
+    assert(spatial_rel == SP_WITHIN_FUNC);
     tmpg= g2;
     g2= g1;
     g1= tmpg;
@@ -381,8 +381,8 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
 {
   int tres= 0;
 
-  DBUG_ASSERT(spatial_rel == SP_DISJOINT_FUNC ||
-              spatial_rel == SP_INTERSECTS_FUNC);
+  assert(spatial_rel == SP_DISJOINT_FUNC ||
+         spatial_rel == SP_INTERSECTS_FUNC);
   const typename BG_geometry_collection::Geometry_list *gv= NULL, *gvr= NULL;
 
   if (gv1->size() > gv2->size())
@@ -456,8 +456,8 @@ geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
     tres can be either true or false for DISJOINT check because the inner
     loop may never executed and tres woule be false.
    */
-  DBUG_ASSERT(spatial_rel == SP_DISJOINT_FUNC ||
-              (!tres && spatial_rel == SP_INTERSECTS_FUNC));
+  assert(spatial_rel == SP_DISJOINT_FUNC ||
+         (!tres && spatial_rel == SP_INTERSECTS_FUNC));
   return tres;
 }
 
@@ -593,7 +593,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
     component of gv1 is within gv2, so in this function we always assume
     with check and and use SP_WITHIN_FUNC.
   */
-  DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC || spatial_rel == SP_EQUALS_FUNC);
+  assert(spatial_rel == SP_WITHIN_FUNC || spatial_rel == SP_EQUALS_FUNC);
 
   // Within isn't symetric so we have to always build rtree tndex on gv2.
   Rtree_index rtree;
@@ -720,7 +720,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
      */
     if (!innerOK)
     {
-      DBUG_ASSERT(tres == 0);
+      assert(tres == 0);
       return tres;
     }
   }
@@ -732,7 +732,7 @@ geocol_relcheck_within(const typename BG_geometry_collection::
     within and equals are true only when any(and every) combination of
     geometries from the two collections are true for the relation check.
    */
-  DBUG_ASSERT(tres);
+  assert(tres);
 
   return tres;
 }
@@ -752,7 +752,7 @@ geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
                     const typename BG_geometry_collection::Geometry_list *gv2)
 {
   int tres= 0, num_try= 0;
-  DBUG_ASSERT(spatial_rel == SP_EQUALS_FUNC);
+  assert(spatial_rel == SP_EQUALS_FUNC);
 
   do
   {
@@ -810,7 +810,7 @@ int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
     result= BG_wrap<Geom_types>::
       multipolygon_within_geometry(g1, g2, pnull_value);
   else
-    DBUG_ASSERT(false);
+    assert(false);
   return result;
 }
 
@@ -947,7 +947,7 @@ int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
       multipolygon_disjoint_geometry(g1, g2, pnull_value);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -1010,7 +1010,7 @@ int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
       multipolygon_intersects_geometry(g1, g2, pnull_value);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
   /*
@@ -1081,7 +1081,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
       BGCALL(result, overlaps, Linestring, g1, Multilinestring, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
     break;
@@ -1097,7 +1097,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
       BGCALL(result, overlaps, Multilinestring, g1, Multilinestring, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
     break;
@@ -1113,7 +1113,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
       BGCALL(result, overlaps, Polygon, g1, Multipolygon, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
     break;
@@ -1129,13 +1129,13 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
       BGCALL(result, overlaps, Multipolygon, g1, Multipolygon, g2, pnull_value);
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
     break;
   }
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -1207,7 +1207,7 @@ int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
       multipolygon_touches_geometry(g1, g2, pnull_value);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
   return result;
@@ -1265,7 +1265,7 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
       multilinestring_crosses_geometry(g1, g2, pnull_value);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -1334,7 +1334,7 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
     result= crosses_check<Geom_types>(g1, g2, pnull_value);
     break;
   default:
-    DBUG_ASSERT(FALSE);
+    assert(FALSE);
     break;
   }
 

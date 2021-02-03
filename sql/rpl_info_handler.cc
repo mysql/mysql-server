@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ const char* Rpl_info_handler::get_rpl_info_type_str()
   case INFO_REPOSITORY_TABLE:  return "TABLE";
   }
 
-  DBUG_ASSERT(0);
+  assert(0);
   return "";
 }
 

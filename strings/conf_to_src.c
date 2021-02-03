@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ static int my_read_charset_file(const char *filename)
   }
   
   len=read(fd,buf,MAX_BUF);
-  DBUG_ASSERT(len < MAX_BUF);
+  assert(len < MAX_BUF);
   close(fd);
   
   if (my_parse_charset_xml(&loader, buf, len))
@@ -285,7 +285,7 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.\n"
+"/* Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License, version 2.0,\n"

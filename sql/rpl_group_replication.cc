@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -363,7 +363,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 {
   global_sid_lock->wrlock();
 
-  DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) > 0);
+  assert(get_gtid_mode(GTID_MODE_LOCK_SID) > 0);
 
   const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();
   *length= executed_gtids->get_encoded_length();
@@ -380,7 +380,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
   return false;
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
                                  size_t length)
 {

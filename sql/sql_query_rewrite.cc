@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,8 +69,8 @@ void invoke_pre_parse_rewrite_plugins(THD *thd)
   {
     // It is a rewrite fulltext plugin and we need a rewrite we must have
     // generated a new query then.
-    DBUG_ASSERT(rewritten_query.str != NULL &&
-                rewritten_query.length > 0);
+    assert(rewritten_query.str != NULL &&
+           rewritten_query.length > 0);
     raise_query_rewritten_note(thd, thd->query().str, rewritten_query.str);
     alloc_query(thd, rewritten_query.str, rewritten_query.length);
     thd->m_parser_state->init(thd, thd->query().str, thd->query().length);
@@ -118,19 +118,19 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
        We have to call a function in rules_table_service.cc, or the service
        won't be visible to plugins.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int dummy= 
 #endif
       rules_table_service::
       dummy_function_to_ensure_we_are_linked_into_the_server();
-    DBUG_ASSERT(dummy == 1);
+    assert(dummy == 1);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     dummy=
 #endif
       ssl_wrappe_service::
       dummy_function_to_ensure_we_are_linked_into_the_server();
-    DBUG_ASSERT(dummy == 1);
+    assert(dummy == 1);
   }
 
   mysql_event_parse_rewrite_plugin_flag flags=

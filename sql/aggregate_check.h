@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -491,11 +491,11 @@ class Item_tree_walker
 {
 protected:
   Item_tree_walker() : stopped_at_item(NULL) {}
-  ~Item_tree_walker() { DBUG_ASSERT(!stopped_at_item); }
+  ~Item_tree_walker() { assert(!stopped_at_item); }
 
   /// Stops walking children of this item
   void stop_at(const Item *i)
-  { DBUG_ASSERT(!stopped_at_item); stopped_at_item= i; }
+  { assert(!stopped_at_item); stopped_at_item= i; }
 
   /**
      @returns if we are stopped. If item 'i' is where we stopped, restarts the
@@ -661,7 +661,7 @@ private:
     group_in_fd(0ULL), m_root(root), fd(root), whole_tables_fd(0),
     mat_tables(root)
     {
-      DBUG_ASSERT(table);
+      assert(table);
     }
   bool check_expression(THD *thd, Item *expr, bool in_select_list);
   /// Shortcut for common use of Item::local_column()

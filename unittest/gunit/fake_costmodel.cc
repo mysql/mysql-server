@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_CC_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ const SE_cost_constants
 *Cost_model_constants::get_se_cost_constants(const TABLE *table) const
 {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
   return NULL;
 }
 /* purecov: end */
@@ -55,7 +55,7 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
                                            bool default_value)
 {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
   return COST_CONSTANT_OK;
 }
 /* purecov: end */
@@ -64,7 +64,7 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING &name,
 Cost_model_se_info::~Cost_model_se_info()
 {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
 }
 /* purecov: end */
 
@@ -72,7 +72,7 @@ Cost_model_se_info::~Cost_model_se_info()
 Cost_model_constants::~Cost_model_constants()
 {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
 }
 /* purecov: end */
 
@@ -81,7 +81,7 @@ uint Cost_model_constants::find_handler_slot_from_name(THD *thd,
                                            const LEX_CSTRING &name) const
 {
   // This is only implemented in order to link the unit tests
-  DBUG_ASSERT(false);
+  assert(false);
   return 0;
 }
 /* purecov: end */

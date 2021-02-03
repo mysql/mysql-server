@@ -80,13 +80,25 @@ SET SESSION sql_log_bin= 1;
 --source include/rpl_connection.inc
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET @ip_whitelist= @@GLOBAL.group_replication_ip_whitelist;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET @ip_whitelist= @@GLOBAL.group_replication_ip_whitelist;
 
 # Clear XCom configuration on all servers.
 --source ../inc/gr_clear_configuration.inc
+
+SET GLOBAL group_replication_ip_whitelist= @ip_whitelist;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_ip_whitelist= @ip_whitelist;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 
 --echo #######################################################
 --echo #  1. Try setting bootstrap_group variable with invalid

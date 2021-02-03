@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,7 @@ void Gcs_xcom_state_exchange::reset_with_flush()
 
 void Gcs_xcom_state_exchange::reset()
 {
-  Gcs_xcom_communication_interface *binding_broadcaster=
+  Gcs_xcom_communication_interface *binding_broadcaster MY_ATTRIBUTE((unused)) =
     static_cast<Gcs_xcom_communication_interface *>(m_broadcaster);
   assert(binding_broadcaster->number_buffered_messages() == 0);
 

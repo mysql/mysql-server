@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -589,8 +589,8 @@ public:
       return false;
       /* purecov: end */
     case expect_object_value:
-      DBUG_ASSERT(!m_stack.back().m_elements.empty());
-      DBUG_ASSERT(m_stack.back().m_elements.back().m_value == NULL);
+      assert(!m_stack.back().m_elements.empty());
+      assert(m_stack.back().m_elements.back().m_value == NULL);
       m_stack.back().m_elements.back().m_value= scalar;
       m_state= expect_object_key;
       break;
@@ -648,7 +648,7 @@ public:
         The is_int flag is true only if -0 was seen. Handle it as an
         integer.
       */
-      DBUG_ASSERT(d == 0.0);
+      assert(d == 0.0);
       return Int64(static_cast<int64_t>(d));
     }
     else
@@ -697,8 +697,8 @@ public:
       return false;
       /* purecov: end */
     case expect_object_value:
-      DBUG_ASSERT(!m_stack.back().m_elements.empty());
-      DBUG_ASSERT(m_stack.back().m_elements.back().m_value == NULL);
+      assert(!m_stack.back().m_elements.empty());
+      assert(m_stack.back().m_elements.back().m_value == NULL);
       m_stack.back().m_elements.back().m_value=
         new (std::nothrow) Json_string(std::string(str, length));
       m_state= expect_object_key;
@@ -1246,7 +1246,7 @@ Json_dom *Json_object::get(const std::string &key) const
 
   if (iter != m_map.end())
   {
-    DBUG_ASSERT(iter->second->parent() == this);
+    assert(iter->second->parent() == this);
     return iter->second;
   }
 
@@ -1679,7 +1679,7 @@ int Json_decimal::binary_size() const
 
 bool Json_decimal::get_binary(char* dest) const
 {
-  DBUG_ASSERT(binary_size() <= MAX_BINARY_SIZE);
+  assert(binary_size() <= MAX_BINARY_SIZE);
   /*
     my_decimal2binary() loses the precision and the scale, so store them
     in the first two bytes.
@@ -2284,7 +2284,7 @@ enum_field_types Json_wrapper::field_type() const
 
 Json_wrapper_object_iterator Json_wrapper::object_iterator() const
 {
-  DBUG_ASSERT(type() == Json_dom::J_OBJECT);
+  assert(type() == Json_dom::J_OBJECT);
 
   if (m_is_dom)
   {
@@ -2298,7 +2298,7 @@ Json_wrapper_object_iterator Json_wrapper::object_iterator() const
 
 Json_wrapper Json_wrapper::lookup(const char *key, size_t len) const
 {
-  DBUG_ASSERT(type() == Json_dom::J_OBJECT);
+  assert(type() == Json_dom::J_OBJECT);
   if (m_is_dom)
   {
     const Json_object *object= down_cast<const Json_object *>(m_dom_value);
@@ -2313,7 +2313,7 @@ Json_wrapper Json_wrapper::lookup(const char *key, size_t len) const
 
 Json_wrapper Json_wrapper::operator[](size_t index) const
 {
-  DBUG_ASSERT(type() == Json_dom::J_ARRAY);
+  assert(type() == Json_dom::J_ARRAY);
   if (m_is_dom)
   {
     const Json_array *o= down_cast<const Json_array *>(m_dom_value);
@@ -2438,7 +2438,7 @@ const char *Json_wrapper::get_datetime_packed(char *buffer) const
     return buffer;
   }
 
-  DBUG_ASSERT(m_value.get_data_length() == Json_datetime::PACKED_SIZE);
+  assert(m_value.get_data_length() == Json_datetime::PACKED_SIZE);
   return m_value.get_data();
 }
 
@@ -2480,7 +2480,7 @@ Json_path Json_dom::get_location()
   }
   else
   {
-    DBUG_ASSERT(m_parent->json_type() == Json_dom::J_ARRAY);
+    assert(m_parent->json_type() == Json_dom::J_ARRAY);
     Json_array *array= down_cast<Json_array *>(m_parent);
 
     for (size_t idx= 0; idx < array->size(); idx++)
@@ -3046,8 +3046,8 @@ int Json_wrapper::compare(const Json_wrapper &other) const
   const Json_dom::enum_json_type this_type= type();
   const Json_dom::enum_json_type other_type= other.type();
 
-  DBUG_ASSERT(this_type != Json_dom::J_ERROR);
-  DBUG_ASSERT(other_type != Json_dom::J_ERROR);
+  assert(this_type != Json_dom::J_ERROR);
+  assert(other_type != Json_dom::J_ERROR);
 
   // Check if the type tells us which value is bigger.
   int cmp= type_comparison[this_type][other_type];
@@ -3125,8 +3125,8 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         it2.next();
       }
 
-      DBUG_ASSERT(it1.empty());
-      DBUG_ASSERT(it2.empty());
+      assert(it1.empty());
+      assert(it2.empty());
 
       // No differences found. The two objects must be equal.
       return 0;
@@ -3243,7 +3243,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
   case Json_dom::J_DATE:
     // Dates and times can only be equal to values of the same type.
     {
-      DBUG_ASSERT(this_type == other_type);
+      assert(this_type == other_type);
       MYSQL_TIME val_a;
       get_datetime(&val_a);
       MYSQL_TIME val_b;
@@ -3263,7 +3263,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
     return cmp;
   case Json_dom::J_NULL:
     // Null is always equal to other nulls.
-    DBUG_ASSERT(this_type == other_type);
+    assert(this_type == other_type);
     return 0;
   case Json_dom::J_ERROR:
     break;

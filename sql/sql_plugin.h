@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ extern mysql_mutex_t LOCK_plugin_delete;
 #include "sql_cmd.h"
 #include "sql_plugin_ref.h"
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define plugin_ref_to_int(A) A
 #define plugin_int_to_ref(A) A
 #else

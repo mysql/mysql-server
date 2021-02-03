@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -93,7 +93,7 @@ void View_statement_builder::add_algorithm(const Algorithm &algorithm) const {
       break;
 
     default:
-      DBUG_ASSERT("Unknown ALGORITHM type");
+      assert("Unknown ALGORITHM type");
   }
 }
 
@@ -110,7 +110,7 @@ void View_statement_builder::add_sql_security(const Sql_security &security)
       break;
 
     default:
-      DBUG_ASSERT("Unknown SECURITY type");
+      assert("Unknown SECURITY type");
   }
 }
 
@@ -128,7 +128,7 @@ void View_statement_builder::add_check_option(const Check_option &option)
       break;
 
     default:
-      DBUG_ASSERT("Unknown CHECK type");
+      assert("Unknown CHECK type");
   }
   m_builder.put(" CHECK OPTION");
 }

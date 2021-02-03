@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -515,7 +515,7 @@ Event_queue::empty_queue()
 void
 Event_queue::dbug_dump_queue(time_t now)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_ENTER("Event_queue::dbug_dump_queue");
   DBUG_PRINT("info", ("Dumping queue . Elements=%u",
                       static_cast<unsigned>(queue.size())));

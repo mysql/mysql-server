@@ -23,7 +23,7 @@ include/start_and_bootstrap_group_replication.inc
 #########################################################################
 
 [connection server2]
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=1
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=1 --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 include/rpl_reconnect.inc
 
 #########################################################################
@@ -44,7 +44,7 @@ include/rpl_gr_wait_for_number_of_members.inc
 #########################################################################
 
 [connection server2]
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=1 --group_replication_exit_state_action=ABORT_SERVER
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_start_on_boot=1 --group_replication_exit_state_action=ABORT_SERVER --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 
 #########################################################################
 # 5) M2 super_read_only mode shall be OFF and in OFFLINE state
@@ -67,7 +67,7 @@ SET @@GLOBAL.DEBUG = @debug_saved;
 include/stop_group_replication.inc
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 include/rpl_reconnect.inc
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc

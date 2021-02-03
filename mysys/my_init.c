@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -288,7 +288,7 @@ static void win_init_time()
   FILETIME ft;
   LARGE_INTEGER li, t_cnt;
 
-  DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+  assert(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
 
   if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
     query_performance_frequency= 0;

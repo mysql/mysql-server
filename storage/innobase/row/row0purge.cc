@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -185,9 +185,9 @@ row_purge_remove_clust_if_poss_low(
 			const char act[] =
 				"now SIGNAL pessimistic_row_purge_clust_pause "
 				"WAIT_FOR pessimistic_row_purge_clust_continue";
-			DBUG_ASSERT(opt_debug_sync_timeout > 0);
-			DBUG_ASSERT(!debug_sync_set_action(
-					current_thd, STRING_WITH_LEN(act)));
+			assert(opt_debug_sync_timeout > 0);
+			assert(!debug_sync_set_action(
+				       current_thd, STRING_WITH_LEN(act)));
 		});
 
 		btr_cur_pessimistic_delete(

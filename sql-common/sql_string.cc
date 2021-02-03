@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ PSI_memory_key key_memory_String_value;
 bool String::real_alloc(size_t length)
 {
   size_t arg_length= ALIGN_SIZE(length + 1);
-  DBUG_ASSERT(arg_length > length);
+  assert(arg_length > length);
   if (arg_length <= length)
     return true;                                 /* Overflow */
   m_length= 0;
@@ -102,7 +102,7 @@ bool String::real_alloc(size_t length)
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
 {
   size_t len= ALIGN_SIZE(alloc_length + 1);
-  DBUG_ASSERT(len > alloc_length);
+  assert(len > alloc_length);
   if (len <= alloc_length)
     return true;                                 /* Overflow */
 
@@ -383,7 +383,7 @@ bool String::copy_aligned(const char *str, size_t arg_length, size_t offset,
 {
   /* How many bytes are in incomplete character */
   offset= cs->mbminlen - offset; /* How many zeros we should prepend */
-  DBUG_ASSERT(offset && offset != cs->mbminlen);
+  assert(offset && offset != cs->mbminlen);
 
   size_t aligned_length= arg_length + offset;
   if (alloc(aligned_length))
@@ -434,7 +434,7 @@ bool String::copy(const char *str, size_t arg_length,
 {
   size_t offset;
 
-  DBUG_ASSERT(!str || str != m_ptr);
+  assert(!str || str != m_ptr);
 
   if (!needs_conversion(arg_length, from_cs, to_cs, &offset))
   {
@@ -513,8 +513,8 @@ bool String::append(const String &s)
 {
   if (s.length())
   {
-    DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
-    DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+    assert(!this->uses_buffer_owned_by(&s));
+    assert(!s.uses_buffer_owned_by(this));
 
     if (mem_realloc_exp((m_length + s.length())))
       return true;
@@ -610,7 +610,7 @@ bool String::append(const char *s, size_t arg_length, const CHARSET_INFO *cs)
     size_t add_length;
     if ((cs == &my_charset_bin) && offset)
     {
-      DBUG_ASSERT(m_charset->mbminlen > offset);
+      assert(m_charset->mbminlen > offset);
       offset= m_charset->mbminlen - offset; // How many characters to pad
       add_length= arg_length + offset;
       if (mem_realloc_exp(m_length + add_length))
@@ -942,8 +942,8 @@ String *copy_if_not_alloced(String *to,String *from, size_t from_length)
     return from;				// Actually an error
 
   // from and to should not be overlapping
-  DBUG_ASSERT(!to->uses_buffer_owned_by(from));
-  DBUG_ASSERT(!from->uses_buffer_owned_by(to));
+  assert(!to->uses_buffer_owned_by(from));
+  assert(!from->uses_buffer_owned_by(to));
 
   if ((to->m_length= min(from->m_length, from_length)))
     memcpy(to->m_ptr, from->m_ptr, to->m_length);
@@ -1209,7 +1209,7 @@ size_t convert_to_printable(char *to, size_t to_len,
                             const CHARSET_INFO *from_cs, size_t nbytes /*= 0*/)
 {
   /* needs at least 8 bytes for '\xXX...' and zero byte */
-  DBUG_ASSERT(to_len >= 8);
+  assert(to_len >= 8);
 
   char *t= to;
   char *t_end= to + to_len - 1; // '- 1' is for the '\0' at the end

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,13 +158,13 @@ int Delegate::unlock()
       m_spin_lock.release_exclusive();
     else
     {
-      DBUG_ASSERT(m_spin_lock.is_shared_acquisition());
+      assert(m_spin_lock.is_shared_acquisition());
       m_spin_lock.release_shared();
     }
   }
   else
   {
-    DBUG_ASSERT(my_atomic_load32(&m_acquired_locks) < 0);
+    assert(my_atomic_load32(&m_acquired_locks) < 0);
     my_atomic_add32(&m_acquired_locks, -DELEGATE_OS_LOCK);
     result= mysql_rwlock_unlock(&lock);
   }
@@ -679,10 +679,10 @@ bool has_cascade_foreign_key(TABLE *table, THD *thd)
         f_key_info->update_method->str[0] == 'S' ||
         f_key_info->delete_method->str[0] == 'S')
     {
-      DBUG_ASSERT(!strncmp(f_key_info->update_method->str, "CASCADE", 7) ||
-                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7) ||
-                  !strncmp(f_key_info->update_method->str, "SET NUL", 7) ||
-                  !strncmp(f_key_info->delete_method->str, "SET NUL", 7));
+      assert(!strncmp(f_key_info->update_method->str, "CASCADE", 7) ||
+             !strncmp(f_key_info->delete_method->str, "CASCADE", 7) ||
+             !strncmp(f_key_info->update_method->str, "SET NUL", 7) ||
+             !strncmp(f_key_info->delete_method->str, "SET NUL", 7));
       DBUG_RETURN(TRUE);
     }
   }
@@ -1017,7 +1017,7 @@ int Binlog_storage_delegate::after_sync(THD *thd,
   Binlog_storage_param param;
   param.server_id= thd->server_id;
 
-  DBUG_ASSERT(log_pos != 0);
+  assert(log_pos != 0);
   int ret= 0;
   FOREACH_OBSERVER(ret, after_sync, thd, (&param, log_file, log_pos));
 

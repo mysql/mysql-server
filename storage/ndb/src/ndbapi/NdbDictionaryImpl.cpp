@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3485,7 +3485,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   }
   else
   {
-    DBUG_ASSERT(impl->m_fragmentCount > 0);
+    assert(impl->m_fragmentCount > 0);
   }
   free(tableDesc);
   DBUG_RETURN(0);
@@ -4774,8 +4774,8 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
 {
   int res;
   DBUG_ENTER("NdbDictionaryImpl::dropTableGlobal");
-  DBUG_ASSERT(impl.m_status != NdbDictionary::Object::New);
-  DBUG_ASSERT(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
+  assert(impl.m_status != NdbDictionary::Object::New);
+  assert(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
 
   List list;
   if ((res = listDependentObjects(list, impl.m_id)) == -1){
@@ -9880,7 +9880,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
     fk.ChildColumns[i] = src.m_child_columns[i];
   fk.ChildColumnsLength = 4 * src.m_child_columns.size(); // bytes :(
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     char buf[2048];
     ndbout_print(fk, buf, sizeof(buf));

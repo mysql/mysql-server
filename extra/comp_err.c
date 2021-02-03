@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ static char *NAMEFILE= (char*) "mysqld_ername.h";
 static char *STATEFILE= (char*) "sql_state.h";
 static char *TXTFILE= (char*) "../sql/share/errmsg-utf8.txt";
 static char *DATADIRECTORY= (char*) "../sql/share/";
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static char *default_dbug_option= (char*) "d:t:O,/tmp/comp_err.trace";
 #endif
 
@@ -112,7 +112,7 @@ struct errors
 
 static struct my_option my_long_options[]=
 {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
@@ -702,7 +702,7 @@ static struct message *find_message(struct errors *err, const char *lang,
       DBUG_RETURN(tmp);
     if (!strcmp(tmp->lang_short_name, default_language))
     {
-      DBUG_ASSERT(tmp->text[0] != 0);
+      assert(tmp->text[0] != 0);
       return_val= tmp;
     }
   }
@@ -775,7 +775,7 @@ static ha_checksum checksum_format_specifier(const char* msg)
 
     fprintf(stderr, "Still inside formatspecifier after end of string"
                     " in'%s'\n", msg);
-    DBUG_ASSERT(start==0);
+    assert(start==0);
   }
 
   /* Add number of format specifiers to checksum as extra safeguard */
@@ -808,7 +808,7 @@ static int check_message_format(struct errors *err,
     DBUG_RETURN(0); /* No previous message to compare against */
 
   first= dynamic_element(&err->msg, 0, struct message*);
-  DBUG_ASSERT(first != NULL);
+  assert(first != NULL);
 
   if (checksum_format_specifier(first->text) !=
       checksum_format_specifier(mess))

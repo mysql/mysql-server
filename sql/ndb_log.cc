@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ void
 ndb_log_print(enum ndb_log_loglevel loglevel,
               const char* prefix, const char* fmt, va_list args)
 {
-  DBUG_ASSERT(fmt);
+  assert(fmt);
 
   // Assemble the message
   char msg_buf[512];
@@ -81,7 +81,7 @@ ndb_log_print(enum ndb_log_loglevel loglevel,
 void
 ndb_log_info(const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
+  assert(fmt);
 
   va_list args;
   va_start(args, fmt);
@@ -93,7 +93,7 @@ ndb_log_info(const char* fmt, ...)
 void
 ndb_log_warning(const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
+  assert(fmt);
 
   va_list args;
   va_start(args, fmt);
@@ -105,7 +105,7 @@ ndb_log_warning(const char* fmt, ...)
 void
 ndb_log_error(const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
+  assert(fmt);
 
   va_list args;
   va_start(args, fmt);
@@ -127,7 +127,7 @@ ndb_log_get_verbose_level(void)
 void
 ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
 {
-  DBUG_ASSERT(fmt);
+  assert(fmt);
 
   // Print message only if verbose level is set high enough
   if (ndb_log_get_verbose_level() < verbose_level)

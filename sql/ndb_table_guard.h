@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ public:
   {
     DBUG_ENTER("Ndb_table_guard::init");
     /* must call reinit() if already initialized */
-    DBUG_ASSERT(m_ndbtab == NULL);
+    assert(m_ndbtab == NULL);
     m_ndbtab= m_dict->getTableGlobal(tabname);
     m_invalidate= 0;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
