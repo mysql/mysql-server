@@ -282,12 +282,7 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
       IF(LINUX_RHEL6)
         SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-8")
       ELSEIF(LINUX_RHEL7)
-        # gcc10 not available yet
-        IF(MY_HOST_MACHINE_NAME MATCHES "aarch64")
-          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-9")
-        ELSE()
-          SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
-        ENDIF()
+        SET(ALTERNATIVE_PATHS "/opt/rh/devtoolset-10")
       ELSEIF(LINUX_RHEL8)
         SET(ALTERNATIVE_PATHS "/opt/rh/gcc-toolset-10")
       ENDIF()
