@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -228,7 +228,7 @@ int table_events_stages_common::read_row_values(TABLE *table,
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 2);
+  assert(table->s->null_bytes == 2);
   buf[0]= 0;
   buf[1]= 0;
 
@@ -299,7 +299,7 @@ int table_events_stages_common::read_row_values(TABLE *table,
           f->set_null();
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }
@@ -448,10 +448,10 @@ int table_events_stages_history::rnd_pos(const void *pos)
   PFS_thread *pfs_thread;
   PFS_events_stages *stage;
 
-  DBUG_ASSERT(events_stages_history_per_thread != 0);
+  assert(events_stages_history_per_thread != 0);
   set_position(pos);
 
-  DBUG_ASSERT(m_pos.m_index_2 < events_stages_history_per_thread);
+  assert(m_pos.m_index_2 < events_stages_history_per_thread);
 
   pfs_thread= global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != NULL)

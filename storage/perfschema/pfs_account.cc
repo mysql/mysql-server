@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,9 +74,9 @@ static uchar *account_hash_get_key(const uchar *entry, size_t *length,
   const PFS_account *account;
   const void *result;
   typed_entry= reinterpret_cast<const PFS_account* const *> (entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != NULL);
   account= *typed_entry;
-  DBUG_ASSERT(account != NULL);
+  assert(account != NULL);
   *length= account->m_key.m_key_length;
   result= account->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
@@ -123,8 +123,8 @@ static void set_account_key(PFS_account_key *key,
                               const char *user, uint user_length,
                               const char *host, uint host_length)
 {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
-  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+  assert(user_length <= USERNAME_LENGTH);
+  assert(host_length <= HOSTNAME_LENGTH);
 
   char *ptr= &key->m_hash_key[0];
   if (user_length > 0)
@@ -653,7 +653,7 @@ void purge_account(PFS_thread *thread, PFS_account *account)
                     account->m_key.m_key_length));
   if (entry && (entry != MY_ERRPTR))
   {
-    DBUG_ASSERT(*entry == account);
+    assert(*entry == account);
     if (account->get_refcount() == 0)
     {
       lf_hash_delete(&account_hash, pins,

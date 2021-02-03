@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019,  Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014,  2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,7 +245,7 @@ mecab_parse(
 		bool_info->type = FT_TOKEN_RIGHT_PAREN;
 		ret = param->mysql_add_word(param, NULL, 0, bool_info);
 
-		DBUG_ASSERT(bool_info->quot == NULL);
+		assert(bool_info->quot == NULL);
 		bool_info->type = FT_TOKEN_WORD;
 	}
 
@@ -290,7 +290,7 @@ mecab_parser_parse(
 		return(1);
 	}
 
-	DBUG_ASSERT(param->cs->mbminlen == 1);
+	assert(param->cs->mbminlen == 1);
 
 	/* Create mecab lattice for parsing */
 	mecab_lattice = mecab_model->createLattice();
@@ -302,7 +302,7 @@ mecab_parser_parse(
 
 	/* Allocate a new string with '\0' in the end to avoid
 	valgrind error "Invalid read of size 1" in mecab. */
-	DBUG_ASSERT(param->length >= 0);
+	assert(param->length >= 0);
 	int	doc_length = param->length;
 	char*	doc = reinterpret_cast<char*>(malloc(doc_length + 1));
 

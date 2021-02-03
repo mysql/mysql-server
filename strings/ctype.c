@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -461,7 +461,7 @@ tailoring_append_abbreviation(MY_XML_PARSER *st,
 
   for ( ; (clen= scan_one_character(attr, attrend, &wc)) > 0; attr+= clen)
   {
-    DBUG_ASSERT(attr < attrend);
+    assert(attr < attrend);
     if (tailoring_append(st, fmt, clen, attr) != MY_XML_OK)
       return MY_XML_ERROR;
   }
@@ -1085,7 +1085,7 @@ my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
     }
   }
 
-  DBUG_ASSERT(FALSE); // Should never get to here
+  assert(FALSE); // Should never get to here
   return 0;           // Make compiler happy
 }
 
@@ -1109,7 +1109,7 @@ my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e)
     len= my_mbcharlen_2(cs, (uchar) *s, (uchar) *(s + 1));
     /* It could be either a valid multi-byte GB18030 code, or invalid
     gb18030 code if return value is 0 */
-    DBUG_ASSERT(len == 0 || len == 2 || len == 4);
+    assert(len == 0 || len == 2 || len == 4);
   }
 
   return len;

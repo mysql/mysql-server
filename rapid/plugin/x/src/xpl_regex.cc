@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ namespace
 
 inline void check_result(const int err)
 {
-  DBUG_ASSERT( err == 0 );
+  assert( err == 0 );
 }
 
 

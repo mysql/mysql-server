@@ -56,6 +56,7 @@ SET SQL_LOG_BIN=1;
 # save this, since it will be used to recover the server later on
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
 
 # create a table for replicating data
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -110,6 +111,8 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --eval SET @@global.group_replication_local_address="$local_address_server2"
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 
 ###
 ### 3. issue a transaction on the server that is still up

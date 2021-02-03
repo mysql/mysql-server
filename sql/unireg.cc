@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,11 +134,11 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   size_t tablespace_length= 0;
   DBUG_ENTER("mysql_create_frm");
 
-  DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
+  assert(*fn_rext((char*)file_name)); // Check .frm extension
 
   if (!(screen_buff=pack_screens(create_fields,&info_length,&screens,0)))
     DBUG_RETURN(1);
-  DBUG_ASSERT(db_file != NULL);
+  assert(db_file != NULL);
 
  /* If fixed row records, we need one bit to check for deleted rows */
   if (!(create_info->table_options & HA_OPTION_PACK_RECORD))
@@ -264,10 +264,10 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     */
     if (tablespace_length > 0 &&
         !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
-      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
-                                     MDL_key::TABLESPACE, "",
-                                     create_info->tablespace,
-                                     MDL_INTENTION_EXCLUSIVE));
+      assert(thd->mdl_context.owns_equal_or_stronger_lock(
+                                                          MDL_key::TABLESPACE, "",
+                                                          create_info->tablespace,
+                                                          MDL_INTENTION_EXCLUSIVE));
   }
   format_section_length=
     format_section_header_size +
@@ -315,7 +315,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     Even if the form file exists, create_frm must truncate it to
     ensure one form per form file.
   */
-  DBUG_ASSERT(uint2korr(fileinfo+8) == 0);
+  assert(uint2korr(fileinfo+8) == 0);
 
   if (!(filepos= make_new_entry(file, fileinfo, NULL, "")))
     goto err;
@@ -429,7 +429,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
       *ptr= field_flags;
       ptr++;
     }
-    DBUG_ASSERT(format_section_buff + format_section_length == ptr);
+    assert(format_section_buff + format_section_length == ptr);
 
     if (mysql_file_write(file, format_section_buff,
                          format_section_length, MYF_RW))
@@ -551,7 +551,7 @@ int rea_create_table(THD *thd, const char *path,
     DBUG_RETURN(1);
 
   // Make sure mysql_create_frm din't remove extension
-  DBUG_ASSERT(*fn_rext(frm_name));
+  assert(*fn_rext(frm_name));
   if (thd->variables.keep_files_on_create)
     create_info->options|= HA_CREATE_KEEP_FILES;
 
@@ -843,7 +843,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
       in mysql_prepare_create_table. So the offset is messed up by
       vitual generated columns. The original assert is not correct
       any more.
-      DBUG_ASSERT(reclength == field->offset + data_offset);
+      assert(reclength == field->offset + data_offset);
      */
     if (field->offset + data_offset + length > reclength)
       reclength= field->offset + data_offset + length;
@@ -1210,7 +1210,7 @@ bool make_default_value(THD *thd, TABLE *table, Create_field *field,
       Storing the value of a function is pointless as this function may not
       be constant.
     */
-    DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
+    assert(field->def->type() != Item::FUNC_ITEM);
     type_conversion_status res= field->def->save_in_field(regfield, true);
     if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
         res != TYPE_NOTE_TRUNCATED)
@@ -1350,7 +1350,7 @@ static bool make_empty_rec(THD *thd, File file,
       }
     }
   }
-  DBUG_ASSERT(data_offset == ((null_count + 7) / 8));
+  assert(data_offset == ((null_count + 7) / 8));
 
   /*
     We need to set the unused bits to 1. If the number of bits is a multiple

@@ -2,7 +2,7 @@
  * Copyright (c)  2000, 2014
  * SWsoft  company
  *
- * Modifications copyright (c) 2001, 2015. Oracle and/or its affiliates.
+ * Modifications copyright (c) 2001, 2021, Oracle and/or its affiliates.
  * All rights reserved.
  *
  * This material is provided "as is", with absolutely no warranty expressed
@@ -291,7 +291,7 @@ static my_bool emb_read_query_result(MYSQL *mysql)
 {
   THD *thd= (THD*) mysql->thd;
   MYSQL_DATA *res= thd->first_data;
-  DBUG_ASSERT(!thd->cur_data);
+  assert(!thd->cur_data);
   thd->first_data= res->embedded_info->next;
   if (res->embedded_info->last_errno &&
       !res->embedded_info->fields_list)
@@ -388,7 +388,7 @@ int emb_read_rows_from_cursor(MYSQL_STMT *stmt)
   MYSQL *mysql= stmt->mysql;
   THD *thd= (THD*) mysql->thd;
   MYSQL_DATA *res= thd->first_data;
-  DBUG_ASSERT(!thd->first_data->embedded_info->next);
+  assert(!thd->first_data->embedded_info->next);
   thd->first_data= 0;
   if (res->embedded_info->last_errno)
   {
@@ -1312,7 +1312,7 @@ void Protocol_text::start_row()
   data->embedded_info->prev_ptr= &cur->next;
   next_field=cur->data;
   next_mysql_field= data->embedded_info->fields_list;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   field_pos= 0;
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -46,7 +46,7 @@ public:
   Alter_drop(enum drop_type par_type,const char *par_name)
     :name(par_name), type(par_type)
   {
-    DBUG_ASSERT(par_name != NULL);
+    assert(par_name != NULL);
   }
   /**
     Used to make a clone of this object for ALTER/CREATE TABLE
@@ -395,7 +395,7 @@ public:
   */
   const char *get_new_filename() const
   {
-    DBUG_ASSERT(!tmp_table);
+    assert(!tmp_table);
     return new_filename;
   }
 
@@ -404,7 +404,7 @@ public:
   */
   const char *get_path() const
   {
-    DBUG_ASSERT(!tmp_table);
+    assert(!tmp_table);
     return path;
   }
 
@@ -413,7 +413,7 @@ public:
   */
   const char *get_new_path() const
   {
-    DBUG_ASSERT(!tmp_table);
+    assert(!tmp_table);
     return new_path;
   }
 
@@ -446,7 +446,7 @@ private:
   char new_path[FN_REFLEN + 1];
   char tmp_path[FN_REFLEN + 1];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Indicates that we are altering temporary table. Used only in asserts. */
   bool tmp_table;
 #endif

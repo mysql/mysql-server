@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ namespace connection_control
     const Connection_event_record * const *entry;
     const Connection_event_record *entry_info;
     entry= reinterpret_cast<const Connection_event_record* const *>(el);
-    DBUG_ASSERT(entry != NULL);
+    assert(entry != NULL);
     entry_info= *entry;
     *length= entry_info->get_length();
     return (const_cast<uchar *>(entry_info->get_userhost()));
@@ -184,7 +184,7 @@ namespace connection_control
     {
       /* We found an entry, so increment the count */
       searched_entry_info= *searched_entry;
-      DBUG_ASSERT(searched_entry_info != NULL);
+      assert(searched_entry_info != NULL);
       searched_entry_info->inc_count();
       lf_hash_search_unpin(pins);
       lf_hash_put_pins(pins);
@@ -243,7 +243,7 @@ namespace connection_control
     if (searched_entry && searched_entry != MY_ERRPTR)
     {
       searched_entry_info= *searched_entry;
-      DBUG_ASSERT(searched_entry_info != NULL);
+      assert(searched_entry_info != NULL);
       int rc= lf_hash_delete(&m_entries, pins, s.c_str(), s.length());
       lf_hash_search_unpin(pins);
       lf_hash_put_pins(pins);
@@ -741,7 +741,7 @@ namespace connection_control
       case OPT_FAILED_CONNECTIONS_THRESHOLD:
       {
         int64 new_threshold= *(static_cast<int64 *>(new_value));
-        DBUG_ASSERT(new_threshold >= DISABLE_THRESHOLD);
+        assert(new_threshold >= DISABLE_THRESHOLD);
         set_threshold(new_threshold);
 
         if ((error= coordinator->notify_status_var(&self,
@@ -770,7 +770,7 @@ namespace connection_control
       }
       default:
         /* Should never reach here. */
-        DBUG_ASSERT(FALSE);
+        assert(FALSE);
         error_handler->handle_error("Unexpected option type for connection delay.");
     };
     DBUG_RETURN(error);
@@ -787,14 +787,14 @@ namespace connection_control
   Connection_delay_action::init(Connection_event_coordinator_services *coordinator)
   {
     DBUG_ENTER("Connection_delay_action::init");
-    DBUG_ASSERT(coordinator);
+    assert(coordinator);
     bool retval;
     Connection_event_observer *subscriber= this;
     WR_lock wr_lock(m_lock);
     retval= coordinator->register_event_subscriber(&subscriber,
                                                    &m_sys_vars,
                                                    &m_stats_vars);
-    DBUG_ASSERT(!retval);
+    assert(!retval);
     if (retval)
       retval= false;                    /* Make compiler happy */
     DBUG_VOID_RETURN;

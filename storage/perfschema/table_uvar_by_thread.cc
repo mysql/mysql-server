@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
     /* Copy VARIABLE_NAME */
     const char *name= sql_uvar->entry_name.ptr();
     size_t name_length= sql_uvar->entry_name.length();
-    DBUG_ASSERT(name_length <= sizeof(pfs_uvar.m_name));
+    assert(name_length <= sizeof(pfs_uvar.m_name));
     pfs_uvar.m_name.make_row(name, name_length);
 
     /* Copy VARIABLE_VALUE */
@@ -307,11 +307,11 @@ int table_uvar_by_thread
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0]= 0;
 
-  DBUG_ASSERT(m_row.m_variable_name != NULL);
-  DBUG_ASSERT(m_row.m_variable_value != NULL);
+  assert(m_row.m_variable_name != NULL);
+  assert(m_row.m_variable_value != NULL);
 
   for (; (f= *fields) ; fields++)
   {
@@ -340,7 +340,7 @@ int table_uvar_by_thread
         }
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

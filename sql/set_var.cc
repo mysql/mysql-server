@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ int sys_var_init()
   DBUG_ENTER("sys_var_init");
 
   /* Must be already initialized. */
-  DBUG_ASSERT(system_charset_info != NULL);
+  assert(system_charset_info != NULL);
 
   if (my_hash_init(&system_variable_hash, system_charset_info, 100, 0,
                    0, (my_hash_get_key) get_sys_var_length, 0, HASH_UNIQUE,
@@ -153,11 +153,11 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
     in the first (PARSE_EARLY) stage.
     See handle_options() for details.
   */
-  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+  assert(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
   name.str= name_arg;     // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length= strlen(name_arg);                // and so does this.
-  DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
+  assert(name.length <= NAME_CHAR_LEN);
 
   memset(&option, 0, sizeof(option));
   option.name= name_arg;
@@ -540,8 +540,8 @@ bool enumerate_sys_vars(THD *thd, Show_var_array *show_var_array,
                         enum enum_var_type query_scope,
                         bool strict)
 {
-  DBUG_ASSERT(show_var_array != NULL);
-  DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
+  assert(show_var_array != NULL);
+  assert(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
   int count= system_variable_hash.records;
   
   /* Resize array if necessary. */

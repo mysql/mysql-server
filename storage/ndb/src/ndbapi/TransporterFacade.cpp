@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -205,7 +205,7 @@ setSignalLog(){
   } else if(tmp !=0){
     if (strcmp(tmp, "-") == 0)
         signalLogger.setOutputStream(stdout);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     else if (strcmp(tmp, "+") == 0)
         signalLogger.setOutputStream(DBUG_FILE);
 #endif

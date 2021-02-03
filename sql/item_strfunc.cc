@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ using std::max;
 */
 String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   if (!(collation.collation->state & MY_CS_NONASCII))
   {
@@ -92,7 +92,7 @@ String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2)
     return res;
   }
   
-  DBUG_ASSERT(str != str2);
+  assert(str != str2);
   
   uint errors;
   String *res= val_str_ascii(str);
@@ -121,7 +121,7 @@ bool Item_str_func::fix_fields(THD *thd, Item **ref)
 
 my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   char buff[64];
   String *res, tmp(buff,sizeof(buff), &my_charset_bin);
   res= val_str(&tmp);
@@ -135,7 +135,7 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value)
 
 double Item_str_func::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   int err_not_used;
   char *end_not_used, buff[64];
   String *res, tmp(buff,sizeof(buff), &my_charset_bin);
@@ -147,7 +147,7 @@ double Item_str_func::val_real()
 
 longlong Item_str_func::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   int err;
   char buff[22];
   String *res, tmp(buff,sizeof(buff), &my_charset_bin);
@@ -161,7 +161,7 @@ longlong Item_str_func::val_int()
 
 String *Item_func_md5::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String * sptr= args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
   if (sptr)
@@ -211,7 +211,7 @@ void Item_func_md5::fix_length_and_dec()
 
 String *Item_func_sha::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String * sptr= args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
   if (sptr)  /* If we got value different from NULL */
@@ -248,7 +248,7 @@ void Item_func_sha::fix_length_and_dec()
 */
 String *Item_func_sha2::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length= 0;
@@ -482,7 +482,7 @@ bool Item_func_aes_encrypt::itemize(Parse_context *pc, Item **res)
 
 String *Item_func_aes_encrypt::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   String *sptr, *key;
@@ -496,7 +496,7 @@ String *Item_func_aes_encrypt::val_str(String *str)
   key=  args[1]->val_str(&tmp_key_value);	// key
   aes_opmode= thd->variables.my_aes_mode;
 
-  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+  assert(aes_opmode <= MY_AES_END);
 
   if (sptr && key) // we need both arguments to be not NULL
   {
@@ -534,7 +534,7 @@ String *Item_func_aes_encrypt::val_str(String *str)
 void Item_func_aes_encrypt::fix_length_and_dec()
 {
   ulong aes_opmode= current_thd->variables.my_aes_mode;
-  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+  assert(aes_opmode <= MY_AES_END);
 
   max_length=my_aes_get_size(args[0]->max_length,
                              (enum my_aes_opmode) aes_opmode);
@@ -557,7 +557,7 @@ bool Item_func_aes_decrypt::itemize(Parse_context *pc, Item **res)
 
 String *Item_func_aes_decrypt::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   char key_buff[80];
   String tmp_key_value(key_buff, sizeof(key_buff), system_charset_info);
   String *sptr, *key;
@@ -569,7 +569,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
   sptr= args[0]->val_str(str);			// String to decrypt
   key=  args[1]->val_str(&tmp_key_value);	// Key
   aes_opmode= thd->variables.my_aes_mode;
-  DBUG_ASSERT(aes_opmode <= MY_AES_END);
+  assert(aes_opmode <= MY_AES_END);
 
   if (sptr && key)  			// Need to have both arguments not NULL
   {
@@ -638,7 +638,7 @@ void Item_func_random_bytes::fix_length_and_dec()
 
 String *Item_func_random_bytes::val_str(String *a)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   longlong n_bytes= args[0]->val_int();
   null_value= args[0]->null_value;
 
@@ -688,7 +688,7 @@ void Item_func_to_base64::fix_length_and_dec()
   else
   {
     uint64 length= base64_needed_encoded_length((uint64) args[0]->max_length);
-    DBUG_ASSERT(length > 0);
+    assert(length > 0);
     fix_char_length_ulonglong((ulonglong) length - 1);
   }
 }
@@ -717,7 +717,7 @@ String *Item_func_to_base64::val_str_ascii(String *str)
     return 0;
   }
   base64_encode(res->ptr(), (int) res->length(), (char*) tmp_value.ptr());
-  DBUG_ASSERT(length > 0);
+  assert(length > 0);
   tmp_value.length((uint) length - 1); // Without trailing '\0'
   null_value= 0;
   return &tmp_value;
@@ -779,7 +779,7 @@ String *Item_func_from_base64::val_str(String *str)
 */
 
 String *Item_func_concat::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res;
 
   THD *thd = current_thd;
@@ -836,7 +836,7 @@ void Item_func_concat::fix_length_and_dec()
 
 String *Item_func_des_encrypt::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
@@ -933,7 +933,7 @@ error:
 
 String *Item_func_des_decrypt::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
@@ -1017,7 +1017,7 @@ wrong_key:
 */
 
 String *Item_func_concat_ws::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   char tmp_str_buff[10];
   String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff), default_charset_info);
   String *sep_str, *res = NULL, *res2;
@@ -1092,7 +1092,7 @@ void Item_func_concat_ws::fix_length_and_dec()
 
 String *Item_func_reverse::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res = args[0]->val_str(str);
   char *ptr, *end, *tmp;
 
@@ -1120,7 +1120,7 @@ String *Item_func_reverse::val_str(String *str)
       if ((l= my_ismbchar(res->charset(),ptr,end)))
       {
         tmp-= l;
-        DBUG_ASSERT(tmp >= tmp_value.ptr());
+        assert(tmp >= tmp_value.ptr());
         memcpy(tmp,ptr,l);
         ptr+= l;
       }
@@ -1140,7 +1140,7 @@ String *Item_func_reverse::val_str(String *str)
 void Item_func_reverse::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   fix_char_length(args[0]->max_char_length());
 }
 
@@ -1155,7 +1155,7 @@ void Item_func_reverse::fix_length_and_dec()
 
 String *Item_func_replace::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res,*res2,*res3;
   int offset;
   size_t from_length, to_length;
@@ -1191,7 +1191,7 @@ String *Item_func_replace::val_str(String *str)
     search=res2->ptr();
     search_end=search+from_length;
 redo:
-    DBUG_ASSERT(res->ptr() || !offset);
+    assert(res->ptr() || !offset);
     ptr=res->ptr()+offset;
     strend=res->ptr()+res->length();
     /*
@@ -1299,7 +1299,7 @@ void Item_func_replace::fix_length_and_dec()
 
 String *Item_func_insert::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res,*res2;
   longlong start, length, orig_len;  /* must be longlong to avoid truncation */
 
@@ -1389,7 +1389,7 @@ void Item_func_insert::fix_length_and_dec()
 
 String *Item_str_conv::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res;
   if (!(res=args[0]->val_str(str)))
   {
@@ -1411,7 +1411,7 @@ String *Item_str_conv::val_str(String *str)
 
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
                                         (char*) res->ptr(), res->length());
-    DBUG_ASSERT(len <= res->length());
+    assert(len <= res->length());
     res->length(len);
   }
   else
@@ -1431,7 +1431,7 @@ String *Item_str_conv::val_str(String *str)
 void Item_func_lower::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   multiply= collation.collation->casedn_multiply;
   converter= collation.collation->cset->casedn;
   fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * multiply);
@@ -1440,7 +1440,7 @@ void Item_func_lower::fix_length_and_dec()
 void Item_func_upper::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   multiply= collation.collation->caseup_multiply;
   converter= collation.collation->cset->caseup;
   fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * multiply);
@@ -1449,7 +1449,7 @@ void Item_func_upper::fix_length_and_dec()
 
 String *Item_func_left::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res= args[0]->val_str(str);
 
   /* must be longlong to avoid truncation */
@@ -1494,14 +1494,14 @@ end:
 void Item_func_left::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   left_right_max_length();
 }
 
 
 String *Item_func_right::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res= args[0]->val_str(str);
   /* must be longlong to avoid truncation */
   longlong length= args[1]->val_int();
@@ -1528,14 +1528,14 @@ String *Item_func_right::val_str(String *str)
 void Item_func_right::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   left_right_max_length();
 }
 
 
 String *Item_func_substr::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res  = args[0]->val_str(str);
   /* must be longlong to avoid truncation */
   longlong start= args[1]->val_int();
@@ -1585,7 +1585,7 @@ void Item_func_substr::fix_length_and_dec()
   max_length=args[0]->max_length;
 
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   if (args[1]->const_item())
   {
     int32 start= (int32) args[1]->val_int();
@@ -1622,7 +1622,7 @@ void Item_func_substr_index::fix_length_and_dec()
 
 String *Item_func_substr_index::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff,sizeof(buff),system_charset_info);
   String *res= args[0]->val_str(str);
@@ -1747,7 +1747,7 @@ String *Item_func_substr_index::val_str(String *str)
 
 String *Item_func_trim::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   String *res= args[0]->val_str(str);
   if ((null_value = args[0]->null_value))
@@ -1869,7 +1869,7 @@ void Item_func_trim::fix_length_and_dec()
   if (arg_count == 1)
   {
     agg_arg_charsets_for_string_result(collation, args, 1);
-    DBUG_ASSERT(collation.collation != NULL);
+    assert(collation.collation != NULL);
     remove.set_charset(collation.collation);
     remove.set_ascii(" ",1);
   }
@@ -1951,7 +1951,7 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
 
 static size_t calculate_password(String *str, char *buffer)
 {
-  DBUG_ASSERT(str);
+  assert(str);
   if (str->length() == 0) // PASSWORD('') returns ''
     return 0;
 
@@ -2011,7 +2011,7 @@ void Item_func_password::fix_length_and_dec()
 
 String *Item_func_password::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   String *res= args[0]->val_str(str);
 
@@ -2044,7 +2044,7 @@ bool Item_func_encrypt::itemize(Parse_context *pc, Item **res)
     return false;
   if (super::itemize(pc, res))
     return true;
-  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  assert(arg_count == 1 || arg_count == 2);
   if (arg_count == 1)
     pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
   return false;
@@ -2055,7 +2055,7 @@ bool Item_func_encrypt::itemize(Parse_context *pc, Item **res)
 
 String *Item_func_encrypt::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 #ifdef HAVE_CRYPT
   String *res = args[0]->val_str(str);
   char salt[3],*salt_ptr;
@@ -2124,7 +2124,7 @@ void Item_func_encode::fix_length_and_dec()
 String *Item_func_encode::val_str(String *str)
 {
   String *res;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   if (!(res=args[0]->val_str(str)))
   {
@@ -2208,7 +2208,7 @@ bool Item_func_database::itemize(Parse_context *pc, Item **res)
 
 String *Item_func_database::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   THD *thd= current_thd;
   if (thd->db().str == NULL)
   {
@@ -2228,7 +2228,7 @@ String *Item_func_database::val_str(String *str)
 */
 bool Item_func_user::init(const char *user, const char *host)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   // For system threads (e.g. replication SQL thread) user may be empty
   if (user)
@@ -2304,7 +2304,7 @@ void Item_func_soundex::fix_length_and_dec()
 {
   uint32 char_length= args[0]->max_char_length();
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   set_if_bigger(char_length, 4);
   fix_char_length(char_length);
   tmp_value.set_charset(collation.collation);
@@ -2351,7 +2351,7 @@ static bool my_uni_isalpha(int wc)
 
 String *Item_func_soundex::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res  =args[0]->val_str(str);
   char last_ch,ch;
   const CHARSET_INFO *cs= collation.collation;
@@ -2395,7 +2395,7 @@ String *Item_func_soundex::val_str(String *str)
         if ((rc= cs->cset->wc_mb(cs, wc, (uchar*) to, (uchar*) to_end)) <= 0)
         {
           /* Extra safety - should not really happen */
-          DBUG_ASSERT(false);
+          assert(false);
           return make_empty_result();
         }
         to+= rc;
@@ -2433,7 +2433,7 @@ String *Item_func_soundex::val_str(String *str)
                                (uchar*) to, (uchar*) to_end)) <= 0)
       {
         // Extra safety - should not really happen
-        DBUG_ASSERT(false);
+        assert(false);
         break;
       }
       to+= rc;
@@ -2519,7 +2519,7 @@ bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
       This should never happen, since function
       only supports two or three arguments.
     */
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 
@@ -2758,7 +2758,7 @@ bool Item_func_geohash::fill_and_check_fields()
 */
 String *Item_func_geohash::val_str_ascii(String *str)
 {
-  DBUG_ASSERT(fixed == TRUE);
+  assert(fixed == TRUE);
 
   if (fill_and_check_fields())
   {
@@ -2847,7 +2847,7 @@ void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
                                    double target_value, char *char_value,
                                    int bit_number)
 {
-  DBUG_ASSERT(bit_number >= 0 && bit_number <= 4);
+  assert(bit_number >= 0 && bit_number <= 4);
 
   double middle_value= (*upper_value + *lower_value) / 2.0;
   if (target_value < middle_value)
@@ -2874,7 +2874,7 @@ void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
 */
 char Item_func_geohash::char_to_base32(char char_input)
 {
-  DBUG_ASSERT(char_input <= 31);
+  assert(char_input <= 31);
 
   if (char_input < 10)
     return char_input + '0';
@@ -2900,7 +2900,7 @@ const int FORMAT_MAX_DECIMALS= 30;
 
 MY_LOCALE *Item_func_format::get_locale(Item *item)
 {
-  DBUG_ASSERT(arg_count == 3);
+  assert(arg_count == 3);
   String tmp, *locale_name= args[2]->val_str_ascii(&tmp);
   MY_LOCALE *lc;
   if (!locale_name ||
@@ -2943,7 +2943,7 @@ String *Item_func_format::val_str_ascii(String *str)
   /* Number of characters used to represent the decimals, including '.' */
   uint32 dec_length;
   MY_LOCALE *lc;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   dec= (int) args[1]->val_int();
   if (args[1]->null_value)
@@ -3017,7 +3017,7 @@ String *Item_func_format::val_str_ascii(String *str)
           grouping++;
         count= *grouping;
       }
-      DBUG_ASSERT(dst > buf);
+      assert(dst > buf);
       *--dst= *src--;
     }
     
@@ -3034,7 +3034,7 @@ String *Item_func_format::val_str_ascii(String *str)
       For short values without thousands (<1000)
       replace decimal point to localized value.
     */
-    DBUG_ASSERT(dec_length <= str_length);
+    assert(dec_length <= str_length);
     ((char*) str->ptr())[str_length - dec_length]= lc->decimal_point;
   }
   return str;
@@ -3075,7 +3075,7 @@ void Item_func_elt::fix_length_and_dec()
 
 double Item_func_elt::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
@@ -3089,7 +3089,7 @@ double Item_func_elt::val_real()
 
 longlong Item_func_elt::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
@@ -3104,7 +3104,7 @@ longlong Item_func_elt::val_int()
 
 String *Item_func_elt::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint tmp;
   null_value=1;
   if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
@@ -3171,7 +3171,7 @@ void Item_func_make_set::update_used_tables()
 
 String *Item_func_make_set::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   ulonglong bits;
   bool first_found=0;
   Item **ptr=args;
@@ -3228,7 +3228,7 @@ String *Item_func_make_set::val_str(String *str)
 
 Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
 {
-  DBUG_ASSERT(!current_thd->stmt_arena->is_stmt_prepare());
+  assert(!current_thd->stmt_arena->is_stmt_prepare());
 
   Item *new_item= item->transform(transformer, arg);
   if (!new_item)
@@ -3261,7 +3261,7 @@ void Item_func_make_set::print(String *str, enum_query_type query_type)
 
 String *Item_func_char::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   str->length(0);
   str->set_charset(collation.collation);
   for (uint i=0 ; i < arg_count ; i++)
@@ -3324,7 +3324,7 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 void Item_func_repeat::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
-  DBUG_ASSERT(collation.collation != NULL);
+  assert(collation.collation != NULL);
   if (args[1]->const_item())
   {
     /* must be longlong to avoid truncation */
@@ -3354,7 +3354,7 @@ end:
 
 String *Item_func_repeat::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   size_t length, tot_length;
   char *to;
   /* must be longlong to avoid truncation */
@@ -3486,7 +3486,7 @@ void Item_func_rpad::fix_length_and_dec()
     ulonglong char_length= (ulonglong) args[1]->val_int();
     if (args[1]->null_value)
       goto end;
-    DBUG_ASSERT(collation.collation->mbmaxlen > 0);
+    assert(collation.collation->mbmaxlen > 0);
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32)
@@ -3503,7 +3503,7 @@ end:
 
 String *Item_func_rpad::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   char *to;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
@@ -3623,7 +3623,7 @@ void Item_func_lpad::fix_length_and_dec()
     ulonglong char_length= (ulonglong) args[1]->val_int();
     if (args[1]->null_value)
       goto end;
-    DBUG_ASSERT(collation.collation->mbmaxlen > 0);
+    assert(collation.collation->mbmaxlen > 0);
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32)
@@ -3640,7 +3640,7 @@ end:
 
 String *Item_func_lpad::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   size_t res_char_length, pad_char_length;
   /* must be longlong to avoid truncation */
   longlong count= args[1]->val_int();
@@ -3742,7 +3742,7 @@ void Item_func_conv::fix_length_and_dec()
 
 String *Item_func_conv::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res= args[0]->val_str(str);
   char *endptr,ans[65],*ptr;
   longlong dec;
@@ -3793,7 +3793,7 @@ String *Item_func_conv::val_str(String *str)
 
 String *Item_func_conv_charset::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   if (use_cached_value)
     return null_value ? 0 : &str_value;
   String *arg= args[0]->val_str(str);
@@ -3841,7 +3841,7 @@ bool Item_func_set_collation::itemize(Parse_context *pc, Item **res)
 
 String *Item_func_set_collation::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   str=args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;
@@ -3904,15 +3904,15 @@ void Item_func_set_collation::print(String *str, enum_query_type query_type)
   str->append('(');
   args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" collate "));
-  DBUG_ASSERT(args[1]->basic_const_item() &&
-              args[1]->type() == Item::STRING_ITEM);
+  assert(args[1]->basic_const_item() &&
+         args[1]->type() == Item::STRING_ITEM);
   args[1]->str_value.print(str);
   str->append(')');
 }
 
 String *Item_func_charset::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint dummy_errors;
 
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
@@ -3924,7 +3924,7 @@ String *Item_func_charset::val_str(String *str)
 
 String *Item_func_collation::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   uint dummy_errors;
   const CHARSET_INFO *cs= args[0]->charset_for_protocol(); 
 
@@ -4038,7 +4038,7 @@ String *Item_func_weight_string::val_str(String *str)
   String *res;
   const CHARSET_INFO *cs= args[0]->collation.collation;
   size_t tmp_length, frm_length;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   if (args[0]->result_type() != STRING_RESULT ||
       !(res= args[0]->val_str(str)))
@@ -4077,7 +4077,7 @@ String *Item_func_weight_string::val_str(String *str)
                                    nweights ? nweights : tmp_length,
                                    (const uchar *) res->ptr(), res->length(),
                                    flags);
-  DBUG_ASSERT(frm_length <= tmp_length);
+  assert(frm_length <= tmp_length);
 
   tmp_value.length(frm_length);
   null_value= 0;
@@ -4092,7 +4092,7 @@ nl:
 String *Item_func_hex::val_str_ascii(String *str)
 {
   String *res;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
     ulonglong dec;
@@ -4145,7 +4145,7 @@ String *Item_func_unhex::val_str(String *str)
   String *res;
   size_t length;
   null_value= true;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   res= args[0]->val_str(str);
   // For a NULL input value return NULL without any warning
@@ -4192,10 +4192,10 @@ err:
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 String *Item_func_like_range::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   longlong nbytes= args[1]->val_int();
   String *res= args[0]->val_str(str);
   size_t min_len, max_len;
@@ -4265,7 +4265,7 @@ void Item_char_typecast::print(String *str, enum_query_type query_type)
 
 String *Item_char_typecast::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res;
   uint32 length;
 
@@ -4407,7 +4407,7 @@ bool Item_load_file::itemize(Parse_context *pc, Item **res)
 
 String *Item_load_file::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *file_name;
   File file;
   MY_STAT stat_info;
@@ -4468,7 +4468,7 @@ err:
 
 String* Item_func_export_set::val_str(String* str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String yes_buf, no_buf, sep_buf;
   const ulonglong the_set = (ulonglong) args[0]->val_int();
   const String *yes= args[1]->val_str(&yes_buf);
@@ -4517,7 +4517,7 @@ String* Item_func_export_set::val_str(String* str)
     }
     break;
   default:
-    DBUG_ASSERT(0); // cannot happen
+    assert(0); // cannot happen
   }
   null_value= false;
 
@@ -4590,7 +4590,7 @@ void Item_func_export_set::fix_length_and_dec()
 
 String *Item_func_quote::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   /*
     Bit mask that has 1 for set for the position of the following characters:
     0, \, ' and ^Z
@@ -4745,7 +4745,7 @@ null:
  */
 longlong Item_func_uncompressed_length::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res= args[0]->val_str(&value);
 
   if ((null_value= args[0]->null_value))
@@ -4778,7 +4778,7 @@ longlong Item_func_uncompressed_length::val_int()
 
 longlong Item_func_crc32::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res=args[0]->val_str(&value);
   if (!res)
   {
@@ -4799,7 +4799,7 @@ String *Item_func_compress::val_str(String *str)
   String *res;
   Byte *body;
   char *last_char;
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   if (!(res= args[0]->val_str(str)))
   {
@@ -4857,7 +4857,7 @@ String *Item_func_compress::val_str(String *str)
 
 String *Item_func_uncompress::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String *res= args[0]->val_str(str);
   ulong new_size;
   int err;
@@ -4965,7 +4965,7 @@ bool Item_func_uuid::itemize(Parse_context *pc, Item **res)
 
 String *Item_func_uuid::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   char *s;
   THD *thd= current_thd;
 
@@ -5011,7 +5011,7 @@ String *Item_func_uuid::val_str(String *str)
     */
     if (nanoseq)
     {
-      DBUG_ASSERT((tv > uuid_time) && (nanoseq > 0));
+      assert((tv > uuid_time) && (nanoseq > 0));
       /*
         -1 so we won't make tv= uuid_time for nanoseq >= (tv - uuid_time)
       */

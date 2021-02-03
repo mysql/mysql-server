@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1307,24 +1307,24 @@ row_merge_write_rec_low(
 /*====================*/
 	byte*		b,	/*!< out: buffer */
 	ulint		e,	/*!< in: encoded extra_size */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	ulint		size,	/*!< in: total size to write */
 	int		fd,	/*!< in: file descriptor */
 	ulint		foffs,	/*!< in: file offset */
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 	const mrec_t*	mrec,	/*!< in: record to write */
 	const ulint*	offsets)/*!< in: offsets of mrec */
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 # define row_merge_write_rec_low(b, e, size, fd, foffs, mrec, offsets)	\
 	row_merge_write_rec_low(b, e, mrec, offsets)
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 {
 	DBUG_ENTER("row_merge_write_rec_low");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	const byte* const end = b + size;
-#endif /* DBUG_OFF */
-	DBUG_ASSERT(e == rec_offs_extra_size(offsets) + 1);
+#endif /* NDEBUG */
+	assert(e == rec_offs_extra_size(offsets) + 1);
 	DBUG_PRINT("ib_merge_sort",
 		   ("%p,fd=%d,%lu: %s",
 		    reinterpret_cast<const void*>(b), fd, ulong(foffs),
@@ -1338,7 +1338,7 @@ row_merge_write_rec_low(
 	}
 
 	memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
-	DBUG_ASSERT(b + rec_offs_size(offsets) == end);
+	assert(b + rec_offs_size(offsets) == end);
 	DBUG_VOID_RETURN;
 }
 
@@ -1878,11 +1878,11 @@ row_merge_read_clustered_index(
 				}
 			}
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 # define dbug_run_purge	false
-#else /* DBUG_OFF */
+#else /* NDEBUG */
 			bool	dbug_run_purge = false;
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 			DBUG_EXECUTE_IF(
 				"ib_purge_on_create_index_page_switch",
 				dbug_run_purge = true;);

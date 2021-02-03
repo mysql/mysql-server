@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -3197,9 +3197,9 @@ row_ins_index_entry_big_rec_func(
 	mem_heap_t**		heap,	/*!< in/out: memory heap */
 	dict_index_t*		index,	/*!< in: index */
 	const char*		file,	/*!< in: file name of caller */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	const void*		thd,    /*!< in: connection, or NULL */
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 	ulint			line)	/*!< in: line number of caller */
 {
 	mtr_t		mtr;

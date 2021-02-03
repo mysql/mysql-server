@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ public:
     bool is_empty() const { return nil; }
     void cleanup() { nil= true; }
     void set(T value_arg) { value= value_arg; nil= false; }
-    T get() const { DBUG_ASSERT(!nil); return value; }
+    T get() const { assert(!nil); return value; }
   };
 
   /**
@@ -195,7 +195,7 @@ public:
         StringBuffer<128> buff(system_charset_info);
         if (deferred->eval(&buff) || set(buff))
         {
-          DBUG_ASSERT(!"OOM!");
+          assert(!"OOM!");
           return true; // ignore OOM
         }
         deferred= NULL; // prevent double evaluation, if any

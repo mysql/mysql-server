@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -257,7 +257,7 @@ extern "C" void query_cache_invalidate_by_MyISAM_filename(const char* filename);
 struct Query_cache_memory_bin
 {
   Query_cache_memory_bin() {}                 /* Remove gcc warning */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ulong size;
 #endif
   uint number;
@@ -265,7 +265,7 @@ struct Query_cache_memory_bin
 
   inline void init(ulong size_arg)
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     size = size_arg;
 #endif
     number = 0;
@@ -298,7 +298,7 @@ public:
 
 
 private:
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   my_thread_id m_cache_lock_thread_id;
 #endif
   mysql_cond_t COND_cache_status_changed;
@@ -505,7 +505,7 @@ protected:
 
   /*
     The following functions are only used when debugging
-    We don't protect these with ifndef DBUG_OFF to not have to recompile
+    We don't protect these with ifndef NDEBUG to not have to recompile
     everything if we want to add checks of the cache at some places.
   */
   void wreck(uint line, const char *message);

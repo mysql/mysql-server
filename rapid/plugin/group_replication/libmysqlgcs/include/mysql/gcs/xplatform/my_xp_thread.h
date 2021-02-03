@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ struct st_native_thread_var
   int volatile abort;
   struct st_native_thread_var *next, **prev;
   void *opt_info;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   void *dbug;
 #endif
 };
@@ -94,7 +94,7 @@ struct st_native_thread_var
 
 int set_mysys_thread_var(struct st_native_thread_var *mysys_var);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /**
   Returns pointer to DBUG for holding current state.
 */

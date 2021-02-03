@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -944,7 +944,7 @@ int main(int argc,char *argv[])
   if ((rc= my_handle_options(&argc, &argv, my_connection_options,
                              my_arguments_get_one_option, NULL, TRUE)))
   {
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   init_connection_options(&mysql);

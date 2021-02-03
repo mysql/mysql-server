@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4910,7 +4910,7 @@ applyDefaultValues(InitConfigFileParser::Context & ctx,
 	  break;
         }
       }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       else
       {
         switch (ctx.m_info->getType(ctx.m_currentInfo, name)){
@@ -6187,7 +6187,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
             } 
           } 
           i_group++; 
-          DBUG_ASSERT(i_group <= replicas); 
+          assert(i_group <= replicas); 
           if (i_group == replicas) 
           { 
             unsigned c= 0; 

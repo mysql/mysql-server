@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -486,7 +486,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
       }
 
       else if (throw_error) {
-        DBUG_ASSERT(thd);
+        assert(thd);
         push_warning_printf(
             thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
             "%s is not a valid system variable and will be ignored.", token);
@@ -684,7 +684,7 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf) {
 
 void Session_sysvars_tracker::mark_as_changed(THD *thd,
                                               LEX_CSTRING *tracked_item_name) {
-  DBUG_ASSERT(tracked_item_name->str);
+  assert(tracked_item_name->str);
   sysvar_node_st *node = NULL;
   LEX_STRING tmp;
   tmp.str = (char *)tracked_item_name->str;
@@ -1189,7 +1189,7 @@ enum_tx_state Transaction_state_tracker::calc_trx_state(THD *thd,
   @param thd [IN]           The thd handle
 */
 void Transaction_state_tracker::end_trx(THD *thd) {
-  DBUG_ASSERT(thd->variables.session_track_transaction_info > TX_TRACK_NONE);
+  assert(thd->variables.session_track_transaction_info > TX_TRACK_NONE);
 
   if ((!m_enabled) || (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
     return;

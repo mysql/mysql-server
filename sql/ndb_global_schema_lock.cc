@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -253,13 +253,13 @@ ndbcluster_global_schema_lock(THD *thd,
     if (thd_ndb->global_schema_lock_trans)
       thd_ndb->global_schema_lock_trans->refresh();
     else
-      DBUG_ASSERT(thd_ndb->global_schema_lock_error != 0);
+      assert(thd_ndb->global_schema_lock_error != 0);
     thd_ndb->global_schema_lock_count++;
     DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                         thd_ndb->global_schema_lock_count));
     DBUG_RETURN(0);
   }
-  DBUG_ASSERT(thd_ndb->global_schema_lock_count == 0);
+  assert(thd_ndb->global_schema_lock_count == 0);
   thd_ndb->global_schema_lock_count= 1;
   thd_ndb->global_schema_lock_error= 0;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
@@ -297,7 +297,7 @@ ndbcluster_global_schema_lock(THD *thd,
    */
   if (ndb_error.code != 4009)  //No cluster connection
   {
-    DBUG_ASSERT(thd_ndb->global_schema_lock_count == 1);
+    assert(thd_ndb->global_schema_lock_count == 1);
     // This reset triggers the special case in ndbcluster_global_schema_unlock()
     thd_ndb->global_schema_lock_count = 0;
   }
@@ -326,7 +326,7 @@ int
 ndbcluster_global_schema_unlock(THD *thd)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  DBUG_ASSERT(thd_ndb != 0);
+  assert(thd_ndb != 0);
   if (unlikely(thd_ndb == NULL))
   {
     return 0;
@@ -360,12 +360,12 @@ ndbcluster_global_schema_unlock(THD *thd)
   thd_ndb->global_schema_lock_count--;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                       thd_ndb->global_schema_lock_count));
-  DBUG_ASSERT(ndb != NULL);
+  assert(ndb != NULL);
   if (ndb == NULL)
   {
     DBUG_RETURN(0);
   }
-  DBUG_ASSERT(trans != NULL || thd_ndb->global_schema_lock_error != 0);
+  assert(trans != NULL || thd_ndb->global_schema_lock_error != 0);
   if (thd_ndb->global_schema_lock_count != 0)
   {
     DBUG_RETURN(0);
@@ -434,7 +434,7 @@ notify_mdl_lock(THD *thd, bool lock, bool *victimized)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static
 const char*
 mdl_namespace_name(const MDL_key* mdl_key)
@@ -498,7 +498,7 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                        mdl_namespace_name(mdl_key),
                        mdl_key->db_name(), mdl_key->name()));
 
-  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
+  assert(notification == HA_NOTIFY_PRE_EVENT ||
               notification == HA_NOTIFY_POST_EVENT);
 
   bool victimized= false;
@@ -546,7 +546,7 @@ ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
                        mdl_namespace_name(mdl_key),
                        mdl_key->db_name(), mdl_key->name()));
 
-  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
+  assert(notification == HA_NOTIFY_PRE_EVENT ||
               notification == HA_NOTIFY_POST_EVENT);
 
   const bool result =

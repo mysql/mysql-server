@@ -33,9 +33,15 @@ SET SESSION sql_log_bin= 1;
 [connection server1]
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET @ip_whitelist= @@GLOBAL.group_replication_ip_whitelist;
 [connection server2]
 SET @local_address= @@GLOBAL.group_replication_local_address;
 SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET @ip_whitelist= @@GLOBAL.group_replication_ip_whitelist;
+SET GLOBAL group_replication_ip_whitelist= @ip_whitelist;
+[connection server1]
+SET GLOBAL group_replication_ip_whitelist= @ip_whitelist;
+[connection server2]
 #######################################################
 #  1. Try setting bootstrap_group variable with invalid
 #     values. It must fail.

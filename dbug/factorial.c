@@ -1,4 +1,4 @@
-#ifdef DBUG_OFF				/* We are testing dbug */
+#ifdef NDEBUG				/* We are testing dbug */
 
 int factorial(int value) {
 	if(value > 1) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1038,8 +1038,8 @@ bool sp_create_routine(THD *thd, sp_head *sp)
   String retstr(64);
   retstr.set_charset(system_charset_info);
 
-  DBUG_ASSERT(sp->m_type == SP_TYPE_PROCEDURE ||
-              sp->m_type == SP_TYPE_FUNCTION);
+  assert(sp->m_type == SP_TYPE_PROCEDURE ||
+         sp->m_type == SP_TYPE_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str))
@@ -1298,7 +1298,7 @@ done:
   thd->count_cuted_fields= saved_count_cuted_fields;
   thd->variables.sql_mode= saved_mode;
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
@@ -1331,7 +1331,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
@@ -1382,7 +1382,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 #endif 
   }
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
@@ -1418,7 +1418,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
@@ -1488,7 +1488,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   }
 err:
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(ret);
@@ -1601,10 +1601,10 @@ bool lock_db_routines(THD *thd, const char *db)
   close_nontrans_system_tables(thd, &open_tables_state_backup);
 
   /* We should already hold a global IX lock and a schema X lock. */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
-                                 "", "", MDL_INTENTION_EXCLUSIVE) &&
-              thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
-                                 db, "", MDL_EXCLUSIVE));
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                                      "", "", MDL_INTENTION_EXCLUSIVE) &&
+         thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                                      db, "", MDL_EXCLUSIVE));
   DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
                                              thd->variables.lock_wait_timeout));
 }
@@ -1722,7 +1722,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name)
                        (int) name->m_name.length,
                        name->m_name.str));
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  assert(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
 
   /*
     @todo: Consider using prelocking for this code as well. Currently
@@ -1801,7 +1801,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                           (ulong)sp->m_first_free_instance,
                           sp->m_first_free_instance->m_recursion_level,
                           sp->m_first_free_instance->m_flags));
-      DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
+      assert(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
       if (sp->m_first_free_instance->m_recursion_level > depth)
       {
         recursion_level_error(thd, sp);
@@ -2108,7 +2108,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
     in sroutines_list has an MDL lock unless it's a top-level call, or a
     trigger, but triggers can't occur here (see the preceding assert).
   */
-  DBUG_ASSERT(rt->mdl_request.ticket || rt == thd->lex->sroutines_list.first);
+  assert(rt->mdl_request.ticket || rt == thd->lex->sroutines_list.first);
 
   return sp_cache_routine(thd, type, &name, lookup_only, sp);
 }
@@ -2143,7 +2143,7 @@ int sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
 
   DBUG_ENTER("sp_cache_routine");
 
-  DBUG_ASSERT(type == SP_TYPE_FUNCTION || type == SP_TYPE_PROCEDURE);
+  assert(type == SP_TYPE_FUNCTION || type == SP_TYPE_PROCEDURE);
 
 
   *sp= sp_cache_lookup(spc, name);
@@ -2419,7 +2419,7 @@ void sp_finish_parsing(THD *thd)
 {
   sp_head *sp= thd->lex->sphead;
 
-  DBUG_ASSERT(sp);
+  assert(sp);
 
   sp->set_body_end(thd);
 
@@ -2638,7 +2638,7 @@ uint sp_get_flags_for_command(LEX *lex)
 
 bool sp_check_name(LEX_STRING *ident)
 {
-  DBUG_ASSERT(ident != NULL && ident->str != NULL);
+  assert(ident != NULL && ident->str != NULL);
 
   if (!ident->str[0] || ident->str[ident->length-1] == ' ')
   {

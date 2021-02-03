@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,9 +127,9 @@ public:
             update_values),
      insert_into_view(table_list_par && table_list_par->is_view())
   {
-    DBUG_ASSERT(target_or_source_columns != NULL);
-    DBUG_ASSERT(target_columns == target_or_source_columns ||
-                target_columns == NULL);
+    assert(target_or_source_columns != NULL);
+    assert(target_columns == target_or_source_columns ||
+           target_columns == NULL);
   }
 
 

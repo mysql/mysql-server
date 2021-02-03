@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -218,7 +218,7 @@
   With the instrumentation, mysql_fclose(NULL, ...) will safely return 0,
   which is an extension compared to my_fclose and is therefore compliant.
   mysql_fclose is on purpose *not* implementing
-  @code DBUG_ASSERT(file != NULL) @endcode,
+  @code assert(file != NULL) @endcode,
   since doing so could introduce regressions.
 */
 #ifdef HAVE_PSI_FILE_INTERFACE

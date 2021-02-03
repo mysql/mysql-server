@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -242,15 +242,15 @@ void pfs_automated_sizing(PFS_global_param *param)
     heuristic= estimate_hints(param);
     apply_heuristic(param, heuristic);
 
-    DBUG_ASSERT(param->m_events_waits_history_sizing >= 0);
-    DBUG_ASSERT(param->m_events_waits_history_long_sizing >= 0);
-    DBUG_ASSERT(param->m_events_stages_history_sizing >= 0);
-    DBUG_ASSERT(param->m_events_stages_history_long_sizing >= 0);
-    DBUG_ASSERT(param->m_events_statements_history_sizing >= 0);
-    DBUG_ASSERT(param->m_events_statements_history_long_sizing >= 0);
-    DBUG_ASSERT(param->m_events_transactions_history_sizing >= 0);
-    DBUG_ASSERT(param->m_events_transactions_history_long_sizing >= 0);
-    DBUG_ASSERT(param->m_session_connect_attrs_sizing >= 0);
+    assert(param->m_events_waits_history_sizing >= 0);
+    assert(param->m_events_waits_history_long_sizing >= 0);
+    assert(param->m_events_stages_history_sizing >= 0);
+    assert(param->m_events_stages_history_long_sizing >= 0);
+    assert(param->m_events_statements_history_sizing >= 0);
+    assert(param->m_events_statements_history_long_sizing >= 0);
+    assert(param->m_events_transactions_history_sizing >= 0);
+    assert(param->m_events_transactions_history_long_sizing >= 0);
+    assert(param->m_session_connect_attrs_sizing >= 0);
   }
   else
   {

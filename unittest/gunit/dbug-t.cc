@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ using thread::Thread;
 
 namespace dbug_unittest {
 
-#if defined(DBUG_OFF)
+#if defined(NDEBUG)
 TEST(DebugTest, NoSuicide)
 {
   DBUG_SUICIDE();
@@ -48,7 +48,7 @@ TEST(DebugDeathTest, Suicide)
 #endif
 
 
-#if !defined(DBUG_OFF) && !defined(_WIN32)
+#if !defined(NDEBUG) && !defined(_WIN32)
 class DbugGcovThread : public Thread
 {
 public:
@@ -81,7 +81,7 @@ TEST(DebugFlushGcov, FlushGcovParallel)
 #endif
 
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 TEST(DebugPrintTest, PrintEval)
 {
   int y= 0;
@@ -176,5 +176,5 @@ TEST(DebugSetTest, DebugKeywordsTest)
   EXPECT_STREQ("d,keyword1,keyword2,keyword3",buf);
   DBUG_SET("");
 }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 }

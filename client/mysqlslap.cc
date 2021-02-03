@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -604,7 +604,7 @@ static struct my_option my_long_options[] =
   {"csv", OPT_SLAP_CSV,
 	"Generate CSV output to named file or to stdout if no file is named.",
     NULL, NULL, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
   { "debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
@@ -1990,13 +1990,13 @@ limit_not_met:
           Just in case someone runs this under an experimental engine we don't
           want a crash so the if() is placed here.
         */
-        DBUG_ASSERT(primary_keys_number_of);
+        assert(primary_keys_number_of);
         if (primary_keys_number_of)
         {
           key_val= (unsigned int)(random() % primary_keys_number_of);
           key= primary_keys[key_val];
 
-          DBUG_ASSERT(key);
+          assert(key);
 
           length= snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'", 
                            (int)ptr->length, ptr->string, key);

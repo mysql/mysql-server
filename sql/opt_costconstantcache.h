@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTCACHE_INCLUDED
 
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,7 @@ public:
 
   void release_cost_constants(const Cost_model_constants *cost_constants)
   {
-    DBUG_ASSERT(cost_constants != NULL);
+    assert(cost_constants != NULL);
 
     /*
       The reason for using a const cast here is to be able to keep

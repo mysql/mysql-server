@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -229,7 +229,7 @@ bool PT_qb_level_hint::contextualize(Parse_context *pc)
       qb->subquery_hint= this;
     break;
   default:
-      DBUG_ASSERT(0);
+    assert(0);
   }
 
   if (conflict ||
@@ -280,11 +280,11 @@ void PT_qb_level_hint::append_args(THD *thd, String *str) const
       str->append(STRING_WITH_LEN(" INTOEXISTS"));
       break;
     default:      // Exactly one of above strategies should always be specified
-      DBUG_ASSERT(false);
+      assert(false);
     }
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 }
 
@@ -403,7 +403,7 @@ bool PT_hint_qb_name::contextualize(Parse_context *pc)
 
   Opt_hints_qb *qb= pc->select->opt_hints_qb;
 
-  DBUG_ASSERT(qb);
+  assert(qb);
 
   if (qb->get_name() ||                         // QB name is already set
       qb->get_parent()->find_by_name(&qb_name,  // Name is already used

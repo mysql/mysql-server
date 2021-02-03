@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ uint Ndb_table_map::get_field_for_column(uint colId) const
   if(m_trivial) return colId;
 
   const int fieldId = m_map_by_col[colId];
-  DBUG_ASSERT(fieldId >= 0);  // We do not expect any non-final hidden columns
+  assert(fieldId >= 0);  // We do not expect any non-final hidden columns
   return (uint) fieldId;
 }
 

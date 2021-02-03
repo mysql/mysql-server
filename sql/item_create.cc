@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2877,7 +2877,7 @@ protected:
 };
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 class Create_func_like_range_min : public Create_func_arg2
 {
 public:
@@ -4181,7 +4181,7 @@ Item*
 Create_udf_func::create_func(THD *thd, LEX_STRING name, PT_item_list *item_list)
 {
   udf_func *udf= find_udf(name.str, name.length);
-  DBUG_ASSERT(udf);
+  assert(udf);
   return create(thd, udf, item_list);
 }
 
@@ -4191,8 +4191,8 @@ Create_udf_func::create(THD *thd, udf_func *udf, PT_item_list *item_list)
 {
   DBUG_ENTER("Create_udf_func::create");
 
-  DBUG_ASSERT(   (udf->type == UDFTYPE_FUNCTION)
-              || (udf->type == UDFTYPE_AGGREGATE));
+  assert(   (udf->type == UDFTYPE_FUNCTION)
+            || (udf->type == UDFTYPE_AGGREGATE));
 
   Item *func= NULL;
   POS pos;
@@ -6374,7 +6374,7 @@ Create_func_length::create(THD *thd, Item *arg1)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 Create_func_like_range_min Create_func_like_range_min::s_singleton;
 
 Item*
@@ -7626,7 +7626,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lower)},
   { { C_STRING_WITH_LEN("LEAST") }, BUILDER(Create_func_least)},
   { { C_STRING_WITH_LEN("LENGTH") }, BUILDER(Create_func_length)},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   { { C_STRING_WITH_LEN("LIKE_RANGE_MIN") }, BUILDER(Create_func_like_range_min)},
   { { C_STRING_WITH_LEN("LIKE_RANGE_MAX") }, BUILDER(Create_func_like_range_max)},
 #endif
@@ -7873,7 +7873,7 @@ int item_create_init()
       DBUG_RETURN(1);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (uint i=0 ; i < native_functions_hash.records ; i++)
   {
     func= (Native_func_registry*) my_hash_element(& native_functions_hash, i);
@@ -8068,7 +8068,7 @@ create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type)
   }
   default:
   {
-    DBUG_ASSERT(0);
+    assert(0);
     res= 0;
     break;
   }
@@ -8125,7 +8125,7 @@ Item *create_temporal_literal(THD *thd,
                                                   status.fractional_digits);
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   if (item)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,7 +291,7 @@ public:
 
   void set_data(const void* v, long l)
   {
-    DBUG_ASSERT(l <= XIDDATASIZE);
+    assert(l <= XIDDATASIZE);
     memcpy(data, v, l);
   }
 
@@ -363,7 +363,7 @@ public:
     return serialize_xid(buf, formatID, gtrid_length, bqual_length, data);
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Get printable XID value.
 
@@ -502,7 +502,7 @@ public:
 
   void start_normal_xa(const XID *xid)
   {
-    DBUG_ASSERT(m_xid.is_null());
+    assert(m_xid.is_null());
     xa_state= XA_ACTIVE;
     m_xid.set(xid);
     in_recovery= false;

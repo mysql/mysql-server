@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include "log_event.h"     // Log_event
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* Event parser state names */
 static const char *event_parser_state_names[]= {
   "None",
@@ -140,7 +140,7 @@ Transaction_boundary_parser::get_event_boundary_type(
       qlen= Query_log_event::get_query(buf, length, fd_event, &query);
       if (qlen == 0)
       {
-        DBUG_ASSERT(query == NULL);
+        assert(query == NULL);
         boundary_type= EVENT_BOUNDARY_TYPE_ERROR;
         break;
       }

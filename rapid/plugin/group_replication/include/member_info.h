@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@
   lower_case_table_names value is not known.
 */
 #define DEFAULT_NOT_RECEIVED_LOWER_CASE_TABLE_NAMES  65540
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define SKIP_ENCODING_LOWER_CASE_TABLE_NAMES         65541
 #endif
 

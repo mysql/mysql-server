@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,7 +222,7 @@ const char *default_dbug_option="d:t:o,/tmp/mysql.trace";
 
   For using this feature in test case, we add the option in debug code.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static my_bool opt_build_completion_hash = FALSE;
 #endif
 
@@ -1682,7 +1682,7 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
@@ -1891,7 +1891,7 @@ static struct my_option my_long_options[] =
    "password sandbox mode.",
    &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {"build-completion-hash", 0,
    "Build completion hash even when it is in batch mode. It is used for "
    "test purpose, so it is just built when DEBUG is on.",
@@ -2468,7 +2468,7 @@ static COMMANDS *find_command(char *name)
   char *end;
   DBUG_ENTER("find_command");
 
-  DBUG_ASSERT(name != NULL);
+  assert(name != NULL);
   DBUG_PRINT("enter", ("name: '%s'", name));
 
   while (my_isspace(charset_info, *name))
@@ -2866,6 +2866,9 @@ static void initialize_readline (char *name)
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
 
+  /* Accept all locales. */
+  setlocale(LC_ALL,"");
+
   /* Tell the completer that we want a crack first. */
 #if defined(EDITLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function= &new_mysql_completion;
@@ -2873,7 +2876,6 @@ static void initialize_readline (char *name)
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
 #elif defined(EDITLINE_HAVE_COMPLETION_INT)
-  setlocale(LC_ALL,""); /* so as libedit use isprint */
   rl_attempted_completion_function= &new_mysql_completion;
   rl_completion_entry_function= &no_completion;
   rl_add_defun("magic-space", &fake_magic_space, -1);
@@ -2997,7 +2999,7 @@ static void build_completion_hash(bool rehash, bool write_info)
   int i,j,num_fields;
   DBUG_ENTER("build_completion_hash");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!opt_build_completion_hash)
 #endif
   {
@@ -4101,9 +4103,9 @@ static int get_result_width(MYSQL_RES *result)
   MYSQL_FIELD *field;
   MYSQL_FIELD_OFFSET offset;
   
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   offset= mysql_field_tell(result);
-  DBUG_ASSERT(offset == 0);
+  assert(offset == 0);
 #else
   offset= 0;
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,13 +47,13 @@ void Cost_model_server::init()
   {
     // Get the current set of cost constants
     m_cost_constants= cost_constant_cache->get_cost_constants();
-    DBUG_ASSERT(m_cost_constants != NULL);
+    assert(m_cost_constants != NULL);
 
     // Get the cost constants for server operations
     m_server_cost_constants= m_cost_constants->get_server_cost_constants();
-    DBUG_ASSERT(m_server_cost_constants != NULL);
+    assert(m_server_cost_constants != NULL);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized= true;
 #endif
   }
@@ -63,8 +63,8 @@ void Cost_model_server::init()
 void Cost_model_table::init(const Cost_model_server *cost_model_server,
                             const TABLE *table)
 {
-  DBUG_ASSERT(cost_model_server != NULL);
-  DBUG_ASSERT(table != NULL);
+  assert(cost_model_server != NULL);
+  assert(table != NULL);
 
   m_cost_model_server= cost_model_server;
   m_table= table;
@@ -72,9 +72,9 @@ void Cost_model_table::init(const Cost_model_server *cost_model_server,
   // Find the cost constant object to be used for this table
   m_se_cost_constants=
     m_cost_model_server->get_cost_constants()->get_se_cost_constants(table);
-  DBUG_ASSERT(m_se_cost_constants != NULL);
+  assert(m_se_cost_constants != NULL);
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   m_initialized= true;
 #endif
 }
@@ -82,14 +82,14 @@ void Cost_model_table::init(const Cost_model_server *cost_model_server,
 
 double Cost_model_table::page_read_cost(double pages) const
 {
-  DBUG_ASSERT(m_initialized);
-  DBUG_ASSERT(pages >= 0.0);
+  assert(m_initialized);
+  assert(pages >= 0.0);
 
   const double in_mem= m_table->file->table_in_memory_estimate();
 
   const double pages_in_mem= pages * in_mem;
   const double pages_on_disk= pages - pages_in_mem;
-  DBUG_ASSERT(pages_on_disk >= 0.0);
+  assert(pages_on_disk >= 0.0);
 
   const double cost= buffer_block_read_cost(pages_in_mem) +
     io_block_read_cost(pages_on_disk);
@@ -100,8 +100,8 @@ double Cost_model_table::page_read_cost(double pages) const
 
 double Cost_model_table::page_read_cost_index(uint index, double pages) const
 {
-  DBUG_ASSERT(m_initialized);
-  DBUG_ASSERT(pages >= 0.0);
+  assert(m_initialized);
+  assert(pages >= 0.0);
 
   double in_mem= m_table->file->index_in_memory_estimate(index);
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   select_errors=0;				/* Write if more errors */
   int tmp_write_to_binlog= *write_to_binlog= 1;
 
-  DBUG_ASSERT(!thd || !thd->in_sub_stmt);
+  assert(!thd || !thd->in_sub_stmt);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (options & REFRESH_GRANT)
@@ -196,12 +196,12 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     query_cache.flush();			// RESET QUERY CACHE
   }
 
-  DBUG_ASSERT(!thd || thd->locked_tables_mode ||
-              !thd->mdl_context.has_locks() ||
-              thd->handler_tables_hash.records ||
-              thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
-              thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
-              thd->global_read_lock.is_acquired());
+  assert(!thd || thd->locked_tables_mode ||
+         !thd->mdl_context.has_locks() ||
+         thd->handler_tables_hash.records ||
+         thd->mdl_context.has_locks(MDL_key::USER_LEVEL_LOCK) ||
+         thd->mdl_context.has_locks(MDL_key::LOCKING_SERVICE) ||
+         thd->global_read_lock.is_acquired());
 
   /*
     Note that if REFRESH_READ_LOCK bit is set then REFRESH_TABLES is set too
@@ -315,7 +315,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
 #ifdef HAVE_REPLICATION
   if (options & REFRESH_MASTER)
   {
-    DBUG_ASSERT(thd);
+    assert(thd);
     tmp_write_to_binlog= 0;
     if (reset_master(thd))
     {

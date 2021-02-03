@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,12 +37,12 @@ bool PT_group::contextualize(Parse_context *pc)
 
   if (group_list->contextualize(pc))
     return true;
-  DBUG_ASSERT(select == pc->select);
+  assert(select == pc->select);
 
   select->group_list= group_list->value;
 
   // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(select->parsing_place == CTX_GROUP_BY);
+  assert(select->parsing_place == CTX_GROUP_BY);
   select->parsing_place= CTX_NONE;
 
   switch (olap) {
@@ -74,7 +74,7 @@ bool PT_group::contextualize(Parse_context *pc)
     select->olap= ROLLUP_TYPE;
     break;
   default:
-    DBUG_ASSERT(!"unexpected OLAP type!");
+    assert(!"unexpected OLAP type!");
   }
   return false;
 }
@@ -208,10 +208,10 @@ bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
 
   if (select_item_list->contextualize(pc))
     return true;
-  DBUG_ASSERT(child == pc->select);
+  assert(child == pc->select);
 
   // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(child->parsing_place == CTX_SELECT_LIST);
+  assert(child->parsing_place == CTX_SELECT_LIST);
   child->parsing_place= CTX_NONE;
 
   if (table_expression->contextualize(pc))
@@ -380,8 +380,8 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc)
 
   if (name->value.var == trg_new_row_fake_var)
   {
-    DBUG_ASSERT(sp);
-    DBUG_ASSERT(expr_start_ptr);
+    assert(sp);
+    assert(expr_start_ptr);
 
     /* We are parsing trigger and this is a trigger NEW-field. */
 
@@ -415,8 +415,8 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc)
   }
   else
   {
-    DBUG_ASSERT(sp);
-    DBUG_ASSERT(expr_start_ptr);
+    assert(sp);
+    assert(expr_start_ptr);
 
     /* We're parsing SP and this is an SP-variable. */
 
@@ -493,7 +493,7 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc)
   user->user.length= sctx_user.length;
 
   LEX_CSTRING sctx_priv_host= thd->security_context()->priv_host();
-  DBUG_ASSERT(sctx_priv_host.str);
+  assert(sctx_priv_host.str);
   user->host.str= (char *) sctx_priv_host.str;
   user->host.length= sctx_priv_host.length;
 
@@ -605,7 +605,7 @@ static bool multi_delete_set_locks_and_link_aux_tables(Parse_context *pc)
     walk->updating= target_tbl->updating;
     walk->lock_type= target_tbl->lock_type;
     /* We can assume that tables to be deleted from are locked for write. */
-    DBUG_ASSERT(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
+    assert(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
     walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_type));
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
@@ -672,7 +672,7 @@ bool PT_delete::contextualize(Parse_context *pc)
   if (opt_order_clause != NULL && opt_order_clause->contextualize(pc))
     return true;
 
-  DBUG_ASSERT(pc->select->select_limit == NULL);
+  assert(pc->select->select_limit == NULL);
   if (opt_delete_limit_clause != NULL)
   {
     if (opt_delete_limit_clause->itemize(pc, &opt_delete_limit_clause))
@@ -726,7 +726,7 @@ bool PT_update::contextualize(Parse_context *pc)
   pc->select->item_list= column_list->value;
 
   // Ensure we're resetting parsing context of the right select
-  DBUG_ASSERT(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
+  assert(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
   pc->select->parsing_place= CTX_NONE;
   if (lex->select_lex->table_list.elements > 1)
     lex->sql_command= SQLCOM_UPDATE_MULTI;
@@ -755,7 +755,7 @@ bool PT_update::contextualize(Parse_context *pc)
   if (opt_order_clause != NULL && opt_order_clause->contextualize(pc))
     return true;
 
-  DBUG_ASSERT(pc->select->select_limit == NULL);
+  assert(pc->select->select_limit == NULL);
   if (opt_limit_clause != NULL)
   {
     if (opt_limit_clause->itemize(pc, &opt_limit_clause))
@@ -798,7 +798,7 @@ bool PT_create_select::contextualize(Parse_context *pc)
     The following work only with the local list, the global list
     is created correctly in this case
   */
-  DBUG_ASSERT(pc->select == lex->current_select());
+  assert(pc->select == lex->current_select());
   SQL_I_List<TABLE_LIST> save_list;
   pc->select->table_list.save_and_clear(&save_list);
   pc->select->parsing_place= CTX_SELECT_LIST;
@@ -816,7 +816,7 @@ bool PT_create_select::contextualize(Parse_context *pc)
     return true;
 
   // Ensure we're resetting parsing context of the right select
-  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
+  assert(pc->select->parsing_place == CTX_SELECT_LIST);
   pc->select->parsing_place= CTX_NONE;
 
   if (table_expression->contextualize(pc))
@@ -900,7 +900,7 @@ bool PT_insert::contextualize(Parse_context *pc)
   }
   pc->select->set_lock_for_tables(lock_option);
 
-  DBUG_ASSERT(lex->current_select() == lex->select_lex);
+  assert(lex->current_select() == lex->select_lex);
 
   if (column_list->contextualize(pc))
     return true;
@@ -921,10 +921,10 @@ bool PT_insert::contextualize(Parse_context *pc)
 
   if (opt_on_duplicate_column_list != NULL)
   {
-    DBUG_ASSERT(!is_replace);
-    DBUG_ASSERT(opt_on_duplicate_value_list != NULL &&
-                opt_on_duplicate_value_list->elements() ==
-                  opt_on_duplicate_column_list->elements());
+    assert(!is_replace);
+    assert(opt_on_duplicate_value_list != NULL &&
+           opt_on_duplicate_value_list->elements() ==
+           opt_on_duplicate_column_list->elements());
 
     lex->duplicates= DUP_UPDATE;
     TABLE_LIST *first_table= lex->select_lex->table_list.first;
@@ -939,7 +939,7 @@ bool PT_insert::contextualize(Parse_context *pc)
       return true;
 
     // Ensure we're resetting parsing context of the right select
-    DBUG_ASSERT(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
+    assert(pc->select->parsing_place == CTX_UPDATE_VALUE_LIST);
     pc->select->parsing_place= CTX_NONE;
   }
 
@@ -971,7 +971,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
   sql_cmd->insert_field_list= column_list->value;
   if (opt_on_duplicate_column_list != NULL)
   {
-    DBUG_ASSERT(!is_replace);
+    assert(!is_replace);
     sql_cmd->insert_update_list= opt_on_duplicate_column_list->value;
     sql_cmd->insert_value_list= opt_on_duplicate_value_list->value;
   }

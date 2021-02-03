@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ inline uint read_token(const sql_digest_storage *digest_storage,
 */
 inline void store_token(sql_digest_storage* digest_storage, uint token)
 {
-  DBUG_ASSERT(digest_storage->m_byte_count <= digest_storage->m_token_array_length);
+  assert(digest_storage->m_byte_count <= digest_storage->m_token_array_length);
 
   if (digest_storage->m_byte_count + SIZE_OF_A_TOKEN <= digest_storage->m_token_array_length)
   {
@@ -104,8 +104,8 @@ inline uint read_identifier(const sql_digest_storage* digest_storage,
   uint new_index;
   uint safe_byte_count= digest_storage->m_byte_count;
 
-  DBUG_ASSERT(index <= safe_byte_count);
-  DBUG_ASSERT(safe_byte_count <= digest_storage->m_token_array_length);
+  assert(index <= safe_byte_count);
+  assert(safe_byte_count <= digest_storage->m_token_array_length);
 
   /*
     token + length + string are written in an atomic way,
@@ -127,7 +127,7 @@ inline uint read_identifier(const sql_digest_storage* digest_storage,
       *id_length= length;
 
       new_index= index + bytes_needed;
-      DBUG_ASSERT(new_index <= safe_byte_count);
+      assert(new_index <= safe_byte_count);
       return new_index;
     }
   }
@@ -143,7 +143,7 @@ inline void store_token_identifier(sql_digest_storage* digest_storage,
                                    uint token,
                                    size_t id_length, const char *id_name)
 {
-  DBUG_ASSERT(digest_storage->m_byte_count <= digest_storage->m_token_array_length);
+  assert(digest_storage->m_byte_count <= digest_storage->m_token_array_length);
 
   size_t bytes_needed= 2 * SIZE_OF_A_TOKEN + id_length;
   if (digest_storage->m_byte_count + bytes_needed <= (unsigned int)digest_storage->m_token_array_length)
@@ -179,7 +179,7 @@ void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char 
 void compute_digest_text(const sql_digest_storage* digest_storage,
                          String *digest_text)
 {
-  DBUG_ASSERT(digest_storage != NULL);
+  assert(digest_storage != NULL);
   uint byte_count= digest_storage->m_byte_count;
   String *digest_output= digest_text;
   uint tok= 0;
@@ -295,8 +295,8 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
 static inline uint peek_token(const sql_digest_storage *digest, uint index)
 {
   uint token;
-  DBUG_ASSERT(index + SIZE_OF_A_TOKEN <= digest->m_byte_count);
-  DBUG_ASSERT(digest->m_byte_count <=  digest->m_token_array_length);
+  assert(index + SIZE_OF_A_TOKEN <= digest->m_byte_count);
+  assert(digest->m_byte_count <=  digest->m_token_array_length);
 
   token= ((digest->m_token_array[index + 1])<<8) | digest->m_token_array[index];
   return token;
@@ -674,7 +674,7 @@ sql_digest_state* digest_reduce_token(sql_digest_state *state,
       REDUCE to
         TOKEN_X TOKEN_LEFT . TOKEN_Y
     */
-    DBUG_ASSERT(last_token2 == token_right);
+    assert(last_token2 == token_right);
     digest_storage->m_byte_count-= 2 * SIZE_OF_A_TOKEN;
     store_token(digest_storage, token_left);
     token_to_push= last_token;

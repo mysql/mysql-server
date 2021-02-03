@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ LocalDictCache::drop(const char * name){
   ASSERT_NOT_MYSQLD;
   assert(! is_ndb_blob_table(name));
   Ndb_local_table_info *info= m_tableHash.deleteKey(name, (Uint32)strlen(name));
-  DBUG_ASSERT(info != 0);
+  assert(info != 0);
   Ndb_local_table_info::destroy(info);
 }
 

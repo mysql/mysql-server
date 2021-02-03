@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@ public:
       Only TIMESTAMP is implemented for now.
       Other types would need different parameters (fld_length, etc).
     */
-    DBUG_ASSERT(field_type == MYSQL_TYPE_TIMESTAMP ||
-                field_type == MYSQL_TYPE_TIMESTAMP2);
+    assert(field_type == MYSQL_TYPE_TIMESTAMP ||
+           field_type == MYSQL_TYPE_TIMESTAMP2);
     init(NULL, // THD *thd
          NULL, // char *fld_name
          field_type,

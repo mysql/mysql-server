@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
       this branch with underlying table that has less keys than merge table
       have.
     */
-    DBUG_ASSERT(!info->tables);
+    assert(!info->tables);
     error= HA_ERR_END_OF_FILE;
     set_my_errno(error);
   }

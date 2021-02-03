@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@
   Worth to note:
   - File descriptors used here are located in a range that is not compatible 
   with CRT on purpose. Attempt to use a file descriptor from Windows CRT library
-  range in my_win_* function will be punished with DBUG_ASSERT()
+  range in my_win_* function will be punished with assert()
 
   - File streams (FILE *) are actually from the C runtime. The routines provided
   here are useful only in scernarios that use low-level IO with my_win_fileno()
@@ -89,7 +89,7 @@ File my_open_osfhandle(HANDLE handle, int oflag)
 static void invalidate_fd(File fd)
 {
   DBUG_ENTER("invalidate_fd");
-  DBUG_ASSERT(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
+  assert(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
   my_file_info[fd].fhandle= 0;
   DBUG_VOID_RETURN;
 }
@@ -99,7 +99,7 @@ static void invalidate_fd(File fd)
 HANDLE my_get_osfhandle(File fd)
 {
   DBUG_ENTER("my_get_osfhandle");
-  DBUG_ASSERT(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
+  assert(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
   DBUG_RETURN(my_file_info[fd].fhandle);
 }
 
@@ -107,7 +107,7 @@ HANDLE my_get_osfhandle(File fd)
 static int my_get_open_flags(File fd)
 {
   DBUG_ENTER("my_get_open_flags");
-  DBUG_ASSERT(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
+  assert(fd >= MY_FILE_MIN && fd < (int)my_file_limit);
   DBUG_RETURN(my_file_info[fd].oflag);
 }
 

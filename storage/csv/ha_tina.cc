@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1099,7 +1099,7 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
   rc= 0;
 
   /* UPDATE should never happen on the log tables */
-  DBUG_ASSERT(!share->is_log_table);
+  assert(!share->is_log_table);
 
 err:
   DBUG_PRINT("info",("rc = %d", rc));
@@ -1126,13 +1126,13 @@ int ha_tina::delete_row(const uchar * buf)
 
   stats.records--;
   /* Update shared info */
-  DBUG_ASSERT(share->rows_recorded);
+  assert(share->rows_recorded);
   mysql_mutex_lock(&share->mutex);
   share->rows_recorded--;
   mysql_mutex_unlock(&share->mutex);
 
   /* DELETE should never happen on the log table */
-  DBUG_ASSERT(!share->is_log_table);
+  assert(!share->is_log_table);
 
   DBUG_RETURN(0);
 }

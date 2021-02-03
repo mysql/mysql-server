@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 bool sp_condition_value::equals(const sp_condition_value *cv) const
 {
-  DBUG_ASSERT(cv);
+  assert(cv);
 
   if (this == cv)
     return true;
@@ -110,7 +110,7 @@ void sp_handler::print(String *str) const
     break;
   default:
     // The handler type must be either CONTINUE or EXIT.
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   print_conditions(str);

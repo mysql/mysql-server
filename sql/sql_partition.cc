@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -269,7 +269,7 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
 
   if (!part_handler)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
@@ -291,8 +291,8 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
       {
         DBUG_RETURN(TRUE);
       }
-      DBUG_ASSERT(part_info->num_parts > 0);
-      DBUG_ASSERT((num_parts % part_info->num_parts) == 0);
+      assert(part_info->num_parts > 0);
+      assert((num_parts % part_info->num_parts) == 0);
       part_info->num_subparts= num_parts / part_info->num_parts;
     }
   }
@@ -329,7 +329,7 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
   longlong old_func_value;
   DBUG_ENTER("get_parts_for_update");
 
-  DBUG_ASSERT(new_data == rec0);             // table->record[0]
+  assert(new_data == rec0);             // table->record[0]
   set_field_ptr(part_field_array, old_data, rec0);
   error= part_info->get_partition_id(part_info, old_part_id,
                                      &old_func_value);
@@ -480,7 +480,7 @@ static bool set_up_field_array(TABLE *table,
     /*
       We are using hidden key as partitioning field
     */
-    DBUG_ASSERT(!is_sub_part);
+    assert(!is_sub_part);
     DBUG_RETURN(result);
   }
   size_field_array= (num_fields+1)*sizeof(Field*);
@@ -504,7 +504,7 @@ static bool set_up_field_array(TABLE *table,
           List_iterator<char> it(part_info->part_field_list);
           char *field_name;
 
-          DBUG_ASSERT(num_fields == part_info->part_field_list.elements);
+          assert(num_fields == part_info->part_field_list.elements);
           inx= 0;
           do
           {
@@ -521,7 +521,7 @@ static bool set_up_field_array(TABLE *table,
               add_column_list_values, handle_list_of_fields,
               check_partition_info etc.
             */
-            DBUG_ASSERT(0);
+            assert(0);
             my_error(ER_FIELD_NOT_FOUND_PART_ERROR, MYF(0));
             result= TRUE;
             continue;
@@ -1095,7 +1095,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   result= set_up_field_array(table, is_sub_part);
 end:
   end_lex_with_single_table(thd, table, old_lex);
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX, NULL);
 #endif
   DBUG_RETURN(result);
@@ -1276,7 +1276,7 @@ static bool set_up_partition_bitmaps(THD *thd, partition_info *part_info)
   uint bitmap_bytes= bitmap_buffer_size(bitmap_bits);
   DBUG_ENTER("set_up_partition_bitmaps");
 
-  DBUG_ASSERT(!part_info->bitmaps_are_initialized);
+  assert(!part_info->bitmaps_are_initialized);
 
   /* Allocate for both read and lock_partitions */
   if (!(bitmap_buf= (uint32*) alloc_root(&part_info->table->mem_root,
@@ -1473,7 +1473,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
   {
     if (part_info->is_sub_partitioned())
     {
-      DBUG_ASSERT(part_info->get_part_partition_id);
+      assert(part_info->get_part_partition_id);
       if (!part_info->column_list)
       {
         part_info->get_part_partition_id_charset=
@@ -1483,7 +1483,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
     }
     else
     {
-      DBUG_ASSERT(part_info->get_partition_id);
+      assert(part_info->get_partition_id);
       if (!part_info->column_list)
       {
         part_info->get_part_partition_id_charset= part_info->get_partition_id;
@@ -1493,7 +1493,7 @@ static void set_up_partition_func_pointers(partition_info *part_info)
   }
   if (part_info->subpart_charset_field_array)
   {
-    DBUG_ASSERT(part_info->get_subpartition_id);
+    assert(part_info->get_subpartition_id);
     part_info->get_subpartition_id_charset=
           part_info->get_subpartition_id;
     part_info->get_subpartition_id= get_part_id_charset_func_subpart;
@@ -1690,7 +1690,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   }
   if (part_info->is_sub_partitioned())
   {
-    DBUG_ASSERT(part_info->subpart_type == HASH_PARTITION);
+    assert(part_info->subpart_type == HASH_PARTITION);
     /*
       Subpartition is defined. We need to verify that subpartitioning
       function is correct.
@@ -1715,7 +1715,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
       }
     }
   }
-  DBUG_ASSERT(part_info->part_type != NOT_A_PARTITION);
+  assert(part_info->part_type != NOT_A_PARTITION);
   /*
     Partition is defined. We need to verify that partitioning
     function is correct.
@@ -1773,7 +1773,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
     }
     else
     {
-      DBUG_ASSERT(0);
+      assert(0);
       my_error(ER_INCONSISTENT_PARTITION_INFO_ERROR, MYF(0));
       goto end;
     }
@@ -1836,7 +1836,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   }
   else
   {
-    DBUG_ASSERT(0);
+    assert(0);
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
   }
 end:
@@ -2362,7 +2362,7 @@ static int add_column_list_values(File fptr, partition_info *part_info,
                                &result_type,
                                &need_cs_check))
             return 1;
-          DBUG_ASSERT(result_type == field->result_type());
+          assert(result_type == field->result_type());
           if (need_cs_check)
             field_cs= field->charset();
           else
@@ -2618,7 +2618,7 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_part_key_word(fptr, partition_keywords[PKW_HASH].str);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       /* We really shouldn't get here, no use in continuing from here */
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(NULL);
@@ -3299,17 +3299,17 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   list_index= max_list_index;
 
   /* Given value must be LESS THAN or EQUAL to the found partition. */
-  DBUG_ASSERT(list_index == part_info->num_list_values ||
-              (0 >= cmp_rec_and_tuple_prune(list_col_array +
-                                              list_index*num_columns,
-                                            nparts, left_endpoint,
-                                            include_endpoint)));
+  assert(list_index == part_info->num_list_values ||
+         (0 >= cmp_rec_and_tuple_prune(list_col_array +
+                                       list_index*num_columns,
+                                       nparts, left_endpoint,
+                                       include_endpoint)));
   /* Given value must be GREATER THAN the previous partition. */
-  DBUG_ASSERT(list_index == 0 ||
-              (0 < cmp_rec_and_tuple_prune(list_col_array +
-                                            (list_index - 1)*num_columns,
-                                           nparts, left_endpoint,
-                                           include_endpoint)));
+  assert(list_index == 0 ||
+         (0 < cmp_rec_and_tuple_prune(list_col_array +
+                                      (list_index - 1)*num_columns,
+                                      nparts, left_endpoint,
+                                      include_endpoint)));
 
   /* Include the right endpoint if not already passed end of array. */
   if (!left_endpoint && include_endpoint && cmp == 0 &&
@@ -3404,7 +3404,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
 
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
-  DBUG_ASSERT(part_info->num_list_values);
+  assert(part_info->num_list_values);
   do
   {
     list_index= (max_list_index + min_list_index) >> 1;
@@ -3631,10 +3631,10 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   part_end_val= range_array[loc_part_id];
   if (left_endpoint)
   {
-    DBUG_ASSERT(part_func_value > part_end_val ?
-                (loc_part_id == max_partition &&
-                 !part_info->defined_max_value) :
-                1);
+    assert(part_func_value > part_end_val ?
+           (loc_part_id == max_partition &&
+            !part_info->defined_max_value) :
+           1);
     /*
       In case of PARTITION p VALUES LESS THAN MAXVALUE
       the maximum value is in the current (last) partition.
@@ -4033,8 +4033,8 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
   uchar *old_rec;
   partition_info *part_info;
   DBUG_ENTER("verify_data_with_partition");
-  DBUG_ASSERT(table && table->file && part_table && part_table->part_info &&
-              part_table->file);
+  assert(table && table->file && part_table && part_table->part_info &&
+         part_table->file);
 
   /*
     Verify all table rows.
@@ -4317,13 +4317,13 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
         We know the top partition and need to scan all underlying
         subpartitions. This is a range without holes.
       */
-      DBUG_ASSERT(sub_part == num_parts);
+      assert(sub_part == num_parts);
       part_spec->start_part= part_part * part_info->num_subparts;
       part_spec->end_part= part_spec->start_part+part_info->num_subparts - 1;
     }
     else
     {
-      DBUG_ASSERT(sub_part != num_parts);
+      assert(sub_part != num_parts);
       part_spec->start_part= sub_part;
       part_spec->end_part=sub_part+
                            (part_info->num_subparts*(part_info->num_parts-1));
@@ -4503,13 +4503,13 @@ bool mysql_unpack_partition(THD *thd,
   table->part_info= part_info;
   part_info->table= table;
   part_handler= table->file->get_partition_handler();
-  DBUG_ASSERT(part_handler != NULL);
+  assert(part_handler != NULL);
   part_handler->set_part_info(part_info, true);
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
-  DBUG_ASSERT(part_info->default_engine_type == default_db_type);
-  DBUG_ASSERT(part_info->default_engine_type->db_type != DB_TYPE_UNKNOWN);
-  DBUG_ASSERT(!is_ha_partition_handlerton(part_info->default_engine_type));
+  assert(part_info->default_engine_type == default_db_type);
+  assert(part_info->default_engine_type->db_type != DB_TYPE_UNKNOWN);
+  assert(!is_ha_partition_handlerton(part_info->default_engine_type));
 
   {
   /*
@@ -4747,8 +4747,8 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
     if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
     {
       table_engine_set= TRUE;
-      DBUG_ASSERT(engine_type &&
-                  !is_ha_partition_handlerton(engine_type));
+      assert(engine_type &&
+             !is_ha_partition_handlerton(engine_type));
     }
   }
   DBUG_PRINT("info", ("engine_type = %s, table_engine_set = %u",
@@ -4963,7 +4963,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            partition_info **new_part_info)
 {
   DBUG_ENTER("prep_alter_part_table");
-  DBUG_ASSERT(new_part_info);
+  assert(new_part_info);
 
   /* Foreign keys are not supported by ha_partition, waits for WL#148 */
   if (is_ha_partition_handlerton(table->file->ht) &&
@@ -4971,7 +4971,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
        alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
   {
-    DBUG_ASSERT(table->part_info);
+    assert(table->part_info);
     my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
@@ -4989,7 +4989,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     DBUG_RETURN(TRUE);
 
   /* ALTER_ADMIN_PARTITION is handled in mysql_admin_table */
-  DBUG_ASSERT(!(alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION));
+  assert(!(alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION));
 
   if (alter_info->flags &
       (Alter_info::ALTER_ADD_PARTITION |
@@ -5015,7 +5015,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     }
     if (!part_handler)
     {
-      DBUG_ASSERT(0);
+      assert(0);
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
       DBUG_RETURN(true);
     }
@@ -5026,9 +5026,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       Open it as a copy of the original table, and modify its partition_info
       object to allow fast_alter_partition_table to perform the changes.
     */
-    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                   alter_ctx->db, alter_ctx->table_name,
-                                   MDL_INTENTION_EXCLUSIVE));
+    assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                        alter_ctx->db, alter_ctx->table_name,
+                                                        MDL_INTENTION_EXCLUSIVE));
 
     /*
       We will operate on a cached instance of the original table,
@@ -5152,7 +5152,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           }
           else if (thd->work_part_info->part_type == LIST_PARTITION)
           {
-            DBUG_ASSERT(thd->work_part_info->part_type == LIST_PARTITION);
+            assert(thd->work_part_info->part_type == LIST_PARTITION);
             my_error(ER_PARTITION_WRONG_VALUES_ERROR, MYF(0),
                      "LIST", "IN");
           }
@@ -5163,7 +5163,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           }
           else
           {
-            DBUG_ASSERT(tab_part_info->part_type == LIST_PARTITION);
+            assert(tab_part_info->part_type == LIST_PARTITION);
             my_error(ER_PARTITION_REQUIRES_VALUES_ERROR, MYF(0),
                      "LIST", "IN");
           }
@@ -5657,7 +5657,7 @@ state of p1.
       alt_part_info->part_type= tab_part_info->part_type;
       alt_part_info->subpart_type= tab_part_info->subpart_type;
       alt_part_info->num_subparts= tab_part_info->num_subparts;
-      DBUG_ASSERT(!alt_part_info->use_default_partitions);
+      assert(!alt_part_info->use_default_partitions);
       /* We specified partitions explicitly so don't use defaults anymore. */
       tab_part_info->use_default_partitions= FALSE;
       if (alt_part_info->set_up_defaults_for_partitioning(part_handler,
@@ -5781,7 +5781,7 @@ the generated partition syntax in a correct manner.
     }
     else
     {
-      DBUG_ASSERT(FALSE);
+      assert(FALSE);
     }
     *partition_changed= TRUE;
     thd->work_part_info= tab_part_info;
@@ -5948,7 +5948,7 @@ the generated partition syntax in a correct manner.
         else if (alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING)
         {
           DBUG_PRINT("info", ("Upgrade partitioning"));
-          DBUG_ASSERT(create_info->used_fields == 0);
+          assert(create_info->used_fields == 0);
           /* Fast alter allowed as meta-data only change. */
           *new_part_info= thd->work_part_info;
           /* Force table re-open for consistency with the main case. */
@@ -6007,8 +6007,8 @@ the generated partition syntax in a correct manner.
         else
           part_info->default_engine_type= create_info->db_type;
       }
-      DBUG_ASSERT(part_info->default_engine_type &&
-                  !is_ha_partition_handlerton(part_info->default_engine_type));
+      assert(part_info->default_engine_type &&
+             !is_ha_partition_handlerton(part_info->default_engine_type));
       if (check_native_partitioned(create_info, &is_native_partitioned,
                                    part_info, thd))
       {
@@ -6016,7 +6016,7 @@ the generated partition syntax in a correct manner.
       }
       if (!is_native_partitioned)
       {
-        DBUG_ASSERT(create_info->db_type);
+        assert(create_info->db_type);
         LEX_CSTRING name= { "partition", 9 };
         plugin_ref plugin= ha_resolve_by_name_raw(thd, name);
         if (!plugin)
@@ -6079,7 +6079,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   if (!part_handler)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     DBUG_RETURN(true);
   }
 
@@ -6576,7 +6576,7 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   uint next_entry= 0;
   DDL_LOG_MEMORY_ENTRY *old_first_log_entry= part_info->first_log_entry;
   /* write_log_drop_shadow_frm(lpt) must have been run first */
-  DBUG_ASSERT(old_first_log_entry);
+  assert(old_first_log_entry);
   DBUG_ENTER("write_log_add_change_partition");
 
   build_table_filename(path, sizeof(path) - 1, lpt->db,
@@ -6697,7 +6697,7 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
   DDL_LOG_MEMORY_ENTRY *log_entry= part_info->exec_log_entry;
   DBUG_ENTER("write_log_completed");
 
-  DBUG_ASSERT(log_entry);
+  assert(log_entry);
   mysql_mutex_lock(&LOCK_gdl);
   if (write_execute_ddl_log_entry(0UL, TRUE, &log_entry))
   {
@@ -6788,16 +6788,16 @@ bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
   THD *thd= lpt->thd;
   TABLE *table= lpt->table;
   DBUG_ENTER("handle_alter_part_end");
-  DBUG_ASSERT(table->m_needs_reopen);
+  assert(table->m_needs_reopen);
 
   /* First clone the part_info to save the log entries. */
   part_info= lpt->part_info->get_clone();
 
-  DBUG_ASSERT(error ||
-              thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                                           lpt->db,
-                                                           lpt->table_name,
-                                                           MDL_EXCLUSIVE));
+  assert(error ||
+         thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      lpt->db,
+                                                      lpt->table_name,
+                                                      MDL_EXCLUSIVE));
   DEBUG_SYNC(thd, "before_handle_alter_part_end");
   /*
     All instances of this table needs to be closed.
@@ -6816,7 +6816,7 @@ bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
   }
   else
   {
-    DBUG_ASSERT(error);
+    assert(error);
     /*
       At least remove this instance!
 
@@ -6827,7 +6827,7 @@ bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
                                              table->pos_in_locked_tables,
                                              false);
     /* Assert that the current table is the first in list of open tables */
-    DBUG_ASSERT(thd->open_tables == table);
+    assert(thd->open_tables == table);
 
     /*
       Make sure that the table is unlocked, closed and removed from
@@ -6865,7 +6865,7 @@ bool handle_alter_part_end(ALTER_PARTITION_PARAM_TYPE *lpt,
         "The frm file is in an unknown state, and a backup",
         "is required.",
         "See error log for more info.");
-      DBUG_ASSERT(0);
+      assert(0);
       error= true;
     }
   }
@@ -6931,7 +6931,7 @@ bool fast_alter_partition_table(THD *thd,
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   Partition_handler *part_handler= table->file->get_partition_handler();
   DBUG_ENTER("fast_alter_partition_table");
-  DBUG_ASSERT(table->m_needs_reopen);
+  assert(table->m_needs_reopen);
 
   part_info= new_part_info;
   lpt->thd= thd;
@@ -6954,7 +6954,7 @@ bool fast_alter_partition_table(THD *thd,
 
   if (!part_handler)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(true);
   }
@@ -6962,9 +6962,9 @@ bool fast_alter_partition_table(THD *thd,
   if (alter_info->flags & (Alter_info::ALTER_PARTITION |
                            Alter_info::ALTER_UPGRADE_PARTITIONING))
   {
-    DBUG_ASSERT(alter_info->flags == Alter_info::ALTER_PARTITION ||
-                alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING);
-    DBUG_ASSERT(create_info->used_fields == 0);
+    assert(alter_info->flags == Alter_info::ALTER_PARTITION ||
+           alter_info->flags == Alter_info::ALTER_UPGRADE_PARTITIONING);
+    assert(create_info->used_fields == 0);
 
     /*
       Only metadata changes, i.e frm-only!
@@ -7752,17 +7752,17 @@ uint32 get_partition_id_cols_range_for_endpoint(partition_info *part_info,
   loc_part_id= max_part_id;
 
   /* Given value must be LESS THAN the found partition. */
-  DBUG_ASSERT(loc_part_id == part_info->num_parts ||
-              (0 > cmp_rec_and_tuple_prune(range_col_array +
-                                             loc_part_id * num_columns,
-                                           nparts, is_left_endpoint,
-                                           include_endpoint)));
+  assert(loc_part_id == part_info->num_parts ||
+         (0 > cmp_rec_and_tuple_prune(range_col_array +
+                                      loc_part_id * num_columns,
+                                      nparts, is_left_endpoint,
+                                      include_endpoint)));
   /* Given value must be GREATER THAN or EQUAL to the previous partition. */
-  DBUG_ASSERT(loc_part_id == 0 ||
-              (0 <= cmp_rec_and_tuple_prune(range_col_array +
-                                              (loc_part_id - 1) * num_columns,
-                                            nparts, is_left_endpoint,
-                                            include_endpoint)));
+  assert(loc_part_id == 0 ||
+         (0 <= cmp_rec_and_tuple_prune(range_col_array +
+                                       (loc_part_id - 1) * num_columns,
+                                       nparts, is_left_endpoint,
+                                       include_endpoint)));
 
   if (!is_left_endpoint)
   {
@@ -7783,7 +7783,7 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter)
 {
   uint32 nparts;
-  get_col_endpoint_func  get_col_endpoint;
+  get_col_endpoint_func  get_col_endpoint = NULL;
   DBUG_ENTER("get_part_iter_for_interval_cols_via_map");
 
   if (part_info->part_type == RANGE_PARTITION)
@@ -7796,7 +7796,7 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
     get_col_endpoint= get_partition_id_cols_list_for_endpoint;
     part_iter->get_next= get_next_partition_id_list;
     part_iter->part_info= part_info;
-    DBUG_ASSERT(part_info->num_list_values);
+    assert(part_info->num_list_values);
   }
   else
     assert(0);
@@ -7820,7 +7820,7 @@ int get_part_iter_for_interval_cols_via_map(partition_info *part_info,
       part_iter->part_nums.end= part_info->num_parts;
     else /* LIST_PARTITION */
     {
-      DBUG_ASSERT(part_info->part_type == LIST_PARTITION);
+      assert(part_info->part_type == LIST_PARTITION);
       part_iter->part_nums.end= part_info->num_list_values;
     }
   }
@@ -7892,7 +7892,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   bool check_zero_dates= false;
   bool zero_in_start_date= true;
   DBUG_ENTER("get_part_iter_for_interval_via_mapping");
-  DBUG_ASSERT(!is_subpart);
+  assert(!is_subpart);
   (void) store_length_array;
   (void)min_len;
   (void)max_len;
@@ -8031,10 +8031,10 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
       DBUG_PRINT("info", ("zero end %u %04d-%02d-%02d",
                           zero_in_end_date,
                           end_date.year, end_date.month, end_date.day));
-      DBUG_ASSERT(!memcmp(((Item_func*) part_info->part_expr)->func_name(),
-                          "to_days", 7) ||
-                  !memcmp(((Item_func*) part_info->part_expr)->func_name(),
-                          "to_seconds", 10));
+      assert(!memcmp(((Item_func*) part_info->part_expr)->func_name(),
+                     "to_days", 7) ||
+             !memcmp(((Item_func*) part_info->part_expr)->func_name(),
+                     "to_seconds", 10));
       if (!zero_in_end_date &&
           start_date.month == end_date.month &&
           start_date.year == end_date.year)
@@ -8452,7 +8452,7 @@ bool set_up_table_before_create(THD *thd,
   const char *partition_name;
   DBUG_ENTER("set_up_table_before_create");
 
-  DBUG_ASSERT(part_elem);
+  assert(part_elem);
 
   if (!part_elem)
     DBUG_RETURN(true);

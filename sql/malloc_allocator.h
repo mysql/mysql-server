@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ public:
   template <class U> Malloc_allocator & operator=
     (const Malloc_allocator<U> &other)
   {
-    DBUG_ASSERT(m_key == other.psi_key()); // Don't swap key.
+    assert(m_key == other.psi_key()); // Don't swap key.
   }
 
   ~Malloc_allocator()
@@ -104,21 +104,21 @@ public:
 
   void construct(pointer p, const T& val)
   {
-    DBUG_ASSERT(p != NULL);
+    assert(p != NULL);
     try {
       new(p) T(val);
     } catch (...) {
-      DBUG_ASSERT(false); // Constructor should not throw an exception.
+      assert(false); // Constructor should not throw an exception.
     }
   }
 
   void destroy(pointer p)
   {
-    DBUG_ASSERT(p != NULL);
+    assert(p != NULL);
     try {
       p->~T();
     } catch (...) {
-      DBUG_ASSERT(false); // Destructor should not throw an exception
+      assert(false); // Destructor should not throw an exception
     }
   }
 

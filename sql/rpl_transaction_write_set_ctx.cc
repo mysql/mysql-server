@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,7 +140,7 @@ size_t Rpl_transaction_write_set_ctx::write_set_memory_size() {
 
 void Rpl_transaction_write_set_ctx::set_global_require_full_write_set(
     bool requires_ws) {
-  DBUG_ASSERT(!requires_ws || !m_global_component_requires_write_sets);
+  assert(!requires_ws || !m_global_component_requires_write_sets);
   if (requires_ws)
     my_atomic_store32(&m_global_component_requires_write_sets, 1);
   else
@@ -152,7 +152,7 @@ void require_full_write_set(int requires_ws) {
 }
 
 void Rpl_transaction_write_set_ctx::set_global_write_set_memory_size_limit(int64 limit) {
-  DBUG_ASSERT(m_global_write_set_memory_size_limit == 0);
+  assert(m_global_write_set_memory_size_limit == 0);
   m_global_write_set_memory_size_limit = limit;
 }
 
@@ -234,14 +234,14 @@ void Rpl_transaction_write_set_ctx::add_savepoint(char* name)
 
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_clear_on_commit_rollback",
                   {
-                  DBUG_ASSERT(savepoint.size() == 0);
-                  DBUG_ASSERT(write_set.size() == 0);
-                  DBUG_ASSERT(write_set_unique.size() == 0);
-                  DBUG_ASSERT(savepoint_list.size() == 0);
+                    assert(savepoint.size() == 0);
+                    assert(write_set.size() == 0);
+                    assert(write_set_unique.size() == 0);
+                    assert(savepoint_list.size() == 0);
                   });
 
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_level",
-                  DBUG_ASSERT(savepoint.size() == 0););
+                  assert(savepoint.size() == 0););
 
   std::map<std::string, size_t>::iterator it;
 
@@ -256,7 +256,7 @@ void Rpl_transaction_write_set_ctx::add_savepoint(char* name)
                                                   write_set.size()));
 
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint",
-                  DBUG_ASSERT(savepoint.find(identifier)->second == write_set.size()););
+                  assert(savepoint.find(identifier)->second == write_set.size()););
 
   DBUG_VOID_RETURN;
 }
@@ -269,7 +269,7 @@ void Rpl_transaction_write_set_ctx::del_savepoint(char* name)
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_release",
                     {
                       const char act[]= "now wait_for signal.unblock_release";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                     });
 
   savepoint.erase(identifier);
@@ -286,12 +286,12 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char* name)
 
   if ((elem = savepoint.find(identifier)) != savepoint.end())
   {
-    DBUG_ASSERT(elem->second <= write_set.size());
+    assert(elem->second <= write_set.size());
 
     DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_rollback",
                     {
                       const char act[]= "now wait_for signal.unblock_rollback";
-                      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                     });
 
     position= elem->second;
@@ -323,12 +323,12 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char* name)
     }
 
     DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint", {
-                    DBUG_ASSERT(write_set.size() == 2);
-                    DBUG_ASSERT(write_set_unique.size() == 2);});
+        assert(write_set.size() == 2);
+        assert(write_set_unique.size() == 2);});
 
     DBUG_EXECUTE_IF("transaction_write_set_size_2", {
-                    DBUG_ASSERT(write_set.size() == 4);
-                    DBUG_ASSERT(write_set_unique.size() == 4);});
+        assert(write_set.size() == 4);
+        assert(write_set_unique.size() == 4);});
   }
 
   DBUG_VOID_RETURN;

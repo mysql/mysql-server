@@ -4,7 +4,7 @@
 #include "sql_executor.h"
 #include "mem_root_array.h"
 
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -359,8 +359,8 @@ protected:
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
-    DBUG_ASSERT(end_pos >= buff);
-    DBUG_ASSERT(buff_size >= ulong(end_pos - buff));
+    assert(end_pos >= buff);
+    assert(buff_size >= ulong(end_pos - buff));
     return ulong(buff_size - (end_pos - buff) - aux_buff_size);
   }
 
@@ -831,9 +831,9 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    DBUG_ASSERT(last_key_entry >= end_pos);
-    DBUG_ASSERT(buff_size >= aux_buff_size);
-    DBUG_ASSERT(ulong(last_key_entry - end_pos) >= aux_buff_size);
+    assert(last_key_entry >= end_pos);
+    assert(buff_size >= aux_buff_size);
+    assert(ulong(last_key_entry - end_pos) >= aux_buff_size);
     return ulong(last_key_entry - end_pos - aux_buff_size);
   }
 

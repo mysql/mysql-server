@@ -43,6 +43,7 @@
 # save this, since it will be used to recover the server later on
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -94,6 +95,8 @@
 --eval SET @@global.group_replication_local_address="$local_address_server2"
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --eval SET @@global.group_replication_enforce_update_everywhere_checks=OFF
 --eval SET @@global.group_replication_single_primary_mode=ON
 
@@ -105,6 +108,8 @@
 --eval SET @@global.group_replication_local_address="$local_address_server3"
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --eval SET @@global.group_replication_group_name="$group_replication_group_name"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --eval SET @@global.group_replication_enforce_update_everywhere_checks=OFF
 --eval SET @@global.group_replication_single_primary_mode=ON
 

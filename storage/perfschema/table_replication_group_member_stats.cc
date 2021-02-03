@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -263,7 +263,7 @@ int table_replication_group_member_stats::rnd_pos(const void *pos)
     return HA_ERR_END_OF_FILE;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < 1);
+  assert(m_pos.m_index < 1);
   make_row();
 
   return 0;
@@ -323,7 +323,7 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -364,7 +364,7 @@ int table_replication_group_member_stats::read_row_values(TABLE *table,
 
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,7 +173,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
     post_header_len.insert(post_header_len.begin(), server_event_header_length,
                             server_event_header_length + number_of_event_types);
     // Sanity-check that all post header lengths are initialized.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     for (int i= 0; i < number_of_event_types; i++)
       BAPI_ASSERT(post_header_len[i] != 255);
 #endif

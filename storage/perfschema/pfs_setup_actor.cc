@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,9 +70,9 @@ static uchar *setup_actor_hash_get_key(const uchar *entry, size_t *length,
   const PFS_setup_actor *setup_actor;
   const void *result;
   typed_entry= reinterpret_cast<const PFS_setup_actor* const *> (entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != NULL);
   setup_actor= *typed_entry;
-  DBUG_ASSERT(setup_actor != NULL);
+  assert(setup_actor != NULL);
   *length= setup_actor->m_key.m_key_length;
   result= setup_actor->m_key.m_hash_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
@@ -121,8 +121,8 @@ static void set_setup_actor_key(PFS_setup_actor_key *key,
                                 const char *host, uint host_length,
                                 const char *role, uint role_length)
 {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
-  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
+  assert(user_length <= USERNAME_LENGTH);
+  assert(host_length <= HOSTNAME_LENGTH);
 
   char *ptr= &key->m_hash_key[0];
   memcpy(ptr, user, user_length);

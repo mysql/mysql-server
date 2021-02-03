@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -708,7 +708,7 @@ void open_object(uint count, Opt_trace_context *trace, bool simulate_oom)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 /// Test reaction to out-of-memory condition in trace buffer
 TEST_F(TraceContentTest, OOMinBuffer)
@@ -799,7 +799,7 @@ TEST_F(TraceContentTest, OOMinPurge)
   EXPECT_FALSE(oom);
 }
 
-#endif // !DBUG_OFF
+#endif // !NDEBUG
 
 
 /** Test filtering by feature */

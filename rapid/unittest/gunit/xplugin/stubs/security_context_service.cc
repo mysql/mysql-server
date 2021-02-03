@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,31 +31,31 @@ extern "C" {
 
   my_svc_bool thd_get_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT *out_ctx)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
   my_svc_bool thd_set_security_context(MYSQL_THD, MYSQL_SECURITY_CONTEXT in_ctx)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
   my_svc_bool security_context_create(MYSQL_SECURITY_CONTEXT *out_ctx)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
   my_svc_bool security_context_destroy(MYSQL_SECURITY_CONTEXT ctx)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
   my_svc_bool security_context_copy(MYSQL_SECURITY_CONTEXT in_ctx, MYSQL_SECURITY_CONTEXT *out_ctx)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
@@ -63,19 +63,19 @@ extern "C" {
                                       const char *user, const char *host,
                                       const char *ip, const char *db)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
   my_svc_bool security_context_get_option(MYSQL_SECURITY_CONTEXT, const char *name, void *inout_pvalue)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 
   my_svc_bool security_context_set_option(MYSQL_SECURITY_CONTEXT, const char *name, void *pvalue)
   {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
 

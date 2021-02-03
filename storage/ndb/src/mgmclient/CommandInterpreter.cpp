@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2026,7 +2026,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
       const char *str= ndb_mgm_get_event_severity_string(enabled[i].category);
       if (str == 0)
       {
-	DBUG_ASSERT(false);
+	assert(false);
 	continue;
       }
       if(enabled[i].value)

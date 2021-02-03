@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -129,7 +129,7 @@ void Commit_order_manager::unregister_trx(Slave_worker *worker)
 
     mysql_mutex_lock(&m_mutex);
 
-    DBUG_ASSERT(!queue_empty());
+    assert(!queue_empty());
 
     /* Set next manager as the head and signal the trx to commit. */
     queue_pop();
@@ -164,8 +164,8 @@ void Commit_order_manager::report_deadlock(Slave_worker *worker)
   DBUG_EXECUTE_IF("rpl_fake_cod_deadlock",
                   {
                   const char act[]= "now signal reported_deadlock";
-                  DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                     STRING_WITH_LEN(act)));
+                  assert(!debug_sync_set_action(current_thd,
+                                                STRING_WITH_LEN(act)));
                   });
   mysql_cond_signal(&m_workers[worker->id].cond);
   mysql_mutex_unlock(&m_mutex);

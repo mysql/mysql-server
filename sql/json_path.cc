@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ bool Json_path_clone::set(Json_seekable_path *source)
 
 const Json_path_leg *Json_path_clone::pop()
 {
-  DBUG_ASSERT(m_path_legs.size() > 0);
+  assert(m_path_legs.size() > 0);
   const Json_path_leg *p= m_path_legs.back();
   m_path_legs.pop_back();
   return p;
@@ -221,7 +221,7 @@ bool Json_path::append(const Json_path_leg &leg)
 
 Json_path_leg Json_path::pop()
 {
-  DBUG_ASSERT(m_path_legs.size() > 0);
+  assert(m_path_legs.size() > 0);
   Json_path_leg p= m_path_legs.back();
   m_path_legs.pop_back();
   return p;

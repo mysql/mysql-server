@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,8 +150,8 @@ protected:
   template <hint_lex_char_classes Quote>
   int scan_quoted_ident()
   {
-    DBUG_ASSERT(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE);
-    DBUG_ASSERT(*ptr == '`' || *ptr == '"');
+    assert(Quote == HINT_CHR_BACKQUOTE || Quote == HINT_CHR_DOUBLEQUOTE);
+    assert(*ptr == '`' || *ptr == '"');
 
     if (Quote == HINT_CHR_DOUBLEQUOTE && !is_ansi_quotes)
       return get_byte();
@@ -206,7 +206,7 @@ protected:
           }
           else
           {
-            DBUG_ASSERT(0 < double_separators && double_separators < yyleng);
+            assert(0 < double_separators && double_separators < yyleng);
             s.length= yyleng - double_separators;
             s.str= (char *) thd->alloc(s.length);
             if (s.str == NULL)
@@ -250,7 +250,7 @@ protected:
 
   int scan_query_block_name()
   {
-    DBUG_ASSERT(*ptr == '@');
+    assert(*ptr == '@');
 
     skip_byte(); // skip '@'
     start_token();
@@ -295,7 +295,7 @@ protected:
             keyword string since symbol array is a global constant).
           */
           yytext= symbol->name;
-          DBUG_ASSERT(yyleng == symbol->length);
+          assert(yyleng == symbol->length);
 
           return symbol->tok;
         }
@@ -326,13 +326,13 @@ protected:
 
   bool eof() const
   {
-    DBUG_ASSERT(ptr <= input_buf_end);
+    assert(ptr <= input_buf_end);
     return ptr >= input_buf_end;
   }
 
   char peek_byte() const
   {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     return *ptr;
   }
 
@@ -343,21 +343,21 @@ protected:
 
   hint_lex_char_classes peek_class2() const
   {
-    DBUG_ASSERT(ptr + 1 <= input_buf_end);
+    assert(ptr + 1 <= input_buf_end);
     return ptr + 1 >= input_buf_end ?
         HINT_CHR_EOF : char_classes[static_cast<uchar>(ptr[1])];
   }
 
   void skip_newline()
   {
-    DBUG_ASSERT(!eof() && peek_byte() == '\n');
+    assert(!eof() && peek_byte() == '\n');
     skip_byte();
     lineno++;
   }
 
   uchar get_byte()
   {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     char ret= *ptr;
     yyleng++;
     ptr++;
@@ -366,7 +366,7 @@ protected:
 
   void skip_byte()
   {
-    DBUG_ASSERT(!eof());
+    assert(!eof());
     yyleng++;
     ptr++;
   }
@@ -395,7 +395,7 @@ protected:
   template <hint_lex_char_classes Separator>
   void compact(LEX_STRING *to, const char *from, size_t len, size_t doubles)
   {
-    DBUG_ASSERT(doubles > 0);
+    assert(doubles > 0);
 
     size_t d= doubles;
     char *t= to->str;
@@ -405,14 +405,14 @@ protected:
       case HINT_CHR_MB:
         {
           size_t len = my_ismbchar(cs, s, end);
-          DBUG_ASSERT(len > 1);
+          assert(len > 1);
           memcpy(t, s, len);
           t+= len;
           s+= len;
         }
         continue;
       case Separator:
-        DBUG_ASSERT(char_classes[(uchar) *s] == Separator);
+        assert(char_classes[(uchar) *s] == Separator);
         *t++= *s++;
         s++; //skip the 2nd separator
         d--;
@@ -424,14 +424,14 @@ protected:
         }
         continue;
       case HINT_CHR_EOF:
-        DBUG_ASSERT(0);
+        assert(0);
         to->length= 0;
         return;
       default:
         *t++= *s++;
       }
     }
-    DBUG_ASSERT(0);
+    assert(0);
     to->length= 0;
     return;
   }

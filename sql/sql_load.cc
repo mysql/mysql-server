@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -477,7 +477,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       /*
         This is impossible and should never happen.
       */
-      DBUG_ASSERT(FALSE); 
+      assert(FALSE); 
 #endif
     }
     else if (!is_secure_file_path(name))
@@ -722,10 +722,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* ok to client sent only after binlog write and engine commit */
   my_ok(thd, info.stats.copied + info.stats.deleted, 0L, name);
 err:
-  DBUG_ASSERT(table->file->has_transactions() ||
-              !(info.stats.copied || info.stats.deleted) ||
-              thd->get_transaction()->cannot_safely_rollback(
-                Transaction_ctx::STMT));
+  assert(table->file->has_transactions() ||
+         !(info.stats.copied || info.stats.deleted) ||
+         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
   DBUG_RETURN(error);
@@ -912,7 +911,7 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         There is no variables in fields_vars list in this format so
         this conversion is safe (no need to check for STRING_ITEM).
       */
-      DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+      assert(item->real_item()->type() == Item::FIELD_ITEM);
       Item_field *sql_field= static_cast<Item_field*>(item->real_item());
       Field *field= sql_field->field;                  
       if (field == table->next_number_field)
@@ -1115,7 +1114,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 	}
         else if (item->type() == Item::STRING_ITEM)
         {
-          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1134,7 +1133,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
       else if (item->type() == Item::STRING_ITEM)
       {
-        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+        assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
                                                         read_info.read_charset);
       }
@@ -1188,7 +1187,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         }
         else if (item->type() == Item::STRING_ITEM)
         {
-          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1291,7 +1290,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     xmlit.rewind();
     XML_TAG *tag= NULL;
     
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PRINT("read_xml_field", ("skip_lines=%d", (int) skip_lines));
     while ((tag= xmlit++))
     {
@@ -1348,7 +1347,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         }
         else
         {
-          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *) item)->set_null_value(cs);
         }
         continue;
@@ -1364,7 +1363,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
       else
       {
-        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+        assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *) item)->set_value(
                                                  (char *) tag->value.ptr(), 
                                                  tag->value.length(), cs);
@@ -1404,7 +1403,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         }
         else
         {
-          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
+          assert(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
         }
       }
@@ -1586,7 +1585,7 @@ READ_INFO::~READ_INFO()
       {                                                                       \
         len= my_mbcharlen_2((cs), (chr), chr1);                               \
         /* Character is gb18030 or invalid (len = 0) */                       \
-        DBUG_ASSERT(len == 0 || len == 2 || len == 4);                        \
+        assert(len == 0 || len == 2 || len == 4);                       \
       }                                                                       \
       if (len != 0)                                                           \
         PUSH(chr1);                                                           \

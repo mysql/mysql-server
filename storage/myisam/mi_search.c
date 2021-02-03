@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -499,7 +499,7 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
 	  for (vseg_end= vseg + (len-cmplen) ;
 	       vseg < vseg_end && *vseg == (uchar) ' ';
 	       vseg++, matched++) ;
-	  DBUG_ASSERT(vseg < vseg_end);
+	  assert(vseg < vseg_end);
 
 	  if (*vseg > (uchar) ' ')
 	  {
@@ -525,7 +525,7 @@ int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
 	      visited and 0 otherwise,  i.e. flag <=0 here always !!!
 	    */
 	fix_flag:
-	    DBUG_ASSERT(flag <= 0);
+	    assert(flag <= 0);
 	    if (nextflag & (SEARCH_NO_FIND | SEARCH_LAST))
 	      flag=(nextflag & (SEARCH_BIGGER | SEARCH_LAST)) ? -1 : 1;
 	    if (flag>=0)

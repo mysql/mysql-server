@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -321,7 +321,7 @@ struct GRANT_INFO
      The set is implemented as a bitmap, with the bits defined in sql_acl.h.
    */
   ulong privilege;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      @brief the set of privileges that the current user needs to fulfil in
      order to carry out the requested operation. Used in debug build to
@@ -643,7 +643,7 @@ struct TABLE_SHARE
   plugin_ref db_plugin;			/* storage engine plugin */
   inline handlerton *db_type() const	/* table_type for handler */
   { 
-    // DBUG_ASSERT(db_plugin);
+    // assert(db_plugin);
     return db_plugin ? plugin_data<handlerton*>(db_plugin) : NULL;
   }
   enum row_type row_type;		/* How rows are stored */
@@ -1341,7 +1341,7 @@ public:
 
   void set_keyread(bool flag)
   {
-    DBUG_ASSERT(file);
+    assert(file);
     if (flag && !key_read)
     {
       key_read= 1;
@@ -1366,7 +1366,7 @@ public:
   */
   inline bool index_contains_some_virtual_gcol(uint index_no)
   {
-    DBUG_ASSERT(index_no < s->keys);
+    assert(index_no < s->keys);
     return key_info[index_no].flags & HA_VIRTUAL_GEN_KEY;
   }
   bool update_const_key_parts(Item *conds);
@@ -1835,8 +1835,8 @@ struct TABLE_LIST
   void          set_join_cond(Item *val)
   {
     // If optimization has started, it's too late to change m_join_cond.
-    DBUG_ASSERT(m_join_cond_optim == NULL ||
-                m_join_cond_optim == (Item*)1);
+    assert(m_join_cond_optim == NULL ||
+           m_join_cond_optim == (Item*)1);
     m_join_cond= val;
   }
   Item *join_cond_optim() const { return m_join_cond_optim; }
@@ -1846,8 +1846,8 @@ struct TABLE_LIST
       Either we are setting to "empty", or there must pre-exist a
       permanent condition.
     */
-    DBUG_ASSERT(cond == NULL || cond == (Item*)1 ||
-                m_join_cond != NULL);
+    assert(cond == NULL || cond == (Item*)1 ||
+           m_join_cond != NULL);
     m_join_cond_optim= cond;
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
@@ -1858,7 +1858,7 @@ struct TABLE_LIST
   /// Set the semi-join condition for a semi-join nest
   void set_sj_cond(Item *cond)
   {
-    DBUG_ASSERT(m_sj_cond == NULL);
+    assert(m_sj_cond == NULL);
     m_sj_cond= cond;
   }
 
@@ -1957,7 +1957,7 @@ struct TABLE_LIST
   /// Set table to be merged
   void set_merged()
   {
-    DBUG_ASSERT(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
+    assert(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
     effective_algorithm= VIEW_ALGORITHM_MERGE;
   }
 
@@ -1971,8 +1971,8 @@ struct TABLE_LIST
   void set_uses_materialization()
   {
     // @todo We should do this only once, but currently we cannot:
-    //DBUG_ASSERT(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
-    DBUG_ASSERT(effective_algorithm != VIEW_ALGORITHM_MERGE);
+    //assert(effective_algorithm == VIEW_ALGORITHM_UNDEFINED);
+    assert(effective_algorithm != VIEW_ALGORITHM_MERGE);
     effective_algorithm= VIEW_ALGORITHM_TEMPTABLE;
   }
 
@@ -1996,12 +1996,12 @@ struct TABLE_LIST
   {
     if (is_view_or_derived())
     {
-      DBUG_ASSERT(is_merged());         // Cannot be a materialized view
+      assert(is_merged());         // Cannot be a materialized view
       return leaf_tables_count() > 1;
     }
     else
     {
-      DBUG_ASSERT(nested_join == NULL); // Must be a base table
+      assert(nested_join == NULL); // Must be a base table
       return false;
     }
   }
@@ -2049,7 +2049,7 @@ struct TABLE_LIST
   /// Return the valid LEX object for a view.
   LEX *view_query() const
   {
-    DBUG_ASSERT(view != NULL && view != (LEX *)1);
+    assert(view != NULL && view != (LEX *)1);
     return view;
   }
 
@@ -2065,14 +2065,14 @@ struct TABLE_LIST
   /// Return the query expression of a derived table or view.
   st_select_lex_unit *derived_unit() const
   {
-    DBUG_ASSERT(derived);
+    assert(derived);
     return derived;
   }
 
   /// Set temporary name from underlying temporary table:
   void set_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    assert(is_view_or_derived() && uses_materialization());
     table_name= table->s->table_name.str;
     table_name_length= table->s->table_name.length;
     db= (char *)"";
@@ -2082,8 +2082,8 @@ struct TABLE_LIST
   /// Reset original name for temporary table.
   void reset_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
-    DBUG_ASSERT(db != view_db.str && table_name != view_name.str);
+    assert(is_view_or_derived() && uses_materialization());
+    assert(db != view_db.str && table_name != view_name.str);
     if (is_view())
     {
       db= view_db.str;
@@ -2242,11 +2242,11 @@ struct TABLE_LIST
   TABLE_LIST *updatable_base_table()
   {
     TABLE_LIST *tbl= this;
-    DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
+    assert(tbl->is_updatable() && !tbl->is_multiple_tables());
     while (tbl->is_view_or_derived())
     {
       tbl= tbl->merge_underlying_list;
-      DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
+      assert(tbl->is_updatable() && !tbl->is_multiple_tables());
     }
     return tbl;
   }
@@ -2591,7 +2591,7 @@ public:
   /// Set table number
   void set_tableno(uint tableno)
   {
-    DBUG_ASSERT(tableno < MAX_TABLES);
+    assert(tableno < MAX_TABLES);
     m_tableno= tableno;
     m_map= (table_map)1 << tableno;
   }
@@ -2601,7 +2601,7 @@ public:
   /// Return table map derived from table number
   table_map map() const
   {
-    DBUG_ASSERT(((table_map)1 << m_tableno) == m_map);
+    assert(((table_map)1 << m_tableno) == m_map);
     return m_map;
   }
 
@@ -2882,7 +2882,7 @@ static inline void tmp_restore_column_map(MY_BITMAP *bitmap,
 static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
                                                       MY_BITMAP *bitmap)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   return tmp_use_all_columns(table, bitmap);
 #else
   return 0;
@@ -2892,7 +2892,7 @@ static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table,
 static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap,
                                                my_bitmap_map *old)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   tmp_restore_column_map(bitmap, old);
 #endif
 }
@@ -2907,7 +2907,7 @@ static inline void dbug_tmp_use_all_columns(TABLE *table,
                                             MY_BITMAP *read_set,
                                             MY_BITMAP *write_set)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   save[0]= read_set->bitmap;
   save[1]= write_set->bitmap;
   (void) tmp_use_all_columns(table, read_set);
@@ -2920,7 +2920,7 @@ static inline void dbug_tmp_restore_column_maps(MY_BITMAP *read_set,
                                                 MY_BITMAP *write_set,
                                                 my_bitmap_map **old)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   tmp_restore_column_map(read_set, old[0]);
   tmp_restore_column_map(write_set, old[1]);
 #endif

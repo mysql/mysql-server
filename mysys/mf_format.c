@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,8 +44,8 @@ char * fn_format(char * to, const char *name, const char *dir,
   size_t length;
   size_t dev_length;
   DBUG_ENTER("fn_format");
-  DBUG_ASSERT(name != NULL);
-  DBUG_ASSERT(extension != NULL);
+  assert(name != NULL);
+  assert(extension != NULL);
   DBUG_PRINT("enter",("name: %s  dir: %s  extension: %s  flag: %d",
 		       name,dir,extension,flag));
 
@@ -53,13 +53,13 @@ char * fn_format(char * to, const char *name, const char *dir,
   name+=(length=dirname_part(dev, (startpos=(char *) name), &dev_length));
   if (length == 0 || (flag & MY_REPLACE_DIR))
   {
-    DBUG_ASSERT(dir != NULL);
+    assert(dir != NULL);
     /* Use given directory */
     convert_dirname(dev,dir,NullS);		/* Fix to this OS */
   }
   else if ((flag & MY_RELATIVE_PATH) && !test_if_hard_path(dev))
   {
-    DBUG_ASSERT(dir != NULL);
+    assert(dir != NULL);
     /* Put 'dir' before the given path */
     strmake(buff,dev,sizeof(buff)-1);
     pos=convert_dirname(dev,dir,NullS);

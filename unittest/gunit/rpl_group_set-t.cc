@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -668,14 +668,14 @@ TEST_F(GroupTest, Group_containers)
       {
         printf("======== stage=%d combination=%d ========\n",
                stage_i, combination_i);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         printf("group log state:\n");
         group_log_state.print();
         printf("trx cache:\n");
         trx_cache.print(sid_maps[0]);
         printf("stmt cache:\n");
         stmt_cache.print(sid_maps[0]);
-#endif // ifdef DBUG_OFF
+#endif // ifdef NDEBUG
       }
       
       Gtid_set ended_groups(sid_maps[0]);
@@ -811,13 +811,13 @@ TEST_F(GroupTest, Group_containers)
           }
         }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
         if (verbose)
         {
           printf("stmt_cache:\n");
           stmt_cache.print(sid_maps[0]);
         }
-#endif // ifndef DBUG_OFF
+#endif // ifndef NDEBUG
         if (!stmt_cache.is_empty())
           gtid_flush_group_cache(thd, &lock,
                                  &group_log_state, NULL/*group log*/,
@@ -834,7 +834,7 @@ TEST_F(GroupTest, Group_containers)
           // execute a COMMIT statement
           thd->variables.gtid_has_ongoing_super_group= 0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           if (verbose)
           {
             printf("trx_cache:\n");
@@ -843,7 +843,7 @@ TEST_F(GroupTest, Group_containers)
                    trx_cache.is_empty(), trx_cache.get_n_subgroups(),
                    trx_contains_logged_subgroup);
           }
-#endif // ifndef DBUG_OFF
+#endif // ifndef NDEBUG
 
           if (!trx_cache.is_empty())
             gtid_flush_group_cache(thd, &lock, 

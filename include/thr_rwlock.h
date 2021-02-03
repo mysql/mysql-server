@@ -1,7 +1,7 @@
 #ifndef THR_RWLOCK_INCLUDED
 #define THR_RWLOCK_INCLUDED
 
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,8 +202,8 @@ static inline void
 rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock MY_ATTRIBUTE((unused)))
 {
 #ifdef SAFE_MUTEX
-  DBUG_ASSERT(rwlock->active_writer &&
-              my_thread_equal(my_thread_self(), rwlock->writer_thread));
+  assert(rwlock->active_writer &&
+         my_thread_equal(my_thread_self(), rwlock->writer_thread));
 #endif
 }
 
@@ -211,8 +211,8 @@ static inline void
 rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock MY_ATTRIBUTE((unused)))
 {
 #ifdef SAFE_MUTEX
-  DBUG_ASSERT(!rwlock->active_writer ||
-              !my_thread_equal(my_thread_self(), rwlock->writer_thread));
+  assert(!rwlock->active_writer ||
+         !my_thread_equal(my_thread_self(), rwlock->writer_thread));
 #endif
 }
 

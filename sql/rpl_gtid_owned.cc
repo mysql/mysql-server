@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
                                                my_thread_id owner)
 {
   DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
-  DBUG_ASSERT(gtid.sidno <= get_max_sidno());
+  assert(gtid.sidno <= get_max_sidno());
   Node *n= (Node *)my_malloc(key_memory_Sid_map_Node,
                              sizeof(Node), MYF(MY_WME));
   if (n == NULL)
@@ -111,10 +111,10 @@ void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner)
 {
   DBUG_ENTER("Owned_gtids::remove_gtid(Gtid)");
   //printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
-  //DBUG_ASSERT(contains_gtid(sidno, gno)); // allow group not owned
+  //assert(contains_gtid(sidno, gno)); // allow group not owned
   HASH_SEARCH_STATE state;
   HASH *hash= get_hash(gtid.sidno);
-  DBUG_ASSERT(hash != NULL);
+  assert(hash != NULL);
 
   for (Node *node= (Node *)my_hash_search(hash, (const uchar *)&gtid.gno, sizeof(rpl_gno));
        node != NULL;
@@ -122,11 +122,11 @@ void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner)
   {
     if (node->owner == owner)
     {
-#ifdef DBUG_OFF
+#ifdef NDEBUG
       my_hash_delete(hash, (uchar *)node);
 #else
       // my_hash_delete returns nonzero if the element does not exist
-      DBUG_ASSERT(my_hash_delete(hash, (uchar *)node) == 0);
+      assert(my_hash_delete(hash, (uchar *)node) == 0);
 #endif
       break;
     }
@@ -173,7 +173,7 @@ void Owned_gtids::get_gtids(Gtid_set &gtid_set) const
 bool Owned_gtids::contains_gtid(const Gtid &gtid) const
 {
   HASH *hash= get_hash(gtid.sidno);
-  DBUG_ASSERT(hash != NULL);
+  assert(hash != NULL);
   sid_lock->assert_some_lock();
 
   return my_hash_search(hash, (const uchar *)&gtid.gno, sizeof(rpl_gno)) != NULL;
@@ -183,7 +183,7 @@ bool Owned_gtids::is_owned_by(const Gtid &gtid, const my_thread_id thd_id) const
 {
   HASH_SEARCH_STATE state;
   HASH *hash= get_hash(gtid.sidno);
-  DBUG_ASSERT(hash != NULL);
+  assert(hash != NULL);
   Node *node= (Node*) my_hash_first(hash, (const uchar *)&gtid.gno,
                                     sizeof(rpl_gno), &state);
   if (thd_id == 0)

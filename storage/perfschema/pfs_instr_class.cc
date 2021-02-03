@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -409,9 +409,9 @@ static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
   const PFS_table_share *share;
   const void *result;
   typed_entry= reinterpret_cast<const PFS_table_share* const *> (entry);
-  DBUG_ASSERT(typed_entry != NULL);
+  assert(typed_entry != NULL);
   share= *typed_entry;
-  DBUG_ASSERT(share != NULL);
+  assert(share != NULL);
   *length= share->m_key.m_key_length;
   result= &share->m_key.m_hash_key[0];
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
@@ -470,8 +470,8 @@ static void set_table_share_key(PFS_table_share_key *key,
                                 const char *schema_name, size_t schema_name_length,
                                 const char *table_name, size_t table_name_length)
 {
-  DBUG_ASSERT(schema_name_length <= NAME_LEN);
-  DBUG_ASSERT(table_name_length <= NAME_LEN);
+  assert(schema_name_length <= NAME_LEN);
+  assert(table_name_length <= NAME_LEN);
   char *saved_schema_name;
   char *saved_table_name;
 
@@ -585,7 +585,7 @@ void PFS_table_share::destroy_lock_stat()
 PFS_table_share_index*
 PFS_table_share::find_index_stat(uint index) const
 {
-  DBUG_ASSERT(index <= MAX_INDEXES);
+  assert(index <= MAX_INDEXES);
 
   PFS_table_share *that= const_cast<PFS_table_share*>(this);
   void *addr= & that->m_race_index_stat[index];
@@ -609,7 +609,7 @@ PFS_table_share::find_index_stat(uint index) const
 PFS_table_share_index*
 PFS_table_share::find_or_create_index_stat(const TABLE_SHARE *server_share, uint index)
 {
-  DBUG_ASSERT(index <= MAX_INDEXES);
+  assert(index <= MAX_INDEXES);
 
   void *addr= & this->m_race_index_stat[index];
   void * volatile * typed_addr= static_cast<void * volatile *>(addr);
@@ -762,7 +762,7 @@ int init_table_share_index_stat(uint index_stat_sizing)
 PFS_table_share_index*
 create_table_share_index_stat(const TABLE_SHARE *server_share, uint server_index)
 {
-  DBUG_ASSERT((server_share != NULL) || (server_index == MAX_INDEXES));
+  assert((server_share != NULL) || (server_index == MAX_INDEXES));
 
   PFS_table_share_index *pfs= NULL;
   pfs_dirty_state dirty_state;
@@ -1004,7 +1004,7 @@ static void init_instr_class(PFS_instr_class *klass,
                              int flags,
                              PFS_class_type class_type)
 {
-  DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
+  assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
   memcpy(klass->m_name, name, name_length);
   klass->m_name_length= name_length;
@@ -1060,7 +1060,7 @@ static void configure_instr_class(PFS_instr_class *entry)
     if ((entry->m_name_length == NAME_LENGTH) &&                       \
         (strncmp(entry->m_name, NAME, NAME_LENGTH) == 0))              \
     {                                                                  \
-      DBUG_ASSERT(entry->m_flags == flags);                            \
+      assert(entry->m_flags == flags);                                 \
       return (INDEX + 1);                                              \
     }                                                                  \
   }
@@ -1314,7 +1314,7 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
   if (index < thread_class_max)
   {
     entry= &thread_class_array[index];
-    DBUG_ASSERT(name_length <= PFS_MAX_INFO_NAME_LENGTH);
+    assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
     strncpy(entry->m_name, name, name_length);
     entry->m_name_length= name_length;
     entry->m_enabled= true;
@@ -1881,7 +1881,7 @@ void PFS_table_share::sum_io(PFS_single_stat *result, uint key_count)
   uint index;
   PFS_table_share_index *stat;
 
-  DBUG_ASSERT(key_count <= MAX_INDEXES);
+  assert(key_count <= MAX_INDEXES);
 
   /* Sum stats for each index, if any */
   for (index= 0; index < key_count; index++)
@@ -1929,7 +1929,7 @@ void PFS_table_share::aggregate_lock(void)
 
 void release_table_share(PFS_table_share *pfs)
 {
-  DBUG_ASSERT(pfs->get_refcount() > 0);
+  assert(pfs->get_refcount() > 0);
   pfs->dec_refcount();
 }
 

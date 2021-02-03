@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -495,7 +495,7 @@ static int version_token_check(MYSQL_THD thd,
   const uchar *command= (const uchar *) event_general->general_command.str;
   size_t length= event_general->general_command.length;
 
-  DBUG_ASSERT(event_class == MYSQL_AUDIT_GENERAL_CLASS);
+  assert(event_class == MYSQL_AUDIT_GENERAL_CLASS);
 
   switch (event_general->event_subclass)
   {
