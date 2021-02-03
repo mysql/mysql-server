@@ -1,6 +1,6 @@
 /* Copyright (C) 2007 Google Inc.
    Copyright (C) 2008 MySQL AB
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
 {
   MYSQL *mysql= param->mysql;
   MYSQL_RES *res= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   MYSQL_ROW row= NULL;
 #endif
   const char *query;
@@ -74,14 +74,14 @@ int repl_semi_slave_request_dump(Binlog_relay_IO_param *param,
   }
   else
   {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     row=
 #endif
       mysql_fetch_row(res);
   }
 
-  DBUG_ASSERT(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
-              strtoul(row[0], 0, 10) == 0 || strtoul(row[0], 0, 10) == 1);
+  assert(mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE ||
+         strtoul(row[0], 0, 10) == 0 || strtoul(row[0], 0, 10) == 1);
 
   if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE)
   {

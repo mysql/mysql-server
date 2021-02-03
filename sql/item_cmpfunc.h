@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ public:
   */
   inline void set_cmp_context_for_datetime()
   {
-    DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
+    assert(func == &Arg_comparator::compare_datetime);
     if ((*a)->is_temporal())
       (*a)->cmp_context= INT_RESULT;
     if ((*b)->is_temporal())
@@ -378,7 +378,7 @@ public:
   virtual const char* symbol(bool invert) const
   {
     // This will never be called with true.
-    DBUG_ASSERT(!invert);
+    assert(!invert);
     return "<=>";
   }
 
@@ -2035,17 +2035,17 @@ public:
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
   bool add(Item *item)
   {
-    DBUG_ASSERT(item);
+    assert(item);
     return list.push_back(item);
   }
   bool add_at_head(Item *item)
   {
-    DBUG_ASSERT(item);
+    assert(item);
     return list.push_front(item);
   }
   void add_at_head(List<Item> *nlist)
   {
-    DBUG_ASSERT(nlist->elements);
+    assert(nlist->elements);
     list.prepand(nlist);
   }
 

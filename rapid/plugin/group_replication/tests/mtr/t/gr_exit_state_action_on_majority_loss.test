@@ -52,6 +52,7 @@ SET SESSION sql_log_bin = 1;
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $member1_uuid= `SELECT @@GLOBAL.server_uuid`
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
@@ -123,6 +124,8 @@ SET SESSION sql_log_bin = 1;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
 --eval SET @@global.group_replication_local_address="$local_address_server2"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --source include/start_group_replication.inc
 
 --let $rpl_server_number= 3
@@ -135,6 +138,8 @@ SET SESSION sql_log_bin = 1;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
 --eval SET @@global.group_replication_local_address="$local_address_server3"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --source include/start_group_replication.inc
 
 # Wait for everyone to settle down
@@ -199,6 +204,8 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server1"
 --replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1
 --eval SET @@global.group_replication_local_address="$local_address_server1"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --source ../inc/start_and_bootstrap_group_replication.inc
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
@@ -208,6 +215,8 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
 --replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
 --eval SET @@global.group_replication_local_address="$local_address_server2"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --source include/start_group_replication.inc
 --let $rpl_server_number= 3
 --source include/rpl_reconnect.inc
@@ -217,6 +226,8 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --eval SET @@global.group_replication_group_seeds="$group_seeds_server3"
 --replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3
 --eval SET @@global.group_replication_local_address="$local_address_server3"
+--replace_result $_group_replication_group_whitelist GROUP_REPLICATION_GROUP_WHITELIST
+--eval SET @@global.group_replication_ip_whitelist="$_group_replication_group_whitelist"
 --source include/start_group_replication.inc
 # Wait for everyone to settle down
 --let $group_replication_number_of_members= 3

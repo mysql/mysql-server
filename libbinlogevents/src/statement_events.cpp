@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -317,7 +317,7 @@ break;
     case Q_UPDATED_DB_NAMES:
     {
       unsigned char i= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       bool is_corruption_injected= false;
 #endif
 
@@ -338,7 +338,7 @@ break;
 
       for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
       {
-        #ifndef DBUG_OFF
+        #ifndef NDEBUG
         /*
           This is specific to mysql test run on the server
           for the keyword "query_log_event_mts_corrupt_db_names"
@@ -359,7 +359,7 @@ break;
         pos+= 1 + strlen((const char*) pos);
       }
       if (i != mts_accessed_dbs
-#ifndef DBUG_OFF
+#ifndef NDEBUG
           || is_corruption_injected
 #endif
           )
@@ -561,7 +561,7 @@ User_var_event(const char* buf, unsigned int event_len,
     error= true;
     goto err;
   }
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool old_pre_checksum_fd= description_event->is_version_before_checksum();
   bool checksum_verify= (old_pre_checksum_fd ||
                          (description_event->footer()->checksum_alg ==

@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -358,7 +358,7 @@ public:
   }
   const Ed_column *get_column(const unsigned int column_index) const
   {
-    DBUG_ASSERT(column_index < size());
+    assert(column_index < size());
     return m_column_array + column_index;
   }
   size_t size() const { return m_column_count; }

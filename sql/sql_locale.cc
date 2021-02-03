@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3459,7 +3459,7 @@ MY_LOCALE *my_locale_by_number(uint number)
     return NULL;
   locale= my_locales[number];
   // Check that locale is on its correct position in the array
-  DBUG_ASSERT(locale == my_locales[locale->number]);
+  assert(locale == my_locales[locale->number]);
   return locale;
 }
 
@@ -3484,7 +3484,7 @@ MY_LOCALE *my_locale_by_name(const char *name)
   if ((locale= my_locale_by_name(my_locales, name)))
   {
       // Check that locale is on its correct position in the array
-      DBUG_ASSERT(locale == my_locales[locale->number]);
+    assert(locale == my_locales[locale->number]);
       return locale;
   }
   else if ((locale= my_locale_by_name(my_locales_deprecated, name)))

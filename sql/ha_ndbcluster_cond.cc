@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -314,7 +314,7 @@ ndb_serialize_cond(const Item *item, void *arg)
                 type != MYSQL_TYPE_GEOMETRY)
             {
               const NDBCOL *col= tab->getColumn(field->field_name);
-              DBUG_ASSERT(col);
+              assert(col);
               curr_cond->ndb_item= new Ndb_item(field, col->getColumnNo());
               context->dont_expect(Item::FIELD_ITEM);
               context->expect_no_field_result();
@@ -794,7 +794,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           if (context->expecting(Item::STRING_ITEM) &&
               context->expecting_length(item->max_length)) 
           {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
             char buff[256];
             String str(buff, 0, system_charset_info);
             const_cast<Item*>(item)->print(&str, QT_ORDINARY);
@@ -1055,7 +1055,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             if (context->expecting(Item::STRING_ITEM) &&
                 context->expecting_length(item->max_length)) 
             {
-  #ifndef DBUG_OFF
+  #ifndef NDEBUG
               char buff[256];
               String str(buff, 0, system_charset_info);
               const_cast<Item*>(item)->print(&str, QT_ORDINARY);
@@ -1690,7 +1690,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
 {
   DBUG_ENTER("generate_scan_filter_from_key");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     DBUG_PRINT("info", ("key parts:%u length:%u",
                         key_info->user_defined_key_parts, key_info->key_length));
@@ -1722,7 +1722,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
               key_range has no count of parts so must test byte length.
               But this is not the place for following assert.
             */
-            // DBUG_ASSERT(ptr - key->key == key->length);
+            // assert(ptr - key->key == key->length);
             break;
           }
           key_part++;
@@ -1826,7 +1826,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
 
     DBUG_PRINT("info", ("Unknown hash index scan"));
     // enable to catch new cases when optimizer changes
-    // DBUG_ASSERT(false);
+    // assert(false);
   }
   while (0);
 

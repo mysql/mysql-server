@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,7 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
     if (decoder->mark)
     {
       /* If we have scanned '=' already, then only '=' is valid */
-      DBUG_ASSERT(decoder->state == 3);
+      assert(decoder->state == 3);
       decoder->error= 1;
       decoder->src--;
       return TRUE; /* expected '=', but encoding character found */
@@ -297,7 +297,7 @@ my_base64_decoder_getch(MY_BASE64_DECODER *decoder)
     break;
 
   default:
-    DBUG_ASSERT(0);
+    assert(0);
     return TRUE; /* Wrong state, should not happen */
   }
 

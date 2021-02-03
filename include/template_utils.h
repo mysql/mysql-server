@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@ inline const T pointer_cast(const void *p)
 template<typename Target, typename Source>
 inline Target down_cast(Source arg)
 {
-  DBUG_ASSERT(NULL != dynamic_cast<Target>(arg));
+  assert(NULL != dynamic_cast<Target>(arg));
   return static_cast<Target>(arg);
 }
 

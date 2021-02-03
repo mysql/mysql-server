@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,7 @@ unpack_row_old(Relay_log_info *rli,
                uchar const **row_end, ulong *master_reclength,
                MY_BITMAP* const rw_set, Log_event_type const event_type)
 {
-  DBUG_ASSERT(record && row);
+  assert(record && row);
   my_ptrdiff_t const offset= record - table->record[0];
   size_t master_null_bytes= table->s->null_bytes;
 
@@ -127,7 +127,7 @@ unpack_row_old(Relay_log_info *rli,
       master_null_bytes= 1;
   }
 
-  DBUG_ASSERT(master_null_bytes <= table->s->null_bytes);
+  assert(master_null_bytes <= table->s->null_bytes);
   memcpy(record, row, master_null_bytes);            // [1]
   int error= 0;
 
@@ -147,7 +147,7 @@ unpack_row_old(Relay_log_info *rli,
       ptr= f->unpack(f->ptr, ptr);
       f->move_field_offset(-offset);
       /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(ptr != NULL);
+      assert(ptr != NULL);
     }
     else
       bitmap_clear_bit(rw_set, field_ptr - begin_ptr);

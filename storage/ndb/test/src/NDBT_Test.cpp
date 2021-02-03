@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1541,7 +1541,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   char** defaults_argv= _argv;
 
   int ho_error;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= "d:t:i:F:L";
 #endif
   if ((ho_error=handle_options(&argc, &_argv, my_long_options,

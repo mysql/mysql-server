@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -670,7 +670,7 @@ public:
 
   String *val_str(String *)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (null_value ? 0 : &str_value);
   }
   bool fix_fields(THD *thd, Item **ref);
@@ -818,7 +818,7 @@ public:
   String *val_str(String *str);
   bool fix_fields(THD *thd, Item **ref)
   {
-    DBUG_ASSERT(fixed == 0);
+    assert(fixed == 0);
     bool res= ((!item->fixed && item->fix_fields(thd, &item)) ||
                item->check_cols(1) ||
                Item_func::fix_fields(thd, ref));
@@ -983,7 +983,7 @@ public:
 };
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 class Item_func_like_range :public Item_str_func
 {
 protected:
@@ -1053,7 +1053,7 @@ public:
   Item_func_binary(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *a)
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     String *tmp=args[0]->val_str(a);
     null_value=args[0]->null_value;
     if (tmp)
@@ -1140,7 +1140,7 @@ public:
   Item_func_conv_charset(Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const) :Item_str_func(a)
   {
-    DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
+    assert(is_fixed_or_outer_ref(args[0]));
 
     conv_charset= cs;
     if (cache_if_const && args[0]->const_item())

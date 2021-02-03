@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -256,7 +256,7 @@ namespace AQP
   */
   inline const Table_access* Join_plan::get_table_access(uint access_no) const
   {
-    DBUG_ASSERT(access_no < m_access_count);
+    assert(access_no < m_access_count);
     return m_table_accesses + access_no;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ class File_query_log
 
   ~File_query_log()
   {
-    DBUG_ASSERT(!is_open());
+    assert(!is_open());
     mysql_mutex_destroy(&LOCK_log);
   }
 
@@ -373,7 +373,7 @@ private:
   {
     if (log_type == QUERY_LOG_SLOW)
       return &mysql_slow_log;
-    DBUG_ASSERT(log_type == QUERY_LOG_GENERAL);
+    assert(log_type == QUERY_LOG_GENERAL);
     return &mysql_general_log;
   }
 
@@ -438,7 +438,7 @@ public:
       return (opt_slow_log && (log_output_options & LOG_TABLE));
     else if (log_type == QUERY_LOG_GENERAL)
       return (opt_general_log && (log_output_options & LOG_TABLE));
-    DBUG_ASSERT(false);
+    assert(false);
     return false;                             /* make compiler happy */
   }
 

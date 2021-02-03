@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -156,7 +156,7 @@ report_errors()
 
   while ((l=ERR_get_error_line_data(&file,&line,&data,&flags)) != 0)
   {
-#ifndef DBUG_OFF				/* Avoid warning */
+#ifndef NDEBUG				/* Avoid warning */
     char buf[200];
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l,buf),
 			 file,line,(flags & ERR_TXT_STRING) ? data : "")) ;
@@ -183,7 +183,7 @@ ssl_error_string[] =
 const char*
 sslGetErrString(enum enum_ssl_init_error e)
 {
-  DBUG_ASSERT(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
+  assert(SSL_INITERR_NOERROR < e && e < SSL_INITERR_LASTERR);
   return ssl_error_string[e];
 }
 

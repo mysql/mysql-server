@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -33,14 +33,14 @@ void Querycache_stream::store_uchar(uchar c)
   if (data_end == cur_data)
     use_next_block(TRUE);
   *(cur_data++)= c;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   stored_size++;
 #endif
 }
 
 void Querycache_stream::store_short(ushort s)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   stored_size+= 2;
 #endif
   if (data_end - cur_data > 1)
@@ -63,7 +63,7 @@ void Querycache_stream::store_short(ushort s)
 
 void Querycache_stream::store_int(uint i)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   stored_size+= 4;
 #endif
   size_t rest_len= data_end - cur_data;
@@ -90,7 +90,7 @@ void Querycache_stream::store_int(uint i)
 
 void Querycache_stream::store_ll(ulonglong ll)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   stored_size+= 8;
 #endif
   size_t rest_len= data_end - cur_data;
@@ -115,7 +115,7 @@ void Querycache_stream::store_ll(ulonglong ll)
 
 void Querycache_stream::store_str_only(const char *str, size_t str_len)
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   stored_size+= str_len;
 #endif
   do
@@ -403,7 +403,7 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
       }
     }
   }
-  DBUG_ASSERT(emb_count_querycache_size(thd) == dst->stored_size);
+  assert(emb_count_querycache_size(thd) == dst->stored_size);
   DBUG_VOID_RETURN;
 }
 

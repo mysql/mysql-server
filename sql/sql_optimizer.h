@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -423,15 +423,15 @@ public:
 
     void set_flag(Explain_sort_property flag)
     {
-      DBUG_ASSERT(order);
+      assert(order);
       flags|= flag;
     }
     void reset_flag(Explain_sort_property flag) { flags&= ~flag; }
     bool get_flag(Explain_sort_property flag) const {
-      DBUG_ASSERT(order);
+      assert(order);
       return flags & flag;
     }
-    int get_flags() const { DBUG_ASSERT(order); return flags; }
+    int get_flags() const { assert(order); return flags; }
   };
 
   /**
@@ -572,7 +572,7 @@ public:
    */
   void copy_ref_ptr_array(Ref_ptr_array dst_arr, Ref_ptr_array src_arr)
   {
-    DBUG_ASSERT(dst_arr.size() >= src_arr.size());
+    assert(dst_arr.size() >= src_arr.size());
     void *dest= dst_arr.array();
     const void *src= src_arr.array();
     memcpy(dest, src, src_arr.size() * src_arr.element_size());
@@ -667,7 +667,7 @@ public:
 
   const Cost_model_server* cost_model() const
   {
-    DBUG_ASSERT(thd != NULL);
+    assert(thd != NULL);
     return thd->cost_model();
   }
 

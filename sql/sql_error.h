@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -358,7 +358,7 @@ public:
   */
   void disable_status()
   {
-    DBUG_ASSERT(m_status == DA_EMPTY);
+    assert(m_status == DA_EMPTY);
     m_status= DA_DISABLED;
   }
 
@@ -383,37 +383,37 @@ public:
 
   const char *message_text() const
   {
-    DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK);
+    assert(m_status == DA_ERROR || m_status == DA_OK);
     return m_message_text;
   }
 
   uint mysql_errno() const
   {
-    DBUG_ASSERT(m_status == DA_ERROR);
+    assert(m_status == DA_ERROR);
     return m_mysql_errno;
   }
 
   const char* returned_sqlstate() const
   {
-    DBUG_ASSERT(m_status == DA_ERROR);
+    assert(m_status == DA_ERROR);
     return m_returned_sqlstate;
   }
 
   ulonglong affected_rows() const
   {
-    DBUG_ASSERT(m_status == DA_OK);
+    assert(m_status == DA_OK);
     return m_affected_rows;
   }
 
   ulonglong last_insert_id() const
   {
-    DBUG_ASSERT(m_status == DA_OK);
+    assert(m_status == DA_OK);
     return m_last_insert_id;
   }
 
   uint last_statement_cond_count() const
   {
-    DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
+    assert(m_status == DA_OK || m_status == DA_EOF);
     return m_last_statement_cond_count;
   }
 

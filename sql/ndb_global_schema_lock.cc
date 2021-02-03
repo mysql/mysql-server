@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -252,13 +252,13 @@ ndbcluster_global_schema_lock(THD *thd,
     if (thd_ndb->global_schema_lock_trans)
       thd_ndb->global_schema_lock_trans->refresh();
     else
-      DBUG_ASSERT(thd_ndb->global_schema_lock_error != 0);
+      assert(thd_ndb->global_schema_lock_error != 0);
     thd_ndb->global_schema_lock_count++;
     DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                         thd_ndb->global_schema_lock_count));
     DBUG_RETURN(0);
   }
-  DBUG_ASSERT(thd_ndb->global_schema_lock_count == 0);
+  assert(thd_ndb->global_schema_lock_count == 0);
   thd_ndb->global_schema_lock_count= 1;
   thd_ndb->global_schema_lock_error= 0;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
@@ -321,7 +321,7 @@ int
 ndbcluster_global_schema_unlock(THD *thd)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  DBUG_ASSERT(thd_ndb != 0);
+  assert(thd_ndb != 0);
   if (unlikely(thd_ndb == NULL))
   {
     return 0;
@@ -337,12 +337,12 @@ ndbcluster_global_schema_unlock(THD *thd)
   thd_ndb->global_schema_lock_count--;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                       thd_ndb->global_schema_lock_count));
-  DBUG_ASSERT(ndb != NULL);
+  assert(ndb != NULL);
   if (ndb == NULL)
   {
     DBUG_RETURN(0);
   }
-  DBUG_ASSERT(trans != NULL || thd_ndb->global_schema_lock_error != 0);
+  assert(trans != NULL || thd_ndb->global_schema_lock_error != 0);
   if (thd_ndb->global_schema_lock_count != 0)
   {
     DBUG_RETURN(0);

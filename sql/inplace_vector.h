@@ -1,7 +1,7 @@
 #ifndef INPLACE_VECTOR_INCLUDED
 #define INPLACE_VECTOR_INCLUDED
 
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,17 +77,17 @@ private:
    */
   objtype *get_space(size_t index)
   {
-    DBUG_ASSERT(index <= m_obj_count);
+    assert(index <= m_obj_count);
     size_t arr_id= index / array_size;
     size_t slot_id= index % array_size;
     objtype *ptr= NULL;
 
-    DBUG_ASSERT(arr_id <= m_obj_arrays.size());
+    assert(arr_id <= m_obj_arrays.size());
 
     // Appending a new slot causes appending a new array.
     if (arr_id == m_obj_arrays.size())
     {
-      DBUG_ASSERT(slot_id == 0);
+      assert(slot_id == 0);
       if (m_outof_mem)
         return NULL;
       append_new_array();
@@ -145,7 +145,7 @@ public:
    */
   objtype *get_object(size_t index)
   {
-    DBUG_ASSERT(index < m_obj_count);
+    assert(index < m_obj_count);
     return get_space(index);
   }
 
@@ -263,7 +263,7 @@ public:
     */
   const objtype &back() const
   {
-    DBUG_ASSERT(size() > 0);
+    assert(size() > 0);
     objtype *p= get_object(size() - 1);
     return *p;
   }
@@ -274,7 +274,7 @@ public:
     */
   objtype &back()
   {
-    DBUG_ASSERT(size() > 0);
+    assert(size() > 0);
     objtype *p= get_object(size() - 1);
     return *p;
   }
@@ -287,7 +287,7 @@ public:
     */
   const objtype &operator[](size_t i) const
   {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     objtype *p= get_object(i);
     return *p;
   }
@@ -300,7 +300,7 @@ public:
     */
   objtype &operator[](size_t i)
   {
-    DBUG_ASSERT(i < size());
+    assert(i < size());
     objtype *p= get_object(i);
     return *p;
   }

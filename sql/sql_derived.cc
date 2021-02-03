@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,11 +60,11 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
 
   thd->derived_tables_processing= true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
   {
     // Make sure there are no outer references
-    DBUG_ASSERT(sl->context.outer_context == NULL);
+    assert(sl->context.outer_context == NULL);
   }
 #endif
   if (!(derived_result= new (thd->mem_root) Query_result_union))
@@ -111,7 +111,7 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
 {
   DBUG_ENTER("TABLE_LIST::setup_materialized_derived");
 
-  DBUG_ASSERT(is_view_or_derived() && !is_merged() && table == NULL);
+  assert(is_view_or_derived() && !is_merged() && table == NULL);
 
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
@@ -174,7 +174,7 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
 
     // Set all selected fields to be read:
     // @todo Do not set fields that are not referenced from outer query
-    DBUG_ASSERT(thd->mark_used_columns == MARK_COLUMNS_READ);
+    assert(thd->mark_used_columns == MARK_COLUMNS_READ);
     List_iterator<Item> it(sl->all_fields);
     Item *item;
     Column_privilege_tracker tracker(thd, SELECT_ACL);
@@ -210,7 +210,7 @@ bool TABLE_LIST::optimize_derived(THD *thd)
 
   SELECT_LEX_UNIT *const unit= derived_unit();
 
-  DBUG_ASSERT(unit && !unit->is_optimized());
+  assert(unit && !unit->is_optimized());
 
   if (unit->optimize(thd) || thd->is_error())
     DBUG_RETURN(true);
@@ -241,7 +241,7 @@ bool TABLE_LIST::create_derived(THD *thd)
   SELECT_LEX_UNIT *const unit= derived_unit();
 
   // @todo: Be able to assert !table->is_created() as well
-  DBUG_ASSERT(unit && uses_materialization() && table);
+  assert(unit && uses_materialization() && table);
 
   /*
     Don't create result table if:
@@ -256,13 +256,13 @@ bool TABLE_LIST::create_derived(THD *thd)
       At this point, JT_CONST derived tables should be null rows. Otherwise
       they would have been materialized already.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (table != NULL)
     {
       QEP_TAB *tab= table->reginfo.qep_tab;
-      DBUG_ASSERT(tab == NULL ||
-                  tab->type() != JT_CONST ||
-                  table->has_null_row());
+      assert(tab == NULL ||
+             tab->type() != JT_CONST ||
+             table->has_null_row());
     }
 #endif
     DBUG_RETURN(false);
@@ -307,12 +307,12 @@ bool TABLE_LIST::materialize_derived(THD *thd)
 {
   DBUG_ENTER("TABLE_LIST::materialize_derived");
 
-  DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+  assert(is_view_or_derived() && uses_materialization());
 
   SELECT_LEX_UNIT *const unit= derived_unit();
   bool res= false;
 
-  DBUG_ASSERT(table && table->is_created());
+  assert(table && table->is_created());
 
   if (unit->is_union())
   {
@@ -326,7 +326,7 @@ bool TABLE_LIST::materialize_derived(THD *thd)
     SELECT_LEX *save_current_select= thd->lex->current_select();
     thd->lex->set_current_select(first_select);
 
-    DBUG_ASSERT(join && join->is_optimized());
+    assert(join && join->is_optimized());
 
     unit->set_limit(first_select);
 
@@ -355,7 +355,7 @@ bool TABLE_LIST::materialize_derived(THD *thd)
 
 bool TABLE_LIST::cleanup_derived()
 {
-  DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+  assert(is_view_or_derived() && uses_materialization());
 
   return derived_unit()->cleanup(false);
 }

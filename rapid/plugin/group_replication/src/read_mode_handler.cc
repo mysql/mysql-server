@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,12 @@ long enable_super_read_only_mode(Sql_service_command_interface *command_interfac
   DBUG_ENTER("set_super_read_only_mode");
   long error =0;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_skip_read_mode", { DBUG_RETURN(0); });
   DBUG_EXECUTE_IF("group_replication_read_mode_error", { DBUG_RETURN(1); });
 #endif
 
-  DBUG_ASSERT(command_interface != NULL);
+  assert(command_interface != NULL);
 
   // Extract server values for the super read mode
   longlong server_super_read_only_query=
@@ -62,7 +62,7 @@ long disable_super_read_only_mode(Sql_service_command_interface *command_interfa
   DBUG_ENTER("reset_super_read_mode");
   long error =0;
 
-  DBUG_ASSERT(command_interface != NULL);
+  assert(command_interface != NULL);
 
   error = command_interface->reset_read_only();
 
@@ -102,7 +102,7 @@ long get_read_mode_state(Sql_service_command_interface *sql_command_interface,
 
   long error =0;
 
-  DBUG_ASSERT(sql_command_interface != NULL);
+  assert(sql_command_interface != NULL);
 
   // Extract server values for the read mode
   longlong server_read_only_query=

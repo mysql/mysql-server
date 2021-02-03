@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 
 #ifdef HAVE_OPENSSL
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 static void
 report_errors(SSL* ssl)
@@ -154,7 +154,7 @@ static my_bool ssl_should_retry(Vio *vio, int ret,
     *event= VIO_IO_EVENT_WRITE;
     break;
   default:
-#ifndef DBUG_OFF  /* Debug build */
+#ifndef NDEBUG  /* Debug build */
     /* Note: the OpenSSL error queue gets cleared in report_errors(). */
     report_errors(ssl);
 #else             /* Release build */
@@ -189,7 +189,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size)
       SSL_read() returns an error from the error queue, when SSL_read() failed
       because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret= SSL_read(ssl, buf, (int)size);
 
@@ -226,7 +226,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size)
       SSL_write() returns an error from the error queue, when SSL_write() failed
       because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret= SSL_write(ssl, buf, (int)size);
 
@@ -339,7 +339,7 @@ static int ssl_handshake_loop(Vio *vio, SSL *ssl,
       SSL-handshake-function returns an error from the error queue, when the
       function failed because it would block.
     */
-    DBUG_ASSERT(ERR_peek_error() == 0);
+    assert(ERR_peek_error() == 0);
 
     ret= func(ssl);
 
@@ -371,7 +371,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   int j, n;
 #endif
 
@@ -394,7 +394,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
   {
     STACK_OF(SSL_COMP) *ssl_comp_methods = NULL;
     ssl_comp_methods = SSL_COMP_get_compression_methods();
@@ -430,7 +430,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
   if (vio_reset(vio, VIO_TYPE_SSL, SSL_get_fd(ssl), ssl, 0))
     DBUG_RETURN(1);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {
     /* Print some info about the peer */
     X509 *cert;

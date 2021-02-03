@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -851,7 +851,7 @@ private:
   Opt_trace_stmt *stmt;                        ///< Trace owning the structure
   /// Key if the structure is the value of a key/value pair, NULL otherwise
   const char *saved_key;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      Fixed-length prefix of previous key in this structure, if this structure
      is an object. Serves to detect when adding two same consecutive keys to
@@ -1262,7 +1262,7 @@ public:
   A debug binary without optimizer trace compiled in, will miss some
   debugging info, be less useful, so:
 */
-#if !defined(DBUG_OFF) && !defined(OPTIMIZER_TRACE)
+#if !defined(NDEBUG) && !defined(OPTIMIZER_TRACE)
 #error debug binaries must support optimizer trace
 #endif
 

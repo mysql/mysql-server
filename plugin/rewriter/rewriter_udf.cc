@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ my_bool load_rewrite_rules_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 char *load_rewrite_rules(UDF_INIT *initid, UDF_ARGS *args, char *result,
                          unsigned long *length, char *is_null, char *error)
 {
-  DBUG_ASSERT(get_rewriter_plugin_info() != NULL);
+  assert(get_rewriter_plugin_info() != NULL);
   const char *message= NULL;
   if (refresh_rules_table())
   {

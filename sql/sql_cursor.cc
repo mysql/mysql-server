@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -251,7 +251,7 @@ int Materialized_cursor::send_result_set_metadata(
   if ((rc= table->fill_item_list(&item_list)))
     goto end;
 
-  DBUG_ASSERT(send_result_set_metadata.elements == item_list.elements);
+  assert(send_result_set_metadata.elements == item_list.elements);
 
   /*
     Unless we preserve the original metadata, it will be lost,
@@ -400,7 +400,7 @@ Materialized_cursor::~Materialized_cursor()
 bool Query_result_materialize::send_result_set_metadata(List<Item> &list,
                                                         uint flags)
 {
-  DBUG_ASSERT(table == 0);
+  assert(table == 0);
   /*
     PROCEDURE ANALYSE installs a result filter that has a different set
     of input and output column Items:

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
 OPT_EXTERN(int, opt_connect_retry_delay,NONE);
 OPT_EXTERN(int, opt_connect_retries,NONE);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 OPT_EXTERN(const char *,opt_debug,= 0);
 #endif
 
@@ -108,7 +108,7 @@ OPT_EXTERN(const char *,opt_debug,= 0);
      (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0, GET_INT, \
      REQUIRED_ARG, 12, 0, INT_MAX, 0, 0, 0}
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define NDB_STD_OPTS(prog_name) \
   { "debug", '#', "Output debug log. Often this is 'd:t:o,filename'.", \
     (uchar**) &opt_debug, (uchar**) &opt_debug, \

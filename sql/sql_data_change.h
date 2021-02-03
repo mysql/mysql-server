@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,7 @@ public:
     last_errno(0),
     update_values(NULL)
   {
-    DBUG_ASSERT(optype == INSERT_OPERATION);
+    assert(optype == INSERT_OPERATION);
   }
 
   /**
@@ -219,7 +219,7 @@ public:
     last_errno(0),
     update_values(NULL)
   {
-    DBUG_ASSERT(optype == INSERT_OPERATION);
+    assert(optype == INSERT_OPERATION);
   }
 
   /**
@@ -243,7 +243,7 @@ public:
     last_errno(0),
     update_values(values)
   {
-    DBUG_ASSERT(optype == UPDATE_OPERATION);
+    assert(optype == UPDATE_OPERATION);
   }
 
   operation_type get_operation_type() const { return m_optype; }
@@ -299,7 +299,7 @@ public:
   */
   bool function_defaults_apply(const TABLE *table) const
   {
-    DBUG_ASSERT(m_function_default_columns != NULL);
+    assert(m_function_default_columns != NULL);
     return !bitmap_is_clear_all(m_function_default_columns);
   }
 
@@ -309,7 +309,7 @@ public:
   */
   bool function_defaults_apply_on_columns(MY_BITMAP *map)
   {
-    DBUG_ASSERT(m_function_default_columns != NULL);
+    assert(m_function_default_columns != NULL);
     return bitmap_is_overlapping(m_function_default_columns, map);
   }
 

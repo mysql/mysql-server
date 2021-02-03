@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -428,7 +428,7 @@ CHARSET_INFO *default_charset_info = &my_charset_latin1;
 
 void add_compiled_collation(CHARSET_INFO *cs)
 {
-  DBUG_ASSERT(cs->number < array_elements(all_charsets));
+  assert(cs->number < array_elements(all_charsets));
   all_charsets[cs->number]= cs;
   cs->state|= MY_CS_AVAILABLE;
 }
@@ -544,7 +544,7 @@ get_internal_charset(MY_CHARSET_LOADER *loader, uint cs_number, myf flags)
   char  buf[FN_REFLEN];
   CHARSET_INFO *cs;
 
-  DBUG_ASSERT(cs_number < array_elements(all_charsets));
+  assert(cs_number < array_elements(all_charsets));
 
   if ((cs= all_charsets[cs_number]))
   {

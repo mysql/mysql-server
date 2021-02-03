@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,15 +100,15 @@ public:
 
   Trigger_chain *get_triggers(int event, int action_time)
   {
-    DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
-    DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
   }
 
   const Trigger_chain *get_triggers(int event, int action_time) const
   {
-    DBUG_ASSERT(0 <= event && event < TRG_EVENT_MAX);
-    DBUG_ASSERT(0 <= action_time && action_time < TRG_ACTION_MAX);
+    assert(0 <= event && event < TRG_EVENT_MAX);
+    assert(0 <= action_time && action_time < TRG_ACTION_MAX);
     return m_trigger_map[event][action_time];
   }
 

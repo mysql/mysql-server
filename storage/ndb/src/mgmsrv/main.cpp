@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,7 +213,7 @@ static int mgmd_main(int argc, char** argv)
   defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   int ho_error;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= IF_WIN("d:t:i:F:o,c:\\ndb_mgmd.trace",
                     "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif

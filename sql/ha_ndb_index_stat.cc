@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ struct Ndb_index_stat {
   NdbIndexStat* is;
   int index_id;
   int index_version;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char id[32];
 #endif
   time_t access_time;   /* by any table handler */
@@ -294,7 +294,7 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
     switch (v.unit) {
     case Ndb_index_stat_opt::Ubool:
       {
-        DBUG_ASSERT(v.val == 0 || v.val == 1);
+        assert(v.val == 0 || v.val == 1);
         if (v.val == 0)
           my_snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else
@@ -344,7 +344,7 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
       break;
 
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }
@@ -460,7 +460,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
       break;
 
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }
@@ -764,7 +764,7 @@ Ndb_index_stat::Ndb_index_stat()
   is= 0;
   index_id= 0;
   index_version= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   memset(id, 0, sizeof(id));
 #endif
   access_time= 0;
@@ -1011,7 +1011,7 @@ ndb_index_stat_alloc(const NDBINDEX *index,
     st->is= is;
     st->index_id= index->getObjectId();
     st->index_version= index->getObjectVersion();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     my_snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
 #endif
     if (is->set_index(*index, *table) == 0)
@@ -1371,7 +1371,7 @@ struct Ndb_index_stat_proc {
   int lt;
   bool busy;
   bool end;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint cache_query_bytes;
   uint cache_clean_bytes;
 #endif
@@ -1833,7 +1833,7 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
     }
   }
  
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (uint i=0; i < st_lru_cnt; i++)
   {
     Ndb_index_stat* st1= st_lru_arr[i];
@@ -2041,7 +2041,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
   if (ret == -1)
   {
     // wl4124_todo report error
-    DBUG_ASSERT(false);
+    assert(false);
     return;
   }
   if (ret == 0)
@@ -2054,7 +2054,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
     if (ret == -1)
     {
       // wl4124_todo report error
-      DBUG_ASSERT(false);
+      assert(false);
       return;
     }
     if (ret == 0)
@@ -2114,7 +2114,7 @@ ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void
 ndb_index_stat_entry_verify(Ndb_index_stat_proc &pr, const Ndb_index_stat *st)
 {
@@ -2242,7 +2242,7 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
 
   ndb_index_stat_proc_control(pr);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ndb_index_stat_list_verify(pr);
   Ndb_index_stat_glob old_glob= ndb_index_stat_glob;
 #endif
@@ -2259,7 +2259,7 @@ ndb_index_stat_proc(Ndb_index_stat_proc &pr)
   ndb_index_stat_proc_error(pr);
   ndb_index_stat_proc_event(pr);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ndb_index_stat_list_verify(pr);
   ndb_index_stat_report(old_glob);
 #endif
@@ -2774,7 +2774,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version)
     {
-      DBUG_ASSERT(false);
+      assert(false);
       err= NdbIndexStat::NoIndexStats;
       break;
     }
@@ -2834,7 +2834,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     if (st->error_count != snap.error_count)
     {
       /* A new error has occured */
-      DBUG_ASSERT(st->error_count > snap.error_count);
+      assert(st->error_count > snap.error_count);
       err= st->error.code;
       glob.analyze_error++;
       break;
@@ -2846,7 +2846,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version)
     {
-      DBUG_ASSERT(false);
+      assert(false);
       err= NdbIndexStat::AlienUpdate;
       break;
     }
@@ -2996,7 +2996,7 @@ ha_ndbcluster::ndb_index_stat_get_rir(uint inx,
     if (rows == 0)
       rows= 1;
     *rows_out= rows;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char rule[NdbIndexStat::RuleBufferBytes];
     NdbIndexStat::get_rule(stat, rule);
 #endif
@@ -3027,7 +3027,7 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
       double rpk= -1.0;
       NdbIndexStat::get_rpk(stat, k, &rpk);
       key_info->set_records_per_key(k, static_cast<rec_per_key_t>(rpk));
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       char rule[NdbIndexStat::RuleBufferBytes];
       NdbIndexStat::get_rule(stat, rule);
 #endif

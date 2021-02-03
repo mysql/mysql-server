@@ -1,7 +1,7 @@
 #ifndef SQL_ARRAY_INCLUDED
 #define SQL_ARRAY_INCLUDED
 
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,19 +64,19 @@ public:
    */
   void resize(size_t new_size)
   {
-    DBUG_ASSERT(new_size <= m_size);
+    assert(new_size <= m_size);
     m_size= new_size;
   }
 
   Element_type &operator[](size_t n)
   {
-    DBUG_ASSERT(n < m_size);
+    assert(n < m_size);
     return m_array[n];
   }
 
   const Element_type &operator[](size_t n) const
   {
-    DBUG_ASSERT(n < m_size);
+    assert(n < m_size);
     return m_array[n];
   }
 
@@ -100,7 +100,7 @@ public:
 
   void pop_front()
   {
-    DBUG_ASSERT(m_size > 0);
+    assert(m_size > 0);
     m_array+= 1;
     m_size-= 1;
   }

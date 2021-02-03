@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -4422,9 +4422,9 @@ btr_index_page_validate(
 {
 	page_cur_t	cur;
 	ibool		ret	= TRUE;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	ulint		nth	= 1;
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 	page_cur_set_before_first(block, &cur);
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,28 +84,28 @@ extern void bitmap_lock_clear_bit(MY_BITMAP *map, uint bitmap_bit);
 
 static inline void bitmap_set_bit(MY_BITMAP *map, uint bit)
 {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   ((uchar*)map->bitmap)[bit / 8] |= (1 << (bit & 7));
 }
 
 
 static inline void bitmap_flip_bit(MY_BITMAP *map, uint bit)
 {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   ((uchar*)map->bitmap)[bit / 8] ^= (1 << (bit & 7));
 }
 
 
 static inline void bitmap_clear_bit(MY_BITMAP *map, uint bit)
 {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   ((uchar*)map->bitmap)[bit / 8] &= ~(1 << (bit & 7));
 }
 
 
 static inline my_bool bitmap_is_set(const MY_BITMAP *map, uint bit)
 {
-  DBUG_ASSERT(bit < map->n_bits);
+  assert(bit < map->n_bits);
   return ((uchar*)map->bitmap)[bit / 8] & (1 << (bit & 7));
 }
 
@@ -119,8 +119,8 @@ static inline my_bool bitmap_is_set(const MY_BITMAP *map, uint bit)
  */
 static inline my_bool bitmap_cmp(const MY_BITMAP *map1, const MY_BITMAP *map2)
 {
-  DBUG_ASSERT(map1->n_bits > 0);
-  DBUG_ASSERT(map2->n_bits > 0);
+  assert(map1->n_bits > 0);
+  assert(map2->n_bits > 0);
 
   if (memcmp(map1->bitmap, map2->bitmap, 4*(no_words_in_map(map1)-1)) != 0)
     return FALSE;

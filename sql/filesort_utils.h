@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ public:
   */
   size_t spaceleft() const
   {
-    DBUG_ASSERT(m_next_rec_ptr >= m_rawmem);
+    assert(m_next_rec_ptr >= m_rawmem);
     const size_t spaceused=
       (m_next_rec_ptr - m_rawmem) +
       (static_cast<size_t>(m_idx) * sizeof(uchar*));

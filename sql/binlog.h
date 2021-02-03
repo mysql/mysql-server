@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,8 +160,8 @@ public:
   {
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done);
-#ifndef DBUG_OFF
-    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF */
+#ifndef NDEBUG
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !NDEBUG */
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
@@ -218,7 +218,7 @@ public:
     return m_queue[stage].pop_front();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      The method ensures the follower's execution path can be preempted
      by the leader's thread.
@@ -272,7 +272,7 @@ private:
 
   /** Mutex used for the condition variable above */
   mysql_mutex_t m_lock_done;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Flag is set by Leader when it starts waiting for follower's all-clear */
   bool leader_await_preempt_status;
 
@@ -614,7 +614,7 @@ public:
 
   void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
-    DBUG_ASSERT(is_relay_log);
+    assert(is_relay_log);
     previous_gtid_set_relaylog= previous_gtid_set_param;
   }
   /**
@@ -1075,7 +1075,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   char *ptr= (char*) from;
   char *opt_name= is_relay_log ? opt_relay_logname : opt_bin_logname;
 
-  DBUG_ASSERT(from);
+  assert(from);
 
   /* opt_name is not null and not empty and from is a relative path */
   if (opt_name && opt_name[0] && from && !test_if_hard_path(from))
@@ -1103,7 +1103,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
     }
   }
 
-  DBUG_ASSERT(ptr);
+  assert(ptr);
   if (ptr)
   {
     size_t length= strlen(ptr);

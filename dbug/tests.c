@@ -38,7 +38,7 @@ int func1()
 int main (int argc, char *argv[])
 {
   int i;
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   return 1;
 #endif
   if (argc == 1)

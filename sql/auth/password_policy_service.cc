@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
 
 #include "m_ctype.h"  /* my_charset_utf8_bin */
-#include "my_dbug.h"   /* DBUG_ASSERT */
+#include "my_dbug.h"   /* assert */
 #include <mysqld_error.h> /* To get ER_NOT_VALID_PASSWORD */
 #include <mysql/plugin_validate_password.h> /* validate_password plugin */
 
@@ -78,7 +78,7 @@ int my_validate_password_policy(const char *password, unsigned int password_len)
 int my_calculate_password_strength(const char *password, unsigned int password_len)
 {
   int res= 0;
-  DBUG_ASSERT(password != NULL);
+  assert(password != NULL);
 
   String password_str;
   if (password)

@@ -40,6 +40,7 @@ SET sql_log_bin=1;
 
 --let $_group_replication_local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds_server1= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_group_whitelist= `SELECT @@GLOBAL.group_replication_ip_whitelist`
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $old_debug = `select @@global.debug`
 
@@ -68,7 +69,7 @@ COMMIT;
 
 --enable_reconnect
 --echo # Restart the crashed member
---exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1 --group_replication_ip_whitelist=$_group_replication_group_whitelist" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 --let $rpl_server_number= 1
@@ -154,7 +155,7 @@ COMMIT;
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 --echo # Restart the crashed member
---exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--group_replication_local_address=$_group_replication_local_address_server1 --group_replication_group_seeds=$_group_replication_group_seeds_server1 --group_replication_ip_whitelist=$_group_replication_group_whitelist" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 --let $rpl_server_number= 1

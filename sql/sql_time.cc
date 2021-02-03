@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -304,8 +304,8 @@ bool time_add_nanoseconds_with_round(MYSQL_TIME *ltime,
                                      uint nanoseconds, int *warnings)
 {
   /* We expect correct input data */
-  DBUG_ASSERT(nanoseconds < 1000000000);
-  DBUG_ASSERT(!check_time_mmssff_range(ltime));
+  assert(nanoseconds < 1000000000);
+  assert(!check_time_mmssff_range(ltime));
 
   if (nanoseconds < 500)
     return false;
@@ -353,7 +353,7 @@ ret:
 bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
                                          uint nanoseconds, int *warnings)
 {
-  DBUG_ASSERT(nanoseconds < 1000000000);
+  assert(nanoseconds < 1000000000);
   if (nanoseconds < 500)
     return false;
 
@@ -675,7 +675,7 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
 {
   if (!ltime->month) /* Zero date */
   {
-    DBUG_ASSERT(!ltime->year && !ltime->day);
+    assert(!ltime->year && !ltime->day);
     if (non_zero_time(ltime))
     {
       /*
@@ -809,7 +809,7 @@ void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds)
   to->year= 0;
   to->month= 0;
   to->day= 0;
-  DBUG_ASSERT(seconds < (0xFFFFFFFFLL * 3600LL));
+  assert(seconds < (0xFFFFFFFFLL * 3600LL));
   to->hour=  (long) (seconds / 3600L);
   t_seconds= (long) (seconds % 3600L);
   to->minute= t_seconds/60L;
@@ -1045,7 +1045,7 @@ bool parse_date_time_format(timestamp_type format_type,
       return 0;
     break;
   default:
-    DBUG_ASSERT(1);
+    assert(1);
     break;
   }
   return 1;					// Error
@@ -1122,7 +1122,7 @@ const char *get_date_time_format_str(Known_date_time_format *format,
   case MYSQL_TIMESTAMP_TIME:
     return format->time_format;
   default:
-    DBUG_ASSERT(0);				// Impossible
+    assert(0);				// Impossible
     return 0;
   }
 }
@@ -1492,7 +1492,7 @@ static uint msec_round_add[7]=
 bool my_time_round(MYSQL_TIME *ltime, uint dec)
 {
   int warnings= 0;
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  assert(dec <= DATETIME_MAX_DECIMALS);
   /* Add half away from zero */
   bool rc= time_add_nanoseconds_with_round(ltime,
                                            msec_round_add[dec], &warnings);
@@ -1511,7 +1511,7 @@ bool my_time_round(MYSQL_TIME *ltime, uint dec)
 */
 bool my_datetime_round(MYSQL_TIME *ltime, uint dec, int *warnings)
 {
-  DBUG_ASSERT(dec <= DATETIME_MAX_DECIMALS);
+  assert(dec <= DATETIME_MAX_DECIMALS);
   /* Add half away from zero */
   bool rc= datetime_add_nanoseconds_with_round(ltime,
                                                msec_round_add[dec], warnings);
@@ -1530,7 +1530,7 @@ bool my_datetime_round(MYSQL_TIME *ltime, uint dec, int *warnings)
 */
 bool my_timeval_round(struct timeval *tv, uint decimals)
 {
-  DBUG_ASSERT(decimals <= DATETIME_MAX_DECIMALS);
+  assert(decimals <= DATETIME_MAX_DECIMALS);
   uint nanoseconds= msec_round_add[decimals];
   tv->tv_usec+= (nanoseconds + 500) / 1000;
   if (tv->tv_usec < 1000000)
@@ -1558,8 +1558,8 @@ ret:
 */
 void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime)
 {
-  DBUG_ASSERT(ldate->time_type == MYSQL_TIMESTAMP_DATE ||
-              ldate->time_type == MYSQL_TIMESTAMP_DATETIME);
+  assert(ldate->time_type == MYSQL_TIMESTAMP_DATE ||
+         ldate->time_type == MYSQL_TIMESTAMP_DATETIME);
 
   if (!ltime->neg && ltime->hour < 24)
   {
@@ -1579,14 +1579,14 @@ void mix_date_and_time(MYSQL_TIME *ldate, const MYSQL_TIME *ltime)
     long days, useconds;
     int sign= ltime->neg ? 1 : -1;
     ldate->neg= calc_time_diff(ldate, ltime, sign, &seconds, &useconds);
-    DBUG_ASSERT(!ldate->neg);
+    assert(!ldate->neg);
 
     /*
       We pass current date to mix_date_and_time. If we want to use
       this function with arbitrary dates, this code will need
       to cover cases when ltime is negative and "ldate < -ltime".
     */
-    DBUG_ASSERT(ldate->year > 0);
+    assert(ldate->year > 0);
 
     days= (long) (seconds / SECONDS_IN_24H);
     calc_time_from_sec(ldate, seconds % SECONDS_IN_24H, useconds);
@@ -1645,7 +1645,7 @@ void TIME_from_longlong_packed(MYSQL_TIME *ltime,
     TIME_from_longlong_datetime_packed(ltime, packed_value);
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
     set_zero_time(ltime, MYSQL_TIMESTAMP_ERROR);
     break;
   }
@@ -1681,7 +1681,7 @@ my_decimal *my_decimal_from_datetime_packed(my_decimal *dec,
       TIME_from_longlong_datetime_packed(&ltime, packed_value);
       return date2my_decimal(&ltime, dec);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       ulonglong2decimal(0, dec);
       return dec;
   }
@@ -1713,7 +1713,7 @@ longlong longlong_from_datetime_packed(enum enum_field_types type,
       TIME_from_longlong_datetime_packed(&ltime, packed_value);
       return TIME_to_ulonglong_datetime(&ltime);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       return 0;
   }
 }

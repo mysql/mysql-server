@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,7 +89,7 @@ static my_bool get_current_user(std::string *current_user)
 
   if(user.length)
     current_user->append(user.str, user.length);
-  DBUG_ASSERT(host.length);
+  assert(host.length);
   current_user->append("@").append(host.str, host.length);
 
   return FALSE;
@@ -280,9 +280,9 @@ static my_bool fetch(const char* function_name, char *key_id, char **a_key,
     return TRUE;
   }
 
-  DBUG_ASSERT((key == NULL && key_len == 0) || (key != NULL &&
-            key_len <= MAX_KEYRING_UDF_KEY_TEXT_LENGTH && key_type != NULL &&
-            strlen(key_type) <= KEYRING_UDF_KEY_TYPE_LENGTH));
+  assert((key == NULL && key_len == 0) || (key != NULL &&
+                                           key_len <= MAX_KEYRING_UDF_KEY_TEXT_LENGTH && key_type != NULL &&
+                                           strlen(key_type) <= KEYRING_UDF_KEY_TYPE_LENGTH));
 
   if (a_key != NULL)
     *a_key= key;

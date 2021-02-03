@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ std::list<Channel_state_observer*>*
 Channel_observation_manager::get_channel_state_observers()
 {
   DBUG_ENTER("Channel_observation_manager::get_channel_state_observers");
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   channel_list_lock->assert_some_lock();
 #endif
   DBUG_RETURN(&channel_observers);

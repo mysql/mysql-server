@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,8 +118,8 @@ public:
       my_hash_search(&cache, key, length);
     if (entry)
     {						// Found; link it first
-      DBUG_ASSERT(first_link != NULL);
-      DBUG_ASSERT(last_link != NULL);
+      assert(first_link != NULL);
+      assert(last_link != NULL);
       if (entry != first_link)
       {						// Relink used-chain
 	if (entry == last_link)
@@ -129,13 +129,13 @@ public:
             The list must have at least 2 elements,
             otherwise entry would be equal to first_link.
           */
-          DBUG_ASSERT(last_link != NULL);
+          assert(last_link != NULL);
           last_link->next_used= NULL;
         }
 	else
 	{
-          DBUG_ASSERT(entry->next_used != NULL);
-          DBUG_ASSERT(entry->prev_used != NULL);
+          assert(entry->next_used != NULL);
+          assert(entry->prev_used != NULL);
 	  entry->next_used->prev_used = entry->prev_used;
 	  entry->prev_used->next_used = entry->next_used;
 	}

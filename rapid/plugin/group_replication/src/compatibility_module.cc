@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ Compatibility_module::add_incompatibility(Member_version &from,
                                           Member_version &to_min,
                                           Member_version &to_max)
 {
-  DBUG_ASSERT(to_min.get_version() <= to_max.get_version());
+  assert(to_min.get_version() <= to_max.get_version());
   this->incompatibilities.
       insert(std::make_pair(from.get_version(),
                             std::make_pair(to_min.get_version(),

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -659,7 +659,7 @@ MgmtSrvr::configure_eventlogger(const BaseString& logdestination) const
 void
 MgmtSrvr::setClusterLog(const Config* config)
 {
-  DBUG_ASSERT(_ownNodeId);
+  assert(_ownNodeId);
 
   ConfigIter iter(config, CFG_SECTION_NODE);
   require(iter.find(CFG_NODE_ID, _ownNodeId) == 0);
@@ -4158,7 +4158,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   }
 
   // nodes.size() == 0 handled inside find_node_type
-  DBUG_ASSERT(nodes.size() != 0);
+  assert(nodes.size() != 0);
 
   if (type == NDB_MGM_NODE_TYPE_MGM && nodes.size() > 1)
   {

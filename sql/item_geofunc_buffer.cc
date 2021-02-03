@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
   String *strat_name= args[0]->val_str_ascii(&str);
   if ((null_value= args[0]->null_value))
   {
-    DBUG_ASSERT(maybe_null);
+    assert(maybe_null);
     return NULL;
   }
 
@@ -210,7 +210,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
       double val= args[1]->val_real();
       if ((null_value= args[1]->null_value))
       {
-        DBUG_ASSERT(maybe_null);
+        assert(maybe_null);
         return NULL;
       }
       if (val <= 0)
@@ -330,7 +330,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */)
     break;\
   }\
   default:\
-    DBUG_ASSERT(false);\
+    assert(false);                              \
     break;\
   }\
 } while(0)
@@ -350,7 +350,7 @@ namespace bgst= boost::geometry::strategy::buffer;
 String *Item_func_buffer::val_str(String *str_value_arg)
 {
   DBUG_ENTER("Item_func_buffer::val_str");
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   String strat_bufs[side_strategy + 1];
   String *obj= args[0]->val_str(&tmp_value);
   double dist= args[1]->val_real();
@@ -563,7 +563,7 @@ String *Item_func_buffer::val_str(String *str_value_arg)
                        bgst_join_miter, bgst_end_flat, bgst_point_square);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
       }
 
@@ -642,7 +642,7 @@ String *Item_func_buffer::val_str(String *str_value_arg)
                          bgst_join_miter, bgst_end_flat, bgst_point_square);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
           break;
         }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,9 +42,9 @@ namespace AQP
       This combination is assumed not to appear. If it does, code must
       be written to handle it.
     */
-    DBUG_ASSERT(!m_qep_tabs[0].dynamic_range()
-                || (m_qep_tabs[0].type() == JT_ALL)
-                || (m_qep_tabs[0].quick() == NULL));
+    assert(!m_qep_tabs[0].dynamic_range()
+           || (m_qep_tabs[0].type() == JT_ALL)
+           || (m_qep_tabs[0].quick() == NULL));
 
     m_table_accesses= new Table_access[m_access_count];
     for(uint i= 0; i < m_access_count; i++)
@@ -63,7 +63,7 @@ namespace AQP
   /** Get the QEP_TAB of the n'th table access operation.*/
   const QEP_TAB* Join_plan::get_qep_tab(uint qep_tab_no) const
   {
-    DBUG_ASSERT(qep_tab_no < m_access_count);
+    assert(qep_tab_no < m_access_count);
     return m_qep_tabs + qep_tab_no;
   }
 
@@ -75,7 +75,7 @@ namespace AQP
   Table_access::get_join_type(const Table_access* predecessor) const
   {
     DBUG_ENTER("get_join_type");
-    DBUG_ASSERT(get_access_no() > predecessor->get_access_no());
+    assert(get_access_no() > predecessor->get_access_no());
 
     const QEP_TAB* const me= get_qep_tab();
     const plan_idx first_sj_inner= me->first_sj_inner();
@@ -148,11 +148,11 @@ namespace AQP
   */
   uint Table_access::get_no_of_key_fields() const
   {
-    DBUG_ASSERT(m_access_type == AT_PRIMARY_KEY ||
-                m_access_type == AT_UNIQUE_KEY ||
-                m_access_type == AT_MULTI_PRIMARY_KEY ||
-                m_access_type == AT_MULTI_UNIQUE_KEY ||
-                m_access_type == AT_ORDERED_INDEX_SCAN); // Used as 'range scan'
+    assert(m_access_type == AT_PRIMARY_KEY ||
+           m_access_type == AT_UNIQUE_KEY ||
+           m_access_type == AT_MULTI_PRIMARY_KEY ||
+           m_access_type == AT_MULTI_UNIQUE_KEY ||
+           m_access_type == AT_ORDERED_INDEX_SCAN); // Used as 'range scan'
     return get_qep_tab()->ref().key_parts;
   }
 
@@ -163,7 +163,7 @@ namespace AQP
   */
   const Item* Table_access::get_key_field(uint field_no) const
   {
-    DBUG_ASSERT(field_no < get_no_of_key_fields());
+    assert(field_no < get_no_of_key_fields());
     return get_qep_tab()->ref().items[field_no];
   }
 
@@ -174,7 +174,7 @@ namespace AQP
   */
   const KEY_PART_INFO* Table_access::get_key_part_info(uint field_no) const
   {
-    DBUG_ASSERT(field_no < get_no_of_key_fields());
+    assert(field_no < get_no_of_key_fields());
     const KEY* key= &get_qep_tab()->table()->key_info[get_qep_tab()->ref().key];
     return &key->key_part[field_no];
   }
@@ -196,19 +196,19 @@ namespace AQP
         return 1.0;
 
       case AT_ORDERED_INDEX_SCAN:
-        DBUG_ASSERT(get_qep_tab()->position());
-        DBUG_ASSERT(get_qep_tab()->position()->rows_fetched > 0.0);
+        assert(get_qep_tab()->position());
+        assert(get_qep_tab()->position()->rows_fetched > 0.0);
         return get_qep_tab()->position()->rows_fetched;
 
       case AT_MULTI_PRIMARY_KEY:
       case AT_MULTI_UNIQUE_KEY:
       case AT_MULTI_MIXED:
-        DBUG_ASSERT(get_qep_tab()->position());
-        DBUG_ASSERT(get_qep_tab()->position()->rows_fetched > 0.0);
+        assert(get_qep_tab()->position());
+        assert(get_qep_tab()->position()->rows_fetched > 0.0);
         return get_qep_tab()->position()->rows_fetched;
 
       case AT_TABLE_SCAN:
-        DBUG_ASSERT(get_qep_tab()->table()->file->stats.records > 0.0);
+        assert(get_qep_tab()->table()->file->stats.records > 0.0);
         return static_cast<double>(get_qep_tab()->table()->file->stats.records);
 
       default:
@@ -226,7 +226,7 @@ namespace AQP
   Item_equal*
   Table_access::get_item_equal(const Item_field* field_item) const
   {
-    DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
+    assert(field_item->type() == Item::FIELD_ITEM);
 
     COND_EQUAL* const cond_equal = get_qep_tab()->join()->cond_equal;
     if (cond_equal!=NULL)
@@ -317,8 +317,8 @@ namespace AQP
 
     case JT_REF:
     {
-      DBUG_ASSERT(qep_tab->ref().key >= 0);
-      DBUG_ASSERT((uint)qep_tab->ref().key < MAX_KEY);
+      assert(qep_tab->ref().key >= 0);
+      assert((uint)qep_tab->ref().key < MAX_KEY);
       m_index_no= qep_tab->ref().key;
 
       /*
@@ -337,16 +337,16 @@ namespace AQP
       }
       else
       {
-        DBUG_ASSERT(qep_tab->ref().key_parts > 0);
-        DBUG_ASSERT(qep_tab->ref().key_parts <=
-                    key_info[m_index_no].user_defined_key_parts);
+        assert(qep_tab->ref().key_parts > 0);
+        assert(qep_tab->ref().key_parts <=
+               key_info[m_index_no].user_defined_key_parts);
         m_access_type= AT_ORDERED_INDEX_SCAN;
         DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
       }
       break;
     }
     case JT_INDEX_SCAN:
-      DBUG_ASSERT(qep_tab->index() < MAX_KEY);
+      assert(qep_tab->index() < MAX_KEY);
       m_index_no=    qep_tab->index();
       m_access_type= AT_ORDERED_INDEX_SCAN;
       DBUG_PRINT("info", ("Operation %d is an ordered index scan.", m_tab_no));
@@ -388,10 +388,10 @@ namespace AQP
 
           // Temporary assert as we are still investigation the relation between 
           // 'quick->index == MAX_KEY' and the different quick_types
-          DBUG_ASSERT ((quick->index == MAX_KEY)  ==
-                        ((quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-                         (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-                         (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
+          assert ((quick->index == MAX_KEY)  ==
+                  ((quick->get_type() == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
+                   (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+                   (quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_UNION)));
 
           // JT_INDEX_MERGE: We have a set of qualifying PKs as root of pushed joins
           if (quick->index == MAX_KEY) 

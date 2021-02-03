@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -276,7 +276,7 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
   if (param->flags & MYSQL_FTFLAGS_NEED_COPY)
   {
     uchar *ptr;
-    DBUG_ASSERT(wtree->with_delete == 0);
+    assert(wtree->with_delete == 0);
     ptr= (uchar *)alloc_root(ft_param->mem_root, word_len);
     memcpy(ptr, word, word_len);
     w.pos= ptr;
@@ -316,7 +316,7 @@ int ft_parse(TREE *wtree, uchar *doc, int doclen,
 {
   MY_FT_PARSER_PARAM my_param;
   DBUG_ENTER("ft_parse");
-  DBUG_ASSERT(parser);
+  assert(parser);
 
   my_param.wtree= wtree;
   my_param.mem_root= mem_root;
@@ -378,7 +378,7 @@ MYSQL_FTPARSER_PARAM *ftparser_call_initializer(MI_INFO *info,
     ftparser_nr= info->s->keyinfo[keynr].ftkey_nr;
     parser= info->s->keyinfo[keynr].parser;
   }
-  DBUG_ASSERT(paramnr < MAX_PARAM_NR);
+  assert(paramnr < MAX_PARAM_NR);
   ftparser_nr= ftparser_nr*MAX_PARAM_NR + paramnr;
   if (! info->ftparser_param[ftparser_nr].mysql_add_word)
   {

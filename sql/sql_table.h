@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,9 +153,9 @@ static const uint NO_HA_TABLE=     1 << 4;
 static const uint NO_FK_CHECKS=    1 << 5;
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                            , bool stay_quiet = false
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
                            );
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
 size_t check_n_cut_mysql50_prefix(const char *from, char *to, size_t to_length);

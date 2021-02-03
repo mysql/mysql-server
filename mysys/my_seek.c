@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ my_off_t my_seek(File fd, my_off_t pos, int whence, myf MyFlags)
   /*
       Make sure we are using a valid file descriptor!
   */
-  DBUG_ASSERT(fd != -1);
+  assert(fd != -1);
 #if defined (_WIN32)
   newpos= my_win_lseek(fd, pos, whence);
 #else
@@ -101,7 +101,7 @@ my_off_t my_tell(File fd, myf MyFlags)
   os_off_t pos;
   DBUG_ENTER("my_tell");
   DBUG_PRINT("my",("fd: %d  MyFlags: %d",fd, MyFlags));
-  DBUG_ASSERT(fd >= 0);
+  assert(fd >= 0);
 #if defined (HAVE_TELL) && !defined (_WIN32)
   pos= tell(fd);
 #else

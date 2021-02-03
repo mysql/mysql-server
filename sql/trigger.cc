@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -562,7 +562,7 @@ bool Trigger::parse(THD *thd)
 
   // Ensure that lex.sp_head is NULL in case of parse errors.
 
-  DBUG_ASSERT(!parse_error || (parse_error && lex.sphead == NULL));
+  assert(!parse_error || (parse_error && lex.sphead == NULL));
 
   // fatal_parse_error will be returned from this method.
 
@@ -615,8 +615,8 @@ bool Trigger::parse(THD *thd)
 
   // Set correct m_event and m_action_time.
 
-  DBUG_ASSERT(m_event == TRG_EVENT_MAX);
-  DBUG_ASSERT(m_action_time == TRG_ACTION_MAX);
+  assert(m_event == TRG_EVENT_MAX);
+  assert(m_action_time == TRG_ACTION_MAX);
 
   m_event= lex.sphead->m_trg_chistics.event;
   m_action_time= lex.sphead->m_trg_chistics.action_time;
@@ -632,7 +632,7 @@ bool Trigger::parse(THD *thd)
 
   // Take ownership of SP object.
 
-  DBUG_ASSERT(!m_sp);
+  assert(!m_sp);
 
   m_sp= lex.sphead;
   lex.sphead= NULL; /* Prevent double cleanup. */
@@ -648,14 +648,14 @@ bool Trigger::parse(THD *thd)
                  &lex.sp_chistics,
                  m_sql_mode);
 
-  DBUG_ASSERT(!m_sp->get_creation_ctx());
+  assert(!m_sp->get_creation_ctx());
   m_sp->set_creation_ctx(creation_ctx);
 
   // Set the definer attribute in SP.
 
   if (!m_definer.length)
   {
-    DBUG_ASSERT(m_definer.str); // m_definer must be EMPTY_STR here.
+    assert(m_definer.str); // m_definer must be EMPTY_STR here.
 
     /*
       This trigger was created/imported in MySQL version, which does not support
@@ -683,7 +683,7 @@ bool Trigger::parse(THD *thd)
                                        m_sp->m_name.str, m_sp->m_name.length);
 #endif
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     Check that we correctly update trigger definitions when we rename tables
     with triggers.
@@ -696,19 +696,19 @@ bool Trigger::parse(THD *thd)
   */
 
   char fname[NAME_LEN + 1];
-  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                              lex.query_tables->db, m_db_name.str) ||
-               (check_n_cut_mysql50_prefix(m_db_name.str,
-                                           fname, sizeof(fname)) &&
-                !my_strcasecmp(table_alias_charset,
-                               lex.query_tables->db, fname))));
-  DBUG_ASSERT((!my_strcasecmp(table_alias_charset,
-                              lex.query_tables->table_name,
-                              m_subject_table_name.str) ||
-               (check_n_cut_mysql50_prefix(m_subject_table_name.str,
-                                           fname, sizeof(fname)) &&
-                !my_strcasecmp(table_alias_charset,
-                               lex.query_tables->table_name, fname))));
+  assert((!my_strcasecmp(table_alias_charset,
+                         lex.query_tables->db, m_db_name.str) ||
+          (check_n_cut_mysql50_prefix(m_db_name.str,
+                                      fname, sizeof(fname)) &&
+           !my_strcasecmp(table_alias_charset,
+                          lex.query_tables->db, fname))));
+  assert((!my_strcasecmp(table_alias_charset,
+                         lex.query_tables->table_name,
+                         m_subject_table_name.str) ||
+          (check_n_cut_mysql50_prefix(m_subject_table_name.str,
+                                      fname, sizeof(fname)) &&
+           !my_strcasecmp(table_alias_charset,
+                          lex.query_tables->table_name, fname))));
 #endif
 
 cleanup:
@@ -800,9 +800,9 @@ void Trigger::rename_subject_table(THD *thd, const LEX_STRING &new_table_name)
 
   // NOTE: 'on_table_name' is supposed to point inside m_definition.
 
-  DBUG_ASSERT(m_on_table_name.str);
-  DBUG_ASSERT(m_on_table_name.str > m_definition.str);
-  DBUG_ASSERT(m_on_table_name.str < (m_definition.str + m_definition.length));
+  assert(m_on_table_name.str);
+  assert(m_on_table_name.str > m_definition.str);
+  assert(m_on_table_name.str < (m_definition.str + m_definition.length));
 
   size_t before_on_len= m_on_table_name.str - m_definition.str;
 

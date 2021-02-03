@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@
 int main (int argc, char **argv)
 {
   MYSQL conn;
-  int OK;
+  int OK MY_ATTRIBUTE((unused));
 
   const char* query4= "INSERT INTO federated.t1 SET Value=54";
   const char* query5= "INSERT INTO federated.t1 SET Value=55";

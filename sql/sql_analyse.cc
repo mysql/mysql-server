@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ Query_result_analyse::init(List<Item> &field_list)
 {
   DBUG_ENTER("proc_analyse_init");
 
-  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SELECT);
+  assert(thd->lex->sql_command == SQLCOM_SELECT);
 
   if (!(f_info=
         (field_info**)sql_alloc(sizeof(field_info*)*field_list.elements)))

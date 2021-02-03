@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ namespace connection_control
     std::vector<opt_connection_control>::iterator sys_vars_it;
     std::vector<stats_connection_control>::iterator status_vars_it;
 
-    DBUG_ASSERT(subscriber != 0);
+    assert(subscriber != 0);
 
     if (status_vars)
     {
@@ -273,7 +273,7 @@ namespace connection_control
           default:
           {
             error= true;
-            DBUG_ASSERT(FALSE);
+            assert(FALSE);
             break;
           }
         }
