@@ -11208,7 +11208,7 @@ ER_COMPONENTS_INFRASTRUCTURE_MANIFEST_DEINIT
 ER_WARN_COMPONENTS_INFRASTRUCTURE_MANIFEST_NOT_RO
   eng "Manifest file '%s' is not read-only. For better security, please make sure that the file is read-only."
 
-ER_NO_KEYRING_COMPONENT_SERVICE_FOUND
+ER_WARN_NO_KEYRING_COMPONENT_SERVICE_FOUND
   eng "No suitable '%s' service implementation found to fulfill the request."
 
 ER_NOTE_KEYRING_COMPONENT_INITIALIZED
