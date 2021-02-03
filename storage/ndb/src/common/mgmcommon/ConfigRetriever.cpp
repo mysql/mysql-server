@@ -314,12 +314,27 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
     return false;
   }
 
+  if (hostname && hostname[0] != 0 && !SocketServer::tryBind(0, hostname)) {
+    BaseString::snprintf(buf, 255,
+                         "The hostname this node should have according "
+                         "to the configuration does not match a local "
+                         "interface. Attempt to bind '%s' "
+                         "failed with error: %d '%s'",
+                         hostname, errno, strerror(errno));
+    setError(CR_ERROR, buf);
+    return false;
+  }
+
   /**
-   * Get portnumber if node type is management node and ports should
-   * be validated.
+   * Get Portnumber if Node type is management node and bind to
+   * address "*:port" to check if "port" is free on all local
+   * interfaces.
+   *
+   * Note: Default behaviour of management node is to listen on all
+   * local interfaces.
    */
-  Uint32 port = 0;
   if (_type == NODE_TYPE_MGM && validate_port) {
+    Uint32 port = 0;
     if (it.get(CFG_MGM_PORT, &port)) {
       BaseString::snprintf(buf, 255,
                            "Unable to get Port of node(%d) from config",
@@ -327,19 +342,16 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
       setError(CR_ERROR, buf);
       return false;
     }
-  }
 
-  // Binds to hostname:port, For nodes other than mgmd port = 0.
-  if (hostname && hostname[0] != 0 && !SocketServer::tryBind(port, hostname)) {
-    BaseString::snprintf(buf, 255,
-                         "The hostname this node should have according "
-                         "to the configuration does not match a local "
-                         "interface. (or) Mgmd node is started on port that is "
-                         "already in use. Attempt to bind '%s:%d' "
-                         "failed with error: %d '%s'",
-                         hostname, port, errno, strerror(errno));
-    setError(CR_ERROR, buf);
-    return false;
+    if (!SocketServer::tryBind(port, NULL)) {
+      BaseString::snprintf(buf, 255,
+                           "Mgmd node is started on port that is "
+                           "already in use. Attempt to bind '*:%d' "
+                           "failed with error: %d '%s'",
+                           port, errno, strerror(errno));
+      setError(CR_ERROR, buf);
+      return false;
+    }
   }
 
   /**
