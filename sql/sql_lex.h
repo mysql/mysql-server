@@ -1412,8 +1412,6 @@ class Query_block {
     return sj_candidates != nullptr && !sj_candidates->empty();
   }
 
-  void remove_semijoin_candidate(Item_exists_subselect *sub_query);
-
   /// Add full-text function elements from a list into this query block
   bool add_ftfunc_list(List<Item_func_match> *ftfuncs);
 

@@ -1116,6 +1116,12 @@ class Item : public Parse_tree_node {
     Do not remove values allocated during preparation, destructor handles this.
   */
   virtual void cleanup() { marker = MARKER_NONE; }
+  /**
+    Called when an item has been removed, can be used to notify external
+    objects about the removal, e.g subquery predicates that are part of
+    the sj_candidates container.
+  */
+  virtual void notify_removal() {}
   virtual void make_field(Send_field *field);
   virtual Field *make_string_field(TABLE *table) const;
   virtual bool fix_fields(THD *, Item **);
