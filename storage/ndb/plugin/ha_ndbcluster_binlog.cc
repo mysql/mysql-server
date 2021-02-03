@@ -890,10 +890,6 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    /* Give additional 'binlog_setup rights' to this Thd_ndb */
-    Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
-
     // Check if this is a initial restart/start
     const bool initial_system_restart = detect_initial_restart(thd_ndb);
 
@@ -914,6 +910,10 @@ class Ndb_binlog_setup {
         return false;
       }
     }
+
+    // Allow setup of NDB_SHARE for ndb_schema before schema dist is ready
+    Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
+    thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
 
     const bool ndb_schema_dist_upgrade_allowed = ndb_allow_ndb_schema_upgrade();
     Ndb_schema_dist_table schema_dist_table(thd_ndb);
@@ -1336,6 +1336,10 @@ class Ndb_schema_dist_data {
 
   std::chrono::steady_clock::time_point m_next_check_time;
 
+  // The schema distribution tables or their subscriptions has been lost and
+  // setup is required
+  bool m_check_schema_dist_setup{false};
+
   // Keeps track of subscribers as reported by one data node
   class Node_subscribers {
     MY_BITMAP m_bitmap;
@@ -1551,6 +1555,8 @@ class Ndb_schema_dist_data {
 
     // Insert NDB_SCHEMA_OBJECT in list of active schema ops
     ndbcluster::ndbrequire(m_active_schema_ops.insert(schema_op).second);
+
+    schedule_next_check();
   }
 
   void remove_active_schema_op(NDB_SCHEMA_OBJECT *schema_op) {
@@ -1568,16 +1574,49 @@ class Ndb_schema_dist_data {
     return m_active_schema_ops;
   }
 
+  // This function is called after each epoch, but checks should only
+  // be performed at regular intervals in order to allow binlog thread focus on
+  // other stuff.
+  // Return true if something is active and sufficient time has passed since
+  // last check.
   bool time_for_check() {
-    std::chrono::steady_clock::time_point curr_time =
+    // Check if there is anything which need to be checked
+    if (m_active_schema_ops.size() == 0 && !m_check_schema_dist_setup)
+      return false;
+
+    // Check if enough time has passed sinced last check
+    const std::chrono::steady_clock::time_point curr_time =
         std::chrono::steady_clock::now();
     if (m_next_check_time > curr_time) return false;
 
-    // Setup time for next check in 1 second
-    m_next_check_time = curr_time + std::chrono::seconds(1);
     return true;
   }
 
+  void schedule_next_check() {
+    // Only allow scheduling check if there are something active (this is a
+    // consistency check of the intention to only check when necessary)
+    assert(m_active_schema_ops.size() > 0 || m_check_schema_dist_setup);
+
+    // Schedule next check (at the earliest) in 1 second
+    m_next_check_time =
+        std::chrono::steady_clock::now() + std::chrono::seconds(1);
+  }
+
+  // Activate setup of schema distribution
+  void activate_schema_dist_setup() {
+    m_check_schema_dist_setup = true;
+    schedule_next_check();
+  }
+
+  // Deactivate setup of schema distribution
+  void deactivate_schema_dist_setup() {
+    assert(m_check_schema_dist_setup);  // Must already be on
+
+    m_check_schema_dist_setup = false;
+  }
+
+  // Check if schema distribution setup is active
+  bool is_schema_dist_setup_active() const { return m_check_schema_dist_setup; }
 };  // class Ndb_schema_dist_data
 
 class Ndb_schema_event_handler {
@@ -3855,6 +3894,10 @@ class Ndb_schema_event_handler {
         m_schema_dist_data.add_active_schema_op(ndb_schema_object.get());
       }
 
+      // Prevent schema dist participant from taking GSL as part of taking MDL
+      Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+      thd_ndb_options.set(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
+
       // Set the custom lock_wait_timeout for schema distribution
       Lock_wait_timeout_guard lwt_guard(m_thd,
                                         opt_ndb_schema_dist_lock_wait_timeout);
@@ -3964,6 +4007,10 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d", schema->db,
                          schema->name, schema->query, schema->type));
 
+    // Prevent schema dist participant from taking GSL as part of taking MDL
+    Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+    thd_ndb_options.set(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
+
     // Set the custom lock_wait_timeout for schema distribution
     Lock_wait_timeout_guard lwt_guard(m_thd,
                                       opt_ndb_schema_dist_lock_wait_timeout);
@@ -4056,6 +4103,42 @@ class Ndb_schema_event_handler {
     assert(m_post_epoch_handle_list.elements == 0);
   }
 
+  /*
+     Handle cluster failure by indicating that the binlog tables are not
+     available, this will cause the injector thread to restart and prepare for
+     reconnecting to the cluster when it is available again.
+  */
+  void handle_cluster_failure(Ndb *s_ndb, NdbEventOperation *pOp) const {
+    if (ndb_binlog_tables_inited && ndb_binlog_running)
+      ndb_log_verbose(1, "NDB Binlog: util tables need to reinitialize");
+
+    // Indicate util tables not ready
+    mysql_mutex_lock(&injector_data_mutex);
+    ndb_binlog_tables_inited = false;
+    ndb_binlog_is_ready = false;
+    mysql_mutex_unlock(&injector_data_mutex);
+
+    ndb_tdc_close_cached_tables();
+
+    // Tear down the event subscriptions and related resources for the failed
+    // event operation
+    ndbcluster_binlog_event_operation_teardown(m_thd, s_ndb, pOp);
+  }
+
+  /*
+    Handle drop of one the schema distribution tables and let the injector
+    thread continue processing changes from the cluster without any disruption
+    to binlog injector functionality.
+  */
+  void handle_schema_table_drop(Ndb *s_ndb, NdbEventOperation *pOp) const {
+    // Tear down the event subscriptions and related resources for the failed
+    // event operation, this is same as if any other NDB table would be dropped.
+    ndbcluster_binlog_event_operation_teardown(m_thd, s_ndb, pOp);
+
+    // Turn on checking of schema distribution setup
+    m_schema_dist_data.activate_schema_dist_setup();
+  }
+
   void handle_schema_result_insert(uint32 nodeid, uint32 schema_op_id,
                                    uint32 participant_node_id, uint32 result,
                                    const std::string &message) {
@@ -4113,22 +4196,16 @@ class Ndb_schema_event_handler {
         break;
 
       case NdbDictionary::Event::TE_CLUSTER_FAILURE:
-        // fall through
+        handle_cluster_failure(s_ndb, pOp);
+        break;
+
       case NdbDictionary::Event::TE_DROP:
-        // Cluster failure or ndb_schema_result table dropped
-        if (ndb_binlog_tables_inited && ndb_binlog_running)
-          ndb_log_verbose(1, "NDB Binlog: util tables need to reinitialize");
+        ndb_log_info("The 'mysql.ndb_schema_result' table has been dropped");
+        handle_schema_table_drop(s_ndb, pOp);
+        break;
 
-        // Indicate util tables not ready
-        mysql_mutex_lock(&injector_data_mutex);
-        ndb_binlog_tables_inited = false;
-        ndb_binlog_is_ready = false;
-        mysql_mutex_unlock(&injector_data_mutex);
-
-        ndb_tdc_close_cached_tables();
-
-        // Tear down the event subscription on ndb_schema_result
-        ndbcluster_binlog_event_operation_teardown(m_thd, s_ndb, pOp);
+      case NdbDictionary::Event::TE_ALTER:
+        /* ndb_schema_result table altered -> ignore */
         break;
 
       default:
@@ -4186,22 +4263,7 @@ class Ndb_schema_event_handler {
       case NDBEVENT::TE_CLUSTER_FAILURE:
         ndb_log_verbose(1, "cluster failure at epoch %u/%u.",
                         (uint)(pOp->getGCI() >> 32), (uint)(pOp->getGCI()));
-
-        // fall through
-      case NDBEVENT::TE_DROP:
-        /* ndb_schema table DROPped */
-        if (ndb_binlog_tables_inited && ndb_binlog_running)
-          ndb_log_verbose(1, "NDB Binlog: util tables need to reinitialize");
-
-        // Indicate util tables not ready
-        mysql_mutex_lock(&injector_data_mutex);
-        ndb_binlog_tables_inited = false;
-        ndb_binlog_is_ready = false;
-        mysql_mutex_unlock(&injector_data_mutex);
-
-        ndb_tdc_close_cached_tables();
-
-        ndbcluster_binlog_event_operation_teardown(m_thd, s_ndb, pOp);
+        handle_cluster_failure(s_ndb, pOp);
 
         if (DBUG_EVALUATE_IF("ndb_schema_dist_client_not_ready", true, false)) {
           ndb_log_info("Wait for client to detect not ready...");
@@ -4210,8 +4272,13 @@ class Ndb_schema_event_handler {
         }
         break;
 
+      case NDBEVENT::TE_DROP:
+        ndb_log_info("The 'mysql.ndb_schema' table has been dropped");
+        handle_schema_table_drop(s_ndb, pOp);
+        break;
+
       case NDBEVENT::TE_ALTER:
-        /* ndb_schema table ALTERed */
+        /* ndb_schema table altered -> ignore */
         break;
 
       case NDBEVENT::TE_NODE_FAILURE: {
@@ -4247,23 +4314,11 @@ class Ndb_schema_event_handler {
     return;
   }
 
-  void check_active_schema_ops(ulonglong current_epoch) {
-    // This function is called repeatedly as epochs pass but checks should only
-    // be performed at regular intervals. Check if it's time for one now and
-    // calculate the time for next if time is up
-    if (likely(!m_schema_dist_data.time_for_check())) return;
-
-    const uint active_ops = m_schema_dist_data.active_schema_ops().size();
-    if (likely(active_ops == 0)) return;  // Nothing to do at this time
-
-    ndb_log_info(
-        "Coordinator checking active schema operations, "
-        "epochs: (%u/%u,%u/%u,%u/%u), proc_info: '%s'",
-        (uint)(ndb_latest_handled_binlog_epoch >> 32),
-        (uint)(ndb_latest_handled_binlog_epoch),
-        (uint)(ndb_latest_received_binlog_epoch >> 32),
-        (uint)(ndb_latest_received_binlog_epoch), (uint)(current_epoch >> 32),
-        (uint)(current_epoch), m_thd->proc_info);
+  // Check active schema operations.
+  // Return false when there is nothing left to check
+  bool check_active_schema_ops() {
+    if (m_schema_dist_data.active_schema_ops().size() == 0)
+      return false;  // No schema ops to check
 
     for (const NDB_SCHEMA_OBJECT *schema_object :
          m_schema_dist_data.active_schema_ops()) {
@@ -4284,6 +4339,54 @@ class Ndb_schema_event_handler {
         ack_schema_op_final(schema_object->db(), schema_object->name());
       }
     }
+    return true;
+  }
+
+  // Check setup of schema distribution tables, event subscriptions etc.
+  // Return false when there is nothing left to check
+  bool check_setup_schema_dist() {
+    if (!m_schema_dist_data.is_schema_dist_setup_active())
+      return false;  // No schema dist to setup
+
+    ndb_log_info("Checking schema distribution setup...");
+
+    // Make sure not to be "schema dist participant" here since that would not
+    // take the GSL properly
+    assert(!m_thd_ndb->check_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT));
+
+    // Protect the setup with GSL(Global Schema Lock)
+    Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
+    if (global_schema_lock_guard.lock()) {
+      ndb_log_info(" - failed to lock GSL");
+      return true;
+    }
+
+    // Allow setup of NDB_SHARE for ndb_schema before schema dist is ready
+    Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+    thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
+
+    // This code path is activated when the Ndb_schema_event_handler has
+    // detected that the ndb_schema* tables has been dropped, since it's dropped
+    // there is nothing to upgrade
+    const bool allow_upgrade = false;
+
+    Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
+    if (!schema_dist_table.create_or_upgrade(m_thd, allow_upgrade)) {
+      ndb_log_info(" - failed to setup ndb_schema");
+      return true;
+    }
+
+    Ndb_schema_result_table schema_result_table(m_thd_ndb);
+    if (!schema_result_table.create_or_upgrade(m_thd, allow_upgrade)) {
+      ndb_log_info(" - failed to setup ndb_schema_result");
+      return true;
+    }
+
+    // Successfully created and setup the table
+    m_schema_dist_data.deactivate_schema_dist_setup();
+
+    ndb_log_info("Schema distribution setup completed");
+    return false;
   }
 
   void post_epoch(ulonglong ndb_latest_epoch) {
@@ -4317,7 +4420,27 @@ class Ndb_schema_event_handler {
       }
     }
 
-    check_active_schema_ops(ndb_latest_epoch);
+    // Perform any active checks if sufficient time has passed since last time
+    if (m_schema_dist_data.time_for_check()) {
+      // Log a status message indicating that check is happening
+      ndb_log_info(
+          "Performing checks, epochs: (%u/%u,%u/%u,%u/%u), proc_info: '%s'",
+          (uint)(ndb_latest_handled_binlog_epoch >> 32),
+          (uint)(ndb_latest_handled_binlog_epoch),
+          (uint)(ndb_latest_received_binlog_epoch >> 32),
+          (uint)(ndb_latest_received_binlog_epoch),
+          (uint)(ndb_latest_epoch >> 32), (uint)(ndb_latest_epoch),
+          m_thd->proc_info);
+
+      // Check the schema operations first, although it's an unlikely
+      // case with active schema operations at the same time as missing schema
+      // distribution, better to do the op check first since schema dist setup
+      // might take some time.
+      if (check_active_schema_ops() || check_setup_schema_dist()) {
+        // There are still checks active, schedule next check
+        m_schema_dist_data.schedule_next_check();
+      }
+    }
 
     // There should be no work left todo...
     assert(m_post_epoch_handle_list.elements == 0);
@@ -6704,12 +6827,6 @@ restart_cluster_failure:
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
 
     assert(ndbcluster_hton->slot != ~(uint)0);
-
-    /*
-      Prevent schema dist participant from (implicitly)
-      taking GSL lock as part of taking MDL lock
-    */
-    thd_ndb->set_option(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
   }
 
   /* Apply privilege statements stored in snapshot */
