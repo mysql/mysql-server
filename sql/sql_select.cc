@@ -2861,10 +2861,8 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
       Item *idx_remainder_cond = nullptr;
 
       /*
-        For BKA cache we store condition to special BKA cache field
-        because evaluation of the condition requires additional operations
-        before the evaluation. This condition is used in
-        JOIN_CACHE_BKA::skip_index_tuple() functions.
+        For BKA cache, we don't store the condition, because evaluation of the
+        condition would require additional operations before the evaluation.
       */
       if (join_tab->use_join_cache() &&
           /*
@@ -2876,8 +2874,8 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
           other_tbls_ok &&
           (idx_cond->used_tables() &
            ~(table_ref->map() | join_->const_table_map))) {
-        cache_idx_cond = idx_cond;
-        trace_obj->add("pushed_to_BKA", true);
+        idx_remainder_cond = idx_cond;
+        trace_obj->add("not_pushed_due_to_BKA", true);
       } else {
         idx_remainder_cond = tbl->file->idx_cond_push(keyno, idx_cond);
         DBUG_EXECUTE("where",
@@ -3147,8 +3145,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
      the read set has not necessarily been set by the server code.
     */
     if (prep_for_pos) table->prepare_for_position();
-
-    qep_tab->cache_idx_cond = nullptr;
 
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table_ref);

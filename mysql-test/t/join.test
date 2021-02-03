@@ -1510,3 +1510,46 @@ LEFT JOIN t AS t2 ON t2.c < 70
 WHERE t2.a - from_unixtime(0) > 0;
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug #32424884: MRR OR BATCHED KEY ACCESS WITH JOINS AND TIMESTAMPS PRODUCE WRONG RESULTS
+--echo #
+
+CREATE TABLE t1 (
+ ts datetime,
+ x integer,
+ y integer
+);
+INSERT INTO t1 VALUES ('2020-11-20 10:38:31',1,2);
+
+CREATE TABLE t2 (
+ x integer,
+ ts datetime,
+ KEY i1 (x)
+);
+INSERT INTO t2 VALUES (1,'2020-11-16 14:18:55');
+
+CREATE TABLE t3 (
+ ts datetime,
+ y integer,
+ z INTEGER,
+ KEY i2 (y,ts)
+);
+INSERT INTO t3 VALUES ('2020-12-29 18:23:02',2,100);
+
+CREATE TABLE t4 (
+  z INTEGER
+);
+
+SET optimizer_switch='mrr=on,batched_key_access=on,mrr_cost_based=off';
+
+SELECT COUNT(*)
+FROM
+    t1
+    LEFT JOIN t2 ON t1.x = t2.x AND t2.ts <= t1.ts
+    JOIN t3 ON t1.y = t3.y AND t3.ts <= t1.ts
+    LEFT JOIN t4 ON t3.z = t4.z;
+
+SET optimizer_switch=DEFAULT;
+
+DROP TABLE t1, t2, t3, t4;

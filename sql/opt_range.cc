@@ -9110,7 +9110,7 @@ static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                                   Cost_estimate *cost) {
   Sel_arg_range_sequence seq(param);
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next,
-                         nullptr, nullptr};
+                         nullptr};
   handler *file = param->table->file;
   ha_rows rows;
   uint keynr = param->real_keynr[idx];
@@ -9985,7 +9985,7 @@ int QUICK_RANGE_SELECT::reset() {
     empty_buf.buffer = empty_buf.buffer_end = empty_buf.end_of_used_area =
         nullptr;
 
-  RANGE_SEQ_IF seq_funcs = {quick_range_seq_init, quick_range_seq_next, nullptr,
+  RANGE_SEQ_IF seq_funcs = {quick_range_seq_init, quick_range_seq_next,
                             nullptr};
   error =
       file->multi_range_read_init(&seq_funcs, this, ranges.size(), mrr_flags,

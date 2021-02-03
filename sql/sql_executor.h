@@ -268,7 +268,6 @@ class QEP_TAB : public QEP_shared_owner {
         match_tab(NO_PLAN_IDX),
         rematerialize(false),
         not_used_in_distinct(false),
-        cache_idx_cond(nullptr),
         having(nullptr),
         tmp_table_param(nullptr),
         filesort(nullptr),
@@ -412,9 +411,6 @@ class QEP_TAB : public QEP_shared_owner {
   // first row. This pattern seems to be a workaround for lack of semijoins
   // in older versions of MySQL.
   bool not_used_in_distinct;
-
-  /// Index condition for BKA access join
-  Item *cache_idx_cond;
 
   /** HAVING condition for checking prior saving a record into tmp table*/
   Item *having;

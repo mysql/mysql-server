@@ -904,16 +904,11 @@ bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
 }
 
 bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
-  if (((keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
-        table->file->pushed_idx_cond) ||
-       (tab && tab->cache_idx_cond))) {
+  if (keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
+      table->file->pushed_idx_cond) {
     StringBuffer<160> buff(cs);
     if (fmt->is_hierarchical() && can_print_clauses()) {
-      if (table->file->pushed_idx_cond)
-        table->file->pushed_idx_cond->print(explain_thd, &buff,
-                                            cond_print_flags);
-      else
-        tab->cache_idx_cond->print(explain_thd, &buff, cond_print_flags);
+      table->file->pushed_idx_cond->print(explain_thd, &buff, cond_print_flags);
     }
     if (push_extra(ET_USING_INDEX_CONDITION, buff))
       return true; /* purecov: inspected */

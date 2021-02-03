@@ -2653,13 +2653,9 @@ static AccessPath *ConnectJoins(
       TABLE_REF &ref = qep_tab->ref();
 
       table_path =
-          NewMRRAccessPath(thd, qep_tab->cache_idx_cond, qep_tab->table(), &ref,
+          NewMRRAccessPath(thd, qep_tab->table(), &ref,
                            qep_tab->position()->table->join_cache_flags);
 
-      if (qep_tab->cache_idx_cond != nullptr) {
-        *conditions_depend_on_outer_tables |=
-            qep_tab->cache_idx_cond->used_tables();
-      }
       for (unsigned key_part_idx = 0; key_part_idx < ref.key_parts;
            ++key_part_idx) {
         *conditions_depend_on_outer_tables |=

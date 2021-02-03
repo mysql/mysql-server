@@ -2242,14 +2242,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
 1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.b	X	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t5	NULL	ref	a	a	5	test.t3.b	X	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	t4	NULL	ref	a	a	5	test.t3.b	X	100.00	Using index condition; Using join buffer (Batched Key Access)
+1	SIMPLE	t4	NULL	ref	a	a	5	test.t3.b	X	100.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`filler` AS `filler`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler`,`test`.`t5`.`a` AS `a`,`test`.`t5`.`b` AS `b`,`test`.`t5`.`filler` AS `filler` from `test`.`t4` join `test`.`t2` left join (`test`.`t3` join `test`.`t5`) on(((`test`.`t5`.`a` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`))) where (`test`.`t4`.`a` <=> `test`.`t3`.`b`)
 explain select * from (t4 join t6 on t6.a=t4.b) right join t3 on t4.a=t3.b
 join t2 left join (t5 join t7 on t7.a=t5.b) on t5.a=t2.b where t3.a<=>t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	X	100.00	NULL
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.b	X	100.00	Using index condition; Using join buffer (Batched Key Access)
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t2.b	X	100.00	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	t4	NULL	ref	a	a	5	test.t3.b	X	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t6	NULL	ref	a	a	5	test.t4.b	X	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t5	NULL	ref	a	a	5	test.t2.b	X	100.00	Using join buffer (Batched Key Access)

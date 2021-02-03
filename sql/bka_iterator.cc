@@ -317,12 +317,13 @@ int BKAIterator::Read() {
   }
 }
 
-MultiRangeRowIterator::MultiRangeRowIterator(
-    THD *thd, Item *cache_idx_cond, TABLE *table, TABLE_REF *ref, int mrr_flags,
-    JoinType join_type, JOIN *join, table_map outer_input_tables,
-    bool store_rowids, table_map tables_to_get_rowid_for)
+MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, TABLE *table,
+                                             TABLE_REF *ref, int mrr_flags,
+                                             JoinType join_type, JOIN *join,
+                                             table_map outer_input_tables,
+                                             bool store_rowids,
+                                             table_map tables_to_get_rowid_for)
     : TableRowIterator(thd, table),
-      m_cache_idx_cond(cache_idx_cond),
       m_file(table->file),
       m_ref(ref),
       m_mrr_flags(mrr_flags),
@@ -344,11 +345,7 @@ bool MultiRangeRowIterator::Init() {
   }
   RANGE_SEQ_IF seq_funcs = {MultiRangeRowIterator::MrrInitCallbackThunk,
                             MultiRangeRowIterator::MrrNextCallbackThunk,
-                            nullptr, nullptr};
-  if (m_cache_idx_cond != nullptr) {
-    seq_funcs.skip_index_tuple =
-        MultiRangeRowIterator::MrrSkipIndexTupleCallbackThunk;
-  }
+                            nullptr};
   if (m_join_type == JoinType::SEMI || m_join_type == JoinType::ANTI) {
     seq_funcs.skip_record = MultiRangeRowIterator::MrrSkipRecordCallbackThunk;
   }
@@ -369,10 +366,6 @@ bool MultiRangeRowIterator::Init() {
 
      1. MrrInitCallback at the start, to initialize iteration.
      2. MrrNextCallback is called to yield ranges to scan, until it returns 1.
-     3. If we have dependent index conditions (see the comment on
-        m_cache_idx_cond), MrrSkipIndexTuple will be called back for each
-        range that returned an inner row, and can choose to discard the row
-        there and then if it doesn't match the dependent index condition.
    */
   return m_file->multi_range_read_init(&seq_funcs, this,
                                        std::distance(m_begin, m_end),
@@ -427,20 +420,6 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
 
   ++m_current_pos;
   return 0;
-}
-
-bool MultiRangeRowIterator::MrrSkipIndexTuple(char *range_info) {
-  BufferRow *rec_ptr = pointer_cast<BufferRow *>(range_info);
-
-  // The index condition depends on fields from the outer tables (or we would
-  // not be called), so we need to load the relevant rows before checking it.
-  // range_info tells us which outer row we are talking about; it corresponds to
-  // range->ptr in MrrNextCallback(), and points to the serialized outer row in
-  // BKAIterator's m_row array.
-  LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
-
-  // Skip this tuple if the index condition is false.
-  return !m_cache_idx_cond->val_int();
 }
 
 bool MultiRangeRowIterator::MrrSkipRecord(char *range_info) {

@@ -358,9 +358,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->mrr();
       const auto &bka_param = param.bka_path->bka_join();
       iterator = NewIterator<MultiRangeRowIterator>(
-          thd, param.cache_idx_cond, param.table, param.ref, param.mrr_flags,
-          bka_param.join_type, join, GetUsedTables(bka_param.outer),
-          bka_param.store_rowids, bka_param.tables_to_get_rowid_for);
+          thd, param.table, param.ref, param.mrr_flags, bka_param.join_type,
+          join, GetUsedTables(bka_param.outer), bka_param.store_rowids,
+          bka_param.tables_to_get_rowid_for);
       break;
     }
     case AccessPath::FOLLOW_TAIL: {

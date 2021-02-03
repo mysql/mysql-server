@@ -608,7 +608,6 @@ struct AccessPath {
       TABLE_REF *ref;
     } const_table;
     struct {
-      Item *cache_idx_cond;
       TABLE *table;
       TABLE_REF *ref;
       AccessPath *bka_path;
@@ -881,12 +880,10 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   return path;
 }
 
-inline AccessPath *NewMRRAccessPath(THD *thd, Item *cache_idx_cond,
-                                    TABLE *table, TABLE_REF *ref,
+inline AccessPath *NewMRRAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
                                     int mrr_flags) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::MRR;
-  path->mrr().cache_idx_cond = cache_idx_cond;
   path->mrr().table = table;
   path->mrr().ref = ref;
   path->mrr().mrr_flags = mrr_flags;

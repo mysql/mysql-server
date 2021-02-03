@@ -446,10 +446,6 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
         str += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);
       }
-      if (path->mrr().cache_idx_cond != nullptr) {
-        str += ", with dependent index condition: " +
-               ItemToString(path->mrr().cache_idx_cond);
-      }
       str += table->file->explain_extra();
       description.push_back(move(str));
       AddChildrenFromPushedCondition(table, &children);

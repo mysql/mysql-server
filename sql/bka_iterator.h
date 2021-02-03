@@ -266,7 +266,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
  public:
   /**
     @param thd Thread handle.
-    @param cache_idx_cond See m_cache_idx_cond.
     @param table The inner table to scan.
     @param ref The index condition we are looking up on.
     @param mrr_flags Flags passed on to MRR.
@@ -284,10 +283,10 @@ class MultiRangeRowIterator final : public TableRowIterator {
       will make sure that table has the correct row ID already present
       after Read().
    */
-  MultiRangeRowIterator(THD *thd, Item *cache_idx_cond, TABLE *table,
-                        TABLE_REF *ref, int mrr_flags, JoinType join_type,
-                        JOIN *join, table_map outer_input_tables,
-                        bool store_rowids, table_map tables_to_get_rowid_for);
+  MultiRangeRowIterator(THD *thd, TABLE *table, TABLE_REF *ref, int mrr_flags,
+                        JoinType join_type, JOIN *join,
+                        table_map outer_input_tables, bool store_rowids,
+                        table_map tables_to_get_rowid_for);
 
   /**
     Specify which outer rows to read inner rows for.
@@ -368,11 +367,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
     return (pointer_cast<MultiRangeRowIterator *>(init_params))
         ->MrrNextCallback(range);
   }
-  static bool MrrSkipIndexTupleCallbackThunk(range_seq_t seq,
-                                             char *range_info) {
-    return (reinterpret_cast<MultiRangeRowIterator *>(seq))
-        ->MrrSkipIndexTuple(range_info);
-  }
   static bool MrrSkipRecordCallbackThunk(range_seq_t seq, char *range_info,
                                          uchar *) {
     return (reinterpret_cast<MultiRangeRowIterator *>(seq))
@@ -384,35 +378,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
   uint MrrNextCallback(KEY_MULTI_RANGE *range);
   bool MrrSkipIndexTuple(char *range_info);
   bool MrrSkipRecord(char *range_info);
-
-  /**
-    There are certain conditions that would normally be pushed down to indexes,
-    but that depend on the values of outer tables in the BKA join (ie., they are
-    join conditions), which are not set when we actually read the inner row.[1]
-    Thus, we cannot push them all the way down to the handler; however, MRR
-    gives us a similar mechanism that we can use. Specifically, if we set
-    “skip_index_tuple” to a function pointer, we will be called back for each
-    row, and can load the outer table row(s) we need to evaluate the condition.
-    This allows us to reject the rows based on the index entry alone, without
-    loading the row itself.
-
-    It is unclear how much benefit this gives us over simply not pushing these
-    conditions at all. The case of a join condition that is satisfiable using
-    the index tuple but not simply pushable down into the ref is rare; it has to
-    either be on a keypart we couldn't use (e.g., an index on A,B,C where we
-    join A and C but not B -- A then becomes part of our ref, but C needs to be
-    an index condition) or a condition that needs to be rechecked, which happens
-    only when mixing PAD SPACE / NO PAD in a join (e.g. looking up in a CHAR
-    column, but wanting the comparison as NO PAD). Especially the latter case
-    would seem unlikely to filter away a significant amount of rows.
-
-    [1] In the DebugString output, we call such conditions “dependent
-        index conditions”, since they depend on values from other tables,
-        analogous to dependent subqueries. Internally, they are called
-        cache_idx_cond, presumably because BKA originated in join buffering,
-        also known as join cache.
-   */
-  Item *const m_cache_idx_cond;
 
   /// Handler for the table we are reading from.
   handler *const m_file;
