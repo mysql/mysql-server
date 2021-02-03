@@ -4507,18 +4507,6 @@ void Query_block::update_semijoin_strategies(THD *thd) {
 }
 
 /**
-  Removes pointer to a sub query from sj_candidates array. Called from
-  Item_subselect::clean_up_after_removal to clean the pointer
-  to the subquery which is getting destroyed.
-
-  @param sub_query  the sub_query whose pointer needs to be removed
-*/
-void Query_block::remove_semijoin_candidate(Item_exists_subselect *sub_query) {
-  if (sj_candidates && !sj_candidates->empty())
-    sj_candidates->erase_value(sub_query);
-}
-
-/**
   Check if an option that can be used only for an outer-most query block is
   applicable to this query block.
 

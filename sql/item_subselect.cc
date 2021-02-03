@@ -2597,11 +2597,8 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   }
   Query_block *sl = unit->outer_query_block();
 
-  /* Remove the pointer to this sub query stored in sj_candidates array */
-  if (sl != nullptr) {
-    if (substype() != SINGLEROW_SUBS)
-      sl->remove_semijoin_candidate(down_cast<Item_exists_subselect *>(this));
-  }
+  // Notify flatten_subqueries() that subquery has been removed.
+  notify_removal();
 
   /*
     While traversing the item tree with Item::walk(), Item_refs may

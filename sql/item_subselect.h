@@ -397,14 +397,14 @@ enum class Subquery_strategy : int {
   CANDIDATE_FOR_DERIVED_TABLE,
   /// Semi-join flattening
   SEMIJOIN,
-  /// Subquery's WHERE is always false, replace predicate with "false"
-  ALWAYS_FALSE,
   /// Rewrite to joined derived table
   DERIVED_TABLE,
   /// Evaluate as EXISTS subquery (possibly after rewriting from another type)
   SUBQ_EXISTS,
   /// Subquery materialization (HASH_SJ_ENGINE)
   SUBQ_MATERIALIZATION,
+  /// Subquery has been deleted, probably because it was always false
+  DELETED,
 };
 
 class Item_exists_subselect : public Item_subselect {
@@ -444,6 +444,8 @@ class Item_exists_subselect : public Item_subselect {
   Item_exists_subselect() : Item_subselect() {}
 
   explicit Item_exists_subselect(const POS &pos) : super(pos) {}
+
+  void notify_removal() override { strategy = Subquery_strategy::DELETED; }
 
   trans_res select_transformer(THD *, Query_block *) override {
     strategy = Subquery_strategy::SUBQ_EXISTS;

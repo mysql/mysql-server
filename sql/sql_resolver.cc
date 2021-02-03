@@ -3750,6 +3750,17 @@ bool Query_block::flatten_subqueries(THD *thd) {
   uint subq_no;
   for (subq = subq_begin, subq_no = 0; subq < subq_end; subq++, subq_no++) {
     auto subq_item = *subq;
+    /*
+      Some subqueries may have been deleted, remove them fully before sorting
+      sj_candidates and subsequent processing:
+    */
+    if (subq_item->strategy == Subquery_strategy::DELETED) {
+      sj_candidates->erase_value(subq_item);
+      subq--;  // So that the next iteration will handle the next subquery.
+      subq_end = sj_candidates->end();  // array's end moved.
+
+      continue;
+    }
     // Transformation of IN and EXISTS subqueries is supported
     assert(subq_item->substype() == Item_subselect::IN_SUBS ||
            subq_item->substype() == Item_subselect::EXISTS_SUBS);
@@ -3837,23 +3848,17 @@ bool Query_block::flatten_subqueries(THD *thd) {
       return true;
 
     if (!cond_value) {
-      subq_item->strategy = Subquery_strategy::ALWAYS_FALSE;
-      // Unlink this subquery's query expression
+      // Unlink and delete this subquery's query expression
       Item::Cleanup_after_removal_context ctx(this);
       subq_item->walk(&Item::clean_up_after_removal,
                       enum_walk::SUBQUERY_POSTFIX, pointer_cast<uchar *>(&ctx));
-      // The cleaning up has called remove_semijoin_candidate() which has
-      // changed the sj_candidates array: now *subq is the _next_ subquery.
-      subq--;  // So that the next iteration will handle the next subquery.
-      assert(subq_begin == sj_candidates->begin());
-      subq_end = sj_candidates->end();  // array's end moved.
     }
 
     if (subq_item->strategy == Subquery_strategy::SEMIJOIN)
       table_count += tables_added;
 
     if (subq_item->strategy != Subquery_strategy::SEMIJOIN &&
-        subq_item->strategy != Subquery_strategy::ALWAYS_FALSE) {
+        subq_item->strategy != Subquery_strategy::DELETED) {
       subq_item->strategy = Subquery_strategy::UNSPECIFIED;
       continue;
     }
