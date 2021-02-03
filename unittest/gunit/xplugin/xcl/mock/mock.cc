@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,33 +22,35 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_DOCUMENT_ID_AGGREGATOR_H_
-#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_DOCUMENT_ID_AGGREGATOR_H_
+#include "unittest/gunit/xplugin/xcl/mock/connection.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection_state.h"
+#include "unittest/gunit/xplugin/xcl/mock/factory.h"
+#include "unittest/gunit/xplugin/xcl/mock/protocol.h"
+#include "unittest/gunit/xplugin/xcl/mock/query_instance.h"
+#include "unittest/gunit/xplugin/xcl/mock/query_result.h"
 
-#include <gmock/gmock.h>
-#include <string>
-
-#include "plugin/x/src/interface/document_id_aggregator.h"
-
-namespace xpl {
+namespace xcl {
 namespace test {
 namespace mock {
 
-class Document_id_aggregator : public iface::Document_id_aggregator {
- public:
-  Document_id_aggregator();
-  virtual ~Document_id_aggregator();
+XConnection_state::XConnection_state() {}
+XConnection_state::~XConnection_state() {}
 
-  MOCK_METHOD(std::string, generate_id, (), (override));
-  MOCK_METHOD(std::string, generate_id, (const Variables &), (override));
-  MOCK_METHOD(void, clear_ids, (), (override));
-  MOCK_METHOD(const Document_id_list &, get_ids, (), (const, override));
-  MOCK_METHOD(ngs::Error_code, configue, (iface::Sql_session *), (override));
-  MOCK_METHOD(void, set_id_retention, (const bool), (override));
-};
+XConnection::XConnection() {}
+XConnection::~XConnection() {}
+
+Protocol_factory::Protocol_factory() {}
+Protocol_factory::~Protocol_factory() {}
+
+XProtocol::XProtocol() {}
+XProtocol::~XProtocol() {}
+
+Query_instances::Query_instances() {}
+Query_instances::~Query_instances() {}
+
+XQuery_result::XQuery_result() {}
+XQuery_result::~XQuery_result() {}
 
 }  // namespace mock
 }  // namespace test
-}  // namespace xpl
-
-#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_DOCUMENT_ID_AGGREGATOR_H_
+}  // namespace xcl

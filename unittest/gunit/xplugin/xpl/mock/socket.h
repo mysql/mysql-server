@@ -35,6 +35,9 @@ namespace mock {
 
 class Socket : public iface::Socket {
  public:
+  Socket();
+  virtual ~Socket();
+
   MOCK_METHOD(int, bind, (const struct sockaddr *, socklen_t), (override));
   MOCK_METHOD(MYSQL_SOCKET, accept,
               (PSI_socket_key, struct sockaddr *, socklen_t *), (override));

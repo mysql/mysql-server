@@ -36,6 +36,9 @@ namespace mock {
 
 class Operations_factory : public iface::Operations_factory {
  public:
+  Operations_factory();
+  virtual ~Operations_factory();
+
   MOCK_METHOD(std::shared_ptr<iface::Socket>, create_socket,
               (PSI_socket_key, int, int, int), (override));
   MOCK_METHOD(std::shared_ptr<iface::Socket>, create_socket, (MYSQL_SOCKET),

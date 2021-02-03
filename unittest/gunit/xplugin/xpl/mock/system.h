@@ -36,6 +36,9 @@ namespace mock {
 
 class System : public iface::System {
  public:
+  System();
+  virtual ~System();
+
   MOCK_METHOD(int32_t, unlink, (const char *), (override));
   MOCK_METHOD(int32_t, kill, (int32_t, int32_t), (override));
 

@@ -39,11 +39,8 @@ namespace mock {
 
 class Mysql_plugin_registry {
  public:
-  Mysql_plugin_registry() {
-    assert(nullptr == m_mysql_plugin_registry);
-    m_mysql_plugin_registry = this;
-  }
-  ~Mysql_plugin_registry() { m_mysql_plugin_registry = nullptr; }
+  Mysql_plugin_registry();
+  ~Mysql_plugin_registry();
 
   MOCK_METHOD(int, mysql_plugin_registry_release, (SERVICE_TYPE(registry) *));
   MOCK_METHOD(SERVICE_TYPE(registry) *, mysql_plugin_registry_acquire, ());
@@ -53,11 +50,8 @@ class Mysql_plugin_registry {
 
 class Service_registry {
  public:
-  Service_registry() {
-    assert(m_this == nullptr);
-    m_this = this;
-  }
-  ~Service_registry() { m_this = nullptr; }
+  Service_registry();
+  ~Service_registry();
 
   MOCK_METHOD2(acquire, mysql_service_status_t(const char *service_name,
                                                my_h_service *out_service));
@@ -86,11 +80,8 @@ class Service_registry {
 
 class Service_admin_session {
  public:
-  Service_admin_session() {
-    assert(m_this == nullptr);
-    m_this = this;
-  }
-  ~Service_admin_session() { m_this = nullptr; }
+  Service_admin_session();
+  ~Service_admin_session();
 
   MOCK_METHOD(MYSQL_SESSION, open, (srv_session_error_cb, void *));
   SERVICE_TYPE_NO_CONST(mysql_admin_session) * get() {

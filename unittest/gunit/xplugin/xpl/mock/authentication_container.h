@@ -38,6 +38,9 @@ namespace mock {
 
 class Authentication_container : public iface::Authentication_container {
  public:
+  Authentication_container();
+  virtual ~Authentication_container();
+
   std::unique_ptr<iface::Authentication> get_auth_handler(
       const std::string &name, iface::Session *session) override {
     return std::unique_ptr<iface::Authentication>{

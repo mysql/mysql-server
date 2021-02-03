@@ -36,6 +36,9 @@ namespace mock {
 
 class Ssl_context_options : public iface::Ssl_context_options {
  public:
+  Ssl_context_options();
+  virtual ~Ssl_context_options();
+
   MOCK_METHOD(int64_t, ssl_ctx_verify_depth, (), (override));
   MOCK_METHOD(int64_t, ssl_ctx_verify_mode, (), (override));
 

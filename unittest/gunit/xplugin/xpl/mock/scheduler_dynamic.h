@@ -35,6 +35,9 @@ namespace mock {
 
 class Scheduler_dynamic : public iface::Scheduler_dynamic {
  public:
+  Scheduler_dynamic();
+  virtual ~Scheduler_dynamic();
+
   MOCK_METHOD(void, launch, (), (override));
   MOCK_METHOD(void, stop, (), (override));
   MOCK_METHOD(bool, thread_init, (), (override));
