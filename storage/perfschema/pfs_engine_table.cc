@@ -1237,10 +1237,14 @@ PFS_unknown_acl pfs_unknown_acl;
 
 ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
                                                   ulong *) const {
+  /*
+    Only enforce ACL_INTERNAL_ACCESS_DENIED
+    for operations that can create unwanted SQL objects
+    in the performance schema,
+    relax error messages otherwise.
+  */
   const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
-                                 ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL |
-                                 INSERT_ACL | UPDATE_ACL | DELETE_ACL |
-                                 SHOW_VIEW_ACL | LOCK_TABLES_ACL;
+                                 ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
