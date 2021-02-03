@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -2778,7 +2778,7 @@ public:
     {
       if (linebuf[0] == '}')
       {
-        int8_t msg_id;
+        int8_t msg_id = 0;
         std::string processed_buffer = m_buffer;
         replace_variables(processed_buffer);
 

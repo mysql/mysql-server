@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ Item_splocal* create_item_for_sp_var(THD *thd,
     return NULL;
   }
 
-  DBUG_ASSERT(pctx && spv);
+  assert(pctx && spv);
 
   if (query_start_ptr)
   {
@@ -80,7 +80,7 @@ Item_splocal* create_item_for_sp_var(THD *thd,
     new (thd->mem_root) Item_splocal(
       name, spv->offset, spv->type, spv_pos_in_query, spv_len_in_query);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (item)
     item->m_sp= lex->sphead;
 #endif
@@ -97,7 +97,7 @@ Item_splocal* create_item_for_sp_var(THD *thd,
  */
 bool setup_select_in_parentheses(SELECT_LEX *sel)
 {
-  DBUG_ASSERT(sel->braces);
+  assert(sel->braces);
   if (sel->linkage == UNION_TYPE &&
       !sel->master_unit()->first_select()->braces &&
       sel->master_unit()->first_select()->linkage ==
@@ -258,10 +258,10 @@ bool set_trigger_new_row(Parse_context *pc,
   LEX *lex= thd->lex;
   sp_head *sp= lex->sphead;
 
-  DBUG_ASSERT(expr_item);
-  DBUG_ASSERT(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
-              (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
-               sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+  assert(expr_item);
+  assert(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
+         (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+          sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
 
   Item_trigger_field *trg_fld=
     new (pc->mem_root) Item_trigger_field(POS(),
@@ -271,7 +271,7 @@ bool set_trigger_new_row(Parse_context *pc,
 
   if (trg_fld == NULL || trg_fld->itemize(pc, (Item **) &trg_fld))
     return true;
-  DBUG_ASSERT(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
+  assert(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
 
   sp_instr_set_trigger_field *i=
     new (pc->mem_root)

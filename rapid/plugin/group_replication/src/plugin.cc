@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -373,7 +373,7 @@ int plugin_group_replication_start()
   DBUG_EXECUTE_IF("group_replication_wait_on_start",
                  {
                    const char act[]= "now signal signal.start_waiting wait_for signal.start_continue";
-                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                   assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
 
   if (plugin_is_group_replication_running())
@@ -595,8 +595,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
   DBUG_EXECUTE_IF("group_replication_before_joining_the_group",
                   {
                     const char act[]= "now wait_for signal.continue_group_join";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                       STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd,
+                                                  STRING_WITH_LEN(act)));
                   });
 
   if ((error= start_group_communication()))
@@ -858,7 +858,7 @@ int plugin_group_replication_stop()
   DBUG_EXECUTE_IF("group_replication_wait_on_stop",
                  {
                    const char act[]= "now signal signal.stop_waiting wait_for signal.stop_continue";
-                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                   assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
 
   /*
@@ -947,7 +947,7 @@ int terminate_plugin_modules(bool flag_stop_async_channel)
   DBUG_EXECUTE_IF("group_replication_after_recovery_module_terminated",
                  {
                    const char act[]= "now wait_for signal.termination_continue";
-                   DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                   assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                  });
 
   /*
@@ -1593,7 +1593,7 @@ bool get_allow_local_disjoint_gtids_join()
 ulong get_transaction_size_limit()
 {
   DBUG_ENTER("get_transaction_size_limit");
-  DBUG_ASSERT(my_atomic_load64(&transaction_size_limit_var)>=0);
+  assert(my_atomic_load64(&transaction_size_limit_var)>=0);
   ulong limit = static_cast<ulong>(my_atomic_load64(&transaction_size_limit_var));
   DBUG_RETURN(limit);
 }
@@ -1715,8 +1715,8 @@ static int check_if_server_properly_configured()
   }
 
   gr_lower_case_table_names= startup_pre_reqs.lower_case_table_names;
-  DBUG_ASSERT (gr_lower_case_table_names <= 2);
-#ifndef DBUG_OFF
+  assert (gr_lower_case_table_names <= 2);
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names",
                 {
                   gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
@@ -1942,7 +1942,7 @@ static void update_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var,
         recovery_module->set_recovery_ssl_crlpath(new_option_val);
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: inspected */
+      assert(0); /* purecov: inspected */
   }
 
   DBUG_VOID_RETURN;
@@ -2149,11 +2149,11 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *var,
   force_members_running= true;
   mysql_mutex_unlock(&force_members_running_mutex);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   DBUG_EXECUTE_IF("group_replication_wait_on_check_force_members",
                   {
                     const char act[]= "now wait_for waiting";
-                    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+                    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
                   });
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ void check_sql_command_create(Sql_service_interface *srvi)
   {
     srvi->execute_query("SHOW TABLES IN test;", &rset);
     std::string str= "t1";
-    DBUG_ASSERT(rset.getString(0) == str);
+    assert(rset.getString(0) == str);
   }
   else
   {
@@ -75,10 +75,10 @@ void check_sql_command_insert(Sql_service_interface *srvi)
     insert_values.push_back("1");
     insert_values.push_back("2");
     insert_values.push_back("3");
-    DBUG_ASSERT(rset.get_rows() == 3);
+    assert(rset.get_rows() == 3);
     while (i < rset.get_rows())
     {
-      DBUG_ASSERT(rset.getString(0) == insert_values[i]);
+      assert(rset.getString(0) == insert_values[i]);
       rset.next();
       i++;
     }
@@ -105,10 +105,10 @@ void check_sql_command_update(Sql_service_interface *srvi)
     update_values.push_back("4");
     update_values.push_back("5");
     update_values.push_back("6");
-    DBUG_ASSERT(rset.get_rows() == 3);
+    assert(rset.get_rows() == 3);
     while (i < rset.get_rows())
     {
-      DBUG_ASSERT(rset.getString(0) == update_values[i]);
+      assert(rset.getString(0) == update_values[i]);
       rset.next();
       i++;
     }
@@ -128,7 +128,7 @@ void check_sql_command_drop(Sql_service_interface *srvi)
   {
     srvi->execute_query("SELECT TABLES IN test", &rset);
     std::string str= "t1";
-    DBUG_ASSERT(rset.get_rows() == 0);
+    assert(rset.get_rows() == 0);
   }
   else
   {
@@ -151,7 +151,7 @@ int sql_command_check()
   }
 
   error= srvi->open_session();
-  DBUG_ASSERT(!error);
+  assert(!error);
 
   /* Case 1 */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -983,10 +983,10 @@ static Item *create_comparator(MY_XPATH *xpath,
 static Item* nametestfunc(MY_XPATH *xpath,
                           int type, Item *arg, const char *beg, size_t len)
 {
-  DBUG_ASSERT(arg != 0);
-  DBUG_ASSERT(arg->type() == Item::XPATH_NODESET);
-  DBUG_ASSERT(beg != 0);
-  DBUG_ASSERT(len > 0);
+  assert(arg != 0);
+  assert(arg->type() == Item::XPATH_NODESET);
+  assert(beg != 0);
+  assert(len > 0);
 
   Item *res;
   switch (type)
@@ -2540,7 +2540,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     {
       Item_splocal *splocal= new Item_splocal(Name_string(name, false),
                                               spv->offset, spv->type, 0);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       if (splocal)
         splocal->m_sp= lex->sphead;
 #endif
@@ -2549,7 +2549,7 @@ my_xpath_parse_VariableReference(MY_XPATH *xpath)
     else
     {
       xpath->item= NULL;
-      DBUG_ASSERT(xpath->query.end > dollar_pos);
+      assert(xpath->query.end > dollar_pos);
       size_t len= xpath->query.end - dollar_pos;
       set_if_smaller(len, 32);
       my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'",
@@ -2577,7 +2577,7 @@ my_xpath_parse_NodeTest_QName(MY_XPATH *xpath)
 {
   if (!my_xpath_parse_QName(xpath))
     return 0;
-  DBUG_ASSERT(xpath->context);
+  assert(xpath->context);
   size_t len= xpath->prevtok.end - xpath->prevtok.beg;
   xpath->context= nametestfunc(xpath, xpath->axis, xpath->context,
                                xpath->prevtok.beg, len);
@@ -2588,7 +2588,7 @@ my_xpath_parse_NodeTest_asterisk(MY_XPATH *xpath)
 {
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_ASTERISK))
     return 0;
-  DBUG_ASSERT(xpath->context);
+  assert(xpath->context);
   xpath->context= nametestfunc(xpath, xpath->axis, xpath->context, "*", 1);
   return 1;
 }
@@ -2739,7 +2739,7 @@ int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 
   node.parent= data->parent; // Set parent for the new node to old parent
   data->parent= numnodes;    // Remember current node as new parent
-  DBUG_ASSERT(data->level < MAX_LEVEL);
+  assert(data->level < MAX_LEVEL);
   data->pos[data->level]= numnodes;
   if (data->level < MAX_LEVEL - 1)
     node.level= data->level++;
@@ -2797,7 +2797,7 @@ extern "C" int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len);
 int xml_leave(MY_XML_PARSER *st,const char *attr, size_t len)
 {
   MY_XML_USER_DATA *data= (MY_XML_USER_DATA*)st->user_data;
-  DBUG_ASSERT(data->level > 0);
+  assert(data->level > 0);
   data->level--;
 
   MY_XML_NODE *nodes= (MY_XML_NODE*) data->pxml->ptr();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -210,7 +210,7 @@ protected:
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli)
   { 
-    DBUG_ASSERT(m_table);
+    assert(m_table);
     ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
     return ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
                                    &m_curr_row_end, &m_master_reclength, m_rows_end);

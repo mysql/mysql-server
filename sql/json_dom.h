@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -632,7 +632,7 @@ public:
   */
   Json_dom *operator[](size_t index) const
   {
-    DBUG_ASSERT(m_v[index]->parent() == this);
+    assert(m_v[index]->parent() == this);
     return m_v[index];
   }
 

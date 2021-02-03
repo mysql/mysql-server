@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -222,7 +222,7 @@ static char *process_str_arg(const CHARSET_INFO *cs, char *to, char *end,
 
 static char *process_bin_arg(char *to, char *end, size_t width, char *par)
 {
-  DBUG_ASSERT(to <= end);
+  assert(to <= end);
   if (to + width + 1 > end)
     width= end - to - 1;  /* sign doesn't matter */
   memmove(to, par, width);
@@ -282,7 +282,7 @@ static char *process_int_arg(char *to, char *end, size_t length,
   }
   else
   {
-    DBUG_ASSERT(arg_type == 'X' || arg_type =='x');
+    assert(arg_type == 'X' || arg_type =='x');
     store_end= ll2str(par, store_start, 16, (arg_type == 'X'));
   }
 
@@ -353,7 +353,7 @@ start:
     fmt++;
     fmt= get_length(fmt, &print_arr[idx].length, &print_arr[idx].flags);
     print_arr[idx].length--;    
-    DBUG_ASSERT(*fmt == '$' && print_arr[idx].length < MAX_ARGS);
+    assert(*fmt == '$' && print_arr[idx].length < MAX_ARGS);
     args_arr[print_arr[idx].length].arg_type= 'd';
     args_arr[print_arr[idx].length].have_longlong= 0;
     print_arr[idx].flags|= LENGTH_ARG;
@@ -372,7 +372,7 @@ start:
       fmt++;
       fmt= get_width(fmt, &print_arr[idx].width);
       print_arr[idx].width--;
-      DBUG_ASSERT(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
+      assert(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
       args_arr[print_arr[idx].width].arg_type= 'd';
       args_arr[print_arr[idx].width].have_longlong= 0;
       print_arr[idx].flags|= WIDTH_ARG;
@@ -430,7 +430,7 @@ start:
         args_arr[i].longlong_arg= va_arg(ap, int);
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
       }
     }
     /* Print result string */
@@ -509,20 +509,20 @@ start:
         length++;
       to= my_stpnmov(to, print_arr[i].begin, length);
     }
-    DBUG_ASSERT(to <= end);
+    assert(to <= end);
     *to='\0';				/* End of errmessage */
     return to;
   }
   else
   {
     /* Process next positional argument*/
-    DBUG_ASSERT(*fmt == '%');
+    assert(*fmt == '%');
     print_arr[idx].end= fmt - 1;
     idx++;
     fmt++;
     arg_index= 0;
     fmt= get_width(fmt, &arg_index);
-    DBUG_ASSERT(*fmt == '$');
+    assert(*fmt == '$');
     fmt++;
     arg_count= MY_MAX(arg_count, arg_index);
     goto start;
@@ -664,7 +664,7 @@ size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
       break;
     *to++='%';				/* % used as % or unknown code */
   }
-  DBUG_ASSERT(to <= end);
+  assert(to <= end);
   *to='\0';				/* End of errmessage */
   return (size_t) (to - start);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
       read= (unsigned int)azread(&reader_handle, buffer + ARCHIVE_ROW_HEADER_SIZE, 
                                  row_len, &error); 
 
-      DBUG_ASSERT(read == row_len);
+      assert(read == row_len);
 
       azwrite(&writer_handle, buffer, row_len + ARCHIVE_ROW_HEADER_SIZE);
 
@@ -357,7 +357,7 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"check", 'c', "Check table for errors.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   {"debug", '#',
    "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},

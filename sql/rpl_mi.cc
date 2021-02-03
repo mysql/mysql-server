@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -581,7 +581,7 @@ void Master_info::set_password(const char* password_arg)
 {
   DBUG_ENTER("Master_info::set_password");
 
-  DBUG_ASSERT(password_arg);
+  assert(password_arg);
 
   if (password_arg && start_user_configured)
     strmake(start_password, password_arg, sizeof(start_password) - 1);

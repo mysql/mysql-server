@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -721,7 +721,7 @@ struct PFS_table_stat
     PFS_table_io_stat *to_stat_last;
     const PFS_table_io_stat *from_stat;
 
-    DBUG_ASSERT(key_count <= MAX_INDEXES);
+    assert(key_count <= MAX_INDEXES);
 
     /* Aggregate stats for each index, if any */
     to_stat= & m_index_stat[0];
@@ -752,7 +752,7 @@ struct PFS_table_stat
     PFS_table_io_stat *stat;
     PFS_table_io_stat *stat_last;
 
-    DBUG_ASSERT(key_count <= MAX_INDEXES);
+    assert(key_count <= MAX_INDEXES);
 
     /* Sum stats for each index, if any */
     stat= & m_index_stat[0];

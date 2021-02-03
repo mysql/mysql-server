@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ table_session_account_connect_attrs::thread_fits(PFS_thread *thread)
     return false;
 
   /* The thread we compare to, by definition, has some instrumentation. */
-  DBUG_ASSERT(thread != NULL);
+  assert(thread != NULL);
 
   uint username_length= current_thread->m_username_length;
   uint hostname_length= current_thread->m_hostname_length;

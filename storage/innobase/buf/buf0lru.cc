@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -644,13 +644,13 @@ rescan:
 			processed = 0;
 		}
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 		if (flush) {
 			DBUG_EXECUTE_IF("ib_export_flush_crash",
 					static ulint	n_pages;
 					if (++n_pages == 4) {DBUG_SUICIDE();});
 		}
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 		/* The check for trx is interrupted is expensive, we want
 		to check every N iterations. */

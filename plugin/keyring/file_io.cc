@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ my_bool is_super_user()
   MYSQL_SECURITY_CONTEXT sec_ctx;
   my_svc_bool has_super_privilege = FALSE;
 
-  DBUG_ASSERT(thd != NULL);
+  assert(thd != NULL);
 
   if (thd == NULL || thd_get_security_context(thd, &sec_ctx) ||
       security_context_get_option(sec_ctx, "privilege_super", &has_super_privilege))
@@ -198,7 +198,7 @@ my_bool File_io::truncate(File file, myf myFlags)
   if (ftruncate(file, (off_t) 0) && (myFlags & MY_WME))
   {
 #else
-  DBUG_ASSERT(0);
+    assert(0);
 #endif
     std::stringstream error_message;
     error_message << "Could not truncate file " << my_filename(file)
@@ -210,7 +210,7 @@ my_bool File_io::truncate(File file, myf myFlags)
     return TRUE;
   }
 //#else
-//  DBUG_ASSERT(0);
+//  assert(0);
 //#endif
   return FALSE;
 }

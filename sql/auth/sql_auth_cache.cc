@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ Partitioned_rwlock LOCK_grant;
 void ACL_internal_schema_registry::register_schema
   (const LEX_STRING &name, const ACL_internal_schema_access *access)
 {
-  DBUG_ASSERT(m_registry_array_size < array_elements(registry_array));
+  assert(m_registry_array_size < array_elements(registry_array));
 
   /* Not thread safe, and does not need to be. */
   registry_array[m_registry_array_size].m_name= &name;
@@ -115,7 +115,7 @@ void ACL_internal_schema_registry::register_schema
 const ACL_internal_schema_access *
 ACL_internal_schema_registry::lookup(const char *name)
 {
-  DBUG_ASSERT(name != NULL);
+  assert(name != NULL);
 
   uint i;
 
@@ -482,7 +482,7 @@ ulong get_sort(uint count,...)
   ulong sort=0;
 
   /* Should not use this function with more than 4 arguments for compare. */
-  DBUG_ASSERT(count <= 4);
+  assert(count <= 4);
 
   while (count--)
   {
@@ -552,7 +552,7 @@ bool hostname_requires_resolving(const char *hostname)
 {
 
   /* called only for --skip-name-resolve */
-  DBUG_ASSERT(specialflag & SPECIAL_NO_RESOLVE);
+  assert(specialflag & SPECIAL_NO_RESOLVE);
 
   if (!hostname)
     return FALSE;

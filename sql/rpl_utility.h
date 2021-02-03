@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -277,7 +277,7 @@ public:
    */
   enum_field_types type(ulong index) const
   {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     /*
       If the source type is MYSQL_TYPE_STRING, it can in reality be
       either MYSQL_TYPE_STRING, MYSQL_TYPE_ENUM, or MYSQL_TYPE_SET, so
@@ -326,7 +326,7 @@ public:
   */
   uint16 field_metadata(uint index) const
   {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     if (m_field_metadata_size)
       return m_field_metadata[index];
     else
@@ -339,7 +339,7 @@ public:
   */
   my_bool maybe_null(uint index) const
   {
-    DBUG_ASSERT(index < m_size);
+    assert(index < m_size);
     return ((m_null_bits[(index / 8)] & 
             (1 << (index % 8))) == (1 << (index %8)));
   }

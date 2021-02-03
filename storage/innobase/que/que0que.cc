@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -908,7 +908,7 @@ que_node_get_containing_loop_node(
 	return(node);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Gets information of an SQL query graph node.
 @return type description */
 static MY_ATTRIBUTE((warn_unused_result, nonnull))
@@ -965,7 +965,7 @@ que_node_type_string(
 		return("UNKNOWN NODE TYPE");
 	}
 }
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /**********************************************************************//**
 Performs an execution step on a query thread.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -3820,7 +3820,7 @@ i_s_fts_index_table_fill_one_index(
 	int			ret = 0;
 
 	DBUG_ENTER("i_s_fts_index_table_fill_one_index");
-	DBUG_ASSERT(!dict_index_is_online_ddl(index));
+	assert(!dict_index_is_online_ddl(index));
 
 	heap = mem_heap_create(1024);
 
@@ -4119,7 +4119,7 @@ i_s_fts_config_fill(
 	if (!ib_vector_is_empty(user_table->fts->indexes)) {
 		index = (dict_index_t*) ib_vector_getp_const(
 				user_table->fts->indexes, 0);
-		DBUG_ASSERT(!dict_index_is_online_ddl(index));
+		assert(!dict_index_is_online_ddl(index));
 	}
 
 	while (fts_config_key[i]) {

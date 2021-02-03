@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ void Key::store_in_buffer(uchar* buffer, size_t *buffer_position) const
                   sizeof(size_t);
 
   *buffer_position+= padding;
-  DBUG_ASSERT(*buffer_position % sizeof(size_t) == 0);
+  assert(*buffer_position % sizeof(size_t) == 0);
 }
 
 my_bool Key::load_string_from_buffer(const uchar *buffer, size_t *buffer_position,
@@ -168,7 +168,7 @@ my_bool Key::load_from_buffer(uchar* buffer, size_t *number_of_bytes_read_from_b
   size_t padding= (sizeof(size_t) - (buffer_position % sizeof(size_t))) %
                   sizeof(size_t);
   buffer_position+= padding;
-  DBUG_ASSERT(buffer_position % sizeof(size_t) == 0);
+  assert(buffer_position % sizeof(size_t) == 0);
 
   *number_of_bytes_read_from_buffer= buffer_position;
 
@@ -188,7 +188,7 @@ size_t Key::get_key_pod_size() const
                   sizeof(size_t);
 
   size_t key_pod_size_aligned= key_pod_size + padding;
-  DBUG_ASSERT(key_pod_size_aligned % sizeof(size_t) == 0);
+  assert(key_pod_size_aligned % sizeof(size_t) == 0);
   return key_pod_size_aligned;
 }
 

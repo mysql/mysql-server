@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1020,7 +1020,7 @@ struct rec_offsets_print
 std::ostream&
 operator<<(std::ostream& o, const rec_offsets_print& r);
 
-# ifndef DBUG_OFF
+# ifndef NDEBUG
 /** Pretty-printer of records and tuples */
 class rec_printer : public std::ostringstream {
 public:
@@ -1075,7 +1075,7 @@ private:
 	/** Assignment operator */
 	rec_printer& operator=(const rec_printer& other);
 };
-# endif /* !DBUG_OFF */
+# endif /* !NDEBUG */
 
 # ifdef UNIV_DEBUG
 /************************************************************//**

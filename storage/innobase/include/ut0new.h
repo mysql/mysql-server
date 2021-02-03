@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -662,8 +662,8 @@ public:
 
 		/* e.g. "btr0cur", derived from "/path/to/btr0cur.cc" */
 		char		keyname[FILENAME_MAX];
-		const size_t	len = ut_basename_noext(file, keyname,
-							sizeof(keyname));
+		const size_t	len MY_ATTRIBUTE((unused)) =
+			ut_basename_noext(file, keyname, sizeof(keyname));
 		/* If sizeof(keyname) was not enough then the output would
 		be truncated, assert that this did not happen. */
 		ut_a(len < sizeof(keyname));

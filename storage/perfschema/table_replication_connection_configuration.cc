@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License, version 2.0,
@@ -243,7 +243,7 @@ void table_replication_connection_configuration::make_row(Master_info *mi)
   m_row_exists= false;
 
 
-  DBUG_ASSERT(mi != NULL);
+  assert(mi != NULL);
 
   mysql_mutex_lock(&mi->data_lock);
   mysql_mutex_lock(&mi->rli->data_lock);
@@ -335,7 +335,7 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
   if (unlikely(! m_row_exists))
     return HA_ERR_RECORD_DELETED;
 
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)
   {
@@ -408,7 +408,7 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
                                m_row.tls_version_length);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

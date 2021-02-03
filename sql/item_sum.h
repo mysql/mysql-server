@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -718,7 +718,7 @@ public:
   bool fix_fields(THD *, Item **);
   longlong val_int()
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (longlong) rint(val_real());             /* Real as default */
   }
   String *val_str(String*str);
@@ -742,7 +742,7 @@ public:
 
   Item_sum_int(const POS &pos, PT_item_list *list) :Item_sum_num(pos, list) {}
   Item_sum_int(THD *thd, Item_sum_int *item) :Item_sum_num(thd, item) {}
-  double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
+  double val_real() { assert(fixed == 1); return (double) val_int(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
@@ -907,7 +907,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
   void fix_length_and_dec() {}
-  const char *func_name() const { DBUG_ASSERT(0); return "avg_field"; }
+  const char *func_name() const { assert(0); return "avg_field"; }
 };
 
 
@@ -1051,7 +1051,7 @@ public:
   my_decimal *val_decimal(my_decimal *dec_buf)
   { return val_decimal_from_real(dec_buf); }
   void fix_length_and_dec() {}
-  const char *func_name() const { DBUG_ASSERT(0); return "variance_field"; }
+  const char *func_name() const { assert(0); return "variance_field"; }
 };
 
 
@@ -1129,7 +1129,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return REAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_DOUBLE;}
-  const char *func_name() const { DBUG_ASSERT(0); return "std_field"; }
+  const char *func_name() const { assert(0); return "std_field"; }
 };
 
 /*
@@ -1343,7 +1343,7 @@ public:
   const char *func_name() const { return udf.name(); }
   bool fix_fields(THD *thd, Item **ref)
   {
-    DBUG_ASSERT(fixed == 0);
+    assert(fixed == 0);
 
     if (init_sum_func_check(thd))
       return TRUE;
@@ -1379,7 +1379,7 @@ class Item_sum_udf_float :public Item_udf_sum
     :Item_udf_sum(thd, item) {}
   longlong val_int()
   {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (longlong) rint(Item_sum_udf_float::val_real());
   }
   double val_real();
@@ -1408,7 +1408,7 @@ public:
     :Item_udf_sum(thd, item) {}
   longlong val_int();
   double val_real()
-    { DBUG_ASSERT(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
+  { assert(fixed == 1); return (double) Item_sum_udf_int::val_int(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
@@ -1581,8 +1581,8 @@ public:
   }
   void clear();
   bool add();
-  void reset_field() { DBUG_ASSERT(0); }        // not used
-  void update_field() { DBUG_ASSERT(0); }       // not used
+  void reset_field() { assert(0); }        // not used
+  void update_field() { assert(0); }       // not used
   bool fix_fields(THD *,Item **);
   bool setup(THD *thd);
   void make_unique();

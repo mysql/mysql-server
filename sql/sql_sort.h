@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,7 @@ public:
   }
   void set_buffer_end(uchar *end)
   {
-    DBUG_ASSERT(m_buffer_end == NULL || end <= m_buffer_end);
+    assert(m_buffer_end == NULL || end <= m_buffer_end);
     m_buffer_end= end;
   }
 
@@ -199,7 +199,7 @@ public:
       m_addon_buf_length(0),
       m_using_packed_addons(false)
   {
-    DBUG_ASSERT(!arr.is_null());
+    assert(!arr.is_null());
   }
 
   Sort_addon_field *begin() { return m_field_descriptors.begin(); }
@@ -211,7 +211,7 @@ public:
   {
     if (m_addon_buf != NULL)
     {
-      DBUG_ASSERT(m_addon_buf_length == sz);
+      assert(m_addon_buf_length == sz);
       return m_addon_buf;
     }
     m_addon_buf= static_cast<uchar*>(sql_alloc(sz));
@@ -350,8 +350,8 @@ public:
   /// Are we packing the "addon fields"?
   bool using_packed_addons() const
   {
-    DBUG_ASSERT(m_using_packed_addons ==
-                (addon_fields != NULL && addon_fields->using_packed_addons()));
+    assert(m_using_packed_addons ==
+           (addon_fields != NULL && addon_fields->using_packed_addons()));
     return m_using_packed_addons;
   }
 
@@ -391,7 +391,7 @@ public:
     }
     uchar *plen= record_start + sort_length;
     *resl= Addon_fields::read_addon_length(plen);
-    DBUG_ASSERT(*resl <= res_length);
+    assert(*resl <= res_length);
     const uchar *record_end= plen + *resl;
     *recl= static_cast<uint>(record_end - record_start);
   }
@@ -560,7 +560,7 @@ void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap)
     if (old_top->merge_freed_buff(*it))
       return;
   }
-  DBUG_ASSERT(0);
+  assert(0);
 }
 
 #endif /* SQL_SORT_INCLUDED */

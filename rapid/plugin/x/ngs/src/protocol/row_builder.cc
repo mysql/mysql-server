@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 *
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@
 using namespace ngs;
 
 #define ADD_FIELD_HEADER() \
-  DBUG_ASSERT(m_row_processing); \
+  assert(m_row_processing);                             \
   google::protobuf::internal::WireFormatLite::WriteTag( \
     1, \
     google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, \
@@ -142,7 +142,7 @@ static inline int count_leading_zeroes(int i, dec1 val)
   case 2: if (val >= 100) break; ++ret;  // Fall through.
   case 1: if (val >= 10) break; ++ret;  // Fall through.
   case 0: if (val >= 1) break; ++ret;  // Fall through.
-  default: { DBUG_ASSERT(FALSE); }
+  default: { assert(FALSE); }
   }
   return ret;
 }
@@ -161,7 +161,7 @@ static dec1 *remove_leading_zeroes(const decimal_t *from, int *intg_result)
   if (intg > 0)
   {
     intg -= count_leading_zeroes((intg - 1) % DIG_PER_DEC1, *buf0);
-    DBUG_ASSERT(intg > 0);
+    assert(intg > 0);
   }
   else
     intg = 0;
@@ -182,7 +182,7 @@ static int __decimal2string(const decimal_t *from, char *to, int *to_len,
   char *s = to;
   dec1 *buf, *buf0, tmp;
 
-  DBUG_ASSERT(*to_len >= 2 + from->sign);
+  assert(*to_len >= 2 + from->sign);
 
   /* removing leading zeroes */
   buf0 = remove_leading_zeroes(from, &intg);
@@ -492,7 +492,7 @@ void Row_builder::add_bit_field(const char * const value, size_t length,
   const CHARSET_INFO * const valuecs)
 {
   ADD_FIELD_HEADER();
-  DBUG_ASSERT(length <= 8);
+  assert(length <= 8);
 
   google::protobuf::uint64 binary_value = 0;
   for (size_t i = 0; i < length; ++i)

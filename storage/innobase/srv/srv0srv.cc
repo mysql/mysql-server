@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -358,11 +358,11 @@ starting from SRV_FORCE_IGNORE_CORRUPT, so that data can be recovered
 by SELECT or mysqldump. When this is nonzero, we do not allow any user
 modifications to the data. */
 ulong	srv_force_recovery;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /** Inject a crash at different steps of the recovery process.
 This is for testing and debugging only. */
 ulong	srv_force_recovery_crash;
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,11 @@ MACRO (MYSQL_USE_BUNDLED_ZLIB)
   SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
+  # Silence warning about CMP0075
+  CMAKE_PUSH_CHECK_STATE()
+  SET(CMAKE_REQUIRED_LIBRARIES)
   ADD_SUBDIRECTORY(zlib)
+  CMAKE_POP_CHECK_STATE()
 ENDMACRO()
 
 # MYSQL_CHECK_ZLIB_WITH_COMPRESS

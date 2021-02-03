@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -180,7 +180,7 @@ template<typename T_type> void
   Abstract_option<T_type>::set_option_changed_listener(
     I_option_changed_listener* listener)
 {
-  DBUG_ASSERT(this->m_option_changed_listener == NULL);
+  assert(this->m_option_changed_listener == NULL);
 
   this->m_option_changed_listener= listener;
 }

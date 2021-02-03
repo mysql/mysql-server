@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -209,7 +209,7 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       xtype = Mysqlx::Resultset::ColumnMetaData::BIT;
       break;
   }
-  DBUG_ASSERT(xtype != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
+  assert(xtype != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
 
   if (send_column_metadata(xcollation, xtype, xflags, ctype, field))

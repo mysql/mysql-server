@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,7 @@ bool Query_result_union::create_result_table(THD *thd_arg,
                                              bool bit_fields_as_long,
                                              bool create_table)
 {
-  DBUG_ASSERT(table == NULL);
+  assert(table == NULL);
   tmp_table_param= Temp_table_param();
   count_field_types(thd_arg->lex->current_select(), &tmp_table_param,
                     *column_types, false, true);
@@ -212,7 +212,7 @@ public:
   uint field_count(List<Item> &fields) const
   {
     // Only called for top-level Query_results, usually Query_result_send
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     return 0; /* purecov: inspected */
   }
   bool postponed_prepare(List<Item> &types);
@@ -228,7 +228,7 @@ public:
   bool check_simple_select() const
   {
     // Only called for top-level Query_results, usually Query_result_send
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
     return false; /* purecov: inspected */
   }
   void abort_result_set()
@@ -243,12 +243,12 @@ public:
       and for the results of subquery engines
       (select_<something>_subselect).
     */
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
   }
   void begin_dataset()
   {
     // Only called for sp_cursor::Select_fetch_into_spvars
-    DBUG_ASSERT(false); /* purecov: inspected */
+    assert(false); /* purecov: inspected */
   }
 };
 
@@ -383,7 +383,7 @@ bool st_select_lex_unit::prepare_fake_select_lex(THD *thd_arg)
 {
   DBUG_ENTER("st_select_lex_unit::prepare_fake_select_lex");
 
-  DBUG_ASSERT(thd_arg->lex->current_select() == fake_select_lex);
+  assert(thd_arg->lex->current_select() == fake_select_lex);
 
   // The UNION result table is input table for this query block
   fake_select_lex->table_list.link_in_list(&result_table_list,
@@ -432,11 +432,11 @@ bool st_select_lex_unit::prepare_fake_select_lex(THD *thd_arg)
   if (fake_select_lex->ref_pointer_array.is_null())
     fake_select_lex->n_child_sum_items+= fake_select_lex->n_sum_items;
 
-  DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
-              fake_select_lex->master_unit() == this &&
-              !fake_select_lex->group_list.elements &&
-              fake_select_lex->where_cond() == NULL &&
-              fake_select_lex->having_cond() == NULL);
+  assert(fake_select_lex->with_wild == 0 &&
+         fake_select_lex->master_unit() == this &&
+         !fake_select_lex->group_list.elements &&
+         fake_select_lex->where_cond() == NULL &&
+         fake_select_lex->having_cond() == NULL);
 
   if (fake_select_lex->prepare(thd_arg))
     DBUG_RETURN(true);
@@ -461,7 +461,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
 {
   DBUG_ENTER("st_select_lex_unit::prepare");
 
-  DBUG_ASSERT(!is_prepared());
+  assert(!is_prepared());
 
   SELECT_LEX *lex_select_save= thd_arg->lex->current_select();
 
@@ -557,10 +557,10 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
           been fixed yet. An Item_type_holder must be created based on a fixed
           Item, so use the inner Item instead.
         */
-        DBUG_ASSERT(item_tmp->fixed ||
-                    (item_tmp->type() == Item::REF_ITEM &&
-                     down_cast<Item_ref *>(item_tmp)->ref_type() ==
-                     Item_ref::OUTER_REF));
+        assert(item_tmp->fixed ||
+               (item_tmp->type() == Item::REF_ITEM &&
+                down_cast<Item_ref *>(item_tmp)->ref_type() ==
+                Item_ref::OUTER_REF));
         if (!item_tmp->fixed)
           item_tmp= item_tmp->real_item();
 
@@ -696,7 +696,7 @@ bool st_select_lex_unit::optimize(THD *thd)
 {
   DBUG_ENTER("st_select_lex_unit::optimize");
 
-  DBUG_ASSERT(is_prepared() && !is_optimized());
+  assert(is_prepared() && !is_optimized());
 
   SELECT_LEX *save_select= thd->lex->current_select();
 
@@ -738,12 +738,12 @@ bool st_select_lex_unit::optimize(THD *thd)
       subquery execution rather than EXPLAIN line production. In order 
       to reset them back, we re-do all of the actions (yes it is ugly).
     */
-    DBUG_ASSERT(fake_select_lex->with_wild == 0 &&
-                fake_select_lex->master_unit() == this &&
-                !fake_select_lex->group_list.elements &&
-                fake_select_lex->get_table_list() == &result_table_list &&
-                fake_select_lex->where_cond() == NULL &&
-                fake_select_lex->having_cond() == NULL);
+    assert(fake_select_lex->with_wild == 0 &&
+           fake_select_lex->master_unit() == this &&
+           !fake_select_lex->group_list.elements &&
+           fake_select_lex->get_table_list() == &result_table_list &&
+           fake_select_lex->where_cond() == NULL &&
+           fake_select_lex->having_cond() == NULL);
 
     if (fake_select_lex->optimize(thd))
       DBUG_RETURN(true);
@@ -767,7 +767,7 @@ bool st_select_lex_unit::explain(THD *ethd)
 {
   DBUG_ENTER("st_select_lex_unit::explain");
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   SELECT_LEX *lex_select_save= thd->lex->current_select();
 #endif
   Explain_format *fmt= ethd->lex->explain_format;
@@ -776,7 +776,7 @@ bool st_select_lex_unit::explain(THD *ethd)
 
   if (!other)
   {
-    DBUG_ASSERT(!is_simple() && is_optimized());
+    assert(!is_simple() && is_optimized());
     set_executed();
   }
 
@@ -798,7 +798,7 @@ bool st_select_lex_unit::explain(THD *ethd)
     ret= explain_query_specification(ethd, fake_select_lex, CTX_UNION_RESULT);
   }
   if (!other)
-    DBUG_ASSERT(thd->lex->current_select() == lex_select_save);
+    assert(thd->lex->current_select() == lex_select_save);
 
   if (ret)
     DBUG_RETURN(true);
@@ -819,7 +819,7 @@ bool st_select_lex_unit::explain(THD *ethd)
 bool st_select_lex_unit::execute(THD *thd)
 {
   DBUG_ENTER("st_select_lex_unit::exec");
-  DBUG_ASSERT(!is_simple() && is_optimized());
+  assert(!is_simple() && is_optimized());
 
   if (is_executed() && !uncacheable)
     DBUG_RETURN(false);
@@ -867,7 +867,7 @@ bool st_select_lex_unit::execute(THD *thd)
     if (sl == union_distinct)
     {
       // This is UNION DISTINCT, so there should be a fake_select_lex
-      DBUG_ASSERT(fake_select_lex != NULL);
+      assert(fake_select_lex != NULL);
       if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
         DBUG_RETURN(true); /* purecov: inspected */
       table->no_keyread= 1;
@@ -918,7 +918,7 @@ bool st_select_lex_unit::cleanup(bool full)
 {
   DBUG_ENTER("st_select_lex_unit::cleanup");
 
-  DBUG_ASSERT(thd == current_thd);
+  assert(thd == current_thd);
 
   if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN))
     DBUG_RETURN(false);
@@ -952,10 +952,10 @@ bool st_select_lex_unit::cleanup(bool full)
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void st_select_lex_unit::assert_not_fully_clean()
 {
-  DBUG_ASSERT(cleaned < UC_CLEAN);
+  assert(cleaned < UC_CLEAN);
   SELECT_LEX *sl= first_select();
   for (;;)
   {
@@ -980,7 +980,7 @@ void st_select_lex_unit::assert_not_fully_clean()
 void st_select_lex_unit::reinit_exec_mechanism()
 {
   prepared= optimized= executed= false;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (is_union())
   {
     List_iterator_fast<Item> it(item_list);
@@ -1042,7 +1042,7 @@ st_select_lex_unit::change_query_result(Query_result_interceptor *new_result,
 
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
-  DBUG_ASSERT(is_prepared());
+  assert(is_prepared());
 
   return is_union() ? &types : &first_select()->item_list;
 }
@@ -1060,7 +1060,7 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
 
 List<Item> *st_select_lex_unit::get_field_list()
 {
-  DBUG_ASSERT(is_optimized());
+  assert(is_optimized());
 
   return is_union() ? &types : first_select()->join->fields;
 }
@@ -1081,7 +1081,7 @@ bool st_select_lex::cleanup(bool full)
   {
     if (full)
     {
-      DBUG_ASSERT(join->select_lex == this);
+      assert(join->select_lex == this);
       error= join->destroy();
       delete join;
       join= NULL;

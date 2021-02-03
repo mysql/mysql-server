@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,7 +122,7 @@ public:
     // Don't return the extra element to the client code.
     if (queue_is_full((&m_queue)))
       queue_remove(&m_queue, 0);
-    DBUG_ASSERT(m_queue.elements > 0);
+    assert(m_queue.elements > 0);
     if (m_queue.elements == 0)
       return NULL;
     return reinterpret_cast<Key_type*>(queue_remove(&m_queue, 0));
@@ -154,7 +154,7 @@ int Bounded_QUEUE<Element_type, Key_type, Key_generator>
          Key_generator *sort_param,
          Key_type *sort_keys)
 {
-  DBUG_ASSERT(sort_keys != NULL);
+  assert(sort_keys != NULL);
 
   m_sort_keys=      sort_keys;
   m_compare_length= sort_param->compare_length();
@@ -182,7 +182,7 @@ template<typename Element_type, typename Key_type, typename Key_generator>
 void Bounded_QUEUE<Element_type, Key_type, Key_generator>
   ::push(Element_type element)
 {
-  DBUG_ASSERT(is_initialized());
+  assert(is_initialized());
   if (queue_is_full((&m_queue)))
   {
     // Replace top element with new key, and re-order the queue.

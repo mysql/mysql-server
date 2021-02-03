@@ -32,6 +32,7 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_ip_whitelist= "AUTOMATIC";
 --source ../inc/start_and_bootstrap_group_replication.inc
 --replace_regex /\.dll/.so/
 --eval INSTALL PLUGIN mysqlx SONAME '$MYSQLXPLUGIN'

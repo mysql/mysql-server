@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -251,7 +251,7 @@ mysql_event_fill_row(THD *thd,
   DBUG_PRINT("info", ("dbname=[%s]", et->dbname.str));
   DBUG_PRINT("info", ("name  =[%s]", et->name.str));
 
-  DBUG_ASSERT(et->on_completion != Event_parse_data::ON_COMPLETION_DEFAULT);
+  assert(et->on_completion != Event_parse_data::ON_COMPLETION_DEFAULT);
 
   if (table->s->fields < ET_FIELD_COUNT)
   {
@@ -303,7 +303,7 @@ mysql_event_fill_row(THD *thd,
   */
   if (et->body_changed)
   {
-    DBUG_ASSERT(sp->m_body.str);
+    assert(sp->m_body.str);
 
     rs|= fields[ET_FIELD_SQL_MODE]->store((longlong)sql_mode, TRUE);
 
@@ -375,7 +375,7 @@ mysql_event_fill_row(THD *thd,
   }
   else
   {
-    DBUG_ASSERT(is_update);
+    assert(is_update);
     /*
       it is normal to be here when the action is update
       this is an error if the action is create. something is borked
@@ -715,7 +715,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ENTER("Event_db_repository::create_event");
 
   DBUG_PRINT("info", ("open mysql.event for update"));
-  DBUG_ASSERT(sp);
+  assert(sp);
 
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
@@ -835,7 +835,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ENTER("Event_db_repository::update_event");
 
   /* None or both must be set */
-  DBUG_ASSERT((new_dbname && new_name) || new_dbname == new_name);
+  assert((new_dbname && new_name) || new_dbname == new_name);
 
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
@@ -977,7 +977,7 @@ end:
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
 
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
@@ -1181,7 +1181,7 @@ update_timing_fields_for_event(THD *thd,
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  DBUG_ASSERT(thd->security_context()->check_access(SUPER_ACL));
+  assert(thd->security_context()->check_access(SUPER_ACL));
 
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
@@ -1213,7 +1213,7 @@ end:
     close_mysql_tables(thd);
 
   /* Restore the state of binlog format */
-  DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
+  assert(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 

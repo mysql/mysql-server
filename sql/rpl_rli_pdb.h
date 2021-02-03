@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include "rpl_rli.h"           // Relay_log_info
 #include "rpl_slave.h"         // MTS_WORKER_UNDEF
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern ulong w_rr;
 #endif
 /**
@@ -122,7 +122,7 @@ typedef struct st_slave_job_group
   int32    done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool     notified;    // to debug group_master_log_name change notification
 #endif
   /* Clock-based scheduler requirement: */
@@ -173,7 +173,7 @@ typedef struct st_slave_job_group
     checkpoint_seqno= (uint) -1;
     done= 0;
     ts= 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     notified= false;
 #endif
     last_committed= SEQ_UNINIT;
@@ -310,7 +310,7 @@ public:
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool count_done(Relay_log_info* rli);
 #endif
 
@@ -324,7 +324,7 @@ public:
   */
   Slave_job_group* get_job_group(ulong ind)
   {
-    DBUG_ASSERT(ind < size);
+    assert(ind < size);
     return &m_Q[ind];
   }
 
@@ -376,7 +376,7 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
   ulong ret;
   if (avail == size)
   {
-    DBUG_ASSERT(avail == m_Q.size());
+    assert(avail == m_Q.size());
     return (ulong) -1;
   }
 
@@ -396,10 +396,10 @@ ulong circular_buffer_queue<Element_type>::en_queue(Element_type *item)
   if (avail == entry)
     avail= size;
 
-  DBUG_ASSERT(avail == entry ||
-              len == (avail >= entry) ?
-              (avail - entry) : (size + avail - entry));
-  DBUG_ASSERT(avail != entry);
+  assert(avail == entry ||
+         len == (avail >= entry) ?
+         (avail - entry) : (size + avail - entry));
+  assert(avail != entry);
 
   return ret;
 }
@@ -419,7 +419,7 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item)
   ulong ret;
   if (entry == size)
   {
-    DBUG_ASSERT(len == 0);
+    assert(len == 0);
     return (ulong) -1;
   }
 
@@ -436,10 +436,10 @@ ulong circular_buffer_queue<Element_type>::de_queue(Element_type *item)
   if (avail == entry)
     entry= size;
 
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
+  assert(entry == size ||
+         (len == (avail >= entry)? (avail - entry) :
+          (size + avail - entry)));
+  assert(avail != entry);
 
   return ret;
 }
@@ -450,7 +450,7 @@ ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item)
 {
   if (entry == size)
   {
-    DBUG_ASSERT(len == 0);
+    assert(len == 0);
     return (ulong) -1;
   }
 
@@ -462,10 +462,10 @@ ulong circular_buffer_queue<Element_type>::de_tail(Element_type *item)
   if (avail == entry)
     entry= size;
 
-  DBUG_ASSERT(entry == size ||
-              (len == (avail >= entry)? (avail - entry) :
-               (size + avail - entry)));
-  DBUG_ASSERT(avail != entry);
+  assert(entry == size ||
+         (len == (avail >= entry)? (avail - entry) :
+          (size + avail - entry)));
+  assert(avail != entry);
 
   return avail;
 }
@@ -511,7 +511,7 @@ public:
   curr_group_exec_parts; // Current Group Executed Partitions
 
   bool curr_group_seen_begin; // is set to TRUE with explicit B-event
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool curr_group_seen_sequence_number; // is set to TRUE about starts_group()
 #endif
   ulong id;                 // numberic identifier of the Worker
@@ -690,12 +690,12 @@ public:
     }
     if (rli_description_event)
     {
-      DBUG_ASSERT(rli_description_event->usage_counter.atomic_get() > 0);
+      assert(rli_description_event->usage_counter.atomic_get() > 0);
 
       if (rli_description_event->usage_counter.atomic_add(-1) == 1)
       {
         /* The being deleted by Worker FD can't be the latest one */
-        DBUG_ASSERT(rli_description_event != c_rli->get_rli_description_event());
+        assert(rli_description_event != c_rli->get_rli_description_event());
 
         delete rli_description_event;
       }

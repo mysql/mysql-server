@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ int table_session_variables::rnd_pos(const void *pos)
     return HA_ERR_RECORD_DELETED;
 
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_sysvar_cache.size());
+  assert(m_pos.m_index < m_sysvar_cache.size());
 
   if (m_sysvar_cache.is_materialized())
   {
@@ -178,7 +178,7 @@ int table_session_variables
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0]= 0;
 
   for (; (f= *fields) ; fields++)
@@ -194,7 +194,7 @@ int table_session_variables
         m_row.m_variable_value.set_field(f);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
       }
     }
   }

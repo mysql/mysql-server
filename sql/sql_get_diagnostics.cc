@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,7 @@ Diagnostics_information_item::set_value(THD *thd, Item **value)
   /* Get a settable reference to the target. */
   srp= m_target->get_settable_routine_parameter();
 
-  DBUG_ASSERT(srp);
+  assert(srp);
 
   /* Set variable/parameter value. */
   rc= srp->set_value(thd, thd->sp_runtime_ctx, value);
@@ -264,7 +264,7 @@ Condition_information::aggregate(THD *thd, const Diagnostics_area *da)
   while (cond_number--)
     cond= it_conds++;
 
-  DBUG_ASSERT(cond);
+  assert(cond);
 
   /* Evaluate the requested information in the context of the condition. */
   while ((cond_info_item= it_items++))

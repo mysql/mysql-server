@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -124,7 +124,7 @@ void init_alloc_root(PSI_memory_key key,
 void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
                          size_t pre_alloc_size MY_ATTRIBUTE((unused)))
 {
-  DBUG_ASSERT(alloc_root_inited(mem_root));
+  assert(alloc_root_inited(mem_root));
 
   mem_root->block_size= block_size - ALLOC_ROOT_MIN_BLOCK_SIZE;
 #if defined(PREALLOCATE_MEMORY_CHUNKS)
@@ -207,7 +207,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
 
-  DBUG_ASSERT(alloc_root_inited(mem_root));
+  assert(alloc_root_inited(mem_root));
 
   DBUG_EXECUTE_IF("simulate_out_of_memory",
                   {
@@ -248,7 +248,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   USED_MEM **prev;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
-  DBUG_ASSERT(alloc_root_inited(mem_root));
+  assert(alloc_root_inited(mem_root));
 
   DBUG_EXECUTE_IF("simulate_out_of_memory",
                   {
@@ -548,7 +548,7 @@ static inline my_bool is_mem_available(MEM_ROOT *mem_root, size_t size)
 */
 void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t max_value)
 {
-  DBUG_ASSERT(alloc_root_inited(mem_root));
+  assert(alloc_root_inited(mem_root));
   mem_root->max_capacity= max_value;
 }
 
@@ -563,7 +563,7 @@ void set_memroot_max_capacity(MEM_ROOT *mem_root, size_t max_value)
 */
 void set_memroot_error_reporting(MEM_ROOT *mem_root, my_bool report_error)
 {
-  DBUG_ASSERT(alloc_root_inited(mem_root));
+  assert(alloc_root_inited(mem_root));
   mem_root->error_for_capacity_exceeded= report_error;
 }
 

@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -364,7 +364,7 @@ public:
   uint host_idx() { return MYSQL_USER_FIELD_HOST; }
   uint user_idx() { return MYSQL_USER_FIELD_USER; }
   //not available
-  uint password_idx() { DBUG_ASSERT(0); return MYSQL_USER_FIELD_COUNT; }
+  uint password_idx() { assert(0); return MYSQL_USER_FIELD_COUNT; }
   uint select_priv_idx() { return MYSQL_USER_FIELD_SELECT_PRIV; }
   uint insert_priv_idx() { return MYSQL_USER_FIELD_INSERT_PRIV; }
   uint update_priv_idx() { return MYSQL_USER_FIELD_UPDATE_PRIV; }

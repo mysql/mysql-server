@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,7 +182,7 @@ static char* directory_file_name(char *dst, const char *src)
 {
   /* Process as Unix format: just remove test the final slash. */
   char *end;
-  DBUG_ASSERT(strlen(src) < (FN_REFLEN + 1));
+  assert(strlen(src) < (FN_REFLEN + 1));
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */

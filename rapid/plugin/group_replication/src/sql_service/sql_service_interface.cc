@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,7 @@ int Sql_service_interface::open_session()
 
 int Sql_service_interface::open_thread_session(void *plugin_ptr)
 {
-  DBUG_ASSERT(plugin_ptr != NULL);
+  assert(plugin_ptr != NULL);
 
   m_session= NULL;
   /* open a server session after server is in operating state */
@@ -236,7 +236,7 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
 long Sql_service_interface::execute_query(std::string sql_string)
 {
   DBUG_ENTER("Sql_service_interface::execute");
-  DBUG_ASSERT(sql_string.length() <= UINT_MAX);
+  assert(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
   Sql_resultset rset;
 
@@ -256,7 +256,7 @@ long Sql_service_interface::execute_query(std::string sql_string,
                                           const CHARSET_INFO *cs_charset)
 {
   DBUG_ENTER("Sql_service_interface::execute");
-  DBUG_ASSERT(sql_string.length() <= UINT_MAX);
+  assert(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
   cmd.com_query.query= (char *) sql_string.c_str();
   cmd.com_query.length= static_cast<unsigned int>(sql_string.length());

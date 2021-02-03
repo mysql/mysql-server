@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,9 +53,9 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::Guard::operator*()
 lock::Shared_spin_lock::Guard &lock::Shared_spin_lock::Guard::acquire(
     enum_lock_acquisition acquisition, bool try_and_fail)
 {
-  DBUG_ASSERT(this->m_acquisition == Shared_spin_lock::SL_NO_ACQUISITION);
-  DBUG_ASSERT(acquisition == Shared_spin_lock::SL_SHARED ||
-              acquisition == Shared_spin_lock::SL_EXCLUSIVE);
+  assert(this->m_acquisition == Shared_spin_lock::SL_NO_ACQUISITION);
+  assert(acquisition == Shared_spin_lock::SL_SHARED ||
+         acquisition == Shared_spin_lock::SL_EXCLUSIVE);
 
   this->m_acquisition= acquisition;
 
@@ -165,7 +165,7 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::try_exclusive()
 
 lock::Shared_spin_lock &lock::Shared_spin_lock::release_shared()
 {
-  DBUG_ASSERT(my_atomic_load32(&this->m_shared_access) > 0);
+  assert(my_atomic_load32(&this->m_shared_access) > 0);
   my_atomic_add32(&this->m_shared_access, -1);
   return (*this);
 }
@@ -174,14 +174,14 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::release_exclusive()
 {
   my_thread_t self= my_thread_self();
   my_thread_t owner= (my_thread_t)(my_atomic_load64(&this->m_exclusive_owner));
-  DBUG_ASSERT(self != 0);
-  DBUG_ASSERT(my_thread_equal(owner, self));
+  assert(self != 0);
+  assert(my_thread_equal(owner, self));
   if (!my_thread_equal(owner, self)) return (*this);
 
   if (my_atomic_load32(&this->m_exclusive_access) == 1)
     my_atomic_store64(&this->m_exclusive_owner, 0);
 
-  DBUG_ASSERT(my_atomic_load32(&this->m_exclusive_access) > 0);
+  assert(my_atomic_load32(&this->m_exclusive_access) > 0);
   my_atomic_add32(&this->m_exclusive_access, -1);
   return (*this);
 }
@@ -239,7 +239,11 @@ lock::Shared_spin_lock &lock::Shared_spin_lock::try_or_spin_exclusive_lock(
   {
     this->spin_exclusive_lock();
   }
+#if defined(__APPLE__)
+  my_atomic_store64(&this->m_exclusive_owner, reinterpret_cast<int64>(self));
+#else
   my_atomic_store64(&this->m_exclusive_owner, self);
+#endif
   return (*this);
 }
 

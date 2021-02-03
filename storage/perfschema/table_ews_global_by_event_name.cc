@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -273,8 +273,8 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
     }
     break;
   case pos_ews_global_by_event_name::VIEW_TABLE:
-    DBUG_ASSERT(m_pos.m_index_2 >= 1);
-    DBUG_ASSERT(m_pos.m_index_2 <= 2);
+    assert(m_pos.m_index_2 >= 1);
+    assert(m_pos.m_index_2 <= 2);
     if (m_pos.m_index_2 == 1)
       make_table_io_row(&global_table_io_class);
     else
@@ -305,7 +305,7 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
     }
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
     break;
   }
 
@@ -447,7 +447,7 @@ int table_ews_global_by_event_name
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  assert(table->s->null_bytes == 0);
 
   for (; (f= *fields) ; fields++)
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -318,7 +318,7 @@ bool log_syslog_update_settings()
 
     SYSLOG_FACILITY rsf = { LOG_DAEMON, "daemon" };
 
-    DBUG_ASSERT(opt_log_syslog_facility != NULL);
+    assert(opt_log_syslog_facility != NULL);
 
     if (log_syslog_find_facility(opt_log_syslog_facility, &rsf))
     {
@@ -449,8 +449,8 @@ bool log_syslog_init(void)
 
 static void ull2timeval(ulonglong utime, struct timeval *tv)
 {
-  DBUG_ASSERT(tv != NULL);
-  DBUG_ASSERT(utime > 0);      /* should hold true in this context */
+  assert(tv != NULL);
+  assert(utime > 0);      /* should hold true in this context */
   tv->tv_sec= static_cast<long>(utime / 1000000);
   tv->tv_usec=utime % 1000000;
 }
@@ -569,9 +569,9 @@ static File mysql_file_real_name_reopen(File file,
                                         const char *opened_file_name,
                                         char *real_file_name)
 {
-  DBUG_ASSERT(file);
-  DBUG_ASSERT(opened_file_name);
-  DBUG_ASSERT(real_file_name);
+  assert(file);
+  assert(opened_file_name);
+  assert(real_file_name);
 
 #ifdef _WIN32
   /* On Windows, O_NOFOLLOW is not supported. Verify real path from fd. */
@@ -630,8 +630,8 @@ bool File_query_log::open()
   else if (m_log_type == QUERY_LOG_GENERAL)
     log_name= opt_general_logname;
   else
-    DBUG_ASSERT(false);
-  DBUG_ASSERT(log_name && log_name[0]);
+    assert(false);
+  assert(log_name && log_name[0]);
 
   write_error= false;
 
@@ -793,7 +793,7 @@ bool File_query_log::write_general(ulonglong event_utime,
   size_t length= 0;
 
   mysql_mutex_lock(&LOCK_log);
-  DBUG_ASSERT(is_open());
+  assert(is_open());
 
   /* Note that my_b_write() assumes it knows the length for this */
   char local_time_buff[iso8601_size];
@@ -847,7 +847,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   end= buff;
 
   mysql_mutex_lock(&LOCK_log);
-  DBUG_ASSERT(is_open());
+  assert(is_open());
 
   if (!(specialflag & SPECIAL_SHORT_LOG_FORMAT))
   {
@@ -1017,7 +1017,7 @@ bool Log_to_csv_event_handler::log_general(THD *thd, ulonglong event_utime,
     default value (which is CURRENT_TIMESTAMP).
   */
 
-  DBUG_ASSERT(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
+  assert(table->field[GLT_FIELD_EVENT_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
   ull2timeval(event_utime, &tv);
   table->field[GLT_FIELD_EVENT_TIME]->store_timestamp(&tv);
 
@@ -1135,7 +1135,7 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
   restore_record(table, s->default_values);    // Get empty record
 
   /* store the time and user values */
-  DBUG_ASSERT(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
+  assert(table->field[SQLT_FIELD_START_TIME]->type() == MYSQL_TYPE_TIMESTAMP);
   ull2timeval(current_utime, &tv);
   table->field[SQLT_FIELD_START_TIME]->store_timestamp(&tv);
 
@@ -1280,7 +1280,7 @@ bool Log_to_csv_event_handler::activate_log(THD *thd,
                               SLOW_LOG_NAME.str, TL_WRITE_CONCURRENT_INSERT);
     break;
   default:
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   Open_tables_backup open_tables_backup;
@@ -1345,7 +1345,7 @@ void Query_logger::cleanup()
 {
   mysql_rwlock_destroy(&LOCK_logger);
 
-  DBUG_ASSERT(file_log_handler);
+  assert(file_log_handler);
   file_log_handler->cleanup();
   delete file_log_handler;
   file_log_handler= NULL;
@@ -1355,7 +1355,7 @@ void Query_logger::cleanup()
 bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   size_t query_length)
 {
-  DBUG_ASSERT(thd->enable_slow_log && opt_slow_log);
+  assert(thd->enable_slow_log && opt_slow_log);
 
   if (!(*slow_log_handler_list))
     return false;
@@ -1577,7 +1577,7 @@ void Query_logger::init_query_log(enum_log_table_type log_type,
     }
   }
   else
-    DBUG_ASSERT(false);
+    assert(false);
 }
 
 
@@ -1666,7 +1666,7 @@ char *make_query_log_name(char *buff, enum_log_table_type log_type)
   else if (log_type == QUERY_LOG_SLOW)
     log_ext= "-slow.log";
   else
-    DBUG_ASSERT(false);
+    assert(false);
 
   strmake(buff, default_logfile_name, FN_REFLEN-5);
   return fn_format(buff, buff, mysql_real_data_home, log_ext,
@@ -1976,7 +1976,7 @@ void flush_error_log_messages()
 
 void init_error_log()
 {
-  DBUG_ASSERT(!error_log_initialized);
+  assert(!error_log_initialized);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
   error_log_initialized= true;
 }
@@ -1984,7 +1984,7 @@ void init_error_log()
 
 bool open_error_log(const char *filename, bool get_lock)
 {
-  DBUG_ASSERT(filename);
+  assert(filename);
   int retries= 2, errors= 0;
 
   do
@@ -2026,7 +2026,7 @@ bool open_error_log(const char *filename, bool get_lock)
 void destroy_error_log()
 {
   // We should have flushed before this...
-  DBUG_ASSERT(!error_log_buffering);
+  assert(!error_log_buffering);
   // ... but play it safe on release builds
   flush_error_log_messages();
   if (error_log_initialized)
@@ -2187,7 +2187,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
   va_list args;
 
-  DBUG_ASSERT(level >= MY_ERROR_LEVEL || level <= MY_INFORMATION_LEVEL);
+  assert(level >= MY_ERROR_LEVEL || level <= MY_INFORMATION_LEVEL);
 
   switch (level)
   {

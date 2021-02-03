@@ -1,4 +1,4 @@
-/*  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -273,7 +273,7 @@ bool reload(MYSQL_THD thd)
   {
     message= MESSAGE_OOM;
   }
-  DBUG_ASSERT(message != NULL);
+  assert(message != NULL);
   my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", message);
   return true;
 }
@@ -345,7 +345,7 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
 static int rewrite_query_notify(MYSQL_THD thd, mysql_event_class_t event_class,
                                  const void *event)
 {
-  DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
+  assert(event_class == MYSQL_AUDIT_PARSE_CLASS);
 
   const struct mysql_event_parse *event_parse=
     static_cast<const struct mysql_event_parse *>(event);

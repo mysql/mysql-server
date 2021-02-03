@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -433,7 +433,7 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
   mysql_event_general event;
   char user_buff[MAX_USER_HOST_SIZE];
 
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   if (mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS,
                                   static_cast<unsigned long>(subclass)))
@@ -1215,7 +1215,7 @@ void mysql_audit_init_thd(THD *thd)
 void mysql_audit_free_thd(THD *thd)
 {
   mysql_audit_release(thd);
-  DBUG_ASSERT(thd->audit_class_plugins.empty());
+  assert(thd->audit_class_plugins.empty());
 }
 
 #ifdef HAVE_PSI_INTERFACE

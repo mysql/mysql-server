@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -754,11 +754,11 @@ public:
   void write(DYNAMIC_STRING* ds)
   {
     DBUG_ENTER("LogFile::write");
-    DBUG_ASSERT(m_file);
+    assert(m_file);
 
     if (ds->length == 0)
       DBUG_VOID_RETURN;
-    DBUG_ASSERT(ds->str);
+    assert(ds->str);
 
     if (fwrite(ds->str, 1, ds->length, m_file) != ds->length)
       die("Failed to write %lu bytes to '%s', errno: %d",
@@ -919,7 +919,7 @@ extern "C" void *connection_thread(void *arg)
         cn->result= mysql_read_query_result(&cn->mysql);
         break;
       default:
-        DBUG_ASSERT(0);
+        assert(0);
     }
     cn->command= 0;
     native_mutex_lock(&cn->result_mutex);
@@ -937,7 +937,7 @@ end_thread:
 
 static void wait_query_thread_done(struct st_connection *con)
 {
-  DBUG_ASSERT(con->has_thread);
+  assert(con->has_thread);
   if (!con->query_done)
   {
     native_mutex_lock(&con->result_mutex);
@@ -950,7 +950,7 @@ static void wait_query_thread_done(struct st_connection *con)
 
 static void signal_connection_thd(struct st_connection *cn, int command)
 {
-  DBUG_ASSERT(cn->has_thread);
+  assert(cn->has_thread);
   cn->query_done= 0;
   cn->command= command;
   native_mutex_lock(&cn->query_mutex);
@@ -978,7 +978,7 @@ static int do_send_query(struct st_connection *cn, const char *q, size_t q_len)
 
 static int do_read_query_result(struct st_connection *cn)
 {
-  DBUG_ASSERT(cn->has_thread);
+  assert(cn->has_thread);
   wait_query_thread_done(cn);
   signal_connection_thd(cn, EMB_READ_QUERY_RESULT);
   wait_query_thread_done(cn);
@@ -1302,7 +1302,7 @@ void check_command_args(struct st_command *command,
       break;
 
     default:
-      DBUG_ASSERT("Unknown argument type");
+      assert("Unknown argument type");
       break;
     }
 
@@ -1491,7 +1491,7 @@ static void cleanup_and_exit(int exit_code)
     break;
     default:
       printf("unknown exit code: %d\n", exit_code);
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
 
@@ -2110,7 +2110,7 @@ void check_result()
   const char* mess= "Result content mismatch\n";
 
   DBUG_ENTER("check_result");
-  DBUG_ASSERT(result_file_name);
+  assert(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
 
   switch (compare_files(log_file.file_name(), result_file_name)) {
@@ -2428,7 +2428,7 @@ void var_set(const char *var_name, const char *var_name_end,
       v->str_val_len= strlen(v->str_val);
     }
     /* setenv() expects \0-terminated strings */
-    DBUG_ASSERT(v->name[v->name_len] == 0);
+    assert(v->name[v->name_len] == 0);
     setenv(v->name, v->str_val, 1);
   }
   DBUG_VOID_RETURN;
@@ -7061,7 +7061,7 @@ static struct my_option my_long_options[] =
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"database", 'D', "Database to use.", &opt_db, &opt_db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
@@ -7261,7 +7261,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
 {
   switch(optid) {
   case '#':
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
     debug_check_flag= 1;
 #endif
@@ -7278,7 +7278,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
       argument= buff;
     }
     fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
-    DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
+    assert(cur_file == file_stack && cur_file->file == 0);
     if (!(cur_file->file=
           fopen(buff, "rb")))
       die("Could not open '%s' for reading, errno: %d", buff, errno);
@@ -7902,7 +7902,7 @@ int append_warnings(DYNAMIC_STRING *ds, MYSQL* mysql)
     through PS API we should not issue SHOW WARNINGS until
     we have not read all results...
   */
-  DBUG_ASSERT(!mysql_more_results(mysql));
+  assert(!mysql_more_results(mysql));
 
   if (mysql_real_query(mysql, "SHOW WARNINGS", 13))
     die("Error running query \"SHOW WARNINGS\": %s", mysql_error(mysql));
@@ -8043,7 +8043,7 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
 		 mysql_sqlstate(mysql), ds);
     goto end;
   }
-  DBUG_ASSERT(err == -1); /* Successful and there are no more results */
+  assert(err == -1); /* Successful and there are no more results */
 
   /* If we come here the query is both executed and read successfully */
   handle_no_error(command);
@@ -8828,7 +8828,8 @@ void run_explain(struct st_connection *cn, struct st_command *command,
 char *re_eprint(int err)
 {
   static char epbuf[100];
-  size_t len= my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
+  size_t len MY_ATTRIBUTE((unused))
+      = my_regerror(MY_REG_ITOA | err, NULL, epbuf, sizeof(epbuf));
   assert(len <= sizeof(epbuf));
   return(epbuf);
 }
@@ -10300,7 +10301,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
       DBUG_PRINT("exit", ("Found end of from string"));
       DBUG_VOID_RETURN;
     }
-    DBUG_ASSERT(from <= str+len);
+    assert(from <= str+len);
     start= from;
     rep_pos=rep;
   }

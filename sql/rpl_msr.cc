@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ bool Multisource_info::add_mi(const char* channel_name, Master_info* mi)
   bool res= false;
 
   /* The check of mi exceeding MAX_CHANNELS shall be done in the caller */
-  DBUG_ASSERT(current_mi_count < MAX_CHANNELS);
+  assert(current_mi_count < MAX_CHANNELS);
 
   replication_channel_map::iterator map_it;
   enum_channel_type type= is_group_replication_channel_name(channel_name)
@@ -85,7 +85,7 @@ Master_info* Multisource_info::get_mi(const char* channel_name)
 
   m_channel_map_lock->assert_some_lock();
 
-  DBUG_ASSERT(channel_name != 0);
+  assert(channel_name != 0);
 
   mi_map::iterator it;
   replication_channel_map::iterator map_it;
@@ -123,7 +123,7 @@ void Multisource_info::delete_mi(const char* channel_name)
   Master_info *mi= 0;
   mi_map::iterator it;
 
-  DBUG_ASSERT(channel_name != 0);
+  assert(channel_name != 0);
 
   replication_channel_map::iterator map_it;
   map_it= rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
@@ -136,10 +136,10 @@ void Multisource_info::delete_mi(const char* channel_name)
       it == map_it->second.end())
   {
     map_it= rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
-    DBUG_ASSERT(map_it != rep_channel_map.end());
+    assert(map_it != rep_channel_map.end());
 
     it= map_it->second.find(channel_name);
-    DBUG_ASSERT(it != map_it->second.end());
+    assert(it != map_it->second.end());
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -147,7 +147,7 @@ void Multisource_info::delete_mi(const char* channel_name)
   /* get the index of mi from rpl_pfs_mi */
   index= get_index_from_rpl_pfs_mi(channel_name);
 
-  DBUG_ASSERT(index != -1);
+  assert(index != -1);
 
   /* set the current index to  0  and decrease current_mi_count */
   rpl_pfs_mi[index] = 0;

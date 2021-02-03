@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
     break;
 
     default:
-      DBUG_ASSERT(0);
+      assert(0);
     break;
   }
 
@@ -381,7 +381,7 @@ int Rpl_info_table::do_reset_info(uint nparam,
       todo: for another table in future, consider to make use of the
       passed parameter to locate the lookup key.
     */
-    DBUG_ASSERT(strcmp(info->str_table.str, "slave_worker_info") == 0);
+    assert(strcmp(info->str_table.str, "slave_worker_info") == 0);
 
     if (info->verify_table_primary_key_fields(table))
     {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 
 struct _db_stack_frame_ {
   const char *func;      /* function name of the previous stack frame       */
@@ -127,7 +127,6 @@ extern  const char* _db_get_func_(void);
 #define DBUG_END()  _db_end_ ()
 #define DBUG_LOCK_FILE _db_lock_file_()
 #define DBUG_UNLOCK_FILE _db_unlock_file_()
-#define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
@@ -193,7 +192,6 @@ extern void _db_flush_gcov_();
 #define DBUG_LONGJMP(a1) longjmp(a1)
 #define DBUG_DUMP(keyword,a1,a2)        do { } while(0)
 #define DBUG_END()                      do { } while(0)
-#define DBUG_ASSERT(A)                  do { } while(0)
 #define DBUG_LOCK_FILE                  do { } while(0)
 #define DBUG_FILE (stderr)
 #define DBUG_UNLOCK_FILE                do { } while(0)
@@ -229,7 +227,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 #endif
 
 #ifdef __cplusplus
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 #include <sstream>
 
 /*
@@ -251,7 +249,7 @@ void debug_sync_point(const char* lock_name, uint lock_timeout);
 	sout << v; \
 	DBUG_PUTS(keyword, sout.str().c_str()); \
 } while(0)
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 #endif /* __cplusplus */
 
 #endif /* MY_DBUG_INCLUDED */

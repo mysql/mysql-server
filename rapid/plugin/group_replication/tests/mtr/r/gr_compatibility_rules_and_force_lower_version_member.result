@@ -38,7 +38,7 @@ ERROR HY000: The server is not configured properly to be an active member of the
 # able to join the group.
 #
 SET @@GLOBAL.DEBUG= @debug_save;
-# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS
+# restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 include/rpl_reconnect.inc
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 include/start_group_replication.inc

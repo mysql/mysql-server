@@ -27,13 +27,13 @@ include/assert.inc ['Assert server-1 and server-2 are ONLINE']
 
 ## 3B. Test GR start on boot when lower_case_table_names matches.
 
-# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=1
+# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=1 --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 include/rpl_reconnect.inc
 
 ## 4A. Test GR does not start on boot when lower_case_table_names
 ##     does not match.
 
-# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=2
+# restart:--group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=2 --group_replication_ip_whitelist=GROUP_REPLICATION_GROUP_WHITELIST
 include/rpl_reconnect.inc
 
 ## 4B. Test GR does not start with command when lower_case_table_names

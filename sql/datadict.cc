@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -95,9 +95,9 @@ bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
   LEX_STRING db_name = {(char *) db, strlen(db)};
 
   /* There should be at least some lock on the table.  */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                                           db, table_name,
-                                                           MDL_SHARED));
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      db, table_name,
+                                                      MDL_SHARED));
 
   if (check_and_convert_db_name(&db_name, FALSE) != IDENT_NAME_OK)
     return TRUE;
@@ -185,9 +185,9 @@ bool dd_recreate_table(THD *thd, const char *db, const char *table_name)
   DBUG_ENTER("dd_recreate_table");
 
   /* There should be a exclusive metadata lock on the table. */
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                                           db, table_name,
-                                                           MDL_EXCLUSIVE));
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      db, table_name,
+                                                      MDL_EXCLUSIVE));
 
   /* Create a path to the table, but without a extension. */
   build_table_filename(path, sizeof(path) - 1, db, table_name, "", 0);

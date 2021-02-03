@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ int
 Certification_handler::initialize()
 {
   DBUG_ENTER("Certification_handler::initialize");
-  DBUG_ASSERT(cert_module == NULL);
+  assert(cert_module == NULL);
   cert_module= new Certifier();
   DBUG_RETURN(0);
 }
@@ -155,8 +155,8 @@ Certification_handler::set_transaction_context(Pipeline_event *pevent)
   DBUG_ENTER("Certification_handler::set_transaction_context");
   int error= 0;
 
-  DBUG_ASSERT(transaction_context_packet == NULL);
-  DBUG_ASSERT(transaction_context_pevent == NULL);
+  assert(transaction_context_packet == NULL);
+  assert(transaction_context_pevent == NULL);
 
   Data_packet *packet= NULL;
   error= pevent->get_Packet(&packet);
@@ -181,8 +181,8 @@ Certification_handler::get_transaction_context(Pipeline_event *pevent,
   DBUG_ENTER("Certification_handler::get_transaction_context");
   int error= 0;
 
-  DBUG_ASSERT(transaction_context_packet != NULL);
-  DBUG_ASSERT(transaction_context_pevent == NULL);
+  assert(transaction_context_packet != NULL);
+  assert(transaction_context_pevent == NULL);
 
   Format_description_log_event *fdle= NULL;
   if (pevent->get_FormatDescription(&fdle) && (fdle == NULL))

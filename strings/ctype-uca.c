@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -19536,14 +19536,14 @@ my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
     Contraction is never longer than MY_UCA_MAX_CONTRACTION,
     which is guaranteed by using my_coll_rule_expand() with proper limit.
   */
-  DBUG_ASSERT(len > 1 && len <= MY_UCA_MAX_CONTRACTION);
+  assert(len > 1 && len <= MY_UCA_MAX_CONTRACTION);
   for (i= 0; i < len; i++)
   {
     /*
       We don't support contractions with U+0000.
       my_coll_rule_expand() guarantees there're no U+0000 in a contraction.
     */
-    DBUG_ASSERT(wc[i] != 0);
+    assert(wc[i] != 0);
     next->ch[i]= wc[i];
   }
   if (i < MY_UCA_MAX_CONTRACTION)
@@ -21061,7 +21061,7 @@ my_coll_rule_shift_at_level(MY_COLL_RULE *r, int level)
     /* Do nothing for '=': use the previous offsets for all levels */
     break;
   default:
-    DBUG_ASSERT(0);
+    assert(0);
   }
 }
 
@@ -21387,7 +21387,7 @@ my_coll_parser_scan_logical_position(MY_COLL_RULE_PARSER *p,
       Let's assert in debug version and print
       a nice error message in production version.
     */
-    DBUG_ASSERT(0);
+    assert(0);
     return my_coll_parser_too_long_error(p, "Logical position");
   }
   return my_coll_parser_scan(p);
@@ -21776,7 +21776,7 @@ my_uca_copy_page(MY_CHARSET_LOADER *loader,
   if (!(dst->weights[page]= (uint16 *) (loader->once_alloc)(size)))
     return TRUE;
 
-  DBUG_ASSERT(src->lengths[page] <= dst->lengths[page]);
+  assert(src->lengths[page] <= dst->lengths[page]);
   memset(dst->weights[page], 0, size);
   for (chc=0 ; chc < 256; chc++)
   {
@@ -21833,7 +21833,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
   else
   {
     /* Shift to an ignorable character, e.g.: & \u0000 < \u0001 */
-    DBUG_ASSERT(to[0] == 0);
+    assert(to[0] == 0);
     to[0]= r->diff[level];
   }
   return FALSE; 
@@ -21878,7 +21878,7 @@ apply_one_rule(MY_CHARSET_LOADER *loader,
   else
   {
     my_wc_t pagec= (r->curr[0] >> 8);
-    DBUG_ASSERT(dst->weights[pagec]);
+    assert(dst->weights[pagec]);
     to= my_char_weight_addr(dst, r->curr[0]);
     /* Store weights of the "reset to" character */
     nweights= my_char_weight_put(dst, to, dst->lengths[pagec], r->base, nreset);

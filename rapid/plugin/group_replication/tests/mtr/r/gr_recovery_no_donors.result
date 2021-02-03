@@ -10,6 +10,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Fatal error during the Recovery process of Group Replication.*");
+call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication recovery.");
 call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("All donors left. Aborting group replication recovery.");
 call mtr.add_suppression("This member has more executed transactions *.*");

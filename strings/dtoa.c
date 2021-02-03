@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -94,7 +94,7 @@ size_t my_fcvt(double x, int precision, char *to, my_bool *error)
   int decpt, sign, len, i;
   char *res, *src, *end, *dst= to;
   char buf[DTOA_BUFF_SIZE];
-  DBUG_ASSERT(precision >= 0 && precision < NOT_FIXED_DEC && to != NULL);
+  assert(precision >= 0 && precision < NOT_FIXED_DEC && to != NULL);
   
   res= dtoa(x, 5, precision, &decpt, &sign, &end, buf, sizeof(buf));
 
@@ -219,7 +219,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
   char *res, *src, *end, *dst= to, *dend= dst + width;
   char buf[DTOA_BUFF_SIZE];
   my_bool have_space, force_e_format;
-  DBUG_ASSERT(width > 0 && to != NULL);
+  assert(width > 0 && to != NULL);
   
   /* We want to remove '-' from equations early */
   if (x < 0.)
@@ -465,9 +465,9 @@ double my_strtod(const char *str, char **end, int *error)
 {
   char buf[DTOA_BUFF_SIZE];
   double res;
-  DBUG_ASSERT(end != NULL && ((str != NULL && *end != NULL) ||
-                              (str == NULL && *end == NULL)) &&
-              error != NULL);
+  assert(end != NULL && ((str != NULL && *end != NULL) ||
+                         (str == NULL && *end == NULL)) &&
+         error != NULL);
 
   res= my_strtod_int(str, end, error, buf, sizeof(buf));
   return (*error == 0) ? res : (res < 0 ? -DBL_MAX : DBL_MAX);
@@ -662,7 +662,7 @@ typedef struct Stack_alloc
 static Bigint *Balloc(int k, Stack_alloc *alloc)
 {
   Bigint *rv;
-  DBUG_ASSERT(k <= Kmax);
+  assert(k <= Kmax);
   if (k <= Kmax &&  alloc->freelist[k])
   {
     rv= alloc->freelist[k];

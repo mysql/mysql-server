@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -272,11 +272,11 @@ Ha_innopart_share::open_table_parts(
 	char	partition_name[FN_REFLEN];
 	bool	index_loaded = true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	if (m_table_share->tmp_table == NO_TMP_TABLE) {
 		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
 	}
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 	m_ref_count++;
 	if (m_table_parts != NULL) {
 		ut_ad(m_ref_count > 1);
@@ -433,11 +433,11 @@ err:
 void
 Ha_innopart_share::close_table_parts()
 {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	if (m_table_share->tmp_table == NO_TMP_TABLE) {
 		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
 	}
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 	m_ref_count--;
 	if (m_ref_count != 0) {
 
@@ -861,7 +861,7 @@ ha_innopart::initialize_auto_increment(
 	ulonglong	auto_inc = 0;
 	const Field*	field = table->found_next_number_field;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 	if (table_share->tmp_table == NO_TMP_TABLE)
 	{
 		mysql_mutex_assert_owner(m_part_share->auto_inc_mutex);
@@ -1122,7 +1122,7 @@ share_error:
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
-	DBUG_ASSERT(table != NULL);
+	assert(table != NULL);
 	m_prebuilt->m_mysql_table = table;
 	m_prebuilt->m_mysql_handler = this;
 
@@ -4599,8 +4599,8 @@ ha_innopart::rnd_pos_by_record(uchar*  record)
 {
 	int error;
 	DBUG_ENTER("ha_innopart::rnd_pos_by_record");
-	DBUG_ASSERT(ha_table_flags() &
-		HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+	assert(ha_table_flags() &
+	       HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
 	/* TODO: Support HA_READ_BEFORE_WRITE_REMOVAL */
 	/* Set m_last_part correctly. */
 	if (unlikely(get_part_for_delete(record,
