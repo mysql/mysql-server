@@ -2420,8 +2420,8 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     THD *thd, const CostingReceiver &receiver,
     const LogicalOrderings &orderings, int order_by_ordering_idx,
-    Query_block *query_block, Prealloced_array<AccessPath *, 4> root_candidates,
-    string *trace) {
+    Query_block *query_block, bool need_rowid_from_tables,
+    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
   JOIN *join = query_block->join;
   assert(join->select_distinct || query_block->is_ordered());
 
@@ -2441,7 +2441,23 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   // If we have grouping followed by a sort, we need to bounce via
   // the buffers of a temporary table. See the comments on
   // CreateTemporaryTableForSortingAggregates().
-  if (query_block->is_explicitly_grouped()) {
+  //
+  // The test on join->sum_funcs is mainly to avoid having to create temporary
+  // tables in unit tests; the rationale is that if there are no aggregate
+  // functions, we also cannot sort on them, and thus, we don't get the problem.
+  // Note that we can't do this if sorting by row IDs, as AggregateIterator
+  // doesn't preserve them (doing so would probably not be worth it for
+  // something that's fairly niche).
+  //
+  // NOTE: We could need row IDs later without need_rowid_from_tables being set,
+  // but only in certain edge cases; for instance, if we sort only constants
+  // (although filesort should arguably be fixed not to request row IDs
+  // in that case). The test here is really about data being pulled from
+  // individual tables, and should be safe.
+  if (query_block->is_explicitly_grouped() &&
+      (*join->sum_funcs != nullptr ||
+       join->rollup_state != JOIN::RollupState::NONE ||
+       need_rowid_from_tables)) {
     temp_table = CreateTemporaryTableForSortingAggregates(thd, query_block,
                                                           &temp_table_param);
     // Filesort now only needs to worry about one input -- this temporary
@@ -3507,9 +3523,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
 
   if (join->select_distinct || query_block->is_ordered()) {
-    root_candidates =
-        ApplyDistinctAndOrder(thd, receiver, orderings, order_by_ordering_idx,
-                              query_block, std::move(root_candidates), trace);
+    root_candidates = ApplyDistinctAndOrder(
+        thd, receiver, orderings, order_by_ordering_idx, query_block,
+        need_rowid, std::move(root_candidates), trace);
   }
 
   // Apply LIMIT, if applicable.
