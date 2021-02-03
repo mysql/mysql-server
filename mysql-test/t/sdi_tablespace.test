@@ -52,18 +52,18 @@ let $MYSQLD_DATADIR = `select @@datadir`;
 
 --echo # Dump SDI for swap table before exchange
 replace_regex /version.*/VERSION/ /created.*/CREATED/
-/last_altered.*/LAST_ALTERED/ /id.*/ID/;
+/last_altered.*/LAST_ALTERED/ /id.*/ID/ /\/\//\//;
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Dump SDI for first partition's tablespace before exchange
 replace_regex /version.*/VERSION/ /created.*/CREATED/
-/last_altered.*/LAST_ALTERED/ /id.*/ID/;
+/last_altered.*/LAST_ALTERED/ /id.*/ID/ /\/\//\//;
 --exec $IBD2SDI $MYSQLD_DATADIR/test/pt1#p#p1.ibd
 
 --echo # Dump SDI for first subpartition's tablespace in source
 --echo # table for import.
 replace_regex /version.*/VERSION/ /created.*/CREATED/
-/last_altered.*/LAST_ALTERED/ /id.*/ID/;
+/last_altered.*/LAST_ALTERED/ /id.*/ID/ /\/\//\//;
 --exec $IBD2SDI $MYSQLD_DATADIR/src/src_t2#p#p0#sp#p0sp0.ibd
 
 --echo # Restart server again
@@ -153,22 +153,22 @@ SELECT * FROM dst_t2 ORDER BY c1;
 
 --echo # Dump SDI from swap table after exchange
 replace_regex /version.*/VERSION/ /created.*/CREATED/
-/last_altered.*/LAST_ALTERED/ /id.*/ID/;
+/last_altered.*/LAST_ALTERED/ /id.*/ID/ /\/\//\//;
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Dump SDI from first partition's tablespace after exchange
 replace_regex /version.*/VERSION/ /created.*/CREATED/
-/last_altered.*/LAST_ALTERED/ /id.*/ID/;
+/last_altered.*/LAST_ALTERED/ /id.*/ID/ /\/\//\//;
 --exec $IBD2SDI $MYSQLD_DATADIR/test/pt1#p#p1.ibd
 
 --echo # Dump SDI from dst_t2's first (SDI) partition's tablespace after import.
 replace_regex /version.*/VERSION/ /created.*/CREATED/
-/last_altered.*/LAST_ALTERED/ /id.*/ID/;
+/last_altered.*/LAST_ALTERED/ /id.*/ID/ /\/\//\//;
 --exec $IBD2SDI $MYSQLD_DATADIR/dst/dst_t2#p#p0#sp#p0sp0.ibd
 
 --echo # Dump SDI from the subpartition tablespace now holding what was the first (SDI) partition of src_t2
 replace_regex /version.*/VERSION/ /created.*/CREATED/
-/last_altered.*/LAST_ALTERED/ /id.*/ID/;
+/last_altered.*/LAST_ALTERED/ /id.*/ID/ /\/\//\//;
 --exec $IBD2SDI $MYSQLD_DATADIR/dst/dst_t2#p#p1#sp#p1sp0.ibd
 
 --echo # Restart server again
