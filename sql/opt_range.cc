@@ -6770,7 +6770,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
 
     field_length -= null_bytes;
     like_error = my_like_range(
-        field->charset(), res->ptr(), res->length(), like_func->escape,
+        field->charset(), res->ptr(), res->length(), like_func->escape(),
         wild_one, wild_many, field_length, (char *)min_str + offset,
         (char *)max_str + offset, &min_length, &max_length);
     if (like_error)  // Can't optimize with LIKE

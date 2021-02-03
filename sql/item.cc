@@ -3290,6 +3290,18 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value) {
   return (decimal_value);
 }
 
+bool Item_string::set_str_with_copy(const char *str_arg, uint length_arg,
+                                    const CHARSET_INFO *from_cs) {
+  unsigned errors;
+  if (str_value.copy(str_arg, length_arg, from_cs, collation.collation,
+                     &errors)) {
+    return true;
+  }
+
+  fix_char_length(str_value.length());
+  return false;
+}
+
 /**
    @sa enum_query_type.
    For us to be able to print a query (in debugging, optimizer trace, EXPLAIN

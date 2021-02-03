@@ -5097,6 +5097,8 @@ class Item_string : public Item_basic_constant {
     max_length = static_cast<uint32>(str_value.numchars() *
                                      collation.collation->mbmaxlen);
   }
+  bool set_str_with_copy(const char *str_arg, uint length_arg,
+                         const CHARSET_INFO *from_cs);
   void set_repertoire_from_value() {
     collation.repertoire = my_string_repertoire(
         str_value.charset(), str_value.ptr(), str_value.length());
