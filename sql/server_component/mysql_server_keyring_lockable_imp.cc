@@ -206,7 +206,7 @@ namespace service_definition {
 static bool check_service(const void *service,
                           enum lockable_service_enum name) {
   if (service == nullptr) {
-    LogErr(ERROR_LEVEL, ER_NO_KEYRING_COMPONENT_SERVICE_FOUND,
+    LogErr(WARNING_LEVEL, ER_WARN_NO_KEYRING_COMPONENT_SERVICE_FOUND,
            lockable_service_names[name]);
     return true;
   }
