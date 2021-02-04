@@ -138,6 +138,7 @@ class sys_var {
 
  protected:
   typedef bool (*on_check_function)(sys_var *self, THD *thd, set_var *var);
+  typedef bool (*pre_update_function)(sys_var *self, THD *thd, set_var *var);
   typedef bool (*on_update_function)(sys_var *self, THD *thd,
                                      enum_var_type type);
 
@@ -148,6 +149,11 @@ class sys_var {
   PolyLock *guard;                ///< *second* lock that protects the variable
   ptrdiff_t offset;  ///< offset to the value from global_system_variables
   on_check_function on_check;
+  /**
+    Pointer to function to be invoked before updating system variable (but
+    after calling on_check hook), while we do not hold any locks yet.
+  */
+  pre_update_function pre_update;
   on_update_function on_update;
   const char *const deprecation_substitute;
   bool is_os_charset;  ///< true if the value is in character_set_filesystem

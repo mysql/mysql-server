@@ -120,6 +120,7 @@ class Sys_var_integer;
 #define NOT_IN_BINLOG sys_var::VARIABLE_NOT_IN_BINLOG
 #define ON_READ(X) X
 #define ON_CHECK(X) X
+#define PRE_UPDATE(X) X
 #define ON_UPDATE(X) X
 #define READ_ONLY sys_var::READONLY +
 #define NOT_VISIBLE sys_var::INVISIBLE +
@@ -1662,12 +1663,14 @@ class Sys_var_bit : public Sys_var_typelib {
       ulonglong bitmask_arg, bool def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
+      pre_update_function pre_update_func = nullptr,
       on_update_function on_update_func = nullptr,
       const char *substitute = nullptr)
       : Sys_var_typelib(name_arg, comment, flag_args, off, getopt, SHOW_MY_BOOL,
                         bool_values, def_val, lock, binlog_status_arg,
                         on_check_func, on_update_func, substitute) {
     option.var_type = GET_BOOL;
+    pre_update = pre_update_func;
     reverse_semantics = my_count_bits(bitmask_arg) > 1;
     bitmask = reverse_semantics ? ~bitmask_arg : bitmask_arg;
     set(global_var_ptr(), def_val);
