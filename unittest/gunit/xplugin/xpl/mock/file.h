@@ -36,7 +36,7 @@ namespace mock {
 class File : public iface::File {
  public:
   File();
-  virtual ~File();
+  virtual ~File() override;
 
   MOCK_METHOD(bool, is_valid, (), (override));
 

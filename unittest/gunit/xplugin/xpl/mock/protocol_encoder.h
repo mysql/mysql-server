@@ -39,7 +39,7 @@ namespace mock {
 class Protocol_encoder : public iface::Protocol_encoder {
  public:
   Protocol_encoder();
-  virtual ~Protocol_encoder();
+  virtual ~Protocol_encoder() override;
 
   MOCK_METHOD(bool, is_building_row, (), (const, override));
   MOCK_METHOD(bool, send_result, (const ngs::Error_code &), (override));

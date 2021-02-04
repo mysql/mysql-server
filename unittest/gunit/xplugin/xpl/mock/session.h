@@ -38,7 +38,7 @@ namespace mock {
 class Session : public iface::Session {
  public:
   Session();
-  virtual ~Session();
+  virtual ~Session() override;
 
   MOCK_METHOD(Session_id, session_id, (), (const, override));
   MOCK_METHOD(ngs::Error_code, init, (), (override));

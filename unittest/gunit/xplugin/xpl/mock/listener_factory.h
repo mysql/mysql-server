@@ -38,7 +38,7 @@ namespace mock {
 class Listener_factory : public iface::Listener_factory {
  public:
   Listener_factory();
-  virtual ~Listener_factory();
+  virtual ~Listener_factory() override;
 
   MOCK_METHOD(iface::Listener *, create_unix_socket_listener_ptr,
               (const std::string &unix_socket_path,

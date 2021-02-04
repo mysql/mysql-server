@@ -37,7 +37,7 @@ namespace mock {
 class Notice_configuration : public iface::Notice_configuration {
  public:
   Notice_configuration();
-  virtual ~Notice_configuration();
+  virtual ~Notice_configuration() override;
 
   MOCK_METHOD(bool, get_notice_type_by_name,
               (const std::string &name, ngs::Notice_type *out_notice_type),

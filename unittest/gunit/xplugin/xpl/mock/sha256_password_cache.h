@@ -40,7 +40,7 @@ namespace mock {
 class Sha256_password_cache : public iface::SHA256_password_cache {
  public:
   Sha256_password_cache();
-  virtual ~Sha256_password_cache();
+  virtual ~Sha256_password_cache() override;
 
   MOCK_METHOD3(upsert, bool(const std::string &, const std::string &,
                             const std::string &));
@@ -61,7 +61,7 @@ class Sha256_password_cache : public iface::SHA256_password_cache {
 class Cache_based_verification : public xpl::Cache_based_verification {
  public:
   explicit Cache_based_verification(xpl::iface::SHA256_password_cache *cache);
-  virtual ~Cache_based_verification();
+  virtual ~Cache_based_verification() override;
 
   MOCK_METHOD(const std::string &, get_salt, (), (const, override));
 };

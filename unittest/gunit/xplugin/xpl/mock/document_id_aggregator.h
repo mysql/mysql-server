@@ -37,7 +37,7 @@ namespace mock {
 class Document_id_aggregator : public iface::Document_id_aggregator {
  public:
   Document_id_aggregator();
-  virtual ~Document_id_aggregator();
+  virtual ~Document_id_aggregator() override;
 
   MOCK_METHOD(std::string, generate_id, (), (override));
   MOCK_METHOD(std::string, generate_id, (const Variables &), (override));

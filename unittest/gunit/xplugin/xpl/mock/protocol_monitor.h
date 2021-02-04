@@ -36,7 +36,7 @@ namespace mock {
 class Protocol_monitor : public iface::Protocol_monitor {
  public:
   Protocol_monitor();
-  virtual ~Protocol_monitor();
+  virtual ~Protocol_monitor() override;
 
   MOCK_METHOD(void, init, (iface::Client *), (override));
   MOCK_METHOD(void, on_notice_warning_send, (), (override));

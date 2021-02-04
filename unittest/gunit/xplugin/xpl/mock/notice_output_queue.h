@@ -36,7 +36,7 @@ namespace mock {
 class Notice_output_queue : public iface::Notice_output_queue {
  public:
   Notice_output_queue();
-  virtual ~Notice_output_queue();
+  virtual ~Notice_output_queue() override;
 
   MOCK_METHOD(void, emplace, (const Buffer_shared &binary_notice), (override));
   MOCK_METHOD(iface::Waiting_for_io *, get_callbacks_waiting_for_io, (),

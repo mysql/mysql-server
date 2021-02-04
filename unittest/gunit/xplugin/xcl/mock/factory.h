@@ -37,7 +37,7 @@ namespace mock {
 class Protocol_factory : public xcl::Protocol_factory {
  public:
   Protocol_factory();
-  virtual ~Protocol_factory();
+  virtual ~Protocol_factory() override;
 
   MOCK_METHOD(XProtocol *, create_protocol_raw,
               (std::shared_ptr<Context> context));
