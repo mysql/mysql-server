@@ -580,7 +580,7 @@ TEST_F(RoutingTests, bug_24841281) {
   EXPECT_EQ(0, routing.get_context().info_active_routes_.load());
 #endif
   env.clear_running();  // shut down MySQLRouting
-  routing.notify_socket_acceptors();
+  routing.stop_socket_acceptors();
   server.stop();
   thd.join();
 }

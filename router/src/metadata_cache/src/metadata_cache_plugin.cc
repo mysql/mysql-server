@@ -97,12 +97,13 @@ class MetadataServersStateListener
       : dynamic_state_(dynamic_state), replicaset_name_(replicaset_name) {}
 
   ~MetadataServersStateListener() override {
-    metadata_cache::MetadataCacheAPI::instance()->remove_listener(
+    metadata_cache::MetadataCacheAPI::instance()->remove_state_listener(
         replicaset_name_, this);
   }
 
-  void notify(const LookupResult &instances, const bool md_servers_reachable,
-              const unsigned view_id) override {
+  void notify_instances_changed(const LookupResult &instances,
+                                const bool md_servers_reachable,
+                                const unsigned view_id) override {
     if (!md_servers_reachable) return;
     auto md_servers = instances.instance_vector;
 
@@ -213,7 +214,8 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     if (md_cache_dynamic_state) {
       md_servers_state_listener.reset(new MetadataServersStateListener(
           *md_cache_dynamic_state.get(), replicaset_id));
-      md_cache->add_listener(replicaset_id, md_servers_state_listener.get());
+      md_cache->add_state_listener(replicaset_id,
+                                   md_servers_state_listener.get());
     }
 
     // start metadata cache

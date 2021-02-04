@@ -165,19 +165,42 @@ class METADATA_API MetadataCache
    * @param listener Observer object that is notified when replicaset nodes
    * state is changed.
    */
-  void add_listener(
+  void add_state_listener(
       const std::string &replicaset_name,
       metadata_cache::ReplicasetStateListenerInterface *listener) override;
 
   /**
-   * @brief Unregister observer previously registered with add_listener()
+   * @brief Unregister observer previously registered with add_state_listener()
    *
    * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
-  void remove_listener(
+  void remove_state_listener(
       const std::string &replicaset_name,
       metadata_cache::ReplicasetStateListenerInterface *listener) override;
+
+  /**
+   * @brief Register observer that is notified when the state of listening
+   * socket acceptors should be updated on the next metadata refresh.
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that is notified when replicaset nodes
+   * state is changed.
+   */
+  void add_acceptor_handler_listener(
+      const std::string &replicaset_name,
+      metadata_cache::AcceptorUpdateHandlerInterface *listener);
+
+  /**
+   * @brief Unregister observer previously registered with
+   * add_acceptor_handler_listener()
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that should be unregistered.
+   */
+  void remove_acceptor_handler_listener(
+      const std::string &replicaset_name,
+      metadata_cache::AcceptorUpdateHandlerInterface *listener);
 
   metadata_cache::MetadataCacheAPIBase::RefreshStatus refresh_status() {
     return stats_([](auto const &stats)
@@ -210,7 +233,12 @@ class METADATA_API MetadataCache
   std::pair<bool, MetaData::auth_credentials_t::mapped_type>
   get_rest_user_auth_data(const std::string &user);
 
-  void force_instance_update_on_refresh() { force_instance_update_ = true; }
+  /**
+   * Toggle socket acceptors state update on next metadata refresh.
+   */
+  void handle_sockets_acceptors_on_md_refresh() {
+    trigger_acceptor_update_on_next_refresh_ = true;
+  }
 
  protected:
   /** @brief Refreshes the cache
@@ -226,6 +254,13 @@ class METADATA_API MetadataCache
   // the subscribed observers
   void on_instances_changed(const bool md_servers_reachable,
                             unsigned view_id = 0);
+
+  /**
+   * Called when the listening sockets acceptors state should be updated but
+   * replicaset instances has not changed (in that case socket acceptors would
+   * be handled when calling on_instances_changed).
+   */
+  void on_handle_sockets_acceptors();
 
   // Called each time we were requested to refresh the metadata
   void on_refresh_requested();
@@ -321,9 +356,15 @@ class METADATA_API MetadataCache
   // called on selected replicaset instances change event
   std::mutex replicaset_instances_change_callbacks_mtx_;
 
+  std::mutex acceptor_handler_callbacks_mtx_;
+
   std::map<std::string,
            std::set<metadata_cache::ReplicasetStateListenerInterface *>>
-      listeners_;
+      state_listeners_;
+
+  std::map<std::string,
+           std::set<metadata_cache::AcceptorUpdateHandlerInterface *>>
+      acceptor_update_listeners_;
 
   struct Stats {
     std::chrono::system_clock::time_point last_refresh_failed;
@@ -342,7 +383,11 @@ class METADATA_API MetadataCache
 
   bool ready_announced_{false};
 
-  std::atomic<bool> force_instance_update_{false};
+  /**
+   * Flag indicating if socket acceptors state should be updated on next
+   * metadata refresh even if instance information has not changed.
+   */
+  bool trigger_acceptor_update_on_next_refresh_{false};
 };
 
 bool operator==(const MetaData::ReplicaSetsByName &map_a,

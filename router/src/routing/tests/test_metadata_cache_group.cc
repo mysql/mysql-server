@@ -30,6 +30,7 @@
 #include <gmock/gmock.h>
 
 #include "mysqlrouter/destination.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "router_test_helpers.h"  // ASSERT_THROW_LIKE
 #include "test/helpers.h"         // init_test_logger
 
@@ -77,17 +78,24 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
     return LookupResult(instance_vector_);
   }
 
-  void add_listener(
+  void add_state_listener(
       const std::string &,
       metadata_cache::ReplicasetStateListenerInterface *listener) override {
     instances_change_listener_ = listener;
   }
 
-  void remove_listener(
+  void remove_state_listener(
       const std::string &,
       metadata_cache::ReplicasetStateListenerInterface *) override {
     instances_change_listener_ = nullptr;
   }
+
+  MOCK_METHOD2(add_acceptor_handler_listener,
+               void(const std::string &,
+                    metadata_cache::AcceptorUpdateHandlerInterface *));
+  MOCK_METHOD2(remove_acceptor_handler_listener,
+               void(const std::string &,
+                    metadata_cache::AcceptorUpdateHandlerInterface *));
 
   MOCK_METHOD0(enable_fetch_auth_metadata, void());
   MOCK_METHOD0(force_cache_update, void());
@@ -104,7 +112,7 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
                bool(const std::string &, const std::string &,
                     const std::chrono::seconds &));
 
-  MOCK_METHOD0(force_instance_update_on_refresh, void());
+  MOCK_METHOD0(handle_sockets_acceptors_on_md_refresh, void());
 
   // cannot mock it as it has more than 10 parameters
   void cache_init(
@@ -146,8 +154,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   void trigger_instances_change_callback(
       const bool md_servers_reachable = true) {
     if (!instances_change_listener_) return;
-    instances_change_listener_->notify(instance_vector_, md_servers_reachable,
-                                       0);
+    instances_change_listener_->notify_instances_changed(
+        instance_vector_, md_servers_reachable, 0);
   }
 
   std::vector<metadata_cache::ManagedInstance> instance_vector_;
