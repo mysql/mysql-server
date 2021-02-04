@@ -6816,10 +6816,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   }
 
   m_user_thd = nullptr;
-
-  if (!(m_share = get_share(name))) {
-    return 1;
-  }
+  m_share = nullptr;
 
   /* Will be allocated if it is needed in ::update_row() */
   m_upd_buf = nullptr;
@@ -6891,14 +6888,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       }
     }
 
-    /* ib_table could be freed, reset the index_mapping */
-    if (ib_table == nullptr && m_share->idx_trans_tbl.index_count > 0) {
-      ut_free(m_share->idx_trans_tbl.index_mapping);
-      m_share->idx_trans_tbl.index_mapping = nullptr;
-      m_share->idx_trans_tbl.index_count = 0;
-      m_share->idx_trans_tbl.array_size = 0;
-    }
-
     mutex_exit(&dict_sys->mutex);
 
     if (!cached) {
@@ -6907,7 +6896,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
       if (!(ib_table =
                 dd_open_table(client, table, norm_name, table_def, thd))) {
-        free_share(m_share);
         set_my_errno(ENOENT);
         return HA_ERR_NO_SUCH_TABLE;
       }
@@ -6925,6 +6913,17 @@ int ha_innobase::open(const char *name, int, uint open_flags,
 
     ib_table->is_dd_table =
         dd::get_dictionary()->is_dd_table_name(db_str.c_str(), tbl_str.c_str());
+  }
+
+  /* m_share might hold pointers to dict table indexes without any pin.
+  We must always allocate m_share after opening the dict_table_t object
+  and free it before de-allocating dict_table_t to avoid race. */
+  if (ib_table != nullptr) {
+    m_share = get_share(name);
+    if (m_share == nullptr) {
+      dict_table_close(ib_table, FALSE, FALSE);
+      return HA_ERR_SE_OUT_OF_MEMORY;
+    }
   }
 
   if (ib_table != nullptr &&
@@ -6945,6 +6944,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
     ib_table->first_index()->type |= DICT_CORRUPT;
+    free_share(m_share);
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = nullptr;
   }
@@ -6956,10 +6956,10 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
 
+    free_share(m_share);
     dict_table_close(ib_table, FALSE, FALSE);
     ib_table = nullptr;
 
-    free_share(m_share);
     my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
 
     return HA_ERR_TABLE_CORRUPT;
@@ -6969,7 +6969,6 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     ib::warn(ER_IB_MSG_557)
         << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
 
-    free_share(m_share);
     set_my_errno(ENOENT);
 
     return HA_ERR_NO_SUCH_TABLE;
@@ -7304,6 +7303,8 @@ int ha_innobase::close() {
     vec->erase(std::remove(vec->begin(), vec->end(), m_prebuilt), vec->end());
   }
 
+  free_share(m_share);
+
   row_prebuilt_free(m_prebuilt, FALSE);
 
   if (m_upd_buf != nullptr) {
@@ -7312,8 +7313,6 @@ int ha_innobase::close() {
     m_upd_buf = nullptr;
     m_upd_buf_size = 0;
   }
-
-  free_share(m_share);
 
   MONITOR_INC(MONITOR_TABLE_CLOSE);
 
