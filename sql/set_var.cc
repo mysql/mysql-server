@@ -239,6 +239,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
       guard(lock),
       offset(off),
       on_check(on_check_func),
+      pre_update(nullptr),
       on_update(on_update_func),
       deprecation_substitute(substitute),
       is_os_charset(false) {
@@ -284,6 +285,13 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
 }
 
 bool sys_var::update(THD *thd, set_var *var) {
+  /*
+    Invoke preparatory step for updating a system variable. Doing this action
+    before we have acquired any locks allows to invoke code which acquires other
+    locks without introducing deadlocks.
+  */
+  if (pre_update && pre_update(this, thd, var)) return true;
+
   enum_var_type type = var->type;
   if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL) {
     /*

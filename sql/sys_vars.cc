@@ -4988,6 +4988,32 @@ static Sys_var_debug_sync Sys_debug_sync("debug_sync", "Debug Sync Facility",
                                          ON_CHECK(check_session_admin));
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
+/**
+  Pre-update function to commit connection's active transactions when autocommit
+  is enabled.
+
+  @note This hook relies on the fact that it is called while not holding any
+        locks. Breaking this assumption might result in deadlocks as commit
+        acquires many different locks in its process (e.g. to open GTID-related
+        tables).
+
+  @param[in] self   A pointer to the sys_var, i.e. Sys_autocommit.
+  @param[in] thd    A reference to THD object.
+  @param[in] var    A pointer to the set_var created by the parser.
+
+  @retval true   Error during commit
+  @retval false  Otherwise
+*/
+static bool pre_autocommit(sys_var *self, THD *thd, set_var *var) {
+  if (!(self->is_global_persist(var->type)) &&
+      (thd->variables.option_bits & OPTION_NOT_AUTOCOMMIT) &&
+      var->save_result.ulonglong_value) {
+    // Autocommit mode is about to be activated.
+    if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
+  }
+  return false;
+}
+
 static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type) {
   if (self->is_global_persist(type)) {
     if (global_system_variables.option_bits & OPTION_AUTOCOMMIT)
@@ -5000,11 +5026,6 @@ static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type) {
   if (thd->variables.option_bits & OPTION_AUTOCOMMIT &&
       thd->variables.option_bits &
           OPTION_NOT_AUTOCOMMIT) {  // activating autocommit
-
-    if (trans_commit_stmt(thd) || trans_commit(thd)) {
-      thd->variables.option_bits &= ~OPTION_AUTOCOMMIT;
-      return true;
-    }
     /*
       Don't close thread tables or release metadata locks: if we do so, we
       risk releasing locks/closing tables of expressions used to assign
@@ -5039,7 +5060,8 @@ static Sys_var_bit Sys_autocommit("autocommit", "autocommit",
                                   SESSION_VAR(option_bits), NO_CMD_LINE,
                                   OPTION_AUTOCOMMIT, DEFAULT(true),
                                   NO_MUTEX_GUARD, NOT_IN_BINLOG,
-                                  ON_CHECK(nullptr), ON_UPDATE(fix_autocommit));
+                                  ON_CHECK(nullptr), PRE_UPDATE(pre_autocommit),
+                                  ON_UPDATE(fix_autocommit));
 export sys_var *Sys_autocommit_ptr = &Sys_autocommit;  // for sql_yacc.yy
 
 static Sys_var_bool Sys_big_tables(
@@ -5168,8 +5190,8 @@ static Sys_var_bit Sys_profiling("profiling", "profiling",
                                  SESSION_VAR(option_bits), NO_CMD_LINE,
                                  OPTION_PROFILING, DEFAULT(false),
                                  NO_MUTEX_GUARD, NOT_IN_BINLOG,
-                                 ON_CHECK(nullptr), ON_UPDATE(nullptr),
-                                 DEPRECATED_VAR(""));
+                                 ON_CHECK(nullptr), PRE_UPDATE(nullptr),
+                                 ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_profiling_history_size(
     "profiling_history_size", "Limit of query profiling memory",
