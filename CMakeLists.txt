@@ -1860,12 +1860,15 @@ IF(APPLE AND NOT BUILD_IS_SINGLE_CONFIG)
     EXECUTE_PROCESS(
       COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/Debug
       COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/RelWithDebInfo
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/Release
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${dir}/MinSizeRel
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
       )
   ENDFOREACH()
 ENDIF()
 
 IF(UNIX)
+  # Create convenience symlinks bin/ and lib/
   EXECUTE_PROCESS(
     COMMAND ${CMAKE_COMMAND} -E create_symlink
      ./runtime_output_directory bin
@@ -1873,6 +1876,28 @@ IF(UNIX)
      ./library_output_directory lib
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
   )
+ENDIF()
+
+# Without any --plugin-dir=<directory name> the server will look in
+# INSTALL_PLUGINDIR, which is "lib/plugin" for standalone builds.
+# This means that by default, we create a symlink plugin@ in lib/.
+# For other values of INSTALL_LAYOUT we split the INSTALL_PLUGINDIR path,
+# create the necessary directories,
+# and add a symlink `basename ${INSTALL_PLUGINDIR}`.
+IF(UNIX AND BUILD_IS_SINGLE_CONFIG)
+  GET_FILENAME_COMPONENT(INSTALL_PLUGINDIR_PATH ${INSTALL_PLUGINDIR} PATH)
+  GET_FILENAME_COMPONENT(INSTALL_PLUGINDIR_NAME ${INSTALL_PLUGINDIR} NAME)
+  IF(NOT IS_DIRECTORY ${CMAKE_BINARY_DIR}/${INSTALL_PLUGINDIR_PATH})
+    # Create the given directories and their parents as needed.
+    MESSAGE(STATUS "MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${INSTALL_PLUGINDIR_PATH}")
+    FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/${INSTALL_PLUGINDIR_PATH})
+  ENDIF()
+
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E create_symlink
+    ${CMAKE_BINARY_DIR}/plugin_output_directory ${INSTALL_PLUGINDIR_NAME}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/${INSTALL_PLUGINDIR_PATH}
+    )
 ENDIF()
 
 SET(DOXYGEN_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/doxygen")
