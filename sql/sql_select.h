@@ -990,4 +990,23 @@ SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
  */
 uint actual_key_flags(const KEY *key_info);
 
+/**
+  Check if equality can be used to remove sub-clause of GROUP BY/ORDER BY
+
+  @param func   comparison operator (= or <=>)
+  @param v      variable comparison operand (validated to be equal to
+                                             ordering expression)
+  @param c      other comparison operand (likely to be a constant)
+
+  @returns whether equality determines uniqueness
+
+    Checks if an equality predicate can be used to remove a GROUP BY/ORDER BY
+    sub-clause when it is known to be true for exactly one distinct value
+    (e.g. "expr" == "const").
+    Arguments must be of the same type because e.g. "string_field" = "int_const"
+     may match more than one distinct value from the column.
+ */
+bool equality_determines_uniqueness(const Item_func_comparison *func,
+                                    const Item *v, const Item *c);
+
 #endif /* SQL_SELECT_INCLUDED */
