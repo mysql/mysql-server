@@ -846,11 +846,11 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
   row_ext_t *ext;
   THD *thd = current_thd;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
-  rec_offs_init(offsets_);
-  const ulint *offsets =
-      rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &cascade->heap);
   mem_heap_t *v_heap = nullptr;
   upd_t *update = cascade->update;
+  rec_offs_init(offsets_);
+  const ulint *offsets =
+      rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &update->heap);
   ulint n_v_fld = index->table->n_v_def;
   ulint n_diff;
   upd_field_t *upd_field;
@@ -858,7 +858,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
 
   update->old_vrow =
       row_build(ROW_COPY_POINTERS, index, rec, offsets, index->table, nullptr,
-                nullptr, &ext, cascade->heap);
+                nullptr, &ext, update->heap);
 
   n_diff = update->n_fields;
 
@@ -890,7 +890,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
     upd_field = upd_get_nth_field(update, n_diff);
 
     upd_field->old_v_val = static_cast<dfield_t *>(
-        mem_heap_alloc(cascade->heap, sizeof *upd_field->old_v_val));
+        mem_heap_alloc(update->heap, sizeof *upd_field->old_v_val));
 
     dfield_copy(upd_field->old_v_val, vfield);
 
