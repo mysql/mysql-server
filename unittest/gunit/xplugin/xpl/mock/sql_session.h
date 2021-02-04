@@ -39,7 +39,7 @@ namespace mock {
 class Sql_session : public iface::Sql_session {
  public:
   Sql_session();
-  virtual ~Sql_session();
+  virtual ~Sql_session() override;
 
   MOCK_METHOD(ngs::Error_code, set_connection_type, (const Connection_type),
               (override));

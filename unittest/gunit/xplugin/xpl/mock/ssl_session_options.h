@@ -38,7 +38,7 @@ namespace mock {
 class Ssl_session_options : public iface::Ssl_session_options {
  public:
   Ssl_session_options();
-  virtual ~Ssl_session_options();
+  virtual ~Ssl_session_options() override;
 
   MOCK_METHOD(bool, active_tls, (), (const, override));
 

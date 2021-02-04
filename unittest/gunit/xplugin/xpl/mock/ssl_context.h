@@ -36,7 +36,7 @@ namespace mock {
 class Ssl_context : public iface::Ssl_context {
  public:
   Ssl_context();
-  virtual ~Ssl_context();
+  virtual ~Ssl_context() override;
 
   MOCK_METHOD(bool, setup,
               (const char *tls_version, const char *ssl_key, const char *ssl_ca,

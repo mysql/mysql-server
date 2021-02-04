@@ -37,7 +37,7 @@ namespace mock {
 class Account_verification : public iface::Account_verification {
  public:
   Account_verification();
-  virtual ~Account_verification();
+  virtual ~Account_verification() override;
 
   MOCK_METHOD(const std::string &, get_salt, (), (const, override));
   MOCK_METHOD(bool, verify_authentication_string,

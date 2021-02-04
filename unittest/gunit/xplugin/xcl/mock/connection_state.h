@@ -39,7 +39,7 @@ namespace mock {
 class XConnection_state : public xcl::XConnection::State {
  public:
   XConnection_state();
-  virtual ~XConnection_state();
+  virtual ~XConnection_state() override;
 
   MOCK_METHOD(bool, is_ssl_configured, (), (const, override));
   MOCK_METHOD(bool, is_ssl_activated, (), (const, override));

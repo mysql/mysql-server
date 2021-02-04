@@ -38,7 +38,7 @@ class Account_verification_handler
     : public iface::Account_verification_handler {
  public:
   Account_verification_handler();
-  virtual ~Account_verification_handler();
+  virtual ~Account_verification_handler() override;
 
   MOCK_METHOD(ngs::Error_code, authenticate,
               (const iface::Authentication &, iface::Authentication_info *,

@@ -37,7 +37,7 @@ namespace mock {
 class Document_id_generator : public iface::Document_id_generator {
  public:
   Document_id_generator();
-  virtual ~Document_id_generator();
+  virtual ~Document_id_generator() override;
 
   MOCK_METHOD(std::string, generate,
               (const iface::Document_id_generator::Variables &), (override));

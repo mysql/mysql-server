@@ -37,7 +37,7 @@ namespace mock {
 class Authentication : public iface::Authentication {
  public:
   Authentication();
-  virtual ~Authentication();
+  virtual ~Authentication() override;
 
   MOCK_METHOD(Response, handle_start,
               (const std::string &, const std::string &, const std::string &),

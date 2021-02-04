@@ -37,7 +37,7 @@ namespace mock {
 class Capability_handler : public iface::Capability_handler {
  public:
   Capability_handler();
-  virtual ~Capability_handler();
+  virtual ~Capability_handler() override;
 
   MOCK_METHOD(std::string, name, (), (const, override));
   MOCK_METHOD(bool, is_supported, (), (const, override));

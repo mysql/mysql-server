@@ -37,7 +37,7 @@ namespace mock {
 class Vio : public iface::Vio {
  public:
   Vio();
-  virtual ~Vio();
+  virtual ~Vio() override;
 
   MOCK_METHOD(ssize_t, read, (uchar * buffer, ssize_t bytes_to_send),
               (override));
