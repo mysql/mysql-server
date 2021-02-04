@@ -36,6 +36,9 @@ namespace mock {
 
 class Socket_events : public iface::Socket_events {
  public:
+  Socket_events();
+  virtual ~Socket_events();
+
   MOCK_METHOD(bool, listen,
               (std::shared_ptr<iface::Socket>,
                std::function<void(iface::Connection_acceptor &)>),

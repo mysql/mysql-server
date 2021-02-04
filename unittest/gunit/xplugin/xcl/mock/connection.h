@@ -39,6 +39,9 @@ namespace mock {
 
 class XConnection : public xcl::XConnection {
  public:
+  XConnection();
+  virtual ~XConnection();
+
   MOCK_METHOD(XError, connect_to_localhost, (const std::string &unix_socket),
               (override));
   MOCK_METHOD(XError, connect,

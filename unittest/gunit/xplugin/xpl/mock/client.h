@@ -37,6 +37,9 @@ namespace mock {
 
 class Client : public iface::Client {
  public:
+  Client();
+  virtual ~Client();
+
   MOCK_METHOD(Mutex &, get_session_exit_mutex, (), (override));
 
   MOCK_METHOD(const char *, client_id, (), (const, override));

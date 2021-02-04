@@ -40,6 +40,9 @@ namespace mock {
 
 class XProtocol : public xcl::XProtocol {
  public:
+  XProtocol();
+  virtual ~XProtocol();
+
   MOCK_METHOD(Handler_id, add_notice_handler,
               (Notice_handler handler, const Handler_position,
                const Handler_priority),

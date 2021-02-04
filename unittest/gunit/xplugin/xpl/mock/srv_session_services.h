@@ -46,11 +46,8 @@ namespace mock {
 
 class Srv_session {
  public:
-  Srv_session() {
-    assert(nullptr == m_srv_session);
-    m_srv_session = this;
-  }
-  ~Srv_session() { m_srv_session = nullptr; }
+  Srv_session();
+  ~Srv_session();
 
   MOCK_METHOD(int, init_session_thread, (const void *plugin));
   MOCK_METHOD(void, deinit_session_thread, ());
@@ -67,11 +64,8 @@ class Srv_session {
 
 class Srv_session_info {
  public:
-  Srv_session_info() {
-    assert(nullptr == m_srv_session_info);
-    m_srv_session_info = this;
-  }
-  ~Srv_session_info() { m_srv_session_info = nullptr; }
+  Srv_session_info();
+  ~Srv_session_info();
 
   MOCK_METHOD(my_thread_id, get_session_id, (MYSQL_SESSION session));
 

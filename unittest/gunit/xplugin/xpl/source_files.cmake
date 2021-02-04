@@ -48,6 +48,7 @@ SET(XPL_TEST_SRC
   message_builder_t.cc
   meta_schema_validator_t.cc
   mock/component_services.cc
+  mock/mock.cc
   mock/srv_session_services.cc
   mysqlx_pb_wrapper.cc
   prepared_statement_builder_t.cc

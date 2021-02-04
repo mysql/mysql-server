@@ -35,6 +35,9 @@ namespace mock {
 
 class Service_sys_variables : public iface::Service_sys_variables {
  public:
+  Service_sys_variables();
+  virtual ~Service_sys_variables();
+
   MOCK_METHOD(bool, get_variable,
               (const char *component_name, const char *name, void **val,
                size_t *out_length_of_val),

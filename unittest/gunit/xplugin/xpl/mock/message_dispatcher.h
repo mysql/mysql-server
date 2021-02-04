@@ -36,6 +36,9 @@ namespace mock {
 class Message_dispatcher
     : public ngs::Message_decoder::Message_dispatcher_interface {
  public:
+  Message_dispatcher();
+  virtual ~Message_dispatcher();
+
   MOCK_METHOD(void, handle, (ngs::Message_request *), (override));
 };
 

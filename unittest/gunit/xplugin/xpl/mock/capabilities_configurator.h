@@ -35,6 +35,9 @@ namespace mock {
 
 class Capabilities_configurator : public iface::Capabilities_configurator {
  public:
+  Capabilities_configurator();
+  virtual ~Capabilities_configurator();
+
   MOCK_METHOD(::Mysqlx::Connection::Capabilities *, get, (), (override));
 
   MOCK_METHOD(ngs::Error_code, prepare_set,

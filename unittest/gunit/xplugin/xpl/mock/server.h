@@ -37,6 +37,9 @@ namespace mock {
 
 class Server : public iface::Server {
  public:
+  Server();
+  virtual ~Server();
+
   MOCK_METHOD(iface::Authentication_container &, get_authentications, (),
               (override));
 

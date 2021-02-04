@@ -39,6 +39,9 @@ namespace mock {
 
 class XQuery_result : public xcl::XQuery_result {
  public:
+  XQuery_result();
+  virtual ~XQuery_result();
+
   MOCK_METHOD(const Metadata &, get_metadata, (XError * out_error), (override));
   MOCK_METHOD(void, set_metadata, (const Metadata &), (override));
   MOCK_METHOD(const Warnings &, get_warnings, (), (override));

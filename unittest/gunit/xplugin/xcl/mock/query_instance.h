@@ -35,6 +35,9 @@ namespace mock {
 
 class Query_instances : public xcl::Query_instances {
  public:
+  Query_instances();
+  virtual ~Query_instances();
+
   MOCK_METHOD(Instance_id, instances_fetch_begin, (), (override));
   MOCK_METHOD(void, instances_fetch_end, (), (override));
   MOCK_METHOD(bool, is_instance_active, (const Instance_id id), (override));
