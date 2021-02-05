@@ -247,7 +247,7 @@ static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
 static void AssertSupportedPath(const AccessPath *path) {
   switch (path->type) {
     // The only supported join type is hash join. Other join types are disabled
-    // in handlerton::secondary_engine_supported_access_paths.
+    // in handlerton::secondary_engine_flags.
     case AccessPath::NESTED_LOOP_JOIN: /* purecov: deadcode */
     case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
     case AccessPath::BKA_JOIN:
@@ -359,8 +359,8 @@ static int Init(MYSQL_PLUGIN p) {
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
   hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   hton->compare_secondary_engine_cost = CompareJoinCost;
-  hton->secondary_engine_supported_access_paths =
-      AccessPathTypeBitmap(AccessPath::HASH_JOIN);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
   hton->secondary_engine_modify_access_path_cost = ModifyAccessPathCost;
   return 0;
 }

@@ -163,7 +163,7 @@ class CostingReceiver {
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
       const Mem_root_array<ActiveIndexInfo> *active_indexes, bool need_rowid,
-      uint64_t supported_access_path_types,
+      SecondaryEngineFlags engine_flags,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
       : m_thd(thd),
@@ -173,13 +173,14 @@ class CostingReceiver {
         m_sort_ahead_orderings(sort_ahead_orderings),
         m_active_indexes(active_indexes),
         m_need_rowid(need_rowid),
-        m_supported_access_path_types(supported_access_path_types),
+        m_engine_flags(engine_flags),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
         m_trace(trace) {
     // At least one join type must be supported.
-    assert(Overlaps(supported_access_path_types,
-                    AccessPathTypeBitmap(AccessPath::HASH_JOIN,
-                                         AccessPath::NESTED_LOOP_JOIN)));
+    assert(Overlaps(engine_flags,
+                    MakeSecondaryEngineFlags(
+                        SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
+                        SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN)));
   }
 
   bool HasSeen(NodeMap subgraph) const {
@@ -284,11 +285,9 @@ class CostingReceiver {
   /// The hypergraph optimizer does not use weedout.)
   bool m_need_rowid;
 
-  /// The supported access path types. Access paths of types not in
-  /// this set should not be created. It is currently only used to
-  /// limit which join types to use, so any bit that does not
-  /// represent a join access path, is ignored for now.
-  uint64_t m_supported_access_path_types;
+  /// The flags declared by the secondary engine. In particular, it describes
+  /// what kind of access path types should not be created.
+  SecondaryEngineFlags m_engine_flags;
 
   /// Pointer to a function that modifies the cost estimates of an access path
   /// for execution in a secondary storage engine, or nullptr otherwise.
@@ -319,9 +318,9 @@ class CostingReceiver {
     return ret + "}";
   }
 
-  /// Is the given access path type supported?
-  bool SupportedAccessPathType(AccessPath::Type type) const {
-    return Overlaps(AccessPathTypeBitmap(type), m_supported_access_path_types);
+  /// Checks whether the given engine flag is active or not.
+  bool SupportedEngineFlag(SecondaryEngineFlag flag) const {
+    return Overlaps(m_engine_flags, MakeSecondaryEngineFlags(flag));
   }
 
   void ProposeAccessPathForBaseTable(int node_idx,
@@ -362,15 +361,18 @@ class CostingReceiver {
                                        FunctionalDependencySet *new_fd_set);
 };
 
-/// Finds the set of supported access path types.
-uint64_t SupportedAccessPathTypes(const THD *thd) {
+/// Lists the current secondary engine flags in use. If there is no secondary
+/// engine, will use a default set of permissive flags suitable for
+/// non-secondary engine use.
+SecondaryEngineFlags EngineFlags(const THD *thd) {
   const handlerton *secondary_engine = thd->lex->m_sql_cmd->secondary_engine();
   if (secondary_engine != nullptr) {
-    return secondary_engine->secondary_engine_supported_access_paths;
+    return secondary_engine->secondary_engine_flags;
   }
 
-  // Outside of secondary storage engines, all access path types are supported.
-  return ~uint64_t{0};
+  return MakeSecondaryEngineFlags(
+      SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
+      SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
 }
 
 /// Gets the secondary storage engine cost modification function, if any.
@@ -1265,7 +1267,7 @@ void CostingReceiver::ProposeHashJoin(
     const JoinPredicate *edge, FunctionalDependencySet new_fd_set,
     OrderingSet new_obsolete_orderings, bool rewrite_semi_to_inner,
     bool *wrote_trace) {
-  if (!SupportedAccessPathType(AccessPath::HASH_JOIN)) return;
+  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_HASH_JOIN)) return;
 
   if (Overlaps(left_path->parameter_tables, right) ||
       right_path->parameter_tables != 0) {
@@ -1445,7 +1447,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
     NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
     const JoinPredicate *edge, bool rewrite_semi_to_inner,
     FunctionalDependencySet new_fd_set, OrderingSet new_obsolete_orderings) {
-  if (!SupportedAccessPathType(AccessPath::NESTED_LOOP_JOIN)) return;
+  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN))
+    return;
 
   if (Overlaps(left_path->parameter_tables, right)) {
     // The outer table cannot pick up values from the inner,
@@ -2034,7 +2037,10 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
     return true;
   }
   if (thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
-      SupportedAccessPathTypes(thd) == 0) {
+      !Overlaps(EngineFlags(thd),
+                MakeSecondaryEngineFlags(
+                    SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
+                    SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN))) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "the secondary engine in use");
     return true;
@@ -3419,8 +3425,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       SecondaryEngineCostHook(thd);
   CostingReceiver receiver(thd, query_block, graph, &orderings,
                            &sort_ahead_orderings, &active_indexes, need_rowid,
-                           SupportedAccessPathTypes(thd),
-                           secondary_engine_cost_hook, trace);
+                           EngineFlags(thd), secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");

@@ -2236,6 +2236,25 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
 using secondary_engine_modify_access_path_cost_t = bool (*)(
     THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
+// Capabilities (bit flags) for secondary engines.
+enum class SecondaryEngineFlag {
+  SUPPORTS_HASH_JOIN = 0,
+  SUPPORTS_NESTED_LOOP_JOIN = 1
+};
+
+/// Creates an empty bitmap of access path types. This is the base
+/// case for the function template with the same name below.
+using SecondaryEngineFlags = uint64_t;
+inline constexpr SecondaryEngineFlags MakeSecondaryEngineFlags() { return 0; }
+
+/// Creates a bitmap representing a set of access path types.
+template <typename... Args>
+constexpr SecondaryEngineFlags MakeSecondaryEngineFlags(
+    SecondaryEngineFlag flag1, Args... rest) {
+  return (uint64_t{1} << static_cast<int>(flag1)) |
+         MakeSecondaryEngineFlags(rest...);
+}
+
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
 typedef void (*se_before_commit_t)(void *arg);
@@ -2560,15 +2579,11 @@ struct handlerton {
   */
   compare_secondary_engine_cost_t compare_secondary_engine_cost;
 
-  /// Bitmap which contains the supported access path types for a
-  /// secondary storage engine when used with the hypergraph join
+  /// Bitmap which contains the supported join types and other flags
+  /// for a secondary storage engine when used with the hypergraph join
   /// optimizer. If it is empty, it means that the secondary engine
   /// does not support the hypergraph join optimizer.
-  ///
-  /// It is currently only used to limit which join types the join
-  /// optimizer can choose from. Bits that represent access path types
-  /// that are not joins, are currently ignored.
-  uint64_t secondary_engine_supported_access_paths;
+  SecondaryEngineFlags secondary_engine_flags;
 
   /// Pointer to a function that evaluates the cost of executing an access path
   /// in a secondary storage engine.

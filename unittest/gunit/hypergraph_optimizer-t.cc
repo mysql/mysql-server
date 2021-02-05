@@ -216,8 +216,8 @@ template <typename T>
 handlerton *HypergraphTestBase<T>::EnableSecondaryEngine() {
   auto hton = new (m_thd->mem_root) Fake_handlerton;
   hton->flags = HTON_SUPPORTS_SECONDARY_ENGINE;
-  hton->secondary_engine_supported_access_paths =
-      AccessPathTypeBitmap(AccessPath::HASH_JOIN);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
 
   for (const auto &name_and_table : m_fake_tables) {
     name_and_table.second->file->ht = hton;
