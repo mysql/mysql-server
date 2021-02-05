@@ -734,10 +734,22 @@ bool ndb_pushed_builder_ctx::is_pushable_with_root() {
           validate_join_nest(inner_nest, first_inner, tab_no, "outer");
         }
 
-        // The upper_nest becomes our new inner_nest when we 'unwind'.
-        ndb_table_access_map upper_nest(upper_nests);
-        upper_nest.subtract(m_tables[first_upper].m_upper_nests);
-        inner_nest = upper_nest;
+        /**
+         * We leave the current 'first_inner' nest and unwind to 'first_upper'
+         * nest, which then become our new 'inner_nest'. The content of the
+         * inner_nest need to be recalculated.
+         */
+        inner_nest.clear_all();
+        uint i = first_inner;
+        while (i > (uint)first_upper && i > root_no) {
+          i--;
+          if (m_tables[i].m_first_inner == (uint)first_upper) {
+            // Found last table in first_upper nest.
+            inner_nest = m_tables[i].m_inner_nest;
+            inner_nest.add(i);
+            break;
+          }
+        }
         upper_nests = m_tables[first_upper].m_upper_nests;
         first_inner = first_upper;
 
@@ -1419,7 +1431,7 @@ bool ndb_pushed_builder_ctx::is_outer_nests_referable(
      * Allow all tables in the referred parents nest to become
      * part of the set of later referrable upper_nests.
      */
-    if (parent_no < first_inner) {
+    if (unlikely(parent_no < first_inner)) {
       // referred nest is not embedded within current inner_nest
       assert(m_tables[parent_no].m_last_inner < tab_no);
 

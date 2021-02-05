@@ -2083,4 +2083,105 @@ WHERE table3.col_char_16 = table1s.col_char_16
 and table1.pk between 4 and 6;
 pk	pk	pk
 5	3	NULL
+explain format=tree SELECT
+table6.col_varchar_256 AS field1, table3.col_varchar_256 AS field2
+FROM
+f AS table1
+LEFT JOIN a AS table2 ON table1.col_int = table2.col_int_unique
+LEFT JOIN r AS table3
+JOIN g AS table4 ON table3.col_int = table4.col_int AND
+table3.col_int_unique = table4.col_int_unique
+ON table3.col_int IN (9)
+LEFT JOIN f AS table5
+JOIN z AS table6 ON table5.col_int = table6.col_int
+JOIN g AS table7 ON table6.col_int_key = table7.pk
+LEFT JOIN b AS table8
+LEFT JOIN m AS table9 ON (table8.col_int = table9.col_int AND
+table8.col_int_key = table9.col_int_key AND
+table8.col_int_unique = table9.col_int_unique) IS TRUE
+LEFT JOIN h AS table10 ON table8.col_int_key = table10.col_int_key AND
+table9.col_int_unique = table10.col_int_unique
+ON table6.col_int = table8.col_int AND
+table6.col_int_unique = table8.col_int_unique
+ON table2.col_int = table6.col_int AND
+table2.col_int_unique = table6.col_int_unique;
+EXPLAIN
+-> Nested loop left join  ()
+    -> Nested loop left join  ()
+        -> Nested loop left join  ()
+            -> Table scan on table1, activating pushed join of 3 tables  ()
+            -> Single-row index lookup on table2 using ix1 (col_int_unique=table1.col_int), child of table1 in pushed join  ()
+        -> Nested loop inner join  ()
+            -> Index lookup on table3 using ix1 (col_int=9), activating pushed join of 2 tables  ()
+            -> Single-row index lookup on table4 using ix1 (col_int_unique=table3.col_int_unique), child of table3 in pushed join, with pushed condition: (table4.col_int = 9)  ()
+    -> Nested loop inner join  ()
+        -> Nested loop left join  ()
+            -> Nested loop inner join  ()
+                -> Table scan on table7, activating pushed join of 2 tables  ()
+                -> Filter: ((table6.col_int_unique = table2.col_int_unique) and (table6.col_int = table2.col_int))  ()
+                    -> Index lookup on table6 using col_int_key (col_int_key=table7.pk), child of table7 in pushed join  ()
+            -> Nested loop left join  ()
+                -> Nested loop left join  ()
+                    -> Filter: (table8.col_int = table2.col_int)  ()
+                        -> Single-row index lookup on table8 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
+                    -> Filter: (((table2.col_int = table9.col_int) and (table8.col_int_key = table9.col_int_key) and (table2.col_int_unique = table9.col_int_unique)) is true)  ()
+                        -> Table scan on table9, activating pushed join of 2 tables  ()
+                -> Filter: (table10.col_int_key = table8.col_int_key)  ()
+                    -> Single-row index lookup on table10 using ix1 (col_int_unique=table9.col_int_unique), child of table9 in pushed join  ()
+        -> Index lookup on table5 using PRIMARY (col_int=table2.col_int)  ()
+
+Warnings:
+Note	1003	Can't push table 'table3' as child of 'table1', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table4' as child of 'table1', column 'table3.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table7' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table6' as child of 'table1', column 'table7.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table9' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'table10' as child of 'table1', column 'table9.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push outer joined table 'table5' as child of 'table1', table 'table6' in its dependant join-nest(s) is not part of the pushed join
+Note	1003	Can't push table 'table6' as child of 'table3', column 'table7.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table10' as child of 'table3', column 'table9.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table5' as child of 'table3', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table10' as child of 'table7', column 'table9.col_int_unique' is outside scope of pushable join
+Note	1003	Can't push table 'table5' as child of 'table7', no parent-child dependency exists between these tables
+Note	1003	Can't push table 'table5' as child of 'table9', no parent-child dependency exists between these tables
+SELECT
+table6.col_varchar_256 AS field1, table3.col_varchar_256 AS field2
+FROM
+f AS table1
+LEFT JOIN a AS table2 ON table1.col_int = table2.col_int_unique
+LEFT JOIN r AS table3
+JOIN g AS table4 ON table3.col_int = table4.col_int AND
+table3.col_int_unique = table4.col_int_unique
+ON table3.col_int IN (9)
+LEFT JOIN f AS table5
+JOIN z AS table6 ON table5.col_int = table6.col_int
+JOIN g AS table7 ON table6.col_int_key = table7.pk
+LEFT JOIN b AS table8
+LEFT JOIN m AS table9 ON (table8.col_int = table9.col_int AND
+table8.col_int_key = table9.col_int_key AND
+table8.col_int_unique = table9.col_int_unique) IS TRUE
+LEFT JOIN h AS table10 ON table8.col_int_key = table10.col_int_key AND
+table9.col_int_unique = table10.col_int_unique
+ON table6.col_int = table8.col_int AND
+table6.col_int_unique = table8.col_int_unique
+ON table2.col_int = table6.col_int AND
+table2.col_int_unique = table6.col_int_unique;
+field1	field2
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
+NULL	NULL
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;
