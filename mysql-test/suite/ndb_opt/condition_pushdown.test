@@ -2684,6 +2684,96 @@ select @count:=count(*) from t1 where not b not like 'five';
 eval $verify_row_count;
 
 --echo #
+--echo # WL#14476 Introduce NdbScanFilter option for NULL-compare according to SQL semantics
+--echo #
+--echo # Test case for checking the pre-WL behaviour. Disable NULL semantics added
+--echo # by WL -> force old behaviour of still needing explicit NULL check.
+--echo #
+--echo # Test cases are the same as added for Bug#28643463 above.
+--echo #
+
+let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
+if ($have_debug)
+{
+  SET DEBUG='+d,disable_sql_null_cmp';
+}
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '= 'five''
+select @count:=count(*) from t1 where b = 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<> 'five''
+select @count:=count(*) from t1 where b <> 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '< 'five''
+select @count:=count(*) from t1 where b < 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '> 'five''
+select @count:=count(*) from t1 where b > 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<= 'five''
+select @count:=count(*) from t1 where b <= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '>= 'five''
+select @count:=count(*) from t1 where b >= 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'like 'five''
+select @count:=count(*) from t1 where b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not like 'five''
+select @count:=count(*) from t1 where b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> like 'five''
+select @count:=count(*) from t1 where not b like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <column> not like 'five''
+select @count:=count(*) from t1 where not b not like 'five';
+--enable_result_log
+eval $verify_row_count;
+
+if ($have_debug)
+{
+  SET DEBUG='-d,disable_sql_null_cmp';
+}
+
+--echo #
 --echo # Bug#29231709 NULL VALUES (still) NOT FILTERED OUT BY PUSHED CONDITIONS
 --echo #
 

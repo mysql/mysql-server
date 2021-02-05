@@ -2744,6 +2744,44 @@ Testing: 'not <column> not like 'five''
 result_rows	filtered_rows
 1	1
 #
+# WL#14476 Introduce NdbScanFilter option for NULL-compare according to SQL semantics
+#
+# Test case for checking the pre-WL behaviour. Disable NULL semantics added
+# by WL -> force old behaviour of still needing explicit NULL check.
+#
+# Test cases are the same as added for Bug#28643463 above.
+#
+Testing: '= 'five''
+result_rows	filtered_rows
+1	1
+Testing: '<> 'five''
+result_rows	filtered_rows
+4	4
+Testing: '< 'five''
+result_rows	filtered_rows
+0	0
+Testing: '> 'five''
+result_rows	filtered_rows
+4	4
+Testing: '<= 'five''
+result_rows	filtered_rows
+1	1
+Testing: '>= 'five''
+result_rows	filtered_rows
+5	5
+Testing: 'like 'five''
+result_rows	filtered_rows
+1	1
+Testing: 'not like 'five''
+result_rows	filtered_rows
+4	4
+Testing: 'not <column> like 'five''
+result_rows	filtered_rows
+4	4
+Testing: 'not <column> not like 'five''
+result_rows	filtered_rows
+1	1
+#
 # Bug#29231709 NULL VALUES (still) NOT FILTERED OUT BY PUSHED CONDITIONS
 #
 Testing: ''five' ='

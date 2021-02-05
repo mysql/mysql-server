@@ -47,6 +47,7 @@ class SqlScanFilter : public NdbScanFilter {
   SqlScanFilter(NdbInterpretedCode *code) : NdbScanFilter(code) {
     const Uint32 ver = get_thd_ndb(current_thd)->ndb->getMinDbNodeVersion();
     useSqlCmpSemantics = ndbd_support_sql_compare_semantics(ver);
+    DBUG_EXECUTE_IF("disable_sql_null_cmp", { useSqlCmpSemantics = false; });
     if (useSqlCmpSemantics) {
       NdbScanFilter::setSqlCmpSemantics();
     }
