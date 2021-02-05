@@ -99,16 +99,35 @@ OPTION(FPROFILE_GENERATE "Add -fprofile-generate" OFF)
 IF(FPROFILE_GENERATE)
   STRING_APPEND(CMAKE_C_FLAGS " -fprofile-generate=${FPROFILE_DIR}")
   STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-generate=${FPROFILE_DIR}")
+
+  IF(MY_COMPILER_IS_GNU)
+    STRING_APPEND(CMAKE_C_FLAGS " -fprofile-update=prefer-atomic")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-update=prefer-atomic")
+  ENDIF()
 ENDIF()
 
 OPTION(FPROFILE_USE "Add -fprofile-use" OFF)
 IF(FPROFILE_USE)
   STRING_APPEND(CMAKE_C_FLAGS " -fprofile-use=${FPROFILE_DIR}")
   STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-use=${FPROFILE_DIR}")
-  # Collection of profile data is not thread safe, use -fprofile-correction for GCC
+  # Collection of profile data is not thread safe,
+  # use -fprofile-correction for GCC
   IF(MY_COMPILER_IS_GNU)
     STRING_APPEND(CMAKE_C_FLAGS " -fprofile-correction")
     STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-correction")
+
+    # With -fprofile-use all portions of programs not executed during
+    # train run are optimized agressively for size rather than speed.
+    # gcc10 has -fprofile-partial-training, which will ignore profile
+    # feedback for functions not executed during the train run, leading them
+    # to be optimized as if they were compiled without profile feedback.
+    # This leads to better performance when train run is not representative
+    # but also leads to significantly bigger code.
+    IF(NOT ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 10)
+      STRING_APPEND(CMAKE_C_FLAGS " -fprofile-partial-training")
+      STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-partial-training")
+    ENDIF()
+
   ENDIF()
 ENDIF()
 
