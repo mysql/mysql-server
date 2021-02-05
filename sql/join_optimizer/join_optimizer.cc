@@ -1951,6 +1951,17 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     return;
   }
 
+  if (!SupportedEngineFlag(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN) &&
+      SupportedEngineFlag(SecondaryEngineFlag::AGGREGATION_IS_UNORDERED)) {
+    // If sortahead cannot propagate through joins to ORDER BY,
+    // and also cannot propagate from anything to aggregation or
+    // from aggregation to ORDER BY, it is pointless, so don't try.
+    // Note that this also removes rewrite to semijoin via duplicate
+    // removal, but that's fine, as it is rarely useful without having
+    // nested loops against an index on the outer side.
+    return;
+  }
+
   // Don't try to sort-ahead parametrized paths; see the comment in
   // CompareAccessPaths for why.
   if (path->parameter_tables != 0) {
@@ -2441,8 +2452,8 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 
 Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     THD *thd, const CostingReceiver &receiver,
-    const LogicalOrderings &orderings, int order_by_ordering_idx,
-    int distinct_ordering_idx, ORDER *distinct_order,
+    const LogicalOrderings &orderings, bool aggregation_is_unordered,
+    int order_by_ordering_idx, int distinct_ordering_idx, ORDER *distinct_order,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
     FunctionalDependencySet fd_set, Query_block *query_block,
     bool need_rowid_from_tables,
@@ -2573,7 +2584,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       Ordering grouping = orderings.ordering(distinct_ordering_idx);
-      if (grouping.empty()) {
+      if (!aggregation_is_unordered && grouping.empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
@@ -2583,7 +2594,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
                                    /*obsolete_orderings=*/0, "");
         continue;
       }
-      if (orderings.DoesFollowOrder(root_path->ordering_state,
+      if (!aggregation_is_unordered &&
+          orderings.DoesFollowOrder(root_path->ordering_state,
                                     distinct_ordering_idx)) {
         // We don't need the sort, and can do with a simpler deduplication.
         Item **group_items = thd->mem_root->ArrayAlloc<Item *>(grouping.size());
@@ -2613,7 +2625,14 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             NewSortAccessPath(thd, root_path, filesort_for_distinct,
                               /*count_examined_rows=*/false);
         EstimateSortCost(sort_path);
-        sort_path->ordering_state = ordering_state;
+        if (aggregation_is_unordered) {
+          // Even though we create a sort node for the distinct operation,
+          // the engine does not actually sort the rows. (The deduplication
+          // flag is the hint in this case.)
+          sort_path->ordering_state = 0;
+        } else {
+          sort_path->ordering_state = ordering_state;
+        }
 
         // Swap out the ordering for the order we're actually using.
         // filesort_for_distinct was only used for setting row ID status,
@@ -3400,6 +3419,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // Collect interesting orders from ORDER BY, GROUP BY and semijoins.
   // See BuildInterestingOrders() for more detailed information.
+  SecondaryEngineFlags engine_flags = EngineFlags(thd);
   LogicalOrderings orderings(thd);
   Mem_root_array<SortAheadOrdering> sort_ahead_orderings(thd->mem_root);
   Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
@@ -3542,6 +3562,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
   // Apply GROUP BY, if applicable. We currently always do this by sorting
   // first and then using streaming aggregation.
+  const bool aggregation_is_unordered = Overlaps(
+      engine_flags,
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::AGGREGATION_IS_UNORDERED));
   if (query_block->is_grouped()) {
     if (join->make_sum_func_list(*join->fields, /*before_group_by=*/true))
       return nullptr;
@@ -3554,7 +3577,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     for (AccessPath *root_path : root_candidates) {
       const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
       const bool group_needs_sort =
-          query_block->is_explicitly_grouped() &&
+          query_block->is_explicitly_grouped() && !aggregation_is_unordered &&
           !orderings.DoesFollowOrder(root_path->ordering_state,
                                      group_by_ordering_idx);
       if (!group_needs_sort) {
@@ -3592,6 +3615,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
             NewSortAccessPath(thd, root_path, filesort,
                               /*count_examined_rows=*/false);
         EstimateSortCost(sort_path);
+        assert(!aggregation_is_unordered);
         sort_path->ordering_state = ordering_state;
 
         if (!filesort->using_addon_fields()) {
@@ -3666,8 +3690,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   TABLE *temp_table = nullptr;
   if (join->select_distinct || query_block->is_ordered()) {
     root_candidates = ApplyDistinctAndOrder(
-        thd, receiver, orderings, order_by_ordering_idx, distinct_ordering_idx,
-        distinct_order, sort_ahead_orderings, fd_set, query_block, need_rowid,
+        thd, receiver, orderings, aggregation_is_unordered,
+        order_by_ordering_idx, distinct_ordering_idx, distinct_order,
+        sort_ahead_orderings, fd_set, query_block, need_rowid,
         std::move(root_candidates), trace, &temp_table);
   }
 

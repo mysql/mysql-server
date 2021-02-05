@@ -2237,14 +2237,19 @@ using secondary_engine_modify_access_path_cost_t = bool (*)(
     THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
 
 // Capabilities (bit flags) for secondary engines.
-enum class SecondaryEngineFlag {
+using SecondaryEngineFlags = uint64_t;
+enum class SecondaryEngineFlag : SecondaryEngineFlags {
   SUPPORTS_HASH_JOIN = 0,
-  SUPPORTS_NESTED_LOOP_JOIN = 1
+  SUPPORTS_NESTED_LOOP_JOIN = 1,
+
+  // If this flag is set, aggregation (GROUP BY and DISTINCT) do not require
+  // ordered inputs and create unordered outputs. This is typically the case
+  // if they are implemented using hash-based techniques.
+  AGGREGATION_IS_UNORDERED = 2
 };
 
 /// Creates an empty bitmap of access path types. This is the base
 /// case for the function template with the same name below.
-using SecondaryEngineFlags = uint64_t;
 inline constexpr SecondaryEngineFlags MakeSecondaryEngineFlags() { return 0; }
 
 /// Creates a bitmap representing a set of access path types.

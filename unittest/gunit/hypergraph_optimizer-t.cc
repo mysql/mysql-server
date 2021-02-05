@@ -94,7 +94,7 @@ class HypergraphTestBase : public Parent {
       destroy(name_and_table.second);
     }
   }
-  handlerton *EnableSecondaryEngine();
+  handlerton *EnableSecondaryEngine(bool aggregation_is_unordered);
 
   my_testing::Server_initializer m_initializer;
   THD *m_thd = nullptr;
@@ -213,11 +213,19 @@ void HypergraphTestBase<T>::ResolveAllFieldsToFakeTable(
 }
 
 template <typename T>
-handlerton *HypergraphTestBase<T>::EnableSecondaryEngine() {
+handlerton *HypergraphTestBase<T>::EnableSecondaryEngine(
+    bool aggregation_is_unordered) {
   auto hton = new (m_thd->mem_root) Fake_handlerton;
   hton->flags = HTON_SUPPORTS_SECONDARY_ENGINE;
-  hton->secondary_engine_flags =
-      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
+  if (aggregation_is_unordered) {
+    hton->secondary_engine_flags =
+        MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN,
+                                 SecondaryEngineFlag::AGGREGATION_IS_UNORDERED);
+  } else {
+    hton->secondary_engine_flags =
+        MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_HASH_JOIN);
+  }
+  hton->secondary_engine_modify_access_path_cost = nullptr;
 
   for (const auto &name_and_table : m_fake_tables) {
     name_and_table.second->file->ht = hton;
@@ -1659,7 +1667,7 @@ TEST_F(HypergraphSecondaryEngineTest, SingleTable) {
   m_fake_tables["t1"]->file->stats.records = 100;
 
   // Install a hook that doubles the row count estimate of t1.
-  handlerton *hton = EnableSecondaryEngine();
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         EXPECT_EQ(AccessPath::TABLE_SCAN, path->type);
@@ -1687,7 +1695,7 @@ TEST_F(HypergraphSecondaryEngineTest, SimpleInnerJoin) {
   m_fake_tables["t3"]->file->stats.records = 1000000;
 
   // Install a hook that changes the row count estimate for t3 to 1.
-  handlerton *hton = EnableSecondaryEngine();
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         // Nested-loop joins have been disabled for the secondary engine.
@@ -1712,12 +1720,108 @@ TEST_F(HypergraphSecondaryEngineTest, SimpleInnerJoin) {
   EXPECT_STREQ("t1", root->hash_join().outer->table_scan().table->alias);
 }
 
+TEST_F(HypergraphSecondaryEngineTest, OrderedAggregation) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x FROM t1 GROUP BY t1.x", /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+
+  EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+
+  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
+  ASSERT_EQ(AccessPath::SORT, root->aggregate().child->type);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, UnorderedAggregation) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x FROM t1 GROUP BY t1.x", /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+
+  EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+
+  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->aggregate().child->type);
+}
+
+TEST_F(HypergraphSecondaryEngineTest,
+       OrderedAggregationCoversDistinctWithOrder) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT DISTINCT t1.x, t1.y FROM t1 ORDER BY t1.y",
+                      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+
+  EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[1].item));
+  EXPECT_TRUE(sort->m_remove_duplicates);
+
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, UnorderedAggregationDoesNotCover) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT DISTINCT t1.x, t1.y FROM t1 ORDER BY t1.y",
+                      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+
+  EnableSecondaryEngine(/*aggregation_is_unordered=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+  ASSERT_NE(nullptr, root);
+
+  // The final sort is just a regular sort, no duplicate removal.
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(1, sort->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[0].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  // Below that, there's a duplicate-removing sort for DISTINCT.
+  // Order does not matter, but it happens to choose the cover here.
+  AccessPath *distinct = root->sort().child;
+  ASSERT_EQ(AccessPath::SORT, distinct->type);
+  sort = distinct->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[1].item));
+  EXPECT_TRUE(sort->m_remove_duplicates);
+
+  ASSERT_EQ(AccessPath::TABLE_SCAN, distinct->sort().child->type);
+}
+
 TEST_F(HypergraphSecondaryEngineTest, RejectAllPlans) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
       /*nullable=*/true);
 
-  handlerton *hton = EnableSecondaryEngine();
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         // Nested-loop joins have been disabled for the secondary engine.
@@ -1740,7 +1844,7 @@ TEST_F(HypergraphSecondaryEngineTest, RejectAllCompletePlans) {
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
       /*nullable=*/true);
 
-  handlerton *hton = EnableSecondaryEngine();
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         // Reject the path if all three tables are referenced.
@@ -1765,7 +1869,7 @@ TEST_F(HypergraphSecondaryEngineTest, RejectJoinOrders) {
   // table scan and the inner table is a table scan or another hash join, and
   // which only accepts join orders where the tables are ordered alphabetically
   // by their names.
-  handlerton *hton = EnableSecondaryEngine();
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         // Nested-loop joins have been disabled for the secondary engine.
@@ -1841,7 +1945,7 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
   Query_block *query_block = ParseAndResolve(param.query.data(),
                                              /*nullable=*/true);
 
-  handlerton *hton = EnableSecondaryEngine();
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *thd, const JoinHypergraph &, AccessPath *path) {
         EXPECT_FALSE(thd->is_error());
@@ -1862,7 +1966,7 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
   Query_block *query_block = ParseAndResolve(param.query.data(),
                                              /*nullable=*/true);
 
-  handlerton *hton = EnableSecondaryEngine();
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
   hton->secondary_engine_modify_access_path_cost =
       [](THD *thd, const JoinHypergraph &, AccessPath *path) {
         EXPECT_FALSE(thd->is_error());
@@ -1899,13 +2003,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
     SuccessCases, HypergraphSecondaryEngineRejectionTest,
-    ::testing::ValuesIn(std::initializer_list<RejectionParam>({
-        {"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::HASH_JOIN, false},
-        {"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::SORT, false},
-        // Temporarily disabled until the end of the patch series.
-        // {"SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
-        // AccessPath::SORT, false}
-    })));
+    ::testing::ValuesIn(std::initializer_list<RejectionParam>(
+        {{"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::HASH_JOIN, false},
+         {"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::SORT, false},
+         {"SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
+          AccessPath::SORT, false}})));
 
 /*
   A hypergraph receiver that doesn't actually cost any plans;
