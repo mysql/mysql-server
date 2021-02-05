@@ -91,7 +91,7 @@ reportShutdown(const ndb_mgm_configuration* config,
                      rep->getNodeId(), 0);
 
   // Log event to cluster log
-  ndb_mgm_configuration_iterator iter(*config, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
   for (iter.first(); iter.valid(); iter.next())
   {
     Uint32 type;
@@ -498,7 +498,7 @@ static bool
 configure(const ndb_mgm_configuration* conf, NodeId nodeid)
 {
   Uint32 generation = 0;
-  ndb_mgm_configuration_iterator sys_iter(*conf, CFG_SECTION_SYSTEM);
+  ndb_mgm_configuration_iterator sys_iter(conf, CFG_SECTION_SYSTEM);
   if (sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation))
   {
     g_eventLogger->warning("Configuration didn't contain generation "
@@ -506,7 +506,7 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
   }
   g_eventLogger->debug("Using configuration with generation %u", generation);
 
-  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, nodeid))
   {
     g_eventLogger->error("Invalid configuration fetched, could not "

@@ -128,7 +128,7 @@ void
 ClusterMgr::configure(Uint32 nodeId,
                       const ndb_mgm_configuration* config)
 {
-  ndb_mgm_configuration_iterator iter(* config, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next()){
     Uint32 nodeId = 0;
     if(iter.get(CFG_NODE_ID, &nodeId))

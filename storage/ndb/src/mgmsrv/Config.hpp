@@ -159,7 +159,7 @@ private:
 class ConfigIter : public ndb_mgm_configuration_iterator {
 public:
   ConfigIter(const Config* conf, unsigned type) :
-    ndb_mgm_configuration_iterator(*conf->m_configuration, type) {}
+    ndb_mgm_configuration_iterator(conf->m_configuration, type) {}
 };
 
 #endif // Config_H

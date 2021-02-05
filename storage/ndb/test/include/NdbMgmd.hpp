@@ -370,14 +370,13 @@ public:
       return false;
     }
 
-    struct ndb_mgm_configuration* conf =
-      ndb_mgm_get_configuration(m_handle,0);
+    ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(m_handle,0));
     if (!conf) {
       error("get_config: ndb_mgm_get_configuration failed");
       return false;
     }
 
-    config.m_configuration= conf;
+    config.m_configuration= conf.release();
     return true;
   }
 

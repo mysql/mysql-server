@@ -130,8 +130,8 @@ private:
   Uint32 m_my_node_id;
   Uint32 m_max_api_nodeid;
   Uint32 m_my_location_domain_id;
-  int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration &config);
-  int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
+  int init_nodes_vector(Uint32 nodeid, const ndb_mgm_configuration* config);
+  int configure(Uint32 nodeid, const ndb_mgm_configuration *config);
   void connect_thread();
   void set_name(const char *name);
   int set_service_uri(const char *, const char *, int, const char *);
@@ -183,7 +183,7 @@ private:
   unsigned m_latest_error;
 
   // Scan batch configuration parameters
-  NdbApiConfig m_config;
+  NdbApiConfig m_ndbapiconfig;
 
   // Avoid transid reuse with Block ref reuse
   Vector<Uint32> m_next_transids;

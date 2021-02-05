@@ -171,10 +171,10 @@ public:
   }
 
   Uint32 get_waitfor_timeout() const {
-    return m_ndb_cluster_connection.m_config.m_waitfor_timeout;
+    return m_ndb_cluster_connection.m_ndbapiconfig.m_waitfor_timeout;
   }
   const NdbApiConfig& get_ndbapi_config_parameters() const {
-    return m_ndb_cluster_connection.m_config;
+    return m_ndb_cluster_connection.m_ndbapiconfig;
   }
 
   Uint64 customData;

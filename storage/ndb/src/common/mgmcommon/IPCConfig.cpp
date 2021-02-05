@@ -33,8 +33,7 @@
 
 
 /* Return true if node with "nodeId" is a MGM node */
-static bool is_mgmd(Uint32 nodeId,
-                    const struct ndb_mgm_configuration & config)
+static bool is_mgmd(Uint32 nodeId, const ndb_mgm_configuration * config)
 {
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
   require(iter.find(CFG_NODE_ID, nodeId) == 0);
@@ -48,7 +47,7 @@ static bool is_mgmd(Uint32 nodeId,
 
 bool
 IPCConfig::configureTransporters(Uint32 nodeId,
-                                 const struct ndb_mgm_configuration & config,
+                                 const ndb_mgm_configuration* config,
                                  class TransporterRegistry & tr,
                                  bool transporter_to_self)
 {
