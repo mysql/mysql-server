@@ -552,7 +552,7 @@ c2id int(11) unsigned default NULL,
 value int(11) unsigned NOT NULL default '0',
 UNIQUE KEY pid2 (pid,c1id,c2id),
 UNIQUE KEY pid (pid,value)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -563,7 +563,7 @@ CREATE TABLE t2 (
 id int(11) unsigned NOT NULL default '0',
 active enum('Yes','No') NOT NULL default 'Yes',
 PRIMARY KEY  (id)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
@@ -822,7 +822,7 @@ splus0	plain
 NULL	NULL
 0	1
 DROP TABLE t1;
-create table t1(a int) engine=myisam;
+create table t1(a int) ENGINE=INNODB;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
 create table t2 (
 a int,
@@ -831,7 +831,7 @@ c varchar(50) NOT NULL,
 d varchar(100) NOT NULL,
 primary key (a,b(132),c,d),
 key a (a,b)
-) engine=myisam charset=utf8;
+) ENGINE=INNODB charset=utf8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 select 
@@ -846,7 +846,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 delete from t2  where a = 2 and b = 'val-2' order by a,b,c,d limit 30;
 explain select c from t2 where a = 2 and b = 'val-2' group by c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	PRIMARY,a	PRIMARY	402	const,const	4	100.00	Using where
+1	SIMPLE	t2	NULL	ref	PRIMARY,a	PRIMARY	402	const,const	36	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c` from `test`.`t2` where ((`test`.`t2`.`a` = 2) and (`test`.`t2`.`b` = 'val-2')) group by `test`.`t2`.`c`
 select c from t2 where a = 2 and b = 'val-2' group by c;
@@ -2599,12 +2599,12 @@ CREATE TABLE it (
 pk INT NOT NULL,
 col_int_nokey INT NOT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 CREATE TABLE ot (
 pk int(11) NOT NULL,
 col_int_nokey int(11) NOT NULL,
 PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -2621,9 +2621,9 @@ DROP TABLE it,ot;
 # Bug#13430588: WRONG RESULT FROM IMPLICITLY GROUPED QUERY WITH
 #               CONST TABLE AND NO MATCHING ROWS
 #
-CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1);
-CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+CREATE TABLE t2 (j INT) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1),(2);
 
 SELECT i, j, COUNT(i) FROM t1 JOIN t2 WHERE j=3;
@@ -2637,12 +2637,12 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t1 (
 a varchar(1)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (
 a varchar(1),
 b int(11)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES ('a',1);
@@ -2655,10 +2655,10 @@ EXPLAIN SELECT (SELECT MAX(b) FROM t2 WHERE t2.a != t1.a) as MAX
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-2	DEPENDENT SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select max('1') from dual where ('a' <> `test`.`t1`.`a`)) AS `MAX` from `test`.`t1`
+Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t2`.`b`) from `test`.`t2` where (`test`.`t2`.`a` <> `test`.`t1`.`a`)) AS `MAX` from `test`.`t1`
 SELECT (SELECT MAX(b) FROM t2 WHERE t2.a != t1.a) as MAX 
 FROM t1;
 MAX
@@ -3284,14 +3284,12 @@ key (col_varchar_10_utf8_key ),
 key (col_int_key ),
 key (col_varchar_1024_utf8_key ),
 primary key (pk),
-key (col_varchar_10_latin1_key )) ENGINE=myisam;
+key (col_varchar_10_latin1_key )) ENGINE=INNODB;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	1071	Specified key was too long; max key length is 1000 bytes
-Warning	1071	Specified key was too long; max key length is 1000 bytes
 INSERT INTO B VALUES  ('at', repeat('a',1000), 'the',
 -1622540288, 'as', repeat('a',1000), 'want', 1810890752, NULL, 'v', 'just');
 Warnings:

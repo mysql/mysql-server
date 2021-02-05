@@ -369,7 +369,7 @@ select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 select min(t1.a1), min(t2.a4) from t1,t2 where t1.a1 < 'KKK' and t2.a4 < 'KKK';
 
 # Queries to which max/min optimization is not applied
-
+ANALYZE TABLE t1, t2;
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 explain 

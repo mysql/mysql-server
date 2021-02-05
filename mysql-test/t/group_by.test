@@ -396,7 +396,7 @@ CREATE TABLE t1 (
   value int(11) unsigned NOT NULL default '0',
   UNIQUE KEY pid2 (pid,c1id,c2id),
   UNIQUE KEY pid (pid,value)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES (1, 1, NULL, 1),(1, 2, NULL, 2),(1, NULL, 3, 3),(1, 4, NULL, 4),(1, 5, NULL, 5);
 
@@ -404,7 +404,7 @@ CREATE TABLE t2 (
   id int(11) unsigned NOT NULL default '0',
   active enum('Yes','No') NOT NULL default 'Yes',
   PRIMARY KEY  (id)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES (1, 'Yes'),(2, 'No'),(4, 'Yes'),(5, 'No');
 
@@ -577,7 +577,7 @@ DROP TABLE t1;
 
 # Following is a Myisam specific bug.
 # Test for BUG#9213 GROUP BY query on utf-8 key returns wrong results
-create table t1(a int) engine=myisam;
+create table t1(a int) ENGINE=INNODB;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
 create table t2 (
   a int,
@@ -586,7 +586,7 @@ create table t2 (
   d varchar(100) NOT NULL,
   primary key (a,b(132),c,d),
   key a (a,b)
-) engine=myisam charset=utf8;
+) ENGINE=INNODB charset=utf8;
 
 insert into t2 select 
    x3.a,  -- 3
@@ -1728,13 +1728,13 @@ CREATE TABLE it (
   pk INT NOT NULL,
   col_int_nokey INT NOT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 CREATE TABLE ot (
   pk int(11) NOT NULL,
   col_int_nokey int(11) NOT NULL,
   PRIMARY KEY (pk)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 INSERT INTO ot VALUES (10,8);
 
 --source include/turn_off_only_full_group_by.inc
@@ -1753,10 +1753,10 @@ DROP TABLE it,ot;
 --echo # Bug#13430588: WRONG RESULT FROM IMPLICITLY GROUPED QUERY WITH
 --echo #               CONST TABLE AND NO MATCHING ROWS
 --echo #
-CREATE TABLE t1 (i INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (1);
 
-CREATE TABLE t2 (j INT) ENGINE=MyISAM;
+CREATE TABLE t2 (j INT) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1),(2);
 
 --source include/turn_off_only_full_group_by.inc
@@ -1776,14 +1776,14 @@ DROP TABLE t1,t2;
 
 CREATE TABLE t1 (
   a varchar(1)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t1 VALUES ('a'), ('b');
 
 CREATE TABLE t2 (
   a varchar(1),
   b int(11)
-) ENGINE=MyISAM;
+) ENGINE=INNODB;
 
 INSERT INTO t2 VALUES ('a',1);
 
@@ -2392,7 +2392,7 @@ key (col_varchar_10_utf8_key ),
 key (col_int_key ),
 key (col_varchar_1024_utf8_key ),
 primary key (pk),
-key (col_varchar_10_latin1_key )) ENGINE=myisam;
+key (col_varchar_10_latin1_key )) ENGINE=INNODB;
 
 INSERT INTO B VALUES  ('at', repeat('a',1000), 'the',
 -1622540288, 'as', repeat('a',1000), 'want', 1810890752, NULL, 'v', 'just');
