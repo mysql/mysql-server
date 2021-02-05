@@ -617,6 +617,9 @@ public:
 
 private:
   void receive_data(NdbRecAttr *r, const Uint32 *data, Uint32 sz);
+  void print_blob_part_bufs(const NdbBlob *blob,
+                            const EventBufData *data, bool hasDist, Uint32 part,
+                            Uint32 count) const;
 };
 
 

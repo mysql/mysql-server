@@ -491,6 +491,76 @@ NdbEventOperationImpl::get_blob_part_no(bool hasDist)
   return no;
 }
 
+/**
+   Print information about the blob and the buffers where received event
+   data are stored
+
+   @param blob           The blob column to print
+   @param event_buf_data Pointer to first event data buffer
+   @param hasDist        Some variability for fuziness
+   @param part_start     Number of the first blob part requested
+   @param part_count     Count of blob parts requested
+ */
+void NdbEventOperationImpl::print_blob_part_bufs(
+    const NdbBlob *blob, const EventBufData *event_data_buf, bool hasDist,
+    Uint32 part_start, Uint32 part_count) const {
+  printf(" = print_blob_part_bufs =============================\n");
+  printf(" part_start: %u, part_count: %u\n", part_start, part_count);
+  // Print info about the blob that event buffers belong to
+  {
+    // The table this blob column is part of
+    const NdbTableImpl *tab = blob->theTable;
+    printf(" table: { name: '%s', id: %u, version: %u }\n", tab->getName(),
+           tab->getTableId(), tab->m_version);
+
+    // The column which is a blob
+    const NdbColumnImpl *col = blob->theColumn;
+    assert(col->getBlobType());
+    printf(" column: { name: '%s', attrid: %u  }\n", col->m_name.c_str(),
+           col->m_attrId);
+
+    // The blob parts table storing the parts
+    const NdbTableImpl *btab = blob->theBlobTable;
+    printf(" blob parts table: { name: '%s', id: %u, version: %u }\n",
+           btab->getName(), btab->getTableId(), btab->m_version);
+  }
+
+  // Print the event data buffers
+  printf(" available buffers: {\n");
+  Uint32 count = 0;
+  while (event_data_buf != NULL) {
+    // Extract blob part number
+    NdbEventOperationImpl *blob_op = blob->theBlobEventOp;
+    blob_op->m_data_item = const_cast<EventBufData *>(event_data_buf);
+    const Uint32 part_number = blob_op->get_blob_part_no(hasDist);
+
+    // Check if this is a part requested by caller
+    const bool part_requested =
+        (part_start <= part_number && part_number < part_start + part_count);
+
+    // Extract size of blob part
+    Uint32 sz = 0;
+    if (blob->theFixedDataFlag) {
+      sz = blob->thePartSize;
+    } else {
+      const uchar *p = (const uchar *)blob->theBlobEventDataBuf.data;
+      sz = p[0] + (p[1] << 8);
+    }
+
+    // Calculate blob part offset in blob
+    const Uint32 offset = part_number * sz;
+
+    printf("  [%u]%s:  part_number: %u, size: %u, offset: %u\n", count,
+           part_requested ? "*" : " ", part_number, sz, offset);
+
+    // Step to next buffer and increase counter
+    event_data_buf = event_data_buf->m_next;
+    count++;
+  }
+  printf(" }\n");
+  printf(" ====================================================\n");
+}
+
 int
 NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
                                      Uint32 part, Uint32 count, Uint16* lenLoc)
@@ -567,13 +637,15 @@ NdbEventOperationImpl::readBlobParts(char* buf, NdbBlob* blob,
     }
     data = data->m_next;
   }
-  if (unlikely(nparts != count))
-  {
+
+  if (nparts != count ||
+      DBUG_EVALUATE_IF("ndb_event_fail_read_blob_parts", true, false)) {
     g_eventLogger->info("nparts: %u count: %u noutside: %u", nparts, count,
                         noutside);
+    print_blob_part_bufs(blob, head, hasDist, part, count);
+    assert(nparts == count);
+    DBUG_RETURN_EVENT(-1);
   }
-  assert(nparts == count);
-
   DBUG_RETURN_EVENT(0);
 }
 
