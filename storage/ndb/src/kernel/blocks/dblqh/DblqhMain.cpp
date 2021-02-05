@@ -25801,6 +25801,11 @@ void Dblqh::openLogfileInit(Signal* signal, LogFileRecordPtr logFilePtr)
     jam();
     signal->theData[6] |= FsOpenReq::OM_INIT;
   }
+  else
+  {
+    jam();
+    signal->theData[6] |= FsOpenReq::OM_SPARSE_INIT;
+  }
 
   req->auto_sync_size = MAX_REDO_PAGES_WITHOUT_SYNCH * sizeof(LogPageRecord);
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);

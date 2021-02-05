@@ -117,8 +117,9 @@ AsyncFile::openReq(Request * request)
   // Validate some flag combination.
 
   // Not both OM_INIT and OM_GZ
-  require(!(flags & FsOpenReq::OM_INIT) ||
-          !(flags & FsOpenReq::OM_GZ));
+  const bool file_init =
+      (flags & FsOpenReq::OM_INIT) || (flags & FsOpenReq::OM_SPARSE_INIT);
+  require(!file_init || !(flags & FsOpenReq::OM_GZ));
 
   // Set flags for compression (OM_GZ) and encryption (OM_ENCRYPT)
   const bool use_gz = (flags & FsOpenReq::OM_GZ);
@@ -365,6 +366,27 @@ AsyncFile::openReq(Request * request)
         ndbout_c("%s ODirect is set.", theFileName.c_str());
       }
 #endif
+    }
+  }
+
+  /*
+   * Initialise file sparsely if OM_SPARSE_INIT.
+   * Set size and make sure unwritten block are read as zero.
+   */
+
+  if (flags & FsOpenReq::OM_SPARSE_INIT)
+  {
+    {
+      off_t file_data_size = m_xfile.get_size();
+      off_t data_size = request->par.open.file_size;
+      require(file_data_size == data_size);  // Currently do not support neither
+                                             // gz or enc on redo-log file
+    }
+    if (m_file.sync() == -1)
+    {
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+      m_file.close();
+      goto remove_if_created;
     }
   }
 
