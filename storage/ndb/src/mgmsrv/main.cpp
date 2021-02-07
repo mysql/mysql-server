@@ -199,6 +199,14 @@ static void mgmd_exit(int result)
   ndb_daemon_exit(result);
 }
 
+#ifndef _WIN32
+static void mgmd_sigterm_handler(int signum)
+{
+  g_eventLogger->info("Received SIGTERM. Performing stop.");
+  mgmd_exit(0);
+}
+#endif
+
 struct ThreadData
 {
   FILE* f;
@@ -418,6 +426,7 @@ static int mgmd_main(int argc, char** argv)
    */
 #ifndef _WIN32
   signal(SIGPIPE, SIG_IGN);
+  signal(SIGTERM, mgmd_sigterm_handler);
 #endif
 
   while (!g_StopServer)
