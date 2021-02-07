@@ -1,0 +1,37 @@
+--echo #
+--echo # Bug #31529221	ALTER TABLE FAILS AND REPORTS INCORRECT KEY FILE FOR TABLE T1
+--echo #
+
+SET @old_innodb_online_alter_log_max_size := @@innodb_online_alter_log_max_size;
+SET @old_max_allowed_packet := @@max_allowed_packet;
+set global innodb_online_alter_log_max_size=1342177280000;
+set global max_allowed_packet=1024*1024*1024;
+
+create table t1(d1 longblob);
+
+--connect (con1,localhost,root,,test,,)
+insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
+insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
+insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
+insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
+insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
+
+--send alter table t1 ADD COLUMN `d2` char(128) not null default '0' after d1;
+
+--connect (con2,localhost,root,,test,,)
+--disable_query_log
+let $ddl_not_finish= 1;
+while ($ddl_not_finish)
+{
+  insert into t1(d1) values (repeat(UNHEX('000f'), 1022*3));
+  let $ddl_not_finish= query_get_value("select count(1) as ddl from information_schema.innodb_trx where trx_query like '%alter table%'", ddl, 1);
+}
+--enable_query_log
+
+--connection con1
+--reap
+
+--connection default
+drop table t1;
+SET GLOBAL innodb_online_alter_log_max_size = @old_innodb_online_alter_log_max_size;
+set global max_allowed_packet = @old_max_allowed_packet;
