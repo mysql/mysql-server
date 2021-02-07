@@ -1706,6 +1706,7 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
 
     return (ret);
   } else if (type.is_read()) {
+    ut_ad(!type.is_row_log());
     Encryption encryption(type.encryption_algorithm());
 
     ret = encryption.decrypt(type, buf, src_len, scratch, len);
