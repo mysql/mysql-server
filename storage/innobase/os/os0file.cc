@@ -1715,6 +1715,7 @@ os_file_io_complete(
 		Encryption	encryption(type.encryption_algorithm());
 
 		ut_ad(!type.is_log());
+		ut_ad(!type.is_row_log());
 
 		ret = encryption.decrypt(type, buf, src_len, scratch, len);
 		if (ret == DB_SUCCESS) {
