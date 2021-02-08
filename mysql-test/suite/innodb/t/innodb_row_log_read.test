@@ -1,7 +1,7 @@
 --echo #
 --echo # Bug #31529221	ALTER TABLE FAILS AND REPORTS INCORRECT KEY FILE FOR TABLE T1
 --echo #
-
+--source include/have_innodb_16k.inc
 SET @old_innodb_online_alter_log_max_size := @@innodb_online_alter_log_max_size;
 SET @old_max_allowed_packet := @@max_allowed_packet;
 set global innodb_online_alter_log_max_size=1342177280000;
