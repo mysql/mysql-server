@@ -2186,7 +2186,6 @@ class THD : public MDL_context_owner,
     update auto-updatable fields (like auto_increment and timestamp).
   */
   query_id_t query_id;
-  ulong col_access;
 
   /* Statement id is thread-wide. This counter is used to generate ids */
   ulong statement_id_counter;
