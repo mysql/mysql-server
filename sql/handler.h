@@ -2210,8 +2210,10 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
 
   Any other members should be left unchanged. The AccessPath must be in an
   internally consistent state when the function returns, and satisfy invariants
-  expected by the hypergraph join optimizer, such as init_cost <= cost <=
-  cost_before_filter and num_output_rows <= num_output_rows_before_filter.
+  expected by the hypergraph join optimizer, such as:
+
+  - init_cost <= cost_before_filter <= cost
+  - num_output_rows <= num_output_rows_before_filter
 
   The secondary engine can also reject an access path altogether, by returning
   true, in which case the join optimizer will not use that path in the final
