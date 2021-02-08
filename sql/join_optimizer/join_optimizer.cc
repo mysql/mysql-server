@@ -1000,6 +1000,12 @@ AccessPath *CostingReceiver::ProposeAccessPath(
       return nullptr;
     }
     assert(!m_thd->is_error());
+    assert(path->init_cost <= path->cost);
+    if (path->filter_predicates != 0) {
+      assert(path->num_output_rows <= path->num_output_rows_before_filter);
+      assert(path->cost_before_filter <= path->cost);
+      assert(path->init_cost <= path->cost_before_filter);
+    }
   }
 
   if (existing_paths->empty()) {
