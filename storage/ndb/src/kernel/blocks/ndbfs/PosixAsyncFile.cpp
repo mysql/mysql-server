@@ -917,21 +917,37 @@ void PosixAsyncFile::appendReq(Request *request)
   while(size > 0){
     int n;
     if(use_gz)
+    {
       n= ndbzwrite(&nzf,buf,size);
+#ifdef ERROR_INSERT
+      if (m_error_insert == FsRef::fsErrNoSpaceLeftOnDevice)
+      {
+        n = 0;
+        set_my_errno(ENOSPC);
+        m_error_insert = 0;
+      }
+#endif
+      if (n == 0)
+      {
+        request->error = my_errno();
+        n = -1; // modify n to use same error code as write()
+      }
+    }
     else
+    {
       n= write(theFd, buf, size);
-    if(n == -1 && errno == EINTR){
+      if (n == -1)
+       request->error = errno;
+    }
+    if (n == -1 && request->error == EINTR)
+    {
       continue;
     }
-    if(n == -1){
-      if(use_gz)
-        request->error = my_errno();
-      else
-        request->error = errno;
-      return;
-    }
-    if(n == 0){
-      DEBUG(ndbout_c("append with n=0"));
+
+    if (n == 0)
+    {
+      ndbout_c("Posix append failed with compression %s, 0 bytes written",
+               use_gz ? "on" : "off");
       abort();
     }
     size -= n;

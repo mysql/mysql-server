@@ -1,4 +1,4 @@
-# Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 Next QMGR 950
 Next NDBCNTR 1023
-Next NDBFS 2002
+Next NDBFS 2003
 Next DBACC 3006
 Next DBTUP 4039
 Next DBLQH 5098
@@ -30,7 +30,7 @@ Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8120
 Next CMVMI 9000
-Next BACKUP 10054
+Next BACKUP 10055
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13054
@@ -654,6 +654,7 @@ Backup Stuff:
        master so that master waits to receive the duplicate REF
 10052: Same as 10051 for START_BACKUP_REQ
 10053: Same as 10051 for STOP_BACKUP_REQ
+10054: Insert error 2002 in NDBFS for backup datafile
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 
@@ -879,3 +880,9 @@ Index stats:
 DBUTIL
 -------
 19000: fail UTIL_PREPARE_REQ with PREPARE_SEIZE_ERROR
+
+NDBFS
+-----
+2000: Save FileSystemPath/ndb_XX_fs
+2001: Restore FileSystemPath/ndb_XX_fs
+2002: Simulate FSAPPENDREQ failure with ENOSPC error

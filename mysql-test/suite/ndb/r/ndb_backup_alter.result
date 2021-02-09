@@ -17,3 +17,12 @@ Wait for backup to complete
 Waiting for backup to complete
 Backup completed
 drop table t1;
+Backup aborts on out-of-disk-space
+SELECT TRIM(TRAILING "\r" FROM a) FROM test.desc WHERE a NOT LIKE "%Connected%";
+TRIM(TRAILING "\r" FROM a)
+Waiting for completed, this may take several minutes
+Backup failed
+*  3001: Could not start backup
+*        No space left on the device: Temporary error: Temporary Resource error
+
+DROP TABLE test.desc;
