@@ -1197,14 +1197,19 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
       label += "}]";
     }
 
+    // Draw inner joins as undirected; it is less confusing.
+    // When we get full outer joins, maybe we should have double arrows here?
+    const char *arrowhead_str =
+        expr->type == RelationalExpression::INNER_JOIN ? ",arrowhead=none" : "";
+
     // Output the edge.
     if (IsSingleBitSet(e.left) && IsSingleBitSet(e.right)) {
       // Simple edge.
       int left_node = FindLowestBitSet(e.left);
       int right_node = FindLowestBitSet(e.right);
-      digraph += StringPrintf("  %s -> %s [label=\"%s\"]\n",
-                              aliases[left_node].c_str(),
-                              aliases[right_node].c_str(), label.c_str());
+      digraph += StringPrintf(
+          "  %s -> %s [label=\"%s\"%s]\n", aliases[left_node].c_str(),
+          aliases[right_node].c_str(), label.c_str(), arrowhead_str);
     } else {
       // Hyperedge; draw it as a tiny “virtual node”.
       digraph += StringPrintf(
@@ -1229,9 +1234,9 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
 
       // Right side of the edge.
       for (int right_node : BitsSetIn(e.right)) {
-        digraph +=
-            StringPrintf("  e%zu -> %s [label=\"%s\"]\n", edge_idx,
-                         aliases[right_node].c_str(), right_label.c_str());
+        digraph += StringPrintf("  e%zu -> %s [label=\"%s\"%s]\n", edge_idx,
+                                aliases[right_node].c_str(),
+                                right_label.c_str(), arrowhead_str);
         right_label = "";
       }
     }
