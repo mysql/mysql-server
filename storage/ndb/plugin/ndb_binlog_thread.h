@@ -34,8 +34,15 @@
 #include "storage/ndb/plugin/ndb_metadata_sync.h"
 
 class Ndb;
+class NdbEventOperation;
 class Ndb_sync_pending_objects_table;
 class Ndb_sync_excluded_objects_table;
+struct ndb_binlog_index_row;
+class injector;
+class injector_transaction;
+struct TABLE;
+union NdbValue;
+struct MY_BITMAP;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
@@ -180,7 +187,7 @@ class Ndb_binlog_thread : public Ndb_component {
     // from the cluster
     CLUSTER_DISCONNECT
   };
-  bool check_reconnect_incident(THD *thd, class injector *inj,
+  bool check_reconnect_incident(THD *thd, injector *inj,
                                 Reconnect_type incident_id) const;
 
   /**
@@ -218,6 +225,42 @@ class Ndb_binlog_thread : public Ndb_component {
      @param thd Thread handle
   */
   void synchronize_detected_object(THD *thd);
+
+#ifndef NDEBUG
+  /**
+     @brief As the Binlog thread is not a client thread, the 'set debug'
+     command does not affect it. This functions updates the thread-local
+     debug value from the global debug value.
+
+     @note function need to be called regularly in the binlog thread loop.
+   */
+  void dbug_sync_setting() const;
+#endif
+
+  // Functions for handling received events
+  int handle_data_get_blobs(const TABLE *table,
+                            const NdbValue *const value_array, uchar *&buffer,
+                            uint &buffer_size, ptrdiff_t ptrdiff) const;
+  void handle_data_unpack_record(TABLE *table, const NdbValue *value,
+                                 MY_BITMAP *defined, uchar *buf) const;
+  int handle_error(NdbEventOperation *pOp) const;
+  void handle_non_data_event(THD *thd, NdbEventOperation *pOp,
+                             ndb_binlog_index_row &row) const;
+  int handle_data_event(const NdbEventOperation *pOp,
+                        ndb_binlog_index_row **rows,
+                        injector_transaction &trans, unsigned &trans_row_count,
+                        unsigned &replicated_row_count) const;
+
+  // Functions for injecting events
+  bool inject_apply_status_write(injector_transaction &trans,
+                                 ulonglong gci) const;
+  void inject_incident(injector *inj, THD *thd,
+                       NdbDictionary::Event::TableEvent event_type,
+                       Uint64 gap_epoch) const;
+  void inject_table_map(Ndb *ndb, injector_transaction &trans) const;
+  void commit_trans(injector_transaction &trans, THD *thd, Uint64 current_epoch,
+                    ndb_binlog_index_row *rows, unsigned trans_row_count,
+                    unsigned replicated_row_count) const;
 };
 
 /*

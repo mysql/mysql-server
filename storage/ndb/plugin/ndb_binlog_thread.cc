@@ -270,3 +270,18 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
     }
   }
 }
+
+#ifndef NDEBUG
+void Ndb_binlog_thread::dbug_sync_setting() const {
+  char global_value[256];
+  DBUG_EXPLAIN_INITIAL(global_value, sizeof(global_value));
+  char local_value[256];
+  DBUG_EXPLAIN(local_value, sizeof(local_value));
+
+  // Detect change, log and set
+  if (std::string(global_value) != std::string(local_value)) {
+    log_info("Setting debug='%s'", global_value);
+    DBUG_SET(global_value);
+  }
+}
+#endif
