@@ -34,9 +34,7 @@
 --source include/have_binlog_format_row.inc
 
 --let $saved_binlog_transaction_dependency_tracking= `SELECT @@GLOBAL.binlog_transaction_dependency_tracking`
---let $saved_transaction_write_set_extraction= `SELECT @@GLOBAL.transaction_write_set_extraction`
 
-SET GLOBAL transaction_write_set_extraction= 'XXHASH64';
 SET GLOBAL binlog_transaction_dependency_tracking= 'WRITESET';
 
 CREATE TABLE t1(id INT, PRIMARY KEY (id));
@@ -59,5 +57,4 @@ INSERT INTO t1(id) VALUES(5);
 
 # Clean up
 --eval SET GLOBAL binlog_transaction_dependency_tracking= $saved_binlog_transaction_dependency_tracking
---eval SET GLOBAL transaction_write_set_extraction= $saved_transaction_write_set_extraction
 DROP TABLE t1;

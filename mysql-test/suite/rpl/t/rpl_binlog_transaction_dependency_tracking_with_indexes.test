@@ -101,11 +101,8 @@ SET @@GLOBAL.slave_parallel_workers= 4;
 
 --source include/rpl_connection_master.inc
 SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
 
 SET GLOBAL binlog_transaction_dependency_tracking = COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction = XXHASH64;
-SET SESSION transaction_write_set_extraction = XXHASH64;
 SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
 
 # Tell assert_logical_timestamps to save the current position so that
@@ -308,7 +305,6 @@ while ($explicit_pk < 2)
 --echo #### CLEAN UP ####
 # Value of TWSE cannot be changed when binlog_transaction_dependency_tracking!= COMMIT_ORDER
 SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 
 --source include/sync_slave_sql_with_master.inc

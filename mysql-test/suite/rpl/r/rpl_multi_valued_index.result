@@ -97,7 +97,6 @@ Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1
 DROP TABLE t1;
 SET @start_row_image_value = @@session.binlog_row_image;
 SET @@session.binlog_row_image = MINIMAL;
-SET @@global.transaction_write_set_extraction = 'XXHASH64';
 SET @save_btdt= @@global.binlog_transaction_dependency_tracking;
 SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
 FLUSH LOGS;

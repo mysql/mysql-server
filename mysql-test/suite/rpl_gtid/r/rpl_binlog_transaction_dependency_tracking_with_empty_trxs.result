@@ -7,10 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 RESET MASTER;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= (test.t1);
 SET @save_binlog_transaction_dependency_tracking= @@GLOBAL.binlog_transaction_dependency_tracking;
-SET @save_transaction_write_set_extraction= @@GLOBAL.transaction_write_set_extraction;
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET GLOBAL transaction_write_set_extraction= XXHASH64;
-SET LOCAL transaction_write_set_extraction= XXHASH64;
 SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
 include/start_slave.inc
 [connection master]
@@ -31,7 +28,6 @@ DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
-SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= ();
 include/start_slave_sql.inc

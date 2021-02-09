@@ -2314,10 +2314,11 @@ static Sys_var_enum Sys_extract_write_set(
     "transaction_write_set_extraction",
     "This option is used to let the server know when to "
     "extract the write set which will be used for various purposes. ",
-    SESSION_VAR(transaction_write_set_extraction), CMD_LINE(OPT_ARG),
+    SESSION_VAR(transaction_write_set_extraction),
+    CMD_LINE(OPT_ARG, OPT_TRANSACTION_WRITE_SET_EXTRACTION),
     transaction_write_set_hashing_algorithms, DEFAULT(HASH_ALGORITHM_XXHASH64),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(transaction_write_set_check),
-    ON_UPDATE(nullptr));
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_ulong Sys_rpl_stop_slave_timeout(
     "rpl_stop_slave_timeout",

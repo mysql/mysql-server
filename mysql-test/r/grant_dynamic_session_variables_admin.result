@@ -79,6 +79,8 @@ Warnings:
 Warning	1231	'pseudo_slave_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;
@@ -119,6 +121,8 @@ Warnings:
 Warning	1231	'pseudo_slave_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;
@@ -161,6 +165,8 @@ Warnings:
 Warning	1231	'pseudo_slave_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
 SET SESSION sql_log_off = DEFAULT;
 SET SESSION original_commit_timestamp = DEFAULT;

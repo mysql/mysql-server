@@ -10183,6 +10183,9 @@ bool mysqld_get_one_option(int optid,
       push_deprecated_warn_no_replacement(nullptr,
                                           "--relay-log-info-repository");
       break;
+    case OPT_TRANSACTION_WRITE_SET_EXTRACTION:
+      push_deprecated_warn_no_replacement(nullptr,
+                                          "--transaction-write-set-extraction");
   }
   return false;
 }

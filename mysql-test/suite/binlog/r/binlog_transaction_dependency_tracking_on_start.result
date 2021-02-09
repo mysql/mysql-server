@@ -52,4 +52,6 @@ include/assert.inc [transaction_write_set_extraction should be XXHASH64]
 include/assert.inc [binlog_transaction_dependency_tracking should be WRITESET_SESSION]
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET GLOBAL transaction_write_set_extraction= SAVED_TWSE;
+Warnings:
+Warning	1287	'@@transaction_write_set_extraction' is deprecated and will be removed in a future release.
 SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
