@@ -4151,7 +4151,21 @@ void Query_block::empty_order_list(Query_block *sl) {
     return;
   }
   for (ORDER *o = order_list.first; o != nullptr; o = o->next) {
-    if (*o->item == o->item_ptr) {
+    /*
+      Do not remove an order_item of type Item_view_ref. Refer to
+      the comments in Item_cond::fix_fields on the removal of
+      Item_view_ref type.
+    */
+    if (*o->item == o->item_ptr &&
+        (!o->item_ptr->has_subquery() ||
+         !WalkItem(o->item_ptr, enum_walk::PREFIX, [](Item *inner_item) {
+           if (inner_item->type() == Item::REF_ITEM &&
+               down_cast<Item_ref *>(inner_item)->ref_type() ==
+                   Item_ref::VIEW_REF) {
+             return true;
+           }
+           return false;
+         }))) {
       Item::Cleanup_after_removal_context ctx(sl);
       (*o->item)->walk(&Item::clean_up_after_removal,
                        enum_walk::SUBQUERY_POSTFIX,
