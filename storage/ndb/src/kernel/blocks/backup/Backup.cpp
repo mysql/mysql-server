@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -9959,6 +9959,14 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 #endif
 
     const bool write_to_datafile = (filePtr.i == ptr.p->dataFilePtr[0]);
+    if (ERROR_INSERTED(10054) && !ptr.p->is_lcp() && write_to_datafile)
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      signal->theData[0] = DumpStateOrd::NdbfsErrorInsert;
+      signal->theData[1] = 2002;
+      signal->theData[2] = filePtr.p->filePointer;
+      sendSignal(NDBFS_REF, GSN_DUMP_STATE_ORD, signal, 3, JBB);
+    }
     /**
      * If O_DIRECT is enabled, the write should be done in 128-word chunks.
      * For O_DIRECT writes of less than 128 words, we skip the writes when
