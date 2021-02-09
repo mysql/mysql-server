@@ -1443,13 +1443,6 @@ Restrictions::Restrictions() : m_db_restrictions() {}
 Restrictions ::~Restrictions() { m_db_restrictions.clear(); }
 
 /**
-  Copy constructor for Restrictions
-
-  @param [in] restrictions Restrictions to be copied
-*/
-Restrictions::Restrictions(const Restrictions &) = default;
-
-/**
   Move constructor for Restrictions
 */
 Restrictions::Restrictions(Restrictions &&restrictions)
