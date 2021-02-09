@@ -62,7 +62,7 @@ struct TABLE_REF;
   live inside the “expr” object, as does the join type etc.
  */
 struct JoinPredicate {
-  const RelationalExpression *expr;
+  RelationalExpression *expr;
   double selectivity;
 
   // If this join is made using a hash join, estimates the width
@@ -115,6 +115,17 @@ struct Predicate {
   hypergraph::NodeMap total_eligibility_set;
 
   double selectivity;
+
+  // Whether this predicate is a join condition after all; it was promoted
+  // to a WHERE predicate since it was part of a cycle (see the comment in
+  // AddCycleEdges()). If it is, it is usually ignored so that we don't
+  // double-apply join conditions -- but if the join in question was not
+  // applied (because the cycle was broken at this point), the predicate
+  // would come into play. This is normally registered on the join itself
+  // (see RelationalExpression::join_predicate_bitmap), but having the bit
+  // on the predicate itself is used to avoid trying to push it down as a
+  // sargable predicate.
+  bool was_join_condition = false;
 
   // See the equivalent fields in JoinPredicate.
   FunctionalDependencySet functional_dependencies;

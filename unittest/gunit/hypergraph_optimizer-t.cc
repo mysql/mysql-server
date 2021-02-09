@@ -562,6 +562,192 @@ TEST_F(MakeHypergraphTest, AssociativeRewriteToImprovePushdown) {
   EXPECT_EQ(0, graph.predicates.size());
 }
 
+TEST_F(MakeHypergraphTest, Cycle) {
+  // If == is outer join and -- is inner join:
+  //
+  // t6 == t1 -- t2 -- t4 == t5
+  //        |  /
+  //        | /
+  //       t3
+  //
+  // Note that t6 is on the _left_ side of the inner join, so we should be able
+  // to push down conditions to it.
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM "
+      "((t1,t2,t3,t4) LEFT JOIN t5 ON t4.x=t5.x) LEFT JOIN t6 ON t1.x=t6.x "
+      "WHERE t1.x=t2.x AND t2.x=t3.x AND t1.x=t3.x AND t2.x=t4.x",
+      /*nullable=*/true);
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(6, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+  EXPECT_STREQ("t5", graph.nodes[4].table->alias);
+  EXPECT_STREQ("t6", graph.nodes[5].table->alias);
+
+  // t1/t2.
+  ASSERT_EQ(6, graph.edges.size());
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+
+  // t2/t4.
+  EXPECT_EQ(0x02, graph.graph.edges[4].left);
+  EXPECT_EQ(0x08, graph.graph.edges[4].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
+
+  // t4/t5.
+  EXPECT_EQ(0x08, graph.graph.edges[6].left);
+  EXPECT_EQ(0x10, graph.graph.edges[6].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[3].expr->type);
+
+  // t1/t6.
+  EXPECT_EQ(0x01, graph.graph.edges[8].left);
+  EXPECT_EQ(0x20, graph.graph.edges[8].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[4].expr->type);
+
+  // t1/t3; added last because it completes a cycle.
+  EXPECT_EQ(0x01, graph.graph.edges[10].left);
+  EXPECT_EQ(0x04, graph.graph.edges[10].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[5].expr->type);
+
+  // The three predicates from the cycle should be added, but no others.
+  // The TES should be equivalent to the SES, ie., the outer joins should
+  // not influence this.
+  ASSERT_EQ(3, graph.predicates.size());
+
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(graph.predicates[0].condition));
+  EXPECT_EQ(0x03, graph.predicates[0].total_eligibility_set);  // t1/t2.
+  EXPECT_TRUE(graph.predicates[0].was_join_condition);
+
+  EXPECT_EQ("(t2.x = t3.x)", ItemToString(graph.predicates[1].condition));
+  EXPECT_EQ(0x06, graph.predicates[1].total_eligibility_set);  // t2/t3.
+  EXPECT_TRUE(graph.predicates[1].was_join_condition);
+
+  EXPECT_EQ("(t1.x = t3.x)", ItemToString(graph.predicates[2].condition));
+  EXPECT_EQ(0x05, graph.predicates[2].total_eligibility_set);  // t1/t3.
+  EXPECT_TRUE(graph.predicates[2].was_join_condition);
+}
+
+TEST_F(MakeHypergraphTest, NoCycleBelowOuterJoin) {
+  // The OR ... IS NULL part is to keep the LEFT JOIN from being simplified
+  // to an inner join.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN (t2,t3,t4) ON t1.x=t2.x "
+      "WHERE (t2.x=t3.x OR t2.x IS NULL) "
+      "AND (t3.x=t4.x OR t3.x IS NULL) "
+      "AND (t4.x=t2.x OR t4.x IS NULL)",
+      /*nullable=*/true);
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(4, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+
+  // t2/t3.
+  ASSERT_EQ(3, graph.edges.size());
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+
+  // {t2,t3}/t4 (due to the Cartesian product).
+  EXPECT_EQ(0x06, graph.graph.edges[2].left);
+  EXPECT_EQ(0x08, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+
+  // t1/{t2,t3,t4} (the outer join).
+  EXPECT_EQ(0x01, graph.graph.edges[4].left);
+  EXPECT_EQ(0x0e, graph.graph.edges[4].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[2].expr->type);
+
+  // The three predicates are still there; no extra predicates due to cycles.
+  EXPECT_EQ(3, graph.predicates.size());
+}
+
+TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM "
+      "t1 LEFT JOIN (t2 JOIN (t3 JOIN t4 ON t3.x=t4.x) ON t2.x=t3.x) "
+      "ON t1.x=t2.x AND t2.x=t4.x",
+      /*nullable=*/true);
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(4, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+
+  // t2/t3.
+  ASSERT_EQ(4, graph.edges.size());
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+
+  // t2/t4 (pushed from the ON condition).
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x08, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+
+  // t1/{t2,t3,t4} (the outer join).
+  EXPECT_EQ(0x01, graph.graph.edges[4].left);
+  EXPECT_EQ(0x0e, graph.graph.edges[4].right);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[2].expr->type);
+
+  // t3/t4; added last because it completes a cycle.
+  EXPECT_EQ(0x04, graph.graph.edges[6].left);
+  EXPECT_EQ(0x08, graph.graph.edges[6].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[3].expr->type);
+
+  // The three predicates from the cycle should be added, but no others.
+  // The TES should be equivalent to the SES, ie., the outer joins should
+  // not influence this.
+  ASSERT_EQ(3, graph.predicates.size());
+
+  EXPECT_EQ("(t2.x = t3.x)", ItemToString(graph.predicates[0].condition));
+  EXPECT_EQ(0x06, graph.predicates[0].total_eligibility_set);  // t2/t3.
+  EXPECT_TRUE(graph.predicates[0].was_join_condition);
+
+  EXPECT_EQ("(t2.x = t4.x)", ItemToString(graph.predicates[1].condition));
+  EXPECT_EQ(0x0a, graph.predicates[1].total_eligibility_set);  // t2/t4.
+  EXPECT_TRUE(graph.predicates[1].was_join_condition);
+
+  EXPECT_EQ("(t3.x = t4.x)", ItemToString(graph.predicates[2].condition));
+  EXPECT_EQ(0x0c, graph.predicates[2].total_eligibility_set);  // t3/t4.
+  EXPECT_TRUE(graph.predicates[2].was_join_condition);
+}
+
 // An alias for better naming.
 // We don't verify costs; to do that, we'd probably need to mock out
 // the cost model.
@@ -963,6 +1149,23 @@ TEST_F(HypergraphOptimizerTest, StraightJoin) {
 
   // We should see only the two table scans and then t1-t2, no other orders.
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 3);
+}
+
+TEST_F(HypergraphOptimizerTest, Cycle) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM "
+      "t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x AND t1.x=t3.x",
+      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We should see t1, t2, t3, {t1,t2}, {t2,t3}, {t1,t3} and {t1,t2,t3}.
+  EXPECT_EQ(m_thd->m_current_query_partial_plans, 7);
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {

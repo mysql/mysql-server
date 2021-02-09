@@ -1652,3 +1652,28 @@ WHERE EXISTS (
 );
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32643386: WL#14418: ASSERTION `FD_SET == IT_AND_INSERTED.FIRST->SECOND.ACTIVE_FUNCTIONAL_D
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+# t1 and t2 cannot be part of the same companion set, or we'd add mesh
+# around non-simple edges.
+SELECT *
+FROM (t1 STRAIGHT_JOIN t1 AS t2) JOIN t1 AS t3 ON t1.a = t3.a
+WHERE t2.a = t3.a
+ORDER BY t1.a;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+
+# Similar; the t1/t3 edge must not be allowed to create a cycle.
+SELECT *
+FROM (t1 STRAIGHT_JOIN t1 AS t2 ON t1.b = t2.b) JOIN t1 AS t3 ON t1.a = t3.b
+WHERE t1.a < t2.b AND t2.a < t3.b
+ORDER BY t1.b;
+
+DROP TABLE t1;

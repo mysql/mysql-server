@@ -357,6 +357,7 @@ class CostingReceiver {
   void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
                                        const AccessPath *left_path,
                                        const AccessPath *right_path,
+                                       uint64_t join_predicate_bitmap,
                                        bool materialize_subqueries,
                                        AccessPath *join_path,
                                        FunctionalDependencySet *new_fd_set);
@@ -680,6 +681,15 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
     int keypart_idx = WasPushedDownToRef(m_graph.predicates[i].condition,
                                          keyparts, matched_keyparts);
     if (keypart_idx == -1) {
+      continue;
+    }
+
+    if (m_graph.predicates[i].was_join_condition) {
+      // This predicate was promoted from a join condition to a WHERE predicate,
+      // since it was part of a cycle. For purposes of sargable predicates,
+      // we always see all relevant join conditions, so skip it this time
+      // so that we don't double-count its selectivity.
+      applied_predicates |= uint64_t{1} << i;
       continue;
     }
 
@@ -1358,9 +1368,9 @@ void CostingReceiver::ProposeHashJoin(
 
   {
     FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                    /*materialize_subqueries=*/false,
-                                    &join_path, &filter_fd_set);
+    ApplyDelayedPredicatesAfterJoin(
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
     join_path.ordering_state = m_orderings->ApplyFDs(
@@ -1373,9 +1383,9 @@ void CostingReceiver::ProposeHashJoin(
   if (Overlaps(join_path.filter_predicates,
                m_graph.materializable_predicates)) {
     FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                    /*materialize_subqueries=*/true, &join_path,
-                                    &filter_fd_set);
+    ApplyDelayedPredicatesAfterJoin(
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
     join_path.ordering_state = m_orderings->ApplyFDs(
@@ -1390,8 +1400,9 @@ void CostingReceiver::ProposeHashJoin(
 // ones that need to be delayed further.
 void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     NodeMap left, NodeMap right, const AccessPath *left_path,
-    const AccessPath *right_path, bool materialize_subqueries,
-    AccessPath *join_path, FunctionalDependencySet *new_fd_set) {
+    const AccessPath *right_path, uint64_t join_predicate_bitmap,
+    bool materialize_subqueries, AccessPath *join_path,
+    FunctionalDependencySet *new_fd_set) {
   // We build up a new FD set each time; it should be the same for the same
   // left/right pair, so it is somewhat redundant, but it allows us to verify
   // that property through the assert in ProposeAccessPathWithOrderings().
@@ -1407,9 +1418,11 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
       ~TablesBetween(0, m_graph.num_where_predicates);
   join_path->delayed_predicates =
       left_path->delayed_predicates ^ right_path->delayed_predicates;
+  join_path->delayed_predicates &= ~join_predicate_bitmap;
   const NodeMap ready_tables = left | right;
-  for (int pred_idx : BitsSetIn(left_path->delayed_predicates &
-                                right_path->delayed_predicates)) {
+  for (int pred_idx :
+       BitsSetIn(left_path->delayed_predicates &
+                 right_path->delayed_predicates & ~join_predicate_bitmap)) {
     if (IsSubset(m_graph.predicates[pred_idx].total_eligibility_set,
                  ready_tables)) {
       join_path->filter_predicates |= uint64_t{1} << pred_idx;
@@ -1601,9 +1614,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
 
   {
     FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                    /*materialize_subqueries=*/false,
-                                    &join_path, &filter_fd_set);
+    ApplyDelayedPredicatesAfterJoin(
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(
@@ -1615,9 +1628,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
   if (Overlaps(join_path.filter_predicates,
                m_graph.materializable_predicates)) {
     FunctionalDependencySet filter_fd_set;
-    ApplyDelayedPredicatesAfterJoin(left, right, left_path, right_path,
-                                    /*materialize_subqueries=*/true, &join_path,
-                                    &filter_fd_set);
+    ApplyDelayedPredicatesAfterJoin(
+        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
     ProposeAccessPathWithOrderings(left | right, new_fd_set | filter_fd_set,

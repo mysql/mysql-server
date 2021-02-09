@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,6 +92,16 @@ struct RelationalExpression {
   // If type == TABLE.
   const TABLE_LIST *table;
   Mem_root_array<Item *> join_conditions_pushable_to_this;
+  // Tables in the same companion set are those that are inner-joined
+  // against each other; we use this to see in what parts of the graph
+  // we allow cycles. (Within companion sets, we are also allowed to
+  // add Cartesian products if we deem that an advantage, but we don't
+  // do it currently.) -1 means that the table is not part of a companion
+  // set, e.g. because it only participates in outer joins. Tables may
+  // also be alone in their companion sets, which essentially means
+  // the same thing as -1. The companion sets are just opaque identifiers;
+  // the number itself doesn't mean much.
+  int companion_set{-1};
 
   // If type != TABLE. Note that equijoin_conditions will be split off
   // from join_conditions fairly late (at CreateHashJoinConditions()),
@@ -100,6 +110,13 @@ struct RelationalExpression {
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
   table_map conditions_used_tables{0};
+  // If the join conditions were also added as predicates due to cycles
+  // in the graph (see comment in AddCycleEdges()), contains a bitmap of
+  // which indexes they got in the predicate list. This is so that we know that
+  // they are redundant and don't have to apply them if we actually apply this
+  // join (as opposed to getting the edge implicitly by means of joining the
+  // tables along some other way in the cycle).
+  uint64_t join_predicate_bitmap{0};
 
   // Conflict rules that must be checked before making a subgraph
   // out of this join; this is in addition to the regular connectivity
