@@ -1,1 +1,2 @@
 --innodb_stats_include_delete_marked=on
+--testcase-timeout=90
