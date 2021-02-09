@@ -303,7 +303,18 @@ bool MySQLServerMockSessionClassic::handle_handshake(
 
       std::this_thread::sleep_for(json_reader_->server_greeting_exec_time());
 
-      protocol_->send_server_greeting(greeting_res.value());
+      {
+        auto greeting = greeting_res.value();
+
+        // greeting contains a trailing \0, but we want it without \0
+        auto auth_method_data = greeting.auth_method_data();
+
+        if (auth_method_data.size() == 21) {
+          auth_method_data.pop_back();  // strip last char
+        }
+        protocol_->auth_method_data(auth_method_data);
+        protocol_->send_server_greeting(greeting);
+      }
 
       state(HandshakeState::GREETED);
 
