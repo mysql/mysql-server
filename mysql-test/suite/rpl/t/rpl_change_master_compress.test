@@ -29,12 +29,15 @@
 --source include/master-slave.inc
 --source include/have_debug.inc
 
+--source include/rpl_connection_slave.inc
+
 --echo # Success criteria: should produce an error
 --error ER_CHANGE_RPL_SRC_WRONG_COMPRESSION_ALGORITHM_SIZE
 CHANGE REPLICATION SOURCE TO
 SOURCE_COMPRESSION_ALGORITHMS='aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeee
 eeeffffffffffgggggggggghhhhhhhhhhhiiiiiiiiiijjjjjjjjjjkkkkkkkkkk';
 
-
+--source include/start_slave.inc
+--source include/rpl_end.inc
 --echo # End of 8.0 tests
 
