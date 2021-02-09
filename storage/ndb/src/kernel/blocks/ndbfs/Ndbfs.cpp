@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1007,6 +1007,14 @@ Ndbfs::execFSAPPENDREQ(Signal * signal)
   const NewVARIABLE *myBaseAddrRef =
     &getBat(blockNumber, instanceNumber)[fsReq->varIndex];
 
+#ifdef ERROR_INSERT
+  if (ERROR_INSERTED(2002) && (c_error_insert_extra == fsReq->filePointer))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+    openFile->error_insert(FsRef::fsErrNoSpaceLeftOnDevice);
+  }
+#endif
+
   const Uint32* tWA   = (const Uint32*)myBaseAddrRef->WA;
   const Uint32  tSz   = myBaseAddrRef->nrr;
   const Uint32 offset = fsReq->offset;
@@ -1781,7 +1789,12 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     }
 #endif
   }
-
+  if (signal->theData[0] == DumpStateOrd::NdbfsErrorInsert)
+  {
+    UintR error_insert = signal->theData[1];
+    UintR file_ptr = signal->theData[2];
+    SET_ERROR_INSERT_VALUE2(error_insert, file_ptr);
+  }
   if(signal->theData[0] == 405)
   {
     for (unsigned i = 0; i < theFiles.size(); i++)
