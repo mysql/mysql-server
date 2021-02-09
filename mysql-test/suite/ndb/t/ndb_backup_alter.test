@@ -37,3 +37,26 @@ while($mysql_errno)
   --error 0,1306
   DROP TABLE t1;
 }
+
+--echo Backup aborts on out-of-disk-space
+--disable_query_log
+--exec $NDB_MGM -e 'all error 10054' > /dev/null
+
+let $dump_file = $MYSQLTEST_VARDIR/tmp/desc.txt;
+--error 255
+--exec $NDB_MGM -e 'start backup wait completed' > $dump_file 2>&1
+
+# Load the file into a temporary table
+CREATE TEMPORARY TABLE test.desc (a varchar(512)) ENGINE = HEAP;
+
+--chmod 0777 $dump_file
+--replace_result $dump_file DUMP_FILE
+eval LOAD DATA INFILE '$dump_file' INTO TABLE test.desc;
+--remove_file $dump_file
+--enable_query_log
+
+# Query the temporary table
+SELECT TRIM(TRAILING "\r" FROM a) FROM test.desc WHERE a NOT LIKE "%Connected%";
+echo $value;
+
+DROP TABLE test.desc;

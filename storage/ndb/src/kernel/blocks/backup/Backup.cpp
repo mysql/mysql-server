@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6754,6 +6754,14 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
                        (sz % 128 != 0) &&     // too small for O_DIRECT
                        (ptr.p->slaveState.getState() == STOPPING));
 
+    if (ERROR_INSERTED(10054) && !ptr.p->is_lcp() && write_to_datafile)
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      signal->theData[0] = DumpStateOrd::NdbfsErrorInsert;
+      signal->theData[1] = 2002;
+      signal->theData[2] = filePtr.p->filePointer;
+      sendSignal(NDBFS_REF, GSN_DUMP_STATE_ORD, signal, 3, JBB);
+    }
     if(likely(!skip_write))
     {
       /**
@@ -6776,7 +6784,6 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
       req->offset        = Uint32(tmp - c_startOfPages); // 4Gb buffers!
       req->size          = sz;
       req->synch_flag    = 0;
-    
       sendSignal(NDBFS_REF, GSN_FSAPPENDREQ, signal, 
 	         FsAppendReq::SignalLength, JBA);
       return;
