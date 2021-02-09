@@ -3100,9 +3100,18 @@ void SELECT_LEX::empty_order_list(SELECT_LEX *sl)
 {
   for (ORDER *o= order_list.first; o != NULL; o= o->next)
   {
-    if (*o->item == o->item_ptr)
+    /*
+      Do not remove the order by expression if it has a view
+      reference. There is possibility that this view reference could
+      be used elsewhere in the query
+    */
+    if (*o->item == o->item_ptr &&
+        (!o->item_ptr->has_subquery() ||
+         !o->item_ptr->walk(&Item::is_direct_view_ref,
+                            Item::WALK_SUBQUERY_PREFIX, NULL))) {
       (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
                        pointer_cast<uchar *>(sl));
+    }
   }
   order_list.empty();
   while (hidden_order_field_count-- > 0)
