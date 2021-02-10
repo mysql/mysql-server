@@ -7340,21 +7340,6 @@ restart_cluster_failure:
               log_info("...and on our way");
             }
           }
-
-          DBUG_PRINT("info",
-                     ("s_ndb first: %s", s_ndb->getEventOperation()
-                                             ? s_ndb->getEventOperation()
-                                                   ->getEvent()
-                                                   ->getTable()
-                                                   ->getName()
-                                             : "<empty>"));
-          DBUG_PRINT("info",
-                     ("i_ndb first: %s", i_ndb->getEventOperation()
-                                             ? i_ndb->getEventOperation()
-                                                   ->getEvent()
-                                                   ->getTable()
-                                                   ->getName()
-                                             : "<empty>"));
         } else {
           log_error("error %d (%s) on handling binlog schema event",
                     s_pOp->getNdbError().code, s_pOp->getNdbError().message);
@@ -7502,20 +7487,6 @@ restart_cluster_failure:
                                 trans_slave_row_count);
             else {
               handle_non_data_event(thd, i_pOp, *rows);
-              DBUG_PRINT("info",
-                         ("s_ndb first: %s", s_ndb->getEventOperation()
-                                                 ? s_ndb->getEventOperation()
-                                                       ->getEvent()
-                                                       ->getTable()
-                                                       ->getName()
-                                                 : "<empty>"));
-              DBUG_PRINT("info",
-                         ("i_ndb first: %s", i_ndb->getEventOperation()
-                                                 ? i_ndb->getEventOperation()
-                                                       ->getEvent()
-                                                       ->getTable()
-                                                       ->getName()
-                                                 : "<empty>"));
             }
 
             i_pOp = i_ndb->nextEvent2();
