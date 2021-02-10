@@ -111,13 +111,26 @@ class Server {
   int send_key_value(Command_Response rcmd, String_Key &key_str,
                      String_Key &val_str);
 
+  /** Send configurations.
+  @param[in]	rcmd	response command
+  @return error code */
+  int send_configs(Command_Response rcmd);
+
   /** @return true iff need to send only plugin name for old clone version. */
   bool send_only_plugin_name() const {
-    return m_protocol_version == CLONE_PROTOCOL_VERSION_V1;
+    return m_protocol_version < CLONE_PROTOCOL_VERSION_V2;
+  }
+
+  /** @return true iff skip sending additional configurations. */
+  bool skip_other_configs() const {
+    return m_protocol_version < CLONE_PROTOCOL_VERSION_V3;
   }
 
   /** Configuration parameters to be validated by remote. */
   static Key_Values s_configs;
+
+  /** Additional configuration parameters needed by recipient. */
+  static Key_Values s_other_configs;
 
  private:
   /** Check if network error

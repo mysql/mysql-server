@@ -48,6 +48,7 @@ using Time_Point = std::chrono::time_point<Clock>;
 
 using Time_Msec = std::chrono::milliseconds;
 using Time_Sec = std::chrono::seconds;
+using Time_Min = std::chrono::minutes;
 
 struct Thread_Info {
   /** Default constructor */
@@ -378,6 +379,9 @@ struct Remote_Parameters {
   /** Remote configurations to validate */
   Key_Values m_configs;
 
+  /** Remote configurations to use */
+  Key_Values m_other_configs;
+
   /** Remote plugins with shared object name */
   Key_Values m_plugins_with_so;
 };
@@ -679,8 +683,12 @@ class Client {
   /** Extract and add remote configuration from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
+  @param[in]	other	true if additional configuration
   @return error code */
-  int add_config(const uchar *packet, size_t length);
+  int add_config(const uchar *packet, size_t length, bool other);
+
+  /** Use additional configurations if sent by donor. */
+  void use_other_configs();
 
   /** Set locators returned by remote server
   @param[in]	buffer	serialized locator information
@@ -715,6 +723,12 @@ class Client {
 
   /** Number of concurrent clone clients. */
   static uint32_t s_num_clones;
+
+  /** Time out for connecting back to donor server after network failure. */
+  static Time_Sec s_reconnect_timeout;
+
+  /** Interval for attempting re-connect after failure. */
+  static Time_Sec s_reconnect_interval;
 
  private:
   /** Server thread object */
