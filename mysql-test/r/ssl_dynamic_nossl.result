@@ -3,6 +3,9 @@ call mtr.add_suppression("Failed to set up SSL because of the following SSL libr
 # Check if ssl is off: must be off.
 # reset and enable SSL
 ALTER INSTANCE RELOAD TLS;
+Warnings:
+Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
+Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 # SSL must be enabled now despite the value of --ssl
 1
 1
@@ -11,6 +14,8 @@ SET @orig_ssl_ca= @@global.ssl_ca;
 SET GLOBAL ssl_ca = 'gizmo';
 ALTER INSTANCE RELOAD TLS NO ROLLBACK ON ERROR;
 Warnings:
+Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
+Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 Warning	3888	Failed to set up SSL because of the following SSL library error: SSL_CTX_set_default_verify_paths failed
 SET GLOBAL ssl_ca = @orig_ssl_ca;
 ################## End of dynamic SSL tests

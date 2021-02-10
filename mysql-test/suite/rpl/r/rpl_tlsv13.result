@@ -70,6 +70,9 @@ include/stop_slave.inc [FOR CHANNEL 'my_channel']
 SET @@GLOBAL.tls_version= @tls_version_saved;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
 ALTER INSTANCE RELOAD TLS;
+Warnings:
+Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
+Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 SET SESSION sql_log_bin=0;
 DROP USER 'replssl';
 SET SESSION sql_log_bin=1;
