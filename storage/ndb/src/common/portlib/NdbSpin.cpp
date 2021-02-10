@@ -50,11 +50,12 @@ void NdbSpin_Init()
     NDB_TICKS now = NdbTick_getCurrentTicks();
     const Uint64 nanos_passed = NdbTick_Elapsed(start, now).nanoSec();
     const Uint64 nanos_per_call = nanos_passed / loop_count;
-    if (nanos_per_call < min_nanos_per_call)
+    if ((nanos_per_call > 0) && (nanos_per_call < min_nanos_per_call))
     {
       min_nanos_per_call = nanos_per_call;
     }
   }
+
   loops = ((min_nanos_per_call - 1) + spin_nanos) / min_nanos_per_call;
 #endif
   if (loops == 0)
