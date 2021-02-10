@@ -37,7 +37,11 @@ class System_view_definition;
 
 class System_view {
  public:
+#ifdef __SUNPRO_CC
+  virtual ~System_view() {}
+#else
   virtual ~System_view() = default;
+#endif
 
   /*
     Get name of system view.

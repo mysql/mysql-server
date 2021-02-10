@@ -83,6 +83,9 @@ SET_TARGET_PROPERTIES(gunit_small
 )
 IF(MY_COMPILER_IS_SUNPRO)
   TARGET_COMPILE_OPTIONS(gunit_small PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
+  # Segfaults in EXPECT_EQ(TYPE_OK, set_field_to_null(field));
+  # unless we switch off optimization.
+  ADD_COMPILE_FLAGS(item_json_func-t.cc COMPILE_FLAGS "-xO0")
 ENDIF()
 
 # Several "small" unit tests got 'missing symbol client_errors'

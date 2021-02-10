@@ -48,7 +48,11 @@ class Weak_object {
 
   Weak_object(const Weak_object &) = default;
 
+#ifdef __SUNPRO_CC
+  virtual ~Weak_object() {}
+#else
   virtual ~Weak_object() = default;
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////
