@@ -32,7 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0new.h"
 
-#define IB_VEC_OFFSET(v, i) (vec->sizeof_value * i)
+#define IB_VEC_OFFSET(vec, i) (vec->sizeof_value * i)
 
 /********************************************************************
 The default ib_vector_t heap malloc. Uses mem_heap_alloc(). */
