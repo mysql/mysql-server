@@ -101,9 +101,11 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_dd_sync.cc
   plugin/ndb_upgrade_util.cc
   plugin/ndb_mysql_services.cc
+  plugin/ndb_blobs_buffer.cc
 )
 
 NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
+NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
 
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)

@@ -1470,7 +1470,7 @@ uchar *ha_ndbcluster::copy_row_to_buffer(Thd_ndb *thd_ndb,
  * NDBAPI objects from Blob up to transaction.
  * It will return -1 if no error is found, 0 if an error is found.
  */
-int findBlobError(NdbError &error, NdbBlob *pBlob) {
+static int findBlobError(NdbError &error, NdbBlob *pBlob) {
   error = pBlob->getNdbError();
   if (error.code != 0) return 0;
 
@@ -1510,7 +1510,7 @@ static uint64 calc_ndb_blob_len(const CHARSET_INFO *cs, uchar *blob_ptr,
   return len64;
 }
 
-int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg) {
+int ha_ndbcluster::get_ndb_blobs_value_hook(NdbBlob *ndb_blob, void *arg) {
   ha_ndbcluster *ha = (ha_ndbcluster *)arg;
   DBUG_TRACE;
   DBUG_PRINT("info", ("destination row: %p", ha->m_blob_destination_record));
@@ -1530,42 +1530,28 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg) {
       assert(false);
       return -1;
     }
-    DBUG_PRINT("info",
-               ("Blob number %d needs size %llu, total buffer reqt. now %llu",
-                ha->m_blob_counter, len64, ha->m_blobs_row_total_size));
+    DBUG_PRINT("info", ("blob[%d]: size %llu, total size now %llu",
+                        ha->m_blob_counter, len64, ha->m_blobs_row_total_size));
   }
   ha->m_blob_counter++;
 
-  /*
-    Wait until all blobs in this row are active, so we can allocate
-    and use a common buffer containing all.
-  */
-  if (ha->m_blob_counter < ha->m_blob_expected_count_per_row) return 0;
+  if (ha->m_blob_counter < ha->m_blob_expected_count_per_row) {
+    // Wait until all blobs in this row are active so that a large buffer
+    // with space for all can be allocated
+    return 0;
+  }
 
   /* Reset blob counter for next row (scan scenario) */
   ha->m_blob_counter = 0;
 
-  /* Re-allocate bigger blob buffer for this row if necessary. */
-  if (ha->m_blobs_row_total_size > ha->m_blobs_buffer_size) {
-    my_free(ha->m_blobs_buffer);
-    DBUG_PRINT("info", ("allocate blobs buffer size %u",
-                        (uint32)(ha->m_blobs_row_total_size)));
-    /* Windows compiler complains about my_malloc on non-size_t
-     * validate mapping from Uint64 to size_t
-     */
-    if (((size_t)ha->m_blobs_row_total_size) != ha->m_blobs_row_total_size) {
-      ha->m_blobs_buffer = NULL;
-      ha->m_blobs_buffer_size = 0;
+  // Check if buffer is large enough or need to be extended
+  if (ha->m_blobs_row_total_size > ha->m_blobs_buffer.size()) {
+    if (!ha->m_blobs_buffer.allocate(ha->m_blobs_row_total_size)) {
+      ha->m_thd_ndb->push_warning(ER_OUTOFMEMORY,
+                                  "Failed to allocate blobs buffer, size: %llu",
+                                  ha->m_blobs_row_total_size);
       return -1;
     }
-
-    ha->m_blobs_buffer = (uchar *)my_malloc(
-        PSI_INSTRUMENT_ME, (size_t)ha->m_blobs_row_total_size, MYF(MY_WME));
-    if (ha->m_blobs_buffer == NULL) {
-      ha->m_blobs_buffer_size = 0;
-      return -1;
-    }
-    ha->m_blobs_buffer_size = ha->m_blobs_row_total_size;
   }
 
   /*
@@ -1590,8 +1576,8 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg) {
       Uint64 len64 = 0;
       if (ndb_blob->getLength(len64) != 0) ERR_RETURN(ndb_blob->getNdbError());
       assert(len64 < 0xffffffff);
-      uchar *buf = ha->m_blobs_buffer + offset;
-      uint32 len = (uint32)(ha->m_blobs_buffer_size - offset);
+      uchar *buf = ha->m_blobs_buffer.get_ptr(offset);
+      uint32 len = ha->m_blobs_buffer.size() - offset;
       if (ndb_blob->readData(buf, len) != 0) {
         NdbError err;
         if (findBlobError(err, ndb_blob) == 0) {
@@ -1628,7 +1614,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg) {
     } else if (ha->m_blob_destination_record) {
       /* Have to set length even in this case. */
       ptrdiff_t ptrdiff = ha->m_blob_destination_record - ha->table->record[0];
-      const uchar *buf = ha->m_blobs_buffer + offset;
+      const uchar *buf = ha->m_blobs_buffer.get_ptr(offset);
       field_blob->move_field_offset(ptrdiff);
       field_blob->set_ptr((uint32)0, buf);
       field_blob->set_null();
@@ -1698,7 +1684,7 @@ int ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op,
     NdbBlob *ndb_blob;
     if (bitmap_is_set(bitmap, i)) {
       if ((ndb_blob = m_table_map->getBlobHandle(ndb_op, i)) == NULL ||
-          ndb_blob->setActiveHook(g_get_ndb_blobs_value, this) != 0)
+          ndb_blob->setActiveHook(get_ndb_blobs_value_hook, this) != 0)
         return 1;
       m_blob_expected_count_per_row++;
     } else
@@ -1796,14 +1782,8 @@ bool ha_ndbcluster::uses_blob_value(const MY_BITMAP *bitmap) const {
 
 void ha_ndbcluster::release_blobs_buffer() {
   DBUG_TRACE;
-  if (m_blobs_buffer_size > 0) {
-    DBUG_PRINT("info",
-               ("Deleting blobs buffer, size %llu", m_blobs_buffer_size));
-    my_free(m_blobs_buffer);
-    m_blobs_buffer = 0;
-    m_blobs_row_total_size = 0;
-    m_blobs_buffer_size = 0;
-  }
+  m_blobs_buffer.release();
+  m_blobs_row_total_size = 0;
 }
 
 /*
@@ -6110,7 +6090,7 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row) {
   /* Initialize the NULL bitmap. */
   memset(dst_row, 0xff, table->s->null_bytes);
 
-  uchar *blob_ptr = m_blobs_buffer;
+  uchar *blob_ptr = m_blobs_buffer.get_ptr(0);
 
   for (uint i = 0; i < table_share->fields; i++) {
     if (!bitmap_is_set(table->read_set, i)) continue;
@@ -11210,8 +11190,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
       m_skip_auto_increment(true),
       m_is_bulk_delete(false),
       m_blobs_row_total_size(0),
-      m_blobs_buffer(0),
-      m_blobs_buffer_size(0),
       m_dupkey((uint)-1),
       m_autoincrement_prefetch(DEFAULT_AUTO_PREFETCH),
       m_pushed_join_member(NULL),

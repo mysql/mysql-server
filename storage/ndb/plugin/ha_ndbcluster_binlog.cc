@@ -56,6 +56,7 @@
 #include "storage/ndb/plugin/ndb_binlog_extra_row_info.h"
 #include "storage/ndb/plugin/ndb_binlog_thread.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
+#include "storage/ndb/plugin/ndb_blobs_buffer.h"
 #include "storage/ndb/plugin/ndb_dd.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"
@@ -5680,19 +5681,34 @@ unsigned int ndbcluster_binlog_get_sync_pending_objects_count() {
 
    @note The function will loop over all columns in table twice:
      - first lap calculates size of the buffer which need to be allocated for
-       holding blob data for all columns. At the end of first loop the
-       buffer is allocated, its adress and size is returned from function
-       to be released by caller.
-     - second lap extracts each columns blob data into the allocated buffer and
-       sets up the Field_blob data pointers to point into the buffer.
+       holding blob data for all columns. At the end of first loop
+       space is allocated in the buffer provided by caller.
+     - second lap copies each columns blob data into the allocated blobs buffer
+       and set up the Field_blob data pointers with length of blob and pointer
+       into the blobs buffer.
+
+  This means that after this function has returned all Field_blob of TABLE will
+  point to data in the blobs buffer from where it will be extracted when
+  writing the blob data to the binlog.
+
+  It might look something like this:
+    TABLE:
+      fields: {
+        [0] Field->ptr      -> record[0]+field0_offset
+        [1] Field_blob->ptr -> record[0]+field1_offset
+                                 <length_blob1>
+                                 <ptr_blob1>      -> blobs_buffer[offset1]
+        [2] Field_blob->ptr -> record[0]+field2_offset
+                                 <length_blob2>
+                                 <ptr_blob2>      -> blobs_buffer[offset2]
+        [3] Field->ptr      -> record[0]+field3_offset
+        [N] ...
+      }
 
    @param table             The table which received event
    @param value_array       Pointer to array with the NdbApi objects to
                             used for receiving
-   @param[out] buffer       Pointer for returning adress of buffer allocated to
-                            hold all blob data
-   @param[out] buffer_size  Pointer for returning size of buffer allocated to
-                            hold all blob data
+   @param[out] buffer       Buffer to hold the data for all received blobs
    @param ptrdiff           Offset to store the blob data pointer in correct
                             "record", used when both before and after image
                             are received
@@ -5701,7 +5717,7 @@ unsigned int ndbcluster_binlog_get_sync_pending_objects_count() {
  */
 int Ndb_binlog_thread::handle_data_get_blobs(const TABLE *table,
                                              const NdbValue *const value_array,
-                                             uchar *&buffer, uint &buffer_size,
+                                             Ndb_blobs_buffer &buffer,
                                              ptrdiff_t ptrdiff) const {
   DBUG_TRACE;
 
@@ -5730,8 +5746,9 @@ int Ndb_binlog_thread::handle_data_get_blobs(const TABLE *table,
         uint32 size = Uint32(len64);
         if (size % 8 != 0) size += 8 - size % 8;
         if (loop == 1) {
-          uchar *buf = buffer + offset;
-          uint32 len = buffer_size - offset;  // Size of buf
+          // Read data for one blob into its place in buffer
+          uchar *buf = buffer.get_ptr(offset);
+          uint32 len = buffer.size() - offset;  // Length of buffer after offset
           if (ndb_blob->readData(buf, len) != 0) return -1;
           DBUG_PRINT("info", ("[%u] offset: %u  buf: %p  len=%u  [ptrdiff=%d]",
                               i, offset, buf, len, (int)ptrdiff));
@@ -5743,22 +5760,18 @@ int Ndb_binlog_thread::handle_data_get_blobs(const TABLE *table,
       } else if (loop == 1)  // undefined or null
       {
         // have to set length even in this case
-        const uchar *buf = buffer + offset;  // or maybe NULL
+        const uchar *buf = buffer.get_ptr(offset);
         const uint32 len = 0;
         field_blob->set_ptr_offset(ptrdiff, len, buf);
         DBUG_PRINT("info", ("[%u] isNull=%d", i, isNull));
       }
     }
-    if (loop == 0 && offset > buffer_size) {
-      my_free(buffer);
-      buffer_size = 0;
-      DBUG_PRINT("info", ("allocate blobs buffer size %u", offset));
-      buffer = (uchar *)my_malloc(PSI_INSTRUMENT_ME, offset, MYF(MY_WME));
-      if (buffer == NULL) {
-        log_error("handle_data_get_blobs, my_malloc(%u) failed", offset);
+    if (loop == 0) {
+      // Allocate space for all received blobs
+      if (!buffer.allocate(offset)) {
+        log_error("Could not allocate blobs buffer, size: %u", offset);
         return -1;
       }
-      buffer_size = offset;
     }
   }
   return 0;
@@ -6304,15 +6317,15 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
    (saves moving data about many times)
   */
 
-  /*
-    for now malloc/free blobs buffer each time
-    TODO if possible share single permanent buffer with handlers
-   */
-  uchar *blobs_buffer[2] = {0, 0};
-  uint blobs_buffer_size[2] = {0, 0};
-
   ndb_binlog_index_row *row =
       ndb_find_binlog_index_row(rows, originating_server_id, 0);
+
+  // The data of any received blobs will live in these buffers for a short
+  // time while processing one event. The buffers are populated in
+  // handle_data_get_blobs(), then written to injector and finally released when
+  // function returns. Two buffers are used for keeping both before and after
+  // image when required.
+  Ndb_blobs_buffer blobs_buffer[2];
 
   switch (pOp->getEventType()) {
     case NDBEVENT::TE_INSERT:
@@ -6327,7 +6340,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         (void)ret;  // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
         if (event_data->have_blobs) {
           ret = handle_data_get_blobs(table, event_data->ndb_value[0],
-                                      blobs_buffer[0], blobs_buffer_size[0], 0);
+                                      blobs_buffer[0], 0);
           assert(ret == 0);
         }
         handle_data_unpack_record(table, event_data->ndb_value[0], &b,
@@ -6367,7 +6380,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         (void)ret;  // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
         if (event_data->have_blobs) {
           ret = handle_data_get_blobs(table, event_data->ndb_value[n],
-                                      blobs_buffer[n], blobs_buffer_size[n],
+                                      blobs_buffer[n],
                                       table->record[n] - table->record[0]);
           assert(ret == 0);
         }
@@ -6393,7 +6406,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         (void)ret;  // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
         if (event_data->have_blobs) {
           ret = handle_data_get_blobs(table, event_data->ndb_value[0],
-                                      blobs_buffer[0], blobs_buffer_size[0], 0);
+                                      blobs_buffer[0], 0);
           assert(ret == 0);
         }
         handle_data_unpack_record(table, event_data->ndb_value[0], &b,
@@ -6418,7 +6431,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
           */
           if (event_data->have_blobs) {
             ret = handle_data_get_blobs(table, event_data->ndb_value[1],
-                                        blobs_buffer[1], blobs_buffer_size[1],
+                                        blobs_buffer[1],
                                         table->record[1] - table->record[0]);
             assert(ret == 0);
           }
@@ -6450,11 +6463,6 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       /* We should REALLY never get here. */
       DBUG_PRINT("info", ("default - uh oh, a brain exploded."));
       break;
-  }
-
-  if (event_data->have_blobs) {
-    my_free(blobs_buffer[0]);
-    my_free(blobs_buffer[1]);
   }
 
   return 0;

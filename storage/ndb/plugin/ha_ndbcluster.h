@@ -38,6 +38,7 @@
 #include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 #include "storage/ndb/plugin/ha_ndbcluster_cond.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
+#include "storage/ndb/plugin/ndb_blobs_buffer.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
 
@@ -568,11 +569,12 @@ class ha_ndbcluster : public handler, public Partition_handler {
   uchar *get_buffer(Thd_ndb *thd_ndb, uint size);
   uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
 
+  static int get_ndb_blobs_value_hook(NdbBlob *ndb_blob, void *arg);
+
   int get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
                       const MY_BITMAP *bitmap);
   int set_blob_values(const NdbOperation *ndb_op, ptrdiff_t row_offset,
                       const MY_BITMAP *bitmap, uint *set_count, bool batch);
-  friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   void release_blobs_buffer();
   Uint32 setup_get_hidden_fields(NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_keyop(NdbOperation::OperationOptions *options,
@@ -734,9 +736,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   uchar *m_blob_destination_record;
   Uint64 m_blobs_row_total_size; /* Bytes needed for all blobs in current row */
 
-  // memory for blobs in one tuple
-  uchar *m_blobs_buffer;
-  Uint64 m_blobs_buffer_size;
+  Ndb_blobs_buffer m_blobs_buffer;
+
   uint m_dupkey;
   // set from thread variables at external lock
   ha_rows m_autoincrement_prefetch;

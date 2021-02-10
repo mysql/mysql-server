@@ -43,6 +43,7 @@ class injector_transaction;
 struct TABLE;
 union NdbValue;
 struct MY_BITMAP;
+class Ndb_blobs_buffer;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
@@ -239,8 +240,8 @@ class Ndb_binlog_thread : public Ndb_component {
 
   // Functions for handling received events
   int handle_data_get_blobs(const TABLE *table,
-                            const NdbValue *const value_array, uchar *&buffer,
-                            uint &buffer_size, ptrdiff_t ptrdiff) const;
+                            const NdbValue *const value_array,
+                            Ndb_blobs_buffer &buffer, ptrdiff_t ptrdiff) const;
   void handle_data_unpack_record(TABLE *table, const NdbValue *value,
                                  MY_BITMAP *defined, uchar *buf) const;
   int handle_error(NdbEventOperation *pOp) const;

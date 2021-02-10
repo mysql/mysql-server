@@ -25,6 +25,8 @@
 #ifndef NDB_TAP_HPP
 #define NDB_TAP_HPP
 
+#include <stdlib.h>  // abort
+
 #include "unittest/mytap/tap.h"
 
 #ifdef VM_TRACE
