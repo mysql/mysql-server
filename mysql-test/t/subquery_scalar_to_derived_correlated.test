@@ -44,7 +44,7 @@ eval $query;
 eval EXPLAIN $query;
 
 --echo #
---echo # exmaple unsuported query(no non-equalities)
+--echo # example unsupported query(no non-equalities)
 --echo #
 let $query =
 SELECT * FROM t3
@@ -61,7 +61,7 @@ eval $query;
 eval EXPLAIN $query;
 
 --echo #
---echo # exmaple unsuported query(<=>)
+--echo # example unsupported query(<=>)
 --echo #
 INSERT INTO t2 VALUES(NULL),(NULL);
 INSERT INTO t3 VALUES(NULL, 3);
@@ -69,7 +69,7 @@ let $query =
 SELECT * FROM t3
 WHERE(SELECT a FROM t2
       WHERE t2.a <=> t3.a);
---error 1242
+--error ER_SUBQUERY_NO_1_ROW
 eval $query;
 eval EXPLAIN $query;
 DELETE FROM t2 WHERE a IS NULL;
@@ -595,6 +595,39 @@ SELECT f1 FROM t1 AS table1
 
 #Query should see transformation happening and also should not crash the
 #server
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#32348682: WL#13520: WRONG RESULT WHEN PREDICATE IN A CORRELATED
+--echo #                         SUBQUERY HAS EXPRESSIONS
+--echo #
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TABLE t2(a INTEGER, b INTEGER);
+INSERT INTO t1 VALUES(5, 5);
+INSERT INTO t2 VALUES(1,4),(2,3);
+
+let $query=SELECT * FROM t1 WHERE(SELECT a FROM t2 WHERE t2.a+t2.b = t1.a) > 0;
+
+# Subquery should not be transformed into derived table
+eval explain $query;
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#32378012: ASSERTION `GOING.ELEMENTS >= 1' FAILED IN
+--echo #	       SQL/SQL_RESOLVER.CC
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER NOT NULL, f2 INTEGER);
+
+let $query= SELECT (SELECT MIN(f2) FROM t1 AS t2
+ WHERE t2.f2 = ISNULL(dt.f1)) AS field1 FROM t1 AS dt GROUP BY field1;
+
 eval explain $query;
 eval $query;
 
