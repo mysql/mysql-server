@@ -1552,7 +1552,8 @@ void Window::reset_all_wf_state() {
 }
 
 bool Window::has_windowing_steps() const {
-  return m_query_block->join && m_query_block->join->m_windowing_steps;
+  return m_query_block != nullptr && m_query_block->join != nullptr &&
+         m_query_block->join->m_windowing_steps;
 }
 
 double Window::compute_cost(double cost, List<Window> &windows) {
