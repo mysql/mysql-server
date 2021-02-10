@@ -6859,26 +6859,6 @@ static void check_event_list_consistency(Ndb *i_ndb, NdbEventOperation *i_pOp,
 }
 #endif
 
-static void initial_work(Ndb *i_ndb) {
-  /* Update our thread-local debug settings based on the global */
-#ifndef NDEBUG
-  /* Get value of global...*/
-  {
-    char buf[256];
-    DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
-    //  fprintf(stderr, "Ndb Binlog Injector, setting debug to %s\n",
-    //          buf);
-    DBUG_SET(buf);
-  }
-#endif
-
-  /* initialize some variables for this epoch */
-  i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
-  g_ndb_log_slave_updates = opt_log_slave_updates;
-  i_ndb->setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
-  i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
-}
-
 void Ndb_binlog_thread::do_run() {
   THD *thd; /* needs to be first for thread_stack */
   Ndb *i_ndb = NULL;
@@ -7481,7 +7461,26 @@ restart_cluster_failure:
           if (ndb_latest_received_binlog_epoch != 0)
             assert(current_epoch <= ndb_latest_received_binlog_epoch);
 
-          initial_work(i_ndb);
+            /* Update our thread-local debug settings based on the global */
+#ifndef NDEBUG
+          /* Get value of global...*/
+          {
+            char buf[256];
+            DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+            //  fprintf(stderr, "Ndb Binlog Injector, setting debug to %s\n",
+            //          buf);
+            DBUG_SET(buf);
+          }
+#endif
+
+          // Apply changes to user configurable variables once per epoch
+          i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
+          g_ndb_log_slave_updates = opt_log_slave_updates;
+          i_ndb->setReportThreshEventGCISlip(
+              opt_ndb_report_thresh_binlog_epoch_slip);
+          i_ndb->setReportThreshEventFreeMem(
+              opt_ndb_report_thresh_binlog_mem_usage);
+
           pass_table_map_before_epoch(i_ndb, trans);
 
           if (trans.good()) {
@@ -7518,9 +7517,6 @@ restart_cluster_failure:
                                                        ->getName()
                                                  : "<empty>"));
             }
-
-            // Capture any dynamic changes to max_alloc
-            i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
             i_pOp = i_ndb->nextEvent2();
           } while (i_pOp && i_pOp->getEpoch() == current_epoch);
