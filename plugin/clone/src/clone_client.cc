@@ -38,6 +38,13 @@ Clone Plugin: Client implementation
 /* Namespace for all clone data types */
 namespace myclone {
 
+/** Default timeout is 300 seconds */
+Time_Sec Client::s_reconnect_timeout{300};
+
+/** Minimum interval is 5 seconds. The actual value could be more based on
+MySQL connect_timeout configuration. */
+Time_Sec Client::s_reconnect_interval{5};
+
 /** Start concurrent clone  operation
 @param[in]	share	shared client information
 @param[in]	index	current thread index */
@@ -891,7 +898,7 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
                                                                    ssl_configs);
 
   if (err != 0) {
-    return (err);
+    return err;
   }
   ssl_context.m_ssl_key = nullptr;
   ssl_context.m_ssl_cert = nullptr;
@@ -914,7 +921,7 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
   if (use_aux) {
     /* Only master creates the auxiliary connection */
     if (!is_master()) {
-      return (0);
+      return 0;
     }
 
     /* Connect to remote server and load clone protocol. */
@@ -935,15 +942,18 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
       LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
 
       m_conn = nullptr;
-      return (ER_CLONE_DONOR);
+      return ER_CLONE_DONOR;
     }
 
-    return (0);
+    return 0;
   }
 
   uint loop_count = 0;
+  auto start_time = Clock::now();
 
   while (true) {
+    auto connect_time = Clock::now();
+
     /* Connect to remote server and load clone protocol. */
     m_conn = mysql_service_clone_protocol->mysql_clone_connect(
         m_server_thd, m_share->m_host, m_share->m_port, m_share->m_user,
@@ -953,25 +963,37 @@ int Client::connect_remote(bool is_restart, bool use_aux) {
       break;
     }
 
-    ++loop_count;
-
-    if (!is_master() || !is_restart || loop_count > CLONE_MAX_CONN_RETRY) {
-      return (ER_CLONE_DONOR);
+    if (!is_master() || !is_restart ||
+        s_reconnect_timeout == Time_Sec::zero()) {
+      return ER_CLONE_DONOR;
     }
 
+    ++loop_count;
     snprintf(info_mesg, 128, "Master re-connect failed: count: %u", loop_count);
     LogPluginErr(INFORMATION_LEVEL, ER_CLONE_CLIENT_TRACE, info_mesg);
 
     if (is_master() && thd_killed(get_thd())) {
       my_error(ER_QUERY_INTERRUPTED, MYF(0));
-      return (ER_QUERY_INTERRUPTED);
+      return ER_QUERY_INTERRUPTED;
     }
 
-    my_sleep(CLONE_CONN_REATTEMPT_INTERVAL);
+    /* Check and exit if we have exceeded total reconnect time. */
+    auto cur_time = Clock::now();
+    auto elapsed_time = cur_time - start_time;
+
+    if (elapsed_time > s_reconnect_timeout) {
+      return ER_CLONE_DONOR;
+    }
+
+    /* Check and sleep between multiple connect attempt. */
+    auto next_connect_time = connect_time + s_reconnect_interval;
+
+    if (next_connect_time > cur_time) {
+      std::this_thread::sleep_until(next_connect_time);
+    }
   }
 
   m_ext_link.set_socket(conn_socket);
-
   return (0);
 }
 
@@ -1136,16 +1158,41 @@ int Client::add_charset(const uchar *packet, size_t length) {
   return (err);
 }
 
-int Client::add_config(const uchar *packet, size_t length) {
+void Client::use_other_configs() {
+  /* Keep default as 5 minutes if remote is old version plugin and has not sent
+  the configuration */
+  s_reconnect_timeout = Time_Min(5);
+
+  for (auto &key_val : m_parameters.m_other_configs) {
+    auto &config_name = key_val.first;
+    auto res = config_name.compare("clone_donor_timeout_after_network_failure");
+    if (res == 0) {
+      try {
+        int timeout_minutes = std::stoi(key_val.second);
+        s_reconnect_timeout = Time_Min(timeout_minutes);
+      } catch (const std::exception &e) {
+        assert(false);
+      }
+    }
+  }
+}
+
+int Client::add_config(const uchar *packet, size_t length, bool other) {
   /* Get configuration parameter name and value. */
   Key_Value config;
 
   auto err = extract_key_value(packet, length, config);
 
-  if (err == 0) {
+  if (err != 0) {
+    return err;
+  }
+
+  if (other) {
+    m_parameters.m_other_configs.push_back(config);
+  } else {
     m_parameters.m_configs.push_back(config);
   }
-  return (err);
+  return 0;
 }
 
 int Client::remote_command(Command_RPC com, bool use_aux) {
@@ -1443,7 +1490,11 @@ int Client::handle_response(const uchar *packet, size_t length, int in_err,
       break;
 
     case COM_RES_CONFIG:
-      err = add_config(packet, length);
+      err = add_config(packet, length, false);
+      break;
+
+    case COM_RES_CONFIG_V3:
+      err = add_config(packet, length, true);
       break;
 
     case COM_RES_COLLATION:
@@ -1556,6 +1607,9 @@ int Client::set_locators(const uchar *buffer, size_t length) {
     if (err != 0) {
       return (err);
     }
+
+    /* Check and use additional configurations from donor. */
+    use_other_configs();
 
     /* If cloning to current data directory, prevent any DDL. */
     if (get_data_dir() == nullptr) {

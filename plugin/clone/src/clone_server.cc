@@ -43,6 +43,10 @@ Key_Values Server::s_configs = {{"version", ""},
                                 {"collation_server", ""},
                                 {"innodb_page_size", ""}};
 
+/** All other configuration required by recipient. */
+Key_Values Server::s_other_configs = {
+    {"clone_donor_timeout_after_network_failure", ""}};
+
 Server::Server(THD *thd, MYSQL_SOCKET socket)
     : m_server_thd(thd),
       m_is_master(false),
@@ -398,7 +402,8 @@ int Server::send_key_value(Command_Response rcmd, String_Key &key_str,
   auto buf_len = key_str.length();
   buf_len += 4;
 
-  bool send_value = (rcmd == COM_RES_CONFIG || rcmd == COM_RES_PLUGIN_V2);
+  bool send_value = (rcmd == COM_RES_CONFIG || rcmd == COM_RES_PLUGIN_V2 ||
+                     rcmd == COM_RES_CONFIG_V3);
 
   /** Add length for value. */
   if (send_value) {
@@ -445,7 +450,7 @@ int Server::send_params() {
     auto server = static_cast<Server *>(ctx);
 
     if (plugin == nullptr) {
-      return (false);
+      return false;
     }
     /* Send plugin name string */
     String_Key pstring(plugin_name(plugin)->str, plugin_name(plugin)->length);
@@ -476,7 +481,7 @@ int Server::send_params() {
   if (result) {
     err = ER_INTERNAL_ERROR;
     my_error(err, MYF(0), "Clone error sending plugin information");
-    return (err);
+    return err;
   }
 
   /* Send character sets and collations */
@@ -485,30 +490,46 @@ int Server::send_params() {
   err = mysql_service_clone_protocol->mysql_clone_get_charsets(get_thd(),
                                                                char_sets);
   if (err != 0) {
-    return (err);
+    return err;
   }
 
   for (auto &element : char_sets) {
     err = send_key_value(COM_RES_COLLATION, element, element);
     if (err != 0) {
-      return (err);
+      return err;
     }
   }
 
-  /* Send configurations */
-  err = mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(),
-                                                              s_configs);
-  if (err != 0) {
-    return (err);
+  /* Send configurations for validation. */
+  err = send_configs(COM_RES_CONFIG);
+
+  if (err != 0 || skip_other_configs()) {
+    return err;
   }
 
-  for (auto &key_val : s_configs) {
-    err = send_key_value(COM_RES_CONFIG, key_val.first, key_val.second);
+  /* Send other configurations required by recipient. */
+  err = send_configs(COM_RES_CONFIG_V3);
+
+  return err;
+}
+
+int Server::send_configs(Command_Response rcmd) {
+  auto &configs = (rcmd == COM_RES_CONFIG_V3) ? s_other_configs : s_configs;
+
+  auto err =
+      mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(), configs);
+
+  if (err != 0) {
+    return err;
+  }
+
+  for (auto &key_val : configs) {
+    err = send_key_value(rcmd, key_val.first, key_val.second);
     if (err != 0) {
       break;
     }
   }
-  return (err);
+  return err;
 }
 
 int Server::send_locators() {
