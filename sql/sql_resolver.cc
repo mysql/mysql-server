@@ -6875,6 +6875,29 @@ bool Query_block::transform_subquery_to_derived(
 }
 
 /**
+  Called (before transforming a correlated subquery to derived table)
+  to check if the predicate that is being looked into is an equality and
+  that its non-correlated operand is a simple column reference.
+  (Else we need to group on expressions in the derived table -
+  not supported currently).
+  @param  cor_pred correlated predicate that needs to be examined
+  @return true if the check fails, false otherwise.
+*/
+bool check_predicate_and_args(Item *cor_pred) {
+  if (cor_pred->type() == Item::FUNC_ITEM &&
+      down_cast<Item_func *>(cor_pred)->functype() != Item_func::EQ_FUNC)
+    return true;
+  Item_func *eq_func = down_cast<Item_func *>(cor_pred);
+  for (uint i = 0; i < eq_func->argument_count(); i++) {
+    Item *item = eq_func->arguments()[i];
+    if (!item->is_outer_reference() &&
+        item->real_item()->type() != Item::FIELD_ITEM)
+      return true;
+  }
+  return false;
+}
+
+/**
   Extracts the top level correlated condition in an OR condition.
 
   For ex:
@@ -6922,9 +6945,7 @@ static bool extract_correlated_condition(THD *thd, Item **cond,
         else if (!cor_pred->eq(pred, false))
           continue;
         found = true;
-        if (cor_pred->type() == Item::FUNC_ITEM &&
-            down_cast<Item_func *>(cor_pred)->functype() != Item_func::EQ_FUNC)
-          return true;
+        if (check_predicate_and_args(cor_pred)) return true;
         break;
       }
     }
@@ -7149,15 +7170,19 @@ bool Query_block::supported_correlated_scalar_subquery(THD *thd,
         cor_pred = cond_part;
         cond_part = nullptr;
       }
-      if (cor_pred->type() == Item::FUNC_ITEM &&
-          down_cast<Item_func *>(cor_pred)->functype() != Item_func::EQ_FUNC)
-        return false;
+      if (check_predicate_and_args(cor_pred)) return false;
       going.push_back(cor_pred);
     }
     if (cond_part) staying.push_back(cond_part);
   }
 
-  assert(going.elements >= 1);
+  // No correlated predicates. Note that we did find some fields earlier which
+  // were marked as being an "outer reference". However, it might be that the
+  // expression containing this outer reference is not marked as such due to
+  // some optimizations. Reject such queries for transformation (Since we
+  // anyways reject queries with non-correlated operands having expressions in
+  // check_predicate_and_args())
+  if (going.elements == 0) return false;
 
   // Construct a new, reduced, WHERE clause sans the lifted predicates, which
   // will stay in the subquery
