@@ -9541,6 +9541,10 @@ ER_SDI_GET_KEYS_INVALID_TABLESPACE
 ER_CHANGE_RPL_SRC_WRONG_COMPRESSION_ALGORITHM_SIZE
   eng "Value too long setting SOURCE_COMPRESSION_ALGORITHMS option to a %d chars long string for channel '%.192s'."
 
+ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI
+  eng "A deprecated TLS version %s is enabled for channel %s. Please use TLSv1.2 or higher."
+
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
