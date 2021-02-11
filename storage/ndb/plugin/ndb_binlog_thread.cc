@@ -32,6 +32,7 @@
 #include "my_dbug.h"
 #include "mysql/status_var.h"  // enum_mysql_show_type
 #include "sql/current_thd.h"   // current_thd
+#include "storage/ndb/include/ndbapi/NdbError.hpp"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"  // Ndb_global_schema_lock_guard
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
@@ -285,3 +286,7 @@ void Ndb_binlog_thread::dbug_sync_setting() const {
   }
 }
 #endif
+
+void Ndb_binlog_thread::log_ndb_error(const NdbError &ndberr) const {
+  log_error("Got NDB error '%d - %s'", ndberr.code, ndberr.message);
+}

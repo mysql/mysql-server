@@ -173,6 +173,13 @@ class Ndb_binlog_thread : public Ndb_component {
   // Wake up for stop
   void do_wakeup() override;
 
+  /**
+    @brief Log an error from NDB to the log.
+
+    @param      ndberr The NDB error to log
+  */
+  void log_ndb_error(const NdbError &ndberr) const;
+
   /*
      The Ndb_binlog_thread is supposed to make a continuous recording
      of the activity in the cluster to the mysqlds binlog. When this
@@ -251,6 +258,9 @@ class Ndb_binlog_thread : public Ndb_component {
                         ndb_binlog_index_row **rows,
                         injector_transaction &trans, unsigned &trans_row_count,
                         unsigned &replicated_row_count) const;
+  bool handle_events_for_epoch(THD *thd, injector *inj, Ndb *i_ndb,
+                               NdbEventOperation *&i_pOp,
+                               const Uint64 current_epoch) const;
 
   // Functions for injecting events
   bool inject_apply_status_write(injector_transaction &trans,

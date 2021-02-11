@@ -5738,10 +5738,20 @@ int Ndb_binlog_thread::handle_data_get_blobs(const TABLE *table,
       Field_blob *field_blob = (Field_blob *)field;
       NdbBlob *ndb_blob = value.blob;
       int isNull;
-      if (ndb_blob->getNull(isNull) != 0) return -1;
+      if (ndb_blob->getNull(isNull) != 0) {
+        log_ndb_error(ndb_blob->getNdbError());
+        log_error("Failed to get 'isNull' for column '%s'",
+                  ndb_blob->getColumn()->getName());
+        return -1;
+      }
       if (isNull == 0) {
         Uint64 len64 = 0;
-        if (ndb_blob->getLength(len64) != 0) return -1;
+        if (ndb_blob->getLength(len64) != 0) {
+          log_ndb_error(ndb_blob->getNdbError());
+          log_error("Failed to get length for column '%s'",
+                    ndb_blob->getColumn()->getName());
+          return -1;
+        }
         // Align to Uint64
         uint32 size = Uint32(len64);
         if (size % 8 != 0) size += 8 - size % 8;
@@ -5749,7 +5759,12 @@ int Ndb_binlog_thread::handle_data_get_blobs(const TABLE *table,
           // Read data for one blob into its place in buffer
           uchar *buf = buffer.get_ptr(offset);
           uint32 len = buffer.size() - offset;  // Length of buffer after offset
-          if (ndb_blob->readData(buf, len) != 0) return -1;
+          if (ndb_blob->readData(buf, len) != 0) {
+            log_ndb_error(ndb_blob->getNdbError());
+            log_error("Failed to read data for column '%s'",
+                      ndb_blob->getColumn()->getName());
+            return -1;
+          }
           DBUG_PRINT("info", ("[%u] offset: %u  buf: %p  len=%u  [ptrdiff=%d]",
                               i, offset, buf, len, (int)ptrdiff));
           assert(len == len64);
@@ -5912,6 +5927,8 @@ void Ndb_binlog_thread::handle_data_unpack_record(TABLE *table,
     value++;  // this field was not virtual
   }           // for()
   dbug_tmp_restore_column_map(table->write_set, old_map);
+
+  DBUG_EXECUTE("info", Ndb_table_map::print_record(table, buf););
 }
 
 /**
@@ -6088,7 +6105,7 @@ class injector_transaction : public injector::transaction {};
    @param trans         The injector transaction
    @param[out] trans_row_count       Counter for rows in event
    @param[out] replicated_row_count  Counter for replicated rows in event
-   @return 0 for sucess
+   @return 0 for sucess, other values (normally -1) for error
  */
 int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
                                          ndb_binlog_index_row **rows,
@@ -6099,10 +6116,6 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       static_cast<const Ndb_event_data *>(pOp->getCustomData());
   TABLE *table = event_data->shadow_table;
   NDB_SHARE *share = event_data->share;
-
-  if (pOp != share->op) {
-    return 0;
-  }
 
   bool reflected_op = false;
   bool refresh_op = false;
@@ -6130,6 +6143,10 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
                   anyValue);
       return 0;
     }
+  }
+
+  if (pOp != share->op) {
+    return 0;
   }
 
   uint32 originating_server_id = ndbcluster_anyvalue_get_serverid(anyValue);
@@ -6336,19 +6353,24 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       DBUG_PRINT("info", ("INSERT INTO %s.%s", table->s->db.str,
                           table->s->table_name.str));
       {
-        int ret;
-        (void)ret;  // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
-        if (event_data->have_blobs) {
-          ret = handle_data_get_blobs(table, event_data->ndb_value[0],
-                                      blobs_buffer[0], 0);
-          assert(ret == 0);
+        if (event_data->have_blobs &&
+            handle_data_get_blobs(table, event_data->ndb_value[0],
+                                  blobs_buffer[0], 0) != 0) {
+          log_error(
+              "Failed to get blob values from INSERT event on table '%s.%s'",
+              table->s->db.str, table->s->table_name.str);
+          return -1;
         }
         handle_data_unpack_record(table, event_data->ndb_value[0], &b,
                                   table->record[0]);
-        ret = trans.write_row(logged_server_id,
-                              injector::transaction::table(table, true), &b,
-                              table->record[0], extra_row_info_ptr);
-        assert(ret == 0);
+        const int error =
+            trans.write_row(logged_server_id,  //
+                            injector::transaction::table(table, true), &b,
+                            table->record[0], extra_row_info_ptr);
+        if (error != 0) {
+          log_error("Could not log write row, error: %d", error);
+          return -1;
+        }
       }
       break;
     case NDBEVENT::TE_DELETE:
@@ -6359,39 +6381,39 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       DBUG_PRINT("info", ("DELETE FROM %s.%s", table->s->db.str,
                           table->s->table_name.str));
       {
-        /*
-          table->record[0] contains only the primary key in this case
-          since we do not have an after image
-        */
+        // NOTE! table->record[0] contains only the primary key in this case
+        // since we do not have an after image
         int n;
-        if (!share->get_binlog_full() && table->s->primary_key != MAX_KEY)
-          n = 0; /*
-                   use the primary key only as it save time and space and
-                   it is the only thing needed to log the delete
-                 */
-        else
-          n = 1; /*
-                   we use the before values since we don't have a primary key
-                   since the mysql server does not handle the hidden primary
-                   key
-                 */
+        if (!share->get_binlog_full() && table->s->primary_key != MAX_KEY) {
+          // Use the primary key only, it saves time and space
+          // and is the only thing needed to log the delete
+          n = 0;
+        } else {
+          // Table doesn't have a primary key or full rows should be logged, use
+          // the before values
+          n = 1;
+        }
 
-        int ret;
-        (void)ret;  // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
-        if (event_data->have_blobs) {
-          ret = handle_data_get_blobs(table, event_data->ndb_value[n],
-                                      blobs_buffer[n],
-                                      table->record[n] - table->record[0]);
-          assert(ret == 0);
+        if (event_data->have_blobs &&
+            handle_data_get_blobs(table, event_data->ndb_value[n],
+                                  blobs_buffer[n],
+                                  table->record[n] - table->record[0]) != 0) {
+          log_error(
+              "Failed to get blob values from DELETE event on table '%s.%s'",
+              table->s->db.str, table->s->table_name.str);
+          return -1;
         }
         handle_data_unpack_record(table, event_data->ndb_value[n], &b,
                                   table->record[n]);
-        DBUG_EXECUTE("info",
-                     Ndb_table_map::print_record(table, table->record[n]););
-        ret = trans.delete_row(logged_server_id,
-                               injector::transaction::table(table, true), &b,
-                               table->record[n], extra_row_info_ptr);
-        assert(ret == 0);
+
+        const int error =
+            trans.delete_row(logged_server_id,  //
+                             injector::transaction::table(table, true), &b,
+                             table->record[n], extra_row_info_ptr);
+        if (error != 0) {
+          log_error("Could not log delete row, error: %d", error);
+          return -1;
+        }
       }
       break;
     case NDBEVENT::TE_UPDATE:
@@ -6402,43 +6424,44 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
       DBUG_PRINT("info",
                  ("UPDATE %s.%s", table->s->db.str, table->s->table_name.str));
       {
-        int ret;
-        (void)ret;  // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
-        if (event_data->have_blobs) {
-          ret = handle_data_get_blobs(table, event_data->ndb_value[0],
-                                      blobs_buffer[0], 0);
-          assert(ret == 0);
+        if (event_data->have_blobs &&
+            handle_data_get_blobs(table, event_data->ndb_value[0],
+                                  blobs_buffer[0], 0) != 0) {
+          log_error(
+              "Failed to get blob after values from UPDATE event "
+              "on table '%s.%s'",
+              table->s->db.str, table->s->table_name.str);
+          return -1;
         }
         handle_data_unpack_record(table, event_data->ndb_value[0], &b,
                                   table->record[0]);
-        DBUG_EXECUTE("info",
-                     Ndb_table_map::print_record(table, table->record[0]););
         if (table->s->primary_key != MAX_KEY &&
             !share->get_binlog_use_update()) {
-          /*
-            since table has a primary key, we can do a write
-            using only after values
-          */
-          ret = trans.write_row(logged_server_id,
-                                injector::transaction::table(table, true), &b,
-                                table->record[0],  // after values
-                                extra_row_info_ptr);
-          assert(ret == 0);
+          // Table has primary key, do write using only after values
+          const int error =
+              trans.write_row(logged_server_id,  //
+                              injector::transaction::table(table, true), &b,
+                              table->record[0],  // after values
+                              extra_row_info_ptr);
+          if (error != 0) {
+            log_error("Could not log write row for UPDATE, error: %d", error);
+            return -1;
+          }
         } else {
-          /*
-            mysql server cannot handle the ndb hidden key and
-            therefore needs the before image as well
-          */
-          if (event_data->have_blobs) {
-            ret = handle_data_get_blobs(table, event_data->ndb_value[1],
-                                        blobs_buffer[1],
-                                        table->record[1] - table->record[0]);
-            assert(ret == 0);
+          // Table have hidden key or "use update" is on, before values are
+          // needed as well
+          if (event_data->have_blobs &&
+              handle_data_get_blobs(table, event_data->ndb_value[1],
+                                    blobs_buffer[1],
+                                    table->record[1] - table->record[0]) != 0) {
+            log_error(
+                "Failed to get blob before values from UPDATE event "
+                "on table '%s.%s'",
+                table->s->db.str, table->s->table_name.str);
+            return -1;
           }
           handle_data_unpack_record(table, event_data->ndb_value[1], &b,
                                     table->record[1]);
-          DBUG_EXECUTE("info",
-                       Ndb_table_map::print_record(table, table->record[1]););
 
           MY_BITMAP col_bitmap_before_update;
           Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> bitbuf;
@@ -6449,19 +6472,22 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
             bitmap_copy(&col_bitmap_before_update, &b);
           }
 
-          ret = trans.update_row(logged_server_id,
-                                 injector::transaction::table(table, true),
-                                 &col_bitmap_before_update, &b,
-                                 table->record[1],  // before values
-                                 table->record[0],  // after values
-                                 extra_row_info_ptr);
-          assert(ret == 0);
+          const int error =
+              trans.update_row(logged_server_id,  //
+                               injector::transaction::table(table, true),
+                               &col_bitmap_before_update, &b,
+                               table->record[1],  // before values
+                               table->record[0],  // after values
+                               extra_row_info_ptr);
+          if (error != 0) {
+            log_error("Could not log update row, error: %d", error);
+            return -1;
+          }
         }
       }
       break;
     default:
-      /* We should REALLY never get here. */
-      DBUG_PRINT("info", ("default - uh oh, a brain exploded."));
+      log_warning("Unknown data event %d. Ignoring...", pOp->getEventType());
       break;
   }
 
@@ -6493,6 +6519,131 @@ static bool check_event_list_consistency(Ndb *ndb,
   return false;
 }
 #endif
+
+/**
+   @brief Handle events for one epoch
+
+   @param thd           The thread handle
+   @param inj           The injector
+   @param i_ndb         The injector Ndb object
+   @param[in,out] i_pOp The current NdbEventOperation pointer
+   @param current_epoch The epoch to process
+
+   @return true for success and false for error
+*/
+bool Ndb_binlog_thread::handle_events_for_epoch(
+    THD *thd, injector *inj, Ndb *i_ndb, NdbEventOperation *&i_pOp,
+    const Uint64 current_epoch) const {
+  DBUG_TRACE;
+  const NDBEVENT::TableEvent event_type = i_pOp->getEventType2();
+
+  if (event_type == NdbDictionary::Event::TE_INCONSISTENT ||
+      event_type == NdbDictionary::Event::TE_OUT_OF_MEMORY) {
+    // Error has occured in event stream processing, inject incident
+    inject_incident(inj, thd, event_type, current_epoch);
+
+    i_pOp = i_ndb->nextEvent2();
+    return true;  // OK, error handled
+  }
+
+  // No error has occurred in event stream, continue processing
+  thd->proc_info = "Processing events";
+
+  ndb_binlog_index_row _row;
+  ndb_binlog_index_row *rows = &_row;
+  injector_transaction trans;
+  unsigned trans_row_count = 0;
+  unsigned replicated_row_count = 0;
+
+  memset(&_row, 0, sizeof(_row));
+  thd->variables.character_set_client = &my_charset_latin1;
+  inj->new_trans(thd, &trans);
+
+  if (event_type == NdbDictionary::Event::TE_EMPTY) {
+    // Handle empty epoch
+    if (opt_ndb_log_empty_epochs) {
+      DBUG_PRINT("info", ("Writing empty epoch %u/%u "
+                          "latest_handled_binlog_epoch %u/%u",
+                          (uint)(current_epoch >> 32), (uint)(current_epoch),
+                          (uint)(ndb_latest_handled_binlog_epoch >> 32),
+                          (uint)(ndb_latest_handled_binlog_epoch)));
+
+      commit_trans(trans, thd, current_epoch, rows, trans_row_count,
+                   replicated_row_count);
+    }
+
+    i_pOp = i_ndb->nextEvent2();
+
+    return true;  // OK, empty epoch handled (wheter committed or not)
+  }
+
+  // Handle non-empty epoch, process and inject all events in epoch
+  DBUG_PRINT("info", ("Handling non-empty epoch: %u/%u",
+                      (uint)(current_epoch >> 32), (uint)(current_epoch)));
+
+  // sometimes get TE_ALTER with invalid table
+  assert(event_type == NdbDictionary::Event::TE_ALTER ||
+         !ndb_name_is_blob_prefix(i_pOp->getEvent()->getTable()->getName()));
+
+  if (ndb_latest_received_binlog_epoch == 0) {
+    // Cluster is restarted after a cluster failure. Let injector ndb
+    // handle the received events including TE_NODE_FAILURE and/or
+    // TE_CLUSTER_FAILURE.
+  } else {
+    assert(current_epoch <= ndb_latest_received_binlog_epoch);
+  }
+
+  // Update thread-local debug settings based on the global
+  DBUG_EXECUTE("", dbug_sync_setting(););
+
+  // Apply changes to user configurable variables once per epoch
+  i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
+  g_ndb_log_replica_updates = opt_log_replica_updates;
+  i_ndb->setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
+  i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
+
+  inject_table_map(i_ndb, trans);
+
+  if (trans.good()) {
+    /* Inject ndb_apply_status WRITE_ROW event */
+    if (!inject_apply_status_write(trans, current_epoch)) {
+      log_error("Failed to inject apply status write row");
+      return false;  // Error, failed to inject ndb_apply_status
+    }
+  }
+
+  do {
+    if (i_pOp->hasError() && handle_error(i_pOp) < 0) {
+      // NOTE! The 'handle_error' function currently always return 0
+      log_error("Failed to handle error on event operation");
+      return false;  // Failed to handle error on event op
+    }
+
+    assert(check_event_list_consistency(i_ndb, i_pOp));
+
+    if (i_pOp->getEventType() < NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
+      if (handle_data_event(i_pOp, &rows, trans, trans_row_count,
+                            replicated_row_count) != 0) {
+        log_error("Failed to handle data event");
+        return false;  // Error, failed to handle data event
+      }
+    } else {
+      handle_non_data_event(thd, i_pOp, *rows);
+    }
+
+    i_pOp = i_ndb->nextEvent2();
+  } while (i_pOp && i_pOp->getEpoch() == current_epoch);
+
+  /*
+    NOTE: i_pOp is now referring to an event in the next epoch
+    or is == NULL
+  */
+
+  commit_trans(trans, thd, current_epoch, rows, trans_row_count,
+               replicated_row_count);
+
+  return true;  // OK
+}
 
 void Ndb_binlog_thread::remove_event_operations(Ndb *ndb) const {
   DBUG_TRACE;
@@ -7408,145 +7559,22 @@ restart_cluster_failure:
         i_pOp = i_ndb->nextEvent2();
       }
       update_injector_stats(s_ndb, i_ndb);
-    }
-    /*
-     * Pseudo code describing handling of the current epoch (implemented below):
-     * if <current event operation belongs to current_epoch)> {
-     *   if <event_type of the op is a gap> {
-     *     // Error has occurred in event stream processing
-     *     <handle gap epoch>;
-     *     <get nextEvent2>
-     *   } else {
-     *     // No error has occurred in event stream processing
-     *     if <empty epoch> {
-     *       <handle empty epoch>;
-     *       <get nextEvent2>
-     *     } else {
-     *       // handle non-empty epoch
-     *       for <all event ops belonging to the current epoch> {
-     *         <handle one op>;
-     *         <get nextEvent2>;
-     *       }
-     *     }
-     *   }
-     * }
-     */
-    else if (i_pOp != NULL && i_pOp->getEpoch() == current_epoch) {
-      const NDBEVENT::TableEvent event_type = i_pOp->getEventType2();
+    } else if (i_pOp != NULL && i_pOp->getEpoch() == current_epoch) {
+      if (!handle_events_for_epoch(thd, inj, i_ndb, i_pOp, current_epoch)) {
+        log_error("Failed to handle events, epoch: %u/%u",
+                  (uint)(current_epoch >> 32), (uint)current_epoch);
 
-      if (event_type == NdbDictionary::Event::TE_INCONSISTENT ||
-          event_type == NdbDictionary::Event::TE_OUT_OF_MEMORY) {
-        // Error has occured in event stream processing, inject incident
-        inject_incident(inj, thd, event_type, current_epoch);
-
-        i_pOp = i_ndb->nextEvent2();
-        // Don't update_injector_stats(), since this event is
-        // created by the event buffer, not sent by Ndb.
-      } else {
-        // No error has occurred in event stream processing
-        thd->proc_info = "Processing events";
-        ndb_binlog_index_row _row;
-        ndb_binlog_index_row *rows = &_row;
-        injector_transaction trans;
-        unsigned trans_row_count = 0;
-        unsigned replicated_row_count = 0;
-
-        memset(&_row, 0, sizeof(_row));
-        thd->variables.character_set_client = &my_charset_latin1;
-        DBUG_PRINT("info", ("Initializing transaction"));
-        inj->new_trans(thd, &trans);
-
-        if (event_type == NdbDictionary::Event::TE_EMPTY) {
-          // Handle empty epoch
-          if (opt_ndb_log_empty_epochs) {
-            DBUG_PRINT("info",
-                       ("Writing empty epoch %u/%u "
-                        "latest_handled_binlog_epoch %u/%u",
-                        (uint)(current_epoch >> 32), (uint)(current_epoch),
-                        (uint)(ndb_latest_handled_binlog_epoch >> 32),
-                        (uint)(ndb_latest_handled_binlog_epoch)));
-
-            commit_trans(trans, thd, current_epoch, rows, trans_row_count,
-                         replicated_row_count);
-          }
-
-          i_pOp = i_ndb->nextEvent2();
-          // Don't update_injector_stats(), since this event is
-          // created by the event buffer, not sent by Ndb.
-        } else {
-          // Handle non-empty epoch, process and inject all events in epoch
-          DBUG_PRINT("info",
-                     ("Handling non-empty epoch: %u/%u",
-                      (uint)(current_epoch >> 32), (uint)(current_epoch)));
-
-          // sometimes get TE_ALTER with invalid table
-          assert(i_pOp->getEventType() == NdbDictionary::Event::TE_ALTER ||
-                 !ndb_name_is_blob_prefix(
-                     i_pOp->getEvent()->getTable()->getName()));
-
-          if (ndb_latest_received_binlog_epoch == 0) {
-            // Cluster is restarted after a cluster failure. Let injector ndb
-            // handle the received events including TE_NODE_FAILURE and/or
-            // TE_CLUSTER_FAILURE.
-          } else {
-            assert(current_epoch <= ndb_latest_received_binlog_epoch);
-          }
-
-          // Update thread-local debug settings based on the global
-          DBUG_EXECUTE("", dbug_sync_setting(););
-
-          // Apply changes to user configurable variables once per epoch
-          i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
-          g_ndb_log_replica_updates = opt_log_replica_updates;
-          i_ndb->setReportThreshEventGCISlip(
-              opt_ndb_report_thresh_binlog_epoch_slip);
-          i_ndb->setReportThreshEventFreeMem(
-              opt_ndb_report_thresh_binlog_mem_usage);
-
-          inject_table_map(i_ndb, trans);
-
-          if (trans.good()) {
-            /* Inject ndb_apply_status WRITE_ROW event */
-            if (!inject_apply_status_write(trans, current_epoch)) {
-              log_error("Failed to inject apply status write row");
-            }
-          }
-
-          do {
-            if (i_pOp->hasError() && handle_error(i_pOp) < 0) {
-              log_error("Failed to handle error on event operation");
-              goto err;
-            }
-
-            assert(check_event_list_consistency(i_ndb, i_pOp));
-
-            if (i_pOp->getEventType() < NDBEVENT::TE_FIRST_NON_DATA_EVENT) {
-              handle_data_event(i_pOp, &rows, trans, trans_row_count,
-                                replicated_row_count);
-            } else {
-              handle_non_data_event(thd, i_pOp, *rows);
-            }
-
-            i_pOp = i_ndb->nextEvent2();
-          } while (i_pOp && i_pOp->getEpoch() == current_epoch);
-
-          update_injector_stats(s_ndb, i_ndb);
-
-          /*
-            NOTE: i_pOp is now referring to an event in the next epoch
-            or is == NULL
-          */
-
-          commit_trans(trans, thd, current_epoch, rows, trans_row_count,
-                       replicated_row_count);
-
-          /*
-            NOTE: There are possible more i_pOp available.
-            However, these are from another epoch and should be handled
-            in next iteration of the binlog injector loop.
-          */
-        }
+        // Continue with post epoch actions and restore mem_root, then restart!
+        binlog_thread_state = BCCC_restart;
       }
+
+      /*
+        NOTE: There are possible more i_pOp available.
+        However, these are from another epoch and should be handled
+        in next iteration of the binlog injector loop.
+      */
+
+      update_injector_stats(s_ndb, i_ndb);
     }
 
     // Notify the schema event handler about post_epoch so it may finish
@@ -7562,8 +7590,6 @@ restart_cluster_failure:
       // Signal ndbcluster_binlog_wait'ers
       mysql_cond_broadcast(&injector_data_cond);
     }
-
-    assert(binlog_thread_state == BCCC_running);
 
     // When a cluster failure occurs, each event operation will receive a
     // TE_CLUSTER_FAILURE event causing it to be torn down and removed.
