@@ -1,0 +1,17 @@
+CREATE TABLE t(x VARCHAR(100), FULLTEXT KEY (x));
+INSERT INTO t VALUES ('abc'), ('xyz'), (NULL), ('abc abc'), ('abc xyz');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+SELECT a.x, MATCH (a.x) AGAINST ('abc') AS score_a,
+b.x, MATCH (b.x) AGAINST ('xyz') AS score_b
+FROM t a, t b WHERE a.x = b.x;
+x	score_a	x	score_b
+abc	0.0492168664932251	abc	0
+abc abc	0.0984337329864502	abc abc	0
+abc xyz	0.0492168664932251	abc xyz	0.15835624933242798
+xyz	0	xyz	0.15835624933242798
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
+WHERE MATCH (x) AGAINST ('abc') > NULL;
+x	score
+DROP TABLE t;

@@ -35,6 +35,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "ft_global.h"
 #include "libbinlogevents/include/table_id.h"
 #include "m_ctype.h"
 #include "m_string.h"
@@ -10255,14 +10256,27 @@ int setup_ftfuncs(const THD *thd, Query_block *query_block) {
 bool init_ftfuncs(THD *thd, Query_block *query_block) {
   assert(query_block->has_ft_funcs());
 
-  List_iterator<Item_func_match> li(*(query_block->ftfunc_list));
   DBUG_PRINT("info", ("Performing FULLTEXT search"));
   THD_STAGE_INFO(thd, stage_fulltext_initialization);
 
-  Item_func_match *ifm;
-  while ((ifm = li++)) {
-    if (ifm->init_search(thd)) return true;
+  if (thd->lex->using_hypergraph_optimizer) {
+    // Set the no_ranking hint if ranking of the results is not required. The
+    // old optimizer does this when it determines which scan to use. The
+    // hypergraph optimizer doesn't know until the full plan is built, so do it
+    // here, just before the full-text search is performed.
+    for (Item_func_match &ifm : *query_block->ftfunc_list) {
+      if (ifm.master == nullptr && ifm.can_skip_ranking()) {
+        ifm.get_hints()->set_hint_flag(FT_NO_RANKING);
+      }
+    }
   }
+
+  for (Item_func_match &ifm : *query_block->ftfunc_list) {
+    if (ifm.init_search(thd)) {
+      return true;
+    }
+  }
+
   return false;
 }
 

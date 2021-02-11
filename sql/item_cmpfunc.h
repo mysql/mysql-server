@@ -738,9 +738,9 @@ class Item_func_not : public Item_bool_func {
   a predicate. The overridden functions implemented in this class generally
   forward all evaluation to the underlying object.
 */
-class Item_func_match_predicate : public Item_bool_func {
+class Item_func_match_predicate final : public Item_bool_func {
  public:
-  Item_func_match_predicate(Item *a) : Item_bool_func(a) {}
+  explicit Item_func_match_predicate(Item *a) : Item_bool_func(a) {}
 
   longlong val_int() override { return args[0]->val_int(); }
   enum Functype functype() const override { return MATCH_FUNC; }

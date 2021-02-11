@@ -31,6 +31,7 @@
 
 #include "mem_root_deque.h"
 #include "my_alloc.h"
+#include "my_base.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
@@ -63,6 +64,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "template_utils.h"
+#include "unittest/gunit/base_mock_field.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/handler-t.h"
 #include "unittest/gunit/parsertest.h"
@@ -115,8 +117,13 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   int num_tables = 0;
   for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
        tl = tl->next_global) {
-    Fake_TABLE *fake_table =
-        new (m_thd->mem_root) Fake_TABLE(/*num_columns=*/4, nullable);
+    // If we already have created a fake table with this name (for example to
+    // get columns of specific types), use that one. Otherwise, create a new one
+    // with two integer columns.
+    Fake_TABLE *fake_table = m_fake_tables.count(tl->alias) == 0
+                                 ? new (m_thd->mem_root)
+                                       Fake_TABLE(/*num_columns=*/4, nullable)
+                                 : m_fake_tables[tl->alias];
     fake_table->alias = tl->alias;
     fake_table->pos_in_table_list = tl;
     tl->table = fake_table;
@@ -1898,6 +1905,70 @@ TEST_F(HypergraphOptimizerTest, CycleFromMultipleEquality) {
 
   // We should see t1, t2, t3, {t1,t2}, {t2,t3}, {t1,t3} and {t1,t2,t3}.
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 7);
+}
+
+TEST_F(HypergraphOptimizerTest, FullTextSearch) {
+  // CREATE TABLE t1(x VARCHAR(100)).
+  Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
+  column1.field_name = "x";
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  m_fake_tables["t1"] = t1;
+  t1->set_created();
+
+  // CREATE FULLTEXT INDEX idx ON t1(x).
+  down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
+      t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
+  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc' IN BOOLEAN MODE)",
+      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->filter().child->type);
+}
+
+TEST_F(HypergraphOptimizerTest, FullTextSearchNoHashJoin) {
+  // CREATE TABLE t1(x VARCHAR(100)).
+  Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
+  column1.field_name = "x";
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  m_fake_tables["t1"] = t1;
+  t1->set_created();
+
+  // CREATE FULLTEXT INDEX idx ON t1(x).
+  down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
+      t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
+  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT MATCH(t1.x) AGAINST ('abc') FROM t1, t2 WHERE t1.x = t2.x",
+      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  // Add some rows to make a hash join more tempting than a nested loop join.
+  m_fake_tables["t1"]->file->stats.records = 1000;
+  m_fake_tables["t2"]->file->stats.records = 1000;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+
+  // FTS does not work well with hash join, so we force nested loop join for
+  // this query.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {

@@ -64,6 +64,7 @@
 #include "sql/mem_root_array.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/range_optimizer.h"
+#include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
@@ -169,7 +170,8 @@ class CostingReceiver {
       THD *thd, Query_block *query_block, const JoinHypergraph &graph,
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
-      const Mem_root_array<ActiveIndexInfo> *active_indexes, bool need_rowid,
+      const Mem_root_array<ActiveIndexInfo> *active_indexes,
+      NodeMap fulltext_tables, bool need_rowid,
       SecondaryEngineFlags engine_flags,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
@@ -179,6 +181,7 @@ class CostingReceiver {
         m_orderings(orderings),
         m_sort_ahead_orderings(sort_ahead_orderings),
         m_active_indexes(active_indexes),
+        m_fulltext_tables(fulltext_tables),
         m_need_rowid(need_rowid),
         m_engine_flags(engine_flags),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
@@ -283,6 +286,11 @@ class CostingReceiver {
   /// Indexes can be useful in several ways: We can use them for ref access,
   /// for index-only scans, or to get interesting orderings.
   const Mem_root_array<ActiveIndexInfo> *m_active_indexes;
+
+  /// A map of tables that are referenced by a MATCH function (those tables that
+  /// have TABLE_LIST::is_fulltext_searched() == true). It is used for
+  /// preventing hash joins involving tables that are full-text searched.
+  const NodeMap m_fulltext_tables = 0;
 
   /// Whether we will be needing row IDs from our tables, typically for
   /// a later sort. If this happens, derived tables cannot use streaming,
@@ -1331,6 +1339,22 @@ void CostingReceiver::ProposeHashJoin(
     return;
   }
 
+  if (Overlaps(left | right, m_fulltext_tables)) {
+    // Evaluation of a full-text function requires that the underlying scan is
+    // positioned on the row that contains the value to be searched. It is not
+    // enough that table->record[0] contains the row; the handler needs to be
+    // actually positioned on the row. This does not work so well with hash
+    // joins, since they may return rows in a different order than that of the
+    // underlying scan.
+    //
+    // For now, be conservative and don't propose a hash join if either side of
+    // the join contains a full-text searched table. It is possible to be more
+    // lenient and allow hash joins if all the full-text search functions on the
+    // accessed tables have been fully pushed down to the table/index scan and
+    // don't need to be evaluated again outside of the join.
+    return;
+  }
+
   AccessPath join_path;
   join_path.type = AccessPath::HASH_JOIN;
   join_path.parameter_tables =
@@ -2234,8 +2258,9 @@ Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
 }
 
 bool CheckSupportedQuery(THD *thd, JOIN *join) {
-  if (join->query_block->has_ft_funcs()) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "fulltext search");
+  if (join->query_block->has_ft_funcs() && join->query_block->is_grouped()) {
+    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
+             "fulltext search in grouped queries");
     return true;
   }
   if (thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
@@ -2464,6 +2489,18 @@ size_t EstimateRowWidth(const Query_block &query_block) {
     ret += min<size_t>(item->max_length, 4096);
   }
   return ret;
+}
+
+// Returns a map containing the node indexes of all tables referenced by a
+// full-text MATCH function.
+NodeMap FindFullTextSearchedTables(const JoinHypergraph &graph) {
+  NodeMap tables = 0;
+  for (size_t i = 0; i < graph.nodes.size(); ++i) {
+    if (graph.nodes[i].table->pos_in_table_list->is_fulltext_searched()) {
+      tables |= TableBitmap(i);
+    }
+  }
+  return tables;
 }
 
 }  // namespace
@@ -3726,6 +3763,11 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
   }
 
+  NodeMap fulltext_tables = 0;
+  if (query_block->has_ft_funcs()) {
+    fulltext_tables = FindFullTextSearchedTables(graph);
+  }
+
   // Collect interesting orders from ORDER BY, GROUP BY and semijoins.
   // See BuildInterestingOrders() for more detailed information.
   SecondaryEngineFlags engine_flags = EngineFlags(thd);
@@ -3752,8 +3794,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
   CostingReceiver receiver(thd, query_block, graph, &orderings,
-                           &sort_ahead_orderings, &active_indexes, need_rowid,
-                           EngineFlags(thd), secondary_engine_cost_hook, trace);
+                           &sort_ahead_orderings, &active_indexes,
+                           fulltext_tables, need_rowid, EngineFlags(thd),
+                           secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");

@@ -656,6 +656,34 @@ bool Query_expression::prepare(THD *thd, Query_result *sel_result,
   return false;
 }
 
+/// Finalizes the initialization of all the full-text functions used in the
+/// given query expression, and recursively in every query expression inner to
+/// the given one. We do this fairly late, since we need to know whether or not
+/// the full-text function is to be used for a full-text index scan, and whether
+/// or not that scan is sorted. When the iterators have been created, we know
+/// that the final decision has been made, so we do it right after the iterators
+/// have been created.
+static bool finalize_full_text_functions(THD *thd,
+                                         Query_expression *query_expression) {
+  assert(thd->lex->using_hypergraph_optimizer);
+  for (Query_expression *qe = query_expression; qe != nullptr;
+       qe = qe->next_query_expression()) {
+    for (Query_block *qb = qe->first_query_block(); qb != nullptr;
+         qb = qb->next_query_block()) {
+      if (qb->has_ft_funcs()) {
+        if (init_ftfuncs(thd, qb)) {
+          return true;
+        }
+      }
+      if (finalize_full_text_functions(thd,
+                                       qb->first_inner_query_expression())) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
                                 bool create_iterators) {
   DBUG_TRACE;
@@ -812,6 +840,12 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
       return true;
     }
 
+    if (thd->lex->using_hypergraph_optimizer) {
+      if (finalize_full_text_functions(thd, this)) {
+        return true;
+      }
+    }
+
     if (false) {
       // This can be useful during debugging.
       bool is_root_of_join = (join != nullptr);
@@ -830,7 +864,16 @@ bool Query_expression::force_create_iterators(THD *thd) {
     m_root_iterator = CreateIteratorFromAccessPath(
         thd, m_root_access_path, join, /*eligible_for_batch_mode=*/true);
   }
-  return m_root_iterator == nullptr;
+
+  if (m_root_iterator == nullptr) return true;
+
+  if (thd->lex->using_hypergraph_optimizer) {
+    if (finalize_full_text_functions(thd, this)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 Mem_root_array<MaterializePathParameters::QueryBlock>

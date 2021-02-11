@@ -3003,7 +3003,7 @@ struct TABLE_LIST {
   /// Set table as full-text search (default is not fulltext searched)
   void set_fulltext_searched() { m_fulltext_searched = true; }
 
-  /// Return true if table is insertable-into
+  /// Returns true if a MATCH function references this table.
   bool is_fulltext_searched() const { return m_fulltext_searched; }
 
   /**

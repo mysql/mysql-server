@@ -10505,6 +10505,9 @@ bool JOIN::optimize_fts_query() {
 
   assert(query_block->has_ft_funcs());
 
+  // Only used by the old optimizer.
+  assert(!thd->lex->using_hypergraph_optimizer);
+
   for (uint i = const_tables; i < tables; i++) {
     JOIN_TAB *tab = best_ref[i];
     if (tab->type() != JT_FT) continue;

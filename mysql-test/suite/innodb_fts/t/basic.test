@@ -46,12 +46,14 @@ SELECT id,  body, MATCH (title,body)
 	FROM articles;
 
 # 'MySQL' treated as stopword (stopword functionality not yet supported)
+--sorted_result
 SELECT * FROM articles
 	WHERE MATCH (title,body)
 	AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
 
 # Boolean search
 # Select rows contain "MySQL" but not "YourSQL"
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
 
@@ -64,11 +66,13 @@ SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('+MySQL +YourSQL' IN BOOLEAN MODE);
 
 # Select rows contain "MySQL" but rank rows with "YourSQL" higher
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('+MySQL YourSQL' IN BOOLEAN MODE);
 
 # Test negation operator. Select rows contain MySQL,
 # if the row contains "YourSQL", rank it lower
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('+MySQL ~YourSQL' IN BOOLEAN MODE);
 
@@ -79,6 +83,7 @@ SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('t*' IN BOOLEAN MODE);
 
 # Test wild card search, notice row 6 with 2 "MySQL" rank first
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('MY*' IN BOOLEAN MODE);
 
@@ -90,21 +95,25 @@ SELECT * FROM articles WHERE MATCH (title,body)
 # the word relevance rank and the "<" operator decreases it
 # Following test puts rows with "Well" on top and rows
 # with "stands" at the bottom
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('+ MySQL >Well < stands' IN BOOLEAN MODE);
 
 # Test sub-expression boolean search. Find rows contain
 # "MySQL" but not "Well" or "stands".
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('+ MySQL - (Well stands)' IN BOOLEAN MODE);
 
 # Test sub-expression boolean search. Find rows contain
 # "MySQL" and "Well" or "MySQL" and "stands". But rank the 
 # doc with "Well" higher, and doc with "stands" lower.
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('+ MySQL + (>Well < stands)' IN BOOLEAN MODE);
 
 # Test nested sub-expression.
+--sorted_result
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('YourSQL + (+MySQL - (Tricks Security))' IN BOOLEAN MODE);
 
@@ -133,6 +142,7 @@ INSERT INTO articles (title,body) VALUES
 # This query will return result containing word "database" as
 # the query expand from "test" to words in document just
 # inserted above
+--sorted_result
 SELECT * FROM articles
         WHERE MATCH (title,body)
         AGAINST ('test' WITH QUERY EXPANSION);

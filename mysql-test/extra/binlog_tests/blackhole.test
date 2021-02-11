@@ -98,6 +98,7 @@ SHOW INDEX FROM t1;
 
 # nl search
 
+--sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("collections");
 explain select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");

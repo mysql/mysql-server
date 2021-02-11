@@ -1,0 +1,23 @@
+# Test cases for full-text search with the hypergraph optimizer
+# (WL#14422). FTS with the hypergraph optimizer is also tested by the
+# other tests in this suite. This test adds coverage for cases of
+# particular interest for the hypergraph optimizer, which are not
+# covered by the other tests.
+
+CREATE TABLE t(x VARCHAR(100), FULLTEXT KEY (x));
+INSERT INTO t VALUES ('abc'), ('xyz'), (NULL), ('abc abc'), ('abc xyz');
+ANALYZE TABLE t;
+
+# Hash joins don't work well with FTS and are currently disabled.
+# Below is a query which gives the wrong result when executed as a
+# hash join.
+--sorted_result
+SELECT a.x, MATCH (a.x) AGAINST ('abc') AS score_a,
+       b.x, MATCH (b.x) AGAINST ('xyz') AS score_b
+  FROM t a, t b WHERE a.x = b.x;
+
+# Compare MATCH to NULL.
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
+  WHERE MATCH (x) AGAINST ('abc') > NULL;
+
+DROP TABLE t;

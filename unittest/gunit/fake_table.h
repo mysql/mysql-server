@@ -165,11 +165,9 @@ class Fake_TABLE : public TABLE {
     Mock_field_long columns, and this is their pack_length.
   */
   static const int DEFAULT_PACK_LENGTH = Mock_field_long::PACK_LENGTH;
-  NiceMock<Mock_HANDLER> mock_handler;
+  NiceMock<Mock_HANDLER> mock_handler{&fake_handlerton, &table_share};
 
-  Fake_TABLE(List<Field> fields)
-      : table_share(fields.elements),
-        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
+  explicit Fake_TABLE(List<Field> fields) : table_share(fields.elements) {
     initialize();
     List_iterator<Field> it(fields);
     int nbr_fields = 0;
@@ -177,24 +175,18 @@ class Fake_TABLE : public TABLE {
       add(cur_field, nbr_fields++);
   }
 
-  Fake_TABLE(Field *column)
-      : table_share(1),
-        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
+  explicit Fake_TABLE(Field *column) : table_share(1) {
     initialize();
     add(column, 0);
   }
 
-  Fake_TABLE(Field *column1, Field *column2)
-      : table_share(2),
-        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
+  Fake_TABLE(Field *column1, Field *column2) : table_share(2) {
     initialize();
     add(column1, 0);
     add(column2, 1);
   }
 
-  Fake_TABLE(Field *column1, Field *column2, Field *column3)
-      : table_share(3),
-        mock_handler(static_cast<handlerton *>(nullptr), &table_share) {
+  Fake_TABLE(Field *column1, Field *column2, Field *column3) : table_share(3) {
     initialize();
     add(column1, 0);
     add(column2, 1);
@@ -259,6 +251,10 @@ class Fake_TABLE : public TABLE {
 
   // Defines an index over (column1, column2) and generates a unique id.
   int create_index(Field *column1, Field *column2, bool unique = false) {
+    return create_index(column1, column2, unique ? ulong{HA_NOSAME} : 0);
+  }
+
+  int create_index(Field *column1, Field *column2, ulong key_flags) {
     column1->set_flag(PART_KEY_FLAG);
     int index_id = highest_index_id++;
     column1->key_start.set_bit(index_id);
@@ -272,11 +268,7 @@ class Fake_TABLE : public TABLE {
 
     KEY *key = &m_keys[index_id];
     key->table = this;
-    if (unique) {
-      key->flags = key->actual_flags = HA_NOSAME;
-    } else {
-      key->flags = key->actual_flags = 0;
-    }
+    key->flags = key->actual_flags = key_flags;
     key->actual_key_parts = key->user_defined_key_parts = 1;
     key->key_part[0].field = column1;
     key->key_part[0].store_length = 8;
@@ -288,6 +280,8 @@ class Fake_TABLE : public TABLE {
     key->name = "unittest_index";
 
     ++s->keys;
+    s->visible_indexes.set_bit(index_id);
+    s->keys_in_use.set_bit(index_id);
     return index_id;
   }
 

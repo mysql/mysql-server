@@ -69,14 +69,14 @@ SELECT * FROM t1 WHERE MATCH(f2) AGAINST('+(pumpkin cheese)' IN BOOLEAN MODE);
 f1	f2
 1	Pumpkin soup with cheese bread
 10	This row contains pumpkin and cheese
-15	This row contains all four cheese, souffle, pumpkin and  tart
-7	This row contains only cheese
 12	This row contains both souffle and cheese
 13	This row contains both tart and cheese
+14	This row contains all three souffle, pumpkin and  tart
+15	This row contains all four cheese, souffle, pumpkin and  tart
 6	This row contains only pumpkin
+7	This row contains only cheese
 8	This row contains pumpkin and souffle
 9	This row contains pumpkin and tart
-14	This row contains all three souffle, pumpkin and  tart
 SELECT * FROM t1 WHERE MATCH(f2)
 AGAINST('+pumpkin +(souffle)' IN BOOLEAN MODE);
 f1	f2
@@ -93,9 +93,9 @@ f1	f2
 SELECT * FROM t1 WHERE MATCH(f2)
 AGAINST('+pumpkin +(>souffle <tart)' IN BOOLEAN MODE);
 f1	f2
-8	This row contains pumpkin and souffle
 14	This row contains all three souffle, pumpkin and  tart
 15	This row contains all four cheese, souffle, pumpkin and  tart
+8	This row contains pumpkin and souffle
 9	This row contains pumpkin and tart
 SELECT * FROM t1 WHERE MATCH(f2)
 AGAINST('+pumpkin +(souffle tart)' IN BOOLEAN MODE);
