@@ -2530,13 +2530,6 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   if (check_write_error(thd))
   {
     /*
-      "all == true" means that a "rollback statement" triggered the error and
-      this function was called. However, this must not happen as a rollback
-      is written directly to the binary log. And in auto-commit mode, a single
-      statement that is rolled back has the flag all == false.
-    */
-    assert(!all);
-    /*
       We reach this point if the effect of a statement did not properly get into
       a cache and need to be rolled back.
     */
