@@ -9571,3 +9571,40 @@ SET @@session.max_heap_table_size=default;
 SET @@session.tmp_table_size=default;
 SET @@session.internal_tmp_mem_storage_engine=default;
 DROP TABLE t1;
+#
+# Bug #32497850 RECENT CRASH IN MY_DECIMAL::MY_DECIMAL
+#
+SELECT (3.14 DIV (
+FIRST_VALUE(
+FROM_DAYS(2486378174430980553)
+)
+OVER()
+)
+);
+(3.14 DIV (
+FIRST_VALUE(
+FROM_DAYS(2486378174430980553)
+)
+OVER()
+)
+)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+SELECT (3.14 DIV (
+NTH_VALUE(
+FROM_DAYS(2486378174430980553), 1
+)
+OVER()
+)
+);
+(3.14 DIV (
+NTH_VALUE(
+FROM_DAYS(2486378174430980553), 1
+)
+OVER()
+)
+)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'

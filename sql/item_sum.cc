@@ -5046,7 +5046,9 @@ longlong Item_first_last_value::val_int() {
 
   if (compute()) return error_int();
 
-  return m_value->val_int();
+  longlong retval = m_value->val_int();
+  null_value = m_value->null_value;
+  return retval;
 }
 
 double Item_first_last_value::val_real() {
@@ -5054,7 +5056,9 @@ double Item_first_last_value::val_real() {
 
   if (compute()) return error_real();
 
-  return m_value->val_real();
+  double retval = m_value->val_real();
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_first_last_value::get_date(MYSQL_TIME *ltime,
@@ -5063,7 +5067,9 @@ bool Item_first_last_value::get_date(MYSQL_TIME *ltime,
 
   if (compute()) return true;
 
-  return m_value->get_date(ltime, fuzzydate);
+  bool retval = m_value->get_date(ltime, fuzzydate);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_first_last_value::get_time(MYSQL_TIME *ltime) {
@@ -5071,7 +5077,9 @@ bool Item_first_last_value::get_time(MYSQL_TIME *ltime) {
 
   if (compute()) return true;
 
-  return m_value->get_time(ltime);
+  bool retval = m_value->get_time(ltime);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_first_last_value::val_json(Json_wrapper *jw) {
@@ -5079,7 +5087,9 @@ bool Item_first_last_value::val_json(Json_wrapper *jw) {
 
   if (compute()) return current_thd->is_error();
 
-  return m_value->val_json(jw);
+  bool retval = m_value->val_json(jw);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer) {
@@ -5091,7 +5101,9 @@ my_decimal *Item_first_last_value::val_decimal(my_decimal *decimal_buffer) {
     return error_decimal(decimal_buffer);
   }
 
-  return m_value->val_decimal(decimal_buffer);
+  my_decimal *retval = m_value->val_decimal(decimal_buffer);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 String *Item_first_last_value::val_str(String *str) {
@@ -5099,7 +5111,9 @@ String *Item_first_last_value::val_str(String *str) {
 
   if (compute()) return error_str();
 
-  return m_value->val_str(str);
+  String *retval = m_value->val_str(str);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_nth_value::resolve_type(THD *thd) {
@@ -5237,7 +5251,9 @@ longlong Item_nth_value::val_int() {
 
   if (compute()) return error_int();
 
-  return m_value->val_int();
+  longlong retval = m_value->val_int();
+  null_value = m_value->null_value;
+  return retval;
 }
 
 double Item_nth_value::val_real() {
@@ -5245,7 +5261,9 @@ double Item_nth_value::val_real() {
 
   if (compute()) return error_real();
 
-  return m_value->val_real();
+  double retval = m_value->val_real();
+  null_value = m_value->null_value;
+  return retval;
 }
 
 my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer) {
@@ -5257,7 +5275,9 @@ my_decimal *Item_nth_value::val_decimal(my_decimal *decimal_buffer) {
     return error_decimal(decimal_buffer);
   }
 
-  return m_value->val_decimal(decimal_buffer);
+  my_decimal *retval = m_value->val_decimal(decimal_buffer);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 String *Item_nth_value::val_str(String *str) {
@@ -5265,7 +5285,9 @@ String *Item_nth_value::val_str(String *str) {
 
   if (compute()) return error_str();
 
-  return m_value->val_str(str);
+  String *retval = m_value->val_str(str);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_nth_value::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
@@ -5273,7 +5295,9 @@ bool Item_nth_value::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) {
 
   if (compute()) return true;
 
-  return m_value->get_date(ltime, fuzzydate);
+  bool retval = m_value->get_date(ltime, fuzzydate);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_nth_value::get_time(MYSQL_TIME *ltime) {
@@ -5281,7 +5305,9 @@ bool Item_nth_value::get_time(MYSQL_TIME *ltime) {
 
   if (compute()) return true;
 
-  return m_value->get_time(ltime);
+  bool retval = m_value->get_time(ltime);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_nth_value::val_json(Json_wrapper *jw) {
@@ -5289,7 +5315,9 @@ bool Item_nth_value::val_json(Json_wrapper *jw) {
 
   if (compute()) return current_thd->is_error();
 
-  return m_value->val_json(jw);
+  bool retval = m_value->val_json(jw);
+  null_value = m_value->null_value;
+  return retval;
 }
 
 bool Item_lead_lag::resolve_type(THD *thd) {
