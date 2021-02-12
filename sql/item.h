@@ -1049,9 +1049,7 @@ class Item : public Parse_tree_node {
   explicit Item(const POS &);
 
 #ifdef EXTRA_DEBUG
-  ~Item() override {
-    item_name.set(0);
-  }
+  ~Item() override { item_name.set(0); }
 #else
   ~Item() override = default;
 #endif
