@@ -752,12 +752,6 @@ MgmApiSession::setClientVersion(Parser<MgmApiSession>::Context &,
   args.get("minor", &m_vMinor);
   args.get("build", &m_vBuild);
 
-  fprintf(stderr, "MGMD set client %p version to %u.%u.%u \n",
-          this,
-          m_vMajor,
-          m_vMinor,
-          m_vBuild);
-
   m_output->println("set clientversion reply");
   m_output->println("result: Ok");
   m_output->println("%s", "");
