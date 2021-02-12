@@ -2295,6 +2295,12 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
 
   /* Number of tables remaining to be optimized */
   uint size_remain = n_tables;
+  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
+  // We should start with the lateral dependencies of all non-const JOIN_TABs.
+  assert(!join->has_lateral ||
+         (join->deps_of_remaining_lateral_derived_tables ==
+          join->calculate_deps_of_remaining_lateral_derived_tables(
+              ~excluded_tables, join->const_tables)));
 
   do {
     /* Find the extension of the current QEP with the lowest cost */
@@ -2371,6 +2377,8 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
                  print_plan(join, idx, join->positions[idx].prefix_rowcount,
                             join->positions[idx].prefix_cost,
                             join->positions[idx].prefix_cost, "extended"););
+
+    deps_lateral.recalculate(join->best_ref[idx], idx + 1);
     --size_remain;
     ++idx;
   } while (true);
@@ -3154,7 +3162,8 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           if (consider_plan(idx, &trace_one_table)) return ~(table_map)0;
           assert((remaining_tables_after != 0) ||
                  ((cur_embedding_map == 0) &&
-                  (join->positions[idx].dups_producing_tables == 0)));
+                  (join->positions[idx].dups_producing_tables == 0) &&
+                  (join->deps_of_remaining_lateral_derived_tables == 0)));
         }
         backout_nj_state(remaining_tables, s);
         memcpy(join->best_ref + idx, saved_refs,

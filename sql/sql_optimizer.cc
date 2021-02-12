@@ -3026,24 +3026,26 @@ bool JOIN::get_best_combination() {
 }
 
 /**
-   Updates JOIN::deps_of_remaining_lateral_derived_tables
+   Finds the dependencies of the remaining lateral derived tables.
 
    @param plan_tables  map of all tables that the planner is processing
-                       (tables already in plan and tables to be added to plan)
+                       (tables already in plan and tables to be added to plan).
    @param idx          index of the table which the planner is currently
-                       considering
+                       considering.
+   @return             A map of the dependencies of the remaining
+                       lateral derived tables (from best_ref[idx] and on).
 */
-void JOIN::recalculate_deps_of_remaining_lateral_derived_tables(
-    table_map plan_tables, uint idx) {
+table_map JOIN::calculate_deps_of_remaining_lateral_derived_tables(
+    table_map plan_tables, uint idx) const {
   assert(has_lateral);
-  deps_of_remaining_lateral_derived_tables = 0;
+  table_map deps = 0;
   auto last = best_ref + tables;
   for (auto **pos = best_ref + idx; pos < last; pos++) {
     if ((*pos)->table_ref && (*pos)->table_ref->is_derived() &&
         ((*pos)->table_ref->map() & plan_tables))
-      deps_of_remaining_lateral_derived_tables |=
-          (*pos)->table_ref->derived_query_expression()->m_lateral_deps;
+      deps |= (*pos)->table_ref->derived_query_expression()->m_lateral_deps;
   }
+  return deps;
 }
 
 /*

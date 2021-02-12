@@ -684,8 +684,8 @@ class JOIN {
                             bool force_stable_sort, bool sort_before_group);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
-  void recalculate_deps_of_remaining_lateral_derived_tables(
-      table_map plan_tables, uint idx);
+  table_map calculate_deps_of_remaining_lateral_derived_tables(
+      table_map plan_tables, uint idx) const;
   bool clear_sj_tmp_tables();
   bool clear_corr_derived_tmp_tables();
 
@@ -1044,10 +1044,10 @@ bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
 
 /// RAII class to manage JOIN::deps_of_remaining_lateral_derived_tables
 class Deps_of_remaining_lateral_derived_tables {
-  JOIN *join;
+  JOIN *const join;
   table_map saved;
   /// All lateral tables not part of this map should be ignored
-  table_map plan_tables;
+  const table_map plan_tables;
 
  public:
   /**
@@ -1062,7 +1062,7 @@ class Deps_of_remaining_lateral_derived_tables {
         plan_tables(plan_tables_arg) {}
   ~Deps_of_remaining_lateral_derived_tables() { restore(); }
   void restore() { join->deps_of_remaining_lateral_derived_tables = saved; }
-  void assert_unchanged() {
+  void assert_unchanged() const {
     assert(join->deps_of_remaining_lateral_derived_tables == saved);
   }
   void recalculate(uint next_idx) {
@@ -1072,18 +1072,31 @@ class Deps_of_remaining_lateral_derived_tables {
         may be backward or forward compared to where we were before:
         recalculate.
       */
-      join->recalculate_deps_of_remaining_lateral_derived_tables(plan_tables,
-                                                                 next_idx);
+      join->deps_of_remaining_lateral_derived_tables =
+          join->calculate_deps_of_remaining_lateral_derived_tables(plan_tables,
+                                                                   next_idx);
   }
 
   void recalculate(JOIN_TAB *cur_tab, uint next_idx) {
-    /*
-      We have just added cur_tab to the plan; if it's not lateral, the map
-      doesn't change, no need to recalculate it.
-    */
-    if (join->has_lateral && cur_tab->table_ref->is_derived() &&
-        cur_tab->table_ref->derived_query_expression()->m_lateral_deps)
-      recalculate(next_idx);
+    if (join->has_lateral) {
+      assert(join->deps_of_remaining_lateral_derived_tables ==
+             join->calculate_deps_of_remaining_lateral_derived_tables(
+                 plan_tables, next_idx - 1));
+      /*
+        We have just added cur_tab to the plan; if it's not lateral, the map
+        doesn't change, no need to recalculate it.
+      */
+      if (cur_tab->table_ref->is_derived() &&
+          cur_tab->table_ref->derived_query_expression()->m_lateral_deps) {
+        /*
+          This function requires join->deps_of_remaining_lateral_derived_tables
+          to contain the dependencies of the lateral derived tables from
+          join->best_ref[next_idx-1] and on. The assert below checks that this
+          precondition holds.
+        */
+        recalculate(next_idx);
+      }
+    }
   }
   void init() {
     // Normally done once in a run of JOIN::optimize().
