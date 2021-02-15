@@ -10267,19 +10267,16 @@ Item_field *FindEqualField(Item_field *item_field, table_map reachable_tables) {
   // fields in the multi-equality and find the first that is within our reach.
   // The table_map provided in 'reachable_tables' defines the tables within our
   // reach.
-  Item_equal_iterator item_equal_iterator(
-      *item_field->item_equal_all_join_nests);
-  Item_field *it;
-
-  while ((it = item_equal_iterator++)) {
-    if (it->field == item_field->field) {
+  for (Item_field &other_item_field :
+       item_field->item_equal_all_join_nests->get_fields()) {
+    if (other_item_field.field == item_field->field) {
       continue;
     }
 
-    table_map item_field_used_tables = it->used_tables();
+    table_map item_field_used_tables = other_item_field.used_tables();
     if ((item_field_used_tables & reachable_tables) == item_field_used_tables) {
       Item_field *new_item_field = new Item_field(current_thd, item_field);
-      new_item_field->reset_field(it->field);
+      new_item_field->reset_field(other_item_field.field);
       return new_item_field;
     }
   }

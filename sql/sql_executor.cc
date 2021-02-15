@@ -490,10 +490,8 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
     if (item_equal->update_const(thd)) return true;
     if (!contained_const && item_equal->get_const()) {
       /* Update keys for range analysis */
-      Item_equal_iterator it(*item_equal);
-      Item_field *item_field;
-      while ((item_field = it++)) {
-        const Field *field = item_field->field;
+      for (Item_field &item_field : item_equal->get_fields()) {
+        const Field *field = item_field.field;
         JOIN_TAB *stat = field->table->reginfo.join_tab;
         Key_map possible_keys = field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
@@ -508,7 +506,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
         if (!possible_keys.is_clear_all()) {
           TABLE *const table = field->table;
           for (Key_use *use = stat->keyuse();
-               use && use->table_ref == item_field->table_ref; use++) {
+               use && use->table_ref == item_field.table_ref; use++) {
             if (possible_keys.is_set(use->key) &&
                 table->key_info[use->key].key_part[use->keypart].field == field)
               table->const_key_parts[use->key] |= use->keypart_map;

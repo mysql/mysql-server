@@ -5917,13 +5917,11 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param, Item *predicand,
       ftree = get_func_mm_tree(param, predicand, op, value, inv);
     Item_equal *item_equal = item_field->item_equal;
     if (item_equal != nullptr) {
-      Item_equal_iterator it(*item_equal);
-      Item_field *item;
-      while ((item = it++)) {
-        Field *f = item->field;
+      for (Item_field &item : item_equal->get_fields()) {
+        Field *f = item.field;
         if (!field->eq(f) &&
-            !((ref_tables | item->table_ref->map()) & param_comp)) {
-          tree = get_func_mm_tree(param, item, op, value, inv);
+            !((ref_tables | item.table_ref->map()) & param_comp)) {
+          tree = get_func_mm_tree(param, &item, op, value, inv);
           ftree = !ftree ? tree : tree_and(param, ftree, tree);
         }
       }
@@ -5971,7 +5969,6 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param, Item *predicand,
 SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
   SEL_TREE *tree = nullptr;
   SEL_TREE *ftree = nullptr;
-  Item_field *field_item = nullptr;
   bool inv = false;
   Item *value = nullptr;
   DBUG_TRACE;
@@ -6070,7 +6067,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
 
       if (!arg_left->is_outer_reference() &&
           arg_left->real_item()->type() == Item::FIELD_ITEM) {
-        field_item = (Item_field *)arg_left->real_item();
+        Item_field *field_item = down_cast<Item_field *>(arg_left->real_item());
         ftree =
             get_full_func_mm_tree(param, field_item, cond_func, nullptr, inv);
       }
@@ -6084,7 +6081,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
 
         if (!arg->is_outer_reference() &&
             arg->real_item()->type() == Item::FIELD_ITEM) {
-          field_item = (Item_field *)arg->real_item();
+          Item_field *field_item = down_cast<Item_field *>(arg->real_item());
           SEL_TREE *tmp = get_full_func_mm_tree(
               param, field_item, cond_func, reinterpret_cast<Item *>(i), inv);
           if (inv) {
@@ -6118,11 +6115,10 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
     case Item_func::MULT_EQUAL_FUNC: {
       Item_equal *item_equal = (Item_equal *)cond;
       if (!(value = item_equal->get_const())) return nullptr;
-      Item_equal_iterator it(*item_equal);
       ref_tables = value->used_tables();
-      while ((field_item = it++)) {
-        Field *field = field_item->field;
-        if (!((ref_tables | field_item->table_ref->map()) & param_comp)) {
+      for (Item_field &field_item : item_equal->get_fields()) {
+        Field *field = field_item.field;
+        if (!((ref_tables | field_item.table_ref->map()) & param_comp)) {
           tree =
               get_mm_parts(param, item_equal, field, Item_func::EQ_FUNC, value);
           ftree = !ftree ? tree : tree_and(param, ftree, tree);
@@ -6139,7 +6135,7 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
       assert(!ftree);
       if (!arg_left->is_outer_reference() &&
           arg_left->real_item()->type() == Item::FIELD_ITEM) {
-        field_item = (Item_field *)arg_left->real_item();
+        Item_field *field_item = down_cast<Item_field *>(arg_left->real_item());
         value = cond_func->arg_count > 1 ? cond_func->arguments()[1] : nullptr;
         ftree = get_full_func_mm_tree(param, field_item, cond_func, value, inv);
       }
@@ -6164,7 +6160,8 @@ SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
           (arg_right = cond_func->arguments()[1]) &&
           !arg_right->is_outer_reference() &&
           arg_right->real_item()->type() == Item::FIELD_ITEM) {
-        field_item = (Item_field *)arg_right->real_item();
+        Item_field *field_item =
+            down_cast<Item_field *>(arg_right->real_item());
         value = arg_left;
         ftree = get_full_func_mm_tree(param, field_item, cond_func, value, inv);
       }
@@ -11593,11 +11590,9 @@ static bool min_max_inspect_cond_for_fields(Item *cond,
         /*
           Analyze participating fields in a multiequal condition.
         */
-        Item_equal_iterator it(*(Item_equal *)cond);
-
-        Item *item_field;
-        while ((item_field = it++)) {
-          util_min_max_inspect_item(item_field, min_max_arg_item,
+        for (Item_field &item_field :
+             down_cast<Item_equal *>(cond)->get_fields()) {
+          util_min_max_inspect_item(&item_field, min_max_arg_item,
                                     min_max_arg_present,
                                     non_min_max_arg_present);
 

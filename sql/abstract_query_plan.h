@@ -110,20 +110,20 @@ class Join_plan {
 */
 class Equal_set_iterator {
  public:
-  explicit Equal_set_iterator(Item_equal &item_equal)
-      : m_iterator(item_equal) {}
+  explicit Equal_set_iterator(const Item_equal &item_equal)
+      : m_iterator(item_equal.get_fields().begin()),
+        m_end(item_equal.get_fields().end()) {}
 
-  const Item_field *next() { return m_iterator++; }
+  const Item_field *next() {
+    if (m_iterator == m_end) {
+      return nullptr;
+    } else {
+      return &*m_iterator++;
+    }
+  }
 
  private:
-  /**
-    This class is implemented in terms of this mysqld internal class.
-   */
-  Item_equal_iterator m_iterator;
-
-  // No copying.
-  Equal_set_iterator(const Equal_set_iterator &);
-  Equal_set_iterator &operator=(const Equal_set_iterator &);
+  List_STL_Iterator<const Item_field> m_iterator, m_end;
 };
 // class Equal_set_iterator
 

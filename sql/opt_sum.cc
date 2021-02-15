@@ -632,10 +632,9 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order) {
     case 0:
       /* MULT_EQUAL_FUNC */
       {
-        Item_equal *item_equal = (Item_equal *)func_item;
-        Item_equal_iterator it(*item_equal);
-        args[0] = it++;
-        if (it++) return false;
+        Item_equal *item_equal = down_cast<Item_equal *>(func_item);
+        args[0] = item_equal->get_first();
+        if (item_equal->members() > 1) return false;
         if (!(args[1] = item_equal->get_const())) return false;
       }
       break;

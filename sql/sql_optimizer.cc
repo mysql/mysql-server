@@ -4336,7 +4336,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
   if (((Item *)item_equal)->const_item() && !item_equal->val_int())
     return new Item_func_false();
   Item *const item_const = item_equal->get_const();
-  Item_equal_iterator it(*item_equal);
+  auto it = item_equal->get_fields().begin();
   if (!item_const) {
     /*
       If there is a const item, match all field items with the const item,
@@ -4344,14 +4344,14 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
     */
     it++;
   }
-  Item_field *item_field;  // Field to generate equality for.
-  while ((item_field = it++)) {
+  while (it != item_equal->get_fields().end()) {
     /*
       Generate an equality of the form:
       item_field = some previous field in item_equal's list.
 
       First see if we really need to generate it:
     */
+    Item_field *item_field = &*it++;  // Field to generate equality for.
     Item_equal *const upper = item_field->find_item_equal(upper_levels);
     if (upper)  // item_field is in this upper equality
     {
@@ -4369,8 +4369,8 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
 
       if (!(tab && sj_is_materialize_strategy(tab->get_sj_strategy()))) {
         Item_field *item_match;
-        Item_equal_iterator li(*item_equal);
-        while ((item_match = li++) != item_field) {
+        auto li = item_equal->get_fields().begin();
+        while ((item_match = &*li++) != item_field) {
           if (item_match->find_item_equal(upper_levels) == upper)
             break;  // (item_match, item_field) is also in upper level equality
         }
@@ -7004,11 +7004,9 @@ static bool add_key_equal_fields(THD *thd, Key_field **key_fields,
     Add to the set of possible key values every substitution of
     the field for an equal field included into item_equal
   */
-  Item_equal_iterator it(*item_equal);
-  Item_field *item;
-  while ((item = it++)) {
-    if (!field_item->field->eq(item->field)) {
-      if (add_key_field(thd, key_fields, and_level, cond, item, eq_func, val,
+  for (Item_field &item : item_equal->get_fields()) {
+    if (!field_item->field->eq(item.field)) {
+      if (add_key_field(thd, key_fields, and_level, cond, &item, eq_func, val,
                         num_values, usable_tables, sargables))
         return true;
     }
@@ -7415,10 +7413,8 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
           field1=const_item as a condition allowing an index access of the table
           with field1 by the keys value of field1.
         */
-        Item_equal_iterator it(*item_equal);
-        Item_field *item;
-        while ((item = it++)) {
-          if (add_key_field(thd, key_fields, *and_level, cond_func, item, true,
+        for (Item_field &item : item_equal->get_fields()) {
+          if (add_key_field(thd, key_fields, *and_level, cond_func, &item, true,
                             &const_item, 1, usable_tables, sargables))
             return true;
         }
@@ -7429,20 +7425,15 @@ bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
           field1=field2 as a condition allowing an index access of the table
           with field1 by the keys value of field2.
         */
-        Item_equal_iterator outer_it(*item_equal);
-        Item_equal_iterator inner_it(*item_equal);
-        Item_field *outer;
-        while ((outer = outer_it++)) {
-          Item_field *inner;
-          while ((inner = inner_it++)) {
-            if (!outer->field->eq(inner->field)) {
-              if (add_key_field(thd, key_fields, *and_level, cond_func, outer,
-                                true, (Item **)&inner, 1, usable_tables,
-                                sargables))
+        for (Item_field &outer : item_equal->get_fields()) {
+          for (Item_field &inner : item_equal->get_fields()) {
+            if (!outer.field->eq(inner.field)) {
+              Item *inner_ptr = &inner;
+              if (add_key_field(thd, key_fields, *and_level, cond_func, &outer,
+                                true, &inner_ptr, 1, usable_tables, sargables))
                 return true;
             }
           }
-          inner_it.rewind();
         }
       }
       break;

@@ -2522,7 +2522,48 @@ class Item_equal final : public Item_bool_func {
   void sort(Node_cmp_func compare) {
     fields.sort(compare);
   }
-  friend class Item_equal_iterator;
+
+  // A class to iterate over fields without exposing fields directly.
+  class FieldProxy {
+   public:
+    explicit FieldProxy(Item_equal *item) : m_fields(&item->fields) {}
+    List_STL_Iterator<Item_field> begin() { return m_fields->begin(); }
+    List_STL_Iterator<Item_field> end() { return m_fields->end(); }
+    List_STL_Iterator<const Item_field> begin() const {
+      return m_fields->cbegin();
+    }
+    List_STL_Iterator<const Item_field> end() const { return m_fields->cend(); }
+    List_STL_Iterator<const Item_field> cbegin() const {
+      return m_fields->cbegin();
+    }
+    List_STL_Iterator<const Item_field> cend() const {
+      return m_fields->cend();
+    }
+
+   private:
+    List<Item_field> *m_fields;
+  };
+  class ConstFieldProxy {
+   public:
+    explicit ConstFieldProxy(const Item_equal *item)
+        : m_fields(&item->fields) {}
+    List_STL_Iterator<const Item_field> begin() const {
+      return m_fields->cbegin();
+    }
+    List_STL_Iterator<const Item_field> end() const { return m_fields->cend(); }
+    List_STL_Iterator<const Item_field> cbegin() const {
+      return m_fields->cbegin();
+    }
+    List_STL_Iterator<const Item_field> cend() const {
+      return m_fields->cend();
+    }
+
+   private:
+    const List<Item_field> *m_fields;
+  };
+  FieldProxy get_fields() { return FieldProxy(this); }
+  ConstFieldProxy get_fields() const { return ConstFieldProxy(this); }
+
   bool resolve_type(THD *) override;
   bool fix_fields(THD *thd, Item **ref) override;
   void update_used_tables() override;
@@ -2555,17 +2596,6 @@ class COND_EQUAL {
   List<Item_equal> current_level; /* list of multiple equalities of
                                      the current and level           */
   COND_EQUAL() { upper_levels = nullptr; }
-};
-
-class Item_equal_iterator : public List_iterator_fast<Item_field> {
- public:
-  inline Item_equal_iterator(Item_equal &item_equal)
-      : List_iterator_fast<Item_field>(item_equal.fields) {}
-  inline Item_field *operator++(int) {
-    Item_field *item = (*(List_iterator_fast<Item_field> *)this)++;
-    return item;
-  }
-  inline void rewind(void) { List_iterator_fast<Item_field>::rewind(); }
 };
 
 class Item_cond_and final : public Item_cond {
