@@ -64,6 +64,8 @@ WHERE (constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL) AND
 table_name != 'ndb_binlog_index'
 ORDER BY constraint_schema, constraint_name, table_schema, table_name, column_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME
+def	mtr	PRIMARY	def	mtr	asserted_test_suppressions	message
+def	mtr	PRIMARY	def	mtr	test_ignored_global_suppressions	pattern
 def	mysql	name	def	mysql	help_category	name
 def	mysql	name	def	mysql	help_keyword	name
 def	mysql	name	def	mysql	help_topic	name

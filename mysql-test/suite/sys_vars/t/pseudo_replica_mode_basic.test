@@ -49,6 +49,10 @@ SET @@session.pseudo_replica_mode = 1;
 SET @@session.pseudo_replica_mode = DEFAULT;
 SELECT @@session.pseudo_replica_mode;
 
+SET @@session.pseudo_replica_mode = 1;
+SET @@session.pseudo_slave_mode = DEFAULT;
+SELECT @@session.pseudo_replica_mode;
+
 
 --echo '#---------------------FN_DYNVARS_156_02-------------------------#'
 ############################################################################# 

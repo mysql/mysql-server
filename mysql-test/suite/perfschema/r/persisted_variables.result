@@ -20,6 +20,7 @@ max_execution_time	44000
 max_heap_table_size	999424
 max_user_connections	30
 replica_net_timeout	124
+slave_net_timeout	124
 sort_buffer_size	256000
 SET PERSIST foreign_key_checks=DEFAULT;
 SET PERSIST flush_time=DEFAULT;

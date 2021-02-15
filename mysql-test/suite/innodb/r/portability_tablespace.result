@@ -307,7 +307,9 @@ InnoDB	innodb_system
 InnoDB	innodb_temporary
 InnoDB	innodb_undo_001
 InnoDB	innodb_undo_002
+InnoDB	mtr/asserted_test_suppressions
 InnoDB	mtr/global_suppressions
+InnoDB	mtr/test_ignored_global_suppressions
 InnoDB	mtr/test_suppressions
 InnoDB	mysql
 InnoDB	sys/sys_config
