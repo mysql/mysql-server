@@ -61,6 +61,7 @@
 #include "sql/sql_plugin.h"
 #include "sql/xa.h"
 #include "unicode/uclean.h"
+#include "unittest/gunit/fake_table.h"
 
 namespace my_testing {
 
@@ -146,6 +147,7 @@ void Server_initializer::SetUp() {
   m_thd->thread_stack = (char *)&stack_thd;
   m_thd->store_globals();
   lex_start(m_thd);
+  Fake_TABLE::reset_highest_table_id();
 }
 
 void Server_initializer::TearDown() {

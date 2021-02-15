@@ -294,6 +294,8 @@ class Fake_TABLE : public TABLE {
   void set_handler(handler *h) { file = h; }
   TABLE_SHARE *get_share() { return &table_share; }
 
+  static void reset_highest_table_id() { highest_table_id = 0; }
+
  private:
   void add(Field *new_field, int pos) {
     field[pos] = new_field;
