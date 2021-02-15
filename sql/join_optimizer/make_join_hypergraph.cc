@@ -73,6 +73,7 @@ namespace {
 
 RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const mem_root_deque<TABLE_LIST *> &join_list);
+bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions);
 
 RelationalExpression *MakeRelationalExpression(THD *thd, const TABLE_LIST *tl) {
   if (tl->nested_join == nullptr) {
@@ -129,6 +130,7 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
     }
     if (tl->join_cond() != nullptr) {
       ExtractConditions(tl->join_cond(), &join->join_conditions);
+      EarlyNormalizeConditions(thd, &join->join_conditions);
     }
     join->tables_in_subtree =
         join->left->tables_in_subtree | join->right->tables_in_subtree;
@@ -1163,13 +1165,11 @@ void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
 }
 
 /**
-  Convert multi-equalities to simple equalities. This is a hack until we get
-  real handling of multi-equalities (in which case it would be done much later,
-  after the join order has been determined); however, note that
-  remove_eq_conds() also does some constant conversion/folding work that is
-  important for correctness in general.
+  Do some constant conversion/folding work needed for correctness.
+  We also move more expensive functions last in the conjunction,
+  as a heuristic so that they are less likely to be evaluated.
  */
-bool ConcretizeMultipleEquals(THD *thd, Mem_root_array<Item *> *conditions) {
+bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions) {
   CSEConditions(thd, conditions);
   for (auto it = conditions->begin(); it != conditions->end();) {
     Item::cond_result res;
@@ -1187,30 +1187,15 @@ bool ConcretizeMultipleEquals(THD *thd, Mem_root_array<Item *> *conditions) {
       ++it;
     }
   }
-  return false;
-}
 
-/**
-  Convert all multi-equalities in join conditions under “expr” into simple
-  equalities. See ConcretizeMultipleEquals() for more information.
- */
-bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr,
-                                 int table_num_to_companion_set[MAX_TABLES],
-                                 Mem_root_array<Item *> *where_conditions,
-                                 Mem_root_array<Item *> *cycle_inducing_edges,
-                                 string *trace) {
-  if (expr->type == RelationalExpression::TABLE) {
-    return false;
-  }
-  assert(expr->equijoin_conditions
-             .empty());  // MakeHashJoinConditions() has not run yet.
-  if (ConcretizeMultipleEquals(thd, &expr->join_conditions)) {
-    return true;
-  }
-  PushDownJoinConditions(thd, expr->left, table_num_to_companion_set,
-                         where_conditions, cycle_inducing_edges, trace);
-  PushDownJoinConditions(thd, expr->right, table_num_to_companion_set,
-                         where_conditions, cycle_inducing_edges, trace);
+  // Put potentially expensive functions last: First everything normal,
+  // then subqueries (which can be expensive), then stored procedures
+  // (which are unknown, so potentially _very_ expensive).
+  std::stable_partition(conditions->begin(), conditions->end(),
+                        [](Item *item) { return !item->has_subquery(); });
+  std::stable_partition(conditions->begin(), conditions->end(),
+                        [](Item *item) { return !item->is_expensive(); });
+
   return false;
 }
 
@@ -1958,11 +1943,6 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
 
   Mem_root_array<Item *> table_filters(thd->mem_root);
   Mem_root_array<Item *> cycle_inducing_edges(thd->mem_root);
-  if (ConcretizeAllMultipleEquals(thd, root, table_num_to_companion_set,
-                                  &table_filters, &cycle_inducing_edges,
-                                  trace)) {
-    return true;
-  }
   PushDownJoinConditions(thd, root, table_num_to_companion_set, &table_filters,
                          &cycle_inducing_edges, trace);
 
@@ -1975,7 +1955,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   Mem_root_array<Item *> where_conditions(thd->mem_root);
   if (join->where_cond != nullptr) {
     ExtractConditions(join->where_cond, &where_conditions);
-    if (ConcretizeMultipleEquals(thd, &where_conditions)) {
+    if (EarlyNormalizeConditions(thd, &where_conditions)) {
       return true;
     }
     where_conditions = PushDownAsMuchAsPossible(
