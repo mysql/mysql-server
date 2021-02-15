@@ -298,7 +298,7 @@ std::string get_last_error(int myerrnum) {
                 (LPTSTR)&lpMsgBuf, 0, NULL);
   std::string msgerr = "SystemError: ";
   msgerr += lpMsgBuf;
-  msgerr += "with error code %d.";
+  msgerr += " with error code %d.";
   std::string result = string_format(msgerr.c_str(), dwCode);
   LocalFree(lpMsgBuf);
   return result;
@@ -323,7 +323,7 @@ std::string get_last_error(int myerrnum) {
 #endif
 
   std::string s = sys_err;
-  s += "with errno %d.";
+  s += " with errno %d.";
   std::string result = string_format(s.c_str(), errnum);
   return result;
 #endif
