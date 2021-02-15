@@ -35786,9 +35786,11 @@ void Dblqh::get_redo_stats(Uint64 &usage_in_mbytes,
 {
   /**
    * This method assumes that all log parts have the same size.
-   * It reports the total written number of bytes in all parts.
    * It reports the size of one part and it reports the usage
    * level on the part with most Mbytes used.
+   * It reports the total written bytes in the part with the
+   * most bytes written.
+   * These parts may not be the same part.
    */
   size_in_mbytes = 0;
   usage_in_mbytes = 0;
@@ -35827,11 +35829,15 @@ void Dblqh::get_redo_stats(Uint64 &usage_in_mbytes,
     Uint64 current_written = logPartPtr.p->m_total_written_words;
     logPartPtr.p->m_last_total_written_words = current_written;
     Uint64 written_in_bytes = 4 * (current_written - last_written);
-    written_since_last_in_bytes += written_in_bytes;
     if (mbyte_used > usage_in_mbytes)
     {
       jam();
       usage_in_mbytes = mbyte_used;
+    }
+    if (written_in_bytes > written_since_last_in_bytes)
+    {
+      jam();
+      written_since_last_in_bytes = written_in_bytes;
     }
   }
 }
