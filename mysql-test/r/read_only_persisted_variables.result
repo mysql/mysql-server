@@ -157,6 +157,7 @@ innodb_api_enable_mdl
 innodb_log_file_size
 innodb_read_io_threads
 log_replica_updates
+log_slave_updates
 max_connections
 session_track_system_variables
 table_open_cache_instances
@@ -194,10 +195,12 @@ innodb_api_enable_mdl
 innodb_log_file_size
 innodb_read_io_threads
 log_replica_updates
+log_slave_updates
 max_connections
 relay_log_space_limit
 replica_type_conversions
 session_track_system_variables
+slave_type_conversions
 table_open_cache_instances
 transaction_isolation
 # check for PERSIST_RO_VARIABLES_ADMIN privilege
@@ -236,6 +239,7 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_log_file_size	4194304
 replica_type_conversions	ALL_UNSIGNED
+slave_type_conversions	ALL_UNSIGNED
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
 SET @@persist_only.innodb_log_file_size= DEFAULT;
@@ -247,6 +251,7 @@ ft_query_expansion_limit	20
 innodb_checksum_algorithm	strict_crc32
 innodb_log_file_size	50331648
 replica_type_conversions	ALL_UNSIGNED
+slave_type_conversions	ALL_UNSIGNED
 # reset replica_type_conversions
 RESET PERSIST replica_type_conversions;
 # return 0 rows.

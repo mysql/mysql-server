@@ -539,7 +539,6 @@ CREATE VIEW v1 AS SELECT 2 as f2;
 CREATE VIEW v2 AS SELECT f() as f1, v1.f2 FROM v1;
 include/show_binlog_events.inc
 connection default;
-connection default;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
@@ -559,7 +558,6 @@ DROP FUNCTION f;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 include/show_binlog_events.inc
 connection con1;
-connection con1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)
 binlog.000001	#	Query	#	#	use `test`; CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS int
@@ -573,7 +571,6 @@ connection con1;
 DROP VIEW v1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 include/show_binlog_events.inc
-connection con1;
 connection con1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 INT)

@@ -448,6 +448,7 @@ The following options may be given as the first argument:
  --init-file=name    Read SQL commands from this file at startup
  --init-replica=name Command(s) that are executed by the replication applier
  thread each time the applier threads start.
+ --init-slave=name   This option is deprecated. Use init_replica instead.
  -I, --initialize    Create the default database and exit. Create a super user
  with a random expired password and store it into the log.
  --initialize-insecure 
@@ -565,6 +566,9 @@ The following options may be given as the first argument:
  (Defaults to on; use --skip-log-replica-updates to disable.)
  --log-short-format  Don't log extra information to update and slow-query
  logs.
+ --log-slave-updates This option is deprecated. Use log_replica_updates
+ instead.
+ (Defaults to on; use --skip-log-slave-updates to disable.)
  --log-slow-admin-statements 
  Log slow OPTIMIZE, ANALYZE, ALTER and other
  administrative statements to the slow log if it is open.
@@ -573,6 +577,9 @@ The following options may be given as the first argument:
  --log-slow-replica-statements 
  Log slow statements executed by the replication applier
  threads to the slow log if it is open.
+ --log-slow-slave-statements 
+ This option is deprecated. Use
+ log_slow_replica_statements instead.
  --log-statements-unsafe-for-binlog 
  Log statements considered unsafe when using statement
  based binary logging.
@@ -622,6 +629,9 @@ The following options may be given as the first argument:
  to a source before giving up. This option is deprecated
  and will be removed in a future version. Use 'CHANGE
  REPLICATION SOURCE TO SOURCE_RETRY_COUNT = <num>'
+ instead.
+ --master-verify-checksum 
+ This option is deprecated. Use source_verify_checksum
  instead.
  --max-allowed-packet=# 
  Max packet length to send to or receive from the server
@@ -1266,6 +1276,9 @@ The following options may be given as the first argument:
  --rpl-stop-replica-timeout=# 
  Timeout in seconds to wait for replication threads to
  stop, before STOP REPLICA returns a warning.
+ --rpl-stop-slave-timeout=# 
+ This option is deprecated. Use rpl_stop_replica_timeout
+ instead.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --schema-definition-cache=# 
@@ -1331,6 +1344,9 @@ The following options may be given as the first argument:
  be removed in a future release.
  --show-replica-auth-info 
  Include user and password in SHOW REPLICAS statements.
+ --show-slave-auth-info 
+ This option is deprecated and will be removed in a future
+ version. Use show-replica-auth-info instead.
  --skip-grant-tables Start without grant tables. This gives all users FULL
  ACCESS to all tables.
  --skip-host-cache   Don't cache host names.
@@ -1343,7 +1359,44 @@ The following options may be given as the first argument:
  server starts.
  --skip-show-database 
  Don't allow 'SHOW DATABASE' commands
+ --skip-slave-start  This option is deprecated. Use skip_replica_start
+ instead.
  --skip-stack-trace  Don't print a stack trace on failure.
+ --slave-allow-batching 
+ This option is deprecated. Use replica_allow_batching
+ instead.
+ --slave-checkpoint-group=# 
+ This option is deprecated. Use replica_checkpoint_group
+ instead.
+ --slave-checkpoint-period=# 
+ This option is deprecated. Use replica_checkpoint_period
+ instead.
+ --slave-compressed-protocol 
+ This option is deprecated. Use
+ replica_compressed_protocol instead.
+ --slave-exec-mode=name 
+ This option is deprecated. Use replica_exec_mode instead.
+ --slave-load-tmpdir=name 
+ This option is deprecated. Use replica_load_tmpdir
+ instead.
+ --slave-max-allowed-packet=# 
+ This option is deprecated. Use replica_max_allowed_packet
+ instead.
+ --slave-net-timeout=# 
+ This option is deprecated. Use replica_net_timeout
+ instead.
+ --slave-parallel-type=name 
+ This option is deprecated. Use replica_parallel_type
+ instead.
+ --slave-parallel-workers=# 
+ This option is deprecated. Use replica_parallel_workers
+ instead.
+ --slave-pending-jobs-size-max=# 
+ This option is deprecated. Use
+ replica_pending_jobs_size_max instead.
+ --slave-preserve-commit-order 
+ This option is deprecated. Use
+ replica_preserve_commit_order instead.
  --slave-rows-search-algorithms=name 
  The set of algorithms used by the replication applier
  while searching the table for rows to update or delete.
@@ -1351,6 +1404,19 @@ The following options may be given as the first argument:
  HASH_SCAN. Any combination is allowed, and the applier
  picks the most efficient among them for any given
  scenario. (Default: INDEX_SCAN, HASH_SCAN).
+ --slave-skip-errors=name 
+ This option is deprecated. Use replica_skip_errors
+ instead.
+ --slave-sql-verify-checksum 
+ This option is deprecated. Use
+ replica_sql_verify_checksum instead.
+ (Defaults to on; use --skip-slave-sql-verify-checksum to disable.)
+ --slave-transaction-retries=# 
+ This option is deprecated. Use
+ replica_transaction_retries instead.
+ --slave-type-conversions=name 
+ This option is deprecated. Use replica_type_conversions
+ instead.
  --slow-launch-time=# 
  If creating the thread takes longer than this value (in
  seconds), the Slow_launch_threads counter will be
@@ -1399,6 +1465,8 @@ The following options may be given as the first argument:
  removed in a future release).
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
  write to the file. Use 0 to disable synchronous flushing
+ --sync-master-info=# 
+ This option is deprecated. Use sync_source_info instead.
  --sync-relay-log=#  Synchronously flush relay log to disk after every #th
  event. Use 0 to disable synchronous flushing
  --sync-relay-log-info=# 
@@ -1607,6 +1675,7 @@ information-schema-stats-expiry 86400
 init-connect 
 init-file (No default value)
 init-replica 
+init-slave 
 initialize TRUE
 initialize-insecure TRUE
 interactive-timeout 28800
@@ -1641,9 +1710,11 @@ log-queries-not-using-indexes FALSE
 log-raw FALSE
 log-replica-updates FALSE
 log-short-format FALSE
+log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-extra FALSE
 log-slow-replica-statements FALSE
+log-slow-slave-statements FALSE
 log-statements-unsafe-for-binlog TRUE
 log-tc tc.log
 log-tc-size #####
@@ -1656,6 +1727,7 @@ mandatory-roles
 master-info-file master.info
 master-info-repository TABLE
 master-retry-count 86400
+master-verify-checksum FALSE
 max-allowed-packet 67108864
 max-binlog-cache-size 18446744073709547520
 max-binlog-dump-events 0
@@ -1826,6 +1898,7 @@ report-user (No default value)
 require-secure-transport FALSE
 rpl-read-size 8192
 rpl-stop-replica-timeout 31536000
+rpl-stop-slave-timeout 31536000
 safe-user-create FALSE
 schema-definition-cache 256
 secondary-engine-cost-threshold 100000
@@ -1845,12 +1918,29 @@ shared-memory-base-name MYSQL
 show-create-table-verbosity FALSE
 show-old-temporals FALSE
 show-replica-auth-info FALSE
+show-slave-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
 skip-networking FALSE
 skip-replica-start FALSE
 skip-show-database FALSE
+skip-slave-start FALSE
+slave-allow-batching FALSE
+slave-checkpoint-group 512
+slave-checkpoint-period 300
+slave-compressed-protocol FALSE
+slave-exec-mode STRICT
+slave-max-allowed-packet 1073741824
+slave-net-timeout 60
+slave-parallel-type DATABASE
+slave-parallel-workers 0
+slave-pending-jobs-size-max 134217728
+slave-preserve-commit-order FALSE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
+slave-skip-errors (No default value)
+slave-sql-verify-checksum TRUE
+slave-transaction-retries 10
+slave-type-conversions 
 slow-launch-time 2
 slow-query-log FALSE
 slow-start-timeout 15000
@@ -1864,6 +1954,7 @@ stored-program-definition-cache 256
 super-read-only FALSE
 symbolic-links FALSE
 sync-binlog 1
+sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sync-source-info 10000

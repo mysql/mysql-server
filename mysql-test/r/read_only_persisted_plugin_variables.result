@@ -112,13 +112,14 @@ set @@persist_only.report_user=NULL;
 # Must return 100 rows.
 SELECT count(*) from performance_schema.persisted_variables;
 count(*)
-94
+96
 # Restart server
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
 SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_log_buffer_size	16777216
+slave_type_conversions	
 replica_type_conversions	
 back_log	80
 binlog_gtid_simple_recovery	ON
@@ -152,6 +153,7 @@ innodb_sync_array_size	1
 innodb_use_native_aio	1
 innodb_write_io_threads	4
 log_replica_updates	OFF
+log_slave_updates	OFF
 max_digest_length	1024
 myisam_recover_options	OFF
 ngram_token_size	2
@@ -247,6 +249,7 @@ innodb_sync_array_size
 innodb_use_native_aio
 innodb_write_io_threads
 log_replica_updates
+log_slave_updates
 max_digest_length
 myisam_recover_options
 ngram_token_size
@@ -304,6 +307,7 @@ report_port
 report_user
 skip_name_resolve
 skip_show_database
+slave_type_conversions
 table_open_cache_instances
 thread_handling
 thread_stack

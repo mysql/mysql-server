@@ -38,7 +38,7 @@
 #
 # --let $json_lookup_output_single_quoted = 1
 # --source include/json_lookup.inc
-# # Returns the string "Chuck Berry played rock 'n' roll."
+# # Returns the string "Chuck Berry played rock \'n\' roll."
 # eval SELECT '$json_key played $json_value.';
 
 if ($json_object != '') {

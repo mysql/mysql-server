@@ -76,7 +76,9 @@ test.t13	analyze	status	OK
 test.t14	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t0	Dynamic	{valid}	0
 test	t00	Dynamic	{valid}	0
@@ -102,7 +104,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t1	Dynamic	{valid}	0
 alter table t1 row_format=compact;
@@ -111,7 +115,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t1	Compact	{valid}	0
 alter table t1 row_format=redundant;
@@ -120,7 +126,9 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t1	Redundant	{valid}	0
 drop table t1;
@@ -147,7 +155,9 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t1	Compressed	2048	1024
 test	t2	Dynamic	{valid}	0
@@ -216,7 +226,9 @@ Table	Op	Msg_type	Msg_text
 test.t11	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t1	Dynamic	{valid}	0
 test	t10	Compact	{valid}	0
@@ -260,7 +272,9 @@ Table	Op	Msg_type	Msg_text
 test.t5	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t1	Compressed	{valid}	0
 test	t5	Compressed	{valid}	0
@@ -291,7 +305,9 @@ Warning	1478	InnoDB: cannot specify ROW_FORMAT=DYNAMIC with KEY_BLOCK_SIZE.
 Error	1031	Table storage engine for 't2' doesn't have this option
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 set global innodb_file_per_table = off;
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
@@ -332,7 +348,9 @@ Table	Op	Msg_type	Msg_text
 test.t9	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t7	Dynamic	{valid}	0
 test	t8	Compact	{valid}	0
@@ -349,7 +367,9 @@ Table	Op	Msg_type	Msg_text
 test.t9	analyze	status	OK
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql' AND table_schema != 'sys' AND table_schema != 'PERFORMANCE_SCHEMA' AND table_schema != 'information_schema' ORDER BY table_schema, table_name;;
 TABLE_SCHEMA	TABLE_NAME	ROW_FORMAT	DATA_LENGTH	INDEX_LENGTH
-mtr	global_suppressions	Dynamic	{valid}	0
+mtr	asserted_test_suppressions	Dynamic	{valid}	0
+mtr	global_suppressions	Dynamic	{valid}	{valid}
+mtr	test_ignored_global_suppressions	Dynamic	{valid}	0
 mtr	test_suppressions	Dynamic	{valid}	0
 test	t8	Compact	{valid}	0
 test	t9	Redundant	{valid}	0

@@ -1801,6 +1801,7 @@ Variable_name	Value
 log_slow_admin_statements	OFF
 log_slow_extra	OFF
 log_slow_replica_statements	OFF
+log_slow_slave_statements	OFF
 set global log_slow_admin_statements = on;
 show global variables like 'log_slow_admin_statements';
 Variable_name	Value
@@ -2023,6 +2024,11 @@ SET SESSION original_server_version = @@session.original_server_version;
 SET SESSION proxy_user = @@session.proxy_user;
 SET SESSION pseudo_replica_mode = @@session.pseudo_replica_mode;
 Warnings:
+Warning	1231	'pseudo_replica_mode' change was ineffective.
+SET SESSION pseudo_slave_mode = @@session.pseudo_slave_mode;
+Warnings:
+Warning	1287	'@@pseudo_slave_mode' is deprecated and will be removed in a future release. Please use pseudo_replica_mode instead.
+Warning	1287	'@@pseudo_slave_mode' is deprecated and will be removed in a future release. Please use pseudo_replica_mode instead.
 Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_thread_id = @@session.pseudo_thread_id;
 SET SESSION rand_seed1 = @@session.rand_seed1;

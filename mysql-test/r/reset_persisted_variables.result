@@ -35,6 +35,7 @@ long_query_time	7.810200
 max_connections	52
 max_heap_table_size	887808
 replica_net_timeout	160
+slave_net_timeout	160
 sort_buffer_size	156000
 RESET PERSIST max_heap_table_size;
 RESET PERSIST sort_buffer_size;
@@ -43,6 +44,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 long_query_time	7.810200
 max_connections	52
 replica_net_timeout	160
+slave_net_timeout	160
 RESET PERSIST IF EXISTS replica_net_timeout;
 select * from performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE

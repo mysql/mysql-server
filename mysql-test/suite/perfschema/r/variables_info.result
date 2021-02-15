@@ -63,6 +63,7 @@ max_execution_time	PERSISTED	root	localhost
 max_heap_table_size	PERSISTED	root	localhost
 max_user_connections	PERSISTED	root	localhost
 replica_net_timeout	PERSISTED	root	localhost
+slave_net_timeout	PERSISTED	root	localhost
 sort_buffer_size	PERSISTED	root	localhost
 # Change persisted variables to dynamic
 SELECT now() into @before_timestamp;
