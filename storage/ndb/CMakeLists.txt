@@ -103,6 +103,8 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_mysql_services.cc
 )
 
+NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
+
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 

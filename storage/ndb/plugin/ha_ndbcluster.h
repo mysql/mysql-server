@@ -37,6 +37,7 @@
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 #include "storage/ndb/plugin/ha_ndbcluster_cond.h"
+#include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
 
@@ -678,16 +679,14 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   /* Bitmap used for NdbRecord operation column mask. */
   MY_BITMAP m_bitmap;
-  my_bitmap_map
-      m_bitmap_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE + 8 * sizeof(my_bitmap_map) -
-                    1) /
-                   (8 * sizeof(my_bitmap_map))];  // Buffer for m_bitmap
-  /* Bitmap with bit set for all primary key columns. */
+  Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> m_bitmap_buf;
+
+  // Pointer to bitmap for the primary key columns (the actual bitmap is in
+  // m_key_fields array that have one bitmap for each index of the table)
   MY_BITMAP *m_pk_bitmap_p;
-  my_bitmap_map
-      m_pk_bitmap_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE + 8 * sizeof(my_bitmap_map) -
-                       1) /
-                      (8 * sizeof(my_bitmap_map))];  // Buffer for m_pk_bitmap
+  // Since all NDB table have primary key, the bitmap buffer is preallocated
+  Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> m_pk_bitmap_buf;
+
   struct Ndb_local_table_statistics *m_table_info;
   struct Ndb_local_table_statistics m_table_info_instance;
   THR_LOCK_DATA m_lock;

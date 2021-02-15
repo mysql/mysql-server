@@ -304,11 +304,11 @@ class Ndb_expect_stack {
         next(nullptr) {
     // Allocate type checking bitmaps using fixed size buffers
     // since max size is known at compile time
-    bitmap_init(&expect_mask, m_expect_buf, MAX_EXPECT_ITEMS);
-    bitmap_init(&expect_field_type_mask, m_expect_field_type_buf,
-                MAX_EXPECT_FIELD_TYPES);
-    bitmap_init(&expect_field_result_mask, m_expect_field_result_buf,
-                MAX_EXPECT_FIELD_RESULTS);
+    ndb_bitmap_init(&expect_mask, m_expect_buf, MAX_EXPECT_ITEMS);
+    ndb_bitmap_init(&expect_field_type_mask, m_expect_field_type_buf,
+                    MAX_EXPECT_FIELD_TYPES);
+    ndb_bitmap_init(&expect_field_result_mask, m_expect_field_result_buf,
+                    MAX_EXPECT_FIELD_RESULTS);
   }
   ~Ndb_expect_stack() {
     if (next) destroy(next);
@@ -408,11 +408,9 @@ class Ndb_expect_stack {
   void expect_no_length() { length = max_length = 0; }
 
  private:
-  my_bitmap_map m_expect_buf[bitmap_buffer_size(MAX_EXPECT_ITEMS)];
-  my_bitmap_map
-      m_expect_field_type_buf[bitmap_buffer_size(MAX_EXPECT_FIELD_TYPES)];
-  my_bitmap_map
-      m_expect_field_result_buf[bitmap_buffer_size(MAX_EXPECT_FIELD_RESULTS)];
+  Ndb_bitmap_buf<MAX_EXPECT_ITEMS> m_expect_buf;
+  Ndb_bitmap_buf<MAX_EXPECT_FIELD_TYPES> m_expect_field_type_buf;
+  Ndb_bitmap_buf<MAX_EXPECT_FIELD_RESULTS> m_expect_field_result_buf;
   MY_BITMAP expect_mask;
   MY_BITMAP expect_field_type_mask;
   MY_BITMAP expect_field_result_mask;

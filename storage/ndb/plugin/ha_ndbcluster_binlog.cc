@@ -6058,8 +6058,10 @@ static int handle_data_event(NdbEventOperation *pOp,
       if (likely(event_has_data)) {
         /* unpack data to fetch orig_server_id and orig_epoch */
         MY_BITMAP b;
-        uint32 bitbuf[128 / (sizeof(uint32) * 8)];
-        ndb_bitmap_init(b, bitbuf, table->s->fields);
+        // NOTE! Using buffer smaller than usual (but still too large!) when
+        // unpacking events for mysql.ndb_apply_status
+        Ndb_bitmap_buf<128> bitbuf;
+        ndb_bitmap_init(&b, bitbuf, table->s->fields);
         bitmap_copy(&b, &event_data->stored_columns);
         ndb_unpack_record(table, event_data->ndb_value[0], &b,
                           table->record[0]);
@@ -6199,10 +6201,8 @@ static int handle_data_event(NdbEventOperation *pOp,
 #endif
 
   MY_BITMAP b;
-  my_bitmap_map
-      bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE + 8 * sizeof(my_bitmap_map) - 1) /
-             (8 * sizeof(my_bitmap_map))];
-  ndb_bitmap_init(b, bitbuf, table->s->fields);
+  Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> bitbuf;
+  ndb_bitmap_init(&b, bitbuf, table->s->fields);
   bitmap_copy(&b, &event_data->stored_columns);
   if (bitmap_is_clear_all(&b)) {
     DBUG_PRINT("info", ("Skip logging of event without stored columns"));
@@ -6345,10 +6345,8 @@ static int handle_data_event(NdbEventOperation *pOp,
                        Ndb_table_map::print_record(table, table->record[1]););
 
           MY_BITMAP col_bitmap_before_update;
-          my_bitmap_map bitbuf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
-                                8 * sizeof(my_bitmap_map) - 1) /
-                               (8 * sizeof(my_bitmap_map))];
-          ndb_bitmap_init(col_bitmap_before_update, bitbuf, table->s->fields);
+          Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> bitbuf;
+          ndb_bitmap_init(&col_bitmap_before_update, bitbuf, table->s->fields);
           if (share->get_binlog_update_minimal()) {
             event_data->generate_minimal_bitmap(&col_bitmap_before_update, &b);
           } else {

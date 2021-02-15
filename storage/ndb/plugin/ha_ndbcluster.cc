@@ -1997,7 +1997,7 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const char *dbname,
   // Check that NDB default values match those in MySQL table def.
   assert(check_default_values());
 
-  ndb_bitmap_init(m_bitmap, m_bitmap_buf, table_share->fields);
+  ndb_bitmap_init(&m_bitmap, m_bitmap_buf, table_share->fields);
 
   NDBDICT *dict = ndb->getDictionary();
   int error = 0;
@@ -11407,16 +11407,20 @@ bool ha_ndbcluster::open_table_set_key_fields() {
 
   bitmap_array = ((char *)m_key_fields) + ptr_size;
   for (i = 0; i < n_keys; i++) {
-    my_bitmap_map *bitbuf = NULL;
-    bool is_hidden_key = (i == table_share->keys);
+    const bool is_hidden_key = (i == table_share->keys);
     m_key_fields[i] = (MY_BITMAP *)bitmap_array;
     if (is_hidden_key || (i == table_share->primary_key)) {
+      // Primary key, initialize bitmap to use the preallocated buffer
+      ndb_bitmap_init(m_key_fields[i], m_pk_bitmap_buf, table_share->fields);
+      // Setup pointer to the primary key bitmap
       m_pk_bitmap_p = m_key_fields[i];
-      bitbuf = m_pk_bitmap_buf;
-    }
-    if (bitmap_init(m_key_fields[i], bitbuf, table_share->fields)) {
-      m_key_fields[i] = NULL;
-      return true;  // alloc failed
+    } else {
+      // Other key, initialize bitmap with dynamically allocated buffer
+      if (bitmap_init(m_key_fields[i], nullptr, table_share->fields)) {
+        // Failed to initialize bitmap (only occurs if buffer alloc fails)
+        m_key_fields[i] = NULL;
+        return true;
+      }
     }
     if (!is_hidden_key) {
       key = table->key_info + i;
@@ -11425,8 +11429,10 @@ bool ha_ndbcluster::open_table_set_key_fields() {
       for (j = 0; j < key_parts; j++, key_part_info++)
         bitmap_set_bit(m_key_fields[i], key_part_info->fieldnr - 1);
     } else {
-      uint field_no = table_share->fields;
-      ((uchar *)m_pk_bitmap_buf)[field_no >> 3] |= (1 << (field_no & 7));
+      const uint field_no = table_share->fields;
+      // Set bit for hidden key. Use raw bit fiddling since 'field_no' is larger
+      // than size of bitmap and thus triggers assert using bitmap_set_bit
+      ((uchar *)m_pk_bitmap_buf.buf())[field_no >> 3] |= (1 << (field_no & 7));
     }
     bitmap_array += sizeof(MY_BITMAP);
   }
@@ -11646,8 +11652,14 @@ inline void ha_ndbcluster::release_key_fields() {
   if (m_key_fields) {
     MY_BITMAP **inx_bitmap;
     for (inx_bitmap = m_key_fields;
-         (inx_bitmap != NULL) && ((*inx_bitmap) != NULL); inx_bitmap++)
-      if ((*inx_bitmap)->bitmap != m_pk_bitmap_buf) bitmap_free(*inx_bitmap);
+         (inx_bitmap != NULL) && ((*inx_bitmap) != NULL); inx_bitmap++) {
+      if ((*inx_bitmap)->bitmap == m_pk_bitmap_buf.buf()) {
+        // Don't free bitmap when it's using m_pk_bitmap_buf as buffer
+        continue;
+      }
+
+      bitmap_free(*inx_bitmap);
+    }
     my_free(m_key_fields);
     m_key_fields = NULL;
   }
