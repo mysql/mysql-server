@@ -101,6 +101,7 @@ FOREACH(X xcom_vp)
     FIND_PROGRAM(RPCGEN_EXECUTABLE rpcgen DOC "path to the rpcgen executable")
     MARK_AS_ADVANCED(RPCGEN_EXECUTABLE)
     IF(NOT RPCGEN_EXECUTABLE)
+      WARN_MISSING_RPCGEN_EXECUTABLE()
       MESSAGE(FATAL_ERROR "Could not find rpcgen")
     ENDIF()
 
