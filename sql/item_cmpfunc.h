@@ -1046,6 +1046,15 @@ class Item_func_eq : public Item_func_comparison {
   /// we save a list of all of the fields that were considered equal.
   void ensure_multi_equality_fields_are_available(table_map left_side_tables,
                                                   table_map right_side_tables);
+
+  // If this equality originally came from a multi-equality, this documents
+  // which one it came from (otherwise nullptr). It is used during planning:
+  // For selectivity estimates and for not pushing down the same multi-equality
+  // to the same join more than once (see IsBadJoinForCondition()).
+  //
+  // This is used only in the hypergraph optimizer; the pre-hypergraph optimizer
+  // uses COND_EQUAL to find this instead.
+  Item_equal *source_multiple_equality = nullptr;
 };
 
 /**
@@ -2474,7 +2483,7 @@ class Item_equal final : public Item_bool_func {
   Item_equal(Item *c, Item_field *f);
   Item_equal(Item_equal *item_equal);
 
-  inline Item *get_const() { return const_item; }
+  Item *get_const() const { return const_item; }
   void set_const(Item *c) { const_item = c; }
   bool compare_const(THD *thd, Item *c);
   bool add(THD *thd, Item *c, Item_field *f);
@@ -2501,6 +2510,9 @@ class Item_equal final : public Item_bool_func {
     // substitute_for_best_equal_field before cast nodes are injected.
     assert(false);
     return false;
+  }
+  bool contains_only_equi_join_condition() const override {
+    return get_const() == nullptr;
   }
 
   /**

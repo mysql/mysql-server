@@ -3587,12 +3587,6 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal) {
 static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
                                   Item *item, COND_EQUAL *cond_equal,
                                   bool *simple_equality) {
-  if (thd->lex->using_hypergraph_optimizer) {
-    // We cannot handle loops in the query graph yet.
-    *simple_equality = false;
-    return false;
-  }
-
   *simple_equality = false;
 
   if (left_item->type() == Item::REF_ITEM &&

@@ -75,6 +75,66 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
     THD *thd, const mem_root_deque<TABLE_LIST *> &join_list);
 bool EarlyNormalizeConditions(THD *thd, Mem_root_array<Item *> *conditions);
 
+inline bool IsMultipleEquals(Item *cond) {
+  return cond->type() == Item::FUNC_ITEM &&
+         down_cast<Item_func *>(cond)->functype() == Item_func::MULT_EQUAL_FUNC;
+}
+
+/**
+  Expand multiple equalities that can (and should) be expanded before join
+  pushdown. These are the ones that only touch less than three tables, or that
+  are against a constant. They can be expanded unambiguously; no matter the join
+  order, they will be the same. Fields on tables not in “tables_in_subtree” are
+  assumed to be irrelevant to the equality and ignored (see the comment on
+  PushDownCondition() for more details).
+
+  The return value is an AND conjunction, so most likely, it needs to be split.
+ */
+Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
+  return CompileItem(
+      condition, [](Item *) { return true; },
+      [tables_in_subtree](Item *item) -> Item * {
+        if (!IsMultipleEquals(item)) {
+          return item;
+        }
+        Item_equal *equal = down_cast<Item_equal *>(item);
+        List<Item> eq_items;
+        if (equal->get_const() == nullptr &&
+            my_count_bits(equal->used_tables() & tables_in_subtree) > 2) {
+          return item;
+        }
+        Item *base_item = equal->get_const();
+        for (Item_field &field : equal->get_fields()) {
+          if (!IsSubset(field.used_tables(), tables_in_subtree)) {
+            continue;
+          }
+          if (base_item == nullptr) {
+            base_item = &field;
+            continue;
+          }
+
+          // Aesthetically, we want <field> = <const>, but keep
+          // <field1> = <field2> the way the user wrote it.
+          Item_func_eq *eq_item = equal->get_const() != nullptr
+                                      ? new Item_func_eq(&field, base_item)
+                                      : new Item_func_eq(base_item, &field);
+          eq_item->set_cmp_func();
+          eq_item->update_used_tables();
+          eq_item->quick_fix_field();
+          eq_items.push_back(eq_item);
+        }
+        assert(!eq_items.is_empty());
+        if (eq_items.size() == 1) {
+          return eq_items.head();
+        } else {
+          Item_cond_and *item_and = new Item_cond_and(eq_items);
+          item_and->update_used_tables();
+          item_and->quick_fix_field();
+          return item_and;
+        }
+      });
+}
+
 RelationalExpression *MakeRelationalExpression(THD *thd, const TABLE_LIST *tl) {
   if (tl->nested_join == nullptr) {
     // A single table.
@@ -125,15 +185,17 @@ RelationalExpression *MakeRelationalExpressionFromJoinList(
         join->type = RelationalExpression::INNER_JOIN;
       }
     }
+    join->tables_in_subtree =
+        join->left->tables_in_subtree | join->right->tables_in_subtree;
     if (tl->is_aj_nest()) {
       assert(tl->join_cond() != nullptr);
     }
     if (tl->join_cond() != nullptr) {
-      ExtractConditions(tl->join_cond(), &join->join_conditions);
+      Item *join_cond =
+          EarlyExpandMultipleEquals(tl->join_cond(), join->tables_in_subtree);
+      ExtractConditions(join_cond, &join->join_conditions);
       EarlyNormalizeConditions(thd, &join->join_conditions);
     }
-    join->tables_in_subtree =
-        join->left->tables_in_subtree | join->right->tables_in_subtree;
     ret = join;
   }
   return ret;
@@ -482,6 +544,22 @@ bool IsCandidateForCycle(Item *cond,
                                      table_num_to_companion_set) != -1;
 }
 
+bool ComesFromMultipleEquality(Item *item, Item_equal *equal) {
+  return item->type() == Item::FUNC_ITEM &&
+         down_cast<Item_func *>(item)->functype() == Item_func::EQ_FUNC &&
+         down_cast<Item_func_eq *>(item)->source_multiple_equality == equal;
+}
+
+bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
+                                         const RelationalExpression &expr) {
+  for (Item *item : expr.join_conditions) {
+    if (ComesFromMultipleEquality(item, equal)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
   Returns whether adding “cond” to the given join would unduly enlarge
   the number of tables it references, or create a degenerate join.
@@ -505,12 +583,51 @@ bool IsBadJoinForCondition(const RelationalExpression &expr, Item *cond) {
     return true;
   }
 
-  if (expr.join_conditions.empty()) {
+  const table_map already_used_tables = UsedTablesForCondition(expr);
+  if (already_used_tables == 0) {
     // Making a Cartesian join into a proper join is good.
     return false;
   }
 
-  return !IsSubset(used_tables, UsedTablesForCondition(expr));
+  if (IsMultipleEquals(cond)) {
+    // Don't apply the same multi-equality twice on the same join. This fixes an
+    // issue that goes roughly like this:
+    //
+    // 1. A multi-equality, e.g. (t1.x, t2.x, t3.x), is pushed on the lower
+    //    level of a join like t1 JOIN (t2 JOIN (t3 JOIN t4)), and concretized
+    //    to t2.x = t3.x (we happen to push the lower levels before the higher
+    //    levels).
+    // 2. Now we want to push the same multi-equality on the higher level,
+    //    but assume there's already a condition there that makes it a bad join
+    //    for us, e.g. t1.y = t4.y already exists. This causes us to try an
+    //    associative rewrite to (t1 JOIN t2) JOIN (t3 JOIN t4). Note that
+    //    the top join still carries the t2.x = t3.x condition.
+    // 3. Now we see that we can reliably push the multi-equality onto the
+    //    top join again without extending the join condition -- by concretizing
+    //    it to t2.x = t3.x!
+    //
+    // This obviously subverts the requirement that we have (N-1) different
+    // concretizations of the multi-equality, since two are the same. Thus,
+    // we have this explicit check here.
+    //
+    // See the unit test MultipleEqualityIsNotPushedMultipleTimes for an example
+    // that goes horribly wrong without this.
+    if (MultipleEqualityAlreadyExistsOnJoin(down_cast<Item_equal *>(cond),
+                                            expr)) {
+      return true;
+    }
+
+    // For multi-equalities, we can pick any table from the left and any table
+    // from the right, so see if we can make any such choice that doesn't
+    // broaden the condition.
+    const table_map candidate_tables = used_tables & already_used_tables;
+    if (Overlaps(candidate_tables, expr.left->tables_in_subtree) &&
+        Overlaps(candidate_tables, expr.right->tables_in_subtree)) {
+      return false;
+    }
+  }
+
+  return !IsSubset(used_tables, already_used_tables);
 }
 
 /**
@@ -571,6 +688,149 @@ void RotateLeft(RelationalExpression *op) {
 }
 
 /**
+  From “cond”, create exactly one simple equality that will connect the
+  left and right sides of “expr”. E.g. for joining (A,B) and (C,D),
+  and given the multi-equality (A.x,B.x,D.x), it may pick A.x = D.x
+  or B.x = D.x (but never A.x = B.x).
+ */
+Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
+                                       const RelationalExpression &expr) {
+  const table_map already_used_tables = UsedTablesForCondition(expr);
+
+  Item_field *left = nullptr;
+  Item_field *right = nullptr;
+
+  // Go through and pick a candidate for each side of the equality.
+  // This is fairly arbitrary (we will add cycles later), but if there is
+  // already a condition present, we prefer to pick one that refers to an
+  // already-used table.
+  for (Item_field &item_field : cond->get_fields()) {
+    if (Overlaps(item_field.used_tables(), expr.left->tables_in_subtree)) {
+      if (left == nullptr ||
+          !Overlaps(left->used_tables(), already_used_tables)) {
+        left = &item_field;
+      }
+    } else if (Overlaps(item_field.used_tables(),
+                        expr.right->tables_in_subtree)) {
+      if (right == nullptr ||
+          !Overlaps(right->used_tables(), already_used_tables)) {
+        right = &item_field;
+      }
+    }
+  }
+  assert(left != nullptr);
+  assert(right != nullptr);
+
+  Item_func_eq *eq_item = new Item_func_eq(left, right);
+  eq_item->set_cmp_func();
+  eq_item->update_used_tables();
+  eq_item->quick_fix_field();
+  eq_item->source_multiple_equality = cond;
+  return eq_item;
+}
+
+/**
+  From “cond”, create exactly as many simple equalities that are needed
+  to connect all tables in “allowed_tables”. E.g. for joining (A,B) and (C,D)
+  (ie., allowed_tables={A,B,C,D}), and given the multi-equality
+  (A.x, B.x, D.x, E.x), it will generate A.x = B.x and B.x = D.x
+  (E.x is ignored).
+ */
+static void FullyConcretizeMultipleEquals(Item_equal *cond,
+                                          table_map allowed_tables,
+                                          List<Item> *result) {
+  Item_field *last_field = nullptr;
+  for (Item_field &field : cond->get_fields()) {
+    if (!Overlaps(field.used_tables(), allowed_tables)) {
+      // From outside this join.
+      continue;
+    }
+    if (last_field != nullptr) {
+      Item_func_eq *eq_item = new Item_func_eq(last_field, &field);
+      eq_item->set_cmp_func();
+      eq_item->update_used_tables();
+      eq_item->quick_fix_field();
+      eq_item->source_multiple_equality = cond;
+      result->push_back(eq_item);
+    }
+    last_field = &field;
+  }
+}
+
+/**
+  Finalize a condition (join condition or WHERE predicate); resolve any
+  remaining multiple equalities, add casts to comparisons where needed,
+  and add caches around constant arguments.
+ */
+Item *CanonicalizeCondition(Item *condition, table_map allowed_tables) {
+  // Convert any remaining (unpushed) multiple equals to a series of equijoins.
+  // Note this is a last-ditch resort, and should almost never happen;
+  // thus, it's fine just to fully expand the multi-equality, even though it
+  // might mean adding conditions that have already been dealt with further down
+  // the tree. This is also the only place that we expand multi-equalities
+  // within OR conjunctions or the likes.
+  condition = CompileItem(
+      condition, [](Item *) { return true; },
+      [allowed_tables](Item *item) -> Item * {
+        if (!IsMultipleEquals(item)) {
+          return item;
+        }
+        Item_equal *equal = down_cast<Item_equal *>(item);
+        assert(equal->get_const() == nullptr);
+        List<Item> eq_items;
+        FullyConcretizeMultipleEquals(equal, allowed_tables, &eq_items);
+        assert(!eq_items.is_empty());
+        if (eq_items.size() == 1) {
+          return eq_items.head();
+        } else {
+          Item_cond_and *item_and = new Item_cond_and(eq_items);
+          item_and->update_used_tables();
+          item_and->quick_fix_field();
+          return item_and;
+        }
+      });
+
+  // Account for tables not in allowed_tables having been removed.
+  condition->update_used_tables();
+
+  condition->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
+
+  cache_const_expr_arg cache_arg;
+  cache_const_expr_arg *analyzer_arg = &cache_arg;
+  condition = condition->compile(
+      &Item::cache_const_expr_analyzer, pointer_cast<uchar **>(&analyzer_arg),
+      &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
+  return condition;
+}
+
+// Calls CanonicalizeCondition() for each condition in the given array.
+bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
+                            Mem_root_array<Item *> *conditions) {
+  bool need_resplit = false;
+  for (Item *&condition : *conditions) {
+    condition = CanonicalizeCondition(condition, tables_in_subtree);
+    if (condition == nullptr) {
+      return true;
+    }
+    if (condition->type() == Item::COND_ITEM &&
+        down_cast<Item_cond *>(condition)->functype() ==
+            Item_func::COND_AND_FUNC) {
+      // Canonicalization converted something (probably an Item_equal) to a
+      // conjunction, which we need to split back to new conditions again.
+      need_resplit = true;
+    }
+  }
+  if (need_resplit) {
+    Mem_root_array<Item *> new_join_conditions(thd->mem_root);
+    for (Item *condition : *conditions) {
+      ExtractConditions(condition, &new_join_conditions);
+    }
+    *conditions = std::move(new_join_conditions);
+  }
+  return false;
+}
+
+/**
   Add “cond” as a join condition to “expr”, but if it would enlarge the set
   of referenced tables, try to rewrite the join tree using associativity
   (either left or right) and commutativity to be able to put the condition
@@ -607,6 +867,10 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
   // below. Due to special semijoin rules in MySQL (see comments in
   // PushDownCondition()), we also disallow making join conditions on semijoins.
   if (!IsBadJoinForCondition(*expr, cond) && IsInnerJoin(expr->type)) {
+    if (IsMultipleEquals(cond)) {
+      cond = ConcretizeMultipleEquals(down_cast<Item_equal *>(cond), *expr);
+    }
+
     expr->join_conditions.push_back(cond);
     if (trace != nullptr && allowed != AssociativeRewritesAllowed::ANY) {
       *trace += StringPrintf(
@@ -697,9 +961,10 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
   (is_join_condition_for_expr=true), or a filter which is applied at some point
   after expr (...=false).
 
-  Returns false if cond was pushed down and stored as a join condition on some
-  lower place than it started, ie., the caller no longer needs to worry about
-  it.
+  If the condition was not pushable, ie., it couldn't be stored as a join
+  condition on some lower place than it started, it will push it onto
+  “remaining_parts”. remaining_parts can be nullptr, in which case the condition
+  is simply dropped.
 
   Since PushDownAsMuchAsPossible() only calls us for join conditions, there is
   only one way we can push down something onto a single table (which naturally
@@ -721,16 +986,56 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
   down to a table, we store the condition in “table_filters”. These are
   conditions that can be evaluated directly on the given table, without any
   concern for what is joined in before (ie., TES = SES).
+
+
+  Multiple equalities
+  ===================
+
+  Pushing down multiple equalities is somewhat tricky. To recap, a multiple
+  equality (Item_equal) is a set of N fields (a,b,c,...) that are all assumed
+  to be equal to each other. As part of pushdown, we concretize these into
+  (N-1) regular equalities (where every field is referred to at least once);
+  this is enough for query correctness, and the remaining options will be added
+  to the query graph later. E.g., if we have multiple equals (a,b,c), we could
+  add a=b AND b=c, or equivalently a=c AND b=c. But for (a,b,c,d), we couldn't
+  do with a=b AND a=c AND b=c; even though it would be (N-1) equalities,
+  d still needs to be in the mix.
+
+  We solve this by pushing down multiple equalities as usual down the tree until
+  it becomes a join condition at the current node (ie., it refers to tables from
+  both sides). At that point, we can pick an arbitrary table from each sides to
+  create an equality. E.g. for (a,b,c,d) pushed onto (a,b) JOIN (c,d), we can
+  choose an equality a=c, or a=d, or similar. However, this only resolves one
+  equality; we need to keep pushing it down on both sides. This will create the
+  (N-1) ones we want in the end. But at this point, the multiple equality will
+  refer to tables not part of the join; e.g. trying to push down equals(a,b,c,d)
+  onto a JOIN b. If so, we simply ignore the fields belonging to tables not part
+  of the join, so we create a=b (the only possibility).
+
+  If we at some point end up with a multiple equality we cannot push
+  (e.g., because it hit an outer join), we will resolve it at the latest
+  in CanonicalizeCondition().
  */
-bool PushDownCondition(Item *cond, RelationalExpression *expr,
+void PushDownCondition(Item *cond, RelationalExpression *expr,
                        bool is_join_condition_for_expr,
                        const int table_num_to_companion_set[MAX_TABLES],
                        Mem_root_array<Item *> *table_filters,
                        Mem_root_array<Item *> *cycle_inducing_edges,
-                       string *trace) {
+                       Mem_root_array<Item *> *remaining_parts, string *trace) {
   if (expr->type == RelationalExpression::TABLE) {
-    table_filters->push_back(cond);
-    return true;
+    if (IsMultipleEquals(cond)) {
+      // Get rid of all the other tables, leaving only equalities within
+      // this table.
+      table_filters->push_back(
+          CanonicalizeCondition(cond, expr->tables_in_subtree));
+      return;  // Do not leave it in remaining_parts.
+    } else {
+      table_filters->push_back(cond);
+    }
+    if (remaining_parts != nullptr) {
+      remaining_parts->push_back(cond);
+    }
+    return;
   }
 
   assert(
@@ -753,12 +1058,16 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
        !is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->left->tables_in_subtree)) {
     if (!can_push_into_left) {
-      return true;
+      if (remaining_parts != nullptr) {
+        remaining_parts->push_back(cond);
+      }
+      return;
     }
-    return PushDownCondition(cond, expr->left,
-                             /*is_join_condition_for_expr=*/false,
-                             table_num_to_companion_set, table_filters,
-                             cycle_inducing_edges, trace);
+    PushDownCondition(cond, expr->left,
+                      /*is_join_condition_for_expr=*/false,
+                      table_num_to_companion_set, table_filters,
+                      cycle_inducing_edges, remaining_parts, trace);
+    return;
   }
 
   // See if we can push down into the right side. For inner joins,
@@ -780,12 +1089,16 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
        is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->right->tables_in_subtree)) {
     if (!can_push_into_right) {
-      return true;
+      if (remaining_parts != nullptr) {
+        remaining_parts->push_back(cond);
+      }
+      return;
     }
-    return PushDownCondition(cond, expr->right,
-                             /*is_join_condition_for_expr=*/false,
-                             table_num_to_companion_set, table_filters,
-                             cycle_inducing_edges, trace);
+    PushDownCondition(cond, expr->right,
+                      /*is_join_condition_for_expr=*/false,
+                      table_num_to_companion_set, table_filters,
+                      cycle_inducing_edges, remaining_parts, trace);
+    return;
   }
 
   // It's not a subset of left, it's not a subset of right, so it's a
@@ -802,7 +1115,8 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       PushDownCondition(partial_cond, expr->left,
                         /*is_join_condition_for_expr=*/false,
                         table_num_to_companion_set, table_filters,
-                        cycle_inducing_edges, trace);
+                        cycle_inducing_edges, /*remaining_parts=*/nullptr,
+                        trace);
     }
   }
 
@@ -816,15 +1130,60 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       PushDownCondition(partial_cond, expr->right,
                         /*is_join_condition_for_expr=*/false,
                         table_num_to_companion_set, table_filters,
-                        cycle_inducing_edges, trace);
+                        cycle_inducing_edges, /*remaining_parts=*/nullptr,
+                        trace);
+    }
+  }
+
+  // For multiple equalities, if there are multiple referred-to fields on one
+  // side, then we must keep pushing down; there are still equalities left to
+  // resolve. E.g. if we have equal(t1.x, t2.x, t3.x) and have (t1,t2) on the
+  // left side and t3 on the right, we would pick e.g. t1.x=t3.x for this join,
+  // but need to keep pushing down on the left side to get the t1.x=t2.x
+  // condition further down.
+  //
+  // Note that this is a stricter condition than multiple referred-to _tables_.
+  // If we have equal (t1.x, t1.y, t2.x), we must push down into t1 to get
+  // t1.x = t1.y.
+  if (IsMultipleEquals(cond)) {
+    int left_fields = 0, right_fields = 0;
+    for (const Item_field &field :
+         down_cast<Item_equal *>(cond)->get_fields()) {
+      if (Overlaps(field.used_tables(), expr->left->tables_in_subtree)) {
+        ++left_fields;
+      }
+      if (Overlaps(field.used_tables(), expr->right->tables_in_subtree)) {
+        ++right_fields;
+      }
+    }
+    if (left_fields >= 2 && can_push_into_left) {
+      PushDownCondition(cond, expr->left,
+                        /*is_join_condition_for_expr=*/false,
+                        table_num_to_companion_set, table_filters,
+                        cycle_inducing_edges, remaining_parts, trace);
+    }
+    if (right_fields >= 2 && can_push_into_right) {
+      PushDownCondition(cond, expr->right,
+                        /*is_join_condition_for_expr=*/false,
+                        table_num_to_companion_set, table_filters,
+                        cycle_inducing_edges, remaining_parts, trace);
     }
   }
 
   // Now that any partial pushdown has been done, see if we can promote
   // the original filter to a join condition.
   if (is_join_condition_for_expr) {
-    // We were already a join condition on this join, so there's nothing to do.
-    return true;
+    // We were already a join condition on this join, so there's nothing to do
+    // except possibly concretize a multi-equals. (Any multiple equalities
+    // should be simplified but not pushed further, unlike WHERE conditions
+    // that induce inner joins.)
+    if (remaining_parts != nullptr) {
+      if (IsMultipleEquals(cond)) {
+        cond = ConcretizeMultipleEquals(down_cast<Item_equal *>(cond), *expr);
+      }
+      remaining_parts->push_back(cond);
+    }
+    return;
   }
 
   // We cannot promote filters to join conditions for outer joins
@@ -833,9 +1192,14 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       expr->type == RelationalExpression::ANTIJOIN) {
     // See if we can promote it by rewriting; if not, it has to be left
     // as a filter.
-    return !AddJoinConditionPossiblyWithRewrite(
-        expr, cond, AssociativeRewritesAllowed::ANY,
-        /*used_commutativity=*/false, trace);
+    if (!AddJoinConditionPossiblyWithRewrite(
+            expr, cond, AssociativeRewritesAllowed::ANY,
+            /*used_commutativity=*/false, trace)) {
+      if (remaining_parts != nullptr) {
+        remaining_parts->push_back(cond);
+      }
+    }
+    return;
   }
 
   // Promote the filter to a join condition on this join.
@@ -848,8 +1212,13 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
     // are not really WHERE conditions, and must not be handled as such
     // (they cannot be moved to being conditions on inner joins).
     // See the comment about pushability of these above.
+    // (Any multiple equalities should be simplified but not pushed further,
+    // unlike WHERE conditions that induce inner joins.)
+    if (IsMultipleEquals(cond)) {
+      cond = ConcretizeMultipleEquals(down_cast<Item_equal *>(cond), *expr);
+    }
     expr->join_conditions.push_back(cond);
-    return false;
+    return;
   }
 
   if (!AddJoinConditionPossiblyWithRewrite(
@@ -864,8 +1233,9 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
         *trace += StringPrintf("- condition %s induces a hypergraph cycle\n",
                                ItemToString(cond).c_str());
       }
-      cycle_inducing_edges->push_back(cond);
-      return false;
+      cycle_inducing_edges->push_back(
+          CanonicalizeCondition(cond, cond->used_tables()));
+      return;
     }
     if (trace != nullptr) {
       *trace += StringPrintf(
@@ -873,10 +1243,15 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
           "but could not do anything about it\n",
           ItemToString(cond).c_str());
     }
-    expr->join_conditions.push_back(cond);
-  }
 
-  return false;
+    if (IsMultipleEquals(cond) && !MultipleEqualityAlreadyExistsOnJoin(
+                                      down_cast<Item_equal *>(cond), *expr)) {
+      expr->join_conditions.push_back(
+          ConcretizeMultipleEquals(down_cast<Item_equal *>(cond), *expr));
+    } else {
+      expr->join_conditions.push_back(cond);
+    }
+  }
 }
 
 /**
@@ -958,19 +1333,16 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // as we handle them separately in FoundSingleNode() and
       // FoundSubgraphPair().
       remaining_parts.push_back(item);
+    } else if (is_join_condition_for_expr &&
+               !IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
+                         expr->tables_in_subtree)) {
+      // Condition refers to tables outside this subtree, so it can not be
+      // pushed (this can only happen with semijoins).
+      remaining_parts.push_back(item);
     } else {
-      if (is_join_condition_for_expr &&
-          !IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
-                    expr->tables_in_subtree)) {
-        // Condition refers to tables outside this subtree, so it can not be
-        // pushed (this can only happen with semijoins).
-        remaining_parts.push_back(item);
-      } else if (PushDownCondition(item, expr, is_join_condition_for_expr,
-                                   table_num_to_companion_set, table_filters,
-                                   cycle_inducing_edges, trace)) {
-        // Pushdown failed.
-        remaining_parts.push_back(item);
-      }
+      PushDownCondition(item, expr, is_join_condition_for_expr,
+                        table_num_to_companion_set, table_filters,
+                        cycle_inducing_edges, &remaining_parts, trace);
     }
   }
 
@@ -1063,17 +1435,9 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
   }
   assert(expr->equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
-  for (Item *&condition : expr->join_conditions) {
-    condition->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX, nullptr);
-
-    cache_const_expr_arg cache_arg;
-    cache_const_expr_arg *analyzer_arg = &cache_arg;
-    condition = condition->compile(
-        &Item::cache_const_expr_analyzer, pointer_cast<uchar **>(&analyzer_arg),
-        &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
-    if (condition == nullptr) {
-      return true;
-    }
+  if (CanonicalizeConditions(thd, expr->tables_in_subtree,
+                             &expr->join_conditions)) {
+    return true;
   }
   return CanonicalizeJoinConditions(thd, expr->left) ||
          CanonicalizeJoinConditions(thd, expr->right);
@@ -1954,7 +2318,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   // them later.
   Mem_root_array<Item *> where_conditions(thd->mem_root);
   if (join->where_cond != nullptr) {
-    ExtractConditions(join->where_cond, &where_conditions);
+    Item *where_cond = EarlyExpandMultipleEquals(join->where_cond,
+                                                 /*tables_in_subtree=*/~0);
+    ExtractConditions(where_cond, &where_conditions);
     if (EarlyNormalizeConditions(thd, &where_conditions)) {
       return true;
     }
@@ -1962,6 +2328,11 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
         thd, std::move(where_conditions), root,
         /*is_join_condition_for_expr=*/false, table_num_to_companion_set,
         &table_filters, &cycle_inducing_edges, trace);
+
+    if (CanonicalizeConditions(thd, /*tables_in_subtree=*/~0,
+                               &where_conditions)) {
+      return true;
+    }
 
     // See if we can push remaining WHERE conditions to sargable predicates.
     for (Item *item : where_conditions) {
@@ -1997,8 +2368,12 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
             end(graph->table_num_to_node_num), -1);
 #endif
   MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
+  size_t old_graph_edges = graph->graph.edges.size();
   if (!cycle_inducing_edges.empty()) {
     AddCycleEdges(thd, cycle_inducing_edges, graph, trace);
+  }
+  if (graph->graph.edges.size() != old_graph_edges) {
+    // We added at least one cycle-inducing edge.
     PromoteCycleJoinPredicates(thd, root, graph, trace);
   }
 
@@ -2042,14 +2417,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   // Cache constant expressions in predicates, and add cast nodes if there are
   // incompatible arguments in comparisons. (We did join conditions earlier.)
   for (Predicate &predicate : graph->predicates) {
-    predicate.condition->walk(&Item::cast_incompatible_args, enum_walk::POSTFIX,
-                              nullptr);
-
-    cache_const_expr_arg cache_arg;
-    cache_const_expr_arg *analyzer_arg = &cache_arg;
-    predicate.condition = predicate.condition->compile(
-        &Item::cache_const_expr_analyzer, pointer_cast<uchar **>(&analyzer_arg),
-        &Item::cache_const_expr_transformer, pointer_cast<uchar *>(&cache_arg));
+    predicate.condition =
+        CanonicalizeCondition(predicate.condition, /*allowed_tables=*/~0);
     if (predicate.condition == nullptr) {
       return true;
     }

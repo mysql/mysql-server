@@ -2394,3 +2394,25 @@ WHERE t1.a < t2.b AND t2.a < t3.b
 ORDER BY t1.b;
 a	b	a	b	a	b
 DROP TABLE t1;
+#
+# Bug #32642893: WL#14418: ASSERTION `!ISMULTIPLEEQUALS(ITEM)' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+#
+CREATE TABLE t1 ( a INTEGER );
+SELECT *
+FROM t1
+LEFT JOIN t1 AS t2 ON t1.a = t2.a
+LEFT JOIN t1 AS t3 ON t2.a = t3.a
+WHERE t2.a = t3.a OR t2.a <> t2.a;
+a	a	a
+DROP TABLE t1;
+#
+# Bug #32707348: WL#14418: RESULT MISMATCHES SEEN WITH HYPERGRAPH
+#
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+INSERT INTO t1 VALUES (1,2);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1, t1 AS t2, t1 AS t3 WHERE t1.a = t2.a AND t1.a = t3.b AND t1.a = t3.a;
+a	b	a	b	a	b
+DROP TABLE t1;

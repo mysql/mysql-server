@@ -90,6 +90,7 @@ class HypergraphTestBase : public Parent {
   void ResolveFieldToFakeTable(Item *item);
   void ResolveAllFieldsToFakeTable(
       const mem_root_deque<TABLE_LIST *> &join_list);
+  void SetJoinConditions(const mem_root_deque<TABLE_LIST *> &join_list);
   void DestroyFakeTables() {
     for (const auto &name_and_table : m_fake_tables) {
       destroy(name_and_table.second);
@@ -169,6 +170,7 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   query_block->join->having_cond = query_block->having_cond();
   query_block->join->fields = &query_block->fields;
   query_block->join->alloc_func_list();
+  SetJoinConditions(query_block->top_join_list);
 
   if (query_block->select_limit != nullptr) {
     query_block->master_query_expression()->select_limit_cnt =
@@ -195,6 +197,7 @@ void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
         assert(false);
       }
       item_field->set_nullable(item_field->field->is_nullable());
+      item_field->set_data_type(MYSQL_TYPE_LONG);
     }
     return false;
   });
@@ -209,6 +212,17 @@ void HypergraphTestBase<T>::ResolveAllFieldsToFakeTable(
     }
     if (tl->nested_join != nullptr) {
       ResolveAllFieldsToFakeTable(tl->nested_join->join_list);
+    }
+  }
+}
+
+template <typename T>
+void HypergraphTestBase<T>::SetJoinConditions(
+    const mem_root_deque<TABLE_LIST *> &join_list) {
+  for (TABLE_LIST *tl : join_list) {
+    tl->set_join_cond_optim(tl->join_cond());
+    if (tl->nested_join != nullptr) {
+      SetJoinConditions(tl->nested_join->join_list);
     }
   }
 }
@@ -748,6 +762,112 @@ TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
   EXPECT_TRUE(graph.predicates[2].was_join_condition);
 }
 
+TEST_F(MakeHypergraphTest, MultipleEqualityIsNotPushedMultipleTimes) {
+  // This query is impossible to push cleanly without adding fairly
+  // broad hyperedges. We want to make sure we don't try to “solve” it
+  // by pushing the t2.x = t3.x condition twice.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN (t2 JOIN (t3 JOIN t4)) "
+      "WHERE t1.y = t4.y AND t2.x = t3.x AND t3.x = t4.x",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+  EXPECT_EQ("(multiple equal(t1.y, t4.y) and multiple equal(t2.x, t3.x, t4.x))",
+            ItemToString(query_block->where_cond()));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(4, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+
+  // t1/t2 (a Cartesian product).
+  ASSERT_EQ(3, graph.edges.size());
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+  EXPECT_EQ(0, graph.edges[0].expr->equijoin_conditions.size());
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+  ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t2.x = t3.x)",
+            ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
+
+  // {t1,t3}/t4, souping up the rest of the conditions.
+  EXPECT_EQ(0x05, graph.graph.edges[4].left);
+  EXPECT_EQ(0x08, graph.graph.edges[4].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
+  ASSERT_EQ(2, graph.edges[2].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.y = t4.y)",
+            ItemToString(graph.edges[2].expr->equijoin_conditions[0]));
+  EXPECT_EQ("(t3.x = t4.x)",
+            ItemToString(graph.edges[2].expr->equijoin_conditions[1]));
+}
+
+// Verify that multiple equalities are properly resolved to a single equality,
+// and not left as a multiple one. Antijoins have a similar issue.
+// Inspired by issues in a larger query (DBT-3 Q21).
+TEST_F(MakeHypergraphTest, MultipleEqualityPushedFromJoinConditions) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 "
+      "WHERE t1.x=t2.x AND t1.x IN (SELECT t3.x FROM t3) ",
+      /*nullable=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // t1/t2.
+  ASSERT_EQ(2, graph.edges.size());
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+  ASSERT_EQ(1, graph.edges[0].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)",
+            ItemToString(graph.edges[0].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+
+  // t2/t3 (semijoin). t1/t3 would also be fine. The really important part
+  // is that we do not also have a t1/t2 or t1/t3 join conditions.
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::SEMIJOIN, graph.edges[1].expr->type);
+  ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t2.x = t3.x)",
+            ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[1].expr->join_conditions.size());
+}
+
 // An alias for better naming.
 // We don't verify costs; to do that, we'd probably need to mock out
 // the cost model.
@@ -1061,6 +1181,55 @@ TEST_F(HypergraphOptimizerTest, JoinConditionToRef) {
   // we should have no further reduction from it.
   EXPECT_FLOAT_EQ(outer->num_output_rows * inner->num_output_rows,
                   root->num_output_rows);
+}
+
+// Verify that we can make sargable predicates out of multiple equalities.
+TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3 WHERE t1.x = t2.x AND t2.x = t3.x",
+      /*nullable=*/true);
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  // The logical plan should be t1/t2/t3, with index lookups on t2 and t3.
+  // should not be.
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 10000;
+  m_fake_tables["t3"]->file->stats.records = 1000000;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The optimal plan consists of only nested-loop joins.
+  // We don't verify costs.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
+
+  // t1 is on the outside.
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
+
+  // The inner part should also be nested-loop.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, inner->type);
+  EXPECT_EQ(JoinType::INNER, inner->nested_loop_join().join_type);
+
+  // We have two index lookups; t2 and t3. We don't care about the order.
+  ASSERT_EQ(AccessPath::REF, inner->nested_loop_join().outer->type);
+  ASSERT_EQ(AccessPath::REF, inner->nested_loop_join().inner->type);
 }
 
 TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
