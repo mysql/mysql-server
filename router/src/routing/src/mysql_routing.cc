@@ -1075,11 +1075,14 @@ std::string MySQLRouting::get_port_str() const {
   }
   return port_str;
 }
-void MySQLRouting::notify_socket_acceptors() { acceptor_cond_.notify_one(); }
 
 stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     mysql_harness::PluginFuncEnv *env) {
   destination_->start(env);
+  destination_->register_start_router_socket_acceptor(
+      [&]() { return start_accepting_connections(env); });
+  destination_->register_stop_router_socket_acceptor(
+      [&]() { stop_socket_acceptors(); });
 
   if (!destinations()->empty() ||
       (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
@@ -1089,9 +1092,10 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     auto res = start_accepting_connections(env);
     // If the routing started at the exact moment as when the metadata had it
     // initial refresh then it may start the acceptors even if metadata do not
-    // allow for it to happen, in that case we will force instance update on
-    // the next refresh.
-    if (!is_destination_standalone) destination_->md_force_instance_update();
+    // allow for it to happen, in that case we pass that information to the
+    // destination, socket acceptor state should be handled basend on the
+    // destination type.
+    if (!is_destination_standalone) destination_->handle_sockets_acceptors();
     // If we failed to start accepting connections on startup then router
     // should fail.
     if (!res) return stdx::make_unexpected(res.error());
@@ -1120,10 +1124,10 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
           stop_socket_acceptors();
         } else if (!service_tcp_.is_open() && !new_connection_nodes.empty()) {
           if (!start_accepting_connections(env)) {
-            // We could not start acceptor (e.g. the port is used by other
-            // app) In that case we should retry on the next md refresh with
-            // the latest instance information.
-            destination_->md_force_instance_update();
+            // We could not start acceptor (e.g. the port is used by other app)
+            // In that case we should retry on the next md refresh with the
+            // latest instance information.
+            destination_->handle_sockets_acceptors();
           }
         }
       };
@@ -1131,34 +1135,16 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   allowed_nodes_list_iterator_ =
       destination_->register_allowed_nodes_change_callback(
           allowed_nodes_changed);
-  destination_->register_notify_router_socket_acceptor(
-      [&]() { notify_socket_acceptors(); });
-  destination_->register_stop_router_socket_acceptor(
-      [&]() { stop_socket_acceptors(); });
 
   std::shared_ptr<void> exit_guard(nullptr, [&](void *) {
     destination_->unregister_allowed_nodes_change_callback(
         allowed_nodes_list_iterator_);
-    destination_->unregister_notify_router_socket_acceptor();
+    destination_->unregister_start_router_socket_acceptor();
     destination_->unregister_stop_router_socket_acceptor();
   });
 
-  // Depending on the routing strategy we might want to start accepting
-  // connections again.
-  while (is_running(env)) {
-    std::unique_lock<std::mutex> lock{acceptor_mutex_};
-    acceptor_cond_.wait(lock, [this, env]() {
-      return !is_running(env) ||
-             acceptor_waitable_.serialize_with_cv([this](auto &, auto &) {
-               return context_.get_bind_address().port() > 0 &&
-                      !service_tcp_.is_open();
-             });
-    });
-    if (is_running(env) && destinations()->size() != 0) {
-      auto res = start_accepting_connections(env);
-      if (!res) std::this_thread::sleep_for(3s);
-    }
-  }
+  // wait for the signal to shutdown.
+  mysql_harness::wait_for_stop(env, 0);
 
   // routing is no longer running, lets close listening socket
   stop_socket_acceptors();
@@ -1202,18 +1188,17 @@ stdx::expected<void, std::error_code> MySQLRouting::start_accepting_connections(
         std::make_error_code(std::errc::connection_aborted));
   }
 
-  stdx::expected<void, std::error_code> res;
-  acceptor_waitable_.wait([this, &res](auto &) {
-    if (context_.get_bind_address().port() <= 0) {
-      return true;
-    } else if (!service_tcp_.is_open()) {
-      res = this->setup_tcp_service();
-      return true;
-    } else {
-      return false;
-    }
-  });
-  if (!res) return stdx::make_unexpected(res.error());
+  stdx::expected<void, std::error_code> setup_res;
+  const bool already_running =
+      !acceptor_waitable_.serialize_with_cv([this, &setup_res](auto &, auto &) {
+        if (!service_tcp_.is_open()) {
+          setup_res = this->setup_tcp_service();
+          return true;
+        }
+        return false;
+      });
+  if (already_running) return {};
+  if (!setup_res) return setup_res.get_unexpected();
 
   log_info("Start accepting connections for routing %s listening on %s",
            context_.get_name().c_str(), get_port_str().c_str());
@@ -1595,12 +1580,14 @@ std::vector<MySQLRoutingAPI::ConnData> MySQLRouting::get_connections() {
 }
 
 bool MySQLRouting::is_accepting_connections() const {
-  if (service_tcp_.is_open()) {
-    return true;
+  return acceptor_waitable_.serialize_with_cv([this](auto &, auto &) {
+    if (service_tcp_.is_open()) {
+      return true;
 #if !defined(_WIN32)
-  } else if (service_named_socket_.is_open()) {
-    return true;
+    } else if (service_named_socket_.is_open()) {
+      return true;
 #endif
-  }
-  return false;
+    }
+    return false;
+  });
 }

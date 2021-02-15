@@ -38,7 +38,8 @@
 
 class DestMetadataCacheGroup final
     : public RouteDestination,
-      public metadata_cache::ReplicasetStateListenerInterface {
+      public metadata_cache::ReplicasetStateListenerInterface,
+      public metadata_cache::AcceptorUpdateHandlerInterface {
  public:
   enum ServerRole { Primary, Secondary, PrimaryAndSecondary };
 
@@ -108,8 +109,8 @@ class DestMetadataCacheGroup final
    */
   void advance(size_t n);
 
-  void md_force_instance_update() override {
-    cache_api()->force_instance_update_on_refresh();
+  void handle_sockets_acceptors() override {
+    cache_api()->handle_sockets_acceptors_on_md_refresh();
   }
 
  private:
@@ -194,10 +195,14 @@ class DestMetadataCacheGroup final
   void on_instances_change(const metadata_cache::LookupResult &instances,
                            const bool md_servers_reachable);
   void subscribe_for_metadata_cache_changes();
+  void subscribe_for_acceptor_handler();
 
-  void notify(const metadata_cache::LookupResult &instances,
-              const bool md_servers_reachable,
-              const unsigned /*view_id*/) noexcept override;
+  void notify_instances_changed(const metadata_cache::LookupResult &instances,
+                                const bool md_servers_reachable,
+                                const unsigned /*view_id*/) noexcept override;
+
+  bool update_socket_acceptor_state(
+      const metadata_cache::LookupResult &instances) noexcept override;
 
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};

@@ -218,23 +218,43 @@ bool MetadataCacheAPI::wait_primary_failover(
                                                  primary_server_uuid, timeout);
 }
 
-void MetadataCacheAPI::add_listener(
+void MetadataCacheAPI::add_state_listener(
     const std::string &replicaset_name,
     ReplicasetStateListenerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
-  // add_listener.
+  // add_state_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->add_listener(replicaset_name, listener);
+  g_metadata_cache->add_state_listener(replicaset_name, listener);
 }
-void MetadataCacheAPI::remove_listener(
+void MetadataCacheAPI::remove_state_listener(
     const std::string &replicaset_name,
     ReplicasetStateListenerInterface *listener) {
   // We only want to keep the lock when checking if the metadata cache global is
   // initialized. The object itself protects its shared state in its
-  // remove_listener.
+  // remove_state_listener.
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
-  g_metadata_cache->remove_listener(replicaset_name, listener);
+  g_metadata_cache->remove_state_listener(replicaset_name, listener);
+}
+
+void MetadataCacheAPI::add_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    AcceptorUpdateHandlerInterface *listener) {
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // add_acceptor_handler_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->add_acceptor_handler_listener(replicaset_name, listener);
+}
+
+void MetadataCacheAPI::remove_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    AcceptorUpdateHandlerInterface *listener) {
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // remove_acceptor_handler_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->remove_acceptor_handler_listener(replicaset_name, listener);
 }
 
 MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {
@@ -264,10 +284,10 @@ void MetadataCacheAPI::check_auth_metadata_timers() const {
   return g_metadata_cache->check_auth_metadata_timers();
 }
 
-void MetadataCacheAPI::force_instance_update_on_refresh() {
+void MetadataCacheAPI::handle_sockets_acceptors_on_md_refresh() {
   LOCK_METADATA_AND_CHECK_INITIALIZED();
 
-  g_metadata_cache->force_instance_update_on_refresh();
+  g_metadata_cache->handle_sockets_acceptors_on_md_refresh();
 }
 
 }  // namespace metadata_cache

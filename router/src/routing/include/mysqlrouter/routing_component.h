@@ -106,8 +106,6 @@ class ROUTING_EXPORT MySQLRoutingComponent {
 
   std::vector<std::string> route_names() const;
 
-  void stop();
-
  private:
   // disable copy, as we are a single-instance
   MySQLRoutingComponent(MySQLRoutingComponent const &) = delete;

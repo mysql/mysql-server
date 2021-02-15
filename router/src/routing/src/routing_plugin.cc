@@ -445,10 +445,6 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-static void stop(mysql_harness::PluginFuncEnv *) {
-  MySQLRoutingComponent::get_instance().stop();
-}
-
 static void deinit(mysql_harness::PluginFuncEnv * /* env */) {
   // release all that may still be taken
   io_context_work_guards.clear();
@@ -471,9 +467,9 @@ mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing = {
     required.size(), required.data(),
     // conflicts
     0, nullptr,
-    init,    // init
-    deinit,  // deinit
-    start,   // start
-    stop,    // stop
-    true,    // declares_readiness
+    init,     // init
+    deinit,   // deinit
+    start,    // start
+    nullptr,  // stop
+    true,     // declares_readiness
 };

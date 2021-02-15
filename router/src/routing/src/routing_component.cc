@@ -123,15 +123,6 @@ void MySQLRoutingComponent::init(const std::string &name,
   routes_.emplace(name, std::move(srv));
 }
 
-void MySQLRoutingComponent::stop() {
-  std::lock_guard<std::mutex> lock(routes_mu_);
-  for (const auto &r_ptr : routes_) {
-    if (auto r = r_ptr.second.lock()) {
-      r->notify_socket_acceptors();
-    }
-  }
-}
-
 MySQLRoutingComponent &MySQLRoutingComponent::get_instance() {
   static MySQLRoutingComponent instance;
 

@@ -95,8 +95,10 @@ bool ARMetadataCache::refresh() {
     if (!metadata_servers_tmp.empty()) {
       metadata_servers_ = std::move(metadata_servers_tmp);
     }
-  } else if (force_instance_update_) {
-    on_instances_changed(/*md_servers_reachable=*/true, view_id);
+  } else if (trigger_acceptor_update_on_next_refresh_) {
+    // Instances information has not changed, but we failed to start listening
+    // on incoming sockets, therefore we must retry on next metadata refresh.
+    on_handle_sockets_acceptors();
   }
 
   return true;

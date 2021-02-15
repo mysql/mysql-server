@@ -374,13 +374,18 @@ void DestMetadataCacheGroup::init() {
 }
 
 void DestMetadataCacheGroup::subscribe_for_metadata_cache_changes() {
-  cache_api_->add_listener(ha_replicaset_, this);
+  cache_api_->add_state_listener(ha_replicaset_, this);
   subscribed_for_metadata_cache_changes_ = true;
+}
+
+void DestMetadataCacheGroup::subscribe_for_acceptor_handler() {
+  cache_api_->add_acceptor_handler_listener(ha_replicaset_, this);
 }
 
 DestMetadataCacheGroup::~DestMetadataCacheGroup() {
   if (subscribed_for_metadata_cache_changes_) {
-    cache_api_->remove_listener(ha_replicaset_, this);
+    cache_api_->remove_state_listener(ha_replicaset_, this);
+    cache_api_->remove_acceptor_handler_listener(ha_replicaset_, this);
   }
 }
 
@@ -663,10 +668,36 @@ void DestMetadataCacheGroup::on_instances_change(
   }
 }
 
-void DestMetadataCacheGroup::notify(
+void DestMetadataCacheGroup::notify_instances_changed(
     const metadata_cache::LookupResult &instances,
     const bool md_servers_reachable, const unsigned /*view_id*/) noexcept {
   on_instances_change(instances, md_servers_reachable);
+}
+
+bool DestMetadataCacheGroup::update_socket_acceptor_state(
+    const metadata_cache::LookupResult &instances) noexcept {
+  const auto &nodes_for_new_connections =
+      get_available(instances, /*for_new_connections=*/true).first;
+
+  AllowedNodes new_addresses;
+  for (const auto &dest : nodes_for_new_connections) {
+    new_addresses.emplace_back(dest.address.str());
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+    if (!new_addresses.empty() && start_router_socket_acceptor_callback_) {
+      const auto &start_acceptor_res = start_router_socket_acceptor_callback_();
+      return start_acceptor_res ? true : false;
+    }
+
+    if (new_addresses.empty() && stop_router_socket_acceptor_callback_) {
+      stop_router_socket_acceptor_callback_();
+      return true;
+    }
+  }
+
+  return true;
 }
 
 void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
@@ -677,5 +708,6 @@ void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
 
   if (!env || is_running(env)) {
     subscribe_for_metadata_cache_changes();
+    subscribe_for_acceptor_handler();
   }
 }

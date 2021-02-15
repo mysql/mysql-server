@@ -373,12 +373,6 @@ class MySQLRouting {
   void stop_socket_acceptors();
 
   /**
-   * Notify the routing that the routing socket should accept new connections
-   * again.
-   */
-  void notify_socket_acceptors();
-
-  /**
    * Check if we are accepting connections on a routing socket.
    *
    * @retval true if we are accepting connections, false otherwise
@@ -432,13 +426,6 @@ class MySQLRouting {
  private:
   /** Monitor for notifying socket acceptor */
   WaitableMonitor<Nothing> acceptor_waitable_{Nothing{}};
-
-  /** Mutex for the acceptor_cond_ condition variable */
-  std::mutex acceptor_mutex_;
-
-  /** Condition variable for notifying the acceptor from the routing
-   * destinations */
-  std::condition_variable acceptor_cond_;
 
   /** @brief wrapper for data used by all connections */
   MySQLRoutingContext context_;

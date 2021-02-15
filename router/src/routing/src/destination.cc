@@ -27,6 +27,7 @@
 #include <algorithm>  // remove_if
 #include <mutex>      // lock_guard
 #include <stdexcept>  // out_of_range
+#include <system_error>
 
 #include "mysqlrouter/routing.h"
 #include "tcp_address.h"
@@ -49,21 +50,25 @@ void DestinationNodesStateNotifier::unregister_allowed_nodes_change_callback(
   allowed_nodes_change_callbacks_.erase(it);
 }
 
-void DestinationNodesStateNotifier::register_notify_router_socket_acceptor(
-    const std::function<void()> &callback) {
-  notify_router_socket_acceptor_callback_ = callback;
+void DestinationNodesStateNotifier::register_start_router_socket_acceptor(
+    const StartSocketAcceptorCallback &callback) {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  start_router_socket_acceptor_callback_ = callback;
 }
 
-void DestinationNodesStateNotifier::unregister_notify_router_socket_acceptor() {
-  notify_router_socket_acceptor_callback_ = nullptr;
+void DestinationNodesStateNotifier::unregister_start_router_socket_acceptor() {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  start_router_socket_acceptor_callback_ = nullptr;
 }
 
 void DestinationNodesStateNotifier::register_stop_router_socket_acceptor(
-    const std::function<void()> &callback) {
+    const StopSocketAcceptorCallback &callback) {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
   stop_router_socket_acceptor_callback_ = callback;
 }
 
 void DestinationNodesStateNotifier::unregister_stop_router_socket_acceptor() {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
   stop_router_socket_acceptor_callback_ = nullptr;
 }
 

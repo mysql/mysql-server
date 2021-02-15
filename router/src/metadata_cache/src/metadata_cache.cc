@@ -394,17 +394,21 @@ void MetadataCache::on_refresh_succeeded(
 
 void MetadataCache::on_instances_changed(const bool md_servers_reachable,
                                          unsigned view_id) {
-  force_instance_update_ = false;
+  // Socket acceptors state will be updated when processing new instances
+  // information.
+  trigger_acceptor_update_on_next_refresh_ = false;
+
   auto instances = replicaset_lookup("" /*cluster_name_*/);
   {
     std::lock_guard<std::mutex> lock(
         replicaset_instances_change_callbacks_mtx_);
 
-    for (auto &replicaset_clb : listeners_) {
+    for (auto &replicaset_clb : state_listeners_) {
       const std::string replicaset_name = replicaset_clb.first;
 
-      for (auto each : listeners_[replicaset_name]) {
-        each->notify(instances, md_servers_reachable, view_id);
+      for (auto each : state_listeners_[replicaset_name]) {
+        each->notify_instances_changed(instances, md_servers_reachable,
+                                       view_id);
       }
     }
   }
@@ -412,6 +416,24 @@ void MetadataCache::on_instances_changed(const bool md_servers_reachable,
   if (use_cluster_notifications_) {
     meta_data_->setup_notifications_listener(
         instances, [this]() { on_refresh_requested(); });
+  }
+}
+
+void MetadataCache::on_handle_sockets_acceptors() {
+  auto instances = replicaset_lookup("" /*cluster_name_*/);
+  {
+    std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+
+    trigger_acceptor_update_on_next_refresh_ = false;
+    for (auto &callbacks_info : acceptor_update_listeners_) {
+      const std::string replicaset_name = callbacks_info.first;
+
+      for (auto callback : acceptor_update_listeners_[replicaset_name]) {
+        // If setting up any acceptor failed we should retry on next md refresh
+        trigger_acceptor_update_on_next_refresh_ |=
+            !callback->update_socket_acceptor_state(instances);
+      }
+    }
   }
 }
 
@@ -538,18 +560,32 @@ bool MetadataCache::wait_primary_failover(const std::string &replicaset_name,
   return primary_has_changed(replicaset_lookup(replicaset_name), server_uuid);
 }
 
-void MetadataCache::add_listener(
+void MetadataCache::add_state_listener(
     const std::string &replicaset_name,
     metadata_cache::ReplicasetStateListenerInterface *listener) {
   std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  listeners_[replicaset_name].insert(listener);
+  state_listeners_[replicaset_name].insert(listener);
 }
 
-void MetadataCache::remove_listener(
+void MetadataCache::remove_state_listener(
     const std::string &replicaset_name,
     metadata_cache::ReplicasetStateListenerInterface *listener) {
   std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-  listeners_[replicaset_name].erase(listener);
+  state_listeners_[replicaset_name].erase(listener);
+}
+
+void MetadataCache::add_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    metadata_cache::AcceptorUpdateHandlerInterface *listener) {
+  std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+  acceptor_update_listeners_[replicaset_name].insert(listener);
+}
+
+void MetadataCache::remove_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    metadata_cache::AcceptorUpdateHandlerInterface *listener) {
+  std::lock_guard<std::mutex> lock(acceptor_handler_callbacks_mtx_);
+  acceptor_update_listeners_[replicaset_name].erase(listener);
 }
 
 void MetadataCache::check_auth_metadata_timers() const {

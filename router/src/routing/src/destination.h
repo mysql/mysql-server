@@ -30,6 +30,7 @@
 #include <list>
 #include <mutex>
 #include <string>
+#include <system_error>
 #include <vector>
 
 #include "my_compiler.h"  // MY_ATTRIBUTE
@@ -60,6 +61,10 @@ using AllowedNodesChangedCallback =
 using AllowedNodesChangeCallbacksList = std::list<AllowedNodesChangedCallback>;
 using AllowedNodesChangeCallbacksListIterator =
     AllowedNodesChangeCallbacksList::iterator;
+// Starting a socket acceptor returns a value indicating if the start succeeded.
+using StartSocketAcceptorCallback =
+    std::function<stdx::expected<void, std::error_code>()>;
+using StopSocketAcceptorCallback = std::function<void()>;
 
 /** @class DestinationNodesStateNotifier
  *
@@ -94,13 +99,14 @@ class DestinationNodesStateNotifier {
    *
    * @param clb callback that should be called
    */
-  void register_notify_router_socket_acceptor(const std::function<void()> &clb);
+  void register_start_router_socket_acceptor(
+      const StartSocketAcceptorCallback &clb);
 
   /**
    * Unregisters the callback registered with
-   * register_notify_router_socket_acceptor().
+   * register_start_router_socket_acceptor().
    */
-  void unregister_notify_router_socket_acceptor();
+  void unregister_start_router_socket_acceptor();
 
   /**
    * Registers the callback for notification that the routing socket acceptor
@@ -108,7 +114,8 @@ class DestinationNodesStateNotifier {
    *
    * @param clb callback that should be called
    */
-  void register_stop_router_socket_acceptor(const std::function<void()> &clb);
+  void register_stop_router_socket_acceptor(
+      const StopSocketAcceptorCallback &clb);
 
   /**
    * Unregisters the callback registered with
@@ -118,9 +125,10 @@ class DestinationNodesStateNotifier {
 
  protected:
   AllowedNodesChangeCallbacksList allowed_nodes_change_callbacks_;
-  std::function<void()> notify_router_socket_acceptor_callback_;
-  std::function<void()> stop_router_socket_acceptor_callback_;
+  StartSocketAcceptorCallback start_router_socket_acceptor_callback_;
+  StopSocketAcceptorCallback stop_router_socket_acceptor_callback_;
   std::mutex allowed_nodes_change_callbacks_mtx_;
+  std::mutex socket_acceptor_handle_callbacks_mtx;
 };
 
 /** @class RouteDestination
@@ -254,9 +262,10 @@ class RouteDestination : public DestinationNodesStateNotifier {
   }
 
   /**
-   * Force instance update on next metadata cache refresh.
+   * Trigger listening socket acceptors state handler based on the destination
+   * type.
    */
-  virtual void md_force_instance_update() {}
+  virtual void handle_sockets_acceptors() {}
 
  protected:
   /** @brief List of destinations */

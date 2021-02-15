@@ -274,20 +274,27 @@ void DestRoundRobin::quarantine_manager_thread() noexcept {
       "RtQ:<unknown>");  // TODO change <unknown> to instance name
 
   while (stopped_.wait_for(0s) != std::future_status::ready) {
-    // wait until something got added to quarantie or shutdown
-    quarantine_.wait_for(kTimeoutQuarantineConditional, [this](auto &q) {
-      return !q.empty() || stopped_.wait_for(0s) == std::future_status::ready;
-    });
+    stdx::expected<void, std::error_code> start_socket_acceptor_res{};
+    // wait until something got added to quarantie or shutdown, do not wait
+    // if we could not start socket acceptor in previous iteration - in that
+    // case try to start acceptor again
+    quarantine_.wait_for(kTimeoutQuarantineConditional,
+                         [this, &start_socket_acceptor_res](auto &q) {
+                           return !q.empty() || !start_socket_acceptor_res ||
+                                  stopped_.wait_for(0s) ==
+                                      std::future_status::ready;
+                         });
 
     // if we aren't shutting down, cleanup and wait
     if (stopped_.wait_for(0s) != std::future_status::ready) {
       cleanup_quarantine();
       // If there are unquarantined destinations, listening router socket should
       // be open.
-      quarantine_([this](auto &q) {
+      quarantine_([this, &start_socket_acceptor_res](auto &q) {
         if (q.size() < this->destinations().size() &&
-            this->notify_router_socket_acceptor_callback_) {
-          this->notify_router_socket_acceptor_callback_();
+            this->start_router_socket_acceptor_callback_) {
+          start_socket_acceptor_res =
+              this->start_router_socket_acceptor_callback_();
         }
       });
       // Temporize
