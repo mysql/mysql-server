@@ -2517,6 +2517,35 @@ int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
      * 'pruned-scan' ranges. Need to be solved in a way similar to
      * ::ndb_index_stat_set_rpk()
      */
+    const Uint32 fragments = m_table->getFragmentCount();
+
+    /**
+     * Check quality of index_stat before it is used to set RPK.
+     * There might have been too much update activity on the table,
+     * not yet reflected by the statistics, or the single fragment sample
+     * being too skeewed such that it does not represent the real data.
+     */
+    if (stats.records / fragments <= 1) {
+      // Too few rows for a single fragment sample to be usefull at all
+      DBUG_PRINT("index_stat",
+                 ("Too few rows in: %s", m_index[inx].index->getName()));
+      return NdbIndexStat::NoIndexStats;
+    }
+    Uint32 rows_in_sample;
+    NdbIndexStat::get_numrows(stat, &rows_in_sample);
+    const ha_rows estm_rows = rows_in_sample * fragments;
+    if (estm_rows * 2 < stats.records || estm_rows / 2 > stats.records) {
+      /**
+       * Number of estimated rows in statistics deviated too much from
+       * what we have recorded on the table stats level. Thus we choose
+       * to not use it, handle it as 'NoIndexStats'.
+       */
+      DBUG_PRINT("index_stat",
+                 ("Ignored outdated statistics: %s"
+                  ", estm_rows:%llu, records:%llu",
+                  m_index[inx].index->getName(), estm_rows, stats.records));
+      return NdbIndexStat::NoIndexStats;
+    }
     double rir = -1.0;
     NdbIndexStat::get_rir(stat, &rir);
     ha_rows rows = ndb_index_stat_round(rir);
@@ -2542,22 +2571,34 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
   const key_range *max_key = 0;
   const int err = ndb_index_stat_query(inx, min_key, max_key, stat, 2);
   if (err == 0) {
+    Uint32 rows_in_sample;
+    NdbIndexStat::get_numrows(stat, &rows_in_sample);
+    const Uint32 fragments = m_table->getFragmentCount();
+    const ha_rows estm_rows = rows_in_sample * fragments;
+
     /**
-     * Check quality of index_stat before it is used to set RPK.
-     * Index_stat is sampled over only one of the fragments of the table.
-     * Thus it might not correctly represent the table contents if
-     * the number of rows sampled is too small.
+     * Check quality of index_stat before it is used to get RPK.
+     * There might have been too much update activity on the table,
+     * not yet reflected by the statistics, or the single fragment sample
+     * being too skeewed such that it does not represent the real data.
      */
-    Uint32 rows;
-    NdbIndexStat::get_numrows(stat, &rows);
-    if (rows <= 2) {  // '2' is just picked as some very small number
+    if (stats.records / fragments <= 1) {
+      // Too few rows for a single fragment sample to be usefull at all
+      DBUG_PRINT("index_stat",
+                 ("Too few rows in: %s", m_index[inx].index->getName()));
+      return NdbIndexStat::NoIndexStats;
+    }
+    if (estm_rows * 2 < stats.records || estm_rows / 2 > stats.records) {
       /**
-       * Decided to not use this index statistics. Optimizer will instead
-       * use heuristics based on the total number of records in the table.
+       * Number of estimated rows in statistics deviated too much from
+       * what we have recorded on the table stats level. Thus we choose
+       * to not use it, handle it as 'NoIndexStats'.
        */
-      DBUG_PRINT("index_stat", ("Too few rows sampled for: %s",
-                                m_index[inx].index->getName()));
-      return 0;
+      DBUG_PRINT("index_stat",
+                 ("Ignored outdated statistics: %s"
+                  ", estm_rows:%llu, records:%llu",
+                  m_index[inx].index->getName(), estm_rows, stats.records));
+      return NdbIndexStat::NoIndexStats;
     }
     KEY *key_info = table->key_info + inx;
     const KEY_PART_INFO *key_part_info = key_info->key_part;

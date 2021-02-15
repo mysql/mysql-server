@@ -632,7 +632,7 @@ NdbIndexStat::get_numrows(const Stat& stat_f, Uint32* rows)
 {
   DBUG_TRACE;
   const NdbIndexStatImpl::Stat& stat =
-  *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
+    *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
   require(rows != nullptr);
   *rows = stat.m_value.m_num_rows;
   DBUG_PRINT("index_stat", ("rows:%d", *rows));
@@ -665,21 +665,14 @@ NdbIndexStat::get_rpk_pruned(const Stat& stat_f,
   DBUG_ENTER("NdbIndexStat::get_rpk_pruned");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  if (unlikely(stat.m_value.m_empty))
-  {
-    // Should preferabley test get_empty() (or get_numrows()) first.
-    *rpk = -1.0; // returns 'unknown'
-  }
-  else
-  {
-    double factor = stat.m_value.m_unq_factor[k];
-    double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
-      x = 1.0;
-    assert(stat.m_value.m_num_fragments > 0);
-    double fragments = stat.m_value.m_num_fragments;
-    *rpk = factor * x / fragments;
-  }
+  double factor = stat.m_value.m_unq_factor[k];
+  double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
+  assert(stat.m_value.m_num_fragments > 0);
+  double fragments = stat.m_value.m_num_fragments;
+  x = factor * x / fragments;
+  if (x < 1.0)
+    x = 1.0;
+  *rpk = x;
 #ifndef NDEBUG
   char buf[100];
   sprintf(buf, "%.2f", *rpk);
@@ -702,15 +695,9 @@ NdbIndexStat::get_rpk(const Stat& stat_f,
   DBUG_ENTER("NdbIndexStat::get_rpk");
   const NdbIndexStatImpl::Stat& stat =
     *(const NdbIndexStatImpl::Stat*)stat_f.m_impl;
-  if (unlikely(stat.m_value.m_empty))
-  {
-    // Should preferabley test get_empty() (or get_numrows()) first.
-    *rpk = -1.0; // returns 'unknown'
-  }
-  else
   {
     double x = stat.m_value.m_rir / stat.m_value.m_unq[k];
-    if (stat.m_value.m_rir <= stat.m_value.m_unq[k])
+    if (x < 1.0)
       x = 1.0;
     *rpk = x;
     require(stat.m_value.m_unq_factor[k] > 0);
