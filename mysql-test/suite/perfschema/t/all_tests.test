@@ -62,6 +62,7 @@ delete from t2 where t2.test_name in (select t1.test_name from t1);
 
 # If this fails, the test listed in the output is missing from the test suite.
 # The way to fix the failure is to implement the missing test, not silence this select.
+--sorted_result
 select test_name as `MISSING DDL/DML TESTS` from t2;
 
 drop table t1;

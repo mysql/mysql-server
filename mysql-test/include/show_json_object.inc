@@ -6,7 +6,7 @@
 
 --disable_query_log
 DELIMITER |;
-CREATE FUNCTION show_json_object(extract TEXT, trace TEXT)
+CREATE FUNCTION show_json_object(extract TEXT, trace LONGTEXT)
 RETURNS TEXT
 BEGIN
  DECLARE pos INT;

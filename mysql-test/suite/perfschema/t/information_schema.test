@@ -6,14 +6,17 @@
 # and in lowercase in others.
 # Using lower(TABLE_NAME) to have consistent results.
 
+--sorted_result
 select TABLE_SCHEMA, lower(TABLE_NAME), TABLE_CATALOG
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
+--sorted_result
 select lower(TABLE_NAME), TABLE_TYPE, ENGINE
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
+--sorted_result
 select lower(TABLE_NAME), VERSION, ROW_FORMAT
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
@@ -22,39 +25,47 @@ select lower(TABLE_NAME), VERSION, ROW_FORMAT
 # depends upon which plugins are loaded at the time of the query.
 #
 # TABLE_ROWS is unpredictable with autoscaling buffers
+--sorted_result
 select lower(TABLE_NAME), AVG_ROW_LENGTH
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema' and
   lower(TABLE_NAME) not regexp '^variables|variables$|^status|session_status|global_status';
 
+--sorted_result
 --replace_column 2 table_rows 3 avg_row_len
 select lower(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema' and
   lower(TABLE_NAME) regexp '^variables|variables$|^status|session_status|global_status';
 
+--sorted_result
 select lower(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
+--sorted_result
 select lower(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
+--sorted_result
 --replace_column 2 NULL
 select lower(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
+--sorted_result
 select lower(TABLE_NAME), TABLE_COLLATION, CHECKSUM
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
 # TABLESPACE_NAME does not exist in 5.4
+--sorted_result
 select lower(TABLE_NAME), CREATE_OPTIONS
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';
 
+--sorted_result
 select lower(TABLE_NAME), TABLE_COMMENT
   from information_schema.tables
   where TABLE_SCHEMA='performance_schema';

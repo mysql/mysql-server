@@ -437,9 +437,13 @@ prepare stmt1 from ' select a, ?, b FROM t1 outer_table where
 execute stmt1 using @arg00, @arg01, @arg02, @arg03 ;
 
 # Bug#8807
+# Will give different warnings depending on the order the join conditions
+# are evaluated in.
+--disable_warnings
 prepare stmt1 from 'select c4 FROM t9 where
     c13 = (select MAX(b) from t1 where a = ?) and c22 = ? ' ;
 execute stmt1 using @arg01, @arg02;
+--enable_warnings
 
 ######## correlated subquery
 # no parameter

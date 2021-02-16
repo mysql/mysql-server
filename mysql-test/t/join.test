@@ -464,6 +464,7 @@ select * from t5 natural join ((t1 natural join t2) cross join (t3 natural join 
 --sorted_result
 select * from  ((t1 natural join t2) cross join (t3 natural join t4)) natural join t5;
 
+--sorted_result
 select * from (t1 join t2 using (b)) join (t3 join t4 using (c)) using (c);
 --sorted_result
 select * from (t1 join t2 using (b)) natural join (t3 join t4 using (c));
@@ -608,6 +609,7 @@ select * from v1a join v1b on t1.b = t2.b;
 #
 # Omit columns.ORDINAL_POSITION and statistics.CARDINALITY as it may vary with hostname='localhost'.
 ANALYZE TABLE mysql.user;
+--sorted_result
 select 
  statistics.TABLE_NAME, statistics.COLUMN_NAME, statistics.TABLE_CATALOG, statistics.TABLE_SCHEMA, statistics.NON_UNIQUE, statistics.INDEX_SCHEMA, statistics.INDEX_NAME, statistics.SEQ_IN_INDEX, statistics.COLLATION, statistics.SUB_PART, statistics.PACKED, statistics.NULLABLE, statistics.INDEX_TYPE, statistics.COMMENT, 
  columns.TABLE_CATALOG, columns.TABLE_SCHEMA, columns.COLUMN_DEFAULT, columns.IS_NULLABLE, columns.DATA_TYPE, columns.CHARACTER_MAXIMUM_LENGTH, columns.CHARACTER_OCTET_LENGTH, columns.NUMERIC_PRECISION, columns.NUMERIC_SCALE, columns.CHARACTER_SET_NAME, columns.COLLATION_NAME, columns.COLUMN_TYPE, columns.COLUMN_KEY, columns.EXTRA, columns.PRIVILEGES, columns.COLUMN_COMMENT

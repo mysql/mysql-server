@@ -21,7 +21,8 @@ if (!$uppercase_system_table_names) {
          SELECT concat(table_schema, ".", table_name)
          FROM INFORMATION_SCHEMA.tables WHERE table_schema =
               'mysql' AND table_name NOT IN('general_log', 'slow_log',
-                                            'ndb_binlog_index');
+                                            'ndb_binlog_index')
+         ORDER BY table_name;
 }
 
 # Use system table names in uppercase. Tests with l_c_t_n = 1 or 2 sets this
@@ -31,7 +32,8 @@ if ($uppercase_system_table_names) {
          SELECT UPPER(concat(table_schema, ".", table_name))
          FROM INFORMATION_SCHEMA.tables WHERE table_schema =
               'mysql' AND table_name NOT IN('general_log', 'slow_log',
-                                            'ndb_binlog_index');
+                                            'ndb_binlog_index')
+         ORDER BY table_name;
 }
 
 --echo #-----------------------------------------------------------------------

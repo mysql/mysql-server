@@ -6955,6 +6955,7 @@ INSERT INTO t1 VALUES (
   CURRENT_TIME(1),
   CURRENT_TIMESTAMP(),
   CURRENT_TIMESTAMP(4));
+--skip_if_hypergraph  # Different warnings.
 SELECT col_datetime_5_not_null AS c1, col_time_1_not_null_key AS c2 
 FROM t1 
 WHERE

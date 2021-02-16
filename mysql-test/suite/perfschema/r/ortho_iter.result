@@ -30,7 +30,8 @@ declare debug integer default 0;
 declare pfs_cursor CURSOR FOR
 select table_name from information_schema.tables
 where table_schema= 'performance_schema'
-      and table_name like "%_by_event_name%";
+      and table_name like "%_by_event_name%"
+      order by table_name;
 declare continue handler for sqlstate '02000'
     set done = 1;
 select (instr_name like "wait/%") or (instr_name like "idle") into is_wait;

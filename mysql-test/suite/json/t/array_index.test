@@ -1137,6 +1137,7 @@ drop table t;
 CREATE TABLE t1 (pk INT primary key, col_jsonn JSON, INDEX
 mv_idx((CAST(col_jsonn->'$[0][*]' AS BINARY(10) ARRAY))));
 CREATE TABLE t2 (pk INT primary key, col_jsonn JSON);
+--skip_if_hypergraph  # Does not evaluate the condition during optimization.
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_OVERLAPS( '0' , t1. col_jsonn-> '$[0][*]' ) FROM t1 LEFT JOIN t2
 ON t1.pk = JSON_OVERLAPS( 'OJNRaUr' , JSON_ARRAY( 'Q' , 'qX' ) ) WHERE t2 .

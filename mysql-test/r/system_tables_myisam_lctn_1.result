@@ -16,7 +16,8 @@ INSERT INTO system_tables(table_name)
 SELECT UPPER(concat(table_schema, ".", table_name))
 FROM INFORMATION_SCHEMA.tables WHERE table_schema =
 'mysql' AND table_name NOT IN('general_log', 'slow_log',
-'ndb_binlog_index');
+'ndb_binlog_index')
+ORDER BY table_name;
 #-----------------------------------------------------------------------
 # Test case to verify altering system table's engine to MyISAM. Changing
 # system table's engine to MyISAM is not allowed.
