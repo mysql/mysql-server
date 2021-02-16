@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2919,7 +2919,7 @@ bool Item_field::eq(const Item *item, bool binary_cmp) const
 
 table_map Item_field::used_tables() const
 {
-  if (field->table->const_table)
+  if (!field || !field->table || field->table->const_table)
     return 0;					// const item
   return (depended_from ? OUTER_REF_TABLE_BIT : field->table->map);
 }

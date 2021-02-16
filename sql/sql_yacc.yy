@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3057,10 +3057,22 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             enum enum_field_types var_type= (enum enum_field_types) $4;
             Item *dflt_value_item= $5;
+            const bool has_default_clause = (dflt_value_item != NULL);
+            bool is_const_item = false;
+
             LEX_STRING dflt_value_query= EMPTY_STR;
 
-            if (dflt_value_item)
-            {
+            if (has_default_clause) {
+              // Handling a NEG_FUNC wrapping a constant.
+              if (dflt_value_item->type() == Item::FUNC_ITEM) {
+                Item_func *func_item = (Item_func *) dflt_value_item;
+                if (func_item->functype() == Item_func::NEG_FUNC) {
+                  is_const_item = true;
+                }
+              } else if (dflt_value_item->const_item()) {
+                is_const_item = true;
+              }
+
               // sp_opt_default only pushes start ptr for DEFAULT clause.
               const char *expr_start_ptr=
                 sp->m_parser_data.pop_expr_start_ptr();
@@ -3080,10 +3092,13 @@ sp_decl:
                 MYSQL_YYABORT;
             }
 
+            sp_variable *first_spvar = NULL;
+            const uint first_var_num = num_vars - $2;
+
             // We can have several variables in DECLARE statement.
             // We need to create an sp_instr_set instruction for each variable.
 
-            for (uint i = num_vars-$2 ; i < num_vars ; i++)
+            for (uint i = first_var_num; i < num_vars; i++)
             {
               uint var_idx= pctx->var_context2runtime(i);
               sp_variable *spvar= pctx->find_variable(var_idx);
@@ -3092,7 +3107,33 @@ sp_decl:
                 MYSQL_YYABORT;
 
               spvar->type= var_type;
+
+              // Transforming the following declare statements having non-const
+              // expressions:
+              // DECLARE a, b, c type DEFAULT expr;
+              //              to
+              // DECLARE a type DEFAULT expr, b type DEFAULT a,
+              //         c type DEFAULT a;
+
+              if (i == first_var_num) {
+                first_spvar = spvar;
+              } else if (has_default_clause && !is_const_item) {
+                Item_splocal *item =
+                  new (thd->mem_root)
+                    Item_splocal(first_spvar->name, first_spvar->offset,
+                                       first_spvar->type, 0, 0);
+                if (item == NULL)
+                  MYSQL_YYABORT; // OOM
+#ifndef NDEBUG
+                item->m_sp = lex->sphead;
+#endif
+                dflt_value_item = item;
+              }
               spvar->default_value= dflt_value_item;
+
+              if (has_default_clause && !is_const_item && (i > first_var_num)) {
+                dflt_value_query = first_spvar->name;
+              }
 
               if (fill_field_definition(thd, sp, var_type, &spvar->field_def))
                 MYSQL_YYABORT;
