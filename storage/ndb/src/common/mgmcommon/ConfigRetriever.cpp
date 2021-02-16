@@ -343,12 +343,13 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
       return false;
     }
 
-    if (!SocketServer::tryBind(port, NULL)) {
+    char msg[150];
+    if (!SocketServer::tryBind(port, NULL, msg, sizeof(msg))) {
       BaseString::snprintf(buf, 255,
                            "Mgmd node is started on port that is "
                            "already in use. Attempt to bind '*:%d' "
-                           "failed with error: %d '%s'",
-                           port, errno, strerror(errno));
+                           "failed with error: %s",
+                           port, msg);
       setError(CR_ERROR, buf);
       return false;
     }
