@@ -256,8 +256,23 @@ void udf_read_functions_table() {
     DBUG_PRINT("info", ("init udf record"));
     LEX_STRING name;
     name.str = get_field(&mem, table->field[0]);
+
+    // Check the name.str is NULL or not.
+    if (name.str == NULL) {
+      sql_print_error("Invalid row in mysql.func table for function '%.64s'",
+                      name.str);
+      continue;
+    }
+
     name.length = strlen(name.str);
     char *dl_name = get_field(&mem, table->field[2]);
+
+    if (dl_name == NULL) {
+      sql_print_error("Invalid row in mysql.func table for function '%.64s'",
+                      name.str);
+      continue;
+    }
+
     bool new_dl = false;
     Item_udftype udftype = UDFTYPE_FUNCTION;
     if (table->s->fields >= 4)  // New func table
