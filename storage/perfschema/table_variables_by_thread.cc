@@ -112,33 +112,21 @@ table_variables_by_thread::table_variables_by_thread()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(true),
       m_pos(),
-      m_next_pos(),
-      m_context(nullptr) {}
+      m_next_pos() {}
 
 void table_variables_by_thread::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_variables_by_thread::rnd_init(bool scan) {
+int table_variables_by_thread::rnd_init(bool /* scan */) {
   /* Build array of SHOW_VARs from system variable hash. */
   m_sysvar_cache.initialize_session();
 
-  /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
-
-  m_context = (table_variables_by_thread_context *)current_thd->alloc(
-      sizeof(table_variables_by_thread_context));
-  new (m_context) table_variables_by_thread_context(hash_version, !scan);
   return 0;
 }
 
 int table_variables_by_thread::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   bool has_more_thread = true;
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
@@ -162,11 +150,6 @@ int table_variables_by_thread::rnd_next(void) {
 }
 
 int table_variables_by_thread::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   set_position(pos);
   assert(m_pos.m_index_1 < global_thread_container.get_row_count());
 
@@ -188,12 +171,6 @@ int table_variables_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)),
   /* Build array of SHOW_VARs from the system variable hash. */
   m_sysvar_cache.initialize_session();
 
-  /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
-  m_context = (table_variables_by_thread_context *)current_thd->alloc(
-      sizeof(table_variables_by_thread_context));
-  new (m_context) table_variables_by_thread_context(hash_version, false);
-
   PFS_index_variables_by_thread *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_variables_by_thread);
@@ -204,11 +181,6 @@ int table_variables_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)),
 }
 
 int table_variables_by_thread::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   bool has_more_thread = true;
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {

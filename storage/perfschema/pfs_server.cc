@@ -84,9 +84,6 @@ void pre_initialize_performance_schema() {
     in the instrumented code, to explicitly cleanup the instrumentation.
   */
   THR_PFS = nullptr;
-  for (int i = 0; i < THR_PFS_NUM_KEYS; ++i) {
-    THR_PFS_contexts[i] = nullptr;
-  }
 }
 
 int initialize_performance_schema(
