@@ -3156,40 +3156,43 @@ class Validate_files {
   Validate_files()
       : m_mutex(),
         m_space_max_id(),
+        m_n_to_check(),
         m_n_threads()
 #if !defined(__SUNPRO_CC)
         ,
-        m_checked(),
+        m_n_validated(),
+        m_n_skipped(),
+        m_n_moved(),
+        m_n_missing(),
+        m_n_deleted(),
         m_n_errors()
 #endif /* !__SUNPRO_CC */
   {
 #if defined(__SUNPRO_CC)
-    m_checked = ATOMIC_VAR_INIT(0);
+    m_n_validated = ATOMIC_VAR_INIT(0);
+    m_n_skipped = ATOMIC_VAR_INIT(0);
+    m_n_moved = ATOMIC_VAR_INIT(0);
+    m_n_missing = ATOMIC_VAR_INIT(0);
+    m_n_deleted = ATOMIC_VAR_INIT(0);
     m_n_errors = ATOMIC_VAR_INIT(0);
 #endif /* __SUNPRO_CC */
   }
 
   /** Validate the tablespaces against the DD.
   @param[in]	tablespaces	Tablespace files read from the DD
-  @param[out]	moved_count	Number of tablespaces that have moved
   @return DB_SUCCESS if all OK */
-  dberr_t validate(const DD_tablespaces &tablespaces, size_t *moved_count)
+  dberr_t validate(const DD_tablespaces &tablespaces)
       MY_ATTRIBUTE((warn_unused_result));
 
  private:
   /** Validate the tablespace filenames.
   @param[in]  begin        Start of the slice
   @param[in]  end          End of the slice
-  @param[in]  thread_id    Thread ID
-  @param[in]  moved_count  Number of files that were moved */
-  void check(const Const_iter &begin, const Const_iter &end, size_t thread_id,
-             size_t *moved_count);
+  @param[in]  thread_id    Thread ID */
+  void check(const Const_iter &begin, const Const_iter &end, size_t thread_id);
 
   /** @return true if there were failures. */
   bool failed() const { return (m_n_errors.load() != 0); }
-
-  /** @return the number of tablespaces checked. */
-  size_t checked() const { return (m_checked); }
 
   /** @return the maximum tablespace ID found. */
   space_id_t get_space_max_id() const { return (m_space_max_id); }
@@ -3201,65 +3204,104 @@ class Validate_files {
   /** Maximum tablespace ID found. */
   space_id_t m_space_max_id;
 
+  /** Number of tablespaces to check. */
+  size_t m_n_to_check;
+
   /** Number of threads used in the parallel for. */
   size_t m_n_threads;
 
-  /** Number of tablespaces checked. */
-  std::atomic_size_t m_checked;
+  /** The time when Validate_files::validate() starts or the last time
+  one of the threads reported progress. */
+  std::atomic<ib_time_monotonic_t> m_start_time;
+
+  /** Number of tablespaces validated. */
+  std::atomic_size_t m_n_validated;
+
+  /** Number of tablespaces skipped. */
+  std::atomic_size_t m_n_skipped;
+
+  /** Number of tablespaces moved. */
+  std::atomic_size_t m_n_moved;
+
+  /** Number of tablespaces missing. */
+  std::atomic_size_t m_n_missing;
+
+  /** Number of tablespaces deleted. */
+  std::atomic_size_t m_n_deleted;
 
   /** Number of threads that failed. */
   std::atomic_size_t m_n_errors;
 };
 
-/** Validate the tablespace filenames.
+/** Validate a range of tablespaces from the DD.
+1. Compare the discovered files against those known to the dictionary.
+2. Open any tablespace known to the DD but not discovered and opened
+from the known directories.
+3. Update the DD if a tablespace has moved.
+4. Update the DD if an undo tablespace was truncated and replaced.
+5. If innodb_validate_tablespace_paths is set and this is not called
+while in recovery, only validate undo tablespaces.
+6. Track the number of skipped, moved, missing and deleted tablespaces.
+7. Return failure for any unexpected error.
 @param[in]  begin       Start of the slice
 @param[in]  end         End of the slice
-@param[in]  thread_id   Thread ID
-@param[in]  moved_count Number of files that were moved */
+@param[in]  thread_id   Thread ID */
 void Validate_files::check(const Const_iter &begin, const Const_iter &end,
-                           size_t thread_id, size_t *moved_count) {
+                           size_t thread_id) {
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
 
-  size_t count = 0;
-  auto start_time = ut_time_monotonic();
   auto heap = mem_heap_create(FN_REFLEN * 2 + 1);
-  const bool validate = recv_needed_recovery && srv_force_recovery == 0;
+
+  /* If the setting for innodb_validate_tablespace_paths is NO and we are
+  not in recovery, then only validate undo tablespaces. */
+  const bool ibd_validate =
+      srv_validate_tablespace_paths || recv_needed_recovery;
 
   std::string prefix;
-
   if (m_n_threads > 0) {
     std::ostringstream msg;
-
     msg << "Thread# " << thread_id << " - ";
-
     prefix = msg.str();
   }
 
-  for (auto it = begin; it != end; ++it, ++m_checked, ++count) {
+  for (auto it = begin; it != end; ++it) {
     const auto &dd_tablespace = *it;
 
-    if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
+    if (ut_time_monotonic() - m_start_time.load() >= PRINT_INTERVAL_SECS) {
+      m_start_time = ut_time_monotonic();
+
       std::ostringstream msg;
 
-      msg << prefix << "Validated " << count << "/" << (end - begin)
-          << " tablespaces";
-
-      if (*moved_count > 0) {
-        msg << ", moved count " << *moved_count;
+      if (m_n_threads) {
+        msg << m_n_threads << "threads have validated ";
+      } else {
+        msg << "Validated ";
       }
-      msg << " so far.";
+
+      msg << m_n_validated << " out of " << m_n_to_check
+          << " tablespaces so far.";
+
+      if (m_n_skipped > 0) {
+        msg << " Skipped=" << m_n_skipped << ".";
+      }
+      if (m_n_moved > 0) {
+        msg << " Moved=" << m_n_moved << ".";
+      }
+      if (m_n_missing > 0) {
+        msg << " Missing=" << m_n_missing << ".";
+      }
+      if (m_n_deleted > 0) {
+        msg << " Deleted=" << m_n_deleted << ".";
+      }
 
       ib::info(ER_IB_MSG_525) << msg.str();
-
-      start_time = ut_time_monotonic();
     }
 
     if (dd_tablespace->engine() != innobase_hton_name) {
+      ++m_n_skipped;
       continue;
     }
 
-    space_id_t space_id;
-    uint32_t fsp_flags = 0;
     const auto &p = dd_tablespace->se_private_data();
     const auto &o = dd_tablespace->options();
     const char *space_name = dd_tablespace->name().c_str();
@@ -3268,18 +3310,21 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     /* There should be exactly one file name associated
     with each InnoDB tablespace, except innodb_system */
 
+    space_id_t space_id;
     if (p.get(se_key_value[DD_SPACE_ID], &space_id)) {
       /* Failed to fetch the tablespace ID */
       ++m_n_errors;
       break;
     }
 
-    if (p.get(se_key_value[DD_SPACE_FLAGS], &fsp_flags)) {
-      /* Failed to fetch the tablespace flags. */
-      ++m_n_errors;
-      break;
+    /* If --innodb_validate_tablespace_paths=OFF and
+    startup is not in recovery, then skip all IBD files. */
+    if (!ibd_validate && !fsp_is_undo_tablespace(space_id)) {
+      ++m_n_skipped;
+      continue;
     }
 
+    /* Get the spacename for this tablespace from the DD. */
     if (dd_tablespace->files().size() != 1 &&
         strcmp(space_name, sys_space_name) != 0) {
       /* Only the InnoDB system tablespace has support for
@@ -3292,19 +3337,20 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       std::lock_guard<std::mutex> guard(m_mutex);
 
       if (!dict_sys_t::is_reserved(space_id) && space_id > m_space_max_id) {
-        /* Currently try to find the max one only,
-        it should be able to reuse the deleted smaller
-        ones later */
+        /* Currently try to find the max space_id only.
+        It should be able to reuse the deleted smaller ones later */
         m_space_max_id = space_id;
       }
     }
 
-    /* System and temp files are tracked and opened separately. */
+    /* System and temp files are tracked and opened separately.
+    Consider them validated. */
     if (fsp_is_system_or_temp_tablespace(space_id)) {
+      ++m_n_validated;
       continue;
     }
 
-    /* Get the filename for this tablespace. */
+    /* Get the filename for this tablespace from the DD. */
     const auto file = *dd_tablespace->files().begin();
     std::string dd_path{file->filename().c_str()};
     const char *filename = dd_path.c_str();
@@ -3348,6 +3394,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     Windows and POSIX. */
     Fil_path::normalize(dd_path);
     Fil_state state = Fil_state::MATCHES;
+
+    uint32_t fsp_flags = 0;
+    if (p.get(se_key_value[DD_SPACE_FLAGS], &fsp_flags)) {
+      /* Failed to fetch the tablespace flags. */
+      ++m_n_errors;
+      break;
+    }
 
     std::lock_guard<std::mutex> guard(m_mutex);
 
@@ -3397,6 +3450,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
           /* This deserves a special error message. */
           ib::error(ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE, space_name, filename);
         }
+        ++m_n_missing;
         continue;
 
       case Fil_state::DELETED:
@@ -3405,15 +3459,15 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                                 << " name '" << space_name << "',"
                                 << " file '" << dd_path << "'"
                                 << " was deleted!";
-
+        ++m_n_deleted;
         continue;
 
       case Fil_state::MOVED:
         fil_add_moved_space(dd_tablespace->id(), space_id, space_name, dd_path,
                             new_path);
-        ++*moved_count;
+        ++m_n_moved;
 
-        if (*moved_count > MOVED_FILES_PRINT_THRESHOLD) {
+        if (m_n_moved > MOVED_FILES_PRINT_THRESHOLD) {
           filename = new_path.c_str();
 
           break;
@@ -3441,7 +3495,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
         filename = new_path.c_str();
 
-        if (*moved_count == MOVED_FILES_PRINT_THRESHOLD) {
+        if (m_n_moved == MOVED_FILES_PRINT_THRESHOLD) {
           ib::info(ER_IB_MSG_FIL_STATE_MOVED_TOO_MANY, prefix.c_str());
         }
         break;
@@ -3460,6 +3514,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         ut_d(dberr_t ret =) fil_set_autoextend_size(space_id, autoextend_size);
         ut_ad(ret == DB_SUCCESS);
       }
+      ++m_n_validated;
       continue;
     }
 
@@ -3467,6 +3522,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       /* The undo space may be open with a alternate space_id */
       space_id_t space_num = undo::id2num(space_id);
       if (nullptr != undo::spaces->find(space_num)) {
+        ++m_n_validated;
         continue;
       }
 
@@ -3485,12 +3541,14 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       if (err != DB_SUCCESS) {
         ib::error(ER_IB_MSG_CANNOT_FIND_DD_UNDO_SPACE, space_name, filename);
       }
+      ++m_n_validated;
       continue;
     }
 
     /* The IBD filename from the DD has not yet been opened. Try to open it.
     It's safe to pass space_name in tablename charset because filename is
     already in filename charset. */
+    bool validate = recv_needed_recovery && srv_force_recovery == 0;
     dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
                                fsp_flags, space_name, filename, false, false);
 
@@ -3505,6 +3563,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
               fil_set_autoextend_size(space_id, autoextend_size);
           ut_ad(ret == DB_SUCCESS);
         }
+        ++m_n_validated;
         break;
       }
       case DB_CANNOT_OPEN_FILE:
@@ -3514,33 +3573,56 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                                 << " name '" << space_name << "',"
                                 << " unable to open file"
                                 << " '" << filename << "' - " << ut_strerr(err);
+        ++m_n_missing;
     }
   }
-
-  ib::info(ER_IB_MSG_531) << prefix << "Validated " << count << "/"
-                          << (end - begin) << "  tablespaces";
 
   mem_heap_free(heap);
 }
 
-/** Validate the tablespaces against the DD.
+/** Validate the discovered tablespaces against the DD and attempt to open
+any DD tablespace not already open using a Parallel For Loop (par_for).
 @param[in]	tablespaces	Tablespace files read from the DD
-@param[out]	moved_count	Number of tablespaces that have moved
 @return DB_SUCCESS if all OK */
-dberr_t Validate_files::validate(const DD_tablespaces &tablespaces,
-                                 size_t *moved_count) {
-  m_n_threads = fil_get_scan_threads(tablespaces.size());
+dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
+  m_n_to_check = tablespaces.size();
+  m_n_threads = fil_get_scan_threads(m_n_to_check);
+  m_start_time = ut_time_monotonic();
+
+  if (!srv_validate_tablespace_paths && !recv_needed_recovery) {
+    ib::info(ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED);
+  }
 
   using std::placeholders::_1;
   using std::placeholders::_2;
   using std::placeholders::_3;
-  using std::placeholders::_4;
 
   std::function<void(const Validate_files::Const_iter &,
-                     const Validate_files::Const_iter &, size_t, size_t *)>
-      check = std::bind(&Validate_files::check, this, _1, _2, _3, _4);
+                     const Validate_files::Const_iter &, size_t)>
+      check = std::bind(&Validate_files::check, this, _1, _2, _3);
 
-  par_for(PFS_NOT_INSTRUMENTED, tablespaces, m_n_threads, check, moved_count);
+  par_for(PFS_NOT_INSTRUMENTED, tablespaces, m_n_threads, check);
+
+  std::ostringstream msg;
+  msg << "Scanned " << m_n_to_check << " tablespaces."
+      << " Validated " << m_n_validated.load() << ".";
+
+  if (m_n_skipped.load() > 0) {
+    msg << " Skipped " << m_n_skipped.load() << ".";
+  }
+  if (m_n_moved.load() > 0) {
+    msg << " Found " << m_n_moved.load() << " moved.";
+  }
+  if (m_n_missing.load() > 0) {
+    msg << " Found " << m_n_missing.load() << " missing.";
+  }
+  if (m_n_deleted.load() > 0) {
+    msg << " Found " << m_n_deleted.load() << " deleted.";
+  }
+  if (m_n_errors.load() > 0) {
+    msg << " Encountered " << m_n_errors.load() << " errors.";
+  }
+  ib::info(ER_IB_MSG_531) << msg.str();
 
   if (failed()) {
     return (DB_ERROR);
@@ -3548,18 +3630,18 @@ dberr_t Validate_files::validate(const DD_tablespaces &tablespaces,
 
   fil_set_max_space_id_if_bigger(get_space_max_id());
 
-  clone_sys->set_space_initialized();
+  if (srv_validate_tablespace_paths) {
+    clone_sys->set_space_initialized();
+  }
 
   return (DB_SUCCESS);
 }
 
 /** Discover all InnoDB tablespaces.
 @param[in,out]	thd		thread handle
-@param[out]	moved_count	Number of files that have been moved
 @retval	true	on error
 @retval	false	on success */
-static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(
-    THD *thd, size_t *moved_count) {
+static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(THD *thd) {
   auto dc = dd::get_dd_client(thd);
 
   using DD_tablespaces = std::vector<const dd::Tablespace *>;
@@ -3592,13 +3674,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(
     return (DD_FAILURE);
   }
 
-  if (srv_validate_tablespace_paths) {
-    Validate_files validator;
-    return (validator.validate(tablespaces, moved_count) != DB_SUCCESS);
-  }
+  Validate_files validator;
+  dberr_t err = validator.validate(tablespaces);
 
-  ib::info(ER_IB_TABLESPACE_PATH_VALIDATION_SKIPPED);
-  return (DD_SUCCESS);
+  return (err == DB_SUCCESS ? DD_SUCCESS : DD_FAILURE);
 }
 
 /** Create metadata for a predefined tablespace at server initialization.
@@ -3709,7 +3788,6 @@ data dictionary.
 @retval	false				Success - no errors. */
 static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
                                   uint version) {
-  size_t moved_count = 0;
   THD *thd = current_thd;
 
   switch (dict_recovery_mode) {
@@ -3758,7 +3836,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
     }
     case DICT_RECOVERY_RESTART_SERVER:
       /* Traverse dd::tablespaces and apply/validate this metadata. */
-      if (boot_tablespaces(thd, &moved_count)) {
+      if (boot_tablespaces(thd)) {
         return (true);
       }
 
