@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT GMOCK_FOUND OR NOT WITH_UNIT_TESTS)
+IF(NOT WITH_UNIT_TESTS)
   RETURN()
 ENDIF()
 

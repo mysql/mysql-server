@@ -104,8 +104,7 @@ FUNCTION(GLOVES_ADD_UNIT_TESTS CORE_NAME)
     RETURN()
   ENDIF()
 
-  # GUnit/GMock must be requested and available
-  IF(NOT WITH_UNIT_TESTS OR NOT GMOCK_FOUND)
+  IF(NOT WITH_UNIT_TESTS)
     RETURN()
   ENDIF()
 
