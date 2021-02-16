@@ -3132,8 +3132,6 @@ void srv_pre_dd_shutdown() {
 
   ut_a(!srv_thread_is_active(srv_threads.m_recv_writer));
 
-  trx_sys_before_pre_dd_shutdown_validate();
-
   /* Avoid fast shutdown, if redo logging is disabled. Otherwise, we won't be
   able to recover. */
   if (mtr_t::s_logging.is_disabled() && srv_fast_shutdown == 2) {
@@ -3230,6 +3228,7 @@ void srv_pre_dd_shutdown() {
   }
 
   /* Since this point we do not expect accesses to DD coming from InnoDB. */
+  ut_d(trx_sys_before_pre_dd_shutdown_validate());
 
   srv_shutdown_set_state(SRV_SHUTDOWN_PURGE);
 
@@ -3264,7 +3263,7 @@ void srv_pre_dd_shutdown() {
     - with state = TRX_STATE_PREPARED,
     - with state = TRX_STATE_ACTIVE and with is_recovered == true */
 
-  trx_sys_after_pre_dd_shutdown_validate();
+  ut_d(trx_sys_after_pre_dd_shutdown_validate());
 
   srv_shutdown_set_state(SRV_SHUTDOWN_DD);
 
@@ -3363,7 +3362,7 @@ static void srv_shutdown_cleanup_and_master_stop() {
 
   ut_a(srv_shutdown_state.load() == SRV_SHUTDOWN_MASTER_STOP);
 
-  trx_sys_after_background_threads_shutdown_validate();
+  ut_d(trx_sys_after_background_threads_shutdown_validate());
 }
 
 /** Waits for page cleaners exit. */
@@ -3528,7 +3527,7 @@ void srv_thread_delay_cleanup_if_needed(bool wait_for_signal) {
 
 /** Shut down the InnoDB database. */
 void srv_shutdown() {
-  trx_sys_after_pre_dd_shutdown_validate();
+  ut_d(trx_sys_after_pre_dd_shutdown_validate());
 
   /* Need to revert partition file names if minor upgrade fails. */
   uint data_version = MYSQL_VERSION_ID;
