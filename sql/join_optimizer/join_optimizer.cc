@@ -362,6 +362,8 @@ class CostingReceiver {
   bool AlreadyAppliedThroughSargable(Item_func_eq *cond,
                                      uint64_t applied_sargable_join_predicates,
                                      NodeMap left, NodeMap right);
+  bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
+                                Item_func_match *match, int predicate_idx);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge,
                              bool rewrite_semi_to_inner,
@@ -414,6 +416,24 @@ secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
 bool IsFullTextFunction(const Item *item) {
   return item->type() == Item::FUNC_ITEM &&
          down_cast<const Item_func *>(item)->functype() == Item_func::FT_FUNC;
+}
+
+/// Returns a predicate that can be pushed down to a full-text index, or nullptr
+/// if no such predicate is found. Currently, only predicates on the form
+/// MATCH(x,y,z) AGAINST ('search string') are pushed down to full-text indexes.
+/// That is, a MATCH function that is not wrapped in another function or
+/// comparison operator.
+/// TODO(khatlen): Also push predicates on the form MATCH > 0.5.
+Item_func_match *GetSargableFullTextPredicateOrNull(
+    const Predicate &predicate) {
+  if (predicate.condition->type() == Item::FUNC_ITEM) {
+    auto func = down_cast<Item_func *>(predicate.condition);
+    if (func->functype() == Item_func::MATCH_FUNC) {
+      auto match_pred = down_cast<Item_func_match_predicate *>(func);
+      return down_cast<Item_func_match *>(match_pred->get_arg(0))->get_master();
+    }
+  }
+  return nullptr;
 }
 
 /**
@@ -505,6 +525,25 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
           if (ProposeRefAccess(table, node_idx, order_info.key_idx, reverse,
                                allowed_parameter_tables, order)) {
             return true;
+          }
+        }
+      }
+
+      // Propose full-text index scans for full-text predicates found in the
+      // WHERE clause, if any.
+      if (tl->is_fulltext_searched()) {
+        const unsigned key_idx = order_info.key_idx;
+        const KEY &key = table->key_info[key_idx];
+        if (Overlaps(key.flags, HA_FULLTEXT)) {
+          for (size_t i = 0; i < m_graph.num_where_predicates; ++i) {
+            Item_func_match *match =
+                GetSargableFullTextPredicateOrNull(m_graph.predicates[i]);
+            if (match != nullptr && match->table_ref == tl &&
+                match->key == key_idx) {
+              if (ProposeFullTextIndexScan(table, node_idx, match, i)) {
+                return true;
+              }
+            }
           }
         }
       }
@@ -980,7 +1019,8 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
   }
   assert(path.cost >= 0.0);
 
-  ProposeAccessPathForBaseTable(node_idx, /*description_for_trace=*/"", &path);
+  ProposeAccessPathForBaseTable(node_idx,
+                                /*description_for_trace=*/"", &path);
   return false;
 }
 
@@ -1029,6 +1069,41 @@ bool CostingReceiver::ProposeIndexScan(TABLE *table, int node_idx,
   path.cost_before_filter = path.cost = cost;
 
   ProposeAccessPathForBaseTable(node_idx, table->key_info[key_idx].name, &path);
+  return false;
+}
+
+bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
+                                               Item_func_match *match,
+                                               int predicate_idx) {
+  const unsigned key_idx = match->key;
+  TABLE_REF *ref = new (m_thd->mem_root) TABLE_REF;
+  if (init_ref(m_thd, /*keyparts=*/1, /*length=*/0, key_idx, ref)) {
+    return true;
+  }
+  ref->items[0] = match->key_item();
+
+  const Predicate &predicate = m_graph.predicates[predicate_idx];
+  assert(match == GetSargableFullTextPredicateOrNull(predicate));
+
+  const double num_output_rows =
+      table->file->stats.records * predicate.selectivity;
+  const double cost =
+      EstimateCostForRefAccess(m_thd, table, key_idx, num_output_rows);
+
+  AccessPath *path =
+      NewFullTextSearchAccessPath(m_thd, table, ref, match, /*use_order=*/false,
+                                  /*count_examined_rows=*/true);
+  path->num_output_rows = path->num_output_rows_before_filter = num_output_rows;
+  path->cost = path->cost_before_filter = cost;
+  path->init_cost = path->init_once_cost = 0;
+
+  // Full-text index scans only return documents with a positive score, so the
+  // predicate is subsumed by the index.
+  const uint64_t subsumed_predicates = uint64_t{1} << predicate_idx;
+
+  ProposeAccessPathForIndex(node_idx, /*applied_predicates=*/0,
+                            subsumed_predicates, table->key_info[key_idx].name,
+                            path);
   return false;
 }
 
@@ -3538,7 +3613,7 @@ static void BuildInterestingOrders(
   }
 
   // Collect list of all active indexes. We will be needing this for ref access
-  // even if we don't have any interesting orders.
+  // and full-text index search even if we don't have any interesting orders.
   for (unsigned node_idx = 0; node_idx < graph->nodes.size(); ++node_idx) {
     TABLE *table = graph->nodes[node_idx].table;
     for (unsigned key_idx = 0; key_idx < table->s->keys; ++key_idx) {

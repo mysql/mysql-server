@@ -1932,8 +1932,7 @@ TEST_F(HypergraphOptimizerTest, FullTextSearch) {
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
   ASSERT_NE(nullptr, root);
-  ASSERT_EQ(AccessPath::FILTER, root->type);
-  ASSERT_EQ(AccessPath::TABLE_SCAN, root->filter().child->type);
+  ASSERT_EQ(AccessPath::FULL_TEXT_SEARCH, root->type);
 }
 
 TEST_F(HypergraphOptimizerTest, FullTextSearchNoHashJoin) {

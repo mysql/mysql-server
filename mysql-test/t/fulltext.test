@@ -26,7 +26,7 @@ SHOW INDEX FROM t1;
 # nl search
 # Also tests FORMAT=tree printing of full-text search iterators.
 
---skip_if_hypergraph  # Full-text index scans are not supported yet.
+--skip_if_hypergraph  # Does not add a redundant filter on top.
 EXPLAIN FORMAT=tree select * from t1 where MATCH(a,b) AGAINST ("collections");
 --sorted_result
 select * from t1 where MATCH(a,b) AGAINST ("collections");

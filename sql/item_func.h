@@ -3494,6 +3494,7 @@ class Item_func_match final : public Item_real_func {
     if (master == nullptr && ft_handler != nullptr) {
       ft_handler->please->close_search(ft_handler);
     }
+    score_from_index_scan = false;
     ft_handler = nullptr;
     concat_ws = nullptr;
     return;

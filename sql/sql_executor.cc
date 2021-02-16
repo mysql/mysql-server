@@ -4065,7 +4065,26 @@ FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
       m_ref(ref),
       m_ft_func(ft_func),
       m_use_order(use_order),
-      m_examined_rows(examined_rows) {}
+      m_examined_rows(examined_rows) {
+  // Mark the full-text search function as used for index scan, if using the
+  // hypergraph optimizer. The old optimizer uses heuristics to determine if a
+  // full-text index scan should be used, and can set this flag the moment it
+  // decides it should use an index scan. The hypergraph optimizer, on the other
+  // hand, maintains alternative plans with and without index scans throughout
+  // the planning, and doesn't determine whether it should use the indexed or
+  // non-indexed plan until the full query plan has been constructed.
+  if (thd->lex->using_hypergraph_optimizer) {
+    // Should not already be enabled.
+    assert(!ft_func->score_from_index_scan);
+    // Should operate on the main object.
+    assert(ft_func->get_master() == ft_func);
+
+    // Mark the MATCH function as a source for a full-text index scan.
+    ft_func->score_from_index_scan = true;
+  }
+
+  assert(ft_func->score_from_index_scan);
+}
 
 FullTextSearchIterator::~FullTextSearchIterator() {
   table()->file->ha_index_or_rnd_end();

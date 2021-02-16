@@ -198,7 +198,6 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 
---skip_if_hypergraph  # Does not support full-text index scans yet.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Still no handler accesses when adding FTS_DOC_ID to WHERE clause
@@ -209,7 +208,6 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID > 2;
 
---skip_if_hypergraph  # Does not support full-text index scans yet.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Still no handler accesses when ordering by MATCH expression
@@ -220,7 +218,6 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score;
 
---skip_if_hypergraph  # Does not support full-text index scans yet.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization is disabled when ordering on FTS_DOC_ID
@@ -231,7 +228,6 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY 1 DESC;
 
---skip_if_hypergraph  # Different handler calls.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization also work with several MATCH expressions
@@ -243,7 +239,6 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score1,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
 
---skip_if_hypergraph  # Different handler calls.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 --echo Optimization does not apply if sorting on a different MATCH expressions
@@ -256,7 +251,6 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score2 DESC;
 
---skip_if_hypergraph  # Different handler calls.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 FLUSH STATUS;
@@ -388,7 +382,6 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database');
---skip_if_hypergraph  # Does not support full-text index scans yet.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 # Check the combination of all three
@@ -442,7 +435,6 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('+MySQL -database');
---skip_if_hypergraph  # Does not support full-text index scans yet.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 # Check the combination of all three
@@ -496,7 +488,6 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('"MySQL database"@5');
---skip_if_hypergraph  # Does not support full-text index scans yet.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 # Check the combination of all three
@@ -570,7 +561,6 @@ FLUSH STATUS;
 SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 WHERE MATCH(title, text) AGAINST ('database');
---skip_if_hypergraph  # Does not support full-text index scans yet.
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 # Check the combination of all three
@@ -590,7 +580,6 @@ WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
---skip_if_hypergraph  # Different handler calls.
 SHOW STATUS LIKE 'Handler_read%';
 
 
@@ -693,7 +682,6 @@ SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@
 EXPLAIN SELECT FTS_DOC_ID, TITLE FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 LIMIT 3;
---skip_if_hypergraph  # Non-deterministic (LIMIT without ORDER BY).
 SELECT FTS_DOC_ID, TITLE FROM t1
 WHERE MATCH (title, text) AGAINST ('fast database' IN NATURAL LANGUAGE MODE)
 LIMIT 3;
