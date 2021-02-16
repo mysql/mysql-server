@@ -762,6 +762,45 @@ TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
   EXPECT_TRUE(graph.predicates[2].was_join_condition);
 }
 
+TEST_F(MakeHypergraphTest, MultipleEqualitiesCauseCycle) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x",
+                      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // t1/t2.
+  ASSERT_EQ(3, graph.edges.size());
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+
+  // t1/t3 (the cycle edge).
+  EXPECT_EQ(0x01, graph.graph.edges[4].left);
+  EXPECT_EQ(0x04, graph.graph.edges[4].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
+}
+
 TEST_F(MakeHypergraphTest, MultipleEqualityIsNotPushedMultipleTimes) {
   // This query is impossible to push cleanly without adding fairly
   // broad hyperedges. We want to make sure we don't try to “solve” it
@@ -794,7 +833,7 @@ TEST_F(MakeHypergraphTest, MultipleEqualityIsNotPushedMultipleTimes) {
   EXPECT_STREQ("t4", graph.nodes[3].table->alias);
 
   // t1/t2 (a Cartesian product).
-  ASSERT_EQ(3, graph.edges.size());
+  ASSERT_GE(graph.edges.size(), 3);
   EXPECT_EQ(0x01, graph.graph.edges[0].left);
   EXPECT_EQ(0x02, graph.graph.edges[0].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
@@ -817,6 +856,82 @@ TEST_F(MakeHypergraphTest, MultipleEqualityIsNotPushedMultipleTimes) {
             ItemToString(graph.edges[2].expr->equijoin_conditions[0]));
   EXPECT_EQ("(t3.x = t4.x)",
             ItemToString(graph.edges[2].expr->equijoin_conditions[1]));
+
+  // Don't check the cycle edges.
+}
+
+TEST_F(MakeHypergraphTest, PredicatePromotionOnMultipleEquals) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x AND t1.y=t3.y",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // t1/t2.
+  ASSERT_EQ(3, graph.edges.size());
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+  ASSERT_EQ(1, graph.edges[0].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)",
+            ItemToString(graph.edges[0].expr->equijoin_conditions[0]));
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(0, graph.edges[1].expr->join_conditions.size());
+  ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t2.x = t3.x)",
+            ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
+
+  // t1/t3 (the cycle edge). Has both the original condition and the
+  // multi-equality condition.
+  EXPECT_EQ(0x01, graph.graph.edges[4].left);
+  EXPECT_EQ(0x04, graph.graph.edges[4].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
+  EXPECT_EQ(0, graph.edges[2].expr->join_conditions.size());
+  ASSERT_EQ(2, graph.edges[2].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.y = t3.y)",
+            ItemToString(graph.edges[2].expr->equijoin_conditions[0]));
+  EXPECT_EQ("(t1.x = t3.x)",
+            ItemToString(graph.edges[2].expr->equijoin_conditions[1]));
+
+  // Verify that the ones coming from the multi-equality are marked with
+  // the same index, so that they are properly deduplicated.
+  ASSERT_EQ(4, graph.predicates.size());
+
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(graph.predicates[0].condition));
+  EXPECT_TRUE(graph.predicates[0].was_join_condition);
+  EXPECT_EQ(0, graph.predicates[0].source_multiple_equality_idx);
+
+  EXPECT_EQ("(t2.x = t3.x)", ItemToString(graph.predicates[1].condition));
+  EXPECT_TRUE(graph.predicates[1].was_join_condition);
+  EXPECT_EQ(0, graph.predicates[1].source_multiple_equality_idx);
+
+  EXPECT_EQ("(t1.y = t3.y)", ItemToString(graph.predicates[2].condition));
+  EXPECT_TRUE(graph.predicates[2].was_join_condition);
+  EXPECT_EQ(-1, graph.predicates[2].source_multiple_equality_idx);
+
+  EXPECT_EQ("(t1.x = t3.x)", ItemToString(graph.predicates[3].condition));
+  EXPECT_TRUE(graph.predicates[3].was_join_condition);
+  EXPECT_EQ(0, graph.predicates[3].source_multiple_equality_idx);
 }
 
 // Verify that multiple equalities are properly resolved to a single equality,
@@ -1325,6 +1440,29 @@ TEST_F(HypergraphOptimizerTest, Cycle) {
       "SELECT 1 FROM "
       "t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x AND t1.x=t3.x",
       /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // We should see t1, t2, t3, {t1,t2}, {t2,t3}, {t1,t3} and {t1,t2,t3}.
+  EXPECT_EQ(m_thd->m_current_query_partial_plans, 7);
+}
+
+TEST_F(HypergraphOptimizerTest, CycleFromMultipleEquality) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM "
+      "t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x",
+      /*nullable=*/true);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
 
   string trace;
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);

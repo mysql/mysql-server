@@ -127,6 +127,14 @@ struct Predicate {
   // sargable predicate.
   bool was_join_condition = false;
 
+  // If this is a join condition that came from a multiple equality,
+  // and we have decided to create a mesh from that multiple equality,
+  // returns the index of it into the “multiple_equalities” array
+  // in MakeJoinHypergraph(). (You don't actually need the array to
+  // use this; it's just an opaque index to deduplicate between different
+  // predicates.) Otherwise, -1.
+  int source_multiple_equality_idx = -1;
+
   // See the equivalent fields in JoinPredicate.
   FunctionalDependencySet functional_dependencies;
   Mem_root_array<int> functional_dependencies_idx;

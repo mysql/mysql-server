@@ -67,7 +67,7 @@ class BitIteratorAdaptor {
   const uint64_t m_initial_state;
 };
 
-static inline size_t FindLowestBitSet(uint64_t x) {
+inline size_t FindLowestBitSet(uint64_t x) {
   assert(x != 0);
 #ifdef _MSC_VER
   unsigned long idx;
@@ -205,20 +205,25 @@ MY_COMPILER_DIAGNOSTIC_PUSH()
 // Suppress warning C4146 unary minus operator applied to unsigned type,
 // result still unsigned
 MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
-static inline uint64_t IsolateLowestBit(uint64_t x) { return x & (-x); }
+inline uint64_t IsolateLowestBit(uint64_t x) { return x & (-x); }
 MY_COMPILER_DIAGNOSTIC_POP()
 
 // Returns whether X is a subset of Y.
-static inline bool IsSubset(uint64_t x, uint64_t y) { return (x & y) == x; }
+inline bool IsSubset(uint64_t x, uint64_t y) { return (x & y) == x; }
 
 // Returns whether X and Y overlap. Symmetric.
-static inline bool Overlaps(uint64_t x, uint64_t y) { return (x & y) != 0; }
+inline bool Overlaps(uint64_t x, uint64_t y) { return (x & y) != 0; }
 
 // Returns whether X is a power of two.
-static inline bool IsSingleBitSet(uint64_t x) { return (x & (x - 1)) == 0; }
+inline bool IsSingleBitSet(uint64_t x) { return (x & (x - 1)) == 0; }
+
+// Returns whether the given bit is set in X.
+inline bool IsBitSet(int bit_num, uint64_t x) {
+  return Overlaps(x, uint64_t{1} << bit_num);
+}
 
 // Fairly slow implementation of population count (number of bits set).
-static inline int PopulationCount(uint64_t x) {
+inline int PopulationCount(uint64_t x) {
   int count = 0;
   while (x != 0) {
     x &= x - 1;

@@ -1408,6 +1408,48 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   // that property through the assert in ProposeAccessPathWithOrderings().
   new_fd_set->reset();
 
+  // Keep track of which multiple equalities we have created predicates for
+  // so far. We use this to avoid applying redundant predicates, ie. predicates
+  // that have already been checked. (This is not only to avoid unneeded work,
+  // but to avoid double-counting the selectivity.)
+  //
+  // Avoiding redundant predicates for a multi-equality is equivalent to never
+  // applying those that would cause loops in the subgraph induced by the tables
+  // involved in the multi-equality. (In other words, we are building spanning
+  // trees in the induced subgraph.) In general, every time we connect two
+  // subgraphs, we must apply every relevant multi-equality exactly once,
+  // and ignore the others. (This is vaguely reminiscent of Kruskal's algorithm
+  // for constructing minimum spanning trees.)
+  //
+  // DPhyp only ever connects subgraphs that are not already connected
+  // (ie., it already constructs spanning trees), so we know that the join
+  // conditions applied earlier are never redundant wrt. the rest of the graph.
+  // Thus, we only need to test the delayed predicates below; they _may_ contain
+  // a multiple equality we haven't already applied, but they may also be new,
+  // e.g. in this graph:
+  //
+  //     b
+  //    /|\ .
+  //   a | d
+  //    \|/
+  //     c
+  //
+  // If we have a multiple equality over {b,c,d}, and connect a-b and then a-c,
+  // the edge b-c will come into play and contain a multi-equality that was not
+  // applied before. We will need to apply that multi-equality (we will
+  // only get one of d-b and d-c). However, if we instead connected d-b
+  // and d-c, the edge b-c will now be redundant and must be ignored
+  // (except for functional dependencies). We simply track which ones have been
+  // applied this iteration by keeping a bitmap of them.
+  uint64_t multiple_equality_bitmap = 0;
+  for (int pred_idx : BitsSetIn(join_predicate_bitmap)) {
+    const Predicate &pred = m_graph.predicates[pred_idx];
+    if (pred.source_multiple_equality_idx != -1) {
+      multiple_equality_bitmap |= uint64_t{1}
+                                  << pred.source_multiple_equality_idx;
+    }
+  }
+
   double materialize_cost = 0.0;
 
   // Keep the information about applied_sargable_join_predicates,
@@ -1423,20 +1465,27 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   for (int pred_idx :
        BitsSetIn(left_path->delayed_predicates &
                  right_path->delayed_predicates & ~join_predicate_bitmap)) {
-    if (IsSubset(m_graph.predicates[pred_idx].total_eligibility_set,
-                 ready_tables)) {
-      join_path->filter_predicates |= uint64_t{1} << pred_idx;
-      FilterCost cost = EstimateFilterCost(
-          m_thd, join_path->num_output_rows,
-          m_graph.predicates[pred_idx].condition, m_query_block);
-      if (materialize_subqueries) {
-        join_path->cost += cost.cost_if_materialized;
-        materialize_cost += cost.cost_to_materialize;
-      } else {
-        join_path->cost += cost.cost_if_not_materialized;
+    const Predicate &pred = m_graph.predicates[pred_idx];
+    if (IsSubset(pred.total_eligibility_set, ready_tables)) {
+      if (pred.source_multiple_equality_idx == -1 ||
+          !IsBitSet(pred.source_multiple_equality_idx,
+                    multiple_equality_bitmap)) {
+        join_path->filter_predicates |= uint64_t{1} << pred_idx;
+        FilterCost cost = EstimateFilterCost(m_thd, join_path->num_output_rows,
+                                             pred.condition, m_query_block);
+        if (materialize_subqueries) {
+          join_path->cost += cost.cost_if_materialized;
+          materialize_cost += cost.cost_to_materialize;
+        } else {
+          join_path->cost += cost.cost_if_not_materialized;
+        }
+        join_path->num_output_rows *= pred.selectivity;
+        if (pred.source_multiple_equality_idx != -1) {
+          multiple_equality_bitmap |= uint64_t{1}
+                                      << pred.source_multiple_equality_idx;
+        }
       }
-      join_path->num_output_rows *= m_graph.predicates[pred_idx].selectivity;
-      *new_fd_set |= m_graph.predicates[pred_idx].functional_dependencies;
+      *new_fd_set |= pred.functional_dependencies;
     } else {
       join_path->delayed_predicates |= uint64_t{1} << pred_idx;
     }

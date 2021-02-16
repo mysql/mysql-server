@@ -48,7 +48,7 @@ namespace hypergraph {
 struct Node {
   // List of edges (indexes into the hypergraph's “edges” array) that touch this
   // node. We split these into simple edges (only one node on each side) and
-  // complex edges (all others), becaues we can often quickly discard all simple
+  // complex edges (all others), because we can often quickly discard all simple
   // edges by testing the set of interesting nodes against the
   // “simple_neighborhood” bitmap.
   //

@@ -550,10 +550,32 @@ bool ComesFromMultipleEquality(Item *item, Item_equal *equal) {
          down_cast<Item_func_eq *>(item)->source_multiple_equality == equal;
 }
 
+int FindSourceMultipleEquality(Item *item,
+                               const Mem_root_array<Item_equal *> &equals) {
+  if (item->type() != Item::FUNC_ITEM ||
+      down_cast<Item_func *>(item)->functype() != Item_func::EQ_FUNC) {
+    return -1;
+  }
+  Item_func_eq *eq = down_cast<Item_func_eq *>(item);
+  for (size_t equals_idx = 0; equals_idx < equals.size(); ++equals_idx) {
+    if (eq->source_multiple_equality == equals[equals_idx]) {
+      return static_cast<int>(equals_idx);
+    }
+  }
+  return -1;
+}
+
 bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
                                          const RelationalExpression &expr) {
+  // Could be called both before and after MakeHashJoinConditions(),
+  // so check for join_conditions and equijoin_conditions.
   for (Item *item : expr.join_conditions) {
     if (ComesFromMultipleEquality(item, equal)) {
+      return true;
+    }
+  }
+  for (Item_func_eq *item : expr.equijoin_conditions) {
+    if (item->source_multiple_equality == equal) {
       return true;
     }
   }
@@ -1423,6 +1445,69 @@ void PushDownJoinConditionsForSargable(THD *thd, RelationalExpression *expr) {
 }
 
 /**
+  Find out whether we should create mesh edges (all-to-all) for this multiple
+  equality. Currently, we only support full mesh, ie., those where all tables
+  involved in the multi-equality are part of the same companion set. One could
+  imagine a multi-equality where not all tables are possible to mesh, e.g.
+  {t1,t2,t3,t4} where {t1,t2,t3} are on the left side of an outer join and t4 is
+  on the right side (and thus not part of the same companion set); if so, we
+  could have created a mesh of the three first ones, but we don't currently.
+ */
+bool ShouldCompleteMeshForCondition(
+    Item_equal *item_equal, const int table_num_to_companion_set[MAX_TABLES]) {
+  if (CompanionSetUsedByCondition(item_equal->used_tables(),
+                                  table_num_to_companion_set) == -1) {
+    return false;
+  }
+  if (item_equal->get_const() != nullptr) {
+    return false;
+  }
+  return true;
+}
+
+// Extract multiple equalities that we should create mesh edges for.
+// See ShouldCompleteMeshForCondition().
+void ExtractCycleMultipleEqualities(
+    const Mem_root_array<Item *> &conditions,
+    const int table_num_to_companion_set[MAX_TABLES],
+    Mem_root_array<Item_equal *> *multiple_equalities) {
+  for (Item *item : conditions) {
+    assert(!IsMultipleEquals(item));  // Should have been canonicalized earlier.
+    if (item->type() == Item::FUNC_ITEM &&
+        down_cast<Item_func *>(item)->functype() == Item_func::EQ_FUNC) {
+      Item_func_eq *eq_item = down_cast<Item_func_eq *>(item);
+      if (eq_item->source_multiple_equality != nullptr &&
+          ShouldCompleteMeshForCondition(eq_item->source_multiple_equality,
+                                         table_num_to_companion_set)) {
+        multiple_equalities->push_back(eq_item->source_multiple_equality);
+      }
+    }
+  }
+}
+
+// Extract multiple equalities that we should create mesh edges for.
+// See ShouldCompleteMeshForCondition().
+void ExtractCycleMultipleEqualitiesFromJoinConditions(
+    const RelationalExpression *expr,
+    const int table_num_to_companion_set[MAX_TABLES],
+    Mem_root_array<Item_equal *> *multiple_equalities) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return;
+  }
+  for (Item_func_eq *eq_item : expr->equijoin_conditions) {
+    if (eq_item->source_multiple_equality != nullptr &&
+        ShouldCompleteMeshForCondition(eq_item->source_multiple_equality,
+                                       table_num_to_companion_set)) {
+      multiple_equalities->push_back(eq_item->source_multiple_equality);
+    }
+  }
+  ExtractCycleMultipleEqualitiesFromJoinConditions(
+      expr->left, table_num_to_companion_set, multiple_equalities);
+  ExtractCycleMultipleEqualitiesFromJoinConditions(
+      expr->right, table_num_to_companion_set, multiple_equalities);
+}
+
+/**
   Find constant expressions in join conditions, and add caches around them.
   Also add cast nodes if there are incompatible arguments in comparisons.
 
@@ -2006,8 +2091,13 @@ size_t EstimateRowWidth(const JoinHypergraph &graph,
   bookkeeping that such predicates need.
  */
 int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
+                 int source_multiple_equality_idx,
                  const RelationalExpression *root, JoinHypergraph *graph,
                  string *trace) {
+  if (source_multiple_equality_idx != -1) {
+    assert(was_join_condition);
+  }
+
   Predicate pred;
   pred.condition = condition;
   table_map total_eligibility_set;
@@ -2023,6 +2113,7 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
       (total_eligibility_set & RAND_TABLE_BIT);
   pred.selectivity = EstimateSelectivity(thd, condition, trace);
   pred.was_join_condition = was_join_condition;
+  pred.source_multiple_equality_idx = source_multiple_equality_idx;
   pred.functional_dependencies_idx.init(thd->mem_root);
   graph->predicates.push_back(std::move(pred));
 
@@ -2134,7 +2225,12 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
 
     RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
     expr->type = RelationalExpression::INNER_JOIN;
-    expr->join_conditions.push_back(cond);
+    if (cond->type() == Item::FUNC_ITEM &&
+        down_cast<Item_func *>(cond)->functype() == Item_func::EQ_FUNC) {
+      expr->equijoin_conditions.push_back(down_cast<Item_func_eq *>(cond));
+    } else {
+      expr->join_conditions.push_back(cond);
+    }
 
     // TODO(sgunders): This does not really make much sense, but
     // estimated_bytes_per_row doesn't make that much sense to begin with; it
@@ -2164,13 +2260,19 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
   the added predicate are. Thus, for A-B and C-A in the given example, we would
   ignore the corresponding WHERE predicates so they do not get double-applied.
 
+  We need to mark which predicates came from which multiple equalities,
+  so that they are not added when they are redundant; see the comment on top of
+  CostingReceiver::ApplyDelayedPredicatesAfterJoin().
+
   Note that join predicates may actually get added as predicates a second
   time, if they are found to be sargable. However, in that case they are not
   counted as WHERE predicates (they are never automatically applied), so this
   is a separate use.
  */
-void PromoteCycleJoinPredicates(THD *thd, const RelationalExpression *root,
-                                JoinHypergraph *graph, string *trace) {
+void PromoteCycleJoinPredicates(
+    THD *thd, const RelationalExpression *root,
+    const Mem_root_array<Item_equal *> &multiple_equalities,
+    JoinHypergraph *graph, string *trace) {
   for (size_t edge_idx = 0; edge_idx < graph->graph.edges.size();
        edge_idx += 2) {
     if (!IsPartOfCycle(graph, edge_idx)) {
@@ -2179,12 +2281,16 @@ void PromoteCycleJoinPredicates(THD *thd, const RelationalExpression *root,
     RelationalExpression *expr = graph->edges[edge_idx / 2].expr;
     for (Item *condition : expr->equijoin_conditions) {
       int predicate_idx = AddPredicate(
-          thd, condition, /*was_join_condition=*/true, root, graph, trace);
+          thd, condition, /*was_join_condition=*/true,
+          FindSourceMultipleEquality(condition, multiple_equalities), root,
+          graph, trace);
       expr->join_predicate_bitmap |= uint64_t{1} << predicate_idx;
     }
     for (Item *condition : expr->join_conditions) {
       int predicate_idx = AddPredicate(
-          thd, condition, /*was_join_condition=*/true, root, graph, trace);
+          thd, condition, /*was_join_condition=*/true,
+          FindSourceMultipleEquality(condition, multiple_equalities), root,
+          graph, trace);
       expr->join_predicate_bitmap |= uint64_t{1} << predicate_idx;
     }
   }
@@ -2267,6 +2373,94 @@ NodeMap GetNodeMapFromTableMap(
     ret |= TableBitmap(table_num_to_node_num[table_num]);
   }
   return ret;
+}
+
+void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
+                                  Item_field *left_field, int left_table_idx,
+                                  Item_field *right_field, int right_table_idx,
+                                  double selectivity, JoinHypergraph *graph) {
+  const int left_node_idx = graph->table_num_to_node_num[left_table_idx];
+  const int right_node_idx = graph->table_num_to_node_num[right_table_idx];
+
+  // See if there is already an edge between these two tables.
+  // Since the tables are in the same companion set, they are not
+  // outerjoined to each other, so it's enough to check the simple
+  // neighborhood.
+  RelationalExpression *expr = nullptr;
+  if (IsSubset(TableBitmap(right_node_idx),
+               graph->graph.nodes[left_node_idx].simple_neighborhood)) {
+    for (int edge_idx : graph->graph.nodes[left_node_idx].simple_edges) {
+      if (graph->graph.edges[edge_idx].right == TableBitmap(right_node_idx)) {
+        expr = graph->edges[edge_idx / 2].expr;
+        if (MultipleEqualityAlreadyExistsOnJoin(item_equal, *expr)) {
+          return;
+        }
+        graph->edges[edge_idx / 2].selectivity *= selectivity;
+        break;
+      }
+    }
+    assert(expr != nullptr);
+  } else {
+    // There was none, so create a new one.
+    graph->graph.AddEdge(TableBitmap(left_node_idx),
+                         TableBitmap(right_node_idx));
+    expr = new (thd->mem_root) RelationalExpression(thd);
+    expr->type = RelationalExpression::INNER_JOIN;
+
+    // TODO(sgunders): This does not really make much sense, but
+    // estimated_bytes_per_row doesn't make that much sense to begin with;
+    // it will depend on the join order. See if we can replace it with a
+    // per-table width calculation that we can sum up in the join
+    // optimizer.
+    expr->tables_in_subtree =
+        TableBitmap(left_table_idx) | TableBitmap(right_table_idx);
+    expr->nodes_in_subtree =
+        TableBitmap(left_node_idx) | TableBitmap(right_node_idx);
+    const size_t estimated_bytes_per_row = EstimateRowWidth(*graph, expr);
+    graph->edges.push_back(JoinPredicate{expr, selectivity,
+                                         estimated_bytes_per_row,
+                                         /*functional_dependencies=*/0,
+                                         /*functional_dependencies_idx=*/{}});
+  }
+
+  Item_func_eq *eq_item = new Item_func_eq(left_field, right_field);
+  eq_item->source_multiple_equality = item_equal;
+  eq_item->set_cmp_func();
+  eq_item->update_used_tables();
+  eq_item->quick_fix_field();
+  expr->equijoin_conditions.push_back(
+      eq_item);  // NOTE: We run after MakeHashJoinConditions().
+}
+
+/**
+  For each relevant multiple equality, add edges so that there are direct
+  connections between all the involved tables (full mesh). The tables must
+  all be in the same companion set (ie., no outer joins in the way).
+
+  Must run after equijoin conditions are extracted. _Should_ be run after
+  trivial conditions have been removed.
+ */
+void CompleteFullMeshForMultipleEqualities(
+    THD *thd, const Mem_root_array<Item_equal *> &multiple_equalities,
+    JoinHypergraph *graph, string *trace) {
+  for (Item_equal *item_equal : multiple_equalities) {
+    double selectivity = EstimateSelectivity(thd, item_equal, trace);
+    for (Item_field &left_field : item_equal->get_fields()) {
+      const int left_table_idx =
+          left_field.field->table->pos_in_table_list->tableno();
+      for (Item_field &right_field : item_equal->get_fields()) {
+        const int right_table_idx =
+            right_field.field->table->pos_in_table_list->tableno();
+        if (right_table_idx <= left_table_idx) {
+          continue;
+        }
+
+        AddMultipleEqualityPredicate(thd, item_equal, &left_field,
+                                     left_table_idx, &right_field,
+                                     right_table_idx, selectivity, graph);
+      }
+    }
+  }
 }
 
 const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
@@ -2368,13 +2562,32 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
             end(graph->table_num_to_node_num), -1);
 #endif
   MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
+
+  // Add cycles.
   size_t old_graph_edges = graph->graph.edges.size();
   if (!cycle_inducing_edges.empty()) {
     AddCycleEdges(thd, cycle_inducing_edges, graph, trace);
   }
+  // Now that all trivial conditions have been removed and all equijoin
+  // conditions extracted, go ahead and extract all the multiple
+  // equalities that are in actual use, and present as part of the base
+  // conjunctions (ie., not OR-ed with anything).
+  Mem_root_array<Item_equal *> multiple_equalities(thd->mem_root);
+  ExtractCycleMultipleEqualitiesFromJoinConditions(
+      root, table_num_to_companion_set, &multiple_equalities);
+  ExtractCycleMultipleEqualities(where_conditions, table_num_to_companion_set,
+                                 &multiple_equalities);
+  if (multiple_equalities.size() > 64) {
+    multiple_equalities.resize(64);
+  }
+  std::sort(multiple_equalities.begin(), multiple_equalities.end());
+  multiple_equalities.erase(
+      std::unique(multiple_equalities.begin(), multiple_equalities.end()),
+      multiple_equalities.end());
+  CompleteFullMeshForMultipleEqualities(thd, multiple_equalities, graph, trace);
   if (graph->graph.edges.size() != old_graph_edges) {
     // We added at least one cycle-inducing edge.
-    PromoteCycleJoinPredicates(thd, root, graph, trace);
+    PromoteCycleJoinPredicates(thd, root, multiple_equalities, graph, trace);
   }
 
   if (trace != nullptr) {
@@ -2396,8 +2609,8 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   // Find TES and selectivity for each WHERE predicate that was not pushed
   // down earlier.
   for (Item *condition : where_conditions) {
-    AddPredicate(thd, condition, /*was_join_condition=*/false, root, graph,
-                 trace);
+    AddPredicate(thd, condition, /*was_join_condition=*/false,
+                 /*source_multiple_equality_idx=*/-1, root, graph, trace);
   }
 
   // Table filters should be applied at the bottom, without extending the TES.

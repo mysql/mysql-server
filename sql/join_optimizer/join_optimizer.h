@@ -35,10 +35,9 @@
   It is intended to eventually take over completely from the older join
   optimizer based on prefix search (sql_planner.cc and related code),
   but is currently in early alpha stage with a very simplistic cost model
-  and a large number of limitations: The most notable ones are that
-  we do not support:
+  and certain limitations. The most notable ones are that we do not support:
 
-    - Some SQL features: recursive CTE, window functions.
+    - Window functions.
     - Hints (except STRAIGHT_JOIN).
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
 
@@ -48,8 +47,6 @@
   There are also have many optimization features it does not yet support;
   among them:
 
-    - Multiple equalities; they are simplified to simple equalities
-      before optimization (so some legal join orderings will be missed).
     - Aggregation through a temporary table.
     - Queries with a very large amount of possible orderings, e.g. 30-way
       star joins. (Less extreme queries, such as 30-way chain joins,
