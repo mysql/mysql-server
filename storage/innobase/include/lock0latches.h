@@ -266,7 +266,11 @@ class Latches {
      https://reviews.llvm.org/D45898
   So, this declaration is just to make clang 6.0.0 and 7.0.0 happy.
   */
+#if defined(__clang__) && (__clang_major__ < 8)
+  ~Latches() {}  // NOLINT(modernize-use-equals-default)
+#else
   ~Latches() = default;
+#endif
 
 #ifdef UNIV_DEBUG
   /**
