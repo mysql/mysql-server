@@ -69,16 +69,6 @@ extern char *__progname;
 #define FALSE 0
 #endif
 
-char *
-strupr(char *str)
-{
-  char *s;
-
-  for(s = str; *s; s++)
-    *s = toupper(*s);
-  return str;
-}
-
 static size_t
 print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
 {
@@ -115,6 +105,16 @@ print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
 }
 
 #ifdef GETARGMANDOC
+static char *
+strupr(char *str)
+{
+  char *s;
+
+  for(s = str; *s; s++)
+    *s = toupper(*s);
+  return str;
+}
+
 static void
 mandoc_template(struct getargs *args,
 		size_t num_args,
