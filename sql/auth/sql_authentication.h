@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 #include <openssl/rsa.h>
 #include <stddef.h>
 #include <sys/types.h>
+
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_thread_local.h"    // my_thread_id

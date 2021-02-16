@@ -89,7 +89,7 @@
 #include "violite.h"
 
 #if !defined(_WIN32)
-#include "my_thread.h" /* because of signal()	*/
+#include "my_thread.h" /* because of signal()*/
 #endif                 /* !defined(_WIN32) */
 
 #include <signal.h>
@@ -1068,7 +1068,7 @@ static ulong cli_safe_read_with_ok_complete(MYSQL *mysql, bool parse_ok,
   again until complete packet is read.
 
   @param[in]  mysql           connection handle
-  @param[in]  parse_ok	      if set to true then parse OK packet if it
+  @param[in]  parse_ok        if set to true then parse OK packet if it
                               was sent by server
   @param[out] is_data_packet  if set to true then the packet received
                               was a "data packet".
@@ -5223,6 +5223,12 @@ static bool check_plugin_enabled(MYSQL *mysql, mysql_async_auth *ctx) {
         mysql, CR_AUTH_PLUGIN_CANNOT_LOAD, unknown_sqlstate,
         ER_CLIENT(CR_AUTH_PLUGIN_CANNOT_LOAD), ctx->auth_plugin->name,
         "plugin does not support nonblocking connect");
+    /*
+      We don't return true here because not all authentication plugins support
+      non-blocking APIs.
+      In case plugin does not have non-blocking API, we fallback to blocking
+      API calls to further proceed with the authentication.
+    */
   }
   return false;
 }
@@ -5321,15 +5327,31 @@ static mysql_state_machine_status authsm_begin_plugin_auth(
     mysql_async_auth *ctx) {
   DBUG_TRACE;
   MYSQL *mysql = ctx->mysql;
-  /* determine the default/initial plugin to use */
-  if (mysql->options.extension && mysql->options.extension->default_auth &&
-      mysql->server_capabilities & CLIENT_PLUGIN_AUTH) {
-    ctx->auth_plugin_name = mysql->options.extension->default_auth;
+  ctx->auth_plugin_name = nullptr;
+  if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH &&
+      ctx->data_plugin != nullptr) {
+    ctx->auth_plugin_name = ctx->data_plugin;
     if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
               mysql, ctx->auth_plugin_name,
-              MYSQL_CLIENT_AUTHENTICATION_PLUGIN)))
-      return STATE_MACHINE_FAILED; /* oops, not found */
-  } else {
+              MYSQL_CLIENT_AUTHENTICATION_PLUGIN))) {
+      /*
+        Client didn't recognize the server default plugin.
+        Fallback on any client plugin set as the default.
+      */
+      if (mysql->options.extension && mysql->options.extension->default_auth) {
+        ctx->auth_plugin_name = mysql->options.extension->default_auth;
+        if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
+                  mysql, ctx->auth_plugin_name,
+                  MYSQL_CLIENT_AUTHENTICATION_PLUGIN)))
+          return STATE_MACHINE_FAILED; /* oops, not found */
+      }
+    }
+  }
+
+  if (ctx->auth_plugin_name == nullptr || ctx->auth_plugin == nullptr) {
+    /*
+      If everything else fail we use the built in plugin
+    */
     ctx->auth_plugin = &caching_sha2_password_client_plugin;
     ctx->auth_plugin_name = ctx->auth_plugin->name;
   }
@@ -5340,8 +5362,14 @@ static mysql_state_machine_status authsm_begin_plugin_auth(
 
   mysql->net.last_errno = 0; /* just in case */
 
+  /*
+    data_plugin has the plugin the server wants us to use and
+    auth_plugin_name has the plugin we think we will need.
+    Server doesn't know what user the client will send yet.
+    so client knows more than the server - hence we should use
+    auth_plugin_name if it is different from ctx->data_plugin
+  */
   if (ctx->data_plugin && strcmp(ctx->data_plugin, ctx->auth_plugin_name)) {
-    /* data was prepared for a different plugin, don't show it to this one */
     ctx->data = nullptr;
     ctx->data_len = 0;
   }
@@ -8558,7 +8586,7 @@ int STDCALL mysql_session_track_get_next(MYSQL *mysql,
 
   SYNOPSIS
     mysql_get_server_version()
-    mysql		Connection
+    mysql   Connection
 
   EXAMPLE
     4.1.0-alfa ->  40100
