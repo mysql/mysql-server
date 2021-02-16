@@ -1040,6 +1040,14 @@ int plugin_group_replication_stop(char **error_message) {
   DBUG_TRACE;
 
   MUTEX_LOCK(lock, &lv.plugin_running_mutex);
+  DBUG_EXECUTE_IF("gr_plugin_gr_stop_after_holding_plugin_running_mutex", {
+    const char act[] =
+        "now signal "
+        "signal.reached_plugin_gr_stop_after_holding_plugin_running_mutex "
+        "wait_for "
+        "signal.resume_plugin_gr_stop_after_holding_plugin_running_mutex";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   lv.plugin_is_stopping = true;
 
