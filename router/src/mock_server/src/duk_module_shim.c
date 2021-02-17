@@ -175,7 +175,10 @@ static const duk_function_list_entry util_module_funcs[] = {
 
     {NULL, NULL, 0}};
 
-static const duk_function_list_entry fs_module_funcs[] = {{NULL, NULL, 0}};
+static const duk_function_list_entry fs_module_funcs[] = {
+    {"readSync", duk_node_fs_read_file_sync, 1},
+
+    {NULL, NULL, 0}};
 
 /*
 static const duk_function_list_entry events_module_funcs[] = {
