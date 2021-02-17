@@ -478,9 +478,8 @@ public:
    *
    * But, when compressed backup is enabled, m_file_pos gives the current file
    * position in uncompressed state and m_file_size gives the backup file size
-   * in compressed state. So, Instead of m_file_pos, ndbzio_stream's m_file.in
-   * parameter is used to get current position in compressed state.This
-   * parameter also works when compressed backup is disabled.
+   * in compressed state. 
+   * This parameter also works when compressed backup is disabled.
    */
   Uint64 get_file_pos() const { return m_xfile.get_file_pos(); }
 #ifdef ERROR_INSERT

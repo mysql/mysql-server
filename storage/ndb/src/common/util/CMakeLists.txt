@@ -30,11 +30,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/logger
   )
 
-# "system" does not work, ndbzio.cpp includes private, non-existing headers.
-IF(WITH_ZLIB STREQUAL "bundled")
-  INCLUDE_DIRECTORIES(SYSTEM ${CMAKE_SOURCE_DIR}/extra/zlib)
-ENDIF()
-
 ADD_DEFINITIONS(-DNO_DUMMY_DECL)
 ADD_CONVENIENCE_LIBRARY(ndbgeneral
   BaseString.cpp
@@ -74,7 +69,6 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   ndb_init.cpp
   ndb_opts.cpp
   ndb_rand.cpp
-  ndbzio.cpp
   parse_mask.cpp
   random.cpp
   require.cpp
