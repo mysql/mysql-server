@@ -334,12 +334,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
  public:
   /*
-    static member function as it needs to access private
-    NdbTransaction methods
-  */
-  static void release_completed_operations(NdbTransaction *);
-
-  /*
     Condition pushdown
   */
 
