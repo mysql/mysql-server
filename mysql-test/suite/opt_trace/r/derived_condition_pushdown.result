@@ -8,6 +8,9 @@ KEY(f1), KEY(f1,f2), KEY(f3));
 INSERT INTO t1 VALUES (1,26,1);
 INSERT INTO t1 VALUES (2,32,1);
 INSERT INTO t1 VALUES (3,90,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT * FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f1,f2)
 FROM t1 GROUP BY f1) as dt WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 f1	f2	SUM(f3) OVER(PARTITION BY f1,f2)
