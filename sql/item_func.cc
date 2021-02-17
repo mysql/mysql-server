@@ -1652,6 +1652,8 @@ bool Item_func_numhybrid::get_date(MYSQL_TIME *ltime,
       return date_op(ltime, fuzzydate);
     case MYSQL_TYPE_TIME:
       return get_date_from_time(ltime);
+    case MYSQL_TYPE_YEAR:
+      return get_date_from_int(ltime, fuzzydate);
     default:
       return Item::get_date_from_non_temporal(ltime, fuzzydate);
   }
@@ -1667,6 +1669,8 @@ bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime) {
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP:
       return get_time_from_datetime(ltime);
+    case MYSQL_TYPE_YEAR:
+      return get_time_from_int(ltime);
     default:
       return Item::get_time_from_non_temporal(ltime);
   }
