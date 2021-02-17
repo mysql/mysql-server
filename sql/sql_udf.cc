@@ -259,8 +259,7 @@ void udf_read_functions_table() {
 
     // Check the name.str is NULL or not.
     if (name.str == NULL) {
-      sql_print_error("Invalid row in mysql.func table for function '%.64s'",
-                      name.str);
+      sql_print_error("Invalid row in mysql.func table for column 'name'");
       continue;
     }
 
