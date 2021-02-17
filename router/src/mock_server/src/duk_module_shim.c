@@ -279,7 +279,7 @@ static duk_ret_t node_write_stderr(duk_context *ctx) {
 static duk_ret_t node_write_stdout(duk_context *ctx) {
   size_t buf_len;
   const char *buf = duk_require_lstring(ctx, 0, &buf_len);
-  if (write(STDERR_FILENO, buf, buf_len) < 0) {
+  if (write(STDOUT_FILENO, buf, buf_len) < 0) {
     // just to avoid the compiler warning about ignoring retval
   }
 
