@@ -418,3 +418,24 @@ pk
 1
 3
 DROP TABLE t1;
+# Bug#32395335: Assertion `!is_temporal()' failed|sql/item.cc
+CREATE TABLE t1 (
+d DATE DEFAULT NULL,
+y1 YEAR DEFAULT NULL,
+y2 YEAR DEFAULT NULL,
+dbl DOUBLE DEFAULT NULL
+);
+INSERT INTO t1 VALUES('1978-07-14',1957,2085,87315.633);
+SELECT TIMESTAMPDIFF(QUARTER, LEAST(y1, y2), dbl)
+FROM t1;
+TIMESTAMPDIFF(QUARTER, LEAST(y1, y2), dbl)
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1957'
+SELECT HOUR(GREATEST(y1, y2))
+FROM t1;
+HOUR(GREATEST(y1, y2))
+NULL
+Warnings:
+Warning	1292	Truncated incorrect time value: '2085'
+DROP TABLE t1;
