@@ -599,28 +599,10 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
   lower place than it started, ie., the caller no longer needs to worry about
   it.
 
-  Since PushDownAsMuchAsPossible() only calls us for join conditions, there are
-  only two ways we can push down something onto a single table (which naturally
-  has no concept of “join condition”). Neither of them affect the return
-  condition. These are:
-
-  1. Sargable join conditions.
-
-  Equijoin conditions can often be pushed down into indexes; e.g. t1.x = t2.x
-  could be pushed down into an index on t1.x. When we have pushed such a
-  condition all the way down onto the t1/t2 join, we are ostensibly done
-  (and would return true), but before that, we push down the condition down
-  onto both sides if possible. (E.g.: If the join was a left join, we could
-  push it down to t2, but not to t1.) When we hit a table in such a push,
-  we store the conditions in “join_conditions_pushable_to_this“ for the table
-  to signal that it should be investigated when we consider the table during
-  join optimization. This push happens with parameter_tables set to a bitmap
-  of the table(s) on the other side of the join, e.g. the push to t1 happens
-  with t2 in the bitmap. A push with nonzero parameter_tables is not subject
-  to being left as a join condition as would usually be the case; if it is
-  not pushable all the way down to a table, it is simply discarded.
-
-  2. Partial pushdown.
+  Since PushDownAsMuchAsPossible() only calls us for join conditions, there is
+  only one way we can push down something onto a single table (which naturally
+  has no concept of “join condition”), and it does not affect the return
+  condition. That is partial pushdown:
 
   In addition to regular pushdown, PushDownCondition() will do partial pushdown
   if appropriate. Some expressions cannot be fully pushed down, but we can
@@ -640,22 +622,17 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
  */
 bool PushDownCondition(Item *cond, RelationalExpression *expr,
                        bool is_join_condition_for_expr,
-                       table_map parameter_tables,
                        Mem_root_array<Item *> *table_filters, string *trace) {
   if (expr->type == RelationalExpression::TABLE) {
-    if (parameter_tables == 0) {
-      table_filters->push_back(cond);
-    } else {
-      expr->join_conditions_pushable_to_this.push_back(cond);
-    }
+    table_filters->push_back(cond);
     return true;
   }
 
   assert(
       !Overlaps(expr->left->tables_in_subtree, expr->right->tables_in_subtree));
 
-  table_map used_tables =
-      cond->used_tables() & ~(OUTER_REF_TABLE_BIT | INNER_TABLE_BIT);
+  const table_map used_tables =
+      cond->used_tables() & (expr->tables_in_subtree | RAND_TABLE_BIT);
 
   // See if we can push down into the left side, ie., it only touches
   // tables on the left side of the join.
@@ -669,13 +646,13 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       (IsInnerJoin(expr->type) ||
        expr->type == RelationalExpression::SEMIJOIN ||
        !is_join_condition_for_expr);
-  if (IsSubset(used_tables, expr->left->tables_in_subtree | parameter_tables)) {
+  if (IsSubset(used_tables, expr->left->tables_in_subtree)) {
     if (!can_push_into_left) {
       return true;
     }
     return PushDownCondition(cond, expr->left,
                              /*is_join_condition_for_expr=*/false,
-                             parameter_tables, table_filters, trace);
+                             table_filters, trace);
   }
 
   // See if we can push down into the right side. For inner joins,
@@ -695,14 +672,13 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
       (IsInnerJoin(expr->type) ||
        expr->type == RelationalExpression::SEMIJOIN ||
        is_join_condition_for_expr);
-  if (IsSubset(used_tables,
-               expr->right->tables_in_subtree | parameter_tables)) {
+  if (IsSubset(used_tables, expr->right->tables_in_subtree)) {
     if (!can_push_into_right) {
       return true;
     }
     return PushDownCondition(cond, expr->right,
                              /*is_join_condition_for_expr=*/false,
-                             parameter_tables, table_filters, trace);
+                             table_filters, trace);
   }
 
   // It's not a subset of left, it's not a subset of right, so it's a
@@ -710,58 +686,29 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // to a join condition for it.
 
   // Try partial pushdown into the left side (see function comment).
-  if (can_push_into_left) {
+  if (can_push_into_left &&
+      Overlaps(used_tables, expr->left->tables_in_subtree)) {
     Item *partial_cond = make_cond_for_table(
         current_thd, cond, expr->left->tables_in_subtree, /*used_table=*/0,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->left,
-                        /*is_join_condition_for_expr=*/false, parameter_tables,
-                        table_filters, trace);
+                        /*is_join_condition_for_expr=*/false, table_filters,
+                        trace);
     }
   }
 
   // Then the right side, if it's allowed.
-  if (can_push_into_right) {
+  if (can_push_into_right &&
+      Overlaps(used_tables, expr->right->tables_in_subtree)) {
     Item *partial_cond = make_cond_for_table(
         current_thd, cond, expr->right->tables_in_subtree, /*used_table=*/0,
         /*exclude_expensive_cond=*/true);
     if (partial_cond != nullptr) {
       PushDownCondition(partial_cond, expr->right,
-                        /*is_join_condition_for_expr=*/false, parameter_tables,
-                        table_filters, trace);
+                        /*is_join_condition_for_expr=*/false, table_filters,
+                        trace);
     }
-  }
-
-  // Push join conditions further down each side to see if they are sargable
-  // (see the function comment).
-  if (can_push_into_left) {
-    table_map left_tables = cond->used_tables() & expr->left->tables_in_subtree;
-    if (left_tables == 0) {
-      // Degenerate condition, so add everything just to be safe.
-      left_tables = expr->left->tables_in_subtree;
-    }
-    PushDownCondition(cond, expr->left,
-                      /*is_join_condition_for_expr=*/false,
-                      parameter_tables | left_tables, table_filters, trace);
-  }
-  if (can_push_into_right) {
-    table_map right_tables =
-        cond->used_tables() & expr->right->tables_in_subtree;
-    if (right_tables == 0) {
-      // Degenerate condition, so add everything just to be safe.
-      right_tables = expr->right->tables_in_subtree;
-    }
-    PushDownCondition(cond, expr->right,
-                      /*is_join_condition_for_expr=*/false,
-                      parameter_tables | right_tables, table_filters, trace);
-  }
-
-  if (parameter_tables != 0) {
-    // If this is pushdown for a sargable condition, we need to stop
-    // here, or we'd add extra join conditions. The return value
-    // doesn't matter much.
-    return false;
   }
 
   // Now that any partial pushdown has been done, see if we can promote
@@ -813,6 +760,61 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
 }
 
 /**
+  Try to push down conditions (like PushDownCondition()), but with the intent
+  of pushing join conditions down to sargable conditions on tables.
+
+  Equijoin conditions can often be pushed down into indexes; e.g. t1.x = t2.x
+  could be pushed down into an index on t1.x. When we have pushed such a
+  condition all the way down onto the t1/t2 join, we are ostensibly done
+  with regular push (in PushDownCondition()), but here, we would push down the
+  condition onto both sides if possible. (E.g.: If the join was a left join, we
+  could push it down to t2, but not to t1.) When we hit a table in such a push,
+  we store the conditions in “join_conditions_pushable_to_this“ for the table
+  to signal that it should be investigated when we consider the table during
+  join optimization.
+ */
+void PushDownToSargableCondition(Item *cond, RelationalExpression *expr,
+                                 bool is_join_condition_for_expr) {
+  if (expr->type == RelationalExpression::TABLE) {
+    // We don't try to make sargable join predicates out of subqueries;
+    // it is quite marginal, and our machinery for dealing with materializing
+    // subqueries is not ready for it.
+    if (cond->has_subquery()) {
+      return;
+    }
+    expr->join_conditions_pushable_to_this.push_back(cond);
+    return;
+  }
+
+  assert(
+      !Overlaps(expr->left->tables_in_subtree, expr->right->tables_in_subtree));
+
+  const table_map used_tables =
+      cond->used_tables() & (expr->tables_in_subtree | RAND_TABLE_BIT);
+
+  // See PushDownCondition() for explanation of can_push_into_{left,right}.
+  const bool can_push_into_left =
+      (IsInnerJoin(expr->type) ||
+       expr->type == RelationalExpression::SEMIJOIN ||
+       !is_join_condition_for_expr);
+  const bool can_push_into_right =
+      (IsInnerJoin(expr->type) ||
+       expr->type == RelationalExpression::SEMIJOIN ||
+       is_join_condition_for_expr);
+
+  if (can_push_into_left &&
+      !IsSubset(used_tables, expr->right->tables_in_subtree)) {
+    PushDownToSargableCondition(cond, expr->left,
+                                /*is_join_condition_for_expr=*/false);
+  }
+  if (can_push_into_right &&
+      !IsSubset(used_tables, expr->left->tables_in_subtree)) {
+    PushDownToSargableCondition(cond, expr->right,
+                                /*is_join_condition_for_expr=*/false);
+  }
+}
+
+/**
   Push down as many of the conditions in “conditions” as we can, into the join
   tree under “expr”. The parts that could not be pushed are returned.
 
@@ -835,8 +837,14 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // FoundSubgraphPair().
       remaining_parts.push_back(item);
     } else {
-      if (PushDownCondition(item, expr, is_join_condition_for_expr,
-                            /*parameter_tables=*/0, table_filters, trace)) {
+      if (is_join_condition_for_expr &&
+          !IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
+                    expr->tables_in_subtree)) {
+        // Condition refers to tables outside this subtree, so it can not be
+        // pushed (this can only happen with semijoins).
+        remaining_parts.push_back(item);
+      } else if (PushDownCondition(item, expr, is_join_condition_for_expr,
+                                   table_filters, trace)) {
         // Pushdown failed.
         remaining_parts.push_back(item);
       }
@@ -881,6 +889,37 @@ void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
   }
   PushDownJoinConditions(thd, expr->left, table_filters, trace);
   PushDownJoinConditions(thd, expr->right, table_filters, trace);
+}
+
+/**
+  Similar to PushDownJoinConditions(), but for push of sargable conditions
+  (see PushDownJoinConditionsForSargable()). The reason this is a separate
+  function, is that we want to run sargable push after all join conditions
+  have been finalized; in particular, that multiple equalities have been
+  concretized into single equalities. (We don't recognize multi-equalities
+  as sargable predicates in their multi-form, since they could be matching
+  multiple targets and generally are more complicated. It is much simpler
+  to wait until they are concretized.)
+ */
+void PushDownJoinConditionsForSargable(THD *thd, RelationalExpression *expr) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return;
+  }
+  assert(expr->equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+  for (Item *item : expr->join_conditions) {
+    // These are the same conditions as PushDownAsMuchAsPossible();
+    // not filters (which shouldn't be here anyway), and not tables
+    // outside the subtree.
+    if (!IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS) &&
+        IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS,
+                 expr->tables_in_subtree)) {
+      PushDownToSargableCondition(item, expr,
+                                  /*is_join_condition_for_expr=*/true);
+    }
+  }
+  PushDownJoinConditionsForSargable(thd, expr->left);
+  PushDownJoinConditionsForSargable(thd, expr->right);
 }
 
 /**
@@ -1615,7 +1654,18 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     where_conditions = PushDownAsMuchAsPossible(
         thd, std::move(where_conditions), root,
         /*is_join_condition_for_expr=*/false, &table_filters, trace);
+
+    // See if we can push remaining WHERE conditions to sargable predicates.
+    for (Item *item : where_conditions) {
+      PushDownToSargableCondition(item, root,
+                                  /*is_join_condition_for_expr=*/false);
+    }
   }
+
+  // Now see if we can push down join conditions to sargable predicates.
+  // We do this after we're done pushing, since pushing can change predicates
+  // (in particular, it can concretize multiple equalities).
+  PushDownJoinConditionsForSargable(thd, root);
 
   if (CanonicalizeJoinConditions(thd, root)) {
     return true;
