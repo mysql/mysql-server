@@ -25,14 +25,12 @@
 #ifndef DUK_MODULE_SHIM_INCLUDED
 #define DUK_MODULE_SHIM_INCLUDED
 
+#include <string>
+#include <vector>
+
 #include "duktape.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-void duk_module_shim_init(duk_context *ctx, const char *prefix);
-#ifdef __cplusplus
-}
-#endif
+void duk_module_shim_init(duk_context *ctx,
+                          const std::vector<std::string> &prefixes);
 
 #endif

@@ -24,9 +24,8 @@
 
 #include "duk_module_shim.h"
 
-#include <stdlib.h>  // _fullpath
-#include <string.h>
-#include <sys/stat.h>
+#include <cstdlib>  // _fullpath
+#include <cstring>
 
 #ifdef _WIN32
 #include <direct.h>  // getcwd
@@ -34,6 +33,7 @@
 #else
 #include <unistd.h>
 #endif
+#include <sys/stat.h>
 
 #include "duk_module_duktape.h"
 #include "duk_module_node.h"
@@ -95,7 +95,7 @@ static duk_ret_t node_format_string(duk_context *ctx) {
   duk_push_lstring(ctx, "", 0);
   if (arg_count > 0) {
     const char *fmt = duk_require_string(ctx, 0);
-    const char *start = NULL;
+    const char *start = nullptr;
 
     const char *s = fmt;
     for (; s < fmt + strlen(fmt); s++) {
@@ -104,7 +104,7 @@ static duk_ret_t node_format_string(duk_context *ctx) {
           duk_push_lstring(ctx, start, s - start);
           section_count++;
 
-          start = NULL;
+          start = nullptr;
         }
         switch (*(s + 1)) {
           case '%':
@@ -127,7 +127,7 @@ static duk_ret_t node_format_string(duk_context *ctx) {
             fprintf(stderr, "unknown format op: %c", *(s + 1));
         }
       } else {
-        if (NULL == start) start = s;
+        if (nullptr == start) start = s;
       }
     }
     if (start) {
@@ -149,7 +149,7 @@ static duk_ret_t node_path_resolve(duk_context *ctx) {
 static const duk_function_list_entry path_module_funcs[] = {
     {"join", node_path_join, DUK_VARARGS},
     {"resolve", node_path_resolve, 1},
-    {NULL, NULL, 0}};
+    {nullptr, nullptr, 0}};
 
 static duk_ret_t node_util_inherits(duk_context *ctx) {
   if (DUK_EXEC_SUCCESS !=
@@ -173,22 +173,24 @@ static duk_ret_t node_util_inherits(duk_context *ctx) {
 static const duk_function_list_entry util_module_funcs[] = {
     {"inherits", node_util_inherits, 2},
 
-    {NULL, NULL, 0}};
+    {nullptr, nullptr, 0}};
 
 static const duk_function_list_entry fs_module_funcs[] = {
     {"readSync", duk_node_fs_read_file_sync, 1},
 
-    {NULL, NULL, 0}};
+    {nullptr, nullptr, 0}};
 
 /*
 static const duk_function_list_entry events_module_funcs[] = {
-  { NULL, NULL, 0 }
+  { nullptr, nullptr, 0 }
 };
 */
 
-static const duk_function_list_entry assert_module_funcs[] = {{NULL, NULL, 0}};
+static const duk_function_list_entry assert_module_funcs[] = {
+    {nullptr, nullptr, 0}};
 
-static const duk_function_list_entry os_module_funcs[] = {{NULL, NULL, 0}};
+static const duk_function_list_entry os_module_funcs[] = {
+    {nullptr, nullptr, 0}};
 
 static duk_ret_t node_console_log(duk_context *ctx) {
   // duk_push_lstring(ctx, "", 0);
@@ -207,7 +209,7 @@ static const duk_function_list_entry console_module_funcs[] = {
     {"log", node_console_log, DUK_VARARGS},
     {"warn", node_console_log, DUK_VARARGS},
 
-    {NULL, NULL, 0}};
+    {nullptr, nullptr, 0}};
 
 static duk_ret_t node_tty_isatty(duk_context *ctx) {
 #ifndef _WIN32
@@ -230,7 +232,7 @@ static duk_ret_t node_tty_getwindowsize(duk_context *ctx) {
 static const duk_function_list_entry tty_module_funcs[] = {
     {"isatty", node_tty_isatty, 1},
     {"getWindowSize", node_tty_getwindowsize, 0},
-    {NULL, NULL, 0}};
+    {nullptr, nullptr, 0}};
 
 static duk_ret_t node_process_getenv(duk_context *ctx) {
   duk_push_string(ctx, getenv(duk_require_string(ctx, 0)));
@@ -267,7 +269,7 @@ static const duk_function_list_entry process_module_funcs[] = {
     {"on", node_process_on, 2},
     {"removeListener", node_process_remove_listener, 2},
     {"nextTick", node_process_nexttick, 1},
-    {NULL, NULL, 0}};
+    {nullptr, nullptr, 0}};
 
 static duk_ret_t node_write_stderr(duk_context *ctx) {
   size_t buf_len;
@@ -381,8 +383,8 @@ static duk_ret_t cb_resolve_module(duk_context *ctx) {
 
     if (has_parent_id && module_id[0] == '.') {
       // strip the filename from the parent's id
-      char *last_sep = strrchr(parent_id, '/');
-      if (NULL == last_sep) {
+      const char *last_sep = strrchr(parent_id, '/');
+      if (nullptr == last_sep) {
         return duk_generic_error(ctx, "expected / in %s", parent_id);
       }
       // get the prefix of the string as base dir
@@ -696,7 +698,8 @@ static duk_ret_t cb_load_module(duk_context *ctx) {
   return 1;
 }
 
-void duk_module_shim_init(duk_context *ctx, const char *prefix) {
+void duk_module_shim_init(duk_context *ctx,
+                          const std::vector<std::string> &prefixes) {
   // init the basic node-js builtins
   duk_push_c_function(ctx, dukopen_process_module, 0);
   duk_call(ctx, 0);
@@ -717,28 +720,31 @@ void duk_module_shim_init(duk_context *ctx, const char *prefix) {
   // var _paths = []
   duk_idx_t paths_ndx = duk_push_array(ctx);  // array
 
-  // var _path = path.join(cwd, "local_modules");
-  duk_push_c_function(ctx, node_path_join, DUK_VARARGS);
+  size_t ndx{};
+  for (const auto &prefix : prefixes) {
+    // var _path = path.join(cwd, "local_modules");
+    duk_push_c_function(ctx, node_path_join, DUK_VARARGS);
 
-  duk_push_string(ctx, prefix);
-  duk_push_string(ctx, "local_modules");
+    duk_push_string(ctx, prefix.c_str());
+    duk_push_string(ctx, "local_modules");
 
-  duk_pcall(ctx, 2);
+    duk_pcall(ctx, 2);
 
-  // _paths[0] = _path
-  duk_put_prop_index(ctx, paths_ndx, 0);
+    // _paths[0] = _path
+    duk_put_prop_index(ctx, paths_ndx, ndx++);
 
-  // var _path = path.join(cwd, "npm", "node_modules");
-  duk_push_c_function(ctx, node_path_join, DUK_VARARGS);
+    // var _path = path.join(cwd, "npm", "node_modules");
+    duk_push_c_function(ctx, node_path_join, DUK_VARARGS);
 
-  duk_push_string(ctx, prefix);
-  duk_push_string(ctx, "npm");
-  duk_push_string(ctx, "node_modules");
+    duk_push_string(ctx, prefix.c_str());
+    duk_push_string(ctx, "npm");
+    duk_push_string(ctx, "node_modules");
 
-  duk_pcall(ctx, 3);
+    duk_pcall(ctx, 3);
 
-  // _paths[1] = _path
-  duk_put_prop_index(ctx, paths_ndx, 1);
+    // _paths[1] = _path
+    duk_put_prop_index(ctx, paths_ndx, ndx++);
+  }
 
   // _modules["paths"] = _paths
   duk_put_prop_string(ctx, module_ndx, "paths");
@@ -764,6 +770,6 @@ void duk_module_duktape_init(duk_context *ctx) {
   duk_push_c_function(ctx, node_process_cwd, 0);
   duk_pcall(ctx, 0);
 
-  duk_module_shim_init(ctx, duk_get_string(ctx, -1));
+  duk_module_shim_init(ctx, std::vector<std::string>{duk_get_string(ctx, -1)});
   duk_pop(ctx);
 }
