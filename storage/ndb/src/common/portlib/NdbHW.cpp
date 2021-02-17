@@ -1804,22 +1804,22 @@ get_meminfo(struct ndb_hwinfo *hwinfo)
 
   FileGuard g(meminfo); // close at end...
 
-  Uint64 memory_size = 0;
+  Uint64 memory_size_kb = 0;
   while (fgets(buf, sizeof(buf), meminfo))
   {
     Uint64 val;
     if (sscanf(buf, "MemTotal: %llu", &val) == 1)
     {
-      memory_size = val;
+      memory_size_kb = val; // /proc/meminfo reports MemTotal in kb
       break;
     }
   }
-  if (memory_size == 0)
+  if (memory_size_kb == 0)
   {
     perror("Found no MemTotal in /proc/meminfo");
     return -1;
   }
-  hwinfo->hw_memory_size = memory_size;
+  hwinfo->hw_memory_size = memory_size_kb * 1024; // hw_memory_size in bytes
   return 0;
 }
 
