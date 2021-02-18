@@ -799,7 +799,7 @@ int validate_autoextend_size_value(uint64_t ext_size) {
 
   /* Validate following for the AUTOEXTEND_SIZE attribute
   1. The autoextend_size should be a multiple of size of 4 extents
-  2. The autoextend_size value should be between size of 4 extents and 64M */
+  2. The autoextend_size value should be between size of 4 extents and 4G */
   if (ext_size < (FSP_FREE_ADD * extent_size_pages * srv_page_size) ||
       ext_size > FSP_MAX_AUTOEXTEND_SIZE) {
     my_error(ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE, MYF(0),
