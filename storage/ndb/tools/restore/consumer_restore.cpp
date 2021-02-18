@@ -3289,10 +3289,10 @@ BackupRestore::table(const TableS & table){
   }
   const Uint32 orig_table_id = table.m_dictTable->getTableId();
   const NdbDictionary::Table* null = 0;
-  m_new_tables.fill(orig_table_id, null);
+  m_new_tables.fill(orig_table_id + 1, null);
   m_new_tables[orig_table_id] = tab;
   Uint64 zeroAutoVal = 0;
-  m_auto_values.fill(orig_table_id, zeroAutoVal);
+  m_auto_values.fill(orig_table_id + 1, zeroAutoVal);
 
   m_n_tables++;
 

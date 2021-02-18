@@ -1504,11 +1504,11 @@ NdbEventBuffer::init_gci_containers()
 
   m_startup_hack = true;
   m_active_gci.clear();
-  m_active_gci.fill(3, empty_gci_container);
+  m_active_gci.fill(ACTIVE_GCI_DIRECTORY_SIZE, empty_gci_container);
   m_min_gci_index = m_max_gci_index = 1;
   Uint64 gci = 0;
   m_known_gci.clear();
-  m_known_gci.fill(7, gci);
+  m_known_gci.fill(8, gci);
   // No 'out of order' epoch in the containers.
   m_latest_complete_GCI = 0;
 }
@@ -1976,7 +1976,7 @@ NdbEventBuffer::resize_known_gci()
 
   Uint64 fill = 0;
   Uint32 newsize = 2 * (mask + 1);
-  m_known_gci.fill(newsize - 1, fill);
+  m_known_gci.fill(newsize, fill);
   Uint64 * array = m_known_gci.getBase();
 
   if (0)
@@ -2187,7 +2187,7 @@ NdbEventBuffer::find_bucket_chained(Uint64 gci)
 
   Gci_container_pod empty_gci_container;
   new(&empty_gci_container) Gci_container(this);
-  m_active_gci.fill(pos, empty_gci_container);
+  m_active_gci.fill(pos + 1, empty_gci_container);
   buckets = (Gci_container*)(m_active_gci.getBase());
 
 newbucket:

@@ -150,7 +150,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
 
   m_rows_found.clear();
   Uint32 zero = 0;
-  m_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+  m_rows_found.fill(m_query_def->getNoOfOperations(), zero);
 
   if (batch == 0) {
     g_info << "ERROR: Argument batch == 0 in runLookupQuery. Not allowed."
@@ -177,7 +177,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     }
 
     Vector<Uint32> batch_rows_found;
-    batch_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+    batch_rows_found.fill(m_query_def->getNoOfOperations(), zero);
     Vector<NdbQuery*> queries;
 
     clearNdbError();
@@ -344,7 +344,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     }
     m_rows_found.clear();
     Uint32 zero = 0;
-    m_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+    m_rows_found.fill(m_query_def->getNoOfOperations(), zero);
 
     clearNdbError();
     NdbTransaction * pTrans = pNdb->startTransaction();

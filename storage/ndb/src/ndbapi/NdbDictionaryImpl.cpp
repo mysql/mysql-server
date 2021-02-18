@@ -1770,7 +1770,7 @@ NdbTableImpl::buildColumnHash()
   /* Now build 1d hash array */
   m_columnHash.clear();
   Uint32 tmp = UniBucket;
-  if (m_columnHash.fill((unsigned)size-1, tmp))   // Default no chaining
+  if (m_columnHash.fill(size, tmp))   // Default no chaining
   {
     return -1;
   }
@@ -5433,7 +5433,7 @@ NdbDictInterface::create_index_obj_from_table(NdbIndexImpl** dst,
 
     int key_id = primCol->getColumnNo();
     int fill = -1;
-    idx->m_key_ids.fill(key_id, fill);
+    idx->m_key_ids.fill(key_id + 1, fill);
     idx->m_key_ids[key_id] = i;
     col->m_keyInfoPos = key_id;
 
