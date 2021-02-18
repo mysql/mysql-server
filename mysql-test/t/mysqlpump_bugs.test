@@ -124,7 +124,7 @@ CREATE TABLE B32340208.test (
 ) ENGINE=InnoDB DEFAULT CHARSET=euckr;
 
 --echo # Success criteria: should not crash
---error ER_WRONG_VALUE
+--error ER_WRONG_VALUE, 245
 --exec $MYSQL_PUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug32340208.dump 2>&1
 
 #cleanup
