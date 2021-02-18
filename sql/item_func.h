@@ -82,6 +82,9 @@ extern bool reject_geometry_args(uint arg_count, Item **args,
 void unsupported_json_comparison(size_t arg_count, Item **args,
                                  const char *msg);
 
+void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
+                             size_t from_length, const CHARSET_INFO *from_cs);
+
 class Item_func : public Item_result_field {
  protected:
   /**
@@ -462,7 +465,8 @@ class Item_func : public Item_result_field {
 
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems, uint flags,
                         int item_sep) {
-    return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
+    return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep,
+                             false);
   }
   /*
     Aggregate arguments for string result, e.g: CONCAT(a,b)

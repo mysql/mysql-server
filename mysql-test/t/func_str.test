@@ -2169,3 +2169,44 @@ CREATE TABLE t(x LONGTEXT);
 SELECT UNHEX(x) FROM t;
 --disable_metadata
 DROP TABLE t;
+
+--echo Bug#32501472: Concatenation may create invalid UTF8 strings
+
+CREATE TABLE t1(a CHAR(1) CHARACTER SET utf8mb4);
+INSERT INTO t1 VALUES('a');
+--error ER_CANNOT_CONVERT_STRING
+SELECT CONCAT(a, x'ff') FROM t1;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT CONCAT_WS(',', a, x'ff') FROM t1;
+--error ER_CANNOT_CONVERT_STRING
+SELECT CONCAT_WS(x'ff', a, a) FROM t1;
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT INSERT(a, 1, 1, x'ff') FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(a VARCHAR(3), b VARCHAR(3));
+INSERT INTO t1 VALUES('on','off');
+--error ER_CANNOT_CONVERT_STRING
+SELECT EXPORT_SET(7, a, b, x'ff', 4) FROM t1;
+--error ER_CANNOT_CONVERT_STRING
+SELECT EXPORT_SET(7, a, x'ff', b, 4) FROM t1;
+--error ER_CANNOT_CONVERT_STRING
+SELECT MAKE_SET(7, a, b, x'ff') FROM t1;
+DROP TABLE t1;
+
+--echo Bug#30746908: Assertion `(tlen % 4) == 0' in my_strnncollsp_utf32
+
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1),(2);
+SELECT (SELECT 1
+        FROM t
+        WHERE CONVERT(1 USING utf32) <> GROUP_CONCAT(1)
+       );
+--error ER_CANNOT_CONVERT_STRING
+SELECT (SELECT 1
+        FROM t
+        WHERE CONVERT(1 USING gb18030) <> GROUP_CONCAT(x'a3')
+        );
+DROP TABLE t;

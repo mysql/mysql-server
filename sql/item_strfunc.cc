@@ -117,65 +117,13 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/val_int_compare.h"  // Integer_value
+#include "sql_string.h"           // needs_conversion
 #include "template_utils.h"
 #include "typelib.h"
 #include "unhex.h"
 
 using std::max;
 using std::min;
-
-static void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
-                                    size_t from_length,
-                                    const CHARSET_INFO *from_cs) {
-  char printable_buff[32];
-  convert_to_printable(printable_buff, sizeof(printable_buff), from,
-                       from_length, from_cs, 6);
-  const char *from_name = replace_utf8_utf8mb3(from_cs->csname);
-  const char *to_name = replace_utf8_utf8mb3(to_cs->csname);
-  my_error(ER_CANNOT_CONVERT_STRING, MYF(0), printable_buff, from_name,
-           to_name);
-}
-
-/**
-  Convert and/or validate input_string according to charset 'to_cs'.
-
-  If input_string needs conversion to 'to_cs' then do the conversion,
-  and verify the result.
-  Otherwise, if input_string has charset my_charset_bin, then verify
-  that it contains a valid string according to 'to_cs'.
-
-  Will call my_error() in case conversion/validation fails.
-
-  @param input_string        string to be converted/validated.
-  @param to_cs               result character set
-  @param output_string [out] output result variable
-
-  @return nullptr in case of error, otherwise pointer to result.
- */
-static String *convert_or_validate_string(String *input_string,
-                                          const CHARSET_INFO *to_cs,
-                                          String *output_string) {
-  String *retval = input_string;
-  if (input_string->needs_conversion(to_cs)) {
-    uint errors = 0;
-    output_string->copy(input_string->ptr(), input_string->length(),
-                        input_string->charset(), to_cs, &errors);
-    if (errors) {
-      report_conversion_error(to_cs, input_string->ptr(),
-                              input_string->length(), input_string->charset());
-      return nullptr;
-    }
-    retval = output_string;
-  } else if (to_cs != &my_charset_bin &&
-             input_string->charset() == &my_charset_bin) {
-    if (!input_string->is_valid_string(to_cs)) {
-      report_conversion_error(to_cs, input_string->ptr(),
-                              input_string->length(), input_string->charset());
-      return nullptr;
-    }
-  }
-  return retval;
-}
 
 /*
   For the Items which have only val_str_ascii() method
@@ -215,6 +163,56 @@ bool Item_str_func::fix_fields(THD *thd, Item **ref) {
     flag on the same condition as in test() below.
   */
   set_nullable(is_nullable() || thd->is_strict_mode());
+  return res;
+}
+
+/**
+  Evaluate an argument string and return it in character set of the parent.
+  Perform character set conversion if needed.
+  Perform character set validation (from a binary string) if needed.
+
+  @param arg    Argument to evaluate as a string value
+  @param buffer String buffer where argument is evaluated, if necessary
+
+  @returns string pointer if success, NULL if error or NULL value
+*/
+String *Item_str_func::eval_string_arg(Item *arg, String *buffer) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr);
+
+  size_t offset;
+  const bool convert = String::needs_conversion(0, arg->collation.collation,
+                                                collation.collation, &offset);
+  String *res = arg->val_str(convert ? &local_string : buffer);
+
+  // Return immediately if argument is a NULL value, or there was an error
+  if (res == nullptr) {
+    return nullptr;
+  }
+  if (convert) {
+    /*
+      String must be converted from source character set. It has been built
+      in the "local_string" buffer and will be copied with conversion into the
+      caller provided buffer.
+    */
+    uint errors = 0;
+    buffer->length(0);
+    buffer->copy(res->ptr(), res->length(), res->charset(), collation.collation,
+                 &errors);
+    if (errors) {
+      report_conversion_error(collation.collation, res->ptr(), res->length(),
+                              res->charset());
+      return nullptr;
+    }
+    return buffer;
+  }
+  // If source is a binary string, the string may have to be validated:
+  if (collation.collation != &my_charset_bin &&
+      arg->collation.collation == &my_charset_bin &&
+      !res->is_valid_string(collation.collation)) {
+    report_conversion_error(collation.collation, res->ptr(), res->length(),
+                            res->charset());
+    return nullptr;
+  }
   return res;
 }
 
@@ -1003,19 +1001,16 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
 */
 
 String *Item_func_concat::val_str(String *str) {
-  assert(fixed == 1);
-  String *res;
+  assert(fixed);
 
   THD *thd = current_thd;
   null_value = false;
   tmp_value.length(0);
   for (uint i = 0; i < arg_count; ++i) {
-    if (!(res = args[i]->val_str(str))) {
-      if (thd->is_error()) return error_str();
-
-      assert(is_nullable());
-      null_value = true;
-      return nullptr;
+    String *res = eval_string_arg(args[i], str);
+    if (res == nullptr) {  // NULL value or error
+      assert(thd->is_error() || (args[i]->null_value && is_nullable()));
+      return error_str();
     }
     if (res->length() + tmp_value.length() >
         thd->variables.max_allowed_packet) {
@@ -1023,9 +1018,8 @@ String *Item_func_concat::val_str(String *str) {
     }
     if (tmp_value.append(*res)) return error_str();
   }
-  res = &tmp_value;
-  res->set_charset(collation.collation);
-  return res;
+  tmp_value.set_charset(collation.collation);
+  return &tmp_value;
 }
 
 bool Item_func_concat::resolve_type(THD *thd) {
@@ -1050,41 +1044,36 @@ bool Item_func_concat::resolve_type(THD *thd) {
 */
 
 String *Item_func_concat_ws::val_str(String *str) {
-  assert(fixed == 1);
-  char tmp_str_buff[10];
-  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff), default_charset_info);
-  String *sep_str, *res = nullptr, *res2;
-  uint i;
+  assert(fixed);
+
+  char sep_buff[10];
+  String tmp_sep_str(sep_buff, sizeof(sep_buff), default_charset_info);
 
   THD *thd = current_thd;
   null_value = false;
-  if (!(sep_str = args[0]->val_str(&tmp_sep_str))) return error_str();
-  tmp_value.length(0);
 
-  // Skip until non-null argument is found.
-  // If not, return the empty string
-  for (i = 1; i < arg_count; i++)
-    if ((res = args[i]->val_str(str))) {
-      break;
+  String *sep_str = eval_string_arg(args[0], &tmp_sep_str);
+  if (sep_str == nullptr) return error_str();
+
+  tmp_value.set("", 0, collation.collation);
+
+  uint non_null_args = 0;
+  for (uint i = 1; i < arg_count; i++) {
+    String *res = eval_string_arg(args[i], str);
+    if (res == nullptr) {
+      if (thd->is_error()) return error_str();
+      continue;  // Skip NULL
     }
-
-  if (i == arg_count) return make_empty_result();
-
-  if (tmp_value.append(*res)) return error_str();
-
-  for (i++; i < arg_count; i++) {
-    if (!(res2 = args[i]->val_str(str))) continue;  // Skip NULL
-
-    if (tmp_value.length() + sep_str->length() + res2->length() >
+    if (tmp_value.length() + sep_str->length() + res->length() >
         thd->variables.max_allowed_packet) {
       return push_packet_overflow_warning(thd, func_name());
     }
-    if (tmp_value.append(*sep_str)) return error_str();
-    if (tmp_value.append(*res2)) return error_str();
+    if (non_null_args++ > 0) {
+      if (tmp_value.append(*sep_str)) return error_str();
+    }
+    if (tmp_value.append(*res)) return error_str();
   }
-  res = &tmp_value;
-  res->set_charset(collation.collation);
-  return res;
+  return &tmp_value;
 }
 
 bool Item_func_concat_ws::resolve_type(THD *thd) {
@@ -1154,17 +1143,12 @@ bool Item_func_reverse::resolve_type(THD *thd) {
 */
 
 String *Item_func_replace::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
 
   String *res1 = args[0]->val_str(str);
   if ((null_value = args[0]->null_value)) return nullptr;
-  String *res2 = args[1]->val_str(&tmp_value);
-  if ((null_value = args[1]->null_value)) return nullptr;
-  String *res3 = args[2]->val_str(&tmp_value2);
-  if ((null_value = args[2]->null_value)) return nullptr;
 
   res1->set_charset(collation.collation);
-  if (res1->length() == 0 || res2->length() == 0) return res1;
 
   tmp_value_res.length(0);
   tmp_value_res.set_charset(collation.collation);
@@ -1173,11 +1157,13 @@ String *Item_func_replace::val_str(String *str) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> res3_converted(nullptr);
 
-  res2 = convert_or_validate_string(res2, collation.collation, &res2_converted);
+  String *res2 = eval_string_arg(args[1], &res2_converted);
   if (res2 == nullptr) return error_str();
 
-  res3 = convert_or_validate_string(res3, collation.collation, &res3_converted);
+  String *res3 = eval_string_arg(args[2], &res3_converted);
   if (res3 == nullptr) return error_str();
+
+  if (res1->length() == 0 || res2->length() == 0) return res1;
 
   THD *thd = current_thd;
   const unsigned long max_size = thd->variables.max_allowed_packet;
@@ -1232,22 +1218,23 @@ bool Item_func_replace::resolve_type(THD *thd) {
 }
 
 String *Item_func_insert::val_str(String *str) {
-  assert(fixed == 1);
-  String *res, *res2;
-  longlong start, length, orig_len; /* must be longlong to avoid truncation */
+  assert(fixed);
 
-  null_value = false;
-  res = args[0]->val_str(str);
-  res2 = args[3]->val_str(&tmp_value);
-  start = args[1]->val_int();
-  length = args[2]->val_int();
+  String *res = eval_string_arg(args[0], str);
+  if (res == nullptr) return error_str();
 
-  if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
-      args[3]->null_value) {
+  String *res2 = eval_string_arg(args[3], &tmp_value);
+  if (res2 == nullptr) return error_str();
+
+  longlong start = args[1]->val_int();
+  longlong length = args[2]->val_int();
+
+  if (args[1]->null_value || args[2]->null_value) {
     assert(is_nullable());
     return error_str(); /* purecov: inspected */
   }
-  orig_len = static_cast<longlong>(res->length());
+
+  longlong orig_len = static_cast<longlong>(res->length());
 
   if ((start < 1) || (start > orig_len))
     return res;  // Wrong param; skip insert
@@ -1544,31 +1531,28 @@ bool Item_func_substr_index::resolve_type(THD *thd) {
 }
 
 String *Item_func_substr_index::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), system_charset_info);
   String *res = args[0]->val_str(str);
-  String *delimiter = args[1]->val_str(&tmp);
   const longlong count = args[2]->val_int();
   int offset;
 
-  if (args[0]->null_value || args[1]->null_value ||
-      args[2]->null_value) {  // string and/or delim are null
+  if (args[0]->null_value || args[2]->null_value) {
     null_value = true;
     return nullptr;
   }
   null_value = false;
-  size_t delimiter_length = delimiter->length();
-  if (!res->length() || !delimiter_length || !count)
-    return make_empty_result();  // Wrong parameters
 
   res->set_charset(collation.collation);
 
   StringBuffer<STRING_BUFFER_USUAL_SIZE> delimiter_converted(nullptr);
-  delimiter = convert_or_validate_string(delimiter, collation.collation,
-                                         &delimiter_converted);
+  String *delimiter = eval_string_arg(args[1], &delimiter_converted);
   if (delimiter == nullptr) return error_str();
-  delimiter_length = delimiter->length();
+  size_t delimiter_length = delimiter->length();
+
+  if (res->length() == 0 || delimiter_length == 0 || count == 0)
+    return make_empty_result();  // Wrong parameters
 
   Integer_value count_val(count, args[2]->unsigned_flag);
 
@@ -1675,10 +1659,7 @@ String *Item_func_trim::val_str(String *str) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> remove_converted(nullptr);
 
   if (arg_count == 2) {
-    remove_str = args[1]->val_str(&tmp);
-    if ((null_value = args[1]->null_value)) return nullptr;
-    remove_str = convert_or_validate_string(remove_str, collation.collation,
-                                            &remove_converted);
+    remove_str = eval_string_arg(args[1], &remove_converted);
     if (remove_str == nullptr) return error_str();
   }
 
@@ -2283,16 +2264,22 @@ longlong Item_func_elt::val_int() {
 }
 
 String *Item_func_elt::val_str(String *str) {
-  assert(fixed == 1);
-  uint tmp;
+  assert(fixed);
   null_value = true;
-  if ((tmp = (uint)args[0]->val_int()) == 0 || args[0]->null_value ||
-      tmp >= arg_count)
-    return nullptr;
+  longlong eltno = args[0]->val_int();
+  if (current_thd->is_error() || args[0]->null_value) {
+    return error_str();
+  }
+  if (eltno <= 0 || eltno >= arg_count) {
+    return error_str();
+  }
+  String *result = eval_string_arg(args[eltno], str);
+  if (result == nullptr) {
+    return error_str();
+  }
 
-  String *result = args[tmp]->val_str(str);
-  if (result) result->set_charset(collation.collation);
-  null_value = args[tmp]->null_value;
+  result->set_charset(collation.collation);
+  null_value = false;
   return result;
 }
 
@@ -2339,11 +2326,12 @@ void Item_func_make_set::update_used_tables() {
 }
 
 String *Item_func_make_set::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   ulonglong bits;
   bool first_found = false;
   Item **ptr = args;
   String *result = nullptr;
+  THD *thd = current_thd;
 
   bits = item->val_int();
   if ((null_value = item->null_value)) return nullptr;
@@ -2351,32 +2339,38 @@ String *Item_func_make_set::val_str(String *str) {
   if (arg_count < 64) bits &= ((ulonglong)1 << arg_count) - 1;
 
   for (; bits; bits >>= 1, ptr++) {
-    if (bits & 1) {
-      String *res = (*ptr)->val_str(str);
-      if (res)  // Skip nulls
-      {
-        if (!first_found) {  // First argument
-          first_found = true;
-          if (res != str)
-            result = res;  // Use original string
-          else {
-            if (tmp_str.copy(*res))  // Don't use 'str'
-              return make_empty_result();
-            result = &tmp_str;
-          }
-        } else {
-          if (result != &tmp_str) {  // Copy data to tmp_str
-            if (tmp_str.alloc((result != nullptr ? result->length() : 0) +
-                              res->length() + 1) ||
-                tmp_str.copy(*result))
-              return make_empty_result();
-            result = &tmp_str;
-          }
-          if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) ||
-              tmp_str.append(*res))
-            return make_empty_result();
-        }
+    if ((bits & 1) == 0) {
+      continue;
+    }
+    String *res = eval_string_arg(*ptr, str);
+    if (res == nullptr) {
+      if (thd->is_error()) {
+        null_value = true;
+        return nullptr;
       }
+      continue;  // Skip nulls
+    }
+
+    if (!first_found) {  // First argument
+      first_found = true;
+      if (res != str)
+        result = res;  // Use original string
+      else {
+        if (tmp_str.copy(*res))  // Don't use 'str'
+          return make_empty_result();
+        result = &tmp_str;
+      }
+    } else {
+      if (result != &tmp_str) {  // Copy data to tmp_str
+        if (tmp_str.alloc((result != nullptr ? result->length() : 0) +
+                          res->length() + 1) ||
+            tmp_str.copy(*result))
+          return make_empty_result();
+        result = &tmp_str;
+      }
+      if (tmp_str.append(STRING_WITH_LEN(","), &my_charset_bin) ||
+          tmp_str.append(*res))
+        return make_empty_result();
     }
   }
   if (result == nullptr) return make_empty_result();
@@ -3627,20 +3621,23 @@ String *Item_load_file::val_str(String *str) {
 }
 
 String *Item_func_export_set::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
   String yes_buf, no_buf, sep_buf;
-  const ulonglong the_set = (ulonglong)args[0]->val_int();
-  const String *yes = args[1]->val_str(&yes_buf);
-  const String *no = args[2]->val_str(&no_buf);
+  const ulonglong the_set = static_cast<ulonglong>(args[0]->val_int());
+  if (current_thd->is_error() || args[0]->null_value) {
+    return error_str();
+  }
+
+  const String *yes = eval_string_arg(args[1], &yes_buf);
+  if (yes == nullptr) return error_str();
+  const String *no = eval_string_arg(args[2], &no_buf);
+  if (no == nullptr) return error_str();
+
   const String *sep = nullptr;
 
   ulonglong num_set_values = 64;
   str->length(0);
   str->set_charset(collation.collation);
-
-  /* Check if some argument is a NULL value */
-  if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
-    return error_str();
 
   /*
     Arg count can only be 3, 4 or 5 here. This is guaranteed from the
@@ -3650,19 +3647,18 @@ String *Item_func_export_set::val_str(String *str) {
     case 5:
       num_set_values = static_cast<ulonglong>(args[4]->val_int());
       if (num_set_values > 64) num_set_values = 64;
-      if (args[4]->null_value) return error_str();
+      if (current_thd->is_error() || args[4]->null_value) return error_str();
 
       /* Fall through */
     case 4:
-      if (!(sep = args[3]->val_str(&sep_buf)))  // Only true if NULL
-        return error_str();
-
+      sep = eval_string_arg(args[3], &sep_buf);
+      if (sep == nullptr) return error_str();
       break;
     case 3: {
-      /* errors is not checked - assume "," can always be converted */
       uint errors;
       sep_buf.copy(STRING_WITH_LEN(","), &my_charset_bin, collation.collation,
                    &errors);
+      assert(errors == 0);
       sep = &sep_buf;
     } break;
     default:
@@ -3684,10 +3680,7 @@ String *Item_func_export_set::val_str(String *str) {
   uint ix;
   ulonglong mask;
   for (ix = 0, mask = 0x1; ix < num_set_values; ++ix, mask = (mask << 1)) {
-    if (the_set & mask)
-      str->append(*yes);
-    else
-      str->append(*no);
+    str->append(the_set & mask ? *yes : *no);
     if (ix != num_separators) str->append(*sep);
   }
 

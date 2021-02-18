@@ -163,7 +163,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t3` join `test`.`t2` where (<cache>(`test`.`t2`.`c2`) = 1))) and <in_optimizer>(`test`.`t2`.`c1`,<exists>(/* select#3 */ select cast(`test`.`t2`.`c6` as char(1) charset utf8mb4) from `test`.`t2` where (convert(<cache>(`test`.`t2`.`c1`) using utf8mb4) = cast(`test`.`t2`.`c6` as char(1) charset utf8mb4)))))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`c2`,<exists>(/* select#2 */ select 1 from `test`.`t3` join `test`.`t2` where (<cache>(`test`.`t2`.`c2`) = 1))) and <in_optimizer>(`test`.`t2`.`c1`,<exists>(/* select#3 */ select cast(`test`.`t2`.`c6` as char(1) charset utf8mb4) from `test`.`t2` where (<cache>(`test`.`t2`.`c1`) = cast(`test`.`t2`.`c6` as char(1) charset utf8mb4)))))
 drop table t2, t3;
 # 
 # BUG#57431: subquery returns wrong result (semijoin=on) with pred AND

@@ -1458,18 +1458,6 @@ static size_t field_well_formed_copy_nchars(
   size_t res = well_formed_copy_nchars(
       to_cs, to, to_length, from_cs, from, from_length, nchars,
       well_formed_error_pos, cannot_convert_error_pos, from_end_pos);
-  /*
-   If the code point is out of ascii range, we only give user a warning
-   in 5.7. Need to change to give a ERROR in future version.
-  */
-  if ((to_cs->state & MY_CS_PUREASCII) && *well_formed_error_pos != nullptr) {
-    char tmp[32];
-    *well_formed_error_pos = nullptr;
-    convert_to_printable(tmp, sizeof(tmp), from, from_length, from_cs, 6);
-    push_warning_printf(
-        current_thd, Sql_condition::SL_WARNING, ER_INVALID_CHARACTER_STRING,
-        ER_THD(current_thd, ER_INVALID_CHARACTER_STRING), "ascii", tmp);
-  }
   return res;
 }
 

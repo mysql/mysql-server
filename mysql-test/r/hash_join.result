@@ -2848,9 +2848,9 @@ SET join_buffer_size = 128;
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 EXPLAIN
 -> Limit: 1000 row(s)  (cost=1907.45 rows=1000)
-    -> Filter: (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1907.45 rows=16384)
-        -> Inner hash join (<hash>(t1.col1)=<hash>(convert(t2.col1 using utf8mb4)))  (cost=1907.45 rows=16384)
-            -> Table scan on t2  (cost=2.10 rows=128)
+    -> Filter: (t1.col1 = t2.col1)  (cost=1907.45 rows=1638)
+        -> Inner hash join (<hash>(t1.col1)=<hash>(t2.col1))  (cost=1907.45 rows=1638)
+            -> Table scan on t2  (cost=2.01 rows=128)
             -> Hash
                 -> Table scan on t1  (cost=13.05 rows=128)
 
@@ -3363,7 +3363,7 @@ SET join_buffer_size = 128;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1 LIMIT 1000;
 EXPLAIN
 -> Limit: 1000 row(s)  (cost=1896.50 rows=1000)
-    -> Left hash join (<hash>(t1.col1)=<hash>(convert(t2.col1 using utf8mb4))), extra conditions: (t1.col1 = convert(t2.col1 using utf8mb4))  (cost=1896.50 rows=16384)
+    -> Left hash join (<hash>(t1.col1)=<hash>(t2.col1)), extra conditions: (t1.col1 = t2.col1)  (cost=1896.50 rows=16384)
         -> Table scan on t1  (cost=13.05 rows=128)
         -> Hash
             -> Table scan on t2  (cost=2.10 rows=128)
