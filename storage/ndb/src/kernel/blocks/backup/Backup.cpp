@@ -15505,10 +15505,19 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     /**
      * Slow down things a bit for empty LCPs to avoid that we use too much
      * CPU for idle LCP processing. This tends to get a bit bursty and can
-     * affect traffic performance for short times.
+     * affect traffic performance for short times. We allow longer delays
+     * if no urgency in keeping up with the REDO log.
      */
+    Uint32 delay;
+    if (likely(m_redo_alert_state == RedoStateRep::NO_REDO_ALERT))
+      delay = 20;
+    else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_LOW)
+      delay = 5;
+    else
+      delay = 1;
+
     sendSignalWithDelay(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	                1, BackupFragmentConf::SignalLength);
+	                delay, BackupFragmentConf::SignalLength);
   }
   else
   {
