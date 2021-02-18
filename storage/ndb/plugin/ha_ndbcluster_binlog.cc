@@ -896,7 +896,7 @@ class Ndb_binlog_setup {
     }
 
     // Check if this is a initial restart/start
-    bool initial_system_restart;
+    bool initial_system_restart = false;
     if (!detect_initial_restart(thd_ndb, &initial_system_restart)) {
       // Failed to detect if this was a initial restart
       return false;
