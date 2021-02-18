@@ -1,0 +1,53 @@
+--source include/have_debug.inc
+--source include/have_multi_ndb.inc
+
+
+#
+#  Bug#31680765 FAILURE TO ADD NDB_STORED_USER
+#
+# Set ndb_binlog_setup_slow, then drop ndb_apply_status. The binlog thread
+# will sleep for 10 seconds before setting up. Meanwhile, grant NDB_STORED_USER
+# to a user. The test case hinges on whether the final SHOW GRANTS FOR USER
+# succeeds or returns an error.
+#
+
+disable_query_log;
+disable_result_log;
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+
+set @save_debug= @@global.debug;
+set global debug =  "+d,ndb_binlog_setup_slow";
+
+CREATE USER mcm0765@localhost;
+exec $NDB_DROP_TABLE -d mysql ndb_apply_status >> $NDB_TOOLS_OUTPUT;
+let $condition= = 'Waiting for ndbcluster to start';
+source include/wait_show_condition.inc;
+  
+GRANT NDB_STORED_USER ON *.* TO mcm0765@localhost;
+let $condition= = 'Waiting for event from ndbcluster';
+source include/wait_show_condition.inc;
+
+# When pushing the fix for Bug#31680765, remove the --error lines below
+# and remove the warning suppressions
+
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+call mtr.add_suppression("NDB: stored grants: initialization has failed.");
+call mtr.add_suppression(" NDB: Not distributing ACL change after error.");
+--connection server2
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+
+--connection default
+--error 1141
+SHOW GRANTS FOR mcm0765@localhost;
+
+# Enable output from DROP USER, to avoid "test did not produce any ouput"
+enable_result_log;
+enable_query_log;
+
+# Cleanup
+--error 1396
+DROP USER mcm0765@localhost;
+
+set global debug= @save_debug;
+remove_file $NDB_TOOLS_OUTPUT;
