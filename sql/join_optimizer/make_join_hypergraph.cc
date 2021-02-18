@@ -164,8 +164,10 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
       result += "* Full outer join";
       break;
   }
-  if (expr->equijoin_conditions.empty() && expr->join_conditions.empty()) {
-    result += " (no join conditions)";
+  if (!expr->equijoin_conditions.empty() && !expr->join_conditions.empty()) {
+    result += StringPrintf(" (equijoin condition = %s, extra = %s)",
+                           ItemsToString(expr->equijoin_conditions).c_str(),
+                           ItemsToString(expr->join_conditions).c_str());
   } else if (!expr->equijoin_conditions.empty()) {
     result += StringPrintf(" (equijoin condition = %s)",
                            ItemsToString(expr->equijoin_conditions).c_str());
@@ -173,9 +175,7 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
     result += StringPrintf(" (extra join condition = %s)",
                            ItemsToString(expr->join_conditions).c_str());
   } else {
-    result += StringPrintf(" (equijoin condition = %s, extra = %s)",
-                           ItemsToString(expr->equijoin_conditions).c_str(),
-                           ItemsToString(expr->join_conditions).c_str());
+    result += " (no join conditions)";
   }
   result += '\n';
 
