@@ -4,6 +4,7 @@
 # This script runs with a primary key.
 # For each 'mtr combination', it uses one of the slave_rows_search_algorithms.
 
+--source include/big_test.inc
 --source include/not_parallel.inc
 
 --let $replace_combination_from= BOTH.BINLOG_FORMAT=ROW,MIXED,STATEMENT
