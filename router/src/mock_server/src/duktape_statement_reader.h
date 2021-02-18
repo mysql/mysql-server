@@ -40,7 +40,7 @@ class DuktapeStatementReader : public StatementReaderBase {
   enum class HandshakeState { INIT, GREETED, AUTH_SWITCHED, DONE };
 
   DuktapeStatementReader(const std::string &filename,
-                         const std::string &module_prefix,
+                         const std::vector<std::string> &module_prefixes,
                          std::map<std::string, std::string> session_data,
                          std::shared_ptr<MockServerGlobalScope> shared_globals);
 

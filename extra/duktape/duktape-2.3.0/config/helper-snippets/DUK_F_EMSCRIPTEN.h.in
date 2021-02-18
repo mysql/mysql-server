@@ -1,4 +1,0 @@
-/* Emscripten (provided explicitly by user), improve if possible */
-#if defined(EMSCRIPTEN)
-#define DUK_F_EMSCRIPTEN
-#endif

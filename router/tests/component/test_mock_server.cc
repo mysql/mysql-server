@@ -527,6 +527,41 @@ TEST_P(MockServerConnectTest, check) {
 }
 
 const MockServerConnectTestParam mock_server_connect_test_param[] = {
+    {"mysql_native_password_with_password",
+     // certificate is required, but no cert is presented
+     {
+         "--filename", "@datadir@/mock_server_require_password.js",  //
+         "--module-prefix", "@datadir@",                             //
+         "--port", "@port@",                                         //
+         "--verbose",                                                //
+     },
+     [](const std::map<std::string, std::string> &config) {
+       auto host = config.at("hostname");
+       auto port = atol(config.at("port").c_str());
+       const char username[] = "someuser";
+       const char password[] = "somepass";
+
+       mysqlrouter::MySQLSession sess;
+
+       const auto opt_res =
+           sess.set_option(mysqlrouter::MySQLSession::DefaultAuthentication(
+               "mysql_native_password"));
+       // set_option() only fails for bad-options, but not bad values.
+       //
+       // if auth-method-name is invalid, the connect will fail.
+       ASSERT_TRUE(opt_res) << opt_res.error().message();
+
+       try {
+         sess.connect(host, port,
+                      username,  // user
+                      password,  // pass
+                      "",        // socket
+                      ""         // schema
+         );
+       } catch (const std::exception &e) {
+         FAIL() << e.what();
+       }
+     }},
     {"client_cert_verify_cert_no_cert",
      // certificate is required, but no cert is presented
      {

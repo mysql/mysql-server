@@ -1,3 +1,0 @@
-#define DUK_USE_ARCH_STRING "sparc32"
-/* SPARC byte order varies so rely on autodetection. */
-#define DUK_USE_PACKED_TVAL

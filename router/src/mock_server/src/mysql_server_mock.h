@@ -54,7 +54,7 @@ class MySQLServerMock {
    *
    * @param expected_queries_file Path to the json file with definitins
    *                        of the expected SQL statements and responses
-   * @param module_prefix prefix of javascript modules used by the nodejs
+   * @param module_prefixes prefixes of javascript modules used by the nodejs
    * compatible module-loader
    * @param bind_address Address on which the server accepts client connections
    * @param bind_port Number of the port on which the server accepts clients
@@ -65,7 +65,8 @@ class MySQLServerMock {
    * @param tls_server_ctx TLS Server Context
    * @param ssl_mode SSL mode
    */
-  MySQLServerMock(std::string expected_queries_file, std::string module_prefix,
+  MySQLServerMock(std::string expected_queries_file,
+                  std::vector<std::string> module_prefixes,
                   std::string bind_address, unsigned bind_port,
                   std::string protocol, bool debug_mode,
                   TlsServerContext &&tls_server_ctx, mysql_ssl_mode ssl_mode);
@@ -89,7 +90,7 @@ class MySQLServerMock {
   net::io_context io_ctx_;
   net::ip::tcp::acceptor listener_{io_ctx_};
   std::string expected_queries_file_;
-  std::string module_prefix_;
+  std::vector<std::string> module_prefixes_;
   std::string protocol_name_;
 
   struct Shared {

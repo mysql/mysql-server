@@ -46,7 +46,7 @@ ELSE()
   LIST(APPEND math_libraries -lm)
 ENDIF()
 
-SET(DUKTAPE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/extra/duktape/duktape-2.3.0/)
+SET(DUKTAPE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/extra/duktape/duktape-2.6.0/)
 
 SET(DUKTAPE_SRCS
   ${DUKTAPE_SOURCE_DIR}/src/duktape.c
@@ -135,7 +135,7 @@ add_harness_plugin(mock_server
   classic_mock_session.cc
   x_mock_session.cc
   mysql_server_mock_schema.cc
-  duk_module_shim.c
+  duk_module_shim.cc
   duk_node_fs.c
   mock_server_plugin.cc
   mock_server_component.cc
@@ -201,4 +201,3 @@ TARGET_COMPILE_DEFINITIONS(mysql_server_mock
   PRIVATE -Dmysql_protocol_DEFINE_STATIC=1
   )
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(mysql_server_mock)
-

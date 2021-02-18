@@ -62,7 +62,7 @@ namespace server_mock {
 static constexpr const size_t kWorkerThreadCount{8};
 
 MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
-                                 std::string module_prefix,
+                                 std::vector<std::string> module_prefixes,
                                  std::string bind_address, unsigned bind_port,
                                  std::string protocol_name, bool debug_mode,
                                  TlsServerContext &&tls_server_ctx,
@@ -71,7 +71,7 @@ MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
       bind_port_{bind_port},
       debug_mode_{debug_mode},
       expected_queries_file_{std::move(expected_queries_file)},
-      module_prefix_{std::move(module_prefix)},
+      module_prefixes_{std::move(module_prefixes)},
       protocol_name_(std::move(protocol_name)),
       tls_server_ctx_{std::move(tls_server_ctx)},
       ssl_mode_{ssl_mode} {
@@ -141,21 +141,6 @@ void MySQLServerMock::setup_service() {
   listener_ = std::move(sock);
 }
 
-class StatementReaderFactory {
- public:
-  static StatementReaderBase *create(
-      const std::string &filename, std::string &module_prefix,
-      std::map<std::string, std::string> session_data,
-      std::shared_ptr<MockServerGlobalScope> shared_globals) {
-    if (filename.substr(filename.size() - 3) == ".js") {
-      return new DuktapeStatementReader(filename, module_prefix, session_data,
-                                        shared_globals);
-    } else {
-      throw std::runtime_error("can't create reader for " + filename);
-    }
-  }
-};
-
 // the MPMC queue creates a dummy Node<Work> which needs to be default
 // constructable.
 net::io_context dummy_io_ctx;
@@ -163,7 +148,7 @@ net::io_context dummy_io_ctx;
 struct Work {
   net::ip::tcp::socket client_socket{dummy_io_ctx};
   std::string expected_queries_file;
-  std::string module_prefix;
+  std::vector<std::string> module_prefixes;
   bool debug_mode;
 
   net::impl::socket::native_handle_type wakeup_fd;
@@ -242,17 +227,21 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
         protocol = classic_protocol.get();
       }
 
+      const auto &filename = work.expected_queries_file;
+      if (filename.substr(filename.size() - 3) != ".js") {
+        throw std::runtime_error("can't create reader for " + filename);
+      }
       try {
-        std::unique_ptr<StatementReaderBase> statement_reader{
-            StatementReaderFactory::create(
-                work.expected_queries_file, work.module_prefix,
+        std::unique_ptr<StatementReaderBase> statement_reader =
+            std::make_unique<DuktapeStatementReader>(
+                filename, work.module_prefixes,
                 // expose session data json-encoded string
-                {
+                std::map<std::string, std::string>{
                     {"port", std::to_string(bind_port_)},
                     {"ssl_cipher", "\"\""},
                     {"mysqlx_ssl_cipher", "\"\""},
                 },
-                MySQLServerSharedGlobals::get())};
+                MySQLServerSharedGlobals::get());
 
         std::unique_ptr<MySQLServerMockSession> session;
         const bool with_tls = ssl_mode_ != SSL_MODE_DISABLED;
@@ -339,7 +328,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
         auto client_socket = std::move(accept_res.value());
 
         work_queue.push(Work{std::move(client_socket), expected_queries_file_,
-                             module_prefix_, debug_mode_,
+                             module_prefixes_, debug_mode_,
                              sock2.native_handle()});
       }
     }
@@ -348,8 +337,8 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
   close_all_connections();
 
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
-    work_queue.push(Work{net::ip::tcp::socket(io_ctx_), "", "", false,
-                         sock2.native_handle()});
+    work_queue.push(Work{
+        net::ip::tcp::socket(io_ctx_), "", {}, false, sock2.native_handle()});
   }
   for (auto &thr : worker_threads) {
     thr.join();

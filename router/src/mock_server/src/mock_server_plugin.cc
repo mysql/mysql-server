@@ -36,6 +36,7 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/stdx/filesystem.h"
+#include "mysql/harness/string_utils.h"  // split_string
 #include "mysql/harness/tls_context.h"
 #include "mysql/harness/tls_server_context.h"
 #include "mysql_server_mock.h"
@@ -92,7 +93,7 @@ static mysql_ssl_mode get_option_ssl_mode(
 class PluginConfig : public mysqlrouter::BasePluginConfig {
  public:
   std::string trace_filename;
-  std::string module_prefix;
+  std::vector<std::string> module_prefixes;
   std::string srv_address;
   uint16_t srv_port;
   std::string srv_protocol;
@@ -106,10 +107,18 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   mysql_ssl_mode ssl_mode;
   std::string tls_version;
 
+  std::vector<std::string> get_option_strings(
+      const mysql_harness::ConfigSection *section,
+      const std::string &option_name) {
+    auto val = get_option_string(section, option_name);
+
+    return mysql_harness::split_string(val, ',');
+  }
+
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
       : mysqlrouter::BasePluginConfig(section),
         trace_filename(get_option_string(section, "filename")),
-        module_prefix(get_option_string(section, "module_prefix")),
+        module_prefixes(get_option_strings(section, "module_prefix")),
         srv_address(get_option_string(section, "bind_address")),
         srv_port(get_uint_option<uint16_t>(section, "port")),
         srv_protocol(get_option_string(section, "protocol")),
@@ -247,7 +256,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
 
         mock_servers.emplace(std::make_pair(
             key, std::make_shared<server_mock::MySQLServerMock>(
-                     config.trace_filename, config.module_prefix,
+                     config.trace_filename, config.module_prefixes,
                      config.srv_address, config.srv_port, config.srv_protocol,
                      0, std::move(tls_server_ctx), config.ssl_mode)));
 

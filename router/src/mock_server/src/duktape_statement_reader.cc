@@ -203,7 +203,7 @@ MySQLColumnType column_type_from_string(const std::string &type) {
  */
 class DukHeap {
  public:
-  DukHeap(const std::string &module_prefix,
+  DukHeap(const std::vector<std::string> &module_prefixes,
           std::shared_ptr<MockServerGlobalScope> shared_globals)
       : heap_{duk_create_heap(nullptr, nullptr, nullptr, nullptr,
                               [](void *, const char *msg) {
@@ -211,7 +211,7 @@ class DukHeap {
                                 abort();
                               })},
         shared_{std::move(shared_globals)} {
-    duk_module_shim_init(context(), module_prefix.c_str());
+    duk_module_shim_init(context(), module_prefixes);
   }
 
   void prepare(const std::string &filename,
@@ -393,7 +393,8 @@ class DukHeapPool {
   static DukHeapPool *instance() { return &instance_; }
 
   std::unique_ptr<DukHeap> get(
-      const std::string &filename, const std::string &module_prefix,
+      const std::string &filename,
+      const std::vector<std::string> &module_prefixes,
       std::map<std::string, std::string> session_data,
       std::shared_ptr<MockServerGlobalScope> shared_globals) {
     {
@@ -407,7 +408,7 @@ class DukHeapPool {
     }
 
     // there is no free context object, create new one
-    auto result = std::make_unique<DukHeap>(module_prefix, shared_globals);
+    auto result = std::make_unique<DukHeap>(module_prefixes, shared_globals);
     result->prepare(filename, session_data);
 
     return result;
@@ -789,11 +790,12 @@ static void check_handshake_section(duk_context *ctx) {
 }
 
 DuktapeStatementReader::DuktapeStatementReader(
-    const std::string &filename, const std::string &module_prefix,
+    const std::string &filename,
+    const std::vector<std::string> &module_prefixes,
     std::map<std::string, std::string> session_data,
     std::shared_ptr<MockServerGlobalScope> shared_globals)
     : pimpl_{std::make_unique<Pimpl>(DukHeapPool::instance()->get(
-          filename, module_prefix, session_data, shared_globals))} {
+          filename, module_prefixes, session_data, shared_globals))} {
   auto ctx = pimpl_->ctx;
   has_notices_ = check_notices_section(ctx);
 }
