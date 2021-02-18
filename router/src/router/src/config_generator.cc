@@ -58,6 +58,7 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/uri.h"
@@ -114,7 +115,6 @@ using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysql_harness::Path;
 using mysql_harness::truncate_string;
-using mysql_harness::UniquePtr;
 using namespace mysqlrouter;
 using namespace std::string_literals;
 
@@ -462,6 +462,26 @@ void ConfigGenerator::init(
   init_gr_data(u, bootstrap_socket);
 }
 
+static stdx::expected<std::ofstream, std::error_code> open_ofstream(
+    const std::string &file_name) {
+  std::ofstream of;
+
+  of.open(file_name);
+
+  if (of.fail()) {
+    return stdx::make_unexpected(
+        std::error_code{errno, std::generic_category()});
+  }
+
+#ifdef __SUNPRO_CC
+  // make sure sun-cc uses the move-constructor (and not the non-existant
+  // copy-constructor)
+  return {std::move(of)};
+#else
+  return of;
+#endif
+}
+
 void ConfigGenerator::bootstrap_system_deployment(
     const std::string &config_file_path, const std::string &state_file_path,
     const std::map<std::string, std::string> &user_options,
@@ -491,17 +511,19 @@ void ConfigGenerator::bootstrap_system_deployment(
   // (re-)bootstrap the instance
   std::vector<std::string> config_files_names{config_file_path,
                                               state_file_path};
-  std::vector<UniquePtr<Ofstream>> config_files;
-  for (size_t i = 0; i < config_files_names.size(); ++i) {
-    config_files.push_back(DIM::instance().new_Ofstream());
-    auto &config_file = config_files[i];
-    const auto &config_file_name = config_files_names[i];
-    config_file->open(config_file_name + ".tmp");
-    if (config_file->fail()) {
-      throw std::runtime_error("Could not open " + config_file_name +
-                               ".tmp for writing: " + get_strerror(errno));
+  std::vector<std::ofstream> config_files;
+  for (const auto &config_file_name : config_files_names) {
+    const std::string tmp_file_name = config_file_name + ".tmp";
+
+    auto open_res = open_ofstream(tmp_file_name);
+    if (!open_res) {
+      throw std::system_error(
+          open_res.error(),
+          "Could not open " + tmp_file_name + " for writing: ");
     }
-    auto_clean.add_file_delete(config_file_name + ".tmp");
+    auto_clean.add_file_delete(tmp_file_name);
+
+    config_files.push_back(std::move(open_res.value()));
   }
 
   // on bootstrap failure, DROP USER for all created accounts
@@ -509,12 +531,12 @@ void ConfigGenerator::bootstrap_system_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      *config_files[0], *config_files[1], config_file_path, state_file_path,
+      config_files[0], config_files[1], config_file_path, state_file_path,
       router_name, options, multivalue_options, default_paths, false,
       auto_clean);
 
   for (size_t i = 0; i < config_files.size(); ++i) {
-    config_files[i]->close();
+    config_files[i].close();
     const std::string path = config_files_names[i];
     const bool is_static_conf = (i == 0);
     const std::string file_desc =
@@ -530,7 +552,7 @@ void ConfigGenerator::bootstrap_system_deployment(
     }
 
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((path + ".tmp").c_str(), path.c_str()) != 0) {
+    if (mysqlrouter::rename_file((path + ".tmp"), path) != 0) {
       // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
       //  config_file_path.c_str(), get_strerror(errno));
       throw std::runtime_error("Could not save " + file_desc +
@@ -686,18 +708,25 @@ void ConfigGenerator::bootstrap_directory_deployment(
   // (re-)bootstrap the instance
   std::vector<std::string> config_files_names{
       config_file_path.str(), path.join("data").join("state.json").str()};
-  std::vector<UniquePtr<Ofstream>> config_files;
-  for (size_t i = 0; i < config_files_names.size(); ++i) {
-    config_files.emplace_back(DIM::instance().new_Ofstream());
-    config_files[i]->open(config_files_names[i] + ".tmp");
-    if (config_files[i]->fail()) {
+  std::vector<std::ofstream> config_files;
+  for (const auto &config_file_name : config_files_names) {
+    const std::string tmp_file_name = config_file_name + ".tmp";
+
+    auto open_res = open_ofstream(tmp_file_name);
+    if (!open_res) {
+      const auto ec = open_res.error();
 #ifndef _WIN32
-      if (errno == EACCES || errno == EPERM) log_error(kAppArmorMsg);
+      // on Linux give the hint about AppArmor
+      if (ec == make_error_condition(std::errc::permission_denied)) {
+        log_error(kAppArmorMsg);
+      }
 #endif
-      throw std::runtime_error("Could not open " + config_files_names[i] +
-                               ".tmp for writing: " + get_strerror(errno));
+      throw std::system_error(
+          ec, "Could not open " + tmp_file_name + " for writing");
     }
-    auto_clean.add_file_delete(config_files_names[i] + ".tmp");
+    auto_clean.add_file_delete(tmp_file_name);
+
+    config_files.push_back(std::move(open_res.value()));
   }
 
   set_keyring_info_real_paths(options, path);
@@ -707,7 +736,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      *config_files[0], *config_files[1], config_files_names[0],
+      config_files[0], config_files[1], config_files_names[0],
       config_files_names[1], router_name, options, multivalue_options,
       default_paths, true,
       auto_clean);  // throws std::runtime_error, ?
@@ -716,7 +745,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
     auto &config_file = config_files[i];
     const auto &config_file_name = config_files_names[i];
     const bool is_static_conf = (i == 0);
-    config_file->close();
+    config_file.close();
     if (backup_config_file_if_different(config_file_name,
                                         config_file_name + ".tmp", options)) {
       if (!quiet)
