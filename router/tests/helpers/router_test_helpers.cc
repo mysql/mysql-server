@@ -348,7 +348,7 @@ bool is_port_available(const uint16_t port) {
 
   TempDirectory temp_dir;
   std::string filename = Path(temp_dir.name()).join("netstat_output.txt").str();
-  const std::string &cmd{netstat_cmd + " > " + filename};
+  const std::string cmd{netstat_cmd + " > " + filename};
   if (std::system(cmd.c_str()) != 0) {
     // netstat command failed, do the check by trying to bind to the port
     // instead

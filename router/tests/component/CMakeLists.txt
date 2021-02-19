@@ -75,6 +75,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_client
   http_common
   mock_server_rest_client
+  mysql_protocol
 
   DEPENDS
   http_auth_backend
