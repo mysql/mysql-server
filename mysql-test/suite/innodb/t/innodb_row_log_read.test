@@ -2,6 +2,9 @@
 --echo # Bug #31529221	ALTER TABLE FAILS AND REPORTS INCORRECT KEY FILE FOR TABLE T1
 --echo #
 --source include/have_innodb_16k.inc
+--source include/not_embedded.inc
+--source include/big_test.inc
+
 SET @old_innodb_online_alter_log_max_size := @@innodb_online_alter_log_max_size;
 SET @old_max_allowed_packet := @@max_allowed_packet;
 set global innodb_online_alter_log_max_size=1342177280000;
@@ -11,11 +14,6 @@ create table t1(d1 longblob);
 
 --connect (con1,localhost,root,,test,,)
 insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
-insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
-insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
-insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
-insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
-
 --send alter table t1 ADD COLUMN `d2` char(128) not null default '0' after d1;
 
 --connect (con2,localhost,root,,test,,)
