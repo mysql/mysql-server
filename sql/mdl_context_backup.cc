@@ -63,6 +63,7 @@ class MDL_context_backup_manager::MDL_context_backup
   }
 
   int is_killed() const override { return false; }
+  bool might_have_non_mdl_waiters() const final { return false; }
 
   /**
     @warning Since there is no THD associated with This method returns nullptr

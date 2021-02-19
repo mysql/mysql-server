@@ -649,7 +649,15 @@ class MDL_lock {
       MDL_key::enum_mdl_namespace mdl_namespace);
 
   bool is_affected_by_max_write_lock_count() const {
-    return m_strategy->m_is_affected_by_max_write_lock_count;
+    /*
+      Disable max_write_lock_count handling for ACL_CACHE namespace to
+      enable optimization that avoids find_deadlock() for it.
+
+      @note In theory we can make ACL_CACHE to use scoped lock strategy
+            instead, but such a change is likely to be more intrusive.
+    */
+    return key.mdl_namespace() != MDL_key::ACL_CACHE &&
+           m_strategy->m_is_affected_by_max_write_lock_count;
   }
 
   /**
@@ -3426,7 +3434,27 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
   /* There is a shared or exclusive lock on the object. */
   DEBUG_SYNC(get_thd(), "mdl_acquire_lock_wait");
 
-  find_deadlock();
+  /*
+    Avoid deadlock detection in case when we are sure that introduction of
+    pending lock hasn't introduced new deadlocks, because pending lock
+    of this type doesn't block acquisition of other locks and there are
+    no existing waiters for this context.
+
+    We do this for specific case when we try to acquire S lock on ACL_CACHE
+    singleton. While being singleton this lock is acquired by each connection
+    attempt and in some cases even by each statement, so on systems with many
+    connections deadlock detection can get really expensive.
+
+    Doing the same in a general case is non-trivial (whether addition of
+    pending request will create more waiters depends on situation with
+    max_write_lock_count at least for object locks) and is likely to provide
+    less benefits.
+  */
+  if (lock->key.mdl_namespace() != MDL_key::ACL_CACHE ||
+      ticket->m_type != MDL_SHARED || has_locks() ||
+      get_owner()->might_have_non_mdl_waiters()) {
+    find_deadlock();
+  }
 
   if (lock->needs_notification(ticket) || lock->needs_connection_check()) {
     struct timespec abs_shortwait;
