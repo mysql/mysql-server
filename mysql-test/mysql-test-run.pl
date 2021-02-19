@@ -341,7 +341,7 @@ our $start_only;
 our $glob_debugger       = 0;
 our $group_replication   = 0;
 our $ndbcluster_enabled  = 0;
-our $ndbcluster_only     = 0;
+our $ndbcluster_only     = $ENV{'MTR_NDB_ONLY'} || 0;
 our $mysqlbackup_enabled = 0;
 
 our @share_locations;
