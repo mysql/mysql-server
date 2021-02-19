@@ -1,0 +1,3 @@
+DROP USER mcm0765@localhost;
+ERROR HY000: Operation DROP USER failed for 'mcm0765'@'localhost'
+set global debug= @save_debug;
