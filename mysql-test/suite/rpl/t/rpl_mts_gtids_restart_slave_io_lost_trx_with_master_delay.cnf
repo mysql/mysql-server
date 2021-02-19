@@ -1,0 +1,12 @@
+!include ../my.cnf
+
+[mysqld.1]
+gtid-mode                      = ON
+enforce-gtid-consistency       = ON
+
+
+[mysqld.2]
+gtid-mode                      = ON
+enforce-gtid-consistency       = ON
+slave_parallel_workers         = 2
+slave_transaction_retries      = 0

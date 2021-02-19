@@ -10,6 +10,11 @@
 # IO thread right after queuing an event of a given type, starting the IO
 # thread again to fully retrieve the partially received transaction.
 #
+# Additionally, this test also tests partial transactions with MASTER_DELAY
+# configured and verifies that the applier thread doesn't wait for MASTER_DELAY
+# when the receiver thread is restarted in the middle of a transaction, if MTS
+# and GTID autoposition protocol. To test this, set $master_delay_test=1 and
+# source this file.
 
 --source include/have_gtid.inc
 
@@ -33,6 +38,14 @@ CREATE TABLE t1(i INT) ENGINE=InnoDB;
 # their replicated versions in the slave's relaylog).
 FLUSH LOGS;
 --source include/sync_slave_sql_with_master.inc
+
+# Test for MASTER_DELAY with partial transactions.
+if ($master_delay_test)
+{
+  --source include/stop_slave.inc
+  CHANGE MASTER TO MASTER_DELAY=5;
+  --source include/start_slave.inc
+}
 SET @save_debug=@@global.debug;
 
 #
@@ -85,6 +98,28 @@ while ($i <= 5)
     --source include/stop_slave_io.inc
   }
   --source include/wait_for_slave_io_to_stop.inc
+
+  if ($master_delay_test)
+  {
+    # Sleep for slightly more than MASTER_DELAY seconds.
+    --sleep 8
+
+    # When MASTER_DELAY is set we don't expect the applier thread to
+    # wait while it is processing the source's Format_description_event
+    # as part of handling partial transaction in the relay log.
+    START SLAVE IO_THREAD;
+
+    --let $assert_text= Assert that the applier thread is not waiting for MASTER_DELAY seconds.
+    --let $assert_cond= [SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE = "Waiting until MASTER_DELAY seconds after master executed event"] = 0
+    --source include/assert.inc
+
+    # Reset MASTER_DELAY.
+    --source include/stop_slave.inc
+    CHANGE MASTER TO MASTER_DELAY=0;
+
+    # Start only the applier thread
+    --source include/start_slave_sql.inc
+  }
   # Remove the debug point and restart the slave threads
   SET GLOBAL DEBUG= @save_debug;
 

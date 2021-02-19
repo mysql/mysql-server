@@ -1,0 +1,11 @@
+# === Purpose ===
+#
+# This test verifies that the applier thread doesn't wait for MASTER_DELAY
+# when the receiver thread is restarted in the middle of a transaction if the server
+# is configured with MTS and GTID autoposition.
+#
+# === References ===
+# Bug #102647: Replica sql_thread getting stuck due to MASTER_DELAY
+
+--let $master_delay_test=1
+--source extra/rpl_tests/rpl_gtids_restart_slave_io_lost_trx.test
