@@ -200,6 +200,12 @@ size_t meb_heap_used();
 UNIV_INLINE
 bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
 
+/** Returns true if the page is brand new (the next log record is init_file_page
+or no records to apply).
+@param[in]      block           buffer block
+@return true if brand new */
+bool recv_page_is_brand_new(buf_block_t *block);
+
 /** Start recovering from a redo log checkpoint.
 @see recv_recovery_from_checkpoint_finish
 @param[in,out]	log		redo log
