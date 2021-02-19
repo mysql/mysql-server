@@ -5353,6 +5353,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
     byte *frame{};
     page_no_t read_page_no;
     space_id_t read_space_id;
+    bool is_wrong_page_id = false;
 
     if (bpage->size.is_compressed()) {
       frame = bpage->zip.data;
@@ -5393,6 +5394,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
                                  "the page read in are "
                               << page_id_t(read_space_id, read_page_no)
                               << ", should be " << bpage->id;
+      is_wrong_page_id = true;
     }
 
     compressed_page = Compression::is_compressed_page(frame);
@@ -5420,6 +5422,18 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
                         fsp_is_checksum_disabled(bpage->id.space()));
       is_corrupted = reporter.is_corrupted();
     }
+
+#ifdef UNIV_LINUX
+    /* A crash during extending file might cause the inconsistent contents.
+    No problem for the cases. Just fills with zero for them.
+    - The next log record to apply is initializing
+    - No redo log record for the page yet (brand new page) */
+    if (recv_recovery_is_on() && (is_corrupted || is_wrong_page_id) &&
+        recv_page_is_brand_new((buf_block_t *)bpage)) {
+      memset(frame, 0, bpage->size.logical());
+      is_corrupted = false;
+    }
+#endif /* UNIV_LINUX */
 
     if (compressed_page || is_corrupted) {
       /* Not a real corruption if it was triggered by

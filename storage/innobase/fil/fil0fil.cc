@@ -6681,11 +6681,10 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
       DBUG_INJECT_CRASH_WITH_LOG_FLUSH("ib_crash_after_writing_redo_extend", 1);
 
-      /* Even if we got killed shortly after extending the
-      tablespace file, the record must have already been
-      written to the redo log, because we didn't possibly
-      zeroed the extended region yet. */
-      log_write_up_to(*log_sys, mtr.commit_lsn(), true);
+      /* NOTE: Though against for the Write-Ahead-Log principal,
+      log_write_up_to() is not needed here, because no file shrinks and
+      duplicate extending is allowed. And log_write_up_to() here helps
+      nothing for fallocate() inconsistency. */
     }
 #endif /* !UNIV_HOTBACKUP && UNIV_LINUX */
 

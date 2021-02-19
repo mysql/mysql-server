@@ -2428,6 +2428,32 @@ static void recv_data_copy_to_buf(byte *buf, recv_t *recv) {
   }
 }
 
+bool recv_page_is_brand_new(buf_block_t *block) {
+  mutex_enter(&recv_sys->mutex);
+
+  recv_addr_t *recv_addr;
+  recv_addr = recv_get_rec(block->page.id.space(), block->page.id.page_no());
+  if (recv_addr == nullptr) {
+    /* no redo log treated as brand new */
+    mutex_exit(&recv_sys->mutex);
+    return true;
+  }
+
+  auto recv = UT_LIST_GET_FIRST(recv_addr->rec_list);
+  if (recv == nullptr) {
+    /* no redo log treated as brand new */
+    mutex_exit(&recv_sys->mutex);
+    return true;
+  }
+  if (recv->type == MLOG_INIT_FILE_PAGE2 || recv->type == MLOG_INIT_FILE_PAGE) {
+    mutex_exit(&recv_sys->mutex);
+    return true;
+  }
+
+  mutex_exit(&recv_sys->mutex);
+  return false;
+}
+
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
