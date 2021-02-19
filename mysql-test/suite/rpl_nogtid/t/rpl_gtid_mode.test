@@ -499,7 +499,6 @@ DROP TABLE t5;
 RESET MASTER;
 
 --source include/rpl_connection_slave.inc
-DROP TABLE t5;
 RESET SLAVE;
 
 --let $rpl_skip_sync=0

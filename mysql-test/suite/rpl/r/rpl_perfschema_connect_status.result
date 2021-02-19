@@ -107,9 +107,4 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Received_Transaction_Set should be empty after RESET SLAVE]
 include/start_slave.inc
-drop table t;
-include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0 FOR CHANNEL '';
-include/rpl_set_gtid_mode.inc
 include/rpl_end.inc

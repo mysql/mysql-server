@@ -145,10 +145,10 @@ INSERT INTO t1 VALUES(9);
 --let $slave_param_value= Waiting for disk space
 --source include/wait_for_slave_param.inc
 
-# Restart the slave (relay log recovery is turned on and log error verbosity is 3)
+# Restart the slave with relay log recovery
 --source include/stop_slave_sql.inc
 --let $rpl_server_number= 2
---let $rpl_server_parameters=
+--let $rpl_server_parameters= --relay_log_recovery --log-error-verbosity=3
 --source include/rpl_restart_server.inc
 --source include/start_slave.inc
 
@@ -165,5 +165,4 @@ INSERT INTO t1 VALUES(9);
 # Cleanup
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
---source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

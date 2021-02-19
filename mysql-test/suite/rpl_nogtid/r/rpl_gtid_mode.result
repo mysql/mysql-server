@@ -353,7 +353,6 @@ include/rpl_set_gtid_mode.inc [OFF on servers 2]
 DROP TABLE t5;
 RESET MASTER;
 [connection slave]
-DROP TABLE t5;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

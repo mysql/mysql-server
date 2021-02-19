@@ -83,10 +83,4 @@
 --let $assert_text = Start slave message with user info found twice in log, after restart
 --source include/assert_grep.inc
 
-# Cleanup
---let $rpl_server_number = 2
---let $rpl_server_parameters =
---source include/rpl_restart_server.inc
---source include/start_slave.inc
-
 --source include/rpl_end.inc

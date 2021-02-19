@@ -28,9 +28,4 @@ ERROR HY000: This operation cannot be performed with running replication threads
 include/sync_slave_sql_with_master.inc
 DROP TABLE test;
 include/sync_slave_sql_with_master.inc
-include/stop_slave.inc
-SET @@GLOBAL.master_info_repository= "TABLE";
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-include/start_slave.inc
 include/rpl_end.inc

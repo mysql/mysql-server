@@ -10,7 +10,6 @@
 # [--let $rpl_server_parameters= --flag1 --flag2 ...]
 # [--let $rpl_omit_print_server_parameters= 0]
 # [--let $rpl_debug= 1]
-# [--let $no_extra_info= 0]
 # --source include/rpl_restart_server.inc
 #
 # Parameters:
@@ -44,29 +43,11 @@ if ($rpl_server_parameters)
     --let $_rpl_restart_server_args= $_rpl_restart_server_args parameters: $rpl_server_parameters
   }
 }
-
---let $_rrs_mute= $no_extra_info
-if ($_rrs_mute == '')
-{
-  --let $_rrs_mute= 0
-}
-
---let $include_filename= rpl_restart_server.inc
-if ($_rrs_mute == 0)
-{
-   --let $include_filename= rpl_restart_server.inc [$_rpl_restart_server_args]
-
-}
-
+--let $include_filename= rpl_restart_server.inc [$_rpl_restart_server_args]
 --source include/begin_include_file.inc
 
 --source include/rpl_stop_server.inc
 --source include/rpl_start_server.inc
 
---let $include_filename= rpl_restart_server.inc
-if ($_rrs_mute == 0)
-{
-   --let $include_filename= rpl_restart_server.inc [$_rpl_restart_server_args]
-
-}
+--let $include_filename= rpl_restart_server.inc [$_rpl_restart_server_args]
 --source include/end_include_file.inc

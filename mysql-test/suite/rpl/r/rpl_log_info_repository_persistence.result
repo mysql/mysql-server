@@ -303,20 +303,10 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 include/assert_grep.inc [Found 5 warning in the error log]
 include/assert_grep.inc [Found 1 warning in the error log]
 DROP USER 'replication_applier'@'localhost';
-include/stop_slave.inc
+include/rpl_end.inc
 Warnings:
 Note	3084	Replication thread(s) for channel 'ch1' are already stopped.
-RESET REPLICA ALL;
-SET @@global.relay_log_info_repository=FILE;
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
-CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST="127.0.0.1", SOURCE_PORT=MASTER_MYPORT;;
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-include/start_slave.inc
-include/rpl_end.inc

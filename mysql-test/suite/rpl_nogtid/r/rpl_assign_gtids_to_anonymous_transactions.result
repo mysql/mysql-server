@@ -103,9 +103,4 @@ Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on th
 include/start_slave.inc
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 # Cleanup
-include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
-include/rpl_set_gtid_mode.inc [OFF on servers 2]
 include/rpl_end.inc
-Warnings:
-Note	3084	Replication thread(s) for channel '' are already stopped.
