@@ -450,8 +450,11 @@ sub main {
   $secondary_engine_support =
     ($secondary_engine_support and find_secondary_engine($bindir)) ? 1 : 0;
 
-  # Append secondary engine test suite to list of default suites if found.
-  add_secondary_engine_suite() if $secondary_engine_support;
+  if ($secondary_engine_support) {
+    check_secondary_engine_features(using_extern());
+    # Append secondary engine test suite to list of default suites if found.
+    add_secondary_engine_suite();
+  }
 
   if ($opt_gcov) {
     gcov_prepare($basedir);
@@ -3145,9 +3148,9 @@ sub environment_setup {
     initialize_function_pointers(\&gdb_arguments,
                                  \&mark_log,
                                  \&mysqlds,
+                                 \&report_failure_and_restart,
                                  \&run_query,
-                                 \&valgrind_arguments,
-                                 \&report_failure_and_restart);
+                                 \&valgrind_arguments);
   }
 
   # mysql_fix_privilege_tables.sql
