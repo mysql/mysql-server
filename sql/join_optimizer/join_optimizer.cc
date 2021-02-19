@@ -535,6 +535,28 @@ bool ContainsSubqueries(Item *item_arg) {
   });
 }
 
+double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
+                                double num_output_rows) {
+  // When asking the cost model for costs, the API takes in a double,
+  // but truncates it to an unsigned integer. This means that if we
+  // expect an index lookup to give e.g. 0.9 rows on average, the cost
+  // model will assume we get back 0 -- and even worse, InnoDB's
+  // cost model gives a cost of exactly zero for this case, ignoring
+  // entirely the startup cost! Obviously, a cost of zero would make
+  // it very attractive to line up a bunch of such lookups in a nestloop
+  // and nestloop-join against them, crowding out pretty much any other
+  // way to do a join, so to counteract both of these issues, we
+  // explicitly round up here. This can be removed if InnoDB's
+  // cost model is tuned better for this case.
+  const double hacked_num_output_rows = ceil(num_output_rows);
+
+  const double table_scan_cost = table->file->table_scan_cost().total_cost();
+  const double worst_seeks = find_worst_seeks(
+      table->cost_model(), hacked_num_output_rows, table_scan_cost);
+  return find_cost_for_ref(thd, table, key_idx, hacked_num_output_rows,
+                           worst_seeks);
+}
+
 bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
                                        unsigned key_idx, bool reverse,
                                        table_map allowed_parameter_tables,
@@ -742,24 +764,8 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
     num_output_rows = std::min(num_output_rows, 1.0);
   }
 
-  // When asking the cost model for costs, the API takes in a double,
-  // but truncates it to an unsigned integer. This means that if we
-  // expect an index lookup to give e.g. 0.9 rows on average, the cost
-  // model will assume we get back 0 -- and even worse, InnoDB's
-  // cost model gives a cost of exactly zero for this case, ignoring
-  // entirely the startup cost! Obviously, a cost of zero would make
-  // it very attractive to line up a bunch of such lookups in a nestloop
-  // and nestloop-join against them, crowding out pretty much any other
-  // way to do a join, so to counteract both of these issues, we
-  // explicitly round up here. This can be removed if InnoDB's
-  // cost model is tuned better for this case.
-  const double hacked_num_output_rows = ceil(num_output_rows);
-
-  const double table_scan_cost = table->file->table_scan_cost().total_cost();
-  const double worst_seeks = find_worst_seeks(
-      table->cost_model(), hacked_num_output_rows, table_scan_cost);
-  const double cost = find_cost_for_ref(m_thd, table, key_idx,
-                                        hacked_num_output_rows, worst_seeks);
+  const double cost =
+      EstimateCostForRefAccess(m_thd, table, key_idx, num_output_rows);
 
   AccessPath path;
   if (single_row) {
