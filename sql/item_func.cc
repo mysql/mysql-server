@@ -8412,6 +8412,14 @@ longlong Item_func_can_access_database::val_int() {
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr())) return 1;
 
+  if (lower_case_table_names == 2) {
+    /*
+      ACL code assumes that in l-c-t-n > 0 modes schema name passed to it
+      is in lower case.
+    */
+    my_casedn_str(files_charset_info, schema_name_ptr->ptr());
+  }
+
   // Check access
   Security_context *sctx = thd->security_context();
   if (!(sctx->master_access(schema_name_ptr->ptr()) &
@@ -8450,6 +8458,17 @@ static bool check_table_and_trigger_access(Item **args, bool check_trigger_acl,
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr())) return true;
 
+  if (lower_case_table_names == 2) {
+    /*
+      ACL code assumes that in l-c-t-n > 0 modes schema and table names
+      passed to it are in lower case.
+    */
+    schema_name_ptr->length(
+        my_casedn_str(files_charset_info, schema_name_ptr->ptr()));
+    table_name_ptr->length(
+        my_casedn_str(files_charset_info, table_name_ptr->ptr()));
+  }
+
   // Check access
   ulong db_access = 0;
   if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(), &db_access, nullptr,
@@ -8459,9 +8478,6 @@ static bool check_table_and_trigger_access(Item **args, bool check_trigger_acl,
   TABLE_LIST table_list;
   table_list.db = schema_name_ptr->ptr();
   table_list.db_length = schema_name_ptr->length();
-  if (lower_case_table_names == 2) {
-    my_casedn_str(files_charset_info, table_name_ptr->ptr());
-  }
   table_list.table_name = table_name_ptr->ptr();
   table_list.table_name_length = table_name_ptr->length();
   table_list.grant.privilege = db_access;
@@ -8628,6 +8644,14 @@ longlong Item_func_can_access_routine::val_int() {
   parse_user(definer_ptr->ptr(), definer_ptr->length(), user_name.str,
              &user_name.length, host_name.str, &host_name.length);
 
+  if (lower_case_table_names == 2) {
+    /*
+      ACL code assumes that in l-c-t-n > 0 modes schema name passed to it
+      is in lower case.
+    */
+    my_casedn_str(files_charset_info, schema_name_ptr->ptr());
+  }
+
   THD *thd = current_thd;
   bool full_access = has_full_view_routine_access(thd, schema_name_ptr->ptr(),
                                                   user_name.str, host_name.str);
@@ -8677,6 +8701,14 @@ longlong Item_func_can_access_event::val_int() {
 
   // Skip INFORMATION_SCHEMA database
   if (is_infoschema_db(schema_name_ptr->ptr())) return 1;
+
+  if (lower_case_table_names == 2) {
+    /*
+      ACL code assumes that in l-c-t-n > 0 modes schema name passed to it
+      is in lower case.
+    */
+    my_casedn_str(files_charset_info, schema_name_ptr->ptr());
+  }
 
   // Check access
   if (check_access(thd, EVENT_ACL, schema_name_ptr->ptr(), nullptr, nullptr,
@@ -8802,6 +8834,15 @@ longlong Item_func_can_access_column::val_int() {
   // Check access
   GRANT_INFO grant_info;
 
+  if (lower_case_table_names == 2) {
+    /*
+      ACL code assumes that in l-c-t-n > 0 modes schema and table names
+      passed to it are in lower case.
+    */
+    my_casedn_str(files_charset_info, schema_name_ptr->ptr());
+    my_casedn_str(files_charset_info, table_name_ptr->ptr());
+  }
+
   if (check_access(thd, SELECT_ACL, schema_name_ptr->ptr(),
                    &grant_info.privilege, nullptr, false, true))
     return 0;
@@ -8858,6 +8899,19 @@ longlong Item_func_can_access_view::val_int() {
   if (is_infoschema_db(schema_name_ptr->ptr()) ||
       !my_strcasecmp(system_charset_info, schema_name_ptr->ptr(), "sys"))
     return 1;
+
+  if (lower_case_table_names == 2) {
+    /*
+      ACL code assumes that in l-c-t-n > 0 modes schema and table names
+      passed to it are in lower case. Although for view names lowercasing
+      is not strictly necessary until bug#20356 is fixed we still do it
+      to be consistent with CAN_ACCESS_TABLE().
+    */
+    schema_name_ptr->length(
+        my_casedn_str(files_charset_info, schema_name_ptr->ptr()));
+    table_name_ptr->length(
+        my_casedn_str(files_charset_info, table_name_ptr->ptr()));
+  }
 
   // Check if view is valid. If view is invalid then push invalid view
   // warning.
@@ -8925,14 +8979,6 @@ longlong Item_func_can_access_view::val_int() {
   table_list.db_length = schema_name_ptr->length();
   table_list.table_name = table_name_ptr->ptr();
   table_list.table_name_length = table_name_ptr->length();
-  if (lower_case_table_names == 2) {
-    /*
-      Be consistent with CAN_ACCESS_TABLE() case. Although lowercasing
-      is not strictly necessary until bug#20356 is fixed.
-    */
-    table_list.table_name_length =
-        my_casedn_str(files_charset_info, table_name_ptr->ptr());
-  }
 
   if (!check_table_access(thd, (SHOW_VIEW_ACL | SELECT_ACL), &table_list, false,
                           1, true))
