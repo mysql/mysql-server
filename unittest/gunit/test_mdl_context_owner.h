@@ -36,6 +36,8 @@ class Test_MDL_context_owner : public MDL_context_owner {
 
   int is_killed() const final { return 0; }
   bool is_connected() override { return true; }
+  bool might_have_non_mdl_waiters() const override { return false; }
+
   THD *get_thd() override {
     /*
       MDL_lock::object_lock_notify_conflicting_locks() checks THD of

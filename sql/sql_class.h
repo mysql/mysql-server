@@ -2711,6 +2711,22 @@ class THD : public MDL_context_owner,
   }
 
   int is_killed() const final { return killed; }
+  bool might_have_non_mdl_waiters() const final {
+    /*
+      We need to return if this thread can have any non-MDL waiters
+      which are still accounted by MDL deadlock detector (even in
+      absence of any MDL locks).
+      There are two kinds of such waits in server at the moment:
+      waits for table flushes and waits for commit order in replication
+      applier. The former is not important here as threads owning old
+      versions of the table always have MDL lock on it.
+      Check for the latter is approximated by checking whether this
+      thread is replication applier. Doing more precise check is going
+      to be more expensive and possibly racy.
+    */
+    return slave_thread;
+  }
+
   THD *get_thd() override { return this; }
 
   /**

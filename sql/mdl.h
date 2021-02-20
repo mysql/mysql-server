@@ -128,6 +128,19 @@ class MDL_context_owner {
   virtual bool is_connected() = 0;
 
   /**
+    Indicates that owner thread might have some non-MDL waits for it which
+    are still taken into account by MDL deadlock detection, even in cases
+    when it doesn't have any MDL locks acquired and therefore can't have
+    any MDL waiters.
+
+    @note It is important for this check to be non-racy and quick (perhaps
+          at expense of being pretty pessimistic), so it can be used to
+          make decisions reliably about whether we can skip deadlock
+          detection in some cases.
+  */
+  virtual bool might_have_non_mdl_waiters() const = 0;
+
+  /**
      Within MDL subsystem this one is only used for DEBUG_SYNC.
      Do not use it to peek/poke into other parts of THD from MDL.
      However it is OK to use this method in callbacks provided
