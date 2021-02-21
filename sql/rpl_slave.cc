@@ -6431,6 +6431,7 @@ bool mts_recovery_groups(Relay_log_info *rli)
     rli->get_group_master_log_pos()
   };
 
+  LOG_POS_COORD max_w_last= cp;
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
   DBUG_ASSERT(p_fdle->is_valid());
 
@@ -6477,6 +6478,11 @@ bool mts_recovery_groups(Relay_log_info *rli)
       job_worker.checkpoint_log_name= worker->checkpoint_master_log_name;
 
       above_lwm_jobs.push_back(job_worker);
+
+      if (mts_event_coord_cmp(&w_last, &max_w_last) > 0) {
+        max_w_last.file_name= w_last.file_name;
+        max_w_last.pos= w_last.pos;
+      }
     }
     else
     {
@@ -6680,6 +6686,27 @@ bool mts_recovery_groups(Relay_log_info *rli)
 err:
   is_error= true;
 end:
+
+  if (rli->mts_recovery_group_cnt > 0) {
+    uint i;
+    for (i= 0; i < rli->mts_recovery_group_cnt; ++i) {
+      if (bitmap_is_set(groups, i)) {
+        continue;
+      }
+      break;
+    }
+    if (i== rli->mts_recovery_group_cnt) {
+
+      rli->mts_recovery_group_cnt= 0;
+      rli->set_group_master_log_name(max_w_last.file_name);
+      rli->set_group_master_log_pos(max_w_last.pos);
+      sql_print_information("Slave: MTS group recovery  unnecessary recovery"
+                            "group_master_log_name %s, "
+                            "group_master_log_pos %llu.",
+                            rli->get_group_master_log_name(),
+                            rli->get_group_master_log_pos());
+    }
+  }
   
   for (Slave_job_group *jg= above_lwm_jobs.begin();
        jg != above_lwm_jobs.end(); ++jg)
