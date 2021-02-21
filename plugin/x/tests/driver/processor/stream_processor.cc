@@ -97,6 +97,7 @@ int process_client_input(std::istream &input,
 
   while (std::getline(input, linebuf)) {
     Block_processor::Result result = Block_processor::Result::Not_hungry;
+    DBUG_LOG("debug", "line:" << linebuf);
 
     script_stack->front().m_line_number++;
 

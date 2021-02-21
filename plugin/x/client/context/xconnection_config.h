@@ -40,6 +40,7 @@ class Connection_config {
   int64_t m_timeout_session_connect{-1};
   int64_t m_timeout_read{-1};
   int64_t m_timeout_write{-1};
+  int64_t m_buffer_receive_size{64 * 1024};
   std::string m_network_namespace;
 };
 

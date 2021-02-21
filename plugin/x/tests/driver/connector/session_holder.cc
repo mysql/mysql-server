@@ -316,6 +316,24 @@ void Session_holder::setup_msg_callbacks() {
           return trace_send_messages(protocol, msg_id, msg);
         });
   }
+
+  protocol.add_received_message_handler(
+      [this](xcl::XProtocol *protocol,
+             const xcl::XProtocol::Server_message_type_id msg_id,
+             const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+        DBUG_LOG("debug", "log message "
+                              << "recv: " << msg);
+        return xcl::Handler_result::Continue;
+      });
+
+  protocol.add_send_message_handler(
+      [this](xcl::XProtocol *protocol,
+             const xcl::XProtocol::Client_message_type_id msg_id,
+             const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+        DBUG_LOG("debug", "log message "
+                              << "send: " << msg);
+        return xcl::Handler_result::Continue;
+      });
 }
 
 void Session_holder::remove_notice_handler() {

@@ -21,7 +21,6 @@ exec $MYSQLXTEST
 	--timeout=2000
 	--file=$MYSQL_TMP_DIR/mysqlx-client-timeout.xpl 2>&1;
 
-
 ## Cleanup
 --source ../include/xplugin_cleanup.inc
 

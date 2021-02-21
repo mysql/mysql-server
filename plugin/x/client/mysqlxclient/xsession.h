@@ -340,6 +340,12 @@ class XSession {
       Option type: INTEGER
      */
     Compression_level_client,
+    /** The client can read responses while pipelining multiple requests.
+
+      Default: 64k
+      Option type: INTEGER
+     */
+    Buffer_recevie_size
   };
 
  public:

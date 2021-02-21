@@ -315,6 +315,10 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
       return Option_descriptor{new Compression_optional_int_store<
           &Compression_config::m_use_level_server>()};
 
+    case Mysqlx_option::Buffer_recevie_size:
+      return Option_descriptor{
+          new Con_int_store<&Con_conf::m_buffer_receive_size>()};
+
     default:
       return {};
   }
