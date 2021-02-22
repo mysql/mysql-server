@@ -93,11 +93,18 @@ IF(WIN32_CLANG)
 ENDIF()
   
 OPTION(WIN_DEBUG_NO_INLINE "Disable inlining for debug builds on Windows" OFF)
+OPTION(WIN_DEBUG_RTC "Enable RTC checks for debug builds on Windows" OFF)
 
 IF(MSVC)
   OPTION(LINK_STATIC_RUNTIME_LIBRARIES "Link with /MT" OFF)
   IF(WITH_ASAN AND WIN32_CLANG)
     SET(LINK_STATIC_RUNTIME_LIBRARIES ON)
+  ENDIF()
+
+  # Remove the /RTC1 debug compiler option that cmake includes by default for MSVC
+  # as its presence significantly slows MTR testing and rarely detects bugs.
+  IF (NOT WIN_DEBUG_RTC)
+    STRING(REPLACE "/RTC1"  "" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
   ENDIF()
 
   # Enable debug info also in Release build,
