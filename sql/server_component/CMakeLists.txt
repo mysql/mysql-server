@@ -54,6 +54,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   audit_api_connection_service_imp.cc
   mysql_query_attributes_imp.cc
   mysql_server_keyring_lockable_imp.cc
+  mysql_system_variable_update_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

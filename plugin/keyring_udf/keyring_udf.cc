@@ -294,8 +294,9 @@ static bool keyring_udf_func_init(
   }
 
   for (uint index = 0; index < expected_arg_count; index++) {
-    udf_metadata_service->argument_set(args, type, index,
-                                       static_cast<void *>(charset));
+    if (args->arg_type[index] == STRING_RESULT)
+      udf_metadata_service->argument_set(args, type, index,
+                                         static_cast<void *>(charset));
   }
 
   return false;

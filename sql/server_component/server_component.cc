@@ -37,6 +37,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/mysql_query_attributes.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
+#include <mysql/components/services/mysql_system_variable.h>
 
 // pfs services
 #include "storage/perfschema/pfs.h"
@@ -67,6 +68,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_server_keyring_lockable_imp.h"
 #include "mysql_server_runnable_imp.h"
 #include "mysql_string_service_imp.h"
+#include "mysql_system_variable_update_imp.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
 #include "security_context_imp.h"
@@ -378,6 +380,9 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, keyring_writer)
 Keyring_writer_service_impl::store,
     Keyring_writer_service_impl::remove END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_string)
+mysql_system_variable_update_string_imp::set END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -482,7 +487,9 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, keyring_component_metadata_query),
     PROVIDES_SERVICE(mysql_server, keyring_reader_with_status),
     PROVIDES_SERVICE(mysql_server, keyring_load),
-    PROVIDES_SERVICE(mysql_server, keyring_writer), END_COMPONENT_PROVIDES();
+    PROVIDES_SERVICE(mysql_server, keyring_writer),
+    PROVIDES_SERVICE(mysql_server, mysql_system_variable_update_string),
+    END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
 

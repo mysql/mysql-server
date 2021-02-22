@@ -43,7 +43,7 @@ DEFINE_BOOL_METHOD(mysql_udf_metadata_imp::argument_set,
   assert(udf_args && udf_args->extension && in_value &&
          index < udf_args->arg_count);
 
-  if (*(udf_args->arg_type) != Item_result::STRING_RESULT) {
+  if (udf_args->arg_type[index] != Item_result::STRING_RESULT) {
     my_error(ER_DA_UDF_INVALID_ARGUMENT_TO_SET_CHARSET, MYF(0));
     return true;
   }
