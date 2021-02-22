@@ -830,3 +830,23 @@ bool NDB_SHARE::install_event_op(NdbEventOperation *new_op, bool replace_op) {
   op = new_op;
   return true;
 }
+
+void NDB_SHARE::update_row_count(int changed_rows) {
+  if (changed_rows == 0) {
+    // Nothing to do
+    return;
+  }
+
+  mysql_mutex_lock(&mutex);
+  assert(stat.row_count != ~(ha_rows)0);  // should never be invalid
+  if (stat.row_count != ~(ha_rows)0) {
+    DBUG_PRINT("info", ("Update row count for '%s', row_count: %llu, with: %d",
+                        table_name, stat.row_count, changed_rows));
+
+    stat.row_count =
+        ((Int64)stat.row_count + changed_rows > 0)  // Check for underflow
+            ? stat.row_count + changed_rows
+            : 0;  // All rows gone
+  }
+  mysql_mutex_unlock(&mutex);
+}

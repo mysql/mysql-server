@@ -421,9 +421,6 @@ mysql_cond_t ndbcluster_cond;
 static const char *ndbcluster_hton_name = "ndbcluster";
 static const int ndbcluster_hton_name_length = sizeof(ndbcluster_hton_name) - 1;
 
-static void modify_shared_stats(NDB_SHARE *share,
-                                Ndb_local_table_statistics *local_stat);
-
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster *, Ndb *,
                                     const NdbDictionary::Table *,
                                     const NdbRecord *, struct Ndb_statistics *,
@@ -7265,7 +7262,7 @@ int ha_ndbcluster::add_handler_to_open_tables(THD *thd, Thd_ndb *thd_ndb,
   assert(thd_ndb->m_handler == NULL);
   const void *key = handler->m_share;
   THD_NDB_SHARE *thd_ndb_share = find_or_nullptr(thd_ndb->open_tables, key);
-  if (thd_ndb_share == 0) {
+  if (thd_ndb_share == nullptr) {
     thd_ndb_share = (THD_NDB_SHARE *)thd->get_transaction()->allocate_memory(
         sizeof(THD_NDB_SHARE));
     if (!thd_ndb_share) {
@@ -7762,16 +7759,19 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
     /* Update shared statistics for tables inserted into / deleted from*/
     if (thd_ndb->m_handler &&  // Autocommit Txn
         thd_ndb->m_handler->m_share && thd_ndb->m_handler->m_table_info) {
-      modify_shared_stats(thd_ndb->m_handler->m_share,
-                          thd_ndb->m_handler->m_table_info);
+      NDB_SHARE *share = thd_ndb->m_handler->m_share;
+      share->update_row_count(
+          thd_ndb->m_handler->m_table_info->no_uncommitted_rows_count);
+      thd_ndb->m_handler->m_table_info->no_uncommitted_rows_count = 0;
     }
 
     /* Manual commit: Update all affected NDB_SHAREs found in 'open_tables' */
     for (const auto &key_and_value : thd_ndb->open_tables) {
       THD_NDB_SHARE *thd_share = key_and_value.second;
-      modify_shared_stats(const_cast<NDB_SHARE *>(
-                              static_cast<const NDB_SHARE *>(thd_share->key)),
-                          &thd_share->stat);
+      NDB_SHARE *share = const_cast<NDB_SHARE *>(
+          static_cast<const NDB_SHARE *>(thd_share->key));
+      share->update_row_count(thd_share->stat.no_uncommitted_rows_count);
+      thd_share->stat.no_uncommitted_rows_count = 0;
     }
   }
 
@@ -12873,33 +12873,6 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
               (int)no_uncommitted_rows_count, (uint)stat.fragment_extent_space,
               (uint)stat.fragment_extent_free_space));
   return 0;
-}
-
-/**
-  Update 'row_count' in shared table statistcs if any rows where
-  inserted/deleted by the local transaction related to specified
- 'local_stat'.
-  Should be called when transaction has succesfully commited its changes.
-*/
-static void modify_shared_stats(NDB_SHARE *share,
-                                Ndb_local_table_statistics *local_stat) {
-  if (local_stat->no_uncommitted_rows_count) {
-    mysql_mutex_lock(&share->mutex);
-    assert(share->stat.row_count != ~(ha_rows)0);  // should never be invalid
-    if (share->stat.row_count != ~(ha_rows)0) {
-      DBUG_PRINT("info", ("Update row_count for %s, row_count: %lu, with:%d",
-                          share->table_name, (ulong)share->stat.row_count,
-                          local_stat->no_uncommitted_rows_count));
-      share->stat.row_count =
-          ((Int64)share->stat.row_count +
-               local_stat->no_uncommitted_rows_count >
-           0)
-              ? share->stat.row_count + local_stat->no_uncommitted_rows_count
-              : 0;
-    }
-    mysql_mutex_unlock(&share->mutex);
-    local_stat->no_uncommitted_rows_count = 0;
-  }
 }
 
 /* If part_id contains a legal partition id, ndbstat returns the

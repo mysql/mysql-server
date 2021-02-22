@@ -103,7 +103,10 @@ struct NDB_SHARE {
     g.range.reset();
   }
 
-  struct Ndb_statistics stat;
+  Ndb_statistics stat;
+  // Update row count in 'stat' with number of changed rows
+  void update_row_count(int changed_rows);
+
   struct Ndb_index_stat *index_stat_list;
 
  private:
