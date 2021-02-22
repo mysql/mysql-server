@@ -50,23 +50,30 @@
 #include "storage/ndb/plugin/ha_ndb_index_stat.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
+#include "storage/ndb/plugin/ndb_anyvalue.h"
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_binlog_client.h"
+#include "storage/ndb/plugin/ndb_binlog_extra_row_info.h"
+#include "storage/ndb/plugin/ndb_binlog_thread.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_dd.h"
 #include "storage/ndb/plugin/ndb_dd_client.h"
 #include "storage/ndb/plugin/ndb_dd_disk_data.h"
 #include "storage/ndb/plugin/ndb_dd_sync.h"  // Ndb_dd_sync
 #include "storage/ndb/plugin/ndb_dd_table.h"
+#include "storage/ndb/plugin/ndb_event_data.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_name_util.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
+#include "storage/ndb/plugin/ndb_repl_tab.h"
 #include "storage/ndb/plugin/ndb_require.h"
 #include "storage/ndb/plugin/ndb_retry.h"
+#include "storage/ndb/plugin/ndb_schema_dist.h"
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
+#include "storage/ndb/plugin/ndb_schema_object.h"
 #include "storage/ndb/plugin/ndb_schema_result_table.h"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_stored_grants.h"
@@ -80,31 +87,26 @@ typedef NdbDictionary::Table NDBTAB;
 
 extern bool opt_ndb_log_orig;
 extern bool opt_ndb_log_bin;
+extern bool opt_ndb_log_empty_epochs;
 extern bool opt_ndb_log_update_as_write;
 extern bool opt_ndb_log_updated_only;
 extern bool opt_ndb_log_update_minimal;
 extern bool opt_ndb_log_binlog_index;
 extern bool opt_ndb_log_apply_status;
-extern st_ndb_slave_state g_ndb_slave_state;
 extern bool opt_ndb_log_transaction_id;
-extern bool log_bin_use_v1_row_events;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
 extern bool opt_ndb_log_fail_terminate;
 extern int opt_ndb_schema_dist_timeout;
 extern ulong opt_ndb_schema_dist_lock_wait_timeout;
+extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
+extern ulong opt_ndb_report_thresh_binlog_mem_usage;
+extern ulong opt_ndb_eventbuffer_max_alloc;
+extern uint opt_ndb_eventbuffer_free_percent;
 
-bool ndb_log_empty_epochs(void);
+extern st_ndb_slave_state g_ndb_slave_state;
 
 void ndb_index_stat_restart();
-
-#include "storage/ndb/plugin/ndb_anyvalue.h"
-#include "storage/ndb/plugin/ndb_binlog_extra_row_info.h"
-#include "storage/ndb/plugin/ndb_binlog_thread.h"
-#include "storage/ndb/plugin/ndb_event_data.h"
-#include "storage/ndb/plugin/ndb_repl_tab.h"
-#include "storage/ndb/plugin/ndb_schema_dist.h"
-#include "storage/ndb/plugin/ndb_schema_object.h"
 
 extern Ndb_cluster_connection *g_ndb_cluster_connection;
 
@@ -6653,11 +6655,6 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
   return true;
 }
 
-extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
-extern ulong opt_ndb_report_thresh_binlog_mem_usage;
-extern ulong opt_ndb_eventbuffer_max_alloc;
-extern uint opt_ndb_eventbuffer_free_percent;
-
 Ndb_binlog_thread::Ndb_binlog_thread() : Ndb_component("Binlog") {}
 
 Ndb_binlog_thread::~Ndb_binlog_thread() {}
@@ -6780,7 +6777,7 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
     return;
   }
 
-  if (!ndb_log_empty_epochs()) {
+  if (!opt_ndb_log_empty_epochs) {
     /*
       If
         - We did not add any 'real' rows to the Binlog
@@ -6813,7 +6810,7 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
   rows->epoch = current_epoch;
   rows->start_master_log_file = start.file_name();
   rows->start_master_log_pos = start.file_pos();
-  if ((next.file_pos() == 0) && ndb_log_empty_epochs()) {
+  if (next.file_pos() == 0 && opt_ndb_log_empty_epochs) {
     /* Empty transaction 'committed' due to log_empty_epochs
      * therefore no next position
      */
@@ -7242,7 +7239,7 @@ restart_cluster_failure:
       // Capture any dynamic changes to max_alloc
       i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
-      if (ndb_log_empty_epochs()) {
+      if (opt_ndb_log_empty_epochs) {
         // Ensure that empty epochs (event type TE_EMPTY) are queued
         i_ndb->setEventBufferQueueEmptyEpoch(true);
       }
@@ -7453,7 +7450,7 @@ restart_cluster_failure:
 
         if (event_type == NdbDictionary::Event::TE_EMPTY) {
           // Handle empty epoch
-          if (ndb_log_empty_epochs()) {
+          if (opt_ndb_log_empty_epochs) {
             DBUG_PRINT("info",
                        ("Writing empty epoch %u/%u "
                         "latest_handled_binlog_epoch %u/%u",
