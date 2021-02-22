@@ -1968,7 +1968,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
     EXPECT_EQ(is_encrypted, GetParam().expect_client_encrypted);
 
     try {
-      auto row = sess.query_one("show status like 'ssl_cipher'");
+      const auto row = sess.query_one("show status like 'ssl_cipher'");
       ASSERT_EQ(row->size(), 2);
 
       if (GetParam().expect_server_encrypted) {
@@ -1981,7 +1981,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
     }
 
     try {
-      auto row = sess.query_one("select repeat('a', 4097) as a");
+      const auto row = sess.query_one("select repeat('a', 4097) as a");
       ASSERT_EQ(row->size(), 1);
 
       EXPECT_EQ((*row)[0], std::string(4097, 'a'));
@@ -1990,8 +1990,8 @@ TEST_P(SplicerParamTest, classic_protocol) {
     }
 
     try {
-      auto row = sess.query_one("select length(" + std::string(4097, 'a') +
-                                ") as length");
+      const auto row = sess.query_one("select length(" +
+                                      std::string(4097, 'a') + ") as length");
       ASSERT_EQ(row->size(), 1);
 
       EXPECT_STREQ((*row)[0], "4097");

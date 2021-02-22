@@ -226,7 +226,7 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
    */
   using google::protobuf::io::CodedInputStream;
 
-  if (!client_waiting() && server_waiting()) {
+  if (!client_waiting_recv() && server_waiting_recv()) {
     // the client woke us up, we are actually waiting for the server.
     client_channel()->want_recv(1);
     return state();
@@ -313,9 +313,9 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
       } else if (dest_ssl_mode() == SslMode::kPreferred) {
         // it is ok that it failed.
 #if 0
-          log_debug("%d: << %s (plain-size: %zu)", __LINE__,
-                    state_to_string(state()),
-                    client_channel()->recv_plain_buffer().size());
+        log_debug("%d: << %s (plain-size: %zu)", __LINE__,
+                  state_to_string(state()),
+                  client_channel()->recv_plain_buffer().size());
 #endif
 
         auto &plain = client_channel()->recv_plain_buffer();
@@ -336,9 +336,12 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
           }
 
           plain_buf.consume(write_res.value());
-        } else {
-          client_channel()->want_recv(1);
         }
+
+        // all received data was forwarded, expect more data from client and
+        // server.
+        client_channel()->want_recv(1);
+        server_channel()->want_recv(1);
 
         return State::SPLICE;
       } else if (dest_ssl_mode() == SslMode::kAsClient) {
@@ -369,7 +372,7 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
   }
 
 #if 0
-    log_debug("%d: << %s", __LINE__, state_to_string(state()));
+  log_debug("%d: << %s", __LINE__, state_to_string(state()));
 #endif
   return state();
 }
@@ -401,7 +404,7 @@ BasicSplicer::State XProtocolSplicer::tls_connect() {
     }
   }
 
-  if (tls_connect_sent_ && server_waiting() && !client_waiting()) {
+  if (tls_connect_sent_ && server_waiting_recv() && !client_waiting_recv()) {
     // the TLS connect has already been sent and we are waiting for the servers
     // response.
     //
@@ -552,6 +555,9 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
 #endif
 
       if (plain_buf.size() < tls_header_size + tls_payload_size) {
+        // not enough yet.
+
+        src_channel->want_recv(1);
         return state();
       }
 

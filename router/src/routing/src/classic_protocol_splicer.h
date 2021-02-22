@@ -46,12 +46,7 @@ class ClassicProtocolSplicer : public BasicSplicer {
         client_protocol_{std::make_unique<ClassicProtocolState>()},
         server_protocol_{std::make_unique<ClassicProtocolState>()} {}
 
-  bool start() override {
-    server_channel()->want_recv(4);
-
-    // read packets from server first.
-    return false;
-  }
+  void start() override {}
 
   State server_greeting() override;
   State client_greeting() override;
