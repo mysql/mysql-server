@@ -6,6 +6,7 @@ var common_responses = common_stmts.prepare_callable_statement_responses(
     [
       "select_length_4097",
       "select_repeat_4097",
+      "select_repeat_15M",
       "router_show_cipher_status",
       "router_show_mysqlx_cipher_status",
     ],
