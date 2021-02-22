@@ -7755,7 +7755,18 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
     } else {
       res = ndbcluster_print_error(trans, thd_ndb->m_handler);
     }
-  } else { /* res == 0: success */
+  } else {
+#ifndef NDEBUG
+    if (thd_ndb->m_handler) {
+      // The if statement below looks fishy
+      // Is it really possible to commit transaction without:
+      // 1) m_share, which _must_ be acquired in open() or
+      // 2) m_table_info which is assigned when statement is started
+      const ha_ndbcluster *handler = thd_ndb->m_handler;
+      assert(handler->m_share);
+      assert(handler->m_table_info);
+    }
+#endif
     /* Update shared statistics for tables inserted into / deleted from*/
     if (thd_ndb->m_handler &&  // Autocommit Txn
         thd_ndb->m_handler->m_share && thd_ndb->m_handler->m_table_info) {
