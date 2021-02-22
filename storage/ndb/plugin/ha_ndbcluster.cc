@@ -423,7 +423,7 @@ static const int ndbcluster_hton_name_length = sizeof(ndbcluster_hton_name) - 1;
 
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster *, Ndb *,
                                     const NdbDictionary::Table *,
-                                    const NdbRecord *, struct Ndb_statistics *,
+                                    const NdbRecord *, NDB_SHARE::Table_stats *,
                                     uint part_id = ~(uint)0);
 
 static ulong multi_range_fixed_size(int num_ranges);
@@ -7767,21 +7767,22 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
       assert(handler->m_table_info);
     }
 #endif
-    /* Update shared statistics for tables inserted into / deleted from*/
+    // Update cached row count for modified tables
     if (thd_ndb->m_handler &&  // Autocommit Txn
         thd_ndb->m_handler->m_share && thd_ndb->m_handler->m_table_info) {
       NDB_SHARE *share = thd_ndb->m_handler->m_share;
-      share->update_row_count(
+      share->update_cached_row_count(
           thd_ndb->m_handler->m_table_info->no_uncommitted_rows_count);
       thd_ndb->m_handler->m_table_info->no_uncommitted_rows_count = 0;
     }
 
-    /* Manual commit: Update all affected NDB_SHAREs found in 'open_tables' */
+    // Manual commit: Update cached row count for all affected NDB_SHAREs found
+    // in 'open_tables'
     for (const auto &key_and_value : thd_ndb->open_tables) {
       THD_NDB_SHARE *thd_share = key_and_value.second;
       NDB_SHARE *share = const_cast<NDB_SHARE *>(
           static_cast<const NDB_SHARE *>(thd_share->key));
-      share->update_row_count(thd_share->stat.no_uncommitted_rows_count);
+      share->update_cached_row_count(thd_share->stat.no_uncommitted_rows_count);
       thd_share->stat.no_uncommitted_rows_count = 0;
     }
   }
@@ -12833,29 +12834,29 @@ bool ha_ndbcluster::low_byte_first() const {
 }
 
 int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
-  struct Ndb_statistics stat;
+  NDB_SHARE::Table_stats table_stats;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   DBUG_TRACE;
   do {
     if (m_share && !do_read_stat) {
-      // Just read cached stats from NDB_SHARE without reading from NDB
+      // Just use the cached stats from NDB_SHARE without reading from NDB
       mysql_mutex_lock(&m_share->mutex);
-      stat = m_share->stat;
+      table_stats = m_share->cached_table_stats;
       mysql_mutex_unlock(&m_share->mutex);
-
       break;
     }
 
-    /* Request statistics from datanodes */
-    if (int err = ndb_get_table_statistics(thd, this, thd_ndb->ndb, m_table,
-                                           m_ndb_record, &stat, part_id)) {
+    // Request stats from NDB
+    if (int err =
+            ndb_get_table_statistics(thd, this, thd_ndb->ndb, m_table,
+                                     m_ndb_record, &table_stats, part_id)) {
       return err;
     }
 
-    /* Update shared statistics with fresh data */
+    // Update cached stats with fresh data
     if (m_share) {
       mysql_mutex_lock(&m_share->mutex);
-      m_share->stat = stat;
+      m_share->cached_table_stats = table_stats;
       mysql_mutex_unlock(&m_share->mutex);
     }
     break;
@@ -12863,24 +12864,24 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
 
   int no_uncommitted_rows_count = 0;
   if (m_table_info && !thd_ndb->m_error) {
-    m_table_info->records = stat.row_count;
+    m_table_info->records = table_stats.row_count;
     no_uncommitted_rows_count = m_table_info->no_uncommitted_rows_count;
   }
-  stats.mean_rec_length = stat.row_size;
-  stats.data_file_length = stat.fragment_memory;
-  stats.records = stat.row_count + no_uncommitted_rows_count;
-  stats.max_data_file_length = stat.fragment_extent_space;
-  stats.delete_length = stat.fragment_extent_free_space;
+  stats.mean_rec_length = table_stats.row_size;
+  stats.data_file_length = table_stats.fragment_memory;
+  stats.records = table_stats.row_count + no_uncommitted_rows_count;
+  stats.max_data_file_length = table_stats.fragment_extent_space;
+  stats.delete_length = table_stats.fragment_extent_free_space;
 
   DBUG_PRINT("exit",
-             ("stats.records: %d  "
-              "stat->row_count: %d  "
-              "no_uncommitted_rows_count: %d"
-              "stat->fragment_extent_space: %u  "
-              "stat->fragment_extent_free_space: %u",
-              (int)stats.records, (int)stat.row_count,
-              (int)no_uncommitted_rows_count, (uint)stat.fragment_extent_space,
-              (uint)stat.fragment_extent_free_space));
+             ("stats.records: %llu  "
+              "table_stats.row_count: %llu  "
+              "no_uncommitted_rows_count: %d "
+              "table_stats.fragment_extent_space: %llu  "
+              "table_stats.fragment_extent_free_space: %llu",
+              stats.records, table_stats.row_count, no_uncommitted_rows_count,
+              table_stats.fragment_extent_space,
+              table_stats.fragment_extent_free_space));
   return 0;
 }
 
@@ -12892,7 +12893,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster *file, Ndb *ndb,
                                     const NdbDictionary::Table *tab,
                                     const NdbRecord *record,
-                                    struct Ndb_statistics *ndbstat,
+                                    NDB_SHARE::Table_stats *stats,
                                     uint part_id) {
   Thd_ndb *thd_ndb = get_thd_ndb(current_thd);
   NdbTransaction *pTrans;
@@ -13013,11 +13014,11 @@ static int ndb_get_table_statistics(THD *thd, ha_ndbcluster *file, Ndb *ndb,
 
     ndb->closeTransaction(pTrans);
 
-    ndbstat->row_count = sum_rows;
-    ndbstat->row_size = (ulong)sum_row_size;
-    ndbstat->fragment_memory = sum_mem;
-    ndbstat->fragment_extent_space = sum_ext_space;
-    ndbstat->fragment_extent_free_space = sum_free_ext_space;
+    stats->row_count = sum_rows;
+    stats->row_size = (ulong)sum_row_size;
+    stats->fragment_memory = sum_mem;
+    stats->fragment_extent_space = sum_ext_space;
+    stats->fragment_extent_free_space = sum_free_ext_space;
 
     DBUG_PRINT("exit", ("records: %llu row_size: %llu "
                         "mem: %llu allocated: %llu free: %llu count: %u",

@@ -49,17 +49,6 @@ enum Ndb_binlog_type {
   NBT_UPDATED_FULL_MINIMAL = 9
 };
 
-/*
-  Stats that can be retrieved from ndb
-*/
-struct Ndb_statistics {
-  Uint64 row_count;
-  ulong row_size;
-  Uint64 fragment_memory;
-  Uint64 fragment_extent_space;
-  Uint64 fragment_extent_free_space;
-};
-
 struct NDB_SHARE {
   THR_LOCK lock;
   mutable mysql_mutex_t mutex;
@@ -103,9 +92,19 @@ struct NDB_SHARE {
     g.range.reset();
   }
 
-  Ndb_statistics stat;
-  // Update row count in 'stat' with number of changed rows
-  void update_row_count(int changed_rows);
+  // Shared statistics for the table.
+  // This is cached values and used in queries when that is "good enough",
+  // in other cases the values are updated from NDB before use.
+  // NOTE! Protected by NDB_SHARE::mutex
+  struct Table_stats {
+    Uint64 row_count;
+    ulong row_size;
+    Uint64 fragment_memory;
+    Uint64 fragment_extent_space;
+    Uint64 fragment_extent_free_space;
+  } cached_table_stats;
+  // Update cached row count with number of changed rows
+  void update_cached_row_count(int changed_rows);
 
   struct Ndb_index_stat *index_stat_list;
 

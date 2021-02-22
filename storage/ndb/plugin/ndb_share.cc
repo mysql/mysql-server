@@ -831,19 +831,20 @@ bool NDB_SHARE::install_event_op(NdbEventOperation *new_op, bool replace_op) {
   return true;
 }
 
-void NDB_SHARE::update_row_count(int changed_rows) {
+void NDB_SHARE::update_cached_row_count(int changed_rows) {
   if (changed_rows == 0) {
     // Nothing to do
     return;
   }
 
   mysql_mutex_lock(&mutex);
-  DBUG_PRINT("info", ("Update row count for '%s', row_count: %llu, with: %d",
-                      table_name, stat.row_count, changed_rows));
+  DBUG_PRINT("info", ("Update cached row count %llu for table '%s' with: %d",
+                      cached_table_stats.row_count, table_name, changed_rows));
 
-  stat.row_count =
-      ((Int64)stat.row_count + changed_rows > 0)  // Check for underflow
-          ? stat.row_count + changed_rows
+  cached_table_stats.row_count =
+      // Check for underflow
+      ((Int64)cached_table_stats.row_count + changed_rows > 0)
+          ? cached_table_stats.row_count + changed_rows
           : 0;  // All rows gone
 
   mysql_mutex_unlock(&mutex);
