@@ -1117,12 +1117,9 @@ static inline int execute_no_commit_ie(Thd_ndb *thd_ndb,
   return res;
 }
 
-/*
-  Place holder for ha_ndbcluster thread specific data
-*/
 struct THD_NDB_SHARE {
   const void *key;
-  struct Ndb_local_table_statistics stat;
+  Ndb_local_table_statistics stat;
 };
 
 Thd_ndb::Thd_ndb(THD *thd)
@@ -1250,11 +1247,10 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure() {
 
 void ha_ndbcluster::no_uncommitted_rows_update(int c) {
   DBUG_TRACE;
-  struct Ndb_local_table_statistics *local_info = m_table_info;
-  local_info->no_uncommitted_rows_count += c;
+  m_table_info->no_uncommitted_rows_count += c;
   DBUG_PRINT("info",
              ("id=%d, no_uncommitted_rows_count=%d", m_table->getTableId(),
-              local_info->no_uncommitted_rows_count));
+              m_table_info->no_uncommitted_rows_count));
 }
 
 int ha_ndbcluster::ndb_err(NdbTransaction *trans) {
@@ -7314,10 +7310,10 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
     assert(m_share);
     ret = add_handler_to_open_tables(thd, m_thd_ndb, this);
   } else {
-    struct Ndb_local_table_statistics &stat = m_table_info_instance;
-    stat.no_uncommitted_rows_count = 0;
-    stat.records = ~(ha_rows)0;
-    m_table_info = &stat;
+    // Initialize table info instance and use it
+    m_table_info_instance.no_uncommitted_rows_count = 0;
+    m_table_info_instance.records = ~(ha_rows)0;
+    m_table_info = &m_table_info_instance;
   }
   return ret;
 }
@@ -11159,7 +11155,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
       m_active_cursor(NULL),
       m_ndb_record(0),
       m_ndb_hidden_key_record(0),
-      m_table_info(NULL),
       m_key_fields(NULL),
       m_part_info(NULL),
       m_user_defined_partitioning(false),
