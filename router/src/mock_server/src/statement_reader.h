@@ -103,7 +103,10 @@ class ProtocolBase {
 
   void send_buffer(net::const_buffer buf);
 
-  stdx::expected<bool, std::error_code> socket_has_data(
+  stdx::expected<bool, std::error_code> wait_until_socket_has_data(
+      std::chrono::milliseconds timeout);
+
+  stdx::expected<bool, std::error_code> wait_until_socket_is_writable(
       std::chrono::milliseconds timeout);
 
   const net::ip::tcp::socket &client_socket() const { return client_socket_; }

@@ -314,7 +314,7 @@ bool MySQLServerMockSessionX::process_statements() {
 
   while (!killed()) {
     send_due_async_notices(start_time);
-    auto readable_res = protocol_->socket_has_data(kTimerResolution);
+    auto readable_res = protocol_->wait_until_socket_has_data(kTimerResolution);
 
     if (!readable_res) {
       // got terminated by the mainloop.
