@@ -12838,14 +12838,12 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
   DBUG_TRACE;
   do {
     if (m_share && !do_read_stat) {
+      // Just read cached stats from NDB_SHARE without reading from NDB
       mysql_mutex_lock(&m_share->mutex);
       stat = m_share->stat;
       mysql_mutex_unlock(&m_share->mutex);
 
-      assert(stat.row_count != ~(ha_rows)0);  // should never be invalid
-
-      /* Accept shared cached statistics if row_count is valid. */
-      if (stat.row_count != ~(ha_rows)0) break;
+      break;
     }
 
     /* Request statistics from datanodes */
