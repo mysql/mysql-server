@@ -79,7 +79,7 @@ if ($rpl_debug)
   # debug info.
   if (!$printed_this_should_not_be_checked_in)
   {
-    --echo DO_NOT_CHECK_IN_THIS_LINE: \$rpl_debug should only be used for debugging. Never check in a test that has $rpl_debug=1.
+    --echo DO_NOT_CHECK_IN_THIS_LINE: \$rpl_debug should only be used for debugging. Never check in a test that has \$rpl_debug=1.
     --let $printed_this_should_not_be_checked_in= 1
   }
 }
