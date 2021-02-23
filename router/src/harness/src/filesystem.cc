@@ -271,19 +271,24 @@ Directory::Directory(const Path &path) : Path(path) {}
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-int delete_dir_recursive(const std::string &dir) noexcept {
+stdx::expected<void, std::error_code> delete_dir_recursive(
+    const std::string &dir) noexcept {
   mysql_harness::Directory d(dir);
   try {
     for (auto const &f : d) {
       if (f.is_directory()) {
-        if (delete_dir_recursive(f.str()) < 0) return -1;
+        const auto res = delete_dir_recursive(f.str());
+        if (!res) return res.get_unexpected();
       } else {
-        if (delete_file(f.str()) < 0) return -1;
+        const auto res = delete_file(f.str());
+        if (!res) return res.get_unexpected();
       }
     }
   } catch (...) {
-    return -1;
+    return stdx::make_unexpected(
+        std::error_code(errno, std::system_category()));
   }
+
   return delete_dir(dir);
 }
 

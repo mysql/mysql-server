@@ -932,9 +932,11 @@ std::chrono::microseconds DuktapeStatementReader::server_greeting_exec_time() {
   return exec_time;
 }
 
-stdx::expected<DuktapeStatementReader::account_data, std::error_code>
-DuktapeStatementReader::account() {
+stdx::expected<DuktapeStatementReader::handshake_data, std::error_code>
+DuktapeStatementReader::handshake() {
   auto *ctx = pimpl_->ctx;
+
+  stdx::expected<ErrorResponse, void> error{stdx::make_unexpected()};
 
   stdx::expected<std::string, void> username{stdx::make_unexpected()};
   stdx::expected<std::string, void> password{stdx::make_unexpected()};
@@ -946,6 +948,12 @@ DuktapeStatementReader::account() {
 
   duk_get_prop_string(ctx, -1, "handshake");
   if (duk_is_object(ctx, -1)) {
+    duk_get_prop_string(ctx, -1, "error");
+    if (!duk_is_undefined(ctx, -1)) {
+      error = pimpl_->get_error(-1);
+    }
+    duk_pop(ctx);
+
     duk_get_prop_string(ctx, -1, "auth");
     if (duk_is_object(ctx, -1)) {
       duk_get_prop_literal(ctx, -1, "username");
@@ -998,8 +1006,8 @@ DuktapeStatementReader::account() {
     return stdx::make_unexpected(ec);
   }
 
-  return account_data{username, password, cert_required, cert_subject,
-                      cert_issuer};
+  return handshake_data{error,         username,     password,
+                        cert_required, cert_subject, cert_issuer};
 }
 
 // @pre on the stack is an object

@@ -1985,6 +1985,54 @@ TEST_F(ErrorReportTest, ConfUseGrNotificationsAsyncReplicaset) {
   check_exit_code(router, EXIT_FAILURE);
 }
 
+/**
+ * @test
+ *       verify that trying to register that is not unique in the metadata
+ * gives expected results.
+ */
+TEST_F(RouterBootstrapTest, BootstrapRouterDuplicateEntry) {
+  TempDirectory bootstrap_directory;
+  const auto server_port = port_pool_.get_next_available();
+  const auto bootstrap_server_port = port_pool_.get_next_available();
+  // const auto server_http_port = port_pool_.get_next_available();
+  const auto bootstrap_server_http_port = port_pool_.get_next_available();
+  const std::string json_stmts =
+      get_data_dir().join("bootstrap_gr_dup_router.js").str();
+
+  // launch mock server that is our metadata server for the bootstrap
+  // auto &server_mock =
+  launch_mysql_server_mock(json_stmts, bootstrap_server_port, EXIT_SUCCESS,
+                           false, bootstrap_server_http_port);
+  set_mock_bootstrap_data(bootstrap_server_http_port, "test",
+                          {{"127.0.0.1", server_port}}, {2, 0, 3},
+                          "cluster-specific-id");
+
+  // launch the router in bootstrap mode
+  auto &router = launch_router_for_bootstrap(
+      {"--bootstrap=127.0.0.1:" + std::to_string(bootstrap_server_port), "-d",
+       bootstrap_directory.name()},
+      EXIT_FAILURE);
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ",
+                           kRootPassword + "\n"s);
+
+  check_exit_code(router, EXIT_FAILURE);
+
+  // there should be an errors about duplicate router entry
+  EXPECT_TRUE(router.expect_output(
+      "Error: It appears that a router instance named '' has been previously "
+      "configured in this host. If that instance no longer exists, use the "
+      "--force option to overwrite it.",
+      false, 0ms));
+
+  // there should be no errors about not being able to remove dirs nor files
+  EXPECT_FALSE(
+      router.expect_output("Could not delete directory .*", true, 0ms));
+
+  EXPECT_FALSE(router.expect_output("Could not delete file .*", true, 0ms));
+}
+
 int main(int argc, char *argv[]) {
   init_windows_sockets();
   ProcessManager::set_origin(Path(argv[0]).dirname());

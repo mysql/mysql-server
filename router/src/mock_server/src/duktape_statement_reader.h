@@ -63,7 +63,7 @@ class DuktapeStatementReader : public StatementReaderBase {
   stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
   server_greeting(bool with_tls) override;
 
-  stdx::expected<account_data, std::error_code> account() override;
+  stdx::expected<handshake_data, std::error_code> handshake() override;
 
   std::chrono::microseconds server_greeting_exec_time() override;
 

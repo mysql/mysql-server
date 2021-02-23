@@ -90,6 +90,17 @@ void MySQLClassicProtocol::send_packet(const std::vector<uint8_t> &payload) {
 bool MySQLServerMockSessionClassic::process_handshake() {
   bool is_first_packet = true;
 
+  const auto handshake_data = json_reader_->handshake();
+
+  // if we are supposed to send an error in the handshake, let's do it right
+  // away
+  const auto &error = handshake_data.value().error;
+  if (error) {
+    protocol_->send_error(error->error_code(), error->message(),
+                          error->sql_state());
+    return false;
+  }
+
   while (!killed()) {
     std::vector<uint8_t> payload;
     if (!is_first_packet) {
@@ -225,28 +236,28 @@ stdx::expected<std::string, std::error_code> cert_get_issuer_name(X509 *cert) {
 
 bool MySQLServerMockSessionClassic::authenticate(
     const std::vector<uint8_t> &client_auth_method_data) {
-  auto account_data_res = json_reader_->account();
-  if (!account_data_res) {
+  auto handshake_data_res = json_reader_->handshake();
+  if (!handshake_data_res) {
     return false;
   }
 
-  auto account = account_data_res.value();
+  auto handshake = handshake_data_res.value();
 
-  if (account.username.has_value()) {
-    if (account.username.value() != protocol_->username()) {
+  if (handshake.username.has_value()) {
+    if (handshake.username.value() != protocol_->username()) {
       return false;
     }
   }
 
-  if (account.password.has_value()) {
+  if (handshake.password.has_value()) {
     if (!protocol_->authenticate(
             protocol_->auth_method_name(), protocol_->auth_method_data(),
-            account.password.value(), client_auth_method_data)) {
+            handshake.password.value(), client_auth_method_data)) {
       return false;
     }
   }
 
-  if (account.cert_required) {
+  if (handshake.cert_required) {
     auto *ssl = protocol_->ssl();
 
     std::unique_ptr<X509, decltype(&X509_free)> client_cert{
@@ -256,26 +267,26 @@ bool MySQLServerMockSessionClassic::authenticate(
       return false;
     }
 
-    if (account.cert_subject.has_value()) {
+    if (handshake.cert_subject.has_value()) {
       auto subject_res = cert_get_subject_name(client_cert.get());
       if (!subject_res) {
         throw std::system_error(subject_res.error(), "cert_get_subject_name");
       }
       log_debug("client-cert::subject: %s", subject_res.value().c_str());
 
-      if (account.cert_subject.value() != subject_res.value()) {
+      if (handshake.cert_subject.value() != subject_res.value()) {
         return false;
       }
     }
 
-    if (account.cert_issuer.has_value()) {
+    if (handshake.cert_issuer.has_value()) {
       auto issuer_res = cert_get_issuer_name(client_cert.get());
       if (!issuer_res) {
         throw std::system_error(issuer_res.error(), "cert_get_issuer_name");
       }
       log_debug("client-cert::issuer: %s", issuer_res.value().c_str());
 
-      if (account.cert_issuer.value() != issuer_res.value()) {
+      if (handshake.cert_issuer.value() != issuer_res.value()) {
         return false;
       }
     }
