@@ -537,6 +537,7 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_x_rw */ 64460,
      /* expected_port_x_ro */ 64470},
 
+#ifndef _WIN32
     // create a config with no tcp endpoints
     // bootstrap again on top of that config with no conf-base-port parameter
     // the new defaults should be used
@@ -558,7 +559,9 @@ const ReBootstrapOkBasePortTestParam rebootstrap_ok_base_port_test_param[] = {
      /* expected_port_classic_rw */ 6446,
      /* expected_port_classic_ro */ 6447,
      /* expected_port_x_rw */ 64460,
-     /* expected_port_x_ro */ 64470}};
+     /* expected_port_x_ro */ 64470}
+#endif
+};
 
 INSTANTIATE_TEST_SUITE_P(
     RouterReBootstrapOkBasePort, RouterReBootstrapOkBasePortTest,
