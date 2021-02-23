@@ -4931,6 +4931,11 @@ longlong Item_source_pos_wait::val_int() {
   return event_count;
 }
 
+longlong Item_master_pos_wait::val_int() {
+  push_deprecated_warn(current_thd, "MASTER_POS_WAIT", "SOURCE_POS_WAIT");
+  return Item_source_pos_wait::val_int();
+}
+
 bool Item_wait_for_executed_gtid_set::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;

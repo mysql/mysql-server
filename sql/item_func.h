@@ -2329,7 +2329,7 @@ class Item_func_release_all_locks final : public Item_int_func {
 
 /* replication functions */
 
-class Item_source_pos_wait final : public Item_int_func {
+class Item_source_pos_wait : public Item_int_func {
   typedef Item_int_func super;
   String value;
 
@@ -2359,6 +2359,17 @@ class Item_source_pos_wait final : public Item_int_func {
     func_arg->banned_function_name = func_name();
     return true;
   }
+};
+
+class Item_master_pos_wait : public Item_source_pos_wait {
+ public:
+  Item_master_pos_wait(const POS &pos, Item *a, Item *b)
+      : Item_source_pos_wait(pos, a, b) {}
+  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c)
+      : Item_source_pos_wait(pos, a, b, c) {}
+  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+      : Item_source_pos_wait(pos, a, b, c, d) {}
+  longlong val_int() override;
 };
 
 /**

@@ -126,7 +126,11 @@ if (!$_sync_with_gtids)
   {
     --echo debug: SOURCE_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)
   }
-  --let $_sss_result= `SELECT SOURCE_POS_WAIT('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)`
+  --let $_sss_source_pos_wait_function = SOURCE_POS_WAIT
+  if ($use_source_pos_wait_alias) {
+    --let $_sss_source_pos_wait_function = MASTER_POS_WAIT
+  }
+  --let $_sss_result= `SELECT $_sss_source_pos_wait_function('$_saved_file', $_saved_pos, $_sss_slave_timeout$_sss_channel_param)`
 }
 
 if ($_sss_result == '')
