@@ -6785,27 +6785,35 @@ void ha_ndbcluster::get_dynamic_partition_info(ha_statistics *stat_info,
   THD *thd = table->in_use;
   if (!thd) thd = current_thd;
 
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+
   // Checksum not supported, set it to 0
   *checksum = 0;
 
   // Read fresh stats from NDB for given partition (one roundtrip)
-  // NOTE! overwrites handler::stats, the NDB_SHARE::cached_table_stats and
-  // ha_ndbcluster::Ndb_local_table_statistics with values for only given
-  // partition!
-  const int error = update_stats(thd, true, part_id);
-  if (error) {
-    // Nothing to do, caller has initialized stat_info to zero
+  NdbError ndb_error;
+  Ndb_table_stats part_stats;
+  if (ndb_get_table_statistics(thd, thd_ndb->ndb, m_table, &part_stats,
+                               ndb_error, part_id)) {
+    if (ndb_error.classification == NdbError::SchemaError) {
+      // Updating stats for table failed due to a schema error. Mark the NDB
+      // table def as invalid, this will cause also all index defs to be
+      // invalidate on close
+      m_table->setStatusInvalid();
+    }
+    ndb_to_mysql_error(&ndb_error);  // Called to push any NDB error as warning
+
+    // Nothing else to do, caller has initialized stat_info to zero
     DBUG_PRINT("error", ("Failed to update stats"));
     return;
   }
 
-  // Return values from handler::stats, the caller will then subsequently update
-  // handler::stats with these values!
-  stat_info->records = stats.records;
-  stat_info->mean_rec_length = stats.mean_rec_length;
-  stat_info->data_file_length = stats.data_file_length;
-  stat_info->delete_length = stats.delete_length;
-  stat_info->max_data_file_length = stats.max_data_file_length;
+  // Copy partition stats into callers stats buffer
+  stat_info->records = part_stats.row_count;
+  stat_info->mean_rec_length = part_stats.row_size;
+  stat_info->data_file_length = part_stats.fragment_memory;
+  stat_info->delete_length = part_stats.fragment_extent_free_space;
+  stat_info->max_data_file_length = part_stats.fragment_extent_space;
 }
 
 int ha_ndbcluster::extra(enum ha_extra_function operation) {
@@ -12850,16 +12858,12 @@ bool ha_ndbcluster::low_byte_first() const {
    Ndb_local_table_statistics::records value as well as values in
    handler::stats.
 
-   @note When using the "part_id" parameter all the three different types of
-   stats updated by this function will be overwritten with stats pertaining to
-   only that fragment!
-
    @param thd           The THD pointer
    @param do_read_stat  Read fresh stats from NDB and update cache.
-   @param part_id       The partition id to fetch stats for.
+
    @return 0 on success
  */
-int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
+int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat) {
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   DBUG_TRACE;
 
@@ -12878,7 +12882,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
     // Request stats from NDB
     NdbError ndb_error;
     if (ndb_get_table_statistics(thd, thd_ndb->ndb, m_table, &table_stats,
-                                 ndb_error, part_id)) {
+                                 ndb_error)) {
       if (ndb_error.classification == NdbError::SchemaError) {
         // Updating stats for table failed due to a schema error. Mark the NDB
         // table def as invalid, this will cause also all index defs to be

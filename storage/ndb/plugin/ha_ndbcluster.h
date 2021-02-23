@@ -757,7 +757,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
   uchar *m_multi_range_result_ptr;
   NdbIndexScanOperation *m_multi_cursor;
 
-  int update_stats(THD *thd, bool do_read_stat, uint part_id = ~(uint)0);
+  int update_stats(THD *thd, bool do_read_stat);
   int add_handler_to_open_tables(THD *, Thd_ndb *, ha_ndbcluster *handler);
 };
 
