@@ -6971,20 +6971,17 @@ bool TABLE_LIST::generate_keys() {
 /**
   Update TABLE::const_key_parts for single table UPDATE/DELETE query
 
-  @param conds               WHERE clause expression
-
-  @retval true   error (OOM)
-  @retval false  success
+  @param conds    WHERE clause condition
 
   @note
     Set const_key_parts bits if key fields are equal to constants in
-    the WHERE expression.
+    the WHERE condition.
 */
 
-bool TABLE::update_const_key_parts(Item *conds) {
+void TABLE::update_const_key_parts(Item *conds) {
   memset(const_key_parts, 0, sizeof(key_part_map) * s->keys);
 
-  if (conds == nullptr) return false;
+  assert(conds != nullptr);
 
   for (uint index = 0; index < s->keys; index++) {
     KEY_PART_INFO *keyinfo = key_info[index].key_part;
@@ -6993,16 +6990,10 @@ bool TABLE::update_const_key_parts(Item *conds) {
 
     for (key_part_map part_map = (key_part_map)1; keyinfo < keyinfo_end;
          keyinfo++, part_map <<= 1) {
-      if (const_expression_in_where(conds, nullptr, keyinfo->field))
+      if (check_field_is_const(conds, nullptr, keyinfo->field))
         const_key_parts[index] |= part_map;
     }
   }
-
-  /*
-    Handle error for the whole function here instead of along with the call for
-    const_expression_in_where() as the function does not return true for errors.
-  */
-  return current_thd->is_error();
 }
 
 /**

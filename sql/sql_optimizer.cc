@@ -1628,7 +1628,7 @@ int test_if_order_by_key(ORDER_with_src *order_src, TABLE *table, uint idx,
 
     /*
       Skip key parts that are constants in the WHERE clause.
-      These are already skipped in the ORDER BY by const_expression_in_where()
+      These are already skipped in the ORDER BY by check_field_is_const()
     */
     for (; const_key_parts & 1 && key_part < key_part_end;
          const_key_parts >>= 1)
@@ -9706,29 +9706,27 @@ static bool duplicate_order(const ORDER *first_order,
   Remove all constants and check if ORDER only contains simple
   expressions.
 
-  simple_order is set to 1 if sort_order only uses fields from head table
+  simple_order is set to true if sort_order only uses fields from head table
   and the head table is not a LEFT JOIN table.
 
-  @param first_order            List of SORT or GROUP order
-  @param cond                   WHERE statement
-  @param change_list            Set to 1 if we should remove things from list.
-                                If this is not set, then only simple_order is
-                                calculated.
-  @param simple_order           Set to 1 if we are only using simple expressions
-  @param group_by               True if order represents a grouping operation
+  @param first_order   List of GROUP BY or ORDER BY sub-clauses.
+  @param cond          WHERE condition.
+  @param change        If true, remove sub-clauses that need not be evaluated.
+                       If this is not set, then only simple_order is calculated.
+  @param simple_order[out]  Set to true if we are only using simple expressions.
+  @param group_by      True if first_order represents a grouping operation.
 
-  @return
-    Returns new sort order
+  @returns new sort order, after const elimination (when change is true).
 */
 
-ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
+ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change,
                           bool *simple_order, bool group_by) {
   DBUG_TRACE;
 
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
   if (plan_is_const())
-    return change_list ? nullptr : first_order;  // No need to sort
+    return change ? nullptr : first_order;  // No need to sort
 
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_disable_I_S trace_disabled(trace, first_order == nullptr);
@@ -9744,7 +9742,6 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
   }
   Opt_trace_array trace_each_item(trace, "items");
 
-  ORDER *order, **prev_ptr;
   JOIN_TAB *const first_tab = best_ref[const_tables];
   table_map first_table = first_tab->table_ref->map();
   table_map not_const_tables = ~const_table_map;
@@ -9752,7 +9749,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
   // Caches to avoid repeating eq_ref_table() calls, @see eq_ref_table()
   table_map eq_ref_tables = 0, cached_eq_ref_tables = 0;
 
-  prev_ptr = &first_order;
+  ORDER **prev_ptr = &first_order;
   *simple_order = !first_tab->join_cond();
 
   // De-optimization in conjunction with window functions
@@ -9760,7 +9757,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
 
   update_depend_map(first_order);
 
-  for (order = first_order; order; order = order->next) {
+  for (ORDER *order = first_order; order; order = order->next) {
     Opt_trace_object trace_one_item(trace);
     trace_one_item.add("item", order->item[0]);
     table_map order_tables = order->item[0]->used_tables();
@@ -9777,10 +9774,10 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
           outer join.
          */
         (primary_tables > 1 && rollup_state == RollupState::INITED &&
-         query_block->outer_join))
-      *simple_order = false;  // Must do a temp table to sort
-    else if ((order_tables & not_const_tables) == 0 &&
-             evaluate_during_optimization(order->item[0], query_block)) {
+         query_block->outer_join)) {
+      *simple_order = false;  // Must use a temporary table to sort
+    } else if ((order_tables & not_const_tables) == 0 &&
+               evaluate_during_optimization(order->item[0], query_block)) {
       if (order->item[0]->has_subquery()) {
         if (!thd->lex->is_explain()) {
           Opt_trace_array trace_subselect(trace, "subselect_evaluation");
@@ -9799,7 +9796,7 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
       */
       trace_one_item.add("duplicate_item", true);
       continue;
-    } else if (order->in_field_list && order->item[0]->has_subquery())
+    } else if (order->in_field_list && order->item[0]->has_subquery()) {
       /*
         If the order item is a subquery that is also in the field
         list, a temp table should be used to avoid evaluating the
@@ -9808,36 +9805,34 @@ ORDER *JOIN::remove_const(ORDER *first_order, Item *cond, bool change_list,
           Example: "SELECT (SELECT ... ) as a ... GROUP BY a;"
        */
       *simple_order = false;
-    else {
-      if (order_tables & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT))
-        *simple_order = false;
-      else {
-        if (cond && const_expression_in_where(cond, order->item[0])) {
-          trace_one_item.add("equals_constant_in_where", true);
+    } else if (order_tables & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT)) {
+      *simple_order = false;
+    } else {
+      if (cond != nullptr && check_field_is_const(cond, order->item[0])) {
+        trace_one_item.add("equals_constant_in_where", true);
+        continue;
+      }
+      if ((ref = order_tables & (not_const_tables ^ first_table))) {
+        if (!(order_tables & first_table) &&
+            only_eq_ref_tables(this, first_order, ref, &cached_eq_ref_tables,
+                               &eq_ref_tables)) {
+          trace_one_item.add("eq_ref_to_preceding_items", true);
           continue;
         }
-        if ((ref = order_tables & (not_const_tables ^ first_table))) {
-          if (!(order_tables & first_table) &&
-              only_eq_ref_tables(this, first_order, ref, &cached_eq_ref_tables,
-                                 &eq_ref_tables)) {
-            trace_one_item.add("eq_ref_to_preceding_items", true);
-            continue;
-          }
-          *simple_order = false;  // Must do a temp table to sort
-        }
+        *simple_order = false;  // Must do a temp table to sort
       }
     }
-    if (change_list) *prev_ptr = order;  // use this entry
+    if (change) *prev_ptr = order;  // use this entry
     prev_ptr = &order->next;
   }
-  if (change_list) *prev_ptr = nullptr;
+  if (change) *prev_ptr = nullptr;
   if (prev_ptr == &first_order)  // Nothing to sort/group
     *simple_order = true;
   DBUG_PRINT("exit", ("simple_order: %d", (int)*simple_order));
 
   trace_each_item.end();
   trace_simpl.add("resulting_clause_is_simple", *simple_order);
-  if (trace->is_started() && change_list) {
+  if (trace->is_started() && change) {
     String str;
     Query_block::print_order(
         thd, &str, first_order,

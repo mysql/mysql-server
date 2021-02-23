@@ -519,7 +519,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   if (query_block->has_ft_funcs() && init_ftfuncs(thd, query_block))
     return true; /* purecov: inspected */
 
-  if (table->update_const_key_parts(conds)) return true;
+  if (conds != nullptr) table->update_const_key_parts(conds);
 
   order = simple_remove_const(order, conds);
   bool need_sort;

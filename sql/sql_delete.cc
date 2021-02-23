@@ -398,7 +398,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   }
 
   if (order) {
-    if (table->update_const_key_parts(conds)) return true;
+    if (conds != nullptr) table->update_const_key_parts(conds);
     order = simple_remove_const(order, conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY);
     usable_index =
