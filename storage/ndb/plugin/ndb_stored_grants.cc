@@ -908,7 +908,17 @@ bool Ndb_stored_grants::init() {
 /* setup() is run as part of binlog setup.
  */
 bool Ndb_stored_grants::setup(THD *thd, Thd_ndb *thd_ndb) {
-  if (metadata_table.isInitialized()) return true;
+  ThreadContext context(thd);
+
+  if (metadata_table.isRestarting()) {
+    ndb_log_info("Ndb_stored_grants::setup() -- after deferred shutdown");
+    metadata_table.clear(thd_ndb->ndb->getDictionary());
+  } else if (metadata_table.isInitialized()) {
+    ndb_log_info("Ndb_stored_grants::setup() -- no op");
+    return true;
+  } else {
+    ndb_log_info("Ndb_stored_grants::setup() -- normal setup");
+  }
 
   /* Create or upgrade the ndb_sql_metadata table.
      If this fails, create_or_upgrade() will log an error message,
@@ -923,17 +933,29 @@ bool Ndb_stored_grants::setup(THD *thd, Thd_ndb *thd_ndb) {
   return true;
 }
 
-void Ndb_stored_grants::shutdown(Thd_ndb *thd_ndb) {
-  metadata_table.clear(thd_ndb->ndb->getDictionary());
-}
-
-bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
-  if (!metadata_table.isInitialized()) {
-    ndb_log_error("stored grants: initialization has failed.");
-    return false;
+void Ndb_stored_grants::shutdown(THD *thd, Thd_ndb *thd_ndb, bool restarting) {
+  if (!(thd && thd_ndb)) {
+    ndb_log_info("Ndb_stored_grants::shutdown() -- no op");
+    return;
   }
 
   ThreadContext context(thd);
+  if (restarting) {
+    ndb_log_info("Ndb_stored_grants::shutdown() -- deferred");
+    metadata_table.setRestarting();
+  } else {
+    ndb_log_info("Ndb_stored_grants::shutdown() -- normal shutdown");
+    metadata_table.clear(thd_ndb->ndb->getDictionary());
+  }
+}
+
+bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
+  ThreadContext context(thd);
+
+  if (!metadata_table.isInitialized()) {
+    ndb_log_error("stored grants: not initialized.");
+    return false;
+  }
 
   if (!context.read_snapshot()) return false;
 
@@ -949,8 +971,10 @@ bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
 Ndb_stored_grants::Strategy Ndb_stored_grants::handle_local_acl_change(
     THD *thd, const Acl_change_notification *notice, std::string *user_list,
     bool *schema_dist_use_db, bool *must_refresh) {
+  ThreadContext context(thd);
+
   if (!metadata_table.isInitialized()) {
-    ndb_log_error("stored grants: initialization has failed.");
+    ndb_log_error("stored grants: not intialized.");
     return Strategy::ERROR;
   }
 
@@ -960,7 +984,6 @@ Ndb_stored_grants::Strategy Ndb_stored_grants::handle_local_acl_change(
   const enum_sql_command operation = notice->get_operation();
   if (operation == SQLCOM_CREATE_USER) return Strategy::NONE;
 
-  ThreadContext context(thd);
   Strategy strategy = context.handle_change(notice);
 
   /* Set flags for caller.
@@ -983,12 +1006,12 @@ void Ndb_stored_grants::maintain_cache(THD *thd) {
 
 bool Ndb_stored_grants::update_users_from_snapshot(THD *thd,
                                                    std::string users) {
+  ThreadContext context(thd);
+
   if (!metadata_table.isInitialized()) {
-    ndb_log_error("stored grants: initialization has failed.");
+    ndb_log_error("stored grants: not intialized.");
     return false;
   }
-
-  ThreadContext context(thd);
 
   context.deserialize_users(users);
   if (!context.read_snapshot()) return false;

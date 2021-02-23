@@ -11,7 +11,8 @@
 --disable_query_log
 call mtr.add_suppression("cluster disconnect An incident event has been written");
 # These failures occurs when NDB is restarted without indexes
-call mtr.add_suppression("NDB: stored grants: initialization has failed.");
+call mtr.add_suppression("NDB: Failed to setup PRIMARY index of ndb_sql_metadata");
+call mtr.add_suppression("NDB: stored grants: not initialized.");
 call mtr.add_suppression("NDB: stored grants: failed to apply stored grants.");
 --enable_query_log
 
@@ -22,7 +23,8 @@ connection mysqld2;
 --disable_query_log
 call mtr.add_suppression("cluster disconnect An incident event has been written");
 # These failures occurs when NDB is restarted without indexes
-call mtr.add_suppression("NDB: stored grants: initialization has failed.");
+call mtr.add_suppression("NDB: Failed to setup PRIMARY index of ndb_sql_metadata");
+call mtr.add_suppression("NDB: stored grants: not initialized.");
 call mtr.add_suppression("NDB: stored grants: failed to apply stored grants.");
 --enable_query_log
 

@@ -506,7 +506,7 @@ bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
     }
     reinstall = true;
 
-    ndb_log_info("Created '%s' table", m_name.c_str());
+    ndb_log_info("Created '%s' table in NdbDictionary", m_name.c_str());
   }
 
   ndb_log_verbose(50, "The '%s' table is ok", m_name.c_str());

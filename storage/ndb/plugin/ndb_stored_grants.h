@@ -42,7 +42,7 @@ bool init();
 // Setup the Ndb_stored_grants component
 bool setup(THD *, Thd_ndb *);
 
-void shutdown(Thd_ndb *);
+void shutdown(THD *, Thd_ndb *, bool restarting);
 
 bool apply_stored_grants(THD *);
 

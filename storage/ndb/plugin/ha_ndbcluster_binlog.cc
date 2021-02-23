@@ -614,8 +614,14 @@ static void ndbcluster_acl_notify(THD *thd,
 
   Ndb_schema_dist_client schema_dist_client(thd);
 
+  auto raise_error = [thd, query](const char *details) {
+    get_thd_ndb(thd)->push_warning(
+        "Could not distribute ACL change to other MySQL servers");
+    ndb_log_error("Failed to distribute '%s' %s", query.c_str(), details);
+  };
+
   if (strategy == Ndb_stored_grants::Strategy::ERROR) {
-    ndb_log_error("Not distributing ACL change after error.");
+    raise_error("after error");
     return;
   }
 
@@ -626,14 +632,13 @@ static void ndbcluster_acl_notify(THD *thd,
 
   const unsigned int &node_id = g_ndb_cluster_connection->node_id();
   if (!schema_dist_client.prepare_acl_change(node_id)) {
-    ndb_log_error("Failed to distribute '%s' (Failed prepare)", query.c_str());
+    raise_error("(Failed prepare)");
     return;
   }
 
   if (strategy == Ndb_stored_grants::Strategy::SNAPSHOT) {
     ndb_log_verbose(9, "ACL change distribution: SNAPSHOT");
-    if (!schema_dist_client.acl_notify(user_list))
-      ndb_log_error("Failed to distribute '%s' (SNAPSHOT)", query.c_str());
+    if (!schema_dist_client.acl_notify(user_list)) raise_error("as snapshot");
     return;
   }
 
@@ -655,7 +660,7 @@ static void ndbcluster_acl_notify(THD *thd,
   if (!schema_dist_client.acl_notify(
           dist_use_db ? notice->get_db().c_str() : nullptr, query.c_str(),
           query.length(), dist_refresh))
-    ndb_log_error("Failed to distribute '%s' (STATEMENT)", query.c_str());
+    raise_error("as statement");
 }
 
 /*
@@ -7533,6 +7538,10 @@ err:
   }
 
   mysql_mutex_lock(&injector_event_mutex);
+
+  Ndb_stored_grants::shutdown(injector_thd, thd_ndb,
+                              binlog_thread_state == BCCC_restart);
+
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd = NULL;
   injector_ndb = NULL;
@@ -7542,13 +7551,6 @@ err:
   mysql_mutex_lock(&injector_data_mutex);
   ndb_binlog_tables_inited = false;
   mysql_mutex_unlock(&injector_data_mutex);
-
-  if (thd_ndb) {
-    Ndb_stored_grants::shutdown(thd_ndb);
-  } else {
-    // Coming here without thd_ndb indicates that a goto has been used and
-    // thus the Ndb_stored_grants has most likely not been initialized
-  }
 
   thd->reset_db(NULL_CSTR);  // as not to try to free memory
   remove_all_event_operations(s_ndb, i_ndb);
