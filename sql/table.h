@@ -1799,7 +1799,7 @@ struct TABLE {
     assert(index_no < s->keys);
     return key_info[index_no].flags & HA_VIRTUAL_GEN_KEY;
   }
-  bool update_const_key_parts(Item *conds);
+  void update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
 

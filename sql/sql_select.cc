@@ -3614,11 +3614,10 @@ void JOIN::cleanup() {
 }
 
 /**
-  Filter out ORDER items those are equal to constants in WHERE
+  Filter out ORDER BY items that are equal to constants in WHERE condition
 
   This function is a limited version of remove_const() for use
   with non-JOIN statements (i.e. single-table UPDATE and DELETE).
-
 
   @param order            Linked list of ORDER BY arguments.
   @param where            Where condition.
@@ -3630,54 +3629,53 @@ void JOIN::cleanup() {
 */
 
 ORDER *simple_remove_const(ORDER *order, Item *where) {
-  if (!order || !where) return order;
+  if (order == nullptr || where == nullptr) return order;
 
   ORDER *first = nullptr, *prev = nullptr;
   for (; order; order = order->next) {
     assert(!order->item[0]->has_aggregation());  // should never happen
-    if (!const_expression_in_where(where, order->item[0])) {
-      if (!first) first = order;
-      if (prev) prev->next = order;
+    if (!check_field_is_const(where, order->item[0])) {
+      if (first == nullptr) first = order;
+      if (prev != nullptr) prev->next = order;
       prev = order;
     }
   }
-  if (prev) prev->next = nullptr;
+  if (prev != nullptr) prev->next = nullptr;
   return first;
 }
 
-/*
-  Check if equality can be used in removing components of GROUP BY/DISTINCT
+/**
+  Check if equality can be used to remove sub-clause of GROUP BY/ORDER BY
 
-  SYNOPSIS
-    test_if_equality_guarantees_uniqueness()
-      l          the left comparison argument (a field if any)
-      r          the right comparison argument (a const of any)
+  @param func   comparison operator (= or <=>)
+  @param v      variable comparison operand (validated to be equal to
+                                             ordering expression)
+  @param c      other comparison operand (likely to be a constant)
 
-  DESCRIPTION
-    Checks if an equality predicate can be used to take away
-    DISTINCT/GROUP BY because it is known to be true for exactly one
-    distinct value (e.g. <expr> == <const>).
-    Arguments must be of the same type because e.g.
-    <string_field> = <int_const> may match more than 1 distinct value from
-    the column.
-    We must take into consideration and the optimization done for various
-    string constants when compared to dates etc (see Item_int_with_ref) as
-    well as the collation of the arguments.
+  @returns true if equality determines uniqueness, false otherwise
 
-  RETURN VALUE
-    true    can be used
-    false   cannot be used
+    Checks if an equality predicate can be used to remove a GROUP BY/ORDER BY
+    sub-clause when it is known to be true for exactly one distinct value
+    (e.g. <expr> == <const>).
+    Arguments must be of the same type because e.g. <string_field> = <int_const>
+     may match more than one distinct value from the column.
 */
-static bool test_if_equality_guarantees_uniqueness(const Item *l,
-                                                   const Item *r) {
-  return r->const_item() &&
-         /* elements must be compared as dates */
-         (Arg_comparator::can_compare_as_dates(l, r) ||
-          /* or of the same result type */
-          (r->result_type() == l->result_type() &&
-           /* and must have the same collation if compared as strings */
-           (l->result_type() != STRING_RESULT ||
-            l->collation.collation == r->collation.collation)));
+static bool equality_determines_uniqueness(const Item_func_comparison *func,
+                                           const Item *v, const Item *c) {
+  /*
+    - The "c" argument must be a constant.
+    - The result type of both arguments must be the same.
+      However, since a temporal type is also classified as a string type,
+      we do not allow a temporal constant to be considered equal to a
+      variable character string.
+    - If both arguments are strings, the comparison operator must have the same
+      collation as the ordering operation applied to the variable expression.
+  */
+  return c->const_for_execution() && v->result_type() == c->result_type() &&
+         (v->result_type() != STRING_RESULT ||
+          (!(is_string_type(v->data_type()) &&
+             is_temporal_type(c->data_type())) &&
+           func->compare_collation() == v->collation.collation));
 }
 
 /*
@@ -3697,60 +3695,54 @@ static bool equal(const Item *i1, const Item *i2, const Field *f2) {
 }
 
 /**
-  Test if a field or an item is equal to a constant value in WHERE
+  Check if a field is equal to a constant value in a condition
 
-  @param        cond            WHERE clause expression
-  @param        comp_item       Item to find in WHERE expression
-                                (if comp_field != NULL)
-  @param        comp_field      Field to find in WHERE expression
-                                (if comp_item != NULL)
-  @param[out]   const_item      intermediate arg, set to Item pointer to NULL
+  @param      cond        condition to search within
+  @param      order_item  Item to find in condition (if order_field is NULL)
+  @param      order_field Field to find in condition (if order_item is NULL)
+  @param[out] const_item  Used in calculation with conjunctive predicates,
+                          must be NULL in outer-most call.
 
-  @return true if the field is a constant value in WHERE
-
-  @note
-    comp_item and comp_field parameters are mutually exclusive.
+  @returns true if the field is a constant value in condition, false otherwise
 */
-bool const_expression_in_where(Item *cond, Item *comp_item,
-                               const Field *comp_field, Item **const_item) {
-  assert((comp_item == nullptr) ^ (comp_field == nullptr));
+bool check_field_is_const(Item *cond, const Item *order_item,
+                          const Field *order_field, Item **const_item) {
+  assert((order_item == nullptr) ^ (order_field == nullptr));
 
   Item *intermediate = nullptr;
   if (const_item == nullptr) const_item = &intermediate;
 
   if (cond->type() == Item::COND_ITEM) {
-    bool and_level =
-        (((Item_cond *)cond)->functype() == Item_func::COND_AND_FUNC);
-    List_iterator_fast<Item> li(*((Item_cond *)cond)->argument_list());
+    Item_cond *const c = down_cast<Item_cond *>(cond);
+    bool and_level = c->functype() == Item_func::COND_AND_FUNC;
+    List_iterator_fast<Item> li(*c->argument_list());
     Item *item;
     while ((item = li++)) {
-      bool res =
-          const_expression_in_where(item, comp_item, comp_field, const_item);
-      if (res)  // Is a const value
-      {
+      if (check_field_is_const(item, order_item, order_field, const_item)) {
         if (and_level) return true;
       } else if (!and_level)
         return false;
     }
-    return and_level ? false : true;
-  } else if (cond->eq_cmp_result() !=
-             Item::COND_OK) {  // boolean compare function
-    Item_func *func = (Item_func *)cond;
+    return !and_level;
+  } else {
+    if (cond->type() != Item::FUNC_ITEM) return false;
+    Item_func *const func = down_cast<Item_func *>(cond);
     if (func->functype() != Item_func::EQUAL_FUNC &&
         func->functype() != Item_func::EQ_FUNC)
       return false;
-    Item *left_item = ((Item_func *)cond)->arguments()[0];
-    Item *right_item = ((Item_func *)cond)->arguments()[1];
-    if (equal(left_item, comp_item, comp_field)) {
-      if (test_if_equality_guarantees_uniqueness(left_item, right_item)) {
-        if (*const_item) return right_item->eq(*const_item, true);
-        *const_item = right_item;
+    Item_func_comparison *comp = down_cast<Item_func_comparison *>(func);
+    Item *left = comp->arguments()[0];
+    Item *right = comp->arguments()[1];
+    if (equal(left, order_item, order_field)) {
+      if (equality_determines_uniqueness(comp, left, right)) {
+        if (*const_item != nullptr) return right->eq(*const_item, true);
+        *const_item = right;
         return true;
       }
-    } else if (equal(right_item, comp_item, comp_field)) {
-      if (test_if_equality_guarantees_uniqueness(right_item, left_item)) {
-        if (*const_item) return left_item->eq(*const_item, true);
-        *const_item = left_item;
+    } else if (equal(right, order_item, order_field)) {
+      if (equality_determines_uniqueness(comp, right, left)) {
+        if (*const_item != nullptr) return left->eq(*const_item, true);
+        *const_item = left;
         return true;
       }
     }
