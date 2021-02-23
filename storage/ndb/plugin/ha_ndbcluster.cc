@@ -630,6 +630,7 @@ static int update_status_variables(Thd_ndb *thd_ndb, st_ndb_status *ns,
       ns->api_client_stats[i] = thd_ndb->ndb->getClientStat(i);
     }
     ns->schema_locks_count = thd_ndb->schema_locks_count;
+    ns->fetch_table_stats = thd_ndb->m_fetch_table_stats;
   }
   return 0;
 }
@@ -745,6 +746,8 @@ static SHOW_VAR ndb_status_vars_dynamic[] = {
      (char *)&g_ndb_status.last_commit_epoch_session, SHOW_LONGLONG,
      SHOW_SCOPE_GLOBAL},
     {"system_name", (char *)&g_ndb_status.system_name, SHOW_CHAR_PTR,
+     SHOW_SCOPE_GLOBAL},
+    {"fetch_table_stats", (char *)&g_ndb_status.fetch_table_stats, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
@@ -12881,6 +12884,11 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
     table_stats = m_share->cached_table_stats;
     mysql_mutex_unlock(&m_share->mutex);
   } else {
+    // Count number of table stat fetches
+    thd_ndb->m_fetch_table_stats++;
+    // Count one execute for fetch of stats
+    thd_ndb->m_execute_count++;
+
     // Request stats from NDB
     NdbError ndb_error;
     if (ndb_get_table_statistics(thd, thd_ndb->ndb, m_table, &table_stats,

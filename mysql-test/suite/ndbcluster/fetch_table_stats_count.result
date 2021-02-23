@@ -1,0 +1,29 @@
+#
+# Showing the "ndb_fetch_table_stats" counter
+#
+# Since fetching table stats incurs one roundtrip to NDB it should not
+# be done more than strictly required, the "ndb_fetch_table_stats"
+# counter provides a means to check when table stats are fetched.
+CREATE TABLE t1 (a int primary key) ENGINE = NDB;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+a
+1
+Table stats was fetched 1 time (expected 1)
+# Another query using an open handler instance should not cause
+# table stats to be fetched again
+SELECT * FROM t1;
+a
+1
+Table stats was fetched 0 times (expected 0)
+# Closing handler, should really not need to fetch
+# table stats again, but they seem to be
+FLUSH TABLES t1;
+Table stats was fetched 1 times (oops! expected 0)
+# Running query again, should cause
+# table stats to be fetched once again
+SELECT * FROM t1;
+a
+1
+Table stats was fetched 1 times (expected 1)
+DROP TABLE t1;

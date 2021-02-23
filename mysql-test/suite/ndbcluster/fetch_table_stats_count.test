@@ -1,0 +1,56 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # Showing the "ndb_fetch_table_stats" counter
+--echo #
+--echo # Since fetching table stats incurs one roundtrip to NDB it should not
+--echo # be done more than strictly required, the "ndb_fetch_table_stats"
+--echo # counter provides a means to check when table stats are fetched.
+
+CREATE TABLE t1 (a int primary key) ENGINE = NDB;
+
+let $count =
+  `SELECT VARIABLE_VALUE
+     FROM performance_schema.session_status
+       WHERE variable_name = 'NDB_FETCH_TABLE_STATS'`;
+
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
+
+let $count =
+  `SELECT VARIABLE_VALUE-$count
+     FROM performance_schema.session_status
+       WHERE variable_name = 'NDB_FETCH_TABLE_STATS'`;
+echo Table stats was fetched $count time (expected 1);
+
+--echo # Another query using an open handler instance should not cause
+--echo # table stats to be fetched again
+SELECT * FROM t1;
+
+let $count =
+  `SELECT VARIABLE_VALUE-$count
+     FROM performance_schema.session_status
+       WHERE variable_name = 'NDB_FETCH_TABLE_STATS'`;
+echo Table stats was fetched $count times (expected 0);
+
+--echo # Closing handler, should really not need to fetch
+--echo # table stats again, but they seem to be
+FLUSH TABLES t1;
+
+let $count =
+  `SELECT VARIABLE_VALUE-$count
+     FROM performance_schema.session_status
+       WHERE variable_name = 'NDB_FETCH_TABLE_STATS'`;
+echo Table stats was fetched $count times (oops! expected 0);
+
+--echo # Running query again, should cause
+--echo # table stats to be fetched once again
+SELECT * FROM t1;
+
+let $count =
+  `SELECT VARIABLE_VALUE-$count
+     FROM performance_schema.session_status
+       WHERE variable_name = 'NDB_FETCH_TABLE_STATS'`;
+echo Table stats was fetched $count times (expected 1);
+
+DROP TABLE t1;

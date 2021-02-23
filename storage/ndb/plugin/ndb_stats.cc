@@ -31,7 +31,6 @@
 #include "storage/ndb/include/ndbapi/NdbTransaction.hpp"
 #include "storage/ndb/plugin/ndb_sleep.h"
 #include "storage/ndb/plugin/ndb_thd.h"
-#include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 // Empty mask for reading no attributes using NdbRecord, will be initialized
 // to all zeros by linker.
@@ -41,8 +40,6 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
                               const NdbDictionary::Table *ndbtab,
                               Ndb_table_stats *stats, NdbError &ndb_error,
                               Uint32 part_id) {
-  Thd_ndb *thd_ndb = get_thd_ndb(thd);
-
   DBUG_TRACE;
 
   Uint64 rows, fixed_mem, var_mem, ext_space, free_ext_space;
@@ -108,14 +105,6 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
       goto retry;
     }
 
-    // NOTE! Updating scan and execute counters here when reading statistics is
-    // a little bit unusual, probably better not to count here or use separate
-    // "fetch stats" counter.
-    thd_ndb->m_scan_count++;
-    thd_ndb->m_pruned_scan_count += (pOp->getPruned() ? 1 : 0);
-
-    thd_ndb->m_execute_count++;
-    DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
     if (trans->execute(NdbTransaction::NoCommit, NdbOperation::AbortOnError,
                        1 /* force send */) == -1) {
       ndb_error = trans->getNdbError();

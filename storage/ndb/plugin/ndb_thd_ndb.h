@@ -223,6 +223,9 @@ class Thd_ndb {
   void increment_hinted_trans_count() { m_hinted_trans_count++; }
   uint hinted_trans_count() const { return m_hinted_trans_count; }
 
+  // Number of times that table stats has been fetched from NDB
+  uint m_fetch_table_stats{0};
+
   NdbTransaction *global_schema_lock_trans;
   uint global_schema_lock_count;
   uint global_schema_lock_error;

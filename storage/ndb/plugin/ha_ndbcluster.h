@@ -155,6 +155,7 @@ struct st_ndb_status {
   long long last_commit_epoch_session;
   long long api_client_stats[Ndb::NumClientStatistics];
   const char *system_name;
+  long fetch_table_stats;
 };
 
 int ndbcluster_commit(handlerton *, THD *thd, bool all);
