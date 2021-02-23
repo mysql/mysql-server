@@ -12875,18 +12875,16 @@ bool ha_ndbcluster::low_byte_first() const {
    @return 0 on success
  */
 int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
-  NDB_SHARE::Table_stats table_stats;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   DBUG_TRACE;
-  do {
-    if (m_share && !do_read_stat) {
-      // Just use the cached stats from NDB_SHARE without reading from NDB
-      mysql_mutex_lock(&m_share->mutex);
-      table_stats = m_share->cached_table_stats;
-      mysql_mutex_unlock(&m_share->mutex);
-      break;
-    }
 
+  NDB_SHARE::Table_stats table_stats;
+  if (!do_read_stat) {
+    // Just use the cached stats from NDB_SHARE without reading from NDB
+    mysql_mutex_lock(&m_share->mutex);
+    table_stats = m_share->cached_table_stats;
+    mysql_mutex_unlock(&m_share->mutex);
+  } else {
     // Request stats from NDB
     if (int err =
             ndb_get_table_statistics(thd, this, thd_ndb->ndb, m_table,
@@ -12895,13 +12893,10 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
     }
 
     // Update cached stats in NDB_SHARE with fresh data
-    if (m_share) {
-      mysql_mutex_lock(&m_share->mutex);
-      m_share->cached_table_stats = table_stats;
-      mysql_mutex_unlock(&m_share->mutex);
-    }
-    break;
-  } while (0);
+    mysql_mutex_lock(&m_share->mutex);
+    m_share->cached_table_stats = table_stats;
+    mysql_mutex_unlock(&m_share->mutex);
+  }
 
   int no_uncommitted_rows_count = 0;
   if (m_table_info && !thd_ndb->m_error) {
