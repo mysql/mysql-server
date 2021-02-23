@@ -439,7 +439,7 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
     // ReplicaSet
     if (routing_strategy_ ==
             routing::RoutingStrategy::kRoundRobinWithFallback &&
-        !previous_dests.primary()) {
+        !previous_dests.primary_already_used()) {
       // get the primaries
       return primary_destinations();
     }
@@ -449,13 +449,15 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
       // verify preconditions.
       assert(!previous_dests.empty() &&
              "previous destinations MUST NOT be empty");
-      assert(previous_dests.primary() &&
-             "previous destinations MUST a primary");
+
+      assert(previous_dests.is_primary_destination() &&
+             "previous destinations MUST be primary destinations");
 
       if (previous_dests.empty()) {
         return stdx::make_unexpected();
       }
-      if (!previous_dests.primary()) {
+
+      if (!previous_dests.is_primary_destination()) {
         return stdx::make_unexpected();
       }
 
@@ -582,8 +584,13 @@ Destinations DestMetadataCacheGroup::balance(
 
   if (primary_fallback) {
     // announce that we already use the primaries and don't want to fallback
-    dests.primary(true);
+    dests.primary_already_used(true);
   }
+
+  if (server_role() == DestMetadataCacheGroup::ServerRole::Primary) {
+    dests.set_is_primary_destination(true);
+  }
+
   return dests;
 }
 

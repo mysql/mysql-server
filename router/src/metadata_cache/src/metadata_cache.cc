@@ -428,10 +428,11 @@ void MetadataCache::on_handle_sockets_acceptors() {
     for (auto &callbacks_info : acceptor_update_listeners_) {
       const std::string replicaset_name = callbacks_info.first;
 
-      for (auto callback : acceptor_update_listeners_[replicaset_name]) {
+      for (const auto &callback : acceptor_update_listeners_[replicaset_name]) {
         // If setting up any acceptor failed we should retry on next md refresh
-        trigger_acceptor_update_on_next_refresh_ |=
-            !callback->update_socket_acceptor_state(instances);
+        if (!callback->update_socket_acceptor_state(instances)) {
+          trigger_acceptor_update_on_next_refresh_ = true;
+        }
       }
     }
   }

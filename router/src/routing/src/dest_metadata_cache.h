@@ -166,7 +166,8 @@ class DestMetadataCacheGroup final
    * the `metadata_cache::lookup_replicaset()` function to get a list of current
    * managed servers. Bool in the returned pair indicates if (in case of the
    * round-robin-with-fallback routing strategy) the returned nodes are the
-   * primaries after the fallback (true) or secondaries (false).
+   * primaries after the fallback (true), regular primaries (false) or
+   * secondaries (false).
    *
    */
   std::pair<AvailableDestinations, bool> get_available(
