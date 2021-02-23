@@ -64,6 +64,7 @@ class Field;
 class Field_bit;
 class Field_bit_as_char;
 class Field_blob;
+class Field_boolean;
 class Field_datetime;
 class Field_decimal;
 class Field_double;
@@ -139,6 +140,7 @@ Field (abstract)
 |  +--Field_longlong
 |  +--Field_tiny
 |     +--Field_year
+|  +--Field_boolean
 |
 +--Field_str (abstract)
 |  +--Field_longstr
@@ -321,6 +323,7 @@ inline type_conversion_status time_warning_to_type_conversion_status(
 */
 inline bool is_integer_type(enum_field_types type) {
   switch (type) {
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
@@ -342,6 +345,7 @@ inline bool is_integer_type(enum_field_types type) {
 */
 inline bool is_numeric_type(enum_field_types type) {
   switch (type) {
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
@@ -2274,6 +2278,46 @@ class Field_new_decimal : public Field_num {
   static Field *create_from_item(const Item *item);
   bool send_to_protocol(Protocol *protocol) const final;
   void set_keep_precision(bool arg) { m_keep_precision = arg; }
+};
+
+class Field_boolean : public Field_num {
+ public:
+  Field_boolean(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg, bool zero_arg) : Field_num(ptr_arg, 1, null_ptr_arg, null_bit_arg, auto_flags_arg, field_name_arg, 0, zero_arg, 1){}
+  Field_boolean(bool is_nullable_arg, const char *field_name_arg) : Field_num(nullptr, 1, is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE, field_name_arg, 0, false, 1){}
+  enum Item_result result_type() const final { return INT_RESULT; }
+  enum_field_types type() const override { return MYSQL_TYPE_BOOL; }
+  enum ha_base_keytype key_type() const final {  return HA_KEYTYPE_BINARY;  }
+  type_conversion_status store(const char *to, size_t length,
+                             const CHARSET_INFO *charset) override;
+  type_conversion_status store(double nr) override;
+  type_conversion_status store(longlong nr, bool unsigned_val) override;
+  double val_real() const override;
+  longlong val_int() const override;
+  String *val_str(String *, String *) const override;
+  bool send_to_protocol(Protocol *protocol) const override;
+  int cmp(const uchar *, const uchar *) const final;
+  size_t make_sort_key(uchar *buff, size_t length) const final;
+  uint32 pack_length() const final { return 1; }
+  void sql_type(String &str) const override;
+  uint32 max_display_length() const final { return 1; }
+  Field_boolean *clone(MEM_ROOT *mem_root) const override {
+    DBUG_ASSERT(type() == MYSQL_TYPE_BOOL);
+    return new (mem_root) Field_boolean(*this);
+  }
+  uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
+    if (max_length > 0) *to = *from;
+    return to + 1;
+  }
+
+  const uchar *unpack(uchar *to, const uchar *from,
+                      uint param_data MY_ATTRIBUTE((unused))) final {
+    *to = *from;
+    return from + 1;
+  }
+
+  ulonglong get_max_int_value() const final {
+    return 0x01ULL;
+  }
 };
 
 class Field_tiny : public Field_num {
