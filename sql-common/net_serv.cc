@@ -1388,10 +1388,9 @@ static bool net_read_raw_loop(NET *net, size_t count) {
       if (thd) {
         Security_context *sctx = thd->security_context();
         std::string timeout{std::to_string(thd_get_net_wait_timeout(thd))};
-        std::string userhost;
-        userhost.append(sctx->user().str).append("@").append(sctx->host().str);
+        Auth_id auth_id(sctx->priv_user(), sctx->priv_host());
         LogErr(INFORMATION_LEVEL, ER_NET_WAIT_ERROR2, timeout.c_str(),
-               userhost.c_str());
+               auth_id.auth_str().c_str());
       } else {
         LogErr(INFORMATION_LEVEL, ER_NET_WAIT_ERROR);
       }
