@@ -6788,20 +6788,6 @@ void ha_ndbcluster::get_dynamic_partition_info(ha_statistics *stat_info,
   // Checksum not supported, set it to 0
   *checksum = 0;
 
-  if (!m_table_info) {
-    // Basically this means that handler is not part of a transaction and thus
-    // this might be the first time this THD is coming into contact with NDB ->
-    // need to check the connection.
-    // NOTE! Further down in this function it calls update_stat() which
-    // uses m_table (the open NDB table!) when fetching the stats so there is
-    // basically no way that it's necessary to check NDB connection here.
-    if (check_ndb_connection(thd) != 0) {
-      // Nothing to do, caller has initialized stat_info to zero
-      DBUG_PRINT("error", ("No NDB connection"));
-      return;
-    }
-  }
-
   // Read fresh stats from NDB for given partition (one roundtrip)
   // NOTE! overwrites handler::stats, the NDB_SHARE::cached_table_stats and
   // ha_ndbcluster::Ndb_local_table_statistics with values for only given
