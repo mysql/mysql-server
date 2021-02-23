@@ -32,7 +32,8 @@
 
 #include "my_alloc.h"                          // MEM_ROOT
 #include "storage/ndb/include/ndbapi/Ndb.hpp"  // Ndb::TupleIdRange
-#include "thr_lock.h"                          // THR_LOCK
+#include "storage/ndb/plugin/ndb_stats.h"
+#include "thr_lock.h"  // THR_LOCK
 
 class ha_ndbcluster;
 class NdbEventOperation;
@@ -96,13 +97,7 @@ struct NDB_SHARE {
   // This is cached values and used in queries when that is "good enough",
   // in other cases the values are updated from NDB before use.
   // NOTE! Protected by NDB_SHARE::mutex
-  struct Table_stats {
-    Uint64 row_count;
-    ulong row_size;
-    Uint64 fragment_memory;
-    Uint64 fragment_extent_space;
-    Uint64 fragment_extent_free_space;
-  } cached_table_stats;
+  Ndb_table_stats cached_table_stats;
   // Update cached row count with number of changed rows
   void update_cached_row_count(int changed_rows);
 

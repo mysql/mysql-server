@@ -102,6 +102,7 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_upgrade_util.cc
   plugin/ndb_mysql_services.cc
   plugin/ndb_blobs_buffer.cc
+  plugin/ndb_stats.cc
 )
 
 NDB_ADD_TEST("ndb_bitmap-t" "plugin/ndb_bitmap.cc" LIBS ndbgeneral)
