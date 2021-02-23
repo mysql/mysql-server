@@ -111,9 +111,21 @@ bool Thd_ndb::valid_ndb(void) const {
   return true;
 }
 
-void Thd_ndb::init_open_tables() {
-  m_error = false;
-  open_tables.clear();
+void Thd_ndb::init_open_tables() { open_tables.clear(); }
+
+/**
+   Reset counters for all 'Ndb_local_table_statistics' which has been registered
+   as taking part in the transaction.
+
+   This is normally done when failure to execute the NDB transaction has
+   occurred and caused all changes in whole transaction have been aborted. The
+   counters will then be invalid.
+ */
+void Thd_ndb::trans_reset_table_stats() {
+  for (const auto &key_and_value : open_tables) {
+    THD_NDB_SHARE *thd_share = key_and_value.second;
+    thd_share->stat.no_uncommitted_rows_count = 0;
+  }
 }
 
 bool Thd_ndb::check_option(Options option) const { return (options & option); }

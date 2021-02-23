@@ -124,12 +124,6 @@ struct NDB_INDEX_DATA {
 
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_share.h"
-
-struct Ndb_local_table_statistics {
-  int no_uncommitted_rows_count;
-  ha_rows records;
-};
-
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 struct st_ndb_status {
@@ -609,7 +603,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   void set_rec_per_key(THD *thd);
   void no_uncommitted_rows_execute_failure();
-  void no_uncommitted_rows_update(int);
+  void no_uncommitted_rows_update(int changed_rows);
 
   /* Ordered index statistics v4 */
   int ndb_index_stat_query(uint inx, const key_range *min_key,

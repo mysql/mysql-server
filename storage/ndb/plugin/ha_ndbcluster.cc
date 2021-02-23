@@ -1113,11 +1113,6 @@ static inline int execute_no_commit_ie(Thd_ndb *thd_ndb,
   return res;
 }
 
-struct THD_NDB_SHARE {
-  const void *key;
-  Ndb_local_table_statistics stat;
-};
-
 Thd_ndb::Thd_ndb(THD *thd)
     : m_thd(thd),
       m_slave_thread(thd->slave_thread),
@@ -1135,7 +1130,6 @@ Thd_ndb::Thd_ndb(THD *thd)
   save_point_count = 0;
   trans = NULL;
   m_handler = NULL;
-  m_error = false;
   m_unsent_bytes = 0;
   m_unsent_blob_ops = false;
   m_execute_count = 0;
@@ -1222,9 +1216,6 @@ void ha_ndbcluster::set_rec_per_key(THD *thd) {
 
 int ha_ndbcluster::records(ha_rows *num_rows) {
   DBUG_TRACE;
-  DBUG_PRINT("info",
-             ("id=%d, no_uncommitted_rows_count=%d", m_table->getTableId(),
-              m_table_info->no_uncommitted_rows_count));
 
   // Read fresh stats from NDB (one roundtrip)
   const int error = update_stats(table->in_use, true);
@@ -1240,15 +1231,22 @@ int ha_ndbcluster::records(ha_rows *num_rows) {
 
 void ha_ndbcluster::no_uncommitted_rows_execute_failure() {
   DBUG_TRACE;
-  get_thd_ndb(current_thd)->m_error = true;
+
+  if (m_thd_ndb->m_handler) {
+    // Only one handler involved, reset its stats
+    assert(m_thd_ndb->m_handler == this);
+    m_table_info->no_uncommitted_rows_count = 0;
+    return;
+  }
+  // Reset all registered table stats
+  m_thd_ndb->trans_reset_table_stats();
 }
 
-void ha_ndbcluster::no_uncommitted_rows_update(int c) {
+void ha_ndbcluster::no_uncommitted_rows_update(int changed_rows) {
   DBUG_TRACE;
-  m_table_info->no_uncommitted_rows_count += c;
-  DBUG_PRINT("info",
-             ("id=%d, no_uncommitted_rows_count=%d", m_table->getTableId(),
-              m_table_info->no_uncommitted_rows_count));
+  m_table_info->no_uncommitted_rows_count += changed_rows;
+  DBUG_PRINT("info", ("changed_rows: %d -> new value: %d", changed_rows,
+                      m_table_info->no_uncommitted_rows_count));
 }
 
 int ha_ndbcluster::ndb_err(NdbTransaction *trans) {
@@ -6715,7 +6713,7 @@ int ha_ndbcluster::info(uint flag) {
        2) HA_STATUS_NO_LOCK -> read from shared cached copy.
        3) Local copy is invalid.
     */
-    bool exact_count = THDVAR(thd, use_exact_count);
+    const bool exact_count = THDVAR(thd, use_exact_count);
     if (exact_count ||                         // 1)
         !(flag & HA_STATUS_NO_LOCK) ||         // 2)
         m_table_info == NULL ||                // 3)
@@ -6727,6 +6725,9 @@ int ha_ndbcluster::info(uint flag) {
     } else {
       /* Read from local statistics, fast and fuzzy, wo/ locks */
       assert(m_table_info->records != ~(ha_rows)0);
+      // This is doing almost the same thing as in update_stats()
+      // i.e the number of records in active transaction plus number of
+      // uncommitted are assigned to stats.records
       stats.records =
           m_table_info->records + m_table_info->no_uncommitted_rows_count;
     }
@@ -7272,6 +7273,8 @@ int ha_ndbcluster::add_handler_to_open_tables(THD *thd, Thd_ndb *thd_ndb,
    */
   assert(thd_ndb->m_handler == NULL);
   const void *key = handler->m_share;
+
+  // Registering stats entry for each _unique_ NDB_SHARE pointer
   THD_NDB_SHARE *thd_ndb_share = find_or_nullptr(thd_ndb->open_tables, key);
   if (thd_ndb_share == nullptr) {
     thd_ndb_share = (THD_NDB_SHARE *)thd->get_transaction()->allocate_memory(
@@ -7692,34 +7695,27 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   } else {
     if (thd_ndb->m_handler &&
         thd_ndb->m_handler->m_read_before_write_removal_possible) {
-      /*
-        This is an autocommit involving only one table and
-        rbwr is on, thus the transaction has already been
-        committed in exec_bulk_update() or end_bulk_delete()
-      */
-      DBUG_PRINT("info", ("autocommit+rbwr, transaction already committed"));
-      const NdbTransaction::CommitStatusType commitStatus =
-          trans->commitStatus();
-
-      if (commitStatus == NdbTransaction::Committed) {
-        /* Already committed transaction to save roundtrip */
-        assert(get_thd_ndb(current_thd)->m_error == false);
-      } else if (commitStatus == NdbTransaction::Aborted) {
-        /* Commit failed before transaction was started */
-        assert(get_thd_ndb(current_thd)->m_error == true);
-      } else if (commitStatus == NdbTransaction::NeedAbort) {
-        /* Commit attempt failed and rollback is needed */
-        res = -1;
-
-      } else {
-        /* Commit was never attempted - this should not be possible */
-        assert(commitStatus == NdbTransaction::Started ||
-               commitStatus == NdbTransaction::NotStarted);
-        ndb_log_error(
-            "found uncommitted autocommit+rbwr transaction, "
-            "commit status: %d",
-            commitStatus);
-        abort();
+      // This is an autocommit involving only one table and rbwr is on, thus
+      // the transaction should already have been committed early
+      DBUG_PRINT("info", ("autocommit+rbwr, transaction committed early"));
+      switch (trans->commitStatus()) {
+        case NdbTransaction::Committed:
+        case NdbTransaction::Aborted:
+          // Already committed or aborted
+          break;
+        case NdbTransaction::NeedAbort:
+          // Commit attempt failed and rollback is needed
+          res = -1;
+          assert(false);
+          break;
+        default:
+          // Commit was never attempted - should not be possible
+          ndb_log_error(
+              "INTERNAL ERROR: found uncommitted autocommit+rbwr transaction, "
+              "commit status: %d",
+              trans->commitStatus());
+          abort();
+          break;
       }
     } else {
       const bool ignore_error = applying_binlog(thd);
@@ -7789,6 +7785,10 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
 
     // Manual commit: Update cached row count for all affected NDB_SHAREs found
     // in 'open_tables'
+    // Traversing to:
+    //  1) update row count in NDB_SHARE
+    //  2) reset counters for all 'Ndb_local_table_statistics' which has been
+    //     registered as taking part in the transaction.
     for (const auto &key_and_value : thd_ndb->open_tables) {
       THD_NDB_SHARE *thd_share = key_and_value.second;
       NDB_SHARE *share = const_cast<NDB_SHARE *>(
@@ -12898,28 +12898,32 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat) {
     mysql_mutex_unlock(&m_share->mutex);
   }
 
-  int no_uncommitted_rows_count = 0;
-  if (m_table_info && !thd_ndb->m_error) {
-    // Update "records" in table info
+  int active_rows = 0;  // Active uncommitted rows
+  if (m_table_info) {
+    // There is an active statement or transaction
+
+    // Use also the uncommitted rows when updating stats.records further down
+    active_rows = m_table_info->no_uncommitted_rows_count;
+    DBUG_PRINT("info", ("active_rows: %d", active_rows));
+
+    // Update "records" for the "active" statement or transaction
     m_table_info->records = table_stats.row_count;
-    no_uncommitted_rows_count = m_table_info->no_uncommitted_rows_count;
   }
   // Update values in handler::stats (another "records")
   stats.mean_rec_length = static_cast<ulong>(table_stats.row_size);
   stats.data_file_length = table_stats.fragment_memory;
-  stats.records = table_stats.row_count + no_uncommitted_rows_count;
+  stats.records = table_stats.row_count + active_rows;
   stats.max_data_file_length = table_stats.fragment_extent_space;
   stats.delete_length = table_stats.fragment_extent_free_space;
 
-  DBUG_PRINT("exit",
-             ("stats.records: %llu  "
-              "table_stats.row_count: %llu  "
-              "no_uncommitted_rows_count: %d "
-              "table_stats.fragment_extent_space: %llu  "
-              "table_stats.fragment_extent_free_space: %llu",
-              stats.records, table_stats.row_count, no_uncommitted_rows_count,
-              table_stats.fragment_extent_space,
-              table_stats.fragment_extent_free_space));
+  DBUG_PRINT("exit", ("stats.records: %llu  "
+                      "table_stats.row_count: %llu  "
+                      "no_uncommitted_rows_count: %d "
+                      "table_stats.fragment_extent_space: %llu  "
+                      "table_stats.fragment_extent_free_space: %llu",
+                      stats.records, table_stats.row_count, active_rows,
+                      table_stats.fragment_extent_space,
+                      table_stats.fragment_extent_free_space));
   return 0;
 }
 

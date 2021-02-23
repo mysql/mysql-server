@@ -26,10 +26,20 @@
 #define NDB_THD_NDB_H
 
 #include "map_helpers.h"
+#include "my_base.h"  // ha_rows
 #include "storage/ndb/plugin/ndb_share.h"
 
-struct THD_NDB_SHARE;
 class THD;
+
+struct Ndb_local_table_statistics {
+  int no_uncommitted_rows_count;
+  ha_rows records;
+};
+
+struct THD_NDB_SHARE {
+  const void *key;
+  Ndb_local_table_statistics stat;
+};
 
 /*
   Class for ndbcluster thread specific data
@@ -50,6 +60,7 @@ class Thd_ndb {
   static void release(Thd_ndb *thd_ndb);
 
   void init_open_tables();
+  void trans_reset_table_stats();  // Uses open_tables
 
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;
@@ -72,7 +83,6 @@ class Thd_ndb {
 
   uint save_point_count;
   class NdbTransaction *trans;
-  bool m_error;
   bool m_force_send;
 
   enum Options {
