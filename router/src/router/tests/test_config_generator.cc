@@ -71,6 +71,9 @@
 #include "temp_dir.h"
 #include "test/helpers.h"
 
+#define ASSERT_NO_ERROR(x) \
+  ASSERT_THAT((x), ::testing::Truly([](const auto &t) { return bool(t); }))
+
 std::string g_cwd;
 mysql_harness::Path g_origin;
 TmpDir test_dir;
@@ -2700,7 +2703,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
       mock_mysql.get(), dir, "myname", false, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  ASSERT_EQ(delete_dir_recursive(dir), 0);
+  ASSERT_NO_ERROR(delete_dir_recursive(dir));
 
   SCOPED_TRACE("bootstrap_overwrite2");
   dir = test_dir.name() + "/configtest2";
@@ -2715,7 +2718,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
       "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  ASSERT_EQ(delete_dir_recursive(dir), 0);
+  ASSERT_NO_ERROR(delete_dir_recursive(dir));
 
   dir = test_dir.name() + "/configtest3";
   SCOPED_TRACE("bootstrap_overwrite3");
@@ -2727,7 +2730,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
       mock_mysql.get(), dir, "myname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  ASSERT_EQ(delete_dir_recursive(dir), 0);
+  ASSERT_NO_ERROR(delete_dir_recursive(dir));
 
   dir = test_dir.name() + "/configtest4";
   SCOPED_TRACE("bootstrap_overwrite4");
@@ -2739,7 +2742,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
       mock_mysql.get(), dir, "myname", true, "kluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  ASSERT_EQ(delete_dir_recursive(dir), 0);
+  ASSERT_NO_ERROR(delete_dir_recursive(dir));
 
   dir = test_dir.name() + "/configtest5";
   SCOPED_TRACE("bootstrap_overwrite5");
@@ -2752,7 +2755,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
                                            default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  ASSERT_EQ(delete_dir_recursive(dir), 0);
+  ASSERT_NO_ERROR(delete_dir_recursive(dir));
 
   dir = test_dir.name() + "/configtest6";
   SCOPED_TRACE("bootstrap_overwrite6");
@@ -2767,7 +2770,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
       "If you'd like to replace it, please use the --force");
   mysql_harness::reset_keyring();
   ASSERT_FALSE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  ASSERT_EQ(delete_dir_recursive(dir), 0);
+  ASSERT_NO_ERROR(delete_dir_recursive(dir));
 
   dir = test_dir.name() + "/configtest7";
   SCOPED_TRACE("bootstrap_overwrite7");
@@ -2779,7 +2782,7 @@ TEST_F(ConfigGeneratorTest, bootstrap_overwrite) {
       mock_mysql.get(), dir, "xmyname", true, "cluster", false, default_paths));
   mysql_harness::reset_keyring();
   ASSERT_TRUE(mysql_harness::Path(dir).join("mysqlrouter.conf.bak").exists());
-  ASSERT_EQ(delete_dir_recursive(dir), 0);
+  ASSERT_NO_ERROR(delete_dir_recursive(dir));
 
   dir = test_dir.name() + "/configtest8";
   SCOPED_TRACE("bootstrap_overwrite8");
