@@ -95,7 +95,8 @@ public:
    *  then  close the socket
    * Returns true if succeding in binding
    */
-  static bool tryBind(unsigned short port, const char * intface = 0);
+  static bool tryBind(unsigned short port, const char* intface = 0,
+                      char* error = NULL, size_t error_size = 0);
 
   /**
    * Setup socket

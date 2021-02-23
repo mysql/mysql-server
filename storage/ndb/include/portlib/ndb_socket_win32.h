@@ -145,6 +145,14 @@ int ndb_socket_reuseaddr(ndb_socket_t s, int enable)
 }
 
 static inline
+int ndb_socket_excladdruse(ndb_socket_t s, int enable)
+{
+  const int on = enable;
+  return setsockopt(s.s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                    (const char*)&on, sizeof(on));
+}
+
+static inline
 int ndb_socket_nonblock(ndb_socket_t s, int enable)
 {
   unsigned long  ul = enable;

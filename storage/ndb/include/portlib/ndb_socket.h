@@ -29,7 +29,9 @@
 #include "ndb_socket_win32.h"
 #else
 #include "ndb_socket_posix.h"
+#include <cstring>
 #endif
+#include <string>
 
 
 static inline
@@ -58,6 +60,34 @@ ndb_socket_t ndb_socket_create_from_native(ndb_native_socket_t native_socket)
   s.fd = native_socket;
 #endif
   return s;
+}
+
+static inline
+int ndb_socket_configure_reuseaddr(ndb_socket_t s, int enable)
+{
+#ifdef _WIN32
+  return ndb_socket_excladdruse(s, enable);
+#else
+  return ndb_socket_reuseaddr(s, enable);
+#endif
+}
+
+static inline
+std::string ndb_socket_err_message(int error_code)
+{
+#ifdef _WIN32
+  LPTSTR tmp_str = NULL;
+  FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                    FORMAT_MESSAGE_IGNORE_INSERTS |
+                    FORMAT_MESSAGE_MAX_WIDTH_MASK,
+                NULL, error_code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                (LPTSTR)&tmp_str, 0, NULL);
+  std::string err_str(tmp_str);
+  LocalFree(tmp_str);
+#else
+  std::string err_str(strerror(error_code));
+#endif
+  return err_str;
 }
 
 /*
