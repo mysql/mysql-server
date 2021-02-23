@@ -1907,11 +1907,31 @@ TEST_F(HypergraphOptimizerTest, CycleFromMultipleEquality) {
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 7);
 }
 
-TEST_F(HypergraphOptimizerTest, FullTextSearch) {
+namespace {
+
+struct FullTextParam {
+  const char *query;
+  bool expect_filter;
+  bool expect_index;
+};
+
+std::ostream &operator<<(std::ostream &os, const FullTextParam &param) {
+  return os << param.query;
+}
+
+}  // namespace
+
+using HypergraphFullTextTest =
+    HypergraphTestBase<::testing::TestWithParam<FullTextParam>>;
+
+TEST_P(HypergraphFullTextTest, FullTextSearch) {
+  SCOPED_TRACE(GetParam().query);
+
   // CREATE TABLE t1(x VARCHAR(100)).
   Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
   column1.field_name = "x";
   Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  t1->file->stats.records = 10000;
   m_fake_tables["t1"] = t1;
   t1->set_created();
 
@@ -1920,9 +1940,8 @@ TEST_F(HypergraphOptimizerTest, FullTextSearch) {
       t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
   t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
 
-  Query_block *query_block = ParseAndResolve(
-      "SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc' IN BOOLEAN MODE)",
-      /*nullable=*/false);
+  Query_block *query_block = ParseAndResolve(GetParam().query,
+                                             /*nullable=*/false);
   ASSERT_NE(nullptr, query_block);
 
   string trace;
@@ -1932,8 +1951,93 @@ TEST_F(HypergraphOptimizerTest, FullTextSearch) {
   SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
                               /*is_root_of_join=*/true));
   ASSERT_NE(nullptr, root);
-  ASSERT_EQ(AccessPath::FULL_TEXT_SEARCH, root->type);
+
+  AccessPath *path = root;
+
+  if (GetParam().expect_filter) {
+    ASSERT_EQ(AccessPath::FILTER, path->type);
+    path = path->filter().child;
+  }
+
+  if (GetParam().expect_index) {
+    EXPECT_EQ(AccessPath::FULL_TEXT_SEARCH, path->type);
+  } else {
+    EXPECT_EQ(AccessPath::TABLE_SCAN, path->type);
+  }
 }
+
+static constexpr FullTextParam full_text_queries[] = {
+    // Expect a full-text index scan if the predicate returns true for positive
+    // scores only. Expect the index scan to have a filter on top of it if the
+    // predicate does not return true for all non-zero scores.
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc' IN BOOLEAN MODE)",
+     /*expect_filter=*/false,
+     /*expect_index=*/true},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc')",
+     /*expect_filter=*/false,
+     /*expect_index=*/true},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') > 0",
+     /*expect_filter=*/false,
+     /*expect_index=*/true},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') > 0.5",
+     /*expect_filter=*/true,
+     /*expect_index=*/true},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') >= 0.5",
+     /*expect_filter=*/true,
+     /*expect_index=*/true},
+    {"SELECT t1.x FROM t1 WHERE 0.5 < MATCH(t1.x) AGAINST ('abc')",
+     /*expect_filter=*/true,
+     /*expect_index=*/true},
+    {"SELECT t1.x FROM t1 WHERE 0.5 <= MATCH(t1.x) AGAINST ('abc')",
+     /*expect_filter=*/true,
+     /*expect_index=*/true},
+
+    // Expect a table scan if the predicate might return true for zero or
+    // negative scores. A filter node is added on top for the predicate.
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') < 0.5",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') <= 0.5",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') >= 0",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') > -1",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') <> 0.5",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+    {"SELECT t1.x FROM t1 WHERE 0.5 > MATCH(t1.x) AGAINST ('abc')",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+    {"SELECT t1.x FROM t1 WHERE 0.5 >= MATCH(t1.x) AGAINST ('abc')",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+
+    // Expect a table scan if the predicate checks for an exact score. (Not
+    // because an index scan cannot be used, but because it's not a very useful
+    // query, so we haven't optimized for it.)
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') = 0.5",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+
+    // Expect a table scan if the predicate is a disjunction.
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc' IN BOOLEAN MODE) "
+     "OR MATCH(t1.x) AGAINST ('xyz' IN BOOLEAN MODE)",
+     /*expect_filter=*/true,
+     /*expect_index=*/false},
+
+    // Expect an index scan if the predicate is a conjunction. A filter node
+    // will be added for the predicate that is not subsumed by the index.
+    {"SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc' IN BOOLEAN MODE) "
+     "AND MATCH(t1.x) AGAINST ('xyz' IN BOOLEAN MODE)",
+     /*expect_filter=*/true,
+     /*expect_index=*/true},
+};
+INSTANTIATE_TEST_SUITE_P(FullTextQueries, HypergraphFullTextTest,
+                         ::testing::ValuesIn(full_text_queries));
 
 TEST_F(HypergraphOptimizerTest, FullTextSearchNoHashJoin) {
   // CREATE TABLE t1(x VARCHAR(100)).
@@ -1968,6 +2072,59 @@ TEST_F(HypergraphOptimizerTest, FullTextSearchNoHashJoin) {
   // FTS does not work well with hash join, so we force nested loop join for
   // this query.
   ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+}
+
+TEST_F(HypergraphOptimizerTest, FullTextCanSkipRanking) {
+  // CREATE TABLE t1(x VARCHAR(100)).
+  Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
+  column1.field_name = "x";
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  m_fake_tables["t1"] = t1;
+  t1->set_created();
+
+  // CREATE FULLTEXT INDEX idx ON t1(x).
+  down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
+      t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
+  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT MATCH(t1.x) AGAINST ('a') FROM t1 WHERE "
+      "MATCH(t1.x) AGAINST ('a') AND "
+      "MATCH(t1.x) AGAINST ('b') AND "
+      "MATCH(t1.x) AGAINST ('c') AND MATCH(t1.x) AGAINST ('c') > 0.1",
+      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+
+  const List<Item_func_match> *ftfuncs = query_block->ftfunc_list;
+  ASSERT_EQ(5, ftfuncs->size());
+
+  // MATCH(t1.x) AGAINST ('a') needs ranking because it is used in the
+  // SELECT list.
+  EXPECT_EQ("(match t1.x against ('a'))", ItemToString((*ftfuncs)[0]));
+  EXPECT_EQ(nullptr, (*ftfuncs)[0]->master);
+  EXPECT_FALSE((*ftfuncs)[0]->can_skip_ranking());
+  EXPECT_EQ((*ftfuncs)[0], (*ftfuncs)[1]->get_master());
+
+  // MATCH (t1.x) AGAINST ('b') does not need ranking, since it's only used
+  // in a standalone predicate.
+  EXPECT_EQ("(match t1.x against ('b'))", ItemToString((*ftfuncs)[2]));
+  EXPECT_EQ(nullptr, (*ftfuncs)[2]->master);
+  EXPECT_TRUE((*ftfuncs)[2]->can_skip_ranking());
+
+  // MATCH (t1.x) AGAINST ('c') needs ranking because one of the predicates
+  // requires it to return > 0.1.
+  EXPECT_EQ("(match t1.x against ('c'))", ItemToString((*ftfuncs)[3]));
+  EXPECT_EQ(nullptr, (*ftfuncs)[3]->master);
+  EXPECT_FALSE((*ftfuncs)[3]->can_skip_ranking());
+  EXPECT_EQ((*ftfuncs)[3], (*ftfuncs)[4]->get_master());
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {

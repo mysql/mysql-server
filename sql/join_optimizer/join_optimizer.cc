@@ -173,8 +173,8 @@ class CostingReceiver {
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
       const Mem_root_array<ActiveIndexInfo> *active_indexes,
-      NodeMap fulltext_tables, bool need_rowid,
-      SecondaryEngineFlags engine_flags,
+      NodeMap fulltext_tables, uint64_t sargable_fulltext_predicates,
+      bool need_rowid, SecondaryEngineFlags engine_flags,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
       : m_thd(thd),
@@ -184,6 +184,7 @@ class CostingReceiver {
         m_sort_ahead_orderings(sort_ahead_orderings),
         m_active_indexes(active_indexes),
         m_fulltext_tables(fulltext_tables),
+        m_sargable_fulltext_predicates(sargable_fulltext_predicates),
         m_need_rowid(need_rowid),
         m_engine_flags(engine_flags),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
@@ -293,6 +294,13 @@ class CostingReceiver {
   /// have TABLE_LIST::is_fulltext_searched() == true). It is used for
   /// preventing hash joins involving tables that are full-text searched.
   const NodeMap m_fulltext_tables = 0;
+
+  /// The set of WHERE predicates which are on a form that can be satisfied by a
+  /// full-text index scan. This includes calls to MATCH with no comparison
+  /// operator, and predicates on the form MATCH > const or MATCH >= const
+  /// (where const must be high enough to make the comparison return false for
+  /// documents with zero score).
+  const uint64_t m_sargable_fulltext_predicates = 0;
 
   /// Whether we will be needing row IDs from our tables, typically for
   /// a later sort. If this happens, derived tables cannot use streaming,
@@ -418,22 +426,45 @@ bool IsFullTextFunction(const Item *item) {
          down_cast<const Item_func *>(item)->functype() == Item_func::FT_FUNC;
 }
 
-/// Returns a predicate that can be pushed down to a full-text index, or nullptr
-/// if no such predicate is found. Currently, only predicates on the form
-/// MATCH(x,y,z) AGAINST ('search string') are pushed down to full-text indexes.
-/// That is, a MATCH function that is not wrapped in another function or
-/// comparison operator.
-/// TODO(khatlen): Also push predicates on the form MATCH > 0.5.
-Item_func_match *GetSargableFullTextPredicateOrNull(
-    const Predicate &predicate) {
-  if (predicate.condition->type() == Item::FUNC_ITEM) {
-    auto func = down_cast<Item_func *>(predicate.condition);
-    if (func->functype() == Item_func::MATCH_FUNC) {
-      auto match_pred = down_cast<Item_func_match_predicate *>(func);
-      return down_cast<Item_func_match *>(match_pred->get_arg(0))->get_master();
-    }
+/// Returns the MATCH function of a predicate that can be pushed down to a
+/// full-text index. This can be done if the predicate is a MATCH function,
+/// or in some cases (see IsSargableFullTextIndexPredicate() for details)
+/// where the predicate is a comparison function which compares the result
+/// of MATCH with a constant. For example, predicates on this form could be
+/// pushed down to a full-text index:
+///
+///   WHERE MATCH (x) AGAINST ('search string') AND <more predicates>
+///
+///   WHERE MATCH (x) AGAINST ('search string') > 0.5 AND <more predicates>
+///
+/// Since full-text index scans return documents with positive scores only, an
+/// index scan can only be used if the predicate excludes negative or zero
+/// scores.
+Item_func_match *GetSargableFullTextPredicate(const Predicate &predicate) {
+  Item_func *func = down_cast<Item_func *>(predicate.condition);
+  switch (func->functype()) {
+    case Item_func::MATCH_FUNC:
+      // The predicate is MATCH (x) AGAINST ('search string'), which can be
+      // pushed to the index.
+      return down_cast<Item_func_match *>(func->get_arg(0))->get_master();
+    case Item_func::LT_FUNC:
+    case Item_func::LE_FUNC:
+      // The predicate is const < MATCH or const <= MATCH, with a constant value
+      // which makes it pushable.
+      assert(func->get_arg(0)->const_item());
+      return down_cast<Item_func_match *>(func->get_arg(1))->get_master();
+    case Item_func::GT_FUNC:
+    case Item_func::GE_FUNC:
+      // The predicate is MATCH > const or MATCH >= const, with a constant value
+      // which makes it pushable.
+      assert(func->get_arg(1)->const_item());
+      return down_cast<Item_func_match *>(func->get_arg(0))->get_master();
+    default:
+      // The predicate is not on a form that can be pushed to a full-text index
+      // scan. We should not get here.
+      assert(false);
+      return nullptr;
   }
-  return nullptr;
 }
 
 /**
@@ -535,11 +566,12 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
         const unsigned key_idx = order_info.key_idx;
         const KEY &key = table->key_info[key_idx];
         if (Overlaps(key.flags, HA_FULLTEXT)) {
-          for (size_t i = 0; i < m_graph.num_where_predicates; ++i) {
+          for (size_t i : BitsSetIn(m_sargable_fulltext_predicates)) {
+            assert(i < m_graph.num_where_predicates);
             Item_func_match *match =
-                GetSargableFullTextPredicateOrNull(m_graph.predicates[i]);
-            if (match != nullptr && match->table_ref == tl &&
-                match->key == key_idx) {
+                GetSargableFullTextPredicate(m_graph.predicates[i]);
+            assert(match != nullptr);
+            if (match->table_ref == tl && match->key == key_idx) {
               if (ProposeFullTextIndexScan(table, node_idx, match, i)) {
                 return true;
               }
@@ -1072,6 +1104,59 @@ bool CostingReceiver::ProposeIndexScan(TABLE *table, int node_idx,
   return false;
 }
 
+// Checks if a given predicate can be subsumed by a full-text index. It can
+// be subsumed if it returns TRUE for all documents returned by the full-text
+// index, and FALSE for all other documents. Since a full-text index scan
+// returns the documents with a positive score, predicates that are either a
+// standalone call to MATCH, a comparison of MATCH > 0, or a comparison of
+// 0 < MATCH, are considered subsumable.
+//
+// We assume that this function is only called on predicates for which
+// IsSargableFullTextIndexPredicate() has returned true, so that we
+// already know the predicate is a standalone MATCH function or a <, <=, >
+// or >= comparing match to a constant.
+bool IsSubsumableFullTextPredicate(Item_func *condition) {
+  switch (condition->functype()) {
+    case Item_func::MATCH_FUNC: {
+      // WHERE MATCH (col) AGAINST ('search string') is subsumable.
+      return true;
+    }
+    case Item_func::GT_FUNC: {
+      // WHERE MATCH (col) AGAINST ('search string') > 0 is subsumable.
+      assert(IsFullTextFunction(condition->get_arg(0)));
+      assert(condition->get_arg(1)->const_item());
+      const double value = condition->get_arg(1)->val_real();
+      assert(!condition->get_arg(1)->null_value);
+      return value == 0;
+    }
+    case Item_func::LT_FUNC: {
+      // WHERE 0 < MATCH (col) AGAINST ('search string') subsumable.
+      assert(condition->get_arg(0)->const_item());
+      assert(IsFullTextFunction(condition->get_arg(1)));
+      const double value = condition->get_arg(0)->val_real();
+      assert(!condition->get_arg(0)->null_value);
+      return value == 0;
+    }
+    case Item_func::GE_FUNC:
+      // WHERE MATCH >= const is not subsumable, but assert the predicate is on
+      // the expected form.
+      assert(IsFullTextFunction(condition->get_arg(0)));
+      assert(condition->get_arg(1)->const_item());
+      return false;
+    case Item_func::LE_FUNC:
+      // WHERE const <= MATCH is not subsumable, but assert the predicate is on
+      // the expected form.
+      assert(condition->get_arg(0)->const_item());
+      assert(IsFullTextFunction(condition->get_arg(1)));
+      return false;
+    default:
+      // Not a sargable full-text predicate, so we don't expect to be called on
+      // it.
+      assert(false);
+      return false;
+  }
+}
+
 bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                                Item_func_match *match,
                                                int predicate_idx) {
@@ -1083,27 +1168,53 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   ref->items[0] = match->key_item();
 
   const Predicate &predicate = m_graph.predicates[predicate_idx];
-  assert(match == GetSargableFullTextPredicateOrNull(predicate));
+  assert(match == GetSargableFullTextPredicate(predicate));
 
-  const double num_output_rows =
-      table->file->stats.records * predicate.selectivity;
-  const double cost =
-      EstimateCostForRefAccess(m_thd, table, key_idx, num_output_rows);
+  // The full-text predicate is both passed to the index and in a filter node on
+  // top of the index scan. Find out how much of the selectivity to apply on
+  // each node.
+  double index_selectivity;
+  uint64_t applied_predicates = 0;
+  uint64_t subsumed_predicates = 0;
+  if (IsSubsumableFullTextPredicate(
+          down_cast<Item_func *>(predicate.condition))) {
+    // The predicate can be fully subsumed by the index. Apply the full
+    // selectivity on the index scan and mark the predicate as subsumed.
+    index_selectivity = predicate.selectivity;
+    subsumed_predicates = uint64_t{1} << predicate_idx;
+  } else {
+    // The predicate uses <, <=, > or >=, and it cannot be subsumed. For example
+    // MATCH(...) AGAINST(...) > 0.5. In this case, the selectivity of the MATCH
+    // function is used to estimate the number of rows that come out of the
+    // index, and the selectivity of the greater-than function is used to
+    // estimate the number of rows returned by the filter.
+    index_selectivity = EstimateSelectivity(m_thd, match, m_trace);
+
+    // The selectivity of the predicate is applied manually to
+    // num_output_rows_from_index and num_output_rows_from_filter below, so mark
+    // the predicate as applied to avoid double-counting of the selectivity.
+    applied_predicates = uint64_t{1} << predicate_idx;
+  }
+
+  const double num_output_rows_from_index =
+      table->file->stats.records * index_selectivity;
+  const double cost = EstimateCostForRefAccess(m_thd, table, key_idx,
+                                               num_output_rows_from_index);
+
+  const double num_output_rows_from_filter =
+      std::min(num_output_rows_from_index,
+               table->file->stats.records * predicate.selectivity);
 
   AccessPath *path =
       NewFullTextSearchAccessPath(m_thd, table, ref, match, /*use_order=*/false,
                                   /*count_examined_rows=*/true);
-  path->num_output_rows = path->num_output_rows_before_filter = num_output_rows;
+  path->num_output_rows_before_filter = num_output_rows_from_index;
+  path->num_output_rows = num_output_rows_from_filter;
   path->cost = path->cost_before_filter = cost;
   path->init_cost = path->init_once_cost = 0;
 
-  // Full-text index scans only return documents with a positive score, so the
-  // predicate is subsumed by the index.
-  const uint64_t subsumed_predicates = uint64_t{1} << predicate_idx;
-
-  ProposeAccessPathForIndex(node_idx, /*applied_predicates=*/0,
-                            subsumed_predicates, table->key_info[key_idx].name,
-                            path);
+  ProposeAccessPathForIndex(node_idx, applied_predicates, subsumed_predicates,
+                            table->key_info[key_idx].name, path);
   return false;
 }
 
@@ -2754,6 +2865,125 @@ NodeMap FindFullTextSearchedTables(const JoinHypergraph &graph) {
   return tables;
 }
 
+// Checks if an item represents a full-text predicate which can be satisfied by
+// a full-text index scan. This can be done if the predicate is on one of the
+// following forms:
+//
+//    MATCH(col) AGAINST ('search string')
+//    MATCH(col) AGAINST ('search string') > const, where const >= 0
+//    MATCH(col) AGAINST ('search string') >= const, where const > 0
+//    const < MATCH(col) AGAINST ('search string'), where const >= 0
+//    const <= MATCH(col) AGAINST ('search string'), where const > 0
+//
+// That is, the predicate must return FALSE if MATCH returns zero. The predicate
+// cannot be pushed to an index scan if it returns TRUE when MATCH returns zero,
+// because a full-text index scan only returns documents with a positive score.
+//
+// If the item is sargable, the function returns true.
+bool IsSargableFullTextIndexPredicate(Item *condition) {
+  if (condition->type() != Item::FUNC_ITEM) {
+    return false;
+  }
+
+  Item_func *func = down_cast<Item_func *>(condition);
+  int const_arg_idx = -1;
+  bool is_greater_than_op;
+  switch (func->functype()) {
+    case Item_func::MATCH_FUNC:
+      // A standalone MATCH in WHERE is pushable to a full-text index.
+      return true;
+    case Item_func::GT_FUNC:
+      // MATCH > const is pushable to a full-text index if const >= 0. Checked
+      // after the switch.
+      const_arg_idx = 1;
+      is_greater_than_op = true;
+      break;
+    case Item_func::GE_FUNC:
+      // MATCH >= const is pushable to a full-text index if const > 0. Checked
+      // after the switch.
+      const_arg_idx = 1;
+      is_greater_than_op = false;
+      break;
+    case Item_func::LT_FUNC:
+      // Normalize const < MATCH to MATCH > const.
+      const_arg_idx = 0;
+      is_greater_than_op = true;
+      break;
+    case Item_func::LE_FUNC:
+      // Normalize const <= MATCH to MATCH >= const.
+      const_arg_idx = 0;
+      is_greater_than_op = false;
+      break;
+    default:
+      // Other kinds of predicates are not pushable to a full-text index.
+      return false;
+  }
+
+  assert(func->argument_count() == 2);
+  assert(const_arg_idx == 0 || const_arg_idx == 1);
+
+  // Only pushable if we have a MATCH function greater-than(-or-equal) a
+  // constant value.
+  Item *const_arg = func->get_arg(const_arg_idx);
+  Item *match_arg = func->get_arg(1 - const_arg_idx);
+  if (!IsFullTextFunction(match_arg) || !const_arg->const_item()) {
+    return false;
+  }
+
+  // Evaluate the constant.
+  const double value = const_arg->val_real();
+  if (const_arg->null_value) {
+    // MATCH <op> NULL cannot be pushed to a full-text index.
+    return false;
+  }
+
+  // Check if the constant is high enough to exclude MATCH = 0, which is the1
+  // requirement for being pushable to a full-text index.
+  if (is_greater_than_op) {
+    return value >= 0;
+  } else {
+    return value > 0;
+  }
+}
+
+// Finds all the WHERE predicates that can be satisfied by a full-text index
+// scan, and returns a bitmap of those predicates. See
+// IsSargableFullTextIndexPredicate() for a description of which predicates are
+// sargable.
+uint64_t FindSargableFullTextPredicates(const JoinHypergraph &graph) {
+  uint64_t fulltext_predicates = 0;
+  for (size_t i = 0; i < graph.num_where_predicates; ++i) {
+    const Predicate &predicate = graph.predicates[i];
+    if (IsSargableFullTextIndexPredicate(predicate.condition)) {
+      fulltext_predicates |= uint64_t{1} << i;
+
+      // If the predicate is a standalone MATCH function, flag it as such. This
+      // is used by Item_func_match::can_skip_ranking() to determine if ranking
+      // is needed. (We could also have set other operation hints here, like
+      // FT_OP_GT and FT_OP_GE. These hints are currently not used by any of the
+      // storage engines, so we don't set them for now.)
+      Item_func *predicate_func = down_cast<Item_func *>(predicate.condition);
+      if (predicate_func->functype() == Item_func::MATCH_FUNC) {
+        Item_func_match *parent =
+            down_cast<Item_func_match *>(predicate_func->get_arg(0))
+                ->get_master();
+        List<Item_func_match> *funcs =
+            parent->table_ref->query_block->ftfunc_list;
+        // We only set the hint if this is the only reference to the MATCH
+        // function. If it is used other places (for example in the SELECT list
+        // or in other predicates) we may still need ranking.
+        if (std::none_of(funcs->begin(), funcs->end(),
+                         [parent](const Item_func_match &match) {
+                           return match.master == parent;
+                         })) {
+          parent->set_hints_op(FT_OP_NO, 0.0);
+        }
+      }
+    }
+  }
+  return fulltext_predicates;
+}
+
 }  // namespace
 
 static ORDER *BuildSortAheadOrdering(THD *thd,
@@ -4040,8 +4270,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
 
   NodeMap fulltext_tables = 0;
+  uint64_t sargable_fulltext_predicates = 0;
   if (query_block->has_ft_funcs()) {
     fulltext_tables = FindFullTextSearchedTables(graph);
+
+    // Check if we have full-text indexes that can be used.
+    sargable_fulltext_predicates = FindSargableFullTextPredicates(graph);
   }
 
   // Collect interesting orders from ORDER BY, GROUP BY and semijoins.
@@ -4069,10 +4303,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
-  CostingReceiver receiver(thd, query_block, graph, &orderings,
-                           &sort_ahead_orderings, &active_indexes,
-                           fulltext_tables, need_rowid, EngineFlags(thd),
-                           secondary_engine_cost_hook, trace);
+  CostingReceiver receiver(
+      thd, query_block, graph, &orderings, &sort_ahead_orderings,
+      &active_indexes, fulltext_tables, sargable_fulltext_predicates,
+      need_rowid, EngineFlags(thd), secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");

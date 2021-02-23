@@ -25,6 +25,15 @@ SELECT a.x, MATCH (a.x) AGAINST ('abc') AS score_a,
 SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
   WHERE MATCH (x) AGAINST ('abc') > NULL;
 
+# Use the same full-text search in multiple predicates in the same
+# query.
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
+  WHERE MATCH (x) AGAINST ('abc')
+    AND MATCH (x) AGAINST ('abc') > 0.05;
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
+  WHERE MATCH (x) AGAINST ('abc') > 0.05
+    AND MATCH (x) AGAINST ('abc');
+
 # Some extra coverage for aggregated queries which use FTS. The
 # hypergraph optimizer uses a different strategy than the old
 # optimizer in most cases (sorting before aggregation instead of

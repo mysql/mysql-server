@@ -14,6 +14,16 @@ xyz	0	xyz	0.15835624933242798
 SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
 WHERE MATCH (x) AGAINST ('abc') > NULL;
 x	score
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
+WHERE MATCH (x) AGAINST ('abc')
+AND MATCH (x) AGAINST ('abc') > 0.05;
+x	score
+abc abc	0.0984337329864502
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
+WHERE MATCH (x) AGAINST ('abc') > 0.05
+AND MATCH (x) AGAINST ('abc');
+x	score
+abc abc	0.0984337329864502
 SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t GROUP BY x;
 x	score
 NULL	0

@@ -3685,7 +3685,7 @@ class Ft_hints {
   struct ft_hints hints;
 
  public:
-  Ft_hints(uint ft_flags) {
+  explicit Ft_hints(uint ft_flags) {
     hints.flags = ft_flags;
     hints.op_type = FT_OP_UNDEFINED;
     hints.op_value = 0.0;
@@ -3722,28 +3722,28 @@ class Ft_hints {
 
     @return Ft_hints limit
   */
-  ha_rows get_limit() { return hints.limit; }
+  ha_rows get_limit() const { return hints.limit; }
 
   /**
     Get Ft_hints operation value.
 
     @return operation value
   */
-  double get_op_value() { return hints.op_value; }
+  double get_op_value() const { return hints.op_value; }
 
   /**
     Get Ft_hints operation type.
 
     @return operation type
   */
-  enum ft_operation get_op_type() { return hints.op_type; }
+  enum ft_operation get_op_type() const { return hints.op_type; }
 
   /**
     Get Ft_hints flags.
 
     @return Ft_hints flags
   */
-  uint get_flags() { return hints.flags; }
+  uint get_flags() const { return hints.flags; }
 
   /**
      Get ft_hints struct.
