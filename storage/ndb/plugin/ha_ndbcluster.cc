@@ -1227,12 +1227,14 @@ int ha_ndbcluster::records(ha_rows *num_rows) {
              ("id=%d, no_uncommitted_rows_count=%d", m_table->getTableId(),
               m_table_info->no_uncommitted_rows_count));
 
-  int error = update_stats(table->in_use, 1);
+  // Read fresh stats from NDB (one roundtrip)
+  const int error = update_stats(table->in_use, true);
   if (error != 0) {
     *num_rows = HA_POS_ERROR;
     return error;
   }
 
+  // Return the "records" from handler::stats::records
   *num_rows = stats.records;
   return 0;
 }
@@ -6680,7 +6682,6 @@ int ha_ndbcluster::cmp_ref(const uchar *ref1, const uchar *ref2) const {
 
 int ha_ndbcluster::info(uint flag) {
   THD *thd = table->in_use;
-  int result = 0;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("flag: %d", flag));
 
@@ -6721,11 +6722,11 @@ int ha_ndbcluster::info(uint flag) {
         m_table_info == NULL ||                // 3)
         m_table_info->records == ~(ha_rows)0)  // 3)
     {
-      result = update_stats(thd, (exact_count || !(flag & HA_STATUS_NO_LOCK)));
+      const int result =
+          update_stats(thd, (exact_count || !(flag & HA_STATUS_NO_LOCK)));
       if (result) return result;
-    }
-    /* Read from local statistics, fast and fuzzy, wo/ locks */
-    else {
+    } else {
+      /* Read from local statistics, fast and fuzzy, wo/ locks */
       assert(m_table_info->records != ~(ha_rows)0);
       stats.records =
           m_table_info->records + m_table_info->no_uncommitted_rows_count;
@@ -6766,43 +6767,60 @@ int ha_ndbcluster::info(uint flag) {
     }
   }
 
-  if (result == -1) result = HA_ERR_NO_CONNECTION;
-
-  return result;
+  return 0;
 }
 
+/**
+   @brief Return statistics for given partition
+
+   @param[out] stat_info    The place where to return updated statistics
+   @param[out] checksum     The place where to return checksum (if any)
+   @param part_id           Id of the partition to return statistics for
+ */
 void ha_ndbcluster::get_dynamic_partition_info(ha_statistics *stat_info,
                                                ha_checksum *checksum,
                                                uint part_id) {
-  DBUG_PRINT("info", ("ha_ndbcluster::get_dynamic_partition_info"));
+  DBUG_TRACE;
+  DBUG_PRINT("enter", ("part_id: %d", part_id));
 
-  int error = 0;
   THD *thd = table->in_use;
+  if (!thd) thd = current_thd;
 
-  /* Checksum not supported, set it to NULL.*/
+  // Checksum not supported, set it to 0
   *checksum = 0;
 
-  if (!thd) thd = current_thd;
   if (!m_table_info) {
-    if ((error = check_ndb_connection(thd))) goto err;
+    // Basically this means that handler is not part of a transaction and thus
+    // this might be the first time this THD is coming into contact with NDB ->
+    // need to check the connection.
+    // NOTE! Further down in this function it calls update_stat() which
+    // uses m_table (the open NDB table!) when fetching the stats so there is
+    // basically no way that it's necessary to check NDB connection here.
+    if (check_ndb_connection(thd) != 0) {
+      // Nothing to do, caller has initialized stat_info to zero
+      DBUG_PRINT("error", ("No NDB connection"));
+      return;
+    }
   }
-  error = update_stats(thd, 1, part_id);
 
-  if (error == 0) {
-    stat_info->records = stats.records;
-    stat_info->mean_rec_length = stats.mean_rec_length;
-    stat_info->data_file_length = stats.data_file_length;
-    stat_info->delete_length = stats.delete_length;
-    stat_info->max_data_file_length = stats.max_data_file_length;
+  // Read fresh stats from NDB for given partition (one roundtrip)
+  // NOTE! overwrites handler::stats, the NDB_SHARE::cached_table_stats and
+  // ha_ndbcluster::Ndb_local_table_statistics with values for only given
+  // partition!
+  const int error = update_stats(thd, true, part_id);
+  if (error) {
+    // Nothing to do, caller has initialized stat_info to zero
+    DBUG_PRINT("error", ("Failed to update stats"));
     return;
   }
 
-err:
-
-  DBUG_PRINT(
-      "warning",
-      ("ha_ndbcluster::get_dynamic_partition_info failed with error code %u",
-       error));
+  // Return values from handler::stats, the caller will then subsequently update
+  // handler::stats with these values!
+  stat_info->records = stats.records;
+  stat_info->mean_rec_length = stats.mean_rec_length;
+  stat_info->data_file_length = stats.data_file_length;
+  stat_info->delete_length = stats.delete_length;
+  stat_info->max_data_file_length = stats.max_data_file_length;
 }
 
 int ha_ndbcluster::extra(enum ha_extra_function operation) {
@@ -11315,7 +11333,8 @@ int ha_ndbcluster::open(const char *path MY_ATTRIBUTE((unused)),
     return res;
   }
 
-  if ((res = update_stats(thd, 1)) || (res = info(HA_STATUS_CONST))) {
+  // Read fresh stats from NDB (one roundtrip) and update "constant variables"
+  if ((res = update_stats(thd, true)) || (res = info(HA_STATUS_CONST))) {
     release_key_fields();
     release_ndb_share();
     NdbDictionary::Dictionary *const dict = thd_ndb->ndb->getDictionary();
@@ -11425,11 +11444,13 @@ NDB_SHARE *ha_ndbcluster::open_share_before_schema_sync(
  * and updates index statistics
  */
 int ha_ndbcluster::optimize(THD *thd, HA_CHECK_OPT *) {
-  ulong error, stats_error = 0;
   const uint delay = (uint)THDVAR(thd, optimization_delay);
 
-  error = ndb_optimize_table(thd, delay);
-  stats_error = update_stats(thd, 1);
+  const int error = ndb_optimize_table(thd, delay);
+
+  // Read fresh stats from NDB (one roundtrip)
+  const int stats_error = update_stats(thd, true);
+
   return (error) ? error : stats_error;
 }
 
@@ -11502,8 +11523,8 @@ int ha_ndbcluster::ndb_optimize_table(THD *thd, uint delay) const {
 int ha_ndbcluster::analyze(THD *thd, HA_CHECK_OPT *) {
   DBUG_TRACE;
 
-  // update table partition statistics
-  int error = update_stats(thd, 1);
+  // Read fresh stats from NDB (one roundtrip)
+  int error = update_stats(thd, true);
 
   // analyze index if index stat is enabled
   if (error == 0 && THDVAR(NULL, index_stat_enable) &&
@@ -12704,7 +12725,7 @@ ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
   */
   do {
     if (stats.records == ~(ha_rows)0 || stats.records == 0) {
-      /* Refresh statistics, only read from datanodes if 'use_exact_count' */
+      // Read fresh stats from NDB (one roundtrip) only if 'use_exact_count'
       THD *thd = current_thd;
       if (update_stats(thd, THDVAR(thd, use_exact_count))) break;
     }
@@ -12833,6 +12854,26 @@ bool ha_ndbcluster::low_byte_first() const {
 #endif
 }
 
+/**
+   @brief Update statistics for the open table.
+
+   The function will either use cached table stats from NDB_SHARE or read fresh
+   table stats from NDB and update the cache, this is controlled by the
+   do_read_stat argument.
+
+   Those table stats will then be used to update the
+   Ndb_local_table_statistics::records value as well as values in
+   handler::stats.
+
+   @note When using the "part_id" parameter all the three different types of
+   stats updated by this function will be overwritten with stats pertaining to
+   only that fragment!
+
+   @param thd           The THD pointer
+   @param do_read_stat  Read fresh stats from NDB and update cache.
+   @param part_id       The partition id to fetch stats for.
+   @return 0 on success
+ */
 int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
   NDB_SHARE::Table_stats table_stats;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
@@ -12853,7 +12894,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
       return err;
     }
 
-    // Update cached stats with fresh data
+    // Update cached stats in NDB_SHARE with fresh data
     if (m_share) {
       mysql_mutex_lock(&m_share->mutex);
       m_share->cached_table_stats = table_stats;
@@ -12864,9 +12905,11 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat, uint part_id) {
 
   int no_uncommitted_rows_count = 0;
   if (m_table_info && !thd_ndb->m_error) {
+    // Update "records" in table info
     m_table_info->records = table_stats.row_count;
     no_uncommitted_rows_count = m_table_info->no_uncommitted_rows_count;
   }
+  // Update values in handler::stats (another "records")
   stats.mean_rec_length = table_stats.row_size;
   stats.data_file_length = table_stats.fragment_memory;
   stats.records = table_stats.row_count + no_uncommitted_rows_count;
