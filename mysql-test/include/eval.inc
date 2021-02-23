@@ -57,6 +57,14 @@
 #   expression is instead evaluated as it is and the result is not
 #   stored anywhere.
 #
+# $eval_escape
+#   By default, this script passes $eval_expr within single quotes to
+#   the server in an SQL statement.  Therefore, any single quotes and
+#   backslashes appearing in $eval_expr must be escaped by the caller.
+#   If $eval_escape==1, this script escapes any single quotes that
+#   appear in $eval_expr, so the caller does not have to know how this
+#   script processes quotes.
+#
 # $rpl_debug
 #   Print extra debug info.
 #
@@ -68,14 +76,18 @@
 
 if ($rpl_debug)
 {
-  --echo # debug: eval_expr='$eval_expr' eval_no_result='$eval_no_result'
+  --echo # debug: eval_expr='$eval_expr' eval_no_result='$eval_no_result' eval_escape='$eval_escape'
 }
 
 --let $_eval_old_connection= $CURRENT_CONNECTION
 
 # Evaluate square brackets in expr.
 --let $_eval_substmt_number= 1
---let $_eval_expr_interp= '$eval_expr'
+--let $_eval_expr_interp = $eval_expr
+if ($eval_escape) {
+  --let $_eval_expr_interp = escape('\,$_eval_expr_interp)
+}
+--let $_eval_expr_interp = '$_eval_expr_interp'
 --let $_eval_rbracket= `SELECT LOCATE(']', $_eval_expr_interp)`
 while ($_eval_rbracket)
 {

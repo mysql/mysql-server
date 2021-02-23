@@ -7143,28 +7143,25 @@
     </li>
 
     <li>
-      <tt>--let <b>$var</b> = escape(<b>character</b>,<b>string</b>)</tt>
+      <tt>--let <b>$var</b> = escape(<b>characters</b>,<b>string</b>)</tt>
 
-      Insert a backslash character before every occurrence of
-      <b>character</b> in <b>string</b> and assign the result to
-      <b>$var</b>.
+      Insert a backslash character before every character in
+      <b>string</b> that occurs in <b>characters</b>, and assign the
+      result to <b>$var</b>.
 
-      Note that <b>character</b> must be only one character, and not
-      newline.  Also, all whitespace is significant and preserved, so
-      you typically want to omit the space after the comma for this
-      command.
+      <b>characters</b> must not contain newline. If it contains a
+      comma, it must be the first character.  All whitespace is
+      significant and preserved in both arguments, so you typically
+      want to omit the space after the comma for this command.
 
       This can be useful when you need to include <b>string</b> in an
       SQL string in a query, and <b>string</b> may contain quote
       characters.
 
-      If you need to escape multiple characters, use this statement
-      multiple times. And if one of the characters you need to escape
-      is backslash, escape that before the others. Here is an example:
-
       @verbatim
-      --let <b>$var</b> = escape(\,The 'path separator' in Windows is \.)
-      --let <b>$var</b> = escape(',$var)
+      --let <b>$var</b> = escape(\',The 'path separator' in Windows is \.)
+      --echo $var
+      # Prints: The \'path separator\' in Windows is \\.
       @endverbatim
     </li>
 

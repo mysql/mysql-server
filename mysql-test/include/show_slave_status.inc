@@ -107,14 +107,7 @@ while ($_show_slave_status_items)
 
   --let $_show_slave_status_value= query_get_value($show_slave_status_cmd, $_show_slave_status_name, 1)
 
-  if ($_show_slave_status_value)
-  {
-      --let $escape_string= $_show_slave_status_value
-      --let $enclosing_char= "
-      --source include/escape_sql.inc
-      --let $_show_slave_status_value= $escape_string
-  }
-
+  --let $_show_slave_status_value = escape("\,$_show_slave_status_value)
   --let $_slave_field_result_replace= /[\\\\]/\// $slave_field_result_replace
   --replace_regex $_slave_field_result_replace
   --let $_show_slave_status_value= `SELECT REPLACE("$_show_slave_status_value", '$MYSQL_TEST_DIR', 'MYSQL_TEST_DIR')`
