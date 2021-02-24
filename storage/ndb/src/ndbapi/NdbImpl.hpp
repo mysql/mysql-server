@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,13 +65,64 @@ private:
   Ndb_free_list_t& operator=(const Ndb_free_list_t&);
 
   /**
-   * Based on a serie of sampled max. values for m_used_cnt;
-   * calculate the 95% percentile for max objects in use of 'class T'.
+   * update_stats() is called whenever a new local peak of 'm_used_cnt'
+   * objects has been observed.
+   *
+   * The high usage peaks are most interesting as we want to scale the
+   * free-list to accomodate these - The smaller peaks inbetween are mostly
+   * considered as 'noise' in this statistics. Which may cause a too low
+   * usage statistics to be collected, such that the high usage peaks could
+   * not be served from the free-list.
+   *
+   * In order to implement this we use a combination of statistics and
+   * heuristics. Heuristics is based on observing free-list behavior of
+   * an instrumented version of this code.
+   *
+   * 1) A 'high peak' is any peak value above or equal to the current
+   *    sampled mean value. -> Added to the statistics immediately .
+   * 2) A sampled peak value of 2 or less is considered as 'noise' and
+   *    just ignored.
+   * 3) Other peak values, less than the current mean:
+   *    These are observed over a periode of such smaller peaks, and their
+   *    max value collected in 'm_sample_max'. When the windows size has expired,
+   *    the 'm_sample_max' value is sampled.
+   *    Intention with this heuristic is that temporary reduced usage of objects
+   *    should be ignored, but longer term changes should be acounted for.
+   *
+   * When we have taken a valid sample, we use the statistics to calculate the
+   * 95% percentile for max objects in use of 'class T'.
    */
   void update_stats()
   {
-    m_stats.update(m_used_cnt);
-    m_estm_max_used = (Uint32)(m_stats.getMean() + (2 * m_stats.getStdDev()));
+    const Uint32 mean = m_stats.getMean();
+    if (m_used_cnt >= mean)
+      // 1) A high-peak value, sample it
+      m_stats.update(m_used_cnt);
+    else if (m_used_cnt <= 2)
+      // 2) Ignore very low sampled values, is 'noise'
+      return;
+    else
+    {
+      // 3) A local peak, less than current 'mean'
+      if (m_sample_max < m_used_cnt)
+        m_sample_max = m_used_cnt;
+
+      // Use a decay function of current 'mean' to decide how many small samples
+      // we may ignore - Smaller samples are ignored for a longer time.
+      const Uint32 max_skipped = (mean*5) / m_used_cnt;
+      m_samples_skipped++;
+      if (m_samples_skipped < max_skipped && m_samples_skipped < 10)
+        return;
+
+      // Expired low-value observation periode, sample max value seen.
+      m_stats.update(m_sample_max);
+    }
+    m_sample_max = 0;
+    m_samples_skipped = 0;
+
+    // Calculate upper 95% percentile from sampled values
+    const double upper = m_stats.getMean() + (2 * m_stats.getStdDev());
+    m_estm_max_used = (Uint32)(upper+0.999);
   }
 
   /** Shrink m_free_list such that m_used_cnt+'free' <= 'm_estm_max_used' */
@@ -82,6 +133,12 @@ private:
 
   /** Last operation allocated, or grabbed a free object */
   bool m_is_growing;
+
+  /** Number of consecuitive 'low-peak' values skipped */
+  Uint32 m_samples_skipped;
+
+  /** Max sample value seen in the 'm_samples_skipped' periode */
+  Uint32 m_sample_max;
 
   /** Statistics of peaks in number of obj 'T' in use */
   NdbStatistics m_stats;
@@ -399,6 +456,8 @@ Ndb_free_list_t<T>::Ndb_free_list_t()
    m_free_cnt(0),
    m_free_list(NULL),
    m_is_growing(false),
+   m_samples_skipped(0),
+   m_sample_max(0),
    m_stats(),
    m_estm_max_used(0)
 {}
