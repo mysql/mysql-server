@@ -306,7 +306,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   maxOpsLimit = 100;
-  Uint32 coolDownLoops = 25;
+  Uint32 coolDownLoops = 250;
   while (coolDownLoops-- > 0){
     int errors = 0;
     const int maxErrors = 5;
