@@ -7902,12 +7902,6 @@ Dbdih::nr_start_fragment(Signal* signal,
 	}
       }
     }
-    else
-    {
-#if defined VM_TRACE || defined ERROR_INSERT
-      g_eventLogger->info(" ");
-#endif
-    }
   }
   
   idx = 2; // backward compat code

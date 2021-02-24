@@ -90,15 +90,15 @@
 #endif
 
 void
-Dbtup::printPtr(const Ptr<Dbtup::Page> & ptr)
+Dbtup::printPtr(int idx, const Ptr<Dbtup::Page> &ptr)
 {
   g_eventLogger->info(
-      "[ Page: ptr.i: %u [ m_m_page_lsn_hi: %u"
+      "Dirty_pages %d [ Page: ptr.i: %u [ m_m_page_lsn_hi: %u"
       " m_m_page_lsn_lo: %u m_page_type: %u m_file_no: %u m_page_no: %u"
       " m_table_id: %u m_fragment_id: %u m_extent_no: %u m_extent_info_ptr: %u"
       " m_restart_seq: %u] list_index: %u free_space: %u"
       " uncommitted_used_space: %u ] ",
-      ptr.i, ptr.p->m_page_header.m_page_lsn_hi,
+      idx, ptr.i, ptr.p->m_page_header.m_page_lsn_hi,
       ptr.p->m_page_header.m_page_lsn_lo, ptr.p->m_page_header.m_page_type,
       ptr.p->m_file_no, ptr.p->m_page_no, ptr.p->m_table_id,
       ptr.p->m_fragment_id, ptr.p->m_extent_no, ptr.p->m_extent_info_ptr,
@@ -107,11 +107,11 @@ Dbtup::printPtr(const Ptr<Dbtup::Page> & ptr)
 }
 
 void
-Dbtup::printPtr(const Ptr<Dbtup::Page_request> & ptr)
+Dbtup::printPtr(int idx, const Ptr<Dbtup::Page_request> &ptr)
 {
   char buf[MAX_LOG_MESSAGE_SIZE];
   g_eventLogger->info(
-      "[ Page_request: ptr.i: %u %s"
+      "Page requests %d [ Page_request: ptr.i: %u %s"
       " m_original_estimated_free_space: %u"
       " m_list_index: %u"
       " m_frag_ptr_i: %u"
@@ -119,18 +119,18 @@ Dbtup::printPtr(const Ptr<Dbtup::Page_request> & ptr)
       " m_ref_count: %u"
       " m_uncommitted_used_space: %u"
       " ] ",
-      ptr.i, printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, ptr.p->m_key),
+      idx, ptr.i, printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, ptr.p->m_key),
       ptr.p->m_original_estimated_free_space, ptr.p->m_list_index,
       ptr.p->m_frag_ptr_i, ptr.p->m_extent_info_ptr, ptr.p->m_ref_count,
       ptr.p->m_uncommitted_used_space);
 }
 
 void
-Dbtup::printPtr(const Ptr<Dbtup::Extent_info> & ptr)
+Dbtup::printPtr(const char *msg, int idx, const Ptr<Dbtup::Extent_info> &ptr)
 {
   char buf[MAX_LOG_MESSAGE_SIZE];
   g_eventLogger->info(
-      "[ Extent_info: ptr.i %u %s"
+      "%s %d [ Extent_info: ptr.i %u %s"
       " m_first_page_no: %u"
       " m_empty_page_no: %u"
       " m_key: ["
@@ -141,7 +141,7 @@ Dbtup::printPtr(const Ptr<Dbtup::Extent_info> & ptr)
       " m_free_space: %u"
       " m_free_matrix_pos: %u"
       " m_free_page_count: [",
-      ptr.i, printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, ptr.p->m_key),
+      msg, idx, ptr.i, printLocal_Key(buf, MAX_LOG_MESSAGE_SIZE, ptr.p->m_key),
       ptr.p->m_first_page_no, ptr.p->m_empty_page_no, ptr.p->m_key.m_file_no,
       ptr.p->m_key.m_page_no, ptr.p->m_key.m_page_idx, ptr.p->m_free_space,
       ptr.p->m_free_matrix_pos);
@@ -151,55 +151,67 @@ void
 Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
 {
   const Uint32 limit = 512;
-  g_eventLogger->info("dirty pages");
   for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
-    g_eventLogger->info("  %d : ", i);
     PagePtr ptr;
     Page_pool *pool= (Page_pool*)&m_global_page_pool;
     Local_Page_list list(*pool, alloc.m_dirty_pages[i]);
     Uint32 c = 0;
+    bool empty = true;
     for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
-      printPtr(ptr);
+      empty = false;
+      printPtr(i, ptr);
+    }
+    if (empty)
+    {
+      g_eventLogger->info("Dirty pages: %d EMPTY", i);
     }
     if (c == limit)
     {
-      g_eventLogger->info("MAXLIMIT ");
+      g_eventLogger->info("Dirty pages: %d MAXLIMIT", i);
     }
   }
-  g_eventLogger->info("page requests");
   for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
-    g_eventLogger->info("  %d : ", i);
     Ptr<Page_request> ptr;
     Local_page_request_list list(c_page_request_pool, 
 				 alloc.m_page_requests[i]);
     Uint32 c = 0;
+    bool empty = true;
     for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
-      printPtr(ptr);
+      empty = false;
+      printPtr(i, ptr);
+    }
+    if (empty)
+    {
+      g_eventLogger->info("Page requests: %d EMPTY", i);
     }
     if (c == limit)
     {
-      g_eventLogger->info("MAXLIMIT ");
+      g_eventLogger->info("Page requests: %d MAXLIMIT", i);
     }
   }
 
-  g_eventLogger->info("Extent matrix");
   for(Uint32 i = 0; i<alloc.SZ; i++)
   {
-    g_eventLogger->info("  %d : ", i);
     Ptr<Extent_info> ptr;
     Local_extent_info_list list(c_extent_pool, alloc.m_free_extents[i]);
     Uint32 c = 0;
+    bool empty = true;
     for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
-      printPtr(ptr);
+      empty = false;
+      printPtr("Extent matrix: ", i, ptr);
+    }
+    if (empty)
+    {
+      g_eventLogger->info("Extent matrix: %d EMPTY", i);
     }
     if (c == limit)
     {
-      g_eventLogger->info("MAXLIMIT ");
+      g_eventLogger->info("Extent matrix: %d MAXLIMIT", i);
     }
   }
 
@@ -207,8 +219,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   {
     Ptr<Extent_info> ptr;
     c_extent_pool.getPtr(ptr, alloc.m_curr_extent_info_ptr_i);
-    g_eventLogger->info("current extent:");
-    printPtr(ptr);
+    printPtr("Current extent: ", 0, ptr);
   }
 }
 

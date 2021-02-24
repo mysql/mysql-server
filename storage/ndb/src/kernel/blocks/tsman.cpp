@@ -331,8 +331,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 
     if(req->reply.errorCode == 0){
       jam();
-      g_eventLogger->info("Success");
-      g_eventLogger->info("page: %d %d count: %d",
+      g_eventLogger->info("Success page: %d %d count: %d",
 	       req->reply.page_id.m_file_no,
 	       req->reply.page_id.m_page_no,
 	       req->reply.page_count);
@@ -361,8 +360,7 @@ Tsman::execDUMP_STATE_ORD(Signal* signal)
 
     if(req->reply.errorCode == 0){
       jam();
-      g_eventLogger->info("Success");
-      g_eventLogger->info("page: %d %d bits: %d",
+      g_eventLogger->info("Success page: %d %d bits: %d",
 	       req->key.m_file_no,
 	       req->key.m_page_no,
 	       req->bits);
