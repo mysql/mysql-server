@@ -99,6 +99,16 @@ class Protocol_callback final : public Protocol {
   bool store_null() override;
 
   /**
+    Sends BOOLEAN value
+
+    @param from value
+
+    @retval false  success
+    @retval true   failure  
+  */
+  bool store_boolean(longlong from) override;
+
+  /**
     Sends TINYINT value
 
     @param from value

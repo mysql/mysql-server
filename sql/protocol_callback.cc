@@ -89,6 +89,11 @@ bool Protocol_callback::store_null() {
   return false;
 }
 
+bool Protocol_callback::store_boolean(longlong from) {
+  if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
+  return false;
+}
+
 bool Protocol_callback::store_tiny(longlong from, uint32) {
   if (callbacks.get_integer) return callbacks.get_integer(callbacks_ctx, from);
   return false;

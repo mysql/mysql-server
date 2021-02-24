@@ -3297,6 +3297,14 @@ static bool store_integer(int64 value, bool unsigned_flag, uint32 zerofill,
   return false;
 }
 
+bool Protocol_text::store_boolean(longlong from) {
+  // field_types check is needed because of the embedded protocol
+  DBUG_ASSERT(send_metadata || field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_BOOL);
+  field_pos++;
+  return store_integer(from, true, 0, packet);
+}
+
 bool Protocol_text::store_tiny(longlong from, uint32 zerofill) {
   // field_types check is needed because of the embedded protocol
   DBUG_ASSERT(send_metadata || field_types == nullptr ||
@@ -3623,6 +3631,17 @@ bool Protocol_binary::store_null() {
   *to = (char)((uchar)*to | (uchar)bit);
   field_pos++;
   return false;
+}
+
+bool Protocol_binary::store_boolean(longlong from) {
+  if (send_metadata) return Protocol_text::store_boolean(from);
+  char buff[1];
+  // field_types check is needed because of the embedded protocol
+  DBUG_ASSERT(field_types == nullptr ||
+              field_types[field_pos] == MYSQL_TYPE_BOOL);
+  field_pos++;
+  buff[0] = (bool)from;
+  return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 
 bool Protocol_binary::store_tiny(longlong from, uint32 zerofill) {

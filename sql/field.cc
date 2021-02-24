@@ -3244,8 +3244,7 @@ String *Field_boolean::val_str(String *val_buffer, String *) const {
 
 bool Field_boolean::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
-  return protocol->store_boolean(Field_boolean::val_int(),
-                              zerofill ? field_length : 0);
+  return protocol->store_boolean(Field_boolean::val_int());
 }
 
 int Field_boolean::cmp(const uchar *a_ptr, const uchar *b_ptr) const {

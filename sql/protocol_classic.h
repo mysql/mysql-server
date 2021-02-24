@@ -218,6 +218,7 @@ class Protocol_text : public Protocol_classic {
   Protocol_text() {}
   Protocol_text(THD *thd_arg) : Protocol_classic(thd_arg) {}
   bool store_null() override;
+  bool store_boolean(longlong from) override;
   bool store_tiny(longlong from, uint32 zerofill) override;
   bool store_short(longlong from, uint32 zerofill) override;
   bool store_long(longlong from, uint32 zerofill) override;
@@ -244,6 +245,7 @@ class Protocol_binary final : public Protocol_text {
   Protocol_binary(THD *thd_arg) : Protocol_text(thd_arg) {}
   void start_row() override;
   bool store_null() override;
+  bool store_boolean(longlong from) override;
   bool store_tiny(longlong from, uint32 zerofill) override;
   bool store_short(longlong from, uint32 zerofill) override;
   bool store_long(longlong from, uint32 zerofill) override;

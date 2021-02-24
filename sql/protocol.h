@@ -114,6 +114,7 @@ class Protocol {
 
   /* Data sending functions */
   virtual bool store_null() = 0;
+  virtual bool store_boolean(longlong from) = 0;
   virtual bool store_tiny(longlong from, uint32 zerofill) = 0;
   virtual bool store_short(longlong from, uint32 zerofill) = 0;
   virtual bool store_long(longlong from, uint32 zerofill) = 0;

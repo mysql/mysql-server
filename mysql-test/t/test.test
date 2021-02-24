@@ -1,0 +1,8 @@
+drop table if exists t;
+drop database if exists mysqltest;
+
+create database mysqltest;
+use mysqltest;
+create table t (b BOOLEAN);
+show create table t;
+drop database mysqltest;

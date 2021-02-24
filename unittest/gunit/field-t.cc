@@ -132,6 +132,7 @@ class Mock_protocol : public Protocol {
   bool end_result_metadata() override { return false; }
 
   bool store_null() override { return false; }
+  bool store_boolean(longlong) override { return false; }
   bool store_tiny(longlong, uint32) override { return false; }
   bool store_short(longlong, uint32) override { return false; }
   bool store_long(longlong, uint32) override { return false; }
