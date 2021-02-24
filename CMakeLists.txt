@@ -111,38 +111,6 @@ ENDIF()
 # CMake 3.5 is needed for TARGET_SOURCES(... $<TARGET_OBJECTS:${LIB}_objlib>)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
 
-# Explicitly set CMP0018 and CMP0022 = NEW since newer versions of
-# CMake has OLD as default even if OLD is deprecated.
-# See cmake --help-policy CMP0018 / CMP0022
-CMAKE_POLICY(SET CMP0018 NEW)
-CMAKE_POLICY(SET CMP0022 NEW)
-
-# Include TARGET_OBJECTS expressions.
-CMAKE_POLICY(SET CMP0051 NEW)
-
-# Disallow use of the LOCATION property for build targets.
-IF(POLICY CMP0026)
-  CMAKE_POLICY(SET CMP0026 NEW)
-ENDIF()
-
-# INTERPROCEDURAL_OPTIMIZATION is enforced when enabled (CMake 3.9+)
-IF(POLICY CMP0069)
-  CMAKE_POLICY(SET CMP0069 NEW)
-ENDIF()
-
-# In CMake 3.12 and above, the
-#
-# * ``check_include_file`` macro in the ``CheckIncludeFile`` module, the
-# * ``check_include_file_cxx`` macro in the
-#   ``CheckIncludeFileCXX`` module, and the
-# * ``check_include_files`` macro in the ``CheckIncludeFiles`` module
-#
-# now prefer to link the check executable to the libraries listed in the
-# ``CMAKE_REQUIRED_LIBRARIES`` variable.
-IF(POLICY CMP0075)
-  CMAKE_POLICY(SET CMP0075 OLD)
-ENDIF()
-
 # Will set GIT_EXECUTABLE and GIT_FOUND
 FIND_PACKAGE(Git)
 
@@ -258,6 +226,11 @@ IF(APPLE)
     CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
   ENDIF()
 ENDIF()
+
+# Add all policies *after* CMAKE_MINIMUM_REQUIRED
+# Repeating CMAKE_MINIMUM_REQUIRED here will load defaults for 3.5.1
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
+INCLUDE(cmake_policies)
 
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'
@@ -377,14 +350,10 @@ IF(WITH_NDBCLUSTER)
   MESSAGE(STATUS "Building MySQL Cluster")
 ENDIF()
 
+MESSAGE(STATUS "CMAKE_MODULE_PATH is ${CMAKE_MODULE_PATH}")
 INCLUDE(mysql_version)
-IF(POLICY CMP0048)
-  CMAKE_POLICY(SET CMP0048 NEW)
-  PROJECT(${MYSQL_PROJECT_NAME}
-    VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
-ELSE()
-  PROJECT(${MYSQL_PROJECT_NAME})
-ENDIF()
+PROJECT(${MYSQL_PROJECT_NAME}
+  VERSION ${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION})
 
 GET_FILENAME_COMPONENT(REALPATH_CMAKE_SOURCE_DIR ${CMAKE_SOURCE_DIR} REALPATH)
 GET_FILENAME_COMPONENT(REALPATH_CMAKE_BINARY_DIR ${CMAKE_BINARY_DIR} REALPATH)
