@@ -99,7 +99,7 @@ public:
       /* Add 'sample' as 'simple moving average' */
       m_noOfSamples++;
       m_mean      += (delta / m_noOfSamples);
-      m_sumSquare += (delta * (sample - m_mean));
+      m_sumSquare += fabs(delta * (sample - m_mean));
     }
   }
 
