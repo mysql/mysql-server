@@ -3656,8 +3656,8 @@ ORDER *simple_remove_const(ORDER *order, Item *where) {
 
     Checks if an equality predicate can be used to remove a GROUP BY/ORDER BY
     sub-clause when it is known to be true for exactly one distinct value
-    (e.g. <expr> == <const>).
-    Arguments must be of the same type because e.g. <string_field> = <int_const>
+    (e.g. "expr" == "const").
+    Arguments must be of the same type because e.g. "string_field" = "int_const"
      may match more than one distinct value from the column.
 */
 static bool equality_determines_uniqueness(const Item_func_comparison *func,
