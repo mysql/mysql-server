@@ -4702,6 +4702,19 @@ bool WalkAndReplace(
         return true;
       }
     }
+    switch (down_cast<Item_func *>(item)->functype()) {
+      case Item_func::GE_FUNC:
+      case Item_func::GT_FUNC:
+      case Item_func::LT_FUNC:
+      case Item_func::LE_FUNC:
+      case Item_func::EQ_FUNC:
+      case Item_func::NE_FUNC:
+      case Item_func::EQUAL_FUNC:
+        down_cast<Item_bool_func2 *>(item)->set_cmp_func();
+        break;
+      default:
+        break;
+    }
   } else if (item->type() == Item::COND_ITEM) {
     Item_cond *cond_item = down_cast<Item_cond *>(item);
     List_iterator<Item> li(*cond_item->argument_list());

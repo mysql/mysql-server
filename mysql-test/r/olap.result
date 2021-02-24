@@ -2185,3 +2185,17 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`f1` AS `f1` from `t1` group by `t1`.`f1` with rollup	utf8mb4	utf8mb4_0900_ai_ci
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug #32548377: WL#14417: RESULT MISMATCH WITH ROLLUP
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3);
+SELECT ( SELECT 'a' ) AS f1
+FROM t1 AS alias1, t1 alias2
+GROUP BY f1 WITH ROLLUP
+HAVING f1 < 7;
+f1
+a
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+DROP TABLE t1;
