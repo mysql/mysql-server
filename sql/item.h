@@ -3639,22 +3639,23 @@ class Item_name_const final : public Item {
 bool agg_item_collations_for_comparison(DTCollation &c, const char *name,
                                         Item **items, uint nitems, uint flags);
 bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
-                            uint nargs, uint flags, int item_sep);
+                            uint nargs, uint flags, int item_sep,
+                            bool only_consts);
 bool agg_item_charsets(DTCollation &c, const char *name, Item **items,
-                       uint nitems, uint flags, int item_sep);
+                       uint nitems, uint flags, int item_sep, bool only_consts);
 inline bool agg_item_charsets_for_string_result(DTCollation &c,
                                                 const char *name, Item **items,
                                                 uint nitems, int item_sep = 1) {
   uint flags = MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV |
                MY_COLL_ALLOW_NUMERIC_CONV;
-  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
+  return agg_item_charsets(c, name, items, nitems, flags, item_sep, false);
 }
 inline bool agg_item_charsets_for_comparison(DTCollation &c, const char *name,
                                              Item **items, uint nitems,
                                              int item_sep = 1) {
   uint flags = MY_COLL_ALLOW_SUPERSET_CONV | MY_COLL_ALLOW_COERCIBLE_CONV |
                MY_COLL_DISALLOW_NONE;
-  return agg_item_charsets(c, name, items, nitems, flags, item_sep);
+  return agg_item_charsets(c, name, items, nitems, flags, item_sep, true);
 }
 
 class Item_num : public Item_basic_constant {

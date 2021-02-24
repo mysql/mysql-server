@@ -2505,9 +2505,9 @@ ANALYZE TABLE t1;
 --enable_query_log
 --enable_result_log
 
-Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
-Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
-Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(127);
+Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(127);
+Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(127);
 
 eval EXPLAIN $query1;
 eval EXPLAIN $query2;

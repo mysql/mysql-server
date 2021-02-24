@@ -4476,6 +4476,8 @@ INSERT INTO t1 VALUES ();
 SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY 1;
 d5
 NULL
+Warnings:
+Warning	1292	Incorrect time value: 'a' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
@@ -5261,4 +5263,43 @@ SELECT UNHEX(x) FROM t;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					UNHEX(x)	251	2147483648	0	Y	128	31	63
 UNHEX(x)
+DROP TABLE t;
+Bug#32501472: Concatenation may create invalid UTF8 strings
+CREATE TABLE t1(a CHAR(1) CHARACTER SET utf8mb4);
+INSERT INTO t1 VALUES('a');
+SELECT CONCAT(a, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT CONCAT_WS(',', a, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT CONCAT_WS(x'ff', a, a) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT INSERT(a, 1, 1, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+DROP TABLE t1;
+CREATE TABLE t1(a VARCHAR(3), b VARCHAR(3));
+INSERT INTO t1 VALUES('on','off');
+SELECT EXPORT_SET(7, a, b, x'ff', 4) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT EXPORT_SET(7, a, x'ff', b, 4) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT MAKE_SET(7, a, b, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+DROP TABLE t1;
+Bug#30746908: Assertion `(tlen % 4) == 0' in my_strnncollsp_utf32
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1),(2);
+SELECT (SELECT 1
+FROM t
+WHERE CONVERT(1 USING utf32) <> GROUP_CONCAT(1)
+);
+(SELECT 1
+FROM t
+WHERE CONVERT(1 USING utf32) <> GROUP_CONCAT(1)
+)
+NULL
+SELECT (SELECT 1
+FROM t
+WHERE CONVERT(1 USING gb18030) <> GROUP_CONCAT(x'a3')
+);
+ERROR HY000: Cannot convert string '\xA3' from binary to gb18030
 DROP TABLE t;

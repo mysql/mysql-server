@@ -983,11 +983,7 @@ uint my_instr_simple(const CHARSET_INFO *cs, const char *b, size_t b_length,
 extern "C" {
 static size_t my_well_formed_len_ascii(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *start,
-    const char *end, size_t nchars, int *error) {
-  /**
-    @todo: Currently return warning on invalid character.
-           Return error in future release.
-  */
+    const char *end, size_t nchars MY_ATTRIBUTE((unused)), int *error) {
   const char *oldstart = start;
   *error = 0;
   while (start < end) {
@@ -997,7 +993,7 @@ static size_t my_well_formed_len_ascii(
     }
     start++;
   }
-  return std::min<size_t>(end - oldstart, nchars);
+  return start - oldstart;
 }
 }  // extern "C"
 

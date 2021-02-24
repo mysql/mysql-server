@@ -109,6 +109,8 @@ class Item_str_func : public Item_func {
   Item_str_func(const POS &pos, PT_item_list *opt_list)
       : Item_func(pos, opt_list) {}
 
+  String *eval_string_arg(Item *arg, String *buffer);
+
   longlong val_int() override { return val_int_from_string(); }
   double val_real() override { return val_real_from_string(); }
   my_decimal *val_decimal(my_decimal *) override;

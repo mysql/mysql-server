@@ -709,19 +709,22 @@ FROM ( t2 INNER JOIN t3 ON t3.f2 = t2.f2 LEFT JOIN t1 ON t1.f1 = t3.f1 )
 WHERE NOT (t2.f1 >= 7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	f2,f1	f1	5	NULL	1	100.00	Using index condition
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	f2	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (hash join)
 1	SIMPLE	t1	NULL	ref	f1	f1	5	test.t3.f1	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t3`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (convert(`test`.`t3`.`f2` using utf8) = `test`.`t2`.`f2`))
+Warning	1739	Cannot use ref access on index 'f2' due to type or collation conversion on field 'f2'
+Warning	1739	Cannot use range access on index 'f2' due to type or collation conversion on field 'f2'
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t2`,`t3`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (`test`.`t3`.`f2` = `test`.`t2`.`f2`))
 EXPLAIN SELECT /*+ JOIN_ORDER(t1, t2)  JOIN_ORDER(t2, t3) */ t3.f1
 FROM ( t2 INNER JOIN t3 ON t3.f2 = t2.f2 LEFT JOIN t1 ON t1.f1 = t3.f1 )
 WHERE NOT (t2.f1 >= 7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	f2	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	t1	NULL	ref	f1	f1	5	test.t3.f1	1	100.00	Using index
-1	SIMPLE	t2	NULL	ref	f2,f1	f2	768	func	1	100.00	Using index condition; Using where
+1	SIMPLE	t2	NULL	ref	f2,f1	f2	768	test.t3.f2	1	100.00	Using index condition; Using where
 Warnings:
-Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`t2`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (convert(`test`.`t3`.`f2` using utf8) = `test`.`t2`.`f2`))
+Warning	1739	Cannot use ref access on index 'f2' due to type or collation conversion on field 'f2'
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `t1`,`t2`) */ `test`.`t3`.`f1` AS `f1` from `test`.`t2` join `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`f1` = `test`.`t3`.`f1`)) where ((`test`.`t2`.`f1` < 7) and (`test`.`t3`.`f2` = `test`.`t2`.`f2`))
 DROP TABLE t1, t2, t3;
 CREATE TABLE t1 (
 f1 INT(11) NOT NULL AUTO_INCREMENT,

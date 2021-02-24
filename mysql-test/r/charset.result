@@ -138,3 +138,8 @@ CREATE TABLE t1 (
 PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 DROP TABLE t1;
+# Bug#32244631: Illegal mix of collations (ascii_general_ci,implicit)
+SELECT member_role
+FROM performance_schema.replication_group_members
+WHERE member_host = @@hostname AND member_role='PRIMARY';
+member_role

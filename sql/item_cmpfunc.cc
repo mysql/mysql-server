@@ -146,6 +146,47 @@ static Item_result agg_cmp_type(Item **items, uint nitems) {
   return type;
 }
 
+/**
+  Convert and/or validate input_string according to charset 'to_cs'.
+
+  If input_string needs conversion to 'to_cs' then do the conversion,
+  and verify the result.
+  Otherwise, if input_string has charset my_charset_bin, then verify
+  that it contains a valid string according to 'to_cs'.
+
+  Will call my_error() in case conversion/validation fails.
+
+  @param input_string        string to be converted/validated.
+  @param to_cs               result character set
+  @param output_string [out] output result variable
+
+  @return nullptr in case of error, otherwise pointer to result.
+*/
+static String *convert_or_validate_string(String *input_string,
+                                          const CHARSET_INFO *to_cs,
+                                          String *output_string) {
+  String *retval = input_string;
+  if (input_string->needs_conversion(to_cs)) {
+    uint errors = 0;
+    output_string->copy(input_string->ptr(), input_string->length(),
+                        input_string->charset(), to_cs, &errors);
+    if (errors) {
+      report_conversion_error(to_cs, input_string->ptr(),
+                              input_string->length(), input_string->charset());
+      return nullptr;
+    }
+    retval = output_string;
+  } else if (to_cs != &my_charset_bin &&
+             input_string->charset() == &my_charset_bin) {
+    if (!input_string->is_valid_string(to_cs)) {
+      report_conversion_error(to_cs, input_string->ptr(),
+                              input_string->length(), input_string->charset());
+      return nullptr;
+    }
+  }
+  return retval;
+}
+
 static void write_histogram_to_trace(THD *thd, Item_func *item,
                                      const double selectivity) {
   Opt_trace_object obj(&thd->opt_trace, "histogram_selectivity");
@@ -1196,9 +1237,9 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
       and "left" and "right", so we need to convert both items.
      */
     if (agg_item_set_converter(coll, owner->func_name(), left, 1,
-                               MY_COLL_CMP_CONV, 1) ||
+                               MY_COLL_CMP_CONV, 1, true) ||
         agg_item_set_converter(coll, owner->func_name(), right, 1,
-                               MY_COLL_CMP_CONV, 1))
+                               MY_COLL_CMP_CONV, 1, true))
       return true;
   } else if (try_year_cmp_func(type)) {
     return false;
@@ -1689,26 +1730,36 @@ int Arg_comparator::compare_json() {
 }
 
 int Arg_comparator::compare_string() {
-  String *res1, *res2;
-  if ((res1 = (*left)->val_str(&value1))) {
-    if ((res2 = (*right)->val_str(&value2))) {
-      if (set_null) owner->null_value = false;
-      auto orig_len1 = res1->length(), orig_len2 = res2->length();
-      if (m_max_str_length >
-          0) {  // Truncate to imposed maximum length, before comparing
-        if (orig_len1 > m_max_str_length) res1->length(m_max_str_length);
-        if (orig_len2 > m_max_str_length) res2->length(m_max_str_length);
-      }
-      // Compare
-      auto rc = sortcmp(res1, res2, cmp_collation.collation);
-      // Restore true lengths
-      res1->length(orig_len1);
-      res2->length(orig_len2);
-      return rc;
-    }
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res1_converted(nullptr);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr);
+  const CHARSET_INFO *cs = cmp_collation.collation;
+  String *res1 = (*left)->val_str(&value1);
+  if (res1 != nullptr) {
+    res1 = convert_or_validate_string(res1, cs, &res1_converted);
   }
-  if (set_null) owner->null_value = true;
-  return -1;
+  if (res1 == nullptr) {
+    if (set_null) owner->null_value = true;
+    return -1;
+  }
+  String *res2 = (*right)->val_str(&value2);
+  if (res2 != nullptr) {
+    res2 = convert_or_validate_string(res2, cs, &res2_converted);
+  }
+  if (res2 == nullptr) {
+    if (set_null) owner->null_value = true;
+    return -1;
+  }
+
+  if (set_null) owner->null_value = false;
+  size_t l1 = res1->length();
+  size_t l2 = res2->length();
+  if (m_max_str_length > 0) {  // Truncate to imposed maximum length
+    if (l1 > m_max_str_length) l1 = m_max_str_length;
+    if (l2 > m_max_str_length) l2 = m_max_str_length;
+  }
+  // Compare the two strings
+  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(res1->ptr()), l1,
+                               pointer_cast<const uchar *>(res2->ptr()), l2);
 }
 
 /**

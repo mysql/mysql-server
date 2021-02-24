@@ -2439,7 +2439,7 @@ bool agg_item_collations_for_comparison(DTCollation &c, const char *fname,
 }
 
 bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
-                            uint nargs, uint, int item_sep) {
+                            uint nargs, uint, int item_sep, bool only_consts) {
   Item *safe_args[2] = {nullptr, nullptr};
 
   /*
@@ -2460,6 +2460,8 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
   Item **arg;
   for (i = 0, arg = args; i < nargs; i++, arg += item_sep) {
     size_t dummy_offset;
+    // If told so (from comparison code), only add converter for const values.
+    if (only_consts && !(*arg)->const_item()) continue;
     if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation, &dummy_offset))
       continue;
@@ -2543,11 +2545,11 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname, Item **args,
 */
 
 bool agg_item_charsets(DTCollation &coll, const char *fname, Item **args,
-                       uint nargs, uint flags, int item_sep) {
+                       uint nargs, uint flags, int item_sep, bool only_consts) {
   if (agg_item_collations(coll, fname, args, nargs, flags, item_sep))
     return true;
-
-  return agg_item_set_converter(coll, fname, args, nargs, flags, item_sep);
+  return agg_item_set_converter(coll, fname, args, nargs, flags, item_sep,
+                                only_consts);
 }
 
 void Item_ident_for_show::make_field(Send_field *tmp_field) {
@@ -5611,6 +5613,9 @@ static void convert_zerofill_number_to_string(Item **item,
     field->prepend_zeros(res);
     pos = sql_strmake(res->ptr(), res->length());
     *item = new Item_string(pos, res->length(), field->charset());
+    if (*item == nullptr) return;
+    // Ensure the string has same properties as a number
+    (*item)->collation.derivation = DERIVATION_NUMERIC;
   }
 }
 
