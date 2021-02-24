@@ -207,4 +207,10 @@ SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
 # Slave shall read from all encrypted binary log files
 --source include/sync_slave_sql_with_master.inc
---source include/rpl_connection_master.inc
+--source include/stop_slave.inc
+--let $rpl_server_number= 1
+--let $rpl_server_parameters=
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_restart_server.inc
+--source include/rpl_connection_slave.inc
+SET GLOBAL keyring_operations= ON;
