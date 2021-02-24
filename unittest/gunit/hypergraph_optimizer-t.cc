@@ -1960,7 +1960,10 @@ TEST_P(HypergraphFullTextTest, FullTextSearch) {
   }
 
   if (GetParam().expect_index) {
-    EXPECT_EQ(AccessPath::FULL_TEXT_SEARCH, path->type);
+    ASSERT_EQ(AccessPath::FULL_TEXT_SEARCH, path->type);
+    // Since there is no ORDER BY in the query, expect an unordered index scan.
+    EXPECT_FALSE(query_block->is_ordered());
+    EXPECT_FALSE(path->full_text_search().use_order);
   } else {
     EXPECT_EQ(AccessPath::TABLE_SCAN, path->type);
   }
@@ -2125,6 +2128,105 @@ TEST_F(HypergraphOptimizerTest, FullTextCanSkipRanking) {
   EXPECT_EQ(nullptr, (*ftfuncs)[3]->master);
   EXPECT_FALSE((*ftfuncs)[3]->can_skip_ranking());
   EXPECT_EQ((*ftfuncs)[3], (*ftfuncs)[4]->get_master());
+}
+
+TEST_F(HypergraphOptimizerTest, FullTextAvoidDescSort) {
+  // CREATE TABLE t1(x VARCHAR(100)).
+  Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
+  column1.field_name = "x";
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  t1->file->stats.records = 10000;
+  m_fake_tables["t1"] = t1;
+  t1->set_created();
+
+  // CREATE FULLTEXT INDEX idx ON t1(x).
+  down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
+      t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
+  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') "
+      "ORDER BY MATCH(t1.x) AGAINST ('abc') DESC",
+      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+
+  // Expect no sort in the plan. An ordered index scan is used.
+  ASSERT_EQ(AccessPath::FULL_TEXT_SEARCH, root->type);
+  EXPECT_TRUE(root->full_text_search().use_order);
+}
+
+TEST_F(HypergraphOptimizerTest, FullTextAscSort) {
+  // CREATE TABLE t1(x VARCHAR(100)).
+  Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
+  column1.field_name = "x";
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  t1->file->stats.records = 10000;
+  m_fake_tables["t1"] = t1;
+  t1->set_created();
+
+  // CREATE FULLTEXT INDEX idx ON t1(x).
+  down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
+      t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
+  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x FROM t1 WHERE MATCH(t1.x) AGAINST ('abc') "
+      "ORDER BY MATCH(t1.x) AGAINST ('abc') ASC",
+      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+
+  // The full-text index can only return results in descending order, so expect
+  // a SORT node on top.
+  EXPECT_EQ(AccessPath::SORT, root->type);
+}
+
+TEST_F(HypergraphOptimizerTest, FullTextDescSortNoPredicate) {
+  // CREATE TABLE t1(x VARCHAR(100)).
+  Base_mock_field_varstring column1(/*length=*/100, /*share=*/nullptr);
+  column1.field_name = "x";
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&column1);
+  t1->file->stats.records = 10000;
+  m_fake_tables["t1"] = t1;
+  t1->set_created();
+
+  // CREATE FULLTEXT INDEX idx ON t1(x).
+  down_cast<Mock_HANDLER *>(t1->file)->set_ha_table_flags(
+      t1->file->ha_table_flags() | HA_CAN_FULLTEXT);
+  t1->create_index(&column1, /*column2=*/nullptr, ulong{HA_FULLTEXT});
+
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.x FROM t1 ORDER BY MATCH(t1.x) AGAINST ('abc') DESC",
+      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_NE(nullptr, root);
+
+  // A full-text index scan cannot be used for ordering when there is no
+  // predicate, since the index scan doesn't return all rows (only those with a
+  // positive score). Expect a SORT node on top.
+  EXPECT_EQ(AccessPath::SORT, root->type);
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {

@@ -4081,6 +4081,11 @@ FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
 
     // Mark the MATCH function as a source for a full-text index scan.
     ft_func->score_from_index_scan = true;
+
+    // Enable ordering of the results on relevance, if requested.
+    if (use_order) {
+      ft_func->get_hints()->set_hint_flag(FT_SORTED);
+    }
   }
 
   assert(ft_func->score_from_index_scan);

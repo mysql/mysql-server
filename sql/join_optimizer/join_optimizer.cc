@@ -33,6 +33,7 @@
 #include <utility>
 #include <vector>
 
+#include "ft_global.h"
 #include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
@@ -149,6 +150,13 @@ struct ActiveIndexInfo {
   LogicalOrderings::StateIndex forward_order = 0, reverse_order = 0;
 };
 
+// A full-text index that we can use in the query, either for index lookup or
+// for scanning along to get an interesting order.
+struct FullTextIndexInfo {
+  Item_func_match *match;
+  LogicalOrderings::StateIndex order = 0;
+};
+
 /**
   CostingReceiver contains the main join planning logic, selecting access paths
   based on cost. It receives subplans from DPhyp (see enumerate_subgraph.h),
@@ -173,6 +181,7 @@ class CostingReceiver {
       const LogicalOrderings *orderings,
       const Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
       const Mem_root_array<ActiveIndexInfo> *active_indexes,
+      const Mem_root_array<FullTextIndexInfo> *fulltext_searches,
       NodeMap fulltext_tables, uint64_t sargable_fulltext_predicates,
       bool need_rowid, SecondaryEngineFlags engine_flags,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
@@ -183,6 +192,7 @@ class CostingReceiver {
         m_orderings(orderings),
         m_sort_ahead_orderings(sort_ahead_orderings),
         m_active_indexes(active_indexes),
+        m_fulltext_searches(fulltext_searches),
         m_fulltext_tables(fulltext_tables),
         m_sargable_fulltext_predicates(sargable_fulltext_predicates),
         m_need_rowid(need_rowid),
@@ -290,6 +300,9 @@ class CostingReceiver {
   /// for index-only scans, or to get interesting orderings.
   const Mem_root_array<ActiveIndexInfo> *m_active_indexes;
 
+  /// List of all active full-text indexes that we can apply in this query.
+  const Mem_root_array<FullTextIndexInfo> *m_fulltext_searches;
+
   /// A map of tables that are referenced by a MATCH function (those tables that
   /// have TABLE_LIST::is_fulltext_searched() == true). It is used for
   /// preventing hash joins involving tables that are full-text searched.
@@ -370,8 +383,10 @@ class CostingReceiver {
   bool AlreadyAppliedThroughSargable(Item_func_eq *cond,
                                      uint64_t applied_sargable_join_predicates,
                                      NodeMap left, NodeMap right);
+  bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx);
   bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
-                                Item_func_match *match, int predicate_idx);
+                                Item_func_match *match, int predicate_idx,
+                                int ordering_idx);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge,
                              bool rewrite_semi_to_inner,
@@ -559,25 +574,11 @@ bool CostingReceiver::FoundSingleNode(int node_idx) {
           }
         }
       }
+    }
 
-      // Propose full-text index scans for full-text predicates found in the
-      // WHERE clause, if any.
-      if (tl->is_fulltext_searched()) {
-        const unsigned key_idx = order_info.key_idx;
-        const KEY &key = table->key_info[key_idx];
-        if (Overlaps(key.flags, HA_FULLTEXT)) {
-          for (size_t i : BitsSetIn(m_sargable_fulltext_predicates)) {
-            assert(i < m_graph.num_where_predicates);
-            Item_func_match *match =
-                GetSargableFullTextPredicate(m_graph.predicates[i]);
-            assert(match != nullptr);
-            if (match->table_ref == tl && match->key == key_idx) {
-              if (ProposeFullTextIndexScan(table, node_idx, match, i)) {
-                return true;
-              }
-            }
-          }
-        }
+    if (tl->is_fulltext_searched()) {
+      if (ProposeAllFullTextIndexScans(table, node_idx)) {
+        return true;
       }
     }
   }
@@ -1157,9 +1158,54 @@ bool IsSubsumableFullTextPredicate(Item_func *condition) {
   }
 }
 
+// Propose full-text index scans for all full-text predicates found in the
+// WHERE clause, if any. If an interesting order can be satisfied by an ordered
+// full-text index scan using one of the predicates, propose an ordered scan.
+// Otherwise, propose an unordered scan. (For completeness, we should have
+// proposed both an ordered and an unordered scan when we have an interesting
+// order. But we don't have a good estimate for the extra cost of making the
+// scan ordered, so we only propose the ordered scan for simplicity. InnoDB, for
+// example, uses an ordered scan regardless of whether we request it, so an
+// explicitly ordered scan is no more expensive than an implicitly ordered scan,
+// and it could potentially avoid a sort higher up in the query plan.)
+bool CostingReceiver::ProposeAllFullTextIndexScans(TABLE *table, int node_idx) {
+  for (const FullTextIndexInfo &info : *m_fulltext_searches) {
+    if (info.match->table_ref != table->pos_in_table_list) {
+      continue;
+    }
+
+    // Propose a full-text index scan for each predicate that uses the MATCH
+    // function given by info.match. Note that several predicates can use the
+    // same MATCH function, due to Item_func_match's linking equivalent callers
+    // to one canonical Item_func_match object (via set_master()/get_master()).
+    //
+    // For example, we may have:
+    //
+    //   WHERE MATCH (col) AGAINST ('string') AND
+    //         MATCH (col) AGAINST ('string') > 0.3
+    //
+    // Both MATCH invocations have the same canonical Item_func_match object,
+    // since they have the same set of columns and search for the same string.
+    // In this case, we want to propose two index scans, and let the optimizer
+    // pick the one that gives the plan with the lowest estimated cost.
+    for (size_t i : BitsSetIn(m_sargable_fulltext_predicates)) {
+      Item_func_match *match =
+          GetSargableFullTextPredicate(m_graph.predicates[i]);
+      assert(match != nullptr);
+      if (match != info.match) continue;
+      if (ProposeFullTextIndexScan(table, node_idx, match, i, info.order)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                                Item_func_match *match,
-                                               int predicate_idx) {
+                                               int predicate_idx,
+                                               int ordering_idx) {
   const unsigned key_idx = match->key;
   TABLE_REF *ref = new (m_thd->mem_root) TABLE_REF;
   if (init_ref(m_thd, /*keyparts=*/1, /*length=*/0, key_idx, ref)) {
@@ -1205,13 +1251,19 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
       std::min(num_output_rows_from_index,
                table->file->stats.records * predicate.selectivity);
 
+  const LogicalOrderings::StateIndex ordering_state =
+      m_orderings->SetOrder(ordering_idx);
+
+  const bool use_order = ordering_state != 0;
+
   AccessPath *path =
-      NewFullTextSearchAccessPath(m_thd, table, ref, match, /*use_order=*/false,
+      NewFullTextSearchAccessPath(m_thd, table, ref, match, use_order,
                                   /*count_examined_rows=*/true);
   path->num_output_rows_before_filter = num_output_rows_from_index;
   path->num_output_rows = num_output_rows_from_filter;
   path->cost = path->cost_before_filter = cost;
   path->init_cost = path->init_once_cost = 0;
+  path->ordering_state = ordering_state;
 
   ProposeAccessPathForIndex(node_idx, applied_predicates, subsumed_predicates,
                             table->key_info[key_idx].name, path);
@@ -3730,7 +3782,7 @@ static void BuildInterestingOrders(
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
     int *order_by_ordering_idx, int *group_by_ordering_idx,
     int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
-    string *trace) {
+    Mem_root_array<FullTextIndexInfo> *fulltext_searches, string *trace) {
   // Collect ordering from ORDER BY.
   if (query_block->is_ordered()) {
     table_map used_tables;
@@ -3859,6 +3911,25 @@ static void BuildInterestingOrders(
     }
   }
 
+  // Collect list of full-text searches that can be satisfied by an active
+  // full-text index.
+  if (query_block->has_ft_funcs()) {
+    for (const ActiveIndexInfo &index_info : *active_indexes) {
+      const TABLE *table = index_info.table;
+      const unsigned key_idx = index_info.key_idx;
+      const KEY &key = table->key_info[key_idx];
+
+      if (!Overlaps(key.flags, HA_FULLTEXT)) continue;
+
+      for (Item_func_match &ftfunc : *query_block->ftfunc_list) {
+        if (ftfunc.get_master() == &ftfunc &&
+            ftfunc.table_ref->table == table && ftfunc.key == key_idx) {
+          fulltext_searches->push_back(FullTextIndexInfo{&ftfunc, 0});
+        }
+      }
+    }
+  }
+
   // Early exit if we don't have any interesting orderings.
   if (orderings->num_orderings() <= 1) {
     if (trace != nullptr) {
@@ -3922,6 +3993,26 @@ static void BuildInterestingOrders(
           orderings->AddOrdering(thd, ordering, /*interesting=*/false,
                                  /*used_at_end=*/true, /*homogenize_tables=*/0);
     }
+  }
+
+  // Collect orderings from full-text indexes. Note that these are not
+  // interesting in themselves, so they will be rapidly pruned away if they
+  // cannot lead to an interesting order. Full-text indexes can only provide
+  // results ordered descending on the result returned by MATCH ... AGAINST.
+  for (FullTextIndexInfo &info : *fulltext_searches) {
+    // MyISAM does not support ordering on queries in boolean mode.
+    if (Overlaps(info.match->flags, FT_BOOL) &&
+        !Overlaps(info.match->table_ref->table->file->ha_table_flags(),
+                  HA_CAN_FULLTEXT_EXT)) {
+      continue;
+    }
+
+    ItemHandle item = orderings->GetHandle(info.match);
+    OrderElement order_element{item, ORDER_DESC};
+    Ordering ordering{&order_element, 1};
+    info.order = orderings->AddOrdering(thd, ordering, /*interesting=*/false,
+                                        /*used_at_end=*/true,
+                                        /*homogenize_tables=*/0);
   }
 
   // Collect functional dependencies. Currently, there are many kinds
@@ -4014,6 +4105,10 @@ static void BuildInterestingOrders(
         }
       }
     }
+  }
+
+  for (FullTextIndexInfo &info : *fulltext_searches) {
+    info.order = orderings->RemapOrderingIndex(info.order);
   }
 
   // After Build(), there may be more interesting orders that we can try
@@ -4284,13 +4379,14 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   LogicalOrderings orderings(thd);
   Mem_root_array<SortAheadOrdering> sort_ahead_orderings(thd->mem_root);
   Mem_root_array<ActiveIndexInfo> active_indexes(thd->mem_root);
+  Mem_root_array<FullTextIndexInfo> fulltext_searches(thd->mem_root);
   int order_by_ordering_idx = -1;
   int group_by_ordering_idx = -1;
   int distinct_ordering_idx = -1;
   BuildInterestingOrders(thd, &graph, query_block, &orderings,
                          &sort_ahead_orderings, &order_by_ordering_idx,
                          &group_by_ordering_idx, &distinct_ordering_idx,
-                         &active_indexes, trace);
+                         &active_indexes, &fulltext_searches, trace);
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
@@ -4303,10 +4399,11 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
-  CostingReceiver receiver(
-      thd, query_block, graph, &orderings, &sort_ahead_orderings,
-      &active_indexes, fulltext_tables, sargable_fulltext_predicates,
-      need_rowid, EngineFlags(thd), secondary_engine_cost_hook, trace);
+  CostingReceiver receiver(thd, query_block, graph, &orderings,
+                           &sort_ahead_orderings, &active_indexes,
+                           &fulltext_searches, fulltext_tables,
+                           sargable_fulltext_predicates, need_rowid,
+                           EngineFlags(thd), secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");

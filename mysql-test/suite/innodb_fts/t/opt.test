@@ -48,7 +48,6 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
 
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No sorting for this query even if MATCH is part of an expression
@@ -60,7 +59,6 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database') > 0.1
 ORDER BY score DESC;
 
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No sorting even if there are several MATCH expressions as long as the
@@ -75,7 +73,6 @@ FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score1 DESC;
 
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo No Sorting since FT table is first table in query
@@ -87,7 +84,6 @@ FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database') AND FTS_DOC_ID = t1.i
 ORDER BY score DESC;
 
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since there is no WHERE clause
@@ -363,7 +359,6 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -416,7 +411,6 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE)
 ORDER BY score DESC;
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -470,7 +464,6 @@ SELECT title,
 FROM wp
 WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
@@ -544,7 +537,6 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp 
 WHERE MATCH(title, text) AGAINST ('database')
 ORDER BY score DESC;
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
