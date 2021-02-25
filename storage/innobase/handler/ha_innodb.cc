@@ -3174,17 +3174,27 @@ class Validate_files {
 #endif /* __SUNPRO_CC */
   }
 
-  /** Validate the tablespaces against the DD.
+  /** Validate the discovered tablespaces against the DD and attempt to open
+  any DD tablespace not already open using a Parallel For Loop (par_for).
   @param[in]	tablespaces	Tablespace files read from the DD
   @return DB_SUCCESS if all OK */
   dberr_t validate(const DD_tablespaces &tablespaces)
       MY_ATTRIBUTE((warn_unused_result));
 
  private:
-  /** Validate the tablespace filenames.
-  @param[in]  begin        Start of the slice
-  @param[in]  end          End of the slice
-  @param[in]  thread_id    Thread ID */
+  /** Validate a range of tablespaces from the DD.
+  1. Compare the discovered files against those known to the dictionary.
+  2. Open any tablespace known to the DD but not discovered and opened
+  from the known directories.
+  3. Update the DD if a tablespace has moved.
+  4. Update the DD if an undo tablespace was truncated and replaced.
+  5. If innodb_validate_tablespace_paths is set and this is not called
+  while in recovery, only validate undo tablespaces.
+  6. Track the number of skipped, moved, missing and deleted tablespaces.
+  7. Return failure for any unexpected error.
+  @param[in]  begin       Start of the slice
+  @param[in]  end         End of the slice
+  @param[in]  thread_id   Thread ID */
   void check(const Const_iter &begin, const Const_iter &end, size_t thread_id);
 
   /** @return true if there were failures. */
@@ -3229,19 +3239,6 @@ class Validate_files {
   std::atomic_size_t m_n_errors;
 };
 
-/** Validate a range of tablespaces from the DD.
-1. Compare the discovered files against those known to the dictionary.
-2. Open any tablespace known to the DD but not discovered and opened
-from the known directories.
-3. Update the DD if a tablespace has moved.
-4. Update the DD if an undo tablespace was truncated and replaced.
-5. If innodb_validate_tablespace_paths is set and this is not called
-while in recovery, only validate undo tablespaces.
-6. Track the number of skipped, moved, missing and deleted tablespaces.
-7. Return failure for any unexpected error.
-@param[in]  begin       Start of the slice
-@param[in]  end         End of the slice
-@param[in]  thread_id   Thread ID */
 void Validate_files::check(const Const_iter &begin, const Const_iter &end,
                            size_t thread_id) {
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
@@ -3576,10 +3573,6 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
   mem_heap_free(heap);
 }
 
-/** Validate the discovered tablespaces against the DD and attempt to open
-any DD tablespace not already open using a Parallel For Loop (par_for).
-@param[in]	tablespaces	Tablespace files read from the DD
-@return DB_SUCCESS if all OK */
 dberr_t Validate_files::validate(const DD_tablespaces &tablespaces) {
   m_n_to_check = tablespaces.size();
   m_n_threads = fil_get_scan_threads(m_n_to_check);
