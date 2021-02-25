@@ -3124,7 +3124,7 @@ sp_decl:
                                        first_spvar->type, 0, 0);
                 if (item == NULL)
                   MYSQL_YYABORT; // OOM
-#ifndef NDEBUG
+#ifndef DBUG_OFF
                 item->m_sp = lex->sphead;
 #endif
                 dflt_value_item = item;
