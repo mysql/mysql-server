@@ -39,7 +39,7 @@
 #include "sql/memory/aligned_atomic.h"  // memory::cache_line_size
 #include "sql/memory/ref_ptr.h"         // memory::Ref_ptr
 
-#if defined(__sun) && defined(__SVR4)
+#if defined(__SUNPRO_CC)
 namespace memory {
 template <typename T, typename A = std::nullptr_t>
 using Unique_ptr = std::unique_ptr<T>;

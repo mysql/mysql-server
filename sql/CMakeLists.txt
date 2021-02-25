@@ -861,15 +861,6 @@ IF(MY_COMPILER_IS_SUNPRO)
     COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
 ENDIF()
 
-# segfault in boost geometry ....
-IF(SOLARIS AND MY_COMPILER_IS_GNU AND
-    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-  ADD_COMPILE_FLAGS(
-    ${SQL_GIS_SOURCES}
-    COMPILE_FLAGS "-O0"
-    )
-ENDIF()
-
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
 ADD_DEPENDENCIES(sql_dd GenServerSource)

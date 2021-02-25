@@ -191,12 +191,6 @@ IF(WIN32)
   TARGET_LINK_LIBRARIES(mysys crypt32)
 ENDIF()
 
-# Bug in std::call_once in optimized mode
-IF(SOLARIS_SPARC AND MY_COMPILER_IS_GNU AND
-    CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-  ADD_COMPILE_FLAGS(charset.cc COMPILE_FLAGS "-O0")
-ENDIF()
-
 # MD5_Init() and others are deprecated.
 IF(SOLARIS AND MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
