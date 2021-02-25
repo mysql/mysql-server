@@ -48,10 +48,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in,out]	space_id	space_id from tablespace object
 @return DB_SUCCESS if SDI exists, else return DB_ERROR,
 DB_TABLESPACE_NOT_FOUND */
-static dberr_t dict_sdi_exists(const dd::Tablespace &tablespace,
+static dberr_t dict_sdi_exists(const dd::Tablespace &dd_space,
                                uint32 *space_id) {
-  if (tablespace.se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
-                                       space_id)) {
+  if (dd_space.se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                     space_id)) {
     /* error, attribute not found */
     ut_ad(0);
     return (DB_ERROR);

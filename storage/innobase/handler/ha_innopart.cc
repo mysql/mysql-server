@@ -909,14 +909,16 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   /* TODO: Should we do this check for every partition during ::open()? */
   /* TODO: refactor this in ha_innobase so it can increase code reuse. */
   if (dict_table_is_discarded(ib_table)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-                table->s->table_name.str);
+    /* If the op is an IMPORT, open the space without this warning. */
+    if (thd_tablespace_op(thd) != Alter_info::ALTER_IMPORT_TABLESPACE) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+                  table->s->table_name.str);
+    }
 
     /* Allow an open because a proper DISCARD should have set
     all the flags and index root page numbers to FIL_NULL that
     should prevent any DML from running but it should allow DDL
     operations. */
-
     no_tablespace = false;
 
   } else if (ib_table->ibd_file_missing) {
@@ -2789,44 +2791,17 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
 
     dd_part->set_se_private_id(table->id);
 
-    /* Set discard flag. */
+    /* Set the discard flag in the partition. */
     dd_set_discarded(*dd_part, discard);
 
-    /* Get Tablespace object */
-    dd::Tablespace *dd_space = nullptr;
+    /* Set the discarded state in the dd::Tablespace */
     THD *thd = ha_thd();
-    dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
     dd::Object_id dd_space_id = (*dd_part->indexes()->begin())->tablespace_id();
-
     std::string space_name(table->name.m_name);
     dict_name::convert_to_space(space_name);
-
-    if (dd_tablespace_get_mdl(space_name.c_str())) {
-      /* purecov: begin inspected */
-      ut_ad(false);
-      return (HA_ERR_INTERNAL_ERROR);
-      /* purecov: end */
-    }
-
-    if (client->acquire_for_modification(dd_space_id, &dd_space) ||
-        dd_space == nullptr) {
-      /* purecov: begin inspected */
-      ut_ad(false);
-      return (HA_ERR_INTERNAL_ERROR);
-      /* purecov: end */
-    }
-
-    dd_tablespace_set_state(
-        dd_space, (discard ? DD_SPACE_STATE_DISCARDED : DD_SPACE_STATE_NORMAL));
-
-    if (client->update(dd_space)) {
-      /* purecov: begin inspected */
-      ut_ad(false);
-      return (HA_ERR_INTERNAL_ERROR);
-      /* purecov: end */
-    }
+    dd_space_states dd_state =
+        (discard ? DD_SPACE_STATE_DISCARDED : DD_SPACE_STATE_NORMAL);
+    dd_tablespace_set_state(thd, dd_space_id, space_name, dd_state);
 
     for (auto dd_index : *dd_part->indexes()) {
       const dict_index_t *index = dd_find_index(table, dd_index);

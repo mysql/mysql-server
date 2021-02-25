@@ -255,7 +255,7 @@ uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact) {
 @param[in]      space_id        tablespace ID
 @return true if tablespace is dd tablespace. */
 bool fsp_is_dd_tablespace(space_id_t space_id) {
-  return (space_id == dict_sys_t::s_space_id);
+  return (space_id == dict_sys_t::s_dict_space_id);
 }
 
 /** Check whether a space id is an undo tablespace ID
@@ -994,7 +994,7 @@ bool fsp_header_rotate_encryption(fil_space_t *space, byte *encrypt_info,
 @param[out]     version server version from tablespace header
 @return false if success. */
 bool fsp_header_dict_get_server_version(uint *version) {
-  fil_space_t *space = fil_space_acquire(dict_sys_t::s_space_id);
+  fil_space_t *space = fil_space_acquire(dict_sys_t::s_dict_space_id);
 
   if (space == nullptr) {
     return (true);
@@ -1007,7 +1007,7 @@ bool fsp_header_dict_get_server_version(uint *version) {
   const page_size_t page_size(space->flags);
 
   mtr_start(&mtr);
-  block = buf_page_get(page_id_t(dict_sys_t::s_space_id, 0), page_size,
+  block = buf_page_get(page_id_t(dict_sys_t::s_dict_space_id, 0), page_size,
                        RW_SX_LATCH, &mtr);
   page = buf_block_get_frame(block);
   *version = fsp_header_get_server_version(page);

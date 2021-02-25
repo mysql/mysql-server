@@ -2670,7 +2670,10 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
         << " (flags=" << ib::hex(space->flags) << ")!";
   }
 
-  /* If the SDI flag is set in the file header page, set it in space->flags. */
+  /* Make the SDI flag in space->flags reflect the SDI flag in the header
+  page.  Maybe this space was discarded before a reboot and then replaced
+  with a 5.7 space that needs to be imported and upgraded. */
+  fsp_flags_unset_sdi(space->flags);
   space->flags |= flags & FSP_FLAGS_MASK_SDI;
 
   /* Data dictionary and tablespace are flushed at different points in
@@ -3459,8 +3462,9 @@ bool fil_assign_new_space_id(space_id_t *space_id) {
   return fil_system->assign_new_space_id(space_id);
 }
 
-/** Opens the files associated with a tablespace and returns a pointer to
-the fil_space_t that is in the memory cache associated with a space id.
+/** Open the files associated with a tablespace, make sure the size of
+the tablespace is read from the header page, and return a pointer to the
+fil_space_t that is in the memory cache associated with the given space id.
 @param[in]	space_id	Get the tablespace instance or this ID
 @return file_space_t pointer, nullptr if space not found */
 fil_space_t *Fil_shard::space_load(space_id_t space_id) {
@@ -3825,7 +3829,7 @@ void Fil_shard::close_all_files() {
     /* These cannot be lazily deleted. */
     ut_a(space->id != TRX_SYS_SPACE &&
          space->id != dict_sys_t::s_log_space_first_id &&
-         space->id != dict_sys_t::s_space_id);
+         space->id != dict_sys_t::s_dict_space_id);
 
     ut_a(space->files.size() <= 1);
 
@@ -4856,10 +4860,6 @@ dberr_t fil_discard_tablespace(space_id_t space_id) {
       ut_error;
   }
 
-  /* Remove all insert buffer entries for the tablespace */
-
-  ibuf_delete_for_discarded_space(space_id);
-
   return err;
 }
 
@@ -5782,13 +5782,6 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 
   auto space = shard->get_space_by_id(space_id);
 
-  if (space != nullptr) {
-    shard->space_detach(space);
-    shard->space_remove_from_lookup_maps(space->id);
-    shard->space_free_low(space);
-    ut_a(space == nullptr);
-  }
-
   shard->mutex_release();
 
   df.init(space_name, flags);
@@ -5835,9 +5828,20 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     return err;
   }
 
-  /* If the encrypted tablespace is already opened,
+  if (validate && !old_space && !for_import) {
+    if (df.server_version() > DD_SPACE_CURRENT_SRV_VERSION) {
+      ib::error(ER_IB_MSG_1272, ulong{DD_SPACE_CURRENT_SRV_VERSION},
+                ulonglong{df.server_version()});
+      /* Server version is less than the tablespace server version.
+      We don't support downgrade for 8.0 server, so report error */
+      return DB_SERVER_VERSION_LOW;
+    }
+    ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
+  }
+
+  /* We are done validating.  If the tablespace is already open,
   return success. */
-  if (validate && is_encrypted && fil_space_get(space_id)) {
+  if (space != nullptr) {
     return DB_SUCCESS;
   }
 
@@ -5863,17 +5867,6 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 
   if (file == nullptr) {
     return DB_ERROR;
-  }
-
-  if (validate && !old_space && !for_import) {
-    if (df.server_version() > DD_SPACE_CURRENT_SRV_VERSION) {
-      ib::error(ER_IB_MSG_1272, ulong{DD_SPACE_CURRENT_SRV_VERSION},
-                ulonglong{df.server_version()});
-      /* Server version is less than the tablespace server version.
-      We don't support downgrade for 8.0 server, so report error */
-      return DB_SERVER_VERSION_LOW;
-    }
-    ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
   }
 
   /* Set encryption operation in progress */
@@ -6269,10 +6262,8 @@ static void fil_report_missing_tablespace(const char *name,
                                           space_id_t space_id) {
   ib::error(ER_IB_MSG_313)
       << "Table " << name << " in the InnoDB data dictionary has tablespace id "
-      << space_id
-      << ","
-         " but tablespace with that id or name does not exist. Have"
-         " you deleted or moved .ibd files?";
+      << space_id << ", but a tablespace with that id or name does not exist."
+      << " Have you deleted or moved .ibd files?";
 }
 
 bool Fil_shard::adjust_space_name(fil_space_t *space,
@@ -6379,37 +6370,26 @@ bool Fil_shard::space_check_exists(space_id_t space_id, const char *name,
 
     } else {
       ib::error(ER_IB_MSG_314)
-          << "Table " << name
-          << " in InnoDB data"
-             " dictionary has tablespace id "
-          << space_id
-          << ", but a tablespace with that id does not"
-             " exist. There is a tablespace of name "
-          << fnamespace->name << " and id " << fnamespace->id
-          << ", though. Have you"
-             " deleted or moved .ibd files?";
+          << "Table " << name << " in InnoDB data dictionary has tablespace id "
+          << space_id << ", but a tablespace with that id does not exist."
+          << " But there is a tablespace of name " << fnamespace->name
+          << " and id " << fnamespace->id
+          << ". Have you deleted or moved .ibd files?";
     }
 
     ib::warn(ER_IB_MSG_315) << TROUBLESHOOT_DATADICT_MSG;
 
   } else if (0 != strcmp(space->name, name)) {
-    ib::error(ER_IB_MSG_316) << "Table " << name
-                             << " in InnoDB data dictionary"
-                                " has tablespace id "
-                             << space_id
-                             << ", but the"
-                                " tablespace with that id has name "
-                             << space->name
-                             << ". Have you deleted or moved .ibd"
-                                " files?";
+    ib::error(ER_IB_MSG_316)
+        << "Table " << name << " in InnoDB data dictionary"
+        << " has tablespace id " << space_id
+        << ", but the tablespace with that id has name " << space->name
+        << ". Have you deleted or moved .ibd files?";
 
     if (fnamespace != nullptr) {
-      ib::error(ER_IB_MSG_317) << "There is a tablespace with the right"
-                                  " name: "
-                               << fnamespace->name
-                               << ", but its id"
-                                  " is "
-                               << fnamespace->id << ".";
+      ib::error(ER_IB_MSG_317)
+          << "There is a tablespace with the name " << fnamespace->name
+          << ", but its id is " << fnamespace->id << ".";
     }
 
     ib::warn(ER_IB_MSG_318) << TROUBLESHOOT_DATADICT_MSG;

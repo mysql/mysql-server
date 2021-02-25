@@ -652,7 +652,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   /* Get the encryption key and iv from space */
   /* For encrypted table, before we discard the tablespace,
-  we need save the encryption information into table, otherwise,
+  we need to save the encryption information into table, otherwise,
   this information will be lost in fil_discard_tablespace along
   with fil_space_free(). */
   if (table->encryption_key == nullptr) {

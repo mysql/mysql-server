@@ -3321,6 +3321,14 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       continue;
     }
 
+    /* Do not open a discovered tablespace that is currently discarded.
+    It will be opened properly when it is imported. */
+    dd_space_states dd_state = dd_tablespace_get_state_enum(&p, space_id);
+    if (dd_state == DD_SPACE_STATE_DISCARDED) {
+      ++m_n_skipped;
+      continue;
+    }
+
     /* Get the spacename for this tablespace from the DD. */
     if (dd_tablespace->files().size() != 1 &&
         strcmp(space_name, sys_space_name) != 0) {
@@ -3939,7 +3947,7 @@ static bool innobase_dict_get_server_version(uint *version) {
 */
 static bool innobase_dict_set_server_version() {
   /* Update the server version number, but leave the space version unchanged */
-  return (upgrade_space_version(dict_sys_t::s_space_id, true));
+  return (upgrade_space_version(dict_sys_t::s_dict_space_id, true));
 }
 
 /** Start page tracking.
@@ -5243,9 +5251,9 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
 
   // For upgrade from 5.7, create mysql.ibd
   create |= (dict_init_mode == DICT_INIT_UPGRADE_57_FILES);
-  ret = create ? dd_create_hardcoded(dict_sys_t::s_space_id,
+  ret = create ? dd_create_hardcoded(dict_sys_t::s_dict_space_id,
                                      dict_sys_t::s_dd_space_file_name)
-               : dd_open_hardcoded(dict_sys_t::s_space_id,
+               : dd_open_hardcoded(dict_sys_t::s_dict_space_id,
                                    dict_sys_t::s_dd_space_file_name);
 
   /* Once hardcoded tablespace mysql is created or opened,
@@ -5261,7 +5269,7 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     snprintf(se_private_data_innodb_system, len, fmt, TRX_SYS_SPACE,
              predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
-    snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_space_id,
+    snprintf(se_private_data_dd, len, fmt, dict_sys_t::s_dict_space_id,
              predefined_flags, DD_SPACE_CURRENT_SRV_VERSION,
              DD_SPACE_CURRENT_SPACE_VERSION);
 
@@ -7056,14 +7064,16 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   bool no_tablespace;
 
   if (dict_table_is_discarded(ib_table)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
-                table->s->table_name.str);
+    /* If the op is an IMPORT, open the space without this warning. */
+    if (thd_tablespace_op(thd) != Alter_info::ALTER_IMPORT_TABLESPACE) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_TABLESPACE_DISCARDED,
+                  table->s->table_name.str);
+    }
 
     /* Allow an open because a proper DISCARD should have set
     all the flags and index root page numbers to FIL_NULL that
     should prevent any DML from running but it should allow DDL
     operations. */
-
     no_tablespace = false;
 
   } else if (ib_table->ibd_file_missing) {
@@ -13577,10 +13587,10 @@ int create_table_info_t::create_table_update_global_dd(Table *dd_table) {
 
   bool file_per_table = dict_table_is_file_per_table(m_table);
   dd::Object_id dd_space_id = dd::INVALID_OBJECT_ID;
-  bool is_dd_table = m_table->space == dict_sys_t::s_space_id;
+  bool is_dd_table = m_table->space == dict_sys_t::s_dict_space_id;
 
   if (is_dd_table) {
-    dd_space_id = dict_sys_t::s_dd_space_id;
+    dd_space_id = dict_sys_t::s_dd_dict_space_id;
   } else if (m_table->space == TRX_SYS_SPACE) {
     dd_space_id = dict_sys_t::s_dd_sys_space_id;
   } else if (file_per_table) {
@@ -14583,7 +14593,7 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
   assert(dd_table->name() == data.name);
 
   dd_table->set_se_private_id(++n_tables);
-  dd_table->set_tablespace_id(dict_sys_t::s_dd_space_id);
+  dd_table->set_tablespace_id(dict_sys_t::s_dd_dict_space_id);
 
   /* Set the table id for each column to be conform with the
   implementation in dd_write_table(). */
@@ -14593,7 +14603,7 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
   }
 
   for (dd::Index *i : *dd_table->indexes()) {
-    i->set_tablespace_id(dict_sys_t::s_dd_space_id);
+    i->set_tablespace_id(dict_sys_t::s_dd_dict_space_id);
 
     if (fsp_is_inode_page(n_pages)) {
       ++n_pages;
@@ -14605,7 +14615,7 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
     p.set(dd_index_key_strings[DD_INDEX_ROOT], n_pages++);
     p.set(dd_index_key_strings[DD_INDEX_ID], ++n_indexes);
     p.set(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
-    p.set(dd_index_key_strings[DD_INDEX_SPACE_ID], dict_sys_t::s_space_id);
+    p.set(dd_index_key_strings[DD_INDEX_SPACE_ID], dict_sys_t::s_dict_space_id);
     p.set(dd_index_key_strings[DD_TABLE_ID], n_tables);
   }
 
@@ -17334,7 +17344,8 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
     return true;
   }
 
-  if (space.id() == MYSQL_TABLESPACE_DD_ID && id == dict_sys_t::s_space_id) {
+  if (space.id() == MYSQL_TABLESPACE_DD_ID &&
+      id == dict_sys_t::s_dict_space_id) {
     *space_type = Tablespace_type::SPACE_TYPE_DICTIONARY;
   } else if (id == TRX_SYS_SPACE) {
     *space_type = Tablespace_type::SPACE_TYPE_SYSTEM;

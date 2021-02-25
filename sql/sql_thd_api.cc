@@ -310,13 +310,18 @@ int thd_tablespace_op(const MYSQL_THD thd) {
     statement, so this function must check both the SQL command
     code and the Alter_info::flags.
   */
-  if (thd->lex->sql_command != SQLCOM_ALTER_TABLE) return 0;
-  assert(thd->lex->alter_info != nullptr);
+  int ret = 0;
 
-  return (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
-                                         Alter_info::ALTER_IMPORT_TABLESPACE))
-             ? 1
-             : 0;
+  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE) {
+    if (thd->lex->alter_info->flags & Alter_info::ALTER_DISCARD_TABLESPACE) {
+      ret = Alter_info::ALTER_DISCARD_TABLESPACE;
+    }
+    if (thd->lex->alter_info->flags & Alter_info::ALTER_IMPORT_TABLESPACE) {
+      ret = Alter_info::ALTER_IMPORT_TABLESPACE;
+    }
+  }
+
+  return (ret);
 }
 
 static void set_thd_stage_info(MYSQL_THD thd, const PSI_stage_info *new_stage,

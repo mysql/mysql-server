@@ -2561,10 +2561,11 @@ files_checked:
       table before checkpoint. And because DD is not fully up yet, the table
       can be opened by internal APIs. */
 
-      fil_space_t *space = fil_space_acquire_silent(dict_sys_t::s_space_id);
+      fil_space_t *space =
+          fil_space_acquire_silent(dict_sys_t::s_dict_space_id);
       if (space == nullptr) {
         dberr_t error =
-            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_space_id,
+            fil_ibd_open(true, FIL_TYPE_TABLESPACE, dict_sys_t::s_dict_space_id,
                          predefined_flags, dict_sys_t::s_dd_space_name,
                          dict_sys_t::s_dd_space_file_name, true, false);
         if (error != DB_SUCCESS) {

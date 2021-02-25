@@ -156,8 +156,6 @@ t5980.ibd.bak2
 # Import the tablespace and do some DDL and DML.
 #
 ALTER TABLE t5980 IMPORT TABLESPACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
 ### files in MYSQLD_DATADIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg
@@ -409,8 +407,6 @@ t5980.ibd
 t5980.ibd.bak
 t5980.ibd.bak2
 ALTER TABLE t5980 IMPORT TABLESPACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
 INSERT INTO t5980 VALUES (2, "Insert this record after IMPORT");
 SELECT * FROM t5980;
 a	b
