@@ -1327,51 +1327,50 @@ void
 Ndb_cluster_connection_impl::do_test()
 {
   Ndb_cluster_connection_node_iter iter;
-  int n= no_db_nodes()+5;
-  Uint32 *nodes= new Uint32[n+1];
+  int n = no_db_nodes() + 5;
+  Uint32 *nodes = new Uint32[n + 1];
 
-  for (int g= 0; g < n; g++)
+  for (int g = 0; g < n; g++)
   {
-    for (int h= 0; h < n; h++)
+    for (int h = 0; h < n; h++)
     {
       Uint32 id;
       Ndb_cluster_connection_node_iter iter2;
       {
-	for (int j= 0; j < g; j++)
-	{
-	  nodes[j]= get_next_node(iter2);
-	}
+        for (int j = 0; j < g; j++)
+        {
+          nodes[j] = get_next_node(iter2);
+        }
       }
 
-      for (int i= 0; i < n; i++)
+      for (int i = 0; i < n; i++)
       {
-	init_get_next_node(iter);
+        init_get_next_node(iter);
         g_eventLogger->info("%d dead:(", g);
-        id= 0;
-	while (id == 0)
-	{
-	  if ((id= get_next_node(iter)) == 0)
-	    break;
-	  for (int j= 0; j < g; j++)
-	  {
-	    if (nodes[j] == id)
-	    {
+        id = 0;
+        while (id == 0)
+        {
+          if ((id = get_next_node(iter)) == 0) break;
+          for (int j = 0; j < g; j++)
+          {
+            if (nodes[j] == id)
+            {
               g_eventLogger->info(" %d", id);
-              id= 0;
-	      break;
-	    }
-	  }
-	}
+              id = 0;
+              break;
+            }
+          }
+        }
         g_eventLogger->info(")");
         if (id == 0)
-	{
-	  break;
-	}
+        {
+          break;
+        }
         g_eventLogger->info(" %d", id);
       }
     }
   }
-  delete [] nodes;
+  delete[] nodes;
 }
 
 void Ndb_cluster_connection::set_data_node_neighbour(Uint32 node)
