@@ -1345,8 +1345,8 @@ Ndb_cluster_connection_impl::do_test()
 
       for (int i = 0; i < n; i++)
       {
+        char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
         init_get_next_node(iter);
-        g_eventLogger->info("%d dead:(", g);
         id = 0;
         while (id == 0)
         {
@@ -1355,18 +1355,17 @@ Ndb_cluster_connection_impl::do_test()
           {
             if (nodes[j] == id)
             {
-              g_eventLogger->info(" %d", id);
+              BaseString::snappend(logbuf, sizeof(logbuf), "%d ", id);
               id = 0;
               break;
             }
           }
         }
-        g_eventLogger->info(")");
+        g_eventLogger->info("%d dead: ( %s) %d", g, logbuf, id);
         if (id == 0)
         {
           break;
         }
-        g_eventLogger->info(" %d", id);
       }
     }
   }
