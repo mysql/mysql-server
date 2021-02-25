@@ -1697,10 +1697,10 @@ NdbTableImpl::getColumnByHash(const char * name) const
   {
     sz = (tmp >> ColShift);
     hashtable += (tmp & ColNameHashMask);
-    tmp = * hashtable;
   }
   do 
   {
+    tmp = * hashtable;
     if(hashValue == (tmp & ColNameHashMask))
     {
       NdbColumnImpl* col = cols[tmp >> ColShift];
@@ -1710,7 +1710,6 @@ NdbTableImpl::getColumnByHash(const char * name) const
       }
     }
     hashtable++;
-    tmp = * hashtable;
   } while(--sz > 0);
 
   return NULL;
