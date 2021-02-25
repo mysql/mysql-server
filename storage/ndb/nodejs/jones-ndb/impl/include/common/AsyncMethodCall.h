@@ -175,7 +175,7 @@ public:
     return_val(rv)                                                          {}
 
   /* Destructor */
-  virtual ~AsyncCall_Returning<RETURN_TYPE>() {
+  virtual ~AsyncCall_Returning<RETURN_TYPE>() override {
     if(error) delete error;
   }
 

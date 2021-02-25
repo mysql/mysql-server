@@ -42,6 +42,8 @@ deployments.mtr = function(properties) {
   properties.mysql_host = "127.0.0.1";
   properties.mysql_port = 13001;
   properties.ndb_connectstring = "localhost:13000";
+  properties.mysql_user = "jstestuser";
+  properties.mysql_password = "jstestpass";
 };
 
 /* Example of a deployment function defining a production environment.
