@@ -181,12 +181,12 @@ Uint32 Record::getValueLength(int idx, const char *data) const {
   if(col->getType() == NdbDictionary::Column::Varchar ||
      col->getType() == NdbDictionary::Column::Varbinary)
   {
-    uint8_t size8 = *((uint8_t *) (data));
+    uint8_t size8 = *((const uint8_t *) (data));
     size = size8;
   } else if(col->getType() == NdbDictionary::Column::Longvarchar ||
             col->getType() == NdbDictionary::Column::Longvarbinary)
   {
-    uint16_t size16 = *((uint16_t *) (data));
+    uint16_t size16 = *((const uint16_t *) (data));
     size = size16;
   }
   else size = col->getSizeInBytes();

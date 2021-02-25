@@ -164,6 +164,9 @@ public:
     );
   }
 
+  template<typename T>
+  Local<Value> wrap(const T* ptr) { return wrap(const_cast<T*>(ptr)); }
+
   template<typename PTR>
   Local<Value> wrap(PTR ptr) {
     if(ptr) {
@@ -239,6 +242,13 @@ void wrapPointerInObject(PTR ptr,
   SET_CLASS_ID(env, PTR);
   obj->SetAlignedPointerInInternalField(0, (void *) & env);
   obj->SetAlignedPointerInInternalField(1, (void *) ptr);
+}
+
+/* Specialization for const pointers; cast away const before wrapping
+*/
+template <typename T>
+void wrapPointerInObject(const T* ptr, Envelope &env, Local<Object> obj) {
+  wrapPointerInObject(const_cast<T*>(ptr), env, obj);
 }
 
 /* Specializations for non-pointers reduce gcc warnings.
