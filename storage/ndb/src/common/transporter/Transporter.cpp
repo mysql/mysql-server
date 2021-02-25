@@ -509,8 +509,10 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       pos += firstWordBytes;
     }
 
+    char logbuf[MAX_LOG_MESSAGE_SIZE] = "";
+
     if (buf_remain)
-      g_eventLogger->info(" %4x  : ", pos);
+      BaseString::snappend(logbuf, sizeof(logbuf), " %4x  : ", pos);
 
     while (buf_remain > 4)
     {
@@ -518,16 +520,21 @@ Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
       memcpy(&word, data+pos, 4);
       pos += 4;
       buf_remain -= 4;
-      g_eventLogger->info("0x%08x ", word);
+      BaseString::snappend(logbuf, sizeof(logbuf), "0x%08x ", word);
       if (((pos + firstWordBytes) % 24) == 0)
-        g_eventLogger->info(" %4x  : ", pos);
+      {
+        g_eventLogger->info("%s", logbuf);
+
+        logbuf[0] = '\0';
+        BaseString::snappend(logbuf, sizeof(logbuf), " %4x  : ", pos);
+      }
     }
     if (buf_remain > 0)
     {
       /* Partial last word */
       Uint32 word = 0;
       memcpy(&word, data + pos, buf_remain);
-      g_eventLogger->info("0x%08x", word);
+      g_eventLogger->info("%s 0x%08x", logbuf, word);
     }
   }
 }
