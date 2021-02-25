@@ -196,7 +196,8 @@ char *collation_name = const_cast<char *>(collation);
 */
 static bool set_args_charset_info(UDF_ARGS *args, IError_handler &handler) {
   for (size_t index = 0; index < args->arg_count; ++index) {
-    if (mysql_service_mysql_udf_metadata->argument_set(
+    if (args->arg_type[index] == STRING_RESULT &&
+        mysql_service_mysql_udf_metadata->argument_set(
             args, "collation", index, pointer_cast<void *>(collation_name))) {
       handler.error("Could not set the %s collation of argument '%d'.",
                     collation_name, index);
