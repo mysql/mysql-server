@@ -1005,3 +1005,39 @@ v1 AS table1 RIGHT OUTER JOIN LATERAL
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32113029: WRONG RESULT PRODUCED WHEN LEFT JOINING INFORMATION_SCHEMA TABLES
+--echo #
+
+CREATE TABLE t1 ( id INTEGER );
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 ( table_id integer );
+INSERT INTO t2 VALUES (363);
+
+CREATE TABLE t3 ( id integer );
+INSERT INTO t3 VALUES (362);
+INSERT INTO t3 VALUES (363);
+
+ANALYZE TABLE t1, t2, t3;
+
+let $query =
+  SELECT *
+  FROM t1
+  LEFT JOIN (
+    t3, LATERAL (
+      SELECT * FROM t2 WHERE table_id = t3.id
+    ) l1
+  ) ON TRUE;
+
+# The two queries should give the same result.
+# We turn off derived merge to keep the LATERAL from being optimized away entirely,
+# which would mask the bug.
+
+set optimizer_switch='derived_merge=off';
+eval $query;
+eval $query and t3.id=363;
+set optimizer_switch=DEFAULT;
+
+DROP TABLE t1, t2, t3;

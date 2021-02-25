@@ -3395,3 +3395,39 @@ ON 1;
 ERROR 42S22: Unknown column 'table1.c1' in 'on clause'
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug #32113029: WRONG RESULT PRODUCED WHEN LEFT JOINING INFORMATION_SCHEMA TABLES
+#
+CREATE TABLE t1 ( id INTEGER );
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 ( table_id integer );
+INSERT INTO t2 VALUES (363);
+CREATE TABLE t3 ( id integer );
+INSERT INTO t3 VALUES (362);
+INSERT INTO t3 VALUES (363);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+set optimizer_switch='derived_merge=off';
+SELECT *
+FROM t1
+LEFT JOIN (
+t3, LATERAL (
+SELECT * FROM t2 WHERE table_id = t3.id
+) l1
+) ON TRUE;
+id	id	table_id
+1	363	363
+SELECT *
+FROM t1
+LEFT JOIN (
+t3, LATERAL (
+SELECT * FROM t2 WHERE table_id = t3.id
+) l1
+) ON TRUE and t3.id=363;
+id	id	table_id
+1	363	363
+set optimizer_switch=DEFAULT;
+DROP TABLE t1, t2, t3;
