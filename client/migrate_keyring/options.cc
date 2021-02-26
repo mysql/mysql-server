@@ -50,7 +50,9 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 enum migration_options {
   OPT_COMPONENT_DIR = 512,
   OPT_SOURCE_KEYRING,
+  OPT_SOURCE_KEYRING_CONFIG_DIR,
   OPT_DESTINATION_KEYRING,
+  OPT_DESTINATION_KEYRING_CONFIG_DIR,
   OPT_ONLINE_MIGRATION,
   OPT_SSL_MODE,
   OPT_SSL_CA,
@@ -71,7 +73,9 @@ enum migration_options {
 bool Options::s_verbose = false;
 char *Options::s_component_dir = nullptr;
 char *Options::s_source_keyring = nullptr;
+char *Options::s_source_keyring_configuration_dir = nullptr;
 char *Options::s_destination_keyring = nullptr;
+char *Options::s_destination_keyring_configuration_dir = nullptr;
 bool Options::s_online_migration = false;
 char *Options::s_hostname = nullptr;
 unsigned int Options::s_port = 0;
@@ -101,10 +105,21 @@ static struct my_option my_long_options[] = {
      "Source keyring name (without extension)", &Options::s_source_keyring,
      &Options::s_source_keyring, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"source_keyring_configuration_dir", OPT_SOURCE_KEYRING_CONFIG_DIR,
+     "Source keyring configuration directory",
+     &Options::s_source_keyring_configuration_dir,
+     &Options::s_source_keyring_configuration_dir, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"destination_keyring", OPT_DESTINATION_KEYRING,
      "Destination keyring component name (without extension)",
      &Options::s_destination_keyring, &Options::s_destination_keyring, nullptr,
      GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
+    {"destination_keyring_configuration_dir",
+     OPT_DESTINATION_KEYRING_CONFIG_DIR,
+     "Destination keyring configuration directory",
+     &Options::s_destination_keyring_configuration_dir,
+     &Options::s_destination_keyring_configuration_dir, nullptr, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"online_migration", OPT_ONLINE_MIGRATION,
      "Signal the utility that source of migration is an active server",
      &Options::s_online_migration, &Options::s_online_migration, nullptr,

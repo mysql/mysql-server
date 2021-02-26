@@ -54,6 +54,6 @@ extern bool g_keyring_file_inited;
 /* Initialize keyring */
 bool init_or_reinit_keyring();
 
-bool set_component_path(const char *component_path);
+bool set_paths(const char *component_path, const char *instance_path);
 
 }  // namespace keyring_file

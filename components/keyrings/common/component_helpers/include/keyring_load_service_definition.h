@@ -37,13 +37,15 @@ class Keyring_load_service_impl {
     Initialize keyring
 
     @param [in]  component_path Path to component's shared library
+    @param [in]  instance_path  Path for instance specific configuration
 
     @retval Status of the operation
       @retval false Success
       @retval true  Failure
   */
 
-  static DEFINE_BOOL_METHOD(load, (const char *component_path));
+  static DEFINE_BOOL_METHOD(load, (const char *component_path,
+                                   const char *instance_path));
 };
 
 }  // namespace service_definition

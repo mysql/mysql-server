@@ -5986,13 +5986,6 @@ static int init_server_components() {
     unireg_abort(1);
   }
 
-  /*
-    If keyring component was loaded through manifest file, services provided
-    by such a component should get priority over keyring plugin. That's why
-    we have to set defaults before proxy keyring services are loaded.
-  */
-  set_srv_keyring_implementation_as_default();
-
   /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
   if (plugin_register_builtin_and_init_core_se(&remaining_argc,
                                                remaining_argv)) {
@@ -7157,10 +7150,17 @@ int mysqld_main(int argc, char **argv)
 
   if (initialize_manifest_file_components()) unireg_abort(MYSQLD_ABORT_EXIT);
 
-    /*
-     The subsequent calls may take a long time : e.g. innodb log read.
-     Thus set the long running service control manager timeout
-    */
+  /*
+    If keyring component was loaded through manifest file, services provided
+    by such a component should get priority over keyring plugin. That's why
+    we have to set defaults before proxy keyring services are loaded.
+  */
+  set_srv_keyring_implementation_as_default();
+
+  /*
+   The subsequent calls may take a long time : e.g. innodb log read.
+   Thus set the long running service control manager timeout
+  */
 #if defined(_WIN32)
   if (windows_service) {
     if (setup_service_status_cmd_processed_handle())

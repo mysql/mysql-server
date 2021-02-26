@@ -92,7 +92,8 @@ Keyring_component_load::~Keyring_component_load() {
   }
 }
 
-Keyring_services::Keyring_services(const std::string implementation_name)
+Keyring_services::Keyring_services(const std::string implementation_name,
+                                   const std::string instance_path)
     : registry_(components_registry),
       implementation_name_(implementation_name),
       keyring_load_service_(
@@ -104,7 +105,8 @@ Keyring_services::Keyring_services(const std::string implementation_name)
     return;
   }
 
-  if (keyring_load_service_->load(Options::s_component_dir) == true) {
+  if (keyring_load_service_->load(Options::s_component_dir,
+                                  instance_path.c_str()) == true) {
     std::string message("Failed to initialize keyring");
     log_error << message << std::endl;
     return;
@@ -125,8 +127,8 @@ Keyring_services::~Keyring_services() {
 }
 
 Source_keyring_services::Source_keyring_services(
-    const std::string implementation_name)
-    : Keyring_services(implementation_name),
+    const std::string implementation_name, const std::string instance_path)
+    : Keyring_services(implementation_name, instance_path),
       keyring_keys_metadata_service_("keyring_keys_metadata_iterator",
                                      keyring_load_service_, registry_),
       keyring_reader_service_("keyring_reader_with_status",
@@ -153,8 +155,8 @@ Source_keyring_services::~Source_keyring_services() {
 }
 
 Destination_keyring_services::Destination_keyring_services(
-    const std::string implementation_name)
-    : Keyring_services(implementation_name),
+    const std::string implementation_name, const std::string instance_path)
+    : Keyring_services(implementation_name, instance_path),
       keyring_writer_service_("keyring_writer", keyring_load_service_,
                               registry_) {
   if (keyring_writer_service_) {

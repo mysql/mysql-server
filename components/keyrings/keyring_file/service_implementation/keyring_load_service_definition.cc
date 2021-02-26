@@ -27,16 +27,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 using keyring_file::g_keyring_file_inited;
 using keyring_file::init_or_reinit_keyring;
-using keyring_file::set_component_path;
+using keyring_file::set_paths;
 
 namespace keyring_common {
 
 namespace service_definition {
 
 DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
-                   (const char *component_path)) {
+                   (const char *component_path, const char *instance_path)) {
   try {
-    if (set_component_path(component_path) == true) {
+    if (set_paths(component_path, instance_path) == true) {
       LogComponentErr(ERROR_LEVEL, ER_KEYRING_COMPONENT_NOT_INITIALIZED);
       return true;
     }

@@ -33,6 +33,9 @@ namespace config {
 /* Component path */
 extern char *g_component_path;
 
+/* Instance path */
+extern char *g_instance_path;
+
 /* Config details */
 class Config_pod {
  public:

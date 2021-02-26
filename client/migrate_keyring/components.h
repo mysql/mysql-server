@@ -74,7 +74,8 @@ class Keyring_component_load final {
 
 class Keyring_services {
  public:
-  Keyring_services(const std::string implementation_name);
+  Keyring_services(const std::string implementation_name,
+                   const std::string instance_path);
 
   virtual ~Keyring_services();
 
@@ -89,7 +90,8 @@ class Keyring_services {
 
 class Source_keyring_services final : public Keyring_services {
  public:
-  Source_keyring_services(const std::string implementation_name);
+  Source_keyring_services(const std::string implementation_name,
+                          const std::string instance_path);
 
   ~Source_keyring_services();
 
@@ -108,7 +110,8 @@ class Source_keyring_services final : public Keyring_services {
 
 class Destination_keyring_services final : public Keyring_services {
  public:
-  Destination_keyring_services(const std::string implementation_name);
+  Destination_keyring_services(const std::string implementation_name,
+                               const std::string instance_path);
 
   ~Destination_keyring_services();
 
