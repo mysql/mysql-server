@@ -1693,8 +1693,8 @@ static void release_or_close_table(THD *thd, TABLE *table) {
 
   tc->lock();
 
-  if (table->s->has_old_version() || table->needs_reopen() ||
-      table_def_shutdown_in_progress) {
+  if (table->s->has_old_version() || table->has_invalid_dict() ||
+      table->has_invalid_stats() || table_def_shutdown_in_progress) {
     tc->remove_table(table);
     mysql_mutex_lock(&LOCK_open);
     intern_close_table(table);
@@ -1726,7 +1726,16 @@ void close_thread_table(THD *thd, TABLE **table_ptr) {
   *table_ptr = table->next;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-  if (!table->needs_reopen()) {
+  /*
+    It is not safe to call the below code for TABLE objects for which
+    handler::open() has not been called (for example, we use such objects
+    while updating information about views which depend on table being
+    ALTERed). Another possibly unsafe case is when TABLE/handler object
+    has been marked as invalid (for example, it is unsafe to call
+    handler::reset() for partitioned InnoDB tables after in-place ALTER
+    TABLE API commit phase).
+  */
+  if (!table->has_invalid_dict()) {
     /* Avoid having MERGE tables with attached children in unused_tables. */
     table->file->ha_extra(HA_EXTRA_DETACH_CHILDREN);
     /* Free memory and reset for next loop. */
@@ -10084,6 +10093,9 @@ void tdc_flush_unused_tables() {
                                                 used by other threads and
                                                 caller should have exclusive
                                                 metadata lock on the table.
+                        TDC_RT_MARK_FOR_REOPEN - remove all unused TABLE
+                                                instances, mark used TABLE
+                                                instances as needing reopen.
    @param  db           Name of database
    @param  table_name   Name of table
    @param  has_lock     If true, LOCK_open is already acquired
@@ -10103,6 +10115,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
     table_cache_manager.assert_owner_all_and_tdc();
 
   assert(remove_type == TDC_RT_REMOVE_UNUSED ||
+         remove_type == TDC_RT_MARK_FOR_REOPEN ||
          thd->mdl_context.owns_equal_or_stronger_lock(
              MDL_key::TABLE, db, table_name, MDL_EXCLUSIVE));
 
@@ -10142,10 +10155,11 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         TDC does not contain old shares which don't have any tables
         used.
       */
-      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE)
+      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE &&
+          remove_type != TDC_RT_MARK_FOR_REOPEN)
         share->clear_version();
       table_cache_manager.free_table(thd, remove_type, share);
-    } else {
+    } else if (remove_type != TDC_RT_MARK_FOR_REOPEN) {
       // There are no TABLE objects associated, so just remove the
       // share immediately. (Assert: When called with
       // TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE, there should always be a

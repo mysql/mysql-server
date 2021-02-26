@@ -329,7 +329,7 @@ void udf_read_functions_table() {
   }
   if (error > 0) LogErr(ERROR_LEVEL, ER_UNKNOWN_ERROR_NUMBER, my_errno());
   iterator.reset();
-  table->m_needs_reopen = true;  // Force close to free memory
+  table->invalidate_dict();  // Force close to free memory
 
 end:
   close_trans_system_tables(new_thd);

@@ -191,6 +191,7 @@ class Table_cache_manager {
 
   void lock_all_and_tdc();
   void unlock_all_and_tdc();
+  void assert_owner(THD *thd);
   void assert_owner_all();
   void assert_owner_all_and_tdc();
 

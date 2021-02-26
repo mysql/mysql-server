@@ -1869,7 +1869,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
            my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
   iterator.reset();
-  table->m_needs_reopen = true;  // Force close to free memory
+  table->invalidate_dict();  // Force close to free memory
 
   close_trans_system_tables(new_thd);
 }

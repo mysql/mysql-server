@@ -2974,7 +2974,7 @@ void ha_innobase::reset_template(void) {
   /* Force table to be freed in close_thread_table(). */
   DBUG_EXECUTE_IF(
       "free_table_in_fts_query",
-      if (m_prebuilt->in_fts_query) { table->m_needs_reopen = true; });
+      if (m_prebuilt->in_fts_query) { table->invalidate_dict(); });
 
   m_prebuilt->keep_other_fields_on_keyread = 0;
   m_prebuilt->read_just_key = 0;

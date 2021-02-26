@@ -766,7 +766,7 @@ static bool mysql_admin_table(
           trans_rollback_stmt(thd);
           trans_rollback(thd);
           /* Make sure this table instance is not reused after the operation. */
-          if (table->table) table->table->m_needs_reopen = true;
+          if (table->table) table->table->invalidate_dict();
           close_thread_tables(thd);
           thd->mdl_context.release_transactional_locks();
           DBUG_PRINT("admin", ("simple error, admin next table"));
@@ -836,7 +836,7 @@ static bool mysql_admin_table(
         trans_commit(thd, ignore_grl_on_analyze);
       }
       /* Make sure this table instance is not reused after the operation. */
-      if (table->table) table->table->m_needs_reopen = true;
+      if (table->table) table->table->invalidate_dict();
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(false);
@@ -911,7 +911,7 @@ static bool mysql_admin_table(
         trans_rollback_stmt(thd);
         trans_rollback(thd);
         /* Make sure this table instance is not reused after the operation. */
-        if (table->table) table->table->m_needs_reopen = true;
+        if (table->table) table->table->invalidate_dict();
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
@@ -1207,7 +1207,7 @@ static bool mysql_admin_table(
             thd->clear_error();
           }
           /* Make sure this table instance is not reused after the operation. */
-          if (table->table) table->table->m_needs_reopen = true;
+          if (table->table) table->table->invalidate_dict();
         }
         result_code = result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
         table->next_local = save_next_local;
@@ -1291,8 +1291,21 @@ static bool mysql_admin_table(
         if (open_for_modify && !open_error)
           table->table->file->info(HA_STATUS_CONST);
       } else if (open_for_modify || fatal_error) {
-        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
-                         table->table_name, false);
+        if (operator_func == &handler::ha_analyze)
+          /*
+            Force update of key distribution statistics in rec_per_key array and
+            info in TABLE::file::stats by marking existing TABLE instances as
+            needing reopening. Any subsequent statement that uses this table
+            will have to call handler::open() which will cause this information
+            to be updated. OTOH, such subsequent statements won't have to wait
+            for already running statements to go away since we do not invalidate
+            TABLE_SHARE.
+          */
+          tdc_remove_table(thd, TDC_RT_MARK_FOR_REOPEN, table->db,
+                           table->table_name, false);
+        else
+          tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
+                           table->table_name, false);
       } else {
         /*
           Reset which partitions that should be processed
@@ -1362,7 +1375,7 @@ err:
   if (thd->sp_runtime_ctx) thd->sp_runtime_ctx->end_partial_result_set = true;
 
   /* Make sure this table instance is not reused after the operation. */
-  if (table->table) table->table->m_needs_reopen = true;
+  if (table->table) table->table->invalidate_dict();
   close_thread_tables(thd);  // Shouldn't be needed
   thd->mdl_context.release_transactional_locks();
   return true;

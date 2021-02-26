@@ -100,7 +100,8 @@ enum enum_tdc_remove_table_type {
   TDC_RT_REMOVE_ALL,
   TDC_RT_REMOVE_NOT_OWN,
   TDC_RT_REMOVE_UNUSED,
-  TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE
+  TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE,
+  TDC_RT_MARK_FOR_REOPEN
 };
 
 extern mysql_mutex_t LOCK_open;

@@ -1242,7 +1242,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
 
   for (TABLE_LIST *tl = tz_tables; tl; tl = tl->next_global) {
     /* Force close at the end of the function to free memory. */
-    tl->table->m_needs_reopen = true;
+    tl->table->invalidate_dict();
   }
 
   /*

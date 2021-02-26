@@ -134,6 +134,10 @@ enum class enum_json_diff_operation;
 
 bool assert_ref_count_is_locked(const TABLE_SHARE *);
 
+bool assert_invalid_dict_is_locked(const TABLE *);
+
+bool assert_invalid_stats_is_locked(const TABLE *);
+
 #define store_record(A, B) \
   memcpy((A)->B, (A)->record[0], (size_t)(A)->s->reclength)
 #define restore_record(A, B) \
@@ -1664,14 +1668,37 @@ struct TABLE {
   bool autoinc_field_has_explicit_non_null_value{false};
   bool alias_name_used{false};         /* true if table_name is alias */
   bool get_fields_in_item_tree{false}; /* Signal to fix_field */
-  /**
-    This table must be reopened and is not to be reused.
-    NOTE: The TABLE will not be reopened during LOCK TABLES in
-    close_thread_tables!!!
-  */
-  bool m_needs_reopen{false};
 
  private:
+  /**
+    This TABLE object is invalid and cannot be reused. TABLE object might have
+    inconsistent info or handler might not allow some operations.
+
+    For example, TABLE might have inconsistent info about partitioning.
+    We also use this flag to avoid calling handler::reset() for partitioned
+    InnoDB tables after in-place ALTER TABLE API commit phase and to force
+    closing table after REPAIR TABLE has failed during its prepare phase as
+    well.
+
+    @note This member can be set only by thread that owns/has opened the
+          table and while holding its THD::LOCK_thd_data lock.
+          It can be read without locking by this owner thread, or by some other
+          thread concurrently after acquring owner's THD::LOCK_thd_data.
+
+    @note The TABLE will not be reopened under LOCK TABLES in
+          close_thread_tables().
+  */
+  bool m_invalid_dict{false};
+
+  /**
+    This TABLE object is invalid and cannot be reused as it has outdated
+    rec_per_key and handler stats.
+
+    @note This member is protected from concurrent access to it by lock of
+          Table Cache's partition to which this TABLE object belongs,
+  */
+  bool m_invalid_stats{false};
+
   /**
     For tmp tables. true <=> tmp table has been instantiated.
     Also indicates that table was successfully opened since
@@ -1773,8 +1800,21 @@ struct TABLE {
     read_set = &def_read_set;
     write_set = &def_write_set;
   }
-  /** Should this instance of the table be reopened? */
-  inline bool needs_reopen() { return !db_stat || m_needs_reopen; }
+  void invalidate_dict();
+  void invalidate_stats();
+  /**
+    @note Can be called by thread owning table without additional locking, and
+    by any other thread which has acquired owner's THD::LOCK_thd_data lock.
+  */
+  inline bool has_invalid_dict() const {
+    assert(assert_invalid_dict_is_locked(this));
+    return !db_stat || m_invalid_dict;
+  }
+  /// @note Can be called by thread owning Table_cache::m_lock
+  inline bool has_invalid_stats() {
+    assert(assert_invalid_stats_is_locked(this));
+    return m_invalid_stats;
+  }
   /// @returns first non-hidden column
   Field **visible_field_ptr() const { return field + hidden_field_count; }
   /// @returns count of visible fields
