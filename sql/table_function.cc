@@ -618,11 +618,15 @@ bool Table_function_json::fill_result_table() {
       3. Non-const, e.g. a table field: source will be parsed here EVERY TIME
          fill_result_table() is called
     */
-    if (((!source->const_item() || !is_source_parsed) &&
-         get_json_wrapper(args, 0, &buf, func_name(), &m_jds[0].jdata)) ||
-        args[0]->null_value)
+    if (!source->const_item() || !is_source_parsed) {
+      if (get_json_wrapper(args, 0, &buf, func_name(), &m_jds[0].jdata)) {
+        return true;
+      }
+    }
+    if (args[0]->null_value) {
       // No need to set null_value as it's not used by table functions
       return false;
+    }
     is_source_parsed = true;
     return fill_json_table();
   } catch (...) {
