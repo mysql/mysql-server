@@ -1161,7 +1161,7 @@ bool Query_expression::ExecuteIteratorQuery(THD *thd) {
     thd->current_found_rows = 0;
     for (Query_block *select = first_query_block(); select != nullptr;
          select = select->next_query_block()) {
-      if (select->join->override_executor_func(select->join)) {
+      if (select->join->override_executor_func(select->join, query_result)) {
         return true;
       }
       thd->current_found_rows += select->join->send_records;

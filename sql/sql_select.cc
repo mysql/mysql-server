@@ -238,8 +238,12 @@ void reset_statement_timer(THD *thd) {
  */
 static bool reads_not_secondary_columns(const LEX *lex) {
   // Check all read base tables.
-  for (const TABLE_LIST *tl = lex->query_tables; tl != nullptr;
-       tl = tl->next_global) {
+  const TABLE_LIST *tl = lex->query_tables;
+  // For INSERT INTO SELECT statements, the table to insert into does not have
+  // to have a secondary engine. This table is always first in the list.
+  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr)
+    tl = tl->next_global;
+  for (; tl != nullptr; tl = tl->next_global) {
     if (tl->is_placeholder()) continue;
 
     // Check all read columns of table.
@@ -417,48 +421,7 @@ bool Sql_cmd_select::accept(THD *thd, Select_lex_visitor *visitor) {
 
 const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
     const {
-  // Don't use secondary storage engines for statements that call stored
-  // routines.
-  if (lex->uses_stored_routines()) return nullptr;
-
-  // Now check if the opened tables are available in a secondary
-  // storage engine. Only use the secondary tables if all the tables
-  // have a secondary tables, and they are all in the same secondary
-  // storage engine.
-  const LEX_CSTRING *secondary_engine = nullptr;
-  for (const TABLE_LIST *tl = lex->query_tables; tl != nullptr;
-       tl = tl->next_global) {
-    // Schema tables are not available in secondary engines.
-    if (tl->schema_table != nullptr) return nullptr;
-
-    // We're only interested in base tables.
-    if (tl->is_placeholder()) continue;
-
-    assert(!tl->table->s->is_secondary_engine());
-
-    if (!tl->table->s->has_secondary_engine()) {
-      // Not in a secondary engine.
-      return nullptr;
-    }
-
-    // Compare two engine names using the system collation.
-    auto equal = [](const LEX_CSTRING &s1, const LEX_CSTRING &s2) {
-      return system_charset_info->coll->strnncollsp(
-                 system_charset_info,
-                 pointer_cast<const unsigned char *>(s1.str), s1.length,
-                 pointer_cast<const unsigned char *>(s2.str), s2.length) == 0;
-    };
-
-    if (secondary_engine == nullptr) {
-      // First base table. Save its secondary engine name for later.
-      secondary_engine = &tl->table->s->secondary_engine;
-    } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
-      // In a different secondary engine than the previous base tables.
-      return nullptr;
-    }
-  }
-
-  return secondary_engine;
+  return get_eligible_secondary_engine();
 }
 
 /**
@@ -1017,6 +980,49 @@ bool Sql_cmd_dml::check_all_table_privileges(THD *thd) {
     }
   }
   return false;
+}
+const MYSQL_LEX_CSTRING *Sql_cmd_dml::get_eligible_secondary_engine() const {
+  // Don't use secondary storage engines for statements that call stored
+  // routines.
+  if (lex->uses_stored_routines()) return nullptr;
+  // Now check if the opened tables are available in a secondary
+  // storage engine. Only use the secondary tables if all the tables
+  // have a secondary tables, and they are all in the same secondary
+  // storage engine.
+  const LEX_CSTRING *secondary_engine = nullptr;
+  const TABLE_LIST *tl = lex->query_tables;
+  // For INSERT INTO SELECT statements, the table to insert into does not have
+  // to have a secondary engine. This table is always first in the list.
+  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr)
+    tl = tl->next_global;
+  for (; tl != nullptr; tl = tl->next_global) {
+    // Schema tables are not available in secondary engines.
+    if (tl->schema_table != nullptr) return nullptr;
+
+    // We're only interested in base tables.
+    if (tl->is_placeholder()) continue;
+
+    assert(!tl->table->s->is_secondary_engine());
+    // If not in a secondary engine
+    if (!tl->table->s->has_secondary_engine()) return nullptr;
+    // Compare two engine names using the system collation.
+    auto equal = [](const LEX_CSTRING &s1, const LEX_CSTRING &s2) {
+      return system_charset_info->coll->strnncollsp(
+                 system_charset_info,
+                 pointer_cast<const unsigned char *>(s1.str), s1.length,
+                 pointer_cast<const unsigned char *>(s2.str), s2.length) == 0;
+    };
+
+    if (secondary_engine == nullptr) {
+      // First base table. Save its secondary engine name for later.
+      secondary_engine = &tl->table->s->secondary_engine;
+    } else if (!equal(*secondary_engine, tl->table->s->secondary_engine)) {
+      // In a different secondary engine than the previous base tables.
+      return nullptr;
+    }
+  }
+
+  return secondary_engine;
 }
 
 /*****************************************************************************

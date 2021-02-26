@@ -284,7 +284,7 @@ class JOIN {
 
   /// A hook that secondary storage engines can use to override the executor
   /// completely.
-  using Override_executor_func = bool (*)(JOIN *);
+  using Override_executor_func = bool (*)(JOIN *, Query_result *);
   Override_executor_func override_executor_func = nullptr;
 
   /**

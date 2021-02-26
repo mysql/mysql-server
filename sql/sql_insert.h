@@ -190,8 +190,9 @@ class Query_result_create final : public Query_result_insert {
   handlerton *m_post_ddl_ht{nullptr};
 
  public:
-  Query_result_create(TABLE_LIST *table_arg, mem_root_deque<Item *> *fields,
-                      enum_duplicates duplic, TABLE_LIST *select_tables_arg);
+  Query_result_create(TABLE_LIST *create_table_arg,
+                      mem_root_deque<Item *> *fields, enum_duplicates duplic,
+                      TABLE_LIST *select_tables_arg);
 
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
                Query_expression *u) override;
@@ -302,8 +303,6 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
         values_field_list(*THR_MALLOC),
         duplicates(duplicates_arg) {}
 
-  void cleanup(THD *) override {}
-
   bool accept(THD *thd, Select_lex_visitor *visitor) override;
 };
 
@@ -340,6 +339,7 @@ class Sql_cmd_insert_select : public Sql_cmd_insert_base {
   enum_sql_command sql_command_code() const override {
     return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
   }
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
 };
 
 #endif /* SQL_INSERT_INCLUDED */

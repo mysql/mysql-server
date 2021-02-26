@@ -1330,8 +1330,9 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
     }
 
     // Remove the insert table from the first query block
-    select->table_list.first = context->table_list =
-        context->first_name_resolution_table = first_query_block_table;
+    select->table_list.first = first_query_block_table;
+    context->table_list = first_query_block_table;
+    context->first_name_resolution_table = first_query_block_table;
 
     if (unit->prepare(thd, result, &insert_field_list, added_options, 0))
       return true;
@@ -3367,4 +3368,15 @@ bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
   }
 
   return visitor->visit(thd->lex->query_block);
+}
+
+const MYSQL_LEX_CSTRING *
+Sql_cmd_insert_select::eligible_secondary_storage_engine() const {
+  // ON DUPLICATE KEY UPDATE cannot be offloaded
+  if (!update_field_list.empty()) return nullptr;
+
+  // Don't use secondary storage engines for REPLACE INTO SELECT statements
+  if (is_replace) return nullptr;
+
+  return get_eligible_secondary_engine();
 }
