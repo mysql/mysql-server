@@ -48,6 +48,7 @@ namespace keyring_file {
 namespace config {
 
 char *g_component_path = nullptr;
+char *g_instance_path = nullptr;
 
 /* Component metadata */
 static const char *s_component_metadata[][2] = {
@@ -68,15 +69,20 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
   if (!config_pod) return true;
   /* Get shared library location */
   std::string path(g_component_path);
-  if (!path.length()) return true;
 
-    /* Read config file that's located at shared library location */
+  auto set_config_path = [](std::string &full_path) -> bool {
+    if (full_path.length() == 0) return true;
 #ifdef _WIN32
-  path += "\\";
+    full_path += "\\";
 #else
-  path += "/";
+    full_path += "/";
 #endif
-  path.append(config_file_name);
+    full_path.append(config_file_name);
+    return false;
+  };
+  if (set_config_path(path) == true) return true;
+
+  /* Read config file that's located at shared library location */
   std::unique_ptr<Config_reader> config_reader(new (std::nothrow)
                                                    Config_reader(path));
 
@@ -91,7 +97,10 @@ bool find_and_read_config_file(std::unique_ptr<Config_pod> &config_pod) {
           We assume that when control reaches here, binary has set
           current working directory appropriately.
         */
-        config_reader = std::make_unique<Config_reader>(config_file_name);
+        std::string instance_path(g_instance_path);
+        if (set_config_path(instance_path) == true)
+          instance_path = config_file_name;
+        config_reader = std::make_unique<Config_reader>(instance_path);
       }
     }
   }

@@ -40,7 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
       return true;
     }
 
-    if (keyring_load->initialize(component_path) == true) {
+    if (keyring_load->initialize(component_path, instance_path) == true) {
       return true;
     }
     return false;
@@ -63,14 +63,17 @@ BEGIN_SERVICE_DEFINITION(keyring_load)
     A. After loading keyring component
     B. To refresh keyring component
 
-  @param [in]  component_path Path to component's shared library
+  @param [in]  component_path Path to component's shared library. Non-null.
+  @param [in]  instance_path  Path for instance specific configuration.
+                              If null, assumed as current working directory.
 
   @retval Status of the operation
     @retval false Success
     @retval true  Failure
 */
 
-DECLARE_BOOL_METHOD(load, (const char *component_path));
+DECLARE_BOOL_METHOD(load,
+                    (const char *component_path, const char *instance_path));
 
 END_SERVICE_DEFINITION(keyring_load)
 #endif  // !KEYRING_LOAD_INCLUDED

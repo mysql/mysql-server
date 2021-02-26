@@ -534,13 +534,13 @@ DEFINE_BOOL_METHOD(Keyring_reader_service_impl::fetch,
 /* keyring_load */
 
 DEFINE_BOOL_METHOD(Keyring_load_service_impl::load,
-                   (const char *component_path)) {
+                   (const char *component_path, const char *instance_path)) {
   if (keyring_access_test()) return true;
 
   if (check_service(internal_keyring_load, LOAD)) return true;
 
   rwlock_scoped_lock lock(&LOCK_keyring_component, true, __FILE__, __LINE__);
-  return internal_keyring_load->load(component_path);
+  return internal_keyring_load->load(component_path, instance_path);
 }
 
 /* keyring_writer */
@@ -655,6 +655,7 @@ void keyring_lockable_deinit() {
   This means, if keyring plugin is available (either through
   --early-plugin-load OR loaded later through INSTALL PLUGIN),
   it will be used.
+
 */
 void set_srv_keyring_implementation_as_default() {
   my_service<SERVICE_TYPE(registry_registration)> registrator(
@@ -847,7 +848,8 @@ void set_srv_keyring_implementation_as_default() {
 
     /* Initiliaze keyring */
     if (keyring_lockable::internal_keyring_load != nullptr) {
-      (void)keyring_lockable::internal_keyring_load->load(opt_plugin_dir);
+      (void)keyring_lockable::internal_keyring_load->load(opt_plugin_dir,
+                                                          mysql_real_data_home);
     }
   }
 

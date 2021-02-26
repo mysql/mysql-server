@@ -77,7 +77,12 @@ Destination_keyring_component::Destination_keyring_component(
   keyring_writer_service_ =
       reinterpret_cast<const_keyring_writer_t *>(h_keyring_writer_service);
 
-  if (keyring_load_service_->load(opt_plugin_dir) == true) {
+  /*
+    In case of migration from keyring plugin to keyring
+    component, we only support reading configuration from
+    plugin directory
+  */
+  if (keyring_load_service_->load(opt_plugin_dir, nullptr) == true) {
     return;
   }
 

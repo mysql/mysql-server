@@ -126,6 +126,7 @@ using keyring_common::operations::Keyring_operations;
 using keyring_file::backend::Keyring_file_backend;
 using keyring_file::config::Config_pod;
 using keyring_file::config::g_component_path;
+using keyring_file::config::g_instance_path;
 
 /** Dependencies */
 REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
@@ -148,20 +149,25 @@ bool g_keyring_file_inited = false;
   Set path to component
 
   @param [in] component_path  Path to component library
+  @param [in] instance_path   Path to instance specific config
 
   @returns initialization status
     @retval false Successful initialization
     @retval true  Error
 */
-bool set_component_path(const char *component_path) {
-  char *save = g_component_path;
+bool set_paths(const char *component_path, const char *instance_path) {
+  char *save_c = g_component_path;
+  char *save_i = g_instance_path;
   g_component_path = strdup(component_path != nullptr ? component_path : "");
-  if (g_component_path == nullptr) {
-    g_component_path = save;
+  g_instance_path = strdup(instance_path != nullptr ? instance_path : "");
+  if (g_component_path == nullptr || g_instance_path == nullptr) {
+    g_component_path = save_c;
+    g_instance_path = save_i;
     return true;
   }
 
-  if (save != nullptr) free(save);
+  if (save_c != nullptr) free(save_c);
+  if (save_i != nullptr) free(save_i);
   return false;
 }
 

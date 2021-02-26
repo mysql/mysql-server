@@ -82,7 +82,9 @@ Keyring_services::Keyring_services(const std::string implementation_name)
       ok_(false) {
   if (keyring_load_service_) return;
 
-  if (keyring_load_service_->load(Options::s_component_dir) == true) return;
+  /* We do not support non-default location for config file yet */
+  if (keyring_load_service_->load(Options::s_component_dir, nullptr) == true)
+    return;
 
   ok_ = true;
 }

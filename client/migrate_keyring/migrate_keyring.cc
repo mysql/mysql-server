@@ -99,7 +99,8 @@ int main(int argc, char **argv) {
                 << std::endl;
       return exit_status;
     }
-    Source_keyring_services source_service(Options::s_source_keyring);
+    Source_keyring_services source_service(
+        Options::s_source_keyring, Options::s_source_keyring_configuration_dir);
     if (!source_service.ok()) {
       log_error << "Failed to load required services from source keyring. "
                    "Exiting."
@@ -107,7 +108,8 @@ int main(int argc, char **argv) {
       return exit_status;
     }
     Destination_keyring_services destination_service(
-        Options::s_destination_keyring);
+        Options::s_destination_keyring,
+        Options::s_destination_keyring_configuration_dir);
 
     if (!destination_service.ok()) {
       log_error << "Failed to load required services from destination "

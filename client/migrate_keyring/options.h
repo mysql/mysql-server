@@ -37,12 +37,16 @@ class Options {
  public:
   /** Be loud */
   static bool s_verbose;
-  /** Plugin directory location */
+  /** Component directory location */
   static char *s_component_dir;
   /** Source keyring - Component or plugin */
   static char *s_source_keyring;
-  /** Destiantion keyring - Must be a component */
+  /** Source Keyring configuration path - If it is not in component dir */
+  static char *s_source_keyring_configuration_dir;
+  /** Destination keyring - Must be a component */
   static char *s_destination_keyring;
+  /** Destination Keyring configuration path - If it is not in component dir */
+  static char *s_destination_keyring_configuration_dir;
 
   /*
     Following paramters are needed if migration involves an active MySQL server
