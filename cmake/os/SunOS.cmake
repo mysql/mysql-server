@@ -72,7 +72,7 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       MESSAGE(FATAL_ERROR "Oracle Studio 12.6 or newer is required!")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_CLANG)
-    MESSAGE(WARNING "Clang is (highly) experimental!!")
+    MESSAGE(WARNING "Clang is experimental!!")
   ELSEIF(MY_COMPILER_IS_GNU)
     MESSAGE(STATUS "CMAKE_CXX_COMPILER_VERSION is ${CMAKE_CXX_COMPILER_VERSION}")
     # 9.2.0 generated code which dumped core in optimized mode.

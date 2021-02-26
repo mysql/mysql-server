@@ -27,6 +27,8 @@
 
 #include <gmock/gmock.h>
 
+#include "my_config.h"
+
 #include "cluster_metadata.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
@@ -270,12 +272,18 @@ get_log_timestamp(const std::string &log_file, const std::string &log_regex,
   // extract the timestamp prefix and conver to the duration
   std::string timestamp_str =
       log_line_str.substr(0, strlen("2020-06-09 03:53:26.027"));
-  std::stringstream timestamp_ss(timestamp_str);
   std::tm tm{};
+#ifdef HAVE_STRPTIME
+  char *rest = strptime(timestamp_str.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
+  assert(*rest == '.');
+  int milliseconds = atoi(++rest);
+#else
+  std::stringstream timestamp_ss(timestamp_str);
   char dot;
   unsigned milliseconds;
   timestamp_ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S") >> dot >>
       milliseconds;
+#endif
   auto result = std::chrono::system_clock::from_time_t(std::mktime(&tm));
   result += std::chrono::milliseconds(milliseconds);
 

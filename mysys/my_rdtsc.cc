@@ -84,19 +84,18 @@
 #include <mach/mach_time.h>
 #endif
 
-#if defined(__SUNPRO_CC) && defined(__sparcv9) && defined(_LP64) && \
-    !defined(__SunOS_5_7)
+#if (defined(__SUNPRO_CC) || defined(__clang__)) && defined(__sparcv9) && \
+    defined(_LP64)
 extern "C" ulonglong my_timer_cycles_il_sparc64();
-#elif defined(__SUNPRO_CC) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_CC) && defined(_ILP32)
 extern "C" ulonglong my_timer_cycles_il_sparc32();
 #elif defined(__SUNPRO_CC) && defined(__i386) && defined(_ILP32)
 extern "C" ulonglong my_timer_cycles_il_i386();
 #elif defined(__SUNPRO_CC) && defined(__x86_64) && defined(_LP64)
 extern "C" ulonglong my_timer_cycles_il_x86_64();
-#elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64) && \
-    !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64)
 ulonglong my_timer_cycles_il_sparc64();
-#elif defined(__SUNPRO_C) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_C) && defined(_ILP32)
 ulonglong my_timer_cycles_il_sparc32();
 #elif defined(__SUNPRO_C) && defined(__i386) && defined(_ILP32)
 ulonglong my_timer_cycles_il_i386();
@@ -164,10 +163,9 @@ ulonglong my_timer_cycles(void) {
     return (result << 32) | x2;
   }
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
-    defined(_LP64) && !defined(__SunOS_5_7)
+    defined(_LP64)
   return (my_timer_cycles_il_sparc64());
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
-    !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32)
   return (my_timer_cycles_il_sparc32());
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
     defined(_ILP32)
@@ -177,7 +175,7 @@ ulonglong my_timer_cycles(void) {
     defined(_LP64)
   return (my_timer_cycles_il_x86_64());
 #elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && \
-    defined(_LP64)
+    defined(_LP64) && !defined(__clang__)
   {
     ulonglong result;
     __asm __volatile__("rd %%tick,%0" : "=r"(result));
@@ -486,10 +484,9 @@ void my_timer_init(MY_TIMER_INFO *mti) {
     (!defined(__64BIT__) && !defined(_ARCH_PPC64))
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_PPC;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
-    defined(_LP64) && !defined(__SunOS_5_7)
+    defined(_LP64)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64;
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
-    !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32)
   mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
     defined(_ILP32)

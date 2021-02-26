@@ -36,7 +36,7 @@ IF(FPROFILE_GENERATE OR FPROFILE_USE)
 ENDIF()
 
 # Array indexing with pland_idx == int8 gives warnings.
-IF(SOLARIS AND MY_COMPILER_IS_GNU)
+IF(SOLARIS AND MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_OPTIONS("-Wno-char-subscripts")
 ENDIF()
 

@@ -110,6 +110,7 @@
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
 #cmakedefine HAVE_STRLCAT 1
+#cmakedefine HAVE_STRPTIME 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_TELL 1
 #cmakedefine HAVE_VASPRINTF 1

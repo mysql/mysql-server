@@ -1557,7 +1557,7 @@ void MySQLRouting::validate_destination_connect_timeout(
 }
 
 int MySQLRouting::set_max_connections(int maximum) {
-  if (maximum <= 0 || maximum > UINT16_MAX) {
+  if (maximum <= 0 || maximum > static_cast<int>(UINT16_MAX)) {
     auto err = string_format(
         "[%s] tried to set max_connections using invalid value, was '%d'",
         context_.get_name().c_str(), maximum);

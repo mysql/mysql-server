@@ -179,7 +179,7 @@ ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
     -Wno-unused-parameter
     -Wno-unused-variable
     )
-  IF(SOLARIS)
+  IF(SOLARIS AND MY_COMPILER_IS_GNU)
     # rpcgen generates 'void bzero();'
     ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS

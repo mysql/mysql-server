@@ -214,7 +214,7 @@ uint16_t get_tcp_port(const std::string &data) {
     throw std::runtime_error("impossible port number (out-of-range)");
   }
 
-  if (port > UINT16_MAX) {
+  if (port > static_cast<int>(UINT16_MAX)) {
     throw std::runtime_error("out of range. Max " + std::to_string(UINT16_MAX));
   }
   return static_cast<uint16_t>(port);
