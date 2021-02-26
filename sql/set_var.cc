@@ -22,6 +22,7 @@
 
 /* variable declarations are in sys_vars.cc now !!! */
 
+#include "debug_sync.h"
 #include "set_var.h"
 
 #include "hash.h"                // HASH
@@ -307,6 +308,41 @@ bool sys_var::set_default(THD *thd, set_var* var)
 
   bool ret= check(thd, var) || update(thd, var);
   DBUG_RETURN(ret);
+}
+
+Sys_var_tracker::Sys_var_tracker(sys_var *var)
+    : m_is_dynamic(var->cast_pluginvar() != NULL),
+      m_name(m_is_dynamic ? current_thd->strmake(var->name) : var->name),
+      m_var(m_is_dynamic ? NULL : var)
+{}
+
+sys_var *Sys_var_tracker::bind_system_variable(THD *thd) {
+  if (!m_is_dynamic ||                                               // (1)
+      (m_var != NULL &&                                              // (2)
+       thd->state == Query_arena::STMT_INITIALIZED_FOR_SP))          // (3)
+  {
+    /*
+      Return a previous cached value of a system variable:
+
+      - if this is a static variable (1) then always return its cached value.
+
+      - if SP body evaluation is in the process (3), and if this is not
+        a resolver phase (2): the resolver phase caches the value and the
+        executor phase reuses it; this can work since SQL statements
+        referencing SP calls don't release plugins acquired by those SP
+        calls until the SPs removed from the server memory.
+    */
+    return m_var;
+  }
+
+  m_var= find_sys_var(thd, m_name.str, m_name.length);
+  if (m_var == NULL)
+  {
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), m_name.str);
+    return NULL;
+  }
+
+  return m_var;
 }
 
 void sys_var::do_deprecated_warning(THD *thd)
@@ -679,6 +715,11 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list)
   }
 
 err:
+  it.rewind();
+  while ((var= it++))
+  {
+    var->cleanup();
+  }
   free_underlaid_joins(thd, thd->lex->select_lex);
   DBUG_RETURN(error);
 }
@@ -709,7 +750,7 @@ bool keyring_access_test()
 
 set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
                  const LEX_STRING *base_name_arg, Item *value_arg)
-  :var(var_arg), type(type_arg), base(*base_name_arg)
+  :var(NULL), type(type_arg), base(*base_name_arg), var_tracker(var_arg)
 {
   /*
     If the set value is a field, change it to a string to allow things like
@@ -750,6 +791,15 @@ set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
 int set_var::check(THD *thd)
 {
   DBUG_ENTER("set_var::check");
+  DEBUG_SYNC(current_thd, "after_error_checking");
+
+  assert(var == NULL);
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+  {
+    DBUG_RETURN(-1);
+  }
+
   var->do_deprecated_warning(thd);
   if (var->is_readonly())
   {
@@ -806,6 +856,12 @@ int set_var::check(THD *thd)
 */
 int set_var::light_check(THD *thd)
 {
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+  {
+    return 1;
+  }
+
   if (!var->check_scope(type))
   {
     int err= type == OPT_GLOBAL ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
@@ -835,6 +891,8 @@ int set_var::light_check(THD *thd)
 */
 int set_var::update(THD *thd)
 {
+  assert(var != NULL);
+
   return value ? var->update(thd, this) : var->set_default(thd, this);
 }
 

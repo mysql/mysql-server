@@ -7253,17 +7253,12 @@ Item_func_get_system_var::
 Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
                        LEX_STRING *component_arg, const char *name_arg,
                        size_t name_len_arg)
-  :var(var_arg), var_type(var_type_arg), orig_var_type(var_type_arg),
-  component(*component_arg), cache_present(0)
+  :var(NULL), var_type(var_type_arg), orig_var_type(var_type_arg),
+  component(*component_arg), cache_present(0),
+  var_tracker(var_arg)
 {
   /* copy() will allocate the name */
   item_name.copy(name_arg, (uint) name_len_arg);
-}
-
-
-bool Item_func_get_system_var::is_written_to_binlog()
-{
-  return var->is_written_to_binlog(var_type);
 }
 
 
@@ -7282,6 +7277,15 @@ void Item_func_get_system_var::fix_length_and_dec()
   char *cptr;
   maybe_null= TRUE;
   max_length= 0;
+
+  THD *const thd= current_thd;
+
+  DEBUG_SYNC(current_thd, "after_error_checking");
+
+  assert(var == NULL);
+  var= var_tracker.bind_system_variable(thd);
+  if (var == NULL)
+    return;
 
   if (!var->check_scope(var_type))
   {
@@ -7316,8 +7320,8 @@ void Item_func_get_system_var::fix_length_and_dec()
     case SHOW_CHAR_PTR:
       mysql_mutex_lock(&LOCK_global_system_variables);
       cptr= var->show_type() == SHOW_CHAR ? 
-        (char*) var->value_ptr(current_thd, var_type, &component) :
-        *(char**) var->value_ptr(current_thd, var_type, &component);
+        (char*) var->value_ptr(thd, var_type, &component) :
+        *(char**) var->value_ptr(thd, var_type, &component);
       if (cptr)
         max_length= system_charset_info->cset->numchars(system_charset_info,
                                                         cptr,
@@ -7330,7 +7334,7 @@ void Item_func_get_system_var::fix_length_and_dec()
     case SHOW_LEX_STRING:
       {
         mysql_mutex_lock(&LOCK_global_system_variables);
-        LEX_STRING *ls= ((LEX_STRING*)var->value_ptr(current_thd, var_type, &component));
+        LEX_STRING *ls= ((LEX_STRING*)var->value_ptr(thd, var_type, &component));
         max_length= system_charset_info->cset->numchars(system_charset_info,
                                                         ls->str,
                                                         ls->str + ls->length);
@@ -7438,6 +7442,8 @@ longlong Item_func_get_system_var::val_int()
 {
   THD *thd= current_thd;
 
+  assert(var != NULL);
+
   if (cache_present && thd->query_id == used_query_id)
   {
     if (cache_present & GET_SYS_VAR_CACHE_LONG)
@@ -7516,6 +7522,8 @@ longlong Item_func_get_system_var::val_int()
 String* Item_func_get_system_var::val_str(String* str)
 {
   THD *thd= current_thd;
+
+  assert(var != NULL);
 
   if (cache_present && thd->query_id == used_query_id)
   {
@@ -7603,6 +7611,8 @@ String* Item_func_get_system_var::val_str(String* str)
 double Item_func_get_system_var::val_real()
 {
   THD *thd= current_thd;
+
+  assert(var != NULL);
 
   if (cache_present && thd->query_id == used_query_id)
   {
@@ -7697,7 +7707,7 @@ bool Item_func_get_system_var::eq(const Item *item, bool binary_cmp) const
       ((Item_func*) item)->functype() != functype())
     return 0;
   Item_func_get_system_var *other=(Item_func_get_system_var*) item;
-  return (var == other->var && var_type == other->var_type);
+  return (var_tracker == other->var_tracker && var_type == other->var_type);
 }
 
 
@@ -7707,6 +7717,7 @@ void Item_func_get_system_var::cleanup()
   cache_present= 0;
   var_type= orig_var_type;
   cached_strval.mem_free();
+  var= NULL;
 }
 
 
@@ -8241,6 +8252,9 @@ public:
   @param name                   Name of base or system variable
   @param component              Component.
 
+  @param unsafe                 If true and if the variable is written to a
+                                binlog then mark the statement as unsafe.
+
   @note
     If component.str = 0 then the variable name is in 'name'
 
@@ -8252,7 +8266,7 @@ public:
 
 Item *get_system_var(Parse_context *pc,
                      enum_var_type var_type, LEX_STRING name,
-                     LEX_STRING component)
+                     LEX_STRING component, bool unsafe)
 {
   THD *thd= pc->thd;
   sys_var *var;
@@ -8288,6 +8302,12 @@ Item *get_system_var(Parse_context *pc,
   Item_func_get_system_var *item= new Item_func_get_system_var(var, var_type,
                                                                component_name,
                                                                NULL, 0);
+  if (item == NULL)
+    return NULL;  // OOM
+
+  if (unsafe && !var->is_written_to_binlog(var_type))
+    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
+
 #ifndef EMBEDDED_LIBRARY
   if (var_type == OPT_GLOBAL && var->check_scope(OPT_GLOBAL))
   {
@@ -8304,6 +8324,8 @@ Item *get_system_var(Parse_context *pc,
     Silence_deprecation_warnings silencer;
     thd->push_internal_handler(&silencer);
 
+    if (si)
+      (void) si->fix_length_and_dec();
     outStr= si ? si->val_str(&str) : &str;
 
     thd->pop_internal_handler();
