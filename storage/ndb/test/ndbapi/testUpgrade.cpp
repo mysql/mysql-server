@@ -366,13 +366,14 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step, bool wait = true)
       {
         continue;
       }
+      ndbout << "step " << step->getStepNo() << endl;
+      ndbout << "Creating event for table: " << tab->getName() << endl;
       if ((res = createEvent(pNdb, *tab) != NDBT_OK))
       {
         goto done;
       }
-      
-      
-      
+      ndbout << "step " << step->getStepNo() << endl;
+      ndbout << "Dropping event for table: " << tab->getName() << endl;
       if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
       {
         goto done;
