@@ -1333,13 +1333,13 @@ void THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
     for (TABLE *thd_table = in_use->open_tables; thd_table;
          thd_table = thd_table->next) {
       /*
-        Check for TABLE::needs_reopen() is needed since in some places we call
-        handler::close() for table instance (and set TABLE::db_stat to 0)
-        and do not remove such instances from the THD::open_tables
-        for some time, during which other thread can see those instances
-        (e.g. see partitioning code).
+        Check for TABLE::has_invalid_dict() is needed as we can have TABLE
+        objects for which handler::open() was not called in THD::open_tables
+        list. For example, such TABLE objects are used to update information
+        about views which are dependent on table being ALTERed. Calling
+        mysql_lock_abort_for_thread() for such tables is not safe.
       */
-      if (!thd_table->needs_reopen())
+      if (!thd_table->has_invalid_dict())
         mysql_lock_abort_for_thread(this, thd_table);
     }
     mysql_mutex_unlock(&in_use->LOCK_thd_data);

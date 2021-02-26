@@ -7879,4 +7879,46 @@ void TABLE::update_covering_prefix_keys(Field *field, uint16 key_read_length,
     }
 }
 
+void TABLE::invalidate_dict() {
+  /*
+    m_invalid_dict can be only updated by TABLE owner and while holding its
+    LOCK_thd_data lock.
+  */
+  assert(current_thd == in_use);
+  mysql_mutex_lock(&in_use->LOCK_thd_data);
+  m_invalid_dict = true;
+  mysql_mutex_unlock(&in_use->LOCK_thd_data);
+}
+
+void TABLE::invalidate_stats() {
+  // m_invalid_stats is protected by Table_cache::m_lock.
+  table_cache_manager.assert_owner_all();
+  m_invalid_stats = true;
+}
+
+#ifndef NDEBUG
+/**
+  Assert that LOCK_thd_data is held when TABLE::m_invalid_dict is accessed.
+
+  @param table pointer to TABLE object
+  @return true if the assertion holds, terminates the process otherwise
+*/
+bool assert_invalid_dict_is_locked(const TABLE *table) {
+  if (current_thd != table->in_use)
+    mysql_mutex_assert_owner(&table->in_use->LOCK_thd_data);
+  return true;
+}
+
+/**
+  Assert that caller holds lock on the table cache when TABLE::m_invalid_stats
+  is accessed.
+
+  @param table pointer to TABLE object
+  @return true if the assertion holds, terminates the process otherwise
+*/
+bool assert_invalid_stats_is_locked(const TABLE *table) {
+  table_cache_manager.assert_owner(table->in_use);
+  return true;
+}
+#endif
 //////////////////////////////////////////////////////////////////////////

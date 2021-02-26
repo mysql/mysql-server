@@ -4364,7 +4364,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         if (flags & HA_INPLACE_CHANGE_PARTITION) {
           *new_part_info = tab_part_info;
           /* Force table re-open for consistency with the main case. */
-          table->m_needs_reopen = true;
+          table->invalidate_dict();
         }
 
         thd->work_part_info = tab_part_info;
@@ -4397,7 +4397,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         must be reopened.
       */
       *new_part_info = tab_part_info;
-      table->m_needs_reopen = true;
+      table->invalidate_dict();
     }
     DBUG_PRINT("info", ("*fast_alter_table flags: 0x%x", flags));
     if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) ||
@@ -5076,7 +5076,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
         partitioning information updated by the SE, as InnoDB is doing in
         update_create_info().
       */
-      table->m_needs_reopen = true;
+      table->invalidate_dict();
       if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING) {
         DBUG_PRINT("info", ("Remove partitioning"));
         if (!(create_info->used_fields & HA_CREATE_USED_ENGINE)) {

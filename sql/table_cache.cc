@@ -242,6 +242,16 @@ void Table_cache_manager::unlock_all_and_tdc() {
 }
 
 /**
+  Assert that caller owns lock on the table cache.
+
+  @param thd Thread handle
+*/
+void Table_cache_manager::assert_owner(THD *thd) {
+  Table_cache *tc = get_cache(thd);
+  tc->assert_owner();
+}
+
+/**
   Assert that caller owns locks on all instances of table cache.
 */
 
@@ -306,6 +316,12 @@ void Table_cache_manager::free_table(THD *thd MY_ATTRIBUTE((unused)),
         }
       }
 #endif
+      if (remove_type == TDC_RT_MARK_FOR_REOPEN) {
+        Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
+        while ((table = it2++)) {
+          table->invalidate_stats();
+        }
+      }
 
       while ((table = it++)) {
         m_table_cache[i].remove_table(table);
