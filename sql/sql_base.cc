@@ -5735,6 +5735,11 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   DBUG_TRACE;
   bool audit_notified = false;
 
+  if (!thd->lex->plugin_var_bind_list.empty() &&
+      thd->lex->rebind_plugin_vars(thd)) {
+    return true;
+  }
+
 restart:
   /*
     Close HANDLER tables which are marked for flush or against which there

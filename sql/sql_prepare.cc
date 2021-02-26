@@ -1079,6 +1079,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt, TABLE_LIST *tables,
 
   while ((var = it++)) {
     if (var->light_check(thd)) return true; /* purecov: inspected */
+    var->cleanup();
   }
 
   thd->lex->unit->set_prepared();
@@ -3519,6 +3520,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
     mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true);
 
   cleanup_stmt();
+
+  thd->lex->release_plugins();
 
   /*
    Note that we cannot call restore_thd() here as that would overwrite

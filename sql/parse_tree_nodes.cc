@@ -2091,7 +2091,7 @@ Sql_cmd *PT_show_count_base::make_cmd_generic(
   Item *var = get_system_var(
       &pc, OPT_SESSION,
       to_lex_string(diagnostic_variable_name),  // TODO: use LEX_CSTRING
-      {});
+      {}, false);
   if (var == nullptr) {
     assert(false);
     return nullptr;  // should never happen

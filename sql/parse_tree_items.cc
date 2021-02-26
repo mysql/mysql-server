@@ -583,9 +583,9 @@ bool PTI_variable_aux_3d::itemize(Parse_context *pc, Item **res) {
     component_var.length = tmp_name.length();
     variable->str = nullptr;
     variable->length = 0;
-    *res = get_system_var(pc, var_type, component_var, *variable);
+    *res = get_system_var(pc, var_type, component_var, *variable, true);
   } else
-    *res = get_system_var(pc, var_type, ident1, ident2);
+    *res = get_system_var(pc, var_type, ident1, ident2, true);
   if (*res == nullptr) return true;
   if (is_identifier(ident1, "warning_count") ||
       is_identifier(ident1, "error_count")) {
@@ -597,9 +597,6 @@ bool PTI_variable_aux_3d::itemize(Parse_context *pc, Item **res) {
     */
     lex->keep_diagnostics = DA_KEEP_COUNTS;
   }
-  if (!down_cast<Item_func_get_system_var *>(*res)->is_written_to_binlog())
-    lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
-
   return false;
 }
 

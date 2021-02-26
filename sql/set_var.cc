@@ -44,6 +44,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL, generate_password
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
@@ -540,6 +541,38 @@ const CHARSET_INFO *sys_var::charset(THD *thd) {
                        : system_charset_info;
 }
 
+Sys_var_tracker::Sys_var_tracker(sys_var *var)
+    : m_is_dynamic(var->cast_pluginvar() != nullptr),
+      m_name(m_is_dynamic ? current_thd->strmake(var->name) : var->name),
+      m_var(m_is_dynamic ? nullptr : var) {}
+
+sys_var *Sys_var_tracker::bind_system_variable(THD *thd) {
+  if (!m_is_dynamic ||                                               // (1)
+      (m_var != nullptr &&                                           // (2)
+       thd->get_state() == Query_arena::STMT_INITIALIZED_FOR_SP)) {  // (3)
+    /*
+      Return a previous cached value of a system variable:
+
+      - if this is a static variable (1) then always return its cached value.
+
+      - if SP body evaluation is in the process (3), and if this is not
+        a resolver phase (2): the resolver phase caches the value and the
+        executor phase reuses it; this can work since SQL statements
+        referencing SP calls don't release plugins acquired by those SP
+        calls until the SPs removed from the server memory.
+    */
+    return m_var;
+  }
+
+  m_var = find_sys_var(thd, m_name.str, m_name.length);
+  if (m_var == nullptr) {
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), m_name.str);
+    return nullptr;
+  }
+
+  return m_var;
+}
+
 struct my_old_conv {
   const char *old_name;
   const char *new_name;
@@ -831,6 +864,9 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
     }
   }
 err:
+  for (set_var_base &v : *var_list) {
+    v.cleanup();
+  }
   free_underlaid_joins(thd, thd->lex->query_block);
   return error;
 }
@@ -859,8 +895,8 @@ bool keyring_access_test() {
 *****************************************************************************/
 
 set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
-                 LEX_CSTRING base_name_arg, Item *value_arg)
-    : var(var_arg), type(type_arg), base(base_name_arg) {
+                 const LEX_CSTRING base_name_arg, Item *value_arg)
+    : var(var_arg), type(type_arg), base(base_name_arg), var_tracker(var_arg) {
   /*
     If the set value is a field, change it to a string to allow things like
     SET table_type=MYISAM;
@@ -960,6 +996,16 @@ Resolve the variable assignment
 
 int set_var::resolve(THD *thd) {
   DBUG_TRACE;
+
+  if (var == nullptr) {
+    var = var_tracker.bind_system_variable(thd);
+  } else {
+    // No need to rebind: called from sql_set_variables().
+  }
+  if (var == nullptr) {
+    return -1;
+  }
+
   var->do_deprecated_warning(thd);
   if (var->is_readonly()) {
     if (type != OPT_PERSIST_ONLY) {
@@ -1029,6 +1075,16 @@ int set_var::resolve(THD *thd) {
 
 int set_var::check(THD *thd) {
   DBUG_TRACE;
+  DEBUG_SYNC(current_thd, "after_error_checking");
+
+  if (var == nullptr) {
+    var = var_tracker.bind_system_variable(thd);
+  } else {
+    // No need to rebind: called from sql_set_variables().
+  }
+  if (var == nullptr) {
+    return -1;
+  }
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value) return 0;
@@ -1061,6 +1117,10 @@ int set_var::check(THD *thd) {
     -1   ERROR, message not sent
 */
 int set_var::light_check(THD *thd) {
+  var = var_tracker.bind_system_variable(thd);
+  if (var == nullptr) {
+    return 1;
+  }
   if (!var->check_scope(type)) {
     int err = (is_global_persist()) ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
@@ -1124,6 +1184,8 @@ void set_var::update_source_user_host_timestamp(THD *thd) {
   an error due to logics.
 */
 int set_var::update(THD *thd) {
+  assert(var != nullptr);
+
   int ret = 0;
   /* for persist only syntax do not update the value */
   if (type != OPT_PERSIST_ONLY) {
