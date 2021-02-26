@@ -29,13 +29,13 @@ CREATE ROLE L1, L2, L3;
 #
 CREATE USER ndb_u1@a;
 CREATE USER ndb_u2@a IDENTIFIED BY 'Helsinki';
-CREATE USER ndb_u3@a, ndb_u4@a, ndb_u5@a, ndb_u6@a;
+CREATE USER ndb_u3@a, ndb_u4@a, ndb_u5@a, ndb_u6@localhost;
 CREATE USER ndb_u7@a IDENTIFIED BY 'pass7';
 CREATE ROLE R1, R2, R3;
 GRANT NDB_STORED_USER ON *.* to ndb_u1@a;
 GRANT NDB_STORED_USER ON *.* to ndb_u2@a, ndb_u3@a, ndb_u4@a;
 GRANT ALL ON *.* TO ndb_u5@a;                  # Grant NDB_STORED_USER via ALL
-GRANT NDB_STORED_USER ON *.* to ndb_u6@a, ndb_u7@a;
+GRANT NDB_STORED_USER ON *.* to ndb_u6@localhost, ndb_u7@a;
 GRANT NDB_STORED_USER ON *.* TO R1, R2, R3;
 
 #
@@ -90,7 +90,7 @@ REVOKE INSERT ON auth_test_db.t1 FROM local_u3@a;
 REVOKE INSERT ON t1 FROM ndb_u3@a;
 REVOKE SELECT ON auth_test_db.t1 FROM ndb_u2@a, local_u2@a;
 REVOKE ALL, GRANT OPTION FROM ndb_u1@a, local_u1@a;
-REVOKE NDB_STORED_USER ON *.* FROM ndb_u6@a;
+REVOKE NDB_STORED_USER ON *.* FROM ndb_u6@localhost;
 
 #
 # DROP statements start at line 100
@@ -166,13 +166,16 @@ connect (CU4,127.0.0.1,ndb_u4,pass4,auth_test_db,$MASTER_MYPORT1,);
 connection CU4;
 DROP TABLE t1;
 
+# ndb_u6 has an empty password. Test connection only.
+connect (CU6,127.0.0.1,ndb_u6,,test,$MASTER_MYPORT1,);
+
 # ndb_u5 has password 'pass5' and all privileges.
 connect (CU5,127.0.0.1,ndb_u5,pass5,auth_test_db,$MASTER_MYPORT1,);
 connection CU5;
 DROP TABLE t2, t3;
 # Users that have had NDB_STORED_USER revoked must be dropped on each server,
 # and ndb_u5 has the privilege to do this (via GRANT ALL at line 37)
-DROP USER ndb_u1@a, ndb_u6@a;
+DROP USER ndb_u1@a, ndb_u6@localhost;
 
 
 
@@ -186,7 +189,7 @@ DROP ROLE L3;
 
 DROP USER Monty@localhost, David@localhost;
 DROP USER ndb_u4@localhost, ndb_u5@localhost;
-DROP USER ndb_u6@a;
+DROP USER ndb_u6@localhost;
 DROP ROLE R3;
 
 DROP DATABASE auth_test_db;
