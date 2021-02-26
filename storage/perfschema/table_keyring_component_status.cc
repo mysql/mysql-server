@@ -45,8 +45,10 @@
 
 THR_LOCK table_keyring_component_status::m_table_lock;
 
+namespace {
 /** symbolic names for field offsets, keep in sync with field_types */
 enum keyring_keys_field_offsets { FO_STATUS_KEY, FO_STATUS_VALUE };
+}  // namespace
 
 const size_t STATUS_KEY_LENGTH = 256;
 const size_t STATUS_VALUE_LENGTH = 1024;

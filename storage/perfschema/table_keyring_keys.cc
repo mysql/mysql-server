@@ -47,8 +47,10 @@ constexpr auto MAX_FIELD_LENGTH = 64;
 
 THR_LOCK table_keyring_keys::s_table_lock;
 
+namespace {
 /** symbolic names for field offsets, keep in sync with field_types */
 enum keyring_keys_field_offsets { FO_KEY_ID, FO_KEY_OWNER, FO_BACKEND_KEY_ID };
+}  // namespace
 
 Plugin_table table_keyring_keys::s_table_def(
     /* Schema name */
