@@ -243,16 +243,18 @@ single page */
 
 #define FSEG_MAGIC_N_VALUE 97937874
 
-#define FSEG_FILLFACTOR                  \
-  8 /* If this value is x, then if       \
-    the number of unused but reserved    \
-    pages in a segment is less than      \
-    reserved pages * 1/x, and there are  \
-    at least FSEG_FRAG_LIMIT used pages, \
-    then we allow a new empty extent to  \
-    be added to the segment in           \
-    fseg_alloc_free_page. Otherwise, we  \
-    use unused pages of the segment. */
+/** The segment_reserve_factor is the ratio x/y expressed in percentage,
+where x is the number of free pages in the segment, and y is the total number
+of pages in the segment.  The number of used pages in the segment is given by
+(y-x).  The number of free pages in the segment (x) will be maintained such
+that the actual segment_reserve_factor will be >= the requested
+segment_reserve_factor, which is contained in this variable. */
+extern double fseg_reserve_pct;
+
+/* Various constants related to segment reserve factor */
+constexpr double FSEG_RESERVE_PCT_DFLT = 12.50;
+constexpr double FSEG_RESERVE_PCT_MIN = 0.03;
+constexpr double FSEG_RESERVE_PCT_MAX = 40.00;
 
 #define FSEG_FRAG_LIMIT FSEG_FRAG_ARR_N_SLOTS
 /* If the segment has >= this many

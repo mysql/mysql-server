@@ -251,6 +251,12 @@ struct Tester {
   Ret_t func_(std::vector<std::string> &tokens) noexcept MY_ATTRIBUTE( \
       (warn_unused_result))
 
+  /** Count various page_types for given tablespace. */
+  DISPATCH_FUNCTION(count_page_type);
+
+  /** Count various page_types for given tablespace. */
+  DISPATCH_FUNCTION(count_used_and_free);
+
   /** Obtain the page size of the given tablespace. */
   DISPATCH_FUNCTION(find_tablespace_physical_page_size);
 

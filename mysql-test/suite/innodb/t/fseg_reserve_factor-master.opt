@@ -1,0 +1,2 @@
+--local-infile=ON
+--skip-log-bin

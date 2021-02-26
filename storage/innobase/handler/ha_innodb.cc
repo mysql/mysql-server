@@ -21677,6 +21677,17 @@ static MYSQL_SYSVAR_BOOL(
     "if supported",
     nullptr, nullptr, FALSE);
 
+static MYSQL_SYSVAR_DOUBLE(
+    segment_reserve_factor, fseg_reserve_pct, PLUGIN_VAR_OPCMDARG,
+    "The segment_reserve_factor is the ratio x/y expressed in percentage,"
+    " where x is the number of free pages in the segment, and y is the total"
+    " number of pages in the segment.  The number of used pages in the segment"
+    " is given by (y-x). The number of free pages in the segment (x) will be"
+    " maintained such that the actual segment_reserve_factor will be >= the"
+    " requested segment_reserve_factor, which is contained in this variable.",
+    nullptr, nullptr, FSEG_RESERVE_PCT_DFLT, FSEG_RESERVE_PCT_MIN,
+    FSEG_RESERVE_PCT_MAX, 0);
+
 /* If the default value of innodb_buffer_pool_size is increased to be more than
 BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
 can be removed and 8 used instead. The problem with the current setup is that
@@ -22795,6 +22806,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(interpreter_output),
 #endif /* UNIV_DEBUG */
     MYSQL_SYSVAR(parallel_read_threads),
+    MYSQL_SYSVAR(segment_reserve_factor),
     nullptr};
 
 mysql_declare_plugin(innobase){

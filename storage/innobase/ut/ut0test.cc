@@ -53,6 +53,8 @@ Tester::Tester() noexcept {
   /* Kindly keep the commands in alphabetical order. */
   DISPATCH(corrupt_ondisk_page0);
   DISPATCH(corrupt_ondisk_root_page);
+  DISPATCH(count_page_type);
+  DISPATCH(count_used_and_free);
   DISPATCH(dblwr_force_crash);
   DISPATCH(find_fil_page_lsn);
   DISPATCH(find_flush_sync_lsn);
@@ -73,6 +75,85 @@ void Tester::init() noexcept {
   m_thd = current_thd;
   XLOG("Initialization successfully completed");
   set_output(sout);
+}
+
+void scan_page_type(space_id_t space_id,
+                    std::map<page_type_t, page_no_t> &result_map) {
+  mtr_t mtr;
+
+  bool found;
+  const page_size_t page_size = fil_space_get_page_size(space_id, &found);
+  ut_ad(found);
+  fil_space_t *space = fil_space_acquire(space_id);
+
+  for (page_no_t page_no = 0; page_no < space->size; ++page_no) {
+    const page_id_t page_id(space_id, page_no);
+    mtr_start(&mtr);
+    buf_block_t *block = buf_page_get(page_id, page_size, RW_S_LATCH, &mtr);
+    page_type_t page_type = block->get_page_type();
+    result_map[page_type]++;
+    mtr_commit(&mtr);
+  }
+
+  fil_space_release(space);
+}
+
+DISPATCH_FUNCTION_DEF(Tester::count_page_type) {
+  std::ostringstream sout;
+  mtr_t mtr;
+  std::map<page_type_t, page_no_t> result_map;
+
+  TLOG("Tester::count_page_type()");
+  ut_ad(tokens.size() == 2);
+  ut_ad(tokens[0] == "count_page_type");
+
+  const std::string space_name = tokens[1];
+
+  const space_id_t space_id = fil_space_get_id_by_name(space_name.c_str());
+
+  scan_page_type(space_id, result_map);
+
+  page_no_t total = 0;
+  for (auto it : result_map) {
+    sout << fil_get_page_type_str(it.first) << ": " << it.second << std::endl;
+    total += it.second;
+  }
+  sout << "Total: " << total << std::endl;
+  set_output(sout);
+
+  return RET_PASS;
+}
+
+DISPATCH_FUNCTION_DEF(Tester::count_used_and_free) {
+  std::ostringstream sout;
+  mtr_t mtr;
+  std::map<page_type_t, page_no_t> result_map;
+
+  TLOG("Tester::count_used_and_free()");
+  ut_ad(tokens.size() == 2);
+  ut_ad(tokens[0] == "count_used_and_free");
+
+  const std::string space_name = tokens[1];
+
+  const space_id_t space_id = fil_space_get_id_by_name(space_name.c_str());
+
+  scan_page_type(space_id, result_map);
+
+  page_no_t total = 0;
+  for (auto it : result_map) {
+    total += it.second;
+  }
+  const page_no_t pages_free = result_map[FIL_PAGE_TYPE_ALLOCATED];
+  const page_no_t used = total - pages_free;
+  const double fill_factor = (used / (double)total) * 100;
+  const double free_factor = (pages_free / (double)total) * 100;
+  sout << "Total= " << total << ", used=" << used << ", free=" << pages_free
+       << std::endl;
+  sout << "Fill factor= " << fill_factor << ", free factor= " << free_factor
+       << std::endl;
+  set_output(sout);
+
+  return RET_PASS;
 }
 
 dict_table_t *Tester::is_table_open(

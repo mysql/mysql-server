@@ -62,6 +62,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "srv0start.h"
 #include "trx0purge.h"
 
+double fseg_reserve_pct = FSEG_RESERVE_PCT_DFLT;
+
 #ifndef UNIV_HOTBACKUP
 
 #include "dd/types/tablespace.h"
@@ -2826,7 +2828,7 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
     goto got_hinted_page;
     /*-----------------------------------------------------------*/
   } else if (xdes_get_state(descr, mtr) == XDES_FREE &&
-             reserved - used < reserved / FSEG_FILLFACTOR &&
+             reserved - used < reserved * (fseg_reserve_pct / 100) &&
              used >= FSEG_FRAG_LIMIT) {
     /* 2. We allocate the free extent from space and can take
     =========================================================
@@ -2845,7 +2847,7 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
     goto take_hinted_page;
     /*-----------------------------------------------------------*/
   } else if ((direction != FSP_NO_DIR) &&
-             ((reserved - used) < reserved / FSEG_FILLFACTOR) &&
+             ((reserved - used) < reserved * (fseg_reserve_pct / 100)) &&
              (used >= FSEG_FRAG_LIMIT) &&
              (!!(ret_descr = fseg_alloc_free_extent(seg_inode, space_id,
                                                     page_size, mtr)))) {
