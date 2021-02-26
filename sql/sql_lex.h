@@ -3529,6 +3529,8 @@ public:
     return FALSE;
   }
 
+  void release_plugins();
+
   bool accept(Select_lex_visitor *visitor);
 
 };

@@ -173,6 +173,16 @@ public:
     that support the syntax @@keycache_name.variable_name
   */
   bool is_struct() { return option.var_type & GET_ASK_ADDR; }
+  /**
+    Indicates whether this system variable is written to the binlog or not.
+
+    Variables are written to the binlog as part of "status_vars" in
+    Query_log_event, as an Intvar_log_event, or a Rand_log_event.
+
+    @param type  Scope of the system variable.
+
+    @return true if the variable is written to the binlog, false otherwise.
+  */
   bool is_written_to_binlog(enum_var_type type)
   { return type != OPT_GLOBAL && binlog_status == SESSION_VARIABLE_IN_BINLOG; }
   virtual bool check_update_type(Item_result type) = 0;
@@ -231,6 +241,26 @@ protected:
   uchar *global_var_ptr();
 };
 
+class Sys_var_tracker
+{
+public:
+  explicit Sys_var_tracker(sys_var *var);
+
+  sys_var *bind_system_variable(THD *thd);
+
+  bool operator==(const Sys_var_tracker &x) const {
+    return m_var && m_var == x.m_var;
+  }
+
+  bool is_sys_var(sys_var *x) const { return m_var == x; }
+
+private:
+  const bool m_is_dynamic;   ///< true if dynamic variable
+  const LEX_CSTRING m_name;  ///< variable name
+
+  sys_var *m_var;  ///< variable pointer
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -251,6 +281,7 @@ public:
   virtual void print(THD *thd, String *str)=0;	/* To self-print */
   /// @returns whether this variable is @@@@optimizer_trace.
   virtual bool is_var_optimizer_trace() const { return false; }
+  virtual void cleanup() {}
 };
 
 
@@ -274,6 +305,10 @@ public:
   } save_result;
   LEX_STRING base; /**< for structured variables, like keycache_name.variable_name */
 
+private:
+  Sys_var_tracker var_tracker;
+
+public:
   set_var(enum_var_type type_arg, sys_var *var_arg,
           const LEX_STRING *base_name_arg, Item *value_arg);
 
@@ -285,9 +320,10 @@ public:
   virtual bool is_var_optimizer_trace() const
   {
     extern sys_var *Sys_optimizer_trace_ptr;
-    return var == Sys_optimizer_trace_ptr;
+    return var_tracker.is_sys_var(Sys_optimizer_trace_ptr);
   }
 #endif
+  virtual void cleanup() { var= NULL; }
 };
 
 

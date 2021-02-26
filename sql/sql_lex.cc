@@ -529,17 +529,24 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  if (!lex->plugins.empty()) /* No function call and no mutex if no plugins. */
-  {
-    plugin_unlock_list(0, lex->plugins.begin(), lex->plugins.size());
-  }
-  lex->plugins.clear();
+  lex->release_plugins();
 
   delete lex->sphead;
   lex->sphead= NULL;
 
   DBUG_VOID_RETURN;
 }
+
+
+void LEX::release_plugins()
+{
+  if (!plugins.empty()) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(0, plugins.begin(), plugins.size());
+    plugins.clear();
+  }
+}
+
 
 
 st_select_lex *LEX::new_empty_query_block()
