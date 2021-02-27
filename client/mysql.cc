@@ -37,6 +37,7 @@
  *
  **/
 
+#include <sys/time.h>
 #include "client_priv.h"
 #include "my_default.h"
 #include <m_ctype.h>
@@ -86,6 +87,12 @@ using std::min;
 using std::max;
 
 const char *VER= "14.14";
+
+/*The switch of the format time*/
+static my_bool opt_output_time_format=0;
+
+/*Define the execute command start and stop*/
+struct timeval execute_com_start, execute_com_end;
 
 /* Don't try to make a nice table if the data is too big */
 #define MAX_COLUMN_LENGTH	     1024
@@ -1641,6 +1648,7 @@ void window_resize(int sig)
 
 static struct my_option my_long_options[] =
 {
+  {"format-time-μs", 'Z',"return execute time by μs",0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
    0, 0, 0, 0, 0},
   {"help", 'I', "Synonym for -?", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -2126,6 +2134,9 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
   case '?':
     usage(0);
     exit(0);
+  case 'Z':
+      opt_output_time_format = 1;
+      break;
   }
   return 0;
 }
@@ -5595,12 +5606,19 @@ void tee_putc(int c, FILE *file)
 
 static ulong start_timer(void)
 {
-#if defined(_WIN32)
-  return clock();
-#else
-  struct tms tms_tmp;
-  return times(&tms_tmp);
-#endif
+    if (opt_output_time_format){
+        gettimeofday(&execute_com_start,NULL);
+        ulong execute_com_begin;
+        execute_com_begin = (ulong)execute_com_start.tv_sec * 1000000 + (ulong)execute_com_start.tv_usec;
+        return execute_com_begin;
+    }else{
+        #if defined(_WIN32)
+                return clock();
+        #else
+                struct tms tms_tmp;
+                return times(&tms_tmp);
+        #endif
+    }
 }
 
 
@@ -5639,11 +5657,31 @@ static void nice_time(double sec,char *buff,bool part_second)
     sprintf(buff,"%d sec",(int) sec);
 }
 
+/* rewrite nice_time*/
+static void execute_nice_time(double sec,char *buff,bool part_second)
+{
+    if (part_second){
+        if(sec<1000){
+            sprintf(buff,"%.1f μs",sec);
+        }else{
+            sprintf(buff,"%.1f ms",sec/1000);
+        }
+    }
+    else
+        sprintf(buff,"%d sec",(int) sec);
+}
+
 
 static void end_timer(ulong start_time,char *buff)
 {
-  nice_time((double) (start_timer() - start_time) /
-	    CLOCKS_PER_SEC,buff,1);
+    if (opt_output_time_format){
+        gettimeofday(&execute_com_end,NULL);
+        ulong execute_com_finish_time;
+        execute_com_finish_time = (ulong)execute_com_end.tv_sec * 1000000 + (ulong)execute_com_end.tv_usec;
+        execute_nice_time((double) (execute_com_finish_time - start_time),buff,1);
+    } else{
+        nice_time((double) (start_timer() - start_time) / CLOCKS_PER_SEC,buff,1);
+    }
 }
 
 
