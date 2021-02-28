@@ -1173,6 +1173,7 @@ static ulong start_timer(void);
 static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
+static void execute_nice_time(double μs,char *buff,bool part_second);
 static void kill_query(const char* reason);
 extern "C" void mysql_end(int sig);
 extern "C" void handle_ctrlc_signal(int sig);
@@ -5658,17 +5659,60 @@ static void nice_time(double sec,char *buff,bool part_second)
 }
 
 /* rewrite nice_time*/
-static void execute_nice_time(double sec,char *buff,bool part_second)
+//static void execute_nice_time(double sec,char *buff,bool part_second)
+//{
+//    if (part_second){
+//        if(sec<1000){
+//            sprintf(buff,"%.1f μs",sec);
+//        }else{
+//            sprintf(buff,"%.1f ms",sec/1000);
+//        }
+//    }
+//    else
+//        sprintf(buff,"%d sec",(int) sec);
+//}
+static void execute_nice_time(double μs,char *buff,bool part_second)
 {
-    if (part_second){
-        if(sec<1000){
-            sprintf(buff,"%.1f μs",sec);
-        }else{
-            sprintf(buff,"%.1f ms",sec/1000);
-        }
+    ulong tmp;
+    if (μs >= 3600.0*24*1000000)
+    {
+        tmp=(ulong) floor(μs/(3600.0*24*1000000));
+        μs-=3600.0*24*tmp*1000000;
+        buff=int10_to_str((long) tmp, buff, 10);
+        buff=my_stpcpy(buff,tmp > 1 ? " days " : " day ");
     }
+    if (μs >= 3600.0*1000000)
+    {
+        tmp=(ulong) floor(μs/(3600.0*1000000));
+        μs-=3600.0*tmp*1000000;
+        buff=int10_to_str((long) tmp, buff, 10);
+        buff=my_stpcpy(buff,tmp > 1 ? " hours " : " hour ");
+    }
+    if (μs >= 60.0*1000000)
+    {
+        tmp=(ulong) floor(μs/(60.0*1000000));
+        μs-=60.0*tmp*1000000;
+        buff=int10_to_str((long) tmp, buff, 10);
+        buff=my_stpcpy(buff," min ");
+    }
+    if (μs >= 1000000)
+    {
+        tmp=(ulong) floor(μs/1000000);
+        μs-=tmp*1000000;
+        buff=int10_to_str((long) tmp, buff, 10);
+        buff=my_stpcpy(buff," sec ");
+    }
+    if (μs >= 1000)
+    {
+        tmp=(ulong) floor(μs/1000);
+        μs-=tmp*1000;
+        buff=int10_to_str((long) tmp, buff, 10);
+        buff=my_stpcpy(buff," ms ");
+    }
+    if (part_second)
+        sprintf(buff,"%.1f μs",μs);
     else
-        sprintf(buff,"%d sec",(int) sec);
+        sprintf(buff,"%d μs",(int) μs);
 }
 
 
