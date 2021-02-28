@@ -5658,19 +5658,6 @@ static void nice_time(double sec,char *buff,bool part_second)
     sprintf(buff,"%d sec",(int) sec);
 }
 
-/* rewrite nice_time*/
-//static void execute_nice_time(double sec,char *buff,bool part_second)
-//{
-//    if (part_second){
-//        if(sec<1000){
-//            sprintf(buff,"%.1f μs",sec);
-//        }else{
-//            sprintf(buff,"%.1f ms",sec/1000);
-//        }
-//    }
-//    else
-//        sprintf(buff,"%d sec",(int) sec);
-//}
 static void execute_nice_time(double μs,char *buff,bool part_second)
 {
     ulong tmp;
