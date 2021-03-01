@@ -2324,12 +2324,16 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
 #if defined VM_TRACE || defined ERROR_INSERT
   if (cmaxLogFilesInPageZero_DUMP != 0)
   {
-    g_eventLogger->info("LQH DUMP 2396 %u", cmaxLogFilesInPageZero_DUMP);
     if (cmaxLogFilesInPageZero_DUMP > cmaxLogFilesInPageZero)
     {
-      g_eventLogger->info(": max allowed is %d", cmaxLogFilesInPageZero);
+      g_eventLogger->info("LQH DUMP 2396 %u: max allowed is %d",
+                          cmaxLogFilesInPageZero_DUMP, cmaxLogFilesInPageZero);
       // do not continue with useless test
       ndbabort();
+    }
+    else
+    {
+      g_eventLogger->info("LQH DUMP 2396 %u", cmaxLogFilesInPageZero_DUMP);
     }
     cmaxLogFilesInPageZero = cmaxLogFilesInPageZero_DUMP;
   }
