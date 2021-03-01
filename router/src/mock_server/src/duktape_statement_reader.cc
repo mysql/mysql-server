@@ -359,7 +359,7 @@ class DukHeap {
 //              std::shared_ptr<MockServerGlobalScope>)::{lambda(void*, char
 //              const*)#1}::__invoke(char const, {lambda(void*, char
 //              const*)#1})+0x28 [0xffffff02c0133bc8]
-#ifndef __SUNPRO_CC
+#ifndef __sun
       duk_dump_function(ctx);
       // store the compiled bytecode in our cache
       size_t sz;
@@ -368,7 +368,7 @@ class DukHeap {
 #endif
     }
 
-#ifndef __SUNPRO_CC
+#ifndef __sun
     duk_load_function(ctx);
 #endif
 
