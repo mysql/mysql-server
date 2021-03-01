@@ -1002,11 +1002,27 @@ const CodecParam<classic_protocol::message::client::Greeting>
                  0x01, 0xdb, 0xba, 0x87, 0xdd, 0xc6, 0xd0, '8',
                  'p',  'q',  0x18, '(',  '\''  // auth-method-data
              }},
-            {"3_23_58",
+            {"3_23_58_empty_schema_server_no_schema",
+             {0x240d, 0, 0, "root", "H]^CSVY[", "", "", ""},
+             {},           // server doesn't support "connect_with_schema"
+             {0x0d, 0x24,  // caps (connect_with_schema set)
+              0, 0, 0,     // max-packet-size
+              'r', 'o', 'o', 't', 0,  // username
+              'H', ']', '^', 'C', 'S', 'V', 'Y', '['}},
+            {"3_23_58_no_schema",
              {0x2405, 0, 0, "root", "H]^CSVY[", "", "", ""},
-             {},
-             {'\5', '$', 0, 0, 0, 'r', 'o', 'o', 't', 0, 'H', ']', '^', 'C',
-              'S', 'V', 'Y', '['}},
+             classic_protocol::capabilities::connect_with_schema,
+             {0x05, 0x24,             // caps (no connect_with_schema)
+              0, 0, 0,                // max-packet-size
+              'r', 'o', 'o', 't', 0,  // username
+              'H', ']', '^', 'C', 'S', 'V', 'Y', '['}},
+            {"3_23_58_empty_schema",
+             {0x240d, 0, 0, "root", "H]^CSVY[", "", "", ""},
+             classic_protocol::capabilities::connect_with_schema,
+             {0x0d, 0x24,             // caps (connect-with-schema set)
+              0, 0, 0,                // max-packet-size
+              'r', 'o', 'o', 't', 0,  // username
+              'H', ']', '^', 'C', 'S', 'V', 'Y', '[', '\0'}},
             {"3_23_58_with_schema",
              {0x240d, 0, 0, "root", "H]^CSVY[", "foobar", "", ""},
              classic_protocol::capabilities::connect_with_schema,

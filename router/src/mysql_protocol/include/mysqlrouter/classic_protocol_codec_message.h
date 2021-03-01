@@ -2197,7 +2197,8 @@ class Codec<message::client::Greeting>
       stdx::expected<wire::String, std::error_code> auth_method_data_res;
       stdx::expected<wire::String, std::error_code> schema_res;
 
-      if (caps[classic_protocol::capabilities::pos::connect_with_schema]) {
+      if (shared_capabilities
+              [classic_protocol::capabilities::pos::connect_with_schema]) {
         auto res = accu.template step<wire::NulTermString>();
         if (!res) return stdx::make_unexpected(res.error());
 
