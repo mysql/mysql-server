@@ -612,7 +612,7 @@ static bool prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
                                     TABLE *table, Field *pfname, QEP_TAB *tab) {
   Item *cond = new Item_func_like(
       new Item_field(pfname), new Item_string(mask, mlen, pfname->charset()),
-      new Item_string("\\", 1, &my_charset_latin1), false);
+      new Item_string("\\", 1, &my_charset_latin1));
   if (thd->is_fatal_error()) return true; /* purecov: inspected */
   return prepare_simple_query_block(thd, cond, table, tab);
 }

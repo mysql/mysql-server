@@ -93,7 +93,26 @@ class Item_func : public Item_result_field {
      the constructor.
   */
   Item **args;
+
+ private:
   Item *m_embedded_arguments[2];
+
+  /// Allocates space for the given number of arguments, if needed. Uses
+  /// #m_embedded_arguments if it's big enough.
+  bool alloc_args(MEM_ROOT *mem_root, unsigned num_args) {
+    if (num_args <= array_elements(m_embedded_arguments)) {
+      args = m_embedded_arguments;
+    } else {
+      args = mem_root->ArrayAlloc<Item *>(num_args);
+      if (args == nullptr) {
+        // OOM
+        arg_count = 0;
+        return true;
+      }
+    }
+    arg_count = num_args;
+    return false;
+  }
 
  public:
   uint arg_count;  ///< How many arguments in 'args'
@@ -305,85 +324,67 @@ class Item_func : public Item_result_field {
   }
 
   Item_func(Item *a, Item *b, Item *c) {
-    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 3))) {
-      arg_count = 3;
-      args[0] = a;
-      args[1] = b;
-      args[2] = c;
-      m_accum_properties = 0;
-      add_accum_properties(a);
-      add_accum_properties(b);
-      add_accum_properties(c);
-    } else
-      arg_count = 0;  // OOM
+    if (alloc_args(*THR_MALLOC, 3)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    m_accum_properties = 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
+    add_accum_properties(c);
   }
 
   Item_func(const POS &pos, Item *a, Item *b, Item *c)
       : Item_result_field(pos) {
-    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 3))) {
-      arg_count = 3;
-      args[0] = a;
-      args[1] = b;
-      args[2] = c;
-    } else
-      arg_count = 0;  // OOM
+    if (alloc_args(*THR_MALLOC, 3)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
   }
 
   Item_func(Item *a, Item *b, Item *c, Item *d) {
-    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 4))) {
-      arg_count = 4;
-      args[0] = a;
-      args[1] = b;
-      args[2] = c;
-      args[3] = d;
-      m_accum_properties = 0;
-      add_accum_properties(a);
-      add_accum_properties(b);
-      add_accum_properties(c);
-      add_accum_properties(d);
-    } else
-      arg_count = 0;  // OOM
+    if (alloc_args(*THR_MALLOC, 4)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    m_accum_properties = 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
+    add_accum_properties(c);
+    add_accum_properties(d);
   }
 
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : Item_result_field(pos) {
-    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 4))) {
-      arg_count = 4;
-      args[0] = a;
-      args[1] = b;
-      args[2] = c;
-      args[3] = d;
-    } else
-      arg_count = 0;  // OOM
+    if (alloc_args(*THR_MALLOC, 4)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
   }
   Item_func(Item *a, Item *b, Item *c, Item *d, Item *e) {
-    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 5))) {
-      arg_count = 5;
-      args[0] = a;
-      args[1] = b;
-      args[2] = c;
-      args[3] = d;
-      args[4] = e;
-      m_accum_properties = 0;
-      add_accum_properties(a);
-      add_accum_properties(b);
-      add_accum_properties(c);
-      add_accum_properties(d);
-      add_accum_properties(e);
-    } else
-      arg_count = 0;  // OOM
+    if (alloc_args(*THR_MALLOC, 5)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
+    m_accum_properties = 0;
+    add_accum_properties(a);
+    add_accum_properties(b);
+    add_accum_properties(c);
+    add_accum_properties(d);
+    add_accum_properties(e);
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
       : Item_result_field(pos) {
-    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 5))) {
-      arg_count = 5;
-      args[0] = a;
-      args[1] = b;
-      args[2] = c;
-      args[3] = d;
-      args[4] = e;
-    } else
-      arg_count = 0;  // OOM
+    if (alloc_args(*THR_MALLOC, 5)) return;
+    args[0] = a;
+    args[1] = b;
+    args[2] = c;
+    args[3] = d;
+    args[4] = e;
   }
   explicit Item_func(mem_root_deque<Item *> *list) {
     set_arguments(list, false);
@@ -437,8 +438,9 @@ class Item_func : public Item_result_field {
     @param context_free   true: for use in context-independent
                           constructors (Item_func(POS,...)) i.e. for use
                           in the parser
+    @return true on OOM, false otherwise
   */
-  void set_arguments(mem_root_deque<Item *> *list, bool context_free);
+  bool set_arguments(mem_root_deque<Item *> *list, bool context_free);
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;
   void print(const THD *thd, String *str,

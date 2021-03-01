@@ -427,12 +427,7 @@ Item_sum::Item_sum(THD *thd, const Item_sum *item)
       aggr_query_block(item->aggr_query_block),
       allow_group_via_temp_table(item->allow_group_via_temp_table),
       forced_const(item->forced_const) {
-  arg_count = item->arg_count;
-  if (arg_count <= 2)
-    args = m_embedded_arguments;
-  else if (!(args = (Item **)thd->alloc(sizeof(Item *) * arg_count)))
-    return;
-  memcpy(args, item->args, sizeof(Item *) * arg_count);
+  assert(arg_count == item->arg_count);
   with_distinct = item->with_distinct;
   if (item->aggr) {
     Item_sum::set_aggregator(item->aggr->Aggrtype());

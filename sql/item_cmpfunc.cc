@@ -650,9 +650,7 @@ bool Item_bool_func2::convert_constant_arg(THD *thd, Item *field, Item **item,
         (*item)->result_type() == STRING_RESULT)) {
     if (convert_constant_item(thd, field_item, item, converted)) return true;
     if (*converted) {
-      if (cmp.set_cmp_func(this, m_embedded_arguments, m_embedded_arguments + 1,
-                           INT_RESULT))
-        return true;
+      if (cmp.set_cmp_func(this, args, args + 1, INT_RESULT)) return true;
       field->cmp_context = (*item)->cmp_context = INT_RESULT;
     }
   }
@@ -765,7 +763,16 @@ bool Item_func_like::resolve_type(THD *thd) {
   return false;
 }
 
-Item *Item_func_like::replace_scalar_subquery(uchar *) { return this; }
+Item *Item_func_like::replace_scalar_subquery(uchar *) {
+  // Replacing a scalar subquery with a reference to a column in a derived table
+  // could change the constness. Check that the ESCAPE clause is still
+  // const_for_execution().
+  if (escape_was_used_in_parsing() && !args[2]->const_for_execution()) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+    return nullptr;
+  }
+  return this;
+}
 
 Item *Item_bool_func2::replace_scalar_subquery(uchar *) {
   (void)set_cmp_func();
@@ -6197,22 +6204,6 @@ float Item_func_like::get_filtering_effect(THD *, table_map filter_for_table,
                                                   COND_FILTER_BETWEEN);
 }
 
-bool Item_func_like::itemize(Parse_context *pc, Item **res) {
-  if (skip_itemize(res)) return false;
-  if (super::itemize(pc, res) ||
-      (escape_item != nullptr && escape_item->itemize(pc, &escape_item)))
-    return true;
-
-  if (escape_item == nullptr) {
-    THD *thd = pc->thd;
-    escape_item =
-        ((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
-             ? new (pc->mem_root) Item_string("", 0, &my_charset_latin1)
-             : new (pc->mem_root) Item_string("\\", 1, &my_charset_latin1));
-  }
-  return escape_item == nullptr;
-}
-
 longlong Item_func_like::val_int() {
   assert(fixed == 1);
 
@@ -6301,17 +6292,15 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
 
   args[0]->real_item()->set_can_use_prefix_key();
 
-  if (Item_bool_func2::fix_fields(thd, ref) ||
-      fix_func_arg(thd, &escape_item)) {
+  if (Item_bool_func2::fix_fields(thd, ref)) {
     fixed = false;
     return true;
   }
 
-  if (param_type_is_default(thd, 0, 1)) return true;
-  if (escape_item->propagate_type(thd)) return true;
+  if (param_type_is_default(thd, 0, arg_count)) return true;
 
   // ESCAPE clauses that vary per row are not valid:
-  if (!escape_item->const_for_execution()) {
+  if (arg_count > 2 && !args[2]->const_for_execution()) {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
     return true;
   }
@@ -6323,11 +6312,12 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
     TODO: If we move this into escape_is_evaluated(), which is called later,
     it could be that we could optimize more cases.
   */
-  escape_is_const = escape_item->const_item();
-  if (escape_is_const &&
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
-    if (eval_escape_clause(thd)) return true;
-    if (check_covering_prefix_keys(thd)) return true;
+  if (!escape_was_used_in_parsing() || args[2]->const_item()) {
+    escape_is_const = true;
+    if (!(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) {
+      if (eval_escape_clause(thd)) return true;
+      if (check_covering_prefix_keys(thd)) return true;
+    }
   }
 
   return false;
@@ -6346,60 +6336,88 @@ void Item_func_like::cleanup() {
  */
 bool Item_func_like::eval_escape_clause(THD *thd) {
   assert(!escape_evaluated);
+  escape_evaluated = true;
 
+  const bool no_backslash_escapes =
+      thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES;
+
+  // No ESCAPE clause is specified. The default escape character is backslash,
+  // unless NO_BACKSLASH_ESCAPES mode is enabled.
+  if (!escape_was_used_in_parsing()) {
+    m_escape = no_backslash_escapes ? 0 : '\\';
+    return false;
+  }
+
+  Item *escape_item = args[2];
   String buf;
-  String *escape_str = escape_item->val_str(&buf);
+  const String *escape_str = escape_item->val_str(&buf);
   if (thd->is_error()) return true;
-  if (escape_str) {
-    const char *escape_str_ptr = escape_str->ptr();
-    if (escape_used_in_parsing &&
-        ((((thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
-           escape_str->numchars() != 1) ||
-          escape_str->numchars() > 1))) {
+
+  // Use backslash as escape character if the escape clause evaluates to NULL.
+  // (For backward compatibility. The SQL standard says the LIKE expression
+  // should evaluate to NULL in this case.)
+  if (escape_item->null_value) {
+    m_escape = '\\';
+    return false;
+  }
+
+  // An empty escape sequence means there is no escape character. An empty
+  // escape sequence is not accepted in NO_BACKSLASH_ESCAPES mode.
+  if (escape_str->is_empty()) {
+    if (no_backslash_escapes) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
       return true;
     }
+    m_escape = 0;
+    return false;
+  }
 
-    if (use_mb(cmp.cmp_collation.collation)) {
-      const CHARSET_INFO *cs = escape_str->charset();
-      my_wc_t wc;
-      int rc =
-          cs->cset->mb_wc(cs, &wc, (const uchar *)escape_str_ptr,
-                          (const uchar *)escape_str_ptr + escape_str->length());
-      m_escape = static_cast<int>(rc > 0 ? wc : '\\');
-    } else {
-      /*
-        In the case of 8bit character set, we pass native
-        code instead of Unicode code as "escape" argument.
-        Convert to "cs" if charset of escape differs.
-      */
-      const CHARSET_INFO *cs = cmp.cmp_collation.collation;
-      size_t unused;
-      if (escape_str->needs_conversion(escape_str->length(),
-                                       escape_str->charset(), cs, &unused)) {
-        char ch;
-        uint errors;
-        size_t cnvlen =
-            copy_and_convert(&ch, 1, cs, escape_str_ptr, escape_str->length(),
-                             escape_str->charset(), &errors);
-        m_escape = cnvlen ? static_cast<uchar>(ch) : '\\';
-      } else
-        m_escape = escape_str_ptr ? static_cast<uchar>(*escape_str_ptr) : '\\';
+  // Accept at most one character.
+  if (escape_str->numchars() > 1) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+    return true;
+  }
+
+  const char *escape_str_ptr = escape_str->ptr();
+
+  // For multi-byte character sets, we store the Unicode code point of the
+  // escape character.
+  if (use_mb(cmp.cmp_collation.collation)) {
+    const CHARSET_INFO *cs = escape_str->charset();
+    my_wc_t wc;
+    int rc = cs->cset->mb_wc(
+        cs, &wc, pointer_cast<const uchar *>(escape_str_ptr),
+        pointer_cast<const uchar *>(escape_str_ptr) + escape_str->length());
+    if (rc <= 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+      return true;
     }
-  } else
-    m_escape = '\\';
+    m_escape = wc;
+    return false;
+  }
 
-  escape_evaluated = true;
+  // For single-byte character sets, we store the native code instead of the
+  // Unicode code point. The escape character is converted to the character set
+  // of the comparator if they differ.
+  const CHARSET_INFO *cs = cmp.cmp_collation.collation;
+  size_t unused;
+  if (escape_str->needs_conversion(escape_str->length(), escape_str->charset(),
+                                   cs, &unused)) {
+    char ch;
+    uint errors;
+    size_t cnvlen =
+        copy_and_convert(&ch, 1, cs, escape_str_ptr, escape_str->length(),
+                         escape_str->charset(), &errors);
+    if (cnvlen == 0) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
+      return true;
+    }
+    m_escape = static_cast<uchar>(ch);
+  } else {
+    m_escape = static_cast<uchar>(escape_str_ptr[0]);
+  }
 
   return false;
-}
-
-void Item_func_like::update_used_tables() {
-  Item_bool_func2::update_used_tables();
-  escape_item->update_used_tables();
-  used_tables_cache |= escape_item->used_tables();
-  add_accum_properties(escape_item);
-  if (null_on_null) not_null_tables_cache |= escape_item->not_null_tables();
 }
 
 void Item_func_like::print(const THD *thd, String *str,
@@ -6408,9 +6426,9 @@ void Item_func_like::print(const THD *thd, String *str,
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" like "));
   args[1]->print(thd, str, query_type);
-  if (escape_was_used_in_parsing()) {
+  if (arg_count > 2) {
     str->append(STRING_WITH_LEN(" escape "));
-    escape_item->print(thd, str, query_type);
+    args[2]->print(thd, str, query_type);
   }
   str->append(')');
 }
