@@ -338,7 +338,7 @@ class MySQLSession {
     virtual void log(const std::string &msg) override;
   };
 
-  MySQLSession(std::unique_ptr<LoggingStrategy> &&logging_strategy =
+  MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy =
                    std::make_unique<LoggingStrategyNone>());
   virtual ~MySQLSession();
 
