@@ -412,7 +412,8 @@ class Codec<message::server::Ok>
     stdx::expected<wire::String, std::error_code> message_res;
     stdx::expected<wire::VarString, std::error_code> session_changes_res;
     if (caps[capabilities::pos::session_track]) {
-      auto var_message_res = accu.template step<wire::VarString>();
+      // if there is more data.
+      const auto var_message_res = accu.template try_step<wire::VarString>();
       if (var_message_res) {
         // set the message from the var-string
         message_res = var_message_res.value();
@@ -477,9 +478,14 @@ class Codec<message::server::Eof>
       }
 
       if (caps()[capabilities::pos::session_track]) {
-        accu.step(wire::VarString(v_.message()));
-        if (v_.status_flags()[status::pos::session_state_changed]) {
-          accu.step(wire::VarString(v_.session_changes()));
+        if (!v_.message().empty() ||
+            v_.status_flags()[status::pos::session_state_changed]) {
+          // only write message and session-changes if both of them aren't
+          // empty.
+          accu.step(wire::VarString(v_.message()));
+          if (v_.status_flags()[status::pos::session_state_changed]) {
+            accu.step(wire::VarString(v_.session_changes()));
+          }
         }
       } else {
         accu.step(wire::String(v_.message()));
@@ -551,7 +557,9 @@ class Codec<message::server::Eof>
       stdx::expected<wire::String, std::error_code> message_res;
       stdx::expected<wire::VarString, std::error_code> session_state_info_res;
       if (caps[capabilities::pos::session_track]) {
-        const auto var_message_res = accu.template step<wire::VarString>();
+        // when session-track is supported, the 'message' part is a VarString.
+        // But only if there is actually session-data and the message has data.
+        const auto var_message_res = accu.template try_step<wire::VarString>();
         if (var_message_res) {
           // set the message from the var-string
           message_res = var_message_res.value();

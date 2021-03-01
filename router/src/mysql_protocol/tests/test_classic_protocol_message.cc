@@ -29,6 +29,7 @@
 
 #include <gtest/gtest.h>
 
+#include "mysqlrouter/classic_protocol_constants.h"
 #include "test_classic_protocol_codec.h"
 
 // string_literals are supposed to solve the same problem, but they are broken
@@ -178,16 +179,77 @@ TEST_P(CodecMessageServerEofTest, decode) { test_decode(GetParam()); }
 const CodecParam<classic_protocol::message::server::Eof> codec_eof_param[] = {
     {"3_23", {}, {}, {0xfe}},
     {"4_1",
-     {classic_protocol::status::more_results_exist |
-          classic_protocol::status::autocommit,
-      1},
+     {
+         classic_protocol::status::more_results_exist |
+             classic_protocol::status::autocommit,  // flags
+         1                                          // warning_count
+     },
      classic_protocol::capabilities::protocol_41,
      {0xfe, 0x01, 0x00, 0x0a, 0x00}},
     {"5_7",
-     {classic_protocol::status::autocommit, 1},
+     {
+         classic_protocol::status::autocommit,  // flags
+         1                                      // warning_count
+     },
      classic_protocol::capabilities::text_result_with_session_tracking |
          classic_protocol::capabilities::protocol_41,
      {0xfe, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00}},
+    {"session_tracking",
+     {classic_protocol::status::autocommit |
+          classic_protocol::status::more_results_exist |
+          classic_protocol::status::ps_out_params |
+          classic_protocol::status::session_state_changed,  // flags
+      0,                                                    // warning_count
+      "",                                                   // message
+      {S("\1\1\0")}},                                       // session-changes
+     classic_protocol::capabilities::text_result_with_session_tracking |
+         classic_protocol::capabilities::transactions |
+         classic_protocol::capabilities::session_track |
+         classic_protocol::capabilities::protocol_41,
+     {0xfe,        // EOF
+      0x00, 0x00,  // affected-rows, last-insert-id
+      0x0a, 0x50,  // status-flags
+      0x00, 0x00,  // warning-count
+      0x00,        // message
+      0x03, 0x01, 0x01, 0x00}},
+    {"session_tracking_empty_message_and_session_track",
+     {classic_protocol::status::autocommit |
+          classic_protocol::status::more_results_exist |
+          classic_protocol::status::ps_out_params |
+          classic_protocol::status::session_state_changed,  // flags
+      0,                                                    // warning_count
+      {},                                                   // message
+      {}},                                                  // session-changes
+     classic_protocol::capabilities::text_result_with_session_tracking |
+         classic_protocol::capabilities::transactions |
+         classic_protocol::capabilities::session_track |
+         classic_protocol::capabilities::protocol_41,
+     {
+         0xfe,        // EOF
+         0x00, 0x00,  // affected-rows, last-insert-id
+         0x0a, 0x50,  // status-flags
+         0x00, 0x00,  // warning-count
+         0x00,        // message
+         0x00,        // session-track
+     }},
+    {"session_tracking_supported_but_no_session_track_used",
+     {classic_protocol::status::autocommit |
+          classic_protocol::status::more_results_exist |
+          classic_protocol::status::ps_out_params,  // flags
+      0,                                            // warning_count
+      {},                                           // message
+      {}},                                          // session-changes
+     classic_protocol::capabilities::text_result_with_session_tracking |
+         classic_protocol::capabilities::transactions |
+         classic_protocol::capabilities::session_track |
+         classic_protocol::capabilities::protocol_41,
+     {
+         0xfe,        // EOF
+         0x00, 0x00,  // affected-rows, last-insert-id
+         0x0a, 0x10,  // status-flags
+         0x00, 0x00,  // warning-count
+         // as 'message' is empty and it is the last byte, it is not sent.
+     }},
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageServerEofTest,

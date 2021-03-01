@@ -251,6 +251,11 @@ class Eof : public Ok {
   // 4.1-like constructor
   Eof(classic_protocol::status::value_type status_flags, uint16_t warning_count)
       : Ok(0, 0, status_flags, warning_count) {}
+
+  Eof(classic_protocol::status::value_type status_flags, uint16_t warning_count,
+      std::string message, std::string session_changes)
+      : Ok(0, 0, status_flags, warning_count, std::move(message),
+           std::move(session_changes)) {}
 };
 
 /**
