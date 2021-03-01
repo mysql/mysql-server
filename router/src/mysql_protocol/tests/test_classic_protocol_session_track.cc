@@ -41,7 +41,7 @@ using CodecSessiontrackSchemaTest =
 TEST_P(CodecSessiontrackSchemaTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackSchemaTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::Schema>
+const CodecParam<classic_protocol::session_track::Schema>
     codec_sessiontrack_schema_param[] = {
         {"foo", {"foo"}, {}, {0x03, 'f', 'o', 'o'}},
 };
@@ -64,7 +64,7 @@ TEST_P(CodecSessiontrackTransactionStateTest, decode) {
   test_decode(GetParam());
 }
 
-CodecParam<classic_protocol::session_track::TransactionState>
+const CodecParam<classic_protocol::session_track::TransactionState>
     codec_sessiontrack_transactionstate_param[] = {
         {"all_flags_explicit_trx",
          {'T', 'r', 'R', 'w', 'W', 's', 'S', 'L'},
@@ -95,9 +95,14 @@ using CodecSessiontrackStateTest =
 TEST_P(CodecSessiontrackStateTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackStateTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::State>
+const CodecParam<classic_protocol::session_track::State>
     codec_sessiontrack_state_param[] = {
-        {"1", {"1"}, {}, {0x01, '1'}},
+        {
+            "1",    // testname
+            {'1'},  // decoded
+            {},     // caps
+            {'1'}   // encoded
+        },
 };
 
 INSTANTIATE_TEST_SUITE_P(Spec, CodecSessiontrackStateTest,
@@ -114,7 +119,7 @@ using CodecSessiontrackSystemVariableTest =
 TEST_P(CodecSessiontrackSystemVariableTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackSystemVariableTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::SystemVariable>
+const CodecParam<classic_protocol::session_track::SystemVariable>
     codec_sessiontrack_systemvariable_param[] = {
         {"autocommit_on",
          {"autocommit", "ON"},
@@ -138,7 +143,7 @@ using CodecSessiontrackFieldTest =
 TEST_P(CodecSessiontrackFieldTest, encode) { test_encode(GetParam()); }
 TEST_P(CodecSessiontrackFieldTest, decode) { test_decode(GetParam()); }
 
-CodecParam<classic_protocol::session_track::Field>
+const CodecParam<classic_protocol::session_track::Field>
     codec_sessiontrack_field_param[] = {
         {"with_session_state_info",
          {0, S("\nautocommit\2ON")},

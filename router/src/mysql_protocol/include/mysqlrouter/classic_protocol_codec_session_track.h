@@ -168,7 +168,7 @@ class Codec<session_track::State>
     : public impl::EncodeBase<Codec<session_track::State>> {
   template <class Accumulator>
   auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarString(v_.state())).result();
+    return accu.step(wire::FixedInt<1>(v_.state())).result();
   }
 
  public:
@@ -196,7 +196,7 @@ class Codec<session_track::State>
       const ConstBufferSequence &buffers, capabilities::value_type caps) {
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
-    auto state_res = accu.template step<wire::VarString>();
+    auto state_res = accu.template step<wire::FixedInt<1>>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 

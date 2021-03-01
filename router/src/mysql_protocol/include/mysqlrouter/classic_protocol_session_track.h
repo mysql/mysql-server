@@ -102,15 +102,15 @@ inline bool operator==(const Schema &a, const Schema &b) {
  */
 class State {
  public:
-  State(std::string state) : state_{std::move(state)} {}
+  constexpr State(int8_t state) : state_{std::move(state)} {}
 
-  std::string state() const noexcept { return state_; }
+  constexpr int8_t state() const noexcept { return state_; }
 
  private:
-  std::string state_;
+  int8_t state_;
 };
 
-inline bool operator==(const State &a, const State &b) {
+constexpr inline bool operator==(const State &a, const State &b) {
   return (a.state() == b.state());
 }
 
