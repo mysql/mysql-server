@@ -82,7 +82,7 @@ class Codec<session_track::TransactionState>
                   "buffers MUST be a const buffer sequence");
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
-    const auto try_type_res = accu.template step<wire::FixedInt<1>>();
+    const auto trx_type_res = accu.template step<wire::FixedInt<1>>();
     const auto read_unsafe_res = accu.template step<wire::FixedInt<1>>();
     const auto read_trx_res = accu.template step<wire::FixedInt<1>>();
     const auto write_unsafe_res = accu.template step<wire::FixedInt<1>>();
@@ -95,7 +95,7 @@ class Codec<session_track::TransactionState>
 
     return std::make_pair(
         accu.result().value(),
-        value_type(try_type_res->value(), read_unsafe_res->value(),
+        value_type(trx_type_res->value(), read_unsafe_res->value(),
                    read_trx_res->value(), write_unsafe_res->value(),
                    write_trx_res->value(), stmt_unsafe_res->value(),
                    resultset_res->value(), locked_tables_res->value()));
@@ -116,7 +116,7 @@ class Codec<session_track::TransactionCharacteristics>
           Codec<session_track::TransactionCharacteristics>> {
   template <class Accumulator>
   auto accumulate_fields(Accumulator &&accu) const {
-    return accu.step(wire::VarString(v_.statements())).result();
+    return accu.step(wire::VarString(v_.trx_state())).result();
   }
 
  public:
@@ -146,12 +146,12 @@ class Codec<session_track::TransactionCharacteristics>
                   "buffers MUST be a const buffer sequence");
     impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
 
-    const auto statements_res = accu.template step<wire::VarString>();
+    const auto characteristics_res = accu.template step<wire::VarString>();
 
     if (!accu.result()) return stdx::make_unexpected(accu.result().error());
 
     return std::make_pair(accu.result().value(),
-                          value_type(statements_res->value()));
+                          value_type(characteristics_res->value()));
   }
 
  private:

@@ -221,18 +221,19 @@ inline bool operator==(const TransactionState &a, const TransactionState &b) {
  */
 class TransactionCharacteristics {
  public:
-  TransactionCharacteristics(std::string statements)
-      : statements_{std::move(statements)} {}
+  TransactionCharacteristics(std::string trx_state)
+      : trx_state_{std::move(trx_state)} {}
 
-  std::string statements() const { return statements_; }
+  // encoded VarString of TransactionState
+  std::string trx_state() const { return trx_state_; }
 
  private:
-  std::string statements_;
+  std::string trx_state_;
 };
 
 inline bool operator==(const TransactionCharacteristics &a,
                        const TransactionCharacteristics &b) {
-  return (a.statements() == b.statements());
+  return (a.trx_state() == b.trx_state());
 }
 
 }  // namespace session_track
