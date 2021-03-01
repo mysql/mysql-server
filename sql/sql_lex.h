@@ -98,6 +98,7 @@ class Alter_info;
 class Event_parse_data;
 class Field;
 class Item_cond;
+class Item_func_get_system_var;
 class Item_func_match;
 class Item_func_set_user_var;
 class Item_rollup_group_item;
@@ -3695,6 +3696,9 @@ struct LEX : public Query_tables_list {
       Plugins_array;
   Plugins_array plugins;
 
+  Prealloced_array<Item_func_get_system_var *, 1> plugin_var_bind_list{
+      PSI_NOT_INSTRUMENTED};
+
   /// Table being inserted into (may be a view)
   TABLE_LIST *insert_table;
   /// Leaf table being inserted into (always a base table)
@@ -4237,6 +4241,11 @@ struct LEX : public Query_tables_list {
     }
     return false;
   }
+
+  void release_plugins();
+
+  bool add_plugin_var(Item_func_get_system_var *);
+  bool rebind_plugin_vars(THD *);
 
   /**
     IS schema queries read some dynamic table statistics from SE.

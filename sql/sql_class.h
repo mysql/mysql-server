@@ -316,6 +316,12 @@ class Query_arena {
   char *strmake(const char *str, size_t size) const {
     return strmake_root(mem_root, str, size);
   }
+  LEX_CSTRING strmake(LEX_CSTRING str) {
+    LEX_CSTRING ret;
+    ret.str = strmake(str.str, str.length);
+    ret.length = ret.str ? str.length : 0;
+    return ret;
+  }
   void *memdup(const void *str, size_t size) {
     return memdup_root(mem_root, str, size);
   }

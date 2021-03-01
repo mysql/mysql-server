@@ -492,6 +492,8 @@ void LEX::reset() {
   grant_as.cleanup();
   alter_user_attribute = enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
   m_is_replication_deprecated_syntax_used = false;
+
+  plugin_var_bind_list.clear();
 }
 
 /**
@@ -532,14 +534,31 @@ void lex_end(LEX *lex) {
   DBUG_PRINT("enter", ("lex: %p", lex));
 
   /* release used plugins */
-  if (!lex->plugins.empty()) /* No function call and no mutex if no plugins. */
-  {
-    plugin_unlock_list(nullptr, lex->plugins.begin(), lex->plugins.size());
-  }
-  lex->plugins.clear();
+  lex->release_plugins();
 
   sp_head::destroy(lex->sphead);
   lex->sphead = nullptr;
+}
+
+void LEX::release_plugins() {
+  if (!plugins.empty()) /* No function call and no mutex if no plugins. */
+  {
+    plugin_unlock_list(nullptr, plugins.begin(), plugins.size());
+    plugins.clear();
+  }
+}
+
+bool LEX::add_plugin_var(Item_func_get_system_var *item) {
+  return plugin_var_bind_list.push_back(item);
+}
+
+bool LEX::rebind_plugin_vars(THD *thd) {
+  for (Item_func_get_system_var *item : plugin_var_bind_list) {
+    if (item->bind(thd)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

@@ -6921,20 +6921,26 @@ Item_func_get_system_var::Item_func_get_system_var(sys_var *var_arg,
                                                    LEX_STRING *component_arg,
                                                    const char *name_arg,
                                                    size_t name_len_arg)
-    : var(var_arg),
+    : var(nullptr),
       var_type(var_type_arg),
       orig_var_type(var_type_arg),
       component(*component_arg),
-      cache_present(0) {
+      cache_present(0),
+      var_tracker(var_arg) {
   /* copy() will allocate the name */
   item_name.copy(name_arg, (uint)name_len_arg);
 }
 
-bool Item_func_get_system_var::is_written_to_binlog() {
-  return var->is_written_to_binlog(var_type);
-}
+bool Item_func_get_system_var::resolve_type(THD *thd) {
+  if (var == nullptr) {  // bind sys_var for the 1st time
+    var = var_tracker.bind_system_variable(thd);
+    if (var == nullptr) {
+      return true;
+    }
+    if (var_tracker.is_plugin_var() && thd->lex->add_plugin_var(this))
+      return true;  // OOM
+  }
 
-bool Item_func_get_system_var::resolve_type(THD *) {
   set_nullable(true);
 
   if (!var->check_scope(var_type)) {
@@ -7080,6 +7086,7 @@ longlong Item_func_get_system_var::val_int() {
   Audit_global_variable_get_event audit_sys_var(thd, this,
                                                 GET_SYS_VAR_CACHE_LONG);
   assert(fixed);
+  assert(var != nullptr);
 
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_LONG) {
@@ -7159,6 +7166,8 @@ String *Item_func_get_system_var::val_str(String *str) {
   Audit_global_variable_get_event audit_sys_var(thd, this,
                                                 GET_SYS_VAR_CACHE_STRING);
   assert(fixed);
+
+  assert(var != nullptr);
 
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_STRING) {
@@ -7243,6 +7252,7 @@ double Item_func_get_system_var::val_real() {
   Audit_global_variable_get_event audit_sys_var(thd, this,
                                                 GET_SYS_VAR_CACHE_DOUBLE);
   assert(fixed);
+  assert(var != nullptr);
 
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_DOUBLE) {
@@ -7329,7 +7339,7 @@ bool Item_func_get_system_var::eq(const Item *item, bool) const {
     return false;
   const Item_func_get_system_var *other =
       down_cast<const Item_func_get_system_var *>(item);
-  return (var == other->var && var_type == other->var_type);
+  return (var_tracker == other->var_tracker && var_type == other->var_type);
 }
 
 void Item_func_get_system_var::cleanup() {
@@ -7337,6 +7347,19 @@ void Item_func_get_system_var::cleanup() {
   cache_present = 0;
   var_type = orig_var_type;
   cached_strval.mem_free();
+  if (var_tracker.is_plugin_var()) {
+    var = nullptr;
+  }
+}
+
+bool Item_func_get_system_var::bind(THD *thd) {
+  DEBUG_SYNC(thd, "after_error_checking");
+
+  var = var_tracker.bind_system_variable(thd);
+  if (var == nullptr) {
+    return true;
+  }
+  return false;
 }
 
 bool Item_func_match::itemize(Parse_context *pc, Item **res) {
@@ -7779,6 +7802,9 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
   @param name                   Name of base or system variable
   @param component              Component.
 
+  @param unsafe_for_replication If true and if the variable is written to a
+                                binlog then mark the statement as unsafe.
+
   @note
     If component.str = 0 then the variable name is in 'name'
 
@@ -7788,7 +7814,7 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
 */
 
 Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
-                     LEX_STRING component) {
+                     LEX_STRING component, bool unsafe_for_replication) {
   THD *thd = pc->thd;
   sys_var *var;
   LEX_STRING *base_name, *component_name;
@@ -7816,8 +7842,14 @@ Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
 
   var->do_deprecated_warning(thd);
 
-  return new Item_func_get_system_var(var, var_type, component_name, nullptr,
-                                      0);
+  auto *item =
+      new Item_func_get_system_var(var, var_type, component_name, nullptr, 0);
+  if (item == nullptr) return nullptr;  // OOM
+
+  if (unsafe_for_replication && !var->is_written_to_binlog(var_type))
+    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
+
+  return item;
 }
 
 bool Item_func_row_count::itemize(Parse_context *pc, Item **res) {

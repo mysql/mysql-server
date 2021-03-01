@@ -3393,6 +3393,7 @@ class Item_func_get_system_var final : public Item_var_func {
   bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
+  Sys_var_tracker var_tracker;
 
   template <typename T>
   longlong get_sys_var_safe(THD *thd);
@@ -3420,18 +3421,10 @@ class Item_func_get_system_var final : public Item_var_func {
   }
   /* TODO: fix to support views */
   const char *func_name() const override { return "get_system_var"; }
-  /**
-    Indicates whether this system variable is written to the binlog or not.
-
-    Variables are written to the binlog as part of "status_vars" in
-    Query_log_event, as an Intvar_log_event, or a Rand_log_event.
-
-    @return true if the variable is written to the binlog, false otherwise.
-  */
-  bool is_written_to_binlog();
   bool eq(const Item *item, bool binary_cmp) const override;
 
   void cleanup() override;
+  bool bind(THD *thd);
 };
 
 class JOIN;
@@ -3997,7 +3990,7 @@ class Item_func_internal_is_enabled_role : public Item_int_func {
 };
 
 Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
-                     LEX_STRING component);
+                     LEX_STRING component, bool unsafe_for_replication);
 extern bool check_reserved_words(const char *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
