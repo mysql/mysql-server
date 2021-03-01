@@ -373,9 +373,6 @@ class JOIN {
   /// Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
 
-  /// List storing all expressions used in query block
-  mem_root_deque<Item *> *query_block_fields;
-
   /**
     Array of pointers to lists of expressions.
     Each list represents the SELECT list at a certain stage of execution,

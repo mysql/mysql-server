@@ -2936,9 +2936,19 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         desired_order = this->qep_tab[0].filesort_pushed_order;
       }
 
+      // If we don't have ROLLUP, we prefer to use query_block->fields,
+      // so that we can see if fields belong to const tables or not
+      // (which, in rare cases, can remove the requirement for a sort).
+      //
+      // But if we have ROLLUP, the rollup group wrappers will have been
+      // removed from the base list (in change_to_use_tmp_fields_except_sums()),
+      // since that is to be used for materialization, and we need to use the
+      // actual field list instead.
+      mem_root_deque<Item *> *select_list =
+          (rollup_state == RollupState::NONE) ? &query_block->fields : fields;
+
       ORDER *order = create_order_from_distinct(
-          thd, ref_items[qep_tab->ref_item_slice], desired_order,
-          query_block_fields,
+          thd, ref_items[qep_tab->ref_item_slice], desired_order, select_list,
           /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
           &all_order_fields_used);
       if (order == nullptr) {
