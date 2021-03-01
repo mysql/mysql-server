@@ -6270,20 +6270,22 @@ static const lock_t *lock_table_locks_lookup(
 #endif /* UNIV_DEBUG */
 
 bool lock_table_has_locks(const dict_table_t *table) {
-  /** The n_rec_locks field might be modified by operation on any page shard,
-  so we need to latch everything. Note, that the results of this function will
-  be obsolete, as soon as we release the latch. It is called in contexts where
-  we believe that the number of locks should either be zero or decreasing. For
-  such scenario of usage, we might perhaps read the n_rec_locks without latch
-  and restrict latch just to a table shard. But that would complicate the debug
-  version of the code for no significant gain as this is not a hot path. */
-  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
+  /** The n_rec_locks field might be modified by operation on any page shard.
+  This function is called in contexts where we believe that the number of
+  locks should either be zero or decreasing.
+  For such scenario of usage, we can read the n_rec_locks without any latch
+  and restrict latch just to the table's shard and release it before return,
+  which means `true` could be a false-positive, but `false` is certain. */
 
-  bool has_locks =
-      UT_LIST_GET_LEN(table->locks) > 0 || table->n_rec_locks.load() > 0;
+  bool has_locks = table->n_rec_locks.load() > 0;
+  if (!has_locks) {
+    locksys::Shard_latch_guard table_latch_guard{UT_LOCATION_HERE, *table};
+    has_locks = UT_LIST_GET_LEN(table->locks) > 0;
+  }
 
 #ifdef UNIV_DEBUG
   if (!has_locks) {
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     mutex_enter(&trx_sys->mutex);
 
     ut_ad(!lock_table_locks_lookup(table, &trx_sys->rw_trx_list));
