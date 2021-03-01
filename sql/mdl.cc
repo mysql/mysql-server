@@ -4575,6 +4575,14 @@ void MDL_context::set_lock_duration(MDL_ticket *mdl_ticket,
 #ifndef NDEBUG
   mdl_ticket->m_duration = duration;
 #endif
+
+  /*
+     Table performance_schema.metadata_locks
+     exposes the DURATION column, update it.
+  */
+  if (mdl_ticket->m_psi) {
+    mysql_mdl_set_duration(mdl_ticket->m_psi, duration);
+  }
 }
 
 /**
