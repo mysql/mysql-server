@@ -198,21 +198,15 @@ static bool lock_deadlock_found = false;
 exclusive lock_sys latch */
 static FILE *lock_latest_err_file;
 
-/** Reports that a transaction id is insensible, i.e., in the future.
-@param[in] trx_id Trx id
-@param[in] rec User record
-@param[in] index Index
-@param[in] offsets Rec_get_offsets(rec, index)
-@param[in] max_trx_id Trx_sys_get_max_trx_id() */
 void lock_report_trx_id_insanity(trx_id_t trx_id, const rec_t *rec,
                                  const dict_index_t *index,
-                                 const ulint *offsets, trx_id_t max_trx_id) {
+                                 const ulint *offsets, trx_id_t next_trx_id) {
   ib::error(ER_IB_MSG_634) << "Transaction id " << trx_id
                            << " associated with record"
                            << rec_offsets_print(rec, offsets) << " in index "
                            << index->name << " of table " << index->table->name
-                           << " is greater than the global counter "
-                           << max_trx_id << "! The table is corrupted.";
+                           << " is greater or equal than the global counter "
+                           << next_trx_id << "! The table is corrupted.";
 }
 
 /** Checks that a transaction id is sensible, i.e., not in the future.
@@ -230,11 +224,11 @@ bool lock_check_trx_id_sanity(
 {
   ut_ad(rec_offs_validate(rec, index, offsets));
 
-  trx_id_t max_trx_id = trx_sys_get_max_trx_id();
-  bool is_ok = trx_id < max_trx_id;
+  trx_id_t next_trx_id = trx_sys_get_next_trx_id_or_no();
+  bool is_ok = trx_id < next_trx_id;
 
   if (!is_ok) {
-    lock_report_trx_id_insanity(trx_id, rec, index, offsets, max_trx_id);
+    lock_report_trx_id_insanity(trx_id, rec, index, offsets, next_trx_id);
   }
 
   return (is_ok);
@@ -4581,7 +4575,8 @@ void lock_print_info_summary(FILE *file) {
       "------------\n",
       file);
 
-  fprintf(file, "Trx id counter " TRX_ID_FMT "\n", trx_sys_get_max_trx_id());
+  fprintf(file, "Trx id counter " TRX_ID_FMT "\n",
+          trx_sys_get_next_trx_id_or_no());
 
   fprintf(file,
           "Purge done for trx's n:o < " TRX_ID_FMT " undo n:o < " TRX_ID_FMT

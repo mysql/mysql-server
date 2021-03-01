@@ -1679,10 +1679,10 @@ void srv_export_innodb_status(void) {
 
   rw_lock_s_unlock(&purge_sys->latch);
 
-  mutex_enter(&trx_sys->mutex);
+  trx_sys_serialisation_mutex_enter();
   /* Maximum transaction number added to history list for purge. */
   trx_id_t max_trx_no = trx_sys->rw_max_trx_no;
-  mutex_exit(&trx_sys->mutex);
+  trx_sys_serialisation_mutex_exit();
 
   if (done_trx_no == 0 || max_trx_no < done_trx_no) {
     export_vars.innodb_purge_trx_id_age = 0;

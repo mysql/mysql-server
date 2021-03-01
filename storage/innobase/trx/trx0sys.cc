@@ -68,7 +68,7 @@ void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
     return;
   }
 
-  if (id >= trx_sys->max_trx_id) {
+  if (id >= trx_sys_get_next_trx_id_or_no()) {
     ib::warn(ER_IB_MSG_1196)
         << "A transaction id"
         << " in a record of table " << name << " is newer than the"
@@ -96,19 +96,40 @@ uint trx_rseg_n_slots_debug = 0;
 #endif /* UNIV_DEBUG */
 
 /** Writes the value of max_trx_id to the file based trx system header. */
-void trx_sys_flush_max_trx_id(void) {
+void trx_sys_write_max_trx_id(void) {
   mtr_t mtr;
   trx_sysf_t *sys_header;
 
-  ut_ad(trx_sys_mutex_own());
+  /* The final synchronization happens here between maximum 2 threads,
+  one holding the trx_sys_t::mutex and one holding the serialisation
+  mutex. They can concurrently enter here, and start their mtrs.
+  They will synchronize inside trx_sysf_get because only one of them
+  could succeed in acquiring the x-lock for the header page to modify.
+  That thread will then read the max_trx_id and write to the page.
+  After it finishes mtr_commit, the another thread will succeed in
+  acquiring the x-lock and it will again read the newest max_trx_id,
+  and possibly re-write it. */
+
+  ut_ad(trx_sys_mutex_own() || trx_sys_serialisation_mutex_own());
 
   if (!srv_read_only_mode) {
+    DBUG_EXECUTE_IF(
+        "trx_sys_write_max_trx_id__all_blocked",
+        while (true) { std::this_thread::sleep_for(std::chrono::seconds(1)); });
+
+#ifdef UNIV_DEBUG
+    if (trx_sys_serialisation_mutex_own()) {
+      DEBUG_SYNC_C("trx_sys_write_max_trx_id__ser");
+    }
+#endif /* UNIV_DEBUG */
+
     mtr_start(&mtr);
 
     sys_header = trx_sysf_get(&mtr);
 
-    mlog_write_ull(sys_header + TRX_SYS_TRX_ID_STORE, trx_sys->max_trx_id,
-                   &mtr);
+    const trx_id_t max_trx_id = trx_sys->next_trx_id_or_no.load();
+
+    mlog_write_ull(sys_header + TRX_SYS_TRX_ID_STORE, max_trx_id, &mtr);
 
     mtr_commit(&mtr);
   }
@@ -126,13 +147,13 @@ void trx_sys_persist_gtid_num(trx_id_t gtid_trx_no) {
 }
 
 trx_id_t trx_sys_oldest_trx_no() {
-  ut_ad(trx_sys_mutex_own());
+  ut_ad(trx_sys_serialisation_mutex_own());
   /* Get the oldest transaction from serialisation list. */
   if (UT_LIST_GET_LEN(trx_sys->serialisation_list) > 0) {
     auto trx = UT_LIST_GET_FIRST(trx_sys->serialisation_list);
     return (trx->no);
   }
-  return (trx_sys->max_trx_id);
+  return trx_sys_get_next_trx_id_or_no();
 }
 
 void trx_sys_get_binlog_prepared(std::vector<trx_id_t> &trx_ids) {
@@ -429,22 +450,34 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
     trx_rsegs_init(purge_queue);
   }
 
-  /* VERY important: after the database is started, max_trx_id value is
-  divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the 'if' in
-  trx_sys_get_new_trx_id will evaluate to TRUE when the function
-  is first time called, and the value for trx id will be written
-  to the disk-based header! Thus trx id values will not overlap when
-  the database is repeatedly started! */
-
   mtr_t mtr;
   mtr.start();
 
   sys_header = trx_sysf_get(&mtr);
 
-  trx_sys->max_trx_id =
-      2 * TRX_SYS_TRX_ID_WRITE_MARGIN +
-      ut_uint64_align_up(mach_read_from_8(sys_header + TRX_SYS_TRX_ID_STORE),
-                         TRX_SYS_TRX_ID_WRITE_MARGIN);
+  const trx_id_t max_trx_id =
+      mach_read_from_8(sys_header + TRX_SYS_TRX_ID_STORE);
+
+  /* VERY important: after the database is started, next_trx_id_or_no value
+  needs to be set to a higher value than the maximum of values that have ever
+  been used for either trx->id or trx->no. After that, it needs to be written
+  to the transaction system header page, before it is used the first time to
+  assign a new value for trx->id or trx->no. This way trx id values will not
+  overlap when the database is repeatedly crashed and restarted!
+
+  Note, that the factor 2 in 2 * TRX_SYS_TRX_ID_WRITE_MARGIN is required,
+  because the next_trx_id_or_no might be increased concurrently in two
+  threads:
+    - one that has acquired trx_sys_mutex,
+    - and one that has acquired the trx_sys_serialisation_mutex.
+  If you decreased the factor 2, the test innodb.max_trx_id should fail. */
+
+  trx_sys->next_trx_id_or_no.store(max_trx_id +
+                                   2 * trx_sys_get_trx_id_write_margin());
+
+  trx_sys->serialisation_min_trx_no.store(trx_sys->next_trx_id_or_no.load());
+
+  trx_sys->rw_max_trx_id = trx_sys_get_next_trx_id_or_no() - 1;
 
   mtr.commit();
 
@@ -452,9 +485,13 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
   /* max_trx_id is the next transaction ID to assign. Initialize maximum
   transaction number to one less if all transactions are already purged. */
   if (trx_sys->rw_max_trx_no == 0) {
-    trx_sys->rw_max_trx_no = trx_sys->max_trx_id - 1;
+    trx_sys->rw_max_trx_no = trx_sys_get_next_trx_id_or_no() - 1;
   }
 #endif /* UNIV_DEBUG */
+
+  trx_sys_mutex_enter();
+  trx_sys_write_max_trx_id();
+  trx_sys_mutex_exit();
 
   trx_dummy_sess = sess_open();
 
@@ -490,7 +527,8 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
            " cleaned up in total "
         << rows_to_undo << unit << " row operations to undo";
 
-    ib::info(ER_IB_MSG_1199) << "Trx id counter is " << trx_sys->max_trx_id;
+    ib::info(ER_IB_MSG_1199)
+        << "Trx id counter is " << trx_sys_get_next_trx_id_or_no();
   }
 
   trx_sys->found_prepared_trx = trx_sys->n_prepared_trx > 0;
@@ -507,6 +545,7 @@ void trx_sys_create(void) {
   trx_sys = static_cast<trx_sys_t *>(ut_zalloc_nokey(sizeof(*trx_sys)));
 
   mutex_create(LATCH_ID_TRX_SYS, &trx_sys->mutex);
+  mutex_create(LATCH_ID_TRX_SYS_SERIALISATION, &trx_sys->serialisation_mutex);
 
   UT_LIST_INIT(trx_sys->serialisation_list, &trx_t::no_list);
   UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
@@ -514,7 +553,9 @@ void trx_sys_create(void) {
 
   trx_sys->mvcc = UT_NEW_NOKEY(MVCC(1024));
 
-  trx_sys->min_active_id = 0;
+  trx_sys->serialisation_min_trx_no.store(0);
+
+  trx_sys->min_active_trx_id.store(0);
 
   ut_d(trx_sys->rw_max_trx_no = 0);
 
@@ -587,6 +628,7 @@ void trx_sys_close(void) {
 
   /* We used placement new to create this mutex. Call the destructor. */
   mutex_free(&trx_sys->mutex);
+  mutex_free(&trx_sys->serialisation_mutex);
 
   trx_sys->rw_trx_ids.~trx_ids_t();
 

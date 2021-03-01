@@ -688,10 +688,10 @@ bool lock_has_to_wait(const lock_t *lock1,  /*!< in: waiting lock */
 @param[in] rec User record
 @param[in] index Index
 @param[in] offsets Rec_get_offsets(rec, index)
-@param[in] max_trx_id Trx_sys_get_max_trx_id() */
+@param[in] next_trx_id value received from trx_sys_get_next_trx_id_or_no() */
 void lock_report_trx_id_insanity(trx_id_t trx_id, const rec_t *rec,
                                  const dict_index_t *index,
-                                 const ulint *offsets, trx_id_t max_trx_id);
+                                 const ulint *offsets, trx_id_t next_trx_id);
 
 /** Prints info of locks for all transactions.
 @param[in]  file   file where to print */

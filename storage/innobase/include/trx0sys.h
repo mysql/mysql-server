@@ -130,15 +130,20 @@ UNIV_INLINE
 void trx_sysf_rseg_set_page_no(trx_sysf_t *sys_header, ulint i,
                                page_no_t page_no, mtr_t *mtr);
 
-/** Allocates a new transaction id.
- @return new, allocated trx id */
-UNIV_INLINE
-trx_id_t trx_sys_get_new_trx_id();
-/** Determines the maximum transaction id.
- @return maximum currently allocated trx id; will be stale after the
- next call to trx_sys_get_new_trx_id() */
-UNIV_INLINE
-trx_id_t trx_sys_get_max_trx_id(void);
+/** Allocates a new transaction id (for trx->id). Before calling,
+the trx_sys_mutex must be acquired.
+@return new, allocated trx id */
+inline trx_id_t trx_sys_allocate_trx_id();
+
+/** Allocates a new transaction number (for trx->no). Before calling,
+the trx_sys_serialisation_mutex must be acquired.
+@return new, allocated trx no */
+inline trx_id_t trx_sys_allocate_trx_no();
+
+/** Retrieves a next value that will be allocated if trx_sys_allocate_trx_id()
+or trx_sys_allocate_trx_id_trx_no() was called.
+@return the next trx->id or trx->no that will be allocated */
+inline trx_id_t trx_sys_get_next_trx_id_or_no();
 
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
@@ -170,10 +175,10 @@ UNIV_INLINE
 trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id);
 
 /** Returns the minimum trx id in rw trx list. This is the smallest id for which
- the trx can possibly be active. (But, you must look at the trx->state to
- find out if the minimum trx id transaction itself is active, or already
- committed.)
- @return the minimum trx id, or trx_sys->max_trx_id if the trx list is empty */
+the rw trx can possibly be active. (But, you must look at the trx->state
+to find out if the minimum trx id transaction itself is active, or already
+committed.)
+@return the minimum trx id, or trx_sys->rw_max_trx_id+1 if the list is empty */
 UNIV_INLINE
 trx_id_t trx_rw_min_trx_id(void);
 
@@ -438,85 +443,127 @@ class Space_Ids : public std::vector<space_id_t, ut_allocator<space_id_t>> {
 #ifndef UNIV_HOTBACKUP
 /** The transaction system central memory data structure. */
 struct trx_sys_t {
-  TrxSysMutex mutex; /*!< mutex protecting most fields in
-                     this structure except when noted
-                     otherwise */
+  /* Members protected by neither trx_sys_t::mutex nor serialisation_mutex. */
+  char pad0[ut::INNODB_CACHE_LINE_SIZE];
 
-  MVCC *mvcc;                   /*!< Multi version concurrency control
-                                manager */
-  volatile trx_id_t max_trx_id; /*!< The smallest number not yet
-                                assigned as a transaction id or
-                                transaction number. This is declared
-                                volatile because it can be accessed
-                                without holding any mutex during
-                                AC-NL-RO view creation. */
-  std::atomic<trx_id_t> min_active_id;
-  /*!< Minimal transaction id which is
-  still in active state. */
-  trx_ut_list_t serialisation_list;
-  /*!< Ordered on trx_t::no of all the
-  currenrtly active RW transactions */
-#ifdef UNIV_DEBUG
-  trx_id_t rw_max_trx_no; /*!< Max trx number of read-write
-                          transactions added for purge. */
-#endif                    /* UNIV_DEBUG */
+  /** @{ */
 
-  char pad1[64];             /*!< To avoid false sharing */
-  trx_ut_list_t rw_trx_list; /*!< List of active and committed in
-                             memory read-write transactions, sorted
-                             on trx id, biggest first. Recovered
-                             transactions are always on this list. */
+  /** Multi version concurrency control manager */
 
-  char pad2[64];                /*!< To avoid false sharing */
-  trx_ut_list_t mysql_trx_list; /*!< List of transactions created
-                                for MySQL. All user transactions are
-                                on mysql_trx_list. The rw_trx_list
-                                can contain system transactions and
-                                recovered transactions that will not
-                                be in the mysql_trx_list.
-                                mysql_trx_list may additionally contain
-                                transactions that have not yet been
-                                started in InnoDB. */
+  MVCC *mvcc;
 
-  trx_ids_t rw_trx_ids; /*!< Array of Read write transaction IDs
-                        for MVCC snapshot. A ReadView would take
-                        a snapshot of these transactions whose
-                        changes are not visible to it. We should
-                        remove transactions from the list before
-                        committing in memory and releasing locks
-                        to ensure right order of removal and
-                        consistent snapshot. */
+  /** Vector of pointers to rollback segments. These rsegs are iterated
+  and added to the end under a read lock. They are deleted under a write
+  lock while the vector is adjusted. They are created and destroyed in
+  single-threaded mode. */
+  Rsegs rsegs;
 
-  char pad3[64]; /*!< To avoid false sharing */
-
-  Rsegs rsegs; /*!< Vector of pointers to rollback
-               segments. These rsegs are iterated
-               and added to the end under a read
-               lock. They are deleted under a write
-               lock while the vector is adjusted.
-               They are created and destroyed in
-               single-threaded mode. */
-
-  Rsegs tmp_rsegs; /*!< Vector of pointers to rollback
-                   segments within the temp tablespace;
-                   This vector is created and destroyed
-                   in single-threaded mode so it is not
-                   protected by any mutex because it is
-                   read-only during multi-threaded
-                   operation. */
+  /** Vector of pointers to rollback segments within the temp tablespace;
+  This vector is created and destroyed in single-threaded mode so it is not
+  protected by any mutex because it is read-only during multi-threaded
+  operation. */
+  Rsegs tmp_rsegs;
 
   /** Length of the TRX_RSEG_HISTORY list (update undo logs for committed
-   * transactions). */
+  transactions). */
   std::atomic<uint64_t> rseg_history_len;
 
-  TrxIdSet rw_trx_set; /*!< Mapping from transaction id
-                       to transaction instance */
+  /** @} */
 
-  ulint n_prepared_trx; /*!< Number of transactions currently
-                        in the XA PREPARED state */
+  /* Members protected by either trx_sys_t::mutex or serialisation_mutex. */
+  char pad1[ut::INNODB_CACHE_LINE_SIZE];
 
-  bool found_prepared_trx; /*!< True if XA PREPARED trxs are
-                           found. */
+  /** @{ */
+
+  /** The smallest number not yet assigned as a transaction id
+  or transaction number. This is declared as atomic because it
+  can be accessed without holding any mutex during AC-NL-RO
+  view creation. When it is used for assignment of the trx->id,
+  it is synchronized by the trx_sys_t::mutex. When it is used
+  for assignment of the trx->no, it is synchronized by the
+  trx_sys_t::serialisation_mutex. Note: it might be in parallel
+  used for both trx->id and trx->no assignments (for different
+  trx_t objects). */
+  std::atomic<trx_id_t> next_trx_id_or_no;
+
+  /** @} */
+
+  /* Members protected by serialisation_mutex. */
+  char pad2[ut::INNODB_CACHE_LINE_SIZE];
+
+  /** @{ */
+
+  /** Mutex to protect serialisation_list. */
+  TrxSysMutex serialisation_mutex;
+
+  /** Tracks minimal transaction id which has received trx->no, but has
+  not yet finished commit for the mtr writing the trx commit. Protected
+  by the serialisation_mutex. Ordered on the trx->no field. */
+  trx_ut_list_t serialisation_list;
+
+#ifdef UNIV_DEBUG
+  /** Max trx number of read-write transactions added for purge. */
+  trx_id_t rw_max_trx_no;
+#endif /* UNIV_DEBUG */
+
+  char pad3[ut::INNODB_CACHE_LINE_SIZE];
+
+  /* The minimum trx->no inside the serialisation_list. Protected by
+  the serialisation_mutex. Might be read without the mutex. */
+  std::atomic<trx_id_t> serialisation_min_trx_no;
+
+  /** @} */
+
+  /* Members protected by the trx_sys_t::mutex. */
+  char pad4[ut::INNODB_CACHE_LINE_SIZE];
+
+  /** @{ */
+
+  /** Mutex protecting most fields in this structure (the default one). */
+  TrxSysMutex mutex;
+
+  /** Minimum trx->id of active RW transactions (minimum in the rw_trx_ids).
+  Protected by the trx_sys_t::mutex but might be read without the mutex. */
+  std::atomic<trx_id_t> min_active_trx_id;
+
+  char pad5[ut::INNODB_CACHE_LINE_SIZE];
+
+  /** List of active and committed in memory read-write transactions, sorted
+  on trx id, biggest first. Recovered transactions are always on this list. */
+  trx_ut_list_t rw_trx_list;
+
+  char pad6[ut::INNODB_CACHE_LINE_SIZE];
+
+  /** List of transactions created for MySQL. All user transactions are
+  on mysql_trx_list. The rw_trx_list can contain system transactions and
+  recovered transactions that will not be in the mysql_trx_list.
+  Additionally, mysql_trx_list may contain transactions that have not yet
+  been started in InnoDB. */
+  trx_ut_list_t mysql_trx_list;
+
+  /** Array of Read write transaction IDs for MVCC snapshot. A ReadView would
+  take a snapshot of these transactions whose changes are not visible to it.
+  We should remove transactions from the list before committing in memory and
+  releasing locks to ensure right order of removal and consistent snapshot. */
+  trx_ids_t rw_trx_ids;
+
+  /** Max trx id of read-write transactions which exist or existed. */
+  trx_id_t rw_max_trx_id;
+
+  char pad7[ut::INNODB_CACHE_LINE_SIZE];
+
+  /** Mapping from transaction id to transaction instance. */
+  TrxIdSet rw_trx_set;
+
+  /** Number of transactions currently in the XA PREPARED state. */
+  ulint n_prepared_trx;
+
+  /** True if XA PREPARED trxs are found. */
+  bool found_prepared_trx;
+
+  /** @} */
+
+  char pad_after[ut::INNODB_CACHE_LINE_SIZE];
 };
 
 #endif /* !UNIV_HOTBACKUP */
@@ -530,7 +577,7 @@ extern Space_Ids *trx_sys_undo_spaces;
 /** When a trx id which is zero modulo this number (which must be a power of
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
-#define TRX_SYS_TRX_ID_WRITE_MARGIN ((trx_id_t)256)
+constexpr trx_id_t TRX_SYS_TRX_ID_WRITE_MARGIN = 256;
 
 /** Test if trx_sys->mutex is owned. */
 #define trx_sys_mutex_own() (trx_sys->mutex.is_owned())
@@ -545,6 +592,22 @@ page is updated */
 #define trx_sys_mutex_exit() \
   do {                       \
     trx_sys->mutex.exit();   \
+  } while (0)
+
+/** Test if trx_sys->serialisation_mutex is owned. */
+#define trx_sys_serialisation_mutex_own() \
+  (trx_sys->serialisation_mutex.is_owned())
+
+/** Acquire the trx_sys->serialisation_mutex. */
+#define trx_sys_serialisation_mutex_enter()     \
+  do {                                          \
+    mutex_enter(&trx_sys->serialisation_mutex); \
+  } while (0)
+
+/** Release the trx_sys->serialisation_mutex. */
+#define trx_sys_serialisation_mutex_exit() \
+  do {                                     \
+    trx_sys->serialisation_mutex.exit();   \
   } while (0)
 
 #include "trx0sys.ic"

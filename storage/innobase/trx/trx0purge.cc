@@ -1730,8 +1730,6 @@ static void trx_purge_rseg_get_next_history_log(
     rseg->unlatch();
 
 #ifdef UNIV_DEBUG
-    trx_sys_mutex_enter();
-
     /* Add debug code to track history list corruption reported
     on the MySQL mailing list on Nov 9, 2004. The fut0lst.cc
     file-based list was corrupt. The prev node pointer was
@@ -1740,7 +1738,7 @@ static void trx_purge_rseg_get_next_history_log(
     size pieces, and if we here reach the head of the list, the
     list cannot be longer than 2000 000 undo logs now. */
 
-    ulint rseg_history_len = trx_sys->rseg_history_len.load();
+    const auto rseg_history_len = trx_sys->rseg_history_len.load();
     if (rseg_history_len > 2000000) {
       ib::warn(ER_IB_MSG_1177)
           << "Purge reached the head of the history"
@@ -1754,8 +1752,6 @@ static void trx_purge_rseg_get_next_history_log(
       ib::info(ER_IB_MSG_1180) << "2. Try increasing the number of purge"
                                   " threads to expedite purging of undo logs.";
     }
-
-    trx_sys_mutex_exit();
 #endif
     return;
   }

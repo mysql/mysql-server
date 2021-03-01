@@ -148,7 +148,7 @@ typedef ib_id_t roll_ptr_t;
 typedef ib_id_t undo_no_t;
 
 /** Maximum transaction identifier */
-#define TRX_ID_MAX IB_ID_MAX
+constexpr trx_id_t TRX_ID_MAX = IB_ID_MAX;
 
 /** Transaction savepoint */
 struct trx_savept_t {
@@ -359,16 +359,16 @@ class Rsegs {
         [](trx_rseg_t *lhs, trx_rseg_t *rhs) { return (rhs->id > lhs->id); });
   }
 
-  /** Get a shared lock on m_rsegs. */
+  /** Acquire the shared lock on m_rsegs. */
   void s_lock() { rw_lock_s_lock(m_latch); }
 
-  /** Get a shared lock on m_rsegs. */
+  /** Release the shared lock on m_rsegs. */
   void s_unlock() { rw_lock_s_unlock(m_latch); }
 
-  /** Get a shared lock on m_rsegs. */
+  /** Acquire the exclusive lock on m_rsegs. */
   void x_lock() { rw_lock_x_lock(m_latch); }
 
-  /** Get a shared lock on m_rsegs. */
+  /** Release the exclusive lock on m_rsegs. */
   void x_unlock() { rw_lock_x_unlock(m_latch); }
 
   /** Return whether the undo tablespace is active.

@@ -507,7 +507,7 @@ trx_t *row_vers_impl_x_locked_low(const rec_t *const clust_rec,
     longer active, or it is corrupt: no implicit lock on rec */
     if (corrupt) {
       lock_report_trx_id_insanity(trx_id, clust_rec, clust_index, clust_offsets,
-                                  trx_sys_get_max_trx_id());
+                                  trx_sys_get_next_trx_id_or_no());
     }
     mem_heap_free(heap);
     return nullptr;

@@ -894,7 +894,7 @@ int mtr_t::Logging::enable(THD *thd) {
   the max transaction ID which is generally done at TRX_SYS_TRX_ID_WRITE_MARGIN
   interval but safe to do any time. */
   trx_sys_mutex_enter();
-  trx_sys_flush_max_trx_id();
+  trx_sys_write_max_trx_id();
   trx_sys_mutex_exit();
 
   /* It would ensure that the modified page in previous mtr and all other

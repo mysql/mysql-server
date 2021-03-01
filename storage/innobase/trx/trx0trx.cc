@@ -107,11 +107,11 @@ flush fails, and T never gets committed, also T2 will never get
 committed.
 @param[in,out]  trx         The transaction for which will be committed in
                             memory
-@param[in]      serialized  true if serialisation log was written. Affects the
+@param[in]      serialised  true if serialisation log was written. Affects the
                             list of things we need to clean up during
                             trx_erase_lists.
 */
-static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized);
+static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised);
 
 /** Set flush observer for the transaction
 @param[in,out]	trx		transaction struct
@@ -1019,6 +1019,10 @@ void trx_lists_init_at_db_start(void) {
   for (TrxIdSet::iterator it = trx_sys->rw_trx_set.begin(); it != end; ++it) {
     ut_ad(it->m_trx->in_rw_trx_list);
 
+    if (it->m_trx->id > trx_sys->rw_max_trx_id) {
+      trx_sys->rw_max_trx_id = it->m_trx->id;
+    }
+
     if (it->m_trx->state == TRX_STATE_ACTIVE ||
         it->m_trx->state == TRX_STATE_PREPARED) {
       trx_sys->rw_trx_ids.push_back(it->m_id);
@@ -1191,15 +1195,15 @@ void trx_assign_rseg_temp(trx_t *trx) {
       srv_read_only_mode ? nullptr : get_next_temp_rseg();
 
   if (trx->id == 0) {
-    mutex_enter(&trx_sys->mutex);
+    trx_sys_mutex_enter();
 
-    trx->id = trx_sys_get_new_trx_id();
+    trx->id = trx_sys_allocate_trx_id();
 
     trx_sys->rw_trx_ids.push_back(trx->id);
 
     trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
 
-    mutex_exit(&trx_sys->mutex);
+    trx_sys_mutex_exit();
   }
 }
 
@@ -1286,10 +1290,11 @@ static void trx_start_low(
 
     /* Temporary rseg is assigned only if the transaction
     updates a temporary table */
+    DEBUG_SYNC_C("trx_sys_before_assign_id");
 
     trx_sys_mutex_enter();
 
-    trx->id = trx_sys_get_new_trx_id();
+    trx->id = trx_sys_allocate_trx_id();
 
     trx_sys->rw_trx_ids.push_back(trx->id);
 
@@ -1321,7 +1326,7 @@ static void trx_start_low(
 
         ut_ad(!srv_read_only_mode);
 
-        trx->id = trx_sys_get_new_trx_id();
+        trx->id = trx_sys_allocate_trx_id();
 
         trx_sys->rw_trx_ids.push_back(trx->id);
 
@@ -1353,6 +1358,45 @@ static void trx_start_low(
   MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
 
+/** Assigns the trx->no and add the transaction to the serialisation_list.
+Skips adding to the serialisation_list if the transaction is read-only, in
+which case still the trx->no is assigned.
+@param[in,out]  trx   the modified transaction
+@return true if added to the serialisation_list (non read-only trx) */
+static bool trx_add_to_serialisation_list(trx_t *trx) {
+  ut_ad(trx_sys_serialisation_mutex_own());
+
+  trx->no = trx_sys_allocate_trx_no();
+
+  if (trx->read_only) {
+    return false;
+  }
+
+  UT_LIST_ADD_LAST(trx_sys->serialisation_list, trx);
+
+  if (UT_LIST_GET_LEN(trx_sys->serialisation_list) == 1) {
+    trx_sys->serialisation_min_trx_no.store(trx->no);
+  }
+
+  return true;
+}
+
+/** Erases transaction from the serialisation_list.
+@param[in,out]  trx   the transaction to erase */
+static void trx_erase_from_serialisation_list(trx_t *trx) {
+  ut_ad(trx_sys_serialisation_mutex_own());
+
+  UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
+
+  if (UT_LIST_GET_LEN(trx_sys->serialisation_list) > 0) {
+    trx_sys->serialisation_min_trx_no.store(
+        UT_LIST_GET_FIRST(trx_sys->serialisation_list)->no);
+
+  } else {
+    trx_sys->serialisation_min_trx_no.store(trx_sys_get_next_trx_id_or_no());
+  }
+}
+
 /** Set the transaction serialisation number.
  @return true if the transaction number was added to the serialisation_list. */
 static bool trx_serialisation_number_get(
@@ -1378,20 +1422,12 @@ static bool trx_serialisation_number_get(
     temp_rseg = temp_rseg_undo_ptr->rseg;
   }
 
-  trx_sys_mutex_enter();
+  trx_sys_serialisation_mutex_enter();
 
-  trx->no = trx_sys_get_new_trx_id();
+  added_trx_no = trx_add_to_serialisation_list(trx);
 
   /* Update the latest transaction number. */
   ut_d(trx_sys->rw_max_trx_no = trx->no);
-
-  /* Track the minimum serialisation number. */
-  if (!trx->read_only) {
-    UT_LIST_ADD_LAST(trx_sys->serialisation_list, trx);
-    added_trx_no = true;
-  } else {
-    added_trx_no = false;
-  }
 
   /* If the rollack segment is not empty then the
   new trx_t::no can't be less than any trx_t::no
@@ -1411,18 +1447,18 @@ static bool trx_serialisation_number_get(
 
     mutex_enter(&purge_sys->pq_mutex);
 
-    /* This is to reduce the pressure on the trx_sys_t::mutex
-    though in reality it should make very little (read no)
-    difference because this code path is only taken when the
-    rbs is empty. */
+    /* This is to reduce the pressure on the trx_sys_t::serialisation_mutex
+    though in reality it should make very little (read no) difference
+    because this code path is only taken when the rbs is empty. */
 
-    trx_sys_mutex_exit();
+    trx_sys_serialisation_mutex_exit();
 
     purge_sys->purge_queue->push(elem);
 
     mutex_exit(&purge_sys->pq_mutex);
+
   } else {
-    trx_sys_mutex_exit();
+    trx_sys_serialisation_mutex_exit();
   }
 
   return (added_trx_no);
@@ -1700,33 +1736,28 @@ Erase the transaction from running transaction lists and serialization
 list. Active RW transaction list of a MVCC snapshot(ReadView::prepare)
 won't include this transaction after this call. All implicit locks are
 also released by this call as trx is removed from rw_trx_list.
-@param[in]	trx		Transaction to erase, must have an ID > 0
-@param[in]	serialised	true if serialisation log was written
-@param[in]	gtid_desc	GTID information to persist */
-static void trx_erase_lists(trx_t *trx, bool serialised, Gtid_desc &gtid_desc) {
+@param[in]	trx		Transaction to erase, must have an ID > 0 */
+static void trx_erase_lists(trx_t *trx) {
   ut_ad(trx->id > 0);
   ut_ad(trx_sys_mutex_own());
 
-  if (serialised) {
-    /* Add GTID to be persisted to disk table. It must be done ...
-    1.After the transaction is marked committed in undo. Otherwise
-      GTID might get committed before the transaction commit on disk.
-    2.Before it is removed from serialization list. Otherwise the transaction
-      undo could get purged before persisting GTID on disk table. */
-    if (gtid_desc.m_is_set) {
-      auto &gtid_persistor = clone_sys->get_gtid_persistor();
-      gtid_persistor.add(gtid_desc);
-    }
-    /* Do after adding GTID as trx_sys mutex could now be released and
-    re-acquired while adding GTID and we still need to satisfy condition
-    [2] above. */
-    UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
-  }
-
   trx_ids_t::iterator it = std::lower_bound(trx_sys->rw_trx_ids.begin(),
                                             trx_sys->rw_trx_ids.end(), trx->id);
+
+  const bool update_min_active = it == trx_sys->rw_trx_ids.begin();
+
   ut_ad(*it == trx->id);
   trx_sys->rw_trx_ids.erase(it);
+
+  /* We update min_active_trx_id only if needed (seperate cache line). */
+  if (update_min_active) {
+    trx_id_t min_id = trx_sys->rw_trx_ids.empty() ? trx_sys->rw_max_trx_id + 1
+                                                  : trx_sys->rw_trx_ids.front();
+
+    ut_ad(min_id > trx_sys->min_active_trx_id.load());
+
+    trx_sys->min_active_trx_id.store(min_id);
+  }
 
   if (trx->read_only || trx->rsegs.m_redo.rseg == nullptr) {
     ut_ad(!trx->in_rw_trx_list);
@@ -1741,26 +1772,15 @@ static void trx_erase_lists(trx_t *trx, bool serialised, Gtid_desc &gtid_desc) {
   }
 
   trx_sys->rw_trx_set.erase(TrxTrack(trx->id));
-
-  /* Set minimal active trx id. */
-  trx_id_t min_id = trx_sys->rw_trx_ids.empty() ? trx_sys->max_trx_id
-                                                : trx_sys->rw_trx_ids.front();
-
-  trx_sys->min_active_id.store(min_id);
 }
 
-static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized) {
+static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised) {
   check_trx_state(trx);
   ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE) ||
         trx_state_eq(trx, TRX_STATE_PREPARED));
 
   bool trx_sys_latch_is_needed =
       (trx->id > 0) || trx_state_eq(trx, TRX_STATE_PREPARED);
-
-  /* Check and get GTID to be persisted. Do it outside trx_sys mutex. */
-  Gtid_desc gtid_desc;
-  auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  gtid_persistor.get_gtid_info(trx, gtid_desc);
 
   if (trx_sys_latch_is_needed) {
     trx_sys_mutex_enter();
@@ -1770,7 +1790,7 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized) {
     /* For consistent snapshot, we need to remove current
     transaction from running transaction id list for mvcc
     before doing commit and releasing locks. */
-    trx_erase_lists(trx, serialized, gtid_desc);
+    trx_erase_lists(trx);
   }
 
   if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
@@ -1801,6 +1821,38 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialized) {
 
   if (trx_sys_latch_is_needed) {
     trx_sys_mutex_exit();
+  }
+
+  /* It is important to remove the transaction from the serialisation list
+  after it is erased from the rw_trx_ids / rw_trx_list (not before!).
+  Otherwise a read-view could be created, which could still pretend that
+  changes of this transaction are invisible, but related undo records could
+  become purged (because trx->no would no longer protect them). */
+
+  if (serialised) {
+    /* Check and get GTID to be persisted. Do it outside mutex. */
+    Gtid_desc gtid_desc;
+    auto &gtid_persistor = clone_sys->get_gtid_persistor();
+    gtid_persistor.get_gtid_info(trx, gtid_desc);
+
+    trx_sys_serialisation_mutex_enter();
+
+    /* Add GTID to be persisted to disk table. It must be done ...
+    1.After the transaction is marked committed in undo. Otherwise
+      GTID might get committed before the transaction commit on disk.
+    2.Before it is removed from serialization list. Otherwise the transaction
+      undo could get purged before persisting GTID on disk table. */
+    if (gtid_desc.m_is_set) {
+      auto &gtid_persistor = clone_sys->get_gtid_persistor();
+      /* The gtid_persistor.add(gtid_desc) might release and re-acquire
+      the trx_sys_serialisation_mutex, so must be called before trx is
+      removed from the serialisation_list - to satisfy [2]. */
+      gtid_persistor.add(gtid_desc);
+    }
+
+    trx_erase_from_serialisation_list(trx);
+
+    trx_sys_serialisation_mutex_exit();
   }
 
   lock_trx_release_locks(trx);
@@ -1857,8 +1909,8 @@ written */
   } else {
     trx_release_impl_and_expl_locks(trx, serialised);
 
-    /* Remove the transaction from the list of active
-    transactions now that it no longer holds any user locks. */
+    /* Removed the transaction from the list of active transactions.
+    It no longer holds any user locks. */
 
     ut_ad(trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
     DEBUG_SYNC_C("after_trx_committed_in_memory");
@@ -2026,6 +2078,8 @@ void trx_commit_low(trx_t *trx, mtr_t *mtr) {
 
   if (mtr != nullptr) {
     mtr->set_sync();
+
+    DEBUG_SYNC_C("trx_sys_before_assign_no");
 
     serialised = trx_write_serialisation_history(trx, mtr);
 
@@ -2813,11 +2867,16 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
   trx_sys_mutex_enter();
   trx->state = TRX_STATE_PREPARED;
   trx_sys->n_prepared_trx++;
+  trx_sys_mutex_exit();
+
   /* Add GTID to be persisted to disk table, if needed. */
   if (gtid_desc.m_is_set) {
+    /* The gtid_persistor.add() might release and re-acquire the mutex. */
+    trx_sys_serialisation_mutex_enter();
     gtid_persistor.add(gtid_desc);
+    trx_sys_serialisation_mutex_exit();
   }
-  trx_sys_mutex_exit();
+
   /*--------------------------------------*/
 
   /* Reset after successfully adding GTID to in memory table. */
@@ -3180,10 +3239,12 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
 
   ut_ad(trx->rsegs.m_redo.rseg != nullptr);
 
-  mutex_enter(&trx_sys->mutex);
+  DEBUG_SYNC_C("trx_sys_before_assign_id");
+
+  trx_sys_mutex_enter();
 
   ut_ad(trx->id == 0);
-  trx->id = trx_sys_get_new_trx_id();
+  trx->id = trx_sys_allocate_trx_id();
 
   trx_sys->rw_trx_ids.push_back(trx->id);
 
@@ -3198,7 +3259,7 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
 
   ut_d(trx->in_rw_trx_list = true);
 
-  mutex_exit(&trx_sys->mutex);
+  trx_sys_mutex_exit();
 }
 
 void trx_kill_blocking(trx_t *trx) {
