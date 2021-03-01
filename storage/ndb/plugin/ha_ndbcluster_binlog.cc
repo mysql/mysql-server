@@ -1202,7 +1202,9 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
   if (ndb_log_get_verbose_level() >= 19) {
     ndb_log_error_dump("Schema_op {");
     ndb_log_error_dump("type: %d", type);
-    ndb_log_error_dump("query: '%s'", query);
+    // ACL statements may contain passwords, so skip logging them here
+    if (type != SOT_ACL_STATEMENT && type != SOT_ACL_STATEMENT_REFRESH)
+      ndb_log_error_dump("query: '%s'", query);
     ndb_log_error_dump("}");
   }
 
@@ -3427,6 +3429,17 @@ class Ndb_schema_event_handler {
     }
   }
 
+  void rewrite_acl_change_for_server_log(std::string &query) {
+    /* Truncate everything after IDENTIFIED and replace it with ellipsis */
+    const std::string kw(" IDENTIFIED ");
+    auto it = std::search(
+        query.begin(), query.end(), kw.begin(), kw.end(),
+        [](char ch1, char ch2) { return std::toupper(ch1) == ch2; });
+    if (it != query.end()) {
+      query.replace(it, query.end(), " IDENTIFIED ... ");
+    }
+  }
+
   void handle_grant_op(const Ndb_schema_op *schema) {
     DBUG_TRACE;
     Ndb_local_connection sql_runner(m_thd);
@@ -3477,6 +3490,7 @@ class Ndb_schema_event_handler {
     m_thd->reset_db(set_db);
     ndb_log_verbose(40, "Using database: %s", use_db.c_str());
     if (sql_runner.run_acl_statement(query)) {
+      rewrite_acl_change_for_server_log(query);
       ndb_log_error("Failed to execute ACL query: %s", query.c_str());
       m_schema_op_result.set_result(Ndb_schema_dist::SCHEMA_OP_FAILURE,
                                     "Distribution of ACL change failed");
@@ -3847,12 +3861,16 @@ class Ndb_schema_event_handler {
     DBUG_TRACE;
     {
       const SCHEMA_OP_TYPE schema_type = (SCHEMA_OP_TYPE)schema->type;
+      std::string query(schema->query);
+      if (schema->type == SOT_ACL_STATEMENT ||
+          schema->type == SOT_ACL_STATEMENT_REFRESH)
+        rewrite_acl_change_for_server_log(query);
 
       ndb_log_verbose(19,
                       "got schema event on '%s.%s(%u/%u)' query: '%s' "
                       "type: %s(%d) node: %u slock: %x%08x",
                       schema->db, schema->name, schema->id, schema->version,
-                      schema->query,
+                      query.c_str(),
                       Ndb_schema_dist_client::type_name(
                           static_cast<SCHEMA_OP_TYPE>(schema->type)),
                       schema_type, schema->node_id, schema->slock.bitmap[1],
