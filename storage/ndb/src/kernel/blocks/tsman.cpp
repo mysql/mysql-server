@@ -504,7 +504,7 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal)
 	     CreateFilegroupImplRef::SignalLength, JBB);
 }
 
-char*
+static char*
 print(char buf[], int n, const File_formats::Datafile::Extent_data &obj)
 {
   buf[0] = '\0';

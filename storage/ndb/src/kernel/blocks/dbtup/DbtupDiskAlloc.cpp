@@ -90,9 +90,9 @@
 #endif
 
 void
-Dbtup::printPtr(int idx, const Ptr<Dbtup::Page> &ptr)
+Dbtup::printPtr(EventLogger *logger, int idx, const Ptr<Dbtup::Page> &ptr)
 {
-  g_eventLogger->info(
+  logger->info(
       "Dirty_pages %d [ Page: ptr.i: %u [ m_m_page_lsn_hi: %u"
       " m_m_page_lsn_lo: %u m_page_type: %u m_file_no: %u m_page_no: %u"
       " m_table_id: %u m_fragment_id: %u m_extent_no: %u m_extent_info_ptr: %u"
@@ -107,10 +107,11 @@ Dbtup::printPtr(int idx, const Ptr<Dbtup::Page> &ptr)
 }
 
 void
-Dbtup::printPtr(int idx, const Ptr<Dbtup::Page_request> &ptr)
+Dbtup::printPtr(EventLogger *logger, int idx,
+                const Ptr<Dbtup::Page_request> &ptr)
 {
   char buf[MAX_LOG_MESSAGE_SIZE];
-  g_eventLogger->info(
+  logger->info(
       "Page requests %d [ Page_request: ptr.i: %u %s"
       " m_original_estimated_free_space: %u"
       " m_list_index: %u"
@@ -126,7 +127,8 @@ Dbtup::printPtr(int idx, const Ptr<Dbtup::Page_request> &ptr)
 }
 
 void
-Dbtup::printPtr(const char *msg, int idx, const Ptr<Dbtup::Extent_info> &ptr)
+Dbtup::printPtr(EventLogger *logger, const char *msg, int idx,
+                const Ptr<Dbtup::Extent_info> &ptr)
 {
   char buf[MAX_LOG_MESSAGE_SIZE];
   g_eventLogger->info(
@@ -161,7 +163,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
       empty = false;
-      printPtr(i, ptr);
+      printPtr(g_eventLogger, i, ptr);
     }
     if (empty)
     {
@@ -182,7 +184,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
       empty = false;
-      printPtr(i, ptr);
+      printPtr(g_eventLogger, i, ptr);
     }
     if (empty)
     {
@@ -203,7 +205,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     for (list.first(ptr); c < limit && !ptr.isNull(); c++, list.next(ptr))
     {
       empty = false;
-      printPtr("Extent matrix: ", i, ptr);
+      printPtr(g_eventLogger, "Extent matrix: ", i, ptr);
     }
     if (empty)
     {
@@ -219,7 +221,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
   {
     Ptr<Extent_info> ptr;
     c_extent_pool.getPtr(ptr, alloc.m_curr_extent_info_ptr_i);
-    printPtr("Current extent: ", 0, ptr);
+    printPtr(g_eventLogger, "Current extent: ", 0, ptr);
   }
 }
 

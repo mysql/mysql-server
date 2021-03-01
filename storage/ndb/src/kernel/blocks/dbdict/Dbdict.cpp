@@ -4869,7 +4869,7 @@ Dbdict::restart_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    tx_ptr.p->m_error.print();
+    tx_ptr.p->m_error.print(g_eventLogger);
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -4912,7 +4912,7 @@ Dbdict::restartEndPass_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    tx_ptr.p->m_error.print();
+    tx_ptr.p->m_error.print(g_eventLogger);
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -5307,7 +5307,7 @@ Dbdict::restartCreateObj_parse(Signal* signal,
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    error.print();
+    error.print(g_eventLogger);
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -5403,7 +5403,7 @@ Dbdict::restartDropObj(Signal* signal,
       Fatal error while restoring shchema during restart,
       dump debug info and crash
     */
-    error.print();
+    error.print(g_eventLogger);
 
     char msg[128];
     BaseString::snprintf(msg, sizeof(msg),
@@ -34547,9 +34547,9 @@ Dbdict::ErrorInfo::print(NdbOut& out) const
 }
 
 void
-Dbdict::ErrorInfo::print() const
+Dbdict::ErrorInfo::print(EventLogger *logger) const
 {
-  g_eventLogger->error(
+  logger->error(
       "error: [ code: %u line: %u node: %u count: %u"
       " status: %u key: %u name: '%s' ]",
       errorCode, errorLine, errorNodeId, errorCount, errorStatus, errorKey,

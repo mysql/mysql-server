@@ -3741,7 +3741,7 @@ struct Number {
   Uint64 val;
 };
 
-char *printNumber(char buf[], int n, const Number &val) {
+static char *printNumber(char buf[], int n, const Number &val) {
   char p = 0;
   Uint32 loop = 1;
   while(val.val > loop){

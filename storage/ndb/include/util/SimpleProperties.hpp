@@ -176,7 +176,7 @@ public:
      * Print the complete simple properties (for debugging)
      */
     void printAll(NdbOut& ndbout);
-    void printAll();
+    void printAll(EventLogger* logger);
 
    private:
     bool readValue();

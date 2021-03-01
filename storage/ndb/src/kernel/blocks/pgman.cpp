@@ -2280,7 +2280,7 @@ Pgman::handle_prepare_lcp(Signal *signal, FragmentRecordPtr fragPtr)
         (state & Page_entry::LOCKED) ||
         (! (state & Page_entry::BOUND)))
     {
-      print(ptr);
+      print(g_eventLogger, ptr);
       ndbrequire(false);
     }
     if (state & Page_entry::PAGEOUT ||
@@ -2407,7 +2407,7 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
         (state & Page_entry::LOCKED) ||
         (! (state & Page_entry::BOUND)))
     {
-      print(ptr);
+      print(g_eventLogger, ptr);
       ndbabort();
     }
 
@@ -6619,7 +6619,9 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
   return out;
 }
 
-void print(Ptr<Pgman::Page_request> ptr) {
+void
+print(EventLogger *logger, Ptr<Pgman::Page_request> ptr)
+{
   char logbuf[MAX_LOG_MESSAGE_SIZE];
   logbuf[0] = '\0';
   const Pgman::Page_request &pr = *ptr.p;
@@ -6655,6 +6657,8 @@ void print(Ptr<Pgman::Page_request> ptr) {
     if (pr.m_flags & Pgman::Page_request::DISK_SCAN)
       BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, "disk_scan");
   }
+
+  logger->info("%s", logbuf);
 }
 
 NdbOut&
@@ -6752,7 +6756,8 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
   return out;
 }
 
-void print(Ptr<Pgman::Page_entry> ptr) {
+void
+print(EventLogger *logger, Ptr<Pgman::Page_entry> ptr) {
   const Pgman::Page_entry &pe = *ptr.p;
   char logbuf[MAX_LOG_MESSAGE_SIZE];
   logbuf[0] = '\0';
@@ -6831,17 +6836,19 @@ void print(Ptr<Pgman::Page_entry> ptr) {
     if (!pl_stack.hasPrev(ptr))
       BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " bottom");
   }
+  logger->info("%s", logbuf);
   {
     Pgman::Local_page_request_list req_list(ptr.p->m_this->m_page_request_pool,
                                             ptr.p->m_requests);
     if (!req_list.isEmpty()) {
       Ptr<Pgman::Page_request> req_ptr;
-      BaseString::snappend(logbuf, MAX_LOG_MESSAGE_SIZE, " req:");
       for (req_list.first(req_ptr); req_ptr.i != RNIL; req_list.next(req_ptr)) {
-        print(req_ptr);
+        print(logger, req_ptr);
       }
     }
   }
+#else
+  logger->info("%s", logbuf);
 #endif
 }
 

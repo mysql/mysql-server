@@ -6006,7 +6006,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
                       tabInfoPtr.sz);
   SimplePropertiesSectionReader reader(handle.m_ptr[0],
 				       getSectionSegmentPool());
-  reader.printAll();
+  reader.printAll(g_eventLogger);
 #endif
   ndbrequire(b_dti_buf_ref_count == 0);
   copy(b_dti_buf, tabInfoPtr);
