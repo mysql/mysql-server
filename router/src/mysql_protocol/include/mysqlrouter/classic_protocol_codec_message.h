@@ -675,6 +675,46 @@ class Codec<message::server::Error>
 };
 
 /**
+ * codec for ColumnCount message.
+ */
+template <>
+class Codec<message::server::ColumnCount>
+    : public impl::EncodeBase<Codec<message::server::ColumnCount>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::VarInt(v_.count())).result();
+  }
+
+ public:
+  using value_type = message::server::ColumnCount;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  static constexpr size_t max_size() noexcept {
+    return std::numeric_limits<size_t>::max();
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto count_res = accu.template step<wire::VarInt>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(count_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
  * Codec of ColumnMeta.
  *
  * capabilities checked:
@@ -1291,6 +1331,56 @@ class Codec<message::client::Query>
 
     return std::make_pair(accu.result().value(),
                           value_type(statement_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for client's ListFields command.
+ */
+template <>
+class Codec<message::client::ListFields>
+    : public impl::EncodeBase<Codec<message::client::ListFields>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::NulTermString(v_.table_name()))
+        .step(wire::String(v_.wildcard()))
+        .result();
+  }
+
+ public:
+  using value_type = message::client::ListFields;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  static constexpr uint8_t cmd_byte() noexcept { return 0x04; }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto table_name_res = accu.template step<wire::NulTermString>();
+    auto wildcard_res = accu.template step<wire::String>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(
+        accu.result().value(),
+        value_type(table_name_res->value(), wildcard_res->value()));
   }
 
  private:

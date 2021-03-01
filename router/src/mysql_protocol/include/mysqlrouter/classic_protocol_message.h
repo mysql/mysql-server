@@ -286,6 +286,28 @@ inline bool operator==(const Error &a, const Error &b) {
          (a.sql_state() == b.sql_state()) && (a.message() == b.message());
 }
 
+/**
+ * ColumnCount message.
+ */
+class ColumnCount {
+ public:
+  /**
+   * construct an ColumnCount message.
+   *
+   * @param count column count
+   */
+  constexpr ColumnCount(uint64_t count) : count_{count} {}
+
+  constexpr uint64_t count() const noexcept { return count_; }
+
+ private:
+  uint64_t count_;
+};
+
+constexpr inline bool operator==(const ColumnCount &a, const ColumnCount &b) {
+  return (a.count() == b.count());
+}
+
 class ColumnMeta {
  public:
   ColumnMeta(std::string catalog, std::string schema, std::string table,
@@ -534,6 +556,37 @@ class Query {
 
 inline bool operator==(const Query &a, const Query &b) {
   return a.statement() == b.statement();
+}
+
+class ListFields {
+ public:
+  /**
+   * list columns of a table.
+   *
+   * If 'wildcard' is empty the server will execute:
+   *
+   * SHOW COLUMNS FROM table_name
+   *
+   * Otherwise:
+   *
+   * SHOW COLUMNS FROM table_name LIKE wildcard
+   *
+   * @param table_name name of table to list
+   * @param wildcard wildcard
+   */
+  ListFields(std::string table_name, std::string wildcard)
+      : table_name_{std::move(table_name)}, wildcard_{std::move(wildcard)} {}
+
+  std::string table_name() const { return table_name_; }
+  std::string wildcard() const { return wildcard_; }
+
+ private:
+  std::string table_name_;
+  std::string wildcard_;
+};
+
+inline bool operator==(const ListFields &a, const ListFields &b) {
+  return a.table_name() == b.table_name() && a.wildcard() == b.wildcard();
 }
 
 class InitSchema {

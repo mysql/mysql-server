@@ -329,6 +329,37 @@ INSTANTIATE_TEST_SUITE_P(
       return test_param_info.param.test_name;
     });
 
+// server::ColumnCount
+
+using CodecMessageServerColumnCountTest =
+    CodecTest<classic_protocol::message::server::ColumnCount>;
+
+TEST_P(CodecMessageServerColumnCountTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecMessageServerColumnCountTest, decode) { test_decode(GetParam()); }
+
+const CodecParam<classic_protocol::message::server::ColumnCount>
+    codec_message_server_column_count_param[] = {
+        {
+            "single_byte_1",
+            {1},  //
+            {},
+            {1},
+        },
+        {
+            "double_byte_255",
+            {255},  //
+            {},
+            {0xfc, 0xff, 0x00},  // varint encoding
+        },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CodecMessageServerColumnCountTest,
+    ::testing::ValuesIn(codec_message_server_column_count_param),
+    [](auto const &test_param_info) {
+      return test_param_info.param.test_name;
+    });
+
 // server::ColumMeta
 
 using CodecMessageServerColumnMetaTest =
@@ -501,6 +532,34 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientQueryTest,
                          [](auto const &test_param_info) {
                            return test_param_info.param.test_name;
                          });
+
+// client::ListFields
+
+using CodecMessageClientListFieldsTest =
+    CodecTest<classic_protocol::message::client::ListFields>;
+
+TEST_P(CodecMessageClientListFieldsTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecMessageClientListFieldsTest, decode) { test_decode(GetParam()); }
+
+const CodecParam<classic_protocol::message::client::ListFields>
+    codec_message_client_list_fields_param[] = {
+        {"some_table_no_wildcard",
+         {"some_table", ""},  // decoded
+         {},                  // caps
+         {0x04, 's', 'o', 'm', 'e', '_', 't', 'a', 'b', 'l', 'e', '\0'}},
+        {"some_table_some_wildcard",
+         {"some_table", "foo"},  // decoded
+         {},                     // caps
+         {0x04, 's', 'o', 'm', 'e', '_', 't', 'a', 'b', 'l', 'e', '\0', 'f',
+          'o', 'o'}},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CodecMessageClientListFieldsTest,
+    ::testing::ValuesIn(codec_message_client_list_fields_param),
+    [](auto const &test_param_info) {
+      return test_param_info.param.test_name;
+    });
 
 // client::Ping
 
