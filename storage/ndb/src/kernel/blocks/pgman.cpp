@@ -246,6 +246,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
     m_time_track_reads[i] = 0;
     m_time_track_writes[i] = 0;
     m_time_track_log_waits[i] = 0;
+    m_time_track_get_page[i] = 0;
   }
   m_pages_made_dirty = Uint64(0);
   m_tot_pages_made_dirty = Uint64(0);
