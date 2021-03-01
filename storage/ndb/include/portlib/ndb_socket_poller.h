@@ -200,7 +200,6 @@ public:
       g_eventLogger->info(
           "Maximum value for FD_SETSIZE: %d exceeded when trying to add fd: %d",
           FD_SETSIZE, fd);
-      fflush(stderr);
       abort();
     }
     if (read)

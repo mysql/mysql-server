@@ -1283,7 +1283,6 @@ TransporterRegistry::setup_wakeup_socket(TransporterReceiveHandle& recvdata)
       int error= errno;
       g_eventLogger->info("Failed to add extra sock %u to epoll-set: %u", sock,
                           error);
-      fflush(stderr);
       goto err;
     }
   }

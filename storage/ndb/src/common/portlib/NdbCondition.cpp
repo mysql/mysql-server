@@ -96,7 +96,6 @@ nogo:
   clock_id = CLOCK_REALTIME;
   g_eventLogger->info(
       "Failed to use CLOCK_MONOTONIC for pthread_condition res: %u", res);
-  fflush(stderr);
   return;
 #else
   init = 1;

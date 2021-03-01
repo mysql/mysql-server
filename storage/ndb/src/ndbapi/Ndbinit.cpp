@@ -157,7 +157,6 @@ Ndb::~Ndb()
     {
       g_eventLogger->info("%p ", op);
     }
-    fflush(stdout);
   }
 
   assert(theImpl->m_ev_op == 0); // user should return NdbEventOperation's

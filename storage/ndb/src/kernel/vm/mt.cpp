@@ -3787,7 +3787,6 @@ thr_send_threads::run_send_thread(Uint32 instance_no)
     }
 
     g_eventLogger->info("%s", tmp.c_str());
-    fflush(stdout);
     if (fail)
     {
       abort();
@@ -7359,7 +7358,6 @@ init_thread(thr_data *selfptr)
              selfptr->m_max_signals_before_send_flush);
 
   g_eventLogger->info("%s", tmp.c_str());
-  fflush(stdout);
   if (fail)
   {
 #ifndef HAVE_MAC_OS_X_THREAD_INFO
@@ -10648,7 +10646,6 @@ mt_assert_own_thread(SimulatedBlock* block)
   if (unlikely(my_thread_equal(thrptr->m_thr_id, my_thread_self()) == 0))
   {
     g_eventLogger->info("mt_assert_own_thread() - assertion-failure");
-    fflush(stderr);
     abort();
   }
 }
