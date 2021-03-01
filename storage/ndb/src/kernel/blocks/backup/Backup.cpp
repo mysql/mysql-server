@@ -428,30 +428,32 @@ Backup::handle_overflow(Uint64& overflow_disk_write,
   {
     jam();
 #ifdef DEBUG_CHECKPOINTSPEED
-    g_eventLogger->info("Overflow of %u bytes (max/period is %u bytes)",
-                        overflowThisPeriod * 4, curr_disk_write_speed * 4);
+    g_eventLogger->info("Overflow of %ju bytes (max/period is %ju bytes)",
+                        uintmax_t{overflowThisPeriod} * 4,
+                        uintmax_t{curr_disk_write_speed} * 4);
 #endif
     if (remainingOverFlow)
     {
       jam();
 #ifdef DEBUG_CHECKPOINTSPEED
       g_eventLogger->info(
-          "  Extra overflow : %u bytes, will take %u further periods to clear",
-          remainingOverFlow * 4, remainingOverFlow / curr_disk_write_speed);
+          "  Extra overflow : %ju bytes, will take %ju further periods to clear",
+          uintmax_t{remainingOverFlow} * 4,
+          uintmax_t{remainingOverFlow / curr_disk_write_speed});
 #endif
     }
   }
   if (true || curr_disk_write_speed == m_curr_disk_write_speed)
   {
-    DEB_REDO_CONTROL_DETAIL(("(%u)bytes_written_this_period: %llu kB, "
-                             " overflowThisPeriod: %llu kB, "
-                             " remainingOverFlow: %llu kB, "
-                             " curr_disk_write_speed %llu kB",
+    DEB_REDO_CONTROL_DETAIL(("(%u) bytes_written_this_period: %ju kB, "
+                             " overflowThisPeriod: %ju kB, "
+                             " remainingOverFlow: %ju kB, "
+                             " curr_disk_write_speed %ju kB",
                              instance(),
-                             words_written_this_period / 256,
-                             overflowThisPeriod / 256,
-                             remainingOverFlow / 256,
-                             curr_disk_write_speed / 256));
+                             uintmax_t{words_written_this_period} / 256,
+                             uintmax_t{overflowThisPeriod} / 256,
+                             uintmax_t{remainingOverFlow} / 256,
+                             uintmax_t{curr_disk_write_speed} / 256));
   }
   words_written_this_period = overflowThisPeriod;
   overflow_disk_write = remainingOverFlow;
