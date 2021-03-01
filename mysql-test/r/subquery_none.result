@@ -4677,7 +4677,7 @@ oref	a	Z
 show status like '%Handler_read%';
 Variable_name	Value
 Handler_read_first	5
-Handler_read_key	12
+Handler_read_key	8
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
