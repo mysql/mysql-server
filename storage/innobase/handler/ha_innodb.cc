@@ -6424,6 +6424,8 @@ static void innobase_vcol_build_templ(const TABLE *table,
     templ->rec_field_no = templ->clust_rec_field_no;
   }
 
+  templ->icp_rec_field_no = ULINT_UNDEFINED;
+
   if (field->is_nullable()) {
     templ->mysql_null_byte_offset = field->null_offset();
 
@@ -7968,19 +7970,13 @@ static mysql_row_templ_t *build_template_field(
     templ->clust_rec_field_no = v_no;
     if (index->is_clustered()) {
       templ->rec_field_no = templ->clust_rec_field_no;
-      templ->icp_rec_field_no = ULINT_UNDEFINED;
     } else {
       templ->rec_field_no = index->get_col_pos(v_no, false, true);
-      /* Virtual columns may have to be read from the
-      secondary index before evaluating a pushed down
-      end-range condition in row_search_end_range_check().
-      Also consider column prefixes, since they can be used
-      for end-range checks. */
-      templ->icp_rec_field_no = templ->rec_field_no != ULINT_UNDEFINED
-                                    ? templ->rec_field_no
-                                    : index->get_col_pos(v_no, true, true);
     }
   }
+
+  /* Set in set_templ_icp(). */
+  templ->icp_rec_field_no = ULINT_UNDEFINED;
 
   if (field->is_nullable()) {
     templ->mysql_null_byte_offset = field->null_offset();
@@ -8038,6 +8034,33 @@ static mysql_row_templ_t *build_template_field(
   }
 
   return (templ);
+}
+
+/** Set Index Condition Push down (ICP) field number in template.
+@param[in,out]	templ		mysql column template
+@param[in]	index		index used to build the template
+@param[in]	scan_index	active index for current scan
+@param[in]	col_position	position of current column */
+static void set_templ_icp(mysql_row_templ_t *templ, const dict_index_t *index,
+                          const dict_index_t *scan_index, ulint col_position) {
+  if (scan_index == nullptr || templ == nullptr) {
+    return;
+  }
+
+  bool is_virtual = templ->is_virtual;
+  auto icp_field_no = templ->rec_field_no;
+
+  if (scan_index != index) {
+    /* First, try to find the column position without prefix. */
+    icp_field_no = scan_index->get_col_pos(col_position, false, is_virtual);
+  }
+
+  /* Try any prefix of the column. Used in end_range comparison. */
+  if (icp_field_no == ULINT_UNDEFINED) {
+    ut_ad(!scan_index->is_clustered());
+    icp_field_no = scan_index->get_col_pos(col_position, true, is_virtual);
+  }
+  templ->icp_rec_field_no = icp_field_no;
 }
 
 /** Builds a 'template' to the m_prebuilt struct. The template is used in fast
@@ -8180,36 +8203,10 @@ void ha_innobase::build_template(bool whole_row) {
         m_prebuilt->idx_cond_n_cols++;
         ut_ad(m_prebuilt->idx_cond_n_cols == m_prebuilt->n_template);
 
-        if (index == m_prebuilt->index) {
-          templ->icp_rec_field_no = templ->rec_field_no;
-        } else {
-          templ->icp_rec_field_no = m_prebuilt->index->get_col_pos(i - num_v);
-        }
+        auto column_position = i - num_v;
 
-        if (m_prebuilt->index->is_clustered()) {
-          ut_ad(templ->icp_rec_field_no != ULINT_UNDEFINED);
-          /* If the primary key includes
-          a column prefix, use it in
-          index condition pushdown,
-          because the condition is
-          evaluated before fetching any
-          off-page (externally stored)
-          columns. */
-          if (templ->icp_rec_field_no < m_prebuilt->index->n_uniq) {
-            /* This is a key column;
-            all set. */
-            continue;
-          }
-        } else if (templ->icp_rec_field_no != ULINT_UNDEFINED) {
-          continue;
-        }
+        set_templ_icp(templ, index, m_prebuilt->index, column_position);
 
-        /* This is a column prefix index.
-        The column prefix can be used in
-        an end_range comparison. */
-
-        templ->icp_rec_field_no =
-            m_prebuilt->index->get_col_pos(i - num_v, true, false);
         ut_ad(templ->icp_rec_field_no != ULINT_UNDEFINED);
 
         /* Index condition pushdown can be used on
@@ -8233,6 +8230,7 @@ void ha_innobase::build_template(bool whole_row) {
               < m_prebuilt->index->n_uniq);
         */
       }
+
       if (innobase_is_v_fld(table->field[i])) {
         num_v++;
       }
@@ -8295,6 +8293,7 @@ void ha_innobase::build_template(bool whole_row) {
 
     for (i = 0; i < n_fields; i++) {
       const Field *field;
+      bool is_virtual = innobase_is_v_fld(table->field[i]);
 
       if (whole_row) {
         /* Even this is whole_row, if the seach is
@@ -8303,7 +8302,7 @@ void ha_innobase::build_template(bool whole_row) {
         will not try to fill the value since they
         are not stored in such index nor in the
         cluster index. */
-        if (innobase_is_v_fld(table->field[i]) && m_prebuilt->read_just_key &&
+        if (is_virtual && m_prebuilt->read_just_key &&
             !dict_index_contains_col_or_prefix(m_prebuilt->index, num_v,
                                                true)) {
           /* Turn off ROW_MYSQL_WHOLE_ROW */
@@ -8326,7 +8325,7 @@ void ha_innobase::build_template(bool whole_row) {
             contain, m_prebuilt->read_just_key, fetch_all_in_key,
             fetch_primary_key_cols, index, table, i, num_v);
         if (!field) {
-          if (innobase_is_v_fld(table->field[i])) {
+          if (is_virtual) {
             num_v++;
           }
           continue;
@@ -8335,6 +8334,14 @@ void ha_innobase::build_template(bool whole_row) {
 
       templ = build_template_field(m_prebuilt, clust_index, index, table, field,
                                    i - num_v, num_v);
+
+      /* Virtual columns may have to be read from the secondary index before
+      evaluating an end-range condition in row_search_end_range_check(). Set
+      ICP field number for virtual column. */
+      if (is_virtual) {
+        set_templ_icp(templ, index, m_prebuilt->index, num_v);
+      }
+
       if (templ->is_virtual) {
         num_v++;
       }
