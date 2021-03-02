@@ -1844,7 +1844,7 @@ NdbThread_IsCPUAvailable(Uint32 cpu_id)
 #elif defined(HAVE_PROCESSOR_AFFINITY)
   for (uint_t i = 0; i < g_num_ids; i++)
   {
-    if (g_cpu_ids[i] == cpu_id)
+    if (static_cast<Uint32>(g_cpu_ids[i]) == cpu_id)
       return true;
   }
   return false;

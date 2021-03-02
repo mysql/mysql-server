@@ -24,6 +24,7 @@
 
 #define DBLQH_C
 #include "Dblqh.hpp"
+#include <algorithm>
 #include <cstring>
 #include <ndb_limits.h>
 #include <md5_hash.hpp>
@@ -18742,7 +18743,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
 #define ZABS_MAX_SCAN_DIRECT_COUNT 128
 #define ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN 500
 #define ZROWS_PER_MICRO 2
-#define ZMIN_SCAN_WITH_CONCURRENCY 0
+#define ZMIN_SCAN_WITH_CONCURRENCY 0U
 
   Uint32 prioAFlag = scanPtr->prioAFlag;
   Uint32 cnf_max_scan_direct_count = c_max_scan_direct_count;
@@ -18763,8 +18764,8 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
         prim_tab_fragptr.p->m_cond_exclusive_waiters > 0)
     {
       ndbassert(m_is_query_block);
-      max_scan_direct_count = MIN(max_scan_direct_count,
-                                  ZMIN_SCAN_WITH_CONCURRENCY);
+      max_scan_direct_count = std::min(max_scan_direct_count,
+                                       ZMIN_SCAN_WITH_CONCURRENCY);
     }
     if (scan_direct_count >= max_scan_direct_count ||
         max_words_reached)
