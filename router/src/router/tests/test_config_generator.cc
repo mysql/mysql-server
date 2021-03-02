@@ -142,10 +142,6 @@ class ConfigGeneratorTest : public ConsoleOutputTest {
         [](mysqlrouter::MySQLSession *) {}  // don't try to delete it
     );
 
-    mysql_harness::DIM::instance().set_Ofstream(
-        []() { return new mysqlrouter::RealOfstream(); },
-        std::default_delete<mysqlrouter::Ofstream>());
-
     set_origin(g_origin);
     ConsoleOutputTest::SetUp();
     config_path.reset(new Path(g_cwd));

@@ -1325,25 +1325,26 @@ stdx::expected<void, std::error_code> MySQLRouting::setup_tcp_service() {
 
     last_res = sock.open(addr.endpoint().protocol());
     if (!last_res) {
-      log_warning("[%s] setup_tcp_service() error from socket(): %s",
+      log_warning("[%s] failed to open socket for %s: %s",
                   context_.get_name().c_str(),
+                  mysqlrouter::to_string(addr.endpoint()).c_str(),
                   last_res.error().message().c_str());
       continue;
     }
 
-    net::socket_base::reuse_address reuse_opt{true};
-    last_res = sock.set_option(reuse_opt);
+    last_res = sock.set_option(net::socket_base::reuse_address{true});
     if (!last_res) {
-      log_warning("[%s] setup_tcp_service() error from setsockopt(): %s",
+      log_warning("[%s] failed to set reuse_address socket option for %s: %s",
                   context_.get_name().c_str(),
+                  mysqlrouter::to_string(addr.endpoint()).c_str(),
                   last_res.error().message().c_str());
       continue;
     }
 
     last_res = sock.bind(addr.endpoint());
     if (!last_res) {
-      log_warning("[%s] setup_tcp_service() error from bind(): %s",
-                  context_.get_name().c_str(),
+      log_warning("[%s] failed to bind(%s): %s", context_.get_name().c_str(),
+                  mysqlrouter::to_string(addr.endpoint()).c_str(),
                   last_res.error().message().c_str());
       continue;
     }

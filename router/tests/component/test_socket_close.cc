@@ -28,15 +28,20 @@
 #include <thread>
 
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "cluster_metadata.h"
 #include "config_builder.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/expected.h"  // make_unexpected
 #include "mysql_session.h"
+#include "mysqlrouter/classic_protocol.h"
 #include "mysqlrouter/rest_client.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
@@ -263,7 +268,7 @@ class SocketCloseTest : public RouterComponentTest {
     EXPECT_TRUE(wait_for_transaction_count_increase(http_port, 2));
   }
 
-  std::chrono::milliseconds ttl{200ms};
+  std::chrono::milliseconds ttl{100ms};
   TcpPortPool port_pool_;
   std::vector<uint16_t> node_ports, node_http_ports;
   std::vector<ProcessWrapper *> cluster_nodes;
@@ -610,6 +615,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 class SocketUser final {
  public:
+  // error-code to return on connect
+  static const uint16_t error_code{1130};
+  // error-msg to return on connect
+  static const char error_msg[];
+
   SocketUser(std::string hostname, const uint16_t port)
       : hostname_{std::move(hostname)}, port_{port} {}
   ~SocketUser() { unlock(); }
@@ -627,8 +637,13 @@ class SocketUser final {
   }
 
   void unlock() {
-    acceptor_.cancel();
     acceptor_.close();
+
+    if (worker_.joinable()) worker_.join();
+
+    if (worker_ec_) {
+      FAIL() << "acceptor() failed after accept() with: " << worker_ec_;
+    }
   }
 
  private:
@@ -644,6 +659,11 @@ class SocketUser final {
       return false;
     }
 
+#if !defined(_WIN32)
+    // don't use reuse-addr on windows as it works differently as on Unix.
+    acceptor_.set_option(net::socket_base::reuse_address{true});
+#endif
+
     const auto &bind_res = acceptor_.bind(resolve_res->begin()->endpoint());
     if (!bind_res) {
       acceptor_.close();
@@ -654,14 +674,73 @@ class SocketUser final {
       return false;
     }
 
+    // spawn off a thread to handle a connect.
+    worker_ = std::thread([this]() {
+      acceptor_.async_accept([this](std::error_code ec, auto client_sock) {
+        if (ec == std::errc::operation_canceled) return;
+
+        std::vector<uint8_t> err_frame;
+
+        const auto encode_res =
+            classic_protocol::encode<classic_protocol::frame::Frame<
+                classic_protocol::message::server::Error>>(
+                {0, {error_code, error_msg, "HY000"}}, {},
+                net::dynamic_buffer(err_frame));
+        if (!encode_res) {
+          worker_ec_ = encode_res.error();
+          return;
+        }
+
+        // using the full type as sun-cc doesn't like 'auto' here and gives:
+        //
+        // The operation "! ?" is illegal.
+        const stdx::expected<size_t, std::error_code> write_res =
+            net::write(client_sock, net::buffer(err_frame));
+        if (!write_res) {
+          worker_ec_ = write_res.error();
+          return;
+        }
+
+        // wait until the client closed the connection on us.
+        //
+        while (true) {
+          std::vector<std::string> drainer;
+          const auto read_res =
+              net::read(client_sock, net::dynamic_buffer(drainer));
+
+          if (!read_res &&
+              read_res.error() == make_error_code(net::stream_errc::eof)) {
+            break;
+          }
+
+          // looks like something else happened. At least log it.
+          if (read_res) {
+            std::cerr << __LINE__ << ": " << read_res.value() << std::endl;
+          } else {
+            worker_ec_ = read_res.error();
+            return;
+          }
+        }
+      });
+
+      // accept zero-or-one connection.
+      io_ctx_.run_one();
+    });
+
     return true;
   }
+
+  std::thread worker_;
+  std::error_code worker_ec_{};
 
   const std::string hostname_{"127.0.0.1"};
   const uint16_t port_;
   net::io_context io_ctx_;
   net::ip::tcp::acceptor acceptor_{io_ctx_};
 };
+
+const uint16_t SocketUser::error_code;
+const char SocketUser::error_msg[] = "You shall not pass";
 
 class FailToOpenSocketStaticRoundRobin
     : public SocketCloseTest,
@@ -671,15 +750,22 @@ TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
   SCOPED_TRACE("// launch cluster with one node");
   setup_cluster(1, GetParam().tracefile);
 
-  std::string routing_section =
+  const auto router_rw_port_str = std::to_string(router_rw_port);
+
+  const std::string routing_section =
       get_static_routing_section(router_rw_port, node_ports, "round-robin");
 
   SCOPED_TRACE("// launch the router with static routing configuration");
   launch_router("", routing_section, EXIT_SUCCESS,
                 /*wait_for_notify_ready=*/5s);
-  SCOPED_TRACE("// Port is used by the router");
+
+  SCOPED_TRACE("// tcp-port:" + router_rw_port_str + " is used by the router");
+  // check with netstat that the port is used by router.
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port));
-  SCOPED_TRACE("// Kill the cluster node");
+
+  SCOPED_TRACE(
+      "// kill backend and wait until router has released the tcp-port:" +
+      std::to_string(router_rw_port));
   EXPECT_NO_THROW(cluster_nodes[0]->send_clean_shutdown_event());
   EXPECT_NO_THROW(cluster_nodes[0]->wait_for_exit());
 
@@ -688,30 +774,48 @@ TEST_P(FailToOpenSocketStaticRoundRobin, StaticRoundRobin) {
       std::runtime_error);
   EXPECT_TRUE(wait_for_port_available(router_rw_port, 120s));
 
-  SCOPED_TRACE("// Use the router port by another application");
+  SCOPED_TRACE("// block router from binding to tcp-port:" +
+               router_rw_port_str + " by let another app bind to it");
   SocketUser socket_user("127.0.0.1", router_rw_port);
   EXPECT_TRUE(socket_user.lock());
 
-  SCOPED_TRACE(" // Restore a cluster node");
+  EXPECT_TRUE(wait_for_port_not_available(router_rw_port, 120s));
+
+  SCOPED_TRACE("// Restore a cluster node on tcp-port " +
+               std::to_string(node_ports[0]) +
+               " to bring the destination back from "
+               "quarantine.");
   const std::string json_metadata =
       get_data_dir().join(GetParam().tracefile).str();
   cluster_nodes.push_back(&launch_mysql_server_mock(
       json_metadata, node_ports[0], EXIT_SUCCESS, false, node_http_ports[0]));
+
   set_mock_metadata(node_http_ports[0], "", node_ports, 0, 0, false,
                     "localhost", {}, {});
 
-  SCOPED_TRACE("// Check that we could not establish new connection");
-  std::this_thread::sleep_for(3s);
-  EXPECT_THROW(
-      try_connection("127.0.0.1", router_rw_port, custom_user, custom_password),
-      std::runtime_error);
+  SCOPED_TRACE("// check we can connect to tcp:" + router_rw_port_str +
+               ", but get the other app.");
 
-  SCOPED_TRACE("// Release the port");
+  try {
+    try_connection("127.0.0.1", router_rw_port, custom_user, custom_password);
+    FAIL() << "should have failed";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), SocketUser::error_code);
+    EXPECT_THAT(e.what(), ::testing::HasSubstr(SocketUser::error_msg));
+  }
+
+  SCOPED_TRACE("// Release the tcp-port:" + router_rw_port_str +
+               ", and wait a bit to set router bind to the port again");
   socket_user.unlock();
-  std::this_thread::sleep_for(3s);
 
-  SCOPED_TRACE("// Listening again");
+  SCOPED_TRACE("// wait until the router binds to the port again.");
   EXPECT_TRUE(wait_for_port_not_available(router_rw_port, 120s));
+
+  try {
+    try_connection("127.0.0.1", router_rw_port, custom_user, custom_password);
+  } catch (const MySQLSession::Error &e) {
+    FAIL() << e.what();
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -903,6 +1007,7 @@ TEST_P(FailToOpenSocketOnStartup, FailOnStartup) {
   SCOPED_TRACE("// launch cluster with 1RW/2RO nodes");
   setup_cluster(3, GetParam().tracefile);
 
+  SCOPED_TRACE("// bind sockets");
   std::vector<std::unique_ptr<SocketUser>> socket_users;
   for (const auto &port : GetParam().unavailable_ports) {
     socket_users.push_back(
@@ -910,9 +1015,10 @@ TEST_P(FailToOpenSocketOnStartup, FailOnStartup) {
   }
 
   for (const auto &socket_user : socket_users) {
-    EXPECT_TRUE(socket_user->lock());
+    ASSERT_TRUE(socket_user->lock());
   }
 
+  SCOPED_TRACE("// start router against sockets that are in use.");
   const std::string metadata_cache_section =
       get_metadata_cache_section(node_ports, GetParam().cluster_type);
   std::string routing_section = get_metadata_cache_routing_section(

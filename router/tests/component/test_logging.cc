@@ -33,6 +33,7 @@
 
 #include <gmock/gmock-matchers.h>
 
+#include "config_builder.h"
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -2241,17 +2242,33 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
 TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
   TempDirectory conf_dir;
 
-  // launch the router with metadata-cache configuration
-  auto &router = launch_router(
-      {"-c",
-       init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)},
-      EXIT_SUCCESS);
+  auto default_section = get_DEFAULT_defaults();
 
-  auto sleep_time = 200ms;
-  RouterComponentTest::sleep_for(sleep_time);
-  const auto pid = static_cast<pid_t>(router.get_pid());
-  ::kill(pid, SIGHUP);
-  RouterComponentTest::sleep_for(sleep_time);
+  // send log to stderr
+  default_section["logging_folder"] = "";
+
+  const auto config = mysql_harness::join(
+      std::vector<std::string>{
+          mysql_harness::ConfigBuilder::build_section("logger",
+                                                      {{"level", "DEBUG"}}),
+          mysql_harness::ConfigBuilder::build_section(
+              "routing",
+              {
+                  {"bind_port", std::to_string(router_port)},
+                  {"destinations", "127.0.0.1:3306"},
+                  {"routing_strategy", "round-robin"},
+              })},
+      "\n");
+
+  auto &router = launch_router(
+      {"-c", create_config_file(conf_dir.name(), config, &default_section)},
+      EXIT_SUCCESS, true, 5s);
+
+  // send SIGHUP, should have no impact.
+  ::kill(router.get_pid(), SIGHUP);
+
+  // wait a bit for the router handle the signal
+  RouterComponentTest::sleep_for(200ms);
 }
 
 #endif

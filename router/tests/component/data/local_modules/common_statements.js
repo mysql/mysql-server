@@ -126,6 +126,14 @@ function get_response(stmt_key, options) {
         result:
             {columns: [{name: "a", type: "STRING"}], rows: [["a".repeat(4097)]]}
       };
+    case "select_repeat_15M":
+      return {
+        stmt: "select repeat('a', 15 * 1024 * 1024) as a",
+        result: {
+          columns: [{name: "a", type: "STRING"}],
+          rows: [["a".repeat(15 * 1024 * 1024)]]
+        }
+      };
     case "select_length_4097":
       return {
         stmt: "select length(" +

@@ -24,8 +24,11 @@
 
 #include "mysql/harness/net_ts/socket.h"
 
+#include <system_error>
+
 #include <gmock/gmock.h>
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/expected_ostream.h"
 
 // transfer_all sets a buffer size that's reasonable large

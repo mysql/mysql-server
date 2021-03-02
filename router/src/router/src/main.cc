@@ -120,10 +120,6 @@ static void init_DIM() {
                 mysqlrouter::MySQLSession::LoggingStrategyDebugLogger>());
       },
       std::default_delete<mysqlrouter::MySQLSession>());
-
-  // Ofstream
-  dim.set_Ofstream([]() { return new mysqlrouter::RealOfstream(); },
-                   std::default_delete<mysqlrouter::Ofstream>());
 }
 
 static void preconfig_log_init(bool use_os_logger_initially) noexcept {

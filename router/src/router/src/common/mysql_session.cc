@@ -52,7 +52,7 @@ using namespace std::string_literals;
 /*static*/ const std::function<void(unsigned, MYSQL_FIELD *)>
     MySQLSession::null_field_validator = [](unsigned, MYSQL_FIELD *) {};
 
-MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> &&logging_strategy)
+MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy)
     : logging_strategy_(std::move(logging_strategy)) {
   MySQLClientThreadToken api_token;
 

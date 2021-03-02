@@ -1968,7 +1968,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
     EXPECT_EQ(is_encrypted, GetParam().expect_client_encrypted);
 
     try {
-      auto row = sess.query_one("show status like 'ssl_cipher'");
+      const auto row = sess.query_one("show status like 'ssl_cipher'");
       ASSERT_EQ(row->size(), 2);
 
       if (GetParam().expect_server_encrypted) {
@@ -1981,17 +1981,18 @@ TEST_P(SplicerParamTest, classic_protocol) {
     }
 
     try {
-      auto row = sess.query_one("select repeat('a', 4097) as a");
+      const auto row =
+          sess.query_one("select repeat('a', 15 * 1024 * 1024) as a");
       ASSERT_EQ(row->size(), 1);
 
-      EXPECT_EQ((*row)[0], std::string(4097, 'a'));
+      EXPECT_EQ((*row)[0], std::string(15 * 1024 * 1024, 'a'));
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       FAIL() << e.what();
     }
 
     try {
-      auto row = sess.query_one("select length(" + std::string(4097, 'a') +
-                                ") as length");
+      const auto row = sess.query_one("select length(" +
+                                      std::string(4097, 'a') + ") as length");
       ASSERT_EQ(row->size(), 1);
 
       EXPECT_STREQ((*row)[0], "4097");
@@ -2141,23 +2142,39 @@ TEST_P(SplicerParamTest, xproto) {
       << GetParam().expected_success;
 
   if (GetParam().expected_success == 0) {
-    xcl::XError xerr;
-    auto result =
-        sess->execute_sql("show status like 'mysqlx_ssl_cipher'", &xerr);
-    ASSERT_TRUE(result) << xerr;
+    {
+      xcl::XError xerr;
+      const auto result =
+          sess->execute_sql("show status like 'mysqlx_ssl_cipher'", &xerr);
+      ASSERT_TRUE(result) << xerr;
 
-    if (!result->has_resultset()) {
-      FAIL() << xerr.what();
-    } else {
-      auto row = result->get_next_row();
-      std::string field;
-      ASSERT_TRUE(row->get_string(1, &field));
-
-      if (GetParam().expect_server_encrypted) {
-        EXPECT_NE(field, "");
+      if (!result->has_resultset()) {
+        FAIL() << xerr.what();
       } else {
-        EXPECT_EQ(field, "");
+        const auto row = result->get_next_row();
+        std::string field;
+        ASSERT_TRUE(row->get_string(1, &field));
+
+        if (GetParam().expect_server_encrypted) {
+          EXPECT_NE(field, "");
+        } else {
+          EXPECT_EQ(field, "");
+        }
       }
+    }
+
+    {
+      xcl::XError xerr;
+      const auto result =
+          sess->execute_sql("select repeat('a', 15 * 1024 * 1024) as a", &xerr);
+      ASSERT_TRUE(result) << xerr;
+
+      const auto row = result->get_next_row();
+      ASSERT_NE(row, nullptr);
+      std::string field;
+      ASSERT_TRUE(row->get_string(0, &field));
+
+      EXPECT_EQ(field, std::string(15 * 1024 * 1024, 'a'));
     }
   }
 }
