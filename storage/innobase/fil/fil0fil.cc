@@ -295,7 +295,7 @@ ulint fil_n_pending_log_flushes = 0;
 ulint fil_n_pending_tablespace_flushes = 0;
 
 /** Number of files currently open */
-ulint fil_n_file_opened = 0;
+size_t fil_n_files_open = 0;
 
 enum fil_load_status {
   /** The tablespace file(s) were found and valid. */
@@ -1343,8 +1343,7 @@ class Fil_shard {
   int64_t m_modification_counter;
 
   /** Number of files currently open */
-
-  static std::atomic_size_t s_n_open;
+  static std::atomic_size_t s_n_spaces_in_lru;
 
   /** ID of shard that has reserved the open slot. */
 
@@ -1885,8 +1884,9 @@ class Fil_system {
 initialized. */
 static Fil_system *fil_system = nullptr;
 
-/** Total number of open files. */
-std::atomic_size_t Fil_shard::s_n_open;
+/** Number of files currently in LRU. Unlike m_LRU, this
+can be accessed without acquiring the shard mutex. */
+std::atomic_size_t Fil_shard::s_n_spaces_in_lru;
 
 /** Slot reserved for opening a file. */
 std::atomic_size_t Fil_shard::s_open_slot;
@@ -2117,13 +2117,15 @@ void Fil_shard::file_opened(fil_node_t *file) {
   if (Fil_system::space_belongs_in_LRU(file->space)) {
     /* Put the file to the LRU list */
     UT_LIST_ADD_FIRST(m_LRU, file);
-  }
 
-  ++s_n_open;
+    /* Safe to assign the length of the LRU to s_n_spaces_in_lru as
+    the thread owns the mutex. */
+    s_n_spaces_in_lru = UT_LIST_GET_LEN(m_LRU);
+  }
 
   file->is_open = true;
 
-  fil_n_file_opened = s_n_open;
+  fil_n_files_open++;
 }
 
 /** Remove the file node from the LRU list.
@@ -2138,6 +2140,10 @@ void Fil_shard::remove_from_LRU(fil_node_t *file) {
 
     /* The file is in the LRU list, remove it */
     UT_LIST_REMOVE(m_LRU, file);
+
+    /* Safe to assign the length of the LRU to s_n_spaces_in_lru as
+    the thread owns the mutex. */
+    s_n_spaces_in_lru = UT_LIST_GET_LEN(m_LRU);
   }
 }
 
@@ -2849,11 +2855,9 @@ void Fil_shard::close_file(fil_node_t *file, bool LRU_close) {
 
   file->is_open = false;
 
-  ut_a(s_n_open > 0);
+  ut_a(fil_n_files_open > 0);
 
-  --s_n_open;
-
-  fil_n_file_opened = s_n_open;
+  fil_n_files_open--;
 
   remove_from_LRU(file);
 }
@@ -3053,7 +3057,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
     /* Reserve an open slot for this shard. So that this
     shard's open file succeeds. */
 
-    while (fil_system->m_max_n_open <= s_n_open &&
+    while (fil_system->m_max_n_open <= s_n_spaces_in_lru &&
            !fil_system->close_file_in_all_LRU(i > 1)) {
       if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
         start_time = ut_time_monotonic();
@@ -3065,7 +3069,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
       }
     }
 
-    if (fil_system->m_max_n_open > s_n_open) {
+    if (fil_system->m_max_n_open > s_n_spaces_in_lru) {
       break;
     }
 
@@ -7437,7 +7441,7 @@ bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
 
   fil_space_t *space = file->space;
 
-  if (s_n_open > fil_system->m_max_n_open + 5) {
+  if (s_n_spaces_in_lru > fil_system->m_max_n_open + 5) {
     static ulint prev_time;
     auto curr_time = ut_time_monotonic();
 
@@ -7445,7 +7449,7 @@ bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
 
     if ((curr_time - prev_time) > 60) {
       ib::warn(ER_IB_MSG_327)
-          << "Open files " << s_n_open.load() << " exceeds the limit "
+          << "Open files " << s_n_spaces_in_lru.load() << " exceeds the limit "
           << fil_system->m_max_n_open;
 
       prev_time = curr_time;
