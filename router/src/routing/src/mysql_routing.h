@@ -472,6 +472,9 @@ class MySQLRouting {
   /** @brief container for connections */
   ConnectionContainer connection_container_;
 
+  /** Information if the routing plugging is still running. */
+  std::atomic<bool> routing_stopped_{false};
+
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);
   FRIEND_TEST(RoutingTests, get_routing_thread_name);

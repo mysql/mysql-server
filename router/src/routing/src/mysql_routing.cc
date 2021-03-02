@@ -1098,7 +1098,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
     if (!is_destination_standalone) destination_->handle_sockets_acceptors();
     // If we failed to start accepting connections on startup then router
     // should fail.
-    if (!res) return stdx::make_unexpected(res.error());
+    if (!res) return res.get_unexpected();
   }
   mysql_harness::on_service_ready(env);
 
@@ -1145,6 +1145,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
 
   // wait for the signal to shutdown.
   mysql_harness::wait_for_stop(env, 0);
+  routing_stopped_ = true;
 
   // routing is no longer running, lets close listening socket
   stop_socket_acceptors();
@@ -1183,13 +1184,13 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
 
 stdx::expected<void, std::error_code> MySQLRouting::start_accepting_connections(
     const mysql_harness::PluginFuncEnv *env) {
-  if (!is_running(env)) {
+  if (routing_stopped_) {
     return stdx::make_unexpected(
         std::make_error_code(std::errc::connection_aborted));
   }
 
   stdx::expected<void, std::error_code> setup_res;
-  const bool already_running =
+  const bool acceptor_already_running =
       !acceptor_waitable_.serialize_with_cv([this, &setup_res](auto &, auto &) {
         if (!service_tcp_.is_open()) {
           setup_res = this->setup_tcp_service();
@@ -1197,7 +1198,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_accepting_connections(
         }
         return false;
       });
-  if (already_running) return {};
+  if (acceptor_already_running) return {};
   if (!setup_res) return setup_res.get_unexpected();
 
   log_info("Start accepting connections for routing %s listening on %s",
