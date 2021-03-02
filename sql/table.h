@@ -707,6 +707,12 @@ struct TABLE_SHARE {
   /* hash of field names (contains pointers to elements of field array) */
   collation_unordered_map<std::string, Field **> *name_hash{nullptr};
   MEM_ROOT mem_root;
+  /**
+    Used to allocate new handler for internal temporary table when the
+    size limitation of the primary storage engine is exceeded.
+  */
+  MEM_ROOT *alloc_for_tmp_file_handler{nullptr};
+
   TYPELIB keynames;            /* Pointers to keynames */
   TYPELIB *intervals{nullptr}; /* pointer to interval info */
   mysql_mutex_t LOCK_ha_data;  /* To protect access to ha_data */

@@ -2081,7 +2081,10 @@ bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
   }
   assert(share->db_plugin != nullptr);
 
-  table->file = get_new_handler(share, false, thd->mem_root, share->db_type());
+  share->alloc_for_tmp_file_handler = thd->mem_root;
+
+  table->file = get_new_handler(share, false, share->alloc_for_tmp_file_handler,
+                                share->db_type());
   if (table->file == nullptr) return true;
 
   // Update the handler with information about the table object
@@ -2225,7 +2228,8 @@ static bool create_tmp_table_with_fallback(THD *thd, TABLE *table) {
       table->file->create(share->table_name.str, table, &create_info, nullptr);
   if (error == HA_ERR_RECORD_FILE_FULL &&
       table->s->db_type() == temptable_hton) {
-    table->file = get_new_handler(table->s, false, thd->mem_root, innodb_hton);
+    table->file = get_new_handler(
+        table->s, false, share->alloc_for_tmp_file_handler, innodb_hton);
     error = table->file->create(share->table_name.str, table, &create_info,
                                 nullptr);
   }
@@ -2580,8 +2584,10 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
     new_table.s = &share;  // New table points to new share
 
-    if (!(new_table.file = get_new_handler(&share, false, thd->mem_root,
-                                           new_table.s->db_type())))
+    new_table.file =
+        get_new_handler(&share, false, old_share->alloc_for_tmp_file_handler,
+                        new_table.s->db_type());
+    if (new_table.file == nullptr)
       goto err_after_proc_info; /* purecov: inspected */
     if (new_table.file->set_ha_share_ref(&share.ha_share))
       goto err_after_alloc; /* purecov: inspected */
