@@ -26,6 +26,7 @@
   @brief
   Query execution
 
+
   @defgroup Query_Executor  Query Executor
   @{
 */
