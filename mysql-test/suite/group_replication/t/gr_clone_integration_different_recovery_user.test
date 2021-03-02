@@ -44,7 +44,7 @@
 # Change the recovery user to a non-existing one.
 # This information will be cloned into server 2
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER='non-existent', MASTER_PASSWORD='foo' FOR CHANNEL 'group_replication_recovery'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='non-existent', SOURCE_PASSWORD='foo' FOR CHANNEL 'group_replication_recovery'
 --enable_warnings
 
 # Add some data for recovery

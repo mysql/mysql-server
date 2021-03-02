@@ -1,0 +1,31 @@
+#
+# WL#13775: InnoDB: Encrypt DBLWR files
+#
+create table t1 (f1 int primary key, f2 blob) ENCRYPTION='Y';
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+# Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'open_table test/t1';
+# Identify the space_id of the given table.
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_id;
+# Find the root page number of the given table.
+SET SESSION innodb_interpreter = 'find_root_page_no test/t1';
+SELECT @@session.innodb_interpreter_output INTO @page_no;
+# Find the on-disk page type of the given page.
+SET @cmd = CONCAT('find_ondisk_page_type ', @space_id, ' ', @page_no);
+SET SESSION innodb_interpreter = @cmd;
+SELECT @@session.innodb_interpreter_output INTO @page_type;
+SELECT @page_type;
+@page_type
+FIL_PAGE_ENCRYPTED
+set global innodb_interpreter = 'destroy';
+drop table t1;

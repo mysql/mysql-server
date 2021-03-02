@@ -40,10 +40,10 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -452,11 +452,11 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       */
       keyinfo->actual_flags = keyinfo->flags;
 
-      if (use_extended_sk && primary_key < MAX_KEY && key &&
-          !(keyinfo->flags & HA_NOSAME))
-        key_part +=
-            add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
-                               share, handler_file, &usable_parts);
+      if (primary_key < MAX_KEY && key != primary_key &&
+          (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX))
+        key_part += add_pk_parts_to_sk(keyinfo, key, share->key_info,
+                                       primary_key, share, handler_file,
+                                       &usable_parts, use_extended_sk);
 
       /* Skip unused key parts if they exist */
       key_part += keyinfo->unused_key_parts;

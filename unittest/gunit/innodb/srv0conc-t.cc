@@ -47,7 +47,7 @@ class prebuilt_guard {
 
  private:
   THD thd;
-  trx_t trx;
+  trx_t trx{};
 };
 
 void run_threads(std::function<void()> thread, int count) {
@@ -79,38 +79,46 @@ void user_thread_simulation() {
     srv_conc_enter_innodb(prebuilt);
     std::this_thread::sleep_for(std::chrono::microseconds(distr(gen)));
     srv_conc_force_exit_innodb(prebuilt->trx);
-
-    EXPECT_LE(srv_conc_get_active_threads(), srv_thread_concurrency);
   }
 }
 
 TEST(srv0conc, no_concurrency_limit) {
   const int THREADS = std::thread::hardware_concurrency();
   run_threads(user_thread_simulation<100, 100>, THREADS);
+  EXPECT_EQ(srv_conc_get_waiting_threads(), 0);
+  EXPECT_EQ(srv_conc_get_active_threads(), 0);
 }
 
 TEST(srv0conc, concurrency_limit_equals_hw_threads) {
   const int THREADS = std::thread::hardware_concurrency();
   srv_thread_concurrency = THREADS;
   run_threads(user_thread_simulation<100, 100>, THREADS);
+  EXPECT_EQ(srv_conc_get_waiting_threads(), 0);
+  EXPECT_EQ(srv_conc_get_active_threads(), 0);
 }
 
 TEST(srv0conc, concurrency_limit_half_hw_threads) {
   const int THREADS = std::thread::hardware_concurrency();
   srv_thread_concurrency = THREADS / 2;
   run_threads(user_thread_simulation<100, 100>, THREADS);
+  EXPECT_EQ(srv_conc_get_waiting_threads(), 0);
+  EXPECT_EQ(srv_conc_get_active_threads(), 0);
 }
 
 TEST(srv0conc, concurrency_limit_2) {
   const int THREADS = std::thread::hardware_concurrency();
   srv_thread_concurrency = 2;
   run_threads(user_thread_simulation<100, 100>, THREADS);
+  EXPECT_EQ(srv_conc_get_waiting_threads(), 0);
+  EXPECT_EQ(srv_conc_get_active_threads(), 0);
 }
 
 TEST(srv0conc, concurrency_limit_1) {
   const int THREADS = std::thread::hardware_concurrency();
   srv_thread_concurrency = 1;
   run_threads(user_thread_simulation<100, 100>, THREADS);
+  EXPECT_EQ(srv_conc_get_waiting_threads(), 0);
+  EXPECT_EQ(srv_conc_get_active_threads(), 0);
 }
 
 /* This test case simulates the situation where the transaction is interrupted

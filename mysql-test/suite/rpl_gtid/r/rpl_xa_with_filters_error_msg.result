@@ -19,7 +19,7 @@ XA PREPARE '1';
 XA COMMIT '1';
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=3898]
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=3898]
 include/assert_binlog_events.inc [Gtid/SET.* # Query/use.* # Gtid/SET.* # Query/XA START.* # Table_map/.* # Write_rows/.* # Query/XA END.* # XA_prepare/XA PREPARE.* # Gtid/SET.* # Query/XA COMMIT.*]
 CHANGE REPLICATION FILTER Replicate_Ignore_Table=();

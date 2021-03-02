@@ -61,6 +61,7 @@
 #include "my_systime.h"
 #include "my_thread.h"
 #include "my_user.h"  // parse_user
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/mysql_cond_bits.h"
@@ -70,7 +71,6 @@
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_password_policy.h"
 #include "mysql/service_thd_wait.h"
 #include "mysql/status_var.h"
@@ -1848,12 +1848,12 @@ longlong Item_func::val_int_from_real() {
   if (null_value) return 0;
 
   if (unsigned_flag) {
-    if (res < 0 || res >= (double)ULLONG_MAX) {
+    if (res < 0 || res >= ULLONG_MAX_DOUBLE) {
       return raise_integer_overflow();
     } else
       return (longlong)double2ulonglong(res);
   } else {
-    if (res <= (double)LLONG_MIN || res > (double)LLONG_MAX) {
+    if (res <= LLONG_MIN || res > LLONG_MAX_DOUBLE) {
       return raise_integer_overflow();
     } else
       return (longlong)res;
@@ -1886,14 +1886,21 @@ void Item_typecast_real::print(const THD *thd, String *str,
 }
 
 double Item_func_plus::real_op() {
-  double value = args[0]->val_real() + args[1]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
+  double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
+  double value = val1 + val2;
   return check_float_overflow(value);
 }
 
 longlong Item_func_plus::int_op() {
   longlong val0 = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong res = val0 + val1;
   bool res_unsigned = false;
 
@@ -1989,14 +1996,21 @@ bool Item_func_minus::resolve_type(THD *thd) {
 }
 
 double Item_func_minus::real_op() {
-  double value = args[0]->val_real() - args[1]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
+  double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
+  double value = val1 - val2;
   return check_float_overflow(value);
 }
 
 longlong Item_func_minus::int_op() {
   longlong val0 = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong res = val0 - val1;
   bool res_unsigned = false;
 
@@ -2081,15 +2095,22 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value) {
 
 double Item_func_mul::real_op() {
   DBUG_ASSERT(fixed == 1);
-  double value = args[0]->val_real() * args[1]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
+  double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
+  double value = val1 * val2;
   return check_float_overflow(value);
 }
 
 longlong Item_func_mul::int_op() {
   DBUG_ASSERT(fixed == 1);
   longlong a = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong b = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong res;
   ulonglong res0, res1;
 
@@ -2199,14 +2220,17 @@ void Item_func_mul::result_precision() {
 
 double Item_func_div::real_op() {
   DBUG_ASSERT(fixed == 1);
-  double value = args[0]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
   double val2 = args[1]->val_real();
+  if (current_thd->is_error()) return error_real();
+
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
   if (val2 == 0.0) {
     signal_divide_by_null();
     return 0.0;
   }
-  return check_float_overflow(value / val2);
+  return check_float_overflow(val1 / val2);
 }
 
 my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
@@ -2359,7 +2383,9 @@ bool Item_func_int_div::resolve_type(THD *thd) {
 longlong Item_func_mod::int_op() {
   DBUG_ASSERT(fixed == 1);
   longlong val0 = args[0]->val_int();
+  if (current_thd->is_error()) return error_int();
   longlong val1 = args[1]->val_int();
+  if (current_thd->is_error()) return error_int();
   bool val0_negative, val1_negative;
   ulonglong uval0, uval1;
   ulonglong res;
@@ -2381,20 +2407,27 @@ longlong Item_func_mod::int_op() {
   uval0 = (ulonglong)(val0_negative && val0 != LLONG_MIN ? -val0 : val0);
   uval1 = (ulonglong)(val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res = uval0 % uval1;
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  // Suppress warning C4146 unary minus operator applied to unsigned type,
+  // result still unsigned
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
   return check_integer_overflow(val0_negative ? -res : res, !val0_negative);
+  MY_COMPILER_DIAGNOSTIC_PUSH()
 }
 
 double Item_func_mod::real_op() {
   DBUG_ASSERT(fixed == 1);
-  double value = args[0]->val_real();
+  double val1 = args[0]->val_real();
+  if (current_thd->is_error()) return error_real();
   double val2 = args[1]->val_real();
-  if ((null_value = args[0]->null_value || args[1]->null_value))
-    return 0.0; /* purecov: inspected */
+  if (current_thd->is_error()) return error_real();
+
+  if ((null_value = args[0]->null_value || args[1]->null_value)) return 0.0;
   if (val2 == 0.0) {
     signal_divide_by_null();
     return 0.0;
   }
-  return fmod(value, val2);
+  return fmod(val1, val2);
 }
 
 my_decimal *Item_func_mod::decimal_op(my_decimal *decimal_value) {
@@ -4164,7 +4197,9 @@ void udf_handler::free_handler() {
 
 bool Item_udf_func::fix_fields(THD *thd, Item **) {
   DBUG_ASSERT(fixed == 0);
+  DBUG_ASSERT(!thd->is_error());
   if (udf.fix_fields(thd, this, arg_count, args)) return true;
+  if (thd->is_error()) return true;
   used_tables_cache = udf.used_tables_cache;
   fixed = true;
   return false;
@@ -4270,6 +4305,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
   }
   for (uint i = 0; i < arg_count; i++) {
     (void)::new (buffers + i) String;
+    m_args_extension.charset_info[i] = nullptr;
   }
 
   if (func->resolve_type(thd)) return true;
@@ -4423,6 +4459,7 @@ longlong udf_handler::val_int(bool *null_value) {
     *null_value = true;
     return 0LL;
   }
+  DEBUG_SYNC(current_thd, "execute_uninstall_component");
   Udf_func_longlong func = (Udf_func_longlong)u_d->func;
   longlong tmp = func(&initid, &f_args, &is_null, &error);
   if (is_null || error) {
@@ -4568,14 +4605,16 @@ bool udf_handler::get_and_convert_string(uint index) {
   String *res = args[index]->val_str(&buffers[index]);
 
   /* m_args_extension.charset_info[index] is a legitimate charset */
-  if (res && res->charset() != m_args_extension.charset_info[index]) {
-    String temp;
-    uint dummy;
-    if (temp.copy(res->ptr(), res->length(), res->charset(),
-                  m_args_extension.charset_info[index], &dummy)) {
-      return true;
+  if (res != nullptr && m_args_extension.charset_info[index] != nullptr) {
+    if (res->charset() != m_args_extension.charset_info[index]) {
+      String temp;
+      uint dummy;
+      if (temp.copy(res->ptr(), res->length(), res->charset(),
+                    m_args_extension.charset_info[index], &dummy)) {
+        return true;
+      }
+      *res = std::move(temp);
     }
-    *res = std::move(temp);
   }
   if (!args[index]->null_value) {
     f_args.args[index] = res->c_ptr_safe();
@@ -4933,6 +4972,14 @@ longlong Item_master_gtid_set_wait::val_int() {
       mi = channel_map.get_default_channel_mi();
   }
 
+  if ((mi != nullptr) &&
+      mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+          Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+    my_error(ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS,
+             MYF(0));
+    channel_map.unlock();
+    return 0;
+  }
   if (global_gtid_mode.get() == Gtid_mode::OFF) {
     null_value = true;
     channel_map.unlock();
@@ -6017,8 +6064,19 @@ longlong user_var_entry::val_int(bool *null_value) const {
   if ((*null_value = (m_ptr == nullptr))) return 0LL;
 
   switch (m_type) {
-    case REAL_RESULT:
-      return (longlong) * (double *)m_ptr;
+    case REAL_RESULT: {
+      // TODO(tdidriks): Consider reporting a possible overflow warning.
+      double var_val = *(reinterpret_cast<double *>(m_ptr));
+      longlong res;
+      if (var_val <= LLONG_MIN) {
+        res = LLONG_MIN;
+      } else if (var_val >= LLONG_MAX_DOUBLE) {
+        res = LLONG_MAX;
+      } else
+        res = var_val;
+
+      return res;
+    }
     case INT_RESULT:
       return *(longlong *)m_ptr;
     case DECIMAL_RESULT: {
@@ -7776,7 +7834,7 @@ longlong Item_func_row_count::val_int() {
 Item_func_sp::Item_func_sp(const POS &pos, const LEX_STRING &db_name,
                            const LEX_STRING &fn_name, bool use_explicit_name,
                            PT_item_list *opt_list)
-    : Item_func(pos, opt_list), m_sp(nullptr), sp_result_field(nullptr) {
+    : Item_func(pos, opt_list) {
   /*
     Set to false here, which is the default according to SQL standard.
     RETURNS NULL ON NULL INPUT can be implemented by modifying this member.
@@ -7851,7 +7909,7 @@ table_map Item_func_sp::get_initial_pseudo_tables() const {
             Due to bug#26422182, a function cannot be executed before tables
             are locked, even though it accesses no tables.
   */
-  return m_sp->m_chistics->detistic ? INNER_TABLE_BIT : RAND_TABLE_BIT;
+  return m_deterministic ? INNER_TABLE_BIT : RAND_TABLE_BIT;
 }
 
 static void my_missing_function_error(const LEX_STRING &token,
@@ -7889,11 +7947,14 @@ bool Item_func_sp::init_result_field(THD *thd) {
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
-  if (!(m_sp = sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
-                                &thd->sp_func_cache))) {
+  m_sp = sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
+                         &thd->sp_func_cache, true);
+  if (m_sp == nullptr) {
     my_missing_function_error(m_name->m_name, m_name->m_qname.str);
     return true;
   }
+
+  m_deterministic = m_sp->m_chistics->detistic;
 
   /*
      A Field need to be attached to a Table.
@@ -7969,6 +8030,18 @@ bool Item_func_sp::execute() {
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
       thd, context->view_error_handler, context->view_error_handler_arg);
+
+  // Bind to an instance of the stored function:
+  if (m_sp == nullptr) {
+    m_sp = sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
+                            &thd->sp_func_cache);
+    if (m_sp == nullptr) return true;
+    if (sp_result_field != nullptr) {
+      assert(sp_result_field->table->in_use == nullptr);
+      sp_result_field->table->in_use = thd;
+    }
+  }
+
   /* Execute function and store the return value in the field. */
 
   if (execute_impl(thd)) {
@@ -8015,7 +8088,7 @@ bool Item_func_sp::execute_impl(THD *thd) {
     statement-based replication (SBR) is active.
   */
 
-  if (!m_sp->m_chistics->detistic && !trust_function_creators &&
+  if (!m_deterministic && !trust_function_creators &&
       (access == SP_CONTAINS_SQL || access == SP_MODIFIES_SQL_DATA) &&
       (mysql_bin_log.is_open() &&
        thd->variables.binlog_format == BINLOG_FORMAT_STMT)) {
@@ -8173,6 +8246,9 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
     m_sp->m_security_ctx.restore_security_context(thd, save_security_context);
   }
 
+  // Cleanup immediately, thus execute() will always attach to the routine.
+  cleanup();
+
   return false;
 }
 
@@ -8186,19 +8262,6 @@ void Item_func_sp::update_used_tables() {
 void Item_func_sp::fix_after_pullout(SELECT_LEX *parent_select,
                                      SELECT_LEX *removed_select) {
   Item_func::fix_after_pullout(parent_select, removed_select);
-}
-
-void Item_func_sp::bind_fields() {
-  if (!fixed) return;
-  assert(m_sp == nullptr);
-  THD *thd = current_thd;
-  m_sp = sp_setup_routine(thd, enum_sp_type::FUNCTION, m_name,
-                          &thd->sp_func_cache);
-  assert(m_sp != nullptr);
-  if (sp_result_field != nullptr) {
-    assert(sp_result_field->table->in_use == nullptr);
-    sp_result_field->table->in_use = thd;
-  }
 }
 
 /*

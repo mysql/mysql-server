@@ -758,7 +758,7 @@ drop table t1;
 
 
 --echo #
---echo # Truncating referenced table -> not allowed
+--echo # Truncating referenced table
 --echo #
 create table t2 (
   pk2 int not null primary key,
@@ -775,16 +775,18 @@ set foreign_key_checks=1;
 --error ER_TRUNCATE_ILLEGAL_FK
 truncate table t2;
 set foreign_key_checks=0;
-
---error ER_TRUNCATE_ILLEGAL_FK
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
 truncate table t2;
+--echo Verify all the foreign key are re-created after truncate
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
 
 drop table t1, t2;
 
-
 --echo #
 --echo # Truncating referenced table which references
---echo # another table -> not allowed
+--echo # another table
 --echo #
 create table t3 (
   pk3 int not null primary key,
@@ -805,10 +807,15 @@ set foreign_key_checks=1;
 --replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 --error ER_TRUNCATE_ILLEGAL_FK
 truncate table t2;
-set foreign_key_checks=0;
 
---error ER_TRUNCATE_ILLEGAL_FK
+set foreign_key_checks=0;
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
+
 truncate table t2;
+--echo Verify all the foreign key are re-created after truncate
+--let $ndb_table_name=t2
+--source print_foreign_keys.inc
 
 drop table t1, t2, t3;
 

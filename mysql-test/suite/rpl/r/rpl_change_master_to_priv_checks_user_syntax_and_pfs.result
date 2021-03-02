@@ -1,4 +1,4 @@
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = CURRENT_USER();
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = CURRENT_USER();
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CURRENT_USER()' at line 1
 include/rpl_init.inc [topology=1->2, 1->3, 1->4]
 Warnings:
@@ -13,17 +13,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '2']
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '3']
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '4']
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to NULL for server '2']
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to NULL for server '3']
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL;
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to NULL for server '4']
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '2']
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '3']
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost';
 check_pfs.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost' for server '4']
 RESET SLAVE;
 Warnings:

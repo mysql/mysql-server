@@ -12,6 +12,14 @@ noquiet;
 -->endmacro
 
 
+-->macro Assert_global_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+-->stmtsql SHOW GLOBAL STATUS LIKE '%VARIABLE_NAME%';
+-->recvtovar %VARIABLE_VALUE% Value
+-->echo Verify [Status variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
+-->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
+-->endmacro
+
+
 -->macro Assert_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->stmtsql SHOW STATUS LIKE '%VARIABLE_NAME%';
 -->recvtovar %VARIABLE_VALUE% Value
@@ -19,12 +27,14 @@ noquiet;
 -->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
 -->endmacro
 
+
 -->macro Assert_session_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
 -->stmtsql SHOW SESSION VARIABLES LIKE '%VARIABLE_NAME%';
 -->recvtovar %VARIABLE_VALUE% Value
 -->echo Verify [Session variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
 -->assert_eq %EXPECTED_VALUE%	%VARIABLE_VALUE%
 -->endmacro
+
 
 -->macro Assert_received_notices
 -->received Mysqlx.Notice.Warning	%MYSQLXTEST_NO_OF_WARNINGS%

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,9 +29,9 @@
 
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/prepared_statement_builder.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 
@@ -257,7 +257,7 @@ void Prepare_command_handler::send_notices(const Prepared_stmt_info *stmt_info,
   const auto &notice_config = m_session->get_notice_configuration();
   if (info.num_warnings > 0 &&
       notice_config.is_notice_enabled(ngs::Notice_type::k_warning))
-    notices::send_warnings(m_session->data_context(), m_session->proto());
+    notices::send_warnings(&m_session->data_context(), &m_session->proto());
 
   if (!is_eof) return;
 

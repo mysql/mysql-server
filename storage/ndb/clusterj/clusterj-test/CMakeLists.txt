@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -130,6 +130,7 @@ SET(JAVA_SOURCES
   ${CLUSTERJ_TESTSUITE_PREFIX}/SaveTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/SchemaChangeTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/SerialTransactionsTest.java
+  ${CLUSTERJ_TESTSUITE_PREFIX}/SessionFactoryTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/StressTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/TableWithoutPKTest.java
   ${CLUSTERJ_TESTSUITE_PREFIX}/TimeAsSqlTimeTypesTest.java

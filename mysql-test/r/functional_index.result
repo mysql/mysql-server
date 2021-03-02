@@ -186,7 +186,7 @@ EXPLAIN SELECT col1 FROM t1 WHERE ABS(col1) < 1 ORDER BY ABS(col1) DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	functional_index	functional_index	5	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) < 1) order by abs(`col1`) desc
+Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1` from `test`.`t1` where (abs(`col1`) < 1) order by abs(`test`.`t1`.`col1`) desc
 DROP TABLE t1;
 # Test integer index over a JSON key
 CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->"$.id" AS UNSIGNED))));
@@ -234,8 +234,8 @@ f1
 EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) = "\"n\"";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	43	const	1	100.00	NULL
-Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) = '"n"')
+Warnings:
 SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
 f1
 {"id": "'z"}
@@ -244,8 +244,8 @@ f1
 EXPLAIN SELECT * FROM t1 WHERE CAST(f1->>"$.id" AS CHAR(10)) IN ("'z", "\"n\"","a");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	idx1	idx1	43	NULL	3	100.00	Using where
-Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (cast(json_unquote(json_extract(`f1`,_utf8mb4'$.id')) as char(10) charset utf8mb4) in ('\'z','"n"','a'))
+Warnings:
 DROP TABLE t1;
 CREATE TABLE t1(f1 JSON, INDEX idx1 ((CAST(f1->>"$.name" AS CHAR(30)) COLLATE utf8mb4_bin)));
 INSERT INTO t1 VALUES
@@ -369,7 +369,7 @@ DROP TABLE t1;
 # generated columns.
 CREATE TABLE t(x INT, KEY((1+1)));
 ALTER TABLE t DROP COLUMN x;
-ERROR 42000: A table must have at least 1 column
+ERROR HY000: A table must have at least one visible column.
 DROP TABLE t;
 # See that we print out the correct error message in case of duplicate
 # index names.
@@ -598,3 +598,14 @@ sold_on DATETIME NOT NULL DEFAULT NOW(),
 INDEX sold_on_date ((DATE(sold_on)))
 )
 SELECT NOW() `sold_on`;
+#
+# Bug#30838749: PERFORMANCE DROP WHEN CREATING A FUNCTIONAL INDEX
+#
+CREATE TABLE t1(x INT, KEY k ((x+1)));
+CREATE TABLE t2(j JSON);
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug30838749' INTO TABLE t2
+LINES STARTING BY 'EXPLAIN' TERMINATED BY 'EOL';
+SELECT j->'$**.used_columns' FROM t2;
+j->'$**.used_columns'
+[["x"]]
+DROP TABLE t1, t2;

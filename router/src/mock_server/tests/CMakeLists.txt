@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@ FOREACH(TEST_FILE ${TEST_FILES})
     ${TEST_FILE}
     MODULE mock_server
     INCLUDE_DIRS ../src/
-    LIB_DEPENDS mysql_protocol_static
+    LIB_DEPENDS mysql_protocol
     EXTRA_SOURCES ../src/authentication.cc
     )
 ENDFOREACH()

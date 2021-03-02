@@ -12,7 +12,7 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT CREATE,INSERT ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL 'group_replication_recovery';
 #
 # 3. Bootstrap server1 and add some data
 include/start_and_bootstrap_group_replication.inc
@@ -55,9 +55,9 @@ DROP TABLE db1.t1;
 DROP DATABASE db1;
 include/rpl_sync.inc
 [connection server1]
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
 [connection server2]
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL FOR CHANNEL 'group_replication_recovery';
 [connection server1]
 DROP USER u1@localhost;
 UNINSTALL PLUGIN clone;

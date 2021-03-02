@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +61,7 @@ typedef struct {
   unsigned int numberInList;
 } SessionList;  
 
-typedef struct {
+struct TransactionDefinition {
   unsigned int  count;
   unsigned int  branchExecuted;
   unsigned int  rollbackExecuted;
@@ -86,7 +85,7 @@ typedef struct {
     }
     latencyCounter++;
   }
-} TransactionDefinition;
+};
 
 typedef struct {
   RandomSequence transactionSequence;

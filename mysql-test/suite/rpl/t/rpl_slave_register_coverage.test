@@ -18,7 +18,7 @@ CREATE USER rpl_user;
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_io.inc
 
-CHANGE MASTER TO master_user='rpl_user';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user';
 START SLAVE IO_THREAD;
 
 --let $slave_io_errno= 13120
@@ -31,7 +31,7 @@ CALL mtr.add_suppression(".* Master command COM_REGISTER_SLAVE failed.*");
 --echo # Test Case 2: IO thread is killed when registering to master
 --echo #
 
-CHANGE MASTER TO master_user='root';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
 
 # Simulate register_slave_to_master is killed
 SET GLOBAL debug = '+d,simulate_register_slave_killed';

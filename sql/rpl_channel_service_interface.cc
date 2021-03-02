@@ -37,11 +37,11 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -53,6 +53,7 @@
 #include "sql/mysqld.h"              // opt_mts_slave_parallel_workers
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
+#include "sql/raii/sentry.h"
 #include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_info_factory.h"
@@ -109,6 +110,10 @@ static void set_mi_settings(Master_info *mi,
   mysql_mutex_lock(&mi->data_lock);
 
   mi->rli->set_thd_tx_priority(channel_info->thd_tx_priority);
+
+  mi->rli->set_ignore_write_set_memory_limit(
+      channel_info->m_ignore_write_set_memory_limit);
+  mi->rli->set_allow_drop_write_set(channel_info->m_allow_drop_write_set);
 
   mi->rli->replicate_same_server_id =
       (channel_info->replicate_same_server_id == RPL_SERVICE_SERVER_DEFAULT)
@@ -201,6 +206,8 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->get_public_key = 0;
   channel_info->compression_algorithm = nullptr;
   channel_info->zstd_compression_level = 0;
+  channel_info->m_ignore_write_set_memory_limit = false;
+  channel_info->m_allow_drop_write_set = false;
 }
 
 void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info) {
@@ -356,19 +363,16 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
     lex_mi->zstd_compression_level = channel_info->zstd_compression_level;
   }
 
+  lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_UNCHANGED;
   if (channel_info->m_source_connection_auto_failover) {
-    lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_ENABLE;
-    if (mi && mi->is_source_connection_auto_failover()) {
-      // No change
+    if (mi && !mi->is_source_connection_auto_failover()) {
       lex_mi->m_source_connection_auto_failover =
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+          LEX_MASTER_INFO::LEX_MI_ENABLE;
     }
   } else {
-    lex_mi->m_source_connection_auto_failover = LEX_MASTER_INFO::LEX_MI_DISABLE;
-    if (mi && !mi->is_source_connection_auto_failover()) {
-      // No change
+    if (mi && mi->is_source_connection_auto_failover()) {
       lex_mi->m_source_connection_auto_failover =
-          LEX_MASTER_INFO::LEX_MI_UNCHANGED;
+          LEX_MASTER_INFO::LEX_MI_DISABLE;
     }
   }
 
@@ -545,6 +549,10 @@ int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
   if ((threads_to_stop & CHANNEL_RECEIVER_THREAD) &&
       (server_thd_mask & SLAVE_IO)) {
     thread_mask |= SLAVE_IO;
+  }
+  if ((threads_to_stop & CHANNEL_RECEIVER_THREAD) &&
+      (server_thd_mask & SLAVE_MONITOR)) {
+    thread_mask |= SLAVE_MONITOR;
   }
 
   if (thread_mask == 0) {
@@ -1134,6 +1142,29 @@ bool is_partial_transaction_on_channel_relay_log(const char *channel) {
   bool ret = mi->transaction_parser.is_inside_transaction();
   channel_map.unlock();
   return ret;
+}
+
+bool channel_has_same_uuid_as_group_name(const char *group_name) {
+  DBUG_TRACE;
+  Master_info *mi = nullptr;
+  channel_map.rdlock();
+  raii::Sentry<> map_lock_sentry{[&]() -> void { channel_map.unlock(); }};
+
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       it++) {
+    mi = it->second;
+    if (mi != nullptr &&
+        mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+            Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+      if (!(strcmp((mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                        .get_value())
+                       .data(),
+                   group_name))) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 bool is_any_slave_channel_running(int thread_mask) {

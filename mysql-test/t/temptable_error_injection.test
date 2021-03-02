@@ -1,4 +1,5 @@
 -- source include/have_debug.inc
+-- source include/not_hypergraph.inc  # Depends on the query plan.
 
 CREATE TABLE t (c INT);
 

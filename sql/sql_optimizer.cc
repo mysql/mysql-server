@@ -73,6 +73,7 @@
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/lock.h"    // mysql_unlock_some_tables
@@ -281,7 +282,7 @@ bool JOIN::optimize() {
 
   const bool has_windows = m_windows.elements != 0;
 
-  if (has_windows && Window::setup_windows2(thd, select_lex, m_windows))
+  if (has_windows && Window::setup_windows2(thd, m_windows))
     return true; /* purecov: inspected */
 
   if (select_lex->olap == ROLLUP_TYPE && optimize_rollup())
@@ -499,15 +500,34 @@ bool JOIN::optimize() {
   // Ensure there are no errors prior making query plan
   if (thd->is_error()) return true;
 
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
-      strstr(thd->query().str, "set ") == nullptr &&
-      strstr(thd->query().str, "SET ") == nullptr &&
-      strstr(thd->query().str, "@") == nullptr &&
-      thd->lex->sql_command == SQLCOM_SELECT) {
-    // There is no hypergraph optimizer yet.
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "anything");
-    return true;
+  if (thd->lex->using_hypergraph_optimizer) {
+    if (thd->opt_trace.is_started()) {
+      std::string trace_str;
+      m_root_access_path = FindBestQueryPlan(thd, select_lex, &trace_str);
+      Opt_trace_object trace_wrapper2(&thd->opt_trace);
+      Opt_trace_array join_optimizer(&thd->opt_trace, "join_optimizer");
+
+      // Split by newlines.
+      for (size_t pos = 0; pos < trace_str.size();) {
+        size_t len = strcspn(trace_str.data() + pos, "\n");
+        join_optimizer.add_utf8(trace_str.data() + pos, len);
+        pos += len + 1;
+      }
+    } else {
+      m_root_access_path =
+          FindBestQueryPlan(thd, select_lex, /*trace=*/nullptr);
+    }
+    if (m_root_access_path == nullptr) {
+      return true;
+    }
+    set_plan_state(PLAN_READY);
+    DEBUG_SYNC(thd, "after_join_optimize");
+    return false;
   }
+
+  // ----------------------------------------------------------------------------
+  //       All of this is never called for the hypergraph join optimizer!
+  // ----------------------------------------------------------------------------
 
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
@@ -2153,16 +2173,16 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
               .add_utf8("index", table->key_info[new_ref_key].name);
           QUICK_SELECT_I *qck;
           const bool no_quick =
-              test_quick_select(thd, new_ref_key_map,
-                                0,  // empty table_map
-                                join->calc_found_rows
-                                    ? HA_POS_ERROR
-                                    : join->unit->select_limit_cnt,
-                                false,  // don't force quick range
-                                order.order->direction, tab,
-                                // we are after make_join_select():
-                                tab->condition(), &tab->needed_reg, &qck,
-                                tab->table()->force_index) <= 0;
+              test_quick_select(
+                  thd, new_ref_key_map,
+                  0,  // empty table_map
+                  join->calc_found_rows ? HA_POS_ERROR
+                                        : join->unit->select_limit_cnt,
+                  false,  // don't force quick range
+                  order.order->direction, tab,
+                  // we are after make_join_select():
+                  tab->condition(), &tab->needed_reg, &qck,
+                  tab->table()->force_index, join->select_lex) <= 0;
           DBUG_ASSERT(tab->quick() == save_quick);
           tab->set_quick(qck);
           if (no_quick) {
@@ -2270,7 +2290,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           join->calc_found_rows ? HA_POS_ERROR : join->unit->select_limit_cnt,
           true,  // force quick range
           order.order->direction, tab, tab->condition(), &tab->needed_reg, &qck,
-          tab->table()->force_index);
+          tab->table()->force_index, join->select_lex);
       if (order_direction < 0 && tab->quick() != nullptr &&
           tab->quick() != save_quick) {
         /*
@@ -2547,7 +2567,8 @@ bool JOIN::prune_table_partitions() {
     if (!tbl->embedding) {
       Item *prune_cond =
           tbl->join_cond_optim() ? tbl->join_cond_optim() : where_cond;
-      if (prune_partitions(thd, tbl->table, prune_cond)) return true;
+      if (prune_partitions(thd, tbl->table, select_lex, prune_cond))
+        return true;
     }
   }
 
@@ -2638,7 +2659,8 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
                 thd, new_ref_key_map, 0,  // empty table_map
                 tab->join()->row_limit, false, ordering, tab,
                 tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
-                &tab->needed_reg, &qck, recheck_range) > 0) {
+                &tab->needed_reg, &qck, recheck_range,
+                tab->join()->select_lex) > 0) {
           if (length < qck->max_used_key_length) {
             delete tab->quick();
             tab->set_quick(qck);
@@ -3501,6 +3523,12 @@ Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal) {
 static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
                                   Item *item, COND_EQUAL *cond_equal,
                                   bool *simple_equality) {
+  if (thd->lex->using_hypergraph_optimizer) {
+    // We cannot handle loops in the query graph yet.
+    *simple_equality = false;
+    return false;
+  }
+
   *simple_equality = false;
 
   if (left_item->type() == Item::REF_ITEM &&
@@ -4452,8 +4480,8 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
     }
     if (cond->type() == Item::COND_ITEM &&
         !((Item_cond *)cond)->argument_list()->elements)
-      cond = cond->val_bool() ? down_cast<Item *>(new Item_func_true())
-                              : down_cast<Item *>(new Item_func_false());
+      cond = cond->val_bool() ? implicit_cast<Item *>(new Item_func_true())
+                              : implicit_cast<Item *>(new Item_func_false());
   } else if (cond->type() == Item::FUNC_ITEM &&
              (down_cast<Item_func *>(cond))->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
@@ -5833,7 +5861,8 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab,
         tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
-        &tab->needed_reg, &qck, tab->table()->force_index);
+        &tab->needed_reg, &qck, tab->table()->force_index,
+        tab->join()->select_lex);
     tab->set_quick(qck);
 
     if (error == 1) return qck->records;
@@ -7514,7 +7543,6 @@ static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
    It also sets FT_HINTS values(op_type, op_value).
 
    @param keyuse_array      Key_use array
-   @param stat              JOIN_TAB structure
    @param cond              WHERE condition
    @param usable_tables     usable tables
    @param simple_match_expr true if this is the first call false otherwise.
@@ -7529,7 +7557,7 @@ static bool add_key_part(Key_use_array *keyuse_array, Key_field *key_field) {
 
 */
 
-static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
+static bool add_ft_keys(Key_use_array *keyuse_array, Item *cond,
                         table_map usable_tables, bool simple_match_expr) {
   Item_func_match *cond_func = nullptr;
 
@@ -7584,10 +7612,8 @@ static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
 
     if (down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC) {
       Item *item;
-      while ((item = li++)) {
-        if (add_ft_keys(keyuse_array, stat, item, usable_tables, false))
-          return true;
-      }
+      while ((item = li++))
+        if (add_ft_keys(keyuse_array, item, usable_tables, false)) return true;
     }
   }
 
@@ -7595,18 +7621,20 @@ static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
       !(usable_tables & cond_func->table_ref->map()))
     return false;
 
+  TABLE_LIST *tbl = cond_func->table_ref;
+  if (!tbl->table->keys_in_use_for_query.is_set(cond_func->key)) return false;
+
   cond_func->set_simple_expression(simple_match_expr);
 
-  const Key_use keyuse(cond_func->table_ref, cond_func,
-                       cond_func->key_item()->used_tables(), cond_func->key,
-                       FT_KEYPART,
+  const Key_use keyuse(tbl, cond_func, cond_func->key_item()->used_tables(),
+                       cond_func->key, FT_KEYPART,
                        0,            // optimize
                        0,            // keypart_map
                        ~(ha_rows)0,  // ref_table_rows
                        false,        // null_rejecting
                        nullptr,      // cond_guard
                        UINT_MAX);    // sj_pred_no
-
+  tbl->table->reginfo.join_tab->keys().set_bit(cond_func->key);
   return keyuse_array->push_back(keyuse);
 }
 
@@ -8072,7 +8100,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
   }
 
   if (select_lex->ftfunc_list->elements) {
-    if (add_ft_keys(keyuse, join_tab, cond, normal_tables, true)) return true;
+    if (add_ft_keys(keyuse, cond, normal_tables, true)) return true;
   }
 
   /*
@@ -9503,7 +9531,8 @@ static bool make_join_select(JOIN *join, Item *cond) {
                                             : join->unit->select_limit_cnt,
                       false,  // don't force quick range
                       interesting_order, tab, tab->condition(),
-                      &tab->needed_reg, &qck, tab->table()->force_index) < 0;
+                      &tab->needed_reg, &qck, tab->table()->force_index,
+                      join->select_lex) < 0;
               tab->set_quick(qck);
             }
             tab->set_condition(orig_cond);
@@ -9527,7 +9556,8 @@ static bool make_join_select(JOIN *join, Item *cond) {
                                             : join->unit->select_limit_cnt,
                       false,  // don't force quick range
                       ORDER_NOT_RELEVANT, tab, tab->condition(),
-                      &tab->needed_reg, &qck, tab->table()->force_index) < 0;
+                      &tab->needed_reg, &qck, tab->table()->force_index,
+                      join->select_lex) < 0;
               tab->set_quick(qck);
               if (impossible_where) return true;  // Impossible WHERE
             }
@@ -9965,8 +9995,13 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
     }
     step_wrapper.add("resulting_condition", *cond);
   }
-  /* change field = field to field = const for each found field = const */
-  if (*cond) {
+  /*
+    change field = field to field = const for each found field = const
+    Note: Since we disable multi-equalities in the hypergraph optimizer for now,
+    we also cannot run this optimization; it causes spurious “Impossible WHERE”
+    in e.g. main.select_none.
+   */
+  if (*cond && !thd->lex->using_hypergraph_optimizer) {
     Opt_trace_object step_wrapper(trace);
     step_wrapper.add_alnum("transformation", "constant_propagation");
     {

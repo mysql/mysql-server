@@ -5,7 +5,11 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
+call mtr.add_suppression("Error in diagnostics area: MY-001317 - Query execution was interrupted");
+
+
 --write_file $MYSQL_TMP_DIR/killconnection_optimize_table.xpl
+import assert_notices.macro;
 -->sql
 START TRANSACTION;
 UPDATE sakila.payment SET amount = amount + 1 WHERE payment_id = 5068;
@@ -23,13 +27,21 @@ UPDATE sakila.payment SET amount = amount + 1 WHERE payment_id = 5068;
 KILL %ID%;
 -->endsql
 
+-->quiet
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
+-->noquiet
+
 -->setsession second
 -->recvresult
--->expecterror ER_QUERY_INTERRUPTED
+-->varlet %ER_SESSION_WAS_KILLED% 3169
+-->callmacro Assert_notice_warning	ERROR	%ER_SESSION_WAS_KILLED%
+
+-->expecterror CR_SERVER_GONE_ERROR
 -->sql
 SELECT 1;
 -->endsql
--->closesession abort
+-->recvuntildisc show-received
+
 
 -->sql
 COMMIT;
@@ -38,6 +50,7 @@ EOF
 
 
 --write_file $MYSQL_TMP_DIR/killconnection_select_table.xpl
+-->import assert_notices.macro
 -->sql
 START TRANSACTION;
 UPDATE sakila.payment SET amount = amount + 1 WHERE payment_id = 5068;
@@ -49,14 +62,21 @@ UPDATE sakila.payment SET amount = amount + 1 WHERE payment_id = 5068;
 -->stmtsql SELECT * FROM sakila.inventory;
 
 -->setsession
+# need delay for starting procedure in 'second' session
+-->sleep 1
 -->sql
 KILL %ID%;
 -->endsql
 
+-->quiet
+-->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
+-->noquiet
+
 -->setsession second
--->expecterror ER_QUERY_INTERRUPTED,ER_SUCCESS
 -->recvresult be-quiet
--->closesession abort
+-->varlet %ER_SESSION_WAS_KILLED% 3169
+-->callmacro Assert_notice_warning	ERROR	%ER_SESSION_WAS_KILLED%
+-->recvuntildisc show-received
 
 -->sql
 COMMIT;

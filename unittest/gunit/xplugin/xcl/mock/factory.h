@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,16 +32,17 @@
 
 namespace xcl {
 namespace test {
+namespace mock {
 
-class Mock_factory : public Protocol_factory {
+class Protocol_factory : public xcl::Protocol_factory {
  public:
-  MOCK_METHOD1(create_protocol_raw,
-               XProtocol *(std::shared_ptr<Context> context));
-  MOCK_METHOD1(create_connection_raw,
-               XConnection *(std::shared_ptr<Context> context));
-  MOCK_METHOD3(create_result_raw,
-               XQuery_result *(std::shared_ptr<XProtocol>, Query_instances *,
-                               std::shared_ptr<Context>));
+  MOCK_METHOD(XProtocol *, create_protocol_raw,
+              (std::shared_ptr<Context> context));
+  MOCK_METHOD(XConnection *, create_connection_raw,
+              (std::shared_ptr<Context> context));
+  MOCK_METHOD(XQuery_result *, create_result_raw,
+              (std::shared_ptr<XProtocol>, Query_instances *,
+               std::shared_ptr<Context>));
 
  private:
   std::shared_ptr<XProtocol> create_protocol(
@@ -51,23 +52,24 @@ class Mock_factory : public Protocol_factory {
     return result;
   }
 
-  std::unique_ptr<XConnection> create_connection(
+  std::unique_ptr<xcl::XConnection> create_connection(
       std::shared_ptr<Context> context) override {
-    std::unique_ptr<XConnection> result{create_connection_raw(context)};
+    std::unique_ptr<xcl::XConnection> result{create_connection_raw(context)};
 
     return result;
   }
 
-  std::unique_ptr<XQuery_result> create_result(
+  std::unique_ptr<xcl::XQuery_result> create_result(
       std::shared_ptr<XProtocol> protocol, Query_instances *query_instances,
       std::shared_ptr<Context> context) override {
-    std::unique_ptr<XQuery_result> result{
+    std::unique_ptr<xcl::XQuery_result> result{
         create_result_raw(protocol, query_instances, context)};
 
     return result;
   }
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xcl
 

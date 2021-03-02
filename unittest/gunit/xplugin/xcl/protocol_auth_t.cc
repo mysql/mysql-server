@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,23 @@ TEST_F(Xcl_protocol_impl_tests_auth,
                                       expected_error_code);
 
   assert_authenticate("PLAIN", expected_error_code);
+}
+
+TEST_F(Xcl_protocol_impl_tests_auth,
+       execute_authenticate_mysql41_method_too_short_auth_data) {
+  auto msg_auth_cont_s =
+      Server_message<Auth_details::Authenticate_continue>::make_required();
+  msg_auth_cont_s.set_auth_data("TOOSHORT");
+
+  {
+    InSequence s;
+    expect_write_message(m_messages.msg_auth_start_mysql41.get());
+    expect_read_message(msg_auth_cont_s);
+    expect_write_message(m_messages.msg_auth_cont_mysql41.get());
+    expect_read_message_without_payload(Auth_details::Authenticate_ok());
+  }
+
+  assert_authenticate("MYSQL41");
 }
 
 TEST_P(Xcl_protocol_impl_tests_auth,
@@ -285,7 +302,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
   assert_authenticate(GetParam().m_auth_name, expected_error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     InstantiationAuthDetails, Xcl_protocol_impl_tests_auth,
     ::testing::Values(
         Auth_details{"MYSQL41", Auth_test_messages().msg_auth_start_mysql41,

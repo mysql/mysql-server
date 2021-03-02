@@ -779,6 +779,39 @@ bool is_shared_tablespace(const char *tablespace_name) {
   return false;
 }
 
+#define SIZE_MB (1024 * 1024)
+
+/** Validate AUTOEXTEND_SIZE attribute for a tablespace.
+@param[in]	ext_size	Value of autoextend_size attribute
+@return DB_SUCCESS if the value of AUTOEXTEND_SIZE is valid. */
+UNIV_INLINE
+int validate_autoextend_size_value(uint64_t ext_size) {
+  ut_ad(ext_size > 0);
+
+  page_no_t extent_size_pages =
+      fsp_get_extent_size_in_pages({static_cast<uint32_t>(srv_page_size),
+                                    static_cast<uint32_t>(srv_page_size), 0});
+
+  /* Validate following for the AUTOEXTEND_SIZE attribute
+  1. The autoextend_size should be a multiple of size of 4 extents
+  2. The autoextend_size value should be between size of 4 extents and 64M */
+  if (ext_size < (FSP_FREE_ADD * extent_size_pages * srv_page_size) ||
+      ext_size > FSP_MAX_AUTOEXTEND_SIZE) {
+    my_error(ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE, MYF(0),
+             (FSP_FREE_ADD * extent_size_pages * srv_page_size) / SIZE_MB,
+             FSP_MAX_AUTOEXTEND_SIZE / SIZE_MB);
+    return ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE;
+  }
+
+  if ((ext_size / srv_page_size) % (FSP_FREE_ADD * extent_size_pages) != 0) {
+    my_error(ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE, MYF(0),
+             FSP_FREE_ADD * extent_size_pages * srv_page_size / SIZE_MB);
+    return ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE;
+  }
+
+  return DB_SUCCESS;
+}
+
 /** Parse hint for table and its indexes, and update the information
 in dictionary.
 @param[in]	thd		Connection thread

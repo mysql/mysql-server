@@ -1,0 +1,127 @@
+################################################################################
+# Validate that on STOP GROUP_REPLICATION existent asynchronous replication
+# channels are stopped, including the Monitor IO thread if there are channels
+# with SOURCE_CONNECTION_AUTO_FAILOVER=1.
+#
+# Test:
+#   0. The test requires 2 servers:
+#   1. Deploy a 1 member group A in single-primary mode.
+#   2. Deploy a 1 member group B in single-primary mode.
+#   3. Configure replica to manage the asynchronous connection
+#      between group A (source) and group B (replica).
+#   4. Create and start the managed channel.
+#   5. Stop group replication on group B
+#      Channel ch1, and the Monitor IO thread started by it,
+#      will automatically be stopped.
+#   6. Clean up.
+################################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy a 1 member group A in single-primary mode.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+--let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--let $group_a= $group_replication_group_name
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Deploy a 1 member group B in single-primary mode.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Configure replica to manage the asynchronous connection
+--echo #    between group A (source) and group B (replica).
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $group_a GROUP_A
+--eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_a', '127.0.0.1', $SERVER_MYPORT_1, '', 90, 70);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server1'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group A'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed WHERE managed_name="$group_a", count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Create and start the managed channel.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="ch1" AND source_uuid="$server1_uuid" AND SERVICE_STATE="ON", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= Verify replica_monitor thread is running
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.threads WHERE NAME=\"thread/sql/replica_monitor\"]" = 1;
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Stop group replication on group B
+--echo #    Channel ch1, and the Monitor IO thread started by it,
+--echo #    will automatically be stopped.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $assert_text= 'channel ch1 SQL_THREAD is OFF'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_applier_status where CHANNEL_NAME="ch1" and SERVICE_STATE="OFF", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'channel ch1 IO_THREAD is OFF'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status where CHANNEL_NAME="ch1" and SERVICE_STATE="OFF", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'replica_monitor thread is not running'
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.threads WHERE NAME=\"thread/sql/replica_monitor\"]" = 0;
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Clean up.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch1'
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--replace_result $group_a GROUP_A
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_a')
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

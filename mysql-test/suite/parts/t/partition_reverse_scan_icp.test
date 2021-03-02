@@ -28,6 +28,7 @@ set @cnt=1;
 select * from t1 force index(date_col) where
    col1 + 10000000 > (@cnt:=@cnt+1) and date_col >= date('2014-04-01') AND date_col < date('2014-04-01' + interval 1 day)
    ORDER BY date_col DESC;
+--skip_if_hypergraph  # Does not support indexes yet, so will do a full table scan.
 select @cnt;
 
 #Mutiple partittion scan 
@@ -40,6 +41,7 @@ set @cnt=1;
 select * from t1 force index(date_col) where
    col1 + 10000000 > (@cnt:=@cnt+1) and date_col >= date('2014-04-06') AND date_col < date('2015-02-10' + interval 1 day)
 ORDER BY date_col DESC;
+--skip_if_hypergraph  # Does not support indexes yet, so will do a full table scan.
 select @cnt;
 
 drop table t1,t2;

@@ -58,7 +58,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql_com.h"  // NAME_LEN
 #include "mysqld_error.h"
 #include "prealloced_array.h"     // Prealloced_array
@@ -77,7 +77,8 @@
 #include "sql/item_row.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
-#include "sql/mdl.h"       // MDL_SHARED_READ
+#include "sql/join_optimizer/join_optimizer.h"
+#include "sql/mdl.h"  // MDL_SHARED_READ
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
 #include "sql/opt_hints.h"
@@ -392,8 +393,12 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                              &fields, m_windows))
     return true;
 
-  if (order_list.elements && setup_order_final(thd))
-    return true; /* purecov: inspected */
+  bool added_new_sum_funcs = false;
+
+  if (order_list.elements) {
+    if (setup_order_final(thd)) return true; /* purecov: inspected */
+    added_new_sum_funcs = true;
+  }
 
   thd->want_privilege = want_privilege_saved;
 
@@ -459,22 +464,7 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
                         m_having_cond->has_grouping_func())) {
     m_having_cond->split_sum_func2(thd, base_ref_items, &fields, &m_having_cond,
                                    true);
-    if (olap == ROLLUP_TYPE) {
-      uint send_group_parts = group_list_size();
-      for (auto it = fields.begin(); it != fields.end(); ++it) {
-        Item *item = *it;
-        if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-            down_cast<Item_sum *>(item)->aggr_select == this &&
-            !is_rollup_sum_wrapper(item)) {
-          // split_sum_func2 created a new aggregate function item,
-          // so we need to update it for rollup.
-          Item *new_item =
-              create_rollup_switcher(thd, this, item, send_group_parts);
-          if (new_item == nullptr) return true;
-          *it = new_item;
-        }
-      }
-    }
+    added_new_sum_funcs = true;
   }
   if (inner_sum_func_list) {
     Item_sum *end = inner_sum_func_list;
@@ -482,7 +472,25 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     do {
       item_sum = item_sum->next_sum;
       item_sum->split_sum_func2(thd, base_ref_items, &fields, nullptr, false);
+      added_new_sum_funcs = true;
     } while (item_sum != end);
+  }
+
+  if (added_new_sum_funcs && olap == ROLLUP_TYPE) {
+    uint send_group_parts = group_list_size();
+    for (auto it = fields.begin(); it != fields.end(); ++it) {
+      Item *item = *it;
+      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
+          down_cast<Item_sum *>(item)->aggr_select == this &&
+          !is_rollup_sum_wrapper(item)) {
+        // split_sum_func2 created a new aggregate function item,
+        // so we need to update it for rollup.
+        Item *new_item =
+            create_rollup_switcher(thd, this, item, send_group_parts);
+        if (new_item == nullptr) return true;
+        *it = new_item;
+      }
+    }
   }
 
   if (group_list.elements) {
@@ -565,11 +573,13 @@ bool SELECT_LEX::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
     if (push_conditions_to_derived_tables(thd)) return true;
   }
 
-  /*
-    If the query directly contains windowing, remove any unused explicit window
-    definitions.
-  */
-  if (m_windows.elements != 0) Window::remove_unused_windows(thd, m_windows);
+  // Eliminate unused window definitions, redundant sorts etc.
+  if (m_windows.elements != 0) Window::eliminate_unused_objects(thd, m_windows);
+
+  // Replace group by field references inside window functions with references
+  // in the presence of ROLLUP.
+  if (olap == ROLLUP_TYPE && resolve_rollup_wfs(thd))
+    return true; /* purecov: inspected */
 
   DBUG_ASSERT(!thd->is_error());
   return false;
@@ -680,6 +690,16 @@ bool SELECT_LEX::prepare_values(THD *thd) {
     if (resolve_subquery(thd)) return true;
   }
 
+  /*
+    A table value constructor may have a defined ordering, thus calling
+    setup_order() is needed, however calling setup_order_final() is
+    not necessary since this construct cannot be aggregated.
+  */
+  if (is_ordered() && setup_order(thd, base_ref_items, get_table_list(),
+                                  &fields, order_list.first)) {
+    return true;
+  }
+
   if (query_result() && query_result()->prepare(thd, fields, unit))
     return true; /* purecov: inspected */
 
@@ -768,7 +788,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
         This will only prune constant conditions, which will be used for
         lock pruning.
       */
-      if (prune_partitions(thd, tbl->table,
+      if (prune_partitions(thd, tbl->table, this,
                            tbl->join_cond() ? tbl->join_cond() : m_where_cond))
         return true; /* purecov: inspected */
 
@@ -1405,8 +1425,12 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
          3x: outer aggregated expression are not accepted
       4. Subquery does not use HAVING
       5. Subquery does not use windowing functions
-      6. Subquery predicate is (a) in an ON/WHERE clause, and (b) at
-      the AND-top-level of that clause.
+      6. Subquery predicate is (a) in an ON/WHERE clause,
+         and (b) at the AND-top-level of that clause. Note for 6a:
+         Semijoin transformations of subqueries in ON cause the
+         join nests to no longer be acceptable as a join tree, which
+         disturbs the hypergraph optimizer, so we disable them
+         for that case (6x).
       7. Parent query block accepts semijoins (i.e we are not in a subquery of
       a single table UPDATE/DELETE (TODO: We should handle this at some
       point by switching to multi-table UPDATE/DELETE)
@@ -1426,7 +1450,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       !is_part_of_union() &&                                       // 2
       no_aggregates &&                                             // 3,3x,4,5
       (outer->resolve_place == SELECT_LEX::RESOLVE_CONDITION ||    // 6a
-       outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST) &&   // 6a
+       (outer->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST &&   // 6a
+        !thd->lex->using_hypergraph_optimizer)) &&                 // 6x
       outer->condition_context == enum_condition_context::ANDS &&  // 6b
       outer->sj_candidates &&                                      // 7
       leaf_table_count > 0 &&                                      // 8
@@ -3827,8 +3852,8 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     */
     Item *truth_item =
         (cond_value || subq_item->can_do_aj)
-            ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
-            : down_cast<Item *>(new (thd->mem_root) Item_func_false());
+            ? implicit_cast<Item *>(new (thd->mem_root) Item_func_true())
+            : implicit_cast<Item *>(new (thd->mem_root) Item_func_false());
     if (truth_item == nullptr) return true;
     Item **tree = (subq_item->embedding_join_nest == nullptr)
                       ? &m_where_cond
@@ -4278,6 +4303,30 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     }
   }
 
+  // If we couldn't find the item, see if we can find it in a merged derived
+  // table, hidden behind an Item_view_ref. This is a lowest-priority
+  // fallback to make sure we don't add the field twice to the select list;
+  // once as hidden (directly) and once as visible (through the view_ref).
+  // Such double-adds would be a problem if we later create a temporary table
+  // containing the item, which will call item->get_tmp_table_item() and
+  // effectively peel away the ref -- an item cannot be both visible and
+  // hidden at the same time.
+  counter = 0;
+  for (auto it = VisibleFields(*fields).begin();
+       it != VisibleFields(*fields).end(); ++it, ++counter) {
+    Item *item = *it;
+    if (item->type() == Item::REF_ITEM &&
+        ((Item_ref *)item)->ref_type() == Item_ref::VIEW_REF) {
+      Item_view_ref *item_ref = down_cast<Item_view_ref *>(item);
+      if (item_ref->cached_table->is_merged() &&
+          order_item->eq(*item_ref->ref, false)) {
+        order->item = &ref_item_array[counter];
+        order->in_field_list = true;
+        return false;
+      }
+    }
+  }
+
   order->in_field_list = false;
   /*
     The call to order_item->fix_fields() means that here we resolve
@@ -4290,18 +4339,8 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
     We check order_item->fixed because Item_func_group_concat can put
     arguments for which fix_fields already was called.
 
-    group_fix_field= true is to resolve aliases from the SELECT list
-    without creating of Item_ref-s: JOIN::exec() wraps aliased items
-    in SELECT list with Item_copy items. To re-evaluate such a tree
-    that includes Item_copy items we have to refresh Item_copy caches,
-    but:
-      - filesort() never refresh Item_copy items,
-      - end_send_group() checks every record for group boundary by the
-        test_if_group_changed function that obtain data from these
-        Item_copy items, but the copy_fields function that
-        refreshes Item copy items is called after group boundaries only -
-        that is a vicious circle.
-    So we prevent inclusion of Item_copy items.
+    group_fix_field = true is so that we properly reject GROUP BY on
+    subqueries with references to group fields.
   */
   bool save_group_fix_field = thd->lex->current_select()->group_fix_field;
   if (is_group_field) thd->lex->current_select()->group_fix_field = true;
@@ -4832,7 +4871,7 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
 
 /**
   Replace group by field references inside window functions with references
-  in the the presence of ROLLUP.
+  in the presence of ROLLUP.
 
   @param   thd   session context
   @returns false if success, true if error
@@ -4861,12 +4900,12 @@ bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
     }
   }
   /*
-    When this method is called from setup_windows, all ORDER BY items not
-    already present in the SELECT list have been added to the select list as
-    hidden items, so we do not need to traverse order_list to see all
-    items. The companion method, resolve_rollup, needs to traverse order_list
+    When this method is called, all ORDER BY items not already present in
+    the SELECT list have been added to the select list as hidden items,
+    so we do not need to traverse order_list to see all items.
+    The companion method, resolve_rollup, needs to traverse order_list
     list, because at the the time that method is called, the ORDER BY
-    itms haven't been added yet. Cf second loop in resolve_rollup.
+    items haven't been added yet. Cf second loop in resolve_rollup.
   */
 
   return false;
@@ -4914,8 +4953,8 @@ bool validate_gc_assignment(const mem_root_deque<Item *> &fields,
       rfield = *(fld++);
     if (rfield->table != table) continue;
 
-    // Skip fields that are hidden from the user.
-    if (rfield->is_hidden_from_user()) continue;
+    // Skip hidden system fields.
+    if (rfield->is_hidden_by_system()) continue;
 
     // If any of the explicit values is DEFAULT
     if (rfield->m_default_val_expr &&

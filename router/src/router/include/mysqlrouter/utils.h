@@ -165,14 +165,6 @@ MY_ATTRIBUTE((format(printf, 1, 2)))
 std::string string_format(const char *format, ...);
 
 /**
- * Split host and port
- *
- * @param data a string with hostname and port
- * @return std::pair<string, uint16_t> containing address and port
- */
-std::pair<std::string, uint16_t> split_addr_port(const std::string data);
-
-/**
  * Validates a string containing a TCP port
  *
  * Validates whether the data can be used as a TCP port. A TCP port is

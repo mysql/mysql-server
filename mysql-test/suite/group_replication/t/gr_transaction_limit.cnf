@@ -4,7 +4,7 @@
 group_replication_transaction_size_limit=0
 
 [mysqld.2]
-group_replication_transaction_size_limit=1
+group_replication_transaction_size_limit=9
 
 [mysqld.3]
 group_replication_transaction_size_limit=1024

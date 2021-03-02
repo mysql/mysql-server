@@ -28,10 +28,13 @@ Grants for user1@localhost
 GRANT USAGE ON *.* TO `user1`@`localhost`
 
 # Connect (con_user0, localhost, user0, , )
+
+select connection_id() into @con_user0_id;
 # Connect (con_user1, localhost, user1, , )
 # Connect (con_user2, localhost, user2, , )
 # Connect (con_user3, localhost, user3, , )
 # Connect (con_user4, localhost, user4, , )
+# Connection user0
 
 ### Compare the SHOW PROCESSLIST Host column between the new and old implementations
 

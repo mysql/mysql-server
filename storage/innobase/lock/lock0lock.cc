@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1222,12 +1222,10 @@ static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
 
   trx->in_innodb |= TRX_FORCE_ROLLBACK | TRX_FORCE_ROLLBACK_ASYNC;
 
-  bool cas;
   os_thread_id_t thread_id = os_thread_get_curr_id();
 
-  cas = os_compare_and_swap_thread_id(&trx->killed_by, 0, thread_id);
-
-  ut_a(cas);
+  os_thread_id_t zero = 0;
+  ut_a(trx->killed_by.compare_exchange_strong(zero, thread_id));
 
   hit_list.push_back(hit_list_t::value_type(trx));
 
@@ -1451,10 +1449,13 @@ static void lock_rec_add_to_queue(ulint type_mode, const buf_block_t *block,
         ut_ad(!found_waiter_before_lock ||
               (ULINT_UNDEFINED == lock_rec_find_set_bit(lock)));
 
-        lock_rec_set_nth_bit(lock, heap_no);
-        if (found_waiter_before_lock) {
-          lock_rec_move_granted_to_front(lock, RecID{lock, heap_no});
+        if (!lock_rec_get_nth_bit(lock, heap_no)) {
+          lock_rec_set_nth_bit(lock, heap_no);
+          if (found_waiter_before_lock) {
+            lock_rec_move_granted_to_front(lock, RecID{lock, heap_no});
+          }
         }
+
         return;
       }
     }
@@ -4579,7 +4580,8 @@ void lock_print_info_summary(FILE *file) {
 
   fprintf(file, "\n");
 
-  fprintf(file, "History list length %lu\n", (ulong)trx_sys->rseg_history_len);
+  fprintf(file, "History list length " UINT64PF "\n",
+          trx_sys->rseg_history_len.load());
 
 #ifdef PRINT_NUM_OF_LOCK_STRUCTS
   fprintf(file, "Total number of lock structs in row lock hash table %lu\n",

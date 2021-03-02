@@ -42,6 +42,9 @@
 /* For strlen() */
 #include <string.h>
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "my_dbug.h"
 /* For MY_STAT */
 #include "my_dir.h"
@@ -49,7 +52,11 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/service_mysql_alloc.h"
-#include "pfs_file_provider.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_FILE_CALL() as direct call. */
+#include "pfs_file_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_FILE_CALL
 #define PSI_FILE_CALL(M) psi_file_service->M

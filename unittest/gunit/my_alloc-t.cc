@@ -114,17 +114,21 @@ TEST_P(MyAllocTest, NoMemoryLimit) {
   m_num_objects = GetParam();
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      m_root.Alloc(100);
+      EXPECT_NE(nullptr, m_root.Alloc(8));
   }
+  // Normally larger, but with Valgrind/ASan, we'll get exact-sized blocks,
+  // so also allow equal.
+  EXPECT_GE(m_root.allocated_size(), num_iterations * m_num_objects * 8);
 }
 
 TEST_P(MyAllocTest, WithMemoryLimit) {
   m_num_objects = GetParam();
-  m_root.set_max_capacity(num_iterations * m_num_objects * 100);
+  m_root.set_max_capacity(num_iterations * m_num_objects * 8);
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      m_root.Alloc(100);
+      EXPECT_NE(nullptr, m_root.Alloc(8));
   }
+  EXPECT_EQ(m_root.allocated_size(), num_iterations * m_num_objects * 8);
 }
 
 TEST_F(MyAllocTest, CheckErrorReporting) {
@@ -164,6 +168,34 @@ TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations) {
   // The allocated block is too small to satisfy this new, larger allocation.
   void *ptr2 = alloc.Alloc(605);
   EXPECT_NE(ptr, ptr2);
+}
+
+TEST_F(MyAllocTest, RawInterface) {
+  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
+
+  // Nothing allocated yet.
+  std::pair<char *, char *> block = alloc.Peek();
+  EXPECT_EQ(0, block.second - block.first);
+
+  // Create a block.
+  alloc.ForceNewBlock(16);
+  block = alloc.Peek();
+  EXPECT_EQ(512, block.second - block.first);
+
+  // Write and commit some memory.
+  char *store_ptr = reinterpret_cast<char *>(block.first);
+  strcpy(store_ptr, "12345");
+  alloc.RawCommit(6);
+  block = alloc.Peek();
+  EXPECT_EQ(506, block.second - block.first);
+
+  // Get a new block.
+  alloc.ForceNewBlock(512);
+  block = alloc.Peek();
+  EXPECT_EQ(768, block.second - block.first);
+
+  // The value should still be there.
+  EXPECT_STREQ("12345", store_ptr);
 }
 
 }  // namespace my_alloc_unittest

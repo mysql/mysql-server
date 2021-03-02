@@ -27,19 +27,7 @@
 
 #include <string>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-#include "mysqlrouter/mysql_protocol.h"
-#include "socket_operations.h"
-
 namespace server_mock {
-
-using byte = uint8_t;
-using mysql_harness::socket_t;
 
 /** @enum MySQLColumnType
  *
@@ -101,8 +89,6 @@ struct column_info_type {
  *         of the single row (ordered by column)
  **/
 using RowValueType = std::vector<std::pair<bool, std::string>>;
-
-MySQLColumnType column_type_from_string(const std::string &type);
 
 }  // namespace server_mock
 

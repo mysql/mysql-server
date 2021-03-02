@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2768,8 +2768,8 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
 
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
-    
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+
+    c_lqh->execREAD_PSEUDO_REQ(signal);
     outBuffer[1] = signal->theData[0];
     sz = 1;
     break;
@@ -2791,7 +2791,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
     
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    c_lqh->execREAD_PSEUDO_REQ(signal);
     outBuffer[1] = signal->theData[0];
     outBuffer[2] = signal->theData[1];
     outBuffer[3] = signal->theData[2];
@@ -2802,14 +2802,18 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
-    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
+    /*
+     * One extra word, 2 bytes for preceding length, 2 bytes for zero padding
+     * to even words.
+     */
+    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE + 1;
     SignalT<DataSz> signalT;
     Signal * signal = new (&signalT) Signal(0);
 
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
 
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    c_lqh->execREAD_PSEUDO_REQ(signal);
 
     const Uint8* src = (Uint8*)&signal->theData[0];
     Uint32 byte_sz = 2 + src[0] + (src[1] << 8);
@@ -2921,7 +2925,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     thrjam(req_struct->jamBuffer);
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = AttributeHeader::CORR_FACTOR64;
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    c_lqh->execREAD_PSEUDO_REQ(signal);
     sz = 1;
     outBuffer[1] = signal->theData[0];
     break;
@@ -2935,7 +2939,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     thrjam(req_struct->jamBuffer);
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = AttributeHeader::CORR_FACTOR64;
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    c_lqh->execREAD_PSEUDO_REQ(signal);
     sz = 2;
     outBuffer[1] = signal->theData[0];
     outBuffer[2] = signal->theData[1];
@@ -2966,7 +2970,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
     
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    c_lqh->execREAD_PSEUDO_REQ(signal);
     outBuffer[1] = signal->theData[0];
     outBuffer[2] = signal->theData[1];
     outBuffer[3] = signal->theData[2];
@@ -2981,8 +2985,8 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
 
     signal->theData[0] = req_struct->operPtrP->userpointer;
     signal->theData[1] = attrId;
-    
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+
+    c_lqh->execREAD_PSEUDO_REQ(signal);
     outBuffer[1] = signal->theData[0];
     outBuffer[2] = signal->theData[1];
     sz = 2;

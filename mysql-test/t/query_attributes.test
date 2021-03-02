@@ -1,0 +1,104 @@
+--source include/no_ps_protocol.inc
+
+--echo #
+--echo # WL#12542: query attributes
+--echo #
+
+INSTALL COMPONENT 'file://component_query_attributes';
+
+--echo ##### test the mysqltest command
+
+--echo # Should return b
+--query_attributes a b
+SELECT mysql_query_attribute_string('a');
+--echo # Should return NULL
+SELECT mysql_query_attribute_string('a');
+
+--echo # Should return b
+query_attributes a b;
+SELECT mysql_query_attribute_string('a');
+
+--echo # Should return b
+query_attributes a b c d;
+SELECT mysql_query_attribute_string('a'), mysql_query_attribute_string('c');
+
+--echo # Should return b c
+query_attributes 'a' "b c";
+SELECT mysql_query_attribute_string('a');
+
+query_attributes '' 'a';
+SELECT mysql_query_attribute_string('');
+
+--echo # Should return c
+--query_attributes a b
+--query_attributes a c
+SELECT mysql_query_attribute_string('a');
+
+--echo # Should return NULL, d
+--query_attributes a b
+--query_attributes c d
+SELECT mysql_query_attribute_string('a'),  mysql_query_attribute_string('c');
+
+
+--echo ##### test the mysql command
+
+--echo # Should return b
+write_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+query_attributes a b;
+SELECT mysql_query_attribute_string('a');
+EOF
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+
+--echo # Should return c
+write_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+query_attributes a b;
+query_attributes a c;
+SELECT mysql_query_attribute_string('a');
+EOF
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+
+--echo # Should return error
+write_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+query_attributes a;
+SELECT mysql_query_attribute_string('a');
+EOF
+--error 1
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+
+--echo # Should return b d
+write_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+query_attributes a b c d;
+SELECT mysql_query_attribute_string('a'), mysql_query_attribute_string('c');
+EOF
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+
+--echo # Should return b c
+write_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+query_attributes 'a' 'b c';
+SELECT mysql_query_attribute_string('a');
+EOF
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+
+--echo # Should return null
+write_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+query_attributes 'a' 'b c';
+resetconnection;
+SELECT mysql_query_attribute_string('a');
+EOF
+exec $MYSQL < $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/wl12542.sql;
+
+--echo # Should return null
+query_attributes 'a' 'b c';
+reset_connection;
+SELECT mysql_query_attribute_string('a');
+
+--echo # cleanup
+UNINSTALL COMPONENT 'file://component_query_attributes';
+
+--echo # End of 8.0 tests

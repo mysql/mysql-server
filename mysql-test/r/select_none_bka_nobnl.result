@@ -37,6 +37,9 @@ Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a futur
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 select t2.fld3 from t2 where companynr = 58 and fld3 like "%imaginable%";
 fld3
 imaginable
@@ -145,12 +148,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 ignore index (fld3) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	0.09	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` IGNORE INDEX (`fld3`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld1) where fld3 = 'honeysuckle';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	0.09	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` USE INDEX (`fld1`) where (`test`.`t2`.`fld3` = 'honeysuckle')
 explain select fld3 from t2 use index (fld3) where fld3 = 'honeysuckle';
@@ -303,7 +306,7 @@ companynr
 34
 29
 00
-select distinct t2.fld3,period from t2,t1 where companynr=37 and fld3 like "O%";
+select distinct t2.fld3,period from t2,t1  where companynr=37 and fld3 like "O%" order by fld3;
 fld3	period
 obliterates	9410
 offload	9410
@@ -519,7 +522,7 @@ key (name)
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
-create temporary table tmp engine = myisam select * from t3;
+create temporary table tmp  select * from t3;
 Warnings:
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
 Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
@@ -637,20 +640,20 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`t2nr` AS `t2nr`,`test`.`t2`.`fld3` AS `fld3` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 34) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`)) order by `test`.`t3`.`t2nr`,`test`.`t2`.`fld3`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41810	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	period	NULL	NULL	NULL	41736	100.00	Using temporary; Using filesort
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4173	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t3`.`period`
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t3.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	index	period	period	4	NULL	1	100.00	NULL
-1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4181	100.00	NULL
+1	SIMPLE	t1	NULL	ref	period	period	4	test.t3.period	4173	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t1`.`period` = `test`.`t3`.`period`) order by `test`.`t3`.`period` limit 10
 explain select * from t3 as t1,t3 where t1.period=t3.period order by t1.period limit 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	period	period	4	NULL	1	100.00	NULL
-1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4181	100.00	NULL
+1	SIMPLE	t3	NULL	ref	period	period	4	test.t1.period	4173	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t2nr` AS `t2nr`,`test`.`t1`.`period` AS `period`,`test`.`t1`.`name` AS `name`,`test`.`t1`.`companynr` AS `companynr`,`test`.`t1`.`price` AS `price`,`test`.`t1`.`price2` AS `price2`,`test`.`t3`.`t2nr` AS `t2nr`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`name` AS `name`,`test`.`t3`.`companynr` AS `companynr`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t3` `t1` join `test`.`t3` where (`test`.`t3`.`period` = `test`.`t1`.`period`) order by `test`.`t1`.`period` limit 10
 select period from t1;
@@ -670,610 +673,606 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	const	PRIMARY,period	PRIMARY	4	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where true
-select fld3,period from t2,t1 where companynr*10 = 37*10;
+select fld3,period from t2,t1 where companynr*10 = 37*10 order by fld3;
 fld3	period
-breaking	9410
-Romans	9410
-intercepted	9410
-bewilderingly	9410
-astound	9410
-admonishing	9410
-sumac	9410
-flanking	9410
-combed	9410
-subjective	9410
-scatterbrain	9410
-Eulerian	9410
-Kane	9410
-overlay	9410
-perturb	9410
-goblins	9410
-annihilates	9410
-Wotan	9410
-snatching	9410
-concludes	9410
-laterally	9410
-yelped	9410
-grazing	9410
-Baird	9410
-celery	9410
-misunderstander	9410
-handgun	9410
-foldout	9410
-mystic	9410
-succumbed	9410
-Nabisco	9410
-fingerings	9410
-aging	9410
-afield	9410
-ammonium	9410
-boat	9410
-intelligibility	9410
-Augustine	9410
-teethe	9410
-dreaded	9410
-scholastics	9410
-audiology	9410
-wallet	9410
-parters	9410
-eschew	9410
-quitter	9410
-neat	9410
-Steinberg	9410
-jarring	9410
-tinily	9410
-balled	9410
-persist	9410
-attainments	9410
-fanatic	9410
-measures	9410
-rightfulness	9410
-capably	9410
-impulsive	9410
-starlet	9410
-terminators	9410
-untying	9410
-announces	9410
-featherweight	9410
-pessimist	9410
-daughter	9410
-decliner	9410
-lawgiver	9410
-stated	9410
-readable	9410
-attrition	9410
-cascade	9410
-motors	9410
-interrogate	9410
-pests	9410
-stairway	9410
-dopers	9410
-testicle	9410
-Parsifal	9410
-leavings	9410
-postulation	9410
-squeaking	9410
-contrasted	9410
-leftover	9410
-whiteners	9410
-erases	9410
-Punjab	9410
-Merritt	9410
-Quixotism	9410
-sweetish	9410
-dogging	9410
-scornfully	9410
-bellow	9410
-bills	9410
-cupboard	9410
-sureties	9410
-puddings	9410
-fetters	9410
-bivalves	9410
-incurring	9410
-Adolph	9410
-pithed	9410
-Miles	9410
-trimmings	9410
-tragedies	9410
-skulking	9410
-flint	9410
-flopping	9410
-relaxing	9410
-offload	9410
-suites	9410
-lists	9410
-animized	9410
-multilayer	9410
-standardizes	9410
-Judas	9410
-vacuuming	9410
-dentally	9410
-humanness	9410
-inch	9410
-Weissmuller	9410
-irresponsibly	9410
-luckily	9410
-culled	9410
-medical	9410
-bloodbath	9410
-subschema	9410
-animals	9410
-Micronesia	9410
-repetitions	9410
-Antares	9410
-ventilate	9410
-pityingly	9410
-interdependent	9410
-Graves	9410
-neonatal	9410
-chafe	9410
-honoring	9410
-realtor	9410
-elite	9410
-funereal	9410
-abrogating	9410
-sorters	9410
-Conley	9410
-lectured	9410
+abates	9410
 Abraham	9410
-Hawaii	9410
-cage	9410
-hushes	9410
-Simla	9410
-reporters	9410
-Dutchman	9410
-descendants	9410
-groupings	9410
-dissociate	9410
-coexist	9410
-Beebe	9410
-Taoism	9410
-Connally	9410
-fetched	9410
-checkpoints	9410
-rusting	9410
-galling	9410
-obliterates	9410
-traitor	9410
-resumes	9410
-analyzable	9410
-terminator	9410
-gritty	9410
-firearm	9410
-minima	9410
-Selfridge	9410
-disable	9410
-witchcraft	9410
-betroth	9410
-Manhattanize	9410
-imprint	9410
-peeked	9410
-swelling	9410
-interrelationships	9410
-riser	9410
-Gandhian	9410
-peacock	9410
-bee	9410
-kanji	9410
-dental	9410
-scarf	9410
-chasm	9410
-insolence	9410
-syndicate	9410
+abrogating	9410
+accessed	9410
+Aden	9410
+admiring	9410
+admonishing	9410
+Adolph	9410
+afield	9410
+afore	9410
+aging	9410
+airships	9410
+Aldrich	9410
 alike	9410
-imperial	9410
-convulsion	9410
-railway	9410
-validate	9410
-normalizes	9410
-comprehensive	9410
-chewing	9410
-denizen	9410
-schemer	9410
-chronicle	9410
-Kline	9410
-Anatole	9410
-partridges	9410
-brunch	9410
-recruited	9410
-dimensions	9410
-Chicana	9410
-announced	9410
-praised	9410
-employing	9410
-linear	9410
-quagmire	9410
-western	9410
-relishing	9410
-serving	9410
-scheduling	9410
-lore	9410
-eventful	9410
-arteriole	9410
-disentangle	9410
-cured	9410
-Fenton	9410
-avoidable	9410
-drains	9410
-detectably	9410
-husky	9410
-impelling	9410
-undoes	9410
-evened	9410
-squeezes	9410
-destroyer	9410
-rudeness	9410
-beaner	9410
-boorish	9410
-Everhart	9410
-encompass	9410
-mushrooms	9410
 Alison	9410
-externally	9410
-pellagra	9410
-cult	9410
-creek	9410
-Huffman	9410
-Majorca	9410
-governing	9410
-gadfly	9410
-reassigned	9410
-intentness	9410
-craziness	9410
-psychic	9410
-squabbled	9410
+allot	9410
+already	9410
+amenities	9410
+ammonium	9410
+analogy	9410
+analyzable	9410
+Anatole	9410
+animals	9410
+animized	9410
+annihilates	9410
+announced	9410
+announces	9410
+Antarctica	9410
+Antares	9410
+apiary	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+appendixes	9410
+Arabia	9410
+arriving	9410
+Artemia	9410
+arteriole	9410
+assails	9410
+astound	9410
+attainments	9410
+attrition	9410
+audiology	9410
+Augustine	9410
+avenge	9410
+avoidable	9410
+babies	9410
+babysitting	9410
+Baird	9410
+balled	9410
+beaner	9410
+beaters	9410
+bee	9410
+Beebe	9410
+befouled	9410
+bellow	9410
+bestseller	9410
+betroth	9410
+bewilderingly	9410
+bills	9410
+bitterroot	9410
+bivalves	9410
+bloater	9410
+bloodbath	9410
+boat	9410
+boom	9410
+boorish	9410
+boulder	9410
+breaking	9410
+brunch	9410
+buckboards	9410
 burlesque	9410
+Butterfield	9410
+cage	9410
+capably	9410
 capped	9410
-extracted	9410
-DiMaggio	9410
-exclamation	9410
-subdirectory	9410
-Gothicism	9410
-feminine	9410
-metaphysically	9410
-sanding	9410
-Miltonism	9410
-freakish	9410
-index	9410
-straight	9410
-flurried	9410
-denotative	9410
+cascade	9410
+Cassites	9410
+causality	9410
+cautioned	9410
+ceiling	9410
+celery	9410
+CERN	9410
+certificates	9410
+chafe	9410
+chaperone	9410
+charges	9410
+chasm	9410
+checkpoints	9410
+chewing	9410
+chews	9410
+Chicana	9410
+chillingly	9410
+Chippewa	9410
+chronicle	9410
+ciphers	9410
+civics	9410
+clamored	9410
+Clayton	9410
+clenched	9410
+clockers	9410
+coexist	9410
+cokes	9410
+combed	9410
 coming	9410
 commencements	9410
+commonplace	9410
+communicants	9410
+compartment	9410
+comprehensive	9410
+comprised	9410
+conceptions	9410
+concludes	9410
+congregates	9410
+Conley	9410
+Connally	9410
+contrary	9410
+contrasted	9410
+convenient	9410
+convulsion	9410
+corset	9410
+count	9410
+coverings	9410
+Crays	9410
+craziness	9410
+creak	9410
+creek	9410
+critiques	9410
+crunches	9410
+culled	9410
+cult	9410
+cupboard	9410
+cured	9410
+cute	9410
+daughter	9410
+decliner	9410
+decomposition	9410
+deductions	9410
+dehydrate	9410
+deludes	9410
+denizen	9410
+denotative	9410
+denounces	9410
+dental	9410
+dentally	9410
+descendants	9410
+despot	9410
+destroyer	9410
+detectably	9410
+dialysis	9410
+DiMaggio	9410
+dimensions	9410
+disable	9410
+discounts	9410
+disentangle	9410
+disobedience	9410
+dissociate	9410
+dogging	9410
+dopers	9410
+drains	9410
+dreaded	9410
+ducks	9410
+dusted	9410
+Dutchman	9410
+effortlessly	9410
+electroencephalography	9410
+elite	9410
+embassies	9410
+employing	9410
+encompass	9410
+encompasses	9410
+environing	9410
+epistle	9410
+equilibrium	9410
+erases	9410
+error	9410
+eschew	9410
+eternal	9410
+Eulerian	9410
+Evanston	9410
+evened	9410
+evenhandedly	9410
+eventful	9410
+Everhart	9410
+excises	9410
+exclamation	9410
+excrete	9410
+exhausts	9410
+expelled	9410
+extents	9410
+externally	9410
+extracted	9410
+faithful	9410
+fanatic	9410
+fated	9410
+featherweight	9410
+feed	9410
+feminine	9410
+Fenton	9410
+fetched	9410
+fetters	9410
+fiftieth	9410
+filial	9410
+fingerings	9410
+finishers	9410
+firearm	9410
+fitting	9410
+Fitzpatrick	9410
+fixedly	9410
+flanking	9410
+flint	9410
+flopping	9410
+flurried	9410
+foldout	9410
+foothill	9410
+forgivably	9410
+forthcoming	9410
+freakish	9410
+freest	9410
+freezes	9410
+funereal	9410
+furnishings	9410
+furthermore	9410
+gadfly	9410
+gainful	9410
+Galatean	9410
+galling	9410
+Gandhian	9410
+Ganymede	9410
+garage	9410
 gentleman	9410
 gifted	9410
-Shanghais	9410
-sportswriting	9410
-sloping	9410
-navies	9410
-leaflet	9410
-shooter	9410
-Joplin	9410
-babies	9410
-assails	9410
-admiring	9410
-swaying	9410
-Goldstine	9410
-fitting	9410
-Norwalk	9410
-analogy	9410
-deludes	9410
-cokes	9410
-Clayton	9410
-exhausts	9410
-causality	9410
-sating	9410
-icon	9410
-throttles	9410
-communicants	9410
-dehydrate	9410
-priceless	9410
-publicly	9410
-incidentals	9410
-commonplace	9410
-mumbles	9410
-furthermore	9410
-cautioned	9410
-parametrized	9410
-registration	9410
-sadly	9410
-positioning	9410
-babysitting	9410
-eternal	9410
-hoarder	9410
-congregates	9410
-rains	9410
-workers	9410
-sags	9410
-unplug	9410
-garage	9410
-boulder	9410
-specifics	9410
-Teresa	9410
-Winsett	9410
-convenient	9410
-buckboards	9410
-amenities	9410
-resplendent	9410
-sews	9410
-participated	9410
-Simon	9410
-certificates	9410
-Fitzpatrick	9410
-Evanston	9410
-misted	9410
-textures	9410
-save	9410
-count	9410
-rightful	9410
-chaperone	9410
-Lizzy	9410
-clenched	9410
-effortlessly	9410
-accessed	9410
-beaters	9410
-Hornblower	9410
-vests	9410
-indulgences	9410
-infallibly	9410
-unwilling	9410
-excrete	9410
-spools	9410
-crunches	9410
-overestimating	9410
-ineffective	9410
-humiliation	9410
-sophomore	9410
-star	9410
-rifles	9410
-dialysis	9410
-arriving	9410
-indulge	9410
-clockers	9410
-languages	9410
-Antarctica	9410
-percentage	9410
-ceiling	9410
-specification	9410
-regimented	9410
-ciphers	9410
-pictures	9410
-serpents	9410
-allot	9410
-realized	9410
-mayoral	9410
-opaquely	9410
-hostess	9410
-fiftieth	9410
-incorrectly	9410
-decomposition	9410
-stranglings	9410
-mixture	9410
-electroencephalography	9410
-similarities	9410
-charges	9410
-freest	9410
-Greenberg	9410
-tinting	9410
-expelled	9410
-warm	9410
-smoothed	9410
-deductions	9410
-Romano	9410
-bitterroot	9410
-corset	9410
-securing	9410
-environing	9410
-cute	9410
-Crays	9410
-heiress	9410
-inform	9410
-avenge	9410
-universals	9410
-Kinsey	9410
-ravines	9410
-bestseller	9410
-equilibrium	9410
-extents	9410
-relatively	9410
-pressure	9410
-critiques	9410
-befouled	9410
-rightfully	9410
-mechanizing	9410
-Latinizes	9410
-timesharing	9410
-Aden	9410
-embassies	9410
-males	9410
-shapelessly	9410
-mastering	9410
-Newtonian	9410
-finishers	9410
-abates	9410
-teem	9410
-kiting	9410
-stodgy	9410
-feed	9410
-guitars	9410
-airships	9410
-store	9410
-denounces	9410
-Pyle	9410
-Saxony	9410
-serializations	9410
-Peruvian	9410
-taxonomically	9410
-kingdom	9410
-stint	9410
-Sault	9410
-faithful	9410
-Ganymede	9410
-tidiness	9410
-gainful	9410
-contrary	9410
-Tipperary	9410
-tropics	9410
-theorizers	9410
-renew	9410
-already	9410
-terminal	9410
-Hegelian	9410
-hypothesizer	9410
-warningly	9410
-journalizing	9410
-nested	9410
-Lars	9410
-saplings	9410
-foothill	9410
-labeled	9410
-imperiously	9410
-reporters	9410
-furnishings	9410
-precipitable	9410
-discounts	9410
-excises	9410
-Stalin	9410
-despot	9410
-ripeness	9410
-Arabia	9410
-unruly	9410
-mournfulness	9410
-boom	9410
-slaughter	9410
-Sabine	9410
-handy	9410
-rural	9410
-organizer	9410
-shipyard	9410
-civics	9410
-inaccuracy	9410
-rules	9410
-juveniles	9410
-comprised	9410
-investigations	9410
-stabilizes	9410
-seminaries	9410
-Hunter	9410
-sporty	9410
-test	9410
-weasels	9410
-CERN	9410
-tempering	9410
-afore	9410
-Galatean	9410
-techniques	9410
-error	9410
-veranda	9410
-severely	9410
-Cassites	9410
-forthcoming	9410
-guides	9410
-vanish	9410
-lied	9410
-sawtooth	9410
-fated	9410
-gradually	9410
-widens	9410
-preclude	9410
-evenhandedly	9410
-percentage	9410
-disobedience	9410
-humility	9410
 gleaning	9410
-petted	9410
-bloater	9410
-minion	9410
-marginal	9410
-apiary	9410
-measures	9410
-precaution	9410
-repelled	9410
-primary	9410
-coverings	9410
-Artemia	9410
-navigate	9410
-spatial	9410
-Gurkha	9410
-meanwhile	9410
-Melinda	9410
-Butterfield	9410
-Aldrich	9410
-previewing	9410
 glut	9410
-unaffected	9410
-inmate	9410
-mineral	9410
-impending	9410
-meditation	9410
+goblins	9410
+Goldstine	9410
+Gothicism	9410
+governing	9410
+gradually	9410
+Graves	9410
+grazing	9410
+Greenberg	9410
+gritty	9410
+groupings	9410
+guides	9410
+guitars	9410
+Gurkha	9410
+handgun	9410
+handy	9410
+Hawaii	9410
+Hegelian	9410
+heiress	9410
+hoarder	9410
+honoring	9410
+Hornblower	9410
+hostess	9410
+Huffman	9410
+humanness	9410
+humiliation	9410
+humility	9410
+Hunter	9410
+hushes	9410
+husky	9410
+hypothesizer	9410
+icon	9410
 ideas	9410
-miniaturizes	9410
-lewdly	9410
-title	9410
-youthfulness	9410
-creak	9410
-Chippewa	9410
-clamored	9410
-freezes	9410
-forgivably	9410
-reduce	9410
-McGovern	9410
-Nazis	9410
-epistle	9410
-socializes	9410
-conceptions	9410
-Kevin	9410
-uncovering	9410
-chews	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-appendixes	9410
-raining	9410
+impelling	9410
+impending	9410
+imperial	9410
+imperiously	9410
+imprint	9410
+impulsive	9410
+inaccuracy	9410
+inch	9410
+incidentals	9410
+incorrectly	9410
+incurring	9410
+index	9410
+indulge	9410
+indulgences	9410
+ineffective	9410
+infallibly	9410
 infest	9410
-compartment	9410
-minting	9410
-ducks	9410
-roped	9410
-waltz	9410
-Lillian	9410
-repressions	9410
-chillingly	9410
-noncritical	9410
-lithograph	9410
-spongers	9410
-parenthood	9410
-posed	9410
+inform	9410
+inmate	9410
+insolence	9410
 instruments	9410
-filial	9410
-fixedly	9410
-relives	9410
-Pandora	9410
-watering	9410
-ungrateful	9410
-secures	9410
-poison	9410
-dusted	9410
-encompasses	9410
-presentation	9410
+intelligibility	9410
+intentness	9410
+intercepted	9410
+interdependent	9410
+interrelationships	9410
+interrogate	9410
+investigations	9410
+irresponsibly	9410
+jarring	9410
+Joplin	9410
+journalizing	9410
+Judas	9410
+juveniles	9410
+Kane	9410
+kanji	9410
 Kantian	9410
+Kevin	9410
+kingdom	9410
+Kinsey	9410
+kiting	9410
+Kline	9410
+labeled	9410
+languages	9410
+Lars	9410
+laterally	9410
+Latinizes	9410
+lawgiver	9410
+leaflet	9410
+leavings	9410
+lectured	9410
+leftover	9410
+lewdly	9410
+lied	9410
+Lillian	9410
+linear	9410
+lists	9410
+lithograph	9410
+Lizzy	9410
+lore	9410
+luckily	9410
+Majorca	9410
+males	9410
+Manhattanize	9410
+marginal	9410
+mastering	9410
+mayoral	9410
+McGovern	9410
+meanwhile	9410
+measures	9410
+measures	9410
+mechanizing	9410
+medical	9410
+meditation	9410
+Melinda	9410
+Merritt	9410
+metaphysically	9410
+Micronesia	9410
+Miles	9410
+Miltonism	9410
+mineral	9410
+miniaturizes	9410
+minima	9410
+minion	9410
+minting	9410
+misted	9410
+misunderstander	9410
+mixture	9410
+motors	9410
+mournfulness	9410
+multilayer	9410
+mumbles	9410
+mushrooms	9410
+mystic	9410
+Nabisco	9410
+navies	9410
+navigate	9410
+Nazis	9410
+neat	9410
+neonatal	9410
+nested	9410
+Newtonian	9410
+noncritical	9410
+normalizes	9410
+Norwalk	9410
+obliterates	9410
+offload	9410
+opaquely	9410
+organizer	9410
+overestimating	9410
+overlay	9410
+Pandora	9410
+parametrized	9410
+parenthood	9410
+Parsifal	9410
+parters	9410
+participated	9410
+partridges	9410
+peacock	9410
+peeked	9410
+pellagra	9410
+percentage	9410
+percentage	9410
+persist	9410
+perturb	9410
+Peruvian	9410
+pessimist	9410
+pests	9410
+petted	9410
+pictures	9410
+pithed	9410
+pityingly	9410
+poison	9410
+posed	9410
+positioning	9410
+postulation	9410
+praised	9410
+precaution	9410
+precipitable	9410
+preclude	9410
+presentation	9410
+pressure	9410
+previewing	9410
+priceless	9410
+primary	9410
+psychic	9410
+publicly	9410
+puddings	9410
+Punjab	9410
+Pyle	9410
+quagmire	9410
+quitter	9410
+Quixotism	9410
+railway	9410
+raining	9410
+rains	9410
+ravines	9410
+readable	9410
+realized	9410
+realtor	9410
+reassigned	9410
+recruited	9410
+reduce	9410
+regimented	9410
+registration	9410
+relatively	9410
+relaxing	9410
+relishing	9410
+relives	9410
+renew	9410
+repelled	9410
+repetitions	9410
+reporters	9410
+reporters	9410
+repressions	9410
+resplendent	9410
+resumes	9410
+rifles	9410
+rightful	9410
+rightfully	9410
+rightfulness	9410
+ripeness	9410
+riser	9410
+Romano	9410
+Romans	9410
+roped	9410
+rudeness	9410
+rules	9410
+rural	9410
+rusting	9410
+Sabine	9410
+sadly	9410
+sags	9410
+sanding	9410
+saplings	9410
+sating	9410
+Sault	9410
+save	9410
+sawtooth	9410
+Saxony	9410
+scarf	9410
+scatterbrain	9410
+scheduling	9410
+schemer	9410
+scholastics	9410
+scornfully	9410
+secures	9410
+securing	9410
+Selfridge	9410
+seminaries	9410
+serializations	9410
+serpents	9410
+serving	9410
+severely	9410
+sews	9410
+Shanghais	9410
+shapelessly	9410
+shipyard	9410
+shooter	9410
+similarities	9410
+Simla	9410
+Simon	9410
+skulking	9410
+slaughter	9410
+sloping	9410
+smoothed	9410
+snatching	9410
+socializes	9410
+sophomore	9410
+sorters	9410
+spatial	9410
+specification	9410
+specifics	9410
+spongers	9410
+spools	9410
+sportswriting	9410
+sporty	9410
+squabbled	9410
+squeaking	9410
+squeezes	9410
+stabilizes	9410
+stairway	9410
+Stalin	9410
+standardizes	9410
+star	9410
+starlet	9410
+stated	9410
+Steinberg	9410
+stint	9410
+stodgy	9410
+store	9410
+straight	9410
+stranglings	9410
+subdirectory	9410
+subjective	9410
+subschema	9410
+succumbed	9410
+suites	9410
+sumac	9410
+sureties	9410
+swaying	9410
+sweetish	9410
+swelling	9410
+syndicate	9410
+Taoism	9410
+taxonomically	9410
+techniques	9410
+teem	9410
+teethe	9410
+tempering	9410
+Teresa	9410
+terminal	9410
+terminator	9410
+terminators	9410
+test	9410
+testicle	9410
+textures	9410
+theorizers	9410
+throttles	9410
+tidiness	9410
+timesharing	9410
+tinily	9410
+tinting	9410
+Tipperary	9410
+title	9410
+tragedies	9410
+traitor	9410
+trimmings	9410
+tropics	9410
+unaffected	9410
+uncovering	9410
+undoes	9410
+ungrateful	9410
+universals	9410
+unplug	9410
+unruly	9410
+untying	9410
+unwilling	9410
+vacuuming	9410
+validate	9410
+vanish	9410
+ventilate	9410
+veranda	9410
+vests	9410
+wallet	9410
+waltz	9410
+warm	9410
+warningly	9410
+watering	9410
+weasels	9410
+Weissmuller	9410
+western	9410
+whiteners	9410
+widens	9410
+Winsett	9410
+witchcraft	9410
+workers	9410
+Wotan	9410
+yelped	9410
+youthfulness	9410
 analyze table t2, t3;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
-test.t3	analyze	status	Table is already up to date
-EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
-EXPLAIN
--> Sort: t2.fld3, t3.period, t3.price
-    -> Stream results  (cost=193.54 rows=21)
-        -> Nested loop inner join  (cost=193.54 rows=21)
-            -> Filter: (t2.companynr = 37)  (cost=151.58 rows=120)
-                -> Table scan on t2  (cost=151.58 rows=1199)
-            -> Filter: ((t2.fld1 = t3.t2nr) and (t3.period >= 1001) and (t3.period <= 1002))  (cost=0.25 rows=0)
-                -> Single-row index lookup on t3 using PRIMARY (t2nr=t2.fld1)  (cost=0.25 rows=1)
-
+test.t3	analyze	status	OK
+EXPLAIN  select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	fld1	NULL	NULL	NULL	1199	10.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,period	PRIMARY	4	test.t2.fld1	1	20.04	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3`,`test`.`t3`.`period` AS `period`,`test`.`t3`.`price` AS `price`,`test`.`t3`.`price2` AS `price2` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`companynr` = 37) and (`test`.`t2`.`fld1` = `test`.`t3`.`t2nr`) and (`test`.`t3`.`period` >= 1001) and (`test`.`t3`.`period` <= 1002)) order by `test`.`t2`.`fld3`,`test`.`t3`.`period`,`test`.`t3`.`price`
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 fld3	period	price	price2
 admonishing	1002	28357832	8723648
@@ -1346,7 +1345,7 @@ companynr tinyint(2) unsigned zerofill NOT NULL default '00',
 companyname char(30) NOT NULL default '',
 PRIMARY KEY (companynr),
 UNIQUE KEY companyname(companyname)
-) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
+) ENGINE=INNODB MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 Warnings:
 Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -1409,6 +1408,10 @@ fld1	fld1
 250505	250504
 250505	250505
 insert into t2 (fld1, companynr) values (999999,99);
+ANALYZE TABLE t2, t4;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+test.t4	analyze	status	OK
 select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 companynr	companyname
 99	NULL
@@ -1423,7 +1426,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where (`test`.`t4`.`companynr` is null)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	12	100.00	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	10.00	Using where; Not exists
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t2`.`companynr` is null)
@@ -1463,55 +1466,55 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and (`test`.`t2`.`companynr` > 0) and (`test`.`t2`.`companynr` > 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 and companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) and (`test`.`t4`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	12	100.00	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	40.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` is null))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	100.00	NULL
+1	SIMPLE	t4	NULL	index	PRIMARY	companyname	120	NULL	12	100.00	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t4`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	12	100.00	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (ifnull(`test`.`t2`.`companynr`,1) > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	91.67	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	11	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` > 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where ifnull(companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	Using where
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	12	100.00	Using where; Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (ifnull(`test`.`t4`.`companynr`,1) > 0)
@@ -1521,7 +1524,7 @@ companynr	companynr
 41	40
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	index	NULL	PRIMARY	1	NULL	12	100.00	Using index; Using temporary
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	12	100.00	Using index; Using temporary
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	10.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companynr` AS `companynr` from `test`.`t2` join `test`.`t4` where (`test`.`t2`.`companynr` = (`test`.`t4`.`companynr` + 1))
@@ -2102,18 +2105,21 @@ count(*)
 4181
 explain select min(fld1),max(fld1),count(*) from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	SIMPLE	t2	NULL	index	NULL	fld1	4	NULL	1199	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select min(`test`.`t2`.`fld1`) AS `min(fld1)`,max(`test`.`t2`.`fld1`) AS `max(fld1)`,count(0) AS `count(*)` from `test`.`t2`
 explain format=tree select min(fld1),max(fld1),count(*) from t2;
 EXPLAIN
--> Rows fetched before execution  (cost=0.00 rows=1)
+-> Count rows in t2
 
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;
 EXPLAIN
 -> Aggregate: min(t2.fld1), max(t2.fld1), count(0)
-    -> Filter: (rand() > 0.5)  (cost=151.60 rows=1199)
-        -> Index scan on t2 using fld1  (cost=151.60 rows=1199)
+    -> Filter: (rand() > 0.5)  (cost=123.65 rows=1199)
+        -> Index scan on t2 using fld1  (cost=123.65 rows=1199)
 
 select min(fld1),max(fld1),count(*) from t2;
 min(fld1)	max(fld1)	count(*)
@@ -2205,7 +2211,7 @@ show keys from t2;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE			YES	NULL
 t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE			YES	NULL
-t2	1	fld3	1	fld3	A	1199	NULL	NULL		BTREE			YES	NULL
+t2	1	fld3	1	fld3	A	1171	NULL	NULL		BTREE			YES	NULL
 drop table t4, t3, t2, t1;
 DO 1;
 DO benchmark(100,1+1),1,1;
@@ -2226,7 +2232,7 @@ INSERT INTO t1 (pseudo) VALUES ('test1');
 SELECT 1 as rnd1 from t1 where rand() > 2;
 rnd1
 DROP TABLE t1;
-CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=MyISAM;
+CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -2244,7 +2250,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\E$',''),(200002,2,2,1,101,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\C$',''),(200003,1,3,2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,0,1,20020425060427,'c:',NULL);
-CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
+CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
@@ -2446,12 +2452,12 @@ a
 2
 3
 drop table t1;
-CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id)) ENGINE=MyISAM;
+CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id));
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES ("1",8264,2506),("2",8299,2517),("3",8301,2518),("4",8302,2519),("5",8303,2520),("6",8304,2521),("7",8305,2522);
-CREATE TABLE t2 ( id int(11) NOT NULL auto_increment,  PRIMARY KEY  (id)) ENGINE=MyISAM;
+CREATE TABLE t2 ( id int(11) NOT NULL auto_increment,  PRIMARY KEY  (id)) ENGINE=INNODB;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t2 VALUES (2517), (2518), (2519), (2520), (2521), (2522);
@@ -2474,12 +2480,12 @@ insert into t4 values (1,1);
 explain select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
-1	SIMPLE	t4	NULL	const	id4	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ref	id4	id4	4	test.t3.id3	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,NULL AS `id3`,NULL AS `id4`,NULL AS `id44` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id2` = `test`.`t1`.`id1`)) left join `test`.`t4` on(multiple equal(NULL, NULL)) where ((`test`.`t2`.`id2` = 1) or (NULL = 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,`test`.`t3`.`id3` AS `id3`,`test`.`t4`.`id4` AS `id4`,`test`.`t4`.`id44` AS `id44` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id2` = `test`.`t1`.`id1`)) left join `test`.`t3` on((`test`.`t3`.`id3` = `test`.`t1`.`id1`)) left join `test`.`t4` on((`test`.`t4`.`id4` = `test`.`t3`.`id3`)) where ((`test`.`t2`.`id2` = 1) or (`test`.`t4`.`id4` = 1))
 select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id1	id2	id3	id4	id44
@@ -2509,10 +2515,14 @@ create table t1 (a integer,  b integer, index(a), index(b));
 create table t2 (c integer,  d integer, index(c), index(d));
 insert into t1 values (1,2), (2,2), (3,2), (4,2);
 insert into t2 values (1,3), (2,3), (3,4), (4,4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select * from t1 left join t2 on a=c where d in (4);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	c,d	d	5	const	2	100.00	Using where
-1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.c	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.c	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`d` = 4))
 select * from t1 left join t2 on a=c where d in (4);
@@ -2522,7 +2532,7 @@ a	b	c	d
 explain select * from t1 left join t2 on a=c where d = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ref	c,d	d	5	const	2	100.00	Using where
-1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.c	2	100.00	NULL
+1	SIMPLE	t1	NULL	ref	a	a	5	test.t2.c	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`d` = 4))
 select * from t1 left join t2 on a=c where d = 4;
@@ -2535,7 +2545,7 @@ i int(11) NOT NULL default '0',
 c char(10) NOT NULL default '',
 PRIMARY KEY  (i),
 UNIQUE KEY c (c)
-) ENGINE=MyISAM;
+) ;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES (1,'a');
@@ -2551,16 +2561,20 @@ CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
 CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
 INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	2	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` USE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	2	100.00	Using where
+1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 DROP TABLE t1, t2;
@@ -2594,19 +2608,17 @@ create table t1 (a int(11) unsigned, b int(11) unsigned);
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
-insert into t1 values (1,0), (1,1), (18446744073709551615,0);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 3
+insert into t1 values (1,0), (1,1), (4294967295,1);
 select a-b  from t1 order by 1;
 a-b
 0
 1
-4294967295
+4294967294
 select a-b , (a-b < 0)  from t1 order by 1;
 a-b	(a-b < 0)
 0	0
 1	0
-4294967295	0
+4294967294	0
 select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
 d	(a-b >= 0)	b
 1	1	0
@@ -2615,7 +2627,7 @@ select cast((a - b) as unsigned) from t1 order by 1;
 cast((a - b) as unsigned)
 0
 1
-4294967295
+4294967294
 drop table t1;
 create table t1 (a int(11));
 Warnings:
@@ -2776,6 +2788,9 @@ drop table t1,t2;
 create table t2 (a tinyint unsigned);
 create index t2i on t2(a);
 insert into t2 values (0), (254), (255);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 explain select * from t2 where a > -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	t2i	t2i	2	NULL	3	100.00	Using where; Using index
@@ -2864,11 +2879,11 @@ insert into t1 values(1,""),(2,"");
 analyze table t1, t11;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-test.t11	analyze	status	Table is already up to date
+test.t11	analyze	status	OK
 show table status like 't1%';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Dynamic	2	20	X	X	X	X	X	X	X	X	X	NULL		
-t11	MyISAM	10	Dynamic	0	0	X	X	X	X	X	X	X	X	X	NULL		
+t1	InnoDB	10	Dynamic	2	8192	X	X	X	X	X	X	X	X	X	NULL		
+t11	InnoDB	10	Dynamic	0	0	X	X	X	X	X	X	X	X	X	NULL		
 select 123 as a from t1 where f1 is null;
 a
 drop table t1,t11;
@@ -2933,13 +2948,16 @@ where (t1.c=t2.a or (t1.c=t3.a and t2.a=t3.b)) and t1.b=556476786 and
 t2.b like '%%' order by t2.b limit 0,1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	b,c	b	5	const	1	100.00	Using temporary; Using filesort
-1	SIMPLE	t3	NULL	index	PRIMARY,a,b	PRIMARY	8	NULL	2	100.00	Using index
+1	SIMPLE	t3	NULL	index	PRIMARY,a,b	a	4	NULL	2	100.00	Using index
 1	SIMPLE	t2	NULL	ALL	PRIMARY	NULL	NULL	NULL	2	50.00	Range checked for each record (index map: 0x1)
 Warnings:
 Note	1003	/* select#1 */ select straight_join distinct `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` join `test`.`t3` join `test`.`t2` where ((`test`.`t1`.`b` = 556476786) and ((`test`.`t2`.`a` = `test`.`t1`.`c`) or ((`test`.`t2`.`a` = `test`.`t3`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`c`))) and (`test`.`t2`.`b` like '%%')) order by `test`.`t2`.`b` limit 0,1
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int, INDEX idx(a));
 INSERT INTO t1 VALUES (2), (3), (1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
@@ -2955,6 +2973,12 @@ INSERT INTO t1 VALUES (1,1), (2,1), (4,10);
 CREATE TABLE t2 (a int PRIMARY KEY, b int, KEY b (b));
 INSERT INTO t2 VALUES (1,NULL), (2,10);
 ALTER TABLE t1 ENABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't1' doesn't have this option
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
@@ -2984,6 +3008,10 @@ CREATE TABLE t1 (key1 double default NULL, UNIQUE KEY key1 (key1));
 CREATE TABLE t2 (key2 double default NULL, UNIQUE KEY key2 (key2));
 INSERT INTO t1 VALUES (0.3762),(0.3845),(0.6158),(0.7941);
 INSERT INTO t2 VALUES (1.3762),(1.3845),(1.6158),(1.7941);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select max(key1) from t1 where key1 <= 0.6158;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
@@ -3012,7 +3040,7 @@ Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`key1`) AS `max(key1)`,min(`test`.`t2`.`key2`) AS `min(key2)` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`key1` <= 0.6158) and (`test`.`t2`.`key2` >= 1.3762))
 explain select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	key1	key1	9	NULL	2	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	range	key1	key1	9	NULL	3	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`key1`) AS `max(key1)` from `test`.`t1` where ((`test`.`t1`.`key1` <= 0.6158) and ((rand() + 0.5) >= 0.5))
 explain select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
@@ -3078,7 +3106,7 @@ CREATE TABLE t1 (
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
 K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
 F2I4 int(11) NOT NULL default '0' 
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES 
@@ -3125,7 +3153,7 @@ min(s1)
 Wall
 Wall
 drop table t1;
-create table t1 (s1 int) engine=myisam;
+create table t1 (s1 int);
 insert into t1 values (0);
 select avg(distinct s1) from t1 group by s1 with rollup;
 avg(distinct s1)
@@ -3148,6 +3176,10 @@ CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 INSERT INTO t2 VALUES (2), (4), (6);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
 a
 2
@@ -3723,8 +3755,8 @@ create table t2 (a int, b int, c int, e int, primary key(a,b,c));
 # we've added ORDER BY to ensure that we rows has the same order every
 # time. If not, the estimated number of rows for t2 (alias 'a') in the
 # EXPLAIN may change on different platforms. Note that both table t1 and
-# t2 may be MyISAM, since many of the test files that includes this file
-# forces MyISAM as the default storage engine.
+# t2 may be MYISAM, since many of the test files that includes this file
+# forces MYISAM as the default storage engine.
 insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C
 ORDER BY A.a, B.a, C.a;
 analyze table t2;
@@ -3749,18 +3781,22 @@ INSERT INTO t2 VALUES
 (1,0,0), (1,0,1), (2,0,0), (2,0,1), (3,0,0), (4,0,1),
 (5,0,0), (5,0,1), (6,0,0), (0,0,1), (7,0,0), (7,0,1),
 (0,0,0), (0,0,1), (8,0,0), (8,0,1), (9,0,0), (9,0,1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,b	b	5	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	c	c	5	test.t1.a	2	100.00	NULL
+1	SIMPLE	t1	NULL	range	PRIMARY,b	b	5	NULL	3	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	c	c	5	test.t1.a	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`f` AS `f` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`b` between 4 and 6))
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6 AND a > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY,b	b	5	NULL	3	90.00	Using where
-1	SIMPLE	t2	NULL	ref	c	c	5	test.t1.a	2	100.00	NULL
+1	SIMPLE	t1	NULL	range	PRIMARY,b	b	9	NULL	3	90.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	c	c	5	test.t1.a	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`f` AS `f` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`b` between 4 and 6) and (`test`.`t1`.`a` > 0))
 DROP TABLE t1, t2;
@@ -3801,10 +3837,14 @@ INSERT INTO t2 VALUES
 (2), (2), (2), (2),
 (3), (3),
 (4);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	t2	NULL	ref	idx	idx	4	const	7	100.00	Using index
+1	SIMPLE	t2	NULL	ref	idx	idx	4	const	8	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select '1' AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`c` = '1'))
 EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=4;
@@ -3826,7 +3866,7 @@ WHERE t1.id=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	const	idx1	NULL	NULL	NULL	1	100.00	Impossible ON condition
-1	SIMPLE	t3	NULL	ref	idx1	idx1	5	const	3	100.00	NULL
+1	SIMPLE	t3	NULL	ref	idx1	idx1	5	const	4	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select '2' AS `id`,NULL AS `a`,NULL AS `b`,NULL AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3`.`e` AS `e` from `test`.`t1` left join `test`.`t2` on(multiple equal(NULL, NULL)) join `test`.`t3` where (`test`.`t3`.`d` = 2)
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
@@ -3853,11 +3893,15 @@ INSERT INTO t2 VALUES
 ('hhh','h'), ('gg','g'), ('fff','f'), ('ee','e'), ('ffff','f'),
 ('bbb','b'), ('ff','f'), ('cccc','c'), ('dddd','d'), ('jj','j'),
 ('aaaa','a'), ('bb','b'), ('eeee','e'), ('aa','a'), ('hh','h');
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT t2.* 
 FROM t1 JOIN t2 ON t2.fk=t1.pk
 WHERE t2.fk < 'c' AND t2.pk=t1.fk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	42	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	42	NULL	2	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	66	test.t1.fk	1	5.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`fk` AS `fk` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`fk` = `test`.`t1`.`pk`) and (`test`.`t2`.`pk` = `test`.`t1`.`fk`) and (`test`.`t1`.`pk` < 'c'))
@@ -3906,6 +3950,11 @@ INSERT INTO t3 VALUES
 (440,'gg'), (310,'eg'), (380,'ee'), (840,'bb'), (830,'ff'),
 (230,'aa'), (960,'ii'), (410,'aa'), (510,'ee'), (290,'bb'),
 (450,'gg'), (320,'dd'), (390,'hh'), (850,'jj'), (860,'ff');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN
 SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
 WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND 
@@ -3913,7 +3962,7 @@ t3.a=t2.a AND t3.c IN ('bb','ee');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	range	si	si	5	NULL	4	100.00	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	25.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t1` join `test`.`t2` FORCE INDEX (`si`) join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`i` between '81' and '89') and (`test`.`t3`.`c` in ('bb','ee')))
 EXPLAIN
@@ -3923,7 +3972,7 @@ t3.a=t2.a AND t3.c IN ('bb','ee') ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	range	si,ai	si	5	NULL	4	100.00	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	25.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`i` between '81' and '89') and (`test`.`t3`.`c` in ('bb','ee')))
 EXPLAIN 
@@ -3933,7 +3982,7 @@ t3.c IN ('bb','ee');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	range	si	si	5	NULL	2	100.00	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	25.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t1` join `test`.`t2` FORCE INDEX (`si`) join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`i` = '81') or (`test`.`t2`.`i` = '89')) and (`test`.`t3`.`c` in ('bb','ee')))
 EXPLAIN 
@@ -3943,7 +3992,7 @@ t3.c IN ('bb','ee');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	range	si,ai	si	5	NULL	2	100.00	Using where
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	25.00	Using where
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,ci	PRIMARY	4	test.t2.a	1	30.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((`test`.`t2`.`i` = '81') or (`test`.`t2`.`i` = '89')) and (`test`.`t3`.`c` in ('bb','ee')))
 DROP TABLE t1,t2,t3;
@@ -3961,6 +4010,7 @@ INSERT into t1 values (1), (2), (3);
 SELECT * FROM t1 LIMIT 2, -1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 DROP TABLE t1;
+set optimizer_switch='index_merge=off';
 CREATE TABLE t1 (
 ID_with_null int NULL,
 ID_better int NOT NULL,
@@ -3973,6 +4023,9 @@ INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT COUNT(*) FROM t1 WHERE ID_with_null IS NULL;
 COUNT(*)
 128
@@ -3981,14 +4034,17 @@ COUNT(*)
 2
 EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	97.69	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	98.46	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID_with_null` is null))
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID_with_null);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	97.69	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	98.46	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID_with_null` is null))
 DROP TABLE t1;
@@ -3998,7 +4054,7 @@ ID2_with_null int NULL,
 ID_better int NOT NULL,
 INDEX idx1 (ID1_with_null, ID2_with_null),
 INDEX idx2 (ID_better)
-);
+) ;
 INSERT INTO t1 VALUES (1,1,1), (2,2,1), (3,null,3), (null,3,3), (null,null,3),
 (3,null,3), (null,3,3), (null,null,3), (3,null,3), (null,3,3), (null,null,3);
 INSERT INTO t1 SELECT * FROM t1 WHERE ID1_with_null IS NULL;
@@ -4019,52 +4075,59 @@ COUNT(*)
 SELECT COUNT(*) FROM t1 WHERE ID_better=1;
 COUNT(*)
 2
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	5.79	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	9.92	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null=3 IS NULL ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	27.27	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	9.92	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and ((`test`.`t1`.`ID2_with_null` = 3) is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	64.88	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	79.34	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and (`test`.`t1`.`ID2_with_null` is null))
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID1_with_null,ID2_with_null);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	12.40	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	9.92	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null IS NULL ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	12.40	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	9.92	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID2_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	73.55	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	79.34	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and (`test`.`t1`.`ID2_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND 
 (ID2_with_null=1 OR ID2_with_null=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	5.00	Using where
+1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	2	2.50	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and ((`test`.`t1`.`ID2_with_null` = 1) or (`test`.`t1`.`ID2_with_null` = 2)))
 DROP TABLE t1;
+set optimizer_switch='index_merge=on';
 CREATE TABLE t1 (a INT, ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY ts(ts));
 INSERT INTO t1 VALUES (30,"2006-01-03 23:00:00"), (31,"2006-01-03 23:00:00");
 ANALYZE TABLE t1;
@@ -4082,7 +4145,7 @@ AND t1.ts BETWEEN t2.dt1 AND t2.dt2
 AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	t1	NULL	range	ts	ts	4	NULL	1	50.00	Using where
+1	SIMPLE	t1	NULL	range	ts	ts	4	NULL	2	50.00	Using where
 Warnings:
 Warning	1292	Incorrect datetime value: '2999-12-31 00:00:00' for column 'ts' at row 1
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`ts` AS `ts`,'30' AS `a`,'2006-01-01 00:00:00' AS `dt1`,'2999-12-31 00:00:00' AS `dt2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 30) and (`test`.`t1`.`ts` between '2006-01-01 00:00:00' and '2999-12-31 00:00:00') and (`test`.`t1`.`ts` between '2006-01-01' and '2006-12-31'))
@@ -4115,7 +4178,7 @@ t1	CREATE TABLE `t1` (
   `i` decimal(19,0) NOT NULL DEFAULT '0',
   `c` decimal(19,0) NOT NULL DEFAULT '0',
   `co` decimal(19,0) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select 
 if(1, cast(1111111111111111111 as unsigned), 1) i,
@@ -4129,6 +4192,10 @@ INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT * FROM t2;
 name	n
 bb	1
@@ -4158,7 +4225,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	name	name	6	const	3	100.00	Using where
+1	SIMPLE	t2	NULL	ref	name	name	6	const	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` = 'cc ')
 SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
@@ -4168,7 +4235,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	name	name	6	NULL	3	100.00	Using where
+1	SIMPLE	t2	NULL	range	name	name	6	NULL	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%')
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
@@ -4179,7 +4246,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	name	name	6	NULL	3	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	range	name	name	6	NULL	4	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%') order by `test`.`t2`.`name`
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
@@ -4211,6 +4278,10 @@ INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT * FROM t2;
 name	n
 bb	1
@@ -4240,7 +4311,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	name	name	6	const	3	100.00	Using where
+1	SIMPLE	t2	NULL	ref	name	name	6	const	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` = 'cc ')
 SELECT name, LENGTH(name), n FROM t2 WHERE name='cc ';
@@ -4250,7 +4321,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	name	name	6	NULL	3	100.00	Using where
+1	SIMPLE	t2	NULL	range	name	name	6	NULL	4	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%')
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%';
@@ -4261,7 +4332,7 @@ cc	2	5
 cc 	3	7
 EXPLAIN SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	name	name	6	NULL	3	100.00	Using where; Using filesort
+1	SIMPLE	t2	NULL	range	name	name	6	NULL	4	100.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`name` AS `name`,length(`test`.`t2`.`name`) AS `LENGTH(name)`,`test`.`t2`.`n` AS `n` from `test`.`t2` where (`test`.`t2`.`name` like 'cc%') order by `test`.`t2`.`name`
 SELECT name , LENGTH(name), n FROM t2 WHERE name LIKE 'cc%' ORDER BY name;
@@ -4327,12 +4398,15 @@ faq_id
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT, b INT, KEY inx (b,a));
 INSERT INTO t1 VALUES (1,1), (1,2), (1,3), (1,4), (1,5), (1, 6), (1,7);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1 f1 INNER JOIN t1 f2
 ON ( f1.b=f2.b AND f1.a<f2.a ) 
 WHERE 1 AND f1.b NOT IN (100,2232,3343,51111);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	f1	NULL	index	inx	inx	10	NULL	7	100.00	Using where; Using index
-1	SIMPLE	f2	NULL	ref	inx	inx	5	test.f1.b	2	33.33	Using where; Using index
+1	SIMPLE	f2	NULL	ref	inx	inx	5	test.f1.b	1	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` `f1` join `test`.`t1` `f2` where ((`test`.`f2`.`b` = `test`.`f1`.`b`) and (`test`.`f1`.`b` not in (100,2232,3343,51111)) and (`test`.`f1`.`a` < `test`.`f2`.`a`))
 DROP TABLE t1;
@@ -4353,6 +4427,9 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT  join_2.c1  
 FROM 
@@ -4396,12 +4473,19 @@ join_7.c1,
 join_1.c1,
 join_0.c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	join_0	NULL	ALL	PRIMARY	NULL	NULL	#	1	100.00	#
+1	SIMPLE	join_1	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	100.00	#
+1	SIMPLE	join_2	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	100.00	#
+1	SIMPLE	join_3	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	100.00	#
+1	SIMPLE	join_4	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	100.00	#
+1	SIMPLE	join_5	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	100.00	#
+1	SIMPLE	join_6	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	100.00	#
+1	SIMPLE	join_7	NULL	eq_ref	PRIMARY	PRIMARY	4	#	1	100.00	#
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal('?', NULL) and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
+Note	1003	/* select#1 */ select `test`.`join_2`.`c1` AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (((`test`.`join_1`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_2`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_3`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_4`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_5`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_6`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_7`.`c1` = `test`.`join_0`.`c1`)) or ((`test`.`join_1`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_2`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_3`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_4`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_5`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_6`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_7`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_4`.`c2` = '?') and (`test`.`join_0`.`c2` < '?') and (`test`.`join_1`.`c2` < '?') and (`test`.`join_2`.`c2` > '?') and (`test`.`join_2`.`c2` < '!') and (`test`.`join_3`.`c2` > '?') and (`test`.`join_5`.`c2` <> '?') and (`test`.`join_6`.`c2` <> '?') and (`test`.`join_7`.`c2` >= '?'))) group by `test`.`join_3`.`c1`,`test`.`join_2`.`c1`,`test`.`join_7`.`c1`,`test`.`join_1`.`c1`,`test`.`join_0`.`c1`
 SHOW WARNINGS;
 Level	Code	Message
-Note	1003	/* select#1 */ select NULL AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL) or ((NULL < '?') and (NULL < '?') and (NULL > '?') and (NULL < '!') and (NULL > '?') and (NULL <> '?') and (NULL <> '?') and (NULL >= '?') and multiple equal('?', NULL) and multiple equal(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL))) group by NULL,NULL,NULL,NULL,NULL
+Note	1003	/* select#1 */ select `test`.`join_2`.`c1` AS `c1` from `test`.`t1` `join_0` join `test`.`t1` `join_1` join `test`.`t1` `join_2` join `test`.`t1` `join_3` join `test`.`t1` `join_4` join `test`.`t1` `join_5` join `test`.`t1` `join_6` join `test`.`t1` `join_7` where (((`test`.`join_1`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_2`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_3`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_4`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_5`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_6`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_7`.`c1` = `test`.`join_0`.`c1`)) or ((`test`.`join_1`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_2`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_3`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_4`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_5`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_6`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_7`.`c1` = `test`.`join_0`.`c1`) and (`test`.`join_4`.`c2` = '?') and (`test`.`join_0`.`c2` < '?') and (`test`.`join_1`.`c2` < '?') and (`test`.`join_2`.`c2` > '?') and (`test`.`join_2`.`c2` < '!') and (`test`.`join_3`.`c2` > '?') and (`test`.`join_5`.`c2` <> '?') and (`test`.`join_6`.`c2` <> '?') and (`test`.`join_7`.`c2` >= '?'))) group by `test`.`join_3`.`c1`,`test`.`join_2`.`c1`,`test`.`join_7`.`c1`,`test`.`join_1`.`c1`,`test`.`join_0`.`c1`
 DROP TABLE t1;
 SELECT 1 AS ` `;
 
@@ -4667,8 +4751,8 @@ b
 2
 SHOW STATUS LIKE 'Handler_read%';
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	2
+Handler_read_first	1
+Handler_read_key	3
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -4719,6 +4803,9 @@ f3	f4	count
 drop table t1, t2, t3;
 CREATE TABLE t1 (a INT KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	3	25.00	Using where
@@ -4802,9 +4889,9 @@ a
 2001-01-01 00:00:00
 EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2001-01-01 00:00:00')
 DROP TABLE t1;
 CREATE TABLE t1(a DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4813,9 +4900,9 @@ a
 2001-01-01
 EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = DATE'2001-01-01')
 DROP TABLE t1;
 CREATE TABLE t1(a TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4824,9 +4911,9 @@ a
 2001-01-01 00:00:00
 EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = TIMESTAMP'2001-01-01 00:00:00')
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4835,9 +4922,9 @@ a	b
 2001-01-01 00:00:00	2001-01-01
 EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = DATE'2001-01-01') and (`test`.`t1`.`a` = TIMESTAMP'2001-01-01 00:00:00'))
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL) charset utf8mb4;
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4845,17 +4932,17 @@ SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 a	b
 EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where false
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = '2001-01-01 00:00:00') and (`test`.`t1`.`a` = TIMESTAMP'2001-01-01 00:00:00'))
 SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 a	b
 2001-01-01 00:00:00	2001-01-01
 EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = '2001-01-01') and (`test`.`t1`.`a` = TIMESTAMP'2001-01-01 00:00:00'))
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4870,11 +4957,11 @@ JOIN t1 y ON x.a=y.a
 JOIN t1 z ON y.a=z.a 
 WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	y	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	z	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	x	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	y	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	z	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where true
+Note	1003	/* select#1 */ select `test`.`x`.`a` AS `a`,`test`.`y`.`a` AS `a`,`test`.`z`.`a` AS `a` from `test`.`t1` `x` join `test`.`t1` `y` join `test`.`t1` `z` where ((`test`.`x`.`a` = TIMESTAMP'2001-01-01 00:00:00') and (`test`.`y`.`a` = TIMESTAMP'2001-01-01 00:00:00') and (`test`.`z`.`a` = TIMESTAMP'2001-01-01 00:00:00'))
 DROP TABLE t1;
 #
 # Bug #49897: crash in ptr_compare when char(0) NOT NULL 
@@ -4888,9 +4975,12 @@ INSERT INTO t1 VALUES (0), (0), (0);
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24404	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a`
 SELECT a FROM t1 ORDER BY a;
@@ -4902,17 +4992,20 @@ INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
 # may be executed using different execution plans, we've added ORDER BY
 # to ensure that we rows has the same order every time. If not, the
 # estimated number of rows in EXPLAIN may change on different platforms.
-# Note that the tables may be MyISAM, since many of the test files that
-# includes this file forces MyISAM as the default storage engine.
+# Note that the tables may MYISAM, since many of the test files that
+# includes this file forces MYISAM as the default storage engine.
 INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
 ORDER BY t11.a, t11.b, t11.c;
 INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
 ORDER BY t11.a, t11.b, t11.c;
 INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
 ORDER BY t11.a, t11.b, t11.c;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` limit 5
 SELECT a FROM t1 ORDER BY a LIMIT 5;
@@ -4924,19 +5017,19 @@ a
 
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b` limit 5
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 a	b	c
-		0
 		2
-		1
-		0
-		0
+		2
+		2
+		2
+		2
 EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`a`,`test`.`t1`.`b`,`test`.`t1`.`c` limit 5
 SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
@@ -4948,7 +5041,7 @@ a	b	c
 		0
 EXPLAIN SELECT * FROM t1 ORDER BY c, a LIMIT 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24492	100.00	Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24434	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` order by `test`.`t1`.`c`,`test`.`t1`.`a` limit 5
 SELECT * FROM t1 ORDER BY c, a LIMIT 5;
@@ -5009,9 +5102,9 @@ CREATE TABLE t1 (a INT NOT NULL, b INT);
 INSERT INTO t1 VALUES (1, 1);
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where true
 SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 a	b
 1	1
@@ -5019,19 +5112,19 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, c INT NOT NULL);
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where true
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where true
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where true
 DROP TABLE t1;
 #
 # Bug#45266: Uninitialized variable lead to an empty result.
@@ -5122,6 +5215,10 @@ INSERT INTO t2 VALUES (2);
 SELECT * FROM t1 WHERE a = 1 + 1;
 a
 2
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE a = 1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
@@ -5140,19 +5237,19 @@ a	b
 4	2
 EXPLAIN SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'2' AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(('2' + (1 + 1))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = (`test`.`t2`.`b` + <cache>((1 + 1))))
 SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
 b	a
 2	3
 EXPLAIN SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from <constant table> left join `test`.`t1` on((`test`.`t1`.`a` = <cache>(('2' + 1)))) where true
+Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b`,`test`.`t1`.`a` AS `a` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`a` = (`test`.`t2`.`b` + 1))) where true
 EXPLAIN SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
@@ -5240,6 +5337,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1(a ENUM('') NOT NULL) charset latin1;
 INSERT INTO t1 VALUES (), (), ();
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
@@ -5255,11 +5355,16 @@ DROP TABLE t1;
 # Bug #58422: Incorrect result when OUTER JOIN'ing 
 # with an empty table
 #
-CREATE TABLE t_empty(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
-CREATE TABLE t1(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+CREATE TABLE t_empty(pk INT PRIMARY KEY, i INT);
+CREATE TABLE t1(pk INT PRIMARY KEY, i INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
-CREATE TABLE t2(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+CREATE TABLE t2(pk INT PRIMARY KEY, i INT) ;
 INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t_empty, t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t_empty	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT *
 FROM 
@@ -5269,9 +5374,11 @@ LEFT OUTER JOIN
 ON t1.pk=t2.pk
 WHERE t2.pk <> 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t_empty	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i` AS `i`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i` AS `i`,NULL AS `pk`,NULL AS `i` from `test`.`t1` join `test`.`t2` join `test`.`t_empty` where ((`test`.`t2`.`pk` <> 2) and multiple equal(`test`.`t1`.`pk`, `test`.`t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i` AS `i`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i` AS `i`,`test`.`t_empty`.`pk` AS `pk`,`test`.`t_empty`.`i` AS `i` from `test`.`t1` join `test`.`t2` join `test`.`t_empty` where ((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` <> 2))
 SELECT *
 FROM 
 t1
@@ -5289,9 +5396,11 @@ LEFT OUTER JOIN
 ON t1.pk=t2.pk
 WHERE t2.pk <> 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t_empty	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.pk	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i` AS `i`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i` AS `i`,NULL AS `pk`,NULL AS `i` from `test`.`t1` join `test`.`t2` join `test`.`t_empty` where ((`test`.`t2`.`pk` <> 2) and multiple equal(`test`.`t1`.`pk`, `test`.`t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i` AS `i`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i` AS `i`,`test`.`t_empty`.`pk` AS `pk`,`test`.`t_empty`.`i` AS `i` from `test`.`t1` join `test`.`t2` join `test`.`t_empty` where ((`test`.`t2`.`pk` = `test`.`t1`.`pk`) and (`test`.`t1`.`pk` <> 2))
 SELECT *
 FROM 
 t1
@@ -5309,9 +5418,11 @@ LEFT OUTER JOIN
 ON t1.pk=t2.pk
 WHERE t2.pk <> 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+1	SIMPLE	t_empty	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	4	NULL	2	33.33	Using where
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.pk	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i` AS `i`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i` AS `i`,NULL AS `pk`,NULL AS `i` from `test`.`t1` join `test`.`t2` join `test`.`t_empty` where ((`test`.`t2`.`pk` <> 2) and multiple equal(`test`.`t1`.`pk`, `test`.`t2`.`pk`) and multiple equal(NULL, `test`.`t2`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i` AS `i`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i` AS `i`,`test`.`t_empty`.`pk` AS `pk`,`test`.`t_empty`.`i` AS `i` from `test`.`t1` join `test`.`t2` join `test`.`t_empty` where ((`test`.`t2`.`i` = `test`.`t_empty`.`i`) and (`test`.`t1`.`pk` = `test`.`t2`.`pk`) and (`test`.`t2`.`pk` <> 2))
 SELECT *
 FROM 
 t1
@@ -5344,18 +5455,18 @@ INSERT INTO `cc` VALUES
 EXPLAIN SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	cc	NULL	range	int_key	int_key	4	NULL	10	90.00	Using where; Using filesort
+1	SIMPLE	cc	NULL	range	int_key	int_key	4	NULL	9	90.00	Using where; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.`cc` where ((0 <> `test`.`cc`.`int_nokey`) and (`test`.`cc`.`int_key` <= 4)) having (0 <> `g1`) order by `test`.`cc`.`varchar_key` limit 6
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 g1
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: 'z'
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
-Warning	1292	Truncated incorrect DOUBLE value: 'q'
-Warning	1292	Truncated incorrect DOUBLE value: 'm'
 Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+Warning	1292	Truncated incorrect DOUBLE value: 'q'
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
+Warnings:
 DROP TABLE cc;
 # End of test#45227
 #
@@ -5469,10 +5580,10 @@ EXPLAIN FORMAT=tree SELECT *
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2
 WHERE alias2.f1 NOT BETWEEN 4 AND 12;
 EXPLAIN
--> Nested loop inner join  (cost=6.81 rows=12)
-    -> Table scan on alias1  (cost=1.91 rows=14)
-    -> Filter: (alias2.f1 not between 4 and 12)  (cost=0.26 rows=1)
-        -> Index lookup on alias2 using i1 (f2=alias1.f1)  (cost=0.26 rows=1)
+-> Nested loop inner join  (cost=9.27 rows=19)
+    -> Table scan on alias1  (cost=1.65 rows=14)
+    -> Filter: (alias2.f1 not between 4 and 12)  (cost=0.40 rows=1)
+        -> Index lookup on alias2 using i1 (f2=alias1.f1)  (cost=0.40 rows=2)
 
 SELECT *
 FROM t1 AS alias1 LEFT JOIN t1 AS alias2 ON alias1.f1 = alias2.f2

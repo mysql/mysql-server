@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,10 +33,12 @@
 #include "m_string.h"
 #include "mutex_lock.h"
 #include "my_dbug.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "mysys/mysys_priv.h"
 #include "prealloced_array.h"
+#include "template_utils.h"
 
 #if defined(_WIN32)
 #define DELIM ';'
@@ -70,15 +72,26 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
     length = cleanup_dirname(buff, buff);
     if (!(copy = my_strndup(key_memory_MY_TMPDIR_full_list, buff, length,
                             MYF(MY_WME))) ||
-        full_list.push_back(copy))
+        full_list.push_back(copy)) {
+      my_free_container_pointers(full_list);
       return true;
+    }
+    // Check that each tmpdir exists.
+    MY_STAT dir_stat;
+    if (!(my_stat(copy, &dir_stat, MYF(MY_FAE)))) {
+      my_free_container_pointers(full_list);
+      return true;
+    }
     pathlist = end + 1;
   } while (*end);
 
   tmpdir->list = static_cast<char **>(
       my_malloc(key_memory_MY_TMPDIR_full_list,
                 sizeof(char *) * full_list.size(), MYF(MY_WME)));
-  if (tmpdir->list == nullptr) return true;
+  if (tmpdir->list == nullptr) {
+    my_free_container_pointers(full_list);
+    return true;
+  }
 
   mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
   memcpy(tmpdir->list, &full_list[0], sizeof(char *) * full_list.size());

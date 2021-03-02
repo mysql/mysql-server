@@ -25,11 +25,15 @@
 # ==== References ====
 # WL#9556: Writeset-based MTS dependency tracking on master
 ################################################################################
+
+--source include/have_binlog_format_row.inc
 --let $rpl_extra_connections_per_server= 7
 --source include/master-slave.inc
---source include/have_binlog_format_row.inc
 
 --connection master
+
+SET @binlog_transaction_dependency_tracking_save = @@GLOBAL.binlog_transaction_dependency_tracking;
+
 # Loop between binlog_transaction_dependency_tracking modes
 --let $type= 0
 while ($type < 3)
@@ -132,4 +136,7 @@ while ($type < 3)
 }
 
 --connection master
+
+SET GLOBAL binlog_transaction_dependency_tracking = @binlog_transaction_dependency_tracking_save;
+
 --source include/rpl_end.inc

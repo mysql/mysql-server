@@ -54,7 +54,7 @@
 ##
 ##===========================================================================
 
-# Doxyfile 1.8.17
+# Doxyfile 1.8.20
 
 # This file describes the settings to be used by the documentation system
 # doxygen (www.doxygen.org) for a project.
@@ -273,6 +273,14 @@ QT_AUTOBRIEF           = YES
 
 MULTILINE_CPP_IS_BRIEF = NO
 
+# By default Python docstrings are displayed as preformatted text and doxygen's
+# special commands cannot be used. By setting PYTHON_DOCSTRING to NO the
+# doxygen's special commands can be used and the contents of the docstring
+# documentation blocks is shown as doxygen documentation.
+# The default value is: YES.
+
+# PYTHON_DOCSTRING       = YES
+
 # If the INHERIT_DOCS tag is set to YES then an undocumented member inherits the
 # documentation from any documented member that it re-implements.
 # The default value is: YES.
@@ -309,12 +317,6 @@ TAB_SIZE               = 8
 
 ALIASES                = "SQL{1}=<small>\1</small>" \
                          "B{1}=<b>\1</b>"
-
-# This tag can be used to specify a number of word-keyword mappings (TCL only).
-# A mapping has the form "name=value". For example adding "class=itcl::class"
-# will allow you to use the command class in the itcl::class meaning.
-
-TCL_SUBST              =
 
 # Set the OPTIMIZE_OUTPUT_FOR_C tag to YES if your project consists of C sources
 # only. Doxygen will then generate output that is more tailored for C. For
@@ -357,13 +359,13 @@ OPTIMIZE_OUTPUT_VHDL   = NO
 # extension. Doxygen has a built-in mapping, but you can override or extend it
 # using this tag. The format is ext=language, where ext is a file extension, and
 # language is one of the parsers supported by doxygen: IDL, Java, JavaScript,
-# Csharp (C#), C, C++, D, PHP, md (Markdown), Objective-C, Python, Slice,
+# Csharp (C#), C, C++, D, PHP, md (Markdown), Objective-C, Python, Slice, VHDL,
 # Fortran (fixed format Fortran: FortranFixed, free formatted Fortran:
 # FortranFree, unknown formatted Fortran: Fortran. In the later case the parser
 # tries to guess whether the code is fixed or free formatted code, this is the
-# default for Fortran type files), VHDL, tcl. For instance to make doxygen treat
-# .inc files as Fortran files (default is PHP), and .f files as C (default is
-# Fortran), use: inc=Fortran f=C.
+# default for Fortran type files). For instance to make doxygen treat .inc files
+# as Fortran files (default is PHP), and .f files as C (default is Fortran),
+# use: inc=Fortran f=C.
 #
 # Note: For files without extension you can use no_extension as a placeholder.
 #
@@ -502,6 +504,19 @@ TYPEDEF_HIDES_STRUCT   = NO
 
 LOOKUP_CACHE_SIZE      = 2
 
+# The NUM_PROC_THREADS specifies the number threads doxygen is allowed to use
+# during processing. When set to 0 doxygen will based this on the number of
+# cores available in the system. You can set it explicitly to a value larger
+# than 0 to get more control over the balance between CPU load and processing
+# speed. At this moment only the input processing can be done using multiple
+# threads. Since this is still an experimental feature the default is set to 1,
+# which efficively disables parallel processing. Please report any issues you
+# encounter. Generating dot graphs in parallel is controlled by the
+# DOT_NUM_THREADS setting.
+# Minimum value: 0, maximum value: 32, default value: 1.
+
+# NUM_PROC_THREADS       = 1
+
 #---------------------------------------------------------------------------
 # Build related configuration options
 #---------------------------------------------------------------------------
@@ -606,7 +621,7 @@ INTERNAL_DOCS          = NO
 # names in lower-case letters. If set to YES, upper-case letters are also
 # allowed. This is useful if you have classes or files whose names only differ
 # in case and if your file system supports case sensitive file names. Windows
-# (including Cygwin) ands Mac users are advised to set this option to NO.
+# (including Cygwin) and Mac users are advised to set this option to NO.
 # The default value is: system dependent.
 
 CASE_SENSE_NAMES       = YES
@@ -940,7 +955,7 @@ INPUT_ENCODING         = UTF-8
 # *.hh, *.hxx, *.hpp, *.h++, *.cs, *.d, *.php, *.php4, *.php5, *.phtml, *.inc,
 # *.m, *.markdown, *.md, *.mm, *.dox (to be provided as doxygen C comment),
 # *.doc (to be provided as doxygen C comment), *.txt (to be provided as doxygen
-# C comment), *.py, *.pyw, *.f90, *.f95, *.f03, *.f08, *.f, *.for, *.tcl, *.vhd,
+# C comment), *.py, *.pyw, *.f90, *.f95, *.f03, *.f08, *.f18, *.f, *.for, *.vhd,
 # *.vhdl, *.ucf, *.qsf and *.ice.
 
 FILE_PATTERNS          = *.c \
@@ -976,6 +991,7 @@ RECURSIVE              = YES
 
 EXCLUDE                = cmd-line-utils \
                          client/mysqlbinlog.cc \
+                         components/test \
                          extra \
                          generated \
                          include/mysqld_error.h \
@@ -984,6 +1000,9 @@ EXCLUDE                = cmd-line-utils \
                          internal \
                          libevent \
                          plugin/innodb_memcached/daemon_memcached/include/memcached \
+			 plugin/innodb_memcached/innodb_memcache \
+                         plugin/test_services \
+                         plugin/test_service_sql_api \
                          source_downloads \
                          sql/sql_hints.cc \
                          sql/sql_yacc.cc \
@@ -1100,7 +1119,6 @@ INPUT_FILTER           =
 
 FILTER_PATTERNS        = "*/sql/mysqld.cc=perl ./doxygen_resources/doxygen-filter-mysqld" \
                          "*/plugin/x/protocol/*.proto=perl ./doxygen_resources/doxygen-filter-proto"
-
 
 # If the FILTER_SOURCE_FILES tag is set to YES, the input filter (if set using
 # INPUT_FILTER) will also be used to filter the input files that are used for
@@ -1474,7 +1492,7 @@ CHM_FILE               =
 HHC_LOCATION           =
 
 # The GENERATE_CHI flag controls if a separate .chi index file is generated
-# (YES) or that it should be included in the master .chm file (NO).
+# (YES) or that it should be included in the main .chm file (NO).
 # The default value is: NO.
 # This tag requires that the tag GENERATE_HTMLHELP is set to YES.
 
@@ -1636,6 +1654,17 @@ TREEVIEW_WIDTH         = 250
 
 EXT_LINKS_IN_WINDOW    = NO
 
+# If the HTML_FORMULA_FORMAT option is set to svg, doxygen will use the pdf2svg
+# tool (see https://github.com/dawbarton/pdf2svg) or inkscape (see
+# https://inkscape.org) to generate formulas as SVG images instead of PNGs for
+# the HTML output. These images will generally look nicer at scaled resolutions.
+# Possible values are: png (the default) and svg (looks nicer but requires the
+# pdf2svg or inkscape tool).
+# The default value is: png.
+# This tag requires that the tag GENERATE_HTML is set to YES.
+
+# HTML_FORMULA_FORMAT    = png
+
 # Use this tag to change the font size of LaTeX formulas included as images in
 # the HTML documentation. When you change the font size after a successful
 # doxygen run you need to manually remove any form_*.png images from the HTML
@@ -1691,7 +1720,7 @@ MATHJAX_FORMAT         = HTML-CSS
 # Content Delivery Network so you can quickly see the result without installing
 # MathJax. However, it is strongly recommended to install a local copy of
 # MathJax from https://www.mathjax.org before deployment.
-# The default value is: https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/.
+# The default value is: https://cdn.jsdelivr.net/npm/mathjax@2.
 # This tag requires that the tag USE_MATHJAX is set to YES.
 
 MATHJAX_RELPATH        = http://cdn.mathjax.org/mathjax/latest
@@ -1930,9 +1959,11 @@ LATEX_EXTRA_FILES      =
 
 PDF_HYPERLINKS         = YES
 
-# If the USE_PDFLATEX tag is set to YES, doxygen will use pdflatex to generate
-# the PDF file directly from the LaTeX files. Set this option to YES, to get a
-# higher quality PDF documentation.
+# If the USE_PDFLATEX tag is set to YES, doxygen will use the engine as
+# specified with LATEX_CMD_NAME to generate the PDF file directly from the LaTeX
+# files. Set this option to YES, to get a higher quality PDF documentation.
+#
+# See also section LATEX_CMD_NAME for selecting the engine.
 # The default value is: YES.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 

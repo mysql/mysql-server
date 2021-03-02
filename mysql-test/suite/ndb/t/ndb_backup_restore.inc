@@ -89,7 +89,7 @@ while ($i)
   (NULL,NULL,10,10,10,10,10,10.1,NULL,NULL,10,10,10,10,10,
    NULL,'two','two',NULL,NULL,NULL,NULL);
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"
+--exec $NDB_MGM -e "all error 10039"
 
 if ($snapshotstart)
 {
@@ -121,7 +121,7 @@ options='two',flags='two', date_field='1922-02-22',year_field='1922',
 time_field='22:22:22',date_time='1922-02-22 22:22:22' where auto=1;
 --enable_query_log
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0"
+--exec $NDB_MGM -e "all error 0"
 
 --echo "Wait for backup to complete"
 --source suite/ndb/t/ndb_backup_nowait_wait.inc

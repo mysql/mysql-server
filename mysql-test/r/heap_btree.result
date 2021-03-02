@@ -324,8 +324,8 @@ key using btree (a,b)) engine=memory;
 insert into t1 values (1, 1), (3, 3), (2, 2), (NULL, 1), (NULL, NULL), (0, 0);
 select * from t1 where a is null;
 a	b
-NULL	NULL
 NULL	1
+NULL	NULL
 drop table t1;
 #
 # bug#39918 - memory (heap) engine crashing while executing self join with delete

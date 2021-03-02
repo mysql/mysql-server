@@ -89,6 +89,7 @@ usr/lib/mysql/plugin/libtest_sql_lock.so
 usr/lib/mysql/plugin/libtest_sql_processlist.so
 usr/lib/mysql/plugin/libtest_sql_replication.so
 usr/lib/mysql/plugin/libtest_sql_shutdown.so
+usr/lib/mysql/plugin/libtest_sql_sleep_is_connected.so
 usr/lib/mysql/plugin/libtest_sql_stmt.so
 usr/lib/mysql/plugin/libtest_sql_sqlmode.so
 usr/lib/mysql/plugin/libtest_sql_stored_procedures_functions.so

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_setup.py\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_SETUP\&.PY\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_SETUP\&.PY\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,11 +28,27 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-ndb_setup.py \- Start browser\-based Auti\-Installer for NDB Cluster
+ndb_setup.py \- Start browser\-based Auto\-Installer for NDB Cluster
 .SH "SYNOPSIS"
 .HP \w'\fBndb_setup\&.py\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBndb_setup\&.py [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+This feature is deprecated and should be avoided\&. It is subject to removal in a future version of NDB Cluster\&.
+.sp .5v
+.RE
 .PP
 \fBndb_setup\&.py\fR
 starts the NDB Cluster Auto\-Installer and opens the installer\*(Aqs Start page in the default Web browser\&.
@@ -59,7 +75,7 @@ or other administrative account\&.
 This section describes usage of and program options for the command\-line tool only\&. For information about using the Auto\-Installer GUI that is spawned when
 \fBndb_setup\&.py\fR
 is invoked, see
-\m[blue]\fBThe NDB Cluster Auto\-Installer (NDB 7\&.5)\fR\m[]\&\s-2\u[1]\d\s+2\&.
+\m[blue]\fBThe NDB Cluster Auto\-Installer (NDB 7\&.5) (No longer supported)\fR\m[]\&\s-2\u[1]\d\s+2\&.
 Usage
 .PP
 All platforms:
@@ -93,7 +109,7 @@ The following table includes all options that are supported by the NDB Cluster i
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.274.\ \&Command\-line options for the ndb_setup\&.py program
+.B Table\ \&23.44.\ \&Command\-line options for the ndb_setup\&.py program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -105,18 +121,18 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB--browser-start-page=filename\fR,
@@ -688,7 +704,7 @@ You should have received a copy of the GNU General Public License along with the
 .sp
 .SH "NOTES"
 .IP " 1." 4
-The NDB Cluster Auto-Installer (NDB 7.5)
+The NDB Cluster Auto-Installer (NDB 7.5) (No longer supported)
 .RS 4
 \%https://dev.mysql.com/doc/refman/5.7/en/mysql-cluster-install-auto.html
 .RE

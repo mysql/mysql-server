@@ -14,11 +14,11 @@ CREATE TABLE test.t1 (
 )engine=ndbcluster;
 --echo "Table exists in user db and db specified in ndb_show_tables command"
 --replace_regex /^[0-9]+ +/XX    /
---exec $NDB_SHOW_TABLES --no-defaults -dtest t1
+--exec $NDB_SHOW_TABLES -dtest t1
 --echo
 --echo "Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command"
 --error 1
---exec $NDB_SHOW_TABLES --no-defaults t1
+--exec $NDB_SHOW_TABLES t1
 --echo
 
 CREATE DATABASE TEST_DB;
@@ -28,19 +28,19 @@ CREATE TABLE TEST_DB.t1 (
 )engine=ndbcluster;
 --echo "Table exists in TEST_DB and no db specified in ndb_show_tables command"
 --replace_regex /^[0-9]+ +/XX    /
---exec $NDB_SHOW_TABLES --no-defaults t1
+--exec $NDB_SHOW_TABLES t1
 --echo
 
 DROP TABLE test.t1;
 --echo "Table doesn't exist in user db and db specified in ndb_show_tables command"
 --error 1
---exec $NDB_SHOW_TABLES --no-defaults -dtest t1
+--exec $NDB_SHOW_TABLES -dtest t1
 --echo
 
 DROP TABLE TEST_DB.t1;
 --echo "Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command"
 --error 1
---exec $NDB_SHOW_TABLES --no-defaults t1
+--exec $NDB_SHOW_TABLES t1
 --echo
 DROP DATABASE TEST_DB;
 
@@ -83,7 +83,7 @@ CREATE TABLE test.t1 (
   b int
 )engine=ndbcluster;
 --replace_regex /^[0-9]+ +/XX    / /\/[0-9]+/\/YY/
---exec $NDB_SHOW_TABLES --no-defaults --fully-qualified -dtest t1
+--exec $NDB_SHOW_TABLES --fully-qualified -dtest t1
 --echo
 # Cleanup
 DROP TABLE test.t1;

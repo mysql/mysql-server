@@ -2837,21 +2837,21 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
 COLUMN_TYPE
-tinyint
-smallint
-mediumint
-int
 bigint
-tinyint(1)
-smallint
-mediumint
-int
 bigint
-tinyint(3) unsigned zerofill
-smallint(5) unsigned zerofill
-mediumint(8) unsigned zerofill
-int(10) unsigned zerofill
 bigint(20) unsigned zerofill
+int
+int
+int(10) unsigned zerofill
+mediumint
+mediumint
+mediumint(8) unsigned zerofill
+smallint
+smallint
+smallint(5) unsigned zerofill
+tinyint
+tinyint(1)
+tinyint(3) unsigned zerofill
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
 a	tinyint	YES		NULL	
@@ -2872,21 +2872,21 @@ o	bigint(20) unsigned zerofill	YES		NULL
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
 COLUMN_TYPE
-tinyint
-smallint
-mediumint
-int
 bigint
-tinyint(1)
-smallint
-mediumint
-int
 bigint
-tinyint(3) unsigned zerofill
-smallint(5) unsigned zerofill
-mediumint(8) unsigned zerofill
-int(10) unsigned zerofill
 bigint(20) unsigned zerofill
+int
+int
+int(10) unsigned zerofill
+mediumint
+mediumint
+mediumint(8) unsigned zerofill
+smallint
+smallint
+smallint(5) unsigned zerofill
+tinyint
+tinyint(1)
+tinyint(3) unsigned zerofill
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
 a	tinyint	YES		NULL	
@@ -2979,9 +2979,9 @@ d	tinyint(1) unsigned zerofill	YES		NULL
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
 COLUMN_TYPE
-tinyint(1)
-tinyint(1)
 tinyint unsigned
+tinyint(1)
+tinyint(1)
 tinyint(1) unsigned zerofill
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
@@ -3008,10 +3008,10 @@ DTD_IDENTIFIER
 tinyint(1)
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
 DTD_IDENTIFIER
-tinyint(1)
-tinyint(1)
-tinyint(1)
 tinyint unsigned
+tinyint(1)
+tinyint(1)
+tinyint(1)
 tinyint(1) unsigned zerofill
 DROP FUNCTION f1;
 CREATE PROCEDURE p1(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
@@ -3028,8 +3028,8 @@ d TINYINT(1) ZEROFILL)
 BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
 DTD_IDENTIFIER
-tinyint(1)
-tinyint(1)
 tinyint unsigned
+tinyint(1)
+tinyint(1)
 tinyint(1) unsigned zerofill
 DROP PROCEDURE p1;

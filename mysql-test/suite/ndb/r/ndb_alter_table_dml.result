@@ -32,6 +32,9 @@ call queryload(10);
 call queryload(10);
 call queryload(10);
 Beginning alter table child  partition by key(a) partitions 4;
+call mtr.add_suppression("Failed to acquire exclusive metadata lock");
+call mtr.add_suppression("Failed to update table definition in DD");
+call mtr.add_suppression("Distribution of ALTER TABLE 'test.child' failed");
 alter table child  partition by key(a) partitions 4;
 Completed.
 Ending test. Droping table parent

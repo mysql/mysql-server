@@ -778,16 +778,16 @@ extern ulong zip_pad_max;
 an uncompressed page should be left as padding to avoid compression
 failures. This estimate is based on a self-adapting heuristic. */
 struct zip_pad_info_t {
-  SysMutex *mutex; /*!< mutex protecting the info */
-  ulint pad;       /*!< number of bytes used as pad */
-  ulint success;   /*!< successful compression ops during
-                   current round */
-  ulint failure;   /*!< failed compression ops during
-                   current round */
-  ulint n_rounds;  /*!< number of currently successful
-                  rounds */
+  SysMutex *mutex;        /*!< mutex protecting the info */
+  std::atomic<ulint> pad; /*!< number of bytes used as pad */
+  ulint success;          /*!< successful compression ops during
+                          current round */
+  ulint failure;          /*!< failed compression ops during
+                          current round */
+  ulint n_rounds;         /*!< number of currently successful
+                         rounds */
 #ifndef UNIV_HOTBACKUP
-  volatile os_once::state_t mutex_created;
+  std::atomic<os_once::state_t> mutex_created;
   /*!< Creation state of mutex member */
 #endif /* !UNIV_HOTBACKUP */
 };
@@ -1561,7 +1561,7 @@ struct dict_table_t {
   ib_mutex_t *mutex;
 
   /** Creation state of mutex. */
-  volatile os_once::state_t mutex_created;
+  std::atomic<os_once::state_t> mutex_created;
 #endif /* !UNIV_HOTBACKUP */
 
   /** Id of the table. */
@@ -1755,7 +1755,7 @@ struct dict_table_t {
   /** Count of how many foreign key check operations are currently being
   performed on the table. We cannot drop the table while there are
   foreign key checks running on it. */
-  ulint n_foreign_key_checks_running;
+  std::atomic<ulint> n_foreign_key_checks_running;
 
   /** Transaction id that last touched the table definition. Either when
   loading the definition or CREATE TABLE, or ALTER TABLE (prepare,
@@ -1786,7 +1786,7 @@ struct dict_table_t {
   /** Statistics for query optimization. @{ */
 
   /** Creation state of 'stats_latch'. */
-  volatile os_once::state_t stats_latch_created;
+  std::atomic<os_once::state_t> stats_latch_created;
 
   /** This latch protects:
   "dict_table_t::stat_initialized",
@@ -1910,7 +1910,7 @@ detect this and will eventually quit sooner. */
   lock_t *autoinc_lock;
 
   /** Creation state of autoinc_mutex member */
-  volatile os_once::state_t autoinc_mutex_created;
+  std::atomic<os_once::state_t> autoinc_mutex_created;
 #endif /* !UNIV_HOTBACKUP */
 
   /** Mutex protecting the autoincrement counter. */

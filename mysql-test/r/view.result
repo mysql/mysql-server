@@ -3883,36 +3883,36 @@ ERROR HY000: Can not delete from join view 'test.v2'
 SELECT * FROM v2;
 a
 1
-2
+1
+1
 1
 2
-1
 2
-1
+2
 2
 REPLACE INTO v2(a) SELECT 3 FROM t1,t1 AS c;
 ERROR HY000: Can not delete from join view 'test.v2'
 SELECT * FROM v2;
 a
 1
-2
+1
+1
 1
 2
-1
 2
-1
+2
 2
 INSERT INTO v2(a) SELECT 1 FROM t1,t1 AS c
 ON DUPLICATE KEY UPDATE `v2`.`a`= 1;
 SELECT * FROM v2;
 a
 1
-2
+1
+1
 1
 2
-1
 2
-1
+2
 2
 DROP VIEW v1;
 DROP VIEW v2;

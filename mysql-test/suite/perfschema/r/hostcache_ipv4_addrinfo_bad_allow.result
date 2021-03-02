@@ -1,6 +1,6 @@
 call mtr.add_suppression("santa.claus.ipv4.example.com");
 flush status;
-flush hosts;
+TRUNCATE TABLE performance_schema.host_cache;
 flush user_resources;
 flush privileges;
 select @@global.debug;

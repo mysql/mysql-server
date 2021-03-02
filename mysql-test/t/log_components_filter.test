@@ -24,7 +24,6 @@ FLUSH LOGS;
 SET @@session.debug="+d,parser_stmt_to_error_log";
 # Now normalize timestamp and thread_ID on all following lines,
 # for less hassle with --regex_replace in test files.  Once
-# WL#9651 goes live, we can use that to achieve the same thing.
 SET @@session.debug="+d,log_error_normalize";
 
 SELECT @@global.log_error_services;
@@ -506,7 +505,7 @@ INSERT INTO my_rules VALUES(NULL, 'IF EXISTS thread THEN set thread:=0.'),
                            (NULL, 'IF EXISTS user THEN unset user.'),
                            (NULL, 'IF EXISTS host THEN unset host.'),
                            (NULL, 'IF EXISTS query_id THEN set query_id:=0.'),
-                           (NULL, 'IF EXISTS time THEN set time:="1970-01-01T00:00:00.000000Z".'),
+                           (NULL, 'IF EXISTS time THEN set time:="1970-01-01T00:00:00.012345Z".'),
                            (NULL, 'IF EXISTS _pid THEN unset _pid.'),
                            (NULL, 'IF EXISTS _platform THEN unset platform.'),
                            (NULL, 'IF EXISTS _client_version THEN unset _client_version.'),
@@ -521,6 +520,9 @@ INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val2==1 OR wl9651_val2==2 OR wl9651
 
 # 3 - IF/AND/AND
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val3a==1 AND wl9651_val3b==2 AND wl9651_val3c==3 THEN set wl9651_result3:="SUCCESS" ELSE set wl9651_result3:="FAILURE".');
+
+# Add more exceptions here for all messages that are not revelant to test and should be ignored.
+INSERT INTO my_rules VALUES(NULL, 'IF err_code==011825 THEN drop.');
 
 SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
 SET @@global.dragnet.log_error_filter_rules= @rules;

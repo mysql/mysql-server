@@ -106,6 +106,8 @@ class SortingIterator final : public RowIterator {
   /// important.
   void CleanupAfterQuery();
 
+  const Filesort *filesort() const { return m_filesort; }
+
  private:
   int DoSort();
   void ReleaseBuffers();

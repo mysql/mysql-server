@@ -30,7 +30,7 @@ let $ndb_version=
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgm_show.txt;
 
 # Dump the output of ndb_mgm to file
---exec $NDB_MGM --verbose=0 -e show > $dump_file;
+--exec $NDB_MGM -e show > $dump_file;
 
 # Load the file into a temporary table
 CREATE TEMPORARY TABLE ndb_mgm_show (a varchar(512));

@@ -148,10 +148,12 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE a = 4 OR b > 0;
 --replace_column 10 #
 EXPLAIN DELETE FROM t1 WHERE a = 4 OR b > 0;
+--sorted_result
 SELECT * FROM t1 WHERE a = 4 OR b > 0;
 SELECT COUNT(*) FROM t1;
 DELETE FROM t1 WHERE a = 4 OR b > 0;
 SELECT COUNT(*) FROM t1;
+--sorted_result
 SELECT * FROM t1 WHERE a = 4 OR b > 0;
 DROP TABLE t1;
 
@@ -174,10 +176,12 @@ ANALYZE TABLE t1;
 
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE a = 4 OR b < 3;
+--sorted_result
 SELECT * FROM t1 WHERE a = 4 OR b < 3;
 
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
+--sorted_result
 SELECT * FROM t1 WHERE a BETWEEN 0 AND 20 OR b BETWEEN 10 AND 20;
 
 --replace_column 10 #
@@ -227,6 +231,7 @@ pk
 FROM `t1`
 WHERE `c1` IS  NULL OR `c2` = '0';
 
+--sorted_result
 SELECT
 pk
 FROM `t1`

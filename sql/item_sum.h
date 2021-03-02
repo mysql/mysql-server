@@ -753,7 +753,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
 
   void cleanup() override;
 
-  const Window *window() const { return down_cast<Window *>(m_window); }
+  const Window *window() const { return m_window; }
   bool reset_wf_state(uchar *arg) override;
 
   /**
@@ -2714,6 +2714,7 @@ class Item_rollup_sum_switcher final : public Item_sum {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *dec) override;
   bool val_json(Json_wrapper *result) override;
+  bool is_null() override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   const char *func_name() const override { return "rollup_sum_switcher"; }

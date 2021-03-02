@@ -662,7 +662,7 @@ INSERT INTO t1 SELECT NULL FROM t1;
 INSERT INTO t1 SELECT NULL FROM t1;
 INSERT INTO t1 SELECT NULL FROM t1;
 SELECT COUNT(*) FROM t1;
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup nowait" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup nowait" >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 --error 0,762,1296
 ALTER TABLE t1 algorithm=inplace, ADD b INT;

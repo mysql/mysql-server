@@ -48,8 +48,9 @@
 #include "libbinlogevents/include/rows_event.h"
 #include "libbinlogevents/include/statement_events.h"
 #include "libbinlogevents/include/uuid.h"
-#include "m_string.h"   // native_strncasecmp
-#include "my_bitmap.h"  // MY_BITMAP
+#include "m_string.h"     // native_strncasecmp
+#include "my_bitmap.h"    // MY_BITMAP
+#include "my_checksum.h"  // ha_checksum
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -2565,6 +2566,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
   bool init_enum_str_value_field();
   bool init_geometry_type_field();
   bool init_primary_key_field();
+  bool init_column_visibility_field();
 #endif
 
 #ifndef MYSQL_SERVER

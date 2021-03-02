@@ -29,15 +29,15 @@
 #include <vector>
 
 #include "plugin/x/generated/mysqlx_version.h"
-#include "plugin/x/ngs/include/ngs/common_status_variables.h"
+#include "plugin/x/src/client.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/interface/ssl_context_options.h"
 #include "plugin/x/src/interface/ssl_session_options.h"
 #include "plugin/x/src/module_mysqlx.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
+#include "plugin/x/src/ngs/common_status_variables.h"
 #include "plugin/x/src/ssl_session_options.h"
 #include "plugin/x/src/variables/xpl_global_status_variables.h"
-#include "plugin/x/src/xpl_client.h"
 
 namespace xpl {
 

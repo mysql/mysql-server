@@ -87,9 +87,15 @@ table_id	table_name	comment
 40	pgman_time_track_stats	Time tracking of reads and writes of disk data pages
 41	diskstat	Disk data statistics for last second
 42	diskstats_1sec	Disk data statistics history for last few seconds
+43	hwinfo	HW information where node executes
+44	cpuinfo	CPU information where node executes
+45	cpudata	Data about CPU usage last second
+46	cpudata_50ms	Data about CPU usage per 50ms last second
+47	cpudata_1sec	Data about CPU usage per second last 20 seconds
+48	cpudata_20sec	Data about CPU usage per 20 sec last 400 seconds
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-43
+49
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -132,6 +138,12 @@ table_id	table_name	comment
 40	pgman_time_track_stats	Time tracking of reads and writes of disk data pages
 41	diskstat	Disk data statistics for last second
 42	diskstats_1sec	Disk data statistics history for last few seconds
+43	hwinfo	HW information where node executes
+44	cpuinfo	CPU information where node executes
+45	cpudata	Data about CPU usage last second
+46	cpudata_50ms	Data about CPU usage per 50ms last second
+47	cpudata_1sec	Data about CPU usage per second last 20 seconds
+48	cpudata_20sec	Data about CPU usage per 20 sec last 400 seconds
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -156,6 +168,11 @@ table_id	table_name
 39	config_nodes
 23	config_values
 8	counters
+45	cpudata
+47	cpudata_1sec
+48	cpudata_20sec
+46	cpudata_50ms
+44	cpuinfo
 28	cpustat
 26	cpustat_1sec
 27	cpustat_20sec
@@ -169,6 +186,7 @@ table_id	table_name
 29	frag_locks
 17	frag_mem_use
 20	frag_operations
+43	hwinfo
 6	logbuffers
 5	logspaces
 15	membership
@@ -272,6 +290,12 @@ table_id
 40
 41
 42
+43
+44
+45
+46
+47
+48
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -489,6 +513,10 @@ DBDICT
 DBDIH
 DBINFO
 DBLQH
+DBQACC
+DBQLQH
+DBQTUP
+DBQTUX
 DBSPJ
 DBTC
 DBTUP
@@ -498,7 +526,9 @@ LGMAN
 NDBCNTR
 NDBFS
 PGMAN
+QBACKUP
 QMGR
+QRESTORE
 RESTORE
 SUMA
 THRMAN
@@ -707,7 +737,7 @@ desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra
 node_id	int unsigned	YES		NULL	
 table_id	int unsigned	YES		NULL	
-tab_copy_status	varchar(20)	NO			
+tab_copy_status	varchar(21)	NO			
 tab_update_status	varchar(23)	NO			
 tab_lcp_status	varchar(15)	NO			
 tab_status	varchar(13)	NO			
@@ -1694,3 +1724,73 @@ select count(*) > 700
   from ndbinfo.error_messages;
 count(*) > 700
 1
+
+desc hwinfo;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+cpu_cnt_max	int unsigned	YES		NULL	
+cpu_cnt	int unsigned	YES		NULL	
+num_cpu_cores	int unsigned	YES		NULL	
+num_cpu_sockets	int unsigned	YES		NULL	
+HW_memory_size	bigint unsigned	YES		NULL	
+model_name	varchar(512)	YES		NULL	
+desc cpuinfo;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+core_id	int unsigned	YES		NULL	
+socket_id	int unsigned	YES		NULL	
+desc cpudata;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+desc cpudata_50ms;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+measurement_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+elapsed_time	int unsigned	YES		NULL	
+desc cpudata_1sec;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+measurement_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+elapsed_time	int unsigned	YES		NULL	
+desc cpudata_20sec;
+Field	Type	Null	Key	Default	Extra
+node_id	int unsigned	YES		NULL	
+measurement_id	int unsigned	YES		NULL	
+cpu_no	int unsigned	YES		NULL	
+cpu_online	int unsigned	YES		NULL	
+cpu_userspace_time	int unsigned	YES		NULL	
+cpu_idle_time	int unsigned	YES		NULL	
+cpu_system_time	int unsigned	YES		NULL	
+cpu_interrupt_time	int unsigned	YES		NULL	
+cpu_exec_vm_time	int unsigned	YES		NULL	
+elapsed_time	int unsigned	YES		NULL	
+
+select * from hwinfo;
+select * from cpuinfo;
+select * from cpudata;
+select * from cpudata_50ms;
+select * from cpudata_1sec;
+select * from cpudata_20sec;

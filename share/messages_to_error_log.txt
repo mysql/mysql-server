@@ -4913,7 +4913,7 @@ OBSOLETE_ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE
 OBSOLETE_ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED
   eng "Failed to reinit group replication commit cache for write on session %u"
 
-ER_GRP_RPL_PREV_REC_SESSION_RUNNING
+OBSOLETE_ER_GRP_RPL_PREV_REC_SESSION_RUNNING
   eng "A previous recovery session is still running. Please stop the group replication plugin and wait for it to stop"
 
 ER_GRP_RPL_FATAL_REC_PROCESS
@@ -6441,7 +6441,7 @@ ER_IB_MSG_UNEXPECTED_FILE_EXISTS
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
 ER_IB_MSG_303
-  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Refer to your operating system documentation for operating system error code information."
+  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %llu Operating system error number %d - %s. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Refer to your operating system documentation for operating system error code information."
 
 ER_IB_MSG_304
   eng "Could not write the first page to tablespace '%s'"
@@ -8885,7 +8885,7 @@ ER_IB_MSG_1116
 ER_IB_MSG_1117
   eng "%s"
 
-ER_IB_MSG_1118
+OBSOLETE_ER_IB_MSG_1118
   eng "%s"
 
 ER_IB_MSG_1119
@@ -11090,6 +11090,108 @@ ER_IB_MSG_DROPPED_UNDO_SPACE
 
 ER_IB_MSG_MASTER_KEY_ROTATED
   eng "The InnoDB Encryption Master Key has been rotated in %d tablespaces."
+
+ER_IB_DBLWR_DECOMPRESS_FAILED
+  eng "Failed to decompress a DBLWR page (err=%d).  The original size is %d. Reporting the dblwr page as corrupted."
+
+ER_IB_DBLWR_DECRYPT_FAILED
+  eng "Decrypting a page in doublewrite file failed: %s."
+
+ER_IB_DBLWR_KEY_MISSING
+  eng "Encryption key missing: %s."
+
+ER_INNODB_IO_WRITE_ERROR_RETRYING
+  eng "I/O error while writing to file: %s. Retrying ..."
+
+ER_INNODB_IO_WRITE_FAILED
+  eng "Failed to write data to file: %s"
+
+ER_LOG_COMPONENT_CANNOT_INIT
+  eng "Log component %s failed to initialize."
+
+ER_RPL_ASYNC_CHANNEL_CANT_CONNECT
+  eng "The Monitor IO thread failed to connect to the source (host:%s port:%u network_namespace:%s) for channel '%s', thence it will try to connect to another source."
+
+ER_RPL_ASYNC_SENDER_ADDED
+  eng  "The source (host:%s port:%u network_namespace:%s) for channel '%s' has joined the group (group_name: %s), and so added its entry into replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_SENDER_REMOVED
+  eng "The source (host:%s port:%u network_namespace:%s) for channel '%s' has left the group (group_name: %s), and so removed its entry from replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST
+  eng "The Monitor IO thread detected that the source (host:%s port:%u network_namespace:%s) does not belong to the group majority, thence the channel '%s' will try to connect to another source."
+
+ER_RPL_ASYNC_CHANNEL_CANT_CONNECT_NO_QUORUM
+  eng "The IO thread detected that the source (host:%s port:%u network_namespace:%s) does not belong to the group majority, thence the channel '%s' will try to connect to another source."
+
+ER_RPL_ASYNC_EXECUTING_QUERY
+  eng "%s on the source (host:%s port:%u network_namespace:%s) for channel '%s'."
+
+ER_RPL_REPLICA_MONITOR_IO_THREAD_EXITING
+  eng "Replica Monitor IO thread exiting."
+
+ER_RPL_ASYNC_MANAGED_NAME_REMOVED
+  eng "The group (group_name: %s) for the channel '%s' has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_MANAGED_NAME_ADDED
+  eng "The group (group_name: %s) for the channel '%s' has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table."
+
+ER_RPL_ASYNC_READ_FAILOVER_TABLE
+  eng "Error reading failover sources for channel '%s' from replication_asynchronous_connection_failover table."
+
+ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL
+  eng "Error %s the channel '%s', the operation will be automatically retried."
+
+ER_SLAVE_ANONYMOUS_TO_GTID_IS_LOCAL_OR_UUID_AND_GTID_MODE_NOT_ON
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s', which is invalid when GTID_MODE <> ON. If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF and use the procedure for enabling GTIDs online (see the documentation). If you intend to use GTIDs on this replica and cannot enable GTIDs on the source, enable GTID_MODE = ON and leave ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>. If you intend to not use GTIDs at all in the replication topology, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS=OFF and leave GTID_MODE = '%s'."
+
+ER_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s' which is equal to group_replication_group_name. To fix this issue, either change the group_replication_group_name  or use a different value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS."
+
+ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID
+  eng "The group_replication_group_name '%s' is the same as the UUID value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS in a server channel"
+
+ER_WARN_GTID_THRESHOLD_BREACH
+  eng "The integer component of the GTID number is high. Suggest restarting the server with a new server_uuid to prevent it from reaching the maximum number 2^63-1, which will make it impossible to write the binary log and invoke the behavior specified by binlog_error_action."
+
+ER_HEALTH_INFO
+  eng "%s"
+
+ER_HEALTH_WARNING
+  eng "%s"
+
+ER_HEALTH_ERROR
+  eng "%s"
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_1
+  eng "Disk usage on '%s' is %.2f%%. Warning level 1 (%d%%) exceeded."
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_2
+  eng "Disk usage on '%s' is %.2f%%. Warning level 2 (%d%%) exceeded."
+
+ER_HEALTH_WARNING_DISK_USAGE_LEVEL_3
+  eng "Disk usage on '%s' is %.2f%%. Warning level 3 (%d%%) exceeded."
+
+ER_IB_INNODB_TBSP_OUT_OF_SPACE
+  eng "InnoDB: Size of tablespace %s is more than the maximum size allowed."
+
+ER_GRP_RPL_APPLIER_CHANNEL_STILL_RUNNING
+  eng "The group_replication_applier channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
+
+ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
+  eng "Detected misconfiguration: replication channel \'%.192s\' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL \'%.192s\', or change GTID_MODE to value ON, before starting the replica receiver thread."
+
+ER_FIREWALL_SERVICES_NOT_ACQUIRED
+  eng "Could not acquire required component services."
+
+ER_FIREWALL_UDF_REGISTER_FAILED
+  eng "Automatic registration of function(s) failed."
+
+ER_FIREWALL_PFS_TABLE_REGISTER_FAILED
+  eng "Automatic registration of Performance schema table(s) failed."
+
+ER_IB_MSG_STATS_SAMPLING_TOO_LARGE
+  eng "%s"
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

@@ -363,7 +363,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   byte value[sizeof(ib_uint32_t)];
 
   /* Write the current meta-data version number. */
-  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V5;
+  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V6;
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
                   cfg_version = IB_EXPORT_CFG_VERSION_V3;);
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_99",
@@ -481,6 +481,20 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                 strerror(errno), "while writing space_flags.");
 
     return (DB_IO_ERROR);
+  }
+
+  if (cfg_version >= IB_EXPORT_CFG_VERSION_V6) {
+    /* Write compression info */
+    uint8_t compression_type =
+        static_cast<uint8_t>(fil_get_compression(table->space));
+    mach_write_to_1(value, compression_type);
+
+    if (fwrite(&value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
+                  strerror(errno), "while writing space_flags.");
+
+      return DB_IO_ERROR;
+    }
   }
 
   return (DB_SUCCESS);

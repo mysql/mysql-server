@@ -99,16 +99,10 @@ class Clone_persist_gtid {
   void stop();
 
   /* Wait for immediate flush.
-  @param[in]	wait		wait for completion
   @param[in]	compress_gtid	request GTID compression.
   @param[in]	early_timeout	don't wait long if flush is blocked.
   @param[in]	cbk		alert callback for long wait. */
-  void wait_flush(bool wait, bool compress_gtid, bool early_timeout,
-                  Clone_Alert_Func cbk);
-
-  /** Flush immediately if transaction is operating on GTID table.
-  @param[in,out]	thd	current session thread */
-  void flush_if_implicit_gtid(THD *thd);
+  void wait_flush(bool compress_gtid, bool early_timeout, Clone_Alert_Func cbk);
 
   /**@return true, if GTID persistence is active. */
   bool is_active() const { return (m_active.load()); }
@@ -163,8 +157,10 @@ class Clone_persist_gtid {
   @param[in,out]	trx		current innodb transaction
   @param[in]		prepare		if operation is Prepare
   @param[in]		rollback	if operation is Rollback
+  @param[out]		set_explicit	if explicitly set to persist GTID
   @return true, if undo space needs to be allocated. */
-  bool trx_check_set(trx_t *trx, bool prepare, bool rollback);
+  bool trx_check_set(trx_t *trx, bool prepare, bool rollback,
+                     bool &set_explicit);
 
   /** Check if current transaction has GTID.
   @param[in]		trx		innodb transaction
@@ -175,8 +171,8 @@ class Clone_persist_gtid {
 
   /** Check if GTID persistence is set
   @param[in]	trx	current innnodb transaction
-  @return true, iff GTID persistence is set. */
-  bool persists_gtid(const trx_t *trx);
+  @return GTID storage type. */
+  trx_undo_t::Gtid_storage persists_gtid(const trx_t *trx);
 
   /** Set or reset GTID persist flag in THD.
   @param[in,out]	trx	current innnodb transaction
@@ -212,8 +208,9 @@ class Clone_persist_gtid {
   /** Check if GTID needs to persist at commit.
   @param[in]		thd		session THD
   @param[in]		found_gtid	session is owning GTID
+  @param[out]		set_explicit	if explicitly set to persist GTID
   @return true, if GTID needs to be persisted */
-  bool check_gtid_commit(THD *thd, bool found_gtid);
+  bool check_gtid_commit(THD *thd, bool found_gtid, bool &set_explicit);
 
   /** Check if GTID needs to persist at rollback.
   @param[in]		thd		session THD
@@ -321,6 +318,9 @@ class Clone_persist_gtid {
   @param[in,out]	thd	current session thread */
   void flush_gtids(THD *thd);
 
+  /** @return true iff number of GTIDs in active list exceeded threshold. */
+  bool check_max_gtid_threshold();
+
  private:
   /** Time threshold to trigger persisting GTID. Insert GTID once per 1k
   transactions or every 100 millisecond. */
@@ -331,6 +331,11 @@ class Clone_persist_gtid {
 
   /** Number of transaction/GTID threshold for writing to disk table. */
   const static int s_gtid_threshold = 1024;
+
+  /** Maximum Number of transaction/GTID to hold. Transaction commits
+  must wait beyond this point. Not expected to happen as GTIDs are
+  compressed and written together. */
+  const static int s_max_gtid_threshold = 1024 * 1024;
 
   /** Two lists of GTID. One of them is active where running transactions
   add their GTIDs. Other list is used to persist them to table from time
@@ -376,8 +381,6 @@ class Clone_persist_gtid {
 
   /** TRUE, if GTID persistence is active.*/
   std::atomic<bool> m_active;
-
-  unsigned long m_thread_id{0};
 };
 
 #endif /* CLONE_REPL_INCLUDE */

@@ -40,6 +40,7 @@ CREATE VIEW v1 AS SELECT f1 from a;
 # Print out the plan, so that we are sure the test doesn't go silently
 # ineffective.
 #
+--skip_if_hypergraph  # The hypergraph optimizer chooses a different plan, so the test _is_ ineffective.
 EXPLAIN FORMAT=tree SELECT col_varchar_key FROM t1
 WHERE ( col_varchar_key, col_varchar_key ) NOT IN (
   SELECT alias1.col_varchar_key, alias1.col_varchar_key

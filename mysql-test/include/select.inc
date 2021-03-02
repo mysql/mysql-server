@@ -1246,7 +1246,7 @@ INSERT INTO t2 VALUES (1191,068504,00,'bonfire','corresponds','positively','');
 INSERT INTO t2 VALUES (1192,068305,00,'Colombo','hardware','colicky','');
 INSERT INTO t2 VALUES (1193,000000,00,'nondecreasing','implant','thrillingly','');
 --enable_query_log
-
+ANALYZE TABLE t2;
 #
 # Search with a key
 #
@@ -1350,7 +1350,7 @@ select fld1,fld3 from t2 where fld1 like "25050_";
 select distinct companynr from t2;
 select distinct companynr from t2 order by companynr;
 select distinct companynr from t2 order by companynr desc;
-select distinct t2.fld3,period from t2,t1 where companynr=37 and fld3 like "O%";
+select distinct t2.fld3,period from t2,t1  where companynr=37 and fld3 like "O%" order by fld3;
 
 select distinct fld3 from t2 where companynr = 34 order by fld3;
 select distinct fld3 from t2 limit 10;
@@ -1385,7 +1385,7 @@ INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1009,"gems",447,2374
 INSERT INTO t3 (period,name,companynr,price,price2) VALUES (1010,"clinker",512,786542,76234234);
 --enable_query_log
 
-create temporary table tmp engine = myisam select * from t3;
+create temporary table tmp  select * from t3;
 
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
@@ -1429,7 +1429,7 @@ select distinct fld5 from t2 limit 10;
 #
 
 select distinct companynr, fld3,count(*) from t2 group by companynr, fld3 order by companynr, fld3 limit 10;
-SET BIG_TABLES=1; # Force use of MyISAM
+SET BIG_TABLES=1; # Force use of INNODB
 select distinct companynr, fld3,count(*) from t2 group by companynr, fld3 order by companynr, fld3 limit 10;
 SET BIG_TABLES=0;
 select distinct companynr, fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr ,fld3 order by companynr, fld3 limit 100,10;
@@ -1481,7 +1481,7 @@ explain select fld3,period from t2,t3 where t2.fld1 = 011401 and t3.t2nr=t2.fld1
 # Search with a constant table and several rows from another table
 #
 
-select fld3,period from t2,t1 where companynr*10 = 37*10;
+select fld3,period from t2,t1 where companynr*10 = 37*10 order by fld3;
 
 #
 # Search with a table reference and without a key.
@@ -1491,7 +1491,7 @@ select fld3,period from t2,t1 where companynr*10 = 37*10;
 analyze table t2, t3;
 
 --skip_if_hypergraph  # Depends on query plan.
-EXPLAIN FORMAT=tree select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;  # Tests how to print out BKA iterators.
+EXPLAIN  select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;  # Tests how to print out BKA iterators.
 
 select fld3,period,price,price2 from t2,t3 where t2.fld1=t3.t2nr and period >= 1001 and period <= 1002 and t2.companynr = 37 order by fld3,period, price;
 
@@ -1512,7 +1512,7 @@ create table t4 (
   companyname char(30) NOT NULL default '',
   PRIMARY KEY (companynr),
   UNIQUE KEY companyname(companyname)
-) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
+) ENGINE=INNODB MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 
 --disable_query_log
 INSERT INTO t4 (companynr, companyname) VALUES (29,'company 1');
@@ -1553,6 +1553,7 @@ select t2.fld1,t22.fld1 from t2,t2 t22 where t2.fld1 >= 250501 and t2.fld1 <= 25
 # Test of left join.
 #
 insert into t2 (fld1, companynr) values (999999,99);
+ANALYZE TABLE t2, t4;
 
 select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 select count(*) from t2 left join t4 using (companynr) where t4.companynr is not null;
@@ -1781,6 +1782,7 @@ select count(*) from t3 where companynr=512 and price2=76234234;
 explain select min(fld1),max(fld1),count(*) from t2;
 --skip_if_hypergraph  # Depends on query plan.
 explain format=tree select min(fld1),max(fld1),count(*) from t2;  # Should be computed at optimize time.
+ANALYZE TABLE t2;
 --skip_if_hypergraph  # Depends on query plan.
 explain format=tree select min(fld1),max(fld1),count(*) from t2 where rand() > 0.5;  # Should _not_ be computed at optimize time.
 # PS does correct pre-zero here. MySQL can't do it as it returns a number.
@@ -1858,9 +1860,9 @@ DROP TABLE t1;
 # Test of bug with SUM(CASE...)
 #
 
-CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=MyISAM;
+CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=INNODB;
 INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\E$',''),(200002,2,2,1,101,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\C$',''),(200003,1,3,2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,0,1,20020425060427,'c:',NULL);
-CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
+CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
 # Disable PS becasue we get more warnings from PS than from normal execution
 --disable_ps_protocol
@@ -1954,9 +1956,9 @@ select * from t1 natural join (t1 as t2 left join t1 as t3 using (a));
 select * from (t1 as t2 left join t1 as t3 using (a)) natural join t1;
 drop table t1;
 
-CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id)) ENGINE=MyISAM;
+CREATE TABLE t1 (  aa char(2),  id int(11) NOT NULL auto_increment,  t2_id int(11) NOT NULL default '0',  PRIMARY KEY  (id),  KEY replace_id (t2_id));
 INSERT INTO t1 VALUES ("1",8264,2506),("2",8299,2517),("3",8301,2518),("4",8302,2519),("5",8303,2520),("6",8304,2521),("7",8305,2522);
-CREATE TABLE t2 ( id int(11) NOT NULL auto_increment,  PRIMARY KEY  (id)) ENGINE=MyISAM;
+CREATE TABLE t2 ( id int(11) NOT NULL auto_increment,  PRIMARY KEY  (id)) ENGINE=INNODB;
 INSERT INTO t2 VALUES (2517), (2518), (2519), (2520), (2521), (2522);
 select * from t1, t2 WHERE t1.t2_id = t2.id and t1.t2_id > 0   order by t1.id   LIMIT 0, 5;
 drop table t1,t2;
@@ -2005,6 +2007,7 @@ create table t1 (a integer,  b integer, index(a), index(b));
 create table t2 (c integer,  d integer, index(c), index(d));
 insert into t1 values (1,2), (2,2), (3,2), (4,2);
 insert into t2 values (1,3), (2,3), (3,4), (4,4);
+ANALYZE TABLE t1, t2;
 explain select * from t1 left join t2 on a=c where d in (4);
 select * from t1 left join t2 on a=c where d in (4);
 explain select * from t1 left join t2 on a=c where d = 4;
@@ -2020,7 +2023,7 @@ CREATE TABLE t1 (
   c char(10) NOT NULL default '',
   PRIMARY KEY  (i),
   UNIQUE KEY c (c)
-) ENGINE=MyISAM;
+) ;
 
 INSERT INTO t1 VALUES (1,'a');
 INSERT INTO t1 VALUES (2,'b');
@@ -2039,7 +2042,7 @@ CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
 
 INSERT INTO t1 VALUES ('one'),('two'),('three'),('four'),('five');
 INSERT INTO t2 VALUES ('one'),('two'),('three'),('four'),('five');
-
+ANALYZE TABLE t1, t2;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 USE INDEX (a) ON t1.a=t2.a;
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 
@@ -2067,7 +2070,7 @@ DROP TABLE t1;
 #
 
 create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (18446744073709551615,0);
+insert into t1 values (1,0), (1,1), (4294967295,1);
 select a-b  from t1 order by 1;
 select a-b , (a-b < 0)  from t1 order by 1;
 --source include/turn_off_only_full_group_by.inc
@@ -2233,6 +2236,7 @@ drop table t1,t2;
 create table t2 (a tinyint unsigned);
 create index t2i on t2(a);
 insert into t2 values (0), (254), (255);
+ANALYZE TABLE t2;
 explain select * from t2 where a > -1;
 select * from t2 where a > -1;
 drop table t2;
@@ -2363,7 +2367,7 @@ DROP TABLE t1,t2,t3;
 
 CREATE TABLE t1 (a int, INDEX idx(a));
 INSERT INTO t1 VALUES (2), (3), (1);
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (idx);
 --error 1176
 EXPLAIN SELECT * FROM t1 IGNORE INDEX (a);
@@ -2381,6 +2385,8 @@ INSERT INTO t1 VALUES (1,1), (2,1), (4,10);
 CREATE TABLE t2 (a int PRIMARY KEY, b int, KEY b (b));
 INSERT INTO t2 VALUES (1,NULL), (2,10);
 ALTER TABLE t1 ENABLE KEYS;
+
+ANALYZE TABLE t1, t2;
 
 EXPLAIN SELECT STRAIGHT_JOIN COUNT(*) FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 --sorted_result
@@ -2400,6 +2406,7 @@ CREATE TABLE t2 (key2 double default NULL, UNIQUE KEY key2 (key2));
 INSERT INTO t1 VALUES (0.3762),(0.3845),(0.6158),(0.7941);
 INSERT INTO t2 VALUES (1.3762),(1.3845),(1.6158),(1.7941);
 
+ANALYZE TABLE t1, t2;
 explain select max(key1) from t1 where key1 <= 0.6158;
 explain select max(key2) from t2 where key2 <= 1.6158;
 explain select min(key1) from t1 where key1 >= 0.3762;
@@ -2481,7 +2488,7 @@ CREATE TABLE t1 (
 K2C4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '', 
 K4N4 varchar(4) character set latin1 collate latin1_bin NOT NULL default '0000', 
 F2I4 int(11) NOT NULL default '0' 
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 
 INSERT INTO t1 VALUES 
 ('W%RT', '0100',  1), 
@@ -2530,7 +2537,7 @@ drop table t1;
 # Bug#9799
 #
 
-create table t1 (s1 int) engine=myisam;
+create table t1 (s1 int);
 insert into t1 values (0);
 select avg(distinct s1) from t1 group by s1 with rollup;
 drop table t1;
@@ -2554,7 +2561,7 @@ CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 INSERT INTO t2 VALUES (2), (4), (6);
-
+ANALYZE TABLE t1, t2;
 SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
 
 EXPLAIN SELECT t1.a FROM t1 STRAIGHT_JOIN t2 ON t1.a=t2.a;
@@ -3042,8 +3049,8 @@ create table t2 (a int, b int, c int, e int, primary key(a,b,c));
 --echo # we've added ORDER BY to ensure that we rows has the same order every
 --echo # time. If not, the estimated number of rows for t2 (alias 'a') in the
 --echo # EXPLAIN may change on different platforms. Note that both table t1 and
---echo # t2 may be MyISAM, since many of the test files that includes this file
---echo # forces MyISAM as the default storage engine.
+--echo # t2 may be MYISAM, since many of the test files that includes this file
+--echo # forces MYISAM as the default storage engine.
 
 insert into t2 select A.a, B.a, C.a, C.a from t1 A, t1 B, t1 C
   ORDER BY A.a, B.a, C.a;
@@ -3067,7 +3074,7 @@ INSERT INTO t2 VALUES
  (1,0,0), (1,0,1), (2,0,0), (2,0,1), (3,0,0), (4,0,1),
  (5,0,0), (5,0,1), (6,0,0), (0,0,1), (7,0,0), (7,0,1),
  (0,0,0), (0,0,1), (8,0,0), (8,0,1), (9,0,0), (9,0,1);
-
+ANALYZE TABLE t1, t2;
 EXPLAIN
 SELECT a, c, d, f FROM t1,t2 WHERE a=c AND b BETWEEN 4 AND 6;
 EXPLAIN
@@ -3125,6 +3132,7 @@ INSERT INTO t2 VALUES
   (2), (2), (2), (2),
   (3), (3),
   (4);
+ANALYZE TABLE t1, t2;
 
 EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=1;
 EXPLAIN SELECT b FROM t1, t2 WHERE b=c AND a=4;
@@ -3179,6 +3187,7 @@ INSERT INTO t2 VALUES
   ('bbb','b'), ('ff','f'), ('cccc','c'), ('dddd','d'), ('jj','j'),
   ('aaaa','a'), ('bb','b'), ('eeee','e'), ('aa','a'), ('hh','h');
 
+ANALYZE TABLE t1, t2;
 EXPLAIN SELECT t2.* 
   FROM t1 JOIN t2 ON t2.fk=t1.pk
     WHERE t2.fk < 'c' AND t2.pk=t1.fk;
@@ -3227,11 +3236,13 @@ INSERT INTO t3 VALUES
   (440,'gg'), (310,'eg'), (380,'ee'), (840,'bb'), (830,'ff'),
   (230,'aa'), (960,'ii'), (410,'aa'), (510,'ee'), (290,'bb'),
   (450,'gg'), (320,'dd'), (390,'hh'), (850,'jj'), (860,'ff');
+ANALYZE TABLE t1, t2, t3;
 
 EXPLAIN
 SELECT t3.a FROM t1,t2 FORCE INDEX (si),t3
   WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND 
         t3.a=t2.a AND t3.c IN ('bb','ee');
+
 EXPLAIN
 SELECT t3.a FROM t1,t2,t3
   WHERE t1.id = 8 AND t2.i BETWEEN t1.b AND t1.e AND
@@ -3284,7 +3295,7 @@ DROP TABLE t1;
 #
 # 25407: wrong estimate of NULL keys for unique indexes
 #
-
+set optimizer_switch='index_merge=off';
 CREATE TABLE t1 (
   ID_with_null int NULL,
   ID_better int NOT NULL,
@@ -3292,13 +3303,14 @@ CREATE TABLE t1 (
   INDEX idx2 (ID_better)
 );
 
+
 INSERT INTO t1 VALUES (1,1), (2,1), (null,3), (null,3), (null,3), (null,3);
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
 INSERT INTO t1 SELECT * FROM t1 WHERE ID_with_null IS NULL;
-
+ANALYZE TABLE t1;
 SELECT COUNT(*) FROM t1 WHERE ID_with_null IS NULL;
 SELECT COUNT(*) FROM t1 WHERE ID_better=1;
 
@@ -3306,6 +3318,7 @@ EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID_with_null);
+ANALYZE TABLE t1;
 
 EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 
@@ -3317,7 +3330,7 @@ CREATE TABLE t1 (
   ID_better int NOT NULL,
   INDEX idx1 (ID1_with_null, ID2_with_null),
   INDEX idx2 (ID_better)
-);
+) ;
 
 INSERT INTO t1 VALUES (1,1,1), (2,2,1), (3,null,3), (null,3,3), (null,null,3),
   (3,null,3), (null,3,3), (null,null,3), (3,null,3), (null,3,3), (null,null,3);
@@ -3333,7 +3346,7 @@ SELECT COUNT(*) FROM t1 WHERE ID1_with_null IS NULL AND ID2_with_null=3;
 SELECT COUNT(*) FROM t1 WHERE ID1_with_null=3 AND ID2_with_null IS NULL;
 SELECT COUNT(*) FROM t1 WHERE ID1_with_null IS NULL AND ID2_with_null IS NULL;
 SELECT COUNT(*) FROM t1 WHERE ID_better=1;
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1
   WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 EXPLAIN SELECT * FROM t1
@@ -3343,7 +3356,7 @@ EXPLAIN SELECT * FROM t1
 
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID1_with_null,ID2_with_null);
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1
   WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 EXPLAIN SELECT * FROM t1
@@ -3355,6 +3368,7 @@ EXPLAIN SELECT * FROM t1
         (ID2_with_null=1 OR ID2_with_null=2);
 
 DROP TABLE t1;
+set optimizer_switch='index_merge=on';
 
 #
 # Bug #22344: InnoDB keys act strange on datetime vs timestamp comparison
@@ -3373,6 +3387,7 @@ SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
   AND t1.ts BETWEEN t2.dt1 AND t2.dt2
   AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
 
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 LEFT JOIN t2 ON (t1.a=t2.a) WHERE t1.a=30
   AND t1.ts BETWEEN t2.dt1 AND t2.dt2
   AND t1.ts BETWEEN "2006-01-01" AND "2006-12-31";
@@ -3410,6 +3425,7 @@ INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+ANALYZE TABLE t1, t2;
 SELECT * FROM t2;
 SELECT * FROM t2 ORDER BY name;
 SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
@@ -3432,6 +3448,7 @@ INSERT INTO t1 VALUES ('ccc'), ('bb'), ('cc '), ('aa  '), ('aa');
 INSERT INTO t2 VALUES ('bb',1), ('aa',2), ('cc   ',3);
 INSERT INTO t2 VALUES (concat('cc ', 0x06), 4);
 INSERT INTO t2 VALUES ('cc',5), ('bb ',6), ('cc ',7);
+ANALYZE TABLE t1, t2;
 SELECT * FROM t2;
 SELECT * FROM t2 ORDER BY name;
 SELECT name, LENGTH(name), n FROM t2 ORDER BY name;
@@ -3503,6 +3520,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT, b INT, KEY inx (b,a));
 
 INSERT INTO t1 VALUES (1,1), (1,2), (1,3), (1,4), (1,5), (1, 6), (1,7);
+ANALYZE TABLE t1;
 EXPLAIN SELECT COUNT(*) FROM t1 f1 INNER JOIN t1 f2
     ON ( f1.b=f2.b AND f1.a<f2.a ) 
     WHERE 1 AND f1.b NOT IN (100,2232,3343,51111);
@@ -3554,6 +3572,8 @@ CREATE TABLE t1 (
   PRIMARY KEY (c1)
 ) charset utf8mb4;
 
+ANALYZE TABLE t1;
+--replace_column 9 # 12 #
 EXPLAIN
 SELECT  join_2.c1  
 FROM 
@@ -3596,7 +3616,8 @@ GROUP BY
 	join_7.c1,
 	join_1.c1,
 	join_0.c1;
-	
+
+--skip_if_hypergraph   # Non-tree EXPLAIN is skipped, so need to skip this, too.
 SHOW WARNINGS;
 
 DROP TABLE t1;
@@ -3877,7 +3898,7 @@ drop table t1, t2, t3;
 
 CREATE TABLE t1 (a INT KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 EXPLAIN SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
 
@@ -3993,6 +4014,7 @@ INSERT INTO t1 VALUES (0), (0), (0);
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+ANALYZE TABLE t1;
 EXPLAIN SELECT a FROM t1 ORDER BY a;
 --disable_result_log
 SELECT a FROM t1 ORDER BY a;
@@ -4009,8 +4031,8 @@ INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
 --echo # may be executed using different execution plans, we've added ORDER BY
 --echo # to ensure that we rows has the same order every time. If not, the
 --echo # estimated number of rows in EXPLAIN may change on different platforms.
---echo # Note that the tables may be MyISAM, since many of the test files that
---echo # includes this file forces MyISAM as the default storage engine.
+--echo # Note that the tables may MYISAM, since many of the test files that
+--echo # includes this file forces MYISAM as the default storage engine.
 
 INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
   ORDER BY t11.a, t11.b, t11.c;
@@ -4018,9 +4040,11 @@ INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
   ORDER BY t11.a, t11.b, t11.c;
 INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12
   ORDER BY t11.a, t11.b, t11.c;
+ANALYZE TABLE t1;
 EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
 SELECT a FROM t1 ORDER BY a LIMIT 5;
 EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+--replace_regex /0$/2/ /1$/2/  # The order of the rows along the c column is undefined.
 SELECT * FROM t1 ORDER BY a, b LIMIT 5;
 EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
 SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
@@ -4186,6 +4210,7 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 CREATE TABLE t2 (b INT);
 INSERT INTO t2 VALUES (2);
 SELECT * FROM t1 WHERE a = 1 + 1;
+ANALYZE TABLE t1, t2;
 EXPLAIN SELECT * FROM t1 WHERE a = 1 + 1;
 SELECT * FROM t1 HAVING a = 1 + 1;
 EXPLAIN SELECT * FROM t1 HAVING a = 1 + 1;
@@ -4205,6 +4230,7 @@ delimiter ;|
 
 SET @cnt := 0;
 SELECT * FROM t1 WHERE a = f1();
+--skip_if_hypergraph  # Depends on the query plan.
 SELECT @cnt;
 EXPLAIN SELECT * FROM t1 WHERE a = f1();
 DROP TABLE t1, t2;
@@ -4275,6 +4301,7 @@ DROP TABLE t1;
 --echo #
 CREATE TABLE t1(a ENUM('') NOT NULL) charset latin1;
 INSERT INTO t1 VALUES (), (), ();
+ANALYZE TABLE t1;
 EXPLAIN SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 SELECT 1 FROM t1 ORDER BY a COLLATE latin1_german2_ci;
 DROP TABLE t1;
@@ -4286,12 +4313,12 @@ DROP TABLE t1;
 --echo # with an empty table
 --echo #
 
-CREATE TABLE t_empty(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
-CREATE TABLE t1(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+CREATE TABLE t_empty(pk INT PRIMARY KEY, i INT);
+CREATE TABLE t1(pk INT PRIMARY KEY, i INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
-CREATE TABLE t2(pk INT PRIMARY KEY, i INT) ENGINE = MYISAM;
+CREATE TABLE t2(pk INT PRIMARY KEY, i INT) ;
 INSERT INTO t2 VALUES (1,1), (2,2), (3,3);
-
+ANALYZE TABLE t_empty, t1, t2;
 EXPLAIN
 SELECT *
   FROM 
@@ -4371,6 +4398,7 @@ INSERT INTO `cc` VALUES
 EXPLAIN SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
   HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 
+--sorted_result  # Actually just to sort the warnings.
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
   HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 

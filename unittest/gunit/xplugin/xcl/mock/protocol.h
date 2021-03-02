@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,108 +36,122 @@
 
 namespace xcl {
 namespace test {
+namespace mock {
 
-class Mock_protocol : public XProtocol {
+class XProtocol : public xcl::XProtocol {
  public:
-  MOCK_METHOD3(add_notice_handler,
-               Handler_id(Notice_handler handler, const Handler_position,
-                          const Handler_priority));
-  MOCK_METHOD3(add_received_message_handler,
-               Handler_id(Server_message_handler handler,
-                          const Handler_position, const Handler_priority));
-  MOCK_METHOD3(add_send_message_handler,
-               Handler_id(Client_message_handler handler,
-                          const Handler_position, const Handler_priority));
-  MOCK_METHOD1(remove_notice_handler, void(Handler_id handler));
-  MOCK_METHOD1(remove_received_message_handler, void(Handler_id handler));
-  MOCK_METHOD1(remove_send_message_handler, void(Handler_id handler));
-  MOCK_METHOD0(get_connection, XConnection &());
-  MOCK_METHOD3(recv, XError(Header_message_type_id *out_mid, uint8_t **buffer,
-                            std::size_t *buffer_size));
-  MOCK_METHOD4(deserialize_received_message_raw,
-               Message *(const Header_message_type_id mid,
-                         const uint8_t *payload, const std::size_t payload_size,
-                         XError *out_error));
-  MOCK_METHOD2(recv_single_message_raw,
-               Message *(Server_message_type_id *out_mid, XError *out_error));
+  MOCK_METHOD(Handler_id, add_notice_handler,
+              (Notice_handler handler, const Handler_position,
+               const Handler_priority),
+              (override));
+  MOCK_METHOD(Handler_id, add_received_message_handler,
+              (Server_message_handler handler, const Handler_position,
+               const Handler_priority),
+              (override));
+  MOCK_METHOD(Handler_id, add_send_message_handler,
+              (Client_message_handler handler, const Handler_position,
+               const Handler_priority),
+              (override));
+  MOCK_METHOD(void, remove_notice_handler, (Handler_id handler), (override));
+  MOCK_METHOD(void, remove_received_message_handler, (Handler_id handler),
+              (override));
+  MOCK_METHOD(void, remove_send_message_handler, (Handler_id handler),
+              (override));
+  MOCK_METHOD(XConnection &, get_connection, (), (override));
+  MOCK_METHOD(XError, recv,
+              (Header_message_type_id * out_mid, uint8_t **buffer,
+               std::size_t *buffer_size),
+              (override));
+  MOCK_METHOD(Message *, deserialize_received_message_raw,
+              (const Header_message_type_id mid, const uint8_t *payload,
+               const std::size_t payload_size, XError *out_error));
+  MOCK_METHOD(Message *, recv_single_message_raw,
+              (Server_message_type_id * out_mid, XError *out_error));
 
-  MOCK_METHOD2(send_compressed_frame,
-               XError(const Client_message_type_id mid, const Message &msg));
-  MOCK_METHOD1(send_compressed_multiple_frames,
-               XError(const std::vector<std::pair<Client_message_type_id,
-                                                  const Message *>> &messages));
-  MOCK_METHOD2(send,
-               XError(const Client_message_type_id mid, const Message &msg));
-  MOCK_METHOD3(send, XError(const Header_message_type_id mid,
-                            const uint8_t *buffer, const std::size_t length));
-  MOCK_METHOD1(send, XError(const Mysqlx::Session::AuthenticateStart &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Session::AuthenticateContinue &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Session::Reset &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Session::Close &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Sql::StmtExecute &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Crud::Find &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Crud::Insert &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Crud::Update &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Crud::Delete &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Crud::CreateView &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Crud::ModifyView &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Crud::DropView &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Expect::Open &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Expect::Close &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Connection::CapabilitiesGet &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Connection::CapabilitiesSet &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Connection::Close &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Cursor::Open &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Cursor::Close &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Cursor::Fetch &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Prepare::Prepare &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Prepare::Execute &m));
-  MOCK_METHOD1(send, XError(const Mysqlx::Prepare::Deallocate &m));
-  MOCK_METHOD0(recv_ok, XError());
-  MOCK_METHOD0(execute_close, XError());
-  MOCK_METHOD1(execute_fetch_capabilities_raw,
-               Capabilities *(XError *out_error));
-  MOCK_METHOD1(execute_set_capability,
-               XError(const ::Mysqlx::Connection::CapabilitiesSet &m));
-  MOCK_METHOD4(execute_authenticate,
-               XError(const std::string &, const std::string &,
-                      const std::string &, const std::string &));
-  MOCK_METHOD0(recv_resultset_raw, XQuery_result *());
-  MOCK_METHOD1(recv_resultset_raw, XQuery_result *(XError *out_error));
-  MOCK_METHOD3(execute_with_resultset_raw,
-               XQuery_result *(const Client_message_type_id mid,
-                               const Message &msg, XError *out_error));
-  MOCK_METHOD2(execute_stmt_raw,
-               XQuery_result *(const Mysqlx::Sql::StmtExecute &m,
-                               XError *out_error));
-  MOCK_METHOD2(execute_find_raw,
-               XQuery_result *(const Mysqlx::Crud::Find &m, XError *out_error));
-  MOCK_METHOD2(execute_update_raw,
-               XQuery_result *(const Mysqlx::Crud::Update &m,
-                               XError *out_error));
-  MOCK_METHOD2(execute_insert_raw,
-               XQuery_result *(const Mysqlx::Crud::Insert &m,
-                               XError *out_error));
-  MOCK_METHOD2(execute_delete_raw,
-               XQuery_result *(const Mysqlx::Crud::Delete &m,
-                               XError *out_error));
-  MOCK_METHOD2(execute_prep_stmt_raw,
-               XQuery_result *(const Mysqlx::Prepare::Execute &m,
-                               XError *out_error));
-  MOCK_METHOD2(execute_cursor_open_raw,
-               XQuery_result *(const Mysqlx::Cursor::Open &m,
-                               XError *out_error));
-  MOCK_METHOD3(execute_cursor_fetch_raw,
-               XQuery_result *(const Mysqlx::Cursor::Fetch &m,
-                               std::unique_ptr<XQuery_result> &cursor_open_res,
-                               XError *out_error));
+  MOCK_METHOD(XError, send_compressed_frame,
+              (const Client_message_type_id mid, const Message &msg),
+              (override));
+  using Message_list =
+      std::vector<std::pair<Client_message_type_id, const Message *>>;
+  MOCK_METHOD(XError, send_compressed_multiple_frames,
+              (const Message_list &messages), (override));
+  MOCK_METHOD(XError, send,
+              (const Client_message_type_id mid, const Message &msg),
+              (override));
+  MOCK_METHOD(XError, send,
+              (const Header_message_type_id mid, const uint8_t *buffer,
+               const std::size_t length),
+              (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Session::AuthenticateStart &m),
+              (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Session::AuthenticateContinue &m),
+              (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Session::Reset &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Session::Close &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Sql::StmtExecute &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Crud::Find &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Crud::Insert &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Crud::Update &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Crud::Delete &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Crud::CreateView &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Crud::ModifyView &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Crud::DropView &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Expect::Open &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Expect::Close &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Connection::CapabilitiesGet &m),
+              (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Connection::CapabilitiesSet &m),
+              (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Connection::Close &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Cursor::Open &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Cursor::Close &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Cursor::Fetch &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Prepare::Prepare &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Prepare::Execute &m), (override));
+  MOCK_METHOD(XError, send, (const Mysqlx::Prepare::Deallocate &m), (override));
+  MOCK_METHOD(XError, recv_ok, (), (override));
+  MOCK_METHOD(XError, execute_close, (), (override));
+  MOCK_METHOD(Capabilities *, execute_fetch_capabilities_raw,
+              (XError * out_error));
+  MOCK_METHOD(XError, execute_set_capability,
+              (const ::Mysqlx::Connection::CapabilitiesSet &m), (override));
+  MOCK_METHOD(XError, execute_authenticate,
+              (const std::string &, const std::string &, const std::string &,
+               const std::string &),
+              (override));
+  MOCK_METHOD(xcl::XQuery_result *, recv_resultset_raw, ());
+  MOCK_METHOD(xcl::XQuery_result *, recv_resultset_raw, (XError * out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_with_resultset_raw,
+              (const Client_message_type_id mid, const Message &msg,
+               XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_stmt_raw,
+              (const Mysqlx::Sql::StmtExecute &m, XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_find_raw,
+              (const Mysqlx::Crud::Find &m, XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_update_raw,
+              (const Mysqlx::Crud::Update &m, XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_insert_raw,
+              (const Mysqlx::Crud::Insert &m, XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_delete_raw,
+              (const Mysqlx::Crud::Delete &m, XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_prep_stmt_raw,
+              (const Mysqlx::Prepare::Execute &m, XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_cursor_open_raw,
+              (const Mysqlx::Cursor::Open &m, XError *out_error));
+  MOCK_METHOD(xcl::XQuery_result *, execute_cursor_fetch_raw,
+              (const Mysqlx::Cursor::Fetch &m,
+               const std::unique_ptr<xcl::XQuery_result> &cursor_open_res,
+               XError *out_error));
 
-  MOCK_METHOD1(use_compression, void(const Compression_algorithm algo));
-  MOCK_METHOD2(use_compression,
-               void(const Compression_algorithm algo, const int32_t level));
+  MOCK_METHOD(void, use_compression, (const Compression_algorithm algo),
+              (override));
+  MOCK_METHOD(void, use_compression,
+              (const Compression_algorithm algo, const int32_t level),
+              (override));
+  MOCK_METHOD(void, reset_buffering, (), (override));
 
  private:
-  using XQuery_result_ptr = std::unique_ptr<XQuery_result>;
+  using XQuery_result_ptr = std::unique_ptr<xcl::XQuery_result>;
   using Message_ptr = std::unique_ptr<Message>;
   using Capabilities_ptr = std::unique_ptr<Capabilities>;
 
@@ -215,6 +229,7 @@ class Mock_protocol : public XProtocol {
   }
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xcl
 

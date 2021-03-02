@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -284,7 +284,11 @@ int table_user_defined_functions::read_row_values(TABLE *table,
           set_field_varchar_utf8(f, m_row->m_type, m_row->m_type_length);
           break;
         case 3: /* UDF_LIBRARY */
-          set_field_varchar_utf8(f, m_row->m_library, m_row->m_library_length);
+          if (m_row->m_library_length)
+            set_field_varchar_utf8(f, m_row->m_library,
+                                   m_row->m_library_length);
+          else
+            f->set_null();
           break;
         case 4: /* UDF_USAGE_COUNT */
           set_field_ulonglong(f, m_row->m_usage_count);

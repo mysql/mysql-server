@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,6 +232,21 @@ struct view {
      "FROM `ndbinfo`.`ndb$counters` c "
      "LEFT JOIN `ndbinfo`.`ndb$blocks` b "
      "ON c.block_number = b.block_number"},
+    {"ndbinfo", "cpudata",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$cpudata`"},
+    {"ndbinfo", "cpudata_1sec",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$cpudata_1sec`"},
+    {"ndbinfo", "cpudata_20sec",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$cpudata_20sec`"},
+    {"ndbinfo", "cpudata_50ms",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$cpudata_50ms`"},
+    {"ndbinfo", "cpuinfo",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$cpuinfo`"},
     {"ndbinfo", "cpustat",
      "SELECT * "
      "FROM `ndbinfo`.`ndb$cpustat`"},
@@ -280,6 +295,9 @@ struct view {
     {"ndbinfo", "error_messages",
      "SELECT error_code, error_description, error_status, error_classification "
      "FROM `ndbinfo`.`ndb$error_messages`"},
+    {"ndbinfo", "hwinfo",
+     "SELECT * "
+     "FROM `ndbinfo`.`ndb$hwinfo`"},
     {"ndbinfo", "locks_per_fragment",
      "SELECT name.fq_name, parent_name.fq_name AS parent_fq_name, "
      "types.type_name AS type, table_id, node_id, block_instance, "
@@ -498,8 +516,8 @@ struct view {
      " WHEN 5 THEN \"LCP_READ_TABLE\""
      " WHEN 6 THEN \"COPY_TAB_REQ\""
      " WHEN 7 THEN \"COPY_NODE_STATE\""
-     " WHEN 8 THEN \"ADD_TABLE_MASTER\""
-     " WHEN 9 THEN \"ADD_TABLE_SLAVE\""
+     " WHEN 8 THEN \"ADD_TABLE_COORDINATOR\""
+     " WHEN 9 THEN \"ADD_TABLE_PARTICIPANT\""
      " WHEN 10 THEN \"INVALIDATE_NODE_LCP\""
      " WHEN 11 THEN \"ALTER_TABLE\""
      " WHEN 12 THEN \"COPY_TO_SAVE\""
@@ -512,8 +530,8 @@ struct view {
      " WHEN 2 THEN \"LOCAL_CHECKPOINT_QUEUED\""
      " WHEN 3 THEN \"REMOVE_NODE\""
      " WHEN 4 THEN \"COPY_TAB_REQ\""
-     " WHEN 5 THEN \"ADD_TABLE_MASTER\""
-     " WHEN 6 THEN \"ADD_TABLE_SLAVE\""
+     " WHEN 5 THEN \"ADD_TABLE_COORDINATOR\""
+     " WHEN 6 THEN \"ADD_TABLE_PARTICIPANT\""
      " WHEN 7 THEN \"INVALIDATE_NODE_LCP\""
      " WHEN 8 THEN \"CALLBACK\""
      "  ELSE \"Invalid value\""

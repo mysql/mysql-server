@@ -1,0 +1,92 @@
+## Test case reproducing issue described under Bug#31931873
+
+--source include/count_sessions.inc
+--source include/have_debug_sync.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test case description:
+--echo ## I. Validate the fix for the bug. The issue occures between two
+--echo ##    session, where one shows X Plugins status variables, second
+--echo ##    triggers reauthentication
+--echo #
+--echo # 1. Create classic session (S2), show any X Plugins status variable
+--echo # 2. Create X Protocol session (S1), which triggers reauthentication
+--echo # 3. Synchronize S1 and S2, in a way that triggers the issue
+--echo #
+--echo
+
+
+## Test starts here
+
+# SQL FOR SYNCHRONIZATION OF TWO SESSIONS
+--let $sql_synchronize_sessions= $MYSQL_TMP_DIR/mutexes1.sql
+--write_file $sql_synchronize_sessions
+SET DEBUG_SYNC= 'now WAIT_FOR reached_is_handled_by_thd';
+SET DEBUG_SYNC= 'now WAIT_FOR reached_create_session_locked';
+SET DEBUG_SYNC= 'now SIGNAL continue_create_session_locked';
+SET DEBUG_SYNC= 'now SIGNAL continue_is_handled_by_thd';
+EOF
+
+# SQL FOR TRIGGERING THE ISSUE ON S2
+--let $sql_trigger_issue_S2= $MYSQL_TMP_DIR/mutexes2.sql
+--write_file $sql_trigger_issue_S2
+SET DEBUG_SYNC= 'syncpoint_is_handled_by_thd SIGNAL reached_is_handled_by_thd WAIT_FOR continue_is_handled_by_thd';
+show status like "Mysqlx_sessions"
+EOF
+
+# X PROTOCOL PART OF THE ISSUE (TRIGGER ON S1)
+--let $xtest_file= $MYSQL_TMP_DIR/mutexes.xpl
+--write_file $xtest_file
+
+SET DEBUG_SYNC= 'syncpoint_create_session_locked SIGNAL reached_create_session_locked WAIT_FOR continue_create_session_locked';
+env %MASTER_MYPORT% MASTER_MYPORT;
+env %MYSQL% MYSQL;
+
+echo;
+echo #;
+echo # I.1;
+# Trigger issue on Session2 (S2)
+system_in_background %MYSQL%
+  -P %MASTER_MYPORT%
+  --protocol tcp
+  -u x_root
+  -h localhost
+  test < %SQL_FILE2%;
+
+echo;
+echo #;
+echo # I.2;
+# Trigger issue on Session1 (S1)
+Mysqlx.Session.Close{
+}
+
+echo;
+echo #;
+echo # I.3;
+system_in_background %MYSQL%
+  -P %MASTER_MYPORT%
+  --protocol tcp
+  -u x_root
+  -h localhost
+   test < %SQL_FILE1%;
+
+recv;
+closesession abort;
+EOF
+
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$xtest_file
+  -v%SQL_FILE1%=$sql_synchronize_sessions
+  -v%SQL_FILE2%=$sql_trigger_issue_S2 2>&1;
+
+## Cleanup
+--remove_file $xtest_file
+--remove_file $sql_synchronize_sessions
+--remove_file $sql_trigger_issue_S2
+--source include/xplugin_drop_user.inc
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

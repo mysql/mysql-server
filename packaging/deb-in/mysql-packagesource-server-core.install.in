@@ -67,6 +67,8 @@ usr/lib/mysql/plugin/component_log_sink_syseventlog.so
 usr/lib/mysql/plugin/component_mysqlbackup.so
 usr/lib/mysql/plugin/component_validate_password.so
 usr/lib/mysql/plugin/component_audit_api_message_emit.so
+usr/lib/mysql/plugin/component_query_attributes.so
+usr/lib/mysql/plugin/component_reference_cache.so
 usr/lib/mysql/plugin/ddl_rewriter.so
 usr/lib/mysql/plugin/mysql_clone.so
 usr/lib/mysql/plugin/mysql_no_login.so

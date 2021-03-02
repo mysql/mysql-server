@@ -48,7 +48,7 @@ CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 
 --source include/sync_slave_sql_with_master.inc
 # Create a new channel, so we can test a non-empty channel name on results
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 
 # Save current master binary log coordinates and gtid_executed
 --let $_saved_gtids=

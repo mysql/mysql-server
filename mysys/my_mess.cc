@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,15 +63,14 @@ void my_message_stderr(uint error MY_ATTRIBUTE((unused)), const char *str,
   (void)fflush(stdout);
   if (MyFlags & ME_BELL) (void)fputc('\007', stderr);
   if (my_progname) {
-    size_t l;
-    const char *r;
+    const char *r = my_progname;
+    const char *s = r;
+    while (*s) {
+      if (is_directory_separator(*s)) r = s + 1;
+      s++;
+    }
+    size_t l = s - r;
 
-    if ((r = strrchr(my_progname, FN_LIBCHAR)))
-      r++;
-    else
-      r = my_progname;
-
-    l = strlen(r);
 #ifdef _WIN32
     if ((l > 4) && !strcmp(&r[l - 4], ".exe"))
       l -= 4; /* purecov: inspected */ /* Windows-only */

@@ -76,13 +76,13 @@ Destinations DestFirstAvailable::destinations() {
 
     for (size_t ndx{valid_ndx_}; cur != end; ++cur, ++ndx) {
       dests.push_back(std::make_unique<FirstAvailableDestination>(
-          cur->str(), cur->addr, cur->port, this, ndx));
+          cur->str(), cur->address(), cur->port(), this, ndx));
     }
 
     cur = begin;
     for (size_t ndx{0}; cur != last; ++cur, ++ndx) {
       dests.push_back(std::make_unique<FirstAvailableDestination>(
-          cur->str(), cur->addr, cur->port, this, ndx));
+          cur->str(), cur->address(), cur->port(), this, ndx));
     }
   }
 

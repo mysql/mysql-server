@@ -201,7 +201,7 @@ INSERT INTO t1 VALUES (1);
 
 --connection slave
 --replace_result $file FILE $position POSITION
-eval CHANGE MASTER TO MASTER_LOG_FILE = '$file', MASTER_LOG_POS = $position;
+eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$file', SOURCE_LOG_POS = $position;
 --source include/start_slave_io.inc
 
 --connection master
@@ -219,7 +219,7 @@ INSERT INTO t1 VALUES (2);
 --let $position = query_get_value(SHOW RELAYLOG EVENTS IN '$file' FROM $position, Pos, 3)
 
 --replace_result $file FILE $position POSITION
-eval CHANGE MASTER TO RELAY_LOG_FILE = '$file', RELAY_LOG_POS = $position;
+eval CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE = '$file', RELAY_LOG_POS = $position;
 --source include/start_slave.inc
 
 --connection master

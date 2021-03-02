@@ -82,7 +82,7 @@ INSERT INTO test.t1 (b) VALUES (2);
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
 
-CHANGE MASTER TO MASTER_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpl_user' FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # 5. Change settings on recovery to speed up failure
@@ -156,7 +156,7 @@ SET @@GLOBAL.group_replication_advertise_recovery_endpoints = DEFAULT;
 --source include/rpl_connection.inc
 
 --source include/stop_group_replication.inc
-CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery';
 
 --eval SET GLOBAL group_replication_recovery_reconnect_interval= $_group_replication_recovery_reconnect_interval_save
 --eval SET GLOBAL group_replication_recovery_retry_count= $_group_replication_recovery_retry_count_save

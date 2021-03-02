@@ -48,7 +48,7 @@ create table t1(id int unsigned primary key, val varchar(100) unique, val2 varch
 --exec $NDB_MGM -e'all error 0' > /dev/null
 
 --echo Wait for backup to complete
---source suite/ndb/t/ndb_backup_nowait_start.inc
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 drop table t1;
 --source suite/ndb/include/backup_restore_cleanup.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1334,11 +1334,11 @@ static dberr_t row_ins_set_rec_lock(lock_mode mode, ulint type,
 /* Decrement a counter in the destructor. */
 class ib_dec_in_dtor {
  public:
-  ib_dec_in_dtor(ulint &c) : counter(c) {}
-  ~ib_dec_in_dtor() { os_atomic_decrement_ulint(&counter, 1); }
+  ib_dec_in_dtor(std::atomic<ulint> &c) : counter(c) {}
+  ~ib_dec_in_dtor() { counter.fetch_sub(1); }
 
  private:
-  ulint &counter;
+  std::atomic<ulint> &counter;
 };
 
 /** Checks if foreign key constraint fails for an index entry. Sets shared locks
@@ -1687,7 +1687,7 @@ do_possible_lock_wait:
     thr->lock_state = QUE_THR_LOCK_ROW;
 
     /* To avoid check_table being dropped, increment counter */
-    os_atomic_increment_ulint(&check_table->n_foreign_key_checks_running, 1);
+    check_table->n_foreign_key_checks_running.fetch_add(1);
 
     trx_kill_blocking(trx);
 
@@ -1773,8 +1773,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       }
 
       if (referenced_table) {
-        os_atomic_increment_ulint(&foreign_table->n_foreign_key_checks_running,
-                                  1);
+        foreign_table->n_foreign_key_checks_running.fetch_add(1);
       }
 
       /* NOTE that if the thread ends up waiting for a lock
@@ -1785,8 +1784,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       err = row_ins_check_foreign_constraint(TRUE, foreign, table, entry, thr);
 
       if (referenced_table) {
-        os_atomic_decrement_ulint(&foreign_table->n_foreign_key_checks_running,
-                                  1);
+        foreign_table->n_foreign_key_checks_running.fetch_sub(1);
       }
       if (ref_table != nullptr) {
         dd_table_close(ref_table, trx->mysql_thd, &mdl, false);

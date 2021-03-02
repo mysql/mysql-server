@@ -3,14 +3,14 @@
 # dynamic privileges and the GRANT option
 
 [ENV]
-# By default, CHANGE MASTER is executed without specifying the
+# By default, CHANGE REPLICATION SOURCE is executed without specifying the
 # `PRIVILEGE_CHECKS_USER` parameter. Instantiating
 # $rpl_privilege_checks_user` sets the `PRIVILEGE_CHECKS_USER` option for
-# the `CHANGE MASTER TO...` command, bounding the replication applier to
-# execute within the security context of the given user. For example, to
-# specify that server_1 should use 'u1'@'localhost' as base user for
-# replication applier security context and server_5 shouldn't check
-# privileges while applying replicated events, do:
+# the `CHANGE REPLICATION SOURCE TO...` command, bounding the replication
+# applier to execute within the security context of the given user. For
+# example, to specify that server_1 should use 'u1'@'localhost' as base
+# user for replication applier security context and server_5 shouldn't
+# check privileges while applying replicated events, do:
 # PRIVILEGE_CHECKS_USER= 1:'u1'@'localhost',5:NULL
 PRIVILEGE_CHECKS_USER= *:'rpl_applier_priv_user'@'localhost'
 

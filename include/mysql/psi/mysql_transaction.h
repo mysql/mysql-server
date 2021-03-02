@@ -31,7 +31,11 @@
 #include "mysql/psi/psi_transaction.h"
 
 #include "my_inttypes.h"
-#include "pfs_transaction_provider.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_TRANSACTION_CALL() as direct call. */
+#include "pfs_transaction_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_TRANSACTION_CALL
 #define PSI_TRANSACTION_CALL(M) psi_transaction_service->M

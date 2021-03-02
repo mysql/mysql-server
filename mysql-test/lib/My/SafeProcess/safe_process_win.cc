@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ static void message(const char *fmt, ...) {
   fflush(stderr);
 }
 
-static void die(const char *fmt, ...) {
+[[noreturn]] static void die(const char *fmt, ...) {
   DWORD last_err = GetLastError();
 
   va_list args;
@@ -99,11 +99,12 @@ static void die(const char *fmt, ...) {
                           FORMAT_MESSAGE_ALLOCATE_BUFFER |
                           FORMAT_MESSAGE_IGNORE_INSERTS,
                       NULL, last_err, 0, (LPSTR)&message_text, 0, NULL)) {
-      std::fprintf(stderr, "error: %d, %s\n", last_err, message_text);
+      std::fprintf(stderr, "error: %lu, %s\n", (unsigned long)last_err,
+                   message_text);
       LocalFree(message_text);
     } else {
       // FormatMessage failed, print error code only
-      std::fprintf(stderr, "error:%d\n", last_err);
+      std::fprintf(stderr, "error:%lu\n", (unsigned long)last_err);
     }
   }
 
@@ -165,7 +166,7 @@ void fix_file_append_flag_inheritance(DWORD std_handle) {
 
 int main(int argc, const char **argv) {
   DWORD pid = GetCurrentProcessId();
-  sprintf(safe_process_name, "safe_process[%d]", pid);
+  sprintf(safe_process_name, "safe_process[%lu]", (unsigned long)pid);
 
   // Create an event for the signal handler
   if ((shutdown_event = CreateEvent(NULL, TRUE, FALSE, safe_process_name)) ==
@@ -213,7 +214,8 @@ int main(int argc, const char **argv) {
         char safe_process_pid[32];
 
         // Pass safeprocess PID to mysqltest which is used to create an event
-        std::sprintf(safe_process_pid, "--safe-process-pid=%d", pid);
+        std::sprintf(safe_process_pid, "--safe-process-pid=%lu",
+                     (unsigned long)pid);
         to += std::snprintf(to, child_args + sizeof(child_args) - to, "%s ",
                             safe_process_pid);
       }
@@ -244,12 +246,13 @@ int main(int argc, const char **argv) {
   if (*child_args == '\0') die("nothing to do");
 
   // Open a handle to the parent process
-  message("parent_pid: %d", parent_pid);
+  message("parent_pid: %lu", (unsigned long)parent_pid);
   if (parent_pid == pid) die("parent_pid is equal to own pid!");
 
   if ((wait_handles[PARENT] = OpenProcess(SYNCHRONIZE, FALSE, parent_pid)) ==
       NULL)
-    die("Failed to open parent process with pid: %d", parent_pid);
+    die("Failed to open parent process with pid: %lu",
+        (unsigned long)parent_pid);
 
   // Create the child process in a job
   JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli = {0};
@@ -258,9 +261,22 @@ int main(int argc, const char **argv) {
 
   // Create the job object to make it possible to kill the process
   // and all of it's children in one go.
-  HANDLE job_handle;
-  if ((job_handle = CreateJobObject(NULL, NULL)) == NULL)
-    die("CreateJobObject failed");
+  HANDLE job_handle = CreateJobObject(NULL, NULL);
+  if (job_handle == NULL) die("CreateJobObject failed");
+
+  // Create a completion port for the job object.
+  HANDLE port_handle =
+      CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 1);
+  if (port_handle == NULL) die("CreateIoCompletionPort failed");
+
+  JOBOBJECT_ASSOCIATE_COMPLETION_PORT job_port_info;
+  job_port_info.CompletionKey = job_handle;
+  job_port_info.CompletionPort = port_handle;
+  if (!SetInformationJobObject(job_handle,
+                               JobObjectAssociateCompletionPortInformation,
+                               &job_port_info, sizeof(job_port_info))) {
+    die("SetInformationJobObject failed");
+  }
 
 // Make all processes associated with the job terminate when the
 // last handle to the job is closed.
@@ -301,7 +317,7 @@ int main(int argc, const char **argv) {
   //
   // If breakaway from job fails on some reason, fallback is to create a
   // new process group. Process groups also allow to kill process and its
-  // descedants, subject to some restrictions (processes have to run within
+  // descendants, subject to some restrictions (processes have to run within
   // the same console,and must not ignore CTRL_BREAK)
   DWORD create_flags[] = {CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP,
                           0};
@@ -329,7 +345,7 @@ int main(int argc, const char **argv) {
   CloseHandle(process_info.hThread);
   wait_handles[CHILD] = process_info.hProcess;
 
-  message("Started child %d", process_info.dwProcessId);
+  message("Started child %lu", (unsigned long)process_info.dwProcessId);
 
   // Monitor loop
   DWORD child_exit_code = 1;
@@ -343,45 +359,59 @@ int main(int argc, const char **argv) {
       if (GetExitCodeProcess(wait_handles[CHILD], &child_exit_code) == 0)
         message("Child exit: could not get exit_code");
       else
-        message("Child exit: exit_code: %d", child_exit_code);
+        message("Child exit: exit_code: %lu", (unsigned long)child_exit_code);
       break;
     case WAIT_OBJECT_0 + EVENT:
       message("Wake up from shutdown_event");
       break;
     default:
-      message("Unexpected result %d from WaitForMultipleObjects", wait_res);
+      message("Unexpected result %lu from WaitForMultipleObjects",
+              (unsigned long)wait_res);
       break;
   }
 
-  message("Exiting, child: %d", process_info.dwProcessId);
+  message("Exiting, child: %lu", (unsigned long)process_info.dwProcessId);
 
-  if (TerminateJobObject(job_handle, 201) == 0)
-    message("TerminateJobObject failed");
+  if (jobobject_assigned) {
+    // Send Terminate to all job children processes.
+    if (TerminateJobObject(job_handle, 201) == 0)
+      message("TerminateJobObject failed");
 
-  CloseHandle(job_handle);
-  message("Job terminated and closed");
+    message("Waiting for job processes to finish.");
 
-  if (!jobobject_assigned) {
+    DWORD completion_code;
+    ULONG_PTR completion_key;
+    LPOVERLAPPED overlapped;
+    while (GetQueuedCompletionStatus(port_handle, &completion_code,
+                                     &completion_key, &overlapped, INFINITE) &&
+           !((HANDLE)completion_key == job_handle &&
+             completion_code == JOB_OBJECT_MSG_ACTIVE_PROCESS_ZERO)) {
+    }
+  } else {
     GenerateConsoleCtrlEvent(CTRL_BREAK_EVENT, process_info.dwProcessId);
     TerminateProcess(process_info.hProcess, 202);
-  }
 
-  if (wait_res != WAIT_OBJECT_0 + CHILD) {
-    // The child has not yet returned, wait for it
-    message("waiting for child to exit");
-
-    if ((wait_res = WaitForSingleObject(wait_handles[CHILD], INFINITE)) !=
-        WAIT_OBJECT_0) {
-      message("child wait failed: %d", wait_res);
-    } else {
-      message("child wait succeeded");
+    if (wait_res != WAIT_OBJECT_0 + CHILD) {
+      // The child has not yet returned, wait for it
+      message("waiting for child to exit");
+      if ((wait_res = WaitForSingleObject(wait_handles[CHILD], INFINITE)) !=
+          WAIT_OBJECT_0) {
+        message("child wait failed: %lu", (unsigned long)wait_res);
+      } else {
+        message("child wait succeeded");
+      }
     }
-    // Child's exit code should now be 201, no need to get it
   }
+  // Child's exit code should now be 201 or 202, no need to get it
+
+  CloseHandle(job_handle);
+  CloseHandle(port_handle);
+
+  message("Job terminated and closed");
 
   message("Closing handles");
   for (int i = 0; i < NUM_HANDLES; i++) CloseHandle(wait_handles[i]);
 
-  message("Exiting, exit_code: %d", child_exit_code);
+  message("Exiting, exit_code: %lu", (unsigned long)child_exit_code);
   std::exit(child_exit_code);
 }

@@ -4157,7 +4157,7 @@ NdbDictionary::Dictionary::invalidateDbGlobal(const char * name)
 {
   if (m_impl.m_globalHash && name != 0)
   {
-    size_t len = strlen(name);
+    const size_t len = strlen(name);
     m_impl.m_globalHash->lock();
     m_impl.m_globalHash->invalidateDb(name, len);
     m_impl.m_globalHash->unlock();

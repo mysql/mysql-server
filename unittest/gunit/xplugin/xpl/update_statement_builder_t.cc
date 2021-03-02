@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include <gtest/gtest.h>
 
-#include "mysqld_error.h"
+#include "mysqld_error.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/src/update_statement_builder.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
@@ -745,7 +745,7 @@ TEST_P(Update_statement_builder_op_merge_test,
             query.get().c_str());
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AllMerge_functions, Update_statement_builder_op_merge_test,
     ::testing::Values(
         Merge_param(Update_operation::Base::ITEM_MERGE, "JSON_MERGE_PRESERVE"),

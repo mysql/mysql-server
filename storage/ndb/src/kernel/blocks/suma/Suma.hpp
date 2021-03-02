@@ -142,11 +142,11 @@ public:
   // m_dummy is used to pass value.
   union FragmentDescriptor { 
     struct  {
-      Uint16 m_fragmentNo;
-      Uint8 m_lqhInstanceKey;
-      Uint8 m_nodeId;
+      Uint32 m_fragmentNo;
+      Uint16 m_lqhInstanceKey;
+      Uint16 m_nodeId;
     } m_fragDesc;
-    Uint32 m_dummy;
+    Uint32 m_dummy[2];
   };
   
   /**

@@ -29,6 +29,7 @@
 
 #include "my_alloc.h"
 #include "my_dbug.h"
+#include "sql/thr_malloc.h"
 
 /**
    A typesafe replacement for DYNAMIC_ARRAY.
@@ -472,6 +473,9 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
 
   Mem_root_array(MEM_ROOT *root, const Mem_root_array &x)
       : Mem_root_array(root, x.cbegin(), x.cend()) {}
+
+  Mem_root_array(std::initializer_list<Element_type> elements)
+      : Mem_root_array(*THR_MALLOC, begin(elements), end(elements)) {}
 
   ~Mem_root_array() { super::clear(); }
 

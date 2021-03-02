@@ -113,10 +113,6 @@ DROP TABLE t1;
 # Test that primary key indexes can't be made invisible.
 CREATE TABLE t1 ( a INT, PRIMARY KEY (a) INVISIBLE );
 ERROR HY000: A primary key index cannot be invisible
-CREATE TABLE t1 ( a INT PRIMARY KEY INVISIBLE );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVISIBLE )' at line 1
-CREATE TABLE t1 ( a INT KEY INVISIBLE );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INVISIBLE )' at line 1
 ALTER TABLE t1 ALTER INDEX PRIMARY INVISIBLE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PRIMARY INVISIBLE' at line 1
 ALTER TABLE t1 ADD PRIMARY KEY (a) INVISIBLE;

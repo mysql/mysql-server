@@ -473,8 +473,7 @@ fi
 [ -f log.txt ] && mv log.txt $res_dir
 [ -f report.txt ] && mv report.txt $res_dir
 [ "`find . -name 'result*'`" ] && mv result* $res_dir
-[ -f final_coverage.info ] && mv final_coverage.info \
-                              "$res_dir/$RUN.$suite_suffix.coverage.info"
+[ -f coverage.info ] && mv coverage.info $res_dir
 [ -d coverage_report ] && mv coverage_report "$res_dir"
 cd $res_dir
 

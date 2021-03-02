@@ -142,7 +142,7 @@ struct Mem_compare_queue_key {
 /* functions defined in this file */
 
 static ha_rows read_all_rows(
-    THD *thd, Sort_param *param, const Prealloced_array<TABLE *, 4> &tables,
+    THD *thd, Sort_param *param, const Mem_root_array<TABLE *> &tables,
     table_map tables_to_get_rowid_for, Filesort_info *fs_info,
     IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
@@ -161,7 +161,7 @@ static bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
                                    ulong memory_available);
 
 void Sort_param::decide_addon_fields(Filesort *file_sort,
-                                     const Prealloced_array<TABLE *, 4> &tables,
+                                     const Mem_root_array<TABLE *> &tables,
                                      bool force_sort_positions) {
   if (m_addon_fields_status != Addon_fields_status::unknown_status) {
     // Already decided.
@@ -215,10 +215,15 @@ void Sort_param::decide_addon_fields(Filesort *file_sort,
   }
 }
 
+void Sort_param::clear_addon_fields() {
+  m_addon_fields_status = Addon_fields_status::unknown_status;
+  addon_fields = nullptr;
+}
+
 void Sort_param::init_for_filesort(Filesort *file_sort,
                                    Bounds_checked_array<st_sort_field> sf_array,
                                    uint sortlen,
-                                   const Prealloced_array<TABLE *, 4> &tables,
+                                   const Mem_root_array<TABLE *> &tables,
                                    ha_rows maxrows, bool remove_duplicates) {
   m_fixed_sort_length = sortlen;
   m_force_stable_sort = file_sort->m_force_stable_sort;
@@ -672,7 +677,7 @@ void filesort_free_buffers(TABLE *table, bool full) {
   }
 }
 
-Filesort::Filesort(THD *thd, Prealloced_array<TABLE *, 4> tables_arg,
+Filesort::Filesort(THD *thd, Mem_root_array<TABLE *> tables_arg,
                    bool keep_buffers_arg, ORDER *order, ha_rows limit_arg,
                    bool force_stable_sort, bool remove_duplicates,
                    bool sort_positions, bool unwrap_rollup)
@@ -708,11 +713,7 @@ uint Filesort::make_sortorder(ORDER *order, bool unwrap_rollup) {
   pos = sort = sortorder;
   for (ord = order; ord; ord = ord->next, pos++) {
     Item *const item = ord->item[0], *const real_item = item->real_item();
-    if (real_item->type() == Item::COPY_STR_ITEM) {  // Blob patch
-      pos->item = static_cast<Item_copy *>(real_item)->get_item();
-    } else {
-      pos->item = real_item;
-    }
+    pos->item = real_item;
 
     // If filesort runs before GROUP BY (potentially to sort rows
     // in preparation for grouping), we cannot have any rollup NULLs
@@ -855,7 +856,7 @@ class Filesort_error_handler : public Internal_error_handler {
 };
 
 static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
-                                   const Prealloced_array<TABLE *, 4> &tables,
+                                   const Mem_root_array<TABLE *> &tables,
                                    size_t *key_length, size_t *longest_addons) {
   size_t min_bytes = 1;
   for (;;) {  // Termination condition within loop.
@@ -941,7 +942,7 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
 */
 
 static ha_rows read_all_rows(
-    THD *thd, Sort_param *param, const Prealloced_array<TABLE *, 4> &tables,
+    THD *thd, Sort_param *param, const Mem_root_array<TABLE *> &tables,
     table_map tables_to_get_rowid_for, Filesort_info *fs_info,
     IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
@@ -1387,7 +1388,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
 }  // namespace
 
 uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
-                              const Prealloced_array<TABLE *, 4> &tables,
+                              const Mem_root_array<TABLE *> &tables,
                               size_t *longest_addon_so_far) {
   uchar *to = dst.array();
   uchar *to_end = dst.array() + dst.size();
@@ -1937,12 +1938,6 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   merge_chunk->set_max_keys(param->max_rows_per_buffer);
 
   do {
-    if (merge_chunk->mem_count() > max_rows) {
-      merge_chunk->set_mem_count(max_rows); /* Don't write too many records */
-      merge_chunk->set_rowcount(0);         /* Don't read more */
-    }
-    max_rows -= merge_chunk->mem_count();
-
     for (uint ix = 0; ix < merge_chunk->mem_count(); ++ix) {
       unsigned row_length, payload_length;
       param->get_rec_and_res_len(merge_chunk->current_key(), &row_length,
@@ -1961,6 +1956,10 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
         if (my_b_write(to_file, merge_chunk->current_key() + offset,
                        bytes_to_write)) {
           return 1; /* purecov: inspected */
+        }
+        if (!--max_rows) {
+          error = 0; /* purecov: inspected */
+          goto end;  /* purecov: inspected */
         }
       }
       merge_chunk->advance_current_key(row_length);
@@ -2265,6 +2264,8 @@ bool Filesort::using_addon_fields() {
   }
   return m_sort_param.using_addon_fields();
 }
+
+void Filesort::clear_addon_fields() { m_sort_param.clear_addon_fields(); }
 
 /*
 ** functions to change a double or float to a sortable string

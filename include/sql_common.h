@@ -102,11 +102,18 @@ struct MYSQL_EXTENSION {
   // Used by replication to pass around compression context data.
   NET_SERVER *server_extn;
 #endif
+  struct {
+    uint n_params;
+    char **names;
+    MYSQL_BIND *bind;
+  } bind_info;
 };
 
 /* "Constructor/destructor" for MYSQL extension structure. */
 MYSQL_EXTENSION *mysql_extension_init(MYSQL *);
 void mysql_extension_free(MYSQL_EXTENSION *);
+/* cleanup for the MYSQL extension bind structure */
+void mysql_extension_bind_free(MYSQL_EXTENSION *ext);
 /*
   Note: Allocated extension structure is freed in mysql_close_free()
   called by mysql_close().
@@ -256,6 +263,15 @@ uchar *send_client_connect_attrs(MYSQL *mysql, uchar *buf);
 extern bool libmysql_cleartext_plugin_enabled;
 int is_file_or_dir_world_writable(const char *filepath);
 void read_ok_ex(MYSQL *mysql, unsigned long len);
+
+bool fix_param_bind(MYSQL_BIND *param, uint idx);
+bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
+                                    MYSQL_BIND *params, const char **names,
+                                    unsigned long n_param_sets,
+                                    uchar **ret_data, ulong *ret_length,
+                                    uchar send_types_to_server,
+                                    bool send_named_params,
+                                    bool send_parameter_set_count);
 
 #ifdef __cplusplus
 }

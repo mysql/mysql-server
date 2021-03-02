@@ -85,7 +85,7 @@ SHOW WARNINGS;
 set time_zone = default;
 select @@session.time_zone;
 
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

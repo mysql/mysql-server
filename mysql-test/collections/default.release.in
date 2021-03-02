@@ -9,10 +9,13 @@
 
 # include default.daily
 # include default.weekly
-
 perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal     --vardir=var-normal --report-features --unit-tests-report
-perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ps         --vardir=var-ps --ps-protocol
+# Non-Windows platforms:
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal     --vardir=var-normal --report-features --unit-tests-report --exclude-platform=windows
+# Windows platforms, separate run of RPL with fewer threads
+perl mysql-test-run.pl --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=normal --vardir=var-normal --skip-rpl --report-features --unit-tests-report --platform=windows
+perl mysql-test-run.pl --timer --testcase-timeout=60 --suite-timeout=600 --force --parallel=8 --comment=normal-rpl --vardir=var-normal-rpl --suite=rpl,rpl_gtid,rpl_nogtid --platform=windows
+#
 perl mysql-test-run.pl --force --timer  --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer  --comment=partitions --vardir=var-parts      --suite=parts
 perl mysql-test-run.pl --force --timer  --comment=stress     --vardir=var-stress     --suite=stress

@@ -48,6 +48,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_checksum.h"  // ha_checksum
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -57,6 +58,7 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/psi_table_bits.h"
+#include "nullable.h"          // Nullable
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"  // dd::Object_table
@@ -784,6 +786,12 @@ constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
 */
 constexpr const uint64_t HA_CREATE_USED_READ_ONLY{1ULL << 34};
 
+/**
+  These flags convey that the options AUTOEXTEND_SIZE has been
+  specified in the CREATE TABLE statement
+*/
+constexpr const uint64_t HA_CREATE_USED_AUTOEXTEND_SIZE{1ULL << 35};
+
 /*
   End of bits used in used_fields
 */
@@ -853,12 +861,13 @@ class st_alter_tablespace {
   ulonglong undo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
-  ulonglong autoextend_size = 0;                 // No autoextension as default
+  Mysql::Nullable<ulonglong> autoextend_size;    // No autoextension as default
   ulonglong max_size = 0;         // Max size == initial size => no extension
   ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
+  const char *encryption = nullptr;
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||
@@ -2736,6 +2745,10 @@ struct HA_CREATE_INFO {
   LEX_CSTRING engine_attribute = NULL_CSTR;
   LEX_CSTRING secondary_engine_attribute = NULL_CSTR;
 
+  ulonglong m_implicit_tablespace_autoextend_size{0};
+
+  bool m_implicit_tablespace_autoextend_size_change{true};
+
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
     This function separates code from mysql_prepare_alter_table() to be
@@ -2749,7 +2762,7 @@ struct HA_CREATE_INFO {
   */
 
   void init_create_options_from_share(const TABLE_SHARE *share,
-                                      uint used_fields);
+                                      uint64_t used_fields);
 };
 
 /**
@@ -2992,6 +3005,9 @@ class Alter_inplace_info {
 
   // Suspend check constraint.
   static const HA_ALTER_FLAGS SUSPEND_CHECK_CONSTRAINT = 1ULL << 48;
+
+  // Alter column visibility.
+  static const HA_ALTER_FLAGS ALTER_COLUMN_VISIBILITY = 1ULL << 49;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.

@@ -52,7 +52,7 @@ INSERT INTO test.t2 VALUES (1);
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
 --source include/start_slave.inc

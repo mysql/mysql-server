@@ -35,11 +35,9 @@
 
 class Replication_thread_api {
  public:
-  Replication_thread_api(const char *channel_interface)
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(channel_interface) {}
+  Replication_thread_api(const char *channel_interface);
 
-  Replication_thread_api()
-      : stop_wait_timeout(LONG_TIMEOUT), interface_channel(nullptr) {}
+  Replication_thread_api();
 
   ~Replication_thread_api() {}
 
@@ -78,6 +76,8 @@ class Replication_thread_api {
     @param zstd_compression_level The compression level
     @param tls_version   TLS versions
     @param tls_ciphersuites Permissible ciphersuites for TLS 1.3.
+    @param ignore_ws_mem_limit Shall ignore write set mem limits
+    @param allow_drop_write_set Shall not require write set to be preserved
 
     @return the operation status
       @retval 0      OK
@@ -92,7 +92,8 @@ class Replication_thread_api {
                          char *public_key_path, bool get_public_key,
                          char *compression_algorithm,
                          uint zstd_compression_level, char *tls_version,
-                         char *tls_ciphersuites);
+                         char *tls_ciphersuites, bool ignore_ws_mem_limit,
+                         bool allow_drop_write_set);
 
   /**
     Start the Applier/Receiver threads according to the given options.
@@ -353,6 +354,19 @@ class Replication_thread_api {
   */
   bool get_channel_credentials(std::string &username, std::string &password,
                                const char *channel_name = nullptr);
+
+  /**
+    Checks if any channel uses the same UUID for
+    assign_gtids_to_anonymous_transactions as the given uuid
+
+    @param[in]       uuid_param         the group name
+
+    @retval          true               at least one channel has the same uuid
+    @retval          false              none of the the channels have the same
+    uuid
+  */
+  bool is_any_channel_using_uuid_for_assign_gtids_to_anonymous_transaction(
+      const char *uuid_param);
 
  private:
   ulong stop_wait_timeout;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -150,6 +150,7 @@
 //
 // The full page range struct
 
+/* Can be used from multi-threaded index build, cannot use jam's */
 Uint32*
 Dbtup::init_page_map_entry(Fragrecord *regFragPtr, Uint32 logicalPageId)
 {
@@ -158,23 +159,20 @@ Dbtup::init_page_map_entry(Fragrecord *regFragPtr, Uint32 logicalPageId)
           regFragPtr->fragTableId,
           regFragPtr->fragmentId,
           logicalPageId));
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 *prev_ptr = map.set(2 * logicalPageId + 1);
   if (prev_ptr == 0)
   {
-    jam();
     return 0;
   }
   Uint32 *ptr = map.set(2 * logicalPageId);
   if (ptr == 0)
   {
-    jam();
     (*prev_ptr) = FREE_PAGE_BIT | LAST_LCP_FREE_BIT;
     return 0;
   }
   if (logicalPageId >= regFragPtr->m_max_page_cnt)
   {
-    jam();
     regFragPtr->m_max_page_cnt = logicalPageId + 1;
     if (DBUG_PAGE_MAP)
     {
@@ -196,7 +194,7 @@ Dbtup::init_page_map_entry(Fragrecord *regFragPtr, Uint32 logicalPageId)
 
 Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId) 
 {
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 *ptr = map.get(2 * logicalPageId);
   if (likely(ptr != 0))
   {
@@ -207,17 +205,28 @@ Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId)
   return RNIL;
 }
 
+/* Can be used from multi-threaded index build, cannot use jam's */
 Uint32 
 Dbtup::getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId) 
 {
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  /**
+   * Jam cannot be used here since this code is called for Index build
+   * which doesn't use fully initialised block objects.
+   */
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   // logicalPageId might not be mapped yet,
   // get_dirty returns NULL also in debug in this case.
   Uint32 *ptr = map.get_dirty(2 * logicalPageId);
   if (ptr == 0)
   {
-    jam();
-    ptr = init_page_map_entry(regFragPtr, logicalPageId);
+    /**
+     * No need to initialise page map entries during checks.
+     * Checks are used during index builds and during copy
+     * fragment process. Only LCP scans require page maps to
+     * to exist for all pages, also non-existing pages. This
+     * will be handled in getRealpidScan.
+     */
+    return RNIL;
   }
   if (likely(ptr != 0))
   {
@@ -263,7 +272,7 @@ bool
 Dbtup::find_page_id_in_list(Fragrecord* fragPtrP, Uint32 pageId)
 {
   /* Don't use jam's here unless a jamBuf is sent in */
-  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);  
+  DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
 
   Uint32 prev = FREE_PAGE_RNIL;
   Uint32 curr = fragPtrP->m_free_page_id_list;
@@ -292,9 +301,13 @@ Dbtup::find_page_id_in_list(Fragrecord* fragPtrP, Uint32 pageId)
 void
 Dbtup::check_page_map(Fragrecord* fragPtrP)
 {
+  if (m_is_query_block)
+  {
+    return;
+  }
   /* Don't use jam's here unless a jamBuf is sent in */
   Uint32 max = fragPtrP->m_max_page_cnt;
-  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
 
   for (Uint32 i = 0; i<max; i++)
   {
@@ -341,12 +354,20 @@ Dbtup::getRealpidScan(Fragrecord* regFragPtr,
                       Uint32 **next_ptr,
                       Uint32 **prev_ptr)
 {
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 * ptr = map.get_dirty(2 * logicalPageId);
   if (ptr == 0 || (*ptr) == RNIL)
   {
     jam();
+    /**
+     * init_page_map_entry will update the Page map of the fragment.
+     * This requires exclusive access to the fragment. We will ensure
+     * that we have this exclusive access before we proceed using the
+     * mutex protecting the page map.
+     */
+    acquire_frag_page_map_mutex(regFragPtr);
     ptr = init_page_map_entry(regFragPtr, logicalPageId);
+    release_frag_page_map_mutex(regFragPtr);
     if (ptr == 0)
     {
       /**
@@ -384,7 +405,8 @@ Dbtup::set_last_lcp_state(Fragrecord *regFragPtr,
                           Uint32 logicalPageId,
                           bool is_new_state_D)
 {
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  ndbassert(!m_is_query_block);
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 *ptr = map.set(2 * logicalPageId + 1);
   ndbrequire(ptr != (Uint32*)0);
   ndbassert((*ptr) != RNIL);
@@ -429,7 +451,8 @@ Dbtup::get_lcp_scanned_bit(Uint32 *next_ptr)
 bool
 Dbtup::get_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
 {
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  ndbassert(!m_is_query_block);
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 *ptr = map.set(2 * logicalPageId);
   return get_lcp_scanned_bit(ptr);
 }
@@ -441,7 +464,7 @@ Dbtup::get_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
  *void
  *Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
  *{
- *  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+ *  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
  *  Uint32 *ptr = map.set(2 * logicalPageId);
  *  ndbassert(ptr != 0);
  *  ndbassert((*ptr) != RNIL);
@@ -501,7 +524,7 @@ Dbtup::insert_new_page_into_page_map(EmulatedJamBuffer *jamBuf,
                                      PagePtr pagePtr,
                                      Uint32 noOfPagesAllocated)
 {
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 pageId = regFragPtr->m_max_page_cnt;
   Uint32 *ptr;
   Uint32 *prev_ptr = 0;
@@ -544,7 +567,7 @@ Dbtup::remove_first_free_from_page_map(EmulatedJamBuffer *jamBuf,
                                        PagePtr pagePtr)
 {
   Uint32 pageId = regFragPtr->m_free_page_id_list;
-  DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
   Uint32 *ptr = map.set(2 * pageId);
   ndbrequire(ptr != 0);
   ndbassert((*ptr) != RNIL);
@@ -590,7 +613,7 @@ Dbtup::remove_page_id_from_dll(Fragrecord *fragPtrP,
                                Uint32 pagePtrI,
                                Uint32 *ptr)
 {
-  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
   const Uint32 *prevPtr = map.set(2 * page_no + 1);
   ndbrequire(prevPtr != 0);
   ndbassert((*prevPtr) != RNIL);
@@ -705,7 +728,7 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
   if (lcp_scan_ptr_i != RNIL)
   {
     thrjam(jamBuf);
-    DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+    DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
     const Uint32 *ptr = map.set(2 * page_no);
     ndbrequire(ptr != 0);
     ndbassert((*ptr) != RNIL);
@@ -832,6 +855,9 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
   if (list == FREE_PAGE_RNIL)
   {
     thrjam(jamBuf);
+    Uint32 max_page_cnt = regFragPtr->m_max_page_cnt;
+    acquire_frag_page_map_mutex(regFragPtr);
+    acquire_frag_mutex(regFragPtr, max_page_cnt);
     pageId = insert_new_page_into_page_map(jamBuf,
                                            regFragPtr,
                                            pagePtr,
@@ -843,6 +869,8 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
             pageId));
     if (pageId == RNIL)
     {
+      release_frag_page_map_mutex(regFragPtr);
+      release_frag_mutex(regFragPtr, max_page_cnt);
       thrjam(jamBuf);
       * err = ZMEM_NOMEM_ERROR;
       return RNIL;
@@ -851,6 +879,8 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
   else
   {
     thrjam(jamBuf);
+    acquire_frag_page_map_mutex(regFragPtr);
+    acquire_frag_mutex(regFragPtr, regFragPtr->m_free_page_id_list);
     pageId = remove_first_free_from_page_map(jamBuf, regFragPtr, pagePtr);
     DEB_LCP(("(%u)allocFragPage(2): tab(%u,%u):%u",
             instance(),
@@ -860,7 +890,7 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
   }
   if (DBUG_PAGE_MAP)
   {
-    DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
+    DynArr256 map(c_page_map_pool_ptr, regFragPtr->m_page_map);
     Uint32 *ptr = map.set(2 * pageId);
     ndbrequire(ptr != 0);
     ndbassert((*ptr) != RNIL);
@@ -875,6 +905,8 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
   }
   regFragPtr->noOfPages++;
   handle_new_page(jamBuf, regFragPtr, regTabPtr, pagePtr, pageId);
+  release_frag_page_map_mutex(regFragPtr);
+  release_frag_mutex(regFragPtr, pageId);
   return pagePtr.i;
 }//Dbtup::allocFragPage()
 
@@ -884,15 +916,19 @@ Dbtup::allocFragPage(Uint32 * err,
 {
   PagePtr pagePtr;
   ndbrequire(page_no < MAX_PAGES_IN_DYN_ARRAY);
-  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
   DEB_LCP(("(%u)allocFragPage(3): tab(%u,%u):%u",
           instance(),
           fragPtrP->fragTableId,
           fragPtrP->fragmentId,
           page_no));
+  acquire_frag_page_map_mutex(fragPtrP);
+  acquire_frag_mutex(fragPtrP, page_no);
   Uint32 *prev_ptr = map.set(2 * page_no + 1);
   if (unlikely(prev_ptr == 0))
   {
+    release_frag_page_map_mutex(fragPtrP);
+    release_frag_mutex(fragPtrP, page_no);
     jam();
     *err = ZMEM_NOMEM_ERROR;
     return RNIL;
@@ -900,6 +936,8 @@ Dbtup::allocFragPage(Uint32 * err,
   Uint32 * ptr = map.set(2 * page_no);
   if (unlikely(ptr == 0))
   {
+    release_frag_page_map_mutex(fragPtrP);
+    release_frag_mutex(fragPtrP, page_no);
     jam();
     *prev_ptr = FREE_PAGE_RNIL | LAST_LCP_FREE_BIT;
     * err = ZMEM_NOMEM_ERROR;
@@ -908,6 +946,8 @@ Dbtup::allocFragPage(Uint32 * err,
   pagePtr.i = * ptr;
   if (likely(pagePtr.i != RNIL && (pagePtr.i & FREE_PAGE_BIT) == 0))
   {
+    release_frag_page_map_mutex(fragPtrP);
+    release_frag_mutex(fragPtrP, page_no);
     jam();
     return (pagePtr.i & PAGE_BIT_MASK);
   }
@@ -916,6 +956,8 @@ Dbtup::allocFragPage(Uint32 * err,
   allocConsPages(jamBuffer(), 1, noOfPagesAllocated, pagePtr.i);
   if (unlikely(noOfPagesAllocated == 0))
   {
+    release_frag_page_map_mutex(fragPtrP);
+    release_frag_mutex(fragPtrP, page_no);
     jam();
     * err = ZMEM_NOMEM_ERROR;
     return RNIL;
@@ -977,6 +1019,8 @@ Dbtup::allocFragPage(Uint32 * err,
     }
   }
   handle_new_page(jamBuffer(), fragPtrP, tabPtrP, pagePtr, page_no);
+  release_frag_page_map_mutex(fragPtrP);
+  release_frag_mutex(fragPtrP, page_no);
   return pagePtr.i;
 }
 
@@ -985,7 +1029,13 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                        Uint32 logicalPageId,
                        PagePtr pagePtr)
 {
-  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  /**
+   * This call is done under exclusive fragment access
+   * This means no TUP fragment mutexes are acquired since no
+   * query thread are allowed to execute on the fragment while
+   * we are in exclusive mode.
+   */
+  DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
   DEB_LCP_REL(("(%u)releaseFragPage: tab(%u,%u) page(%u)",
                instance(),
                fragPtrP->fragTableId,
@@ -1208,6 +1258,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   do_check_page_map(fragPtrP);
 }
 
+/* Can be used from multi-threaded index build, cannot use jam's */
 const char*
 Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
                                 Uint32 logicalPageId,
@@ -1219,12 +1270,11 @@ Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
   /**
    * Add to head or tail of list...
    */
-  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, fragPtrP->m_page_map);
   Uint32 list = fragPtrP->m_free_page_id_list;
   const char * where = 0;
   if (list == FREE_PAGE_RNIL)
   {
-    jam();
     *next = FREE_PAGE_RNIL | FREE_PAGE_BIT | lcp_scanned_bit;
     *prev = FREE_PAGE_RNIL | FREE_PAGE_BIT | last_lcp_state;
     fragPtrP->m_free_page_id_list = logicalPageId;
@@ -1237,7 +1287,6 @@ Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
   }
   else
   {
-    jam();
     *next = list | FREE_PAGE_BIT | lcp_scanned_bit;
     *prev = FREE_PAGE_RNIL | FREE_PAGE_BIT | last_lcp_state;
     fragPtrP->m_free_page_id_list = logicalPageId;
@@ -1303,11 +1352,22 @@ Dbtup::rebuild_page_free_list(Signal* signal)
 	       GSN_RESTORE_LCP_CONF, signal, 
 	       RestoreLcpConf::SignalLength, JBB);
     
-    releaseFragoperrec(fragOpPtr);    
+    releaseFragoperrec(fragOpPtr);
+    if (c_lqh->m_is_recover_block)
+    {
+      jam();
+      /**
+       * We will reset all pointers to the LDM instance to avoid
+       * using those pointers when not supposed to.
+       * This is a debugging tool to ensure that we quickly find
+       * use of these variables that are outside of their definition.
+       */
+      c_lqh->reset_restore_thread_access();
+    }
     return;
   }
 
-  DynArr256 map(c_page_map_pool, fragPtr.p->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, fragPtr.p->m_page_map);
   Uint32 *nextPtr = map.set(2 * pageId);
   Uint32 *prevPtr = map.set(2 * pageId + 1);
 

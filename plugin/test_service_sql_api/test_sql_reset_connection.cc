@@ -409,6 +409,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 static const char *fieldtype2str(enum enum_field_types type) {
@@ -496,6 +497,7 @@ static void query_execute(MYSQL_SESSION session, st_plugin_ctx *pctx,
   pctx->reset();
 
   COM_DATA cmd;
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = query.c_str();
   cmd.com_query.length = query.size();
   if (command_service_run_command(session, COM_QUERY, &cmd,

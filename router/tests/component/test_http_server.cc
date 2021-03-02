@@ -1198,8 +1198,7 @@ class HttpServerSecureTest
   mysql_harness::Path ssl_cert_data_dir_;
 };
 
-constexpr const char kErrmsgRegexWeakSslKey[]{
-    "keylength of RSA public-key of certificate"};
+constexpr const char kErrmsgRegexWeakSslKey[]{"key-size too small"};
 
 TEST_P(HttpServerSecureTest, ensure) {
   // const size_t placeholder_length = strlen(kPlaceholder);
@@ -1227,7 +1226,7 @@ TEST_P(HttpServerSecureTest, ensure) {
                     .str();
       }
     }
-    http_section.push_back({e.first, value});
+    http_section.emplace_back(e.first, value);
   }
 
   std::string conf_file{create_config_file(
@@ -1322,7 +1321,7 @@ const HttpServerSecureParams http_server_secure_params[] {
            {"ssl_cert", "does-not-exist"},
        },
        false,
-       "using SSL certificate file 'does-not-exist' failed"},
+       "SSL certificate file 'does-not-exist' failed"},
 // This fails with OpenSSL 1.1.1 that added TLS1.3 default ciphers that we can't
 // disable
 #if (OPENSSL_VERSION_NUMBER < 0x10101000L)
@@ -1385,7 +1384,7 @@ const HttpServerSecureParams http_server_secure_params[] {
            {"ssl_dh_param", "does-not-exist"},
        },
        false,
-       "failed to open dh-param"},
+       "setting ssl_dh_params failed"},
       {"dh_param file is no PEM",
        "WL12524::TS_CR_08",
        {
@@ -1399,7 +1398,7 @@ const HttpServerSecureParams http_server_secure_params[] {
             kPlaceholderDatadir + std::string("/") + "my_port.js"},
        },
        false,
-       "failed to parse dh-param file"},
+       "setting ssl_dh_params failed"},
       {"dh ciphers, default dh-params",
        "WL12524::TS_CR_09",
        {

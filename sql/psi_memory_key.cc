@@ -23,9 +23,9 @@
 #include "sql/psi_memory_key.h"
 
 #include "my_psi_config.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/psi/psi_base.h"  // PSI_FLAG_ONLY_GLOBAL_STAT
 #include "mysql/psi/psi_memory.h"
 #include "template_utils.h"
 

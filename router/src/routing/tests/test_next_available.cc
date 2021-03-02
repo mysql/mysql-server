@@ -28,9 +28,8 @@
 #include <ostream>
 #include <system_error>
 
-#include <gmock/gmock.h>
+#include <gmock/gmock.h>  // MATCHER
 
-#include "routing_mocks.h"
 #include "test/helpers.h"  // init_test_logger
 
 //   A -> B -> C -> sorry, no more servers
@@ -38,7 +37,7 @@
 //
 class NextAvailableTest : public ::testing::Test {
  protected:
-  MockSocketOperations sock_ops_;
+  net::io_context io_ctx_;
 };
 
 bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
@@ -64,7 +63,7 @@ MATCHER(IsGoodEq, "") {
 }
 
 TEST_F(NextAvailableTest, RepeatedFetch) {
-  DestNextAvailable dest(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestNextAvailable dest(io_ctx_, Protocol::Type::kClassicProtocol);
   dest.add("41", 41);
   dest.add("42", 42);
   dest.add("43", 43);
@@ -89,7 +88,7 @@ TEST_F(NextAvailableTest, RepeatedFetch) {
 }
 
 TEST_F(NextAvailableTest, FailOne) {
-  DestNextAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestNextAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -130,7 +129,7 @@ TEST_F(NextAvailableTest, FailOne) {
 }
 
 TEST_F(NextAvailableTest, FailTwo) {
-  DestNextAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestNextAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -165,7 +164,7 @@ TEST_F(NextAvailableTest, FailTwo) {
 }
 
 TEST_F(NextAvailableTest, FailAll) {
-  DestNextAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestNextAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);

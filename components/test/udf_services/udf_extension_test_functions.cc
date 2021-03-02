@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020. Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,6 +165,19 @@ char *test_args_collation_with_value(UDF_INIT *initid, UDF_ARGS *args,
                                      unsigned char *error) {
   return execute(initid, args, result, length, is_null, error,
                  Test_udf_charset_const_value::run_args_udf);
+}
+
+char *test_args_without_init_deinit_methods(UDF_INIT *, UDF_ARGS *args,
+                                            char *result, unsigned long *length,
+                                            unsigned char *,
+                                            unsigned char *error) {
+  if (args->arg_count != 1 || args->args[0] == nullptr) {
+    *error = 1;
+    return nullptr;
+  }
+  strncpy(result, args->args[0], args->lengths[0]);
+  *length = args->lengths[0];
+  return result;
 }
 
 /* ---------------------- UDF(s) denit methods ------------------------------ */

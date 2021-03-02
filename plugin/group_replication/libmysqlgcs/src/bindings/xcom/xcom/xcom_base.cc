@@ -35,6 +35,9 @@
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 
 #ifndef _WIN32
 #include <poll.h>

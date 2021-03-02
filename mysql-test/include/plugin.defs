@@ -18,7 +18,7 @@
 # The PLUGVAR variable is not quoted, so you must remember to quote it
 # when using it in an INSTALL PLUGIN command.
 #
-# The envorinment variables can be used in tests. If adding a new plugin,
+# The environment variables can be used in tests. If adding a new plugin,
 # you are free to pick your variable name, but please keep it upper
 # case for consistency.
 #
@@ -28,6 +28,7 @@
 #
 # with name1, name2 etc from the comma separated list of plugin names
 # in the optional 4th argument.
+
 auth_test_plugin                        plugin_output_directory PLUGIN_AUTH      test_plugin_server,cleartext_plugin_server
 mysql_clone                             plugin_output_directory CLONE_PLUGIN    clone
 qa_auth_interface                       plugin_output_directory PLUGIN_AUTH_INTERFACE qa_auth_interface
@@ -90,6 +91,7 @@ libtest_sql_sqlmode                     plugin_output_directory TEST_SQL_SQLMODE
 libtest_sql_replication                 plugin_output_directory TEST_SQL_REPLICATION
 libtest_sql_errors                      plugin_output_directory TEST_SQL_ERRORS
 libtest_sql_stmt                        plugin_output_directory TEST_SQL_STMT
+libtest_sql_sleep_is_connected          plugin_output_directory TEST_SQL_SLEEP_IS_CONNECTED
 libtest_sql_reset_connection            plugin_output_directory TEST_SQL_RESET_CONNECTION
 connection_control                      plugin_output_directory  CONNECTION_CONTROL_PLUGIN    connection_control
 # Test component
@@ -145,3 +147,8 @@ component_test_mysql_runtime_error  plugin_output_directory  TEST_MYSQL_RUNTIME_
 
 # mysqlbackup component
 component_mysqlbackup           plugin_output_directory  MYSQLBACKUP_COMPONENT
+
+component_query_attributes      plugin_output_directory  QUERY_ATTRIBUTES_COMPONENT
+
+# component_reference_cache
+component_reference_cache      plugin_output_directory REFERENCE_CACHE_COMPONENT

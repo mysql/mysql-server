@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,15 @@
 
 #define JAM_FILE_ID 442
 
+#if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_EXEC_SR 1
+#endif
+
+#ifdef DEBUG_EXEC_SR
+#define DEB_EXEC_SR(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_EXEC_SR(arglist) do { } while (0)
+#endif
 
 DblqhProxy::DblqhProxy(Block_context& ctx) :
   LocalProxy(DBLQH, ctx),
@@ -135,7 +144,7 @@ DblqhProxy::~DblqhProxy()
 SimulatedBlock*
 DblqhProxy::newWorker(Uint32 instanceNo)
 {
-  return new Dblqh(m_ctx, instanceNo);
+  return new Dblqh(m_ctx, instanceNo, DBLQH);
 }
 
 // GSN_NDB_STTOR
@@ -428,13 +437,13 @@ DblqhProxy::execLQHFRAGREQ(Signal* signal)
 {
   jam();
   LqhFragReq* req = (LqhFragReq*)signal->getDataPtrSend();
-  Uint32 instance = getInstanceKey(req->tableId, req->fragId);
+  Uint32 instanceNo = getInstance(req->tableId, req->fragId);
 
   /* Ensure instance hasn't quietly mapped back to proxy! */
   ndbrequire(signal->getSendersBlockRef() != reference());
 
   // wl4391_todo impl. method that fakes senders block-ref
-  sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
+  sendSignal(numberToRef(DBLQH, instanceNo, getOwnNodeId()),
              GSN_LQHFRAGREQ, signal, signal->getLength(), JBB);
 }
 
@@ -632,8 +641,8 @@ DblqhProxy::execLCP_FRAG_ORD(Signal* signal)
   else
   {
     jam();
-    Uint32 instance = getInstanceKey(req->tableId, req->fragmentId);
-    sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
+    Uint32 instanceNo = getInstance(req->tableId, req->fragmentId);
+    sendSignal(numberToRef(DBLQH, instanceNo, getOwnNodeId()),
                GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
   }
 }
@@ -1201,10 +1210,10 @@ DblqhProxy::execSTART_FRAGREQ(Signal* signal)
 {
   jam();
   StartFragReq* req = (StartFragReq*)signal->getDataPtrSend();
-  Uint32 instance = getInstanceKey(req->tableId, req->fragId);
+  Uint32 instanceNo = getInstance(req->tableId, req->fragId);
 
   // wl4391_todo impl. method that fakes senders block-ref
-  sendSignal(numberToRef(DBLQH, instance, getOwnNodeId()),
+  sendSignal(numberToRef(DBLQH, instanceNo, getOwnNodeId()),
              GSN_START_FRAGREQ, signal, signal->getLength(), JBB);
 }
 
@@ -1737,6 +1746,7 @@ DblqhProxy::execEXEC_SR_1(Signal* signal, GlobalSignalNumber gsn)
   ss.m_gsn = gsn;
   ss.m_sig = *sig;
 
+  DEB_EXEC_SR(("Send EXEC_SRREQ to %u workers", c_workers));
   sendREQ(signal, ss);
   ssRelease<Ss_EXEC_SR_1>(ss);
 }
@@ -1768,6 +1778,14 @@ DblqhProxy::execEXEC_SR_2(Signal* signal, GlobalSignalNumber gsn)
     jam();
     setMask(ss);
   }
+
+#ifdef DEBUG_EXEC_SR
+  BlockReference ref = signal->getSendersBlockRef();
+  Uint32 ino = refToInstance(ref);
+  DEB_EXEC_SR(("Received EXEC_SRCONF from instance: %u, found: %u",
+               ino,
+               found));
+#endif
 
   ndbrequire(sig->nodeId == getOwnNodeId());
   if (ss.m_sigcount == 0) {

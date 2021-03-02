@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,12 +36,6 @@ Section: debug
 Depends: mysql-${DEB_PRODUCTNAME}-management-server (=\${binary:Version}), \${misc:Depends}
 Description: Debugging symbols for management server
 
-Package: mysql-${DEB_PRODUCTNAME}-memcached-dbgsym
-Architecture: any
-Section: debug
-Depends: mysql-${DEB_PRODUCTNAME}-memcached (=\${binary:Version}), \${misc:Depends}
-Description: Debugging symbols for memcached
-
 Package: mysql-${DEB_PRODUCTNAME}-nodejs-dbgsym
 Architecture: any
 Section: debug
@@ -58,7 +52,6 @@ SET (DEB_NDB_RULES_STRIP
 "
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-data-node --dbg-package=mysql-${DEB_PRODUCTNAME}-data-node-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-management-server --dbg-package=mysql-${DEB_PRODUCTNAME}-management-server-dbgsym
-	dh_strip -pmysql-${DEB_PRODUCTNAME}-memcached --dbg-package=mysql-${DEB_PRODUCTNAME}-memcached-dbgsym
 	dh_strip -pmysql-${DEB_PRODUCTNAME}-nodejs --dbg-package=mysql-${DEB_PRODUCTNAME}-nodejs-dbgsym
 	dh_strip -pndbclient --dbg-package=ndbclient-dbgsym
 ")
@@ -76,16 +69,6 @@ Package: mysql-${DEB_PRODUCTNAME}-data-node
 Architecture: any
 Depends: \${shlibs:Depends}, \${misc:Depends},
  libclass-methodmaker-perl
-Description: Data node
- This package contains MySQL Cluster Data Node Daemon, it's the process
- that is used to handle all the data in tables using the NDB Cluster
- storage engine. It comes in two variants: ndbd and ndbmtd, the former
- is single threaded while the latter is multi-threaded.
-
-Package: mysql-${DEB_PRODUCTNAME}-auto-installer
-Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends},
- python-paramiko
 Description: Data node
  This package contains MySQL Cluster Data Node Daemon, it's the process
  that is used to handle all the data in tables using the NDB Cluster
@@ -121,14 +104,6 @@ Description: Java connector
  attempts to offer the best possible performance by leveraging the
  strengths of both ClusterJ and JDBC
 
-Package: mysql-${DEB_PRODUCTNAME}-memcached
-Architecture: any
-Depends: \${shlibs:Depends}, \${misc:Depends}, mysql-${DEB_PRODUCTNAME}-server
-Description: memcached
- This package contains the standard memcached server and a loadable
- storage engine for memcached using the Memcache API for MySQL Cluster
- to provide a persistent MySQL Cluster data store.
-
 Package: mysql-${DEB_PRODUCTNAME}-nodejs
 Architecture: any
 Depends: \${shlibs:Depends}, \${misc:Depends}
@@ -162,7 +137,6 @@ Description: nodejs
 /usr/bin/ndb_restore
 /usr/bin/ndb_select_all
 /usr/bin/ndb_select_count
-/usr/bin/ndb_setup.py
 /usr/bin/ndb_show_tables
 /usr/bin/ndb_size.pl
 /usr/bin/ndb_top
@@ -192,7 +166,6 @@ Description: nodejs
 /usr/share/man/man1/ndb_restore.1*
 /usr/share/man/man1/ndb_select_all.1*
 /usr/share/man/man1/ndb_select_count.1*
-/usr/share/man/man1/ndb_setup.py.1*
 /usr/share/man/man1/ndb_show_tables.1*
 /usr/share/man/man1/ndb_size.pl.1*
 /usr/share/man/man1/ndb_top.1*

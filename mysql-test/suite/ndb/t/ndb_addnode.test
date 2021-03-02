@@ -4,15 +4,15 @@
 
 --echo "Create nodegroup with out-of-range node ID"
 --error 255
---exec $NDB_MGM --verbose=0 -e "create nodegroup 147,148"
+--exec $NDB_MGM -e "create nodegroup 147,148"
 --error 255
---exec $NDB_MGM --verbose=0 -e "create nodegroup 4,147"
+--exec $NDB_MGM -e "create nodegroup 4,147"
 
 --echo "Create nodegroup with in-range but inactive node ID"
 --error 255
---exec $NDB_MGM --verbose=0 -e "create nodegroup 48,3"
+--exec $NDB_MGM -e "create nodegroup 48,3"
 --error 255
---exec $NDB_MGM --verbose=0 -e "create nodegroup 4,48"
+--exec $NDB_MGM -e "create nodegroup 4,48"
 
 --source ndb_mgm_show_table.inc
 
@@ -92,15 +92,15 @@ if($non_windows)
 --source ndb_desc_show_partition_info.inc
 
 ## Create nodegroup for "new" nodes
---exec $NDB_MGM --verbose=0 -e "create nodegroup 3,4"
+--exec $NDB_MGM -e "create nodegroup 3,4"
 --sleep 5
 # Cluster running after adding two ndbd nodes
 --source ndb_mgm_show_table.inc
 
 ## Drop
---exec $NDB_MGM --verbose=0 -e "drop nodegroup 1"
+--exec $NDB_MGM -e "drop nodegroup 1"
 ## and create
---exec $NDB_MGM --verbose=0 -e "create nodegroup 3,4"
+--exec $NDB_MGM -e "create nodegroup 3,4"
 
 set @@new = 1;
 
@@ -195,7 +195,7 @@ let ndb_die_on_error= 1;
 ## Drop nodegroup with "new" nodes is not allowed with data one those nodes
 # NOTE: --error=0 is due to return codes doesnt work on windoze
 --error 0,255
---exec $NDB_MGM --verbose=0 -e "drop nodegroup 1"
+--exec $NDB_MGM -e "drop nodegroup 1"
 
 ## Nodegroup with "new" nodes still exist after dropping it as shown:
 --source ndb_mgm_show_table.inc
@@ -203,7 +203,7 @@ let ndb_die_on_error= 1;
 drop table t1,t2,t3,t4,t5,t6;
 
 ## Drop nodegroup with "new" nodes
---exec $NDB_MGM --verbose=0 -e "drop nodegroup 1"
+--exec $NDB_MGM -e "drop nodegroup 1"
 
 ## Nodegroup with "new" nodes still exists after dropping it as shown:
 --source ndb_mgm_show_table.inc

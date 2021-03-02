@@ -67,6 +67,7 @@
 #include "query_options.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/binlog_reader.h"
+#include "sql/field_common_properties.h"
 #include "sql/my_decimal.h"   // my_decimal
 #include "sql/rpl_handler.h"  // RUN_HOOK
 #include "sql/rpl_tblmap.h"
@@ -4833,7 +4834,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
           Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
         */
         thd->reset_rewritten_query();
-        mysql_parse(thd, &parser_state);
+        dispatch_sql_command(thd, &parser_state);
 
         enum_sql_command command = thd->lex->sql_command;
 
@@ -4891,7 +4892,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         We need to reset it back to the opt_log_slow_slave_statements
         value after the statement execution (and slow logging
         is done). It might have changed if the statement was an
-        admin statement (in which case, down in mysql_parse execution
+        admin statement (in which case, down in dispatch_sql_command execution
         thd->enable_slow_log is set to the value of
         opt_log_slow_admin_statements).
       */
@@ -5065,7 +5066,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       to ignore it you would use --slave-skip-errors...
 
       To do the comparison we need to know the value of "affected" which the
-      above mysql_parse() computed. And we need to know the value of
+      above dispatch_sql_command() computed. And we need to know the value of
       "affected" in the master's binlog. Both will be implemented later. The
       important thing is that we now have the format ready to log the values
       of "affected" in the binlog. So we can release 5.0.0 before effectively
@@ -7053,8 +7054,8 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli) {
   slave_load_file_stem(fname, file_id, server_id, ".data");
   if (get_create_or_append()) {
     /*
-      Usually lex_start() is called by mysql_parse(), but we need it here
-      as the present method does not call mysql_parse().
+      Usually lex_start() is called by dispatch_sql_command(), but we need it
+      here as the present method does not call mysql_parse().
     */
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
@@ -10876,26 +10877,6 @@ static inline bool write_tlv_field(
 }
 #endif  // MYSQL_SERVER
 
-#ifndef MYSQL_SERVER
-// For MYSQL_SERVER, the version in field.h is used.
-static inline bool is_numeric_type(uint type) {
-  switch (type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_LONGLONG:
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE:
-      return true;
-    default:
-      return false;
-  }
-  return false;
-}
-#endif  // !MYSQL_SERVER
-
 static inline bool is_character_type(uint type) {
   switch (type) {
     case MYSQL_TYPE_STRING:
@@ -10914,7 +10895,7 @@ static inline bool is_enum_or_set_type(uint type) {
 
 #ifdef MYSQL_SERVER
 static inline bool is_numeric_field(const Field *field) {
-  return is_numeric_type(field->binlog_type());
+  return has_signedess_information_type(field->binlog_type());
 }
 
 static inline bool is_character_field(const Field *field) {
@@ -10954,7 +10935,7 @@ void Table_map_log_event::init_metadata_fields() {
         init_charset_field(&is_enum_or_set_field, ENUM_AND_SET_DEFAULT_CHARSET,
                            ENUM_AND_SET_COLUMN_CHARSET) ||
         init_set_str_value_field() || init_enum_str_value_field() ||
-        init_primary_key_field()) {
+        init_primary_key_field() || init_column_visibility_field()) {
       m_metadata_buf.length(0);
     }
   }
@@ -11208,6 +11189,33 @@ bool Table_map_log_event::init_primary_key_field() {
     }
     return write_tlv_field(m_metadata_buf, PRIMARY_KEY_WITH_PREFIX, buf);
   }
+}
+
+bool Table_map_log_event::init_column_visibility_field() {
+  /*
+    Buffer to store column visibility. Each column take a bit. Bit is set if
+    column is visible.
+  */
+  StringBuffer<128> buf;
+  unsigned char flags = 0;
+  unsigned char mask = 0x80;
+
+  for (auto field : this->m_fields) {
+    if (!field->is_hidden_by_user()) flags |= mask;
+    mask >>= 1;
+
+    // 8 columns are tested. Store the result and clear the flag.
+    if (mask == 0) {
+      buf.append(flags);
+      flags = 0;
+      mask = 0x80;
+    }
+  }
+
+  // Store the flag for last few columns.
+  if (mask != 0x80) buf.append(flags);
+
+  return write_tlv_field(m_metadata_buf, COLUMN_VISIBILITY, buf);
 }
 
 /*
@@ -11500,6 +11508,8 @@ void Table_map_log_event::print_columns(
   std::vector<unsigned int>::const_iterator geometry_type_it =
       fields.m_geometry_type.begin();
   uint geometry_type = 0;
+  std::vector<bool>::const_iterator column_visibility_it =
+      fields.m_column_visibility.begin();
 
   my_b_printf(file, "# Columns(");
 
@@ -11546,9 +11556,13 @@ void Table_map_log_event::print_columns(
     my_b_printf(file, "%s", type_name);
 
     // Print UNSIGNED for numeric column
-    if (is_numeric_type(real_type) &&
+    enum_field_types field_type_code = static_cast<enum_field_types>(real_type);
+    if (has_signedess_information_type(field_type_code) &&
         signedness_it != fields.m_signedness.end()) {
-      if (*signedness_it == true) my_b_printf(file, " UNSIGNED");
+      if (*signedness_it == true &&
+          // the UNSIGNED modifier is encoded for YEAR but not used
+          field_type_code != MYSQL_TYPE_YEAR)
+        my_b_printf(file, " UNSIGNED");
       signedness_it++;
     }
 
@@ -11584,6 +11598,12 @@ void Table_map_log_event::print_columns(
     if (cs != nullptr &&
         (is_enum_or_set_type(real_type) || cs->number != my_charset_bin.number))
       my_b_printf(file, " CHARSET %s COLLATE %s", cs->csname, cs->name);
+
+    // If column is invisible then print 'INVISIBLE'.
+    if (column_visibility_it != fields.m_column_visibility.end()) {
+      if (!(*column_visibility_it)) my_b_printf(file, " INVISIBLE");
+      column_visibility_it++;
+    }
 
     if (i != m_colcnt - 1) my_b_printf(file, ",\n#         ");
   }
@@ -12973,6 +12993,14 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli) {
       global_sid_lock->unlock();
       return 1;  // out of memory
     }
+  } else if ((spec.type == ANONYMOUS_GTID) &&
+             (rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+              Assign_gtids_to_anonymous_transactions_info::enum_type::
+                  AGAT_OFF)) {
+    DBUG_ASSERT(global_gtid_mode.get() == Gtid_mode::ON);
+    spec.type = PRE_GENERATE_GTID;
+    spec.gtid.sidno =
+        rli->m_assign_gtids_to_anonymous_transactions_info.get_sidno();
   }
 
   // set_gtid_next releases global_sid_lock

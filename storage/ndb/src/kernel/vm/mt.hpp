@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,8 +32,14 @@
 
 #define JAM_FILE_ID 275
 
+/**
+ * Debug define to use when debugging scheduling between LDM groups
+ * and Round robin groups.
+ * Needs to be defined in SimulatedBlock.hpp as well to work.
+ */
+//#define DEBUG_SCHED_STATS 1
 
-#define NUM_MAIN_THREADS 2 // except receiver
+#define MAX_MAIN_THREADS 2 // except receiver
 /*
   MAX_BLOCK_THREADS need not include the send threads since it's
   used to set size of arrays used by all threads that contains a
@@ -41,10 +47,20 @@
   messages directed to other nodes and contains no blocks and
   executes thus no signals.
 */
-#define MAX_BLOCK_THREADS (NUM_MAIN_THREADS +       \
+#define MAX_BLOCK_THREADS (MAX_MAIN_THREADS +       \
                            MAX_NDBMT_LQH_THREADS +  \
                            MAX_NDBMT_TC_THREADS +   \
                            MAX_NDBMT_RECEIVE_THREADS)
+
+/**
+ * The worst case is the single thread instance running the receive thread,
+ * ldm thread, tc thread, main thread, rep thread. This contains the one
+ * block instance plus the proxy block instance for each block. In addition
+ * it contains the extra block instance used by PGMAN. Not all blocks have
+ * proxy blocks, so this is overestimated, but this limit will work even
+ * if all blocks are converted to using proxy blocks.
+ */
+#define MAX_INSTANCES_PER_THREAD ((2 * NO_OF_BLOCKS) + 1)
 
 static_assert(MAX_BLOCK_THREADS == NDB_MAX_BLOCK_THREADS, "");
 
@@ -54,9 +70,17 @@ Uint32 mt_get_instance_count(Uint32 block);
 void mt_init_thr_map();
 void mt_add_thr_map(Uint32 block, Uint32 instance);
 void mt_finalize_thr_map();
+#ifdef DEBUG_SCHED_STATS
+void get_jbb_estimated_stats(Uint32, Uint32, Uint64**, Uint64**);
+#endif
+Uint32 get_qt_jbb_level(Uint32 instance);
+void prefetch_load_indicators(Uint32 *rr_groups, Uint32 rr_group);
+Uint32 get_load_indicator(Uint32 dst);
 
-void sendlocal(Uint32 self, const struct SignalHeader *s,
-               const Uint32 *data, const Uint32 secPtr[3]);
+void sendlocal(Uint32 self,
+               const struct SignalHeader *s,
+               const Uint32 *data,
+               const Uint32 secPtr[3]);
 void sendprioa(Uint32 self, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
 void senddelay(Uint32 thr_no, const struct SignalHeader*, Uint32 delay);
@@ -66,7 +90,8 @@ void mt_execSTOP_FOR_CRASH();
  * Interface methods to SimulatedBlock for ndbtmd.
  */
 void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
-Uint32 mt_getSignalsInJBB(Uint32 self);
+Uint32 mt_getEstimatedJobBufferLevel(Uint32 self);
+bool mt_isEstimatedJobBufferLevelChanged(Uint32 self);
 NDB_TICKS mt_getHighResTimer(Uint32 self);
 void mt_setNoSend(Uint32 self);
 void mt_startChangeNeighbourNode();
@@ -108,6 +133,7 @@ bool mt_epoll_add_trp(Uint32 self, NodeId node_id, TrpId trp_id);
 bool mt_is_recv_thread_for_new_trp(Uint32 self,
                                    NodeId node_id,
                                    TrpId trp_id);
+Uint32 mt_getMainThrmanInstance();
 
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,

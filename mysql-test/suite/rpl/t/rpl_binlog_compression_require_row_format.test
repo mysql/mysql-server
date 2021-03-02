@@ -53,7 +53,7 @@
 SET @@global.binlog_transaction_compression=TRUE;
 
 --let $saved_change_master_require_row_format = `SELECT IF (require_row_format = 'YES', 1, 0) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME=''`
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 --source include/start_slave.inc
 
 #
@@ -150,7 +150,7 @@ DROP TABLE t1;
 --eval SET @@global.binlog_transaction_compression=$saved_binlog_transaction_compression_slave
 --source include/stop_slave.inc
 --replace_result $saved_change_master_require_row_format SAVED
---eval CHANGE MASTER TO REQUIRE_ROW_FORMAT=$saved_change_master_require_row_format
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=$saved_change_master_require_row_format
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

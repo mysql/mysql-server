@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "my_compiler.h"
+#include "my_compiler.h"  // NOLINT(build/include_subdir)
 
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/query_result.h"
@@ -110,7 +110,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_fails) {
 
 TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_no_args) {
   XError out_error;
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(
@@ -136,7 +136,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_no_args) {
 TEST_F(Xcl_session_impl_tests_execute_connected, execute_stmt_args_one_scalar) {
   XError out_error;
   const int64_t argument_value = 1002;
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,
@@ -174,7 +174,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
   const std::string argument_value_octet = "octet2";
   const std::string argument_value_decimal = "decimal3";
 
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,
@@ -245,7 +245,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
   const Argument_value argument_value_double{20.1};
   const Argument_value argument_value_string{"str1"};
 
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,
@@ -304,7 +304,7 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
   const Argument_value argument_value_double{20.1};
   const Argument_value argument_value_string{"str1"};
 
-  std::unique_ptr<XQuery_result> dummy_result{new Mock_query_result};
+  std::unique_ptr<XQuery_result> dummy_result{new mock::XQuery_result};
   auto dummy_result_ptr = dummy_result.get();
 
   EXPECT_CALL(*m_mock_protocol,

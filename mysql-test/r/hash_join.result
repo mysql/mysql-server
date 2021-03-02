@@ -261,6 +261,7 @@ INSERT INTO t1 SELECT col1 + 32 FROM t1;
 INSERT INTO t1 SELECT col1 + 64 FROM t1;
 INSERT INTO t1 SELECT col1 + 128 FROM t1;
 INSERT INTO t1 SELECT col1 + 256 FROM t1;
+INSERT INTO t1 SELECT col1 + 512 FROM t1;
 INSERT INTO t2 SELECT col1 FROM t1;
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
@@ -271,10 +272,10 @@ EXPLAIN FORMAT=tree
 SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
 EXPLAIN
 -> Aggregate: sum(t1.col1), sum(t2.col1)
-    -> Inner hash join (t2.col1 = t1.col1)  (cost=*** rows=26214)
-        -> Table scan on t2  (cost=*** rows=512)
+    -> Inner hash join (t2.col1 = t1.col1)  (cost=*** rows=104858)
+        -> Table scan on t2  (cost=*** rows=1024)
         -> Hash
-            -> Table scan on t1  (cost=*** rows=512)
+            -> Table scan on t1  (cost=*** rows=1024)
 
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
@@ -283,7 +284,7 @@ COUNT_STAR > 0
 0
 SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
 SUM(t1.col1)	SUM(t2.col1)
-131328	131328
+524800	524800
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
 WHERE event_name LIKE '%hash_join%';
 COUNT_STAR > 0
@@ -446,6 +447,8 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 SELECT * FROM t2;
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -455,11 +458,11 @@ EXPLAIN FORMAT=tree
 SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 EXPLAIN
 -> Aggregate: count(0)
-    -> Remove duplicate t2 rows using temporary table (weedout)  (cost=*** rows=39322)
-        -> Inner hash join (t1.i = t2.i)  (cost=*** rows=39322)
-            -> Table scan on t1  (cost=*** rows=768)
+    -> Remove duplicate t2 rows using temporary table (weedout)  (cost=*** rows=157286)
+        -> Inner hash join (t1.i = t2.i)  (cost=*** rows=157286)
+            -> Table scan on t1  (cost=*** rows=1536)
             -> Hash
-                -> Table scan on t2  (cost=*** rows=512)
+                -> Table scan on t2  (cost=*** rows=1024)
 
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
@@ -468,7 +471,7 @@ COUNT_STAR > 0
 0
 SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
 COUNT(*)
-512
+1024
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
 WHERE event_name LIKE '%hash_join%';
 COUNT_STAR > 0
@@ -1691,6 +1694,7 @@ INSERT INTO t1 SELECT col1 + 32 FROM t1;
 INSERT INTO t1 SELECT col1 + 64 FROM t1;
 INSERT INTO t1 SELECT col1 + 128 FROM t1;
 INSERT INTO t1 SELECT col1 + 256 FROM t1;
+INSERT INTO t1 SELECT col1 + 512 FROM t1;
 CREATE TABLE t2 SELECT col1 FROM t1;
 ANALYZE TABLE t1, t2;
 Table	Op	Msg_type	Msg_text
@@ -1724,7 +1728,7 @@ COUNT_STAR > 0
 TRUNCATE performance_schema.file_summary_by_event_name;
 SELECT SUM(t1.col1) FROM t1, t2 WHERE t1.col1 = t2.col1 LIMIT 10;
 SUM(t1.col1)
-131328
+524800
 SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
 WHERE event_name LIKE '%hash_join%';
 COUNT_STAR > 0
@@ -3010,10 +3014,10 @@ SET join_buffer_size = 128;
 SET optimizer_switch="materialization=off";
 EXPLAIN FORMAT=tree SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
 EXPLAIN
--> Hash antijoin (build.col1 = probe.col1)  (cost=19855.77 rows=196096)
-    -> Table scan on probe  (cost=25.85 rows=256)
+-> Hash antijoin (build.col1 = probe.col1)  (cost=*** rows=196096)
+    -> Table scan on probe  (cost=*** rows=256)
     -> Hash
-        -> Table scan on build  (cost=241.92 rows=766)
+        -> Table scan on build  (cost=*** rows=766)
 
 SELECT * FROM probe WHERE col1 NOT IN (SELECT col1 FROM build);
 col1
@@ -3834,3 +3838,55 @@ a	a	a
 3	NULL	NULL
 4	NULL	NULL
 DROP TABLE t1;
+#
+# Bug #31940549: NEW MEMORY LEAK ON TRUNK RELATING TO HASHJOINITERATOR::BUILDHASHTABLE , OPEN_CACHED_FILE
+#
+SET join_buffer_size=32768;
+CREATE TABLE t(a DOUBLE NOT NULL, b VARCHAR(15873) NOT NULL);
+INSERT INTO t VALUES(1, REPEAT('abs',1000));
+INSERT INTO t VALUES(2, REPEAT('ajs',1000));
+INSERT INTO t VALUES(3, REPEAT('ajj',1000));
+INSERT INTO t VALUES(4, REPEAT('jjs',1000));
+INSERT INTO t SELECT * FROM t;
+INSERT INTO t SELECT * FROM t;
+SELECT
+(
+SELECT 1 FROM (SELECT t_outer.a) Z LEFT JOIN t
+ON t.a > t.b LIMIT 1
+) FROM t AS t_outer;
+(
+SELECT 1 FROM (SELECT t_outer.a) Z LEFT JOIN t
+ON t.a > t.b LIMIT 1
+)
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+1
+DROP TABLE t;
+SET join_buffer_size=DEFAULT;
+#
+# Bug #31832001 HASH JOIN MISMATCHES SIGNED AND UNSIGNED
+#
+CREATE TABLE t2 (c1 BIGINT NOT NULL);
+CREATE TABLE t13 (c1 BIGINT UNSIGNED NOT NULL);
+INSERT INTO t2 VALUES (-1),(1);
+INSERT INTO t13 VALUES (18446744073709551615),(1);
+SELECT * FROM t2 JOIN t13 WHERE t2.c1=t13.c1;
+c1	c1
+1	1
+SELECT /*+ NO_BNL(t2,t13) */ * FROM t2 JOIN t13 WHERE t2.c1=t13.c1;
+c1	c1
+1	1
+DROP TABLE t2, t13;

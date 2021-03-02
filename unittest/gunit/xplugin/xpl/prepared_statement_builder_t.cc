@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -168,27 +168,27 @@ class Prepared_statement_builder_test
 
 using Find_test = Prepared_statement_builder_test<Find>;
 TEST_P(Find_test, placeholders) { assert_placeholders(); }
-INSTANTIATE_TEST_CASE_P(Prepared_statement_builder, Find_test,
-                        testing::ValuesIn(find_param));
+INSTANTIATE_TEST_SUITE_P(Prepared_statement_builder, Find_test,
+                         testing::ValuesIn(find_param));
 
 using Delete_test = Prepared_statement_builder_test<Delete>;
 TEST_P(Delete_test, placeholders) { assert_placeholders(); }
-INSTANTIATE_TEST_CASE_P(Prepared_statement_builder, Delete_test,
-                        testing::ValuesIn(delete_param));
+INSTANTIATE_TEST_SUITE_P(Prepared_statement_builder, Delete_test,
+                         testing::ValuesIn(delete_param));
 
 using Update_test = Prepared_statement_builder_test<Update>;
 TEST_P(Update_test, placeholders) { assert_placeholders(); }
-INSTANTIATE_TEST_CASE_P(Prepared_statement_builder, Update_test,
-                        testing::ValuesIn(update_param));
+INSTANTIATE_TEST_SUITE_P(Prepared_statement_builder, Update_test,
+                         testing::ValuesIn(update_param));
 
 using Insert_test = Prepared_statement_builder_test<Insert>;
 TEST_P(Insert_test, placeholders) { assert_placeholders(); }
-INSTANTIATE_TEST_CASE_P(Prepared_statement_builder, Insert_test,
-                        testing::ValuesIn(insert_param));
+INSTANTIATE_TEST_SUITE_P(Prepared_statement_builder, Insert_test,
+                         testing::ValuesIn(insert_param));
 
 using Stmt_execute_test = Prepared_statement_builder_test<Stmt_execute>;
 TEST_P(Stmt_execute_test, placeholders) { assert_placeholders(); }
-INSTANTIATE_TEST_CASE_P(Prepared_statement_builder, Stmt_execute_test,
-                        testing::ValuesIn(stmt_execute_param));
+INSTANTIATE_TEST_SUITE_P(Prepared_statement_builder, Stmt_execute_test,
+                         testing::ValuesIn(stmt_execute_param));
 }  // namespace test
 }  // namespace xpl

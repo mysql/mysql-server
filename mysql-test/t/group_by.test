@@ -54,13 +54,20 @@ INSERT INTO t2 VALUES (5,'name','pass','mail','Y','v','n','adr','1','1','1');
 ANALYZE TABLE t1,t2;
 
 # Tests printing of TemptableAggregateIterator.
+--skip_if_hypergraph  # TemptableAggregateIterator not supported.
 EXPLAIN FORMAT=tree SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
 
+--sorted_result
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid;
+--sorted_result
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID GROUP BY t2.userid ORDER BY NULL;
+--sorted_result
 SELECT t2.userid, MIN(t1.score) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+--sorted_result
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid;
+--sorted_result
 SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
+--sorted_result
 EXPLAIN SELECT t2.userid, MIN(t1.score+0.0) FROM t1, t2 WHERE t1.userID=t2.userID AND t1.spID=2  GROUP BY t2.userid ORDER BY NULL;
 drop table t1,t2;
 
@@ -233,9 +240,13 @@ INSERT INTO t2 VALUES ('Web Interface','AAAAAAAA-AAA','id0001','','');
 INSERT INTO t2 VALUES ('Host communication','AAAAA','id0001','','');
 --source include/turn_off_only_full_group_by.inc
 
+--sorted_result
 select value,description,bug_id from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA";
+--sorted_result
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
+--sorted_result
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+--sorted_result
 select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -296,19 +307,31 @@ CREATE TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('A'),('B'),('A'),('B'),('A'),('B'),(NULL),('a'),('b'),(NULL),('A'),('B'),(NULL);
 --source include/turn_off_only_full_group_by.inc
 
+--sorted_result
 SELECT a FROM t1 GROUP BY a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY a;
+--sorted_result
 SELECT a FROM t1 GROUP BY binary a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY binary a;
+--sorted_result
 SELECT binary a FROM t1 GROUP BY 1;
+--sorted_result
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
 # Do the same tests with MyISAM temporary tables
 SET BIG_TABLES=1;
+--sorted_result
 SELECT a FROM t1 GROUP BY a ORDER BY a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY a ORDER BY a;
+--sorted_result
 SELECT a FROM t1 GROUP BY binary a ORDER BY binary a;
+--sorted_result
 SELECT a,count(*) FROM t1 GROUP BY binary a ORDER BY binary a;
+--sorted_result
 SELECT binary a FROM t1 GROUP BY 1 ORDER BY 1;
+--sorted_result
 SELECT binary a,count(*) FROM t1 GROUP BY 1 ORDER BY 1;
 SET BIG_TABLES=0;
 
@@ -338,6 +361,7 @@ DROP TABLE t1;
 
 create table t1 (One int unsigned, Two int unsigned, Three int unsigned, Four int unsigned);
 insert into t1 values (1,2,1,4),(1,2,2,4),(1,2,3,4),(1,2,4,4),(1,1,1,4),(1,1,2,4),(1,1,3,4),(1,1,4,4),(1,3,1,4),(1,3,2,4),(1,3,3,4),(1,3,4,4);
+--sorted_result
 select One, Two, sum(Four) from t1 group by One,Two;
 drop table t1;
 
@@ -514,15 +538,22 @@ SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a;
 # reference it from the tmp table's field (pre-computed since it's an alias).
 # This requires a certain order of evaluation in copy_funcs
 # ("aliased Item" before "referencing Item")
+--skip_if_hypergraph   # Different query plan (and also does not give any single-evaluation guarantees).
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
   HAVING r1>=1 AND r2<=7 AND r2 > 0;
 # Referencing item might be in a subquery:
+--skip_if_hypergraph   # Different query plan (and also does not give any single-evaluation guarantees).
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
   HAVING r1>=1 AND (SELECT r2<=7 AND r2 > 0 FROM t1 AS t2 LIMIT 1);
 
 # rand(100)*10 will be < 2 only for the first row (of 3)
+# NOTE: This currently gives the wrong result, because HAVING
+# and send() both evaluate RAND() instead
+# of sharing the result between them. See the comment in
+# JOIN::create_root_access_path_for_join() for more details.
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
  GROUP BY a HAVING r1>1 AND r2<=2;
+--skip_if_hypergraph   # Different query plan (and also does not give any single-evaluation guarantees).
 SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
  GROUP BY a HAVING r1>1 AND r2<=2 ORDER BY a+r2+r1;
 SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c;
@@ -533,6 +564,7 @@ SELECT a AS d,SUM(b) FROM t1 WHERE a=1 GROUP BY c HAVING d=1;
 SELECT SUM(a)*SUM(b) AS d FROM t1 WHERE a=1 GROUP BY c HAVING d > 0;
 
 SELECT a, ROUND(RAND(100)*10) r2 FROM t1;
+--skip_if_hypergraph   # Depends on the query plan.
 SELECT ROUND(RAND(100)*10) r2 FROM t1 GROUP BY r2;
 
 DROP TABLE t1;
@@ -903,8 +935,11 @@ SELECT * FROM t1 GROUP BY c2, c1, id ORDER BY c2 DESC, c1 DESC;
 
 # Show that results are correctly ordered when GROUP BY fields
 # are a subset of ORDER BY ones
+--skip_if_hypergraph  # Chooses a different (but equally valid) value for non-grouped c1.
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2, c1;
+--skip_if_hypergraph  # Chooses a different (but equally valid) value for non-grouped c1.
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1;
+--skip_if_hypergraph  # Chooses a different (but equally valid) value for non-grouped c1.
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1 DESC;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -1077,6 +1112,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
+--skip_if_hypergraph  # Does not use indexes for GROUP BY yet.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 --let $query=SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a
 --eval EXPLAIN $query
@@ -1084,6 +1120,7 @@ FLUSH STATUS;
 --disable_result_log
 --eval $query
 --enable_result_log
+--skip_if_hypergraph  # Does not use indexes for GROUP BY yet.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY,i2) ORDER BY a;
 EXPLAIN SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY)
@@ -1414,10 +1451,13 @@ DROP TABLE t1;
 SET BIG_TABLES=1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
+--skip_if_hypergraph  # Does not use MyISAM temp tables, so no such restriction.
 --error ER_WRONG_KEY_COLUMN
 SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
+--skip_if_hypergraph  # Different warnings.
 SELECT 1 FROM t1 GROUP BY SUBSTRING('',SLEEP(0),'');
+--skip_if_hypergraph  # Different warnings.
 SELECT 1 FROM t1 GROUP BY SUBSTRING(SYSDATE() FROM 'K' FOR 'jxW<');
 DROP TABLE t1;
 SET BIG_TABLES=0;
@@ -1575,6 +1615,7 @@ STRAIGHT_JOIN t2 AS alias2 ON alias2.pk = alias1.col_int_key WHERE alias1.pk
 GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk ;
 --replace_column 10 #
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Different order of warnings.
 eval $query;
 
 DROP TABLE t1,t2;
@@ -2081,8 +2122,11 @@ DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values (1, 2), (1, 3), (null, null);
 
+--sorted_result
 select sum(a), count(*) from t1 group by a;
+--sorted_result
 select round(sum(a)), count(*) from t1 group by a;
+--sorted_result
 select ifnull(a, 'xyz') from t1 group by a;
 
 DROP TABLE t1;
@@ -2605,12 +2649,13 @@ SELECT (SELECT SUM(t1.a) s FROM t t2 WHERE t2.a = 0 HAVING s > 3) FROM t t1;
 SELECT 1 FROM t HAVING (SELECT SUM(a)) > 0;
 SELECT (SELECT SUM(a)) FROM t;
 
---echo # These queries where accepted before the fix, and they still are,
---echo # but their results are wrong both before and after the fix
---echo # because of bug#22588319.
+--echo # Bug #22588319: OUTER REFERENCE TO AGGREGATE INCORRECTLY 0 OR NULL IN SUBQUERY
+SELECT SUM(a) AS s, (SELECT 1 HAVING s) FROM t;
+SELECT SUM(a) AS s, (SELECT 1 HAVING s IS NULL) FROM t;
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c) FROM t;
+SELECT COUNT(a) AS c, (SELECT 1 HAVING c = 0) FROM t;
 
---echo # Returns (4, NULL), should have returned (4, 1):
-SELECT SUM(a) s, (SELECT 1 HAVING s > 0) s2 FROM t;
+--echo # Shows that #22588319 isn't fixed for ORDER BY.
 --echo # Should have ordered ascending on -a, but comes out in random order
 --echo # because the ORDER BY clause always evaluates to NULL. Have to use
 --echo # the --sorted_result directive to produce stable test results.
@@ -2770,6 +2815,10 @@ while ($i < 2) {
 --eval CREATE TABLE t(a $type, b INT)
 INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
 --source include/turn_off_only_full_group_by.inc
+# Verify that we get streaming.
+--replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--skip_if_hypergraph   # Does not use streaming (just sorts directly).
+EXPLAIN FORMAT=tree SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 --sorted_result
 SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
 # This query gave the right results also before the fix:
@@ -2848,6 +2897,7 @@ ANALYZE TABLE t1;
 # expose the bug). Other ways to do the same would include ROLLUP. Output the
 # plan to make sure it doesn't change in a way that would mask the bug.
 #
+--skip_if_hypergraph   # Chooses a different query plan.
 EXPLAIN FORMAT=tree SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 SELECT f1, f1 + 1, COUNT(DISTINCT f2) AS x FROM t1 GROUP BY f1 ORDER BY x;
 
@@ -2993,3 +3043,12 @@ FROM w RIGHT JOIN w AS e ON TRUE
 GROUP BY w.a
 LIMIT 39;
 DROP TABLE w;
+
+--echo #
+--echo # Bug #32179240: ADDING ROLLUP BREAKS GROUP LABELS
+--echo #
+
+CREATE TABLE t1 (a DOUBLE);
+INSERT INTO t1 ( a ) VALUES ( 0.1 );
+SELECT TRUNCATE(a, 1) FROM t1 GROUP BY TRUNCATE(a, 1) WITH ROLLUP;
+DROP TABLE t1;

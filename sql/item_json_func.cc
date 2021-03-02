@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <algorithm>  // std::fill
+#include <cassert>
 #include <limits>
 #include <memory>
 #include <new>
@@ -1387,10 +1388,9 @@ static bool create_scalar(Json_scalar_holder *scalar, Json_dom_ptr *dom,
 
   @return false if we could get a value or NULL, otherwise true
 */
-template <typename T>
-static bool sql_scalar_to_json(T *arg, const char *calling_function,
-                               String *value, String *tmp, Json_wrapper *wr,
-                               Json_scalar_holder *scalar, bool scalar_string) {
+bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
+                        String *tmp, Json_wrapper *wr,
+                        Json_scalar_holder *scalar, bool scalar_string) {
   enum_field_types field_type = get_normalized_field_type(arg);
   /*
     Most items and fields have same actual and resolved types, however e.g
@@ -1633,12 +1633,6 @@ static bool extract_boolean(Item *arg, bool *result) {
 
   // doesn't fit any of the checks we perform
   return false;
-}
-
-bool convert_scalar_to_json(Item *arg, String *value, String *tmp,
-                            Json_wrapper *wr) {
-  return sql_scalar_to_json(arg, "cast_as_json", value, tmp, wr, nullptr,
-                            arg->json_as_scalar());
 }
 
 // see the contract for this function in item_json_func.h
@@ -2365,13 +2359,19 @@ static bool clone_without_autowrapping(const Json_path *source_path,
 }
 
 void Item_json_func::mark_for_partial_update(const Field_json *field) {
-  DBUG_ASSERT(can_use_in_partial_update());
+  assert(supports_partial_update(field));
   m_partial_update_column = field;
 
-  if (args[0]->type() == FIELD_ITEM) {
-    DBUG_ASSERT(down_cast<Item_field *>(args[0])->field == field);
+  // Peel off the Item_view_ref if we are updating an updatable view.
+  Item *arg0 = args[0]->real_item();
+
+  // supports_partial_update() returns true only when args[0] is an Item_field
+  // or a subclass of Item_json_func (or a view ref wrapping any of those), so
+  // we can safely assume it has one of those types when we get here.
+  if (arg0->type() == FIELD_ITEM) {
+    assert(down_cast<Item_field *>(arg0)->field == field);
   } else {
-    down_cast<Item_json_func *>(args[0])->mark_for_partial_update(field);
+    down_cast<Item_json_func *>(arg0)->mark_for_partial_update(field);
   }
 }
 
@@ -2385,10 +2385,19 @@ bool Item_json_func::supports_partial_update(const Field_json *field) const {
     another JSON_SET, JSON_REPLACE or JSON_REMOVE expression which has the
     target column as its first argument.
   */
-  if (args[0]->type() == FIELD_ITEM)
-    return down_cast<Item_field *>(args[0])->field == field;
 
-  return args[0]->supports_partial_update(field);
+  Item *arg0 = args[0];
+  if (arg0->type() == Item::REF_ITEM &&
+      down_cast<Item_ref *>(arg0)->ref_type() == Item_ref::VIEW_REF) {
+    // If the target table is an updatable view, look at the column in the base
+    // table.
+    arg0 = arg0->real_item();
+  }
+
+  if (arg0->type() == FIELD_ITEM)
+    return down_cast<const Item_field *>(arg0)->field == field;
+
+  return arg0->supports_partial_update(field);
 }
 
 static void disable_logical_diffs(const Field_json *field) {
@@ -2437,7 +2446,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
       partial_update_buffer = table->get_partial_update_buffer();
 
       // Reset the buffer in the innermost call.
-      if (args[0]->type() == FIELD_ITEM) partial_update_buffer->length(0);
+      if (args[0]->real_item()->type() == FIELD_ITEM)
+        partial_update_buffer->length(0);
     }
 
     for (uint32 i = 1; i < arg_count; i += 2) {
@@ -3112,7 +3122,8 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
     DBUG_ASSERT(!wrapper.is_dom());
     partial_update_buffer = table->get_partial_update_buffer();
     // Reset the buffer in the innermost call.
-    if (args[0]->type() == FIELD_ITEM) partial_update_buffer->length(0);
+    if (args[0]->real_item()->type() == FIELD_ITEM)
+      partial_update_buffer->length(0);
   } else {
     // If we cannot do binary update, let's work on the DOM instead.
     dom = wrapper.to_dom(current_thd);

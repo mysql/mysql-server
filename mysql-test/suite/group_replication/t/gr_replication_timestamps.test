@@ -88,7 +88,7 @@
 --source include/rpl_connection.inc
 --disable_warnings
 --replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$SERVER_MYPORT_2, MASTER_USER='root', MASTER_AUTO_POSITION=1
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$SERVER_MYPORT_2, SOURCE_USER='root', SOURCE_AUTO_POSITION=1
 --enable_warnings
 --source include/start_slave.inc
 
@@ -274,7 +274,7 @@ while ($i<9)
 --source include/rpl_connection.inc
 --let $rpl_channel_name=
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --let $rpl_skip_sync= 1
 --source include/group_replication_end.inc

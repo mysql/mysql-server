@@ -2348,7 +2348,7 @@ inline PT_create_table_option::~PT_create_table_option() {}
   also records if the option was explicitly set.
 */
 template <typename Option_type, Option_type HA_CREATE_INFO::*Property,
-          ulong Property_flag>
+          uint64_t Property_flag>
 class PT_traceable_create_table_option : public PT_create_table_option {
   typedef PT_create_table_option super;
 
@@ -2472,6 +2472,11 @@ typedef PT_traceable_create_table_option<
     TYPE_AND_REF(HA_CREATE_INFO::m_transactional_ddl),
     HA_CREATE_USED_START_TRANSACTION>
     PT_create_start_transaction_option;
+
+typedef PT_traceable_create_table_option<
+    TYPE_AND_REF(HA_CREATE_INFO::m_implicit_tablespace_autoextend_size),
+    HA_CREATE_USED_AUTOEXTEND_SIZE>
+    PT_create_ts_autoextend_size_option;
 
 typedef decltype(HA_CREATE_INFO::table_options) table_options_t;
 
@@ -3149,6 +3154,40 @@ class PT_show_collations final : public PT_show_filter_base {
   Sql_cmd_show_collations m_sql_cmd;
 };
 
+/// Base class for Parse tree nodes of SHOW COUNT(*) { WARNINGS | ERRORS }
+/// statements.
+
+class PT_show_count_base : public PT_show_base {
+ public:
+  explicit PT_show_count_base(const POS &pos)
+      : PT_show_base{pos, SQLCOM_SELECT} {}
+
+ protected:
+  Sql_cmd *make_cmd_generic(THD *thd, LEX_CSTRING diagnostic_variable_name);
+};
+
+/// Parse tree node for SHOW COUNT(*) ERRORS
+
+class PT_show_count_errors final : public PT_show_count_base {
+ public:
+  explicit PT_show_count_errors(const POS &pos) : PT_show_count_base(pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override {
+    return make_cmd_generic(thd, LEX_CSTRING{STRING_WITH_LEN("error_count")});
+  }
+};
+
+/// Parse tree node for SHOW COUNT(*) WARNINGS
+
+class PT_show_count_warnings final : public PT_show_count_base {
+ public:
+  explicit PT_show_count_warnings(const POS &pos) : PT_show_count_base(pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override {
+    return make_cmd_generic(thd, LEX_CSTRING{STRING_WITH_LEN("warning_count")});
+  }
+};
+
 /// Parse tree node for SHOW CREATE DATABASE statement
 
 class PT_show_create_database final : public PT_show_base {
@@ -3385,14 +3424,9 @@ class PT_show_fields final : public PT_show_table_base {
 
  public:
   PT_show_fields(const POS &pos, Show_cmd_type show_cmd_type,
-                 Table_ident *table, const LEX_STRING &wild)
-      : PT_show_table_base(pos, SQLCOM_SHOW_FIELDS, table, wild, nullptr),
-        m_show_cmd_type(show_cmd_type) {}
-
-  PT_show_fields(const POS &pos, Show_cmd_type show_cmd_type,
-                 Table_ident *table_ident, Item *where = nullptr)
-      : PT_show_table_base(pos, SQLCOM_SHOW_FIELDS, table_ident, NULL_STR,
-                           where),
+                 Table_ident *table, LEX_STRING opt_wild = {},
+                 Item *opt_where = nullptr)
+      : PT_show_table_base(pos, SQLCOM_SHOW_FIELDS, table, opt_wild, opt_where),
         m_show_cmd_type(show_cmd_type) {}
 
   Sql_cmd *make_cmd(THD *thd) override;
@@ -3972,6 +4006,23 @@ class PT_alter_table_set_default final : public PT_alter_table_action {
  private:
   const char *m_name;
   Item *m_expr;
+};
+
+class PT_alter_table_column_visibility final : public PT_alter_table_action {
+  typedef PT_alter_table_action super;
+
+ public:
+  PT_alter_table_column_visibility(const char *col_name, bool is_visible)
+      : super(Alter_info::ALTER_COLUMN_VISIBILITY),
+        m_alter_column(col_name, is_visible) {}
+
+  bool contextualize(Table_ddl_parse_context *pc) override {
+    return (super::contextualize(pc) ||
+            pc->alter_info->alter_list.push_back(&m_alter_column));
+  }
+
+ private:
+  Alter_column m_alter_column;
 };
 
 class PT_alter_table_index_visible final : public PT_alter_table_action {

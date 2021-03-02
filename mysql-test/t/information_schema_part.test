@@ -169,6 +169,7 @@ INSERT INTO t1 SELECT NULL, 3
 --echo # This SELECT caches the cardinality, as there is non cached yet.
 --echo # We expect a non-zero cardinality value, as SE cannot provide
 --echo # latest value, without the call to ANALYZE TABLE.
+--sorted_result
 SELECT TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA INDEX_NAME, SEQ_IN_INDEX,
        COLUMN_NAME, COLLATION, IF(CARDINALITY > 0, "non-zero", "zero"),
        SUB_PART PACKED, NULLABLE, INDEX_TYPE, COMMENT, INDEX_COMMENT,
@@ -182,6 +183,7 @@ SELECT TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA INDEX_NAME, SEQ_IN_INDEX,
 --echo # We expect a non-zero cardinality value, as SE cannot provide
 --echo # latest value, without the call to ANALYZE TABLE.
 INSERT INTO t1 SELECT NULL, 4 FROM t1;
+--sorted_result
 SELECT TABLE_NAME, NON_UNIQUE, INDEX_SCHEMA INDEX_NAME, SEQ_IN_INDEX,
        COLUMN_NAME, COLLATION, IF(CARDINALITY > 0, "non-zero", "zero"),
        SUB_PART PACKED, NULLABLE, INDEX_TYPE, COMMENT, INDEX_COMMENT,

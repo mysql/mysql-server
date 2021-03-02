@@ -23,6 +23,9 @@
 # Skip the test if MyISAM is not available
 --source include/have_myisam.inc
 
+# The hypergraph optimizer does not support safe limits.
+--source include/not_hypergraph.inc
+
 --echo ** Setup **
 --echo
 #

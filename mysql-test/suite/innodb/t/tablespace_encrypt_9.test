@@ -101,6 +101,78 @@ let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLU
 --echo # Server should have restarted properly.
 SELECT * from test.t1 limit 10;
 
+--echo #
+--echo # Bug#30888919 : [INNODB] ASSERTION FAILURE:SPACE->ENCRYPTION_OP_IN_PROGRESS == NONE
+--echo #
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+--echo ############################################################
+--echo # ALTER TABLESPACE :      Unencrypted => Encrypted         #
+--echo #                         (crash at page 10)               #
+--echo ############################################################
+
+--echo # Connection con1:
+connect (con1,localhost,root,,);
+connection con1;
+let $SAVED_CON_ID = `SELECT connection_id();`;
+--echo # Set Encryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+--echo # Encrypt the tablespace. It will cause crash.
+--source include/expect_crash.inc
+--error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
+--echo # Restart after crash with sleep_resume_alter_encrypt to make resume
+--echo # thread to sleep.
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=d,sleep_resume_alter_encrypt;
+--source include/start_mysqld_no_echo.inc
+
+--echo # Connection con2:
+connect (con2,localhost,root,,);
+connection con2;
+--echo # Check that this connection id is same as of the one which was trying
+--echo # to encrypt the tablespace before crash.
+let $CUR_CON_ID = `SELECT connection_id();`;
+if ($CUR_CON_ID == $SAVED_CON_ID) {
+  --echo Connectin ids are same.
+}
+if ($CUR_CON_ID != $SAVED_CON_ID) {
+  --echo Connectin ids are not same.
+}
+
+# Run a DDL with this connection. At post DDL it will remove DDL Log records.
+CREATE TABLESPACE temp_ts ADD DATAFILE 'temp_ts.ibd';
+
+--echo # connection con3
+connect (con3,localhost,root,,);
+connection con3;
+SELECT connection_id();
+--echo # Run a DDL with this connection con3
+ALTER TABLESPACE temp_ts ENCRYPTION='Y';
+
+set global innodb_buf_flush_list_now = 1;
+
+--echo # Now restart without sleep_resume_alter_encrypt.
+# NOTE : resume processing for connection con1 wouldn't have finished yet and
+#        should be tried again in next restart.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+--source include/kill_and_restart_mysqld.inc
+
+--echo # Wait for Encryption processing to finish in background thread
+let $wait_condition = SELECT ENCRYPTION = 'Y'
+        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+        WHERE NAME='encrypt_ts';
+--source include/wait_condition.inc
+
+--echo # After restart/recovery, check that Encryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+SELECT * FROM t1 LIMIT 10;
+
+--echo # Now try to encrypt tablespace. Without patch, an assert will be hit.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+
 --echo ###########
 --echo # Cleanup #
 --echo ###########

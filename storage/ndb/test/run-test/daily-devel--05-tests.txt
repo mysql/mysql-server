@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020 Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@ max-time: 180
 
 cmd: testFK
 args: -n TransError T1
-max-time: 180
+max-time: 240
 
 cmd: testFK
 args: -n CreateDropDuring T1
@@ -52,7 +52,7 @@ max-time: 1260
 
 cmd: testTimeout
 args: T1
-max-time: 540
+max-time: 600
 
 cmd: test_event
 args: -n Multi_NR T1

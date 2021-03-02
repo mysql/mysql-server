@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -459,12 +459,14 @@ print_undo_page(int count, void* ptr, Uint32 sz)
 	  if(g_verbosity > 3)
 	  {
 	    Dbtup::Disk_undo::Free *req= (Dbtup::Disk_undo::Free*)src;
-	    printf("[ %lld F %d %d %d gci: %d ]",
+	    printf("[ %lld F %d %d %d gci: %d, row(%u,%u) ]",
 		   lsn,
 		   req->m_file_no_page_idx >> 16,
 		   req->m_file_no_page_idx & 0xFFFF,
 		   req->m_page_no,
-		   req->m_gci);
+		   req->m_gci,
+                   src[3],
+                   src[4]);
 	  }
 	  break;
 	case File_formats::Undofile::UNDO_TUP_DROP:

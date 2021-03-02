@@ -725,13 +725,10 @@ done:
   label will be ignored (one will be generated from priority by the syslogger).
   If the message is not \0 terminated, it will be terminated.
 
-  @param           instance             instance's state
-  @param           ll                   the log line to write
-
-  @retval          >=0                  number of accepted fields, if any
-  @retval LOG_SERVICE_NOT_AVAILABLE     log was not open
-  @retval LOG_SERVICE_INVALID_ARGUMENT  could not sanitize log message
-  @retval LOG_SERVICE_MISC_ERROR        failure not otherwise specified
+  @returns       >=0                  number of accepted fields, if any
+  @returns	 LOG_SERVICE_NOT_AVAILABLE     log was not open
+  @returns 	 LOG_SERVICE_INVALID_ARGUMENT  could not sanitize log message
+  @returns 	 LOG_SERVICE_MISC_ERROR        failure not otherwise specified
 */
 DEFINE_METHOD(int, log_service_imp::run,
               (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
@@ -911,20 +908,8 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Open a new instance.
 
-  @param   ll        optional arguments
-  @param   instance  If state is needed, the service may allocate and
-                     initialize it and return a pointer to it here.
-                     (This of course is particularly pertinent to
-                     components that may be opened multiple times,
-                     such as the JSON log writer.)
-                     This state is for use of the log-service component
-                     in question only and can take any layout suitable
-                     to that component's need. The state is opaque to
-                     the server/logging framework. It must be released
-                     on close.
-
-  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
-  @retval  otherwise                  a new instance could not be created
+  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
@@ -938,12 +923,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
 /**
   Close and release an instance. Flushes any buffers.
 
-  @param   instance  State-pointer that was returned on open.
-                     If memory was allocated for this state,
-                     it should be released, and the pointer
-                     set to nullptr.
-
-  @retval  LOG_SERVICE_SUCCESS
+  @returns  LOG_SERVICE_SUCCESS
 */
 DEFINE_METHOD(log_service_error, log_service_imp::close,
               (void **instance MY_ATTRIBUTE((unused)))) {
@@ -953,8 +933,8 @@ DEFINE_METHOD(log_service_error, log_service_imp::close,
 /**
   Get characteristics of a log-service.
 
-  @retval  <0        an error occurred
-  @retval  >=0       characteristics (a set of log_service_chistics flags)
+  @returns  <0        an error occurred
+  @returns  >=0       characteristics (a set of log_service_chistics flags)
 */
 DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
   return LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON | LOG_SERVICE_PFS_SUPPORT;

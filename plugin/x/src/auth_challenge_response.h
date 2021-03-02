@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,8 @@ template <iface::Account_verification::Account_type Auth_type,
           typename Auth_verificator_t>
 class Sasl_challenge_response_auth : public iface::Authentication {
  public:
-  explicit Sasl_challenge_response_auth(Account_verification_handler *handler)
+  explicit Sasl_challenge_response_auth(
+      iface::Account_verification_handler *handler)
       : m_verification_handler(handler), m_state(S_starting) {}
 
   static std::unique_ptr<iface::Authentication> create(
@@ -86,7 +87,7 @@ class Sasl_challenge_response_auth : public iface::Authentication {
   }
 
  private:
-  Account_verification_handler::Unique_ptr m_verification_handler;
+  std::unique_ptr<iface::Account_verification_handler> m_verification_handler;
   iface::Authentication_info m_auth_info;
 
   enum State { S_starting, S_waiting_response, S_done, S_error } m_state;

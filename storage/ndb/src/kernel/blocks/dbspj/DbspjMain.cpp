@@ -554,8 +554,10 @@ void Dbspj::execSTTOR(Signal* signal)
   if (tphase == 1)
   {
     jam();
-    signal->theData[0] = 0;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+    signal->theData[0] = 0;  // 0 -> Start the releaseGlobal() 'thread'
+    signal->theData[1] = 0;  // 0 -> ... and sample usage statistics
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 2);
+    c_tc = (Dbtc*)globalData.getBlock(DBTC, instance());
   }
 
   if (tphase == 4)
@@ -3386,6 +3388,12 @@ Dbspj::execSCAN_FRAGREF(Signal* signal)
      << ", errorCode: " << ref->errorCode
   );
 
+  Uint32 sig_len = signal->getLength();
+  if (likely(sig_len == ScanFragRef::SignalLength_query))
+  {
+    jam();
+    scanFragHandlePtr.p->m_next_ref = ref->senderRef;
+  }
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execSCAN_FRAGREF);
   (this->*(treeNodePtr.p->m_info->m_execSCAN_FRAGREF))(signal,
                                                        requestPtr,
@@ -3400,8 +3408,10 @@ Dbspj::execSCAN_HBREP(Signal* signal)
 {
   jamEntry();
 
+  BlockReference senderRef = signal->senderBlockRef();
   Uint32 senderData = signal->theData[0];
-  //Uint32 transId[2] = { signal->theData[1], signal->theData[2] };
+  Uint32 transid1 = signal->theData[1];
+  Uint32 transid2 = signal->theData[2];
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
   m_scanfraghandle_pool.getPtr(scanFragHandlePtr, senderData);
@@ -3414,9 +3424,47 @@ Dbspj::execSCAN_HBREP(Signal* signal)
      << ", request: " << requestPtr.i
   );
 
+  if (refToMain(scanFragHandlePtr.p->m_next_ref) == V_QUERY)
+  {
+    jam();
+    /**
+     * Since we will send signal below in send_close_scan we need to
+     * save the signal data at signal reception since this is used to
+     * send SCAN_HBREP to DBTC as well.
+     */
+    scanFragHandlePtr.p->m_next_ref = senderRef;
+    if (scanFragHandlePtr.p->m_state ==
+        ScanFragHandle::SFH_SCANNING_WAIT_CLOSE)
+    {
+      jam();
+      send_close_scan(signal, scanFragHandlePtr, requestPtr);
+    }
+  }
   Uint32 ref = requestPtr.p->m_senderRef;
   signal->theData[0] = requestPtr.p->m_senderData;
+  signal->theData[1] = transid1;
+  signal->theData[2] = transid2;
   sendSignal(ref, GSN_SCAN_HBREP, signal, 3, JBB);
+}
+
+void
+Dbspj::send_close_scan(Signal *signal,
+                       Ptr<ScanFragHandle> fragPtr,
+                       Ptr<Request> requestPtr)
+{
+  fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+  ScanFragNextReq* req =
+  CAST_PTR(ScanFragNextReq, signal->getDataPtrSend());
+  req->requestInfo = 0;
+  ScanFragNextReq::setCloseFlag(req->requestInfo, 1);
+  req->transId1 = requestPtr.p->m_transId[0];
+  req->transId2 = requestPtr.p->m_transId[1];
+  req->batch_size_rows = 0;
+  req->batch_size_bytes = 0;
+  req->senderData = fragPtr.i;
+  ndbrequire(refToMain(fragPtr.p->m_next_ref) != V_QUERY);
+  sendSignal(fragPtr.p->m_next_ref, GSN_SCAN_NEXTREQ, signal,
+             ScanFragNextReq::SignalLength, JBB);
 }
 
 void
@@ -3424,7 +3472,8 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
 {
   jamEntry();
 
-  const ScanFragConf* conf = reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
+  const ScanFragConf* conf =
+    reinterpret_cast<const ScanFragConf*>(signal->getDataPtr());
 
 #ifdef DEBUG_SCAN_FRAGREQ
   ndbout_c("Dbspj::execSCAN_FRAGCONF() receiving SCAN_FRAGCONF ");
@@ -3450,6 +3499,12 @@ Dbspj::execSCAN_FRAGCONF(Signal* signal)
      << ", request: " << requestPtr.i
   );
 
+  Uint32 sig_len = signal->getLength();
+  if (likely(sig_len == ScanFragConf::SignalLength_query))
+  {
+    jam();
+    scanFragHandlePtr.p->m_next_ref = conf->senderRef;
+  }
   ndbrequire(treeNodePtr.p->m_info&&treeNodePtr.p->m_info->m_execSCAN_FRAGCONF);
   (this->*(treeNodePtr.p->m_info->m_execSCAN_FRAGCONF))(signal,
                                                         requestPtr,
@@ -4188,6 +4243,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
       jam();
       return false;
     }
+    m_allocedPages++;
   }
   else
   {
@@ -4196,6 +4252,9 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     const bool ret = list.removeFirst(ptr);
     ndbrequire(ret);
   }
+  const Uint32 usedPages = getUsedPages();
+  if (usedPages > m_maxUsedPages)
+    m_maxUsedPages = usedPages;
   return true;
 }
 
@@ -4211,22 +4270,41 @@ Dbspj::releasePages(RowBuffer &rowBuffer)
 void
 Dbspj::releaseGlobal(Signal * signal)
 {
-  Uint32 delay = 100;
-  Local_RowPage_list list(m_page_pool, m_free_page_list);
-  if (list.isEmpty())
+  // Add to statistics the max number of pages used in last 10/100ms-periode
+  if (signal->theData[1] == 0)
   {
-    jam();
-    delay = 300;
-  }
-  else
-  {
-    Ptr<RowPage> ptr;
-    list.removeFirst(ptr);
-    m_ctx.m_mm.release_page(RT_SPJ_DATABUFFER, ptr.i);
+    m_usedPagesStat.update(m_maxUsedPages);
+    m_maxUsedPages = getUsedPages();
   }
 
-  signal->theData[0] = 0;
-  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 1);
+  // Get the upper 95 percentile of max pages being used
+  const double used_mean = m_usedPagesStat.getMean();
+  const double used_upper95 = used_mean + 2*m_usedPagesStat.getStdDev();
+
+  // Free excess pages if any such held in the m_free_page_list
+  int cnt = 0;
+  Local_RowPage_list free_list(m_page_pool, m_free_page_list);
+  while (m_allocedPages > used_upper95 && !free_list.isEmpty())
+  {
+    if (++cnt > 16)  // Take realtime break
+    {
+      jam();
+      signal->theData[0] = 0;  // 0 -> releaseGlobal()
+      signal->theData[1] = 1;  // 1 -> Continue release without new sample
+      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      break;
+    }
+    Ptr<RowPage> ptr;
+    free_list.removeFirst(ptr);
+    m_ctx.m_mm.release_page(RT_SPJ_DATABUFFER, ptr.i);
+    m_allocedPages--;
+  }
+
+  // If there are many free_pages, we want the sample+release to happen faster
+  const Uint32 delay = free_list.getCount() > 16 ? 10 : 100;
+  signal->theData[0] = 0;  // 0 -> releaseGlobal()
+  signal->theData[1] = 0;  // 0 -> Take new UsedPages sample after 'delay'
+  sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 2);
 }
 
 Uint32
@@ -4824,8 +4902,9 @@ Dbspj::lookup_build(Build_context& ctx,
                                                 instanceNo, getOwnNodeId());
 #else
       treeNodePtr.p->m_send.m_ref =
-        numberToRef(DBLQH, getInstanceKey(src->tableSchemaVersion & 0xFFFF,
-                                          src->fragmentData & 0xFFFF),
+        numberToRef(get_query_block_no(getOwnNodeId()),
+                    getInstance(src->tableSchemaVersion & 0xFFFF,
+                                src->fragmentData & 0xFFFF),
                     getOwnNodeId());
 #endif
 
@@ -5118,7 +5197,28 @@ Dbspj::lookup_send(Signal* signal,
       // number wrapped
       ndbrequire(requestPtr.p->m_lookup_node_data[Tnode] != 0);
     }
-
+    Uint32 blockNo = refToMain(ref);
+    if (blockNo == V_QUERY)
+    {
+      Uint32 instance_no = refToInstance(ref);
+      if (LqhKeyReq::getNoDiskFlag(req->requestInfo))
+      {
+        if (Tnode == getOwnNodeId() &&
+            globalData.ndbMtQueryThreads > 0)
+        {
+          jam();
+          ref = get_lqhkeyreq_ref(&c_tc->m_distribution_handle, instance_no);
+        }
+      }
+      else
+      {
+        /**
+         * We need to put back DBLQH as receiving block number as query
+         * thread for the moment cannot handle disk data requests.
+         */
+        ref = numberToRef(DBLQH, instance_no, Tnode);
+      }
+    }
     sendSignal(ref, GSN_LQHKEYREQ, signal,
                NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
                JBB, &handle);
@@ -5913,7 +6013,7 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
   const Uint32 err = signal->theData[0] ? signal->theData[1] : 0;
   Uint32 Tdata2 = conf->reqinfo;
   Uint32 nodeId = conf->nodes[0];
-  Uint32 instanceKey = (Tdata2 >> 24) & 127;
+  Uint32 instanceKey = conf->instanceKey;
 
   DEBUG("HASH to nodeId:" << nodeId << ", instanceKey:" << instanceKey);
 
@@ -5959,7 +6059,9 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 
   dst.fragId = conf->fragId;
   dst.fragDistKey = (Tdata2 >> 16) & 255;
-  dst.receiverRef = numberToRef(DBLQH, instanceKey, nodeId);
+  dst.receiverRef = numberToRef(get_query_block_no(nodeId),
+                                getInstanceNo(nodeId, instanceKey),
+                                nodeId);
 
   return 0;
 
@@ -6188,18 +6290,21 @@ Dbspj::scanFrag_build(Build_context& ctx,
             jam();
             Ptr<ScanFragHandle> fragPtr;
             const Uint32 fragId  = signal->theData[variableLen++];
-            const Uint32 ref = numberToRef(DBLQH,
-                                           getInstanceKey(req->tableId, fragId),
-                                           getOwnNodeId());
+            const Uint32 ref =
+              numberToRef(get_query_block_no(getOwnNodeId()),
+                          getInstance(req->tableId,fragId),
+                          getOwnNodeId());
 
             DEBUG("Scan build, fragId: " << fragId << ", ref: " << ref);
 
             if (!ERROR_INSERTED_CLEAR(17004) &&
-                likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
+                likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena,
+                                                   fragPtr)))
             {
               fragPtr.p->init(fragId, readBackup);
               fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
               fragPtr.p->m_ref = ref;
+              fragPtr.p->m_next_ref = ref;
               list.addLast(fragPtr);
             }
             else
@@ -6217,8 +6322,8 @@ Dbspj::scanFrag_build(Build_context& ctx,
           data.m_fragCount = 1;
 
           const Uint32 ref =
-            numberToRef(DBLQH,
-                        getInstanceKey(req->tableId, req->fragmentNoKeyLen),
+            numberToRef(get_query_block_no(getOwnNodeId()),
+                        getInstance(req->tableId, req->fragmentNoKeyLen),
                         getOwnNodeId());
 
           if (!ERROR_INSERTED_CLEAR(17004) &&
@@ -6228,6 +6333,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
             fragPtr.p->init(req->fragmentNoKeyLen, readBackup);
             fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
             fragPtr.p->m_ref = ref;
+            fragPtr.p->m_next_ref = ref;
             list.addLast(fragPtr);
           }
           else
@@ -6631,6 +6737,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
 
       fragPtr.p->m_fragId = tmp.fragId;
       fragPtr.p->m_ref = tmp.receiverRef;
+      fragPtr.p->m_next_ref = tmp.receiverRef;
       ndbassert(data.m_fragCount == 1);
     }
     else if (fragCount == 1)
@@ -6782,7 +6889,8 @@ Dbspj::scanFrag_sendDihGetNodesReq(Signal* signal,
         jamEntry();
         /* Node cnt from DIH ignores primary, presumably to fit in 2 bits */
         Uint32 cnt = (conf->reqinfo & 3) + 1;
-        Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
+        Uint32 instanceKey = conf->instanceKey;
+        ndbrequire(instanceKey > 0);
         NodeId nodeId = conf->nodes[0];
         if (nodeId != getOwnNodeId() &&
             fragPtr.p->m_readBackup)
@@ -6808,7 +6916,12 @@ Dbspj::scanFrag_sendDihGetNodesReq(Signal* signal,
             }
           }
         }
-        fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, nodeId);
+        Uint32 instanceNo = getInstanceNo(nodeId, instanceKey);
+        Uint32 blockNo = get_query_block_no(nodeId);
+        fragPtr.p->m_ref = numberToRef(blockNo,
+                                       instanceNo,
+                                       nodeId);
+        fragPtr.p->m_next_ref = fragPtr.p->m_ref;
         /**
          * For Fully replicated tables we can change the fragment id to a local
          * fragment as part of DIGETNODESREQ. So set it again here.
@@ -6966,6 +7079,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
        * TODO: Also double check table-reorg
        */
       fragPtr.p->m_ref = tmp.receiverRef;
+      fragPtr.p->m_next_ref = tmp.receiverRef;
     }
     else
     {
@@ -7386,7 +7500,7 @@ Dbspj::scanFrag_send(Signal* signal,
         continue;
       }
 
-      const Uint32 ref = fragPtr.p->m_ref;
+      Uint32 ref = fragPtr.p->m_ref;
 
       if (noOfFrags==1 && !prune &&
           data.m_frags_not_started == data.m_fragCount &&
@@ -7551,11 +7665,12 @@ Dbspj::scanFrag_send(Signal* signal,
       }
 #endif
 
+      Uint32 nodeId = refToNode(ref);
       if (!ScanFragReq::getRangeScanFlag(req->requestInfo))
       {
         c_Counters.incr_counter(CI_LOCAL_TABLE_SCANS_SENT, 1);
       }
-      else if (refToNode(ref) == getOwnNodeId())
+      else if (nodeId == getOwnNodeId())
       {
         c_Counters.incr_counter(CI_LOCAL_RANGE_SCANS_SENT, 1);
       }
@@ -7583,6 +7698,148 @@ Dbspj::scanFrag_send(Signal* signal,
         req->schemaVersion++;
       }
 
+      Uint32 instance_no = refToInstance(ref);
+      if (ScanFragReq::getNoDiskFlag(req->requestInfo))
+      {
+        if (nodeId == getOwnNodeId())
+        {
+          if (globalData.ndbMtQueryThreads > 0)
+          {
+            /**
+             * ReadCommittedFlag is always set in DBSPJ when Query threads are
+             * used.
+             *
+             * We have retrieved the block reference from fragPtr.p->m_ref.
+             * This block reference might be reused for multiple scans, thus
+             * we cannot update it. However we need to ensure that SCAN_NEXTREQ
+             * is sent to the same block that this signal is sent to. This is
+             * taken care of when SCAN_FRAGCONF/SCAN_FRAGREF is returned. In
+             * this return message we get the block reference of the DBLQH/
+             * DBQLQH that sent the signal. We store this value in m_next_ref
+             * on the fragment record.
+             *
+             * Since the scheduling to the query thread happens here we will
+             * set m_next_ref already here and have no need to wait for return
+             * signal to set m_next_ref.
+             *
+             * m_next_ref is used in sending SCAN_NEXTREQ always, since this
+             * must be sent after receiving a SCAN_FRAGCONF/SCAN_FRAGREF
+             * signal the m_next_ref should always be set to something
+             * proper.
+             *
+             * This way of handling things means that we are able to schedule
+             * the SCAN_FRAGREQ dynamically each time we send SCAN_FRAGREQ
+             * and thus don't have to care what previous SCAN_FRAGREQ's did
+             * even though they were part of the same SQL query and even the
+             * same pushdown join part.
+             *
+             * We need to set the query thread flag since this ensures that
+             * the query thread use shared access to the fragment.
+             */
+            jam();
+            ref = get_scan_fragreq_ref(&c_tc->m_distribution_handle,
+                                       instance_no);
+            fragPtr.p->m_next_ref = ref;
+          }
+          else
+          {
+            jam();
+            /**
+             * We are not using query threads in this node, we can set
+             * m_next_ref immediately, we can also set m_ref to the proper
+             * DBLQH location since there is no flexible scheduling without
+             * query threads.
+             *
+             * There is no need to set the query thread flag here since we
+             * already know the location where SCAN_FRAGREQ is executed.
+             */
+            ref = numberToRef(DBLQH, instance_no, nodeId);
+            fragPtr.p->m_ref = ref;
+            fragPtr.p->m_next_ref = ref;
+          }
+        }
+        else
+        {
+          Uint32 num_query_threads = getNodeInfo(nodeId).m_query_threads;
+          if (num_query_threads > 0)
+          {
+            /**
+             * The message is sent to a remote node id using query threads.
+             * The scheduling of this signal to a receiver will be made by
+             * the receiver thread in the receiving node. Thus we don't know
+             * which block instance that will execute this signal at this
+             * point in time. We set the Query thread flag to ensure that
+             * the receiver will return his block reference in subsequent
+             * SCAN_FRAGCONF/SCAN_FRAGREF signals.
+             *
+             * It is ok to send this flag to old nodes as well since they will
+             * simply ignore it. It is also ok to send it even if the receiver
+             * doesn't use query threads since the only action it will incur is
+             * that it will add the reference of the sender in the SCAN_FRAGCONF
+             * and SCAN_FRAGREF signals.
+             */
+            jam();
+            Uint32 signal_size = 0;
+            for (Uint32 i = 0; i < handle.m_cnt; i++)
+            {
+              signal_size += handle.m_ptr[i].sz;
+            }
+            signal_size += NDB_ARRAY_SIZE(data.m_scanFragReq);
+            if (signal_size <= MAX_SIZE_SINGLE_SIGNAL)
+            {
+              jam();
+              /* Single signals can be sent to virtual blocks. */
+              fragPtr.p->m_next_ref =
+                numberToRef(V_QUERY, instance_no, nodeId);
+              ScanFragReq::setQueryThreadFlag(req->requestInfo, 1);
+            }
+            else
+            {
+              jam();
+              /**
+               * We are about to send a fragmented signal, fragmented signals
+               * cannot be handled with virtual blocks when sent to remote
+               * nodes since each signal would be independently decided where
+               * to send and thus would cause complete confusion.
+               *
+               * We avoid this by always sending to the LDM thread instance
+               * in the LDM group in this particular case.
+               */
+              ref = numberToRef(DBLQH, instance_no, nodeId);
+              fragPtr.p->m_ref = ref;
+              fragPtr.p->m_next_ref = ref;
+            }
+          }
+          else
+          {
+            /**
+             * The receiver node isn't using query threads, so we simply send
+             * it to the normal DBLQH instance.
+             */
+            jam();
+            ref = numberToRef(DBLQH, instance_no, nodeId);
+            fragPtr.p->m_ref = ref;
+            fragPtr.p->m_next_ref = ref;
+          }
+        }
+      }
+      else
+      {
+        /* Here the receiver is known, so no need to set m_next_ref to 0 */
+        jam();
+        ref = numberToRef(DBLQH, instance_no, nodeId);
+        fragPtr.p->m_ref = ref;
+        fragPtr.p->m_next_ref = ref;
+      }
+      if (!ScanFragReq::getRangeScanFlag(req->requestInfo))
+      {
+        jam();
+        /**
+         * Always TUP scans for full table scans to avoid ACC scans
+         * that would create issues with query threads.
+         */
+        ScanFragReq::setTupScanFlag(req->requestInfo, 1);
+      }
       /**
        * To reduce the copy burden we want to keep hold of the
        * AttrInfo and KeyInfo sections after sending them to 
@@ -7707,6 +7964,47 @@ Dbspj::scanFrag_execSCAN_FRAGCONF(Signal* signal,
      * We sent an explicit close request...ignore this...a close will come later
      */
     return;
+  }
+  if (state == ScanFragHandle::SFH_SCANNING_WAIT_CLOSE)
+  {
+    if (done == 0)
+    {
+      jam();
+      /**
+       * The request was aborted and we were handling the first SCAN_FRAGREQ.
+       * In this case fragPtr.p->m_next_ref was still set to 0, thus we could
+       * not send the SCAN_NEXTREQ to close the scan when the request was
+       * aborted, we had to wait for the first return signal to arrive.
+       *
+       * If the return signal is a SCAN_FRAGREF we can simply treat it as if
+       * we were in the state SFH_WAIT_CLOSE, if we are done when receiving
+       * this message we can also simply treat it as if we already were in
+       * the state SFH_WAIT_CLOSE.
+       *
+       * However when receiving this and not being done, this requires a
+       * special close signal to be sent. Now that we have received a
+       * SCAN_FRAGCONF we know the exact location of the scan block and are
+       * able to send the request now using the updated m_next_ref variable.
+       * So we send the close immediately from here.
+       *
+       * The signal we received here is ignored since the request is already
+       * aborted.
+       *
+       * The reason for this special handling comes from the fact that the
+       * receiver can schedule the SCAN_FRAGREQ to many different query
+       * threads. DBSPJ only knows this location if the SCAN_FRAGREQ is
+       * sent in the same node. If it is sent to another node, the receiving
+       * node will perform the scheduling of the signal to its destination
+       * query thread or LDM thread.
+       */
+      send_close_scan(signal, fragPtr, requestPtr);
+      return;
+    }
+    else
+    {
+      jam();
+      state = fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+    }
   }
 
   requestPtr.p->m_rows += rows;
@@ -7879,6 +8177,7 @@ Dbspj::scanFrag_execSCAN_FRAGREF(Signal* signal,
 
   Uint32 state = fragPtr.p->m_state;
   ndbrequire(state == ScanFragHandle::SFH_SCANNING ||
+             state == ScanFragHandle::SFH_SCANNING_WAIT_CLOSE ||
              state == ScanFragHandle::SFH_WAIT_CLOSE);
 
   fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
@@ -8048,7 +8347,8 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
 #endif
 
         req->senderData = fragPtr.i;
-        sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
+        ndbrequire(refToMain(fragPtr.p->m_next_ref) != V_QUERY);
+        sendSignal(fragPtr.p->m_next_ref, GSN_SCAN_NEXTREQ, signal,
                    ScanFragNextReq::SignalLength + 1,
                    JBB);
         sentFragCount++;
@@ -8156,6 +8456,9 @@ Dbspj::scanFrag_abort(Signal* signal,
   for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
   {
     switch(fragPtr.p->m_state){
+    case ScanFragHandle::SFH_SCANNING_WAIT_CLOSE:
+      ndbabort();
+      break;
     case ScanFragHandle::SFH_NOT_STARTED:
     case ScanFragHandle::SFH_COMPLETE:
     case ScanFragHandle::SFH_WAIT_CLOSE:
@@ -8172,10 +8475,24 @@ Dbspj::scanFrag_abort(Signal* signal,
       goto do_abort;
     do_abort:
       req->senderData = fragPtr.i;
-      sendSignal(fragPtr.p->m_ref, GSN_SCAN_NEXTREQ, signal,
-                 ScanFragNextReq::SignalLength, JBB);
-
-      fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+      if (refToMain(fragPtr.p->m_next_ref) != V_QUERY)
+      {
+        jam();
+        sendSignal(fragPtr.p->m_next_ref, GSN_SCAN_NEXTREQ, signal,
+                   ScanFragNextReq::SignalLength, JBB);
+        fragPtr.p->m_state = ScanFragHandle::SFH_WAIT_CLOSE;
+      }
+      else
+      {
+        jam();
+        /**
+         * We don't know where the SCAN_FRAGREQ is executing yet. We will
+         * be informed of this when the SCAN_FRAGCONF is received.
+         * We will handle the close sending when this signal is received.
+         */
+        ndbrequire(fragPtr.p->m_state == ScanFragHandle::SFH_SCANNING);
+        fragPtr.p->m_state = ScanFragHandle::SFH_SCANNING_WAIT_CLOSE;
+      }
       break;
     }
   }
@@ -8267,6 +8584,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       break;
     case ScanFragHandle::SFH_WAIT_CLOSE:
     case ScanFragHandle::SFH_SCANNING:
+    case ScanFragHandle::SFH_SCANNING_WAIT_CLOSE:
       jam();
       ndbrequire(data.m_frags_outstanding > 0);
       data.m_frags_outstanding--;
@@ -8279,6 +8597,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       break;
     }
     fragPtr.p->m_ref = 0;
+    fragPtr.p->m_next_ref = 0;
     fragPtr.p->m_state = ScanFragHandle::SFH_COMPLETE;
   }
 
@@ -8429,6 +8748,7 @@ Dbspj::scanFrag_checkNode(const Ptr<Request> requestPtr,
         frags_outstanding_scan++;
         break;
       case ScanFragHandle::SFH_WAIT_CLOSE:
+      case ScanFragHandle::SFH_SCANNING_WAIT_CLOSE:
         jam();
         frags_outstanding_close++;
         break;

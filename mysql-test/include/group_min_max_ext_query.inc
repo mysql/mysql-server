@@ -3,7 +3,9 @@ let $hint = ;
 let $check_query = $query $hint $cond;
 eval EXPLAIN $check_query;
 FLUSH STATUS;
+--sorted_result
 eval $check_query;
+--echo 
 --skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'handler_read%';
 --disable_query_log

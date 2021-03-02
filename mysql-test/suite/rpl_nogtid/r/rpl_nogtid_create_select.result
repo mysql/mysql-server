@@ -40,7 +40,7 @@ include/assert.inc [Make sure there is only table 't0' in schema 'test'.]
 SELECT @@GLOBAL.GTID_MODE;
 @@GLOBAL.GTID_MODE
 OFF
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=SAVED_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=SAVED_POS;
 include/start_slave.inc
 # Sync master and slave events.
 [connection master]

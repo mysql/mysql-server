@@ -6582,6 +6582,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`t1field` AS `t1field` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`t1field`,`test`.`t1`.`t1field` in ( <materialize> (/* select#2 */ select `test`.`t2`.`t2field` from `test`.`t2` where true ), <primary_index_lookup>(`test`.`t1`.`t1field` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`t1field` = `<materialized_subquery>`.`t2field`))))) and <in_optimizer>(`test`.`t1`.`t1field`,`test`.`t1`.`t1field` in ( <materialize> (/* select#3 */ select `test`.`t3`.`t3field` from `test`.`t3` where true ), <primary_index_lookup>(`test`.`t1`.`t1field` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`t1field` = `<materialized_subquery>`.`t3field`))))))
 
+This line is only in place to help --skip_if_hypergraph diffing some more.
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where; Using index
@@ -7179,6 +7181,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,`test`.`t1`.`EMPNUM` in ( <materialize> (/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`PNUM`,`test`.`t3`.`PNUM` in ( <materialize> (/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where (`test`.`t2`.`PTYPE` = 'Design') ), <primary_index_lookup>(`test`.`t3`.`PNUM` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`PNUM` = `<materialized_subquery>`.`PNUM`))))) ), <primary_index_lookup>(`test`.`t1`.`EMPNUM` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`EMPNUM` = `<materialized_subquery>`.`EMPNUM`)))))
 
+This line is only in place to help --skip_if_hypergraph diffing some more.
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
@@ -7221,6 +7225,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,`test`.`t1`.`EMPNUM` in ( <materialize> (/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`PNUM`,`test`.`t3`.`PNUM` in ( <materialize> (/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where (`test`.`t2`.`PTYPE` = 'Design') ), <primary_index_lookup>(`test`.`t3`.`PNUM` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`PNUM` = `<materialized_subquery>`.`PNUM`))))) ), <primary_index_lookup>(`test`.`t1`.`EMPNUM` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`EMPNUM` = `<materialized_subquery>`.`EMPNUM`)))))
 
+This line is only in place to help --skip_if_hypergraph diffing some more.
+
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
@@ -7261,6 +7267,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`EMPNUM`,`test`.`t1`.`EMPNUM` in ( <materialize> (/* select#2 */ select `test`.`t3`.`EMPNUM` from `test`.`t3` where <in_optimizer>(`test`.`t3`.`PNUM`,`test`.`t3`.`PNUM` in ( <materialize> (/* select#3 */ select `test`.`t2`.`PNUM` from `test`.`t2` where (`test`.`t2`.`PTYPE` = 'Design') ), <primary_index_lookup>(`test`.`t3`.`PNUM` in <temporary table> on <auto_distinct_key> where ((`test`.`t3`.`PNUM` = `<materialized_subquery>`.`PNUM`))))) ), <primary_index_lookup>(`test`.`t1`.`EMPNUM` in <temporary table> on <auto_distinct_key> where ((`test`.`t1`.`EMPNUM` = `<materialized_subquery>`.`EMPNUM`)))))
+
+This line is only in place to help --skip_if_hypergraph diffing some more.
 
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

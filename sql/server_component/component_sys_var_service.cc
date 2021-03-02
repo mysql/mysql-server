@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "mysql/components/service_implementation.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/component_sys_var_service.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -47,7 +48,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
@@ -110,21 +110,6 @@ int mysql_add_sysvar(sys_var *first) {
   return 0;
 }
 
-/**
-  Register system variables.
-
-  @param component_name Name of the component
-  @param var_name Name of the variable
-  @param flags tells about the variable type
-  @param comment variable comment information
-  @param check_func trigger function to be called at Check time
-  @param update_func trigger function to be called at Update time
-  @param check_arg type defined check constraints block
-  @param variable_value place holder for variable value
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                    (const char *component_name, const char *var_name, int flags,
                     const char *comment, mysql_sys_var_check_func check_func,
@@ -459,19 +444,6 @@ const char *get_variable_value(sys_var *system_var, char *val_buf,
   return val_buf;
 }
 
-/**
-  Get the system variable value from the global structure.
-
-  @param component_name Name of the component
-  @param var_name Name of the variable
-  @param[in,out] val On input: a buffer to hold the value. On output a pointer
-  to the value.
-  @param[in,out] out_length_of_val On input: size of longest string that the
-  buffer can contain. On output the length of the copied string.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
                    (const char *component_name, const char *var_name,
                     void **val, size_t *out_length_of_val)) {
@@ -504,15 +476,6 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::get_variable,
   return true;
 }
 
-/**
-  Unregister system variables.
-
-  @param component_name Name of the component
-  @param var_name Variable name
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::unregister_variable,
                    (const char *component_name, const char *var_name)) {
   try {

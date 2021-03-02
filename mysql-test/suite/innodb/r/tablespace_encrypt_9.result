@@ -65,6 +65,69 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 SOME VALUES
+#
+# Bug#30888919 : [INNODB] ASSERTION FAILURE:SPACE->ENCRYPTION_OP_IN_PROGRESS == NONE
+#
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+############################################################
+# ALTER TABLESPACE :      Unencrypted => Encrypted         #
+#                         (crash at page 10)               #
+############################################################
+# Connection con1:
+# Set Encryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Restart after crash with sleep_resume_alter_encrypt to make resume
+# thread to sleep.
+# Connection con2:
+# Check that this connection id is same as of the one which was trying
+# to encrypt the tablespace before crash.
+Connectin ids are same.
+CREATE TABLESPACE temp_ts ADD DATAFILE 'temp_ts.ibd';
+# connection con3
+SELECT connection_id();
+connection_id()
+10
+# Run a DDL with this connection con3
+ALTER TABLESPACE temp_ts ENCRYPTION='Y';
+set global innodb_buf_flush_list_now = 1;
+# Now restart without sleep_resume_alter_encrypt.
+# Kill and restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
+# Wait for Encryption processing to finish in background thread
+# After restart/recovery, check that Encryption was roll-forward
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+# Now try to encrypt tablespace. Without patch, an assert will be hit.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 ###########
 # Cleanup #
 ###########

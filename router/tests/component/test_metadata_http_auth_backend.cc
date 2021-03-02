@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2020, 2020, Oracle and/or its affiliates.
+Copyright (c) 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -347,7 +347,7 @@ TEST_F(BasicMetadataHttpAuthTest, MetadataHttpAuthDefaultConfig) {
                     cluster_node_port, false, 0, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
-  ASSERT_NO_FATAL_FAILURE(launch_router(kMetadataCacheSectionBase));
+  launch_router(kMetadataCacheSectionBase);
 
   ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_server_port));
   EXPECT_GT(wait_for_rest_auth_query(2, cluster_http_port), 0);
@@ -495,8 +495,8 @@ TEST_F(FileAuthBackendWithMetadataAuthSettings, MixedBackendSettings) {
       get_metadata_cache_section(kTTL, kAuthCacheTTL, kAuthCacheRefreshRate);
   // It should be possible to launch router with backend=file and with
   // additional metadata_cache auth settings
-  ASSERT_NO_FATAL_FAILURE(launch_router(metadata_cache_section));
-  ASSERT_NO_FATAL_FAILURE(wait_for_port_ready(router_port));
+  launch_router(metadata_cache_section);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
 }
 
 class InvalidMetadataHttpAuthTimersTest
@@ -511,7 +511,6 @@ TEST_P(InvalidMetadataHttpAuthTimersTest, InvalidMetadataHttpAuthTimers) {
   auto &router =
       launch_router(kMetadataCacheSectionBase + GetParam(), EXIT_FAILURE, -1s);
   check_exit_code(router, EXIT_FAILURE);
-  EXPECT_THAT(router.exit_code(), testing::Ne(0));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -538,9 +537,8 @@ TEST_P(ValidMetadataHttpAuthTimersTest, ValidMetadataHttpAuthTimers) {
                     cluster_node_port, false, 0, view_id);
 
   SCOPED_TRACE("// Launch the router with the initial state file");
-  ASSERT_NO_FATAL_FAILURE(
-      launch_router(kMetadataCacheSectionBase + "ttl=0.001\n" + GetParam()));
-  ASSERT_NO_FATAL_FAILURE(wait_for_port_ready(router_port));
+  launch_router(kMetadataCacheSectionBase + "ttl=0.001\n" + GetParam());
+  ASSERT_TRUE(wait_for_port_ready(router_port));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -565,7 +563,7 @@ TEST_P(MetadataHttpAuthTestCustomTimers, MetadataHttpAuthCustomTimers) {
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(kMetadataCacheSectionBase + GetParam());
 
-  wait_for_port_ready(router_port);
+  ASSERT_TRUE(wait_for_port_ready(router_port));
   ASSERT_TRUE(wait_for_rest_endpoint_ready(uri, http_server_port));
   EXPECT_GT(wait_for_rest_auth_query(2, cluster_http_port), 0);
 

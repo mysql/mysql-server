@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -212,8 +212,8 @@ DynArr256::get_dirty(Uint32 pos) const
 {
   Uint32 sz = m_head.m_sz;
   Uint32 ptrI = m_head.m_ptr_i;
-  DA256Page * memroot = m_pool.m_memroot;
-  Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;
+  DA256Page * memroot = m_pool->m_memroot;
+  Uint32 type_id = (~m_pool->m_type_id) & 0xFFFF;
   
   if (unlikely(pos >= g_max_sizes[sz]))
   {
@@ -260,8 +260,8 @@ Uint32 *
 DynArr256::set(Uint32 pos)
 {
   Uint32 sz = m_head.m_sz;
-  Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;  
-  DA256Page * memroot = m_pool.m_memroot;
+  Uint32 type_id = (~m_pool->m_type_id) & 0xFFFF;
+  DA256Page * memroot = m_pool->m_memroot;
   
   if (unlikely(pos >= g_max_sizes[sz]))
   {
@@ -294,10 +294,10 @@ DynArr256::set(Uint32 pos)
       if(ERROR_INSERTED(3005))
       {
         // Demonstrate Bug#25851801 7.6.2(DMR2):: COMPLETE CLUSTER CRASHED DURING UNIQUE KEY CREATION ...
-        // Simulate m_pool.seize() failed.
+        // Simulate m_pool->seize() failed.
         return 0;
       }
-      if (unlikely((ptrI = m_pool.seize()) == RNIL))
+      if (unlikely((ptrI = m_pool->seize()) == RNIL))
       {
 	return 0;
       }
@@ -394,7 +394,7 @@ DynArr256::expand(Uint32 pos)
   sz =  m_head.m_sz;
   for (; pos >= g_max_sizes[sz]; sz++)
   {
-    Uint32 ptrI = m_pool.seize();
+    Uint32 ptrI = m_pool->seize();
     if (unlikely(ptrI == RNIL))
       goto err;
     m_head.m_no_of_nodes++;
@@ -417,7 +417,7 @@ DynArr256::expand(Uint32 pos)
   
 err:
   for (i = 0; i<idx; i++)
-    m_pool.release(alloc[i]);
+    m_pool->release(alloc[i]);
 
   m_head.m_no_of_nodes -= idx;
   assert(m_head.m_no_of_nodes >= 0);
@@ -448,8 +448,8 @@ DynArr256::init(ReleaseIterator &iter)
 Uint32
 DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
 {
-  Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;
-  DA256Page * memroot = m_pool.m_memroot;
+  Uint32 type_id = (~m_pool->m_type_id) & 0xFFFF;
+  DA256Page * memroot = m_pool->m_memroot;
 
   for (;;)
   {
@@ -496,7 +496,7 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
       assert(iter.m_ptr_i[iter.m_sz] == m_head.m_ptr_i);
       assert(iter.m_ptr_i[iter.m_sz + 1] == RNIL);
       iter.m_ptr_i[iter.m_sz] = is_value ? RNIL : *refPtr;
-      m_pool.release(m_head.m_ptr_i);
+      m_pool->release(m_head.m_ptr_i);
       m_head.m_sz --;
       m_head.m_no_of_nodes--;
       assert(m_head.m_no_of_nodes >= 0);
@@ -511,7 +511,7 @@ DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
       {
         if (ptrI != RNIL)
         {
-          m_pool.release(ptrI);
+          m_pool->release(ptrI);
           m_head.m_no_of_nodes--;
           assert(m_head.m_no_of_nodes >= 0);
           *refPtr = iter.m_ptr_i[iter.m_sz+1] = RNIL;
@@ -1151,7 +1151,7 @@ main(int argc, char** argv)
   pool.init(0x2001, pc);
 
   DynArr256::Head head;
-  DynArr256 arr(pool, head);
+  DynArr256 arr(& pool, head);
 
 #ifdef TEST_DYNARR256
   if (argc == 1)

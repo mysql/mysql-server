@@ -158,8 +158,20 @@
   performance_schema tables changed in MySQL 8.0.22
   - WL#9090 created processlist
   - WL#13681 created error_log
+
+  80023:
+
+  performance_schema tables changed in MySQL 8.0.23
+  - WL#12819 replication_applier_configuration, added column
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE
+  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+  - performance_schema.replication_asynchronous_connection_failover,
+  added column MANAGED_NAME
+  - added table
+  performance_schema.replication_asynchronous_connection_failover_managed
+
 */
 
-static const uint PFS_DD_VERSION = 80022;
+static const uint PFS_DD_VERSION = 80023;
 
 #endif /* PFS_DD_VERSION_H */

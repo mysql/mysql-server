@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -66,8 +66,11 @@ enum class Log_Type : uint32_t {
   /** Alter Encrypt a tablespace */
   ALTER_ENCRYPT_TABLESPACE_LOG,
 
+  /** Alter Unencrypt a tablespace */
+  ALTER_UNENCRYPT_TABLESPACE_LOG,
+
   /** Biggest log type */
-  BIGGEST_LOG = ALTER_ENCRYPT_TABLESPACE_LOG
+  BIGGEST_LOG = ALTER_UNENCRYPT_TABLESPACE_LOG
 };
 
 /** DDL log record */
@@ -143,6 +146,14 @@ class DDL_Record {
   /** If this record can be deleted.
   @return true if record is deletable. */
   bool get_deletable() const { return (m_deletable); }
+
+  /** Get encryption operation type */
+  encryption_op_type get_encryption_type() const {
+    ut_ad(get_type() == Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG ||
+          get_type() == Log_Type::ALTER_UNENCRYPT_TABLESPACE_LOG);
+    return get_type() == Log_Type::ALTER_ENCRYPT_TABLESPACE_LOG ? ENCRYPTION
+                                                                : DECRYPTION;
+  }
 
   /** Get the old file path/name present in the DDL log record.
   @return old file path/name. */
@@ -426,15 +437,24 @@ class Log_DDL {
   dberr_t write_rename_space_log(space_id_t space_id, const char *old_file_path,
                                  const char *new_file_path);
 
+  /** Find alter encrypt record for the tablespace.
+  @param[in]	space_id	space_id
+  return log record if exists, null otherwise */
+  DDL_Record *find_alter_encrypt_record(space_id_t space_id);
+
   /** Write an ALTER ENCRYPT Tablespace DDL log record
   @param[in]	space_id	tablespace id
+  @param[in]	type		encryption operation type
+  @param[out]	existing_rec	alter_encrypt ddl record, nullptr if none
   @return DB_SUCCESS or error */
-  dberr_t write_alter_encrypt_space_log(space_id_t space_id);
+  dberr_t write_alter_encrypt_space_log(space_id_t space_id,
+                                        encryption_op_type type,
+                                        DDL_Record *existing_rec);
 
   /** Write a DROP log to indicate the entry in innodb_table_metadata
   should be removed for specified table
   @param[in,out]	trx		transaction
-  @param[in]	table_id	table ID
+  @param[in]		table_id	table ID
   @return DB_SUCCESS or error */
   dberr_t write_drop_log(trx_t *trx, const table_id_t table_id);
 
@@ -469,14 +489,6 @@ class Log_DDL {
   should be recovered before calling this function.
   @return	DB_SUCCESS or error */
   dberr_t recover();
-
-  /** Post tablespace (un)encryption recovery. Delete ddl logs
-  entry for the tablespaces for which (un)encyrption operation
-  was resumed.
-  NOTE: This is called by background thread doing resume (un)encryption.
-  param[in]	records		list of records to be deleted
-  @return InnoDB error code */
-  dberr_t post_ts_encryption(DDL_Records &records);
 
   /** Is it in ddl recovery in server startup.
   @return	true if it's in ddl recover */
@@ -539,13 +551,18 @@ class Log_DDL {
   @param[in]	id		log id
   @param[in]	thread_id	thread id
   @param[in]	space_id	tablespace id
+  @param[in]	type		encryption operation type
+  @param[out]	existing_rec	alter_encrypt ddl record, nullptr if none
   @return DB_SUCCESS or error */
   dberr_t insert_alter_encrypt_space_log(uint64_t id, ulint thread_id,
-                                         space_id_t space_id);
+                                         space_id_t space_id,
+                                         encryption_op_type type,
+                                         DDL_Record *existing_rec);
 
   /** Replay an ALTER ENCRYPT TABLESPACE log record
-  @param[in]	space_id	tablespace id */
-  void replay_alter_encrypt_space_log(space_id_t space_id);
+  @param[in]	record		DDL Record
+  @return DB_SUCCESS or error */
+  dberr_t replay_alter_encrypt_space_log(DDL_Record &record);
 
   /** Insert a DROP log record
   @param[in,out]	trx		transaction

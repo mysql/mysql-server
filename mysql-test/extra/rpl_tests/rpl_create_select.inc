@@ -94,7 +94,7 @@ SELECT @@GLOBAL.GTID_MODE;
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` ) 
 {
   --replace_result $_saved_pos SAVED_POS
-  --eval CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$_saved_pos
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$_saved_pos
 }
 --source include/start_slave.inc
 

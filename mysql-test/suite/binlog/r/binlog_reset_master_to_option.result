@@ -28,7 +28,7 @@ RESET MASTER TO @;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@' at line 1
 CREATE USER user1@localhost IDENTIFIED BY 'pass1';
 RESET MASTER TO 100;
-ERROR 42000: Access denied; you need (at least one of) the RELOAD privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation
 GRANT RELOAD ON *.* TO 'user1'@'localhost';
 RESET MASTER TO 100;
 include/assert.inc [Assert that filename is same in both file system and show binary logs]

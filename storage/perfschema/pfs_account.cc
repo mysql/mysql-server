@@ -615,32 +615,60 @@ void PFS_account::rebase_memory_stats() {
   }
 }
 
-void PFS_account::carry_memory_stat_delta(PFS_memory_stat_delta *delta,
-                                          uint index) {
+void PFS_account::carry_memory_stat_alloc_delta(
+    PFS_memory_stat_alloc_delta *delta, uint index) {
   PFS_memory_shared_stat *event_name_array;
   PFS_memory_shared_stat *stat;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *remaining_delta;
+  PFS_memory_stat_alloc_delta delta_buffer;
+  PFS_memory_stat_alloc_delta *remaining_delta;
 
   event_name_array = write_instr_class_memory_stats();
   stat = &event_name_array[index];
-  remaining_delta = stat->apply_delta(delta, &delta_buffer);
+  remaining_delta = stat->apply_alloc_delta(delta, &delta_buffer);
 
   if (remaining_delta == nullptr) {
     return;
   }
 
   if (m_user != nullptr) {
-    m_user->carry_memory_stat_delta(remaining_delta, index);
+    m_user->carry_memory_stat_alloc_delta(remaining_delta, index);
     /* do not return, need to process m_host below */
   }
 
   if (m_host != nullptr) {
-    m_host->carry_memory_stat_delta(remaining_delta, index);
+    m_host->carry_memory_stat_alloc_delta(remaining_delta, index);
     return;
   }
 
-  carry_global_memory_stat_delta(remaining_delta, index);
+  carry_global_memory_stat_alloc_delta(remaining_delta, index);
+}
+
+void PFS_account::carry_memory_stat_free_delta(
+    PFS_memory_stat_free_delta *delta, uint index) {
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
+  PFS_memory_stat_free_delta delta_buffer;
+  PFS_memory_stat_free_delta *remaining_delta;
+
+  event_name_array = write_instr_class_memory_stats();
+  stat = &event_name_array[index];
+  remaining_delta = stat->apply_free_delta(delta, &delta_buffer);
+
+  if (remaining_delta == nullptr) {
+    return;
+  }
+
+  if (m_user != nullptr) {
+    m_user->carry_memory_stat_free_delta(remaining_delta, index);
+    /* do not return, need to process m_host below */
+  }
+
+  if (m_host != nullptr) {
+    m_host->carry_memory_stat_free_delta(remaining_delta, index);
+    return;
+  }
+
+  carry_global_memory_stat_free_delta(remaining_delta, index);
 }
 
 PFS_account *sanitize_account(PFS_account *unsafe) {

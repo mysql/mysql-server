@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 847;
+const GlobalSignalNumber MAX_GSN = 849;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1211,4 +1211,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_SWITCH_MULTI_TRP_REF        846
 
 #define GSN_MEASURE_WAKEUP_TIME_ORD     847
+#define GSN_UPD_QUERY_DIST_ORD          848
+#define GSN_UPD_THR_LOAD_ORD            849
 #endif

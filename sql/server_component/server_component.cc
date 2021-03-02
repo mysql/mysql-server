@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/mysql_cond_service.h>
 #include <mysql/components/services/mysql_mutex_service.h>
 #include <mysql/components/services/mysql_psi_system_service.h>
+#include <mysql/components/services/mysql_query_attributes.h>
 #include <mysql/components/services/mysql_runtime_error_service.h>
 #include <mysql/components/services/mysql_rwlock_service.h>
 
@@ -65,6 +66,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/log.h"
 #include "sql/mysqld.h"  // srv_registry
 #include "sql/server_component/mysql_admin_session_imp.h"
+#include "sql/server_component/mysql_query_attributes_imp.h"
 #include "sql/udf_registration_imp.h"
 #include "storage/perfschema/pfs_services.h"
 #include "system_variable_source_imp.h"
@@ -315,6 +317,17 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
                              mysql_audit_api_connection_with_error)
 mysql_audit_api_connection_with_error_imp::emit END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_query_attributes_iterator)
+mysql_query_attributes_imp::create, mysql_query_attributes_imp::get_type,
+    mysql_query_attributes_imp::next, mysql_query_attributes_imp::get_name,
+    mysql_query_attributes_imp::release END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_query_attribute_string)
+mysql_query_attributes_imp::string_get END_SERVICE_IMPLEMENTATION();
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_query_attribute_isnull)
+mysql_query_attributes_imp::isnull_get END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -407,6 +420,10 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_timestamp_v2),
     PROVIDES_SERVICE(performance_schema, pfs_plugin_column_year_v1),
     PROVIDES_SERVICE(performance_schema, psi_tls_channel_v1),
+
+    PROVIDES_SERVICE(mysql_server, mysql_query_attributes_iterator),
+    PROVIDES_SERVICE(mysql_server, mysql_query_attribute_string),
+    PROVIDES_SERVICE(mysql_server, mysql_query_attribute_isnull),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();

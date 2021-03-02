@@ -104,10 +104,13 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 analyze table t1;
 select * from t1 where a=6;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'last_query_cost';
 # Ensure value dosn't change by second status call
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'last_query_cost';
 select 1;
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'last_query_cost';
 drop table t1;
 

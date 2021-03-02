@@ -43,7 +43,6 @@
 #include "mysql/mysql_lex_string.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_rwlock.h"
 #include "mysql/service_locking.h"
 #include "mysql/service_mysql_alloc.h"

@@ -56,6 +56,7 @@
 #include "my_systime.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/psi_cond_bits.h"
@@ -65,7 +66,6 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/thread_type.h"
@@ -110,8 +110,9 @@
 #include "sql/psi_memory_key.h"  // key_memory_TABLE
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"  // RUN_HOOK
-#include "sql/rpl_rli.h"      //Relay_log_information
+#include "sql/rpl_handler.h"                     // RUN_HOOK
+#include "sql/rpl_rli.h"                         //Relay_log_information
+#include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sp.h"               // Sroutine_hash_entry
 #include "sql/sp_cache.h"         // sp_cache_version
@@ -3157,6 +3158,7 @@ retry_share : {
     /* Call rebind_psi outside of the critical section. */
     DBUG_ASSERT(table->file != nullptr);
     table->file->rebind_psi();
+    table->file->ha_extra(HA_EXTRA_RESET_STATE);
 
     thd->status_var.table_open_cache_hits++;
     goto table_found;
@@ -4096,7 +4098,7 @@ bool Open_table_context::request_backoff_action(
       is not possible.
   */
   if ((action_arg == OT_BACKOFF_AND_RETRY || action_arg == OT_FIX_ROW_TYPE) &&
-      m_has_locks) {
+      (has_commit_order_manager(m_thd) || m_has_locks)) {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
     m_thd->mark_transaction_to_rollback(true);
     return true;
@@ -5964,10 +5966,17 @@ restart:
       Access to ACL table in a SELECT ... LOCK IN SHARE MODE are required
       to skip acquiring row locks. So, we use TL_READ_DEFAULT lock on ACL
       tables. This allows concurrent ACL DDL's.
+
+      Do not request SE to skip row lock if 'flags' has
+      MYSQL_OPEN_FORCE_SHARED_MDL, which indicates that this is PREPARE
+      phase. It is OK to do so since during this phase no rows will be read
+      anyway. And by doing this we avoid generation of extra warnings.
+      EXECUTION phase will request SE to skip row locks if necessary.
     */
     bool issue_warning_on_skipping_row_lock = false;
-    if (is_acl_table_in_non_LTM(tables, thd->locked_tables_mode) &&
-        tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS) {
+    if (tables->lock_descriptor().type == TL_READ_WITH_SHARED_LOCKS &&
+        !(flags & MYSQL_OPEN_FORCE_SHARED_MDL) &&
+        is_acl_table_in_non_LTM(tables, thd->locked_tables_mode)) {
       tables->set_lock({TL_READ_DEFAULT, THR_DEFAULT});
       issue_warning_on_skipping_row_lock = true;
     }
@@ -6003,8 +6012,17 @@ restart:
       goto err;
     }
 
-    // Setup lock type for read requests for ACL table in SQL statements.
-    if (set_non_locking_read_for_ACL_table(
+    /**
+      Setup lock type for read requests for ACL table in SQL statements.
+
+      Do not request SE to skip row lock if 'flags' has
+      MYSQL_OPEN_FORCE_SHARED_MDL, which indicates that this is PREPARE
+      phase. It is OK to do so since during this phase no rows will be read
+      anyway. And by doing this we avoid generation of extra warnings.
+      EXECUTION phase will request SE to skip row locks if necessary.
+    */
+    if (!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) &&
+        set_non_locking_read_for_ACL_table(
             thd, tables, issue_warning_on_skipping_row_lock)) {
       error = true;
       goto err;
@@ -8297,6 +8315,18 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
   DBUG_PRINT("info", ("operand_1: %s  operand_2: %s", table_ref_1->alias,
                       table_ref_2->alias));
 
+  /*
+    Hidden columns for functional indexes don't participate in NATURAL /
+    USING JOIN and invisible columns don't participate in NATURAL JOIN.
+    (we need to go through get_or_create_column_ref() before calling
+     this method).
+  */
+  auto is_non_participant_column = [using_fields](Field *field) {
+    return (field != nullptr &&
+            (field->is_field_for_functional_index() ||
+             ((using_fields == nullptr) && field->is_hidden_by_user())));
+  };
+
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   *found_using_fields = 0;
@@ -8307,12 +8337,8 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
     /* true if field_name_1 is a member of using_fields */
     bool is_using_column_1;
     if (!(nj_col_1 = it_1.get_or_create_column_ref(thd, leaf_1))) return true;
-    if (it_1.field() != nullptr && it_1.field()->is_hidden_from_user()) {
-      // Hidden columns for functional indexes don't participate in
-      // NATURAL JOIN, so skip it (but we need to go through
-      // get_or_create_column_ref() first).
-      continue;
-    }
+    if (is_non_participant_column(it_1.field())) continue;
+
     field_name_1 = nj_col_1->name();
     is_using_column_1 =
         using_fields && test_if_string_in_list(field_name_1, using_fields);
@@ -8333,13 +8359,9 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
       const char *cur_field_name_2;
       if (!(cur_nj_col_2 = it_2.get_or_create_column_ref(thd, leaf_2)))
         return true;
+      if (is_non_participant_column(it_2.field())) continue;
+
       cur_field_name_2 = cur_nj_col_2->name();
-      if (it_2.field() != nullptr && it_2.field()->is_hidden_from_user()) {
-        // Hidden columns for functional indexes don't participate in
-        // NATURAL JOIN, so skip it (but we need to go through
-        // get_or_create_column_ref() first).
-        continue;
-      }
       DBUG_PRINT("info",
                  ("cur_field_name_2=%s.%s",
                   cur_nj_col_2->table_name() ? cur_nj_col_2->table_name() : "",
@@ -8921,11 +8943,11 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
       return true; /* purecov: inspected */
     }
 
-    // Check that we don't have a field that is hidden from users. This should
+    // Check that we don't have a field that is hidden sytem field. This should
     // be caught in Item_field::fix_fields.
     DBUG_ASSERT(
         item->type() != Item::FIELD_ITEM ||
-        !static_cast<const Item_field *>(item)->field->is_hidden_from_user());
+        !static_cast<const Item_field *>(item)->field->is_hidden_by_system());
 
     if (!ref.is_null()) {
       ref[0] = item;
@@ -9246,24 +9268,28 @@ bool insert_fields(THD *thd, SELECT_LEX *select_lex, const char *db_name,
       if (!item) return true; /* purecov: inspected */
       DBUG_ASSERT(item->fixed);
 
-      bool is_hidden_from_user = false;
       if (item->type() == Item::FIELD_ITEM) {
-        Item_field *field = static_cast<Item_field *>(item);
-        is_hidden_from_user = field->field->is_hidden_from_user();
+        Item_field *field = down_cast<Item_field *>(item);
+        /*
+          If the column is hidden from users and not used in USING clause of
+          a join, do not add this column in place of '*'.
+        */
+        bool is_hidden = field->field->is_hidden();
+        is_hidden &= (tables->join_using_fields == nullptr ||
+                      !test_if_string_in_list(field->field_name,
+                                              tables->join_using_fields));
+        if (is_hidden) continue;
+
         /* cache the table for the Item_fields inserted by expanding stars */
         if (tables->cacheable_table) field->cached_table = tables;
       }
 
-      // If the column is hidden from users, do not add this column in place
-      // of '*'.
-      if (!is_hidden_from_user) {
-        if (!found) {
-          found = true;
-          **it = item; /* Replace '*' with the first found item. */
-        } else {
-          /* Add 'item' to the SELECT list, after the current one. */
-          *it = fields->insert(*it + 1, item);
-        }
+      if (!found) {
+        found = true;
+        **it = item; /* Replace '*' with the first found item. */
+      } else {
+        /* Add 'item' to the SELECT list, after the current one. */
+        *it = fields->insert(*it + 1, item);
       }
 
       /*
@@ -9803,8 +9829,8 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr,
   Field *field;
   auto value_it = VisibleFields(values).begin();
   while ((field = *ptr++) && !thd->is_error()) {
-    // Skip fields invisible to the user
-    if (field->is_hidden_from_user()) continue;
+    // Skip hidden system field.
+    if (field->is_hidden_by_system()) continue;
 
     Item *value = *value_it++;
     DBUG_ASSERT(field->table == table);

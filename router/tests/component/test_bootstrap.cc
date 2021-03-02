@@ -1248,14 +1248,22 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
 TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
   TempDirectory bootstrap_directory;
   const auto server_port = port_pool_.get_next_available();
+  const auto bootstrap_server_port = port_pool_.get_next_available();
+  const auto server_http_port = port_pool_.get_next_available();
+  const auto bootstrap_server_http_port = port_pool_.get_next_available();
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch mock server that is our metadata server for the bootstrap
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  auto &server_mock =
+      launch_mysql_server_mock(json_stmts, bootstrap_server_port, EXIT_SUCCESS,
+                               false, bootstrap_server_http_port);
+  set_mock_bootstrap_data(bootstrap_server_http_port, "test",
+                          {{"127.0.0.1", server_port}}, {2, 0, 3},
+                          "cluster-specific-id");
 
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
-      {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+      {"--bootstrap=127.0.0.1:" + std::to_string(bootstrap_server_port), "-d",
        bootstrap_directory.name(), "--conf-use-gr-notifications"});
 
   // add login hook
@@ -1264,9 +1272,11 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
 
   check_exit_code(router, EXIT_SUCCESS);
 
+  const std::string &conf_file =
+      bootstrap_directory.name() + "/mysqlrouter.conf";
   // check if the valid config option was added to the file
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory.name() + "/mysqlrouter.conf",
+      conf_file,
       [](const std::string &line) -> bool {
         return line == "use_gr_notifications=1";
       },
@@ -1275,8 +1285,34 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
   // check if valid TTL is set (with GR notifications it should be increased to
   // 60s)
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory.name() + "/mysqlrouter.conf",
+      conf_file,
       [](const std::string &line) -> bool { return line == "ttl=60"; }, 0ms));
+
+  // auth_cache_refresh_interval should be adjusted to the ttl value
+  EXPECT_TRUE(find_in_file(
+      conf_file,
+      [](const std::string &line) -> bool {
+        return line == "auth_cache_refresh_interval=60";
+      },
+      0ms));
+
+  // Stop the mock that was used for bootstrap
+  server_mock.send_clean_shutdown_event();
+  EXPECT_NO_THROW(server_mock.wait_for_exit());
+
+  auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
+  ASSERT_TRUE(add_line_to_config_file(conf_file, "DEFAULT", "plugin_folder",
+                                      plugin_dir));
+
+  const std::string runtime_json_stmts =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  // launch mock server that is our metadata server
+  launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
+                           server_http_port);
+  set_mock_metadata(server_http_port, "cluster-specific-id", {server_port});
+
+  ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
 }
 
 /**
@@ -1287,15 +1323,24 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
 TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
   TempDirectory bootstrap_directory;
   const auto server_port = port_pool_.get_next_available();
+  const auto bootstrap_server_port = port_pool_.get_next_available();
+  const auto server_http_port = port_pool_.get_next_available();
+  const auto bootstrap_server_http_port = port_pool_.get_next_available();
 
-  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+  const std::string bootstrap_json_stmts =
+      get_data_dir().join("bootstrap_gr.js").str();
 
   // launch mock server that is our metadata server for the bootstrap
-  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+  auto &server_mock =
+      launch_mysql_server_mock(bootstrap_json_stmts, bootstrap_server_port,
+                               EXIT_SUCCESS, false, bootstrap_server_http_port);
+  set_mock_bootstrap_data(bootstrap_server_http_port, "test",
+                          {{"127.0.0.1", server_port}}, {2, 0, 3},
+                          "cluster-specific-id");
 
   // launch the router in bootstrap mode
   auto &router = launch_router_for_bootstrap(
-      {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+      {"--bootstrap=127.0.0.1:" + std::to_string(bootstrap_server_port), "-d",
        bootstrap_directory.name()});
 
   // add login hook
@@ -1304,9 +1349,11 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
 
   check_exit_code(router, EXIT_SUCCESS);
 
+  const std::string &conf_file =
+      bootstrap_directory.name() + "/mysqlrouter.conf";
   // check if valid config option was added to the file
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory.name() + "/mysqlrouter.conf",
+      conf_file,
       [](const std::string &line) -> bool {
         return line == "use_gr_notifications=0";
       },
@@ -1314,8 +1361,33 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
 
   // check if valid TTL is set (with no GR notifications it should be 0.5s)
   EXPECT_TRUE(find_in_file(
-      bootstrap_directory.name() + "/mysqlrouter.conf",
+      conf_file,
       [](const std::string &line) -> bool { return line == "ttl=0.5"; }, 0ms));
+
+  // auth_cache_refresh_interval should have the default value
+  EXPECT_TRUE(find_in_file(
+      conf_file,
+      [](const std::string &line) -> bool {
+        return line == "auth_cache_refresh_interval=2";
+      },
+      0ms));
+
+  // Stop the mock that was used for bootstrap
+  server_mock.send_clean_shutdown_event();
+
+  auto plugin_dir = mysql_harness::get_plugin_dir(get_origin().str());
+  ASSERT_TRUE(add_line_to_config_file(conf_file, "DEFAULT", "plugin_folder",
+                                      plugin_dir));
+
+  const std::string runtime_json_stmts =
+      get_data_dir().join("metadata_dynamic_nodes_v2_gr.js").str();
+
+  // launch mock server that is our metadata server
+  launch_mysql_server_mock(runtime_json_stmts, server_port, EXIT_SUCCESS, false,
+                           server_http_port);
+  set_mock_metadata(server_http_port, "cluster-specific-id", {server_port});
+
+  ASSERT_NO_FATAL_FAILURE(launch_router({"-c", conf_file}));
 }
 
 class ErrorReportTest : public RouterComponentBootstrapTest {};

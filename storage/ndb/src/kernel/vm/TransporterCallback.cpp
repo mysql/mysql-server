@@ -41,6 +41,7 @@
 #include <NdbOut.hpp>
 #include "TransporterCallbackKernel.hpp"
 #include <DebuggerNames.hpp>
+#include <trpman.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -249,6 +250,7 @@ void mt_set_section_chunk_size(){}
 bool
 TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
                                                Uint8 prio,
+                                               TransporterError &error_code,
                                                Uint32 * const theData,
                                                LinearSectionPtr ptr[3])
 {
@@ -322,6 +324,104 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
     secPtrI[1] = secPtr[1].i;
     secPtrI[2] = secPtr[2].i;
 
+#ifdef NDBD_MULTITHREADED
+    const Uint32 receiverBlock = blockToMain(header->theReceiversBlockNumber);
+    if (receiverBlock == V_QUERY)
+    {
+      /**
+       * Signal was sent from remote DBTC or DBSPJ containing a
+       * LQHKEYREQ or SCAN_FRAGREQ signal. These signals can be
+       * executed by any LDM or Query thread as long as they are
+       * COMMITTED READs.
+       *
+       * As reported in the paper "OLTP on Hardware Islands" in VLDB 2012
+       * one can achieve much higher throughput with execution using
+       * fine-grained shared nothing. This means here that the traditional
+       * approach of executing COMMITTED READs in the LDM owning the data is the
+       * preferred approach. What we have done to improve that here is that we
+       * have introduced a query thread. In 2020 most CPU architectures
+       * use 2 hyperthreads per CPU core. This means that we can have an LDM
+       * thread and a query thread share the same CPU core. In this manner we
+       * achieve the optimal performance for perfectly partitioned workloads.
+       *
+       * However not all workloads are perfectly partitionable. So e.g. in
+       * TPC-H there is a higher cost for complex queries to execute when
+       * all tables are fully partitioned. Many analytical schemas contain
+       * one or more data tables that contain massive amounts of data.
+       * These tablese often benefit from being fully partitioned. However
+       * smaller dimension tables often benefit from a smaller amount of
+       * partitioning.
+       *
+       * As noted in the paper above one wants to execute within a hardware
+       * island, so at least we don't want to allow the query to use a
+       * different CPU socket compared to where the owning LDM thread resides.
+       * This would significantly increase contention around the fragment
+       * lock as well as significantly increasing data movement between various
+       * CPU caches in the server.
+       *
+       * In addition if we allow the round robin to use too many CPUs we can
+       * easily create bursts of accesses to a fragment that makes too many
+       * LDM and query threads become stalled. To avoid this we set a constant
+       * limit to the round robin size. We want this size to be as big as
+       * possible to achieve best scalability for dimension tables, but at the
+       * same time we want to avoid using so many threads that we can easily
+       * become stalled.
+       *
+       * The outcome of this discussion is that we will define a number of
+       * Round Robin groups. Thus the LDM and query threads are placed into
+       * individual round robin groups.
+       *
+       * One more problem we can have is data skew. For the tables that are
+       * not fully partitioned this is solved by using the above approach
+       * to use round robin.
+       *
+       * V_QUERY is a virtual block that doesn't actually exist. They are
+       * discovered by the deliver signal module here.
+       *
+       * The responsibility to translate it is handled by the
+       * TRPMAN block instance for this receive thread.
+       * This instance receives a signal from the THRMAN instance
+       * of the rep thread with a weight that each instance should
+       * take in executing those signals. These weights are used to
+       * create a round robin array of references that is used to
+       * map these signals onto LDM threads and query threads.
+       *
+       * These weights are used both to create round robin schemas
+       * for the round robin groups as well as for the smaller group
+       * only containing one LDM thread with its companion query threads
+       * (normally only 1 query thread per LDM threads). We could foresee
+       * in the future with CPUs that employ 4 processors per CPU core that
+       * we could have more than query thread per LDM thread.
+       *
+       * TC threads has a similar array used for local LQHKEYREQ
+       * and SCAN_FRAGREQ signals. The THRMAN instance of the rep
+       * thread distributes the same weight to all receive threads
+       * and all TC threads. There is a weight for each LDM thread
+       * and query thread. The weights can be between 0 and 16
+       * where 0 means no signals will be sent to the instance and
+       * 16 means the thread will take much responsibility in
+       * handling the query load.
+       *
+       * This ensures that the LDM thread can be protected to handle
+       * the responsibility of locking queries, write queries and
+       * queries involving disk data. Thus when an LDM thread becomes
+       * overloaded we can offload query handling to other LDM threads
+       * and to query threads.
+       */
+      require(prio == JBB);
+      const Uint32 instance_no =
+        blockToInstance(header->theReceiversBlockNumber);
+      Uint32 ref = ((Trpman*)m_trpman)->distribute_signal(header, instance_no);
+      if (likely(ref != 0))
+      {
+        header->theReceiversBlockNumber = refToBlock(ref);
+        sendlocal(m_thr_no, header, theData, secPtrI);
+        return false;
+      }
+      error_code = TE_INVALID_SIGNAL;
+      return true;
+    }
+#endif
 #ifndef NDBD_MULTITHREADED
     globalScheduler.execute(header, prio, theData, secPtrI);  
 #else

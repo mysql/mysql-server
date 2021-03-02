@@ -14,7 +14,7 @@ SET default_storage_engine=BLACKHOLE;
 STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
 RESET SLAVE;
-eval CHANGE MASTER TO MASTER_USER='root', MASTER_CONNECT_RETRY=1, MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
 START SLAVE;
 source include/wait_for_slave_to_start.inc;
 
@@ -22,7 +22,7 @@ source include/wait_for_slave_to_start.inc;
 connection slave;
 STOP SLAVE;
 RESET SLAVE;
-eval CHANGE MASTER TO MASTER_USER='root', MASTER_CONNECT_RETRY=1, MASTER_HOST='127.0.0.1', MASTER_PORT=$BHS_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$BHS_MYPORT;
 START SLAVE;
 source include/wait_for_slave_to_start.inc;
 

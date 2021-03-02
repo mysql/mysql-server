@@ -185,8 +185,7 @@ longlong Item_func_regexp_instr::val_int() {
 
   if (set_pattern() || !pos.has_value() || !occ.has_value() ||
       !retopt.has_value()) {
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   Nullable<int32_t> result =
@@ -201,8 +200,7 @@ longlong Item_func_regexp_like::val_int() {
   DBUG_ASSERT(fixed);
 
   if (set_pattern()) {
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   /*
@@ -258,14 +256,12 @@ String *Item_func_regexp_replace::val_str(String *buf) {
   Nullable<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   buf->set_charset(collation.collation);
@@ -291,13 +287,11 @@ String *Item_func_regexp_substr::val_str(String *buf) {
   Nullable<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
-    null_value = true;
-    return nullptr;
+    return null_return_str();
   }
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    null_value = true;
-    return nullptr;
+    return null_return_str();
   }
   buf->set_charset(collation.collation);
   String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);

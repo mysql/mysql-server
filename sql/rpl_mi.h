@@ -519,6 +519,26 @@ class Master_info : public Rpl_info {
   }
 
   /**
+    Return current position in the Failover source list for the
+    Asynchronous Replication Connection Failover feature.
+    Based on this position next failover source is selected.
+
+    @returns current position in the Failover source list.
+  */
+  uint get_failover_list_position() { return m_failover_list_position; }
+
+  /**
+    Reset current position to 0, when new failover source list is fetched.
+  */
+  void reset_failover_list_position() { m_failover_list_position = 0; }
+
+  /**
+    Increment current position, so next failover source can be selected on
+    failure.
+  */
+  void increment_failover_list_position() { m_failover_list_position++; }
+
+  /**
     Checks if network error has occurred.
 
     @returns true   if slave IO thread failure was due to network error,
@@ -594,6 +614,7 @@ class Master_info : public Rpl_info {
 
   bool auto_position{false};
   bool m_source_connection_auto_failover{false};
+  uint m_failover_list_position{0};
   bool m_network_error{false};
 
   Master_info(
@@ -653,6 +674,12 @@ class Master_info : public Rpl_info {
     Acquire the channel write lock.
   */
   void channel_wrlock();
+
+  /**
+    Try to acquire the write lock, and fail if it cannot be
+    immediately granted.
+  */
+  int channel_trywrlock();
 
   /**
     Release the channel lock (whether it is a write or read lock).

@@ -129,7 +129,7 @@ class Bitmap {
         static_cast<const uchar *>(static_cast<const void *>(buffer)));
   }
   uint bits_set() const { return bitmap_bits_set(&map); }
-  uint get_first_set() { return bitmap_get_first_set(&map); }
+  uint get_first_set() const { return bitmap_get_first_set(&map); }
 };
 
 template <>

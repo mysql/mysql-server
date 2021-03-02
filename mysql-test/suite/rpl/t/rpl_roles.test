@@ -66,7 +66,7 @@ SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_USER='u1';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1';
 START SLAVE;
 
 # Wait until IO_THREAD is inactive
@@ -139,7 +139,7 @@ SELECT * FROM mysql.role_edges;
 source include/show_binlog_events.inc;
 
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

@@ -34,13 +34,13 @@ stop slave;
 --echo *** --replicate-same-server-id and change master option can clash ***
 --replace_column 2 ####
 --error ER_SLAVE_IGNORE_SERVER_IDS
-change master to IGNORE_SERVER_IDS= (2, 1);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (2, 1);
 --echo *** must be empty due to the error ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 
 --replace_column 2 ####
-change master to IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 --echo *** must be 10, 100 ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
@@ -49,10 +49,10 @@ reset slave;
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 --replace_column 2 ####
-change master to IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 --echo *** CHANGE MASTER with IGNORE_SERVER_IDS option overrides (does not increment) the previous setup ***
 --replace_column 2 ####
-change master to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 --echo *** must be 1, 3, 4, 5 due to overriding policy ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
@@ -90,19 +90,19 @@ stop slave;
 source include/wait_for_slave_to_stop.inc;
 reset slave;
 --replace_column 2 ####
-change master to IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= (10, 100);
 --echo *** the list must remain (10, 100) after reset slave ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 
 --replace_column 2 ####
-change master to IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE to IGNORE_SERVER_IDS= ();
 --echo *** must be empty due to IGNORE_SERVER_IDS empty list ***
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 
 --echo *** RESET SLAVE ALL should empty the list ***
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (10, 100);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (10, 100);
 let $ignore_list= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1);
 echo ignore server id list: $ignore_list;
 
@@ -110,7 +110,7 @@ RESET SLAVE ALL;
 
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
-eval change master to master_host='127.0.0.1', master_port=$MASTER_MYPORT, master_user='root';
+eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
 --source include/start_slave.inc
 
 --let $assert_text= RESET SLAVE ALL must empty the list of server-ids.
@@ -142,14 +142,14 @@ drop table t1;
 --source include/show_slave_status.inc
 --echo
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420);
 
 --echo The list should have 4 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
 --source include/show_slave_status.inc
 --echo
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,220,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,220,330,420);
 
 --echo The list should still have only 4 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
@@ -158,27 +158,27 @@ CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (110,2
 
 --echo ISSUE WAS HERE: All server ids should be stored and showed only once, while they are set twice or even more.
 --echo The list should have 5 elements.
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,220,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,220,330,420);
 
 --let $status_items= Replicate_Ignore_Server_Ids
 --source include/show_slave_status.inc
 --echo
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,330,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,330,420);
 
 --echo The list should have 6 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
 --source include/show_slave_status.inc
 --echo
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,420);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,420);
 
 --echo The list should have 7 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
 --source include/show_slave_status.inc
 --echo
 
-CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,421);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,221,331,421);
 
 --echo The list should have 8 elements.
 --let $status_items= Replicate_Ignore_Server_Ids
@@ -186,7 +186,7 @@ CHANGE MASTER TO IGNORE_SERVER_IDS= (110,220,330,420), IGNORE_SERVER_IDS= (111,2
 --echo
 
 # Cleanup
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 
 --echo The list should have NO elements.
 --let $status_items= Replicate_Ignore_Server_Ids
@@ -209,7 +209,7 @@ CHANGE MASTER TO IGNORE_SERVER_IDS= ();
 --let $saved_repo_type= `SELECT @@GLOBAL.MASTER_INFO_REPOSITORY`
 
 SET GLOBAL master_info_repository= 'FILE';
-CHANGE MASTER TO IGNORE_SERVER_IDS= (5,10,15);
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (5,10,15);
 --source include/start_slave.inc
 
 --echo Expect 3 elements.
@@ -244,7 +244,7 @@ SET GLOBAL master_info_repository= 'FILE';
 
 # Cleanup
 --source include/stop_slave.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 --disable_warnings
 --disable_query_log ONCE
 --eval SET GLOBAL master_info_repository= '$saved_repo_type'

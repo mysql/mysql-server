@@ -25,15 +25,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stdarg.h>
 #include "mysql_runtime_error_imp.h"
 
-/**
-  This is the override implementation for emit api to call the mysql server
-  error report functions.
-
-  @param id    error ID, used to fetch the error message.
-  @param flags this will tell, whether the error is a fatal statement error or
-               write the error to error log file.
-  @param args  va_list type, which hold the error message format string.
-*/
 DEFINE_METHOD(void, mysql_server_runtime_error_imp::emit,
               (int id, int flags, va_list args)) {
   const char *format;

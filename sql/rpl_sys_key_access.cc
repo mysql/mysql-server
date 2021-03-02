@@ -71,8 +71,8 @@ int Rpl_sys_key_access::init(TABLE *table, uint index, bool sorted,
   if (m_key_init) return true;
 
   if ((m_key_init = !table->file->ha_index_init(index, sorted))) {
-    key_copy(m_key, m_table->record[0], m_table->key_info,
-             m_table->key_info->key_length);
+    KEY *key_info = table->key_info + index;
+    key_copy(m_key, m_table->record[0], key_info, key_info->key_length);
     m_error = m_table->file->ha_index_read_idx_map(
         m_table->record[0], index, m_key, keypart_map, find_flag);
   }

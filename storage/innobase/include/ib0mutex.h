@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -240,12 +240,17 @@ struct TTASFutexMutex {
   /** Try and lock the mutex.
   @return the old state of the mutex */
   lock_word_t trylock() UNIV_NOTHROW {
-    return (CAS(&m_lock_word, MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED));
+    lock_word_t unlocked = MUTEX_STATE_UNLOCKED;
+    m_lock_word.compare_exchange_strong(unlocked, MUTEX_STATE_LOCKED);
+    return unlocked;
   }
 
   /** Try and lock the mutex.
   @return true if successful */
-  bool try_lock() UNIV_NOTHROW { return (trylock() == MUTEX_STATE_UNLOCKED); }
+  bool try_lock() UNIV_NOTHROW {
+    lock_word_t unlocked = MUTEX_STATE_UNLOCKED;
+    return m_lock_word.compare_exchange_strong(unlocked, MUTEX_STATE_LOCKED);
+  }
 
   /** @return true if mutex is unlocked */
   bool is_locked() const UNIV_NOTHROW {
@@ -270,22 +275,15 @@ struct TTASFutexMutex {
   lock_word_t state() const UNIV_NOTHROW { return (m_lock_word); }
 
   /** Release the mutex.
-  @return the new state of the mutex */
+  @return the old state of the mutex */
   lock_word_t unlock() UNIV_NOTHROW {
-    return (TAS(&m_lock_word, MUTEX_STATE_UNLOCKED));
+    return m_lock_word.exchange(MUTEX_STATE_UNLOCKED);
   }
 
   /** Note that there are threads waiting and need to be woken up.
   @return true if state was MUTEX_STATE_UNLOCKED (ie. granted) */
   bool set_waiters() UNIV_NOTHROW {
-    return (TAS(&m_lock_word, MUTEX_STATE_WAITERS) == MUTEX_STATE_UNLOCKED);
-  }
-
-  /** Set the waiters flag, only if the mutex is locked
-  @return true if succesful. */
-  bool try_set_waiters() UNIV_NOTHROW {
-    return (CAS(&m_lock_word, MUTEX_STATE_LOCKED, MUTEX_STATE_WAITERS) !=
-            MUTEX_STATE_UNLOCKED);
+    return m_lock_word.exchange(MUTEX_STATE_WAITERS) == MUTEX_STATE_UNLOCKED;
   }
 
   /** Wait if the lock is contended.
@@ -344,149 +342,10 @@ struct TTASFutexMutex {
   /** Policy data */
   MutexPolicy m_policy;
 
-  /** lock_word is the target of the atomic test-and-set instruction
-  when atomic operations are enabled. */
-  alignas(ulint) lock_word_t m_lock_word;
+  std::atomic<lock_word_t> m_lock_word;
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */
-
-template <template <typename> class Policy = NoPolicy>
-struct TTASMutex {
-  typedef Policy<TTASMutex> MutexPolicy;
-
-  TTASMutex() UNIV_NOTHROW : m_lock_word(MUTEX_STATE_UNLOCKED) {
-    /* Check that lock_word is aligned. */
-    ut_ad(!((ulint)&m_lock_word % sizeof(ulint)));
-  }
-
-  ~TTASMutex() { ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED); }
-
-  /** Called when the mutex is "created". Note: Not from the constructor
-  but when the mutex is initialised.
-  @param[in]	id		Mutex ID
-  @param[in]	filename	File where mutex was created
-  @param[in]	line		Line in filename */
-  void init(latch_id_t id, const char *filename, uint32_t line) UNIV_NOTHROW {
-    ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
-    m_policy.init(*this, id, filename, line);
-  }
-
-  /** Destroy the mutex. */
-  void destroy() UNIV_NOTHROW {
-    /* The destructor can be called at shutdown. */
-    ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
-    m_policy.destroy();
-  }
-
-  /**
-  Try and acquire the lock using TestAndSet.
-  @return	true if lock succeeded */
-  bool tas_lock() UNIV_NOTHROW {
-    return (TAS(&m_lock_word, MUTEX_STATE_LOCKED) == MUTEX_STATE_UNLOCKED);
-  }
-
-  /** In theory __sync_lock_release should be used to release the lock.
-  Unfortunately, it does not work properly alone. The workaround is
-  that more conservative __sync_lock_test_and_set is used instead. */
-  void tas_unlock() UNIV_NOTHROW {
-#ifdef UNIV_DEBUG
-    ut_ad(state() == MUTEX_STATE_LOCKED);
-
-    lock_word_t lock =
-#endif /* UNIV_DEBUG */
-
-        TAS(&m_lock_word, MUTEX_STATE_UNLOCKED);
-
-    ut_ad(lock == MUTEX_STATE_LOCKED);
-  }
-
-  /** Try and lock the mutex.
-  @return true on success */
-  bool try_lock() UNIV_NOTHROW { return (tas_lock()); }
-
-  /** Release the mutex. */
-  void exit() UNIV_NOTHROW { tas_unlock(); }
-
-  /** Acquire the mutex.
-  @param max_spins	max number of spins
-  @param max_delay	max delay per spin
-  @param filename		from where called
-  @param line		within filename */
-  void enter(uint32_t max_spins, uint32_t max_delay, const char *filename,
-             uint32_t line) UNIV_NOTHROW {
-    if (!try_lock()) {
-      uint32_t n_spins = ttas(max_spins, max_delay);
-
-      /* No OS waits for spin mutexes */
-      m_policy.add(n_spins, 0);
-    }
-  }
-
-  /** @return the lock state. */
-  lock_word_t state() const UNIV_NOTHROW { return (m_lock_word); }
-
-  /** @return true if locked by some thread */
-  bool is_locked() const UNIV_NOTHROW {
-    return (m_lock_word != MUTEX_STATE_UNLOCKED);
-  }
-
-#ifdef UNIV_DEBUG
-  /** @return true if the calling thread owns the mutex. */
-  bool is_owned() const UNIV_NOTHROW {
-    return (is_locked() && m_policy.is_owned());
-  }
-#endif /* UNIV_DEBUG */
-
-  /** @return non-const version of the policy */
-  MutexPolicy &policy() UNIV_NOTHROW { return (m_policy); }
-
-  /** @return const version of the policy */
-  const MutexPolicy &policy() const UNIV_NOTHROW { return (m_policy); }
-
- private:
-  /** Spin and try to acquire the lock.
-  @param[in]	max_spins	max spins
-  @param[in]	max_delay	max delay per spin
-  @return number spins before acquire */
-  uint32_t ttas(uint32_t max_spins, uint32_t max_delay) UNIV_NOTHROW {
-    uint32_t i = 0;
-    const uint32_t step = max_spins;
-
-    std::atomic_thread_fence(std::memory_order_acquire);
-
-    do {
-      while (is_locked()) {
-        ut_delay(ut_rnd_interval(0, max_delay));
-
-        ++i;
-
-        if (i >= max_spins) {
-          max_spins += step;
-
-          os_thread_yield();
-
-          break;
-        }
-      }
-
-    } while (!try_lock());
-
-    return (i);
-  }
-
- private:
-  // Disable copying
-  TTASMutex(const TTASMutex &);
-  TTASMutex &operator=(const TTASMutex &);
-
-  /** Policy data */
-  MutexPolicy m_policy;
-
-  /** lock_word is the target of the atomic test-and-set instruction
-  when atomic operations are enabled. */
-  lock_word_t m_lock_word;
-};
 
 template <template <typename> class Policy = NoPolicy>
 struct TTASEventMutex {
@@ -849,8 +708,10 @@ struct PolicyMutex {
                                    const char *name,
                                    uint32_t line) UNIV_NOTHROW {
     if (m_ptr != nullptr) {
-      return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_LOCK,
-                                               name, (uint)line));
+      if (m_ptr->m_enabled) {
+        return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_LOCK,
+                                                 name, (uint)line));
+      }
     }
 
     return (nullptr);
@@ -864,8 +725,10 @@ struct PolicyMutex {
                                       const char *name,
                                       uint32_t line) UNIV_NOTHROW {
     if (m_ptr != nullptr) {
-      return (PSI_MUTEX_CALL(start_mutex_wait)(state, m_ptr, PSI_MUTEX_TRYLOCK,
-                                               name, (uint)line));
+      if (m_ptr->m_enabled) {
+        return (PSI_MUTEX_CALL(start_mutex_wait)(
+            state, m_ptr, PSI_MUTEX_TRYLOCK, name, (uint)line));
+      }
     }
 
     return (nullptr);
@@ -883,7 +746,9 @@ struct PolicyMutex {
   /** Performance schema monitoring - register mutex release */
   void pfs_exit() {
     if (m_ptr != nullptr) {
-      PSI_MUTEX_CALL(unlock_mutex)(m_ptr);
+      if (m_ptr->m_enabled) {
+        PSI_MUTEX_CALL(unlock_mutex)(m_ptr);
+      }
     }
   }
 

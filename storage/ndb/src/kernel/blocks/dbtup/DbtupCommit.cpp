@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 extern EventLogger *g_eventLogger;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
+//#define DEBUG_DISK 1
 //#define DEBUG_LCP 1
 //#define DEBUG_LCP_SKIP_DELETE_EXTRA 1
 //#define DEBUG_INSERT_EXTRA 1
@@ -50,6 +51,12 @@ extern EventLogger *g_eventLogger;
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_LCP_SKIP 1
 //#define DEBUG_LCP_SKIP_DELETE 1
+#endif
+
+#ifdef DEBUG_DISK
+#define DEB_DISK(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DISK(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -126,12 +133,20 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
   Uint32 page_index= signal->theData[3];
 
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
-  
+
   getFragmentrec(regFragPtr, frag_id, regTabPtr.p);
   ndbassert(regFragPtr.p != NULL);
   
   if (! Local_key::isInvalid(frag_page_id, page_index))
   {
+    /**
+     * When we arrive here we should always be using the primary table
+     * fragment.
+     */
+    Dblqh::Fragrecord *fragPtrP =
+      c_lqh->get_fragptr(regFragPtr.p->fragTableId,
+                         regFragPtr.p->fragmentId);
+    c_lqh->upgrade_to_exclusive_frag_access(fragPtrP);
     Local_key tmp;
     tmp.m_page_no= getRealpid(regFragPtr.p, frag_page_id); 
     tmp.m_page_idx= page_index;
@@ -156,6 +171,7 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     } else {
       free_fix_rec(regFragPtr.p, regTabPtr.p, &tmp, (Fix_page*)pagePtr.p);
     }
+    c_lqh->downgrade_from_exclusive_frag_access(fragPtrP);
   }
   else
   {
@@ -165,30 +181,34 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
 
 void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
 {
-  jamEntry();
+  jamEntryDebug();
   OperationrecPtr loopOpPtr;
   loopOpPtr.i= signal->theData[0];
   Uint32 gci_hi = signal->theData[1];
   Uint32 gci_lo = signal->theData[2];
   ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
-  while (loopOpPtr.p->prevActiveOp != RNIL) {
-    jam();
+  ndbassert(!m_is_query_block);
+  while (loopOpPtr.p->prevActiveOp != RNIL)
+  {
+    jamDebug();
     loopOpPtr.i= loopOpPtr.p->prevActiveOp;
     ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   }
-  do {
+  do
+  {
     ndbrequire(get_trans_state(loopOpPtr.p) == TRANS_STARTED);
     signal->theData[0] = loopOpPtr.p->userpointer;
     signal->theData[1] = gci_hi;
     signal->theData[2] = gci_lo;
-    if (loopOpPtr.p->nextActiveOp == RNIL) {
-      jam();
-      EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
+    if (loopOpPtr.p->nextActiveOp == RNIL)
+    {
+      jamDebug();
+      c_lqh->execLQH_WRITELOG_REQ(signal);
       return;
     }
-    jam();
-    EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
-    jamEntry();
+    jamDebug();
+    c_lqh->execLQH_WRITELOG_REQ(signal);
+    jamEntryDebug();
     loopOpPtr.i= loopOpPtr.p->nextActiveOp;
     ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
   } while (true);
@@ -201,6 +221,7 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
 {
   set_tuple_state(regOperPtr, TUPLE_ALREADY_ABORTED);
   set_trans_state(regOperPtr, TRANS_IDLE);
+  regOperPtr->m_commit_state = Operationrec::CommitNotStarted;
   regOperPtr->op_type= ZREAD;
   regOperPtr->op_struct.bit_field.m_disk_preallocated= 0;
   regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit= 0;
@@ -882,6 +903,13 @@ Dbtup::commit_operation(Signal* signal,
                       gci_hi,
                       &rowid,
                       regOperPtr->m_undo_buffer_space);
+      DEB_DISK(("(%u) Commit disk insert for row(%u,%u) disk_row(%u,%u).%u",
+                 instance(),
+                 rowid.m_page_no,
+                 rowid.m_page_idx,
+                 key.m_file_no,
+                 key.m_page_no,
+                 key.m_page_idx));
     }
     
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
@@ -923,8 +951,7 @@ Dbtup::commit_operation(Signal* signal,
     
     memcpy(dst, disk_ptr, 4*sz);
     memcpy(tuple_ptr->get_disk_ref_ptr(regTabPtr), &key, sizeof(Local_key));
-
-    ndbassert(! (disk_ptr->m_header_bits & Tuple_header::FREE));
+    ndbrequire(disk_ptr->m_base_record_page_idx < Tup_page::DATA_WORDS);
     copy_bits |= Tuple_header::DISK_PART;
   }
 
@@ -1033,6 +1060,7 @@ Dbtup::commit_operation(Signal* signal,
 
   tuple_ptr->m_header_bits= copy_bits | lcp_bits;
   tuple_ptr->m_operation_ptr_i= save;
+  ndbrequire(!m_is_in_query_thread);
 
   Tup_fixsize_page *fix_page = (Tup_fixsize_page*)pagePtr.p;
   fix_page->set_change_maps(regOperPtr->m_tuple_location.m_page_idx);
@@ -1047,7 +1075,8 @@ Dbtup::commit_operation(Signal* signal,
     if (regTabPtr->m_bits & Tablerec::TR_ExtraRowGCIBits)
     {
       jam();
-      Uint32 attrId = regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
+      Uint32 attrId =
+        regTabPtr->getExtraAttrId<Tablerec::TR_ExtraRowGCIBits>();
       store_extra_row_bits(attrId, regTabPtr, tuple_ptr, gci_lo,
                            /* truncate */true);
     }
@@ -1058,8 +1087,8 @@ Dbtup::commit_operation(Signal* signal,
      * This should be dead code, but we ensure that we don't miss those
      * updates even for those tables.
      *
-     * In case of an explicit GCI update we always increment number of changed rows
-     * to ensure we don't miss any updates.
+     * In case of an explicit GCI update we always increment number of
+     * changed rows to ensure we don't miss any updates.
      */
     jam();
     regFragPtr->m_lcp_changed_rows++;
@@ -1122,6 +1151,7 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit= 0;
   regOperPtr.p->m_commit_disk_callback_page= page_id;
   m_global_page_pool.getPtr(diskPagePtr, page_id);
+  prepare_oper_ptr = regOperPtr;
   
   {
     PagePtr tmp;
@@ -1129,13 +1159,7 @@ Dbtup::disk_page_commit_callback(Signal* signal,
     tmp.p = reinterpret_cast<Page*>(diskPagePtr.p);
     disk_page_set_dirty(tmp);
   }
-  
-  execTUP_COMMITREQ(signal);
-  if(signal->theData[0] == 0)
-  {
-    jam();
-    c_lqh->tupcommit_conf_callback(signal, regOperPtr.p->userpointer);
-  }
+  exec_tup_commit(signal); 
 }
 
 void
@@ -1152,9 +1176,14 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
   
   regOperPtr.i = opPtrI;
   ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
-  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo,
-                     &transId1, &transId2);
+  c_lqh->get_op_info(regOperPtr.p->userpointer,
+                     &hash_value,
+                     &gci_hi,
+                     &gci_lo,
+                     &transId1,
+                     &transId2);
   Uint32 page= regOperPtr.p->m_commit_disk_callback_page;
+  prepare_oper_ptr = regOperPtr;
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
   
@@ -1168,11 +1197,8 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
 
   ndbassert(regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit == 0);
   regOperPtr.p->op_struct.bit_field.m_wait_log_buffer= 0;
-  
-  execTUP_COMMITREQ(signal);
-  ndbassert(signal->theData[0] == 0);
-  
-  c_lqh->tupcommit_conf_callback(signal, regOperPtr.p->userpointer);
+
+  exec_tup_commit(signal);
 }
 
 int Dbtup::retrieve_data_page(Signal *signal,
@@ -1272,43 +1298,478 @@ void
 Dbtup::findFirstOp(OperationrecPtr & firstPtr)
 {
   jam();
-  printf("Detect out-of-order commit(%u) -> ", firstPtr.i);
   ndbassert(!firstPtr.p->is_first_operation());
   while(firstPtr.p->prevActiveOp != RNIL)
   {
     firstPtr.i = firstPtr.p->prevActiveOp;
     ndbrequire(c_operation_pool.getValidPtr(firstPtr));
   }
-  ndbout_c("%u", firstPtr.i);
 }
 
-/* ----------------------------------------------------------------- */
-/* --------------- COMMIT THIS PART OF A TRANSACTION --------------- */
-/* ----------------------------------------------------------------- */
-void Dbtup::execTUP_COMMITREQ(Signal* signal) 
+Uint32
+Dbtup::prepare_disk_page_for_commit(Signal *signal,
+                                    OperationrecPtr leaderOperPtr,
+                                    Tuple_header *tuple_ptr,
+                                    Ptr<GlobalPage> &diskPagePtr)
+{
+  bool initial_delete = false;
+  Tablerec *regTabPtrP = prepare_tabptr.p;
+  FragrecordPtr regFragPtr = prepare_fragptr;
+  if (leaderOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit)
+  {
+    jam();
+    Page_cache_client::Request req;
+
+    /**
+     * Only last op on tuple needs "real" commit,
+     *   hence only this one should have m_load_diskpage_on_commit
+     */
+    ndbassert(tuple_ptr->m_operation_ptr_i == leaderOperPtr.i);
+
+    /**
+     * Check for page
+     */
+    if (!leaderOperPtr.p->m_copy_tuple_location.isNull())
+    {
+      jam();
+      Tuple_header* tmp =
+        get_copy_tuple(&leaderOperPtr.p->m_copy_tuple_location);
+      
+      memcpy(&req.m_page, 
+	     tmp->get_disk_ref_ptr(regTabPtrP), sizeof(Local_key));
+
+      if (unlikely(leaderOperPtr.p->op_type == ZDELETE &&
+		   tmp->m_header_bits & Tuple_header::DISK_ALLOC))
+      {
+        jam();
+	/**
+	 * Insert+Delete
+         * In this case we want to release the Copy page tuple that was
+         * allocated for the insert operation since the commit of the
+         * delete operation here makes it unnecessary to save the
+         * new record.
+	 */
+        leaderOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit = 0;
+        leaderOperPtr.p->op_struct.bit_field.m_wait_log_buffer = 0;	
+        disk_page_abort_prealloc(signal, regFragPtr.p, 
+				 &req.m_page, req.m_page.m_page_idx);
+
+        {
+          D("Logfile_client - execTUP_COMMITREQ");
+          Logfile_client lgman(this,
+                               c_lgman,
+                               regFragPtr.p->m_logfile_group_id);
+          lgman.free_log_space(leaderOperPtr.p->m_undo_buffer_space,
+                               jamBuffer());
+        }
+        return ZDISK_PAGE_READY_FOR_COMMIT;
+      }
+    }
+    else
+    {
+      jam();
+      // initial delete
+      initial_delete = true;
+      ndbassert(leaderOperPtr.p->op_type == ZDELETE);
+      memcpy(&req.m_page,
+	     tuple_ptr->get_disk_ref_ptr(regTabPtrP), sizeof(Local_key));
+      ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
+    }
+
+    if (retrieve_data_page(signal,
+                           req,
+                           leaderOperPtr,
+                           diskPagePtr,
+                           regFragPtr.p) == 0)
+    {
+      if (!initial_delete)
+      {
+        jam();
+      }
+      else
+      {
+        jam();
+        /* Set bit to indicate the tuple is already deleted */
+        acquire_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
+        Uint32 old_header = tuple_ptr->m_header_bits;
+        Uint32 new_header = tuple_ptr->m_header_bits =
+          old_header | Tuple_header::DELETE_WAIT;
+        updateChecksum(tuple_ptr, regTabPtrP, old_header, new_header);
+        release_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
+      }
+      return ZDISK_PAGE_NOT_READY_FOR_COMMIT;
+    }
+  }
+  
+  if (leaderOperPtr.p->op_struct.bit_field.m_wait_log_buffer)
+  {
+    jam();
+    /**
+     * Only last op on tuple needs "real" commit,
+     *   hence only this one should have m_wait_log_buffer
+     */
+    ndbassert(tuple_ptr->m_operation_ptr_i == leaderOperPtr.i);
+    
+    if (retrieve_log_page(signal, regFragPtr, leaderOperPtr) == 0)
+    {
+      if (!initial_delete)
+      {
+        jam();
+      }
+      else
+      {
+        jam();
+        /* Set bit to indicate the tuple is already deleted */
+        acquire_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
+        Uint32 old_header = tuple_ptr->m_header_bits;
+        Uint32 new_header = tuple_ptr->m_header_bits =
+          old_header | Tuple_header::DELETE_WAIT;
+        updateChecksum(tuple_ptr, regTabPtrP, old_header, new_header);
+        release_frag_mutex(regFragPtr.p, leaderOperPtr.p->fragPageId);
+      }
+      return ZDISK_PAGE_NOT_READY_FOR_COMMIT;
+    }
+  }
+  return ZDISK_PAGE_READY_FOR_COMMIT;
+}
+
+Uint32
+Dbtup::exec_prepare_tup_commit(Uint32 regOperPtrI)
+{
+  OperationrecPtr regOperPtr;
+  regOperPtr.i = regOperPtrI;
+  ndbrequire(c_operation_pool.getUncheckedPtrRW(regOperPtr));
+  Operationrec::CommitState commit_state = regOperPtr.p->m_commit_state;
+  prepare_oper_ptr = regOperPtr;
+  ndbrequire(Magic::check_ptr(regOperPtr.p));
+  switch (commit_state)
+  {
+    case Operationrec::Operationrec::CommitNotStarted:
+    {
+      jam();
+      /**
+       * We are the first operation to arrive, we need to start the
+       * commit procedure.
+       */
+      regOperPtr.p->m_commit_state = Operationrec::CommitStartedReceived;
+      return ZTUP_NOT_COMMITTED;
+    }
+    case Operationrec::CommitStartedNotReceived:
+    {
+      jam();
+      /**
+       * We are not the first operation to arrive, the commit is still
+       * ongoing, the TUP part of our commit will be handled for us
+       * by setting the state to CommitStartedReceived.
+       */
+      regOperPtr.p->m_commit_state = Operationrec::CommitStartedReceived;
+      return ZTUP_WAIT_COMMIT;
+    }
+    case Operationrec::CommitPerformedNotReceived:
+    {
+      jam();
+      /**
+       * TUP has completed the commit, but it needs the list to stay
+       * until it is done with the reporting of the committed operations.
+       * Thus we only change the state here and let TUP report back at an
+       * appropriate time when it is done.
+       */
+      regOperPtr.p->m_commit_state = Operationrec::CommitPerformedReceived;
+      return ZTUP_WAIT_COMMIT;
+    }
+    case Operationrec::CommitDoneNotReceived:
+    {
+      jam();
+      /**
+       * The commit has been started and also completed, we simply
+       * finalize the commit and be done with it. No need to worry
+       * about the linked list, it has already been processed and
+       * thus the operations are no longer linked to each other.
+       */
+      FragrecordPtr fragPtr;
+      fragPtr.i = regOperPtr.p->fragmentPtr;
+      ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+      finalize_commit(regOperPtr.p, fragPtr.p);
+      return ZTUP_COMMITTED;
+    }
+    default:
+    {
+      ndbabort();
+    }
+  }
+  return 0;
+}
+
+void
+Dbtup::set_commit_started(Uint32 leaderOperPtrI)
+{
+  OperationrecPtr loopOperPtr;
+  loopOperPtr.i = leaderOperPtrI;
+  do
+  {
+    ndbrequire(c_operation_pool.getValidPtr(loopOperPtr));
+    if (loopOperPtr.p->m_commit_state == Operationrec::CommitNotStarted)
+    {
+      loopOperPtr.p->m_commit_state = Operationrec::CommitStartedNotReceived;
+    }
+    loopOperPtr.i = loopOperPtr.p->prevActiveOp;
+  } while (loopOperPtr.i != RNIL);
+}
+
+void
+Dbtup::set_commit_performed(OperationrecPtr firstOperPtr,
+                            Fragrecord *fragPtrP)
+{
+  OperationrecPtr loopOperPtr = firstOperPtr;
+  goto first;
+  do
+  {
+    ndbrequire(c_operation_pool.getValidPtr(loopOperPtr));
+    first:
+    switch (loopOperPtr.p->m_commit_state)
+    {
+      case Operationrec::CommitNotStarted:
+      case Operationrec::CommitStartedNotReceived:
+      {
+        jamDebug();
+        loopOperPtr.p->m_commit_state =
+          Operationrec::CommitPerformedNotReceived;
+        break;
+      }
+      case Operationrec::CommitStartedReceived:
+      {
+        jamDebug();
+        loopOperPtr.p->m_commit_state = Operationrec::CommitPerformedReceived;
+        break;
+      }
+      case Operationrec::CommitDoneReceived:
+      {
+        jamDebug();
+        /* This operation was the one used to commit DBACC */
+        break;
+      }
+      default:
+      {
+        ndbabort();
+      }
+    }
+    loopOperPtr.i = loopOperPtr.p->nextActiveOp;
+  } while (loopOperPtr.i != RNIL);
+}
+
+#ifdef ERROR_INSERT
+#define MAX_COMMITS 0xFFFFFFFF
+//#define MAX_COMMITS 1
+#else
+#define MAX_COMMITS 0xFFFFFFFF
+//#define MAX_COMMITS 4
+#endif
+void
+Dbtup::continue_report_commit_performed(Signal *signal, Uint32 firstOperPtrI)
 {
   FragrecordPtr regFragPtr;
-  OperationrecPtr regOperPtr;
+  OperationrecPtr firstOperPtr;
+  firstOperPtr.i = firstOperPtrI;
+  ndbrequire(c_operation_pool.getValidPtr(firstOperPtr));
+  c_lqh->setup_key_pointers(firstOperPtr.p->userpointer, false);
+  regFragPtr.i = firstOperPtr.p->fragmentPtr;
+  ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
+  report_commit_performed(signal, firstOperPtr, MAX_COMMITS, regFragPtr.p);
+}
+
+void
+Dbtup::send_continue_report_commit_performed(Signal *signal, Uint32 nextOp)
+{
+  signal->theData[0] = ZTUP_REPORT_COMMIT_PERFORMED;
+  signal->theData[1] = nextOp;
+#ifdef ERROR_INSERT
+  m_continue_report_commit_counter++;
+  if ((m_continue_report_commit_counter % 10) == 0)
+  {
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+  else
+  {
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }
+#else
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+#endif
+}
+
+void
+Dbtup::report_commit_performed(Signal *signal,
+                               OperationrecPtr & firstOperPtr,
+                               Uint32 max_commits,
+                               Fragrecord *regFragPtrP)
+{
+  Uint32 nextOp = RNIL;
+  Uint32 num_commits = 0;
+  OperationrecPtr loopOperPtr = firstOperPtr;
+  goto first;
+  do
+  {
+    loopOperPtr.i = nextOp;
+    ndbrequire(c_operation_pool.getValidPtr(loopOperPtr));
+    first:
+    nextOp = loopOperPtr.p->nextActiveOp;
+    loopOperPtr.p->nextActiveOp = RNIL;
+    loopOperPtr.p->prevActiveOp = RNIL;
+    switch (loopOperPtr.p->m_commit_state)
+    {
+      case Operationrec::CommitPerformedNotReceived:
+      {
+        jam();
+        /**
+         * Remove it from list, nothing more needs to be done, the
+         * operation will be cleaned up when commit message arrives
+         * for this operation.
+         * Indicate in commit state that everything is done and it
+         * is ok to simply release operation and move on.
+         */
+        loopOperPtr.p->m_commit_state = Operationrec::CommitDoneNotReceived;
+        break;
+      }
+      case Operationrec::CommitPerformedReceived:
+      {
+        /**
+         * It is time to perform the actual commit operation in
+         * DBACC as well, we perform this by calling
+         * tupcommit_conf_callback in DBLQH.
+         */
+        jam();
+        num_commits++;
+        finalize_commit(loopOperPtr.p, regFragPtrP);
+        c_lqh->tupcommit_conf_callback(signal,
+                                       loopOperPtr.p->userpointer);
+        if (num_commits >= max_commits)
+        {
+          jam();
+          if (nextOp == RNIL)
+          {
+            jam();
+            return;
+          }
+          send_continue_report_commit_performed(signal, nextOp);
+          return;
+        }
+        break;
+      }
+      default:
+      {
+        ndbabort();
+      }
+    }
+  } while (nextOp != RNIL);
+}
+
+#ifdef ERROR_INSERT
+bool
+Dbtup::check_delayed_commit(Signal *signal,
+                            TupCommitReq *tupCommitReq,
+                            Uint32 leaderOperPtrI)
+{
+  TupCommitReq * sendTupCommitReq = (TupCommitReq *)signal->getDataPtrSend();
+  *sendTupCommitReq = *tupCommitReq;
+  m_delayed_commit++;
+  if (false && m_delayed_commit >= 100)
+  {
+    jam();
+    m_delayed_commit = 0;
+    sendTupCommitReq->opPtr = leaderOperPtrI;
+    sendSignalWithDelay(reference(), GSN_TUP_COMMITREQ, signal,
+                        10, TupCommitReq::SignalLength);
+    return true;
+  }
+  else if (false && ((m_delayed_commit % 4) == 0))
+  {
+    jam();
+    sendTupCommitReq->opPtr = leaderOperPtrI;
+    sendSignal(reference(), GSN_TUP_COMMITREQ, signal,
+               TupCommitReq::SignalLength, JBB);
+    return true;
+  }
+  else
+  {
+    jam();
+    return false;
+  }
+}
+#endif
+
+void
+Dbtup::execTUP_COMMITREQ(Signal *signal)
+{
+  jamEntry();
+  OperationrecPtr leaderOperPtr;
+  TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
+  leaderOperPtr.i = tupCommitReq->opPtr;
+  ndbrequire(c_operation_pool.getValidPtr(leaderOperPtr));
+  prepare_oper_ptr = leaderOperPtr;
+
+  Uint32 hash_value;
+  Uint32 gci_hi, gci_lo;
+  Uint32 transId1, transId2;
+  c_lqh->get_op_info(leaderOperPtr.p->userpointer,
+                      &hash_value,
+                      &gci_hi,
+                      &gci_lo,
+                      &transId1,
+                      &transId2);
+  exec_tup_commit(signal);
+}
+
+Uint32
+Dbtup::exec_tup_commit(Signal *signal)
+{
+  /**
+   * This code is only executed by the first operation to arrive with a
+   * commit for this row. The first operation will switch to using the
+   * leader operation record (the last record to be prepared with a write
+   * operation. This record is found on the row.
+   *
+   * It is possible to arrive here as well up to two more times for each
+   * commit, one after retrieving the disk data page and one after
+   * retrieving a log buffer page for disk data. These calls will both
+   * be for the leader operation record.
+   *
+   * After fetching the disk page and the log buffer page we are ready to
+   * commit. The commit happens all in the same real-time break. In this
+   * real-time break we will remove entries from the TUX index no longer
+   * valid, we will update the row with the new information, and finally
+   * we will flag and possibly also remove the deleted row.
+   *
+   * The real commit is the commit point for this operation except in one
+   * case. This is when a DELETE happens on a page that requires a fetch
+   * from the disk. In this case the commit point happens in the very first
+   * operation that arrives and in that real-time break.
+   *
+   * The only action required to commit the delete is by setting the
+   * DELETE_WAIT flag in the tuple header. The TUX index entries are still
+   * there as well as the ACC hash index entries and the operation list
+   * on the row is still there. But they will all see the DELETE_WAIT flag
+   * and determine that the row is deleted.
+   */
+  FragrecordPtr regFragPtr;
+  OperationrecPtr regOperPtr = prepare_oper_ptr;
+  OperationrecPtr leaderOperPtr;
   TablerecPtr regTabPtr;
   KeyReqStruct req_struct(this, KRS_COMMIT);
   TransState trans_state;
   Ptr<GlobalPage> diskPagePtr;
   Uint32 no_of_fragrec, no_of_tablerec;
 
-  TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
+  TupCommitReq tupCommitReq= *(TupCommitReq *)signal->getDataPtr();
 
-  regOperPtr.i= tupCommitReq->opPtr;
-  Uint32 hash_value= tupCommitReq->hashValue;
-  Uint32 gci_hi = tupCommitReq->gci_hi;
-  Uint32 gci_lo = tupCommitReq->gci_lo;
-  Uint32 transId1 = tupCommitReq->transId1;
-  Uint32 transId2 = tupCommitReq->transId2;
+  Uint32 hash_value= tupCommitReq.hashValue;
+  Uint32 gci_hi = tupCommitReq.gci_hi;
+  Uint32 gci_lo = tupCommitReq.gci_lo;
+  Uint32 transId1 = tupCommitReq.transId1;
+  Uint32 transId2 = tupCommitReq.transId2;
 
   jamEntry();
 
-  ndbrequire(c_operation_pool.getUncheckedPtrRW(regOperPtr));
- 
-  diskPagePtr.i = tupCommitReq->diskpage;
+  diskPagePtr.i = tupCommitReq.diskpage;
   regFragPtr.i= regOperPtr.p->fragmentPtr;
   no_of_fragrec= cnoOfFragrec;
   no_of_tablerec= cnoOfTablerec;
@@ -1318,9 +1779,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   req_struct.gci_hi = gci_hi;
   req_struct.gci_lo = gci_lo;
 
-  ndbrequire(Magic::check_ptr(regOperPtr.p));
   trans_state= get_trans_state(regOperPtr.p);
-
 
   ndbrequire(trans_state == TRANS_STARTED);
   ptrCheckGuard(regFragPtr, no_of_fragrec, fragrecord);
@@ -1331,14 +1790,15 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   req_struct.trans_id1 = transId1;
   req_struct.trans_id2 = transId2;
   req_struct.m_reorg = regOperPtr.p->op_struct.bit_field.m_reorg;
-  regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
+  regOperPtr.p->m_commit_disk_callback_page = tupCommitReq.diskpage;
 
   ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
-  PagePtr page;
-  Tuple_header* tuple_ptr= (Tuple_header*)
-    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+  PagePtr tupPagePtr;
+  Tuple_header* tuple_ptr = (Tuple_header*)
+    get_ptr(&tupPagePtr, &regOperPtr.p->m_tuple_location, regTabPtr.p);
 
-  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page.p;
+  req_struct.m_tuple_ptr = tuple_ptr;
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)tupPagePtr.p;
   fix_page->prefetch_change_map();
   NDB_PREFETCH_WRITE(tuple_ptr);
 
@@ -1351,6 +1811,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   }
   else
   {
+    jamDebug();
     m_global_page_pool.getPtr(diskPagePtr, diskPagePtr.i);
   }
   
@@ -1359,24 +1820,173 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   prepare_fragptr = regFragPtr;
   prepare_tabptr = regTabPtr;
 
-  /**
-   * NOTE: This has to be run before potential time-slice when
-   *       waiting for disk, as otherwise the "other-ops" in a multi-op
-   *       commit might run while we're waiting for disk
-   *
-   */
-  if (!regTabPtr.p->tuxCustomTriggers.isEmpty())
+  leaderOperPtr.i = tuple_ptr->m_operation_ptr_i;
+  ndbrequire(c_operation_pool.getValidPtr(leaderOperPtr));
+  if (leaderOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit ||
+      leaderOperPtr.p->op_struct.bit_field.m_wait_log_buffer)
   {
-    if(get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
+    /**
+     * We need to fetch disk pages before we are allowed to commit this
+     * operation.
+     */
+    jam();
+    if (prepare_disk_page_for_commit(signal,
+                                     leaderOperPtr,
+                                     tuple_ptr,
+                                     diskPagePtr) !=
+        ZDISK_PAGE_READY_FOR_COMMIT)
     {
       jam();
+      /**
+       * We need to flag all operation records not yet started that
+       * the commit is ongoing to ensure that no other operation arrives
+       * and also starts the commit.
+       */
+      set_commit_started(leaderOperPtr.i);
+      return ZTUP_WAIT_COMMIT;
+    }
+  }
+#ifdef ERROR_INSERT
+  /**
+   * In case we perform a real-time break here we need to ensure that
+   * the diskpage we retrieved is properly setup for signal sending.
+   */
+  if (c_started)
+  {
+    jam();
+    tupCommitReq.diskpage = diskPagePtr.i;
+    if (check_delayed_commit(signal,
+                             &tupCommitReq,
+                             leaderOperPtr.i))
+    {
+      jam();
+      set_commit_started(leaderOperPtr.i);
+      return ZTUP_WAIT_COMMIT;
+    }
+  }
+#endif
+  prepare_oper_ptr = leaderOperPtr;
+  execute_real_commit(signal,
+                      req_struct,
+                      tupPagePtr,
+                      diskPagePtr);
+  return ZTUP_WAIT_COMMIT;
+}
 
-      OperationrecPtr loopPtr = regOperPtr;
-      if (unlikely(!regOperPtr.p->is_first_operation()))
-      {
-        findFirstOp(loopPtr);
-      }
+void
+Dbtup::get_execute_commit_operation(OperationrecPtr & executeOperPtr)
+{
+  while ((executeOperPtr.p->m_commit_state ==
+           Operationrec::CommitNotStarted) ||
+         (executeOperPtr.p->m_commit_state ==
+           Operationrec::CommitStartedNotReceived))
+  {
+    executeOperPtr.i = executeOperPtr.p->nextActiveOp;
+    /**
+     * At least one operation should have the state CommitStartedReceived
+     * and this would normally be the operation that started the commit.
+     * But there could be more than one as well.
+     */
+    ndbrequire(c_operation_pool.getValidPtr(executeOperPtr));
+  }
+  ndbrequire(executeOperPtr.p->m_commit_state ==
+             Operationrec::CommitStartedReceived);
+}
 
+void
+Dbtup::execute_real_commit(Signal *signal,
+                           KeyReqStruct &req_struct,
+                           PagePtr tupPagePtr,
+                           Ptr<GlobalPage> diskPagePtr)
+{
+  OperationrecPtr leaderOperPtr = prepare_oper_ptr;
+  OperationrecPtr firstOperPtr;
+  OperationrecPtr executeOperPtr;
+  Tablerec *regTabPtrP = prepare_tabptr.p;
+  Fragrecord *regFragPtrP = prepare_fragptr.p;
+  firstOperPtr = leaderOperPtr;
+  if (unlikely(!leaderOperPtr.p->is_first_operation()))
+  {
+    findFirstOp(firstOperPtr);
+  }
+  executeOperPtr = firstOperPtr;
+  get_execute_commit_operation(executeOperPtr);
+  Tuple_header *tuple_ptr = req_struct.m_tuple_ptr;
+  /**
+   * We have now prepared everything for the real commit. For the real
+   * commit we need to acquire the proper fragment access. The real
+   * commit will first remove any no longer used entries from the TUX
+   * index. After that it will commit the record in DBTUP which means
+   * that the row is updated with its new value and the linked list of
+   * operations is removed from the row. Finally it will call
+   * tup_commit_conf_callback in DBACC that will ensure that also the
+   * index in DBACC is updated and that the lock information is removed
+   * for the operation.
+   *
+   * The first operation that touches DBACC must be called with protection
+   * since this sets the flags indicating that a row is deleted. However
+   * any further calls are simple cleanups not visible to any other thread.
+   *
+   * This is a very central point of the transaction handling.
+   * An operation on a row is committed at this very point in time. This
+   * means that queries that use READ COMMITTED will see the old value
+   * before the call to acquire commit access to the fragment and will see
+   * the new value after release of the fragment access.
+   *
+   * READ COMMITTED operation can thus see different views for different
+   * records, but each record is a committed operation and is always the
+   * last committed version.
+   *
+   * To achieve serialisable model it is necessary to use locks on rows
+   * read and retain those locks until commit time. To achieve a serialisable
+   * model for range scans isn't possible since we cannot lock ranges. However
+   * apart from that the range scans can use locking as well to get all rows
+   * within a range, so the only problem is that new rows can appear in this
+   * range from other transactions.
+   *
+   * Solving the range lock issue is a very hard problem in a distributed
+   * system and is thus best left for the application to solve. Many databases
+   * employ table locks as a method to achieve range locks and this can be
+   * achieved from the application level to achieve full serialisability of
+   * the operations in NDB.
+   *
+   * During execution of executeTuxCommitTriggers we need to ensure that
+   * range scans are not running concurrently. It is ok for key reads to
+   * execute concurrrently with executeTuxCommitTriggers since it only
+   * affects the range scans.
+   *
+   * We implement this by starting to acquire write key access to the
+   * fragment, this stops range scans from being able to access the
+   * fragment. As part of this we will stop new read keys from starting,
+   * but will allow ongoing read keys to continue concurrently with
+   * executeTuxCommitTriggers, this should give a good chance that we
+   * are already in exclusive mode when we completed the execution of
+   * executeTuxCommitTriggers.
+   *
+   * Thus before the real commit where the new changed row gets visible to
+   * other transactions we ensure that we execute in exclusive mode on
+   * the fragment. This is also good for the future changes that we are
+   * completely aware of the concurrency limitations we have.
+   *
+   * To avoid concurrent change of TUX indexes and scans of the TUX index
+   * is that this would require lock/unlock of a mutex for each row. Given
+   * that scanning a row is done in about 250 ns, this means that the overhead
+   * of lock/unlock is likely on the order of 30-40%. This is quite costly,
+   * so therefore by locking exclusively and wait for range scans to complete,
+   * we ensure that range scans knows that no one is updating the range index
+   * while scanning it.
+   *
+   * The exclusive lock approach instead limits the amount of scanning that
+   * can happen when there is a huge amount of updates. This can be solved
+   * by splitting the table into more fragments. Splitting a table into
+   * smaller fragments also splits the locks used to protect the fragments.
+   */
+  if (!regTabPtrP->tuxCustomTriggers.isEmpty())
+  {
+    c_lqh->acquire_frag_commit_access_write_key();
+    if(get_tuple_state(leaderOperPtr.p) == TUPLE_PREPARED)
+    {
+      OperationrecPtr loopPtr = firstOperPtr;
       /**
        * Execute all tux triggers at first commit
        *   since previous tuple is otherwise removed...
@@ -1387,139 +1997,19 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       {
         ndbrequire(c_operation_pool.getValidPtr(loopPtr));
     first:
-	executeTuxCommitTriggers(signal,
-				 loopPtr.p,
-				 regFragPtr.p,
-				 regTabPtr.p);
-	set_tuple_state(loopPtr.p, TUPLE_TO_BE_COMMITTED);
-	loopPtr.i = loopPtr.p->nextActiveOp;
+        executeTuxCommitTriggers(signal,
+                                 loopPtr.p,
+                                 regFragPtrP,
+                                 regTabPtrP);
+        set_tuple_state(loopPtr.p, TUPLE_TO_BE_COMMITTED);
+        loopPtr.i = loopPtr.p->nextActiveOp;
       }
     }
   }
-  
-  bool get_page = false;
-  bool initial_delete = false;
-  if(regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit)
-  {
-    jam();
-    Page_cache_client::Request req;
-
-    /**
-     * Only last op on tuple needs "real" commit,
-     *   hence only this one should have m_load_diskpage_on_commit
-     */
-    ndbassert(tuple_ptr->m_operation_ptr_i == regOperPtr.i);
-
-    /**
-     * Check for page
-     */
-    if(!regOperPtr.p->m_copy_tuple_location.isNull())
-    {
-      jam();
-      Tuple_header* tmp= get_copy_tuple(&regOperPtr.p->m_copy_tuple_location);
-      
-      memcpy(&req.m_page, 
-	     tmp->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
-
-      if (unlikely(regOperPtr.p->op_type == ZDELETE &&
-		   tmp->m_header_bits & Tuple_header::DISK_ALLOC))
-      {
-        jam();
-	/**
-	 * Insert+Delete
-         * In this case we want to release the Copy page tuple that was
-         * allocated for the insert operation since the commit of the
-         * delete operation here makes it unnecessary to save the
-         * new record.
-	 */
-        regOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit = 0;
-        regOperPtr.p->op_struct.bit_field.m_wait_log_buffer = 0;	
-        disk_page_abort_prealloc(signal, regFragPtr.p, 
-				 &req.m_page, req.m_page.m_page_idx);
-
-        {
-          D("Logfile_client - execTUP_COMMITREQ");
-          Logfile_client lgman(this,
-                               c_lgman,
-                               regFragPtr.p->m_logfile_group_id);
-          lgman.free_log_space(regOperPtr.p->m_undo_buffer_space,
-                               jamBuffer());
-        }
-	goto skip_disk;
-      }
-    } 
-    else
-    {
-      jam();
-      // initial delete
-      initial_delete = true;
-      ndbassert(regOperPtr.p->op_type == ZDELETE);
-      memcpy(&req.m_page, 
-	     tuple_ptr->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
-      
-      ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
-    }
-
-    if (retrieve_data_page(signal,
-                           req,
-                           regOperPtr,
-                           diskPagePtr,
-                           regFragPtr.p) == 0)
-    {
-      if (!initial_delete)
-      {
-        jam();
-      }
-      else
-      {
-        jam();
-        /* Set bit to indicate the tuple is already deleted */
-        Uint32 old_header = tuple_ptr->m_header_bits;
-        Uint32 new_header = tuple_ptr->m_header_bits =
-          old_header | Tuple_header::DELETE_WAIT;
-        updateChecksum(tuple_ptr, regTabPtr.p, old_header, new_header);
-      }
-      signal->theData[0] = 1; //Ensure we report real-time break
-      return; // Data page has not been retrieved yet.
-    }
-    get_page = true;
-  } 
-  
-  if(regOperPtr.p->op_struct.bit_field.m_wait_log_buffer)
-  {
-    jam();
-    /**
-     * Only last op on tuple needs "real" commit,
-     *   hence only this one should have m_wait_log_buffer
-     */
-    ndbassert(tuple_ptr->m_operation_ptr_i == regOperPtr.i);
-    
-    if (retrieve_log_page(signal, regFragPtr, regOperPtr) == 0)
-    {
-      if (!initial_delete)
-      {
-        jam();
-      }
-      else
-      {
-        jam();
-        /* Set bit to indicate the tuple is already deleted */
-        Uint32 old_header = tuple_ptr->m_header_bits;
-        Uint32 new_header = tuple_ptr->m_header_bits =
-          old_header | Tuple_header::DELETE_WAIT;
-        updateChecksum(tuple_ptr, regTabPtr.p, old_header, new_header);
-      }
-      signal->theData[0] = 1; //Ensure we report real-time break
-      return; // Log page has not been retrieved yet.
-    }
-  }
-  
-  assert(tuple_ptr);
-skip_disk:
   req_struct.m_tuple_ptr = tuple_ptr;
   
-  Uint32 nextOp = regOperPtr.p->nextActiveOp;
-  Uint32 prevOp = regOperPtr.p->prevActiveOp;
+  Uint32 nextOp = leaderOperPtr.p->nextActiveOp;
+  Uint32 prevOp = leaderOperPtr.p->prevActiveOp;
   /**
    * The trigger code (which is shared between detached/imediate)
    *   check op-list to check were to read before values from
@@ -1528,97 +2018,140 @@ skip_disk:
    *
    * Setting the op-list has this effect
    */
-  regOperPtr.p->nextActiveOp = RNIL;
-  regOperPtr.p->prevActiveOp = RNIL;
-  if(tuple_ptr->m_operation_ptr_i == regOperPtr.i)
+  c_lqh->acquire_frag_commit_access_exclusive();
+  leaderOperPtr.p->nextActiveOp = RNIL;
+  leaderOperPtr.p->prevActiveOp = RNIL;
+  ndbassert(tuple_ptr->m_operation_ptr_i == leaderOperPtr.i);
   {
     jam();
     /**
      * Perform "real" commit
      */
-    Uint32 disk = regOperPtr.p->m_commit_disk_callback_page;
-    set_commit_change_mask_info(regTabPtr.p, &req_struct, regOperPtr.p);
+    Uint32 disk = leaderOperPtr.p->m_commit_disk_callback_page;
+    set_commit_change_mask_info(regTabPtrP, &req_struct, leaderOperPtr.p);
     checkDetachedTriggers(&req_struct,
-                          regOperPtr.p,
-                          regTabPtr.p, 
+                          leaderOperPtr.p,
+                          regTabPtrP, 
                           disk != RNIL,
                           diskPagePtr.i);
     
     tuple_ptr->m_operation_ptr_i = RNIL;
     
-    if (regOperPtr.p->op_type == ZDELETE)
+    if (leaderOperPtr.p->op_type == ZDELETE)
     {
       jam();
-      if (get_page)
-      {
-        ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
-      }
       dealloc_tuple(signal,
-                    gci_hi,
-                    gci_lo,
-                    page.p,
+                    req_struct.gci_hi,
+                    req_struct.gci_lo,
+                    tupPagePtr.p,
                     tuple_ptr,
                     &req_struct,
-                    regOperPtr.p,
-                    regFragPtr.p,
-                    regTabPtr.p,
+                    leaderOperPtr.p,
+                    regFragPtrP,
+                    regTabPtrP,
                     diskPagePtr);
     }
-    else if(regOperPtr.p->op_type != ZREFRESH)
+    else if (leaderOperPtr.p->op_type != ZREFRESH)
     {
       jam();
       commit_operation(signal,
-                       gci_hi,
-                       gci_lo,
+                       req_struct.gci_hi,
+                       req_struct.gci_lo,
                        tuple_ptr,
-                       page,
-		       regOperPtr.p,
-                       regFragPtr.p,
-                       regTabPtr.p,
+                       tupPagePtr,
+		       leaderOperPtr.p,
+                       regFragPtrP,
+                       regTabPtrP,
                        diskPagePtr); 
     }
     else
     {
       jam();
       commit_refresh(signal,
-                     gci_hi,
-                     gci_lo,
+                     req_struct.gci_hi,
+                     req_struct.gci_lo,
                      tuple_ptr,
-                     page,
+                     tupPagePtr,
                      &req_struct,
-                     regOperPtr.p,
-                     regFragPtr.p,
-                     regTabPtr.p,
+                     leaderOperPtr.p,
+                     regFragPtrP,
+                     regTabPtrP,
                      diskPagePtr);
     }
   }
+  /* Restore list before removing execute operation record from it */
+  leaderOperPtr.p->nextActiveOp = nextOp;
+  leaderOperPtr.p->prevActiveOp = prevOp;
 
-  if (nextOp != RNIL)
+  if (likely(firstOperPtr.i == leaderOperPtr.i))
   {
-    OperationrecPtr opPtr;
-    opPtr.i = nextOp;
-    ndbrequire(c_operation_pool.getValidPtr(opPtr));
-    opPtr.p->prevActiveOp = prevOp;
+    /* Leader is also first, only one operation, nothing more to do */
+    firstOperPtr.i = RNIL;
   }
-  
-  if (prevOp != RNIL)
+  else if (likely(firstOperPtr.i == executeOperPtr.i))
   {
-    OperationrecPtr opPtr;
-    opPtr.i = prevOp;
-    ndbrequire(c_operation_pool.getValidPtr(opPtr));
-    opPtr.p->nextActiveOp = nextOp;
+    /**
+     * Executed record was first record, this case is easy, simply remove
+     * the first record and move first to be the second operation record.
+     */
+    firstOperPtr.i = executeOperPtr.p->nextActiveOp;
+    ndbrequire(c_operation_pool.getValidPtr(firstOperPtr));
   }
-  
-  if(!regOperPtr.p->m_copy_tuple_location.isNull())
+  else
   {
     jam();
-    c_undo_buffer.free_copy_tuple(&regOperPtr.p->m_copy_tuple_location);
+    /**
+     * Need to link out the operation record from the list before
+     * calling tupcommit_conf_callback since this will release the
+     * operation record.
+     *
+     * We only need to update the next list, we will release them from
+     * first to last during the commit processing and will not release
+     * any operations before this commit processing is done.
+     */
+    OperationrecPtr prevOperPtr;
+    prevOperPtr.i = executeOperPtr.p->prevActiveOp;
+    ndbrequire(c_operation_pool.getValidPtr(prevOperPtr));
+    prevOperPtr.p->nextActiveOp = executeOperPtr.p->nextActiveOp;
   }
-  
-  regFragPtr.p->m_committed_changes++;
+  finalize_commit(executeOperPtr.p, regFragPtrP);
+  c_lqh->tupcommit_conf_callback(signal, executeOperPtr.p->userpointer);
+  /**
+   * We avoid holding the fragment access lock during sendSignal by releasing
+   * the lock inside of tupcommit_conf_callback, so no release required here.
+   * --------------------------------------------------------
+   * The real commit is now completed and we have released the exclusive lock
+   * on the fragment. There is still some cleanup work to be performed.
+   *
+   * At first we need to set the state to CommitPerformedReceived or
+   * CommitPerformedNotReceived on all operations. Next we need to start
+   * calling tupcommit_conf_callback on all operations that have the state
+   * CommitPerformedReceived.
+   *
+   * At this point we still have the linked list intact. We need to ensure
+   * that the list is intact until we have walked through all operations
+   * and finalized their commits. This might require a CONTINUEB signal,
+   * so this requires some careful processing.
+   */
+  if (firstOperPtr.i != RNIL)
+  {
+    jam();
+    set_commit_performed(firstOperPtr, regFragPtrP);
+    report_commit_performed(signal, firstOperPtr, MAX_COMMITS, regFragPtrP);
+  }
+}
 
-  initOpConnection(regOperPtr.p);
-  signal->theData[0] = 0;
+
+void
+Dbtup::finalize_commit(Operationrec *regOperPtrP, Fragrecord *fragPtrP)
+{
+  if (!regOperPtrP->m_copy_tuple_location.isNull())
+  {
+    jam();
+    c_undo_buffer.free_copy_tuple(&regOperPtrP->m_copy_tuple_location);
+  }
+  fragPtrP->m_committed_changes++;
+  initOpConnection(regOperPtrP);
 }
 
 void

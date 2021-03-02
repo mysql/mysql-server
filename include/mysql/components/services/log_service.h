@@ -181,9 +181,9 @@ DECLARE_METHOD(int, run, (void *instance, log_line *ll));
   @param   instance  State-pointer that was returned on open.
                      Value may be changed in flush.
 
-  @retval  LOG_SERVICE_NOTHING_DONE        no work was done
-  @retval  LOG_SERVICE_SUCCESS             flush completed without incident
-  @retval  otherwise                       an error occurred
+  @returns  LOG_SERVICE_NOTHING_DONE        no work was done
+  @returns  LOG_SERVICE_SUCCESS             flush completed without incident
+  @returns  otherwise                       an error occurred
 */
 DECLARE_METHOD(log_service_error, flush, (void **instance));
 
@@ -202,8 +202,8 @@ DECLARE_METHOD(log_service_error, flush, (void **instance));
                      the server/logging framework. It must be released
                      on close.
 
-  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
-  @retval  otherwise                  a new instance could not be created
+  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  otherwise                  a new instance could not be created
 */
 DECLARE_METHOD(log_service_error, open, (log_line * ll, void **instance));
 
@@ -215,8 +215,8 @@ DECLARE_METHOD(log_service_error, open, (log_line * ll, void **instance));
                      it should be released, and the pointer
                      set to nullptr.
 
-  @retval  LOG_SERVICE_SUCCESS        success
-  @retval  otherwise                  an error occurred
+  @returns  LOG_SERVICE_SUCCESS        success
+  @returns  otherwise                  an error occurred
 */
 DECLARE_METHOD(log_service_error, close, (void **instance));
 

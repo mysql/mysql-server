@@ -1051,20 +1051,40 @@ class Clone_Sys {
     /* Call function once before waiting. */
     err = func(false, wait);
 
-    while (!is_timeout && wait && err == 0) {
-      ++loop_count;
+    /* Start with 1 ms sleep and increase upto target sleep time. */
+    Clone_Msec cur_sleep_time{1};
 
+    while (!is_timeout && wait && err == 0) {
       /* Release input mutex */
       if (mutex != nullptr) {
         ut_ad(mutex_own(mutex));
         mutex_exit(mutex);
       }
 
-      std::this_thread::sleep_for(sleep_time);
+      /* Limit sleep time to what is passed by caller. */
+      if (cur_sleep_time > sleep_time) {
+        cur_sleep_time = sleep_time;
+      }
+
+      std::this_thread::sleep_for(cur_sleep_time);
+
+      if (cur_sleep_time < sleep_time) {
+        /* Double sleep time in each iteration till we reach target. */
+        cur_sleep_time *= 2;
+      } else {
+        /* Increment count once we have reached target sleep time. */
+        ++loop_count;
+      }
 
       /* Acquire input mutex back */
       if (mutex != nullptr) {
         mutex_enter(mutex);
+      }
+
+      /* We have not yet reached the target sleep time. */
+      if (loop_count == 0) {
+        err = func(false, wait);
+        continue;
       }
 
       auto alert = (alert_count > 0) ? (loop_count % alert_count == 0) : true;

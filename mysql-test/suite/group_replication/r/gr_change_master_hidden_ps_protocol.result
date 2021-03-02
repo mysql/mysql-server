@@ -14,14 +14,14 @@ SET @old_log_output= @@log_output;
 SET GLOBAL log_output= 'TABLE';
 TRUNCATE mysql.general_log;
 include/start_and_bootstrap_group_replication.inc
-# CHANGE MASTER with valid options will work fine and the password part will be masked with <secret>
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+# CHANGE REPLICATION SOURCE with valid options will work fine and the password part will be masked with <secret>
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 # Since MASTER_PASSWORD is not stored in the performance schema table
 # (performance_schema.replication_connection_configuration) it won't be visible.
 SELECT password FROM performance_schema.replication_connection_configuration;
 ERROR 42S22: Unknown column 'password' in 'field list'
 server1
-include/assert.inc [The CHANGE MASTER is logged with the password value replaced with the keyword <secret>.]
+include/assert.inc [The CHANGE REPLICATION SOURCE TO is logged with the password value replaced with the keyword <secret>.]
 SET sql_log_bin=0;
 call mtr.add_suppression(".*Invalid .* username when attempting to connect to the master server.*");
 call mtr.add_suppression("There was an error when connecting to the donor server");
@@ -29,9 +29,7 @@ call mtr.add_suppression("For details please check performance_schema.replicatio
 SET sql_log_bin=1;
 START GROUP_REPLICATION;
 include/assert.inc [The default values of the User_name and User_password are empty without a previous change master.]
-RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 SET sql_log_bin=0;
 DROP USER manish;
 SET sql_log_bin=1;

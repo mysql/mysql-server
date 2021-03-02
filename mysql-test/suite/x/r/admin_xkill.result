@@ -133,7 +133,7 @@ x_root@localhost	x_root@localhost
 RUN show grants
 Grants for x_root@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `x_root`@`localhost` WITH GRANT OPTION
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `x_root`@`localhost` WITH GRANT OPTION
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `x_root`@`localhost` WITH GRANT OPTION
 0 rows affected
 open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 connecting...
@@ -193,7 +193,7 @@ xplugin@localhost	xplugin@localhost
 RUN show grants
 Grants for xplugin@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `xplugin`@`localhost`
-GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `xplugin`@`localhost`
+GRANT APPLICATION_PASSWORD_ADMIN,AUDIT_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADMIN,CLONE_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,FLUSH_OPTIMIZER_COSTS,FLUSH_STATUS,FLUSH_TABLES,FLUSH_USER_RESOURCES,GROUP_REPLICATION_ADMIN,INNODB_REDO_LOG_ARCHIVE,INNODB_REDO_LOG_ENABLE,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_APPLIER,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SERVICE_CONNECTION_ADMIN,SESSION_VARIABLES_ADMIN,SET_USER_ID,SHOW_ROUTINE,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN,TABLE_ENCRYPTION_ADMIN,XA_RECOVER_ADMIN ON *.* TO `xplugin`@`localhost`
 0 rows affected
 Cleanup
 RUN drop schema if exists xtest
@@ -250,7 +250,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-checking list_clients and kill_client with default 100 connections, expect success for both list and kill
+checking list_clients and kill_client with default 50 connections, expect success for both list and kill
 RUN set @@global.mysqlx_max_connections=60
 
 0 rows affected
@@ -484,202 +484,452 @@ WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be
 RUN [stmtadmin kill_client 11]
 
 command ok
+switched to session xconnection1
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection1
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 12]
 
 command ok
+switched to session xconnection2
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection2
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 13]
 
 command ok
+switched to session xconnection3
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection3
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 14]
 
 command ok
+switched to session xconnection4
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection4
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 15]
 
 command ok
+switched to session xconnection5
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection5
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 16]
 
 command ok
+switched to session xconnection6
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection6
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 17]
 
 command ok
+switched to session xconnection7
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection7
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 18]
 
 command ok
+switched to session xconnection8
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection8
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 19]
 
 command ok
+switched to session xconnection9
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection9
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 20]
 
 command ok
+switched to session xconnection10
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection10
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 21]
 
 command ok
+switched to session xconnection11
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection11
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 22]
 
 command ok
+switched to session xconnection12
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection12
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 23]
 
 command ok
+switched to session xconnection13
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection13
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 24]
 
 command ok
+switched to session xconnection14
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection14
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 25]
 
 command ok
+switched to session xconnection15
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection15
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 26]
 
 command ok
+switched to session xconnection16
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection16
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 27]
 
 command ok
+switched to session xconnection17
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection17
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 28]
 
 command ok
+switched to session xconnection18
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection18
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 29]
 
 command ok
+switched to session xconnection19
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection19
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 30]
 
 command ok
+switched to session xconnection20
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection20
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 31]
 
 command ok
+switched to session xconnection21
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection21
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 32]
 
 command ok
+switched to session xconnection22
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection22
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 33]
 
 command ok
+switched to session xconnection23
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection23
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 34]
 
 command ok
+switched to session xconnection24
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection24
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 35]
 
 command ok
+switched to session xconnection25
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection25
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 36]
 
 command ok
+switched to session xconnection26
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection26
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 37]
 
 command ok
+switched to session xconnection27
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection27
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 38]
 
 command ok
+switched to session xconnection28
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection28
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 39]
 
 command ok
+switched to session xconnection29
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection29
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 40]
 
 command ok
+switched to session xconnection30
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection30
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 41]
 
 command ok
+switched to session xconnection31
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection31
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 42]
 
 command ok
+switched to session xconnection32
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection32
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 43]
 
 command ok
+switched to session xconnection33
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection33
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 44]
 
 command ok
+switched to session xconnection34
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection34
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 45]
 
 command ok
+switched to session xconnection35
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection35
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 46]
 
 command ok
+switched to session xconnection36
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection36
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 47]
 
 command ok
+switched to session xconnection37
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection37
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 48]
 
 command ok
+switched to session xconnection38
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection38
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 49]
 
 command ok
+switched to session xconnection39
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection39
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 50]
 
 command ok
+switched to session xconnection40
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection40
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 51]
 
 command ok
+switched to session xconnection41
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection41
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 52]
 
 command ok
+switched to session xconnection42
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection42
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 53]
 
 command ok
+switched to session xconnection43
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection43
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 54]
 
 command ok
+switched to session xconnection44
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection44
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 55]
 
 command ok
+switched to session xconnection45
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection45
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 56]
 
 command ok
+switched to session xconnection46
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection46
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 57]
 
 command ok
+switched to session xconnection47
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection47
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 58]
 
 command ok
+switched to session xconnection48
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection48
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 59]
 
 command ok
+switched to session xconnection49
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection49
+switched to session default
 WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
 RUN [stmtadmin kill_client 60]
 
 command ok
+switched to session xconnection50
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session xconnection50
+switched to session default
 Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 10	x_root	localhost

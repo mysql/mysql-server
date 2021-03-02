@@ -72,6 +72,9 @@ INSERT INTO t1 VALUES (1);
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
 
+SET @old_debug= @@GLOBAL.DEBUG;
+SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
+
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin= 1;
@@ -100,7 +103,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    performance_schema.replication_connection_configuration.
 --echo #
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 --source include/start_slave.inc
 
 # Verify Asynchronous Replication Connection Failover is enabled.
@@ -128,13 +131,6 @@ CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION
 
 --let $slave_io_errno=2003
 --source include/wait_for_slave_io_error.inc
-
---let $assert_text= Assert that the IO thread fails with as there is not alternative source to connect.
---let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= Failed to automatically re-connect to a different source, for channel.*, because no alternative source is specified. To fix this add new source details for the channel.
---let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
---let $assert_count= 1
---source include/assert_grep.inc
 
 
 --echo #
@@ -263,7 +259,9 @@ INSERT INTO t1 VALUES (3);
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
 
-SET @old_debug= @@GLOBAL.DEBUG;
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
+--source include/wait_condition.inc
+
 SET GLOBAL debug = '+d,replica_retry_count_exceed';
 
 --let $rpl_server_number= 1
@@ -274,84 +272,62 @@ SET GLOBAL debug = '+d,replica_retry_count_exceed';
 --echo # 16. Even after all source are stopped the replica IO thread keeps
 --echo #     on re-trying to connect with all logged source in
 --echo #     performance_schema.replication_asynchronous_connection_failover
---echo #     table. It tries connecting to server 3, 2 and again server 3.
+--echo #     table. It tries connecting to server 3, 2, 1, and again 3, 2 1.
 --echo #
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
 
---let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
---source include/wait_condition.inc
-
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
-SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
-
-# Verify that it tried connecting to server_1 two (retry_count=2) times.
---let $assert_text= Assert that the IO thread tried two times connecting to server_1
---let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= .*error reconnecting to master 'root@127.0.0.1:$SERVER_MYPORT_1' - retry-time: 1 retries:.*
---let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
---let $assert_count= 2
---source include/assert_grep.inc
-
-
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_3
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
-# Verify that it tried connecting to server_3 two (retry_count=2) times.
---let $assert_text= Assert that the IO thread tried two times connecting to server_3
---let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= .*error connecting to master 'root@127.0.0.1:$SERVER_MYPORT_3' - retry-time: 1 retries:.*
---let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
---let $assert_count= 8
---source include/assert_grep.inc
-
-
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_2
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
-# Verify that it tried connecting to server_2 two (retry_count=2) times.
---let $assert_text= Assert that the IO thread tried two times connecting to server_2
---let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= .*error connecting to master 'root@127.0.0.1:$SERVER_MYPORT_2' - retry-time: 1 retries:.*
---let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
---let $assert_count= 2
---source include/assert_grep.inc
-
-
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_3
 --source include/wait_condition.inc
-
-SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
 
-# Verify that it tried connecting to server_3 two (retry_count=2) times.
---let $assert_text= Assert that the IO thread tried two times connecting to server_3
---let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.4.err
---let $assert_select= .*error connecting to master 'root@127.0.0.1:$SERVER_MYPORT_3' - retry-time: 1 retries:.*
---let $assert_only_after= CURRENT_TEST: rpl_gtid.rpl_async_conn_failover
---let $assert_count= 10
---source include/assert_grep.inc
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_2
+--source include/wait_condition.inc
+SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
+
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME='' AND PORT=$SERVER_MYPORT_1
+--source include/wait_condition.inc
+SET @@GLOBAL.DEBUG= @old_debug;
+SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
+SET DEBUG_SYNC= 'RESET';
 
 
 --echo #
 --echo # 17. Stop replica IO
 --echo #
-SET @@GLOBAL.DEBUG= @old_debug;
---source include/stop_slave_io.inc
+--source include/stop_slave.inc
 
 
 --echo #
 --echo # 18. Clean up
 --echo #
 
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+
+--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_3, '');
+--replace_result $SERVER_MYPORT_2 SERVER_MYPORT_2
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_2, '');
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1
+--eval SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', $SERVER_MYPORT_1, '');
 
 --let $rpl_server_number=1
 --source include/rpl_start_server.inc
@@ -374,7 +350,7 @@ while ($_rpl_server < $rpl_server_count)
 
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
---source include/start_slave_io.inc
+--source include/start_slave.inc
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc

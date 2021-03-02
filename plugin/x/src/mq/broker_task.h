@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -27,15 +27,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/mq/broker_context.h"
+#include "plugin/x/src/ngs/notice_descriptor.h"
 
 namespace xpl {
 
 class Broker_task : public iface::Server_task {
  public:
-  using Notice_descriptor = ::ngs::Notice_descriptor;
+  using Notice_descriptor = ngs::Notice_descriptor;
   using Notice_type = ngs::Notice_type;
   using Publish_queue = Broker_context::Publish_queue;
   using State = Broker_context::State;
@@ -56,7 +56,7 @@ class Broker_task : public iface::Server_task {
 
   void distribute(const Notice_descriptor &notice_descriptor);
 
-  std::shared_ptr<std::string> create_notice_message(
+  std::shared_ptr<Notice_descriptor> create_notice_message(
       const Notice_descriptor &notice_description);
 
   std::shared_ptr<Broker_context> m_broker_context;

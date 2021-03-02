@@ -120,7 +120,11 @@ static struct my_option my_long_options[] =
   { "logbuffer-size", NDB_OPT_NOSHORT,
     "Size of the log buffer for data node ndb_x_out.log",
     (uchar**) &opt_logbuffer_size, (uchar**) &opt_logbuffer_size, 0,
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+    GET_ULONG, REQUIRED_ARG, 1024*1024, 2048, ULONG_MAX, 0, 0, 0
+#else
     GET_ULONG, REQUIRED_ARG, 32768, 2048, ULONG_MAX, 0, 0, 0
+#endif
   },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };

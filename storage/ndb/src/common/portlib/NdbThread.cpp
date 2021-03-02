@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1221,7 +1221,7 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
   unsigned long long temp, stat, dynamic;
   unsigned long long num_cpu_ids = (unsigned long long)cpu_set_ptr[0];
   unsigned int *stat_part = &cpu_set_ptr[2 + num_processor_groups];
-  int found = FALSE;
+  bool found = false;
   for (unsigned int i = 0; i < num_processor_groups; i++)
   {
     stat = (unsigned long long)stat_part[i];
@@ -1233,11 +1233,11 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
       {
         used_processor_group = i;
         min_so_far = temp;
-        found = TRUE;
+        found = true;
       }
     }
   }
-  assert(found == TRUE);
+  assert(found);
   KAFFINITY mask;
   calculate_processor_mask(&mask,
                            used_processor_group,
@@ -1821,6 +1821,36 @@ struct NdbThread* NdbThread_GetNdbThread()
   return NDB_THREAD_TLS_NDB_THREAD;
 }
 
+  static bool cpu_set_working;
+#if defined(HAVE_LINUX_SCHEDULING)
+  static cpu_set_t g_cpu_usable_set;
+#elif defined(HAVE_CPUSET_SETAFFINITY)
+  static cpuset_t g_cpu_usable_set;
+#elif defined(HAVE_PROCESSOR_AFFINITY)
+  static uint_t g_num_ids;
+  static id_t *g_cpu_ids;
+#endif
+
+bool
+NdbThread_IsCPUAvailable(Uint32 cpu_id)
+{
+  if (!cpu_set_working)
+    return true;
+#if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_CPUSET_SETAFFINITY)
+  if (CPU_ISSET(cpu_id, &g_cpu_usable_set))
+    return true;
+  return false;
+#elif defined(HAVE_PROCESSOR_AFFINITY)
+  for (uint_t i = 0; i < g_num_ids; i++)
+  {
+    if (g_cpu_ids[i] == cpu_id)
+      return true;
+  }
+  return false;
+#endif
+  return true;
+}
+
 int
 NdbThread_Init()
 {
@@ -1830,12 +1860,64 @@ NdbThread_Init()
   ndb_thread_mutex = NdbMutex_Create();
   ndb_thread_condition = NdbCondition_Create();
   NdbThread_CreateObject(0);
+  cpu_set_working = true;
+#if defined(HAVE_LINUX_SCHEDULING)
+  CPU_ZERO(&g_cpu_usable_set);
+  int ret = sched_getaffinity(0,
+                              sizeof(g_cpu_usable_set),
+                              &g_cpu_usable_set);
+  if (ret != 0)
+    cpu_set_working = false;
+#elif defined(HAVE_CPUSET_AFFINITY)
+  CPU_ZERO(&g_cpu_usable_set);
+  int ret = cpuset_getaffinity(CPU_LEVEL_ROOT,
+                               CPU_WHICH_TID,
+                               getpid(),
+                               sizeof(cpuset_t),
+                               &g_cpu_usable_set);
+  if (ret != 0)
+    cpu_set_working = false;
+#elif defined(HAVE_PROCESSOR_AFFINITY)
+  g_cpu_ids = nullptr;
+  uint32_t flags = PA_QUERY;
+  procset_t ps;
+  setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID, thr_self());
+  if (processor_affinity(&ps,
+                         &g_num_ids,
+                         NULL,
+                         &flags) == 0)
+  {
+    if (g_num_ids != 0)
+    {
+      flags = PA_QUERY;
+      g_cpu_ids = (id_t*)calloc(g_num_ids, sizeof (id_t));
+      if (g_cpu_ids != nullptr)
+      {
+        if (processor_affinity(&ps,
+                               &g_num_ids,
+                               g_cpu_ids,
+                               &flags) != 0)
+        {
+          cpu_set_working = false;
+        }
+      }
+      else
+      {
+        cpu_set_working = false;
+      }
+    }
+  }
+#endif
   return 0;
 }
 
 void
 NdbThread_End()
 {
+#if defined(HAVE_PROCESSOR_AFFINITY)
+  free(g_cpu_ids);
+  g_cpu_ids = nullptr;
+#endif
   if (ndb_thread_mutex)
   {
     NdbMutex_Destroy(ndb_thread_mutex);

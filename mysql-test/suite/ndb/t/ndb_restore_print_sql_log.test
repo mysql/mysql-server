@@ -25,9 +25,9 @@ create table t2
 )engine=ndbcluster;
 
 #Introduce error to ensure that backup halts
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 #Start backup with wait started so test does not wait indefinitely
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
 
 --echo "Logged queries:"
 insert into t1 values(1,1,'abc','def','ghi','jkl','2016-05-25 12:42:45','2016-05-25','12:42:45');
@@ -36,7 +36,7 @@ update t1 set id3='mno' where id1=1 and id2>0;
 delete from t1 where id1 is not null and id4 like 'd%';
 
 #Remove error previously introduced
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 #Retrieve backup ID
 --disable_query_log
 --source include/ndb_backup_id.inc
@@ -64,7 +64,7 @@ while ($mysql_errno)
 --enable_warnings
 --echo
 --echo "Restore with --print-sql-log option"
---let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
+--let ndb_restore_opts= --print-sql-log --verbose=0
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 2 $NDB_BACKUPS-$the_backup_id
 
@@ -86,9 +86,9 @@ create table t4
 )engine=ndbcluster;
 
 #Introduce error to ensure that backup halts
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 #Start backup with wait started so test does not wait indefinitely
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
 
 --echo "Logged queries:"
 insert into t3 values(1,2);
@@ -97,7 +97,7 @@ update t3 set id2=5 where id1=1;
 delete from t3;
 
 #Remove error previously introduced
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 #Check if backup is complete. The table will be dropped
 #only when the backup is complete. Thus, the test attempts
@@ -124,7 +124,7 @@ while ($mysql_errno)
 --enable_query_log
 --echo
 --echo "Restore with --print-sql-log option"
---let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
+--let ndb_restore_opts= --print-sql-log --verbose=0
 --error 1
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
@@ -144,9 +144,9 @@ create table t6
  (id1 int primary key
 )engine=ndbcluster;
 #Introduce error to ensure that backup halts
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 #Start backup with wait started so test does not wait indefinitely
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
 
 --echo "Logged queries:"
 insert into t5 values(1000,2000);
@@ -154,7 +154,7 @@ update t5 set id2=5000 where id1=1000;
 delete from t5;
 
 #Remove error previously introduced
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 #Check if backup is complete. The table will be dropped
 #only when the backup is complete. Thus, the test attempts
 #to drop the table at intervals of 1 second and eventually
@@ -181,7 +181,7 @@ while ($mysql_errno)
 --enable_query_log
 --echo
 --echo "Restore with --print-sql-log and --print-log options"
---let ndb_restore_opts= --print-sql-log --print-log --verbose=0 --core-file=0
+--let ndb_restore_opts= --print-sql-log --print-log --verbose=0
 --error 1
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
@@ -203,15 +203,15 @@ create table t8
 )engine=ndbcluster;
 
 #Introduce error to ensure that backup halts
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 #Start backup with wait started so test does not wait indefinitely
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup wait started" >> $NDB_TOOLS_OUTPUT
 
 --echo "Logged queries:"
 insert into t7 values(1,'a');
 
 #Remove error previously introduced
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 #Check if backup is complete. The table will be dropped
 #only when the backup is complete. Thus, the test attempts
@@ -238,7 +238,7 @@ while ($mysql_errno)
 --enable_query_log
 --echo
 --echo "Restore with --print-sql-log option"
---let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
+--let ndb_restore_opts= --print-sql-log --verbose=0
 --error 1
 --exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 

@@ -39,6 +39,7 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
+#include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/current_thd.h"  // current_thd
@@ -659,4 +660,10 @@ void remove_ssl_err_thread_state() {
 
 unsigned int thd_get_num_vcpus() {
   return resourcegroups::platform::num_vcpus();
+}
+
+bool thd_check_connection_admin_privilege(MYSQL_THD thd) {
+  Security_context *sctx = thd->security_context();
+  return (!(sctx->check_access(SUPER_ACL) ||
+            sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first));
 }

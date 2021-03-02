@@ -1,0 +1,260 @@
+# Disable in valgrind because of timeout
+--source include/not_valgrind.inc
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+--source include/not_crashrep.inc
+
+--echo #
+--echo # This test tests various DML operations and their effect on the tablespaces
+--echo #
+
+--echo # Test tables with file_per_table tablespace
+
+--echo #
+--echo # Scenario-1: Create a table without autoextend_size and validate that the allocation
+--echo # happens as per the old logic
+--echo #
+
+CREATE TABLE t1 (c1 INT, c2 TEXT);
+
+--echo # Verify the initial size of the file
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--echo # This is a smaller tablespace. The tablespace should extend by adding smaller number
+--echo # of pages initially
+
+--echo # Add few rows to the table and check the size of the file
+let $row_count = 1;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+let $row_count = 1;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+let $row_count = 1;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+--echo # Once the tablespace size is more than half of the extent size, tablespace is extended with
+--echo # 4 extents at a time
+let $row_count = 7;
+let $table_name = t1;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+
+select count(*) from t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+drop table t1;
+
+--echo #
+--echo # Scenario-2: Create table with autoextend_size clause and validate that the allocation happens as per the
+--echo # new logic and the initial size of the tablespace file is the value of AUTOEXTEND_SIZE
+--echo #
+CREATE TABLE t2(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+let $row_count = 10;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+let $row_count = 10;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+let $row_count = 1000;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+let $row_count = 1000;
+let $table_name = t2;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+select count(*) from t2;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t2%';
+
+DROP TABLE t2;
+
+--echo #
+--echo # Scenario-3: Create a table without autoextend_size and alter it later on to add autoextend_size property
+--echo # Validate that the allocation is done with the old logic until autoextend_size is introduced to the table
+--echo #
+CREATE TABLE t3(c1 INT, c2 TEXT);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t3%';
+
+let $row_count = 1;
+let $table_name = t3;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM t3;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t3%';
+
+ALTER TABLE t3 AUTOEXTEND_SIZE 4M;
+let $row_count = 1;
+let $table_name = t3;
+--source suite/innodb/include/innodb_autoextend_dml.inc
+SELECT COUNT(*) FROM t3;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t3%';
+
+DROP TABLE t3;
+
+--echo #
+--echo # Scenario-4: Test crash recovery and verify that the autoextend_size values are reinstated
+--echo # after recovery
+--echo #
+CREATE TABLE t4(c1 INT, c2 longblob) AUTOEXTEND_SIZE 8m;
+
+--echo # The initialize size of the table should be same as the autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t4%';
+
+--echo # Crash the server while attempting to allocate more space
+INSERT INTO t4 VALUES (1, repeat(1, 4 * 1024 * 1024));
+
+--source include/expect_crash.inc
+SET DEBUG="+d, fsp_crash_before_space_extend";
+--error 2013
+INSERT INTO t4 VALUES (1, repeat(1, 4 * 1024 * 1024));
+
+--echo # Restart mysqld after the crash and reconnect
+--source include/start_mysqld.inc
+
+# Verify the current size of the tablespace
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+   WHERE NAME LIKE '%t4%';
+
+# Insert another row and verify that the space has been extended by the autoextend_size value
+INSERT INTO t4 VALUES (1, repeat(1, 4 * 1024 * 1024));
+SELECT COUNT(*) FROM t4;
+
+--echo # Verify new file size is a multiple of autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+   WHERE NAME LIKE '%t4%';
+
+DROP TABLE t4;
+
+--echo #
+--echo # Scenario-5: Test crash recovery when server is started with --skip-innodb-validate-tablespace-paths
+--echo # option and verify that the server respects the autoextend_size value
+--echo #
+CREATE TABLE t5(c1 INT, c2 longblob) AUTOEXTEND_SIZE 8m;
+
+--echo # The initialize size of the table should be same as the autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t5%';
+
+--echo # Crash the server while attempting to allocate more space
+INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));
+
+SET DEBUG="+d, fsp_crash_before_space_extend";
+
+# Write file to make mysql-test-run.pl expect crash
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));
+
+--echo # Restart mysqld with --skip-innodb-validate-tablespace-paths option after
+--echo # the crash and reconnect
+--let $restart_parameters = restart: --skip-innodb-validate-tablespace-paths
+--source include/start_mysqld.inc
+
+# Verify the current size of the tablespace
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+   WHERE NAME LIKE '%t5%';
+
+# Insert another row and verify that the space has been extended by the autoextend_size value
+INSERT INTO t5 VALUES (1, repeat(1, 4 * 1024 * 1024));
+SELECT COUNT(*) FROM t5;
+
+--echo # Verify new file size is a multiple of autoextend_size
+SELECT NAME, FILE_SIZE/AUTOEXTEND_SIZE, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+   WHERE NAME LIKE '%t5%';
+
+DROP TABLE t5;
+
+# Restart the server without --skip-innodb-validate-tablespace-paths option
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+--echo #
+--echo # Scenario-6: Test concurrent updates to autoextend_size while inserts are going on
+--echo # on another connection
+--echo #
+
+CREATE TABLE t6(id int, l longblob, v varchar(100)) AUTOEXTEND_SIZE 4m;
+
+delimiter |;
+CREATE PROCEDURE update_aes()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 1000 DO
+    ALTER TABLE t6 AUTOEXTEND_SIZE=4m;
+    ALTER TABLE t6 AUTOEXTEND_SIZE=64m;
+    ALTER TABLE t6 AUTOEXTEND_SIZE=16m;
+    ALTER TABLE t6 AUTOEXTEND_SIZE=8m;
+    ALTER TABLE t6 AUTOEXTEND_SIZE=32m;
+    SET i = i + 1;
+  END WHILE;
+END |
+
+CREATE PROCEDURE insert_data()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 10000 DO
+    INSERT INTO t6 (l) VALUES (repeat(2, 1024 * 16));
+    SET i = i + 1;
+  END WHILE;
+END |
+delimiter ;|
+
+# Create concurrent connections
+connect (conn1, localhost, root,,);
+connect (conn2, localhost, root,,);
+
+# Connect to connection 1
+--connection conn1
+
+--send CALL insert_data();
+
+# Connect to connection 2
+--connection conn2
+CALL update_aes();
+
+--connection conn1
+--reap
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+SELECT COUNT(*) FROM t6;
+
+DROP TABLE t6;
+
+DROP PROCEDURE insert_data;
+DROP PROCEDURE update_aes;

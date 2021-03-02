@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -805,6 +805,7 @@ ALTER TABLE slave_master_info STATS_PERSISTENT=0;
 ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover STATS_PERSISTENT=0;
+ALTER TABLE replication_asynchronous_connection_failover_managed STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
 #
@@ -850,6 +851,15 @@ ALTER TABLE slave_master_info ADD Tls_ciphersuites TEXT CHARACTER SET utf8 COLLA
 
 ALTER TABLE slave_master_info ADD Source_connection_auto_failover BOOLEAN NOT NULL DEFAULT FALSE COMMENT 'Indicates whether the channel connection failover is enabled.';
 
+-- This would add the Managed_name column to
+-- replication_asynchronous_connection_failover table on upgrade from older
+-- mysql version.
+ALTER TABLE replication_asynchronous_connection_failover
+  ADD Managed_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The name of the group which this server belongs to.',
+  DROP PRIMARY KEY,
+  ADD PRIMARY KEY(Channel_name, Host, Port, Network_namespace, Managed_name),
+  ADD KEY(Channel_name, Managed_name);
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -874,6 +884,13 @@ ALTER TABLE slave_master_info
   COMMENT 'Indicates whether the channel connection failover is enabled.'
   AFTER Tls_ciphersuites;
 
+-- This would position the Managed_name column after Weight column.
+ALTER TABLE replication_asynchronous_connection_failover
+  MODIFY COLUMN Managed_name CHAR(64) CHARACTER SET utf8
+  COLLATE utf8_general_ci NOT NULL DEFAULT ''
+  COMMENT 'The name of the group which this server belongs to.'
+  AFTER Weight;
+
 # Columns added to keep information about the replication applier thread
 # privilege context user
 ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE utf8_bin DEFAULT NULL COMMENT 'Username part of PRIVILEGE_CHECKS_USER.' AFTER Channel_name,
@@ -892,6 +909,10 @@ ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8 C
 
 # Columns added to keep information about REQUIRE_TABLE_PRIMARY_KEY_CHECK replication field
 ALTER TABLE slave_relay_log_info ADD Require_table_primary_key_check ENUM('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries' AFTER Require_row_format;
+# Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE replication field
+ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_type ENUM('OFF', 'LOCAL', 'UUID')  NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value' AFTER Require_table_primary_key_check;
+# Columns added to keep information about ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE replication field
+ALTER TABLE slave_relay_log_info ADD Assign_gtids_to_anonymous_transactions_value TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions' AFTER Assign_gtids_to_anonymous_transactions_type;
 
 #
 # Drop legacy NDB distributed privileges function & procedures
@@ -967,6 +988,14 @@ SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 
 ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
+
+--
+-- Upgrade help tables character set to utf8
+--
+ALTER TABLE help_topic CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_category CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_relation CONVERT TO CHARACTER SET utf8;
+ALTER TABLE help_keyword CONVERT TO CHARACTER SET utf8;
 
 --
 -- Upgrade a table engine from MyISAM to InnoDB for the system tables
@@ -1054,6 +1083,39 @@ SET @firewall_whitelist_id_column =
      WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND column_name = 'ID');
 SET @cmd="ALTER TABLE mysql.firewall_whitelist ADD ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY";
 SET @str = IF(@had_firewall_whitelist > 0 AND @firewall_whitelist_id_column = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- Add Firewall tables for group profiles
+--
+
+SET @had_user_allowlist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND
+           table_type = 'BASE TABLE');
+SET @had_group_allowlist =
+  (SELECT COUNT(table_name) FROM information_schema.tables
+     WHERE table_schema = 'mysql' AND table_name = 'firewall_group_allowlist' AND
+           table_type = 'BASE TABLE');
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_group_allowlist(NAME VARCHAR(288) NOT NULL, RULE text NOT NULL, ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_groups(NAME VARCHAR(288) PRIMARY KEY, MODE ENUM ('OFF', 'RECORDING', 'PROTECTING', 'DETECTING') DEFAULT 'OFF', USERHOST VARCHAR(288)) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="CREATE TABLE IF NOT EXISTS mysql.firewall_membership(GROUP_ID VARCHAR(288), MEMBER_ID VARCHAR(288)) engine= InnoDB";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="UPDATE mysql.firewall_whitelist SET rule = RTRIM(rule) WHERE RIGHT(rule, 1) = ' '";
+SET @str = IF(@had_user_allowlist > 0 AND @had_group_allowlist = 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -1258,6 +1320,7 @@ ALTER TABLE mysql.slave_relay_log_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_master_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
+ALTER TABLE mysql.replication_asynchronous_connection_failover_managed TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
@@ -1327,6 +1390,7 @@ ALTER TABLE server_cost ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_asynchronous_connection_failover_managed ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;
@@ -1339,5 +1403,38 @@ ALTER TABLE user ROW_FORMAT=DYNAMIC;
 -- GRANT SYSTEM_USER ON *.* TO 'mysql.infoschema'@localhost
 INSERT IGNORE INTO global_grants (USER,HOST,PRIV,WITH_GRANT_OPTION)
   VALUES ('mysql.infoschema','localhost','SYSTEM_USER','N');
+
+
+-- Add the privilege FLUSH_OPTIMIZER_COSTS for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_OPTIMIZER_COSTS
+SET @hadFlushOptimizerCostsPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_OPTIMIZER_COSTS');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_OPTIMIZER_COSTS', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushOptimizerCostsPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_STATUS for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_STATUS
+SET @hadFlushStatusPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_STATUS');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_STATUS', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushStatusPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_USER_RESOURCES for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_USER_RESOURCES
+SET @hadFlushUserResourcesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_USER_RESOURCES');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_USER_RESOURCES', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushUserResourcesPriv = 0;
+COMMIT;
+
+-- Add the privilege FLUSH_TABLES for every user who has the
+-- privilege RELOAD provided that there isn't a user who already has
+-- privilege FLUSH_TABLES
+SET @hadFlushTablesPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'FLUSH_TABLES');
+INSERT INTO global_grants SELECT user, host, 'FLUSH_TABLES', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushTablesPriv = 0;
+COMMIT;
 
 SET @@session.sql_mode = @old_sql_mode;

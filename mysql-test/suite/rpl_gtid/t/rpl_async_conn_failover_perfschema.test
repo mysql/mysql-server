@@ -82,10 +82,9 @@ SELECT asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, '
 
 
 # Check performance_schema.replication_asynchronous_connection_failover table
-# has one row with channel_name="ch1" and host="192.168.0.1" and port=3101 and
-# network_namespace="net2" and weight=40.
---let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace="net2" and weight=40'
---let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace="net2" and weight=40, count, 1] = 1
+# has one row with channel_name="ch1" and host="192.168.0.1" and port=3101.
+--let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace=""'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace="", count, 1] = 1
 --source include/assert.inc
 
 
@@ -118,9 +117,11 @@ SELECT asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, '
 
 
 # Check performance_schema.replication_asynchronous_connection_failover table
-# has two rows with network_namespace="net2".
+# has zero rows with network_namespace="net2", as network_namespace field is
+# in replication_asynchronous_connection_failover is added as empty value
+# through asynchronous_connection_failover_add_source UDF.
 --let $assert_text= 'The performance_schema.replication_asynchronous_connection_failover table has two rows with network_namespace="net2"'
---let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where network_namespace="net2", count, 1] = 2
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover where network_namespace="net2", count, 1] = 0
 --source include/assert.inc
 
 

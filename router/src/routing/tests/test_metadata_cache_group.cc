@@ -31,8 +31,7 @@
 
 #include "mysqlrouter/destination.h"
 #include "router_test_helpers.h"  // ASSERT_THROW_LIKE
-#include "routing_mocks.h"
-#include "test/helpers.h"  // init_test_logger
+#include "test/helpers.h"         // init_test_logger
 
 using metadata_cache::InstanceStatus;
 using metadata_cache::LookupResult;
@@ -160,7 +159,7 @@ class DestMetadataCacheTest : public ::testing::Test {
   }
 
   MetadataCacheAPIStub metadata_cache_api_;
-  MockSocketOperations sock_ops_;
+  net::io_context io_ctx_;
 
   const std::string kReplicasetName{"replicaset-name"};
 };
@@ -170,11 +169,12 @@ class DestMetadataCacheTest : public ::testing::Test {
 /*****************************************/
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -203,11 +203,12 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnPrimaries) {
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -235,11 +236,12 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSinglePrimary) {
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadOnly, "3306",
@@ -265,11 +267,12 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoPrimary) {
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -299,11 +302,12 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSecondaries) {
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -331,11 +335,12 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnSingleSecondary) {
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -361,12 +366,13 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailableOnNoSecondary) {
 
 TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kFirstAvailable,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kFirstAvailable,
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -398,12 +404,12 @@ TEST_F(DestMetadataCacheTest, StrategyFirstAvailablePrimaryAndSecondary) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName,
+      io_ctx_, "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::Unavailable,
@@ -444,11 +450,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackUnavailableServer) {
 /*****************************************/
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -500,11 +507,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnPrimaries) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -532,11 +540,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSinglePrimary) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadOnly, "3307",
@@ -560,11 +569,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryMissing) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -616,11 +626,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSecondaries) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -648,11 +659,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinOnSingleSecondary) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3307",
@@ -676,12 +688,13 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinSecondaryMissing) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kRoundRobin,
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3307",
@@ -734,12 +747,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinPrimaryAndSecondary) {
 /*****************************************/
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName,
+      io_ctx_, "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -777,12 +790,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackBasicScenario) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName,
+      io_ctx_, "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -811,12 +824,12 @@ TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackSingleSecondary) {
 
 TEST_F(DestMetadataCacheTest, StrategyRoundRobinWithFallbackNoSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName,
+      io_ctx_, "cache-name", kReplicasetName,
       routing::RoutingStrategy::kRoundRobinWithFallback,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -846,13 +859,13 @@ TEST_F(DestMetadataCacheTest,
        StrategyRoundRobinWithFallbackPrimaryAndSecondary) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest(
-          "cache-name", kReplicasetName,
+          io_ctx_, "cache-name", kReplicasetName,
           routing::RoutingStrategy::kRoundRobinWithFallback,
           mysqlrouter::URI(
               "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error,
       "Strategy 'round-robin-with-fallback' is supported only for SECONDARY "
       "routing");
@@ -863,12 +876,13 @@ TEST_F(DestMetadataCacheTest,
 /*****************************************/
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/"
                        "default?role=SECONDARY&allow_primary_reads=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -918,12 +932,13 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsBasic) {
 
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/"
                        "default?role=SECONDARY&allow_primary_reads=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -950,11 +965,12 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsNoSecondary) {
 /*****************************************/
 TEST_F(DestMetadataCacheTest, PrimaryDefault) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -990,11 +1006,12 @@ TEST_F(DestMetadataCacheTest, PrimaryDefault) {
 
 TEST_F(DestMetadataCacheTest, SecondaryDefault) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1032,12 +1049,13 @@ TEST_F(DestMetadataCacheTest, SecondaryDefault) {
 
 TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
   DestMetadataCacheGroup dest(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI(
           "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1097,11 +1115,12 @@ TEST_F(DestMetadataCacheTest, PrimaryAndSecondaryDefault) {
  */
 TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
   DestMetadataCacheGroup dest_mc_group(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1141,11 +1160,12 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoPrimary) {
  */
 TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
   DestMetadataCacheGroup dest_mc_group(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1189,11 +1209,12 @@ TEST_F(DestMetadataCacheTest, AllowedNodes2Primaries) {
  */
 TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
   DestMetadataCacheGroup dest_mc_group(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1235,13 +1256,14 @@ TEST_F(DestMetadataCacheTest, AllowedNodesNoSecondaries) {
  */
 TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
   DestMetadataCacheGroup dest_mc_group(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI(
           "metadata-cache://cache-name/"
           "default?role=SECONDARY&disconnect_on_promoted_to_primary=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1288,13 +1310,14 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromoted) {
  */
 TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
   DestMetadataCacheGroup dest_mc_group(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/"
                        "default?role=SECONDARY&disconnect_on_promoted_to_"
                        "primary=no&disconnect_on_promoted_to_primary=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   InstanceVector instances{
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1334,11 +1357,12 @@ TEST_F(DestMetadataCacheTest, AllowedNodesSecondaryDisconnectToPromotedTwice) {
 TEST_F(DestMetadataCacheTest,
        AllowedNodesEmptyKeepConnectionsIfMetadataUnavailable) {
   DestMetadataCacheGroup dest_mc_group(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1379,13 +1403,14 @@ TEST_F(DestMetadataCacheTest,
 TEST_F(DestMetadataCacheTest,
        AllowedNodesEmptyDisconnectConnectionsIfMetadataUnavailable) {
   DestMetadataCacheGroup dest_mc_group(
-      "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+      io_ctx_, "cache-name", kReplicasetName,
+      routing::RoutingStrategy::kUndefined,
       mysqlrouter::URI(
           "metadata-cache://cache-name/"
           "default?role=SECONDARY&disconnect_on_metadata_unavailable=yes")
           .query,
       BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-      &metadata_cache_api_, &sock_ops_);
+      &metadata_cache_api_);
 
   fill_instance_vector({
       {kReplicasetName, "uuid1", metadata_cache::ServerMode::ReadWrite, "3306",
@@ -1423,37 +1448,39 @@ TEST_F(DestMetadataCacheTest,
 TEST_F(DestMetadataCacheTest, InvalidServerNodeRole) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+          io_ctx_, "cache-name", kReplicasetName,
+          routing::RoutingStrategy::kRoundRobin,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=INVALID")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error, "Invalid server role in metadata cache routing");
 }
 
 TEST_F(DestMetadataCacheTest, UnsupportedRoutingStrategy) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName,
+          io_ctx_, "cache-name", kReplicasetName,
           routing::RoutingStrategy::kNextAvailable,  // this one is not
                                                      // supported for metadata
                                                      // cache
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error, "Unsupported routing strategy: next-available");
 }
 
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithPrimaryRouting) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+          io_ctx_, "cache-name", kReplicasetName,
+          routing::RoutingStrategy::kUndefined,
           mysqlrouter::URI("metadata-cache://cache-name/"
                            "default?role=PRIMARY&allow_primary_reads=yes")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error,
       "allow_primary_reads is supported only for SECONDARY routing");
 }
@@ -1461,12 +1488,13 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithPrimaryRouting) {
 TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithRoutingStrategy) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName, routing::RoutingStrategy::kRoundRobin,
+          io_ctx_, "cache-name", kReplicasetName,
+          routing::RoutingStrategy::kRoundRobin,
           mysqlrouter::URI("metadata-cache://cache-name/"
                            "default?role=SECONDARY&allow_primary_reads=yes")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error,
       "allow_primary_reads is only supported for backward compatibility: "
       "without routing_strategy but with mode defined, use "
@@ -1476,12 +1504,12 @@ TEST_F(DestMetadataCacheTest, AllowPrimaryReadsWithRoutingStrategy) {
 TEST_F(DestMetadataCacheTest, RoundRobinWitFallbackStrategyWithPrimaryRouting) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName,
+          io_ctx_, "cache-name", kReplicasetName,
           routing::RoutingStrategy::kRoundRobinWithFallback,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kUndefined,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error,
       "Strategy 'round-robin-with-fallback' is supported only for SECONDARY "
       "routing");
@@ -1490,12 +1518,12 @@ TEST_F(DestMetadataCacheTest, RoundRobinWitFallbackStrategyWithPrimaryRouting) {
 TEST_F(DestMetadataCacheTest, ModeWithStrategy) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName,
+          io_ctx_, "cache-name", kReplicasetName,
           routing::RoutingStrategy::kFirstAvailable,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error,
       "option 'mode' is not allowed together with 'routing_strategy' option");
 }
@@ -1503,22 +1531,24 @@ TEST_F(DestMetadataCacheTest, ModeWithStrategy) {
 TEST_F(DestMetadataCacheTest, RolePrimaryWrongMode) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+          io_ctx_, "cache-name", kReplicasetName,
+          routing::RoutingStrategy::kUndefined,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=PRIMARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadOnly,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error, "mode 'read-only' is not valid for 'role=PRIMARY'");
 }
 
 TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+          io_ctx_, "cache-name", kReplicasetName,
+          routing::RoutingStrategy::kUndefined,
           mysqlrouter::URI("metadata-cache://cache-name/default?role=SECONDARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error,
       "mode 'read-write' is not valid for 'role=SECONDARY'");
 }
@@ -1526,12 +1556,13 @@ TEST_F(DestMetadataCacheTest, RoleSecondaryWrongMode) {
 TEST_F(DestMetadataCacheTest, RolePrimaryAndSecondaryWrongMode) {
   ASSERT_THROW_LIKE(
       DestMetadataCacheGroup dest_mc_group(
-          "cache-name", kReplicasetName, routing::RoutingStrategy::kUndefined,
+          io_ctx_, "cache-name", kReplicasetName,
+          routing::RoutingStrategy::kUndefined,
           mysqlrouter::URI(
               "metadata-cache://cache-name/default?role=PRIMARY_AND_SECONDARY")
               .query,
           BaseProtocol::Type::kClassicProtocol, routing::AccessMode::kReadWrite,
-          &metadata_cache_api_, &sock_ops_),
+          &metadata_cache_api_),
       std::runtime_error,
       "mode 'read-write' is not valid for 'role=PRIMARY_AND_SECONDARY'");
 }
@@ -1545,7 +1576,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupAllowPrimaryReads) {
     mysqlrouter::URI uri(
         "metadata-cache://test/default?allow_primary_reads=yes&role=SECONDARY");
     ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        "metadata_cache_name", "replicaset_name",
+        io_ctx_, "metadata_cache_name", "replicaset_name",
         routing::RoutingStrategy::kUndefined, uri.query,
         Protocol::Type::kClassicProtocol));
   }
@@ -1555,7 +1586,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupAllowPrimaryReads) {
     mysqlrouter::URI uri(
         "metadata-cache://test/default?allow_primary_reads=no&role=SECONDARY");
     ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        "metadata_cache_name", "replicaset_name",
+        io_ctx_, "metadata_cache_name", "replicaset_name",
         routing::RoutingStrategy::kUndefined, uri.query,
         Protocol::Type::kClassicProtocol));
   }
@@ -1566,10 +1597,10 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupAllowPrimaryReads) {
         "metadata-cache://test/"
         "default?allow_primary_reads=yes,xxx&role=SECONDARY");
     ASSERT_THROW_LIKE(
-        DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name",
-                                    routing::RoutingStrategy::kUndefined,
-                                    uri.query,
-                                    Protocol::Type::kClassicProtocol),
+        DestMetadataCacheGroup dest(
+            io_ctx_, "metadata_cache_name", "replicaset_name",
+            routing::RoutingStrategy::kUndefined, uri.query,
+            Protocol::Type::kClassicProtocol),
         std::runtime_error,
         "Invalid value for allow_primary_reads option: 'yes,xxx'");
   }
@@ -1581,7 +1612,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupMultipleUris) {
         "metadata-cache://test/default?role=SECONDARY,metadata-cache://test2/"
         "default?role=SECONDARY");
     ASSERT_THROW_LIKE(DestMetadataCacheGroup dest(
-                          "metadata_cache_name", "replicaset_name",
+                          io_ctx_, "metadata_cache_name", "replicaset_name",
                           routing::RoutingStrategy::kUndefined, uri.query,
                           Protocol::Type::kClassicProtocol),
                       std::runtime_error,
@@ -1597,7 +1628,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupDisconnectOnPromotedToPrimary) {
         "metadata-cache://test/"
         "default?role=SECONDARY&disconnect_on_promoted_to_primary=yes");
     ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        "metadata_cache_name", "replicaset_name",
+        io_ctx_, "metadata_cache_name", "replicaset_name",
         routing::RoutingStrategy::kUndefined, uri.query,
         Protocol::Type::kClassicProtocol));
   }
@@ -1608,7 +1639,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupDisconnectOnPromotedToPrimary) {
         "metadata-cache://test/"
         "default?role=SECONDARY&disconnect_on_promoted_to_primary=no");
     ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        "metadata_cache_name", "replicaset_name",
+        io_ctx_, "metadata_cache_name", "replicaset_name",
         routing::RoutingStrategy::kUndefined, uri.query,
         Protocol::Type::kClassicProtocol));
   }
@@ -1619,10 +1650,10 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupDisconnectOnPromotedToPrimary) {
         "metadata-cache://test/"
         "default?role=SECONDARY&disconnect_on_promoted_to_primary=invalid");
     ASSERT_THROW_LIKE(
-        DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name",
-                                    routing::RoutingStrategy::kUndefined,
-                                    uri.query,
-                                    Protocol::Type::kClassicProtocol),
+        DestMetadataCacheGroup dest(
+            io_ctx_, "metadata_cache_name", "replicaset_name",
+            routing::RoutingStrategy::kUndefined, uri.query,
+            Protocol::Type::kClassicProtocol),
         std::runtime_error,
         "Invalid value for option 'disconnect_on_promoted_to_primary'. Allowed "
         "are 'yes' and 'no'");
@@ -1634,7 +1665,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupDisconnectOnPromotedToPrimary) {
         "metadata-cache://test/"
         "default?role=PRIMARY&disconnect_on_promoted_to_primary=invalid");
     ASSERT_THROW_LIKE(DestMetadataCacheGroup dest(
-                          "metadata_cache_name", "replicaset_name",
+                          io_ctx_, "metadata_cache_name", "replicaset_name",
                           routing::RoutingStrategy::kUndefined, uri.query,
                           Protocol::Type::kClassicProtocol),
                       std::runtime_error,
@@ -1650,7 +1681,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheDisconnectOnMetadataUnavailable) {
         "metadata-cache://test/"
         "default?role=SECONDARY&disconnect_on_metadata_unavailable=yes");
     ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        "metadata_cache_name", "replicaset_name",
+        io_ctx_, "metadata_cache_name", "replicaset_name",
         routing::RoutingStrategy::kUndefined, uri.query,
         Protocol::Type::kClassicProtocol));
   }
@@ -1661,7 +1692,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheDisconnectOnMetadataUnavailable) {
         "metadata-cache://test/"
         "default?role=SECONDARY&disconnect_on_metadata_unavailable=no");
     ASSERT_NO_THROW(DestMetadataCacheGroup dest(
-        "metadata_cache_name", "replicaset_name",
+        io_ctx_, "metadata_cache_name", "replicaset_name",
         routing::RoutingStrategy::kUndefined, uri.query,
         Protocol::Type::kClassicProtocol));
   }
@@ -1672,10 +1703,10 @@ TEST_F(DestMetadataCacheTest, MetadataCacheDisconnectOnMetadataUnavailable) {
         "metadata-cache://test/"
         "default?role=SECONDARY&disconnect_on_metadata_unavailable=invalid");
     ASSERT_THROW_LIKE(
-        DestMetadataCacheGroup dest("metadata_cache_name", "replicaset_name",
-                                    routing::RoutingStrategy::kUndefined,
-                                    uri.query,
-                                    Protocol::Type::kClassicProtocol),
+        DestMetadataCacheGroup dest(
+            io_ctx_, "metadata_cache_name", "replicaset_name",
+            routing::RoutingStrategy::kUndefined, uri.query,
+            Protocol::Type::kClassicProtocol),
         std::runtime_error,
         "Invalid value for option 'disconnect_on_metadata_unavailable'. "
         "Allowed are 'yes' and 'no'");
@@ -1688,7 +1719,7 @@ TEST_F(DestMetadataCacheTest, MetadataCacheGroupUnknownParam) {
         "metadata-cache://test/default?role=SECONDARY&xxx=yyy,metadata-cache://"
         "test2/default?role=SECONDARY");
     ASSERT_THROW_LIKE(DestMetadataCacheGroup dest(
-                          "metadata_cache_name", "replicaset_name",
+                          io_ctx_, "metadata_cache_name", "replicaset_name",
                           routing::RoutingStrategy::kUndefined, uri.query,
                           Protocol::Type::kClassicProtocol),
                       std::runtime_error,

@@ -39,7 +39,7 @@
 # IN VALGRIND : Increased the time interval between the connection retries.
 --connection slave
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=30, MASTER_RETRY_COUNT=30;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=30, SOURCE_RETRY_COUNT=30;
 --source include/start_slave.inc
 
 --connection master

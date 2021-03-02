@@ -89,11 +89,10 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 "MY-012937", "MY-012366", "MY-000067", "MY-010159",
 "MY-013602", "MY-010069", "MY-013595", "MY-010108",
 "MY-012363", "MY-011953")
-ORDER BY logged;
+ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-010116	Server
 System	MY-013576	InnoDB
-Note	MY-012943	InnoDB
 Note	MY-012944	InnoDB
 Note	MY-012945	InnoDB
 Note	MY-012948	InnoDB
@@ -130,9 +129,9 @@ Note	MY-012357	InnoDB
 Note	MY-012356	InnoDB
 Note	MY-010006	Server
 Note	MY-011332	Server
+Warning	MY-010075	Server
 Note	MY-012487	InnoDB
 Note	MY-012488	InnoDB
-Warning	MY-010075	Server
 Note	MY-010303	Server
 Warning	MY-010068	Server
 Note	MY-010310	Server

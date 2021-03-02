@@ -1120,7 +1120,7 @@ class Item_func_div final : public Item_num_op {
   uint prec_increment;
   Item_func_div(const POS &pos, Item *a, Item *b) : Item_num_op(pos, a, b) {}
   longlong int_op() override {
-    DBUG_ASSERT(0);
+    assert(false);
     return 0;
   }
   double real_op() override;
@@ -1573,9 +1573,7 @@ class Item_rollup_group_item final : public Item_func {
   Item_rollup_group_item(int min_rollup_level, Item *inner_item)
       : Item_func(inner_item), m_min_rollup_level(min_rollup_level) {
     item_name = inner_item->item_name;
-    max_length = inner_item->max_length;
-    set_data_type(inner_item->data_type());
-    collation = inner_item->collation;
+    set_data_type_from_item(inner_item);
     // We're going to replace inner_item in the SELECT list, so copy its hidden
     // status. (We could have done this in the caller, but it fits naturally in
     // with all the other copying done here.)
@@ -1608,6 +1606,9 @@ class Item_rollup_group_item final : public Item_func {
     return false;
   }
   Item *inner_item() const { return args[0]; }
+  uint decimal_precision() const override {
+    return args[0]->decimal_precision();
+  }
   bool rollup_null() const {
     return m_current_rollup_level <= m_min_rollup_level;
   }
@@ -3791,13 +3792,15 @@ class Item_func_sp final : public Item_func {
   typedef Item_func super;
 
  private:
-  Name_resolution_context *context;
-  sp_name *m_name;
-  sp_head *m_sp;
-  /*
-     The result field of the concrete stored function.
-  */
-  Field *sp_result_field;
+  Name_resolution_context *context{nullptr};
+  /// The name of the stored function
+  sp_name *m_name{nullptr};
+  /// Pointer to actual function instance (null when not resolved or executing)
+  sp_head *m_sp{nullptr};
+  /// The result field of the concrete stored function.
+  Field *sp_result_field{nullptr};
+  /// @true when function execution is deterministic
+  bool m_deterministic{false};
 
   bool execute();
   bool execute_impl(THD *thd);
@@ -3823,8 +3826,6 @@ class Item_func_sp final : public Item_func {
   void cleanup() override;
 
   const char *func_name() const override;
-
-  void bind_fields() override;
 
   Field *tmp_table_field(TABLE *t_arg) override;
 

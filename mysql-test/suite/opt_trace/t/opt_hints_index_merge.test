@@ -1,4 +1,5 @@
 --source include/have_optimizer_trace.inc
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
 
 CREATE TABLE t1 (f1 INT, f2 INT, f3 CHAR(1), f4 CHAR(1), f5 CHAR(1), f6 CHAR(1),
 PRIMARY KEY (f5, f1), KEY (f2), KEY (f3), KEY (f4)) ENGINE=INNODB;

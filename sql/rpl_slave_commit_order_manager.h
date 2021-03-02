@@ -30,14 +30,185 @@
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "sql/rpl_rli_pdb.h"  // get_thd_worker
+#include "sql/changestreams/apply/commit_order_queue.h"  // Commit_order_queue
+#include "sql/rpl_rli_pdb.h"                             // get_thd_worker
 
 class THD;
+class Commit_order_lock_graph;
 
+/**
+  On a replica and only on a replica, this class is responsible for
+  commiting the applyed transactions in the same order as was observed on
+  the source.
+
+  The key components of the commit order management are:
+  - This class, that wraps the commit order management, allowing for API
+    clients to schedule workers for committing, make workers wait for their
+    turn to commit, finish up a scheduled worker task and allow for others
+    to progress.
+  - A commit order queue of type `cs::apply::Commit_order_queue` that holds
+    the sequence by which worker threads should commit and the committing
+    order state for each of the schduled workers.
+  - The MDL infra-structure which allows for: one worker to wait for
+    another to finish when transactions need to be committed in order;
+    detect deadlocks involving workers waiting on each other for their turn
+    to commit and non-worker threads waiting on meta-data locks held by
+    worker threads.
+
+  The worker thread progress stages relevant to the commit order management
+  are:
+  - REGISTERED: the worker thread as been added to the commit order queue
+    by the coordinator and is allowed to start applying the transaction.
+  - FINISHED APPLYING: the worker thread just finished applying the
+    transaction and checks if it needs to wait for a preceding worker to
+    finish commiting.
+  - REQUESTED GRANT: the worker thread waits on the MDL graph for the
+    preceding worker to finish commiting.
+  - WAITED: the worker thread finished waiting (either is the first in the
+    commit order queue or has just been grantted permission to continue).
+  - RELEASE NEXT: the worker thread removes itself from the commit order
+    queue, checks if there is any worker waiting on the commit order and
+    releases such worker iff is the preceding worker for the waiting
+    worker.
+  - FINISHED: the worker marks itself as available to take on another
+    transaction to apply.
+
+  The progress of the worker within the stages:
+
+                                     +-------------------------+
+                                     |                         |
+                                     v                         |
+                                [REGISTERED]                   |
+                                     |                         |
+                                     v                         |
+                            [FINISHED APPLYING]                |
+                                     |                         |
+                                Worker is                      |
+                            first in the queue?                |
+                                   /   \                       |
+                              yes /     \ no                   |
+                                 /       v                     |
+                                 \    [REQUESTED GRANT]        |
+                                  \     /                      |
+                                   \   /                       |
+                                    \ /                        |
+                                     |                         |
+                                     v                         |
+                                 [WAITED]                      |
+                                     |                         |
+                                     v                         |
+                              [RELEASE NEXT]                   |
+                                     |                         |
+                                     v                         |
+                                [FINISHED]                     |
+                                     |                         |
+                                     +-------------------------+
+
+  Lock-free structures and atomic access to variables are used to manage
+  the commit order queue and to keep the worker stage transitions. This
+  means that there is no atomicity in regards to changes performed in the
+  queue or in the MDL graph within a given stage. Hence, stages maybe
+  skipped and sequentially scheduled worker threads may overlap in the
+  same stage.
+
+  In the context of the following tables, let W1 be a worker that is
+  scheduled to commit before some other worker W2.
+
+  The behavior of W2 (rows) towards W1 (columns) in regards to
+  thread synchronization, based on the stage of each thread:
++------------+-----------------------------------------------------------------+
+|     \   W1 | REGISTERED | FINISHED | REQUESTED | WAITED | RELEASE | FINISHED |
+| W2   \     |            | APPLYING |   GRANT   |        |  NEXT   |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| REGISTERED |            |          |           |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| FIN. APPL. |            |          |           |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| REQ. GRANT |    WAIT    |   WAIT   |   WAIT    |  WAIT  |  WAIT   |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| WAITED     |            |          |           |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| REL. NEXT  |            |          |           |        |  WAIT   |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| FINISHED   |            |          |           |        |         |          |
++------------------------------------------------------------------------------+
+
+  The W2 wait when both worker threads are in the RELEASE NEXT stage
+  happens in the case W2 never entered the REQUESTED GRANT stage. This case
+  may happen if W1 being in RELEASE NEXT removes itself from the queue
+  before W2 enters FINISHED APPLYING and then W2 reaches the RELEASE NEXT
+  stage before W1 exits it:
+
+             [W1]                                [W2]
+
+     stage = RELEASE NEXT                 stage = REGISTERED
+               |                                  |
+               v                                  |
+          queue.pop()                             v
+               |                     stage = FINISHED_APPLYING
+               |                                  |
+               v                                  v
+     next_worker.stage                   queue.front() == W2
+        == FINISHED_APPLYING                      |
+               |                                  |
+               |                                  v
+               |                           stage = WAITED
+               |                                  |
+               |                                  v
+               |                          stage = RELEASE NEXT
+               |                                  |
+               v                                  v
+     next_worker.release()                   queue.pop()
+
+  The commit order queue includes mechanisms that block the poping until
+  the preceding worker finishes the releasing operation. This wait will
+  only be active for the amount of time that takes for W1 to change the
+  values of the MDL graph structures needed to release W2, which is a very
+  small amount of cycles.
+
+  The behavior of W1 (rows) towards W2 (columns)in regards to thread
+  synchronization, based on the stage of each thread:
++------------+-----------------------------------------------------------------+
+|     \   W2 | REGISTERED | FINISHED | REQUESTED | WAITED | RELEASE | FINISHED |
+| W1   \     |            | APPLYING |   GRANT   |        |  NEXT   |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| REGISTERED |            |          |           |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| FIN. APPL. |            |          |           |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| REQ. GRANT |            |          |           |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| WAITED     |            |          |           |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| REL. NEXT  |            |  GRANT   |   GRANT   |        |         |          |
++------------+------------+----------+-----------+--------+---------+----------+
+| FINISHED   |            |          |           |        |         |          |
++------------------------------------------------------------------------------+
+
+  The W1 grant to W2 may happen when W2 is either in the FINISHED APPLYING
+  or REQUESTED GRANT stages. W1 must also signal the grant when W2 is in
+  FINISHED APPLYING because W1 has no way to determine if W2 has already
+  evaluated the first element of the queue or not, that is, W1 can't
+  determine if W2 will proceed to the REQUESTED GRANT or to the WAITED
+  stage. Therefore, W1 will signal in both cases.
+
+ */
 class Commit_order_manager {
  public:
   Commit_order_manager(uint32 worker_numbers);
+  // Copy logic is not available
+  Commit_order_manager(const Commit_order_manager &) = delete;
   ~Commit_order_manager();
+
+  // Copy logic is not available
+  Commit_order_manager &operator=(const Commit_order_manager &) = delete;
+
+  /**
+    Initializes the MDL context for a given worker in the commit order queue.
+
+    @param worker The worker to initialize the context for
+   */
+  void init_worker_context(Slave_worker &worker);
 
   /**
     Register the worker into commit order queue when coordinator dispatches a
@@ -48,6 +219,16 @@ class Commit_order_manager {
   void register_trx(Slave_worker *worker);
 
  private:
+  /**
+    Determines if the worker passed as a parameter must wait on the MDL graph
+    for other workers to commit and, if it must, will wait for it's turn to
+    commit.
+
+    @param worker The worker to determine the commit waiting status for.
+
+    @return false if the worker is ready to commit, true if not.
+   */
+  bool wait_on_graph(Slave_worker *worker);
   /**
     Wait for its turn to commit or unregister.
 
@@ -104,57 +285,10 @@ class Commit_order_manager {
 
   void report_deadlock(Slave_worker *worker);
 
-  enum class enum_transaction_stage { REGISTERED, WAITED, FINISHED };
-
-  struct worker_info {
-    uint32 next;
-    mysql_cond_t cond;
-    enum_transaction_stage stage;
-  };
-
-  mysql_mutex_t m_mutex;
   std::atomic<bool> m_rollback_trx;
 
-  /* It stores order commit information of all workers. */
-  std::vector<worker_info> m_workers;
-
-  /*
-    They are used to construct a transaction queue with trx_info::next together.
-    both head and tail point to a slot of m_trx_vector, when the queue is not
-    empty, otherwise their value are QUEUE_EOF.
-  */
-  uint32 queue_head;
-  uint32 queue_tail;
-  static const uint32 QUEUE_EOF = 0xFFFFFFFF;
-  bool queue_empty() {
-    mysql_mutex_assert_owner(&m_mutex);
-    return queue_head == QUEUE_EOF;
-  }
-
-  void queue_pop() {
-    mysql_mutex_assert_owner(&m_mutex);
-    queue_head = m_workers[queue_head].next;
-    if (queue_head == QUEUE_EOF) queue_tail = QUEUE_EOF;
-  }
-
-  void queue_push(uint32 index) {
-    mysql_mutex_assert_owner(&m_mutex);
-    if (queue_head == QUEUE_EOF)
-      queue_head = index;
-    else
-      m_workers[queue_tail].next = index;
-    queue_tail = index;
-    m_workers[index].next = QUEUE_EOF;
-  }
-
-  uint32 queue_front() {
-    mysql_mutex_assert_owner(&m_mutex);
-    return queue_head;
-  }
-
-  // Copy constructor is not implemented
-  Commit_order_manager(const Commit_order_manager &);
-  Commit_order_manager &operator=(const Commit_order_manager &);
+  /* It stores order commit order information of all workers. */
+  cs::apply::Commit_order_queue m_workers;
 
   /**
     Flush record of transactions for all the waiting threads and then
@@ -167,6 +301,19 @@ class Commit_order_manager {
   void flush_engine_and_signal_threads(Slave_worker *worker);
 
  public:
+  /**
+    Determines if the worker holding the commit order wait ticket
+    `wait_for_commit is in deadlock with the MDL context encapsulated in
+    the visitor parameter.
+
+    @param wait_for_commit
+    @param gvisitor The MDL graph visitor to check for deadlocks against.
+
+    @return true if a deadlock has been found and false otherwise.
+   */
+  bool visit_lock_graph(Commit_order_lock_graph &wait_for_commit,
+                        MDL_wait_for_graph_visitor &gvisitor);
+
   /**
      Check if order commit deadlock happens.
 
@@ -281,6 +428,69 @@ class Commit_order_manager {
     @retval false  Do not allow thread to wait for it turn
   */
   static bool wait_for_its_turn_before_flush_stage(THD *thd);
+};
+
+/**
+  MDL subgraph inspector class to be used as a ticket to wait on by worker
+  threads. Each worker will create it's own instance of this class and will use
+  it's own THD MDL_context to search for deadlocks.
+ */
+class Commit_order_lock_graph : public MDL_wait_for_subgraph {
+ public:
+  /**
+    Constructor for the class.
+
+    @param ctx The worker THD MDL context object.
+    @param mngr The Commit_order_manager instance associated with the current
+                channel's Relay_log_info object.
+    @param worker_id The identifier of the worker targetted by this object.
+
+   */
+  Commit_order_lock_graph(MDL_context &ctx, Commit_order_manager &mngr,
+                          uint32 worker_id);
+  /**
+    Default destructor.
+   */
+  virtual ~Commit_order_lock_graph() override = default;
+
+  /**
+    Retrieves the MDL context object associated with the underlying worker.
+
+    @return A pointer to the MDL context associated with the underlying worker
+            thread.
+   */
+  MDL_context *get_ctx() const;
+  /**
+    Retrieves the identifier for the underlying worker thread.
+
+    @return The identifier for the underlying worker thread.
+   */
+  uint32 get_worker_id() const;
+  /**
+    Determines if the underlying worker is in deadlock with the MDL context
+    encapsulated in the visitor parameter.
+
+    @param dvisitor The MDL graph visitor to check for deadlocks against.
+
+    @return true if a deadlock was found and false otherwise,
+   */
+  bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor) override;
+  /**
+    Retrieves the deadlock weight to be used to replace a visitor victim's, when
+    more than one deadlock is found.
+   */
+  uint get_deadlock_weight() const override;
+
+ private:
+  /** The MDL context object associated with the underlying worker. */
+  MDL_context &m_ctx;
+  /**
+    The Commit_order_manager instance associated with the underlying worker
+    channel's Relay_log_info object.
+  */
+  Commit_order_manager &m_mngr;
+  /** The identifier for the underlying worker thread. */
+  uint32 m_worker_id{0};
 };
 
 /**

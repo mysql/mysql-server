@@ -86,7 +86,8 @@ class Mysql_object_reader : public Abstract_data_formatter_wrapper,
    public:
     Rows_fetching_context(Mysql_object_reader *parent,
                           Item_processing_data *item_processing,
-                          bool has_generated_column);
+                          bool has_generated_columns,
+                          bool has_invisible_columns);
 
     int64 result_callback(
         const Mysql::Tools::Base::Mysql_query_runner::Row &row_data);

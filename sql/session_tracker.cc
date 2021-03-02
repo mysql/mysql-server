@@ -1577,9 +1577,11 @@ bool Session_gtids_tracker::update(THD *thd) {
     We are updating this using the previous value. No change needed.
     Bailing out.
   */
-  if (m_enabled == (thd->variables.session_track_gtids != OFF)) return false;
+  if (m_enabled ==
+      (thd->variables.session_track_gtids != SESSION_TRACK_GTIDS_OFF))
+    return false;
 
-  m_enabled = thd->variables.session_track_gtids != OFF &&
+  m_enabled = thd->variables.session_track_gtids != SESSION_TRACK_GTIDS_OFF &&
               /* No need to track GTIDs for system threads. */
               thd->system_thread == NON_SYSTEM_THREAD;
   if (m_enabled) {

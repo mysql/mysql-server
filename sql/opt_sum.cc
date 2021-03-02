@@ -476,13 +476,11 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
               We must not have accessed this table instance yet, because
               it must be private to this query block, as we already ensured
               that OUTER_REF_TABLE_BIT is not set.
+              Or: if this field references an outer table in the form of an
+              in-memory table with one row, it will have been read and closed
+              again. In such a case, the OUTER_REF_TABLE_BIT is no longer set.
             */
             DBUG_ASSERT(!table->file->inited);
-            /*
-              Because the table handle has not been opened yet, we cannot have
-              determined yet if the table contains 1 record.
-             */
-            DBUG_ASSERT(!table->const_table);
 
             /*
               Look for a partial key that can be used for optimization.

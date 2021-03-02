@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 extern "C" void* runWatchDog(void* w);
 
 class WatchDog{
-  enum { MAX_WATCHED_THREADS = 64 };
+  enum { MAX_WATCHED_THREADS = MAX_THREADS_TO_WATCH };
 
   struct WatchedThread {
     Uint32 *m_watchCounter;

@@ -539,5 +539,15 @@ DROP USER bug21464621;
 #   default for interactive terminals
 #
 include/assert_grep.inc [check the output of mysql for the binary-as-hex mark in mysql status]
+#
+# Bug #31549724: MYSQL --BINARY-AS-HEX PRINTS NULL AS EMPTY STRING
+# Bug #31638968: SELECT ON AN UNDEFINED VARIABLE RETURNS 0X NOT NULL
+#
+SUBSTR(NULL, 0, 0)	@novar
+NULL	NULL
+#
+# Bug #32092739: MYSQL HELP OUTPUT INCORRECT FOR QUERY_ATTRIBUTES
+#
+include/assert_grep.inc [look for query_attributes in help]
 
 End of tests

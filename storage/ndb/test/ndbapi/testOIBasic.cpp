@@ -3568,6 +3568,10 @@ pkupdate(Par par)
       set.lock();
       set.post(par, !err ? et : Rollback);
       set.unlock();
+      if (et == Commit)
+      {
+        LL4("pkupdate key committed = " << i << " " << set.getrow(i));
+      }
       if (err) {
         LL1("pkupdate key=" << i << ": stop on " << con.errname(err));
         break;
@@ -4147,7 +4151,16 @@ scanreadindexmrr(Par par, const ITab& itab, int numBsets)
     /* Get rowNum based on what's in the set already (slow) */
     CHK(setSizes[rangeNum] == actualResults[rangeNum]->count());
     int rowNum= setSizes[rangeNum];
-    setSizes[rangeNum] ++;
+    if (actualResults[rangeNum]->m_row[i] == 0 ||
+        !par.m_dups)
+    {
+      setSizes[rangeNum]++;
+    }
+    else
+    {
+      LL1("Row with same PK exists, can happen with updates to index"
+          " columns while scanning");
+    }
     CHK((uint) rowNum < set2.m_rows);
     actualResults[rangeNum]->m_row[i]= set2.m_row[i];
     actualResults[rangeNum]->m_rowkey[rowNum]= i;

@@ -64,7 +64,7 @@ SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES
 --source include/shutdown_mysqld.inc
 
 --echo ## restart the server with --datadir and innodb-directories
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1 --innodb-directories=$innodb_dirs
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -185,7 +185,7 @@ SHOW CREATE TABLE tab4;
 --source include/shutdown_mysqld.inc
 
 --echo ## restart the server with --datadir and innodb-directories
---let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1 --innodb-directories=$innodb_dirs
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/db1 --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
 --source include/start_mysqld_no_echo.inc
 
 --echo ## Check new datadir
@@ -315,5 +315,3 @@ SELECT @@datadir;
 SELECT * FROM tab;
 
 DROP TABLE tab;
-
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace 'innodb_system' filename is unknown. Use \\--innodb-directories to locate of the file.");

@@ -62,10 +62,10 @@ let $the_file= `SELECT @the_file` ;
 # now connect the slave to the _other_ "master"
 connection slave;
 --replace_result $MASTER_MYPORT1 <MASTER_PORT1>
-eval CHANGE MASTER TO
-  master_port=$MASTER_MYPORT1,
-  master_log_file = '$the_file',
-  master_log_pos = $the_pos ;
+eval CHANGE REPLICATION SOURCE TO
+  SOURCE_PORT=$MASTER_MYPORT1,
+  SOURCE_LOG_FILE = '$the_file',
+  SOURCE_LOG_POS = $the_pos ;
 --enable_result_log
 --enable_query_log
 start slave;
@@ -99,8 +99,8 @@ STOP SLAVE;
 # Reset slave back to first master 
 connection slave;
 --replace_result $MASTER_MYPORT <MASTER_PORT>
-eval CHANGE MASTER TO
-  master_port=$MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE TO
+  SOURCE_PORT=$MASTER_MYPORT;
 
 # Stop the binlog dump threads in server2
 --connection server2

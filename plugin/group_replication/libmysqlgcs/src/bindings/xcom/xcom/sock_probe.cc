@@ -24,6 +24,9 @@
 #include <netdb.h>
 #endif
 #include <stdlib.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 
 #include "xcom/node_no.h"
 #include "xcom/server_struct.h"

@@ -104,7 +104,7 @@ INSERT INTO t1 VALUES (3);
 
 --disable_warnings
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, MASTER_AUTO_POSITION=1 FOR CHANNEL "channel_1"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1"
 --enable_warnings
 
 #
@@ -309,7 +309,7 @@ RESET SLAVE ALL;
 --error 1
 --file_exists $recovery_relay_log_index
 
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 
 --source include/start_group_replication.inc
 

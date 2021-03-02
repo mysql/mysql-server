@@ -4,8 +4,8 @@ SELECT * FROM performance_schema.user_defined_functions
 WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
 ORDER BY UDF_NAME;
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
-dynamic_agg	integer	aggregate		1
-dynamic_udf	integer	function		1
+dynamic_agg	integer	aggregate	NULL	1
+dynamic_udf	integer	function	NULL	1
 # Must return 12
 SELECT dynamic_udf();
 dynamic_udf()
@@ -49,17 +49,22 @@ SET DEBUG_SYNC='now SIGNAL continue';
 # reaping the result from SELECT
 dynamic_udf()
 42
-# should fail: the release of the UDF removed it
+# should pass: because this udf is in use when the above Uninstall
+# component is executed and the component deinit function failed as
+# this udf is in use.
 SELECT dynamic_udf();
-ERROR 42000: FUNCTION test.dynamic_udf does not exist
-# Should fail: this one is unregistered
+dynamic_udf()
+42
+# Should fail: this one is unregistered, because this udf is not in use
+# when the above Uninstall component is executed.
 SELECT dynamic_agg(a);
 ERROR 42000: FUNCTION test.dynamic_agg does not exist
-# should be empty
+# dynamic_udf should present and dynamic_agg should not.
 SELECT * FROM performance_schema.user_defined_functions
 WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
 ORDER BY UDF_NAME;
 UDF_NAME	UDF_RETURN_TYPE	UDF_TYPE	UDF_LIBRARY	UDF_USAGE_COUNT
+dynamic_udf	integer	function	NULL	1
 # remove the plugin
 UNINSTALL COMPONENT "file://component_test_udf_registration";
 # should fail: no UDF

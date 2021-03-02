@@ -322,7 +322,7 @@ static int get_ndb_blobs_value(TABLE *table, NdbValue *value_array,
   @brief Wait until the last committed epoch from the session enters the
          binlog. Wait a maximum of 30 seconds. This wait is necessary in
          SHOW BINLOG EVENTS so that the user see its own changes. Also
-         in RESET MASTER before clearing ndbcluster's binlog index.
+         in RESET SOURCE before clearing ndbcluster's binlog index.
   @param thd Thread handle to wait for its changes to enter the binlog.
 */
 static void ndbcluster_binlog_wait(THD *thd) {
@@ -684,6 +684,8 @@ int ndbcluster_binlog_end() {
 /*****************************************************************
   functions called from slave sql client threads
 ****************************************************************/
+static void ndbcluster_reset_logs() { DBUG_TRACE; }
+
 static void ndbcluster_reset_slave(THD *thd) {
   if (!ndb_binlog_running) return;
 
@@ -715,6 +717,7 @@ static int ndbcluster_binlog_func(handlerton *, THD *thd, enum_binlog_func fn,
   int res = 0;
   switch (fn) {
     case BFN_RESET_LOGS:
+      ndbcluster_reset_logs();
       break;
     case BFN_RESET_SLAVE:
       ndbcluster_reset_slave(thd);
@@ -1109,18 +1112,6 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
       ndb_schema_object(NDB_SCHEMA_OBJECT::get(db, table_name, ndb_table_id,
                                                ndb_table_version, true),
                         NDB_SCHEMA_OBJECT::release);
-
-  if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false)) {
-    /**
-     * Try to trigger a race between late incomming slock ack for
-     * schema operations having its coordinator on another node,
-     * which we would otherwise have discarded as no matching
-     * ndb_schema_object existed, and another schema op with same 'key',
-     * coordinated by this node. Thus causing a mixup betweeen these,
-     * and the schema distribution getting totally out of synch.
-     */
-    ndb_milli_sleep(50);
-  }
 
   // Format string to use in log printouts
   const std::string op_name = db + std::string(".") + table_name + "(" +
@@ -2448,21 +2439,6 @@ class Ndb_schema_event_handler {
 
     assert(is_post_epoch());
 
-    if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false)) {
-      // Try to create a race between SLOCK acks handled after another
-      // schema operation on same object could have been started.
-
-      // Get temporary NDB_SCHEMA_OBJECT, sleep if one does not exist
-      std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
-          tmp_ndb_schema_obj(
-              NDB_SCHEMA_OBJECT::get(schema->db, schema->name, schema->id,
-                                     schema->version),
-              NDB_SCHEMA_OBJECT::release);
-      if (tmp_ndb_schema_obj == nullptr) {
-        ndb_milli_sleep(10);
-      }
-    }
-
     // Get NDB_SCHEMA_OBJECT
     std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
         ndb_schema_object(NDB_SCHEMA_OBJECT::get(schema->db, schema->name,
@@ -2514,20 +2490,14 @@ class Ndb_schema_event_handler {
       m_schema_dist_data.remove_active_schema_op(ndb_schema_object.get());
     }
 
-    /**
-     * There is a possible race condition between this binlog-thread,
-     * which has not yet released its schema_object, and the
-     * coordinator which possibly release its reference
-     * to the same schema_object when signaled above.
-     *
-     * If the coordinator then starts yet another schema operation
-     * on the same schema / table, it will need a schema_object with
-     * the same key as the one already completed, and which this
-     * thread still referrs. Thus, it will get this schema_object,
-     * instead of creating a new one as normally expected.
-     */
-    if (DBUG_EVALUATE_IF("ndb_binlog_schema_object_race", true, false)) {
-      ndb_milli_sleep(10);
+    if (DBUG_EVALUATE_IF("ndb_delay_schema_obj_release_after_coord_complete",
+                         true, false)) {
+      /**
+       * Simulate a delay in release of the ndb_schema_object by delaying the
+       * return from this method and test that the client waits for it, despite
+       * finding out that the coordinator has completed.
+       */
+      ndb_milli_sleep(1000);
     }
   }
 
@@ -4724,7 +4694,7 @@ int ndbcluster_binlog_start() {
     ndb_log_warning(
         "server id set to zero - changes logged to "
         "binlog with server id zero will be logged with "
-        "another server id by slave mysqlds");
+        "another server id by replica mysqlds");
   }
 
   /*
@@ -4910,7 +4880,7 @@ bool Ndb_binlog_client::read_replication_info(
         warnings are ignored
       */
       ndb_log_warning(
-          "NDB Slave: Table %s.%s : Parse error on conflict fn : %s", db,
+          "NDB Replica: Table %s.%s : Parse error on conflict fn : %s", db,
           table_name, msgbuf);
 
       return true;
@@ -4939,14 +4909,14 @@ int Ndb_binlog_client::apply_replication_info(
                           share->table_name, share->get_binlog_use_update(),
                           ndbtab, tmp_buf, sizeof(tmp_buf), conflict_fn, args,
                           num_args) == 0) {
-      ndb_log_verbose(1, "NDB Slave: %s", tmp_buf);
+      ndb_log_verbose(1, "NDB Replica: %s", tmp_buf);
     } else {
       /*
         Dump setup failure message to error log
         for cases where thd warning stack is
         ignored
       */
-      ndb_log_warning("NDB Slave: Table %s.%s : %s", share->db,
+      ndb_log_warning("NDB Replica: Table %s.%s : %s", share->db,
                       share->table_name, tmp_buf);
 
       push_warning_printf(m_thd, Sql_condition::SL_WARNING,
@@ -6807,7 +6777,7 @@ restart_cluster_failure:
             "cluster has been restarted --initial or with older filesystem. "
             "ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: "
             "%u/%u. "
-            "RESET MASTER should be issued. Resetting "
+            "RESET SOURCE should be issued. Resetting "
             "ndb_latest_handled_binlog_epoch.",
             (uint)(ndb_latest_handled_binlog_epoch >> 32),
             (uint)(ndb_latest_handled_binlog_epoch), (uint)(schema_gci >> 32),

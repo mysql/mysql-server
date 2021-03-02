@@ -17,8 +17,8 @@ insert into t1 values
 
 select * from t1 order by b;
 
-# --exec $NDB_DESC --no-defaults -d test t1 | grep 'Max Rows'
---exec $NDB_DESC --no-defaults -d test t1 > $ndb_desc_file
+# --exec $NDB_DESC -d test t1 | grep 'Max Rows'
+--exec $NDB_DESC -d test t1 > $ndb_desc_file
 --let $assert_text= Checking MAX_ROWS is unchanged
 --let $assert_select= Max Rows: 0
 --let $assert_file= $ndb_desc_file
@@ -30,8 +30,8 @@ drop table t1;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
-# --exec $NDB_DESC --no-defaults -d test t1 | grep 'Max Rows'
---exec $NDB_DESC --no-defaults -d test t1 > $ndb_desc_file
+# --exec $NDB_DESC -d test t1 | grep 'Max Rows'
+--exec $NDB_DESC -d test t1 > $ndb_desc_file
 --let $assert_text= Checking MAX_ROWS is unchanged
 --let $assert_select= Max Rows: 0
 --let $assert_file= $ndb_desc_file

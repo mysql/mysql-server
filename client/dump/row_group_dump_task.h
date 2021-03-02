@@ -43,7 +43,8 @@ class Row_group_dump_task : public Abstract_simple_dump_task {
  public:
   Row_group_dump_task(Table *source_table,
                       const std::vector<Mysql_field> &fields,
-                      const bool has_generated_column);
+                      const bool has_generated_column,
+                      const bool has_invisible_columns);
 
   I_data_object *get_related_db_object() const override;
 
@@ -67,6 +68,10 @@ class Row_group_dump_task : public Abstract_simple_dump_task {
     Contains generated/virtual fields.
   */
   const bool m_has_generated_columns;
+  /**
+    Contains invisible columns.
+  */
+  const bool m_has_invisible_columns;
 };
 
 }  // namespace Dump

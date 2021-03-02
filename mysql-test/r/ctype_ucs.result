@@ -1000,8 +1000,8 @@ select data_type, character_octet_length, character_maximum_length
 from information_schema.columns where table_name='t1';
 DATA_TYPE	CHARACTER_OCTET_LENGTH	CHARACTER_MAXIMUM_LENGTH
 blob	65535	65535
-text	65535	65535
 text	65535	32767
+text	65535	65535
 drop table t1;
 create table t1 (a char(1) character set ucs2);
 insert into t1 values ('a'),('b'),('c');

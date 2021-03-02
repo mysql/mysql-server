@@ -264,7 +264,7 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   EXPECT_EQ(nullptr, item->val_str(&str));
 
   // INTERNAL_GET_DD_COLUMN_EXTRA()
-  CREATE_ITEM(Item_func_internal_get_dd_column_extra, prepare_null_list(6));
+  CREATE_ITEM(Item_func_internal_get_dd_column_extra, prepare_null_list(8));
   item->val_str(&str);
   EXPECT_EQ(1, item->null_value);
 

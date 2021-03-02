@@ -322,6 +322,13 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     }
     my_stpcpy(convert_dirname(to, dir, NullS), prefix_buff);
     file = mkstemp(to);
+    if (file < 0) {
+      set_my_errno(errno);
+      if (MyFlags & (MY_FAE | MY_WME)) {
+        MyOsError(my_errno(), EE_CANTCREATEFILE, MYF(0), to);
+      }
+      return file;
+    }
     file_info::RegisterFilename(file, to, file_info::OpenType::FILE_BY_MKSTEMP);
     if (unlink_or_keep == UNLINK_FILE) {
       unlink(to);

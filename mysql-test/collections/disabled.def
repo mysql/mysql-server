@@ -66,12 +66,12 @@ perfschema.threads_history      : BUG#27712231
 perfschema.ssl                  : BUG#30910698
 perfschema.idx_compare_events_waits_current : BUG#27865960
 perfschema.idx_compare_ews_by_thread_by_event_name : BUG#31041671
+perfschema.idx_compare_ews_by_instance : BUG#31791537
+perfschema.idx_compare_rwlock_instances : BUG#31791537
 
 # rpl_gtid suite tests
 rpl_gtid.rpl_gtid_delete_memory_table_after_start_server : BUG#24351040
 rpl_gtid.rpl_gtid_perfschema_applier_xa_status           : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
-rpl_gtid.rpl_xa_prepare : BUG#31006095 Disabled due to crash during shutdown.
-rpl_gtid.rpl_xa_with_filters_error_msg : BUG#31006095 Disabled due to crash during shutdown.
 
 # rpl_nogtid suite tests
 rpl_nogtid.rpl_perfschema_applier_xa_status_check : BUG#27914287 Disabled until the WL#9075 (Performance Schema, XA Transactions) be implemented
@@ -79,7 +79,6 @@ rpl_nogtid.rpl_binlog_format_errors               : BUG#29776083 EXPLICIT BINLOG
 
 # rpl suite tests
 rpl.rpl_io_thd_wait_for_disk_space_stress : BUG#23581287 Disabled until bug is fixed.
-rpl.rpl_xa_with_filters_binlogless_slave : BUG#31006095 Disabled due to crash during shutdown.
 
 # sys_vars tests
 sys_vars.max_execution_time_basic @freebsd : BUG#31041720

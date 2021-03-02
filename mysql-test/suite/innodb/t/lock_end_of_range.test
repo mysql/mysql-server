@@ -3,6 +3,7 @@
 --echo #
 
 --source include/have_debug_sync.inc
+--source include/not_hypergraph.inc  # Locks taken depend on the query plan chosen.
 
 CREATE TABLE t1 (
   id INT NOT NULL,

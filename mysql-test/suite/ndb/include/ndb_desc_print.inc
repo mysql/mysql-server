@@ -5,7 +5,7 @@ if (!$ndb_desc_opts)
   die Missing argument ndb_desc_opts;
 }
 
-let $ndb_desc_cmd= $NDB_DESC --no-defaults $ndb_desc_opts;
+let $ndb_desc_cmd= $NDB_DESC $ndb_desc_opts;
 
 # Uncomment  the following line in order to run ndb_desc through valgrind
 #let $ndb_desc_cmd= valgrind -q $ndb_desc_cmd;

@@ -87,7 +87,7 @@ SET PERSIST group_replication_start_on_boot= ON;
 --echo #    privileges, recovery by binary logs will be used subsequently.
 
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_password' FOR CHANNEL 'group_replication_recovery'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$recovery_user', SOURCE_PASSWORD='$recovery_password' FOR CHANNEL 'group_replication_recovery'
 --enable_warnings
 
 SET GLOBAL group_replication_clone_threshold= 1;

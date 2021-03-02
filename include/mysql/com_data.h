@@ -56,6 +56,8 @@ struct PS_PARAM {
   unsigned char unsigned_type;
   const unsigned char *value;
   unsigned long length;
+  const unsigned char *name;
+  unsigned long name_length;
 };
 
 struct COM_STMT_EXECUTE_DATA {
@@ -94,6 +96,8 @@ struct COM_STMT_RESET_DATA {
 struct COM_QUERY_DATA {
   const char *query;
   unsigned int length;
+  PS_PARAM *parameters;
+  unsigned long parameter_count;
 };
 
 struct COM_FIELD_LIST_DATA {

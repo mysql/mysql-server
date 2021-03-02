@@ -1,0 +1,68 @@
+/*
+   Copyright (c) 2020, Oracle and/or its affiliates.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
+#ifndef LOAD_ORD_HPP
+#define LOAD_ORD_HPP
+
+struct UpdThrLoadOrd {
+  /**
+   * Receiver(s)
+   */
+
+  /**
+   * Sender(s)
+   */
+  friend class Thrman;
+
+  STATIC_CONST(SignalLength = 3);
+
+  /**
+   * Load measured in percentage over the last 50ms and sent each 50ms.
+   */
+  Uint32 cpuLoad;
+  Uint32 sendLoad;
+  Uint32 sendInstance;
+};
+
+struct UpdQueryDistrOrd {
+  /**
+   * Receiver(s)
+   */
+  friend class Dbtc;
+  friend class Trpman;
+
+  /**
+   * Sender(s)
+   */
+  friend class Thrman;
+
+  /**
+   * This signal contains one section that contains the CPU usage weights
+   * for all LDM and query threads.
+   */
+  Uint32 zero;
+};
+
+
+#endif

@@ -57,7 +57,6 @@ Level	Code	Message
 Error	1626	Error in parsing conflict function. Message: NDB$X(X), unknown conflict resolution function at 'NDB$X(X)'
 Error	1031	Table storage engine for 't1' doesn't have this option
 delete from mysql.ndb_replication;
-call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 create table t1 (a int key, X int) engine ndb;
 ERROR HY000: Can't create table 't1'

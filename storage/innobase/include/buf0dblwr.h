@@ -56,6 +56,7 @@ pages in the doublewrite buffer. */
 constexpr ulint DBLWR_V1_BLOCK2 = (8 + FSEG_HEADER_SIZE);
 
 namespace dblwr {
+
 /** IO buffer in UNIV_PAGE_SIZE units and aligned on UNIV_PAGE_SIZE */
 struct Buffer {
   /** Constructor
@@ -179,6 +180,13 @@ then writes the page to the datafile.
 @param[in]	sync		            True if sync IO requested
 @return DB_SUCCESS or error code */
 dberr_t write(buf_flush_t flush_type, buf_page_t *bpage, bool sync) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** Obtain the encrypted frame and store it in bpage->m_io_frame
+@param[in,out]  bpage  the buffer page containing the unencrypted frame.
+@param[out]     len    the encrypted data length.
+@return the memory block containing the compressed + encrypted frame. */
+file::Block *get_encrypted_frame(buf_page_t *bpage, uint32_t &len) noexcept
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates the double write buffer when a write request is completed.
@@ -325,6 +333,13 @@ class DBLWR {
   Pages *m_pages{};
 };
 }  // namespace recv
+
+#ifdef UNIV_DEBUG
+/** Check if the dblwr files contain encrypted pages.
+@return true if dblwr file contains any encrypted pages,
+        false if dblwr file contains no encrypted pages. */
+bool has_encrypted_pages() noexcept MY_ATTRIBUTE((warn_unused_result));
+#endif /* UNIV_DEBUG */
 }  // namespace dblwr
 
 #endif /* buf0dblwr_h */

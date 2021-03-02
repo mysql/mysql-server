@@ -56,15 +56,18 @@
 #include "my_compress.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h" /* IWYU pragma: keep */
+
 #include "my_sharedlib.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/my_io_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_file_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/psi_base.h"
 #include "sql/stream_cipher.h"
 
 struct CHARSET_INFO;
@@ -541,8 +544,6 @@ inline size_t my_b_bytes_in_cache(const IO_CACHE *info) {
   return *info->current_end - *info->current_pos;
 }
 
-typedef uint32 ha_checksum;
-
 /*
   How much overhead does malloc have. The code often allocates
   something like 1024-MALLOC_OVERHEAD bytes
@@ -815,7 +816,6 @@ extern bool my_uncompress(mysql_compress_context *, uchar *, size_t, size_t *);
 extern uchar *my_compress_alloc(mysql_compress_context *comp_ctx,
                                 const uchar *packet, size_t *len,
                                 size_t *complen);
-extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem, size_t count);
 
 extern uint my_set_max_open_files(uint files);
 

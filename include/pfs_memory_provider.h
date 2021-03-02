@@ -23,7 +23,8 @@
 #ifndef PFS_MEMORY_PROVIDER_H
 #define PFS_MEMORY_PROVIDER_H
 
-#include "my_psi_config.h"
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
 
 /**
   @file include/pfs_memory_provider.h
@@ -31,7 +32,7 @@
 */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-#ifdef MYSQL_SERVER
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
 #ifndef MYSQL_DYNAMIC_PLUGIN
 #ifndef WITH_LOCK_ORDER
 
@@ -60,7 +61,7 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size, PSI_thread *owner);
 
 #endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* MYSQL_SERVER */
+#endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #endif

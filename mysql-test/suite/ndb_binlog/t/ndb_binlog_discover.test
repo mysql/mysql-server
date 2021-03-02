@@ -15,10 +15,10 @@ alter table t2 rename t1;
 
 --echo # System restart
 reset master;
---exec $NDB_MGM --no-defaults -e "all restart -n" > /dev/null
---exec $NDB_WAITER --no-defaults --not-started > /dev/null
---exec $NDB_MGM --no-defaults -e "all start" > /dev/null
---exec $NDB_WAITER --no-defaults > /dev/null
+--exec $NDB_MGM -e "all restart -n" > /dev/null
+--exec $NDB_WAITER --not-started > /dev/null
+--exec $NDB_MGM -e "all start" > /dev/null
+--exec $NDB_WAITER > /dev/null
 
 --echo # Wait for 'server1' to complete setup and get out of read-only mode
 --source include/ndb_not_readonly.inc

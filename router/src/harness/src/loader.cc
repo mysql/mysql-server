@@ -226,11 +226,6 @@ static void register_fatal_signal_handler() {
 #endif
 }
 
-/**
- * Set the log reopen completion callback function pointer.
- *
- * @param cb Function to call at completion.
- */
 void set_log_reopen_complete_callback(log_reopen_callback cb) {
   g_log_reopen_complete_callback_fp = cb;
 }
@@ -728,7 +723,7 @@ const Plugin *Loader::load(const std::string &plugin_name) {
 
     try {
       return load_from(plugin_name, plugin_name);  // throws bad_plugin
-    } catch (const bad_plugin &e) {
+    } catch (const bad_plugin &) {
       std::ostringstream buffer;
       buffer << "Section name '" << plugin_name << "' does not exist";
       throw bad_section(buffer.str());

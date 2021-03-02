@@ -24,11 +24,11 @@
 
 #include "plugin/x/src/callback_command_delegate.h"
 
-#include <string>
-
 #include <stddef.h>
 
-#include "plugin/x/ngs/include/ngs/memory.h"
+#include <string>
+
+#include "plugin/x/src/ngs/memory.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {

@@ -4,8 +4,18 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
+--echo ## I. Kill query that executes for a long time(contains SQL sleep). It must be killed from another
+--echo #     XSession.
+--echo # 1. Sleep is execute inside "WHERE" clause (of SELECT statement)
+--echo # 2. Sleep is execute inside "select_expr" of SELECT statement, and must return multiple rows
+--echo
+
+## Test Setup
 --write_file $MYSQL_TMP_DIR/killquery.xpl
 
+-->echo
+-->echo #
+-->echo # I.1
 -->newsession second	x_root		test
 -->stmtsql SELECT connection_id() AS Value;
 -->recvtovar %ID% Value
@@ -24,13 +34,35 @@ SELECT '"Second" session must work' AS state;
 -->closesession
 
 SELECT 'Default session must work' AS state;
+
+-->echo
+-->echo #
+-->echo # I.2
+-->newsession third	x_root		test
+-->stmtsql SELECT connection_id() AS Value;
+-->recvtovar %ID% Value
+
+-->stmtsql select sleep(20),b from data;
+sleep 3;
+-->setsession
+-->quiet
+-->wait_for 1	SELECT COUNT(*) FROM information_schema.processlist WHERE id = %ID% AND state = 'User sleep'
+-->noquiet
+KILL QUERY %ID%;
+-->setsession third
+-->expecterror ER_QUERY_INTERRUPTED
+-->recvresult
+SELECT '"third" session must work' AS state;
+-->closesession
 EOF
 
+CREATE TABLE data(b INT);
+INSERT INTO data(b) VALUES (1),(2),(3);
 
 --replace_regex /KILL QUERY [0-9]*/KILL QUERY $ID/ /WHERE id = [0-9]*/WHERE id = $ID/
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/killquery.xpl 2>&1
 
-
 ## Cleanup
+DROP TABLE data;
 --remove_files_wildcard $MYSQL_TMP_DIR *.xpl
 --source include/xplugin_drop_user.inc

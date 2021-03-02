@@ -42,8 +42,8 @@
 --echo #    Bootstrap server1 and add some data.
 --echo
 
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
-CHANGE MASTER TO MASTER_USER="root", PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root", PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
 
 --source include/start_and_bootstrap_group_replication.inc
 

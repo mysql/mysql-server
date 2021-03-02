@@ -827,6 +827,7 @@ let $query =
   WHERE median != 1;
 
 --replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
+--skip_if_hypergraph  # Hypergraph optimizer prints more costs.
 --eval EXPLAIN FORMAT=tree $query
 --eval $query
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -862,8 +862,8 @@ Ndb::startTransaction(const NdbDictionary::Table* table,
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
-    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
-                       (long) trans,
+    DBUG_PRINT("exit",("start trans: %p  transid: 0x%lx",
+                       trans,
                        (long) (trans ? trans->getTransactionId() : 0)));
     DBUG_RETURN(trans);
   }
@@ -885,8 +885,8 @@ Ndb::startTransaction(Uint32 nodeId,
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, instanceId);
-    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
-                       (long) trans,
+    DBUG_PRINT("exit",("start trans: %p  transid: 0x%lx",
+                       trans,
                        (long) (trans ? trans->getTransactionId() : 0)));
     DBUG_RETURN(trans);
   }
@@ -961,8 +961,8 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
-      DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
-			 (long) trans,
+      DBUG_PRINT("exit",("start trans: %p  transid: 0x%lx",
+			 trans,
                          (long) (trans ? trans->getTransactionId() : 0)));
       DBUG_RETURN(trans);
     }
@@ -984,7 +984,7 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
 {
   DBUG_ENTER("Ndb::hupp");
 
-  DBUG_PRINT("enter", ("trans: 0x%lx", (long) pBuddyTrans));
+  DBUG_PRINT("enter", ("trans: %p", pBuddyTrans));
 
   Uint32 aPriority = 0;
   if (pBuddyTrans == NULL){
@@ -1012,8 +1012,8 @@ Ndb::hupp(NdbTransaction* pBuddyTrans)
     }
     pCon->setTransactionId(pBuddyTrans->getTransactionId());
     pCon->setBuddyConPtr((Uint32)pBuddyTrans->getTC_ConnectPtr());
-    DBUG_PRINT("exit", ("hupp trans: 0x%lx transid: 0x%lx",
-                        (long) pCon,
+    DBUG_PRINT("exit", ("hupp trans: %p transid: 0x%lx",
+                        pCon,
                         (long) (pCon ? pCon->getTransactionId() : 0)));
     DBUG_RETURN(pCon);
   } else {
@@ -1081,7 +1081,7 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
   }//if
 #ifdef VM_TRACE
   if (tConnection->theListState != NdbTransaction::NotInList) {
-    printState("startTransactionLocal %lx", (long)tConnection);
+    printState("startTransactionLocal %p", tConnection);
     abort();
   }
 #endif
@@ -1163,8 +1163,8 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
     NdbSleep_MilliSleep(1000);
     fprintf(stderr, "Ndb::closeTransaction() resuming\n");
   });
-  DBUG_PRINT("info",("close trans: 0x%lx  transid: 0x%lx",
-                     (long) aConnection,
+  DBUG_PRINT("info",("close trans: %p  transid: 0x%lx",
+                     aConnection,
                      (long) aConnection->getTransactionId()));
   DBUG_PRINT("info",("magic number: 0x%x TCConPtr: 0x%x theMyRef: 0x%x 0x%x",
 		     aConnection->theMagicNumber, aConnection->theTCConPtr,

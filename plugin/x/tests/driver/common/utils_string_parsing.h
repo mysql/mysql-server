@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef PLUGIN_X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 #define PLUGIN_X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 
@@ -106,6 +107,21 @@ void split(Container_type &result, const std::string &input,
     force_insert = false;
     begin = end;
   }
+}
+
+template <typename Container, typename Value>
+bool remove_if(Container &container, const Value &value) {
+  auto end = std::remove_if(
+      std::begin(container), std::end(container),
+      [&value](const auto &element) { return element == value; });
+
+  if (end == std::end(container)) {
+    return false;
+  }
+
+  container.erase(end, std::end(container));
+  // std::remove_if, changed the container
+  return true;
 }
 
 int replace_all(std::string &input, const std::string &to_find,

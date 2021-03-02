@@ -770,6 +770,7 @@ struct TABLE_SHARE {
   ulong reclength{0};               /* Recordlength */
   ulong stored_rec_length{0};       /* Stored record length
                                     (no generated-only generated fields) */
+  ulonglong autoextend_size{0};
 
   plugin_ref db_plugin{nullptr};     /* storage engine plugin */
   inline handlerton *db_type() const /* table_type for handler */
@@ -2862,8 +2863,10 @@ struct TABLE_LIST {
     @returns true if materializable table contains one or zero rows, and
     materialization during optimization is permitted
 
-    Returning true implies that the table is materialized during optimization,
-    so it need not be optimized during execution.
+    Returning true, if the hypergraph optimizer is not active, implies that the
+    table is materialized during optimization, so it need not be optimized
+    during execution. The hypergraph optimizer does not care about const tables,
+    so such tables are not executed during optimization time when it is active.
   */
   bool materializable_is_const() const;
 
@@ -4019,7 +4022,7 @@ bool is_simple_order(ORDER *order);
 
 uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
                         TABLE_SHARE *share, handler *handler_file,
-                        uint *usable_parts);
+                        uint *usable_parts, bool use_extended_sk);
 void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
                           uint primary_key_n, KEY *keyinfo, uint key_n,
                           uint key_part_n, uint *usable_parts,

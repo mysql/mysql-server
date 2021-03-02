@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ SET(HAVE_EPOLL_CREATE CACHE INTERNAL "")
 SET(HAVE_MEMALIGN CACHE INTERNAL "")
 SET(HAVE_SYSCONF CACHE INTERNAL "")
 SET(HAVE_DIRECTIO CACHE INTERNAL "")
-SET(HAVE_ATOMIC_SWAP32 CACHE INTERNAL "")
+SET(HAVE_ATOMIC_SWAP_32 CACHE INTERNAL "")
 SET(HAVE_MLOCK CACHE INTERNAL "")
 SET(HAVE_FFS CACHE INTERNAL "")
 SET(HAVE_PTHREAD_MUTEXATTR_INIT CACHE INTERNAL "")

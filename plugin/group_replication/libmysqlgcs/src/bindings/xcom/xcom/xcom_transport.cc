@@ -25,6 +25,9 @@
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 #include <rpc/rpc.h>
 #include <stdlib.h>
 #include <string.h>

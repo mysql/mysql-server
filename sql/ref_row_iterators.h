@@ -47,11 +47,11 @@ class RefIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-              QEP_TAB *qep_tab, ha_rows *examined_rows)
+              double expected_rows, ha_rows *examined_rows)
       : TableRowIterator(thd, table),
         m_ref(ref),
         m_use_order(use_order),
-        m_qep_tab(qep_tab),
+        m_expected_rows(expected_rows),
         m_examined_rows(examined_rows) {}
 
   bool Init() override;
@@ -60,7 +60,7 @@ class RefIterator final : public TableRowIterator {
  private:
   TABLE_REF *const m_ref;
   const bool m_use_order;
-  QEP_TAB *const m_qep_tab;
+  const double m_expected_rows;
   ha_rows *const m_examined_rows;
   bool m_first_record_since_init;
 };
@@ -73,7 +73,7 @@ class RefOrNullIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
-                    QEP_TAB *qep_tab, ha_rows *examined_rows);
+                    double expected_rows, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -82,7 +82,7 @@ class RefOrNullIterator final : public TableRowIterator {
   TABLE_REF *const m_ref;
   const bool m_use_order;
   bool m_reading_first_row;
-  QEP_TAB *const m_qep_tab;
+  const double m_expected_rows;
   ha_rows *const m_examined_rows;
 };
 

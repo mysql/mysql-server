@@ -23,9 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <atomic>
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 
-#include "plugin/x/ngs/include/ngs/socket_events.h"
+#include "plugin/x/src/ngs/socket_events.h"
 
 namespace ngs {
 namespace test {

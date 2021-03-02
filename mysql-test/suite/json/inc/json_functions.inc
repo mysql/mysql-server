@@ -344,9 +344,11 @@ EXPLAIN SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 # either '9223372036854775807.000' or '9223372036854775807' could be the name of the group
 # These issues are resolved by removing trailing zeros from decimals and replacing -0 with 0.
 # This also replaces .000010 with 010 and .000001 with 001 [because \s is not supported].
+--skip_if_hypergraph  # Different warnings.
 --replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT j, COUNT(*) FROM t GROUP BY j ORDER BY j;
 
+--skip_if_hypergraph  # Different warnings.
 --replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je ORDER BY je;
 
@@ -3475,6 +3477,8 @@ DROP TABLE t;
 --echo # Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
 --echo #
 CREATE TABLE t(a DATE);
+INSERT INTO t VALUES ('1970-01-01');
+
 --error ER_INVALID_JSON_PATH
 SELECT 1 FROM t WHERE 1 <>
 (
@@ -4142,6 +4146,24 @@ CREATE TABLE t(a DATETIME);
 INSERT INTO t VALUES ('2019-01-13 00:00:00');
 SELECT 1 IN (SELECT 1 FROM t WHERE JSON_OBJECT('a', 'b') = a);
 DROP TABLE t;
+
+--echo #
+--echo # Bug#25840784: PARTIAL UPDATE ON VIEWS DOES NOT WORK AS EXPECTED ON BASE TABLES
+--echo #
+CREATE TABLE t1(id INT PRIMARY KEY, j JSON);
+CREATE VIEW v1 AS SELECT id, j, JSON_REMOVE(j, '$.b') jj FROM t1;
+INSERT INTO t1 VALUES
+(1, '{"a": "abcdefghijklmnopqrstuvwxyz", "b":"abcdef"}'),
+(2, '{"a": "abcdefghijklmnopqrstuvwxyz"}'),
+(3, '{"b":"abcdef"}');
+UPDATE v1 SET j = JSON_SET(j, '$.a', 'abcdefghijklm');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM v1 ORDER BY id;
+UPDATE v1 SET j = JSON_SET(jj, '$.a', 'abcdefg');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM v1 ORDER BY id;
+UPDATE v1 SET j = JSON_REMOVE(j, '$.a');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM v1 ORDER BY id;
+DROP TABLE t1;
+DROP VIEW v1;
 
 # Local Variables:
 # mode: sql

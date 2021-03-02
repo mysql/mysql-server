@@ -15,7 +15,7 @@ let $logfilegroup_objectid =
       WHERE LOGFILE_GROUP_NAME='lg_1'`;
 #echo logfilegroup_objectid: $logfilegroup_objectid;
 --replace_result $logfilegroup_objectid logfilegroup_objectid
---exec $NDB_SHOW_TABLES --no-defaults --type=21
+--exec $NDB_SHOW_TABLES --type=21
 --echo
 
 # Check that the undofiles FILE_ID column in INFORMATION_SCHEMA.FILES is same
@@ -25,7 +25,7 @@ let $undofile_objectid =
       WHERE ENGINE='ndbcluster' AND FILE_TYPE='UNDO LOG'`;
 #echo undofile_objectid: $undofile_objectid;
 --replace_result $undofile_objectid undofile_objectid
---exec $NDB_SHOW_TABLES --no-defaults --type=23
+--exec $NDB_SHOW_TABLES --type=23
 --echo
 
 ALTER LOGFILE GROUP lg_1
@@ -53,7 +53,7 @@ let $datafile_objectid =
       WHERE ENGINE='ndbcluster' AND FILE_TYPE='DATAFILE'`;
 #echo datafile_objectid: $datafile_objectid;
 --replace_result $datafile_objectid datafile_objectid
---exec $NDB_SHOW_TABLES --no-defaults --type=22
+--exec $NDB_SHOW_TABLES --type=22
 --echo
 
 ALTER TABLESPACE ts_1

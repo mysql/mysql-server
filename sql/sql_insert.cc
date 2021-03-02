@@ -45,8 +45,8 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_table.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -183,7 +183,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     if (check_grant_all_columns(thd, INSERT_ACL, &it)) return true;
 
     for (it.set(table_list); !it.end_of_fields(); it.next()) {
-      if (it.field()->is_hidden_from_user()) continue;
+      if (it.field()->is_hidden()) continue;
       Item *item = it.create_item(thd);
       if (item == nullptr) return true;
       fields->push_back(item);
@@ -2693,6 +2693,13 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     });
     DBUG_ASSERT(!cr_field->is_array);
 
+    /*
+      If INVISIBLE field is explicitly used in the column list of SELECT query
+      then mark it as VISIBLE column in the table being created.
+    */
+    if (cr_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_USER)
+      cr_field->hidden = dd::Column::enum_hidden_type::HT_VISIBLE;
+
     alter_info->create_list.push_back(cr_field);
   }
 
@@ -2806,13 +2813,7 @@ Query_result_create::Query_result_create(TABLE_LIST *table_arg,
                           nullptr,  // update_values
                           duplic),
       create_table(table_arg),
-      create_info(nullptr),
-      alter_info(nullptr),
-      select_tables(select_tables_arg),
-      table_fields(nullptr),
-      m_lock(nullptr),
-      m_plock(nullptr),
-      m_post_ddl_ht(nullptr) {}
+      select_tables(select_tables_arg) {}
 
 bool Query_result_create::prepare(THD *, const mem_root_deque<Item *> &,
                                   SELECT_LEX_UNIT *u) {
@@ -2824,23 +2825,22 @@ bool Query_result_create::prepare(THD *, const mem_root_deque<Item *> &,
 }
 
 /**
-  Lock the newly created table and prepare it for insertion.
+  Create new table
 
-  @returns false if success, true if error
+  @param thd thread handler
+
+  @returns false on success, true on error
 */
-
-bool Query_result_create::start_execution(THD *thd) {
+bool Query_result_create::create_table_for_select(THD *thd) {
   DBUG_TRACE;
   DEBUG_SYNC(thd, "create_table_select_before_lock");
-
-  MYSQL_LOCK *extra_lock = nullptr;
 
   mem_root_deque<Item *> *select_exprs = unit->get_unit_column_types();
   table = create_table_from_items(thd, create_info, create_table, alter_info,
                                   *select_exprs, &m_post_ddl_ht);
   if (table == nullptr) return true;  // abort() deletes table
 
-  /* Ignore hidden fields */
+  // Ignore hidden fields
   uint field_count = table->s->fields;
   for (uint i = 0; i < table->s->fields; ++i) {
     if (table->s->field[i]->is_field_for_functional_index()) field_count--;
@@ -2851,7 +2851,7 @@ bool Query_result_create::start_execution(THD *thd) {
     my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
     return true;
   }
-  /* First field to copy */
+  // First field to copy
   table_fields = table->field + (field_count - visible_select_exprs);
   for (Field **f = table_fields; *f != nullptr; f++) {
     if ((*f)->gcol_info && !(*f)->is_field_for_functional_index()) {
@@ -2869,6 +2869,16 @@ bool Query_result_create::start_execution(THD *thd) {
   if (info.ignore_last_columns(table, visible_select_exprs)) {
     return true;
   }
+
+  return false;
+}
+
+///  Lock the newly created table and prepare it for insertion.
+
+bool Query_result_create::start_execution(THD *thd) {
+  DBUG_TRACE;
+
+  MYSQL_LOCK *extra_lock = nullptr;
 
   table->reginfo.lock_type = TL_WRITE;
 

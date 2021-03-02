@@ -92,5 +92,4 @@ class table_log_status : public PFS_engine_table {
   int rnd_pos(const void *pos) override;
 };
 
-/** @} */
 #endif

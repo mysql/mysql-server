@@ -71,7 +71,7 @@ void RouteDestination::remove(const std::string &address, uint16_t port) {
   std::lock_guard<std::mutex> lock(mutex_update_);
 
   auto func_same = [&to_remove](TCPAddress a) {
-    return (a.addr == to_remove.addr && a.port == to_remove.port);
+    return (a.address() == to_remove.address() && a.port() == to_remove.port());
   };
   destinations_.erase(
       std::remove_if(destinations_.begin(), destinations_.end(), func_same),

@@ -25,26 +25,14 @@
 #ifndef ROUTING_CONNECTION_INCLUDED
 #define ROUTING_CONNECTION_INCLUDED
 
-#include <atomic>
 #include <chrono>
-#include <functional>  // bind
+#include <cstdint>  // size_t
+#include <functional>
 #include <memory>
 #include <sstream>
 
 #include "context.h"
-#include "mysql/harness/logging/logging.h"
-#include "mysql/harness/net_ts/socket.h"
-#include "mysql_router_thread.h"
-#include "protocol/base_protocol.h"
-
-IMPORT_LOG_FUNCTIONS()
-
-class MySQLRouting;
-class MySQLRoutingContext;
-
-namespace mysql_harness {
-class PluginFuncEnv;
-}
+#include "protocol_splicer.h"
 
 class MySQLRoutingConnectionBase {
  public:
@@ -103,9 +91,6 @@ class MySQLRoutingConnectionBase {
 
   void disassociate() { remove_callback_(this); }
 
-  std::vector<uint8_t> &client_buffer() { return client_buffer_; }
-  std::vector<uint8_t> &server_buffer() { return server_buffer_; }
-
  protected:
   /** @brief wrapper for common data used by all routing threads */
   MySQLRoutingContext &context_;
@@ -119,9 +104,6 @@ class MySQLRoutingConnectionBase {
   time_point_type connected_server_;
   time_point_type last_sent_to_server_;
   time_point_type last_received_from_server_;
-
-  std::vector<uint8_t> client_buffer_;
-  std::vector<uint8_t> server_buffer_;
 };
 
 template <class ClientProtocol, class ServerProtocol>
@@ -232,186 +214,6 @@ class MySQLRoutingConnection : public MySQLRoutingConnectionBase {
 
   typename server_protocol_type::socket server_socket_;
   typename server_protocol_type::endpoint server_endpoint_;
-};
-
-template <class ClientProtocol, class ServerProtocol>
-class Splicer : public std::enable_shared_from_this<
-                    Splicer<ClientProtocol, ServerProtocol>> {
- public:
-  enum class State {
-    SPLICE,
-    FINISH,
-    DONE,
-  };
-
-  using client_protocol = ClientProtocol;
-  using server_protocol = ServerProtocol;
-
-  Splicer(MySQLRoutingConnection<ClientProtocol, ServerProtocol> *conn,
-          const size_t net_buffer_size)
-      : conn_{conn} {
-    conn_->client_buffer().resize(net_buffer_size);
-    conn_->server_buffer().resize(net_buffer_size);
-  }
-
-  ~Splicer() {
-    if (state_ != State::DONE) std::terminate();
-
-    conn_->disassociate();
-  }
-
-  State copy_client_to_server() {
-    // Handle traffic from Client to Server
-    auto copy_res = conn_->context().get_protocol().copy_packets(
-        conn_->client_socket().native_handle(),
-        conn_->server_socket().native_handle(), true, conn_->server_buffer(),
-        &pktnr_, handshake_done_, false);
-    if (!copy_res) {
-      if (copy_res.error() == std::errc::resource_unavailable_try_again) {
-        return State::SPLICE;
-      } else if (copy_res.error() != net::stream_errc::eof) {
-        extra_msg_ =
-            "Copy client->server failed: " + copy_res.error().message();
-      } else if (!handshake_done_) {
-        extra_msg_ = "Copy client->server failed: unexpected connection close";
-      }
-      // client close on us.
-      return State::FINISH;
-    } else {
-      conn_->transfered_to_server(copy_res.value());
-    }
-
-    return State::SPLICE;
-  }
-
-  State copy_server_to_client() {
-    // Handle traffic from Server to Client
-    // Note: In classic protocol Server _always_ talks first
-    const auto copy_res = conn_->context().get_protocol().copy_packets(
-        conn_->server_socket().native_handle(),
-        conn_->client_socket().native_handle(), true, conn_->client_buffer(),
-        &pktnr_, handshake_done_, true);
-
-    if (!copy_res) {
-      if (copy_res.error() == std::errc::resource_unavailable_try_again) {
-        return State::SPLICE;
-      } else if (copy_res.error() != net::stream_errc::eof) {
-        extra_msg_ =
-            "Copy server->client failed: " + copy_res.error().message();
-      }
-
-      return State::FINISH;
-    } else {
-      conn_->transfered_to_client(copy_res.value());
-    }
-
-    // after a successful handshake, we reset client-side connection error
-    // counter, just like the Server
-    if (!error_counter_already_cleared_ && handshake_done_) {
-      conn_->context().template clear_error_counter<ClientProtocol>(
-          conn_->client_endpoint());
-      error_counter_already_cleared_ = true;
-    }
-
-    return State::SPLICE;
-  }
-
-  template <bool to_server>
-  void transfer(std::error_code ec) {
-    if (ec == std::errc::operation_canceled) {
-      if (state() != State::DONE) state(finish());
-      return;
-    }
-
-    state(to_server ? copy_client_to_server() : copy_server_to_client());
-
-    switch (state()) {
-      case State::SPLICE:
-        if (to_server) {
-          async_wait_client();
-        } else {
-          async_wait_server();
-        }
-        break;
-      case State::FINISH:
-        state(finish());
-        break;
-      case State::DONE:
-        break;
-    }
-  }
-
-  void async_wait_client() {
-    conn_->client_socket().async_wait(
-        net::socket_base::wait_read,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::transfer<true>,
-                  this->shared_from_this(), std::placeholders::_1));
-  }
-
-  void async_wait_server() {
-    conn_->server_socket().async_wait(
-        net::socket_base::wait_read,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::transfer<false>,
-                  this->shared_from_this(), std::placeholders::_1));
-  }
-
-  void async_run() {
-    conn_->connected();
-
-    async_wait_client();
-    async_wait_server();
-  }
-
- private:
-  void state(State st) { state_ = st; }
-
-  State state() { return state_; }
-
-  State finish() {
-    if (!handshake_done_) {
-      harness_assert(!error_counter_already_cleared_);
-
-      log_info("[%s] fd=%d Pre-auth socket failure %s: %s",
-               conn_->context().get_name().c_str(),
-               conn_->client_socket().native_handle(),
-               mysqlrouter::to_string(conn_->client_endpoint()).c_str(),
-               extra_msg_.c_str());
-      conn_->context().template block_client_host<ClientProtocol>(
-          conn_->client_endpoint(), conn_->server_socket().native_handle());
-    }
-
-    // Either client or server terminated
-
-    log_debug("[%s] fd=%d -- %d: connection closed (up: %zub; down: %zub) %s",
-              conn_->context().get_name().c_str(),
-              conn_->client_socket().native_handle(),
-              conn_->server_socket().native_handle(), conn_->get_bytes_up(),
-              conn_->get_bytes_down(), extra_msg_.c_str());
-
-    if (conn_->client_socket().is_open()) {
-      conn_->client_socket().shutdown(net::socket_base::shutdown_send);
-      conn_->client_socket().close();
-    }
-
-    if (conn_->server_socket().is_open()) {
-      conn_->server_socket().shutdown(net::socket_base::shutdown_send);
-
-      conn_->server_socket().close();
-    }
-
-    conn_->context().decrease_info_active_routes();
-
-    return State::DONE;
-  }
-
-  MySQLRoutingConnection<ClientProtocol, ServerProtocol> *conn_;
-
-  bool handshake_done_{false};
-  bool error_counter_already_cleared_{false};
-  std::string extra_msg_;
-  int pktnr_{};
-
-  State state_{State::SPLICE};
 };
 
 #endif /* ROUTING_CONNECTION_INCLUDED */

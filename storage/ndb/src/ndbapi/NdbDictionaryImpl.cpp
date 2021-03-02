@@ -2620,7 +2620,7 @@ NdbDictionaryImpl::fetchGlobalTableImplRef(const GlobalCacheInitObject &obj)
   int error= 0;
 
   m_globalHash->lock();
-  impl = m_globalHash->get(obj.m_name.c_str(), &error);
+  impl = m_globalHash->get(obj.m_name, &error);
   m_globalHash->unlock();
 
   if (impl == 0){
@@ -2635,7 +2635,7 @@ NdbDictionaryImpl::fetchGlobalTableImplRef(const GlobalCacheInitObject &obj)
       impl = 0;
     }
     m_globalHash->lock();
-    m_globalHash->put(obj.m_name.c_str(), impl);
+    m_globalHash->put(obj.m_name, impl);
     m_globalHash->unlock();
   }
 
@@ -2653,19 +2653,19 @@ NdbDictionaryImpl::putTable(NdbTableImpl *impl)
   assert(ret == 0);
 
   m_globalHash->lock();
-  if ((old= m_globalHash->get(impl->m_internalName.c_str(), &error)))
+  if ((old= m_globalHash->get(impl->m_internalName, &error)))
   {
-    m_globalHash->alter_table_rep(old->m_internalName.c_str(),
+    m_globalHash->alter_table_rep(old->m_internalName,
                                   impl->m_id,
                                   impl->m_version,
                                   FALSE);
   }
-  m_globalHash->put(impl->m_internalName.c_str(), impl);
+  m_globalHash->put(impl->m_internalName, impl);
   m_globalHash->unlock();
   Ndb_local_table_info *info=
     Ndb_local_table_info::create(impl, m_local_table_data_size);
   
-  m_localHash.put(impl->m_internalName.c_str(), info);
+  m_localHash.put(impl->m_internalName, info);
 }
 
 int
@@ -4921,7 +4921,7 @@ NdbDictionaryImpl::dropTable(const char * name)
   if (ret == INCOMPATIBLE_VERSION) {
     const BaseString internalTableName(m_ndb.internalize_table_name(name));
     DBUG_PRINT("info",("INCOMPATIBLE_VERSION internal_name: %s", internalTableName.c_str()));
-    m_localHash.drop(internalTableName.c_str());
+    m_localHash.drop(internalTableName);
     m_globalHash->lock();
     m_globalHash->release(tab, 1);
     m_globalHash->unlock();
@@ -5446,7 +5446,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
   //aggregate();
   unsigned i, err;
   UtilBufferWriter w(m_buffer);
-  const size_t len = strlen(impl.m_externalName.c_str()) + 1;
+  const size_t len = impl.m_externalName.length() + 1;
   if(len > MAX_TAB_NAME_SIZE) {
     m_error.code = 4241;
     return -1;
@@ -5741,7 +5741,7 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
       :
       m_ndb.internalize_table_name(indexName)); // Index is also a table
 
-    m_localHash.drop(internalIndexName.c_str());
+    m_localHash.drop(internalIndexName);
     m_globalHash->lock();
     m_globalHash->release(idx->m_table, 1);
     m_globalHash->unlock();
@@ -5786,7 +5786,7 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
       m_globalHash->lock();
       m_globalHash->release(impl.m_table, 1);
       m_globalHash->unlock();
-      m_localHash.drop(internalIndexName.c_str());
+      m_localHash.drop(internalIndexName);
     }
     return ret;
   }
@@ -6109,7 +6109,7 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 
   UtilBufferWriter w(m_buffer);
 
-  const size_t len = strlen(evnt.m_name.c_str()) + 1;
+  const size_t len = evnt.m_name.length() + 1;
   if(len > MAX_TAB_NAME_SIZE) {
     m_error.code= 4241;
     ERR_RETURN(getNdbError(), -1);
@@ -6907,7 +6907,7 @@ static int scanEventTable(Ndb* pNdb,
         el.type = NdbDictionary::Object::TableEvent;
         el.state = NdbDictionary::Object::StateOnline;
         el.store = NdbDictionary::Object::StorePermanent;
-        Uint32 len = (Uint32)strlen(event_name->aRef());
+        const Uint32 len = (Uint32)strlen(event_name->aRef());
         el.name = new char[len+1];
         memcpy(el.name, event_name->aRef(), len);
         el.name[len] = 0;
@@ -9420,7 +9420,7 @@ NdbDictInterface::get_filegroup(NdbFilegroupImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  Uint32 strLen = (Uint32)strlen(name) + 1;
+  const Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = m_tx.nextRequestId();
@@ -9593,7 +9593,7 @@ NdbDictInterface::get_file(NdbFileImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  Uint32 strLen = (Uint32)strlen(name) + 1;
+  const Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = m_tx.nextRequestId();
@@ -9752,7 +9752,7 @@ NdbDictInterface::get_hashmap(NdbHashMapImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  Uint32 strLen = (Uint32)strlen(name) + 1;
+  const Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = m_tx.nextRequestId();
@@ -10255,7 +10255,7 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
-  Uint32 strLen = (Uint32)strlen(name) + 1;
+  const Uint32 strLen = (Uint32)strlen(name) + 1;
 
   req->senderRef = m_reference;
   req->senderData = m_tx.nextRequestId();

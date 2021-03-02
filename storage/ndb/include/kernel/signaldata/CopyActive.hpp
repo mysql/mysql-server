@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@ public:
   {
     CAR_NO_WAIT = 0x1
     ,CAR_NO_LOGGING = 0x2
+    ,CAR_LOCAL_SEND = 0x4
   };
 
 private:

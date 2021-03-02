@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,23 +27,52 @@
 
 #include "harness_export.h"
 
+#include <string>
+
 namespace mysql_harness {
 
-/** @brief A simple hostname validator
+bool HARNESS_EXPORT is_valid_ip_address(const std::string &address);
+
+/**
+ * check if address is a hostname.
  *
- * WARNING! This is a very simple validator, it does not handle all cornercases
- *          correctly.
+ * hostname is verified according to RFC 1123.
  *
- * This validator was quickly written, meant as a quick filter for obvious
- * ill-formed hostnames. We chose to err on the side of being too permissive
- * rather than too strict, therefore it can produce false positives, but
- * hopefully will not produce false negatives.
+ * - fully qualified domain names like "mysql.com." are not valid hostnames
+ *   (trailing dot)
+ * - service names like "_mysql.example.com" are not valid hostnames (leading
+ *   underscore)
  *
- * @param hostname Hostname or IP of a host
+ * @param address name of a host
  *
- * @returns false if hostname is invalid, true if it's (possibly) valid
+ * @retval false hostname is invalid
+ * @retval true hostname is valid
  */
-bool HARNESS_EXPORT is_valid_hostname(const char *hostname);
+bool HARNESS_EXPORT is_valid_hostname(const std::string &address);
+
+/**
+ * check if address is a domainname.
+ *
+ * domainnames according to RFC 2181:
+ *
+ * - max size 255 chars
+ * - labels are seperated by dots
+ * - each label is min 1, max 63 chars.
+ *
+ * That means
+ *
+ * - IPv4 addresses
+ * - IPv6 addresses
+ * - hostnames
+ *
+ * are domainnames.
+ *
+ * @param address address to check
+ *
+ * @retval true address is a domainname
+ * @retval false address is not a domainname
+ */
+bool HARNESS_EXPORT is_valid_domainname(const std::string &address);
 
 }  // namespace mysql_harness
 

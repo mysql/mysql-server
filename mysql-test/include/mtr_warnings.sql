@@ -185,7 +185,11 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== Massif"),
  ("==[0-9]*== Helgrind"),
 
-/*
+ /* Suppress warnings caused by foreign clients, see Bug#31893901 */
+
+ ("IP address .* could not be resolved.*"),
+
+ /*
    Transient network failures that cause warnings on reconnect.
    BUG#47743 and BUG#47983.
  */

@@ -73,7 +73,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 create table t2 (a int);
 insert into t2 values (1);
-start slave until master_log_file='master-bin.000001', master_log_pos=MASTER_LOG_POS;
+start slave until SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=MASTER_LOG_POS;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_to_stop.inc
@@ -90,10 +90,10 @@ start slave until sql_after_mts_gaps relay_log_file='dummy';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'relay_log_file='dummy'' at line 1
 start slave until sql_after_mts_gaps relay_log_pos=0;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'relay_log_pos=0' at line 1
-start slave until sql_after_mts_gaps master_log_file='dummy';
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_log_file='dummy'' at line 1
-start slave until sql_after_mts_gaps master_log_pos=0;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'master_log_pos=0' at line 1
+start slave until sql_after_mts_gaps SOURCE_LOG_FILE='dummy';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SOURCE_LOG_FILE='dummy'' at line 1
+start slave until sql_after_mts_gaps SOURCE_LOG_POS=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SOURCE_LOG_POS=0' at line 1
 start slave until sql_after_mts_gaps SQL_BEFORE_GTIDS='dummy';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SQL_BEFORE_GTIDS='dummy'' at line 1
 call mtr.add_suppression('Slave SQL for channel '': Could not execute Update_rows event on table d1.t1; Deadlock found when trying to get lock');

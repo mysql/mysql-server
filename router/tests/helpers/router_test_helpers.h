@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@
 #include <map>
 #include <stdexcept>
 #include <typeinfo>
+
+#include "mysql/harness/stdx/attribute.h"
 
 #define SKIP_GIT_TESTS(COND)                                       \
   if (COND) {                                                      \
@@ -172,6 +174,7 @@ void init_windows_sockets();
  *
  * @returns true if the selected port accepts connections, false otherwise
  */
+STDX_NODISCARD
 bool wait_for_port_ready(
     uint16_t port, std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
     const std::string &hostname = "127.0.0.1");
@@ -226,5 +229,20 @@ std::string get_file_output(const std::string &file_name,
 // need to return void to be able to use ASSERT_ macros
 void connect_client_and_query_port(unsigned router_port, std::string &out_port,
                                    bool should_fail = false);
+
+/**
+ * Add a "<key>=<value>" line in a configuration file in a given config section.
+ *
+ * @param config_path configuration file path
+ * @param section_name configuration section name
+ * @param key part of configuration to be added
+ * @param value part of configuration to be added
+ *
+ * @retval true config line inserted successfully
+ * @retval false config line not inserted
+ */
+bool add_line_to_config_file(const std::string &config_path,
+                             const std::string &section_name,
+                             const std::string &key, const std::string &value);
 
 #endif  // ROUTER_TESTS_TEST_HELPERS_INCLUDED

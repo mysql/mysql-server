@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,24 +29,6 @@
 
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/string_view.h"
-
-#ifdef _WIN32
-// workaround LNK2005 in std::vector<uint8_t> when linking against
-// mysql_protocol.lib
-//
-//     mysql_protocol.lib(mysql_protocol.dll) : error LNK2005:
-//       "public: __cdecl std::vector<unsigned char,class
-//       std::allocator<unsigned char> >::~vector<unsigned char,class
-//       std::allocator<unsigned char> >(void)"
-//       (??1?$vector@EV?$allocator@E@std@@@std@@QEAA@XZ) already defined in
-//       authentication.obj
-//
-// to be removed if mysql_protocol/base_packet.h doesn't inherit from
-// std::vector<uint8_t> anymore.
-//
-// only happens with MSVC
-#include "mysqlrouter/mysql_protocol.h"
-#endif
 
 class MySQLNativePassword {
  public:

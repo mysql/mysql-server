@@ -58,21 +58,22 @@
 #include "connection_container.h"
 #include "context.h"
 #include "destination.h"
+#include "destination_ssl_context.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysql_router_thread.h"
-#include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
 #include "router_config.h"
+#include "ssl_mode.h"
 #include "tcp_address.h"
-#include "utils.h"
 
 namespace mysql_harness {
 class PluginFuncEnv;
@@ -226,8 +227,11 @@ class MySQLRouting {
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
-   * @param sock_ops object handling the operations on network sockets
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
+   * @param client_ssl_mode SSL mode of the client side
+   * @param client_ssl_ctx SSL context of the client side
+   * @param server_ssl_mode SSL mode of the serer side
+   * @param dest_ssl_ctx SSL contexts of the destinations
    */
   MySQLRouting(
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
@@ -243,9 +247,11 @@ class MySQLRouting {
       std::chrono::milliseconds connect_timeout =
           routing::kDefaultClientConnectTimeout,
       unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-      mysql_harness::SocketOperationsBase *sock_ops =
-          mysql_harness::SocketOperations::instance(),
-      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
+      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
+      SslMode client_ssl_mode = SslMode::kDisabled,
+      TlsServerContext *client_ssl_ctx = nullptr,
+      SslMode server_ssl_mode = SslMode::kDisabled,
+      DestinationTlsContext *dest_ssl_ctx = nullptr);
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -376,9 +382,6 @@ class MySQLRouting {
 
   /** @brief wrapper for data used by all connections */
   MySQLRoutingContext context_;
-
-  /** @brief object handling the operations on network sockets */
-  mysql_harness::SocketOperationsBase *sock_ops_;
 
   net::io_context &io_ctx_;
 

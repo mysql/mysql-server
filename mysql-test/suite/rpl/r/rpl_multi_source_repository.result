@@ -7,28 +7,34 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # Create a new channel from the slave to the third server.
 #  There shall be an error
 [connection server_2]
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
 ERROR HY000: To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE.
 #  Convert only master_info_repository to table.
 #  The same error shall persist
 include/stop_slave.inc
 SET @@GLOBAL.master_info_repository ="TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 call mtr.add_suppression("Slave: Cannot create new master info structure when repositories are of type FILE. Convert slave repositories to TABLE to replicate from multiple sources.");
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root", SOURCE_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
 ERROR HY000: To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE.
 #  Convert only relay log info repository to TABLE
 #  The same error shall remain
 SET @@GLOBAL.master_info_repository = "FILE";
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository = "TABLE";
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root", SOURCE_PORT = MASTER_PORT FOR CHANNEL "channel_3";;
 ERROR HY000: To have multiple channels, repository cannot be of type FILE; Please check the repository configuration and convert them to TABLE.
 #
 # Convert both repositories to TABLE. CHANGE MASTER command passes
 #
 SET @@GLOBAL.master_info_repository = "TABLE";
-CHANGE MASTER TO MASTER_HOST ="127.0.0.1", MASTER_USER ="root", MASTER_PORT=MASTER_PORT FOR CHANNEL "channel_3";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+CHANGE REPLICATION SOURCE TO SOURCE_HOST ="127.0.0.1", SOURCE_USER ="root", SOURCE_PORT=MASTER_PORT FOR CHANNEL "channel_3";
 Warnings:
 Note	#	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	#	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -65,7 +71,11 @@ relay_log_info_repository	TABLE
 #  again setting to TABLE. Returns success doing nothing.
 #
 SET @@GLOBAL.master_info_repository = "TABLE";
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.relay_log_info_repository = "TABLE";
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
 Warnings:
 Note	3084	Replication thread(s) for channel 'channel_3' are already stopped.

@@ -4630,12 +4630,12 @@ INSERT INTO t2 VALUES (0, "Zero"), (1, "One"), (2, "Two"),
 FLUSH STATUS;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	20
-Handler_external_lock	132
+Handler_commit	21
+Handler_external_lock	136
 Handler_prepare	4
 Handler_read_first	1
-Handler_read_key	66
-Handler_read_next	13
+Handler_read_key	68
+Handler_read_next	14
 Handler_read_rnd_next	4
 Handler_update	36
 SELECT * FROM t1 ORDER BY a;

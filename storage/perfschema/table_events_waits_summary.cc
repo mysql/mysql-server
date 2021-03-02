@@ -223,15 +223,15 @@ int table_events_waits_summary_by_instance::index_init(uint idx, bool) {
 }
 
 int table_events_waits_summary_by_instance::make_instr_row(
-    PFS_instr *pfs, PFS_instr_class *klass, const void *object_instance_begin,
-    PFS_single_stat *pfs_stat) {
+    pfs_lock *object_lock, PFS_instr_class *klass,
+    const void *object_instance_begin, PFS_single_stat *pfs_stat) {
   pfs_optimistic_state lock;
 
   /*
     Protect this reader against a mutex/rwlock/cond destroy,
     file delete, table drop.
   */
-  pfs->m_lock.begin_optimistic_lock(&lock);
+  object_lock->begin_optimistic_lock(&lock);
 
   m_row.m_name = klass->m_name;
   m_row.m_name_length = klass->m_name_length;
@@ -239,7 +239,7 @@ int table_events_waits_summary_by_instance::make_instr_row(
 
   m_row.m_stat.set(m_normalizer, pfs_stat);
 
-  if (!pfs->m_lock.end_optimistic_lock(&lock)) {
+  if (!object_lock->end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -257,7 +257,7 @@ int table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity,
                         &pfs->m_mutex_stat.m_wait_stat);
 }
 
@@ -272,7 +272,7 @@ int table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity,
                         &pfs->m_rwlock_stat.m_wait_stat);
 }
 
@@ -287,7 +287,7 @@ int table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  return make_instr_row(pfs, safe_class, pfs->m_identity,
+  return make_instr_row(&pfs->m_lock, safe_class, pfs->m_identity,
                         &pfs->m_cond_stat.m_wait_stat);
 }
 
@@ -308,7 +308,7 @@ int table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs) {
     Files don't have a in memory structure associated to it,
     so we use the address of the PFS_file buffer as object_instance_begin
   */
-  return make_instr_row(pfs, safe_class, pfs, &sum);
+  return make_instr_row(&pfs->m_lock, safe_class, pfs, &sum);
 }
 
 /**
@@ -333,7 +333,7 @@ int table_events_waits_summary_by_instance::make_socket_row(PFS_socket *pfs) {
     Sockets don't have an associated in-memory structure, so use the address of
     the PFS_socket buffer as object_instance_begin.
   */
-  return make_instr_row(pfs, safe_class, pfs, &pfs_stat);
+  return make_instr_row(&pfs->m_lock, safe_class, pfs, &pfs_stat);
 }
 
 int table_events_waits_summary_by_instance::read_row_values(TABLE *table,

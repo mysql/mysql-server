@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -23,27 +23,14 @@
 SET(CLIENT_FULL_LIB_NAME mysqlxclient)
 SET(CLIENT_LITE_LIB_NAME mysqlxclient_lite)
 
-SET(CLIENT_SRC
-  authentication/mysql41_hash.cc
-  authentication/password_hasher.cc
-  authentication/sha256_scramble_generator.cc
-  xprotocol_impl.cc
-  xrow_impl.cc
-  xquery_result_impl.cc
-  xsession_impl.cc
-  xconnection_impl.cc
-  xcompression_negotiator.cc
-  xcompression_impl.cc
-  xrow.cc
-  ${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc
-)
+INCLUDE(source_files.cmake)
+LIST(APPEND CLIENT_SRC "${CMAKE_SOURCE_DIR}/sql-common/net_ns.cc")
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
   ${MYSQLX_PROJECT_DIR}/client/
 )
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 MY_INCLUDE_SYSTEM_DIRECTORIES(LIBEVENT)
 INCLUDE_DIRECTORIES(SYSTEM
   ${MYSQLX_PROTOCOL_INCLUDE_DIR}

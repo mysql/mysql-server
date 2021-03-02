@@ -32,7 +32,11 @@
 #include "my_io.h"      // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/io/xpl_listener_unix_socket.h"
-#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/file.h"
+#include "unittest/gunit/xplugin/xpl/mock/operations_factory.h"
+#include "unittest/gunit/xplugin/xpl/mock/socket.h"
+#include "unittest/gunit/xplugin/xpl/mock/socket_events.h"
+#include "unittest/gunit/xplugin/xpl/mock/system.h"
 
 namespace xpl {
 namespace test {
@@ -70,12 +74,12 @@ MATCHER_P(EqCastToCStr, expected, "") {
 class Listener_unix_socket_testsuite : public Test {
  public:
   void SetUp() override {
-    m_mock_factory = std::make_shared<StrictMock<Mock_factory>>();
-    m_mock_socket = std::make_shared<StrictMock<Mock_socket>>();
-    m_mock_system = std::make_shared<StrictMock<Mock_system>>();
-    m_mock_file = std::make_shared<StrictMock<Mock_file>>();
-    m_mock_socket_invalid = std::make_shared<StrictMock<Mock_socket>>();
-    m_mock_file_invalid = std::make_shared<StrictMock<Mock_file>>();
+    m_mock_factory = std::make_shared<StrictMock<mock::Operations_factory>>();
+    m_mock_socket = std::make_shared<StrictMock<mock::Socket>>();
+    m_mock_system = std::make_shared<StrictMock<mock::System>>();
+    m_mock_file = std::make_shared<StrictMock<mock::File>>();
+    m_mock_socket_invalid = std::make_shared<StrictMock<mock::Socket>>();
+    m_mock_file_invalid = std::make_shared<StrictMock<mock::File>>();
 
     EXPECT_CALL(*m_mock_factory, create_system_interface())
         .WillRepeatedly(Return(m_mock_system));
@@ -134,13 +138,13 @@ class Listener_unix_socket_testsuite : public Test {
     ASSERT_TRUE(Mock::VerifyAndClearExpectations(m_mock_factory.get()));
   }
 
-  std::shared_ptr<Mock_socket> m_mock_socket;
-  std::shared_ptr<Mock_socket> m_mock_socket_invalid;
-  std::shared_ptr<Mock_system> m_mock_system;
-  std::shared_ptr<Mock_file> m_mock_file_invalid;
-  std::shared_ptr<Mock_file> m_mock_file;
-  StrictMock<Mock_socket_events> m_mock_socket_events;
-  std::shared_ptr<Mock_factory> m_mock_factory;
+  std::shared_ptr<mock::Socket> m_mock_socket;
+  std::shared_ptr<mock::Socket> m_mock_socket_invalid;
+  std::shared_ptr<mock::System> m_mock_system;
+  std::shared_ptr<mock::File> m_mock_file_invalid;
+  std::shared_ptr<mock::File> m_mock_file;
+  StrictMock<mock::Socket_events> m_mock_socket_events;
+  std::shared_ptr<mock::Operations_factory> m_mock_factory;
 
   std::shared_ptr<Listener_unix_socket> sut;
 };

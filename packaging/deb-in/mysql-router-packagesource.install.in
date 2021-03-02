@@ -29,8 +29,8 @@ usr/lib/mysqlrouter/plugin/http_auth_realm.so
 usr/lib/mysqlrouter/plugin/http_server.so
 usr/lib/mysqlrouter/plugin/io.so
 usr/lib/mysqlrouter/plugin/keepalive.so
-usr/lib/mysqlrouter/plugin/mysql_protocol.so
 usr/lib/mysqlrouter/plugin/routing.so
+usr/lib/mysqlrouter/plugin/router_openssl.so
 usr/lib/mysqlrouter/plugin/router_protobuf.so
 usr/lib/mysqlrouter/plugin/metadata_cache.so
 usr/lib/mysqlrouter/plugin/rest_api.so
@@ -41,6 +41,7 @@ usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 usr/lib/mysqlrouter/private/libprotobuf-lite.so.3.11.4
 usr/lib/mysqlrouter/private/libmysqlharness.so.1
 usr/lib/mysqlrouter/private/libmysqlharness_stdx.so.1
+usr/lib/mysqlrouter/private/libmysqlharness_tls.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http.so.1
 usr/lib/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.1

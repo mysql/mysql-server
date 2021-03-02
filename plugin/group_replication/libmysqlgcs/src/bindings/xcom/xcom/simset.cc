@@ -22,6 +22,9 @@
 
 #include <assert.h>
 #include <stdio.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#endif
 
 #include "xcom/simset.h"
 #include "xcom/task_debug.h"

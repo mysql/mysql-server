@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@ class Xcl_protocol_impl_tests_notices : public Xcl_protocol_impl_tests {
 
  public:
   void expect_notice_handler(
-      Mock_handlers *mock, const Notice_type expected_type,
+      mock::Message_handlers *mock, const Notice_type expected_type,
       const std::string &expected_payload,
       const Handler_result consume = Handler_result::Continue) {
     const bool expect_global = true;
@@ -51,7 +51,7 @@ class Xcl_protocol_impl_tests_notices : public Xcl_protocol_impl_tests {
   }
 
   void expect_notice_handler_empty_payload(
-      Mock_handlers *mock, const Notice_type expected_type,
+      mock::Message_handlers *mock, const Notice_type expected_type,
       const Handler_result consume = Handler_result::Continue) {
     const bool expect_global = true;
     const uint32_t expected_payload_size = 0;
@@ -80,8 +80,8 @@ class Xcl_protocol_impl_tests_notices : public Xcl_protocol_impl_tests {
         .WillOnce(Return(should_consumed));
   }
 
-  StrictMock<Mock_handlers> m_mock_message_handler;
-  StrictMock<Mock_handlers> m_mock_notice_handlers[2];
+  StrictMock<mock::Message_handlers> m_mock_message_handler;
+  StrictMock<mock::Message_handlers> m_mock_notice_handlers[2];
   const Message_from_str<Notice> m_msg_notice1{"type: 2 "};
   const Message_from_str<Notice> m_msg_notice2{
       "type: 3 "

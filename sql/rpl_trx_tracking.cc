@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,7 +239,9 @@ void Writeset_trx_dependency_tracker::get_dependency(THD *thd,
       (global_system_variables.transaction_write_set_extraction ==
        thd->variables.transaction_write_set_extraction) &&
       // must not use foreign keys
-      !write_set_ctx->get_has_related_foreign_keys();
+      !write_set_ctx->get_has_related_foreign_keys() &&
+      // it did not broke past the capacity already
+      !write_set_ctx->was_write_set_limit_reached();
   bool exceeds_capacity = false;
 
   if (can_use_writesets) {
@@ -379,7 +381,8 @@ void Transaction_dependency_tracker::update_max_committed(THD *thd) {
   trn_ctx->sequence_number = SEQ_UNINIT;
 
   DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
-              thd->commit_error == THD::CE_FLUSH_ERROR);
+              thd->commit_error == THD::CE_FLUSH_ERROR ||
+              thd->commit_error == THD::CE_FLUSH_GNO_EXHAUSTED_ERROR);
 }
 
 int64 Transaction_dependency_tracker::step() { return m_commit_order.step(); }

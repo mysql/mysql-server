@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -64,39 +64,29 @@ void rw_lock_remove_debug_info(rw_lock_t *lock,  /*!< in: rw-lock */
 #endif                                           /* UNIV_DEBUG */
 
 /** Check if there are threads waiting for the rw-lock.
- @return 1 if waiters, 0 otherwise */
+ @return true if waiters, false otherwise */
 UNIV_INLINE
-ulint rw_lock_get_waiters(const rw_lock_t *lock) /*!< in: rw-lock */
+bool rw_lock_get_waiters(const rw_lock_t *lock) /*!< in: rw-lock */
 {
-  return (lock->waiters);
+  return lock->waiters.load();
 }
 
-/** Sets lock->waiters to 1. It is not an error if lock->waiters is already
- 1. On platforms where ATOMIC builtins are used this function enforces a
- memory barrier. */
+/** Sets lock->waiters to true. It is not an error if lock->waiters is already
+ true. */
 UNIV_INLINE
 void rw_lock_set_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  (void)os_compare_and_swap_ulint(&lock->waiters, 0, 1);
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  lock->waiters = 1;
-  os_wmb;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+  bool zero = false;
+  lock->waiters.compare_exchange_strong(zero, true);
 }
 
-/** Resets lock->waiters to 0. It is not an error if lock->waiters is already
- 0. On platforms where ATOMIC builtins are used this function enforces a
- memory barrier. */
+/** Resets lock->waiters to false. It is not an error if lock->waiters is
+ already false. */
 UNIV_INLINE
 void rw_lock_reset_waiter_flag(rw_lock_t *lock) /*!< in/out: rw-lock */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  (void)os_compare_and_swap_ulint(&lock->waiters, 1, 0);
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  lock->waiters = 0;
-  os_wmb;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+  bool one = true;
+  lock->waiters.compare_exchange_strong(one, false);
 }
 
 /** Returns the write-status of the lock - this function made more sense
@@ -157,11 +147,6 @@ ulint rw_lock_get_reader_count(const rw_lock_t *lock) /*!< in: rw-lock */
   /* no s-locks */
   return (0);
 }
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-UNIV_INLINE
-ib_mutex_t *rw_lock_get_mutex(rw_lock_t *lock) { return (&(lock->mutex)); }
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 /** Returns the value of writer_count for the lock. Does not reserve the lock
  mutex, so the caller must be sure it is not changed during the call.
@@ -227,29 +212,17 @@ bool rw_lock_lock_word_decr(rw_lock_t *lock, /*!< in/out: rw-lock */
                             ulint amount,    /*!< in: amount to decrement */
                             lint threshold)  /*!< in: threshold of judgement */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  lint local_lock_word;
+  int32_t local_lock_word;
 
   os_rmb;
   local_lock_word = lock->lock_word;
   while (local_lock_word > threshold) {
-    if (os_compare_and_swap_lint(&lock->lock_word, local_lock_word,
-                                 local_lock_word - amount)) {
+    if (lock->lock_word.compare_exchange_strong(local_lock_word,
+                                                local_lock_word - amount)) {
       return (true);
     }
-    local_lock_word = lock->lock_word;
   }
   return (false);
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  bool success = false;
-  mutex_enter(&(lock->mutex));
-  if (lock->lock_word > threshold) {
-    lock->lock_word -= amount;
-    success = true;
-  }
-  mutex_exit(&(lock->mutex));
-  return (success);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
 /** Increments lock_word the specified amount and returns new value.
@@ -258,20 +231,7 @@ UNIV_INLINE
 lint rw_lock_lock_word_incr(rw_lock_t *lock, /*!< in/out: rw-lock */
                             ulint amount)    /*!< in: amount of increment */
 {
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  return (os_atomic_increment_lint(&lock->lock_word, amount));
-#else  /* INNODB_RW_LOCKS_USE_ATOMICS */
-  lint local_lock_word;
-
-  mutex_enter(&(lock->mutex));
-
-  lock->lock_word += amount;
-  local_lock_word = lock->lock_word;
-
-  mutex_exit(&(lock->mutex));
-
-  return (local_lock_word);
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+  return (lock->lock_word.fetch_add(amount) + amount);
 }
 
 UNIV_INLINE
@@ -284,7 +244,7 @@ void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock, bool recursive) {
  spinning.
  @return TRUE if success */
 ALWAYS_INLINE
-ibool rw_lock_s_lock_low(
+bool rw_lock_s_lock_low(
     rw_lock_t *lock, /*!< in: pointer to rw-lock */
     ulint pass MY_ATTRIBUTE((unused)),
     /*!< in: pass value; != 0, if the lock will be
@@ -294,7 +254,7 @@ ibool rw_lock_s_lock_low(
 {
   if (!rw_lock_lock_word_decr(lock, 1, 0)) {
     /* Locking did not succeed */
-    return (FALSE);
+    return false;
   }
 
   ut_d(rw_lock_add_debug_info(lock, pass, RW_LOCK_S, file_name, line));
@@ -302,9 +262,11 @@ ibool rw_lock_s_lock_low(
   /* These debugging values are not set safely: they may be incorrect
   or even refer to a line that is invalid for the file name. */
   lock->last_s_file_name = file_name;
+  /* last_s_line is uint16_t */
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_s_line)>::max());
   lock->last_s_line = line;
 
-  return (TRUE); /* locking succeeded */
+  return true; /* locking succeeded */
 }
 
 /** NOTE! Use the corresponding macro, not directly this function! Lock an
@@ -346,27 +308,14 @@ void rw_lock_s_lock_func(
  obtained immediately.
  @return true if success */
 UNIV_INLINE
-ibool rw_lock_x_lock_func_nowait(
+bool rw_lock_x_lock_func_nowait(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
 {
-  ibool success;
+  int32_t x_lock_decr = X_LOCK_DECR;
 
-#ifdef INNODB_RW_LOCKS_USE_ATOMICS
-  success = os_compare_and_swap_lint(&lock->lock_word, X_LOCK_DECR, 0);
-#else
-
-  success = FALSE;
-  mutex_enter(&(lock->mutex));
-  if (lock->lock_word == X_LOCK_DECR) {
-    lock->lock_word = 0;
-    success = TRUE;
-  }
-  mutex_exit(&(lock->mutex));
-
-#endif
-  if (success) {
+  if (lock->lock_word.compare_exchange_strong(x_lock_decr, 0)) {
     rw_lock_set_writer_id_and_recursion_flag(lock, true);
   } else if (lock->recursive.load(std::memory_order_acquire) &&
              os_thread_eq(lock->writer_thread.load(std::memory_order_relaxed),
@@ -382,7 +331,7 @@ ibool rw_lock_x_lock_func_nowait(
       lock->lock_word--;
     } else {
       /* Failure */
-      return (FALSE);
+      return false;
     }
 
     /* Watch for too many recursive locks */
@@ -390,17 +339,19 @@ ibool rw_lock_x_lock_func_nowait(
 
   } else {
     /* Failure */
-    return (FALSE);
+    return false;
   }
 
   ut_d(rw_lock_add_debug_info(lock, 0, RW_LOCK_X, file_name, line));
 
   lock->last_x_file_name = file_name;
+  /* last_x_line is uint16_t */
+  ut_ad(line <= std::numeric_limits<decltype(lock->last_x_line)>::max());
   lock->last_x_line = line;
 
   ut_ad(rw_lock_validate(lock));
 
-  return (TRUE);
+  return true;
 }
 
 /** Releases a shared mode lock. */
@@ -572,24 +523,27 @@ void pfs_rw_lock_x_lock_func(
     ulint line)            /*!< in: line where requested */
 {
   if (lock->pfs_psi != nullptr) {
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
+    if (lock->pfs_psi->m_enabled) {
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
 
-    /* Record the acquisition of a read-write lock in exclusive
-    mode in performance schema */
+      /* Record the acquisition of a read-write lock in exclusive
+      mode in performance schema */
 
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, lock->pfs_psi, PSI_RWLOCK_EXCLUSIVELOCK, file_name,
-        static_cast<uint>(line));
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, lock->pfs_psi, PSI_RWLOCK_EXCLUSIVELOCK, file_name,
+          static_cast<uint>(line));
 
-    rw_lock_x_lock_func(lock, pass, file_name, static_cast<uint>(line));
+      rw_lock_x_lock_func(lock, pass, file_name, static_cast<uint>(line));
 
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
+      }
+      return;
     }
-  } else {
-    rw_lock_x_lock_func(lock, pass, file_name, line);
   }
+
+  rw_lock_x_lock_func(lock, pass, file_name, line);
 }
 /** Performance schema instrumented wrap function for
  rw_lock_x_lock_func_nowait()
@@ -597,35 +551,39 @@ void pfs_rw_lock_x_lock_func(
  not directly this function!
  @return true if success */
 UNIV_INLINE
-ibool pfs_rw_lock_x_lock_func_nowait(
+bool pfs_rw_lock_x_lock_func_nowait(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     const char *file_name, /*!< in: file name where lock
                          requested */
     ulint line)            /*!< in: line where requested */
 {
-  ibool ret;
+  bool ret;
 
   if (lock->pfs_psi != nullptr) {
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
+    if (lock->pfs_psi->m_enabled) {
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
 
-    /* Record the acquisition of a read-write trylock in exclusive
-    mode in performance schema */
+      /* Record the acquisition of a read-write trylock in exclusive
+      mode in performance schema */
 
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, lock->pfs_psi, PSI_RWLOCK_TRYEXCLUSIVELOCK, file_name,
-        static_cast<uint>(line));
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, lock->pfs_psi, PSI_RWLOCK_TRYEXCLUSIVELOCK, file_name,
+          static_cast<uint>(line));
 
-    ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
+      ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, static_cast<int>(ret));
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, static_cast<int>(ret));
+      }
+
+      return ret;
     }
-  } else {
-    ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
   }
 
-  return (ret);
+  ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
+
+  return ret;
 }
 /** Performance schema instrumented wrap function for rw_lock_free_func()
  NOTE! Please use the corresponding macro rw_lock_free(), not directly
@@ -653,22 +611,26 @@ void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
                              ulint line) /*!< in: line where requested */
 {
   if (lock->pfs_psi != nullptr) {
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
+    if (lock->pfs_psi->m_enabled) {
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
 
-    /* Instrumented to inform we are aquiring a shared rwlock */
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, lock->pfs_psi, PSI_RWLOCK_SHAREDLOCK, file_name,
-        static_cast<uint>(line));
+      /* Instrumented to inform we are aquiring a shared rwlock */
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, lock->pfs_psi, PSI_RWLOCK_SHAREDLOCK, file_name,
+          static_cast<uint>(line));
 
-    rw_lock_s_lock_func(lock, pass, file_name, line);
+      rw_lock_s_lock_func(lock, pass, file_name, line);
 
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, 0);
+      }
+
+      return;
     }
-  } else {
-    rw_lock_s_lock_func(lock, pass, file_name, line);
   }
+
+  rw_lock_s_lock_func(lock, pass, file_name, line);
 }
 /** Performance schema instrumented wrap function for rw_lock_sx_lock_func()
  NOTE! Please use the corresponding macro rw_lock_sx_lock(), not
@@ -683,22 +645,26 @@ void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
                               ulint line) /*!< in: line where requested */
 {
   if (lock->pfs_psi != nullptr) {
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
+    if (lock->pfs_psi->m_enabled) {
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
 
-    /* Instrumented to inform we are aquiring a shared rwlock */
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVELOCK, file_name,
-        static_cast<uint>(line));
+      /* Instrumented to inform we are aquiring a shared rwlock */
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVELOCK, file_name,
+          static_cast<uint>(line));
 
-    rw_lock_sx_lock_func(lock, pass, file_name, line);
+      rw_lock_sx_lock_func(lock, pass, file_name, line);
 
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_wrwait)(locker, 0);
+      }
+
+      return;
     }
-  } else {
-    rw_lock_sx_lock_func(lock, pass, file_name, line);
   }
+
+  rw_lock_sx_lock_func(lock, pass, file_name, line);
 }
 /** Performance schema instrumented wrap function for rw_lock_s_lock_func()
  NOTE! Please use the corresponding macro rw_lock_s_lock(), not
@@ -716,22 +682,26 @@ ibool pfs_rw_lock_s_lock_low(
   ibool ret;
 
   if (lock->pfs_psi != nullptr) {
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
+    if (lock->pfs_psi->m_enabled) {
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
 
-    /* Instrumented to inform we are aquiring a shared rwlock */
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDLOCK, file_name,
-        static_cast<uint>(line));
+      /* Instrumented to inform we are acquiring a shared rwlock */
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDLOCK, file_name,
+          static_cast<uint>(line));
 
-    ret = rw_lock_s_lock_low(lock, pass, file_name, line);
+      ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
+      }
+
+      return (ret);
     }
-  } else {
-    ret = rw_lock_s_lock_low(lock, pass, file_name, line);
   }
+
+  ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 
   return (ret);
 }
@@ -740,7 +710,7 @@ ibool pfs_rw_lock_s_lock_low(
  directly this function!
  @return true if success */
 UNIV_INLINE
-ibool pfs_rw_lock_sx_lock_low(
+bool pfs_rw_lock_sx_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the
                            lock will be passed to another
@@ -748,28 +718,32 @@ ibool pfs_rw_lock_sx_lock_low(
     const char *file_name, /*!< in: file name where lock requested */
     ulint line)            /*!< in: line where requested */
 {
-  ibool ret;
+  bool ret;
 
   if (lock->pfs_psi != nullptr) {
-    PSI_rwlock_locker *locker;
-    PSI_rwlock_locker_state state;
+    if (lock->pfs_psi->m_enabled) {
+      PSI_rwlock_locker *locker;
+      PSI_rwlock_locker_state state;
 
-    /* Instrumented to inform we are aquiring a shared
-    exclusive rwlock */
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK, file_name,
-        static_cast<uint>(line));
+      /* Instrumented to inform we are aquiring a shared
+      exclusive rwlock */
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK, file_name,
+          static_cast<uint>(line));
 
-    ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
+      ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
 
-    if (locker != nullptr) {
-      PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
+      if (locker != nullptr) {
+        PSI_RWLOCK_CALL(end_rwlock_rdwait)(locker, static_cast<int>(ret));
+      }
+
+      return (ret);
     }
-  } else {
-    ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
   }
 
-  return (ret);
+  ret = rw_lock_sx_lock_low(lock, pass, file_name, line);
+
+  return ret;
 }
 /** Performance schema instrumented wrap function for rw_lock_x_unlock_func()
  NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
@@ -785,7 +759,9 @@ void pfs_rw_lock_x_unlock_func(
 {
   /* Inform performance schema we are unlocking the lock */
   if (lock->pfs_psi != nullptr) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
+    if (lock->pfs_psi->m_enabled) {
+      PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
+    }
   }
 
   rw_lock_x_unlock_func(
@@ -809,8 +785,10 @@ void pfs_rw_lock_sx_unlock_func(
 {
   /* Inform performance schema we are unlocking the lock */
   if (lock->pfs_psi != nullptr) {
-    PSI_RWLOCK_CALL(unlock_rwlock)
-    (lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK);
+    if (lock->pfs_psi->m_enabled) {
+      PSI_RWLOCK_CALL(unlock_rwlock)
+      (lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK);
+    }
   }
 
   rw_lock_sx_unlock_func(
@@ -834,7 +812,9 @@ void pfs_rw_lock_s_unlock_func(
 {
   /* Inform performance schema we are unlocking the lock */
   if (lock->pfs_psi != nullptr) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
+    if (lock->pfs_psi->m_enabled) {
+      PSI_RWLOCK_CALL(unlock_rwlock)(lock->pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
+    }
   }
 
   rw_lock_s_unlock_func(

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -72,9 +72,9 @@ struct fil_node_t;
 extern bool os_has_said_disk_full;
 
 /** Number of pending read operations */
-extern ulint os_n_pending_reads;
+extern std::atomic<ulint> os_n_pending_reads;
 /** Number of pending write operations */
-extern ulint os_n_pending_writes;
+extern std::atomic<ulint> os_n_pending_writes;
 
 /* Flush after each os_fsync_threshold bytes */
 extern unsigned long long os_fsync_threshold;
@@ -87,12 +87,20 @@ namespace file {
 and encryption code. */
 struct Block {
   /** Default constructor */
-  Block() : m_ptr(), m_in_use() {}
+  Block() noexcept : m_ptr(nullptr), m_in_use() {}
 
+  /** Free the given memory block.
+  @param[in]  obj  the memory block to be freed. */
+  static void free(file::Block *obj) noexcept;
+
+  /** Pointer to the memory block. */
   byte *m_ptr;
-
-  byte pad[ut::INNODB_CACHE_LINE_SIZE - sizeof(ulint)];
-  lock_word_t m_in_use;
+  /** This padding is needed to avoid false sharing. TBD: of what exactly? We
+  can't use alignas because std::vector<Block> uses std::allocator which in
+  C++14 doesn't have to handle overaligned types. (see § 20.7.9.1.5 of N4140
+  draft) */
+  byte pad[ut::INNODB_CACHE_LINE_SIZE];
+  std::atomic<bool> m_in_use;
 };
 }  // namespace file
 
@@ -308,7 +316,9 @@ class IORequest {
       : m_block_size(UNIV_SECTOR_SIZE),
         m_type(READ),
         m_compression(),
-        m_encryption() {
+        m_encryption(),
+        m_eblock(nullptr),
+        m_elen(0) {
     /* No op */
   }
 
@@ -319,7 +329,9 @@ class IORequest {
       : m_block_size(UNIV_SECTOR_SIZE),
         m_type(static_cast<uint16_t>(type)),
         m_compression(),
-        m_encryption() {
+        m_encryption(),
+        m_eblock(nullptr),
+        m_elen(0) {
     if (is_log()) {
       disable_compression();
     }
@@ -572,18 +584,44 @@ class IORequest {
     return (os.str());
   }
 
+  /** Get a reference to the underlying encryption information.
+  @return reference to the encryption information. */
+  Encryption &get_encryption_info() noexcept
+      MY_ATTRIBUTE((warn_unused_result)) {
+    return m_encryption;
+  }
+
+  /** Set the encrypted block to the given value.
+  @param[in]  eblock  the encrypted block. */
+  void set_encrypted_block(const file::Block *eblock) noexcept {
+    m_eblock = eblock;
+  }
+
+  /** Get the encrypted block.
+  @return the encrypted block. */
+  const file::Block *get_encrypted_block() const noexcept
+      MY_ATTRIBUTE((warn_unused_result)) {
+    return m_eblock;
+  }
+
  private:
   /* File system best block size */
-  uint32_t m_block_size;
+  uint32_t m_block_size{};
 
   /** Request type bit flags */
-  uint16_t m_type;
+  uint16_t m_type{};
 
   /** Compression algorithm */
-  Compression m_compression;
+  Compression m_compression{};
 
   /** Encryption algorithm */
-  Encryption m_encryption;
+  Encryption m_encryption{};
+
+  /** The encrypted block. */
+  const file::Block *m_eblock{};
+
+  /** The length of data in encrypted block. */
+  uint32_t m_elen{};
 };
 
 /** @} */
@@ -1870,11 +1908,51 @@ class Dir_Walker {
 
 /** Allocate a page for sync IO
 @return pointer to page */
-file::Block *os_alloc_block() noexcept;
+file::Block *os_alloc_block() noexcept MY_ATTRIBUTE((warn_unused_result));
+
+/** Get the sector aligned frame pointer.
+@param[in]  block   the memory block containing the page frame.
+@return the sector aligned frame pointer. */
+byte *os_block_get_frame(const file::Block *block) noexcept
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Free a page after sync IO
 @param[in,out]	block		The block to free/release */
 void os_free_block(file::Block *block) noexcept;
+
+inline void file::Block::free(file::Block *obj) noexcept { os_free_block(obj); }
+
+/** Encrypt a page content when write it to disk.
+@param[in]	type		IO flags
+@param[out]	buf		buffer to read or write
+@param[in,out]	n		number of bytes to read/write, starting from
+                                offset
+@return pointer to the encrypted page */
+file::Block *os_file_encrypt_page(const IORequest &type, void *&buf, ulint *n);
+
+/** Allocate the buffer for IO on a transparently compressed table.
+@param[in]	type		IO flags
+@param[out]	buf		buffer to read or write
+@param[in,out]	n		number of bytes to read/write, starting from
+                                offset
+@return pointer to allocated page, compressed data is written to the offset
+        that is aligned on the disk sector size */
+file::Block *os_file_compress_page(IORequest &type, void *&buf, ulint *n);
+
+/** This is a wrapper function for the os_file_write() function call.  The
+purpose of this wrapper function is to retry on i/o error. On I/O error
+(perhaps because of disk full situation) keep retrying the write operation
+till it succeeds.
+@param[in]  type     IO flags
+@param[in]  name     name of the file or path as a null-terminated string
+@param[in]  file     handle to an open file
+@param[out] buf      buffer from which to write
+@param[in]  offset   file offset from the start where to read
+@param[in]  n        number of bytes to read, starting from offset
+@return DB_SUCCESS if request was successful, false if fail */
+dberr_t os_file_write_retry(IORequest &type, const char *name,
+                            pfs_os_file_t file, const void *buf,
+                            os_offset_t offset, ulint n);
 
 #include "os0file.ic"
 #endif /* UNIV_NONINL */

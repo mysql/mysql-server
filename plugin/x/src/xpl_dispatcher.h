@@ -25,10 +25,10 @@
 #ifndef PLUGIN_X_SRC_XPL_DISPATCHER_H_
 #define PLUGIN_X_SRC_XPL_DISPATCHER_H_
 
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/admin_cmd_handler.h"
 #include "plugin/x/src/crud_cmd_handler.h"
 #include "plugin/x/src/expect/expect_stack.h"
+#include "plugin/x/src/ngs/protocol/message.h"
 #include "plugin/x/src/prepare_command_handler.h"
 #include "plugin/x/src/stmt_command_handler.h"
 

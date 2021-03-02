@@ -231,7 +231,6 @@ int group_replication_trans_before_commit(Trans_param *param) {
     return 0;
   }
 
-  DBUG_ASSERT(applier_module != nullptr && recovery_module != nullptr);
   Group_member_info::Group_member_status member_status =
       local_member_info->get_recovery_status();
 
@@ -257,6 +256,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
     /* purecov: end */
   }
 
+  DBUG_ASSERT(applier_module != nullptr && recovery_module != nullptr);
   // Transaction information.
   const ulong transaction_size_limit = get_transaction_size_limit();
   my_off_t transaction_size = 0;

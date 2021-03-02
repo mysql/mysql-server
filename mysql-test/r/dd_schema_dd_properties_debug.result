@@ -530,7 +530,7 @@ check_constraints=
       elem12=def=has_no_default BOOL
             lbl=FIELD_HAS_NO_DEFAULT
             pos=13
-      elem13=def=hidden ENUM('Visible', 'SE', 'SQL') NOT NULL
+      elem13=def=hidden ENUM('Visible', 'SE', 'SQL', 'User') NOT NULL
             lbl=FIELD_HIDDEN
             pos=23
       elem14=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
@@ -2440,7 +2440,7 @@ table_partition_values=
       elem0=def=column_num TINYINT UNSIGNED NOT NULL
             lbl=FIELD_COLUMN_NUM
             pos=2
-      elem1=def=list_num TINYINT UNSIGNED NOT NULL
+      elem1=def=list_num SMALLINT UNSIGNED NOT NULL
             lbl=FIELD_LIST_NUM
             pos=1
       elem2=def=max_value BOOL NOT NULL

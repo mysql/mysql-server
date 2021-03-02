@@ -34,7 +34,9 @@
 #include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <signaldata/DbspjErr.hpp>
+#include <stat_utils.hpp>
 #include "../dbtup/tuppage.hpp"
+#include "../dbtc/Dbtc.hpp"
 
 #define JAM_FILE_ID 481
 
@@ -454,10 +456,11 @@ public:
     STATIC_CONST( SIZE = GLOBAL_PAGE_SIZE_WORDS - 7 );
   };
   typedef ArrayPool<RowPage> RowPage_pool;
-  typedef SLList<RowPage_pool> RowPage_list;
-  typedef LocalSLList<RowPage_pool> Local_RowPage_list;
-  typedef DLFifoList<RowPage_pool> RowPage_fifo;
-  typedef LocalDLFifoList<RowPage_pool> Local_RowPage_fifo;
+  // Use 'counted' list to keep track of GlobalSharedMemory size used.
+  typedef SLCList<RowPage_pool> RowPage_list;
+  typedef LocalSLCList<RowPage_pool> Local_RowPage_list;
+  typedef DLCFifoList<RowPage_pool> RowPage_fifo;
+  typedef LocalDLCFifoList<RowPage_pool> Local_RowPage_fifo;
 
   struct RowBuffer
   {
@@ -626,7 +629,8 @@ public:
       SFH_SCANNING     = 1, // in LQH
       SFH_WAIT_NEXTREQ = 2,
       SFH_COMPLETE     = 3,
-      SFH_WAIT_CLOSE   = 4
+      SFH_WAIT_CLOSE   = 4,
+      SFH_SCANNING_WAIT_CLOSE = 5
     };
 
     void init(Uint32 fid, bool readBackup)
@@ -644,6 +648,7 @@ public:
     Uint8 m_state;
     Uint8 m_readBackup;
     Uint32 m_ref;
+    Uint32 m_next_ref;
     Uint32 m_rangePtrI;
     union {
       Uint32 nextList;
@@ -1563,6 +1568,7 @@ private:
                          const Ptr<TreeNode> treeNodePtr);
 
   Uint32 check_own_location_domain(const Uint32 *nodes, Uint32 node_count);
+  void send_close_scan(Signal*, Ptr<ScanFragHandle>, Ptr<Request>);
   /**
    * Page manager
    */
@@ -1572,12 +1578,21 @@ private:
   RowPage_list::Head m_free_page_list;
   RowPage_pool m_page_pool;
 
-  /* Random fault injection */
+  Uint32 m_allocedPages;
+  Uint32 m_maxUsedPages;
+  Uint32 getUsedPages() const {
+    ndbassert(m_allocedPages >= m_free_page_list.getCount());
+    return m_allocedPages - m_free_page_list.getCount();
+  }
+  NdbStatistics m_usedPagesStat;
 
 #ifdef ERROR_INSERT
+  /* Random fault injection */
   bool appendToSection(Uint32& firstSegmentIVal,
                        const Uint32* src, Uint32 len);
 #endif
+
+  Dbtc *c_tc;
 
   Uint32 m_location_domain_id[MAX_NDB_NODES];
   Uint32 m_load_balancer_location;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,8 @@
 #include <algorithm>
 #include <limits>
 
-#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
 #include "plugin/x/src/helper/sql_commands.h"
+#include "plugin/x/src/ngs/mysqlx/getter_any.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_regex.h"
 
@@ -45,17 +45,17 @@ using Object_field = ::Mysqlx::Datatypes::Object_ObjectField;
 template <typename T>
 class General_argument_validator {
  public:
-  General_argument_validator(bool *) {}
+  explicit General_argument_validator(bool *) {}
   void operator()(const T &input, T *output) { *output = input; }
 };
 
 template <typename Type, typename Validator = General_argument_validator<Type>>
 class Argument_type_handler {
  public:
-  Argument_type_handler(Type *value)
+  explicit Argument_type_handler(Type *value)
       : m_validator(&m_error), m_value(value), m_error(false) {}
 
-  explicit Argument_type_handler()
+  Argument_type_handler()
       : m_validator(&m_error), m_value(nullptr), m_error(false) {}
 
   void assign(Type *value) { m_value = value; }
@@ -76,7 +76,7 @@ class Argument_type_handler {
 
 class String_argument_validator {
  public:
-  String_argument_validator(bool *error) : m_error(error) {}
+  explicit String_argument_validator(bool *error) : m_error(error) {}
 
   void operator()(const std::string &input, std::string *output) {
     if (memchr(input.data(), 0, input.length())) {
@@ -92,7 +92,8 @@ class String_argument_validator {
 
 class Docpath_argument_validator : String_argument_validator {
  public:
-  Docpath_argument_validator(bool *error) : String_argument_validator(error) {}
+  explicit Docpath_argument_validator(bool *error)
+      : String_argument_validator(error) {}
 
   void operator()(const std::string &input, std::string *output) {
     static const std::string k_doc_member_regex =

@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -493,7 +493,7 @@ The
 \fBmysql\fR
 client always passes optimizer hints to the server, regardless of whether this option is given\&.
 .sp
-Comment stripping is deprecated\&. This feature and the options to control it will be removed in a future MySQL release\&.
+Comment stripping is deprecated\&. Expect this feature and the options to control it to be removed in a future MySQL release\&.
 .sp .5v
 .RE
 .RE
@@ -511,7 +511,7 @@ Comment stripping is deprecated\&. This feature and the options to control it wi
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
@@ -1219,6 +1219,21 @@ the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .\}
 \fB\-\-net\-buffer\-length=\fR\fB\fIvalue\fR\fR
 The buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-network\-namespace=\fR\fB\fIname\fR\fR
+The network namespace to use for TCP/IP connections\&. If omitted, the connection uses the default (global) namespace\&. For information about network namespaces, see
+Section\ \&5.1.14, \(lqNetwork Namespace Support\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.22\&. It is available only on platforms that implement network namespace support\&.
 .RE
 .sp
 .RS 4
@@ -2181,6 +2196,8 @@ charset   (\eC) Switch to another charset\&. Might be needed for processing
 warnings  (\eW) Show warnings after every statement\&.
 nowarning (\ew) Don\*(Aqt show warnings after every statement\&.
 resetconnection(\ex) Clean session context\&.
+query_attributes(\e) Sets string parameters (name1 value1 name2 value2 \&.\&.\&.)
+for the next query to pick up\&.
 For server side help, type \*(Aqhelp contents\*(Aq
 .fi
 .if n \{\
@@ -2320,7 +2337,7 @@ command line\&. Quoting can be done with either single quote (\*(Aq), double quo
 .sp
 \fBmysql\fR
 interprets instances of the delimiter string as a statement delimiter anywhere it occurs, except within quoted strings\&. Be careful about defining a delimiter that might occur within other words\&. For example, if you define the delimiter as
-X, you will be unable to use the word
+X, it is not possible to use the word
 INDEX
 in statements\&.
 \fBmysql\fR
@@ -2336,7 +2353,7 @@ is set to something other than the default of
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
 \m[blue]\fBC API Multiple Statement Execution Support\fR\m[]\&\s-2\u[3]\d\s+2), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&24.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&25.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -2539,6 +2556,101 @@ mysql>\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+query_attributes \fIname\fR \fIvalue\fR [\fIname\fR \fIvalue\fR \&.\&.\&.]
+.sp
+Define query attributes that apply to the next query sent to the server\&. For discussion of the purpose and use of query attributes, see
+Section\ \&9.6, \(lqQuery Attributes\(rq\&.
+.sp
+The
+query_attributes
+command follows these rules:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The format and quoting rules for attribute names and values are the same as for the
+delimiter
+command\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The command permits up to 32 attribute name/value pairs\&. Names and values may be up to 1024 characters long\&. If a name is given without a value, an error occurs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If multiple
+query_attributes
+commands are issued prior to query execution, only the last command applies\&. After sending the query,
+\fBmysql\fR
+clears the attribute set\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If multiple attributes are defined with the same name, attempts to retrieve the attribute value have an undefined result\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+An attribute defined with an empty name cannot be retrieved by name\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+If a reconnect occurs while
+\fBmysql\fR
+executes the query,
+\fBmysql\fR
+restores the attributes after reconnecting so the query can be executed again with the same attributes\&.
+.sp
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 quit,
 \eq
 .sp
@@ -2573,7 +2685,9 @@ option\&.)
 resetconnection,
 \ex
 .sp
-Reset the connection to clear the session state\&.
+Reset the connection to clear the session state\&. This includes clearing any current query attributes defined using the
+query_attributes
+command\&.
 .sp
 Resetting a connection has effects similar to
 mysql_change_user()
@@ -3653,7 +3767,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.16, \(lqServer-Side Help Support\(rq)\&.
+Section\ \&5.1.17, \(lqServer-Side Help Support\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -4030,7 +4144,7 @@ bind
 at the end of
 \&.editrc\&.
 \fBmysql\fR
-will show the bindings when it starts\&.
+shows the bindings when it starts\&.
 Disabling Interactive History
 .PP
 The
@@ -4127,7 +4241,7 @@ the section called \(lqImpermissible Client Character Sets\(rq\&.
 .PP
 With those changes,
 \fBmysql\fR
-will use the Windows APIs to communicate with the console using UTF\-16LE, and communicate with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
+uses the Windows APIs to communicate with the console using UTF\-16LE, and communicate with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
 .PP
 To avoid those steps each time you run
 \fBmysql\fR, you can create a shortcut that invokes

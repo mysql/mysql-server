@@ -48,7 +48,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo
 --echo # 2. Start slave for channel 'ch3_1' between server1(slave) and server3(master)
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
 --source include/start_slave.inc

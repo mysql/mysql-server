@@ -233,7 +233,9 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
 
   // Try to create table in db
-  if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
+  if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0)
+  {
+    ndbout << "Failed to create table " << pTab->getName() << endl;
     return NDBT_FAILED;
   }
 

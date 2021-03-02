@@ -27,6 +27,7 @@
 
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1143,9 +1144,9 @@ int my_mb_ctype_8bit(const CHARSET_INFO *cs, int *ctype, const uchar *s,
   return 1;
 }
 
-#define CUTOFF (ULLONG_MAX / 10)
-#define CUTLIM (ULLONG_MAX % 10)
-#define DIGITS_IN_ULONGLONG 20
+constexpr const uint64_t CUTOFF{ULLONG_MAX / 10};
+constexpr const uint64_t CUTLIM{ULLONG_MAX % 10};
+constexpr const int DIGITS_IN_ULONGLONG{20};
 
 static ulonglong d10[DIGITS_IN_ULONGLONG] = {1,
                                              10,
@@ -1232,7 +1233,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   ulonglong ull;
   ulong ul;
   uchar ch;
-  int shift = 0, digits = 0, negative, addon;
+  int shift = 0, digits = 0, addon;
+  bool negative;
 
   /* Skip leading spaces and tabs */
   for (; str < end && (*str == ' ' || *str == '\t'); str++)
@@ -1309,8 +1311,7 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     if (*str == '.') {
       if (dot) {
         /* The second dot character */
-        addon = 0;
-        goto exp;
+        goto dotshift;
       } else {
         dot = str + 1;
       }
@@ -1320,6 +1321,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     /* Unknown character, exit the loop */
     break;
   }
+
+dotshift:
   shift = dot ? (int)(dot - str) : 0; /* Right shift */
   addon = 0;
 
@@ -1335,7 +1338,7 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
     if (str < end) {
       longlong negative_exp, exponent;
       if ((negative_exp = (*str == '-')) || *str == '+') {
-        if (++str == end) goto ret_sign;
+        if (++str == end) goto check_shift_overflow;
       }
       for (exponent = 0; str < end && (ch = (uchar)(*str - '0')) < 10; str++) {
         if (exponent <= (std::numeric_limits<longlong>::max() - ch) / 10)
@@ -1364,12 +1367,13 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
       goto ret_zero; /* Exponent is a big negative number, return 0 */
 
     d = d10[-shift];
-    r = (ull % d) * 2;
+    r = ull % d;
     ull /= d;
-    if (r >= d) ull++;
+    if (r >= d / 2) ull++;
     goto ret_sign;
   }
 
+check_shift_overflow:
   if (shift > DIGITS_IN_ULONGLONG) /* Huge left shift */
   {
     if (!ull) goto ret_sign;
@@ -1425,8 +1429,13 @@ ret_edom:
 ret_too_big:
   *endptr = str;
   *error = MY_ERRNO_ERANGE;
-  return unsigned_flag ? ULLONG_MAX
-                       : negative ? (ulonglong)LLONG_MIN : (ulonglong)LLONG_MAX;
+  if (unsigned_flag) {
+    if (negative) return 0;
+    return ULLONG_MAX;
+  } else {
+    if (negative) return LLONG_MIN;
+    return LLONG_MAX;
+  }
 }
 
 /*

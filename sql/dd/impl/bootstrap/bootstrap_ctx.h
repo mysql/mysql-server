@@ -61,6 +61,7 @@ static constexpr uint DD_VERSION_80015 = 80015;
 static constexpr uint DD_VERSION_80016 = 80016;
 static constexpr uint DD_VERSION_80017 = 80017;
 static constexpr uint DD_VERSION_80021 = 80021;
+static constexpr uint DD_VERSION_80022 = 80022;
 
 /*
   Set of supported DD version labels. A supported DD version is a version
@@ -71,8 +72,9 @@ static constexpr uint DD_VERSION_80021 = 80021;
   stored in the 'dd_properties' table by the server from which we downgrade.
 */
 static std::set<uint> supported_dd_versions = {
-    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013, DD_VERSION_80014,
-    DD_VERSION_80015, DD_VERSION_80016, DD_VERSION_80017, DD_VERSION_80021};
+    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013,
+    DD_VERSION_80014, DD_VERSION_80015, DD_VERSION_80016,
+    DD_VERSION_80017, DD_VERSION_80021, DD_VERSION_80022};
 
 // Individual server version labels that we can refer to.
 static constexpr uint SERVER_VERSION_50700 = 50700;

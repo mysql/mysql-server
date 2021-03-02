@@ -41,6 +41,7 @@
 # include/assert_command_output.inc doesn't work for mysqld on windows
 --source include/not_windows.inc
 --source include/not_group_replication_plugin.inc
+--source include/not_hypergraph.inc  # Gets confused by the extra logging.
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 
@@ -150,13 +151,13 @@ while ($master_gtid_mode <= 3)
     if ($slave_gtid_mode == 0)
     {
       --error ER_AUTO_POSITION_REQUIRES_GTID_MODE_NOT_OFF
-      CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
-      CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+      CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
+      CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
     }
 
     if ($slave_gtid_mode != 0)
     {
-      CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+      CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
       START SLAVE IO_THREAD;
       if ($master_gtid_mode != 3)
       {
@@ -168,7 +169,7 @@ while ($master_gtid_mode <= 3)
         --source include/wait_for_slave_io_to_start.inc
         --source include/stop_slave_io.inc
       }
-      CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+      CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
     }
 
     --inc $slave_gtid_mode
@@ -311,7 +312,7 @@ DROP TABLE t2;
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 
 --let $rpl_server_number=2
 --let $rpl_start_with_gtids= 0
@@ -335,7 +336,7 @@ SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 --error ER_CANT_USE_AUTO_POSITION_WITH_GTID_MODE_OFF
 START SLAVE IO_THREAD;
 
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --echo #
 --echo # ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
@@ -464,7 +465,7 @@ INSERT INTO t5 VALUES(1);  # anonymous transaction
 --source include/rpl_set_gtid_mode.inc
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 
 --let $slave_io_errno= 13114 # ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
@@ -488,7 +489,7 @@ START SLAVE IO_THREAD;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --let $rpl_server_numbers= 2
 --let $rpl_gtid_mode= OFF
@@ -553,7 +554,7 @@ INSERT INTO t6 VALUES(1);  # anonymous transaction
 --source include/rpl_set_gtid_mode.inc
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 
 --let $slave_io_errno= 13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
@@ -566,7 +567,7 @@ START SLAVE IO_THREAD;
 --source include/assert_grep.inc
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 
 --let $rpl_server_numbers= 1,2
 --let $rpl_gtid_mode= OFF
@@ -677,11 +678,11 @@ RESET SLAVE;
 --let $rpl_skip_sync= 1
 --source include/rpl_set_gtid_mode.inc
 
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 --error ER_CANT_SET_GTID_MODE
 SET @@GLOBAL.GTID_MODE = OFF;
 
-CHANGE MASTER TO MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
 SET @@GLOBAL.GTID_MODE = OFF;
 --let $rpl_server_numbers= 1
 --let $rpl_gtid_mode= OFF

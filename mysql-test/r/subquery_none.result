@@ -1737,6 +1737,11 @@ insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, '
 select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 id	text	id	text	id	text
 1	text1	1	text1	1	text1
+10	text10	10	text10	10	text10
+1000	text1000	NULL	NULL	1000	text1000
+1001	text1001	NULL	NULL	1000	text1000
+11	text11	11	text1	11	text11
+12	text12	12	text2	12	text12
 2	text2	2	text2	2	text2
 3	text3	3	text3	3	text3
 4	text4	4	text4	4	text4
@@ -1745,11 +1750,6 @@ id	text	id	text	id	text
 7	text7	7	text7	7	text7
 8	text8	8	text8	8	text8
 9	text9	9	text9	9	text9
-10	text10	10	text10	10	text10
-11	text11	11	text1	11	text11
-12	text12	12	text2	12	text12
-1000	text1000	NULL	NULL	1000	text1000
-1001	text1001	NULL	NULL	1000	text1000
 explain select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	NULL	ALL	NULL	NULL	NULL	NULL	14	100.00	NULL
@@ -3049,8 +3049,8 @@ SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1), a;
 ERROR 21000: Subquery returns more than 1 row
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 b	MAX(c)
-2	2
 1	4
+2	2
 4	4
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 ERROR 21000: Subquery returns more than 1 row
@@ -3058,10 +3058,10 @@ SELECT a FROM t1 GROUP BY a
 HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
 a
-2
-4
 1
+2
 3
+4
 SELECT a FROM t1 GROUP BY a
 HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -3079,10 +3079,10 @@ SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 a
-2
-4
 1
+2
 3
+4
 SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
@@ -3091,8 +3091,8 @@ SELECT a FROM t1
 ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
 a
-2
 1
+2
 3
 4
 SELECT a FROM t1
@@ -3983,15 +3983,15 @@ CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
 a
-2
 1
+2
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
 a
 SELECT a FROM t1 t0
 WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
 a
-2
 1
+2
 SET @@sql_mode='ansi';
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
 ERROR HY000: Invalid use of group function
@@ -4041,15 +4041,15 @@ INSERT INTO t2 VALUES (7), (5), (1), (3);
 SELECT id, st FROM t1
 WHERE st IN ('GA','FL') AND EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id);
 id	st
-3	FL
 1	GA
+3	FL
 7	FL
 SELECT id, st FROM t1
 WHERE st IN ('GA','FL') AND EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id)
 GROUP BY id;
 id	st
-3	FL
 1	GA
+3	FL
 7	FL
 SELECT id, st FROM t1
 WHERE st IN ('GA','FL') AND NOT EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id);
@@ -5663,15 +5663,15 @@ CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
 a
-2
 1
+2
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
 a
 SELECT a FROM t1 t0
 WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
 a
-2
 1
+2
 SET @@sql_mode='ansi';
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
 ERROR HY000: Invalid use of group function

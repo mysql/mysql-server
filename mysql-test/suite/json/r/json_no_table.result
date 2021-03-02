@@ -3926,3 +3926,288 @@ DROP TABLE sink;
 SELECT JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()));
 JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()))
 NULL
+#
+# Bug #31856260 STILL SEEING A FEW ASSERTION
+#                `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED
+#
+DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) AND ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+ERROR HY000: Incorrect string value: '3\x9E\xD3%' for function uuid_to_bin
+DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) OR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+ERROR HY000: Incorrect string value: '3\x9E\xD3%' for function uuid_to_bin
+DO NULLIF(FROM_BASE64(JSON_STORAGE_FREE('') XOR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "The document is empty." at position 0.
+# Bug#32063203: Problem with prepared statements
+CREATE TABLE t1(c1 JSON);
+INSERT INTO t1 VALUES ('["a", "b"]'), ('["b", "c"]'), ('["c", "a"]');
+SELECT * FROM t1 WHERE 'a' MEMBER OF (c1 -> '$');
+c1
+["a", "b"]
+["c", "a"]
+prepare s1 from "SELECT * FROM t1 WHERE ? MEMBER OF (c1 -> '$')";
+set @x = 'a';
+execute s1 using @x # OK - returns ["a", "b"] and ["c", "a"];
+c1
+["a", "b"]
+["c", "a"]
+DROP TABLE t1;
+SET @j = '["a", ["b", "c"], "d"]';
+SELECT JSON_ARRAY_APPEND(@j, '$[1]', 'z');
+JSON_ARRAY_APPEND(@j, '$[1]', 'z')
+["a", ["b", "c", "z"], "d"]
+SELECT JSON_ARRAY_APPEND(@j, '$[1]', '"z"');
+JSON_ARRAY_APPEND(@j, '$[1]', '"z"')
+["a", ["b", "c", "\"z\""], "d"]
+prepare s from "SELECT JSON_ARRAY_APPEND(@j, '$[1]', ?)";
+set @x='z';
+execute s using @x;
+JSON_ARRAY_APPEND(@j, '$[1]', ?)
+["a", ["b", "c", "z"], "d"]
+set @x='"z"';
+execute s using @x;
+JSON_ARRAY_APPEND(@j, '$[1]', ?)
+["a", ["b", "c", "\"z\""], "d"]
+SET @j = '["a", ["b", "c"], "d"]';
+SELECT JSON_ARRAY_INSERT(@j, '$[1]', 'z');
+JSON_ARRAY_INSERT(@j, '$[1]', 'z')
+["a", "z", ["b", "c"], "d"]
+SELECT JSON_ARRAY_INSERT(@j, '$[1]', '"z"');
+JSON_ARRAY_INSERT(@j, '$[1]', '"z"')
+["a", "\"z\"", ["b", "c"], "d"]
+prepare s from "SELECT JSON_ARRAY_INSERT(@j, '$[1]', ?)";
+set @x='z';
+execute s using @x;
+JSON_ARRAY_INSERT(@j, '$[1]', ?)
+["a", "z", ["b", "c"], "d"]
+set @x='"z"';
+execute s using @x;
+JSON_ARRAY_INSERT(@j, '$[1]', ?)
+["a", "\"z\"", ["b", "c"], "d"]
+SELECT JSON_OVERLAPS("true","true");
+JSON_OVERLAPS("true","true")
+1
+prepare s from "SELECT JSON_OVERLAPS('true',?)";
+set @jv='true';
+execute s using @jv;
+JSON_OVERLAPS('true',?)
+1
+SELECT JSON_OVERLAPS('"abc"','"abc"');
+JSON_OVERLAPS('"abc"','"abc"')
+1
+prepare s from "SELECT JSON_OVERLAPS('\"abc\"',?)";
+set @jv='"abc"';
+execute s using @jv;
+JSON_OVERLAPS('"abc"',?)
+1
+set @jv="abc";
+execute s using @jv;
+ERROR 22032: Invalid JSON text in argument 2 to function json_overlaps: "Invalid value." at position 0.
+set @p1 = 1;
+set @p2 = 'abc';
+set @p3 = '"abc"';
+set @p4 = NULL;
+set @p5 = 'true';
+set @p6 = DATE'2000-01-01';
+SELECT JSON_ARRAY(1, 'abc', '"abc"', NULL, 'true', DATE'2000-01-01');
+JSON_ARRAY(1, 'abc', '"abc"', NULL, 'true', DATE'2000-01-01')
+[1, "abc", "\"abc\"", null, "true", "2000-01-01"]
+prepare s from "SELECT JSON_ARRAY(?, ?, ?, ?, ?, ?)";
+execute s using @p1, @p2, @p3, @p4, @p5, @p6;
+JSON_ARRAY(?, ?, ?, ?, ?, ?)
+[1, "abc", "\"abc\"", null, "true", "2000-01-01"]
+SELECT JSON_OBJECT('a', 1, 'b', 'abc', 'c', '"abc"', 'd', NULL,
+'e', 'true', 'f', DATE'2000-01-01');
+JSON_OBJECT('a', 1, 'b', 'abc', 'c', '"abc"', 'd', NULL,
+'e', 'true', 'f', DATE'2000-01-01')
+{"a": 1, "b": "abc", "c": "\"abc\"", "d": null, "e": "true", "f": "2000-01-01"}
+prepare s from "SELECT JSON_OBJECT('a', ?, 'b', ?, 'c', ?, 'd', ?,
+                                   'e', ?, 'f', ?)";
+execute s using @p1, @p2, @p3, @p4, @p5, @p6;
+JSON_OBJECT('a', ?, 'b', ?, 'c', ?, 'd', ?,
+                                   'e', ?, 'f', ?)
+{"a": 1, "b": "abc", "c": "\"abc\"", "d": null, "e": "true", "f": "2000-01-01"}
+select JSON_CONTAINS('{"a": "x", "b": "y"}', 'x', '$.a');
+ERROR 22032: Invalid JSON text in argument 2 to function json_contains: "Invalid value." at position 0.
+select JSON_CONTAINS('{"a": "x", "b": "y"}', '"x"', '$.a');
+JSON_CONTAINS('{"a": "x", "b": "y"}', '"x"', '$.a')
+1
+prepare s from "SELECT JSON_CONTAINS('{""a"": ""x"", ""b"": ""y""}', ?, '$.a')";
+set @a='x';
+execute s using @a;
+ERROR 22032: Invalid JSON text in argument 2 to function json_contains: "Invalid value." at position 0.
+set @a='"x"';
+execute s using @a;
+JSON_CONTAINS('{"a": "x", "b": "y"}', ?, '$.a')
+1
+SET @j = '["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]';
+SELECT JSON_SEARCH(@j, 'one', 'abc');
+JSON_SEARCH(@j, 'one', 'abc')
+"$[0]"
+SELECT JSON_SEARCH(@j, 'one', '"abc"');
+JSON_SEARCH(@j, 'one', '"abc"')
+NULL
+prepare s from "SELECT JSON_SEARCH(@j, 'one', ?)";
+set @x='abc';
+execute s using @x;
+JSON_SEARCH(@j, 'one', ?)
+"$[0]"
+set @x='"abc"';
+execute s using @x;
+JSON_SEARCH(@j, 'one', ?)
+NULL
+SELECT JSON_MERGE_PATCH('[1, 2]', 'xyz');
+ERROR 22032: Invalid JSON text in argument 2 to function json_merge_patch: "Invalid value." at position 0.
+SELECT JSON_MERGE_PATCH('[1, 2]', '"xyz"');
+JSON_MERGE_PATCH('[1, 2]', '"xyz"')
+"xyz"
+prepare s from "SELECT JSON_MERGE_PATCH('[1, 2]', ?)";
+set @x='xyz';
+execute s using @x;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.
+set @x='"xyz"';
+execute s using @x;
+JSON_MERGE_PATCH('[1, 2]', ?)
+"xyz"
+SELECT JSON_MERGE_PRESERVE('[1, 2]', 'xyz');
+ERROR 22032: Invalid JSON text in argument 2 to function json_merge_preserve: "Invalid value." at position 0.
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '"xyz"');
+JSON_MERGE_PRESERVE('[1, 2]', '"xyz"')
+[1, 2, "xyz"]
+prepare s from "SELECT JSON_MERGE_PRESERVE('[1, 2]', ?)";
+set @x='xyz';
+execute s using @x;
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 0.
+set @x='"xyz"';
+execute s using @x;
+JSON_MERGE_PRESERVE('[1, 2]', ?)
+[1, 2, "xyz"]
+SELECT JSON_INSERT('{"a" : 1}', '$.b', 'xyz');
+JSON_INSERT('{"a" : 1}', '$.b', 'xyz')
+{"a": 1, "b": "xyz"}
+SELECT JSON_INSERT('{"a" : 1}', '$.b', '"xyz"');
+JSON_INSERT('{"a" : 1}', '$.b', '"xyz"')
+{"a": 1, "b": "\"xyz\""}
+prepare s from "SELECT JSON_INSERT('{""a"" : 1}', '$.b', ?)";
+set @x='xyz';
+execute s using @x;
+JSON_INSERT('{"a" : 1}', '$.b', ?)
+{"a": 1, "b": "xyz"}
+set @x='"xyz"';
+execute s using @x;
+JSON_INSERT('{"a" : 1}', '$.b', ?)
+{"a": 1, "b": "\"xyz\""}
+SELECT JSON_REPLACE('{"a" : 1}', '$.a', 'xyz');
+JSON_REPLACE('{"a" : 1}', '$.a', 'xyz')
+{"a": "xyz"}
+SELECT JSON_REPLACE('{"a" : 1}', '$.a', '"xyz"');
+JSON_REPLACE('{"a" : 1}', '$.a', '"xyz"')
+{"a": "\"xyz\""}
+prepare s from "SELECT JSON_REPLACE('{""a"" : 1}', '$.a', ?)";
+set @x='xyz';
+execute s using @x;
+JSON_REPLACE('{"a" : 1}', '$.a', ?)
+{"a": "xyz"}
+set @x='"xyz"';
+execute s using @x;
+JSON_REPLACE('{"a" : 1}', '$.a', ?)
+{"a": "\"xyz\""}
+SELECT JSON_SET('{"a" : 1}', '$.a', 'xyz');
+JSON_SET('{"a" : 1}', '$.a', 'xyz')
+{"a": "xyz"}
+SELECT JSON_SET('{"a" : 1}', '$.a', '"xyz"');
+JSON_SET('{"a" : 1}', '$.a', '"xyz"')
+{"a": "\"xyz\""}
+prepare s from "SELECT JSON_SET('{""a"" : 1}', '$.a', ?)";
+set @x='xyz';
+execute s using @x;
+JSON_SET('{"a" : 1}', '$.a', ?)
+{"a": "xyz"}
+set @x='"xyz"';
+execute s using @x;
+JSON_SET('{"a" : 1}', '$.a', ?)
+{"a": "\"xyz\""}
+#
+# Bug #32162329 BOOL JSON_VALUE: ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED.
+#
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
++
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+-
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+*
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+/
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+%
+(JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+DO CAST(JSON_PRETTY('') AS SIGNED) + CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) - CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) * CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) / CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+DO CAST(JSON_PRETTY('') AS SIGNED) % CAST(JSON_PRETTY('') AS SIGNED);
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
+#
+# Bug #32206506 ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED.
+#
+do nullif((week(json_merge(88,1,'[false,1001892796]' ,8 ))),(0x4622ae3d ));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_merge_preserve; a JSON string or JSON type is required.
+do truncate(sum(1),json_pretty((not(1))));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_pretty; a JSON string or JSON type is required.
+do ifnull((json_unquote(1)),(json_type(1)));
+ERROR HY000: Incorrect type for argument 1 in function json_unquote.
+do ((json_depth(from_unixtime(1536999222)))<=>(1));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_depth; a JSON string or JSON type is required.
+do ((json_length('key2','key1'))<=>(1));
+ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0.
+do ((1)not in((json_keys(4353)),(current_role())));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+do ((1)<=>(json_length(2,'key2')));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_length; a JSON string or JSON type is required.
+do aes_decrypt(json_type(1),json_keys('-4*2c*'));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_type; a JSON string or JSON type is required.
+do ((1)not in ((json_remove(19,'{}')),((not(1)))));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_remove; a JSON string or JSON type is required.
+do ((json_storage_size(1))<=(json_storage_size('')));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_storage_size; a JSON string or JSON type is required.
+do ((select(95))<=>(json_contains('{ }',' * }* ')));
+ERROR 22032: Invalid JSON text in argument 2 to function json_contains: "Invalid value." at position 1.
+do truncate(exp(0xa701c3bc),(not(json_valid('{}'))));
+ERROR 22003: DOUBLE value is out of range in 'exp(0xa701c3bc)'
+do ((' ')<=>(json_type(CURRENT_TIMESTAMP)));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_type; a JSON string or JSON type is required.
+do ((cot(':-%%& 1*'))>>(json_keys('{ }')));
+ERROR 22003: DOUBLE value is out of range in 'cot(':-%%& 1*')'
+do ((get_format(datetime,'JIS'))<=>(json_type('key3')));
+ERROR 22032: Invalid JSON text in argument 1 to function json_type: "Invalid value." at position 0.
+do strcmp(json_storage_size('*1'),json_valid(null));
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.
+do sha2((!(json_keys(abs('')))),json_pretty(null));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+do ((period_diff(20259,1872))>((not(('{ }')))));
+ERROR HY000: Incorrect arguments to period_diff
+do ((exp(4812))>>(year((!((not(degrees(''))))))));
+ERROR 22003: DOUBLE value is out of range in 'exp(4812)'
+do pow(json_storage_size(':*'),(!(oct(1))));
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.

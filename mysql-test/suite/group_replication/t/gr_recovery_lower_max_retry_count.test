@@ -43,7 +43,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @recovery_reconnect_interval_save= @@GLOBAL.GROUP_REPLICATION_RECOVERY_RECONNECT_INTERVAL;
 SET @recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="user_does_not_exist" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="user_does_not_exist" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 
 SET SESSION sql_log_bin = 0;

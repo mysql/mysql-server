@@ -94,7 +94,7 @@ call mtr.add_suppression("For details please check performance_schema.replicatio
 SET SESSION sql_log_bin= 1;
 
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER= '$recovery_user', MASTER_PASSWORD= '$recovery_password' FOR CHANNEL 'group_replication_recovery'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER= '$recovery_user', SOURCE_PASSWORD= '$recovery_password' FOR CHANNEL 'group_replication_recovery'
 --enable_warnings
 
 --let $group_replication_start_member_state= RECOVERING

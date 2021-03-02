@@ -194,6 +194,7 @@ ANALYZE TABLE all_types UPDATE HISTOGRAM ON col_bool,
 
 --echo # Remove 'last-updated' from the histogram, since it will change on every
 --echo # run.
+--sorted_result
 SELECT schema_name, table_name, column_name,
        JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
@@ -618,6 +619,7 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col3, col4, col5
                  WITH 10 BUCKETS;
 ALTER TABLE t1 MODIFY COLUMN col1 VARCHAR(255) CHARACTER SET latin1;
 --echo # col2, col3, col4 and col5 should remain
+--sorted_result
 SELECT schema_name, table_name, column_name
 FROM information_schema.COLUMN_STATISTICS;
 

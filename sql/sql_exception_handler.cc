@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2020 Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,9 +112,9 @@ void handle_gis_exception(const char *funcname) {
         break;
     }
     my_error(er_variant, MYF(0), funcname, e.typenames());
-  } catch (const gis::invalid_geometry_exception &e) {
+  } catch (const gis::invalid_geometry_exception &) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), funcname);
-  } catch (const gis::too_large_polygon_exception &e) {
+  } catch (const gis::too_large_polygon_exception &) {
     my_error(ER_POLYGON_TOO_LARGE, MYF(0), funcname);
   } catch (const boost::geometry::centroid_exception &) {
     my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);

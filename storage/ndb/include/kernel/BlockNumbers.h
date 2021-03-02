@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,45 +69,60 @@
 #define DBSPJ      0x108
 #define THRMAN     0x109
 #define TRPMAN     0x10A
+#define DBQLQH     0x10B
+#define DBQACC     0x10C
+#define DBQTUP     0x10D
+#define DBQTUX     0x10E
+#define QBACKUP    0x10F
+#define QRESTORE   0x110
+#define V_QUERY    0x111
 
-const BlockReference BACKUP_REF  = numberToRef(BACKUP, 0);
-const BlockReference DBTC_REF    = numberToRef(DBTC, 0);
-const BlockReference DBDIH_REF   = numberToRef(DBDIH, 0);
-const BlockReference DBLQH_REF   = numberToRef(DBLQH, 0);
-const BlockReference DBACC_REF   = numberToRef(DBACC, 0);
-const BlockReference DBTUP_REF   = numberToRef(DBTUP, 0);
-const BlockReference DBDICT_REF  = numberToRef(DBDICT, 0);
-const BlockReference NDBCNTR_REF = numberToRef(NDBCNTR, 0);
-const BlockReference QMGR_REF    = numberToRef(QMGR, 0);
-const BlockReference NDBFS_REF   = numberToRef(NDBFS, 0);
-const BlockReference CMVMI_REF   = numberToRef(CMVMI, 0);
-const BlockReference TRIX_REF    = numberToRef(TRIX, 0);
-const BlockReference DBUTIL_REF  = numberToRef(DBUTIL, 0);
-const BlockReference SUMA_REF    = numberToRef(SUMA, 0);
-const BlockReference DBTUX_REF   = numberToRef(DBTUX, 0);
-const BlockReference TSMAN_REF   = numberToRef(TSMAN, 0);
-const BlockReference LGMAN_REF   = numberToRef(LGMAN, 0);
-const BlockReference PGMAN_REF   = numberToRef(PGMAN, 0);
-const BlockReference RESTORE_REF = numberToRef(RESTORE, 0);
-const BlockReference DBINFO_REF  = numberToRef(DBINFO, 0);
-const BlockReference DBSPJ_REF  = numberToRef(DBSPJ, 0);
-const BlockReference THRMAN_REF  = numberToRef(THRMAN, 0);
-const BlockReference TRPMAN_REF  = numberToRef(TRPMAN, 0);
+const BlockReference BACKUP_REF   = numberToRef(BACKUP, 0);
+const BlockReference QBACKUP_REF  = numberToRef(QBACKUP, 0);
+const BlockReference DBTC_REF     = numberToRef(DBTC, 0);
+const BlockReference DBDIH_REF    = numberToRef(DBDIH, 0);
+const BlockReference DBLQH_REF    = numberToRef(DBLQH, 0);
+const BlockReference DBQLQH_REF   = numberToRef(DBQLQH, 0);
+const BlockReference DBACC_REF    = numberToRef(DBACC, 0);
+const BlockReference DBQACC_REF   = numberToRef(DBQACC, 0);
+const BlockReference DBTUP_REF    = numberToRef(DBTUP, 0);
+const BlockReference DBQTUP_REF   = numberToRef(DBQTUP, 0);
+const BlockReference DBDICT_REF   = numberToRef(DBDICT, 0);
+const BlockReference NDBCNTR_REF  = numberToRef(NDBCNTR, 0);
+const BlockReference QMGR_REF     = numberToRef(QMGR, 0);
+const BlockReference NDBFS_REF    = numberToRef(NDBFS, 0);
+const BlockReference CMVMI_REF    = numberToRef(CMVMI, 0);
+const BlockReference TRIX_REF     = numberToRef(TRIX, 0);
+const BlockReference DBUTIL_REF   = numberToRef(DBUTIL, 0);
+const BlockReference SUMA_REF     = numberToRef(SUMA, 0);
+const BlockReference DBTUX_REF    = numberToRef(DBTUX, 0);
+const BlockReference DBQTUX_REF   = numberToRef(DBQTUX, 0);
+const BlockReference TSMAN_REF    = numberToRef(TSMAN, 0);
+const BlockReference LGMAN_REF    = numberToRef(LGMAN, 0);
+const BlockReference PGMAN_REF    = numberToRef(PGMAN, 0);
+const BlockReference RESTORE_REF  = numberToRef(RESTORE, 0);
+const BlockReference QRESTORE_REF = numberToRef(QRESTORE, 0);
+const BlockReference DBINFO_REF   = numberToRef(DBINFO, 0);
+const BlockReference DBSPJ_REF    = numberToRef(DBSPJ, 0);
+const BlockReference THRMAN_REF   = numberToRef(THRMAN, 0);
+const BlockReference TRPMAN_REF   = numberToRef(TRPMAN, 0);
 
 static inline void __hide_warnings_unused_ref_vars(void) {
   // Hide annoying warnings about unused variables
   (void)BACKUP_REF;  (void)DBTC_REF;    (void)DBDIH_REF;
   (void)DBLQH_REF;   (void)DBACC_REF;   (void)DBTUP_REF;
+  (void)DBQLQH_REF;  (void)DBQACC_REF;  (void)DBQTUP_REF;
   (void)DBDICT_REF;  (void)NDBCNTR_REF; (void)QMGR_REF;
   (void)NDBFS_REF;   (void)CMVMI_REF;   (void)TRIX_REF;
   (void)DBUTIL_REF;  (void)SUMA_REF;    (void)DBTUX_REF;
   (void)TSMAN_REF;   (void)LGMAN_REF;   (void)PGMAN_REF;
   (void)RESTORE_REF; (void)DBINFO_REF;  (void)DBSPJ_REF;
-  (void)THRMAN_REF;  (void)TRPMAN_REF;
+  (void)THRMAN_REF;  (void)TRPMAN_REF;  (void)QRESTORE_REF;
+  (void)QBACKUP_REF; (void)DBQTUX_REF;
 }
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;
-const BlockNumber MAX_BLOCK_NO = TRPMAN;
+const BlockNumber MAX_BLOCK_NO = QRESTORE;
 const BlockNumber NO_OF_BLOCKS = (MAX_BLOCK_NO - MIN_BLOCK_NO + 1);
 
 #endif

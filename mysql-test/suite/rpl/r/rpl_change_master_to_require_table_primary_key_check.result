@@ -1,23 +1,23 @@
 #
 # 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to invalid values in `CHANGE MASTER TO ...`
 #    Check that an error is thrown.
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1' at line 1
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON';
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''ON'' at line 1
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = 0;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0' at line 1
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = -1;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = -1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
 #
 # 2. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` to valid values in `CHANGE MASTER TO ...`
 #    Check that the replication_applier_configuration table is changed.
-CHANGE MASTER TO MASTER_HOST='fake-host';
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='fake-host';
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to STREAM]
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON]
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF]
 RESET SLAVE ALL;
 Warnings:
@@ -40,12 +40,12 @@ include/assert.inc [require_table_primary_key_check in performance_schema.replic
 # 4. Check you can't set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` when the slave is running.
 #    If you stop the applier thread, it possible to set it
 [connection server_2]
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 ERROR HY000: This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD FOR CHANNEL '' first.
 STOP SLAVE SQL_THREAD;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 START SLAVE SQL_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

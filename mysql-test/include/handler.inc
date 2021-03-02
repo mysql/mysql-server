@@ -1925,3 +1925,20 @@ HANDLER t READ col_datetime_key <= ('p');
 HANDLER t READ col_year_key <= ('p');
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#31977414: ASSERT `!TABLE || (!TABLE->READ_SET ||
+--echo #               BITMAP_IS_SET(TABLE->READ_SET, FIELD_IND
+--echo #
+
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1);
+CREATE VIEW v AS SELECT MAX(x) AS x FROM t;
+HANDLER t OPEN;
+-- error ER_NON_UPDATABLE_TABLE
+UPDATE v v1, v v2 SET v1.x = v2.x;
+# The next statement used to hit an assert failure.
+HANDLER t READ NEXT;
+HANDLER t CLOSE;
+DROP VIEW v;
+DROP TABLE t;

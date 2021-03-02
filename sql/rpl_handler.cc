@@ -35,11 +35,11 @@
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_loglevel.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -51,6 +51,7 @@
 #include "sql/log.h"
 #include "sql/mysqld.h"  // server_uuid
 #include "sql/psi_memory_key.h"
+#include "sql/raii/sentry.h"  // raii::Sentry<T>
 #include "sql/replication.h"  // Trans_param
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_mi.h"     // Master_info
@@ -73,6 +74,9 @@ Server_state_delegate *server_state_delegate;
 Binlog_transmit_delegate *binlog_transmit_delegate;
 Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 
+bool opt_replication_optimize_for_static_plugin_config{false};
+std::atomic<bool> opt_replication_sender_observe_commit_only{false};
+
 Observer_info::Observer_info(void *ob, st_plugin_int *p)
     : observer(ob), plugin_int(p) {
   plugin = plugin_int_to_ref(plugin_int);
@@ -84,6 +88,10 @@ Delegate::Delegate(
 #endif
 ) {
   inited = false;
+  m_configured_lock_type.store(opt_replication_optimize_for_static_plugin_config
+                                   ? DELEGATE_SPIN_LOCK
+                                   : DELEGATE_OS_LOCK);
+  m_acquired_locks.store(0);
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (mysql_rwlock_init(key, &lock)) return;
 #else
@@ -91,6 +99,193 @@ Delegate::Delegate(
 #endif
   init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
   inited = true;
+}
+
+Delegate::~Delegate() {
+  inited = false;
+  mysql_rwlock_destroy(&lock);
+  free_root(&memroot, MYF(0));
+}
+
+int Delegate::add_observer(void *observer, st_plugin_int *plugin) {
+  int ret = false;
+  if (!inited) return true;
+  write_lock();
+  Observer_info_iterator iter(observer_info_list);
+  Observer_info *info = iter++;
+  while (info && info->observer != observer) info = iter++;
+  if (!info) {
+    info = new Observer_info(observer, plugin);
+    if (!info || observer_info_list.push_back(info, &memroot))
+      ret = true;
+    else if (this->use_spin_lock_type())
+      acquire_plugin_ref_count(info);
+  } else
+    ret = true;
+  unlock();
+  return ret;
+}
+
+int Delegate::remove_observer(void *observer) {
+  int ret = false;
+  if (!inited) return true;
+  write_lock();
+  Observer_info_iterator iter(observer_info_list);
+  Observer_info *info = iter++;
+  while (info && info->observer != observer) info = iter++;
+  if (info) {
+    iter.remove();
+    delete info;
+  } else
+    ret = true;
+  unlock();
+  return ret;
+}
+
+Delegate::Observer_info_iterator Delegate::observer_info_iter() {
+  return Observer_info_iterator(observer_info_list);
+}
+
+bool Delegate::is_empty() {
+  DBUG_PRINT("debug", ("is_empty: %d", observer_info_list.is_empty()));
+  return observer_info_list.is_empty();
+}
+
+int Delegate::read_lock() {
+  if (!inited) return true;
+  this->lock_it(DELEGATE_LOCK_MODE_SHARED);
+  return 0;
+}
+
+int Delegate::write_lock() {
+  if (!inited) return true;
+  this->lock_it(DELEGATE_LOCK_MODE_EXCLUSIVE);
+  return 0;
+}
+
+int Delegate::unlock() {
+  if (!inited) return true;
+
+  int result = 0;
+
+  if (m_acquired_locks.load() > 0) {
+    m_acquired_locks -= DELEGATE_SPIN_LOCK;
+    if (m_spin_lock.is_exclusive_acquisition())
+      m_spin_lock.release_exclusive();
+    else {
+      DBUG_ASSERT(m_spin_lock.is_shared_acquisition());
+      m_spin_lock.release_shared();
+    }
+  } else {
+    DBUG_ASSERT(m_acquired_locks.load() < 0);
+    m_acquired_locks -= DELEGATE_OS_LOCK;
+    result = mysql_rwlock_unlock(&lock);
+  }
+
+  return result;
+}
+
+bool Delegate::is_inited() { return inited; }
+
+void Delegate::update_lock_type() {
+  if (!inited) return;
+
+  int opt_value = opt_replication_optimize_for_static_plugin_config
+                      ? DELEGATE_SPIN_LOCK
+                      : DELEGATE_OS_LOCK;
+  m_configured_lock_type.store(opt_value);
+}
+
+void Delegate::update_plugin_ref_count() {
+  if (!inited) return;
+
+  int opt_value = opt_replication_optimize_for_static_plugin_config
+                      ? DELEGATE_SPIN_LOCK
+                      : DELEGATE_OS_LOCK;
+  int intern_value = m_configured_lock_type.load();
+
+  if (intern_value == DELEGATE_SPIN_LOCK && opt_value == DELEGATE_OS_LOCK) {
+    for (std::map<plugin_ref, size_t>::iterator ref =
+             m_acquired_references.begin();
+         ref != m_acquired_references.end(); ++ref) {
+      for (size_t count = ref->second; count != 0; --count)
+        plugin_unlock(NULL, ref->first);
+    }
+    m_acquired_references.clear();
+  } else if (intern_value == DELEGATE_OS_LOCK &&
+             opt_value == DELEGATE_SPIN_LOCK) {
+    Observer_info_iterator iter = observer_info_iter();
+    for (Observer_info *info = iter++; info; info = iter++) {
+      acquire_plugin_ref_count(info);
+    }
+  }
+}
+
+bool Delegate::use_rw_lock_type() {
+  return m_acquired_locks.load() < 0 ||  // If there are acquisitions using
+                                         // the read-write lock
+         (m_configured_lock_type.load() ==
+              DELEGATE_OS_LOCK &&  // or the lock type has been set to use the
+                                   // read-write lock
+          m_acquired_locks.load() == 0);  // and there are no outstanding
+                                          // acquisitions using shared
+                                          // spin-lock, use the read-write
+                                          // lock
+}
+
+bool Delegate::use_spin_lock_type() {
+  return m_acquired_locks.load() > 0 ||  // If there are acquisitions using
+                                         // the shared spin-lock
+         (m_configured_lock_type.load() ==
+              DELEGATE_SPIN_LOCK &&  // or the lock type has been set to use the
+                                     // shared spin-lock
+          m_acquired_locks.load() == 0);  // and there are no outstanding
+                                          // acquisitions using read-write
+                                          // lock, use the shared
+                                          // sping-lock
+}
+
+void Delegate::acquire_plugin_ref_count(Observer_info *info) {
+  plugin_ref internal_ref = plugin_lock(NULL, &info->plugin);
+  ++(m_acquired_references[internal_ref]);
+}
+
+void Delegate::lock_it(enum_delegate_lock_mode mode) {
+  do {
+    if (this->use_spin_lock_type()) {
+      if (mode == DELEGATE_LOCK_MODE_SHARED)
+        m_spin_lock.acquire_shared();
+      else
+        m_spin_lock.acquire_exclusive();
+
+      if (m_configured_lock_type.load() !=
+          DELEGATE_SPIN_LOCK) {  // Lock type changed in the meanwhile, lets
+                                 // revert the acquisition and try again
+        if (mode == DELEGATE_LOCK_MODE_SHARED)
+          m_spin_lock.release_shared();
+        else
+          m_spin_lock.release_exclusive();
+      } else {
+        m_acquired_locks += DELEGATE_SPIN_LOCK;
+        break;
+      }
+    }
+    if (this->use_rw_lock_type()) {
+      if (mode == DELEGATE_LOCK_MODE_SHARED)
+        mysql_rwlock_rdlock(&lock);
+      else
+        mysql_rwlock_wrlock(&lock);
+
+      if (m_configured_lock_type.load() !=
+          DELEGATE_OS_LOCK)  // Lock type changed in the meanwhile, lets revert
+                             // the acquisition and try again
+        mysql_rwlock_unlock(&lock);
+      else {
+        m_acquired_locks += DELEGATE_OS_LOCK;
+        break;
+      }
+    }
+  } while (true);
 }
 
 /*
@@ -208,6 +403,51 @@ void delegates_destroy() {
     binlog_relay_io_delegate->~Binlog_relay_IO_delegate();
 }
 
+static void delegates_update_plugin_ref_count() {
+  if (transaction_delegate) transaction_delegate->update_plugin_ref_count();
+  if (binlog_storage_delegate)
+    binlog_storage_delegate->update_plugin_ref_count();
+  if (server_state_delegate) server_state_delegate->update_plugin_ref_count();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate)
+    binlog_transmit_delegate->update_plugin_ref_count();
+  if (binlog_relay_io_delegate)
+    binlog_relay_io_delegate->update_plugin_ref_count();
+#endif /* HAVE_REPLICATION */
+}
+
+void delegates_acquire_locks() {
+  if (transaction_delegate) transaction_delegate->write_lock();
+  if (binlog_storage_delegate) binlog_storage_delegate->write_lock();
+  if (server_state_delegate) server_state_delegate->write_lock();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate) binlog_transmit_delegate->write_lock();
+  if (binlog_relay_io_delegate) binlog_relay_io_delegate->write_lock();
+#endif /* HAVE_REPLICATION */
+}
+
+void delegates_release_locks() {
+  if (transaction_delegate) transaction_delegate->unlock();
+  if (binlog_storage_delegate) binlog_storage_delegate->unlock();
+  if (server_state_delegate) server_state_delegate->unlock();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate) binlog_transmit_delegate->unlock();
+  if (binlog_relay_io_delegate) binlog_relay_io_delegate->unlock();
+#endif /* HAVE_REPLICATION */
+}
+
+void delegates_update_lock_type() {
+  delegates_update_plugin_ref_count();
+
+  if (transaction_delegate) transaction_delegate->update_lock_type();
+  if (binlog_storage_delegate) binlog_storage_delegate->update_lock_type();
+  if (server_state_delegate) server_state_delegate->update_lock_type();
+#ifdef HAVE_REPLICATION
+  if (binlog_transmit_delegate) binlog_transmit_delegate->update_lock_type();
+  if (binlog_relay_io_delegate) binlog_relay_io_delegate->update_lock_type();
+#endif /* HAVE_REPLICATION */
+}
+
 /*
   This macro is used by almost all the Delegate methods to iterate
   over all the observers running given callback function of the
@@ -221,14 +461,19 @@ void delegates_destroy() {
   read_lock();                                                         \
   Observer_info_iterator iter = observer_info_iter();                  \
   Observer_info *info = iter++;                                        \
+  bool replication_optimize_for_static_plugin_config =                 \
+      this->use_spin_lock_type();                                      \
   for (; info; info = iter++) {                                        \
-    plugin_ref plugin = my_plugin_lock(0, &info->plugin);              \
+    plugin_ref plugin = (replication_optimize_for_static_plugin_config \
+                             ? info->plugin                            \
+                             : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
       /* plugin is not intialized or deleted, this is not an error */  \
       r = 0;                                                           \
       break;                                                           \
     }                                                                  \
-    plugins.push_back(plugin);                                         \
+    if (!replication_optimize_for_static_plugin_config)                \
+      plugins.push_back(plugin);                                       \
     if (((Observer *)info->observer)->f &&                             \
         ((Observer *)info->observer)->f args) {                        \
       r = 1;                                                           \
@@ -258,15 +503,20 @@ void delegates_destroy() {
   Observer_info_iterator iter = observer_info_iter();                  \
   Observer_info *info = iter++;                                        \
                                                                        \
+  bool replication_optimize_for_static_plugin_config =                 \
+      this->use_spin_lock_type();                                      \
   int error_out = 0;                                                   \
   for (; info; info = iter++) {                                        \
-    plugin_ref plugin = my_plugin_lock(0, &info->plugin);              \
+    plugin_ref plugin = (replication_optimize_for_static_plugin_config \
+                             ? info->plugin                            \
+                             : my_plugin_lock(0, &info->plugin));      \
     if (!plugin) {                                                     \
       /* plugin is not intialized or deleted, this is not an error */  \
       r = 0;                                                           \
       break;                                                           \
     }                                                                  \
-    plugins.push_back(plugin);                                         \
+    if (!replication_optimize_for_static_plugin_config)                \
+      plugins.push_back(plugin);                                       \
                                                                        \
     bool hook_error = false;                                           \
     hook_error = ((Observer *)info->observer)->f(args, error_out);     \
@@ -761,21 +1011,29 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
   read_lock();
   Observer_info_iterator iter = observer_info_iter();
   Observer_info *info = iter++;
+  bool replication_optimize_for_static_plugin_config =
+      this->use_spin_lock_type();
   for (; info; info = iter++) {
-    plugin_ref plugin = my_plugin_lock(thd, &info->plugin);
+    plugin_ref plugin = (replication_optimize_for_static_plugin_config
+                             ? info->plugin
+                             : my_plugin_lock(thd, &info->plugin));
     if (!plugin) {
       ret = 1;
       break;
     }
     hlen = 0;
-    if (((Observer *)info->observer)->reserve_header &&
-        ((Observer *)info->observer)
-            ->reserve_header(&param, header, RESERVE_HEADER_SIZE, &hlen)) {
-      ret = 1;
-      plugin_unlock(thd, plugin);
-      break;
-    }
-    plugin_unlock(thd, plugin);
+    {  // `unlock_guard` scope
+      raii::Sentry<> unlock_guard{[&]() -> void {
+        if (!replication_optimize_for_static_plugin_config)
+          plugin_unlock(thd, plugin);
+      }};
+      if (((Observer *)info->observer)->reserve_header &&
+          ((Observer *)info->observer)
+              ->reserve_header(&param, header, RESERVE_HEADER_SIZE, &hlen)) {
+        ret = 1;
+        break;
+      }
+    }  // `unlock_guard` scope
     if (hlen == 0) continue;
     if (hlen > RESERVE_HEADER_SIZE || packet->append((char *)header, hlen)) {
       ret = 1;

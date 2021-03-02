@@ -65,15 +65,17 @@ source include/check_slave_is_running.inc;
 STOP SLAVE;
 --disable_query_log
 --disable_result_log
-eval CHANGE MASTER TO
-  master_log_file = '$the_file',
-  master_log_pos = $the_pos ;
+eval CHANGE REPLICATION SOURCE TO
+  SOURCE_LOG_FILE = '$the_file',
+  SOURCE_LOG_POS = $the_pos ;
 --enable_result_log
 --enable_query_log
 
 source include/check_slave_no_error.inc;
 
-call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
+--disable_query_log
+call mtr.add_suppression("NDB Replica: At SQL thread start applying epoch .*");
+--enable_query_log
 
 # start the slave again
 # -> same events should have been applied again
@@ -192,9 +194,9 @@ STOP SLAVE;
 --disable_query_log
 --disable_result_log
 
-eval CHANGE MASTER TO
-  master_log_file = '$the_file',
-  master_log_pos = $the_pos;
+eval CHANGE REPLICATION SOURCE TO
+  SOURCE_LOG_FILE = '$the_file',
+  SOURCE_LOG_POS = $the_pos;
 
 --enable_result_log
 --enable_query_log

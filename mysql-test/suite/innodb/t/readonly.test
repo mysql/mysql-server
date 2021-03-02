@@ -34,15 +34,26 @@ CREATE TABLE t1(a int PRIMARY KEY) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES(1);
 
-SET GLOBAL innodb_fast_shutdown=0;
-let $restart_parameters = restart: --tmpdir=/non/existent/dir/ --innodb-read-only;
---source include/restart_mysqld.inc
+--echo # Patch for bug#31377118 rejects startup if tmpdir does not exist.
+
+# Get hold of data directory, assign a separate log file, stop server.
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/tmpdir_err.log
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--source include/shutdown_mysqld.inc
+
+# Start with an invalid tmpdir and search the error log for the error message.
+--error 1,42,134,138,139,-1073741571,-1073741819,-1073740940
+--exec $MYSQLD --no-defaults --secure-file-priv="" --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR --tmpdir=no/such/directory > $MYSQLD_LOG 2>&1
+--let $grep_file= $MYSQLD_LOG
+--let $grep_pattern= No such file or directory
+--let $grep_output= print_count
+--source include/grep_pattern.inc
+
+# Start in normal mode to drop tables
+let $restart_parameters = restart;
+--source include/start_mysqld.inc
 
 SELECT * FROM t1;
-
-# Restart in normal mode to drop tables
-let $restart_parameters = restart;
---source include/restart_mysqld.inc
 
 DROP TABLE t1;
 

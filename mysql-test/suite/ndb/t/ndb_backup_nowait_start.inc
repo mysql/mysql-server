@@ -15,7 +15,7 @@ let $start_backup_records_in_use = `SELECT SUM(used) from ndbinfo.ndb\\\$pools w
 # failures
 #
 --let $START_BACKUP_OUTFILE=$MYSQLTEST_VARDIR/tmp/start_backup_outfile.txt
---exec $NDB_MGM --no-defaults --verbose=0 -e "start backup $start_backup_extra wait started" >> $START_BACKUP_OUTFILE
+--exec $NDB_MGM -e "start backup $start_backup_extra wait started" >> $START_BACKUP_OUTFILE
 
 let $_done = 0;
 let $_start_timeout = 60;

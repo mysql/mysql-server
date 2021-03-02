@@ -81,7 +81,7 @@ SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
 
 # Re configure the recovery channel due to the above RESET SLAVE command.
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -91,7 +91,7 @@ CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
 --echo # 5. Create a new channel from server 3 into server 2
 
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_2'
 
 --echo
 --echo ############################################################

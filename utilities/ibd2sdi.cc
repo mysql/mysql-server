@@ -231,6 +231,11 @@ static struct my_option ibd2sdi_options[] = {
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
 
+/** A dummy implementation.  Actual implementation available in fil0fil.cc */
+std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
+  return out;
+}
+
 /** Report a failed assertion.
 @param[in]	expr	the failed assertion if not NULL
 @param[in]	file	source file containing the assertion

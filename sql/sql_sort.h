@@ -28,6 +28,7 @@
 #include "my_dbug.h"
 #include "my_sys.h"
 #include "sql/filesort_utils.h"  // Filesort_buffer
+#include "sql/mem_root_array.h"
 
 class Addon_fields;
 struct TABLE;
@@ -204,7 +205,7 @@ class Filesort_info {
     @param buff    Buffer which to unpack the value from.
   */
   template <bool Packed_addon_fields>
-  inline void unpack_addon_fields(const Prealloced_array<TABLE *, 4> &tables,
+  inline void unpack_addon_fields(const Mem_root_array<TABLE *> &tables,
                                   uchar *buff);
 
   /**

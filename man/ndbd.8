@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.253.\ \&Command\-line options for the ndbd program
+.B Table\ \&23.23.\ \&Command\-line options for the ndbd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -62,21 +62,21 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB--bind-address=name\fR\fB \fR
@@ -668,7 +668,7 @@ affect backup files that have already been created by the affected node\&.
 Prior to NDB 8\&.0\&.21, the
 \fB\-\-initial\fR
 option also did not affect any Disk Data files\&. In NDB 8\&.0\&.21 and later, when used to perform an initial restart of the cluster, the option causes the removal of all data files associated with Disk Data tablespaces and undo log files associated with log file groups that existed previously on this data node (see
-Section\ \&22.5.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
+Section\ \&23.5.10, \(lqNDB Cluster Disk Data Tables\(rq)\&.
 .sp
 This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running (unless they also were started with
 \fB\-\-initial\fR, as part of an initial restart)\&. This recovery of data occurs automatically, and requires no user intervention in an NDB Cluster that is running normally\&.
@@ -947,7 +947,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&22.5.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
+Section\ \&23.5.1, \(lqCommands in the NDB Cluster Management Client\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -980,7 +980,7 @@ T}:T{
 T}
 .TE
 .sp 1
-This option takes a list of data nodes which for which the cluster will not wait for before starting\&.
+This option takes a list of data nodes for which the cluster does not wait, prior to starting\&.
 .sp
 This can be used to start the cluster in a partitioned state\&. For example, to start the cluster with only half of the data nodes (nodes 2, 3, 4, and 5) running in a 4\-node cluster, you can start each
 \fBndbd\fR
@@ -994,7 +994,7 @@ milliseconds for nodes 3 and 5 to connect as it would otherwise\&.
 If you wanted to start up the same cluster as in the previous example without one
 \fBndbd\fR
 (say, for example, that the host machine for node 3 has suffered a hardware failure) then start nodes 2, 4, and 5 with
-\fB\-\-nowait\-nodes=3\fR\&. Then the cluster will start as soon as nodes 2, 4, and 5 connect and will not wait for node 3 to start\&.
+\fB\-\-nowait\-nodes=3\fR\&. Then the cluster starts as soon as nodes 2, 4, and 5 connect, and does not wait for node 3 to start\&.
 .RE
 .sp
 .RS 4
@@ -1146,7 +1146,7 @@ file (see below)\&. Error log entries are thus overwritten in a cyclical and not
 ndb_\fInode_id\fR_trace\&.log\&.\fItrace_id\fR
 is a trace file describing exactly what happened just before the error occurred\&. This information is useful for analysis by the NDB Cluster development team\&.
 .sp
-It is possible to configure the number of these trace files that will be created before old files are overwritten\&.
+It is possible to configure the number of these trace files that are created before old files are overwritten\&.
 \fItrace_id\fR
 is a number which is incremented for each successive trace file\&.
 .RE
@@ -1226,10 +1226,10 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
+Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for additional information about this issue\&.
 Options Common to NDB Cluster Programs(1), describes other command\-line options which can be used with
 \fBndbd\fR\&. For information about data node configuration parameters, see
-Section\ \&22.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
+Section\ \&23.3.3.6, \(lqDefining NDB Cluster Data Nodes\(rq\&.
 .PP
 When
 \fBndbd\fR
@@ -1253,7 +1253,7 @@ process can consume up to 2 CPUs if permitted to do so\&.
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
 processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 8\&.0 in a production setting\&. See
-Section\ \&22.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
+Section\ \&23.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

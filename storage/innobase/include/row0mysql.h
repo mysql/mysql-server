@@ -336,6 +336,7 @@ kept in non-LRU list while on failure the 'table' object will be freed.
 @param[in,out]	trx		transaction
 @return error code or DB_SUCCESS */
 dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
+                                   const HA_CREATE_INFO *create_info,
                                    trx_t *trx)
     MY_ATTRIBUTE((warn_unused_result));
 

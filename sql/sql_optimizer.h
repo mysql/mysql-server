@@ -163,6 +163,24 @@ class JOIN {
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
   TABLE *sort_by_table{nullptr};
+
+  // Temporary tables that need to be cleaned up after the query.
+  // Only used for the hypergraph optimizer; the non-hypergraph optimizer
+  // uses QEP_TABs to hold the list of tables (including temporary tables).
+  struct TemporaryTableToCleanup {
+    TABLE *table;
+
+    // Allocated on the MEM_ROOT, but can hold some objects
+    // that allocate on the heap and thus need destruction.
+    Temp_table_param *temp_table_param;
+  };
+  Prealloced_array<TemporaryTableToCleanup, 1> temp_tables{
+      PSI_NOT_INSTRUMENTED};
+
+  // Similarly, sorting iterators that need to be cleaned up after the query.
+  // Only used for the hypergraph optimizer, for the same reason as above.
+  Prealloced_array<AccessPath *, 1> sorting_paths{PSI_NOT_INSTRUMENTED};
+
   /**
     Before plan has been created, "tables" denote number of input tables in the
     query block and "primary_tables" is equal to "tables".
@@ -289,11 +307,8 @@ class JOIN {
   /**
      Describes a temporary table.
      Each tmp table has its own tmp_table_param.
-     The one here has two roles:
-     - is transiently used as a model by create_intermediate_table(), to build
-     the tmp table's own tmp_table_param.
-     - is also used as description of the pseudo-tmp-table of grouping
-     (REF_SLICE_ORDERED_GROUP_BY) (e.g. in end_send_group()).
+     The one here is transiently used as a model by create_intermediate_table(),
+     to build the tmp table's own tmp_table_param.
   */
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
@@ -463,7 +478,7 @@ class JOIN {
   plan_idx return_tab{0};
 
   /**
-    ref_items is an array of 5 slices, each containing an array of Item
+    ref_items is an array of 4+ slices, each containing an array of Item
     pointers. ref_items is used in different phases of query execution.
     - slice 0 is initially the same as SELECT_LEX::base_ref_items, ie it is
       the set of items referencing fields from base tables. During optimization
@@ -472,37 +487,29 @@ class JOIN {
       the first temporary table.
     - slice 2 is a representation of the used items when being read from
       the second temporary table.
-    - slice 3 is a representation of the used items when used in
-      aggregation but no actual temporary table is needed.
-    - slice 4 is a copy of the original slice 0. It is created if
+    - slice 3 is a copy of the original slice 0. It is created if
       slice overwriting is necessary, and it is used to restore
       original values in slice 0 after having been overwritten.
-    - slices 5 -> N are used by windowing:
+    - slices 4 -> N are used by windowing:
       first are all the window's out tmp tables,
       the next indexes are reserved for the windows' frame buffers (in the same
       order), if any, e.g.
 
-      One window:      5: window 1's out table
-                       6: window 1's FB
+      One window:      4: window 1's out table
+                       5: window 1's FB
 
-      Two windows:     5: window 1's out table
-                       6: window 2's out table
-                       7: window 1's FB
-                       8: window 2's FB
+      Two windows:     4: window 1's out table
+                       5: window 2's out table
+                       6: window 1's FB
+                       7: window 2's FB
       and so on.
 
-    Slice 0 is allocated for the lifetime of a statement, whereas slices 1-4
+    Slice 0 is allocated for the lifetime of a statement, whereas slices 1-3
     are associated with a single optimization. The size of slice 0 determines
     the slice size used when allocating the other slices.
    */
   Ref_item_array *ref_items{
       nullptr};  // cardinality: REF_SLICE_SAVED_BASE + 1 + #windows*2
-
-  /**
-     If slice REF_SLICE_ORDERED_GROUP_BY has been created, this is the QEP_TAB
-     which is right before calculation of items in this slice.
-  */
-  QEP_TAB *ref_slice_immediately_before_group_by{nullptr};
 
   /**
     The slice currently stored in ref_items[0].

@@ -1,9 +1,4 @@
-let $have_debug = `SELECT VERSION() LIKE '%debug%'`;
-
-if ($have_debug)
-{
-  --skip Test is release mode version for partition_import_8019_mac_lctn_2_debug
-}
+--source include/have_nodebug.inc
 
 --let $OLD_VERSION = 8019
 --let $OLD_LCTN = 2

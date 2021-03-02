@@ -77,7 +77,9 @@
 
 // You can change 0 to 1 here to get debug traces of the algorithm
 // as it is working.
-#if 0
+#define DEBUGGING_DPHYP 0
+
+#if DEBUGGING_DPHYP
 #include <stdio.h>
 #define HYPERGRAPH_PRINTF printf
 #else
@@ -87,9 +89,9 @@
 namespace hypergraph {
 
 template <class Receiver>
-void EnumerateAllConnectedPartitions(Receiver *receiver);
+bool EnumerateAllConnectedPartitions(Receiver *receiver);
 
-std::string PrintSet(NodeMap x) {
+inline std::string PrintSet(NodeMap x) {
   std::string ret = "{";
   bool first = true;
   for (size_t node_idx : BitsSetIn(x)) {
@@ -342,7 +344,7 @@ inline NodeMap FindNeighborhood(const Hypergraph &g, NodeMap subgraph,
 //
 // Called EmitCsg() in the DPhyp paper.
 template <class Receiver>
-void EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
+bool EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
                             NodeMap subgraph, NodeMap full_neighborhood,
                             NodeMap neighborhood, Receiver *receiver) {
   NodeMap forbidden = TablesBetween(0, lowest_node_idx);
@@ -367,14 +369,18 @@ void EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
         const Hyperedge e = g.edges[edge_idx];
         assert(e.left == seed);
         if (Overlaps(e.right, subgraph)) {
-          receiver->FoundSubgraphPair(subgraph, seed, edge_idx / 2);
+          if (receiver->FoundSubgraphPair(subgraph, seed, edge_idx / 2)) {
+            return true;
+          }
         }
       }
     }
     for (size_t edge_idx : g.nodes[seed_idx].complex_edges) {
       const Hyperedge e = g.edges[edge_idx];
       if (e.left == seed && IsSubset(e.right, subgraph)) {
-        receiver->FoundSubgraphPair(subgraph, seed, edge_idx / 2);
+        if (receiver->FoundSubgraphPair(subgraph, seed, edge_idx / 2)) {
+          return true;
+        }
       }
     }
 
@@ -400,6 +406,7 @@ void EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
     ExpandComplement(g, lowest_node_idx, subgraph, full_neighborhood, seed,
                      new_neighborhood, new_forbidden, receiver);
   }
+  return false;
 }
 
 // Given a subgraph of g, grow it recursively along the neighborhood.
@@ -409,7 +416,7 @@ void EnumerateComplementsTo(const Hypergraph &g, size_t lowest_node_idx,
 //
 // Called EnumerateCsgRec() in the paper.
 template <class Receiver>
-void ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
+bool ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
                     NodeMap subgraph, NodeMap full_neighborhood,
                     NodeMap neighborhood, NodeMap forbidden,
                     Receiver *receiver) {
@@ -458,8 +465,11 @@ void ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
       // the previous calculation).
       new_neighborhood |= neighborhood;
 
-      EnumerateComplementsTo(g, lowest_node_idx, grown_subgraph,
-                             new_full_neighborhood, new_neighborhood, receiver);
+      if (EnumerateComplementsTo(g, lowest_node_idx, grown_subgraph,
+                                 new_full_neighborhood, new_neighborhood,
+                                 receiver)) {
+        return true;
+      }
     }
   }
 
@@ -488,9 +498,13 @@ void ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
         FindNeighborhood(g, subgraph | grow_by, new_forbidden, grow_by, &cache,
                          &new_full_neighborhood);
 
-    ExpandSubgraph(g, lowest_node_idx, grown_subgraph, new_full_neighborhood,
-                   new_neighborhood, new_forbidden, receiver);
+    if (ExpandSubgraph(g, lowest_node_idx, grown_subgraph,
+                       new_full_neighborhood, new_neighborhood, new_forbidden,
+                       receiver)) {
+      return true;
+    }
   }
+  return false;
 }
 
 // Given a connected subgraph and a connected complement, see if they are
@@ -509,10 +523,10 @@ void ExpandSubgraph(const Hypergraph &g, size_t lowest_node_idx,
 // complement, and picked the one with fewest nodes to study, but it doesn't
 // seem to be worth it.
 template <class Receiver>
-void TryConnecting(const Hypergraph &g, NodeMap subgraph,
+bool TryConnecting(const Hypergraph &g, NodeMap subgraph,
                    NodeMap subgraph_full_neighborhood, NodeMap complement,
                    Receiver *receiver) {
-  for (NodeMap node_idx : BitsSetIn(complement & subgraph_full_neighborhood)) {
+  for (size_t node_idx : BitsSetIn(complement & subgraph_full_neighborhood)) {
     // Simple edges.
     if (Overlaps(g.nodes[node_idx].simple_neighborhood, subgraph)) {
       for (size_t edge_idx : g.nodes[node_idx].simple_edges) {
@@ -520,7 +534,9 @@ void TryConnecting(const Hypergraph &g, NodeMap subgraph,
         // here, and slightly faster.
         const Hyperedge e = g.edges[edge_idx];
         if (Overlaps(e.right, subgraph) && Overlaps(e.left, complement)) {
-          receiver->FoundSubgraphPair(subgraph, complement, edge_idx / 2);
+          if (receiver->FoundSubgraphPair(subgraph, complement, edge_idx / 2)) {
+            return true;
+          }
         }
       }
     }
@@ -533,10 +549,13 @@ void TryConnecting(const Hypergraph &g, NodeMap subgraph,
       // NOTE: We call IsolateLowestBit() so that we only see the edge once.
       if (IsolateLowestBit(e.left) == node && IsSubset(e.left, complement) &&
           IsSubset(e.right, subgraph)) {
-        receiver->FoundSubgraphPair(subgraph, complement, edge_idx / 2);
+        if (receiver->FoundSubgraphPair(subgraph, complement, edge_idx / 2)) {
+          return true;
+        }
       }
     }
   }
+  return false;
 }
 
 // Very similar to ExpandSubgraph: Given a connected subgraph of g and
@@ -553,7 +572,7 @@ void TryConnecting(const Hypergraph &g, NodeMap subgraph,
 //
 // Called EnumerateCmpRec() in the paper.
 template <class Receiver>
-void ExpandComplement(const Hypergraph &g, size_t lowest_node_idx,
+bool ExpandComplement(const Hypergraph &g, size_t lowest_node_idx,
                       NodeMap subgraph, NodeMap subgraph_full_neighborhood,
                       NodeMap complement, NodeMap neighborhood,
                       NodeMap forbidden, Receiver *receiver) {
@@ -577,8 +596,10 @@ void ExpandComplement(const Hypergraph &g, size_t lowest_node_idx,
   for (NodeMap grow_by : NonzeroSubsetsOf(neighborhood)) {
     NodeMap grown_complement = complement | grow_by;
     if (receiver->HasSeen(grown_complement)) {
-      TryConnecting(g, subgraph, subgraph_full_neighborhood, grown_complement,
-                    receiver);
+      if (TryConnecting(g, subgraph, subgraph_full_neighborhood,
+                        grown_complement, receiver)) {
+        return true;
+      }
     }
   }
 
@@ -609,10 +630,13 @@ void ExpandComplement(const Hypergraph &g, size_t lowest_node_idx,
         FindNeighborhood(g, complement | grow_by, new_forbidden, grow_by,
                          &cache, &new_full_neighborhood);
 
-    ExpandComplement(g, lowest_node_idx, subgraph, subgraph_full_neighborhood,
-                     grown_complement, new_neighborhood, new_forbidden,
-                     receiver);
+    if (ExpandComplement(g, lowest_node_idx, subgraph,
+                         subgraph_full_neighborhood, grown_complement,
+                         new_neighborhood, new_forbidden, receiver)) {
+      return true;
+    }
   }
+  return false;
 }
 
 // Consider increasing subsets of the graph, backwards; first only the
@@ -629,10 +653,15 @@ void ExpandComplement(const Hypergraph &g, size_t lowest_node_idx,
 //      algorithm fundamentally is looking for.
 //
 // Called Solve() in the DPhyp paper.
+//
+// If at any point receiver->FoundSingleNode() or receiver->FoundSubgraphPair()
+// returns true, the algorithm will abort, and this function also return true.
 template <class Receiver>
-void EnumerateAllConnectedPartitions(const Hypergraph &g, Receiver *receiver) {
+bool EnumerateAllConnectedPartitions(const Hypergraph &g, Receiver *receiver) {
   for (int seed_idx = g.nodes.size() - 1; seed_idx >= 0; --seed_idx) {
-    receiver->FoundSingleNode(seed_idx);
+    if (receiver->FoundSingleNode(seed_idx)) {
+      return true;
+    }
 
     NodeMap seed = TableBitmap(seed_idx);
     HYPERGRAPH_PRINTF("\n\nStarting main iteration at node %s\n",
@@ -642,11 +671,16 @@ void EnumerateAllConnectedPartitions(const Hypergraph &g, Receiver *receiver) {
     NeighborhoodCache cache(0);
     NodeMap neighborhood =
         FindNeighborhood(g, seed, forbidden, seed, &cache, &full_neighborhood);
-    EnumerateComplementsTo(g, seed_idx, seed, full_neighborhood, neighborhood,
-                           receiver);
-    ExpandSubgraph(g, seed_idx, seed, full_neighborhood, neighborhood,
-                   forbidden | seed, receiver);
+    if (EnumerateComplementsTo(g, seed_idx, seed, full_neighborhood,
+                               neighborhood, receiver)) {
+      return true;
+    }
+    if (ExpandSubgraph(g, seed_idx, seed, full_neighborhood, neighborhood,
+                       forbidden | seed, receiver)) {
+      return true;
+    }
   }
+  return false;
 }
 
 }  // namespace hypergraph

@@ -421,17 +421,22 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
     return (DB_SUCCESS);
   }
 
-  /* It is possible for a space flag to be updated for encryption in the
-  ibd file, but the server crashed before DD flags are updated. Exclude
-  encryption flags for that scenario.
+  /* For a shared tablesapce, it is possible that encryption flag updated in
+  the ibd file, but the server crashed before DD flags are updated. Exclude
+  encryption flags for that scenario. */
+  if ((FSP_FLAGS_GET_ENCRYPTION(flags) != FSP_FLAGS_GET_ENCRYPTION(m_flags)) &&
+      fsp_is_shared_tablespace(flags)) {
+#ifdef UNIV_DEBUG
+    /* Note this tablespace id down and assert that it is in the list of
+    tablespaces for which encryption is being resumed. */
+    flag_mismatch_spaces.push_back(space_id);
+#endif
 
-  This is safe because m_encryption_op_in_progress will always be set to
-  NONE unless there is a crash before Encryption is finished. */
-  if (m_encryption_op_in_progress == ENCRYPTION &&
-      !((m_flags ^ flags) &
-        ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
-          FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
-    return (DB_SUCCESS);
+    if (!((m_flags ^ flags) &
+          ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
+            FSP_FLAGS_MASK_SHARED | FSP_FLAGS_MASK_SDI))) {
+      return (DB_SUCCESS);
+    }
   }
 
   /* else do not use this tablespace. */
@@ -479,7 +484,7 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
     default:
       /* For encryption tablespace, we skip the retry step,
       since it is only because the keyring is not ready. */
-      if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
+      if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && (err != DB_CORRUPTION)) {
         return (err);
       }
 
@@ -771,11 +776,19 @@ dberr_t Datafile::find_space_id() {
       dberr_t err;
       ulint n_bytes = j * page_size;
       IORequest request(IORequest::READ);
+      bool encrypted = false;
 
       err =
           os_file_read(request, m_filename, m_handle, page, n_bytes, page_size);
 
-      if (err == DB_IO_DECOMPRESS_FAIL) {
+      if (err == DB_IO_DECRYPT_FAIL) {
+        /* At this stage, even if the page decryption failed, we don't have to
+        report error now. Currently, only the space_id will be read from the
+        page header.  Since page header is unencrypted, we will ignore the
+        decryption error for now. */
+        encrypted = true;
+
+      } else if (err == DB_IO_DECOMPRESS_FAIL) {
         /* If the page was compressed on the fly then
         try and decompress the page */
 
@@ -818,7 +831,7 @@ dberr_t Datafile::find_space_id() {
       logical() is equal to or less than 16k and the
       page_size we are checking is equal to or less than
       univ_page_size.logical(). */
-      if (univ_page_size.logical() <= UNIV_PAGE_SIZE_DEF &&
+      if (!encrypted && univ_page_size.logical() <= UNIV_PAGE_SIZE_DEF &&
           page_size <= univ_page_size.logical()) {
         const page_size_t compr_page_size(page_size, univ_page_size.logical(),
                                           true);
@@ -828,7 +841,7 @@ dberr_t Datafile::find_space_id() {
         compressed_ok = !reporter.is_corrupted();
       }
 
-      if (noncompressed_ok || compressed_ok) {
+      if (noncompressed_ok || compressed_ok || encrypted) {
         space_id_t space_id = mach_read_from_4(page + FIL_PAGE_SPACE_ID);
 
         if (space_id > 0) {

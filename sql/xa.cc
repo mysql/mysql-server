@@ -36,13 +36,13 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"  // MYSQL_XIDDATASIZE
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_transaction.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -1234,7 +1234,7 @@ bool Sql_cmd_xa_prepare::execute(THD *thd) {
   bool st = trans_xa_prepare(thd);
 
   if (!st) {
-    if (!thd->rpl_unflag_detached_engine_ha_data() ||
+    if (!thd->is_engine_ha_data_detached() ||
         !(st = applier_reset_xa_trans(thd)))
       my_ok(thd);
   }
@@ -1638,19 +1638,11 @@ static void attach_native_trx(THD *thd) {
 
   if (ha_info) {
     for (; ha_info; ha_info = ha_info_next) {
-      handlerton *hton = ha_info->ht();
-      reattach_engine_ha_data_to_thd(thd, hton);
       ha_info_next = ha_info->next();
       ha_info->reset();
     }
-  } else {
-    /*
-      Although the current `Ha_trx_info` object is null, we need to make sure
-      that the data engine plugins have the oportunity to attach their internal
-      transactions and clean up the session.
-     */
-    thd->rpl_reattach_engine_ha_data();
   }
+  thd->rpl_reattach_engine_ha_data();
 }
 
 bool applier_reset_xa_trans(THD *thd) {

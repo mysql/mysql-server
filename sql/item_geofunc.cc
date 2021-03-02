@@ -60,7 +60,9 @@
 #include "sql/gis/area.h"
 #include "sql/gis/distance.h"
 #include "sql/gis/distance_sphere.h"
+#include "sql/gis/frechet_distance.h"
 #include "sql/gis/geometries.h"
+#include "sql/gis/hausdorff_distance.h"
 #include "sql/gis/is_simple.h"
 #include "sql/gis/is_valid.h"
 #include "sql/gis/length.h"
@@ -5273,6 +5275,134 @@ String *Item_func_st_srid_mutator::val_str(String *str) {
     return error_str();
 
   return str;
+}
+
+double Item_func_st_frechet_distance::val_real() {
+  DBUG_ASSERT(fixed == 1);
+
+  String tmp_value1;
+  String tmp_value2;
+  String *res1 = args[0]->val_str(&tmp_value1);
+  String *res2 = args[1]->val_str(&tmp_value2);
+
+  if ((null_value =
+           (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
+    DBUG_ASSERT(maybe_null);
+    return 0.0;
+  }
+
+  const dd::Spatial_reference_system *srs1 = nullptr;
+  const dd::Spatial_reference_system *srs2 = nullptr;
+  std::unique_ptr<gis::Geometry> g1;
+  std::unique_ptr<gis::Geometry> g2;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
+      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2)) {
+    DBUG_ASSERT(current_thd->is_error());
+    return error_real();
+  }
+
+  gis::srid_t srid1 = srs1 == nullptr ? 0 : srs1->id();
+  gis::srid_t srid2 = srs2 == nullptr ? 0 : srs2->id();
+  if (srid1 != srid2) {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
+    return error_real();
+  }
+
+  double frechet_distance;
+  if (gis::frechet_distance(srs1, g1.get(), g2.get(), func_name(),
+                            &frechet_distance, &null_value)) {
+    return error_real();
+  }
+  if (null_value) {
+    DBUG_ASSERT(maybe_null);
+    return 0.0;
+  }
+
+  if (arg_count == 3) {
+    switch (ConvertUnit(args[2], srs1, func_name(), &frechet_distance)) {
+      case ConvertUnitResult::kError:
+        DBUG_ASSERT(current_thd->is_error());
+        return error_real();
+        break;
+      case ConvertUnitResult::kNull:
+        DBUG_ASSERT(maybe_null);
+        null_value = true;
+        return 0.0;
+        break;
+      case ConvertUnitResult::kOk:
+        return frechet_distance;
+        break;
+    }
+  }
+
+  return frechet_distance;
+}
+
+double Item_func_st_hausdorff_distance::val_real() {
+  DBUG_ASSERT(fixed == 1);
+
+  String tmp_value1;
+  String tmp_value2;
+  String *res1 = args[0]->val_str(&tmp_value1);
+  String *res2 = args[1]->val_str(&tmp_value2);
+
+  if ((null_value =
+           (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
+    DBUG_ASSERT(maybe_null);
+    return 0.0;
+  }
+
+  const dd::Spatial_reference_system *srs1 = nullptr;
+  const dd::Spatial_reference_system *srs2 = nullptr;
+  std::unique_ptr<gis::Geometry> g1;
+  std::unique_ptr<gis::Geometry> g2;
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+  if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
+      gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2)) {
+    DBUG_ASSERT(current_thd->is_error());
+    return error_real();
+  }
+
+  gis::srid_t srid1 = srs1 == nullptr ? 0 : srs1->id();
+  gis::srid_t srid2 = srs2 == nullptr ? 0 : srs2->id();
+  if (srid1 != srid2) {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
+    return error_real();
+  }
+
+  double hausdorff_distance;
+  if (gis::hausdorff_distance(srs1, g1.get(), g2.get(), func_name(),
+                              &hausdorff_distance, &null_value)) {
+    return error_real();
+  }
+  if (null_value) {
+    DBUG_ASSERT(maybe_null);
+    return 0.0;
+  }
+
+  if (arg_count == 3) {
+    switch (ConvertUnit(args[2], srs1, func_name(), &hausdorff_distance)) {
+      case ConvertUnitResult::kError:
+        DBUG_ASSERT(current_thd->is_error());
+        return error_real();
+        break;
+      case ConvertUnitResult::kNull:
+        DBUG_ASSERT(maybe_null);
+        null_value = true;
+        return 0.0;
+        break;
+      case ConvertUnitResult::kOk:
+        return hausdorff_distance;
+        break;
+    }
+  }
+
+  return hausdorff_distance;
 }
 
 double Item_func_distance::val_real() {

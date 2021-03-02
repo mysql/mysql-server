@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,24 @@
 #define SHUTDOWN_ACL (1L << 7)
 #define PROCESS_ACL (1L << 8)
 #define FILE_ACL (1L << 9)
+/** Set to true by both
+  GRANT GRANT OPTION ... TO ...
+and
+  GRANT ... TO ... WITH GRANT OPTION
+
+  Stored into the relevant column in the priv tables for static privileges.
+  And into the the GRANT_OPTION column for dynamic privilege grants.
+  Note that, once granted GRANT_OPTION applies to all static privs on the
+  same level, i.e. the following:
+  GRANT SELECT ON *.* TO foo;
+  GRANT INSERT ON *.* TO foo WITH GRANT OPTION;
+  is equivalent to:
+  GRANT SELECT,INSERT ON *.* TO foo WITH GRANT OPTION;
+  And is also equivalent to
+  GRANT SELECT,INSERT, GRANT OPTION ON *.* TO foo;
+
+  @sa @ref LEX::grant_privilege
+*/
 #define GRANT_ACL (1L << 10)
 #define REFERENCES_ACL (1L << 11)
 #define INDEX_ACL (1L << 12)

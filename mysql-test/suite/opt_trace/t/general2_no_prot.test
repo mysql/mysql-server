@@ -7,5 +7,7 @@
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
 
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
+
 # The main testing script
 --source suite/opt_trace/include/general2.inc

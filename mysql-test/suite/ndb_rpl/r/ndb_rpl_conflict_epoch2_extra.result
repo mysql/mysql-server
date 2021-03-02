@@ -30,14 +30,14 @@ Setup conflict roles
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="PRIMARY";
+set global ndb_applier_conflict_role="PRIMARY";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="SECONDARY";
+set global ndb_applier_conflict_role="SECONDARY";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -667,12 +667,12 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DELETE FROM test.t1$EX;
-set global ndb_slave_conflict_role="SECONDARY";
+set global ndb_applier_conflict_role="SECONDARY";
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DELETE FROM test.t1$EX;
-set global ndb_slave_conflict_role="PRIMARY";
+set global ndb_applier_conflict_role="PRIMARY";
 Setup S1 P2
 delete from test.t1;
 insert into test.t1 values 
@@ -1305,12 +1305,12 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DELETE FROM test.t1$EX;
-set global ndb_slave_conflict_role="SECONDARY";
+set global ndb_applier_conflict_role="SECONDARY";
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DELETE FROM test.t1$EX;
-set global ndb_slave_conflict_role="PRIMARY";
+set global ndb_applier_conflict_role="PRIMARY";
 Setup P1 S2
 delete from test.t1;
 insert into test.t1 values 
@@ -1943,12 +1943,12 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DELETE FROM test.t1$EX;
-set global ndb_slave_conflict_role="SECONDARY";
+set global ndb_applier_conflict_role="SECONDARY";
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 DELETE FROM test.t1$EX;
-set global ndb_slave_conflict_role="PRIMARY";
+set global ndb_applier_conflict_role="PRIMARY";
 Setup S1 P2
 delete from test.t1;
 insert into test.t1 values 
@@ -2588,16 +2588,16 @@ Lets set it up
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="PASS";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="PASS";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="PASS";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="PASS";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -2869,16 +2869,16 @@ delete from test.t1 where k in (3, 6);
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="PRIMARY";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="PRIMARY";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="NONE";
-set global ndb_slave_conflict_role="SECONDARY";
+set global ndb_applier_conflict_role="NONE";
+set global ndb_applier_conflict_role="SECONDARY";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -2993,14 +2993,14 @@ Cleanup conflict roles
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="NONE";
+set global ndb_applier_conflict_role="NONE";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-set global ndb_slave_conflict_role="NONE";
+set global ndb_applier_conflict_role="NONE";
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

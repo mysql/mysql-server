@@ -104,6 +104,12 @@ MYSQL_ADD_PLUGIN(test_sql_shutdown
   MODULE_OUTPUT_NAME "libtest_sql_shutdown"
   TEST_ONLY
   )
+MYSQL_ADD_PLUGIN(test_sql_sleep_is_connected
+  test_sql_sleep_is_connected.cc
+  TEST_ONLY
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "libtest_sql_sleep_is_connected"
+  )
 MYSQL_ADD_PLUGIN(test_sql_stored_procedures_functions
   test_sql_stored_procedures_functions.cc
   MODULE_ONLY

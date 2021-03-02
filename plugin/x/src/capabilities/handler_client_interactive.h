@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,16 @@
 #ifndef PLUGIN_X_SRC_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_
 #define PLUGIN_X_SRC_CAPABILITIES_HANDLER_CLIENT_INTERACTIVE_H_
 
+#include <string>
+
 #include "plugin/x/src/capabilities/handler.h"
-#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/client.h"
 
 namespace xpl {
 
 class Capability_client_interactive : public Capability_handler {
  public:
-  Capability_client_interactive(iface::Client &client);
+  explicit Capability_client_interactive(iface::Client *client);
 
   std::string name() const override { return "client.interactive"; }
   bool is_settable() const override { return true; }
@@ -45,7 +47,7 @@ class Capability_client_interactive : public Capability_handler {
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override;
   bool is_supported_impl() const override { return true; }
 
-  iface::Client &m_client;
+  iface::Client *m_client;
   bool m_value;
 };
 

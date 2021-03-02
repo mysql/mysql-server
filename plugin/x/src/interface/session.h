@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,14 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
-#include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/document_id_aggregator.h"
 #include "plugin/x/src/interface/notice_configuration.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
 #include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/ngs/notice_descriptor.h"
+#include "plugin/x/src/ngs/session_status_variables.h"
 
 namespace xpl {
 namespace iface {
@@ -54,6 +54,12 @@ class Session {
     k_closing
   };
 
+  enum class Close_flags {
+    k_none = 0,
+    k_update_old_state = 1,
+    k_force_close_client = 2
+  };
+
  public:
   virtual ~Session() = default;
 
@@ -61,7 +67,8 @@ class Session {
   virtual ngs::Error_code init() = 0;
 
  public:
-  virtual void on_close(const bool update_old_state = false) = 0;
+  virtual void on_close(
+      const Close_flags flags = Close_flags::k_force_close_client) = 0;
   virtual void on_kill() = 0;
   virtual void on_auth_success(const Authentication::Response &response) = 0;
   virtual void on_auth_failure(const Authentication::Response &response) = 0;
@@ -87,11 +94,24 @@ class Session {
   virtual void set_proto(Protocol_encoder *encode) = 0;
   virtual bool get_prepared_statement_id(const uint32_t client_stmt_id,
                                          uint32_t *stmt_id) const = 0;
-  virtual void update_status(ngs::Common_status_variables::Variable
-                                 ngs::Common_status_variables::*variable) = 0;
+  using Common_status_variable =
+      ngs::Common_status_variables::Variable ngs::Common_status_variables::*;
+
+  virtual void update_status(Common_status_variable variable) = 0;
 
   virtual Document_id_aggregator &get_document_id_aggregator() = 0;
 };
+
+inline Session::Close_flags operator|(const Session::Close_flags a,
+                                      const Session::Close_flags b) {
+  return static_cast<Session::Close_flags>(static_cast<int>(a) |
+                                           static_cast<int>(b));
+}
+
+inline bool operator&(const Session::Close_flags a,
+                      const Session::Close_flags b) {
+  return (static_cast<int>(a) & static_cast<int>(b));
+}
 
 }  // namespace iface
 }  // namespace xpl

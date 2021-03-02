@@ -1,5 +1,5 @@
 #ifndef RPL_TRX_TRACKING_INCLUDED
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,8 +135,8 @@ class Writeset_trx_dependency_tracker {
 
   void rotate(int64 start);
 
-  /* option opt_binlog_transaction_dependency_history_size */
-  ulong m_opt_max_history_size;
+  /* Atomic variable - opt_binlog_transaction_dependency_history_size */
+  std::atomic<ulong> m_opt_max_history_size;
 
  private:
   /*

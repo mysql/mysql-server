@@ -29,12 +29,15 @@
 */
 
 #include "my_compiler.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_system.h"
-#ifdef MYSQL_SERVER
-#ifndef MYSQL_DYNAMIC_PLUGIN
-#include "pfs_system_provider.h"
-#endif
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_SYSTEM_CALL() as direct call. */
+#include "pfs_system_provider.h"  // IWYU pragma: keep
 #endif
 
 #ifndef PSI_SYSTEM_CALL

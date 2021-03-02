@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <stddef.h>
 #include <string.h>
 
 #include <my_stacktrace.h>
@@ -1050,7 +1051,7 @@ stack when the first lock was acquired:
 [8] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld() [0x2b336db]
 [9] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(close_thread_tables(THD*)+0x3fd) [0x2b33e83]
 [10] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(mysql_execute_command(THD*, bool)+0x5dca) [0x2be875c]
-[11] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(mysql_parse(THD*, Parser_state*, bool)+0x672) [0x2bea1bb]
+[11] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(dispatch_sql_command(THD*, Parser_state*, bool)+0x672) [0x2bea1bb]
 [12] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(dispatch_command(THD*, COM_DATA const*, enum_server_command)+0x1496) [0x2be0291]
 [13] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(do_command(THD*)+0x448) [0x2bde867]
 [14] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld() [0x2d799ba]
@@ -1076,7 +1077,7 @@ stack when the second lock was acquired:
 [14] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld() [0x2b336db]
 [15] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(close_thread_tables(THD*)+0x3fd) [0x2b33e83]
 [16] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(mysql_execute_command(THD*, bool)+0x5dca) [0x2be875c]
-[17] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(mysql_parse(THD*, Parser_state*, bool)+0x672) [0x2bea1bb]
+[17] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(dispatch_sql_command(THD*, Parser_state*, bool)+0x672) [0x2bea1bb]
 [18] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(dispatch_command(THD*, COM_DATA const*, enum_server_command)+0x1496) [0x2be0291]
 [19] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld(do_command(THD*)+0x448) [0x2bde867]
 [20] /home/malff/GIT_LOCK_ORDER/build/runtime_output_directory/mysqld() [0x2d799ba]
@@ -1598,6 +1599,8 @@ stack when the second lock was acquired:
       p_x -> m_x [style=dashed];
       p_sx -> m_sx [style=dashed];
       p_x -> m_sx [style=dashed];
+      p_s -> m_s [style=dashed];
+      p_sx -> m_s [style=dashed];
       p_x -> m_s [style=dashed];
     }
   }
@@ -1625,6 +1628,8 @@ stack when the second lock was acquired:
       B_p_x -> B_m_x [style=dashed];
       B_p_sx -> B_m_sx [style=dashed];
       B_p_x -> B_m_sx [style=dashed];
+      B_p_s -> B_m_s [style=dashed];
+      B_p_sx -> B_m_s [style=dashed];
       B_p_x -> B_m_s [style=dashed];
     }
 
@@ -1642,6 +1647,8 @@ stack when the second lock was acquired:
       C_p_x -> C_m_x [style=dashed];
       C_p_sx -> C_m_sx [style=dashed];
       C_p_x -> C_m_sx [style=dashed, penwidth=3];
+      C_p_s -> C_m_s [style=dashed];
+      C_p_sx -> C_m_s [style=dashed];
       C_p_x -> C_m_s [style=dashed];
     }
 
@@ -2103,6 +2110,14 @@ class LO_thread_class {
 
 class LO_thread {
  public:
+  static PSI_thread *to_psi(LO_thread *lo) {
+    return reinterpret_cast<PSI_thread *>(lo);
+  }
+
+  static LO_thread *from_psi(PSI_thread *psi) {
+    return reinterpret_cast<LO_thread *>(psi);
+  }
+
   static LO_thread_list g_threads;
 
   LO_thread(const LO_thread_class *klass)
@@ -2202,10 +2217,20 @@ class LO_mutex_class : public LO_class {
   LO_node *m_node;
 };
 
-class LO_mutex {
+class LO_mutex : public PSI_mutex {
  public:
+  static PSI_mutex *to_psi(LO_mutex *lo) { return lo; }
+
+  static LO_mutex *from_psi(PSI_mutex *psi) {
+    LO_mutex *lo = reinterpret_cast<LO_mutex *>(psi);
+    DBUG_ASSERT(static_cast<void *>(lo) == static_cast<void *>(psi));
+    return lo;
+  }
+
   LO_mutex(const LO_mutex_class *klass)
-      : m_class(klass), m_lock(nullptr), m_chain(nullptr) {}
+      : m_class(klass), m_lock(nullptr), m_chain(nullptr) {
+    m_enabled = true;
+  }
 
   ~LO_mutex() {}
 
@@ -2409,9 +2434,32 @@ class LO_rwlock_class_sx : public LO_rwlock_class {
   LO_node *m_node_m_x;
 };
 
+struct LO_rwlock_proxy : public PSI_rwlock {
+  class LO_rwlock *m_impl;
+};
+
 class LO_rwlock {
  public:
-  LO_rwlock(const LO_rwlock_class *klass) : m_class(klass), m_chain(nullptr) {}
+  struct LO_rwlock_proxy m_proxy;
+  static PSI_rwlock *to_psi(LO_rwlock *lo) {
+    if (lo == nullptr) {
+      return nullptr;
+    }
+    return &lo->m_proxy;
+  }
+
+  static LO_rwlock *from_psi(PSI_rwlock *psi) {
+    if (psi == nullptr) {
+      return nullptr;
+    }
+    LO_rwlock_proxy *proxy = reinterpret_cast<LO_rwlock_proxy *>(psi);
+    return proxy->m_impl;
+  }
+
+  LO_rwlock(const LO_rwlock_class *klass) : m_class(klass), m_chain(nullptr) {
+    m_proxy.m_enabled = true;
+    m_proxy.m_impl = this;
+  }
 
   virtual ~LO_rwlock() {}
 
@@ -2642,8 +2690,14 @@ class LO_cond_class : public LO_class {
   LO_node *m_node;
 };
 
-class LO_cond {
+class LO_cond : public PSI_cond {
  public:
+  static PSI_cond *to_psi(LO_cond *lo) { return lo; }
+
+  static LO_cond *from_psi(PSI_cond *psi) {
+    return reinterpret_cast<LO_cond *>(psi);
+  }
+
   LO_cond(const LO_cond_class *klass);
 
   ~LO_cond() {}
@@ -5225,11 +5279,47 @@ void LO_rwlock_class_sx::add_to_graph(LO_graph *g) const {
   g->add_node(m_node_m_sx);
   g->add_node(m_node_p_x);
   g->add_node(m_node_m_x);
+
   g->add_arc(m_node_p_s, m_node_m_x, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_arc(m_node_p_sx, m_node_m_x, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_arc(m_node_p_x, m_node_m_x, false, LO_FLAG_MICRO, nullptr, nullptr);
+
   g->add_arc(m_node_p_sx, m_node_m_sx, false, LO_FLAG_MICRO, nullptr, nullptr);
+
+  /*
+    Note that the is no arc defined for +S -> -SX.
+    SX is INTENTION exclusive,
+    so a SX lock can be obtained even on a latch already locked
+    in shared mode.
+  */
+
   g->add_arc(m_node_p_x, m_node_m_sx, false, LO_FLAG_MICRO, nullptr, nullptr);
+
+  /*
+    +S -> -S arc.
+    A granted shared lock (-S) can block (indirectly)
+    another shared lock request (+S).
+
+    This is due to the innodb implementation of rw_lock_x_lock_low().
+    When an exclusive (X) lock request starts,
+    the latch is marked with X_LOCK_HALF_DECR,
+    to block any new shared (S) lock request.
+
+    As a result, if an X lock request is present (but not yet granted),
+    a granted S lock can block another S lock request.
+  */
+  g->add_arc(m_node_p_s, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
+
+  /*
+    +SX -> -S arc.
+    Case similar to the +S -> -S arc.
+    Once a lock in S mode is granted,
+    a thread requesting an X lock announce itself in the latch,
+    then wait for previous granted S locks to be released.
+    Another thread requesting an SX lock will detect an X request is pending,
+    and will be indirectly blocked, waiting on the S lock.
+  */
+  g->add_arc(m_node_p_sx, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_arc(m_node_p_x, m_node_m_s, false, LO_FLAG_MICRO, nullptr, nullptr);
   g->add_class(get_qname());
 }
@@ -5695,6 +5785,7 @@ LO_node *LO_cond_class::get_operation_node_by_name(
 
 LO_cond::LO_cond(const LO_cond_class *klass)
     : m_class(klass), m_chain(nullptr) {
+  m_enabled = true;
   if (klass->get_mutex_class() == nullptr) {
     char buff[1024];
     safe_snprintf(
@@ -6169,13 +6260,14 @@ static PSI_mutex *lo_init_mutex(PSI_mutex_key key, const void *identity) {
   }
 
   native_mutex_unlock(&serialize);
-  return reinterpret_cast<PSI_mutex *>(lo);
+  PSI_mutex *psi = lo;
+  return psi;
 }
 
 static void lo_destroy_mutex(PSI_mutex *mutex) {
   native_mutex_lock(&serialize);
 
-  LO_mutex *lo = reinterpret_cast<LO_mutex *>(mutex);
+  LO_mutex *lo = LO_mutex::from_psi(mutex);
   if (lo != nullptr) {
     if ((g_mutex_chain != nullptr) && (lo->m_chain != nullptr)) {
       g_mutex_chain->destroy_mutex(lo->m_chain);
@@ -6211,13 +6303,13 @@ static PSI_rwlock *lo_init_rwlock(PSI_rwlock_key key, const void *identity) {
   }
 
   native_mutex_unlock(&serialize);
-  return reinterpret_cast<PSI_rwlock *>(lo);
+  return LO_rwlock::to_psi(lo);
 }
 
 static void lo_destroy_rwlock(PSI_rwlock *rwlock) {
   native_mutex_lock(&serialize);
 
-  LO_rwlock *lo = reinterpret_cast<LO_rwlock *>(rwlock);
+  LO_rwlock *lo = LO_rwlock::from_psi(rwlock);
   if (lo != nullptr) {
     if ((g_rwlock_chain != nullptr) && (lo->m_chain != nullptr)) {
       g_rwlock_chain->destroy_rwlock(lo->m_chain);
@@ -6252,13 +6344,13 @@ static PSI_cond *lo_init_cond(PSI_cond_key key, const void *identity) {
   }
 
   native_mutex_unlock(&serialize);
-  return reinterpret_cast<PSI_cond *>(lo);
+  return lo;
 }
 
 static void lo_destroy_cond(PSI_cond *cond) {
   native_mutex_lock(&serialize);
 
-  LO_cond *lo = reinterpret_cast<LO_cond *>(cond);
+  LO_cond *lo = LO_cond::from_psi(cond);
   if (lo != nullptr) {
     if ((g_cond_chain != nullptr) && (lo->m_chain != nullptr)) {
       g_cond_chain->destroy_cond(lo->m_chain);
@@ -6436,11 +6528,11 @@ static PSI_thread *lo_new_thread(PSI_thread_key key, const void *identity,
   }
 
   native_mutex_unlock(&serialize);
-  return reinterpret_cast<PSI_thread *>(lo);
+  return LO_thread::to_psi(lo);
 }
 
 static void lo_set_thread_id(PSI_thread *thread, ulonglong id) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -6461,7 +6553,7 @@ static ulonglong lo_get_current_thread_internal_id() {
 
 static ulonglong lo_get_thread_internal_id(PSI_thread *thread) {
   ulonglong result = 0;
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -6488,7 +6580,7 @@ static PSI_thread *lo_get_thread_by_id(ulonglong processlist_id) {
          it++) {
       lo = *it;
       if (lo->m_chain == chain) {
-        result = reinterpret_cast<PSI_thread *>(lo);
+        result = LO_thread::to_psi(lo);
         break;
       }
     }
@@ -6500,7 +6592,7 @@ static PSI_thread *lo_get_thread_by_id(ulonglong processlist_id) {
 }
 
 static void lo_set_thread_THD(PSI_thread *thread, THD *thd) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -6510,7 +6602,7 @@ static void lo_set_thread_THD(PSI_thread *thread, THD *thd) {
 }
 
 static void lo_set_thread_os_id(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -6521,7 +6613,7 @@ static void lo_set_thread_os_id(PSI_thread *thread) {
 
 static PSI_thread *lo_get_thread(void) {
   LO_thread *lo = get_THR_LO();
-  return reinterpret_cast<PSI_thread *>(lo);
+  return LO_thread::to_psi(lo);
 }
 
 static void lo_set_thread_user(const char *user, int user_len) {
@@ -6584,7 +6676,7 @@ static int lo_set_thread_resource_group_by_id(PSI_thread *thread,
                                               const char *group_name,
                                               int group_name_len,
                                               void *user_data) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
   int rc = 0;
 
   if (lo != nullptr) {
@@ -6598,7 +6690,7 @@ static int lo_set_thread_resource_group_by_id(PSI_thread *thread,
 }
 
 static void lo_set_thread_peer_port(PSI_thread *thread, uint port) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
 
   if (lo != nullptr) {
     if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
@@ -6609,7 +6701,7 @@ static void lo_set_thread_peer_port(PSI_thread *thread, uint port) {
 }
 
 static void lo_set_thread(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
   set_THR_LO(lo);
 
   if (g_thread_chain != nullptr) {
@@ -6622,7 +6714,7 @@ static void lo_set_thread(PSI_thread *thread) {
 }
 
 static void lo_aggregate_thread_status(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
 
   if (g_thread_chain != nullptr) {
     if (lo == nullptr) {
@@ -6652,7 +6744,7 @@ static void lo_delete_current_thread(void) {
 }
 
 static void lo_delete_thread(PSI_thread *thread) {
-  LO_thread *lo = reinterpret_cast<LO_thread *>(thread);
+  LO_thread *lo = LO_thread::from_psi(thread);
 
   native_mutex_lock(&serialize);
 
@@ -6792,7 +6884,7 @@ static PSI_file_locker *lo_get_thread_file_descriptor_locker(
 
 static void lo_unlock_mutex(PSI_mutex *mutex) {
   LO_thread *lo_thread = get_THR_LO();
-  LO_mutex *lo_mutex = reinterpret_cast<LO_mutex *>(mutex);
+  LO_mutex *lo_mutex = LO_mutex::from_psi(mutex);
   if (lo_mutex == nullptr) {
     return;
   }
@@ -6810,7 +6902,7 @@ static void lo_unlock_mutex(PSI_mutex *mutex) {
 
 static void lo_unlock_rwlock(PSI_rwlock *rwlock, PSI_rwlock_operation op) {
   LO_thread *lo_thread = get_THR_LO();
-  LO_rwlock *lo_rwlock = reinterpret_cast<LO_rwlock *>(rwlock);
+  LO_rwlock *lo_rwlock = LO_rwlock::from_psi(rwlock);
   if (lo_rwlock == nullptr) {
     return;
   }
@@ -6827,7 +6919,7 @@ static void lo_unlock_rwlock(PSI_rwlock *rwlock, PSI_rwlock_operation op) {
 }
 
 static void lo_signal_cond(PSI_cond *cond) {
-  LO_cond *lo_cond = reinterpret_cast<LO_cond *>(cond);
+  LO_cond *lo_cond = LO_cond::from_psi(cond);
   if (lo_cond == nullptr) {
     return;
   }
@@ -6837,13 +6929,15 @@ static void lo_signal_cond(PSI_cond *cond) {
     lo_thread->check_signal_broadcast("signal", lo_cond);
   }
 
-  if (g_cond_chain != nullptr) {
-    g_cond_chain->signal_cond(lo_cond->m_chain);
+  if ((g_cond_chain != nullptr) && (lo_cond->m_chain != nullptr)) {
+    if (lo_cond->m_chain->m_enabled) {
+      g_cond_chain->signal_cond(lo_cond->m_chain);
+    }
   }
 }
 
 static void lo_broadcast_cond(PSI_cond *cond) {
-  LO_cond *lo_cond = reinterpret_cast<LO_cond *>(cond);
+  LO_cond *lo_cond = LO_cond::from_psi(cond);
   if (lo_cond == nullptr) {
     return;
   }
@@ -6853,8 +6947,10 @@ static void lo_broadcast_cond(PSI_cond *cond) {
     lo_thread->check_signal_broadcast("broadcast", lo_cond);
   }
 
-  if (g_cond_chain != nullptr) {
-    g_cond_chain->broadcast_cond(lo_cond->m_chain);
+  if ((g_cond_chain != nullptr) && (lo_cond->m_chain != nullptr)) {
+    if (lo_cond->m_chain->m_enabled) {
+      g_cond_chain->broadcast_cond(lo_cond->m_chain);
+    }
   }
 }
 
@@ -6881,7 +6977,7 @@ static PSI_mutex_locker *lo_start_mutex_wait(PSI_mutex_locker_state *state,
                                              PSI_mutex_operation op,
                                              const char *src_file,
                                              uint src_line) {
-  LO_mutex *lo_mutex = reinterpret_cast<LO_mutex *>(mutex);
+  LO_mutex *lo_mutex = LO_mutex::from_psi(mutex);
   if (lo_mutex == nullptr) {
     return nullptr;
   }
@@ -6894,8 +6990,10 @@ static PSI_mutex_locker *lo_start_mutex_wait(PSI_mutex_locker_state *state,
   lo_locker->start(src_file, src_line);
 
   if ((g_mutex_chain != nullptr) && (lo_mutex->m_chain != nullptr)) {
-    lo_locker->m_chain = g_mutex_chain->start_mutex_wait(
-        state, lo_mutex->m_chain, op, src_file, src_line);
+    if (lo_mutex->m_chain->m_enabled) {
+      lo_locker->m_chain = g_mutex_chain->start_mutex_wait(
+          state, lo_mutex->m_chain, op, src_file, src_line);
+    }
   }
 
   native_mutex_unlock(&serialize);
@@ -6926,7 +7024,7 @@ static PSI_rwlock_locker *lo_start_rwlock_rdwait(PSI_rwlock_locker_state *state,
                                                  PSI_rwlock_operation op,
                                                  const char *src_file,
                                                  uint src_line) {
-  LO_rwlock *lo_rwlock = reinterpret_cast<LO_rwlock *>(rwlock);
+  LO_rwlock *lo_rwlock = LO_rwlock::from_psi(rwlock);
   if (lo_rwlock == nullptr) {
     return nullptr;
   }
@@ -6939,8 +7037,10 @@ static PSI_rwlock_locker *lo_start_rwlock_rdwait(PSI_rwlock_locker_state *state,
   lo_locker->start(op, src_file, src_line);
 
   if ((g_rwlock_chain != nullptr) && (lo_rwlock->m_chain != nullptr)) {
-    lo_locker->m_chain = g_rwlock_chain->start_rwlock_rdwait(
-        state, lo_rwlock->m_chain, op, src_file, src_line);
+    if (lo_rwlock->m_chain->m_enabled) {
+      lo_locker->m_chain = g_rwlock_chain->start_rwlock_rdwait(
+          state, lo_rwlock->m_chain, op, src_file, src_line);
+    }
   }
 
   native_mutex_unlock(&serialize);
@@ -6968,7 +7068,7 @@ static PSI_rwlock_locker *lo_start_rwlock_wrwait(PSI_rwlock_locker_state *state,
                                                  PSI_rwlock_operation op,
                                                  const char *src_file,
                                                  uint src_line) {
-  LO_rwlock *lo_rwlock = reinterpret_cast<LO_rwlock *>(rwlock);
+  LO_rwlock *lo_rwlock = LO_rwlock::from_psi(rwlock);
   if (lo_rwlock == nullptr) {
     return nullptr;
   }
@@ -6981,8 +7081,10 @@ static PSI_rwlock_locker *lo_start_rwlock_wrwait(PSI_rwlock_locker_state *state,
   lo_locker->start(op, src_file, src_line);
 
   if ((g_rwlock_chain != nullptr) && (lo_rwlock->m_chain != nullptr)) {
-    lo_locker->m_chain = g_rwlock_chain->start_rwlock_wrwait(
-        state, lo_rwlock->m_chain, op, src_file, src_line);
+    if (lo_rwlock->m_chain->m_enabled) {
+      lo_locker->m_chain = g_rwlock_chain->start_rwlock_wrwait(
+          state, lo_rwlock->m_chain, op, src_file, src_line);
+    }
   }
 
   native_mutex_unlock(&serialize);
@@ -7010,11 +7112,11 @@ static PSI_cond_locker *lo_start_cond_wait(PSI_cond_locker_state *state,
                                            PSI_cond_operation op,
                                            const char *src_file,
                                            uint src_line) {
-  LO_cond *lo_cond = reinterpret_cast<LO_cond *>(cond);
+  LO_cond *lo_cond = LO_cond::from_psi(cond);
   if (lo_cond == nullptr) {
     return nullptr;
   }
-  LO_mutex *lo_mutex = reinterpret_cast<LO_mutex *>(mutex);
+  LO_mutex *lo_mutex = LO_mutex::from_psi(mutex);
   if (lo_mutex == nullptr) {
     return nullptr;
   }
@@ -7030,8 +7132,10 @@ static PSI_cond_locker *lo_start_cond_wait(PSI_cond_locker_state *state,
   PSI_mutex *mutex_chain = lo_mutex->m_chain;
   if ((g_cond_chain != nullptr) && (cond_chain != nullptr) &&
       (mutex_chain != nullptr)) {
-    lo_locker->m_chain = g_cond_chain->start_cond_wait(
-        state, cond_chain, mutex_chain, op, src_file, src_line);
+    if (cond_chain->m_enabled) {
+      lo_locker->m_chain = g_cond_chain->start_cond_wait(
+          state, cond_chain, mutex_chain, op, src_file, src_line);
+    }
   }
 
   native_mutex_unlock(&serialize);

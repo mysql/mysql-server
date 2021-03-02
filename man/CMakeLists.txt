@@ -84,7 +84,6 @@ SET(MAN1_NDB
   ndb_restore.1
   ndb_select_all.1
   ndb_select_count.1
-  ndb_setup.py.1
   ndb_show_tables.1
   ndb_size.pl.1
   ndb_top.1

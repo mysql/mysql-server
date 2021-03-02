@@ -129,9 +129,6 @@ struct Memory<Source::MMAP_FILE> {
    * [in] Size of the memory to be allocated.
    * @return Pointer to allocated memory. */
   static void *allocate(size_t bytes) {
-    if (!temptable_use_mmap) {
-      throw Result::RECORD_FILE_FULL;
-    }
     void *memory = fetch(bytes);
     if (memory == nullptr) {
       throw Result::RECORD_FILE_FULL;

@@ -78,6 +78,7 @@ performance_schema	replication_applier_status	def
 performance_schema	replication_applier_status_by_coordinator	def
 performance_schema	replication_applier_status_by_worker	def
 performance_schema	replication_asynchronous_connection_failover	def
+performance_schema	replication_asynchronous_connection_failover_managed	def
 performance_schema	replication_connection_configuration	def
 performance_schema	replication_connection_status	def
 performance_schema	replication_group_member_stats	def
@@ -190,6 +191,7 @@ replication_applier_status	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status_by_coordinator	BASE TABLE	PERFORMANCE_SCHEMA
 replication_applier_status_by_worker	BASE TABLE	PERFORMANCE_SCHEMA
 replication_asynchronous_connection_failover	BASE TABLE	PERFORMANCE_SCHEMA
+replication_asynchronous_connection_failover_managed	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_configuration	BASE TABLE	PERFORMANCE_SCHEMA
 replication_connection_status	BASE TABLE	PERFORMANCE_SCHEMA
 replication_group_member_stats	BASE TABLE	PERFORMANCE_SCHEMA
@@ -302,6 +304,7 @@ replication_applier_status	10	Fixed
 replication_applier_status_by_coordinator	10	Dynamic
 replication_applier_status_by_worker	10	Dynamic
 replication_asynchronous_connection_failover	10	Fixed
+replication_asynchronous_connection_failover_managed	10	Dynamic
 replication_connection_configuration	10	Dynamic
 replication_connection_status	10	Dynamic
 replication_group_member_stats	10	Dynamic
@@ -412,6 +415,7 @@ replication_applier_status	0
 replication_applier_status_by_coordinator	0
 replication_applier_status_by_worker	0
 replication_asynchronous_connection_failover	0
+replication_asynchronous_connection_failover_managed	0
 replication_connection_configuration	0
 replication_connection_status	0
 replication_group_member_stats	0
@@ -532,6 +536,7 @@ replication_applier_status	0	0
 replication_applier_status_by_coordinator	0	0
 replication_applier_status_by_worker	0	0
 replication_asynchronous_connection_failover	0	0
+replication_asynchronous_connection_failover_managed	0	0
 replication_connection_configuration	0	0
 replication_connection_status	0	0
 replication_group_member_stats	0	0
@@ -644,6 +649,7 @@ replication_applier_status	0	0	NULL
 replication_applier_status_by_coordinator	0	0	NULL
 replication_applier_status_by_worker	0	0	NULL
 replication_asynchronous_connection_failover	0	0	NULL
+replication_asynchronous_connection_failover_managed	0	0	NULL
 replication_connection_configuration	0	0	NULL
 replication_connection_status	0	0	NULL
 replication_group_member_stats	0	0	NULL
@@ -756,6 +762,7 @@ replication_applier_status	NULL	NULL	NULL
 replication_applier_status_by_coordinator	NULL	NULL	NULL
 replication_applier_status_by_worker	NULL	NULL	NULL
 replication_asynchronous_connection_failover	NULL	NULL	NULL
+replication_asynchronous_connection_failover_managed	NULL	NULL	NULL
 replication_connection_configuration	NULL	NULL	NULL
 replication_connection_status	NULL	NULL	NULL
 replication_group_member_stats	NULL	NULL	NULL
@@ -868,6 +875,7 @@ replication_applier_status	utf8mb4_0900_ai_ci	NULL
 replication_applier_status_by_coordinator	utf8mb4_0900_ai_ci	NULL
 replication_applier_status_by_worker	utf8mb4_0900_ai_ci	NULL
 replication_asynchronous_connection_failover	utf8mb4_0900_ai_ci	NULL
+replication_asynchronous_connection_failover_managed	utf8mb4_0900_ai_ci	NULL
 replication_connection_configuration	utf8mb4_0900_ai_ci	NULL
 replication_connection_status	utf8mb4_0900_ai_ci	NULL
 replication_group_member_stats	utf8mb4_0900_ai_ci	NULL
@@ -980,6 +988,7 @@ replication_applier_status
 replication_applier_status_by_coordinator	
 replication_applier_status_by_worker	
 replication_asynchronous_connection_failover	
+replication_asynchronous_connection_failover_managed	
 replication_connection_configuration	
 replication_connection_status	
 replication_group_member_stats	
@@ -1092,6 +1101,7 @@ replication_applier_status
 replication_applier_status_by_coordinator	
 replication_applier_status_by_worker	
 replication_asynchronous_connection_failover	
+replication_asynchronous_connection_failover_managed	
 replication_connection_configuration	
 replication_connection_status	
 replication_group_member_stats	

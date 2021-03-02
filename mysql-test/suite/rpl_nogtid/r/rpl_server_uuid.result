@@ -45,10 +45,10 @@ include/wait_for_slave_io_error.inc [errno=13117]
 include/rpl_restart_server.inc [server_number=1]
 
 # server_3 is running with --replicate-same-server-id option 
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
-MASTER_PORT= MASTER_PORT,
-MASTER_USER= 'root',
-MASTER_LOG_FILE='master-bin.000001';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
+SOURCE_PORT= MASTER_PORT,
+SOURCE_USER= 'root',
+SOURCE_LOG_FILE='master-bin.000001';
 Warnings:
 Warning	####	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -70,11 +70,11 @@ include/wait_for_slave_param.inc [Master_UUID]
 include/stop_slave.inc
 
 # Only change MASTER_PORT
-CHANGE MASTER TO MASTER_PORT= 1111;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT= 1111;
 include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
-CHANGE MASTER TO MASTER_PORT= MASTER_PORT,
-MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_PORT,
+SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
@@ -83,11 +83,11 @@ STOP SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_io_to_stop.inc
-CHANGE MASTER TO MASTER_HOST= 'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= 'localhost';
 include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
-MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1',
+SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
@@ -96,11 +96,11 @@ STOP SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_io_to_stop.inc
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= 1111;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= 1111;
 include/check_slave_param.inc [Master_UUID]
 include/check_slave_param.inc [Master_Server_Id]
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT,
-MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT,
+SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave_io.inc
 include/wait_for_slave_param.inc [Master_UUID]
 
@@ -109,10 +109,10 @@ STOP SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_io_to_stop.inc
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT;
 include/check_slave_param.inc [Slave_IO_Running]
-CHANGE MASTER TO 
-MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+CHANGE REPLICATION SOURCE TO 
+SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/check_slave_param.inc [Slave_IO_Running]
 
 # Case 5:
@@ -123,8 +123,8 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/check_slave_param.inc [Slave_IO_Running]
-CHANGE MASTER TO 
-MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_POS;
+CHANGE REPLICATION SOURCE TO 
+SOURCE_LOG_FILE= 'MASTER_LOG_FILE', SOURCE_LOG_POS= MASTER_POS;
 include/start_slave.inc
 
 # Case 6:

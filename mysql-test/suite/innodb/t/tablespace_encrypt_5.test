@@ -15,6 +15,11 @@
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[MY-013674\\] \\[Innodb\\] Decrypting a page in doublewrite file failed");
+call mtr.add_suppression("\\[Warning\\] \\[MY-013675\\] \\[Innodb\\] Encryption key missing");
+--enable_query_log
+
 --echo #########
 --echo # SETUP #
 --echo #########

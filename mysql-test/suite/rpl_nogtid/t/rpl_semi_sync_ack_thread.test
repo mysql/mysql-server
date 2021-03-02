@@ -228,7 +228,7 @@ SET GLOBAL rpl_semi_sync_master_enabled= ON;
 --source include/stop_slave.inc
 --let $save_retry_count= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 --let $save_retry_time= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
-CHANGE MASTER TO master_retry_count = 1, master_connect_retry = 5;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
 
 # Make IO thread hungs after connecting to master. So we can make sure it is
 # stopped by add_slave_failure
@@ -243,8 +243,8 @@ SET debug_sync= 'now SIGNAL signal.get_master_uuid';
 # It should be stopped by add_slave failure
 --source include/wait_for_slave_io_to_stop.inc
 
-eval CHANGE MASTER TO master_retry_count = $save_retry_count,
-                      master_connect_retry = $save_retry_time;
+eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = $save_retry_count,
+                      SOURCE_CONNECT_RETRY = $save_retry_time;
 
 --source include/uninstall_semisync_slave.inc
 --source include/start_slave_sql.inc

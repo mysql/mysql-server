@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,6 +264,15 @@ int NdbThread_SetHighPrioProperties(const char * spec);
  * Clear Unix signal mask of thread
  */
 void NdbThread_ClearSigMask();
+
+/**
+ * Check if CPU is available for our use, used to avoid using CPUs in
+ * automatic CPU locking that the process is not supposed to use. If
+ * we use ThreadConfig then the user have decided to use those anyways,
+ * so in that case we don't care.
+ */
+bool
+NdbThread_IsCPUAvailable(Uint32 cpu_id);
 
 #ifdef	__cplusplus
 }

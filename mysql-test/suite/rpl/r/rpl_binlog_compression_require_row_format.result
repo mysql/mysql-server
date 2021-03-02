@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 include/stop_slave.inc
 SET @@global.binlog_transaction_compression=TRUE;
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
 include/start_slave.inc
 [connection master]
 include/rpl_reset.inc
@@ -134,7 +134,7 @@ SET @@global.binlog_transaction_compression=SAVED;
 [connection slave]
 SET @@global.binlog_transaction_compression=SAVED;
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT=SAVED;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=SAVED;
 include/start_slave.inc
 [connection master]
 include/rpl_reset.inc

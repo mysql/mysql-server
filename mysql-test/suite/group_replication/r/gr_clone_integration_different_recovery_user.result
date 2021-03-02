@@ -12,7 +12,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    Bootstrap a group on server1.
 [connection server1]
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
-CHANGE MASTER TO MASTER_USER='non-existent', MASTER_PASSWORD='foo' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='non-existent', SOURCE_PASSWORD='foo' FOR CHANNEL 'group_replication_recovery';
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);

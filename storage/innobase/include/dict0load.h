@@ -108,11 +108,16 @@ a foreign key references columns in this table.
 @param[in]	cached		true=add to cache, false=do not
 @param[in]	ignore_err	Error to be ignored when loading
                                 table and its index definition
+@param[in]      prev_table      previous table name. The current table load
+                                is happening because of the load of the
+                                previous table name.  This parameter is used
+                                to check for cyclic calls.
 @return table, NULL if does not exist; if the table is stored in an
 .ibd file, but the file does not exist, then we set the ibd_file_missing
 flag in the table object we return. */
 dict_table_t *dict_load_table(const char *name, bool cached,
-                              dict_err_ignore_t ignore_err);
+                              dict_err_ignore_t ignore_err,
+                              const std::string *prev_table = nullptr);
 
 /** This function is called when the database is booted.
  Loads system table index definitions except for the clustered index which

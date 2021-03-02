@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1035,7 +1035,12 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       goto err;
     }
 
-    end = remove_end_comment(ptr);
+    /* comments are not supported in login file */
+    if (!is_login_file)
+      end = remove_end_comment(ptr);
+    else
+      end = ptr + strlen(ptr);
+
     if ((value = strchr(ptr, '='))) end = value; /* Option without argument */
     for (; my_isspace(&my_charset_latin1, end[-1]); end--) {
     }

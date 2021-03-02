@@ -1,6 +1,7 @@
 --echo # Test of SQL window functions.
 --echo # ----------------------------------------------------------------------
 --source include/have_innodb_16k.inc
+--source include/not_hypergraph.inc   # Windowing functions are not supported yet.
 SET NAMES utf8;
 
 --echo
@@ -4303,3 +4304,34 @@ DO NTILE(@v) OVER();
 DO NTILE(@v) OVER(), @v:=20;
 
 --echo # End of test for Bug#31393719
+
+--echo #
+--echo # Bug#31546816 - QUERY RETURNS DIFFERENT RESULTS DEPENDING ON INTERNAL_TMP_MEM_STORAGE_ENGINE
+--echo #
+
+CREATE TABLE `t1` (`c1` INT, `c2` INT, `c3` CHAR(255), `c4` CHAR(255));
+INSERT INTO t1 VALUES
+(1,1,'t1','t1'), (2,2,'t1','t1'), (3,3,'t1','t1'), (4,4,'t1','t1'), (5,5,'t1','t1'),
+(6,6,'t1','t1'), (7,7,'t1','t1'), (8,8,'t1','t1'), (9,9,'t1','t1'), (10,10,'t1','t1'),
+(11,11,'t1','t1'), (12,12,'t1','t1'), (13,13,'t1','t1'), (14,14,'t1','t1'), (15,15,'t1','t1'),
+(16,16,'t1','t1'), (17,17,'t1','t1'), (18,18,'t1','t1'), (19,19,'t1','t1'), (20,20,'t1','t1'),
+(21,21,'t1','t1'), (22,22,'t1','t1'), (23,23,'t1','t1'), (24,24,'t1','t1'), (25,25,'t1','t1');
+
+# Set minimum values for memory limits to force a disk migration of
+# in-memory temp tables
+SET @@session.max_heap_table_size=16*1024;
+SET @@session.tmp_table_size=1024;
+SET optimizer_switch="derived_condition_pushdown=off";
+
+# Expecting same result set with MEMORY and TempTable storage
+SET SESSION internal_tmp_mem_storage_engine=MEMORY;
+SELECT * FROM (SELECT c2, c3, c4, SUM(c1) OVER (PARTITION BY c2) AS wcol FROM t1)o WHERE c2=10;
+SET SESSION internal_tmp_mem_storage_engine=TempTable;
+SELECT * FROM (SELECT c2, c3, c4, SUM(c1) OVER (PARTITION BY c2) AS wcol FROM t1)o WHERE c2=10;
+
+#cleanup
+SET optimizer_switch=default;
+SET @@session.max_heap_table_size=default;
+SET @@session.tmp_table_size=default;
+SET @@session.internal_tmp_mem_storage_engine=default;
+DROP TABLE t1;

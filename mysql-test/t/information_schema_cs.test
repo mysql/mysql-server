@@ -27,6 +27,7 @@ SET SESSION information_schema_stats_expiry=0;
 --echo #
 --echo # Bug#11763174 INFORMATION_SCHEMA.PARAMETERS.NUMERIC_PRECISION SHOULD BE BIGINT 
 --echo #
+--sorted_result
 select table_name, data_type, column_type from information_schema.columns  where column_name = 'numeric_precision' and table_schema = 'information_schema';
 
 --disable_warnings
@@ -159,6 +160,7 @@ delimiter ;|
 #
 # Bug#7222 information_schema: errors in "routines"
 #
+--sorted_result
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 
@@ -351,6 +353,7 @@ drop view v1;
 create table t1(a NUMERIC(5,3), b NUMERIC(5,1), c float(5,2),
  d NUMERIC(6,4), e float, f DECIMAL(6,3), g int(11), h DOUBLE(10,3),
  i DOUBLE);
+--sorted_result
 select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
  CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
@@ -544,6 +547,7 @@ create table t1
   x_real REAL,
   x_float FLOAT,
   x_double_precision DOUBLE PRECISION );
+--sorted_result
 SELECT COLUMN_NAME, CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH
 FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_NAME= 't1' ORDER BY COLUMN_NAME;
@@ -678,6 +682,7 @@ drop procedure if exists p2;
 
 create procedure p1 () modifies sql data set @a = 5;
 create procedure p2 () set @a = 5;
+--sorted_result
 select sql_data_access from information_schema.routines
 where specific_name like 'p%' and ROUTINE_SCHEMA != 'sys';
 drop procedure p1;
@@ -721,6 +726,7 @@ drop table t1;
 #
 create table t1 (a int not null, b int);
 use information_schema;
+--sorted_result
 select column_name, column_default from columns
   where table_schema='test' and table_name='t1';
 use test;
@@ -829,6 +835,7 @@ drop table t1;
 # Bug#14271 I_S: columns has no size for (var)binary columns
 #
 create table t1(f1 binary(32), f2 varbinary(64));
+--sorted_result
 select character_maximum_length, character_octet_length
 from information_schema.columns where table_name='t1';
 drop table t1;
@@ -861,6 +868,7 @@ DROP FUNCTION func2;
 #
 # Bug#15307 GROUP_CONCAT() with ORDER BY returns empty set on information_schema
 #
+--skip_if_hypergraph  # Hits bug #31947466.
 SELECT column_type, GROUP_CONCAT(table_schema, '.', table_name ORDER BY table_name), COUNT(*) AS num
 FROM information_schema.columns WHERE
 table_schema='information_schema' AND
@@ -873,6 +881,7 @@ GROUP BY column_type ORDER BY num, column_type;
 #
 create table t1(f1 char(1) not null, f2 char(9) not null)
 default character set utf8;
+--sorted_result
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
 information_schema.columns where table_schema='test' and table_name = 't1';
 drop table t1;
@@ -1117,6 +1126,7 @@ create table t1 (
   f7 datetime not null,
   f8 datetime default '2006-01-01'
 );
+--sorted_result
 select column_default from information_schema.columns where table_name= 't1';
 show columns from t1;
 drop table t1;
@@ -1162,6 +1172,7 @@ select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 # Tests printing of MaterializeInformationSchemaTableIterator with nontrivial
 # table iterators.
+--replace_regex / *\(cost=(\d+\.\d+\.\.)?\d+\.\d+\ rows=\d+\)//
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 
 #
@@ -1455,6 +1466,7 @@ DROP TABLE variables;
 
 CREATE TABLE ubig (a BIGINT, b BIGINT UNSIGNED);
 
+--sorted_result
 SELECT TABLE_NAME, COLUMN_NAME, NUMERIC_PRECISION 
   FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='ubig';
 
@@ -1474,7 +1486,9 @@ create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
 returns char(10) return null;
 create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
 create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
+--sorted_result
 select * from information_schema.parameters where specific_schema='test';
+--sorted_result
 select data_type, character_maximum_length,
        character_octet_length, numeric_precision,
        numeric_scale, character_set_name,
@@ -1515,8 +1529,10 @@ let $wait_condition=
         info like "rename table t2 to t3";
 --source include/wait_condition.inc
 --echo # These statements should not be blocked by pending lock requests
+--sorted_result
 select table_name, column_name, data_type from information_schema.columns
   where table_schema = 'test' and table_name in ('t1', 't2');
+--sorted_result
 select table_name, auto_increment from information_schema.tables
   where table_schema = 'test' and table_name in ('t1', 't2');
 --echo # Switching to connection 'con3726_1'
@@ -2257,6 +2273,7 @@ DROP TABLE t1;
 --echo # Bug#18925: subqueries with MIN/MAX functions on INFORMARTION_SCHEMA 
 --echo #
 
+--skip_if_hypergraph  # Chooses an extremely slow plan due to lack of indexes, causing the test to time out.
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
        INNER JOIN
@@ -2312,6 +2329,7 @@ CREATE TABLE t1(fld1 BINARY(10) NOT NULL DEFAULT 'a',
 
 --echo # With the patch, default value is displayed in the hex format.
 SHOW COLUMNS from t1;
+--sorted_result
 SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
 
 --echo # Cleanup.
@@ -2473,12 +2491,14 @@ CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE f1;
 ALTER TABLE t1 CHANGE COLUMN f1 f0 BINARY;
 
 --echo # Check warning from information_schema.
+--sorted_result
 SELECT TABLE_NAME, LENGTH(VIEW_DEFINITION) > 0
   FROM INFORMATION_SCHEMA.VIEWS
   WHERE TABLE_SCHEMA='test';
 
 --echo # The SELECT causes unexpected error without the fix.
 SET SESSION max_error_count=0;
+--sorted_result
 SELECT TABLE_NAME, LENGTH(VIEW_DEFINITION) > 0
   FROM INFORMATION_SCHEMA.VIEWS
   WHERE TABLE_SCHEMA='test';
@@ -2501,12 +2521,14 @@ ALTER TABLE t1 CHANGE COLUMN f1 f0 BINARY;
 
 --echo # The TABLE_COMMENT shows error message with view name 'v1'
 --echo # for view 'v2' without the fix.
+--sorted_result
 SELECT TABLE_NAME, TABLE_COMMENT
   FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA='test';
 
 --echo # The behavior with max_error_count=0 should be unchanged after fix.
 SET SESSION max_error_count=0;
+--sorted_result
 SELECT TABLE_NAME, TABLE_COMMENT
   FROM INFORMATION_SCHEMA.TABLES
   WHERE TABLE_SCHEMA='test';

@@ -3346,18 +3346,18 @@ type_conversion_status Field_short::store(double nr) {
       res = 0;
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
-    } else if (nr > (double)UINT_MAX16) {
+    } else if (nr > UINT_MAX16) {
       res = (int16)UINT_MAX16;
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
     } else
       res = (int16)(uint16)nr;
   } else {
-    if (nr < (double)INT_MIN16) {
+    if (nr < INT_MIN16) {
       res = INT_MIN16;
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
-    } else if (nr > (double)INT_MAX16) {
+    } else if (nr > INT_MAX16) {
       res = INT_MAX16;
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
@@ -3535,12 +3535,12 @@ type_conversion_status Field_medium::store(double nr) {
     } else
       int3store(ptr, (uint32)nr);
   } else {
-    if (nr < (double)INT_MIN24) {
+    if (nr < INT_MIN24) {
       long tmp = (long)INT_MIN24;
       int3store(ptr, tmp);
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
-    } else if (nr > (double)INT_MAX24) {
+    } else if (nr > INT_MAX24) {
       long tmp = (long)INT_MAX24;
       int3store(ptr, tmp);
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -3679,17 +3679,17 @@ type_conversion_status Field_long::store(double nr) {
     if (nr < 0) {
       res = 0;
       error = TYPE_WARN_OUT_OF_RANGE;
-    } else if (nr > (double)UINT_MAX32) {
+    } else if (nr > UINT_MAX32) {
       res = UINT_MAX32;
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
     } else
       res = (int32)(ulong)nr;
   } else {
-    if (nr < (double)INT_MIN32) {
+    if (nr < INT_MIN32) {
       res = (int32)INT_MIN32;
       error = TYPE_WARN_OUT_OF_RANGE;
-    } else if (nr > (double)INT_MAX32) {
+    } else if (nr > INT_MAX32) {
       res = (int32)INT_MAX32;
       error = TYPE_WARN_OUT_OF_RANGE;
     } else
@@ -3887,20 +3887,20 @@ type_conversion_status Field_longlong::store(double nr) {
     if (nr < 0) {
       res = 0;
       error = TYPE_WARN_OUT_OF_RANGE;
-    } else if (nr >= (double)ULLONG_MAX) {
+    } else if (nr >= ULLONG_MAX_DOUBLE) {
       res = ~(longlong)0;
       error = TYPE_WARN_OUT_OF_RANGE;
     } else
-      res = (longlong)double2ulonglong(nr);
+      res = double2ulonglong(nr);
   } else {
-    if (nr <= (double)LLONG_MIN) {
+    if (nr <= LLONG_MIN) {
       res = LLONG_MIN;
-      if (nr < (double)LLONG_MIN) error = TYPE_WARN_OUT_OF_RANGE;
-    } else if (nr >= (double)(ulonglong)LLONG_MAX) {
+      if (nr < LLONG_MIN) error = TYPE_WARN_OUT_OF_RANGE;
+    } else if (nr >= LLONG_MAX_DOUBLE) {
       res = LLONG_MAX;
-      if (nr > (double)LLONG_MAX) error = TYPE_WARN_OUT_OF_RANGE;
+      if (nr > LLONG_MAX_DOUBLE) error = TYPE_WARN_OUT_OF_RANGE;
     } else
-      res = (longlong)nr;
+      res = nr;
   }
   if (error)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -4126,7 +4126,7 @@ String *Field_float::val_str(String *val_buffer, String *) const {
   size_t len;
 
   if (dec >= DECIMAL_NOT_SPECIFIED)
-    len = my_gcvt(nr, MY_GCVT_ARG_FLOAT, to_length - 1, to, nullptr);
+    len = my_gcvt(nr, MY_GCVT_ARG_FLOAT, MAX_FLOAT_STR_LENGTH, to, nullptr);
   else {
     /*
       We are safe here because the buffer length is 70, and
@@ -4331,12 +4331,12 @@ longlong Field_double::val_int() const {
   else
     j = doubleget(ptr);
   /* Check whether we fit into longlong range */
-  if (j <= (double)LLONG_MIN) {
+  if (j <= LLONG_MIN) {
     res = (longlong)LLONG_MIN;
     goto warn;
   }
-  if (j >= (double)(ulonglong)LLONG_MAX) {
-    res = (longlong)LLONG_MAX;
+  if (j >= LLONG_MAX_DOUBLE) {
+    res = LLONG_MAX;
     goto warn;
   }
   return (longlong)rint(j);
@@ -4385,7 +4385,7 @@ String *Field_double::val_str(String *val_buffer, String *) const {
   size_t len;
 
   if (dec >= DECIMAL_NOT_SPECIFIED)
-    len = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, to_length - 1, to, nullptr);
+    len = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, MAX_DOUBLE_STR_LENGTH, to, nullptr);
   else
     len = my_fcvt(nr, dec, to, nullptr);
 
@@ -5533,10 +5533,10 @@ type_conversion_status Field_year::store(const char *from, size_t len,
 
 type_conversion_status Field_year::store(double nr) {
   if (nr < 0.0 || nr > MAX_YEAR) {
-    (void)Field_year::store((longlong)-1, false);
+    Field_year::store(-1LL, false);
     return TYPE_WARN_OUT_OF_RANGE;
   }
-  return Field_year::store((longlong)nr, false);
+  return Field_year::store(static_cast<longlong>(nr), false);
 }
 
 type_conversion_status Field_year::store_time(MYSQL_TIME *ltime, uint8) {
@@ -8069,7 +8069,11 @@ type_conversion_status Field_enum::store(const char *from, size_t length,
 }
 
 type_conversion_status Field_enum::store(double nr) {
-  return Field_enum::store((longlong)nr, false);
+  if (nr < LLONG_MIN)
+    return Field_enum::store(static_cast<longlong>(LLONG_MIN), false);
+  if (nr > LLONG_MAX_DOUBLE)
+    return Field_enum::store(static_cast<longlong>(LLONG_MAX), false);
+  return Field_enum::store(static_cast<longlong>(nr), false);
 }
 
 type_conversion_status Field_enum::store(longlong nr, bool) {
@@ -8654,7 +8658,11 @@ type_conversion_status Field_bit::store(const char *from, size_t length,
 }
 
 type_conversion_status Field_bit::store(double nr) {
-  return Field_bit::store((longlong)nr, false);
+  if (nr < LLONG_MIN)
+    return Field_bit::store(static_cast<longlong>(LLONG_MIN), false);
+  if (nr > LLONG_MAX_DOUBLE)
+    return Field_bit::store(static_cast<longlong>(LLONG_MAX), false);
+  return Field_bit::store(static_cast<longlong>(nr), false);
 }
 
 type_conversion_status Field_bit::store(longlong nr, bool) {
@@ -9864,6 +9872,10 @@ size_t Field_typed_array::get_key_image(uchar *buff, size_t length,
                                         imagetype type) const {
   return m_conv_item->field->get_key_image(buff, length, type);
 }
+
+#ifndef DBUG_OFF
+Field *Field_typed_array::get_conv_field() { return m_conv_item->field; }
+#endif
 
 Field *Field_typed_array::new_key_field(MEM_ROOT *root, TABLE *new_table,
                                         uchar *new_ptr, uchar *, uint) const {

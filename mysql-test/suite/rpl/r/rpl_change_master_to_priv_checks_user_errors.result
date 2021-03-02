@@ -11,7 +11,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CALL mtr.add_suppression(".PRIVILEGE_CHECKS_USER for replication channel.");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 CREATE USER 'u1'@'localhost';
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL '';
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -26,8 +26,8 @@ CALL mtr.add_suppression(".CREATE command denied to user.");
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MY_MASTER_PORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=MY_MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -65,7 +65,7 @@ SET sql_log_bin= 1;
 [connection slave]
 CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
-CHANGE MASTER TO MASTER_USER='root', MASTER_PORT=MY_MASTER_PORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=MY_MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PORT=MY_MASTER_PORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_MASTER_LOG_POS;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -87,7 +87,7 @@ CREATE USER 'u1'@'localhost';
 GRANT SESSION_VARIABLES_ADMIN, REPLICATION_APPLIER ON *.* TO 'u1'@'localhost';
 GRANT DROP ON *.* TO 'u1'@'localhost';
 include/stop_slave.inc
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER='u1'@'localhost', MASTER_LOG_POS=MY_MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER='u1'@'localhost', SOURCE_LOG_POS=MY_MASTER_LOG_POS;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -95,7 +95,7 @@ Warning	1287	'START SLAVE' is deprecated and will be removed in a future release
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT=0 FOR CHANNEL '';
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

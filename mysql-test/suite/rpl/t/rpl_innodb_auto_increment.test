@@ -27,7 +27,7 @@ CALL mtr.add_suppression("Unsafe statement written to the binary log using state
 # WL#6338: RPL.RPL_INNODB_AUTO_INCREMENT FAILS WITH ERROR IN SYNC_WITH_MASTER.INC
 --let $rpl_connection_name= slave
 --source include/rpl_connection.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 30 ;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 30 ;
 --source include/start_slave.inc
 
 ##########################################################################################

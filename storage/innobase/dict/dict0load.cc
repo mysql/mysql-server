@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -112,12 +112,17 @@ key constraints are loaded into memory.
 @param[out]	fk_tables	Related table names that must also be
                                 loaded to ensure that all foreign key
                                 constraints are loaded.
+@param[in]      prev_table      previous table name. The current table load
+                                is happening because of the load of the
+                                previous table name.  This parameter is used
+                                to check for cyclic calls.
 @return table, NULL if does not exist; if the table is stored in an
 .ibd file, but the file does not exist, then we set the
 ibd_file_missing flag TRUE in the table object we return */
 static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
                                          dict_err_ignore_t ignore_err,
-                                         dict_names_t &fk_tables);
+                                         dict_names_t &fk_tables,
+                                         const std::string *prev_table);
 
 /** Loads a table definition from a SYS_TABLES record to dict_table_t.
 Does not load any columns or indexes.
@@ -2156,19 +2161,9 @@ void dict_get_and_save_space_name(dict_table_t *table, bool dict_mutex_own) {
   }
 }
 
-/** Loads a table definition and also all its index definitions, and also
-the cluster definition if the table is a member in a cluster. Also loads
-all foreign key constraints where the foreign key is in the table or where
-a foreign key references columns in this table.
-@param[in]	name		Table name in the dbname/tablename format
-@param[in]	cached		true=add to cache, false=do not
-@param[in]	ignore_err	Error to be ignored when loading
-                                table and its index definition
-@return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the ibd_file_missing
-flag in the table object we return. */
 dict_table_t *dict_load_table(const char *name, bool cached,
-                              dict_err_ignore_t ignore_err) {
+                              dict_err_ignore_t ignore_err,
+                              const std::string *prev_table) {
   dict_names_t fk_list;
   dict_names_t::iterator i;
   table_name_t table_name;
@@ -2177,6 +2172,12 @@ dict_table_t *dict_load_table(const char *name, bool cached,
   DBUG_TRACE;
   DBUG_PRINT("dict_load_table", ("loading table: '%s'", name));
 
+  if (prev_table != nullptr && prev_table->compare(name) == 0) {
+    return nullptr;
+  }
+
+  const std::string cur_table(name);
+
   ut_ad(mutex_own(&dict_sys->mutex));
 
   result = dict_table_check_if_in_cache_low(name);
@@ -2184,7 +2185,8 @@ dict_table_t *dict_load_table(const char *name, bool cached,
   table_name.m_name = const_cast<char *>(name);
 
   if (!result) {
-    result = dict_load_table_one(table_name, cached, ignore_err, fk_list);
+    result = dict_load_table_one(table_name, cached, ignore_err, fk_list,
+                                 &cur_table);
     while (!fk_list.empty()) {
       table_name_t fk_table_name;
       dict_table_t *fk_table;
@@ -2192,7 +2194,8 @@ dict_table_t *dict_load_table(const char *name, bool cached,
       fk_table_name.m_name = const_cast<char *>(fk_list.front());
       fk_table = dict_table_check_if_in_cache_low(fk_table_name.m_name);
       if (!fk_table) {
-        dict_load_table_one(fk_table_name, cached, ignore_err, fk_list);
+        dict_load_table_one(fk_table_name, cached, ignore_err, fk_list,
+                            &cur_table);
       }
       fk_list.pop_front();
     }
@@ -2320,30 +2323,12 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   ut_free(filepath);
 }
 
-/** Loads a table definition and also all its index definitions.
-
-Loads those foreign key constraints whose referenced table is already in
-dictionary cache.  If a foreign key constraint is not loaded, then the
-referenced table is pushed into the output stack (fk_tables), if it is not
-NULL.  These tables must be subsequently loaded so that all the foreign
-key constraints are loaded into memory.
-
-@param[in]	name		Table name in the db/tablename format
-@param[in]	cached		true=add to cache, false=do not
-@param[in]	ignore_err	Error to be ignored when loading table
-                                and its index definition
-@param[out]	fk_tables	Related table names that must also be
-                                loaded to ensure that all foreign key
-                                constraints are loaded.
-@return table, NULL if does not exist; if the table is stored in an
-.ibd file, but the file does not exist, then we set the
-ibd_file_missing flag TRUE in the table object we return */
 static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
                                          dict_err_ignore_t ignore_err,
-                                         dict_names_t &fk_tables) {
+                                         dict_names_t &fk_tables,
+                                         const std::string *prev_table) {
   dberr_t err;
   dict_table_t *table;
-  dict_table_t *sys_tables;
   btr_pcur_t pcur;
   dict_index_t *sys_index;
   dtuple_t *tuple;
@@ -2360,11 +2345,14 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
+  dict_table_t *sys_tables = dict_table_get_low("SYS_TABLES", prev_table);
+  if (sys_tables == nullptr) {
+    return nullptr;
+  }
+
   heap = mem_heap_create(32000);
 
   mtr_start(&mtr);
-
-  sys_tables = dict_table_get_low("SYS_TABLES");
   sys_index = UT_LIST_GET_FIRST(sys_tables->indexes);
   ut_ad(!dict_table_is_comp(sys_tables));
   ut_ad(name_of_col_is(sys_tables, sys_index, DICT_FLD__SYS_TABLES__ID, "ID"));

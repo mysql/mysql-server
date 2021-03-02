@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -895,5 +895,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_SWITCH_MULTI_TRP_CONF, "SWITCH_MULTI_TRP_CONF" }
   ,{ GSN_SWITCH_MULTI_TRP_REF, "SWITCH_MULTI_TRP_REF" }
   ,{ GSN_MEASURE_WAKEUP_TIME_ORD, "MEASURE_WAKEUP_TIME_ORD" }
+  ,{ GSN_UPD_QUERY_DIST_ORD, "UPD_QUERY_DIST_ORD" }
+  ,{ GSN_UPD_THR_LOAD_ORD, "UPDATE_THR_LOAD_ORD" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

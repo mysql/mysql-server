@@ -55,7 +55,7 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"  // my_free
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -428,6 +428,15 @@ struct LEX_MASTER_INFO {
     LEX_MI_PK_CHECK_ON = 2,
     LEX_MI_PK_CHECK_OFF = 3
   } require_table_primary_key_check;
+
+  enum {
+    LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED = 0,
+    LEX_MI_ANONYMOUS_TO_GTID_OFF,
+    LEX_MI_ANONYMOUS_TO_GTID_LOCAL,
+    LEX_MI_ANONYMOUS_TO_GTID_UUID
+  } assign_gtids_to_anonymous_transactions_type;
+
+  const char *assign_gtids_to_anonymous_transactions_manual_uuid{nullptr};
 
   /// Initializes everything to zero/NULL/empty.
   void initialize();
@@ -3638,6 +3647,14 @@ struct LEX : public Query_tables_list {
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return explain_format != nullptr; }
   bool is_explain_analyze = false;
+  /**
+    Whether the currently-running query should be (attempted) executed in
+    the hypergraph optimizer. This will not change after the query is
+    done parsing, so you can use it in any query phase to e.g. figure out
+    whether to inhibit some transformation that the hypergraph optimizer
+    does not properly understand yet.
+   */
+  bool using_hypergraph_optimizer = false;
   LEX_STRING name;
   char *help_arg;
   char *to_log; /* For PURGE MASTER LOGS TO */
@@ -3820,6 +3837,12 @@ struct LEX : public Query_tables_list {
   my_thread_id show_profile_query_id;
   uint profile_options;
   uint grant, grant_tot_col;
+  /**
+   Set to true when GRANT ... GRANT OPTION ... TO ...
+   is used (vs. GRANT ... WITH GRANT OPTION).
+   The flag is used by @ref mysql_grant to grant GRANT OPTION (@ref GRANT_ACL)
+   to all dynamic privileges.
+  */
   bool grant_privilege;
   uint slave_thd_opt, start_transaction_opt;
   int select_number;  ///< Number of query block (by EXPLAIN)

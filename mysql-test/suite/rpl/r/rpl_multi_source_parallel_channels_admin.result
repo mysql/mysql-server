@@ -4,8 +4,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch1';
-CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='dummyhost', MASTER_PORT=MASTER_PORT FOR CHANNEL 'ch2';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='dummyhost', SOURCE_PORT=MASTER_PORT FOR CHANNEL 'ch2';
 include/start_slave.inc [FOR CHANNEL 'ch1']
 include/start_slave_sql.inc [FOR CHANNEL 'ch2']
 [connection master]
@@ -41,7 +41,7 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 DROP TABLE t1;
-CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
 include/start_slave.inc
 [connection master]
 DROP TABLE t1;

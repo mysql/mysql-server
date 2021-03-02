@@ -109,9 +109,16 @@ Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 0) AS `a+0` from `test`.`t1`
 select a+0 from t1;
 a+0
 0
-4
-5
-9
+104
+106
+108
+111
+116
+118
+119
+122
+123
+127
 23
 24
 28
@@ -119,8 +126,10 @@ a+0
 30
 31
 34
+4
 44
 49
+5
 56
 57
 59
@@ -134,63 +143,54 @@ a+0
 79
 87
 88
+9
 94
 94
-104
-106
-108
-111
-116
-118
-119
-122
-123
-127
 explain select b+0 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	38	100.00	Using index
-Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`b` + 0) AS `b+0` from `test`.`t1`
+Warnings:
 select b+0 from t1;
 b+0
-177
-245
-178
-363
-36
-398
-499
-399
-83
-438
-202
-307
-345
-379
-135
-188
-343
-152
-206
-454
-42
-133
+118
 123
+133
+135
+152
+177
+178
+188
+202
+206
+245
+280
+307
+343
+345
 349
 351
+36
+363
+368
+368
+379
+380
+390
+398
+399
+403
 411
+411
+42
+438
+446
+454
 46
 468
-280
-446
+499
 67
-368
-390
-380
-368
-118
-411
-403
+83
 explain select a+0, b+0 from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	38	100.00	Using index
@@ -199,9 +199,16 @@ Note	1003	/* select#1 */ select (`test`.`t1`.`a` + 0) AS `a+0`,(`test`.`t1`.`b` 
 select a+0, b+0 from t1;
 a+0	b+0
 0	177
-4	245
-5	178
-9	363
+104	280
+106	446
+108	67
+111	368
+116	390
+118	380
+119	368
+122	118
+123	411
+127	403
 23	36
 24	398
 28	499
@@ -209,8 +216,10 @@ a+0	b+0
 30	83
 31	438
 34	202
+4	245
 44	307
 49	345
+5	178
 56	379
 57	135
 59	188
@@ -224,18 +233,9 @@ a+0	b+0
 79	349
 87	351
 88	411
+9	363
 94	46
 94	468
-104	280
-106	446
-108	67
-111	368
-116	390
-118	380
-119	368
-122	118
-123	411
-127	403
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	2	NULL	27	33.33	Using where; Using index; Using filesort
@@ -295,13 +295,13 @@ select a+0, b+0, c+0 from t1;
 a+0	b+0	c+0
 1	1	100
 2	1	4
-4	NULL	1
-4	0	3
+23	0	1
 4	0	23
+4	0	3
 4	0	34
 4	0	54
 4	1	100
-23	0	1
+4	NULL	1
 56	0	22
 select hex(min(b)) from t1 where a = 4;
 hex(min(b))
@@ -419,3 +419,22 @@ b'1111111111111111111111111111111111111111111111111111111111111111';
 HEX(a)
 FFFFFFFFFFFFFFFF
 DROP TABLE t1;
+#
+# Bug #31019130 CASTING DOUBLE TO LONGLONG CAUSES UB
+#               IN FIELD_*::STORE(DOUBLE)
+#
+CREATE TABLE t_double (a double not null);
+INSERT INTO t_double (a) VALUES
+(-20000000000000000000000000000.0001), (20000000000000000000000000000.0001);
+CREATE TABLE t_bit (
+b bit(3)
+);
+INSERT IGNORE INTO t_bit (b) SELECT a from t_double;
+Warnings:
+Warning	1406	Data too long for column 'b' at row 1
+Warning	1406	Data too long for column 'b' at row 2
+SELECT HEX(b) FROM t_bit;
+HEX(b)
+7
+7
+DROP TABLE t_double, t_bit;

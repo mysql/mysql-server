@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 #include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
-#include "plugin/x/ngs/include/ngs/socket_events.h"
-#include "plugin/x/ngs/include/ngs/timeout_callback.h"
+#include "plugin/x/src/ngs/scheduler.h"
+#include "plugin/x/src/ngs/socket_acceptors_task.h"
+#include "plugin/x/src/ngs/socket_events.h"
+#include "plugin/x/src/ngs/timeout_callback.h"
 #include "plugin/x/src/server/scheduler_monitor.h"
 #include "plugin/x/src/server/server.h"
 #include "plugin/x/src/server/session_scheduler.h"
@@ -41,7 +41,7 @@
 namespace xpl {
 
 using Monitor_interface_ptr =
-    std::unique_ptr<ngs::Scheduler_dynamic::Monitor_interface>;
+    std::unique_ptr<iface::Scheduler_dynamic::Monitor>;
 
 Server_builder::Server_builder(MYSQL_PLUGIN plugin_handle)
     : m_events(ngs::allocate_shared<ngs::Socket_events>()),

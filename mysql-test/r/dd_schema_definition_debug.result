@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=80022
+DD_VERSION=80023
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -251,7 +251,7 @@ columns	CREATE TABLE `columns` (
   `generation_expression` longblob,
   `generation_expression_utf8` longtext COLLATE utf8_bin,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `hidden` enum('Visible','SE','SQL') COLLATE utf8_bin NOT NULL,
+  `hidden` enum('Visible','SE','SQL','User') COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `column_key` enum('','PRI','UNI','MUL') COLLATE utf8_bin NOT NULL,
@@ -553,7 +553,7 @@ st_spatial_reference_systems	CREATE TABLE `st_spatial_reference_systems` (
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 table_partition_values	CREATE TABLE `table_partition_values` (
   `partition_id` bigint unsigned NOT NULL,
-  `list_num` tinyint unsigned NOT NULL,
+  `list_num` smallint unsigned NOT NULL,
   `column_num` tinyint unsigned NOT NULL,
   `value_utf8` text COLLATE utf8_bin,
   `max_value` tinyint(1) NOT NULL,
@@ -734,5 +734,5 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80022.
+The schema checksum corresponds to DD version 80023.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

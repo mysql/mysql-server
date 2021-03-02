@@ -343,6 +343,7 @@ DROP TABLE t1;
 #
 create table t1 (a int not null);
 insert into t1 values (-1), (-2);
+--skip_if_hypergraph   # Different warnings.
 select min(a) from t1 group by inet_ntoa(a);
 drop table t1;
 

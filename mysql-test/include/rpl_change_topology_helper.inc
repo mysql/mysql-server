@@ -32,27 +32,28 @@
 #
 # ==== Implementation ====
 #
-# This script builds up a CHANGE MASTER query, adding options as follows:
+# This script builds up a CHANGE REPLICATION SOURCE query, adding
+# options as follows:
 #
-# - MASTER_AUTO_POSITION is set to 1 or 0 according to $use_gtids.
-# - MASTER_PORT is set according to the SERVER_MYPORT_N variable
-# - MASTER_LOG_FILE and MASTER_LOG_POS are set according to
+# - SOURCE_AUTO_POSITION is set to 1 or 0 according to $use_gtids.
+# - SOURCE_PORT is set according to the SERVER_MYPORT_N variable
+# - SOURCE_LOG_FILE and SOURCE_LOG_POS are set according to
 #   $rpl_master_log_file and $rpl_master_log_pos
 #
-# Finally, it calls CHANGE MASTER with the computed parameters.
+# Finally, it calls CHANGE REPLICATION SOURCE with the computed parameters.
 #
 # If the server was already configured (according to
 # $_rpl_old_connection_list), then we skip executing this file.
 #
 # ==== Note ===
-# This file uses $rpl_channel_name in CHANGE MASTER command, which is
+# This file uses $rpl_channel_name in CHANGE REPLICATION SOURCE command, which is
 # set in rpl_for_each_connection.inc
 #
 
 --let $include_filename= rpl_change_topology_helper.inc [rpl_master=$rpl_master rpl_slave=$rpl_slave]
 --source include/begin_include_file.inc
 
-# Determine if we really need to execute a CHANGE MASTER.
+# Determine if we really need to execute a CHANGE REPLICATION SOURCE.
 --let $_rpl_change_topology_helper_skip= 0
 if (!$rpl_unconditional_change_master)
 {
@@ -81,28 +82,28 @@ if (!$_rpl_change_topology_helper_skip)
   if ($use_gtids)
   {
     --source include/assert_gtid_mode_on.inc
-    --let $_rpl_change_topology_helper_position= MASTER_AUTO_POSITION = 1,
+    --let $_rpl_change_topology_helper_position= SOURCE_AUTO_POSITION = 1,
   }
   if (!$use_gtids)
   {
-    --let $_rpl_change_topology_helper_position= MASTER_AUTO_POSITION = 0,
+    --let $_rpl_change_topology_helper_position= SOURCE_AUTO_POSITION = 0,
 
-    # Get MASTER_LOG_FILE
+    # Get SOURCE_LOG_FILE
     --let $_rpl_change_topology_helper_file_index= `SELECT LOCATE('$rpl_slave:', '$rpl_master_log_file')`
     if ($_rpl_change_topology_helper_file_index)
     {
       # Get text from after ':' and before ',', starting at
       # $_rpl_master_log_file
       --let $_rpl_change_topology_helper_master_log_file= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_file', $_rpl_change_topology_helper_file_index), ',', 1), ':', -1)`
-      --let $_rpl_change_topology_helper_position= MASTER_LOG_FILE = '$_rpl_master_log_file',
+      --let $_rpl_change_topology_helper_position= SOURCE_LOG_FILE = '$_rpl_master_log_file',
     }
 
-    # Get MASTER_LOG_POS
+    # Get SOURCE_LOG_POS
     --let $_rpl_change_topology_helper_pos_index= `SELECT LOCATE('$rpl_slave:', '$rpl_master_log_pos')`
     if ($_rpl_change_topology_helper_pos_index)
     {
       --let $_rpl_change_topology_helper_master_log_pos= `SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(SUBSTRING('$rpl_master_log_pos', $_rpl_change_topology_helper_pos_index), ',', 1), ':', -1)`
-      --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position MASTER_LOG_POS = $_rpl_change_topology_helper_master_log_pos,
+      --let $_rpl_change_topology_helper_position= $_rpl_change_topology_helper_position SOURCE_LOG_POS = $_rpl_change_topology_helper_master_log_pos,
     }
   }
 
@@ -154,11 +155,11 @@ if (!$_rpl_change_topology_helper_skip)
   --replace_regex /[0-9]{4}/####/
     if (!$rpl_multi_source)
     {
-      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1 FOR CHANNEL '';
+      eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $_rpl_change_topology_helper_port, SOURCE_USER = 'root', $_rpl_change_topology_helper_position SOURCE_CONNECT_RETRY = 1 FOR CHANNEL '';
     }
     if ($rpl_multi_source)
     {
-      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1 FOR CHANNEL $rpl_channel_name;
+      eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $_rpl_change_topology_helper_port, SOURCE_USER = 'root', $_rpl_change_topology_helper_position SOURCE_CONNECT_RETRY = 1 FOR CHANNEL $rpl_channel_name;
     }
 
 }
@@ -172,11 +173,11 @@ if ($_rpl_change_topology_helper_skip)
       {
         if (!$rpl_multi_source)
         {
-          CHANGE MASTER TO MASTER_AUTO_POSITION= 0 FOR CHANNEL '';
+          CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0 FOR CHANNEL '';
         }
         if ($rpl_multi_source)
         {
-          eval CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL $rpl_channel_name;
+          eval CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL $rpl_channel_name;
         }
       }
   }
@@ -187,7 +188,7 @@ if (!$_rpl_change_topology_helper_skip)
 {
   # This un-configures the server so that it's not a slave.
   # After BUG#28796, such configuration is not possible any more.
-  #CHANGE MASTER TO MASTER_HOST = '' FOR CHANNEL $rpl_channel_name;
+  #CHANGE REPLICATION SOURCE TO SOURCE_HOST = '' FOR CHANNEL $rpl_channel_name;
 }
 
 

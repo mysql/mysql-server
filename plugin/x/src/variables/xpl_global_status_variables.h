@@ -25,7 +25,7 @@
 #ifndef PLUGIN_X_SRC_VARIABLES_XPL_GLOBAL_STATUS_VARIABLES_H_
 #define PLUGIN_X_SRC_VARIABLES_XPL_GLOBAL_STATUS_VARIABLES_H_
 
-#include "plugin/x/ngs/include/ngs/common_status_variables.h"
+#include "plugin/x/src/ngs/common_status_variables.h"
 
 namespace xpl {
 

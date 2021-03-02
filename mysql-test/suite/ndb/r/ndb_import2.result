@@ -14,6 +14,7 @@ key (b)
 create table t2ver like t2;
 # load t1ver, t2ver
 # import t1, t2
+Waiting for started
 # verify t1, t2
 select count(*) from t1;
 count(*)

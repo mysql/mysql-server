@@ -34,7 +34,7 @@ set GLOBAL debug="-d,ndb_schema_dist_client_not_ready";
 
 --echo # Verify that there are no leftover entries in
 --echo # mysql.ndb_schema_result table
---exec $NDB_SELECT_ALL --no-defaults -d mysql ndb_schema_result
+--exec $NDB_SELECT_ALL -d mysql ndb_schema_result
 
 --echo # Cleanup
 DROP TABLE t1;
@@ -142,7 +142,7 @@ set GLOBAL debug="-d,ndb_skip_participant_ack";
 
 --echo # Verify that there are no leftover entries in
 --echo # mysql.ndb_schema_result table
---exec $NDB_SELECT_ALL --no-defaults -d mysql ndb_schema_result
+--exec $NDB_SELECT_ALL -d mysql ndb_schema_result
 
 --echo # Verify table exists
 show create table t1;

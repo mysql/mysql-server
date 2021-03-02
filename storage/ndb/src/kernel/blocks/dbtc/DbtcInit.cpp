@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -551,6 +551,7 @@ Dbtc::getParam(const char* name, Uint32* count)
 
 Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   SimulatedBlock(DBTC, ctx, instanceNo),
+  c_dih(0),
   c_theDefinedTriggers(c_theDefinedTriggerPool),
   c_firedTriggerHash(c_theFiredTriggerPool),
   c_maxNumberOfDefinedTriggers(0),
@@ -645,6 +646,8 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   addRecSignal(GSN_TRANSID_AI_R, &Dbtc::execTRANSID_AI_R);
   addRecSignal(GSN_KEYINFO20_R, &Dbtc::execKEYINFO20_R);
   addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dbtc::execSIGNAL_DROPPED_REP, true);
+
+  addRecSignal(GSN_UPD_QUERY_DIST_ORD, &Dbtc::execUPD_QUERY_DIST_ORD);
 
   // Index table lookup
   addRecSignal(GSN_TCKEYCONF, &Dbtc::execTCKEYCONF);

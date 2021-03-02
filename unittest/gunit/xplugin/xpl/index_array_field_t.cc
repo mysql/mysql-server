@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -113,8 +113,8 @@ Array_field_info fail_on_create_array_field_param[] = {
     {PATH, "fulltext"},
 };
 
-INSTANTIATE_TEST_CASE_P(fail_on_create_field, Index_array_field_create_test,
-                        ::testing::ValuesIn(fail_on_create_array_field_param));
+INSTANTIATE_TEST_SUITE_P(fail_on_create_field, Index_array_field_create_test,
+                         ::testing::ValuesIn(fail_on_create_array_field_param));
 
 struct Param_index_array_field_add_field {
   std::string expect;
@@ -160,8 +160,8 @@ Param_index_array_field_add_field add_array_field_param[] = {
     {CAST_TO_ARRAY("signed integer"), {PATH, "signed integer"}},
 };
 
-INSTANTIATE_TEST_CASE_P(get_index_field_name, Index_array_field_add_field_test,
-                        ::testing::ValuesIn(add_array_field_param));
+INSTANTIATE_TEST_SUITE_P(get_index_field_name, Index_array_field_add_field_test,
+                         ::testing::ValuesIn(add_array_field_param));
 
 }  // namespace test
 }  // namespace xpl

@@ -27,7 +27,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-
+#include "my_compiler.h"
 #ifdef _MSC_VER
 #include <intrin.h>
 #pragma intrinsic(_BitScanForward64)
@@ -67,30 +67,34 @@ class BitIteratorAdaptor {
   const uint64_t m_initial_state;
 };
 
+static inline size_t FindLowestBitSet(uint64_t x) {
+  assert(x != 0);
+#ifdef _MSC_VER
+  unsigned long idx;
+  _BitScanForward64(&idx, x);
+  return idx;
+#elif defined(__GNUC__) && defined(__x86_64__)
+  // Using this instead of ffsll() (which maps to the same instruction,
+  // but has an extra zero test and returns an int value) helps
+  // a whopping 10% on some of the microbenchmarks! (GCC 9.2, Skylake.)
+  // Evidently, the test for zero is rewritten into a conditional move,
+  // which turns out to be add a lot of latency into these hot loops.
+  size_t idx;
+  asm("bsfq %1,%q0" : "=r"(idx) : "rm"(x));
+  return idx;
+#else
+  // The cast to unsigned at least gets rid of the sign extension.
+  return static_cast<unsigned>(ffsll(x)) - 1u;
+#endif
+}
+
 // A policy for BitIteratorAdaptor that gives out the index of each set bit in
 // the value, ascending.
 class CountBitsAscending {
  public:
   static size_t NextValue(uint64_t state) {
     // Find the lowest set bit.
-    assert(state != 0);
-#ifdef _MSC_VER
-    unsigned long idx;
-    _BitScanForward64(&idx, state);
-    return idx;
-#elif defined(__GNUC__) && defined(__x86_64__)
-    // Using this instead of ffsll() (which maps to the same instruction,
-    // but has an extra zero test and returns an int value) helps
-    // a whopping 10% on some of the microbenchmarks! (GCC 9.2, Skylake.)
-    // Evidently, the test for zero is rewritten into a conditional move,
-    // which turns out to be add a lot of latency into these hot loops.
-    size_t idx;
-    asm("bsfq %1,%q0" : "=r"(idx) : "rm"(state));
-    return idx;
-#else
-    // The cast to unsigned at least gets rid of the sign extension.
-    return static_cast<unsigned>(ffsll(state)) - 1u;
-#endif
+    return FindLowestBitSet(state);
   }
 
   static uint64_t AdvanceState(uint64_t state) {
@@ -160,7 +164,12 @@ class NonzeroSubsetsOf {
 
   explicit NonzeroSubsetsOf(uint64_t set) : m_set(set) {}
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  // Suppress warning C4146 unary minus operator applied to unsigned type,
+  // result still unsigned
+  MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
   iterator begin() const { return {(-m_set) & m_set, m_set}; }
+  MY_COMPILER_DIAGNOSTIC_POP()
   iterator end() const { return {0, m_set}; }
 
  private:
@@ -178,7 +187,12 @@ static inline uint64_t TablesBetween(unsigned start, unsigned end) {
 
 // Isolates the LSB of x. Ie., if x = 0b110001010, returns 0b000000010.
 // Zero input gives zero output.
+MY_COMPILER_DIAGNOSTIC_PUSH()
+// Suppress warning C4146 unary minus operator applied to unsigned type,
+// result still unsigned
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4146)
 static inline uint64_t IsolateLowestBit(uint64_t x) { return x & (-x); }
+MY_COMPILER_DIAGNOSTIC_POP()
 
 // Returns whether X is a subset of Y.
 static inline bool IsSubset(uint64_t x, uint64_t y) { return (x & y) == x; }

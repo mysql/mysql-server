@@ -1883,17 +1883,6 @@ void flush_error_log_messages() {
   log_sink_buffer_flush(LOG_BUFFER_PROCESS_AND_DISCARD);
 }
 
-/**
-  Set up basic error logging.
-
-  Since we're initializing various locks here, we must call this late enough
-  so this is clean, but early enough so it still happens while we're running
-  single-threaded -- this specifically also means we must call it before we
-  start plug-ins / storage engines / external components!
-
-  @retval true   an error occurred
-  @retval false  basic error logging is now available in multi-threaded mode
-*/
 bool init_error_log() {
   DBUG_ASSERT(!error_log_initialized);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
@@ -1994,16 +1983,6 @@ bool reopen_error_log() {
   return result;
 }
 
-/**
-  helper for log writers: log to file
-  This is a helper for use by log writers that wish to emit to stderr/file.
-  Automatically appends a "\n", so the caller needn't.
-  Does its own locking.
-
-  @param           buffer               data to write
-  @param           length               length of the data
-  @retval          int                  number of added fields, if any
-*/
 void log_write_errstream(const char *buffer, size_t length) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("buffer: %s", buffer));

@@ -1439,7 +1439,7 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen) {
               head->get_transaction()->get_rpl_transaction_ctx()->get_sidno(),
               head->get_transaction()->get_rpl_transaction_ctx()->get_gno(),
               &locked_sidno) != RETURN_STATUS_OK) {
-        head->commit_error = THD::CE_FLUSH_ERROR;
+        head->commit_error = THD::CE_FLUSH_GNO_EXHAUSTED_ERROR;
         error = true;
       }
     } else {
@@ -2092,7 +2092,8 @@ int binlog_cache_data::flush(THD *thd, my_off_t *bytes_written,
     Binlog_event_writer writer(mysql_bin_log.get_binlog_file());
 
     /* The GTID ownership process might set the commit_error */
-    error = (thd->commit_error == THD::CE_FLUSH_ERROR);
+    error = (thd->commit_error == THD::CE_FLUSH_ERROR ||
+             thd->commit_error == THD::CE_FLUSH_GNO_EXHAUSTED_ERROR);
 
     DBUG_EXECUTE_IF("simulate_binlog_flush_error", {
       if (rand() % 3 == 0) {
@@ -8685,8 +8686,8 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
   else
     strncpy(errmsg, message, MYSQL_ERRMSG_SIZE - 1);
   if (binlog_error_action == ABORT_SERVER) {
-    char err_buff[MYSQL_ERRMSG_SIZE + 27];
-    sprintf(err_buff, "%s Hence aborting the server.", errmsg);
+    char err_buff[MYSQL_ERRMSG_SIZE + 25];
+    sprintf(err_buff, "%s Server is being stopped.", errmsg);
     exec_binlog_error_action_abort(err_buff);
   } else {
     DEBUG_SYNC(thd, "before_binlog_closed_due_to_error");
@@ -8815,7 +8816,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
     /*
       Handle flush error (if any) after leader finishes it's flush stage.
     */
-    handle_binlog_flush_or_sync_error(thd, false /* need_lock_log */, nullptr);
+    handle_binlog_flush_or_sync_error(
+        thd, false /* need_lock_log */,
+        (thd->commit_error == THD::CE_FLUSH_GNO_EXHAUSTED_ERROR)
+            ? ER_THD(thd, ER_GNO_EXHAUSTED)
+            : nullptr);
   }
 
   DEBUG_SYNC(thd, "bgc_after_flush_stage_before_sync_stage");

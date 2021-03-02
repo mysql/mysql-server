@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,9 +55,16 @@ void NdbTick_Init()
    * On older Solaris (< S10) CLOCK_MONOTONIC
    * is not available, CLOCK_HIGHRES is a good replacement.
    * If failed, or not available, warn about it.
+   * On MacOS CLOCK_MONOTONIC is not guaranteed monotonic,
+   * instead CLOCK_UPTIME_RAW is a close approximation of
+   * Linux CLOCK_MONOTONTIC (not updated when system suspended).
    */
-#if defined(CLOCK_MONOTONIC)
+#if defined(CLOCK_MONOTONIC) && !defined(__APPLE__)
   NdbTick_clk_id = CLOCK_MONOTONIC;
+  if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
+    return;
+#elif defined(CLOCK_UPTIME_RAW) && defined(__APPLE__)
+  NdbTick_clk_id = CLOCK_UPTIME_RAW;
   if (clock_gettime(NdbTick_clk_id, &tick_time) == 0)
     return;
 #elif defined(CLOCK_HIGHRES)
@@ -126,6 +133,24 @@ bool NdbTick_IsMonotonic()
   return isMonotonic;
 }
 
+#ifndef _WIN32
+#ifndef HAVE_CLOCK_GETTIME
+#error clock_gettime is expected to be supported on non Windows
+#endif
+int
+NdbTick_GetMonotonicClockId(clockid_t* clk)
+{
+  require(clk != nullptr);
+  require(isInited);
+  if (!isMonotonic)
+  {
+    return -1;
+  }
+  *clk = NdbTick_clk_id;
+  return 0;
+}
+#endif
+
 const NDB_TICKS NdbTick_getCurrentTicks(void)
 {
   assert(isInited);
@@ -154,6 +179,9 @@ const NDB_TICKS NdbTick_getCurrentTicks(void)
 #endif
 #ifdef  CLOCK_HIGHRES
     fprintf(stderr, "CLOCK_HIGHRES=%u\n", CLOCK_HIGHRES);
+#endif
+#ifdef CLOCK_UPTIME_RAW
+    fprintf(stderr, "CLOCK_UPTIME_RAW=%u\n", CLOCK_UPTIME_RAW);
 #endif
     fprintf(stderr, "CLOCK_REALTIME=%u\n", CLOCK_REALTIME);
     fprintf(stderr, "NdbTick_clk_id = %u\n", NdbTick_clk_id);

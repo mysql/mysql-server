@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -171,6 +171,7 @@ TEST_F(Xcl_session_impl_tests_connect, connection_tcp_already_connected) {
 TEST_F(Xcl_session_impl_tests_connect, connect_nullptrs) {
   m_sut->set_mysql_option(xcl::XSession::Mysqlx_option::Authentication_method,
                           "MYSQL41");
+
   EXPECT_CALL(m_mock_connection_state, is_ssl_activated())
       .WillRepeatedly(Return(false));
   EXPECT_CALL(m_mock_connection_state, is_ssl_configured())
@@ -179,6 +180,7 @@ TEST_F(Xcl_session_impl_tests_connect, connect_nullptrs) {
       .WillOnce(Return(Connection_type::Tcp));
   EXPECT_CALL(*m_mock_protocol, add_send_message_handler(_, _, _));
   EXPECT_CALL(*m_mock_protocol, remove_send_message_handler(0));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering());
   EXPECT_CALL(m_mock_connection, set_read_timeout(_))
       .WillRepeatedly(Return(XError{}));
   EXPECT_CALL(m_mock_connection, set_write_timeout(_))
@@ -204,6 +206,7 @@ TEST_F(Xcl_session_impl_tests_connect, connect_nullptrs) {
 TEST_F(Xcl_session_impl_tests_connect, connect_localhost_nullptrs) {
   m_sut->set_mysql_option(xcl::XSession::Mysqlx_option::Authentication_method,
                           "MYSQL41");
+
   EXPECT_CALL(m_mock_connection_state, is_ssl_activated())
       .WillRepeatedly(Return(false));
   EXPECT_CALL(m_mock_connection_state, is_ssl_configured())
@@ -212,6 +215,7 @@ TEST_F(Xcl_session_impl_tests_connect, connect_localhost_nullptrs) {
       .WillOnce(Return(Connection_type::Unix_socket));
   EXPECT_CALL(*m_mock_protocol, add_send_message_handler(_, _, _));
   EXPECT_CALL(*m_mock_protocol, remove_send_message_handler(0));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering());
   EXPECT_CALL(m_mock_connection, set_read_timeout(_))
       .WillRepeatedly(Return(XError{}));
   EXPECT_CALL(m_mock_connection, set_write_timeout(_))
@@ -352,6 +356,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -376,6 +381,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   m_sut->set_capability(XSession::Capability_can_handle_expired_password, true);
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
@@ -396,6 +402,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
   EXPECT_CALL(*m_mock_protocol,
               execute_set_capability(Cmp_msg(m_cap_expired.get())))
       .WillOnce(Return(XError{expected_error_code, ""}));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   m_sut->set_capability(XSession::Capability_can_handle_expired_password, true);
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
@@ -418,6 +425,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{expected_error_code, ""}));
   EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -437,6 +445,7 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
   EXPECT_CALL(*m_mock_protocol,
               execute_set_capability(Cmp_msg(m_cap_connect_attrs.get())))
       .WillOnce(Return(XError{expected_error_code}));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   m_sut->set_capability(XSession::Capability_session_connect_attrs,
                         m_sut->get_connect_attrs());
@@ -460,6 +469,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -479,6 +489,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
   EXPECT_CALL(*m_mock_protocol,
               execute_set_capability(Cmp_msg(m_cap_set_tls.get())))
       .WillOnce(Return(XError{expected_error_code, ""}));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -500,6 +511,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
       .WillOnce(Return(XError{}));
   EXPECT_CALL(m_mock_connection, activate_tls())
       .WillOnce(Return(XError{expected_error_code, ""}));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -525,6 +537,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param, connect_plain_tls) {
                                    expected_schema, this->GetParam().m_auth))
       .WillOnce(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol, use_compression(Compression_algorithm::k_none));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
 
@@ -544,6 +557,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
   EXPECT_CALL(*m_mock_protocol,
               execute_set_capability(Cmp_msg(m_cap_expired.get())))
       .WillOnce(Return(XError{expected_error_code}));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   m_sut->set_capability(XSession::Capability_can_handle_expired_password, true);
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
@@ -564,6 +578,7 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
   EXPECT_CALL(*m_mock_protocol,
               execute_set_capability(Cmp_msg(m_cap_connect_attrs.get())))
       .WillOnce(Return(XError{expected_error_code}));
+  EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(0));
 
   m_sut->set_capability(XSession::Capability_session_connect_attrs,
                         m_sut->get_connect_attrs());
@@ -603,7 +618,7 @@ auto param_pack_builder_reauthenticate = [](const std::string &method) {
       Open_close_methods::start_connected, method};
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_connection_method, Xcl_session_impl_tests_connect_param,
     Values(param_pack_builder_connect("PLAIN"),
            param_pack_builder_connect_to_localhost("PLAIN"),
@@ -615,13 +630,13 @@ INSTANTIATE_TEST_CASE_P(
            param_pack_builder_connect_to_localhost("SHA256_MEMORY"),
            param_pack_builder_reauthenticate("SHA256_MEMORY")));
 
-INSTANTIATE_TEST_CASE_P(Instantiation_connection_method,
-                        Xcl_session_impl_tests_plain_connect_param,
-                        Values(param_pack_builder_connect("PLAIN"),
-                               param_pack_builder_connect_to_localhost("PLAIN"),
-                               param_pack_builder_reauthenticate("PLAIN")));
+INSTANTIATE_TEST_SUITE_P(
+    Instantiation_connection_method, Xcl_session_impl_tests_plain_connect_param,
+    Values(param_pack_builder_connect("PLAIN"),
+           param_pack_builder_connect_to_localhost("PLAIN"),
+           param_pack_builder_reauthenticate("PLAIN")));
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_connection_method,
     Xcl_session_impl_tests_challenge_response_connect_param,
     Values(param_pack_builder_connect("MYSQL41"),

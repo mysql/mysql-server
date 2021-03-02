@@ -237,7 +237,7 @@ TEST_F(PluginInfoAppTest, WrongNumberOfParams) {
 TEST_F(PluginInfoAppTest, NonExistingLibrary) {
   const char *plugin_name = "non_existing_plugin";
   std::string lib_path = get_plugin_file_path(plugin_name);
-  std::vector<std::string> args{lib_path.c_str(), plugin_name};
+  std::vector<std::string> args{lib_path, plugin_name};
   PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
                                      out_stream_);
 
@@ -249,15 +249,18 @@ TEST_F(PluginInfoAppTest, NonExistingLibrary) {
   EXPECT_EQ(out_stream_err_.str(), "");
 }
 
-// we use mysql_protocol which is an existing library but it's not a
-// plugin so should not have Plugin struct exported/defined
-TEST_F(PluginInfoAppTest, NonPluginExistingLibrary) {
+/**
+ * check if loading an existing library which doesn't export the plugin struct
+ * works.
+ *
+ * DISABLED as currently no just library exists in the plugin directory.
+ */
+TEST_F(PluginInfoAppTest, DISABLED_NonPluginExistingLibrary) {
   const char *plugin_name = "mysql_protocol";
   std::string lib_path = get_plugin_file_path(plugin_name);
 
-  std::vector<std::string> args{lib_path.c_str(), plugin_name};
-  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName, args,
-                                     out_stream_);
+  PluginInfoFrontend plugin_info_app(kPluginInfoAppExeFileName,
+                                     {lib_path, plugin_name}, out_stream_);
 
   const std::string expected_error = "Loading plugin information for ";
   EXPECT_THROW_LIKE(plugin_info_app.run(), FrontendError, expected_error);
@@ -305,6 +308,7 @@ const Plugin_data router_plugins[]{
                 "0.0.1", R"(
         "logger",
         "router_protobuf",
+        "router_openssl",
         "io"
     )",
                 ""},

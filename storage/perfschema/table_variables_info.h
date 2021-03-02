@@ -114,5 +114,4 @@ class table_variables_info : public PFS_engine_table {
   pos_t m_next_pos;
 };
 
-/** @} */
 #endif

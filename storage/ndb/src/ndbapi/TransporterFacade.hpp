@@ -237,6 +237,7 @@ public:
   /* TransporterCallback interface. */
   bool deliver_signal(SignalHeader * const header,
                       Uint8 prio,
+                      TransporterError &error_code,
                       Uint32 * const signalData,
                       LinearSectionPtr ptr[3]) override;
   void handleMissingClnt(const SignalHeader * header,

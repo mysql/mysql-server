@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -219,7 +219,7 @@ void Event_reader::assign(std::vector<uint8_t> *vector, size_t length) {
   }
   try {
     vector->assign(m_ptr, m_ptr + length);
-  } catch (const std::bad_alloc &e) {
+  } catch (const std::bad_alloc &) {
     vector->clear();
     set_error("std::bad_alloc");
   }

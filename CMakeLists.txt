@@ -569,6 +569,7 @@ INCLUDE(mysql_add_executable)
 INCLUDE(curl)
 INCLUDE(rapidjson)
 INCLUDE(fprofile)
+INCLUDE(gloves)
 
 
 IF(UNIX)
@@ -628,6 +629,13 @@ ENDIF()
 OPTION(WITH_AUTHENTICATION_LDAP
   "Report error if the LDAP authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_LDAP_DEFAULT})
+
+# On windows we need a non-standard package for CURL.
+IF(WITH_INTERNAL AND UNIX)
+  SET(WITH_CURL_DEFAULT "system")
+ELSE()
+  SET(WITH_CURL_DEFAULT "none")
+ENDIF()
 
 OPTION(WITH_LOCK_ORDER
   "Build the lock order mutex instrumentation code." OFF)
@@ -923,6 +931,19 @@ IF(LINUX_STANDALONE)
     ${COMPRESS_DEBUG_SECTIONS_DEFAULT})
 ELSE()
   SET(COMPRESS_DEBUG_SECTIONS OFF)
+ENDIF()
+
+# For aarch64 some sub-architectures support LSE atomics and some don't. Thus,
+# compiling for the common denominator (-march=armv8-a) means LSE is not used.
+# The -moutline-atomics switch enables run-time detection of LSE support.
+# There are compilers (gcc 9.3.1 for example) which support this switch, but
+# do not enable it by default, even though it seems to help. So, we force it.
+IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  MY_CHECK_CXX_COMPILER_FLAG( "-moutline-atomics" HAVE_OUTLINE_ATOMICS)
+  IF(HAVE_OUTLINE_ATOMICS)
+    STRING_APPEND(CMAKE_C_FLAGS   " -moutline-atomics")
+    STRING_APPEND(CMAKE_CXX_FLAGS " -moutline-atomics")
+  ENDIF()
 ENDIF()
 
 IF(LINUX)
@@ -1433,6 +1454,14 @@ ENDIF()
 # Try and set CURL_LIBRARY
 MYSQL_CHECK_CURL()
 MYSQL_CHECK_CURL_DLLS()
+SET(CURL_WARN_GIVEN)
+WARN_MISSING_SYSTEM_CURL(CURL_WARN_GIVEN)
+IF(CURL_WARN_GIVEN)
+  MESSAGE(FATAL_ERROR
+    "-DWITH_CURL=system, but missing system libraries.\n"
+    "You can disable CURL with -DWITH_CURL=0"
+    )
+ENDIF()
 # Add RapidJSON library.
 MYSQL_CHECK_RAPIDJSON()
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,9 +40,9 @@ extern "C" {
  */
 
 int is_file_or_dir_world_writable(const char *path) {
-  MY_STAT stat_info;
   (void)path;  // avoid unused param warning when built on Windows
 #ifndef _WIN32
+  MY_STAT stat_info;
   if (!my_stat(path, &stat_info, MYF(0))) {
     return (errno == EACCES) ? -2 : -1;
   }

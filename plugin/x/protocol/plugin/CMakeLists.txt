@@ -22,25 +22,19 @@
 
 DISABLE_MISSING_PROFILE_WARNING()
 
-SET(protoc_plugin_SRC
-  message_field_chain.cc
-  messages_used_by_server.cc
-  xprotocol_plugin.cc
-)
+INCLUDE(source_files.cmake)
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
 )
 
-ADD_COMPILE_FLAGS(${protoc_plugin_SRC}
+ADD_COMPILE_FLAGS(${PROTOC_PLUGIN_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
-MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
-
 MYSQL_ADD_EXECUTABLE(
   xprotocol_plugin
-  ${protoc_plugin_SRC}
+  ${PROTOC_PLUGIN_SRC}
   SKIP_INSTALL
 )
 

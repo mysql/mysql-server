@@ -567,12 +567,12 @@ DECLARE_METHOD(ulonglong, parse_iso8601_timestamp,
 
   @param[out]  my_errstream  an error log handle, or nullptr on failure
 
-  @retval LOG_SERVICE_SUCCESS                  success
-  @retval LOG_SERVICE_INVALID_ARGUMENT         no my_errstream, or bad log name
-  @retval LOG_SERVICE_OUT_OF_MEMORY            could not allocate file handle
-  @retval LOG_SERVICE_LOCK_ERROR               couldn't lock lock
-  @retval LOG_SERVICE_UNABLE_TO_WRITE          couldn't write to given location
-  @retval LOG_SERVICE_COULD_NOT_MAKE_LOG_NAME  could not make log name
+  @returns LOG_SERVICE_SUCCESS                  success
+  @returns LOG_SERVICE_INVALID_ARGUMENT         no my_errstream, or bad log name
+  @returns LOG_SERVICE_OUT_OF_MEMORY            could not allocate file handle
+  @returns LOG_SERVICE_LOCK_ERROR               couldn't lock lock
+  @returns LOG_SERVICE_UNABLE_TO_WRITE          couldn't write to given location
+  @returns LOG_SERVICE_COULD_NOT_MAKE_LOG_NAME  could not make log name
 */
 DECLARE_METHOD(log_service_error, open_errstream,
                (const char *name_or_ext, void **my_errstream));
@@ -584,8 +584,8 @@ DECLARE_METHOD(log_service_error, open_errstream,
   @param       buffer        pointer to the string to write
   @param       length        length of the string to write
 
-  @retval  LOG_SERVICE_SUCCESS                 success
-  @retval  otherwise                           failure
+  @returns  LOG_SERVICE_SUCCESS                 success
+  @returns  otherwise                           failure
 */
 DECLARE_METHOD(log_service_error, write_errstream,
                (void *my_errstream, const char *buffer, size_t length));
@@ -605,8 +605,8 @@ DECLARE_METHOD(int, dedicated_errstream, (void *my_errstream));
 
   @param       my_stream  a handle describing the log file
 
-  @retval     LOG_SERVICE_SUCCESS          success
-  @retval     otherwise                    failure
+  @returns     LOG_SERVICE_SUCCESS          success
+  @returns     otherwise                    failure
 */
 DECLARE_METHOD(log_service_error, close_errstream, (void **my_errstream));
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,7 +132,7 @@ NdbObjectIdMap::map(void * object)
   m_firstFree = m_map[ff].getNext();
   m_map[ff].setObj(object);
   
-  DBUG_PRINT("info",("NdbObjectIdMap::map(0x%lx) %u", (long) object, ff<<2));
+  DBUG_PRINT("info",("NdbObjectIdMap::map(%p) %u", object, ff<<2));
 
   return ff<<2;
 }
@@ -162,15 +162,15 @@ NdbObjectIdMap::unmap(Uint32 id, void *object)
     } 
     else 
     {
-      g_eventLogger->error("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
-                           id, (long) object, (long) obj);
-      DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, 0x%lx) obj=0x%lx",
-                          id, (long) object, (long) obj));
+      g_eventLogger->error("NdbObjectIdMap::unmap(%u, %p) obj=%p",
+                           id, object, obj);
+      DBUG_PRINT("error",("NdbObjectIdMap::unmap(%u, %p) obj=%p",
+                          id, object, obj));
       assert(false);
       return 0;
     }
     
-    DBUG_PRINT("info",("NdbObjectIdMap::unmap(%u) obj=0x%lx", id, (long) obj));
+    DBUG_PRINT("info",("NdbObjectIdMap::unmap(%u) obj=%p", id, obj));
     
     return obj;
   }

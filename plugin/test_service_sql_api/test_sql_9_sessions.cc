@@ -438,6 +438,7 @@ static void handle_error() {
 static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
                           void *p) {
   WRITE_VAL("%s\n", test_cmd);
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = (char *)test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
   fail = command_service_run_command(session, select_prot, COM_QUERY, &cmd,

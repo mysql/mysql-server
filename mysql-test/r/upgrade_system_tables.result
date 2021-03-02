@@ -1,0 +1,12 @@
+# Copy the 5.7 data zip file to working directory and check it exists.
+# Unzip 5.7 data directory.
+# Set data directory and log file
+# Restart server to trigger upgrade.
+# Upgrade of help tables should succeed.
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG
+# Check for errors in the error log.
+Pattern "\[ERROR\]" not found
+# Check for mysql_upgrade_info file in data directory.
+# Cleanup.
+# Restart the server with default options.
+# restart

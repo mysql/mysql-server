@@ -106,8 +106,8 @@ DROP TABLE t2;
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --exclude-tables=ndb_ddl_test.t1,ndb_ddl_test.t2,ndb_ddl_test.t3,ndb_ddl_test.t4,ndb_ddl_test.t5 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 # Drop tables from NDB only to cause mismatch
---exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test4 t1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test5 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d ndb_ddl_test4 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d ndb_ddl_test5 t1 >> $NDB_TOOLS_OUTPUT
 
 # Wait until the changes have been synced
 --let $max_wait = 60
@@ -326,6 +326,13 @@ INSERT INTO child VALUES (1,1),(2,2);
 --source include/ndb_backup.inc
 
 DROP TABLE t1,child,parent;
+
+# Suppress expected errors
+--disable_query_log
+call mtr.add_suppression("Metadata check has failed");
+call mtr.add_suppression("The NDB Dictionary table definition is not identical to the DD table definition");
+call mtr.add_suppression("Diff in 'index_count'");
+--enable_query_log
 
 --echo Restore with --disable-indexes
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT

@@ -30,8 +30,12 @@
 
 #include "common.h"  // rename_thread
 #include "mysql/harness/logging/logging.h"
-#include "mysql/harness/net_ts/impl/resolver.h"
+#include "mysql/harness/net_ts/impl/poll.h"
 #include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/destination.h"
 
@@ -110,7 +114,7 @@ Destinations DestRoundRobin::destinations() {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<QuanrantinableDestination>(
-          dest.str(), dest.addr, dest.port, this, n));
+          dest.str(), dest.address(), dest.port(), this, n));
     }
 
     // from begin to before-last
@@ -121,7 +125,7 @@ Destinations DestRoundRobin::destinations() {
       auto const &dest = *cur;
 
       dests.push_back(std::make_unique<QuanrantinableDestination>(
-          dest.str(), dest.addr, dest.port, this, n));
+          dest.str(), dest.address(), dest.port(), this, n));
     }
 
     if (++start_pos_ >= sz) start_pos_ = 0;
@@ -156,47 +160,53 @@ void DestRoundRobin::add_to_quarantine(const size_t index) noexcept {
 }
 
 static stdx::expected<void, std::error_code> tcp_port_alive(
-    mysql_harness::SocketOperationsBase *so, const std::string &host,
-    uint16_t port, std::chrono::milliseconds connect_timeout) {
-  const auto resolve_res =
-      so->getaddrinfo(host.c_str(), std::to_string(port).c_str(), nullptr);
+    net::io_context &io_ctx, const std::string &host, uint16_t port,
+    std::chrono::milliseconds connect_timeout) {
+  net::ip::tcp::resolver resolver(io_ctx);
+
+  const auto resolve_res = resolver.resolve(host, std::to_string(port));
   if (!resolve_res) {
-    return stdx::make_unexpected(resolve_res.error());
+    return resolve_res.get_unexpected();
   }
 
   std::error_code last_ec{};
 
   // try all known addresses of the hostname
-  for (auto const *ai = resolve_res.value().get(); ai != nullptr;
-       ai = ai->ai_next) {
-    const auto socket_res = so->socket(ai->ai_family, ai->ai_socktype, 0);
-    if (!socket_res) {
-      return stdx::make_unexpected(socket_res.error());
+  for (auto const &resolved : resolve_res.value()) {
+    net::ip::tcp::socket sock(io_ctx);
+
+    auto open_res = sock.open(resolved.endpoint().protocol());
+    if (!open_res) {
+      return open_res.get_unexpected();
     }
 
-    const auto sock = socket_res.value();
+    sock.native_non_blocking(true);
+    const auto connect_res = sock.connect(resolved.endpoint());
 
-    so->set_socket_blocking(sock, false);
-
-    const auto connect_res = so->connect(sock, ai->ai_addr, ai->ai_addrlen);
     if (!connect_res) {
       if (connect_res.error() ==
               make_error_condition(std::errc::operation_in_progress) ||
           connect_res.error() ==
               make_error_condition(std::errc::operation_would_block)) {
-        const auto wait_res =
-            so->connect_non_blocking_wait(sock, connect_timeout);
+        std::array<pollfd, 1> pollfds = {{
+            {sock.native_handle(), POLLOUT, 0},
+        }};
+
+        const auto wait_res = net::impl::poll::poll(
+            pollfds.data(), pollfds.size(), connect_timeout);
 
         if (!wait_res) {
           last_ec = wait_res.error();
         } else {
-          const auto status_res = so->connect_non_blocking_status(sock);
-          if (status_res) {
-            // success, we can continue
-            so->close(sock);
-            return {};
-          } else {
+          net::socket_base::error err;
+          const auto status_res = sock.get_option(err);
+          if (!status_res) {
             last_ec = status_res.error();
+          } else if (err.value() != 0) {
+            last_ec = net::impl::socket::make_error_code(err.value());
+          } else {
+            // success, we can continue
+            return {};
           }
         }
       } else {
@@ -204,12 +214,10 @@ static stdx::expected<void, std::error_code> tcp_port_alive(
       }
     } else {
       // everything is fine, we are connected
-      so->close(sock);
       return {};
     }
 
     // it failed, try the next address
-    so->close(sock);
   }
 
   return stdx::make_unexpected(last_ec);
@@ -247,7 +255,7 @@ void DestRoundRobin::cleanup_quarantine() noexcept {
     }
 
     const auto addr = destinations_.at(ndx);
-    const auto sock_res = tcp_port_alive(sock_ops_, addr.addr, addr.port,
+    const auto sock_res = tcp_port_alive(io_ctx_, addr.address(), addr.port(),
                                          kQuarantinedConnectTimeout);
 
     if (sock_res) {

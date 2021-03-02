@@ -34,10 +34,12 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
+
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
-#include "psi_base.h"
 
 /*
   MAINTAINER:

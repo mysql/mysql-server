@@ -222,6 +222,7 @@ int table_mems_by_thread_by_event_name::make_row(PFS_thread *thread,
     return HA_ERR_RECORD_DELETED;
   }
 
+  visitor.m_stat.normalize(false);
   m_row.m_stat.set(&visitor.m_stat);
 
   return 0;

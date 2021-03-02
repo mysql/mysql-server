@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,16 +22,21 @@
 
 #include "sql/hash_join_chunk.h"
 
-#include <cstring>
+#include <stddef.h>
+#include <new>
+#include <utility>
 
-#include "my_base.h"
-#include "my_dbug.h"
+#include "my_inttypes.h"
 #include "my_sys.h"
-#include "scope_guard.h"
+#include "mysqld_error.h"
 #include "sql/hash_join_buffer.h"
 #include "sql/mysqld.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
+#include "sql_string.h"
+#include "template_utils.h"
+
+using pack_rows::TableCollection;
 
 HashJoinChunk::HashJoinChunk(HashJoinChunk &&other)
     : m_tables(std::move(other.m_tables)),
@@ -63,12 +68,12 @@ HashJoinChunk &HashJoinChunk::operator=(HashJoinChunk &&other) {
 
 HashJoinChunk::~HashJoinChunk() { close_cached_file(&m_file); }
 
-bool HashJoinChunk::Init(const hash_join_buffer::TableCollection &tables,
-                         bool uses_match_flags) {
+bool HashJoinChunk::Init(const TableCollection &tables, bool uses_match_flags) {
   m_tables = tables;
   m_file.file_key = key_file_hash_join;
   m_num_rows = 0;
   m_uses_match_flags = uses_match_flags;
+  close_cached_file(&m_file);
   return open_cached_file(&m_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                           MYF(MY_WME));
 }
@@ -84,7 +89,7 @@ bool HashJoinChunk::Rewind() {
 }
 
 bool HashJoinChunk::WriteRowToChunk(String *buffer, bool matched) {
-  if (hash_join_buffer::StoreFromTableBuffers(m_tables, buffer)) {
+  if (StoreFromTableBuffers(m_tables, buffer)) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              ComputeRowSizeUpperBound(m_tables));
     return true;
@@ -146,7 +151,7 @@ bool HashJoinChunk::LoadRowFromChunk(String *buffer, bool *matched) {
     return true;
   }
 
-  hash_join_buffer::LoadIntoTableBuffers(
+  hash_join_buffer::LoadBufferRowIntoTableBuffers(
       m_tables, {pointer_cast<const uchar *>(buffer->ptr()), buffer->length()});
 
   return false;

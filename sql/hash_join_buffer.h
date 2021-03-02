@@ -54,12 +54,6 @@
 /// buffer. As such, we will probably use a little bit more memory than
 /// specified by join_buffer_size.
 ///
-/// Some basic profiling shows that the majority of the time is used on
-/// constructing the hash table. It would be a future improvement to replace
-/// std::unordered_multimap with a more performant hash table, as the literature
-/// suggests that there are better alternatives (see e.g.
-/// https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable/).
-///
 /// The primary use case for these classes is, as the name implies,
 /// for implementing hash join.
 
@@ -68,14 +62,16 @@
 #include <memory>
 #include <vector>
 
-#include "extra/lz4/my_xxhash.h"
+#include "extra/robin-hood-hashing/robin_hood.h"
 #include "field_types.h"
 #include "map_helpers.h"
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "prealloced_array.h"
+#include "sql/immutable_string.h"
 #include "sql/item_cmpfunc.h"
+#include "sql/pack_rows.h"
 #include "sql/table.h"
 #include "sql_string.h"
 
@@ -83,91 +79,6 @@ class Field;
 class QEP_TAB;
 
 namespace hash_join_buffer {
-
-/// A class that represents a field, which also holds a cached value of the
-/// field's data type.
-struct Column {
-  explicit Column(Field *field);
-  Field *const field;
-
-  // The field type is used frequently, and caching it gains around 30% in some
-  // of our microbenchmarks.
-  const enum_field_types field_type;
-};
-
-/// This struct is primarily used for holding the extracted columns in a hash
-/// join. When the hash join iterator is constructed, we extract the columns
-/// that are needed to satisfy the SQL query.
-struct Table {
-  explicit Table(TABLE *tab);
-  TABLE *table;
-  Prealloced_array<Column, 8> columns;
-
-  // Whether to copy the NULL flags or not.
-  bool copy_null_flags{false};
-};
-
-/// A structure that contains a list of tables for the hash join operation,
-/// and some pre-computed properties for the tables.
-class TableCollection {
- public:
-  TableCollection() = default;
-
-  TableCollection(const JOIN *join, table_map tables, bool store_rowids,
-                  table_map tables_to_get_rowid_for);
-
-  const Prealloced_array<Table, 4> &tables() const { return m_tables; }
-
-  table_map tables_bitmap() const { return m_tables_bitmap; }
-
-  size_t ref_and_null_bytes_size() const { return m_ref_and_null_bytes_size; }
-
-  bool has_blob_column() const { return m_has_blob_column; }
-
-  bool store_rowids() const { return m_store_rowids; }
-
-  table_map tables_to_get_rowid_for() const {
-    return m_tables_to_get_rowid_for;
-  }
-
- private:
-  void AddTable(TABLE *tab);
-
-  Prealloced_array<Table, 4> m_tables{PSI_NOT_INSTRUMENTED};
-
-  // We frequently use the bitmap to determine which side of the join an Item
-  // belongs to, so precomputing the bitmap saves quite some time.
-  table_map m_tables_bitmap = 0;
-
-  // Sum of the NULL bytes and the row ID for all of the tables.
-  size_t m_ref_and_null_bytes_size = 0;
-
-  // Whether any of the tables has a BLOB/TEXT column. This is used to determine
-  // whether we need to estimate the row size every time we store a row to the
-  // row buffer or to a chunk file on disk. If this is set to false, we can
-  // pre-allocate any necessary buffers we need during the hash join, and thus
-  // eliminate the need for recalculating the row size every time.
-  bool m_has_blob_column = false;
-
-  bool m_store_rowids = false;
-  table_map m_tables_to_get_rowid_for = 0;
-};
-
-/// Count up how many bytes a single row from the given tables will occupy,
-/// in "packed" format. Note that this is an upper bound, so the length after
-/// calling Field::pack may very well be shorter than the size returned by this
-/// function.
-///
-/// The value returned from this function will sum up
-/// 1) The row-id if that is to be kept.
-/// 2) Size of the NULL flags.
-/// 3) Size of the buffer returned by pack() on all columns marked in the
-///    read_set.
-///
-/// Note that if any of the tables has a BLOB/TEXT column, this function looks
-/// at the data stored in the record buffers. This means that the function can
-/// not be called before reading any rows if tables.has_blob_column is true.
-size_t ComputeRowSizeUpperBound(const TableCollection &tables);
 
 /// The key type for the hash structure in HashJoinRowBuffer.
 ///
@@ -221,57 +132,64 @@ class Key {
   const size_t m_size;
 };
 
+class KeyEquals {
+ public:
+  // This is a marker from C++17 that signals to the container that
+  // operator() can be called with arguments of which one of the types
+  // differs from the container's key type (ImmutableStringWithLength),
+  // and thus enables map.find(Key). The type itself does not matter.
+  using is_transparent = void;
+
+  bool operator()(const Key &str1,
+                  const ImmutableStringWithLength &other) const {
+    ImmutableStringWithLength::Decoded str2 = other.Decode();
+    if (str1.size() != str2.size) {
+      return false;
+    } else if (str1.size() == 0) {
+      return true;
+    } else {
+      return memcmp(str1.data(), str2.data, str1.size()) == 0;
+    }
+  }
+
+  bool operator()(const ImmutableStringWithLength &str1,
+                  const ImmutableStringWithLength &str2) const {
+    return str1 == str2;
+  }
+};
+
 // A row in the hash join buffer is generally the same as the Key class. In
 // C++17, both of them should most likely be replaced with std::string_view. For
 // now, we create an alias to distinguish between Key and a row.
 using BufferRow = Key;
 
-/// We rely on xxHash64 to do the hashing of the key. xxHash64 was chosen as it
-/// both is very fast _and_ produces reasonably good-quality hashes
-/// (see https://github.com/rurban/smhasher).
 class KeyHasher {
  public:
-  explicit KeyHasher(uint32_t seed) : m_seed(seed) {}
+  // This is a marker from C++17 that signals to the container that
+  // operator() can be called with an argument that differs from the
+  // container's key type (ImmutableStringWithLength), and thus enables
+  // map.find(Key). The type itself does not matter.
+  using is_transparent = void;
 
   size_t operator()(hash_join_buffer::Key key) const {
-    if (key.size() == 0) return kZeroKeyLengthHash;
-    return MY_XXH64(key.data(), key.size(), m_seed);
+    return robin_hood::hash_bytes(key.data(), key.size());
   }
 
- private:
-  // An arbitrary hash value for the empty string, to avoid the hash function
-  // from doing arithmetic on nullptr, which is undefined behavior.
-  static constexpr size_t kZeroKeyLengthHash = 2669509769;
-  const uint32_t m_seed;
+  size_t operator()(ImmutableStringWithLength key) const {
+    ImmutableStringWithLength::Decoded decoded = key.Decode();
+    return robin_hood::hash_bytes(decoded.data, decoded.size);
+  }
 };
 
-/// Take the data marked for reading in "tables" and store it in the provided
-/// buffer. What data to store is determined by the read set of each table.
-/// Note that any existing data in "buffer" will be overwritten.
-///
-/// The output buffer will contain three things:
-///
-/// 1) NULL flags for each nullable column.
-/// 2) The row ID for each row. This is only stored if QEP_TAB::rowid_status !=
-///    NO_ROWID_NEEDED.
-/// 3) The actual data from the columns.
-///
-/// @retval true if error, false otherwise
-bool StoreFromTableBuffers(const TableCollection &tables, String *buffer);
+// A convenience form of LoadIntoTableBuffers() that also verifies the end
+// pointer for us.
+void LoadBufferRowIntoTableBuffers(const pack_rows::TableCollection &tables,
+                                   BufferRow row);
 
-/// Take the data in "ptr" and put it back to the tables' record buffers.
-/// The tables must be _exactly_ the same as when the row was created.
-/// That is, it must contain the same tables in the same order, and the read set
-/// of each table must be identical when storing and restoring the row.
-/// If that's not the case, you will end up with undefined and unpredictable
-/// behavior.
-///
-/// Returns a pointer to where we ended reading.
-const uchar *LoadIntoTableBuffers(const TableCollection &tables,
-                                  const uchar *ptr);
-
-// A convenience form of the above that also verifies the end pointer for us.
-void LoadIntoTableBuffers(const TableCollection &tables, BufferRow row);
+// A convenience form of the above that also decodes the LinkedImmutableString
+// for us.
+void LoadImmutableStringIntoTableBuffers(
+    const pack_rows::TableCollection &tables, LinkedImmutableString row);
 
 enum class StoreRowResult { ROW_STORED, BUFFER_FULL, FATAL_ERROR };
 
@@ -279,14 +197,14 @@ class HashJoinRowBuffer {
  public:
   // Construct the buffer. Note that Init() must be called before the buffer can
   // be used.
-  HashJoinRowBuffer(TableCollection tables,
+  HashJoinRowBuffer(pack_rows::TableCollection tables,
                     std::vector<HashJoinCondition> join_conditions,
                     size_t max_mem_available_bytes);
 
   // Initialize the HashJoinRowBuffer so it is ready to store rows. This
   // function can be called multiple times; subsequent calls will only clear the
   // buffer for existing rows.
-  bool Init(uint32_t hash_seed);
+  bool Init();
 
   /// Store the row that is currently lying in the tables record buffers.
   /// The hash map key is extracted from the join conditions that the row buffer
@@ -310,14 +228,10 @@ class HashJoinRowBuffer {
 
   bool empty() const { return m_hash_map->empty(); }
 
-  using hash_map_type = mem_root_unordered_multimap<Key, BufferRow, KeyHasher>;
+  using hash_map_type = robin_hood::unordered_flat_map<
+      ImmutableStringWithLength, LinkedImmutableString, KeyHasher, KeyEquals>;
 
   using hash_map_iterator = hash_map_type::const_iterator;
-
-  std::pair<hash_map_iterator, hash_map_iterator> equal_range(
-      const Key &key) const {
-    return m_hash_map->equal_range(key);
-  }
 
   hash_map_iterator find(const Key &key) const { return m_hash_map->find(key); }
 
@@ -325,7 +239,7 @@ class HashJoinRowBuffer {
 
   hash_map_iterator end() const { return m_hash_map->end(); }
 
-  hash_map_iterator LastRowStored() const {
+  LinkedImmutableString LastRowStored() const {
     DBUG_ASSERT(Initialized());
     return m_last_row_stored;
   }
@@ -339,28 +253,47 @@ class HashJoinRowBuffer {
 
   // A row can consist of parts from different tables. This structure tells us
   // which tables that are involved.
-  const TableCollection m_tables;
+  const pack_rows::TableCollection m_tables;
 
-  // The MEM_ROOT on which all of the hash table data is allocated.
+  // The MEM_ROOT on which all of the hash table keys and values are allocated.
+  // The actual hash map is on the regular heap.
   MEM_ROOT m_mem_root;
 
+  // A MEM_ROOT used only for storing the final row (possibly both key and
+  // value). The code assumes fairly deeply that inserting a row never fails, so
+  // when m_mem_root goes full (we set a capacity on it to ensure that the last
+  // allocated block does not get too big), we allocate the very last row on
+  // this MEM_ROOT and the signal fullness so that we can start spilling to
+  // disk.
+  MEM_ROOT m_overflow_mem_root;
+
   // The hash table where the rows are stored.
-  unique_ptr_destroy_only<hash_map_type> m_hash_map;
+  std::unique_ptr<hash_map_type> m_hash_map;
 
   // A buffer we can use when we are constructing a join key from a join
   // condition. In order to avoid reallocating memory, the buffer never shrinks.
   String m_buffer;
+  size_t m_row_size_upper_bound;
 
   // The maximum size of the buffer, given in bytes.
   const size_t m_max_mem_available;
 
-  // The last row that was stored in the hash table, or end() if the hash table
-  // is empty. We may have to put this row back into the tables' record buffers
-  // if we have a child iterator that expects the record buffers to contain the
-  // last row returned by the storage engine (the probe phase of hash join may
-  // put any row in the hash table in the tables' record buffer). See
-  // HashJoinIterator::BuildHashTable() for an example of this.
-  hash_map_iterator m_last_row_stored;
+  // The last row that was stored in the hash table, or nullptr if the hash
+  // table is empty. We may have to put this row back into the tables' record
+  // buffers if we have a child iterator that expects the record buffers to
+  // contain the last row returned by the storage engine (the probe phase of
+  // hash join may put any row in the hash table in the tables' record buffer).
+  // See HashJoinIterator::BuildHashTable() for an example of this.
+  LinkedImmutableString m_last_row_stored{nullptr};
+
+  // Fetch the relevant fields from each table, and pack them into m_mem_root
+  // as a LinkedImmutableString where the “next” pointer points to “next_ptr”.
+  // If that does not work (capacity reached), pack into m_overflow_mem_root
+  // instead and set “full” to true. If _that_ does not work (fatally out
+  // of memory), returns nullptr. Otherwise, returns a pointer to the newly
+  // packed string.
+  LinkedImmutableString StoreLinkedImmutableStringFromTableBuffers(
+      LinkedImmutableString next_ptr, bool *full);
 };
 
 }  // namespace hash_join_buffer

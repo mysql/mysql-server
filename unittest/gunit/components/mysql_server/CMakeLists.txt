@@ -88,6 +88,22 @@ IF(WIN32)
   COPY_DLL_FOR_UNITTEST("${OPENSSL_NAME}")
 ENDIF()
 
+MYSQL_ADD_EXECUTABLE(reference_cache-t
+  reference_cache-t.cc
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
+  ADD_TEST reference_cache-t
+)
+SET_TARGET_PROPERTIES(reference_cache-t PROPERTIES ENABLE_EXPORTS TRUE)
+TARGET_LINK_LIBRARIES(reference_cache-t
+  ${GTEST_LIBRARIES} ${CMAKE_DL_LIBS}
+  mysql_server_component_services sql_main minchassis unit_test_common)
+IF(WIN32)
+  TARGET_LINK_LIBRARIES(reference_cache-t my_nt_servc)
+ENDIF()
+ADD_DEPENDENCIES(reference_cache-t component_reference_cache
+  component_test_reference_cache)
+
+
 MYSQL_ADD_COMPONENT(self_required_test_component
   self_required_test_component.cc
   MODULE_ONLY
@@ -100,6 +116,11 @@ MYSQL_ADD_COMPONENT(cyclic_dependency_test_component_1
   )
 MYSQL_ADD_COMPONENT(cyclic_dependency_test_component_2
   cyclic_dependency_test_component_2.cc
+  MODULE_ONLY
+  SKIP_INSTALL
+  )
+MYSQL_ADD_COMPONENT(test_reference_cache
+  test_reference_cache.cc
   MODULE_ONLY
   SKIP_INSTALL
   )

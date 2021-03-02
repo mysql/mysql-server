@@ -1,6 +1,7 @@
 # Stariting the server with an --init-file which does shutdown does
 # not appear to be working on windows
 --source include/not_windows.inc
+--source include/not_hypergraph.inc  # Test gets confused by different logging.
 
 --echo #
 --echo # Testing wl#10441: Add mysqld_safe-functionality to server
@@ -9,6 +10,7 @@
 let $MYSQLD_SOCKET= `SELECT @@socket`;
 let $MYSQLD_PORT= `SELECT @@port`;
 let $MTR_DATADIR= `SELECT @@datadir`;
+let $PLUGIN_DIR= `SELECT @@plugin_dir`;
 
 --echo # Shutdown mysqld which is started by mtr.
 --let $_server_id= `SELECT @@server_id`
@@ -25,10 +27,10 @@ let SHUTDOWN_SQL= $MYSQL_TMP_DIR/shutdown.sql;
 # Need to save this as PWD env var is overriden when invoking perl
 let BDIR= $PWD;
 
-let DEFARGS= --no-defaults --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --datadir=$DDIR --skip-mysqlx;
+let DEFARGS= --no-defaults --plugin-dir=$PLUGIN_DIR --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --datadir=$DDIR --skip-mysqlx;
 
 let INIT_FILE_ARGS= $DEFARGS --log-error=$MYSQLD_LOG --init-file=$SHUTDOWN_SQL;
-let INIT_FILE_ARGS_D= --no-defaults --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT  --skip-mysqlx --skip-ssl --secure-file-priv="" --datadir=$MTR_DATADIR -D --log-error=$MYSQLD_LOG;
+let INIT_FILE_ARGS_D= --no-defaults --plugin-dir=$PLUGIN_DIR --innodb_dedicated_server=OFF --explicit_defaults_for_timestamp --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT  --skip-mysqlx --skip-ssl --secure-file-priv="" --datadir=$MTR_DATADIR -D --log-error=$MYSQLD_LOG;
 
 write_file $SHUTDOWN_SQL;
   SHUTDOWN;
@@ -115,7 +117,7 @@ EOF
 
 --echo #
 --echo # Try invalid --log-error
---error 1
+--error 1,2
 --exec $MYSQLD $DEFARGS --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
 
 --echo # Look for expected error in output:
@@ -142,7 +144,7 @@ EOF
 
 --echo #
 --echo # Try -D as shortcut for --daemonize option with invalid --log-error
---error 1
+--error 1,2
 --exec $MYSQLD $DEFARGS -D --log-error=$MYSQL_TMP_DIR/no_such_dir/bad_err_log.err >$MYSQLD_OUT 2>&1
 
 --echo # Look for expected errors in output from launcher and daemon:

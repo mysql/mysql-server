@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,11 @@ int runScanAll(NDBT_Context* ctx, NDBT_Step* step)
     ndbout << "table("<<tableId<<"): " << table->getName() << endl;
 
     int last_rows = 0;
-    bool rows_may_increase = (strstr(table->getName(), "cpustat_") != nullptr);
+    bool rows_may_increase1 =
+      (strstr(table->getName(), "cpustat_") != nullptr);
+    bool rows_may_increase2 =
+      (strstr(table->getName(), "cpudata_") != nullptr);
+    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2);
     for (int l = 0; l < ctx->getNumLoops(); l++)
     {
       if (ctx->isTestStopped())
@@ -309,7 +313,11 @@ int runRatelimit(NDBT_Context* ctx, NDBT_Step* step)
     };
 
     int lastRows = 0;
-    bool rows_may_increase = (strstr(table->getName(), "cpustat_") != nullptr);
+    bool rows_may_increase1 =
+      (strstr(table->getName(), "cpustat_") != nullptr);
+    bool rows_may_increase2 =
+      (strstr(table->getName(), "cpudata_") != nullptr);
+    bool rows_may_increase = (rows_may_increase1 || rows_may_increase2);
     for (int l = 0; l < (int)(sizeof(limits)/sizeof(limits[0])); l++)
     {
 

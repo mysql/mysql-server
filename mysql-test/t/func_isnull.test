@@ -88,6 +88,7 @@ let $query=
 select * from t3, t1 where t1.col_date_key is null;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # disabled in [LEFT] JOIN ON
@@ -95,12 +96,14 @@ let $query=
 select * from t3 join t1 on t1.col_date_key is null;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 let $query=
 select * from t3 left join t1 on t1.col_date_key is null;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # Combine both:
@@ -109,6 +112,7 @@ select * from t3 left join t1 on t1.col_date_key is null
 where t1.col_date_key is null;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # disabled in IS NOT NULL
@@ -116,6 +120,7 @@ let $query=
 select * from t3, t1 where t1.col_date_key is not null;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # disabled in NOT (IS NULL)
@@ -123,6 +128,7 @@ let $query=
 select * from t3, t1 where not (t1.col_date_key is null);
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # enabled in (IS NULL) IS TRUE
@@ -130,6 +136,7 @@ let $query=
 select * from t3, t1 where (t1.col_date_key is null) is true;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1,t2,t3;

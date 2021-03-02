@@ -1,6 +1,7 @@
 # Check that non-utf8 characters are ok
 
 --source include/have_optimizer_trace.inc
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
 
 # --ps-protocol gives different trace where view
 # has already been materialized

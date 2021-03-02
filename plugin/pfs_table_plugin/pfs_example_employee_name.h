@@ -33,6 +33,9 @@ extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
 /* Global share pointer for pfs_example_employee_name table */
 extern PFS_engine_table_share_proxy ename_st_share;
 
+/* Number of characters * max multibyte length */
+#define EMPLOYEE_NAME_LEN 20 * 4
+
 /* Maximum number of rows in the table */
 #define EMPLOYEEE_NAME_MAX_ROWS 100
 
@@ -47,9 +50,9 @@ extern mysql_mutex_t LOCK_ename_records_array;
 struct Ename_Record {
  public:
   PSI_int e_number;
-  char f_name[20];
+  char f_name[EMPLOYEE_NAME_LEN];
   unsigned int f_name_length;
-  char l_name[20];
+  char l_name[EMPLOYEE_NAME_LEN];
   unsigned int l_name_length;
 
   /* If there is a value in this row */
@@ -110,7 +113,7 @@ class Ename_index_by_emp_num : public Ename_index {
 class Ename_index_by_emp_fname : public Ename_index {
  public:
   PSI_plugin_key_string m_emp_fname;
-  char m_emp_fname_buffer[20];
+  char m_emp_fname_buffer[EMPLOYEE_NAME_LEN];
 
   bool match(Ename_Record *record) override {
     return table_svc->match_key_string(false, record->f_name,

@@ -1,3 +1,4 @@
+call mtr.add_suppression("Error in diagnostics area: MY-001317 - Query execution was interrupted");
 CREATE SCHEMA sakila;
 USE sakila;
 CREATE TABLE inventory (
@@ -35,13 +36,14 @@ RUN KILL $ID
 switched to session second
 Table	Op	Msg_type	Msg_text
 sakila.inventory	optimize	note	Table does not support optimize, doing recreate + analyze instead
-sakila.inventory	optimize	error	Query execution was interrupted
 sakila.inventory	optimize	status	Operation failed
 0 rows affected
+[ASSERT notice warning - ERROR, 3169]
 RUN SELECT 1
 While executing SELECT 1:
-Got expected error: Query execution was interrupted (code 1317)
-aborting session second
+Got expected error: MySQL server has gone away (code 2006)
+Server disconnected
+closing session second
 switched to session default
 RUN COMMIT
 
@@ -66,8 +68,9 @@ RUN KILL $ID
 
 0 rows affected
 switched to session second
-Got expected error (one of: 0 1317 )
-aborting session second
+[ASSERT notice warning - ERROR, 3169]
+Server disconnected
+closing session second
 switched to session default
 RUN COMMIT
 

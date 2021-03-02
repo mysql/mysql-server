@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1376,7 +1376,14 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
   }
 
   theNdbCon->theScanningOp = this;
-  bool tupScan = (scan_flags & SF_TupScan);
+  // The number of acc-scans are limited therefore use tup-scans instead.
+  bool tupScan = (scan_flags & SF_TupScan) || true;
+#if defined(VM_TRACE)
+  if (theNdb->theImpl->forceAccTableScans)
+  {
+    tupScan = false;
+  }
+#endif
 
 #if 0 // XXX temp for testing
   { char* p = getenv("NDB_USE_TUPSCAN");

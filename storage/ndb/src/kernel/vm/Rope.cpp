@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -346,7 +346,7 @@ int main(int argc, char ** argv) {
   printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
   assert(! strncmp(a_string + offset - nread, buffer_sml, nread));
   /* All done: */
-  assert(offset = cr1.size());
+  assert(offset == cr1.size());
   /* Read once more; should return 0: */
   nread = cr1.readBuffered(buffer_sml, 32, offset);
   assert(nread == 0);

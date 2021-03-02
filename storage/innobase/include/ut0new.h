@@ -137,8 +137,8 @@ InnoDB:
 #include <unordered_set>
 
 #include "my_basename.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_memory.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 
 #include "os0proc.h"
@@ -177,6 +177,7 @@ extern PSI_memory_key mem_key_clone;
 extern PSI_memory_key mem_key_dict_stats_bg_recalc_pool_t;
 extern PSI_memory_key mem_key_dict_stats_index_map_t;
 extern PSI_memory_key mem_key_dict_stats_n_diff_on_level;
+extern PSI_memory_key mem_key_fil_space_t;
 extern PSI_memory_key mem_key_redo_log_archive_queue_element;
 extern PSI_memory_key mem_key_other;
 extern PSI_memory_key mem_key_partitioning;

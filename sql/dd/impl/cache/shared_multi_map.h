@@ -28,14 +28,14 @@
 
 #include "my_compiler.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_thread.h"  // mysql_mutex_t, mysql_cond_t
-#include "mysql/psi/psi_base.h"
+#include "mysql/psi/mysql_thread.h"
 #include "sql/dd/cache/multi_map_base.h"      // Multi_map_base
 #include "sql/dd/impl/cache/cache_element.h"  // Cache_element
 #include "sql/dd/impl/cache/free_list.h"      // Free_list

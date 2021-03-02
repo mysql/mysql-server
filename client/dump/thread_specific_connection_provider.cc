@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,11 @@ Thread_specific_connection_provider::get_runner(
     */
     runner->run_query("SET TIME_ZONE='+00:00'");
 
-    std::lock_guard<std::mutex> lock(mu);
-    m_runners[std::this_thread::get_id()] = runner;
+    {
+      std::lock_guard<std::mutex> lock(mu);
+      assert(m_runners[std::this_thread::get_id()] == nullptr);
+      m_runners[std::this_thread::get_id()] = runner;
+    }
   }
   // Deliver copy of original runner.
   return new Mysql::Tools::Base::Mysql_query_runner(*runner);
@@ -61,7 +64,10 @@ Thread_specific_connection_provider::Thread_specific_connection_provider(
     : Abstract_connection_provider(connection_factory) {}
 
 Thread_specific_connection_provider::~Thread_specific_connection_provider() {
-  for (const auto &id_and_runner : m_runners) {
-    delete id_and_runner.second;
+  {
+    std::lock_guard<std::mutex> lock(mu);
+    for (const auto &id_and_runner : m_runners) {
+      delete id_and_runner.second;
+    }
   }
 }

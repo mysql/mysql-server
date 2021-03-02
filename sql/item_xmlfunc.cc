@@ -2211,7 +2211,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
 #ifndef DBUG_OFF
       if (splocal) splocal->m_sp = lex->sphead;
 #endif
-      xpath->item = down_cast<Item *>(splocal);
+      xpath->item = splocal;
     } else {
       xpath->item = nullptr;
       DBUG_ASSERT(xpath->query.end > dollar_pos);
