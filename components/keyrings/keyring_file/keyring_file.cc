@@ -233,6 +233,8 @@ static mysql_service_status_t keyring_file_deinit() {
   g_keyring_file_inited = false;
   if (g_component_path) free(g_component_path);
   g_component_path = nullptr;
+  if (g_instance_path) free(g_instance_path);
+  g_instance_path = nullptr;
 
   if (g_keyring_operations != nullptr) delete g_keyring_operations;
   g_keyring_operations = nullptr;
