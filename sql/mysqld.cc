@@ -5095,9 +5095,6 @@ static int init_thread_environment() {
   return 0;
 }
 
-#if !defined(__sun)
-/* TODO: remove the !defined(__sun) when bug 23285559 is out of the picture */
-
 static PSI_memory_key key_memory_openssl = PSI_NOT_INSTRUMENTED;
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -5113,10 +5110,8 @@ static void *my_openssl_realloc(void *ptr, size_t size FILE_LINE_ARGS) {
   return my_realloc(key_memory_openssl, ptr, size, MYF(MY_WME));
 }
 static void my_openssl_free(void *ptr FILE_LINE_ARGS) { return my_free(ptr); }
-#endif /* !defined(__sun) */
 
 static void init_ssl() {
-#if !defined(__sun)
 #if defined(HAVE_PSI_MEMORY_INTERFACE)
   static PSI_memory_info all_openssl_memory[] = {
       {&key_memory_openssl, "openssl_malloc", 0, 0,
@@ -5129,7 +5124,6 @@ static void init_ssl() {
   if (ret == 0)
     LogErr(WARNING_LEVEL, ER_SSL_MEMORY_INSTRUMENTATION_INIT_FAILED,
            "CRYPTO_set_mem_functions");
-#endif /* !defined(__sun) */
   ssl_start();
 }
 
