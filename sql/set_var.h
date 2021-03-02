@@ -255,8 +255,8 @@ public:
   bool is_sys_var(sys_var *x) const { return m_var == x; }
 
 private:
-  const bool m_is_dynamic;   ///< true if dynamic variable
-  const LEX_CSTRING m_name;  ///< variable name
+  bool m_is_dynamic;   ///< true if dynamic variable
+  LEX_CSTRING m_name;  ///< variable name
 
   sys_var *m_var;  ///< variable pointer
 };

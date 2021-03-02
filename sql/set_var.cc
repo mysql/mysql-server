@@ -311,10 +311,11 @@ bool sys_var::set_default(THD *thd, set_var* var)
 }
 
 Sys_var_tracker::Sys_var_tracker(sys_var *var)
-    : m_is_dynamic(var->cast_pluginvar() != NULL),
-      m_name(m_is_dynamic ? current_thd->strmake(var->name) : var->name),
-      m_var(m_is_dynamic ? NULL : var)
-{}
+{
+  m_is_dynamic = (var->cast_pluginvar() != NULL);
+  m_name = (m_is_dynamic ? current_thd->strmake(var->name) : var->name);
+  m_var = (m_is_dynamic ? NULL : var);
+}
 
 sys_var *Sys_var_tracker::bind_system_variable(THD *thd) {
   if (!m_is_dynamic ||                                               // (1)
