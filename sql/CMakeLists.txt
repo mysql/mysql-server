@@ -585,6 +585,7 @@ SET(SQL_SHARED_SOURCES
   trigger_chain.cc
   tztime.cc
   uniques.cc
+  window_iterators.cc
   xa.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
 )

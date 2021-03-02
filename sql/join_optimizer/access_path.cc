@@ -35,6 +35,7 @@
 #include "sql/sql_optimizer.h"
 #include "sql/table.h"
 #include "sql/timing_iterator.h"
+#include "sql/window_iterators.h"
 
 #include <vector>
 

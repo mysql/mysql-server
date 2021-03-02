@@ -551,15 +551,6 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
                      std::vector<PendingCondition> *predicates_above_join,
                      std::vector<PendingCondition> *join_conditions);
 
-bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
-                                       const bool new_partition_or_eof,
-                                       bool *output_row_ready);
-bool buffer_windowing_record(THD *thd, Temp_table_param *param,
-                             bool *new_partition);
-bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
-                          int64 rowno, Window_retrieve_cached_row_reason reason,
-                          int fno = 0);
-
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);
 AccessPath *GetAccessPathForDerivedTable(

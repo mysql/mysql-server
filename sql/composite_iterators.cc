@@ -22,61 +22,50 @@
 
 #include "sql/composite_iterators.h"
 
+#include <limits.h>
 #include <string.h>
-
 #include <atomic>
+#include <mutex>
 #include <string>
 #include <vector>
 
+#include "field_types.h"
+#include "mem_root_deque.h"
 #include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
+#include "prealloced_array.h"
 #include "scope_guard.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/debug_sync.h"
-#include "sql/derror.h"
 #include "sql/error_handler.h"
 #include "sql/field.h"
-#include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/item_func.h"
 #include "sql/item_sum.h"
-#include "sql/join_optimizer/access_path.h"
-#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
-#include "sql/opt_explain.h"
 #include "sql/opt_trace.h"
+#include "sql/opt_trace_context.h"
 #include "sql/pfs_batch_mode.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_executor.h"
-#include "sql/sql_join_buffer.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_show.h"
 #include "sql/sql_tmp_table.h"
-#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_function.h"  // Table_function
 #include "sql/temp_table_param.h"
-#include "sql/timing_iterator.h"
-
-class Opt_trace_context;
-template <class T>
-class List;
+#include "sql/window.h"
+#include "template_utils.h"
 
 using pack_rows::TableCollection;
 using std::string;
 using std::swap;
 using std::vector;
-
-namespace {
-
-void SwitchSlice(JOIN *join, int slice_num) {
-  if (!join->ref_items[slice_num].is_null()) {
-    join->set_ref_item_slice(slice_num);
-  }
-}
-
-}  // namespace
 
 int FilterIterator::Read() {
   for (;;) {
@@ -1387,213 +1376,6 @@ int NestedLoopSemiJoinWithDuplicateRemovalIterator::Read() {
     key_copy(m_key_buf, m_table_outer->record[0], m_key, m_key_len);
 
     return 0;
-  }
-}
-
-WindowingIterator::WindowingIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> source,
-    Temp_table_param *temp_table_param, JOIN *join, int output_slice)
-    : RowIterator(thd),
-      m_source(move(source)),
-      m_temp_table_param(temp_table_param),
-      m_window(temp_table_param->m_window),
-      m_join(join),
-      m_output_slice(output_slice) {
-  assert(!m_window->needs_buffering());
-}
-
-bool WindowingIterator::Init() {
-  if (m_source->Init()) {
-    return true;
-  }
-  m_window->reset_round();
-
-  // Store which slice we will be reading from.
-  m_input_slice = m_join->get_ref_item_slice();
-
-  return false;
-}
-
-int WindowingIterator::Read() {
-  SwitchSlice(m_join, m_input_slice);
-
-  int err = m_source->Read();
-  if (err != 0) {
-    return err;
-  }
-
-  SwitchSlice(m_join, m_output_slice);
-
-  if (copy_fields_and_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) return 1;
-
-  m_window->check_partition_boundary();
-
-  if (copy_funcs(m_temp_table_param, thd(), CFT_WF)) return 1;
-
-  if (m_window->is_last() && copy_funcs(m_temp_table_param, thd(), CFT_HAS_WF))
-    return 1;
-
-  return 0;
-}
-
-BufferingWindowingIterator::BufferingWindowingIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> source,
-    Temp_table_param *temp_table_param, JOIN *join, int output_slice)
-    : RowIterator(thd),
-      m_source(move(source)),
-      m_temp_table_param(temp_table_param),
-      m_window(temp_table_param->m_window),
-      m_join(join),
-      m_output_slice(output_slice) {
-  assert(m_window->needs_buffering());
-}
-
-bool BufferingWindowingIterator::Init() {
-  if (m_source->Init()) {
-    return true;
-  }
-  m_window->reset_round();
-  m_possibly_buffered_rows = false;
-  m_last_input_row_started_new_partition = false;
-  m_eof = false;
-
-  // Store which slice we will be reading from.
-  m_input_slice = m_join->get_ref_item_slice();
-  assert(m_input_slice >= 0);
-
-  return false;
-}
-
-int BufferingWindowingIterator::Read() {
-  SwitchSlice(m_join, m_output_slice);
-
-  if (m_eof) {
-    return ReadBufferedRow(/*new_partition_or_eof=*/true);
-  }
-
-  // The previous call to Read() may have caused multiple rows to be ready
-  // for output, but could only return one of them. See if there are more
-  // to be output.
-  if (m_possibly_buffered_rows) {
-    int err = ReadBufferedRow(m_last_input_row_started_new_partition);
-    if (err != -1) {
-      return err;
-    }
-  }
-
-  for (;;) {
-    if (m_last_input_row_started_new_partition) {
-      /*
-        We didn't really buffer this row yet since, we found a partition
-        change so we had to finalize the previous partition first.
-        Bring back saved row for next partition.
-      */
-      if (bring_back_frame_row(
-              thd(), m_window, m_temp_table_param,
-              Window::FBC_FIRST_IN_NEXT_PARTITION,
-              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
-        return 1;
-      }
-
-      /*
-        copy_funcs(CFT_HAS_NO_WF) is not necessary: a non-WF function was
-        calculated and saved in OUT, then this OUT column was copied to
-        special record, then restored to OUT column.
-      */
-
-      m_window->reset_partition_state();
-      if (buffer_windowing_record(thd(), m_temp_table_param,
-                                  nullptr /* first in new partition */)) {
-        return 1;
-      }
-
-      m_last_input_row_started_new_partition = false;
-    } else {
-      // Read a new input row, if it exists. This needs to be done under
-      // the input slice, so that any expressions in sub-iterators are
-      // evaluated correctly.
-      int err;
-      {
-        Switch_ref_item_slice slice_switch(m_join, m_input_slice);
-        err = m_source->Read();
-      }
-      if (err == 1) {
-        return 1;  // Error.
-      }
-      if (err == -1) {
-        // EOF. Read any pending buffered rows, and then that's it.
-        m_eof = true;
-        return ReadBufferedRow(/*new_partition_or_eof=*/true);
-      }
-
-      /*
-        This saves the values of non-WF functions for the row. For
-        example, 1+t.a. But also 1+LEAD. Even though at this point we lack
-        data to compute LEAD; the saved value is thus incorrect; later,
-        when the row is fully computable, we will re-evaluate the
-        CFT_NON_WF to get a correct value for 1+LEAD.
-      */
-      if (copy_fields_and_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) {
-        return 1;
-      }
-
-      bool new_partition = false;
-      if (buffer_windowing_record(thd(), m_temp_table_param, &new_partition)) {
-        return 1;
-      }
-      m_last_input_row_started_new_partition = new_partition;
-    }
-
-    int err = ReadBufferedRow(m_last_input_row_started_new_partition);
-    if (err == 1) {
-      return 1;
-    }
-
-    if (m_window->needs_restore_input_row()) {
-      /*
-        Reestablish last row read from input table in case it is needed
-        again before reading a new row. May be necessary if this is the
-        first window following after a join, cf. the caching presumption
-        in EQRefIterator. This logic can be removed if we move to copying
-        between out tmp record and frame buffer record, instead of
-        involving the in record. FIXME.
-      */
-      if (bring_back_frame_row(
-              thd(), m_window, nullptr /* no copy to OUT */,
-              Window::FBC_LAST_BUFFERED_ROW,
-              Window_retrieve_cached_row_reason::WONT_UPDATE_HINT)) {
-        return 1;
-      }
-    }
-
-    if (err == 0) {
-      return 0;
-    }
-
-    // This input row didn't generate an output row right now, so we'll just
-    // continue the loop.
-  }
-}
-
-int BufferingWindowingIterator::ReadBufferedRow(bool new_partition_or_eof) {
-  bool output_row_ready;
-  if (process_buffered_windowing_record(
-          thd(), m_temp_table_param, new_partition_or_eof, &output_row_ready)) {
-    return 1;
-  }
-  if (thd()->killed) {
-    thd()->send_kill_message();
-    return 1;
-  }
-  if (output_row_ready) {
-    // Return the buffered row, and there are possibly more.
-    // These will be checked on the next call to Read().
-    m_possibly_buffered_rows = true;
-    return 0;
-  } else {
-    // No more buffered rows.
-    m_possibly_buffered_rows = false;
-    return -1;
   }
 }
 
