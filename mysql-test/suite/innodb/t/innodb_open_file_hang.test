@@ -1,0 +1,63 @@
+# Bug#3254121: MANY THREADS IN OS_EVENT, SYSTEM SLOWDOWN/HANG
+# This test verifies that the server does not slowdown/hang
+# while loading a tablespace while a large number of other
+# connections have opened more temporary tablespaces than
+# the variable inodb_open_files.
+
+SELECT @@innodb_thread_concurrency, @@innodb_open_files;
+--let $count=100
+--let $num_table=0
+
+# All the tablespaces except the temporary tablespaces,
+# undo tablespaces and system tablespaces are added to a
+# LRU list of size innodb_open_files. When this list if full
+# and a new file needs to be added to it, the oldest file
+# is removed and closed to make room for a new file.
+
+--echo # Create $count tables
+while($num_table < $count){
+  --eval CREATE TABLE g$num_table(id INT PRIMARY KEY) ENGINE=INNODB
+  --inc $num_table
+}
+
+--echo # Open $count connections and create a temporary table
+--echo # for each connection
+--let $conn_count=0
+while($conn_count < $count){
+  --connect (con$conn_count, localhost, root,,)
+  CREATE TEMPORARY TABLE t1(id INT PRIMARY KEY) ENGINE=INNODB;
+  INSERT INTO t1 VALUES (1);
+  --inc $conn_count
+}
+
+--echo # Insert rows in tables using multiple connections
+--let $conn_count=0
+while($conn_count<$count){
+  --connection con$conn_count
+  --send_eval INSERT INTO g0 VALUE ($conn_count)
+  --inc $conn_count
+}
+
+--echo # Wait for the connections to finish inserting rows
+--let $conn_count=0
+while($conn_count<$count){
+  --connection con$conn_count
+  --reap
+  --inc $conn_count
+}
+
+--echo # Cleanup
+--echo # Disconnect the connections
+--connection default
+--let $conn_count=0
+while($conn_count<$count){
+  --disconnect con$conn_count
+  --inc $conn_count
+}
+
+--echo # Drop all the tables
+--let $num_table=0
+while($num_table<$count){
+  --eval DROP TABLE g$num_table
+  --inc $num_table
+}

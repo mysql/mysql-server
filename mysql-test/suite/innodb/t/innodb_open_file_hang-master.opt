@@ -1,0 +1,3 @@
+--initialize=--innodb-log-file-size=10M
+--innodb_open_files=40
+--innodb_thread_concurrency=10
