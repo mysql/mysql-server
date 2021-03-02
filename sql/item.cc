@@ -7046,7 +7046,6 @@ bool Item::send(Protocol *protocol, String *buffer) {
   switch (data_type()) {
     default:
     case MYSQL_TYPE_NULL:
-    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_INVALID:
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_ENUM:
@@ -7066,6 +7065,11 @@ bool Item::send(Protocol *protocol, String *buffer) {
       if (res != nullptr)
         return protocol->store_string(res->ptr(), res->length(),
                                       res->charset());
+      break;
+    }
+    case MYSQL_TYPE_BOOL:{
+      longlong nr = val_int();
+      if (!null_value) return protocol->store_boolean(nr);
       break;
     }
     case MYSQL_TYPE_TINY: {
