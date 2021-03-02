@@ -25,6 +25,7 @@ SET(XCL_TEST_SRC
   auth_chaining_t.cc
   connection_general_t.cc
   mock/mock.cc
+  cyclic_buffer_t.cc
   protocol_auth_t.cc
   protocol_execute_t.cc
   protocol_global_error_t.cc
