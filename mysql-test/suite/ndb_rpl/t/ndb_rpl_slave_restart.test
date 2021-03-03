@@ -25,8 +25,9 @@ SELECT * FROM t1 ORDER BY c3;
 # sync slave and retrieve epoch and stop the slave
 connection master;
 sync_slave_with_master;
+SELECT MAX(epoch) FROM mysql.ndb_apply_status into @the_epoch;
 --replace_column 1 <the_epoch>
-SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
+SELECT @the_epoch;
 let $the_epoch= `select @the_epoch` ;
 SELECT * FROM t1 ORDER BY c3;
 stop slave;

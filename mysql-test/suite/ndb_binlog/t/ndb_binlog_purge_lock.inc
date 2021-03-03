@@ -142,7 +142,8 @@ connection con2;
 
 connection con4;
 --echo Now we should have no rows in the first file
-select @result:=count(*)=0 from mysql.ndb_binlog_index where File=@file1;
+select count(*)=0 from mysql.ndb_binlog_index where File=@file1 into @result;
+select @result;
 
 # Debugging windows failures...
 let $result=query_get_value(select @result as r, r, 1);
