@@ -4534,15 +4534,21 @@ bool make_schema_query_block(THD *thd, Query_block *sel,
   lex_string_strmake(thd->mem_root, &table, schema_table->table_name,
                      strlen(schema_table->table_name));
 
-  if (schema_table->old_format(thd, schema_table) || /* Handle old syntax */
-      !sel->add_table_to_list(thd,
-                              new (thd->mem_root) Table_ident(
-                                  thd->get_protocol(), to_lex_cstring(db),
-                                  to_lex_cstring(table), false),
-                              nullptr, 0, TL_READ, MDL_SHARED_READ)) {
+  if (schema_table->old_format(thd, schema_table)) { /* Handle old syntax */
     return true;
   }
-  return false;
+
+  TABLE_LIST *const schema_tlist = sel->add_table_to_list(
+      thd,
+      new (thd->mem_root) Table_ident(thd->get_protocol(), to_lex_cstring(db),
+                                      to_lex_cstring(table), false),
+      nullptr, 0, TL_READ, MDL_SHARED_READ);
+
+  if (schema_tlist == nullptr) {
+    return true;
+  }
+
+  return sel->add_joined_table(schema_tlist);
 }
 
 /**
