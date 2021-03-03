@@ -46,8 +46,8 @@ using hypergraph::PrintSet;
 class MockReceiver {
  public:
   MOCK_METHOD1(HasSeen, bool(NodeMap));
-  MOCK_METHOD1(FoundSingleNode, void(int));
-  MOCK_METHOD3(FoundSubgraphPair, void(NodeMap, NodeMap, int));
+  MOCK_METHOD1(FoundSingleNode, bool(int));
+  MOCK_METHOD3(FoundSubgraphPair, bool(NodeMap, NodeMap, int));
 };
 
 class TrivialReceiver {
@@ -57,13 +57,14 @@ class TrivialReceiver {
   bool HasSeen(NodeMap subgraph) const {
     return seen_subgraphs.count(subgraph) != 0;
   }
-  void FoundSingleNode(int node_idx) {
+  bool FoundSingleNode(int node_idx) {
     printf("Found node R%d\n", node_idx + 1);
     seen_subgraphs.insert(TableBitmap(node_idx));
+    return false;
   }
 
   // Called EmitCsgCmp() in the paper.
-  void FoundSubgraphPair(NodeMap left, NodeMap right,
+  bool FoundSubgraphPair(NodeMap left, NodeMap right,
                          int edge_idx MY_ATTRIBUTE((unused))) {
     printf("Found sets %s and %s, connected by edge %s-%s\n",
            PrintSet(left).c_str(), PrintSet(right).c_str(),
@@ -73,6 +74,7 @@ class TrivialReceiver {
     assert(right != 0);
     assert((left & right) == 0);
     seen_subgraphs.insert(left | right);
+    return false;
   }
 
  private:
@@ -182,7 +184,7 @@ TEST(DPhypTest, ExampleHypergraph) {
       .After(seen_r4_r5r6)
       .After(seen_r4r5_r6);
 
-  EnumerateAllConnectedPartitions(g, &mr);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g, &mr));
 }
 
 TEST(DPhypTest, Loop) {
@@ -301,7 +303,36 @@ TEST(DPhypTest, Loop) {
       .After(seen_r2r3_r4r5)
       .After(seen_r2r3r4_r5);
 
-  EnumerateAllConnectedPartitions(g, &mr);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g, &mr));
+}
+
+TEST(DPhypTest, AbortWithError) {
+  /*
+    A simple chain.
+
+      R1--R2--R3
+   */
+  Hypergraph g;
+  g.AddNode();                    // R1
+  g.AddNode();                    // R2
+  g.AddNode();                    // R3
+  g.AddEdge(0b000001, 0b000010);  // R1-R2
+  g.AddEdge(0b000010, 0b000100);  // R2-R3
+
+  StrictMock<MockReceiver> mr;
+  EXPECT_CALL(mr, FoundSingleNode(1));
+  EXPECT_CALL(mr, FoundSingleNode(2));
+
+  // Fallback matcher.
+  EXPECT_CALL(mr, HasSeen(_)).WillRepeatedly(Return(false));
+
+  // Found link between R2 and R3. We return true (error) here,
+  // so the algorithm should abort without ever seeing R1
+  // or any of the links to it.
+  EXPECT_CALL(mr, FoundSubgraphPair(0b000010, 0b000100, 1))
+      .WillOnce(Return(true));
+
+  EXPECT_TRUE(EnumerateAllConnectedPartitions(g, &mr));
 }
 
 // A Receiver used for unit tests. It records all subgraph pairs we see,
@@ -323,7 +354,7 @@ struct AccumulatingReceiver {
     }
   }
 
-  void FoundSingleNode(int node_idx) {
+  bool FoundSingleNode(int node_idx) {
     NodeMap map = TableBitmap(node_idx);
 
     // We must always see all enumerations for a subset before we can
@@ -334,9 +365,10 @@ struct AccumulatingReceiver {
     assert(seen_subplans.count(map) == 0);
 
     seen_subplans.emplace(map, Subplan{0, 0, -1});
+    return false;
   }
 
-  void FoundSubgraphPair(NodeMap left, NodeMap right, int edge_idx) {
+  bool FoundSubgraphPair(NodeMap left, NodeMap right, int edge_idx) {
     printf("Found connection between %s and %s along edge %d\n",
            PrintSet(left).c_str(), PrintSet(right).c_str(), edge_idx);
 
@@ -355,6 +387,7 @@ struct AccumulatingReceiver {
         << PrintSet(right) << " along edge " << edge_idx;
 
     seen_subplans.emplace(left | right, Subplan{left, right, edge_idx});
+    return false;
   }
 
   // Checks whether FoundSubgraphPair() was called with the given arguments.
@@ -383,13 +416,15 @@ template <int Size>
 struct BenchmarkReceiver {
   bool HasSeen(NodeMap subgraph) { return seen_subplans[subgraph]; }
 
-  void FoundSingleNode(int node_idx) {
+  bool FoundSingleNode(int node_idx) {
     NodeMap map = TableBitmap(node_idx);
     seen_subplans.set(map);
+    return false;
   }
 
-  void FoundSubgraphPair(NodeMap left, NodeMap right, int) {
+  bool FoundSubgraphPair(NodeMap left, NodeMap right, int) {
     seen_subplans.set(left | right);
+    return false;
   }
 
   static constexpr int num_elements = 1 << Size;
@@ -410,7 +445,7 @@ TEST(DPhypTest, Chain) {
   }
 
   AccumulatingReceiver receiver;
-  EnumerateAllConnectedPartitions(g, &receiver);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g, &receiver));
 
   // Look at all possible subchains of the chain.
   int expected_subplans = 0;
@@ -524,7 +559,7 @@ TEST(DPhypTest, SmallStar) {
   EXPECT_CALL(
       mr, FoundSubgraphPair(0b1101, 0b0010, 0));  // {R1,R2,R4}-R3 along R1-R2.
 
-  EnumerateAllConnectedPartitions(g, &mr);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g, &mr));
 }
 
 // Creates a clique (everything connected to everything, with simple edges)
@@ -544,7 +579,7 @@ TEST(DPhypTest, Clique) {
   }
 
   AccumulatingReceiver receiver;
-  EnumerateAllConnectedPartitions(g, &receiver);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g, &receiver));
 
   int expected_subplans = 0;
 
@@ -601,7 +636,7 @@ TEST(DPhypTest, OuterJoinChain) {
   g.AddEdge(0b10000, 0b01000);  // R4-R5
 
   AccumulatingReceiver receiver;
-  EnumerateAllConnectedPartitions(g, &receiver);
+  EXPECT_FALSE(EnumerateAllConnectedPartitions(g, &receiver));
 
   int expected_subplans = 0;
 

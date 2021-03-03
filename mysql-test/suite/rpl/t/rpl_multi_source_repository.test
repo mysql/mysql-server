@@ -39,7 +39,7 @@
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
---eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #  Convert only master_info_repository to table.
 --echo #  The same error shall persist
@@ -50,7 +50,7 @@ call mtr.add_suppression("Slave: Cannot create new master info structure when re
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
---eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root", SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #  Convert only relay log info repository to TABLE
 --echo #  The same error shall remain
@@ -60,7 +60,7 @@ SET @@GLOBAL.relay_log_info_repository = "TABLE";
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --error ER_SLAVE_NEW_CHANNEL_WRONG_REPOSITORY
---eval CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root", MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root", SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL "channel_3";
 
 --echo #
 --echo # Convert both repositories to TABLE. CHANGE MASTER command passes
@@ -70,7 +70,7 @@ SET @@GLOBAL.master_info_repository = "TABLE";
 
 --replace_result $SERVER_MYPORT_3 MASTER_PORT
 --replace_column 2 #
---eval CHANGE MASTER TO MASTER_HOST ="127.0.0.1", MASTER_USER ="root", MASTER_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST ="127.0.0.1", SOURCE_USER ="root", SOURCE_PORT=$SERVER_MYPORT_3 FOR CHANNEL "channel_3"
 
 --echo # Slave now is a multisourced slave.
 --echo # Restart the slave and check that slave threads are not started because

@@ -559,12 +559,16 @@ truncate table t;
 
 # bitwise aggregate functions when a value in the middle of the aggregate is null
 INSERT INTO t VALUES(0xFF00F0F0), (NULL), (0xF0F0FF00);
+--sorted_result
 SELECT HEX(BIT_AND(a)) FROM t;
+--sorted_result
 SELECT HEX(BIT_OR(a)) FROM t;
+--sorted_result
 SELECT HEX(BIT_XOR(a)) FROM t;
 
 --echo # Explicitly request aggregation through temporary table
 --echo # (force use of Item_sum_*::copy_or_same())
+--sorted_result
 SELECT SQL_BUFFER_RESULT HEX(BIT_AND(a)), HEX(BIT_OR(a)), HEX(BIT_XOR(a)) FROM t;
 
 DROP TABLE t;
@@ -668,18 +672,22 @@ INSERT INTO t(group_id, a) VALUES
 --echo # aggregate functions
 --echo #
 
+--sorted_result
 SELECT group_id, HEX(BIT_AND(a)), HEX(BIT_OR(a)), HEX(BIT_XOR(a))
 FROM t
 GROUP BY group_id;
 
+--sorted_result
 SELECT SQL_BUFFER_RESULT group_id, HEX(BIT_AND(a)), HEX(BIT_OR(a)), HEX(BIT_XOR(a))
 FROM t
 GROUP BY group_id;
 
+--sorted_result
 SELECT group_id, HEX(BIT_AND(a)), BIT_AND(192), BIT_AND(0x303233), BIT_AND(binary "foo")
 FROM t
 GROUP BY group_id;
 
+--sorted_result
 SELECT BIT_COUNT(group_id), BIT_COUNT(a), BIT_COUNT(192), BIT_COUNT(0x303233),
   BIT_COUNT(binary "foo"), BIT_COUNT(NULL)
 FROM t;
@@ -690,12 +698,16 @@ FROM t;
 
 PREPARE s1
 FROM "SELECT HEX(BIT_AND(a)),HEX(BIT_OR(a)),HEX(BIT_XOR(a)) FROM t WHERE group_id = 5";
+--sorted_result
 EXECUTE s1;
+--sorted_result
 EXECUTE s1;
 
 PREPARE s2
 FROM "SELECT group_id, HEX(BIT_AND(a)), HEX(BIT_OR(a)), HEX (BIT_XOR(a)) FROM t GROUP BY group_id";
+--sorted_result
 EXECUTE s2;
+--sorted_result
 EXECUTE s2;
 
 TRUNCATE TABLE t;

@@ -27,6 +27,7 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
+#include "mysql/psi/mysql_mutex.h"
 #include "sql/log.h"
 #include "unittest/gunit/test_utils.h"
 

@@ -287,8 +287,8 @@ CREATE TRIGGER tr1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET @a:=3;
 SELECT trigger_name, action_order FROM information_schema.triggers WHERE trigger_schema='test';
 TRIGGER_NAME	ACTION_ORDER
 tr1_bi	1
-tr2_bi	2
 tr1_bu	1
+tr2_bi	2
 CREATE TRIGGER tr3_bi BEFORE INSERT ON t1 FOR EACH ROW FOLLOWS tr2_bi SET @a:=3;
 CREATE TRIGGER tr2_bu BEFORE UPDATE ON t1 FOR EACH ROW FOLLOWS tr1_bu SET @a:=3;
 SELECT trigger_name, action_order FROM information_schema.triggers

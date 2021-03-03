@@ -249,16 +249,16 @@ count_col1
 10
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
 count_col1	col2
-10	hello
-10	bye
-10	sam
 10	bob
+10	bye
+10	hello
+10	sam
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
 count_col1	col2
-10	hello
-10	bye
-10	sam
 10	bob
+10	bye
+10	hello
+10	sam
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
 count_col1	col2
 10	hello
@@ -796,9 +796,12 @@ val	c
 UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 r	MIN(u)
-1	11
-1	15
-1	17
+0	11
+0	12
+0	15
+0	16
+0	17
+0	18
 DROP TABLE t1;
 DROP FUNCTION next_seq_value;
 DROP TABLE series, seq_calls;

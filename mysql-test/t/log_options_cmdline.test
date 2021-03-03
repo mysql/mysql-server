@@ -12,6 +12,8 @@
 ##================================================================##
 --source include/have_log_bin.inc
 
+--let $PLUGIN_DIR   = 	 `select @@plugin_dir`
+
 # Setup
 CREATE TABLE t1(a int);
 
@@ -73,21 +75,21 @@ DROP TABLE t1;
 #      minimum - 1)
 #-----------------------------------------------------
 --let LOG_FILE4 = $MYSQLTEST_VARDIR/tmp/bootstrap1.err
---let CMD1= $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE4 --log-error-verbosity=-1 2>&1
+--let CMD1= $MYSQLD --no-defaults --plugin-dir=$PLUGIN_DIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE4 --log-error-verbosity=-1 2>&1
 --exec $CMD1
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
 # 2.2. Set verbosity to 1 explicitly with --initialize
 #-----------------------------------------------------
 --let LOG_FILE5 = $MYSQLTEST_VARDIR/tmp/bootstrap3.err
---let CMD3 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE5 --log-error-verbosity=1 2>&1
+--let CMD3 = $MYSQLD --no-defaults --plugin-dir=$PLUGIN_DIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE5 --log-error-verbosity=1 2>&1
 --exec $CMD3
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
 # 2.3. Set verbosity to 2 explicitly with --initialize
 #-----------------------------------------------------
 --let LOG_FILE6 = $MYSQLTEST_VARDIR/tmp/bootstrap2.err
---let CMD2 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE6 --log-error-verbosity=2 2>&1
+--let CMD2 = $MYSQLD --no-defaults --plugin-dir=$PLUGIN_DIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE6 --log-error-verbosity=2 2>&1
 --exec $CMD2
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
@@ -95,7 +97,7 @@ DROP TABLE t1;
 #      to 3)
 #-----------------------------------------------------
 --let LOG_FILE7 = $MYSQLTEST_VARDIR/tmp/bootstrap4.err
---let CMD4 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE7 --log-error-verbosity=7 2>&1
+--let CMD4 = $MYSQLD --no-defaults --plugin-dir=$PLUGIN_DIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE7 --log-error-verbosity=7 2>&1
 --exec $CMD4
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
@@ -202,7 +204,7 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
 #     not exist when the component isn't loaded
 # ------------------------------------------------------------
 --let LOG_FILE12 = $MYSQLTEST_VARDIR/tmp/test12.err
---let CMD12 = $MYSQLD --no-defaults --lc-messages-dir=$MYSQL_SHAREDIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE12 --dragnet.log_error_filter_rules=a 2>&1
+--let CMD12 = $MYSQLD --no-defaults --plugin-dir=$PLUGIN_DIR --lc-messages-dir=$MYSQL_SHAREDIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE12 --dragnet.log_error_filter_rules=a 2>&1
 # mysqld aborts if the option is used without loading the component
 --error 1
 --exec $CMD12

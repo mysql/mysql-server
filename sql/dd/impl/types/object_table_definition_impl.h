@@ -186,8 +186,8 @@ class Object_table_definition_impl : public Object_table_definition {
     @param [in,out] buf  Buffer for storing lowercase'd string. Supplied
                          by the caller.
 
-    @retval  A pointer to the src string if l_c_t_n != 2
-    @retval  A pointer to the buf supplied by the caller, into which
+    @returns  A pointer to the src string if l_c_t_n != 2
+    @returns  A pointer to the buf supplied by the caller, into which
              the src string has been copied and lowercase'd, if l_c_t_n == 2
    */
 

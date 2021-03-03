@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,12 +34,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0load.h"
 #include "dict0priv.h"
 
-/** Gets a table; loads it to the dictionary cache if necessary. A low-level
- function.
- @return table, NULL if not found */
-UNIV_INLINE
-dict_table_t *dict_table_get_low(const char *table_name) /*!< in: table name */
-{
+inline dict_table_t *dict_table_get_low(const char *table_name,
+                                        const std::string *prev_table) {
   dict_table_t *table;
 
   ut_ad(table_name);
@@ -58,7 +54,7 @@ dict_table_t *dict_table_get_low(const char *table_name) /*!< in: table name */
   }
 
   if (table == nullptr) {
-    table = dict_load_table(table_name, true, DICT_ERR_IGNORE_NONE);
+    table = dict_load_table(table_name, true, DICT_ERR_IGNORE_NONE, prev_table);
   }
 
   ut_ad(!table || table->cached);

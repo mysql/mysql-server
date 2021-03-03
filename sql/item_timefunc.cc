@@ -3446,8 +3446,8 @@ bool Item_func_internal_update_time::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_internal_update_time::get_date(
-    MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
+bool Item_func_internal_update_time::get_date(MYSQL_TIME *ltime,
+                                              my_time_flags_t) {
   DBUG_TRACE;
 
   String schema_name;
@@ -3525,8 +3525,8 @@ bool Item_func_internal_check_time::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_internal_check_time::get_date(
-    MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
+bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
+                                             my_time_flags_t) {
   DBUG_TRACE;
 
   String schema_name;

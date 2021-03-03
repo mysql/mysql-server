@@ -26,7 +26,7 @@ let $SECONDARY_PORT= query_get_value('select @secondary_port as v',v,1);
 --source suite/ndb_rpl/t/ndb_connect_to_primary.inc
 RESET MASTER;
 STOP SLAVE;
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SECONDARY_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SECONDARY_PORT,SOURCE_USER="root"
 START SLAVE;
 select @primary_server_id:=(variable_value+0)
        from performance_schema.global_variables
@@ -38,7 +38,7 @@ select @primary_port:=(variable_value+0)
 let $PRIMARY_PORT= query_get_value('select @primary_port as v',v,1);
 
 --source suite/ndb_rpl/t/ndb_connect_to_secondary.inc
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$PRIMARY_PORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$PRIMARY_PORT,SOURCE_USER="root"
 START SLAVE;
 
 --enable_result_log

@@ -187,19 +187,30 @@ namespace info_schema {
      - Bug#30766181 and Bug#30216864 updates I_S.KEY_COLUMN_USAGE and
        I_S.TABLE_CONSTRAINTS views.
 
-  80022: Current.
+  80022: Published in 8.0.22
   ------------------------------------
   Changes from version 80021:
 
   - WL#13369: Added new I_S view 'SCHEMATA_EXTENSIONS'.
   - Bug #31427410: Added a WHERE clause to I_S.USER_ATTRIBUTES
 
+  80023: Published in 8.0.23
+  ------------------------------------
+  Changes from version 80022:
 
-  80023: Next IS version number after the previous is public.
+  - WL#12819: Affects size of I_S.KEYWORDS.WORD column length.
+    Following bug was raised for the same.
+    Bug#31982157 THE KEYWORD LEN IN I_S GETS UPDATED WHEN
+    A KEYWORD > EXISTING MAX LEN IS ADDED
+
+  - WL#10905: INFORMATION_SCHEMA.COLUMNS table is modified to list "INVISIBLE"
+              value in EXTRA column for INVISIBLE columns.
+
+  80024: Next IS version number after the previous is public.
   ------------------------------------
 */
 
-static const uint IS_DD_VERSION = 80022;
+static const uint IS_DD_VERSION = 80023;
 static_assert((IS_DD_VERSION <= MYSQL_VERSION_ID) ||
                   ((IS_DD_VERSION == 800201) && (MYSQL_VERSION_ID >= 80020)),
               "This release can not use a version number from the future");

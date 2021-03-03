@@ -26,12 +26,14 @@
 
 #include <memory>  // unique_ptr
 
-#include "routing_mocks.h"
+#include <gmock/gmock.h>
+
+#include "mysql/harness/net_ts/io_context.h"
 #include "test/helpers.h"  // init_test_logger
 
 class FirstAvailableTest : public ::testing::Test {
  protected:
-  MockSocketOperations sock_ops_;
+  net::io_context io_ctx_;
 };
 
 bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
@@ -63,7 +65,7 @@ MATCHER(IsGoodEq, "") {
 }
 
 TEST_F(FirstAvailableTest, RepeatedFetch) {
-  DestFirstAvailable dest(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestFirstAvailable dest(io_ctx_, Protocol::Type::kClassicProtocol);
   dest.add("41", 41);
   dest.add("42", 42);
   dest.add("43", 43);
@@ -88,7 +90,7 @@ TEST_F(FirstAvailableTest, RepeatedFetch) {
 }
 
 TEST_F(FirstAvailableTest, FailOne) {
-  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -132,7 +134,7 @@ TEST_F(FirstAvailableTest, FailOne) {
 }
 
 TEST_F(FirstAvailableTest, FailTwo) {
-  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -183,7 +185,7 @@ TEST_F(FirstAvailableTest, FailTwo) {
 }
 
 TEST_F(FirstAvailableTest, FailAll) {
-  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -229,7 +231,7 @@ TEST_F(FirstAvailableTest, FailAll) {
 
 // should just return an empty set and not crash/fail.
 TEST_F(FirstAvailableTest, Empty) {
-  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
+  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
 
   {
     auto actual = balancer.destinations();

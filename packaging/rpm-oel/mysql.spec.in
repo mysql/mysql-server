@@ -188,7 +188,7 @@ BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
 # For rpm => 4.9 only: https://fedoraproject.org/wiki/Packaging:AutoProvidesAndRequiresFiltering
-%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*%{?ssl_bundled:|libssl\.so\..*|libcrypto\.so\..*}
+%global _privatelibs libprotobuf.*|libmysqlharness\.so.*|libmysqlharness_stdx\.so.*|libmysqlharness_tls\.so.*|libmysqlrouter\.so\..*|libmysqlrouter_.*\.so\..*%{?ssl_bundled:|libssl\.so\..*|libcrypto\.so\..*}
 %global _privateperl perl\\((GD|hostnames|lib::mtr|lib::v1|mtr_|My::)
 %global __requires_exclude ^((%{_privatelibs})|(%{_privateperl}))
 %global __provides_exclude_from ^(/usr/share/(mysql|mysql-test)/.*|%{_libdir}/mysql/plugin/.*\\.so|%{_libdir}/mysql/private/.*|%{_libdir}/mysqlrouter/.*|%{_libdir}/mysqlrouter/private/.*)$
@@ -236,7 +236,7 @@ Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-server-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-server-advanced < %{version}-%{release}
 Obsoletes:      MySQL-Cluster-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-server < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-server < %{version}-%{release}
@@ -246,10 +246,10 @@ Obsoletes:      mysql-cluster-commercial-embedded-devel < 8.0.1
 %endif
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-server-gpl%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-server-gpl%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-server-gpl < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-embedded < 8.0.1
 Obsoletes:      mysql-cluster-community-embedded-devel < 8.0.1
-Obsoletes:      MySQL-Cluster-embedded-gpl%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-embedded-gpl < %{version}-%{release}
 %endif
 Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server < %{version}-%{release}
@@ -328,7 +328,7 @@ Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-client-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-client-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-client < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-client < %{version}-%{release}
 %endif
@@ -407,7 +407,7 @@ Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-test-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-test-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-test < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-test < %{version}-%{release}
 %endif
@@ -437,7 +437,7 @@ Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
 %if 0%{?cluster}
 Provides:       MySQL-Cluster-devel-advanced%{?_isa} = %{version}-%{release}
-Obsoletes:      MySQL-Cluster-devel-advanced%{?_isa} < %{version}-%{release}
+Obsoletes:      MySQL-Cluster-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-commercial-devel < %{version}-%{release}
 Obsoletes:      mysql-cluster-community-devel < %{version}-%{release}
 %endif
@@ -628,21 +628,6 @@ that is used to handle all the data in tables using the NDB Cluster
 storage engine. It comes in two variants: ndbd and ndbmtd, the former
 is single threaded while the latter is multi-threaded.
 
-%package        auto-installer
-Summary:        Web-based graphical configuration installer for MySQL Cluster
-Group:          Applications/Databases
-Requires:       %{name}-server%{?_isa} = %{version}-%{release}
-Requires:       python-paramiko
-%{?el5:Requires:  python-crypto}
-%{?el6:Requires:  python-crypto}
-%{?el7:Requires:  python2-crypto}
-%{?el8:Requires:  python2-crypto}
-%{?el8:BuildRequires: /usr/bin/pathfix.py}
-%description    auto-installer
-This package contains the MySQL Cluster web-based graphical
-configuration installer, which can be used to set up and start or stop
-a MySQL Cluster on one or more host computers.
-
 %package        ndbclient
 Summary:        Shared libraries for MySQL NDB storage engine client applications
 Group:          Applications/Databases
@@ -685,15 +670,6 @@ ClusterJPA is an OpenJPA implementation for MySQL Cluster that
 attempts to offer the best possible performance by leveraging the
 strengths of both ClusterJ and JDBC.
 
-%package        memcached
-Summary:        Memcached API for MySQL Cluster implemented as a loadable storage engine for memcached
-Group:          Applications/Databases
-Requires:       %{name}-server%{?_isa} = %{version}-%{release}
-%description    memcached
-This package contains the standard memcached server and a loadable
-storage engine for memcached using the Memcache API for MySQL Cluster
-to provide a persistent MySQL Cluster data store.
-
 %endif # cluster
 
 %if 0%{?with_meb}
@@ -703,7 +679,6 @@ Group:          Applications/Databases
 Provides:       meb = %{version}-%{release}
 Provides:       meb%{?_isa} = %{version}-%{release}
 Obsoletes:      meb < %{version}-%{release}
-Obsoletes:      meb%{?_isa} < %{version}-%{release}
 %description    backup
 Implementing proper database backup and disaster recovery plans to
 protect against accidental loss of data, database corruption,
@@ -934,11 +909,6 @@ mv %{buildroot}/%{_bindir}/mysql_config %{buildroot}/%{_bindir}/mysql_config-%{_
 install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/mysql_config
 %endif
 
-# Fix a cluster script
-%if 0%{?cluster}
-%{?el8:/usr/bin/pathfix.py -i /usr/bin/python2 -n -p %{buildroot}%{_bindir}/ndb_setup.py}
-%endif # cluster
-
 %if 0%{?with_router}
 %if 0%{?systemd}
 %else
@@ -1120,6 +1090,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
@@ -1196,6 +1168,8 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_query_attributes.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
@@ -1316,7 +1290,6 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_restore
 %attr(755, root, root) %{_bindir}/ndb_select_all
 %attr(755, root, root) %{_bindir}/ndb_select_count
-%attr(755, root, root) %{_bindir}/ndb_setup.py
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_size.pl
 %attr(755, root, root) %{_bindir}/ndb_top
@@ -1346,7 +1319,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/ndb_restore.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_select_all.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_select_count.1*
-%attr(644, root, root) %{_mandir}/man1/ndb_setup.py.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_show_tables.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_size.pl.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_top.1*
@@ -1481,6 +1453,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_sql_stored_procedures_functions.so
@@ -1561,6 +1534,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_processlist.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_replication.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_shutdown.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sleep_is_connected.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stmt.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_sqlmode.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_sql_stored_procedures_functions.so
@@ -1629,21 +1603,6 @@ fi
 %attr(644, root, root) %{_mandir}/man8/ndbd.8*
 %attr(644, root, root) %{_mandir}/man8/ndbmtd.8*
 
-%files auto-installer
-%defattr(-, root, root, -)
-%doc %{?license_files_server}
-%attr(755, root, root) %{_bindir}/mcc_config.py
-%{_datadir}/mysql-*/mcc/
-%exclude %{_datadir}/mysql-*/mcc/tst/
-
-%files memcached
-%defattr(-, root, root, -)
-%doc %{?license_files_server}
-%attr(755, root, root) %{_bindir}/memclient
-%attr(755, root, root) %{_sbindir}/memcached
-%attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
-%{_datadir}/mysql-*/memcache-api/
-
 %files ndbclient
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
@@ -1699,6 +1658,7 @@ fi
 %endif
 %{_libdir}/mysqlrouter/private/libmysqlharness.so.*
 %{_libdir}/mysqlrouter/private/libmysqlharness_stdx.so.*
+%{_libdir}/mysqlrouter/private/libmysqlharness_tls.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http.so.*
 %{_libdir}/mysqlrouter/private/libmysqlrouter_http_auth_backend.so.*
@@ -1713,6 +1673,12 @@ fi
 %endif # with_router
 
 %changelog
+* Mon Sep 21 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.23-1
+- Added component_reference_cache.so component
+
+* Wed Sep 09 2020 Joro Kodinov <georgi.kodinov@oracle.com> - 8.0.23-1
+- Add a new component_query_attributes
+
 * Sun Jul 12 2020 Sreedhar S <sreedhar.sreedhargadda@oracle.com> - 8.0.22-1
 - Add a new subpackage client-plugins
 

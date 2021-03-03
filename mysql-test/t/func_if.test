@@ -180,6 +180,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a LONGBLOB, b DOUBLE);
 INSERT INTO t1 VALUES (NULL, 0), (NULL, 1);
 
+--sorted_result
 SELECT IF(b, (SELECT a FROM t1 LIMIT 1), b) c FROM t1 GROUP BY c;
 
 DROP TABLE t1;
@@ -240,6 +241,7 @@ INSERT INTO test_grid_dtl_1 VALUES
   (2,1),
   (3,2);
 
+--skip_if_hypergraph  # Hits bug #31848379 (ERROR RESULTS FROM CALCULATION).
 SELECT g.calc_var, g.if_var, g.case_var
 FROM
   (

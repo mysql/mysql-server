@@ -408,3 +408,85 @@ SET SESSION debug = '';
 SET GLOBAL binlog_row_metadata = MINIMAL;
 DROP TABLE t1;
 RESET MASTER;
+#
+# WL#10905 - Support for INVISIBLE columns.
+#
+# Test case to verify that INVISIBLE clause can be printed correctly.
+CREATE TABLE t1 (c1 INT,
+c2 INT UNSIGNED INVISIBLE DEFAULT(10),
+c3 INT UNSIGNED NOT NULL INVISIBLE DEFAULT(90),
+c4 INT UNSIGNED PRIMARY KEY INVISIBLE DEFAULT(5),
+c5 VARCHAR(100) CHARSET ucs2 INVISIBLE,
+c6 GEOMETRY INVISIBLE,
+c7 ENUM("enum_v1", "enum_v2", "enum_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE,
+c8 SET("set_v1", "set_v2", "set_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE);
+SET GLOBAL binlog_row_metadata = FULL;
+INSERT INTO t1 VALUES(1);
+Matching lines are:
+# Columns(`c1` INT,
+#         `c2` INT UNSIGNED INVISIBLE,
+#         `c3` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c4` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c5` VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci INVISIBLE,
+#         `c6` GEOMETRY INVISIBLE,
+#         `c7` ENUM('enum_v1', 'enum_v2', 'enum_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE,
+#         `c8` SET('set_v1', 'set_v2', 'set_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 8
+Matching lines are:
+# Primary Key(c4)
+Occurrences of '# Primary Key' in the input file: 1
+UPDATE t1 SET c1=4 WHERE c4=5;
+Matching lines are:
+# Columns(`c1` INT,
+#         `c2` INT UNSIGNED INVISIBLE,
+#         `c3` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c4` INT UNSIGNED NOT NULL INVISIBLE,
+#         `c5` VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci INVISIBLE,
+#         `c6` GEOMETRY INVISIBLE,
+#         `c7` ENUM('enum_v1', 'enum_v2', 'enum_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE,
+#         `c8` SET('set_v1', 'set_v2', 'set_v3') CHARSET swe7 COLLATE swe7_bin INVISIBLE)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 8
+Matching lines are:
+# Primary Key(c4)
+Occurrences of '# Primary Key' in the input file: 1
+RESET MASTER;
+# INVISIBLE clause is included with only binlog_row_metadata = FULL.
+SET GLOBAL binlog_row_metadata = MINIMAL;
+INSERT INTO t1(c1, c4) VALUES(3, 6);
+Matching lines are:
+# Columns(INT,
+#         INT UNSIGNED,
+#         INT UNSIGNED NOT NULL,
+#         INT UNSIGNED NOT NULL,
+#         VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci,
+#         GEOMETRY,
+#         ENUM,
+#         SET)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 8
+Matching lines are:
+None
+Occurrences of '# Primary Key' in the input file: 0
+UPDATE t1 SET c1=4 WHERE c4=6;
+Matching lines are:
+# Columns(INT,
+#         INT UNSIGNED,
+#         INT UNSIGNED NOT NULL,
+#         INT UNSIGNED NOT NULL,
+#         VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci,
+#         GEOMETRY,
+#         ENUM,
+#         SET)
+# Columns(INT,
+#         INT UNSIGNED,
+#         INT UNSIGNED NOT NULL,
+#         INT UNSIGNED NOT NULL,
+#         VARCHAR(100) CHARSET ucs2 COLLATE ucs2_general_ci,
+#         GEOMETRY,
+#         ENUM,
+#         SET)
+Occurrences of '# (?:Columns\(| {8})' in the input file: 16
+Matching lines are:
+None
+Occurrences of '# Primary Key' in the input file: 0
+DROP TABLE t1;
+RESET MASTER;

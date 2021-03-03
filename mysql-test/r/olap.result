@@ -31,10 +31,11 @@ country CHAR(20) NOT NULL);
 INSERT INTO t2 VALUES (1, 'USA'),(2,'India'), (3,'Finland');
 SELECT product, SUM(profit) FROM t1 GROUP BY product;
 product	SUM(profit)
-Computer	6900
-TV	600
 Calculator	275
+Computer	6900
 Phone	10
+TV	600
+
 SELECT product, SUM(profit) FROM t1 GROUP BY product WITH ROLLUP;
 product	SUM(profit)
 Calculator	275
@@ -42,6 +43,7 @@ Computer	6900
 Phone	10
 TV	600
 NULL	7785
+
 SELECT product, SUM(profit) FROM t1 GROUP BY 1 WITH ROLLUP;
 product	SUM(profit)
 Calculator	275
@@ -49,6 +51,7 @@ Computer	6900
 Phone	10
 TV	600
 NULL	7785
+
 SELECT product, SUM(profit),AVG(profit) FROM t1 GROUP BY product WITH ROLLUP;
 product	SUM(profit)	AVG(profit)
 Calculator	275	68.75000
@@ -59,16 +62,17 @@ NULL	7785	519.00000
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year;
 product	country_id	year	SUM(profit)
-Computer	2	2000	2700
-TV	1	1999	250
 Calculator	1	1999	50
-Computer	1	1999	2700
-Computer	1	2000	1500
-TV	1	2000	150
-TV	2	2000	200
 Calculator	1	2000	75
 Calculator	2	2000	150
+Computer	1	1999	2700
+Computer	1	2000	1500
+Computer	2	2000	2700
 Phone	3	2003	10
+TV	1	1999	250
+TV	1	2000	150
+TV	2	2000	200
+
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP;
 product	country_id	year	SUM(profit)
@@ -103,6 +107,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using filesort
 Warnings:
 Note	1003	/* select#1 */ select rollup_group_item(`test`.`t1`.`product`,0) AS `product`,rollup_group_item(`test`.`t1`.`country_id`,1) AS `country_id`,rollup_group_item(`test`.`t1`.`year`,2) AS `year`,rollup_sum_switcher(sum(`test`.`t1`.`profit`)) AS `SUM(profit)` from `test`.`t1` group by `test`.`t1`.`product`,`test`.`t1`.`country_id`,`test`.`t1`.`year` with rollup
+
 SELECT product, country_id , SUM(profit) FROM t1
 GROUP BY product, country_id WITH ROLLUP
 ORDER BY product DESC, GROUPING (country_id), country_id;
@@ -119,6 +124,7 @@ Calculator	1	125
 Calculator	2	150
 Calculator	NULL	275
 NULL	NULL	7785
+
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
 product	country_id	year	SUM(profit)
@@ -127,6 +133,7 @@ Calculator	1	2000	75
 Calculator	1	NULL	125
 Calculator	2	2000	150
 Calculator	2	NULL	150
+
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP limit 3,3;
 product	country_id	year	SUM(profit)
@@ -143,6 +150,7 @@ Computer	2	2	1
 Phone	3	1	1
 TV	1	3	2
 TV	2	2	1
+
 SELECT product, country_id, COUNT(*), COUNT(distinct year)
 FROM t1 GROUP BY product, country_id WITH ROLLUP;
 product	country_id	COUNT(*)	COUNT(distinct year)
@@ -158,6 +166,7 @@ TV	1	3	2
 TV	2	2	1
 TV	NULL	5	2
 NULL	NULL	15	3
+
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING country_id = 1;
 product	country_id	year	SUM(profit)
@@ -170,6 +179,7 @@ Computer	1	NULL	4200
 TV	1	1999	250
 TV	1	2000	150
 TV	1	NULL	400
+
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 200;
 product	country_id	year	SUM(profit)
@@ -184,6 +194,7 @@ TV	1	1999	250
 TV	1	NULL	400
 TV	NULL	NULL	600
 NULL	NULL	NULL	7785
+
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 7000;
 product	country_id	year	SUM(profit)
@@ -817,12 +828,11 @@ EXPLAIN
     -> Temporary table
         -> Group (no aggregates)
             -> Sort: t1.a, t2.b
-                -> Table scan on <temporary>
-                    -> Temporary table  (cost=0.80 rows=2)
-                        -> Inner hash join (no condition)  (cost=0.80 rows=2)
-                            -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
-                            -> Hash
-                                -> Table scan on t2  (cost=0.35 rows=1)
+                -> Stream results  (cost=0.80 rows=2)
+                    -> Inner hash join (no condition)  (cost=0.80 rows=2)
+                        -> Index scan on t1 using PRIMARY  (cost=0.45 rows=2)
+                        -> Hash
+                            -> Table scan on t2  (cost=0.35 rows=1)
 
 SELECT a, b FROM t1, t2 GROUP BY a, b WITH ROLLUP;
 a	b
@@ -1312,6 +1322,31 @@ NULL	NULL	NULL	0	1
 555	NULL	168	0	1
 1111	NULL	112	0	1
 NULL	NULL	622	1	1
+#
+# Bug #31073167: WRONG RESULT FOR EXPRESSION INVOLVING GROUP BY COLUMNS WITH ROLLUP
+#
+SELECT a, b, a + COALESCE(b, 0), AVG(b) OVER () FROM t1 GROUP BY a, b WITH ROLLUP;
+a	b	a + COALESCE(b, 0)	AVG(b) OVER ()
+NULL	112	NULL	40.6364
+NULL	NULL	NULL	40.6364
+111	11	122	40.6364
+111	12	123	40.6364
+111	NULL	111	40.6364
+222	22	244	40.6364
+222	23	245	40.6364
+222	NULL	222	40.6364
+333	33	366	40.6364
+333	34	367	40.6364
+333	NULL	333	40.6364
+444	44	488	40.6364
+444	45	489	40.6364
+444	NULL	444	40.6364
+555	55	610	40.6364
+555	56	611	40.6364
+555	NULL	555	40.6364
+1111	NULL	1111	40.6364
+1111	NULL	1111	40.6364
+NULL	NULL	NULL	40.6364
 DROP TABLE t0,t1;
 #
 # Bug#25174118 ROLLUP NULL'S GET REPLACED WITH LAST ROW'S VALUE FOR PREPARED STMTS ON A VIEW
@@ -1535,9 +1570,8 @@ EXPLAIN
                         -> Temporary table
                             -> Group (no aggregates)
                                 -> Sort: t1.i, t1.j
-                                    -> Table scan on <temporary>
-                                        -> Temporary table  (cost=1.75 rows=15)
-                                            -> Table scan on t1  (cost=1.75 rows=15)
+                                    -> Stream results  (cost=1.75 rows=15)
+                                        -> Table scan on t1  (cost=1.75 rows=15)
 
 SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP
 HAVING i+j is NULL ORDER BY i;
@@ -2119,4 +2153,25 @@ a	b	2*a+b	SUM(a+b) OVER ()
 2	4	8	16
 2	NULL	NULL	16
 NULL	NULL	NULL	16
+DROP TABLE t1;
+#
+# Bug #31868610: DATA TYPE CHANGED IN A GROUP BY WITH ROLLUP
+#
+CREATE TABLE IF NOT EXISTS t1 (a DECIMAL(6,3));
+INSERT INTO t1 VALUES (1.1);
+SELECT a FROM t1 GROUP BY a WITH ROLLUP;
+a
+1.100
+NULL
+DROP TABLE t1;
+#
+# Bug #32049313: WITH ROLLUP, IS (NOT) NULL DOES NOT WORK FOR AGGREGATIONS IN A HAVING CONDITION
+#
+CREATE TABLE t1 (f1 INTEGER,f2 INTEGER);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING SUM(f2) IS NOT NULL;
+f1	SUM(f2)
+1	30
+3	50
+NULL	80
 DROP TABLE t1;

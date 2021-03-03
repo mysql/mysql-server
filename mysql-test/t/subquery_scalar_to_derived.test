@@ -348,6 +348,7 @@ FROM t1
                         SELECT t1.a * CONCAT(COUNT(0), ' - ', AVG(dt.a)) AS cnct
                         FROM dt) derived0
      ON TRUE;
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -1364,6 +1365,7 @@ FROM (SELECT * FROM n) AS alias1
        ON alias2.col_int < (SELECT MAX(col_int) FROM n)
      ON TRUE;
 
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 

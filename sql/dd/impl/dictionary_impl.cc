@@ -51,7 +51,8 @@
 #include "sql/dd/impl/tables/table_partitions.h"  // dd::tables::Table_partitions
 #include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
 #include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
-#include "sql/dd/impl/utils.h"                    // dd::tables::Tablespaces
+#include "sql/dd/impl/upgrade/server.h"
+#include "sql/dd/impl/utils.h"            // dd::tables::Tablespaces
 #include "sql/dd/info_schema/metadata.h"  // dd::info_schema::store_dynamic...
 #include "sql/dd/types/abstract_table.h"  // dd::Abstract_table::DD_table
 #include "sql/dd/types/column.h"          // dd::Column::DD_table
@@ -65,6 +66,7 @@
 #include "sql/derror.h"
 #include "sql/handler.h"
 #include "sql/mdl.h"
+#include "sql/mysqld.h"                 //next_query_id()
 #include "sql/opt_costconstantcache.h"  // init_optimizer_cost_module
 #include "sql/plugin_table.h"
 #include "sql/sql_base.h"   // close_cached_tables
@@ -731,6 +733,23 @@ void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst) {
     return;
   }
   thd->locked_tables_list.add_rename_tablespace_mdls(src, dst);
+}
+
+bool alter_tablespace_encryption(THD *thd, const char *tablespace_name,
+                                 bool encryption) {
+  dd::upgrade::Bootstrap_error_handler error_handler;
+  bool save_log_error = dd::upgrade::Bootstrap_error_handler::m_log_error;
+  error_handler.set_log_error(false);
+
+  thd->set_query_id(next_query_id());
+
+  dd::String_type query = dd::String_type("ALTER TABLESPACE ") +
+                          tablespace_name + dd::String_type(" ENCRYPTION = ") +
+                          dd::String_type(encryption ? "'Y'" : "'N'");
+
+  bool res = execute_query(thd, query);
+  error_handler.set_log_error(save_log_error);
+  return res;
 }
 
 }  // namespace dd

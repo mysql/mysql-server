@@ -60,6 +60,7 @@ public:
   void execSTTOR(Signal*);
   void execMEASURE_WAKEUP_TIME_ORD(Signal*);
   void execDUMP_STATE_ORD(Signal*);
+  void execUPD_THR_LOAD_ORD(Signal*);
 
 public:
   /* Normally called locally, but can be called from mt.cpp as well. */
@@ -95,8 +96,11 @@ private:
   static const Uint32 ZCONTINUEB_MEASURE_CPU_USAGE = 1;
   static const Uint32 ZWAIT_ALL_STOP = 2;
   static const Uint32 ZWAIT_ALL_START = 3;
-  static const Uint32 ZCONTINUEB_CHECK_SPINTIME = 4
-;
+  static const Uint32 ZCONTINUEB_CHECK_SPINTIME = 4;
+  static const Uint32 ZCONTINUEB_MEASURE_CPU_DATA = 5;
+  static const Uint32 ZUPDATE_QUERY_DISTRIBUTION = 6;
+  void check_weights();
+
   static const Uint32 default_cpu_load = 95;
 
   /**
@@ -108,6 +112,60 @@ private:
   void wait_all_start(Signal*);
 
   FreezeThreadReq m_freeze_req;
+
+  struct CPUMeasurementRecord
+  {
+    CPUMeasurementRecord()
+      : m_first_measure_done(false)
+    {}
+
+    Uint32 m_cpu_id;
+
+    Uint64 m_user_time;
+    Uint64 m_sys_time;
+    Uint64 m_idle_time;
+    Uint64 m_interrupt_time;
+    Uint64 m_exec_vm_time;
+    Uint64 m_unknown_time;
+
+    union {
+      Uint64 m_time;
+      Uint64 m_elapsed_time;
+    };
+    bool   m_first_measure_done;
+
+    union {
+      Uint32 nextPool;
+      Uint32 nextList;
+    };
+    Uint32 prevList;
+  };
+  typedef Ptr<CPUMeasurementRecord> CPUMeasurementRecordPtr;
+  typedef ArrayPool<CPUMeasurementRecord> CPUMeasurementRecord_pool;
+  typedef DLCFifoList<CPUMeasurementRecord_pool> CPUMeasurementRecord_fifo;
+
+  CPUMeasurementRecord_pool c_CPUMeasurementRecordPool;
+
+  struct CPURecord
+  {
+    CPURecord() {}
+
+    Uint32 m_cpu_no;
+
+    CPUMeasurementRecord_fifo::Head m_next_50ms_measure;
+    CPUMeasurementRecord_fifo::Head m_next_1sec_measure;
+    CPUMeasurementRecord_fifo::Head m_next_20sec_measure;
+
+    CPUMeasurementRecord m_last_50ms_base_measure;
+    CPUMeasurementRecord m_last_1sec_base_measure;
+    CPUMeasurementRecord m_last_20sec_base_measure;
+
+    CPUMeasurementRecord m_curr_measure;
+    Uint32 nextPool;
+  };
+  typedef Ptr<CPURecord> CPURecordPtr;
+  typedef ArrayPool<CPURecord> CPURecord_pool;
+  CPURecord_pool c_CPURecordPool;
 
   struct MeasurementRecord
   {
@@ -249,6 +307,8 @@ private:
   Int32 m_warning_level;
   Uint32 m_max_warning_level;
   Uint32 m_burstiness;
+  Uint32 m_main_thrman_instance;
+  Uint32 m_rep_thrman_instance;
   OverloadStatus m_current_overload_status;
 
   struct ThreadOverloadStatus
@@ -263,6 +323,9 @@ private:
   MeasureStats c_20sec_stats;
   MeasureStats c_400sec_stats;
   MeasureStats *m_current_decision_stats;
+
+  bool m_is_cpuinfo_available;
+  bool m_is_cpudata_available;
 
   /* Private methods */
   void sendSTTORRY(Signal*, bool);
@@ -338,6 +401,39 @@ private:
 
   bool calculate_send_thread_load_last_second(Uint32 send_instance,
                                               SendThreadMeasurement *measure);
+  void fill_in_current_measure(CPURecordPtr cpuPtr,
+                               struct ndb_hwinfo *hwinfo);
+  bool calculate_next_CPU_measure(CPUMeasurementRecord *lastMeasurePtrP,
+                                  CPUMeasurementRecord *firstMeasurePtrP,
+                                  CPUMeasurementRecord *baseMeasurePtrP,
+                                  CPURecord *cpuPtrP,
+                                  Uint32 ms_between_measurements);
+  void send_cpu_measurement_row(DbinfoScanReq & req,
+                                Ndbinfo::Ratelimit & rl,
+                                Signal *signal,
+                                CPUMeasurementRecordPtr cpuMeasurePtr,
+                                Uint32 cpu_no,
+                                Uint32 online);
+  void send_cpu_raw_measurement_row(DbinfoScanReq & req,
+                                    Ndbinfo::Ratelimit & rl,
+                                    Signal *signal,
+                                    CPUMeasurementRecordPtr cpuMeasurePtr,
+                                    Uint32 cpu_no,
+                                    Uint32 measurement_id,
+                                    Uint32 online);
+  void measure_cpu_data(Signal *signal);
+  void send_measure_to_rep_thrman(Signal*, MeasurementRecordPtr);
+  void update_query_distribution(Signal*);
+  void initial_query_distribution(Signal*);
+  void send_query_distribution(Uint32*, Signal*);
+
+  struct ThrLoad
+  {
+    Uint32 m_cpu_load;
+    Uint32 m_send_load;
+  };
+  struct ThrLoad m_thr_load[MAX_DISTR_THREADS][2];
+  Uint32 m_curr_weights[MAX_DISTR_THREADS];
 };
 
 class ThrmanProxy : public LocalProxy

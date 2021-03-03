@@ -30,11 +30,11 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_time.h"
 #include "mysqld.h"
@@ -1203,7 +1203,7 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql, LEX_CSTRING schema_name,
                               LEX_CSTRING event_name) {
   LEX_STRING buffer;
   const uint STATIC_SQL_LENGTH = 14;
-  int ret = 0;
+  bool ret = false;
 
   DBUG_TRACE;
 

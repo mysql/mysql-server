@@ -357,3 +357,32 @@ SET SESSION debug = '';
 SET GLOBAL binlog_row_metadata = MINIMAL;
 DROP TABLE t1;
 RESET MASTER;
+
+--echo #
+--echo # WL#10905 - Support for INVISIBLE columns.
+--echo #
+--echo # Test case to verify that INVISIBLE clause can be printed correctly.
+CREATE TABLE t1 (c1 INT,
+                 c2 INT UNSIGNED INVISIBLE DEFAULT(10),
+                 c3 INT UNSIGNED NOT NULL INVISIBLE DEFAULT(90),
+                 c4 INT UNSIGNED PRIMARY KEY INVISIBLE DEFAULT(5),
+                 c5 VARCHAR(100) CHARSET ucs2 INVISIBLE,
+                 c6 GEOMETRY INVISIBLE,
+                 c7 ENUM("enum_v1", "enum_v2", "enum_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE,
+                 c8 SET("set_v1", "set_v2", "set_v3") CHARACTER SET swe7 COLLATE swe7_bin INVISIBLE);
+
+SET GLOBAL binlog_row_metadata = FULL;
+INSERT INTO t1 VALUES(1);
+--source extra/binlog_tests/print_optional_metadata.inc
+UPDATE t1 SET c1=4 WHERE c4=5;
+--source extra/binlog_tests/print_optional_metadata.inc
+
+RESET MASTER;
+--echo # INVISIBLE clause is included with only binlog_row_metadata = FULL.
+SET GLOBAL binlog_row_metadata = MINIMAL;
+INSERT INTO t1(c1, c4) VALUES(3, 6);
+--source extra/binlog_tests/print_optional_metadata.inc
+UPDATE t1 SET c1=4 WHERE c4=6;
+--source extra/binlog_tests/print_optional_metadata.inc
+DROP TABLE t1;
+RESET MASTER;

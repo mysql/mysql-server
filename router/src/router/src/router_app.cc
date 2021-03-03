@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <initializer_list>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -827,8 +828,45 @@ void MySQLRouter::assert_option_value_in_range(const std::string &value,
                               std::to_string(min) + ", " + std::to_string(max) +
                               "]"};
     }
-  } catch (const std::invalid_argument &e) {
+  } catch (const std::invalid_argument &) {
     throw std::invalid_argument{"invalid value: " + value};
+  }
+}
+
+/**
+ * upper-case a string.
+ */
+static std::string make_upper(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+
+  return s;
+}
+
+/**
+ * assert 'value' is one of the allowed values.
+ *
+ * value is compared case-insensitive
+ *
+ * @param key key name to report in case of failure
+ * @param value value to check
+ * @param allowed_values allowed values.
+ *
+ * @throws std::invalid_argument if value is not part of allowed_values.
+ */
+static void assert_one_of_ci(
+    const std::string &key, const std::string &value,
+    std::initializer_list<const char *> allowed_values) {
+  const auto value_upper = make_upper(value);
+
+  const auto it = std::find_if(allowed_values.begin(), allowed_values.end(),
+                               [&value_upper](const auto &allowed_value) {
+                                 return value_upper == allowed_value;
+                               });
+
+  if (it == allowed_values.end()) {
+    throw std::invalid_argument("value '" + value + "' provided to " + key +
+                                " is not one of " +
+                                mysql_harness::join(allowed_values, ","));
   }
 }
 
@@ -951,6 +989,108 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(
+      OptionNames({"--client-ssl-cert"}),
+      "name of a PEM file containing a SSL certificate used "
+      "for accepting TLS connections between client and router",
+      CmdOptionValueReq::required, "path",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--client-ssl-cert",
+                                              "client_ssl_cert", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--client-ssl-cert");
+
+        if (!bootstrap_options_["client_ssl_cert"].empty() &&
+            bootstrap_options_["client_ssl_key"].empty()) {
+          throw std::runtime_error(
+              "If --client-ssl-cert is set, --client-ssl-key can't be empty.");
+        }
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--client-ssl-cipher"}),
+      "list of one or more colon separated cipher names used for accepting "
+      "TLS connections between client and router",
+      CmdOptionValueReq::required, "",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--client-ssl-cipher",
+                                              "client_ssl_cipher", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--client-ssl-cipher");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--client-ssl-curves"}),
+      "list of one or more colon separated elliptic curve names used for "
+      "accepting TLS connections between client and router",
+      CmdOptionValueReq::required, "",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--client-ssl-curves",
+                                              "client_ssl_curves", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--client-ssl-curves");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--client-ssl-key"}),
+      "name of a PEM file containing a SSL private key used "
+      "for accepting TLS connections between client and router",
+      CmdOptionValueReq::required, "path",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--client-ssl-key",
+                                              "client_ssl_key", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--client-ssl-key");
+
+        if (!bootstrap_options_["client_ssl_key"].empty() &&
+            bootstrap_options_["client_ssl_cert"].empty()) {
+          throw std::runtime_error(
+              "If --client-ssl-key is set, --client-ssl-cert can't be empty.");
+        }
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--client-ssl-mode"}),
+      "SSL mode for connections from client to router. One "
+      "of DISABLED, PREFERRED, REQUIRED or PASSTHROUGH.",
+      CmdOptionValueReq::required, "mode",
+      [this](const auto &value) {
+        assert_one_of_ci("--client-ssl-mode", value,
+                         {"DISABLED", "PREFERRED", "REQUIRED", "PASSTHROUGH"});
+
+        this->save_bootstrap_option_not_empty(
+            "--client-ssl-mode", "client_ssl_mode", make_upper(value));
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--client-ssl-mode");
+
+        if (bootstrap_options_["client_ssl_mode"] == "PASSTHROUGH") {
+          auto server_ssl_mode_it = bootstrap_options_.find("server_ssl_mode");
+          if (server_ssl_mode_it != bootstrap_options_.end()) {
+            if (server_ssl_mode_it->second != "AS_CLIENT") {
+              throw std::runtime_error(
+                  "--server-ssl-mode must be AS_CLIENT or not specified, if "
+                  "--client-ssl-mode is PASSTHROUGH.");
+            }
+          }
+        }
+      });
+  arg_handler_.add_option(
+      OptionNames({"--client-ssl-dh-params"}),
+      "name of a PEM file containing DH paramaters",
+      CmdOptionValueReq::required, "",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--client-ssl-dh-params",
+                                              "client_ssl_dh_params", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--client-ssl-dh-params");
+      });
+
+  arg_handler_.add_option(
       OptionNames({"--conf-base-port"}),
       "Base port to use for listening router ports. (bootstrap)",
       CmdOptionValueReq::required, "port",
@@ -964,8 +1104,7 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(
       OptionNames({"--conf-bind-address"}),
       "IP address of the interface to which router's listening sockets "
-      "should "
-      "bind. (bootstrap)",
+      "should bind. (bootstrap)",
       CmdOptionValueReq::required, "address",
       [this](const std::string &address) {
         this->bootstrap_options_["bind-address"] = address;
@@ -1183,8 +1322,122 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(
+      OptionNames({"--server-ssl-ca"}),
+      "path name of the Certificate Authority (CA) certificate file in PEM "
+      "format. Used when forwarding a client connection from router to a "
+      "server.",
+      CmdOptionValueReq::required, "path",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--server-ssl-ca",
+                                              "server_ssl_ca", value);
+      },
+      [this](const auto &) { this->assert_bootstrap_mode("--server-ssl-ca"); });
+
+  arg_handler_.add_option(
+      OptionNames({"--server-ssl-capath"}),
+      "path name of the directory that contains trusted SSL Certificate "
+      "Authority (CA) certificate files in PEM format. Used when forwarding "
+      "a client connection from router to a server.",
+      CmdOptionValueReq::required, "directory",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--server-ssl-capath",
+                                              "server_ssl_capath", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--server-ssl-capath");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--server-ssl-cipher"}),
+      "list of one or more colon separated cipher names. Used when "
+      "forwarding "
+      "client connection from router to a server.",
+      CmdOptionValueReq::required, "",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--server-ssl-cipher",
+                                              "server_ssl_cipher", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--server-ssl-cipher");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--server-ssl-crl"}),
+      "path name of the file containing certificate revocation lists in PEM "
+      "format. Used when forwarding a client connection from router to a "
+      "server.",
+      CmdOptionValueReq::required, "path",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--server-ssl-crl",
+                                              "server_ssl_crl", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--server-ssl-crl");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--server-ssl-crlpath"}),
+      "path name of the directory that contains certificate revocation-list "
+      "files in PEM format. Used when forwarding a client connection from "
+      "router to a server.",
+      CmdOptionValueReq::required, "directory",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--server-ssl-crlpath",
+                                              "server_ssl_crlpath", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--server-ssl-crlpath");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--server-ssl-curves"}),
+      "list of one or more colon separated elliptic curve names. Used when "
+      "forwarding a client connection from router to a server.",
+      CmdOptionValueReq::required, "",
+      [this](const auto &value) {
+        this->save_bootstrap_option_not_empty("--server-ssl-curves",
+                                              "server_ssl_curves", value);
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--server-ssl-curves");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--server-ssl-mode"}),
+      "SSL mode to use when forwarding a client connection from router to a "
+      "server. One of DISABLED, PREFERRED, REQUIRED or AS_CLIENT.",
+      CmdOptionValueReq::required, "ssl-mode",
+      [this](const auto &value) {
+        assert_one_of_ci("--server-ssl-mode", value,
+                         {"DISABLED", "PREFERRED", "REQUIRED", "AS_CLIENT"});
+
+        this->save_bootstrap_option_not_empty(
+            "--server-ssl-mode", "server_ssl_mode", make_upper(value));
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--server-ssl-mode");
+      });
+
+  arg_handler_.add_option(
+      OptionNames({"--server-ssl-verify"}),
+      "verification mode when forwarding a client connection from router to "
+      "server. One of DISABLED, VERIFY_CA or VERIFY_IDENTITY.",
+      CmdOptionValueReq::required, "verify-mode",
+      [this](const auto &value) {
+        assert_one_of_ci("--server-ssl-verify", value,
+                         {"DISABLED", "VERIFY_CA", "VERIFY_IDENTITY"});
+
+        this->save_bootstrap_option_not_empty(
+            "--server-ssl-verify", "server_ssl_verify", make_upper(value));
+      },
+      [this](const auto &) {
+        this->assert_bootstrap_mode("--server-ssl-verify");
+      });
+
+  arg_handler_.add_option(
       OptionNames({"--ssl-ca"}),
-      "Path to SSL CA file to verify server's certificate against.",
+      "Path to SSL CA file to verify server's certificate against when "
+      "connecting to the metadata servers",
       CmdOptionValueReq::required, "path",
       [this](const std::string &path) {
         this->save_bootstrap_option_not_empty("--ssl-ca", "ssl_ca", path);
@@ -1194,7 +1447,7 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(
       OptionNames({"--ssl-capath"}),
       "Path to directory containing SSL CA files to verify server's "
-      "certificate against.",
+      "certificate against when connecting to the metadata servers.",
       CmdOptionValueReq::required, "directory",
       [this](const std::string &path) {
         this->save_bootstrap_option_not_empty("--ssl-capath", "ssl_capath",
@@ -1206,8 +1459,8 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(
       OptionNames({"--ssl-cert"}),
-      "Path to client SSL certificate, to be used if client certificate "
-      "verification is required. Used during bootstrap only.",
+      "Path to a SSL certificate, to be used if client certificate "
+      "verification is required when connecting to the metadata servers.",
       CmdOptionValueReq::required, "path",
       [this](const std::string &path) {
         this->save_bootstrap_option_not_empty("--ssl-cert", "ssl_cert", path);
@@ -1218,7 +1471,8 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(
       OptionNames({"--ssl-cipher"}),
-      ": separated list of SSL ciphers to allow, if SSL is enabeld.",
+      ": separated list of SSL ciphers to allow when connecting to the "
+      "metadata servers, if SSL is enabled.",
       CmdOptionValueReq::required, "ciphers",
       [this](const std::string &cipher) {
         this->save_bootstrap_option_not_empty("--ssl-cipher", "ssl_cipher",
@@ -1230,7 +1484,8 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(
       OptionNames({"--ssl-crl"}),
-      "Path to SSL CRL file to use when verifying server certificate.",
+      "Path to SSL CRL file to use when connecting to metadata-servers and "
+      "verifying their SSL certificate",
       CmdOptionValueReq::required, "path",
       [this](const std::string &path) {
         this->save_bootstrap_option_not_empty("--ssl-crl", "ssl_crl", path);
@@ -1241,9 +1496,8 @@ void MySQLRouter::prepare_command_options() noexcept {
 
   arg_handler_.add_option(
       OptionNames({"--ssl-crlpath"}),
-      "Path to directory containing SSL CRL files to use when verifying "
-      "server "
-      "certificate.",
+      "Path to directory containing SSL CRL files to use when connecting to "
+      "metadata-servers and verifying their SSL certificate.",
       CmdOptionValueReq::required, "directory",
       [this](const std::string &path) {
         this->save_bootstrap_option_not_empty("--ssl-crlpath", "ssl_crlpath",
@@ -1256,7 +1510,8 @@ void MySQLRouter::prepare_command_options() noexcept {
   arg_handler_.add_option(
       OptionNames({"--ssl-key"}),
       "Path to private key for client SSL certificate, to be used if client "
-      "certificate verification is required. Used during bootstrap only.",
+      "certificate verification is required when connecting to "
+      "metadata-servers.",
       CmdOptionValueReq::required, "path",
       [this](const std::string &path) {
         this->save_bootstrap_option_not_empty("--ssl-key", "ssl_key", path);
@@ -1604,6 +1859,11 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--conf-base-port",
         "--conf-use-gr-notifications",
         "--connect-timeout",
+        "--client-ssl-cert",
+        "--client-ssl-cipher",
+        "--client-ssl-curves",
+        "--client-ssl-key",
+        "--client-ssl-mode",
         "--directory",
         "--force",
         "--force-password-validation",
@@ -1613,6 +1873,14 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--password-retries",
         "--read-timeout",
         "--report-host",
+        "--server-ssl-ca",
+        "--server-ssl-capath",
+        "--server-ssl-cipher",
+        "--server-ssl-crl",
+        "--server-ssl-crlpath",
+        "--server-ssl-curves",
+        "--server-ssl-mode",
+        "--server-ssl-verify",
         "--ssl-ca",
         "--ssl-cert",
         "--ssl-cipher",

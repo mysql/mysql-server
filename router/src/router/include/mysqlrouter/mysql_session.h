@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,12 +33,32 @@
 
 #include <mysql.h>  // enum mysql_ssl_mode
 
+#include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/log_filter.h"
 #ifdef FRIEND_TEST
 class MockMySQLSession;
 #endif
 
 namespace mysqlrouter {
+
+class MysqlError {
+ public:
+  MysqlError(unsigned int code, std::string message, std::string sql_state)
+      : code_{code},
+        message_{std::move(message)},
+        sql_state_{std::move(sql_state)} {}
+
+  operator bool() { return code_ != 0; }
+
+  std::string message() const { return message_; }
+  std::string sql_state() const { return sql_state_; }
+  unsigned int value() const { return code_; }
+
+ private:
+  unsigned int code_;
+  std::string message_;
+  std::string sql_state_;
+};
 
 class MySQLSession {
  public:
@@ -147,7 +167,21 @@ class MySQLSession {
     Row row_;
   };
 
-  MySQLSession();
+  struct LoggingStrategy {
+    virtual void log(const std::string &msg) = 0;
+    virtual ~LoggingStrategy() = default;
+  };
+
+  struct LoggingStrategyNone : public LoggingStrategy {
+    virtual void log(const std::string & /*msg*/) override {}
+  };
+
+  struct LoggingStrategyDebugLogger : public LoggingStrategy {
+    virtual void log(const std::string &msg) override;
+  };
+
+  MySQLSession(std::unique_ptr<LoggingStrategy> &&logging_strategy =
+                   std::make_unique<LoggingStrategyNone>());
   virtual ~MySQLSession();
 
   static mysql_ssl_mode parse_ssl_mode(
@@ -219,9 +253,12 @@ class MySQLSession {
   virtual const char *last_error();
   virtual unsigned int last_errno();
 
+  virtual const char *ssl_cipher();
+
  protected:
   static const std::function<void(unsigned, MYSQL_FIELD *)>
       null_field_validator;
+  std::unique_ptr<LoggingStrategy> logging_strategy_;
 
  private:
   ConnectionParameters conn_params_;
@@ -232,11 +269,39 @@ class MySQLSession {
   SQLLogFilter log_filter_;
 
   virtual MYSQL *raw_mysql() noexcept { return connection_; }
-  static bool check_for_yassl(MYSQL *connection);
 
 #ifdef FRIEND_TEST
   friend class ::MockMySQLSession;
 #endif
+
+  class MYSQL_RES_Deleter {
+   public:
+    void operator()(MYSQL_RES *res) { mysql_free_result(res); }
+  };
+
+  using mysql_result_type = std::unique_ptr<MYSQL_RES, MYSQL_RES_Deleter>;
+
+  /**
+   * run query.
+   *
+   * There are 3 cases:
+   *
+   * 1. query returns a resultset
+   * 3. query returns no resultset
+   * 2. query fails with an error
+   *
+   * @param q stmt to execute
+   *
+   * @returns resultset on sucess, MysqlError on error
+   */
+  stdx::expected<mysql_result_type, MysqlError> real_query(
+      const std::string &q);
+
+  /**
+   * log query before running it.
+   */
+  stdx::expected<mysql_result_type, MysqlError> logged_real_query(
+      const std::string &q);
 };
 
 }  // namespace mysqlrouter

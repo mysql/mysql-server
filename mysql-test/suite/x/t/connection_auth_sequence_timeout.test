@@ -49,7 +49,6 @@ expecterror ER_ACCESS_DENIED_ERROR;
 login xuser_native	native	test	sha256_memory;
 
 peerdisc 30000 30000;
-
 EOF
 
 --let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='AES256-SHA'

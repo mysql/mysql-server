@@ -28,7 +28,15 @@
   Instrumentation helpers for stored programs.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_statement.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_SP_CALL() as direct call. */
+#include "pfs_statement_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_SP_CALL
 #define PSI_SP_CALL(M) psi_statement_service->M

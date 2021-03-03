@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,14 +31,16 @@
 
 namespace xcl {
 namespace test {
+namespace mock {
 
-class Mock_query_instances : public Query_instances {
+class Query_instances : public xcl::Query_instances {
  public:
-  MOCK_METHOD0(instances_fetch_begin, Instance_id());
-  MOCK_METHOD0(instances_fetch_end, void());
-  MOCK_METHOD1(is_instance_active, bool(const Instance_id id));
+  MOCK_METHOD(Instance_id, instances_fetch_begin, (), (override));
+  MOCK_METHOD(void, instances_fetch_end, (), (override));
+  MOCK_METHOD(bool, is_instance_active, (const Instance_id id), (override));
 };
 
+}  // namespace mock
 }  // namespace test
 }  // namespace xcl
 

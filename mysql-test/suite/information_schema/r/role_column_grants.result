@@ -342,7 +342,9 @@ Disconnect project_lead_user
 #                V                |
 #          project_lead-----------/
 #
-GRANT project_lead to updater;
+INSERT INTO mysql.role_edges (FROM_USER,FROM_HOST,TO_USER,TO_HOST)
+VALUES('project_lead','%','updater','%');
+FLUSH PRIVILEGES;
 # Connect as project_lead_user
 # With the roles activated during connection.
 SELECT * FROM INFORMATION_SCHEMA.ROLE_COLUMN_GRANTS ORDER BY GRANTEE, TABLE_NAME, COLUMN_NAME, PRIVILEGE_TYPE;

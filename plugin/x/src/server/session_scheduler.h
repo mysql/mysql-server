@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,14 @@
 
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/src/ngs/scheduler.h"
 
 namespace xpl {
 
 class Session_scheduler : public ngs::Scheduler_dynamic {
  public:
   Session_scheduler(const char *name, void *plugin,
-                    std::unique_ptr<Monitor_interface> monitor);
+                    std::unique_ptr<iface::Scheduler_dynamic::Monitor> monitor);
 
   bool thread_init() override;
   void thread_end() override;

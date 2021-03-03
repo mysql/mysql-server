@@ -28,9 +28,9 @@
 #include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/src/interface/listener.h"
 #include "plugin/x/src/interface/socket_events.h"
+#include "plugin/x/src/ngs/memory.h"
 
 namespace xpl {
 namespace iface {

@@ -3,18 +3,21 @@
 # This file contains following restart-oriented macros:
 #
 # * Kill_and_restart_mysqld - SESSION_NAME MTR_EXPECT_FILE
+# * Expect_restart_mysqld_file - MTR_EXPECT_FILE
+# * Expect_restart_mysqld_instance - ID
 # * Wait_for_others_are_idle - NONE
 # * kill_client - %CLIENT_ID_TO_KILL%
 # * kill_client_expect_error - %CLIENT_ID_TO_KILL% %ERROR_CODE%
 #
 
-## Restart server macros
 
+## Restart server macros
+#
 -->macro Kill_and_restart_mysqld	%SESSION_NAME%	%EXPECT_FILE%
 echo [Killing and restarting server associated with %SESSION_NAME%];
 quiet;
 setsession %SESSION_NAME%;
-system echo restart > %EXPECT_FILE%;
+callmacro Expect_restart_mysqld_file	%EXPECT_FILE%;
 quiet;
 
 #Kill Mysqld server
@@ -22,6 +25,21 @@ shutdown_server 0;
 
 #Wait for the server restart
 reconnect;
+-->endmacro
+
+
+## Make MTR to expect MySQL Server to shutdown
+#
+-->macro Expect_restart_mysqld_file	%EXPECT_FILE%
+system echo restart > %EXPECT_FILE%;
+-->endmacro
+
+
+## Make MTR to expect MySQL Server to shutdown
+#
+-->macro Expect_restart_mysqld_instance %ID%
+env %MYSQLXTEST_VARDIR% MYSQLTEST_VARDIR;
+system echo restart > %MYSQLXTEST_VARDIR%/tmp/mysqld.%ID%.expect;
 -->endmacro
 
 

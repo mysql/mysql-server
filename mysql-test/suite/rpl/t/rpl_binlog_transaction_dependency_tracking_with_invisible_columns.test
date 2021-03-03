@@ -1,0 +1,38 @@
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+################################################################################
+# WL10905 - Support for INVISIBLE columns.                                     #
+#                                                                              #
+# ==== Purpose ====                                                            #
+#                                                                              #
+# The test checks if source includes any unique indexes containing invisible   #
+# columns in the writeset.                                                     #
+#                                                                              #
+################################################################################
+SET @saved_binlog_transaction_dependency_tracking =
+                    @@global.binlog_transaction_dependency_tracking;
+SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
+
+# LC=0 SN=1
+CREATE TABLE t (a INT NOT NULL,
+                b INT NOT NULL INVISIBLE,
+                UNIQUE KEY(b));
+# LC=1 SN=2
+INSERT INTO t SET a = 1, b = 1;
+# LC=2 SN=3
+UPDATE t SET b = 2;
+# LC=1 SN=4
+INSERT INTO t SET a = 3, b = 3;
+# LC=3 SN=5
+INSERT INTO t SET a = 1, b = 1;
+--echo # Verify that the last INSERT depends on the UPDATE, which it
+--echo # depends on using only an INVISIBLE column. This proves that the index
+--echo # on the INVISIBLE column is accounted for in the writeset.
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+FLUSH LOGS;
+--let $logical_timestamps =0 1;1 2;2 3;1 4;3 5
+--source include/assert_logical_timestamps.inc
+
+DROP TABLE t;
+SET @@global.binlog_transaction_dependency_tracking = @saved_binlog_transaction_dependency_tracking;
+--source include/rpl_end.inc

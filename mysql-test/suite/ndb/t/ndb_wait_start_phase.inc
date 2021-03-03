@@ -5,7 +5,6 @@
 --echo Waiting for node $_ndb_nodeid to enter start phase $_start_phase
 
 --let $success = 0
---let $ndb_mgm_cmd = $NDB_MGM --no-defaults --verbose=0
 --let $tmpfile = $MYSQLTEST_VARDIR/tmp/wait_start_phase.txt
 --let $maxtime = 120
 
@@ -20,7 +19,7 @@ create temporary table test.tmpfile (txt varchar(200));
 
 while (! $success)
 {
-  --exec $ndb_mgm_cmd -e "$_ndb_nodeid STATUS" > $tmpfile
+  --exec $NDB_MGM -e "$_ndb_nodeid STATUS" > $tmpfile
   eval LOAD DATA INFILE '$tmpfile' INTO TABLE test.tmpfile;
   # select * from test.tmpfile;
   eval select count(1) from test.tmpfile where txt like "%starting (Last completed phase $_start_phase)%" into @match_count;

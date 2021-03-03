@@ -36,39 +36,53 @@ country CHAR(20) NOT NULL);
 INSERT INTO t2 VALUES (1, 'USA'),(2,'India'), (3,'Finland');
 
 # First simple rollups, with just grand total
+--sorted_result
 SELECT product, SUM(profit) FROM t1 GROUP BY product;
+--echo
 SELECT product, SUM(profit) FROM t1 GROUP BY product WITH ROLLUP;
+--echo
 SELECT product, SUM(profit) FROM t1 GROUP BY 1 WITH ROLLUP;
+--echo
 SELECT product, SUM(profit),AVG(profit) FROM t1 GROUP BY product WITH ROLLUP;
 
 # Sub totals
+--sorted_result
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP;
 ANALYZE TABLE t1;
 EXPLAIN SELECT product, country_id , year, SUM(profit)
 FROM t1 GROUP BY product, country_id, year WITH ROLLUP;
+--echo
 SELECT product, country_id , SUM(profit) FROM t1
 GROUP BY product, country_id WITH ROLLUP
 ORDER BY product DESC, GROUPING (country_id), country_id;
 
 # limit
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP limit 3,3;
 
+--sorted_result
 SELECT product, country_id, COUNT(*), COUNT(distinct year)
 FROM t1 GROUP BY product, country_id;
+--echo
 SELECT product, country_id, COUNT(*), COUNT(distinct year)
 FROM t1 GROUP BY product, country_id WITH ROLLUP;
 
 # Test of having
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING country_id = 1;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 200;
+--echo
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP HAVING SUM(profit) > 7000;
 
@@ -741,6 +755,12 @@ SELECT a as Department, b as Employees, SUM(c), GROUPING(a) as GP_A,
        GROUPING(b) as GP_B FROM t1 GROUP BY a,b WITH ROLLUP
        HAVING (GP_A =1 AND GP_B=1) OR (GP_B=1);
 
+--echo #
+--echo # Bug #31073167: WRONG RESULT FOR EXPRESSION INVOLVING GROUP BY COLUMNS WITH ROLLUP
+--echo #
+
+SELECT a, b, a + COALESCE(b, 0), AVG(b) OVER () FROM t1 GROUP BY a, b WITH ROLLUP;
+
 DROP TABLE t0,t1;
 
 # End of test for WL#1979
@@ -1070,4 +1090,22 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 ( a INTEGER, b INTEGER );
 INSERT INTO t1 VALUES (1,1), (1,2), (2,3), (2,4);
 SELECT a, b, 2*a+b, SUM(a+b) OVER () FROM t1 GROUP BY a, b WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #31868610: DATA TYPE CHANGED IN A GROUP BY WITH ROLLUP
+--echo #
+
+CREATE TABLE IF NOT EXISTS t1 (a DECIMAL(6,3));
+INSERT INTO t1 VALUES (1.1);
+SELECT a FROM t1 GROUP BY a WITH ROLLUP;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32049313: WITH ROLLUP, IS (NOT) NULL DOES NOT WORK FOR AGGREGATIONS IN A HAVING CONDITION
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER,f2 INTEGER);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING SUM(f2) IS NOT NULL;
 DROP TABLE t1;

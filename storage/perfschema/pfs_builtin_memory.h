@@ -139,5 +139,4 @@ extern PFS_builtin_memory_class builtin_memory_prepared_stmt;
 
 extern PFS_builtin_memory_class builtin_memory_scalable_buffer;
 
-/** @} */
 #endif

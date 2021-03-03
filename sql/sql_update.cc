@@ -45,7 +45,7 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -427,7 +427,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     stored programs can be evaluated.
   */
   if (table->part_info && !no_rows) {
-    if (prune_partitions(thd, table, conds))
+    if (prune_partitions(thd, table, select_lex, conds))
       return true; /* purecov: inspected */
     if (table->all_partitions_pruned_away) {
       no_rows = true;
@@ -474,7 +474,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       no_rows = test_quick_select(thd, keys_to_use, 0, limit, safe_update,
                                   ORDER_NOT_RELEVANT, &qep_tab, conds,
                                   &needed_reg_dummy, &qck,
-                                  qep_tab.table()->force_index) < 0;
+                                  qep_tab.table()->force_index, select_lex) < 0;
       qep_tab.set_quick(qck);
       if (thd->is_error()) return true;
     }
@@ -675,7 +675,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         } else {
           empty_record(table);
           path = NewIndexScanAccessPath(thd, table, used_index,
-                                        /*use_order=*/true, reverse, &qep_tab,
+                                        /*use_order=*/true, reverse,
                                         /*count_examined_rows=*/false);
         }
 
@@ -752,7 +752,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         }
 
         iterator = NewIterator<SortFileIndirectIterator>(
-            thd, Prealloced_array<TABLE *, 4>{table}, tempfile,
+            thd, Mem_root_array<TABLE *>{table}, tempfile,
             /*ignore_not_found_rows=*/false, /*has_null_flags=*/false,
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
@@ -2245,6 +2245,12 @@ void Query_result_update::cleanup(THD *thd) {
 
   if (main_table) main_table->file->try_semi_consistent_read(false);
   main_table = nullptr;
+  // Reset state and statistics members:
+  trans_safe = true;
+  transactional_tables = false;
+  error_handled = false;
+  found_rows = 0;
+  updated_rows = 0;
 }
 
 bool Query_result_update::send_data(THD *thd, const mem_root_deque<Item *> &) {

@@ -74,10 +74,13 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // is_encrypted
+#include "sql/dd/properties.h"               // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/column.h"               // dd::Column
 #include "sql/dd/types/foreign_key.h"          // dd::Foreign_key
 #include "sql/dd/types/foreign_key_element.h"  // dd::Foreign_key_element
+#include "sql/dd/types/partition.h"
+#include "sql/dd/types/partition_index.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"  // dd::Table
 #include "sql/debug_sync.h"      // DEBUG_SYNC
@@ -1931,8 +1934,8 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   for (ptr = table->field; (field = *ptr); ptr++) {
-    // Skip fields that are hidden from the user.
-    if (field->is_hidden_from_user()) continue;
+    // Skip hidden system fields.
+    if (field->is_hidden_by_system()) continue;
 
     enum_field_types field_type = field->real_type();
 
@@ -2064,6 +2067,10 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     if (field->auto_flags & Field::NEXT_NUMBER)
       packet->append(STRING_WITH_LEN(" AUTO_INCREMENT"));
+
+    // Column visibility attribute
+    if (field->is_hidden_by_user())
+      packet->append(STRING_WITH_LEN(" /*!80023 INVISIBLE */"));
 
     if (field->comment.length) {
       packet->append(STRING_WITH_LEN(" COMMENT "));
@@ -2219,6 +2226,32 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       if (share->default_storage_media == HA_SM_MEMORY)
         packet->append(STRING_WITH_LEN(" STORAGE MEMORY"));
 
+      packet->append(STRING_WITH_LEN(" */"));
+    }
+
+    /* Get Autoextend_size attribute for file_per_table tablespaces. */
+
+    ulonglong autoextend_size{};
+
+    if (create_info_arg != nullptr) {
+      if ((create_info_arg->used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE) !=
+          0) {
+        autoextend_size =
+            create_info_arg->m_implicit_tablespace_autoextend_size;
+      }
+    } else if (!share->tmp_table && table_obj &&
+               table_obj->engine() == "InnoDB") {
+      /* Get the AUTOEXTEND_SIZE if the tablespace is an implicit tablespace. */
+      dd::get_implicit_tablespace_options(thd, table_obj, &autoextend_size);
+    }
+
+    /* Print autoextend_size attribute if it is set to a non-zero value */
+    if (autoextend_size > 0) {
+      char buf[std::numeric_limits<decltype(autoextend_size)>::digits10 + 2];
+      int len = snprintf(buf, sizeof(buf), "%llu", autoextend_size);
+      DBUG_ASSERT(len < static_cast<int>(sizeof(buf)));
+      packet->append(STRING_WITH_LEN(" /*!80023 AUTOEXTEND_SIZE="));
+      packet->append(buf, len);
       packet->append(STRING_WITH_LEN(" */"));
     }
 
@@ -3769,31 +3802,31 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     }
 
     // EXTRA
-    /*
-      For non-temporary tables, EXTRA column value in I_S.columns table
-      is stored as below,
-
-      IF (col.is_auto_increment=true,
-      CONCAT(IFNULL(CONCAT("on update ", col.update_option, " "),''),
-      "auto_increment"),
-      CONCAT("on update ", col.update_option)) AS EXTRA,
-
-      Following the same logic for columns of temporary tables also.
-      */
+    bool on_update_clause_was_printed =
+        print_on_update_clause(field, &type, true);
     if (field->auto_flags & Field::NEXT_NUMBER) {
-      if (print_on_update_clause(field, &type, true))
-        table->field[TMP_TABLE_COLUMNS_EXTRA]->store(type.ptr(), type.length(),
-                                                     cs);
-      table->field[TMP_TABLE_COLUMNS_EXTRA]->store(
-          STRING_WITH_LEN("auto_increment"), cs);
-    } else {
-      if (print_on_update_clause(field, &type, true))
-        table->field[TMP_TABLE_COLUMNS_EXTRA]->store(type.ptr(), type.length(),
-                                                     cs);
+      if (on_update_clause_was_printed) type.append(STRING_WITH_LEN(" "), cs);
+      type.append(STRING_WITH_LEN("auto_increment"), cs);
+    } else if (field->gcol_info != nullptr) {
+      if (on_update_clause_was_printed) type.append(STRING_WITH_LEN(" "), cs);
+
+      if (field->stored_in_db)
+        type.append(STRING_WITH_LEN("STORED GENERATED"), cs);
       else
-        table->field[TMP_TABLE_COLUMNS_EXTRA]->store(STRING_WITH_LEN("NULL"),
-                                                     cs);
+        type.append(STRING_WITH_LEN("VIRTUAL GENERATED"), cs);
     }
+
+    // Column visibility attribute.
+    if (field->is_hidden_by_user()) {
+      if (type.length() > 0) type.append(STRING_WITH_LEN(" "), cs);
+      type.append(STRING_WITH_LEN("INVISIBLE"), cs);
+    }
+
+    if (type.length() > 0)
+      table->field[TMP_TABLE_COLUMNS_EXTRA]->store(type.ptr(), type.length(),
+                                                   cs);
+    else
+      table->field[TMP_TABLE_COLUMNS_EXTRA]->store(STRING_WITH_LEN("NULL"), cs);
 
     // PRIVILEGES
     uint col_access;
@@ -3819,13 +3852,6 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
 
     // COLUMN_GENERATION_EXPRESSION
     if (field->gcol_info) {
-      if (field->stored_in_db)
-        table->field[TMP_TABLE_COLUMNS_EXTRA]->store(
-            STRING_WITH_LEN("STORED GENERATED"), cs);
-      else
-        table->field[TMP_TABLE_COLUMNS_EXTRA]->store(
-            STRING_WITH_LEN("VIRTUAL GENERATED"), cs);
-
       char buffer[128];
       String s(buffer, sizeof(buffer), system_charset_info);
       field->gcol_info->print_expr(thd, &s);
@@ -3962,7 +3988,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       // COLUMN_NAME
       str = (key_part->field ? key_part->field->field_name : "?unknown field?");
 
-      if (key_part->field && key_part->field->is_hidden_from_user()) {
+      if (key_part->field && key_part->field->is_hidden_by_system()) {
         table->field[TMP_TABLE_KEYS_COLUMN_NAME]->set_null();
       } else {
         table->field[TMP_TABLE_KEYS_COLUMN_NAME]->store(str, strlen(str), cs);
@@ -4057,7 +4083,8 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
       table->field[TMP_TABLE_KEYS_IS_VISIBLE]->set_notnull();
 
       // Expression for functional key parts
-      if (key_info->key_part->field->is_hidden_from_user()) {
+      if (key_part->field != nullptr &&
+          key_part->field->is_field_for_functional_index()) {
         Value_generator *gcol = key_info->key_part->field->gcol_info;
 
         table->field[TMP_TABLE_KEYS_EXPRESSION]->store(
@@ -4838,7 +4865,7 @@ ST_FIELD_INFO tmp_table_columns_fields_info[] = {
     {"COLUMN_KEY", 3, MYSQL_TYPE_STRING, 0, 0, "Key", 0},
     {"COLUMN_DEFAULT", MAX_FIELD_VARCHARLENGTH, MYSQL_TYPE_STRING, 0, 1,
      "Default", 0},
-    {"EXTRA", 30, MYSQL_TYPE_STRING, 0, 0, "Extra", 0},
+    {"EXTRA", 40, MYSQL_TYPE_STRING, 0, 0, "Extra", 0},
     {"PRIVILEGES", 80, MYSQL_TYPE_STRING, 0, 0, "Privileges", 0},
     {"COLUMN_COMMENT", COLUMN_COMMENT_MAXLEN, MYSQL_TYPE_STRING, 0, 0,
      "Comment", 0},

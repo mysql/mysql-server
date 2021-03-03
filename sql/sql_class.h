@@ -63,6 +63,7 @@
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/my_thread_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -74,7 +75,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/thread_type.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"  // NET_SERVER
@@ -794,6 +794,8 @@ class Transactional_ddl_context {
   dd::String_type m_tablename{};
 };
 
+struct PS_PARAM;
+
 /**
   @class THD
   For each client connection we create a separate thread with THD serving as
@@ -827,8 +829,8 @@ class THD : public MDL_context_owner,
  public:
   MDL_context mdl_context;
 
-  /*
-    MARK_COLUMNS_NONE:  Means mark_used_colums is not set and no indicator to
+  /**
+    MARK_COLUMNS_NONE:  Means mark_used_columns is not set and no indicator to
                         handler of fields used is set
     MARK_COLUMNS_READ:  Means a bit in read set is set to inform handler
                         that the field is to be read. Update covering_keys
@@ -855,7 +857,7 @@ class THD : public MDL_context_owner,
     The lex to hold the parsed tree of conventional (non-prepared) queries.
     Whereas for prepared and stored procedure statements we use an own lex
     instance for each new query, for conventional statements we reuse
-    the same lex. (@see mysql_parse for details).
+    the same lex. (@see dispatch_sql_command for details).
   */
   std::unique_ptr<LEX> main_lex;
 
@@ -963,7 +965,7 @@ class THD : public MDL_context_owner,
     @note The detached transaction applier resets a memo
           mark at once with this check.
   */
-  bool rpl_unflag_detached_engine_ha_data() const;
+  bool is_engine_ha_data_detached() const;
 
   void reset_for_next_command();
   /*
@@ -2370,6 +2372,7 @@ class THD : public MDL_context_owner,
   enum Commit_error {
     CE_NONE = 0,
     CE_FLUSH_ERROR,
+    CE_FLUSH_GNO_EXHAUSTED_ERROR,
     CE_SYNC_ERROR,
     CE_COMMIT_ERROR,
     CE_ERROR_COUNT
@@ -3252,7 +3255,7 @@ class THD : public MDL_context_owner,
           In this case, the slave sets GTID_NEXT=ANONYMOUS and
           acquires anonymous ownership when executing a
           Query_log_event (Query_log_event::do_apply_event calls
-          mysql_parse which calls gtid_pre_statement_checks which
+          dispatch_sql_command which calls gtid_pre_statement_checks which
           calls gtid_reacquire_ownership_if_anonymous).
 
     Ownership is released in the following ways:
@@ -3414,6 +3417,8 @@ class THD : public MDL_context_owner,
     SE_GTID_PERSIST,
     /** If RESET log in progress. */
     SE_GTID_RESET_LOG,
+    /** Explicit request for SE to persist GTID for current transaction. */
+    SE_GTID_PERSIST_EXPLICIT,
     /** Max element holding the biset size. */
     SE_GTID_MAX
   };
@@ -3451,8 +3456,17 @@ class THD : public MDL_context_owner,
   /** Set by SE when it guarantees GTID persistence. */
   void set_gtid_persisted_by_se() { m_se_gtid_flags.set(SE_GTID_PERSIST); }
 
+  /** Request SE to persist GTID explicitly. */
+  void request_persist_gtid_by_se() {
+    m_se_gtid_flags.set(SE_GTID_PERSIST_EXPLICIT);
+    m_se_gtid_flags.set(SE_GTID_PERSIST);
+  }
+
   /** Reset by SE at transaction end after persisting GTID. */
-  void reset_gtid_persisted_by_se() { m_se_gtid_flags.reset(SE_GTID_PERSIST); }
+  void reset_gtid_persisted_by_se() {
+    m_se_gtid_flags.reset(SE_GTID_PERSIST);
+    m_se_gtid_flags.reset(SE_GTID_PERSIST_EXPLICIT);
+  }
 
   /** @return true, if SE persists GTID for current transaction. */
   bool se_persists_gtid() const {
@@ -3462,6 +3476,19 @@ class THD : public MDL_context_owner,
     /* XA transactions are always persisted by Innodb. */
     return (!xid_state->has_state(XID_STATE::XA_NOTR) ||
             m_se_gtid_flags[SE_GTID_PERSIST]);
+  }
+
+  /** @return true, if SE is explicitly set to persists GTID. */
+  bool se_persists_gtid_explicit() const {
+    DBUG_EXECUTE_IF("disable_se_persists_gtid", return (false););
+    return (m_se_gtid_flags[SE_GTID_PERSIST_EXPLICIT]);
+  }
+
+  /** @return true, if external XA transaction is in progress. */
+  bool is_extrenal_xa() const {
+    auto trx = get_transaction();
+    auto xid_state = trx->xid_state();
+    return !xid_state->has_state(XID_STATE::XA_NOTR);
   }
 
 #ifdef HAVE_GTID_NEXT_LIST
@@ -4288,6 +4315,28 @@ class THD : public MDL_context_owner,
 
  public:
   Transactional_ddl_context m_transactional_ddl{this};
+
+  /**
+    Flag to indicate this thread is executing
+    @ref sys_var::update for a @ref OPT_GLOBAL variable.
+
+    This flag imply the thread already holds @ref LOCK_global_system_variables.
+    Knowing this is required to resolve reentrancy issues
+    in the system variable code, when callers
+    read system variable Y while inside an update function
+    for system variable X.
+    Executing table io while inside a system variable update function
+    will indirectly cause this.
+    @todo Clean up callers and remove m_inside_system_variable_global_update.
+  */
+  bool m_inside_system_variable_global_update;
+
+ public:
+  /** The parameter value bindings for the current query. Allocated on the THD
+   * memroot. Can be empty */
+  PS_PARAM *bind_parameter_values;
+  /** the number of elements in parameters */
+  unsigned long bind_parameter_values_count;
 };
 
 /**
@@ -4311,18 +4360,6 @@ void my_eof(THD *thd);
 bool add_item_to_list(THD *thd, Item *item);
 
 /*************************************************************************/
-
-/**
-  The function re-attaches the engine ha_data (which was previously detached by
-  detach_ha_data_from_thd) to THD.
-  This is typically done to replication applier executing
-  one of XA-PREPARE, XA-COMMIT ONE PHASE or rollback.
-
-  @param thd         thread context
-  @param hton        pointer to handlerton
-*/
-
-void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
 
 /**
   Check if engine substitution is allowed in the current thread context.

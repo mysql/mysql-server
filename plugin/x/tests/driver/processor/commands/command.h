@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -122,6 +122,9 @@ class Command {
                   const std::string &args);
   Result cmd_abort(std::istream &input, Execution_context *context,
                    const std::string &args);
+  Result cmd_shutdown_on_classic(std::istream &input,
+                                 Execution_context *context,
+                                 const std::string &args);
   Result cmd_shutdown_server(std::istream &input, Execution_context *context,
                              const std::string &args);
   Result cmd_reconnect(std::istream &input, Execution_context *context,
@@ -222,6 +225,8 @@ class Command {
   Result cmd_clear_stored_metadata(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args);
+  Result cmd_env(std::istream &input, Execution_context *context,
+                 const std::string &args);
 
   Result do_newsession(std::istream &input, Execution_context *context,
                        const std::string &args,
@@ -233,6 +238,8 @@ class Command {
                        Value_callback value_callback, const bool quiet,
                        const bool print_column_info);
 
+  Result get_sql_variable(Execution_context *context, const std::string &name,
+                          std::string *out_var);
   static void try_result(Result result);
 
   template <typename Equal_operator>
@@ -258,7 +265,7 @@ class Command {
 
       Equal_operator op;
       if (op(vargs[0], vargs[1])) return Result::Continue;
-    } catch (const std::exception &e) {
+    } catch (const std::exception &) {
     }
 
     context->print_error(

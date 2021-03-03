@@ -25,8 +25,8 @@ create table t1 (a int key) engine=ndbcluster;
 begin;
 insert into t1 values (1);
 
---exec $NDB_MGM --no-defaults -e "all restart" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all restart" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 # Wait for mysqld to reconnect and exit from readonly mode
 --connection con1
@@ -58,11 +58,11 @@ select * from t2 order by a limit 3;
 --disable_query_log
 --source include/ndb_backup_id.inc
 --enable_query_log
---exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all restart -i" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 # now make a backup with explicit id to restore the backup id after initial start
 --inc $the_backup_id
---exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
 
 --connection con1
@@ -92,11 +92,11 @@ reset master;
 --disable_query_log
 --source include/ndb_backup_id.inc
 --enable_query_log
---exec $NDB_MGM --no-defaults -e "all restart -i" >> $NDB_TOOLS_OUTPUT
---exec $NDB_WAITER --no-defaults >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all restart -i" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 # now make a backup with explicit id to restore the backup id after initial start
 --inc $the_backup_id
---exec $NDB_MGM --no-defaults -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "start backup $the_backup_id" >> $NDB_TOOLS_OUTPUT
 # to ensure mysqld has connected again, and recreated system tables
 
 --connection con1

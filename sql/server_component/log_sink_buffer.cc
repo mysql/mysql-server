@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "log_builtins_filter_imp.h"
 #include "log_sink_trad.h"
 #include "my_systime.h"  // my_micro_time()
+#include "mysql/psi/mysql_mutex.h"
 #include "sql/log.h"
 #include "sql/psi_memory_key.h"  // key_memory_log_error_stack
 
@@ -360,44 +361,6 @@ int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
 */
 void log_sink_buffer_check_timeout(void) { log_sink_buffer(nullptr, nullptr); }
 
-/**
-  Process all buffered log-events.
-
-  LOG_BUFFER_DISCARD_ONLY simply releases all buffered log-events
-  (used when called from discard_error_log_messages()).
-
-  LOG_BUFFER_PROCESS_AND_DISCARD sends the events through the
-  configured error log stack first before discarding them.
-  (used when called from flush_error_log_messages()).
-  Must remain safe to call repeatedly (with subsequent calls only
-  outputting any events added after the previous flush).
-
-  LOG_BUFFER_REPORT_AND_KEEP is used to show incremental status
-  updates when the start-up takes unusually long. When that happens,
-  we "report" the intermediate state using the built-in sink
-  (as that's the only one we available to us at the time), and
-  "keep" the events around. That way if log sinks other that the
-  built-in one are configured, we can flush all of the buffered
-  events there once initialization completes.
-  (used when log_sink_buffer() detects a time-out, see also:
-  LOG_BUFFERING_TIMEOUT_AFTER, LOG_BUFFERING_TIMEOUT_EVERY)
-
-  @param  mode  LOG_BUFFER_DISCARD_ONLY (to just
-                throw away the buffered events), or
-                LOG_BUFFER_PROCESS_AND_DISCARD to
-                filter/print them first, or
-                LOG_BUFFER_REPORT_AND_KEEP to print
-                an intermediate report on time-out.
-
-                To use LOG_BUFFER_REPORT_AND_KEEP in a
-                multi-threaded environment, the caller
-                needs to hold THR_LOCK_log_buffered
-                while calling this; for the other modes,
-                this function will acquire and release the
-                lock as needed; in this second scenario,
-                the lock will not be held while calling
-                log_services (via log_line_submit()).
-*/
 void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
   log_line_buffer *llp, *local_head, *local_tail = nullptr;
 

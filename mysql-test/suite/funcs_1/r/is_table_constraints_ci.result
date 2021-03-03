@@ -76,6 +76,7 @@ def	mysql	PRIMARY	mysql	plugin
 def	mysql	PRIMARY	mysql	procs_priv
 def	mysql	PRIMARY	mysql	proxies_priv
 def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover
+def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover_managed
 def	mysql	PRIMARY	mysql	role_edges
 def	mysql	PRIMARY	mysql	server_cost
 def	mysql	PRIMARY	mysql	servers
@@ -155,6 +156,7 @@ def	performance_schema	PRIMARY	performance_schema	replication_applier_status
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status_by_coordinator
 def	performance_schema	PRIMARY	performance_schema	replication_applier_status_by_worker
 def	performance_schema	PRIMARY	performance_schema	replication_asynchronous_connection_failover
+def	performance_schema	PRIMARY	performance_schema	replication_asynchronous_connection_failover_managed
 def	performance_schema	PRIMARY	performance_schema	replication_connection_configuration
 def	performance_schema	PRIMARY	performance_schema	replication_connection_status
 def	performance_schema	PRIMARY	performance_schema	rwlock_instances

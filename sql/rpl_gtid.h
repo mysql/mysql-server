@@ -261,6 +261,8 @@ inline const char *get_gtid_consistency_mode_string() {
 
 /// The maximum value of GNO
 const rpl_gno MAX_GNO = LLONG_MAX;
+/// If the GNO goes above the number, generate a warning.
+const rpl_gno GNO_WARNING_THRESHOLD = (MAX_GNO / 100) * 99;
 /// The length of MAX_GNO when printed in decimal.
 const int MAX_GNO_TEXT_LENGTH = 19;
 /// The maximal possible length of thread_id when printed in decimal.
@@ -497,6 +499,23 @@ class Checkable_rwlock {
       m_lock_state.store(-1);
 #else
       m_is_write_lock = true;
+#endif
+    }
+
+    return ret;
+  }
+
+  /**
+    Return 0 if the read lock is held, otherwise an error will be returned.
+  */
+  inline int tryrdlock() {
+    int ret = mysql_rwlock_tryrdlock(&m_rwlock);
+
+    if (ret == 0) {
+      assert_no_wrlock();
+#ifndef DBUG_OFF
+      if (m_dbug_trace) DBUG_PRINT("info", ("%p.rdlock()", this));
+      ++m_lock_state;
 #endif
     }
 
@@ -2964,7 +2983,6 @@ class Gtid_state {
   int32 get_gtid_wait_count() { return atomic_gtid_wait_count; }
 
 #endif  // ifdef MYSQL_SERVER
- private:
   /**
     Computes the next available GNO.
 
@@ -2975,6 +2993,8 @@ class Gtid_state {
     @retval >0 The GNO for the GTID.
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
+
+ private:
   /**
     The next_free_gno variable will be set with the supposed next free GNO
     every time a new GNO is delivered automatically or when a transaction is
@@ -3040,7 +3060,7 @@ class Gtid_state {
   /// Broadcasts updates for the given SIDNO.
   void broadcast_sidno(rpl_sidno sidno) { sid_locks.broadcast(sidno); }
   /// Assert that we own the given SIDNO.
-  void assert_sidno_lock_owner(rpl_sidno sidno) {
+  void assert_sidno_lock_owner(rpl_sidno sidno) const {
     sid_locks.assert_owner(sidno);
   }
 #ifdef MYSQL_SERVER
@@ -3693,7 +3713,7 @@ enum enum_gtid_type {
     next transaction.
   */
   UNDEFINED_GTID,
-  /*
+  /**
     GTID_NEXT is set to this state by the slave applier thread when it
     reads a Format_description_log_event that does not originate from
     this server.
@@ -3719,7 +3739,17 @@ log.  So at the time the binary log begins, we just set
     the next transaction starts, then the Gtid_log_event will just set
     GTID_NEXT='UUID:NUMBER' accordingly.
   */
-  NOT_YET_DETERMINED_GTID
+  NOT_YET_DETERMINED_GTID,
+  /**
+    The applier sets GTID_NEXT this state internally, when it
+    processes an Anonymous_gtid_log_event on a channel having
+    ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS, before it calls
+    set_gtid_next.  This tells set_gtid_next to generate a new,
+    sequential GTID, and acquire ownership for it.  Thus, this state
+    is only used for a very brief period of time.  It is not
+    user-visible.
+  */
+  PRE_GENERATE_GTID
 };
 /// Global state of GTIDs.
 extern Gtid_state *gtid_state;

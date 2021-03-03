@@ -1,0 +1,68 @@
+----- Sysfile: suite/ndb/ndbfs_files/7.6.15/DBDIH/P0.sysfile seq: 0x00000001 -----
+Initial start ongoing: 0, Restart Ongoing: 0, LCP Ongoing: 0
+-- Global Checkpoint Identities: --
+keepGCI = 1                              -- Tail of REDO log
+oldestRestorableGCI = 1                  -- 
+newestRestorableGCI = 3                  -- 
+latestLCP = 2                            -- 
+-- Node status: --
+Node 01 -- Active          GCP: 3, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 02 -- Active          GCP: 3, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 04 -- Active          GCP: 3, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 05 -- Configured      GCP: 3, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 07 -- Active          GCP: 3, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 17 -- Active          GCP: 3, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 19 -- Configured      GCP: 3, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 23 -- Configured      GCP: 3, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 31 -- Active          GCP: 3, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+----- Sysfile: suite/ndb/ndbfs_files/8.0.17/DBDIH/P0.sysfile seq: 0x00000001 -----
+Initial start ongoing: 0, Restart Ongoing: 0, LCP Ongoing: 0
+-- Global Checkpoint Identities: --
+keepGCI = 1                              -- Tail of REDO log
+oldestRestorableGCI = 1                  -- 
+newestRestorableGCI = 9                  -- 
+latestLCP = 2                            -- 
+-- Node status: --
+Node 01 -- Active          GCP: 6, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 02 -- Active          GCP: 9, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 04 -- Active          GCP: 9, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 05 -- Configured      GCP: 9, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 07 -- Active          GCP: 9, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 17 -- Active          GCP: 9, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 19 -- Configured      GCP: 9, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 23 -- Configured      GCP: 9, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 31 -- Active          GCP: 9, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+----- Sysfile: suite/ndb/ndbfs_files/8.0.21/DBDIH/P0.sysfile seq: 0x00000001 -----
+Initial start ongoing: 0, Restart Ongoing: 0, LCP Ongoing: 0
+-- Global Checkpoint Identities: --
+keepGCI = 1                              -- Tail of REDO log
+oldestRestorableGCI = 1                  -- 
+newestRestorableGCI = 4                  -- 
+latestLCP = 2                            -- 
+-- Node status: --
+Node 01 -- Active          GCP: 4, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 02 -- Active          GCP: 4, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 04 -- Active          GCP: 4, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 05 -- Configured      GCP: 4, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 07 -- Active          GCP: 4, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 17 -- Active          GCP: 4, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 19 -- Configured      GCP: 4, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 23 -- Configured      GCP: 4, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 31 -- Active          GCP: 4, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+----- Sysfile: suite/ndb/ndbfs_files/8.0.22/DBDIH/P0.sysfile seq: 0x00000001 -----
+Initial start ongoing: 0, Restart Ongoing: 0, LCP Ongoing: 0
+-- Global Checkpoint Identities: --
+keepGCI = 1                              -- Tail of REDO log
+oldestRestorableGCI = 1                  -- 
+newestRestorableGCI = 10                 -- 
+latestLCP = 1                            -- 
+-- Node status: --
+Node 01 -- Active          GCP: 7, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 02 -- Active          GCP: 10, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 04 -- Active          GCP: 10, NodeGroup: 0, TakeOverNode: 0, LCP Ongoing: no
+Node 05 -- Configured      GCP: 10, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 07 -- Active          GCP: 10, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 17 -- Active          GCP: 10, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no
+Node 19 -- Configured      GCP: 10, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 23 -- Configured      GCP: 10, NodeGroup: 65535, TakeOverNode: 0, LCP Ongoing: no
+Node 31 -- Active          GCP: 10, NodeGroup: 1, TakeOverNode: 0, LCP Ongoing: no

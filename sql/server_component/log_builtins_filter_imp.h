@@ -43,7 +43,7 @@ class log_builtins_filter_imp {
     @param   tag       identifying tag of the rule-set creator
     @param   count     number of rules to allocate
 
-    @retval            a pointer to a ruleset structure, or nullptr on failure
+    @returns            a pointer to a ruleset structure, or nullptr on failure
   */
   static DEFINE_METHOD(log_filter_ruleset *, filter_ruleset_new,
                        (log_filter_tag * tag, size_t count));
@@ -55,8 +55,8 @@ class log_builtins_filter_imp {
     @param  locktype   LOG_BUILTINS_LOCK_SHARED     lock for reading
                        LOG_BUILTINS_LOCK_EXCLUSIVE  lock for writing
 
-    @retval  0         lock acquired
-    @retval !0         failed to acquire lock
+    @returns  0         lock acquired
+    @returns !0         failed to acquire lock
   */
   static DEFINE_METHOD(int, filter_ruleset_lock,
                        (log_filter_ruleset * ruleset,
@@ -105,8 +105,8 @@ class log_builtins_filter_imp {
 
     @param   ruleset  a ruleset (usually allocated with filter_ruleset_new())
 
-    @retval  nullptr  could not initialize rule. Do not call rule_free.
-    @retval !nullptr  the address of the rule. fill in. on success,
+    @returns  nullptr  could not initialize rule. Do not call rule_free.
+    @returns !nullptr  the address of the rule. fill in. on success,
                       caller must increase rule count.  on failure,
                       it must call rule_free.
   */
@@ -119,7 +119,7 @@ class log_builtins_filter_imp {
     @param  ruleset  a ruleset (usually allocated with filter_ruleset_new())
     @param           ll        the current log line
 
-    @retval          int       number of matched rules
+    @returns          int       number of matched rules
   */
   static DEFINE_METHOD(int, filter_run,
                        (log_filter_ruleset * ruleset, log_line *ll));
@@ -142,7 +142,7 @@ class log_builtins_filter_debug_imp {
     Get filter rules used in built-in filter. For debug purposes only.
     Third party code should not use this, nor rely on this API to be stable.
 
-    @retval            a pointer to a ruleset structure, or nullptr
+    @returns            a pointer to a ruleset structure, or nullptr
   */
   static DEFINE_METHOD(log_filter_ruleset *, filter_debug_ruleset_get, (void));
 };
@@ -150,8 +150,8 @@ class log_builtins_filter_debug_imp {
 /**
   Deinitialize filtering engine.
 
-  @retval  0   Success!
-  @retval -1   De-initialize?  Filter wasn't even initialized!
+  @returns  0   Success!
+  @returns -1   De-initialize?  Filter wasn't even initialized!
 */
 int log_builtins_filter_exit();
 
@@ -159,82 +159,18 @@ int log_builtins_filter_exit();
   Initialize filtering engine.
   We need to do this early, before the component system is up.
 
-  @retval  0   Success!
-  @retval -1   Couldn't initialize ruleset lock
-  @retval -2   Filter was already initialized?
+  @returns  0   Success!
+  @returns -1   Couldn't initialize ruleset lock
+  @returns -2   Filter was already initialized?
 */
 int log_builtins_filter_init();
 
-/**
-  Apply all matching rules from a filter rule set to a given log line.
-
-  @param           ruleset              the rule-set to apply to the event
-  @param           ll                   the current log line
-
-  @retval          int                  number of matched rules
-*/
 int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll);
 
 #ifdef MYSQL_SERVER
 
-/**
-  This is part of the 5.7 emulation:
-  If --log_error_verbosity is changed, we generate an
-  artificial filter rule from it here.
-
-  For this filtering to be active, @@global.log_error_services
-  has to feature "log_filter_internal", as it does by default.
-  When that is the case, one or both of log_error_verbosity and
-  log_error_suppression_list (see below) may be used.
-  Only one of "log_filter_internal" and "log_filter_dragnet"
-  should be used at a time.
-
-  @param verbosity  log_error_verbosity style, range(1,3)
-                    1:errors,   2:+=warnings,  3:+=notes
-
-  @retval            0: success
-  @retval           !0: failure
-*/
 int log_builtins_filter_update_verbosity(int verbosity);
 
-/**
-  @@global.log_error_suppression_list accepts a comma-separated
-  list of error-codes that should not be included in the error-log.
-  Events with a severity of System or Error can not be filtered
-  in this way and will always be forwarded to the log-sinks.
-
-  This provides simple filtering for cases where the flexibility
-  of the loadable filter-language is not needed. (The same engine
-  is used however, just with a more limited interface.)
-
-  For this filtering to be active, @@global.log_error_services has
-  to feature "log_filter_internal", as it does by default. When that
-  is the case, one or both of log_error_verbosity and this variable
-  may be used. Only one of "log_filter_internal" and "log_filter_dragnet"
-  should be used at a time.
-
-  The semantics follow that of our system variables; that is to say,
-  when called with update==false, the function acts as a check-function
-  that validates the entire list given to it; when called with
-  update==true, it creates filter-rules from the list items. This way,
-  we either create all rules, or no rules, rather than ending up with
-  an incomplete rule-set when we encounter a problem in the input.
-
-  The return value encodes the location in the argument where the
-  failure occurred, like so:
-  - if 0 is returned, no issues were detected
-  - if a value less than zero is returned, -(retval + 1) is the
-    byte position (counting from 0) in the list argument at
-    which point the failure was detected
-
-  @param   list       list of error-codes that should not appear
-                      in the error-log
-  @param   update     false: verify list only
-                      true:  create filtering rules from suppression list
-
-  @retval              0: success
-  @retval             !0: failure (see above)
-*/
 int log_builtins_filter_parse_suppression_list(char *list, bool update);
 
 #endif /* MYSQL_SERVER */

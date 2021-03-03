@@ -72,7 +72,7 @@ let $ndb_select_all_log= $MYSQLTEST_VARDIR/tmp/ndb_select_all.log;
 let $wait_counter= 100; # wait for atmost 10s
 while ($wait_counter)
 {
-  exec $NDB_SELECT_ALL --no-defaults -d mysql ndb_schema_result > $ndb_select_all_log;
+  exec $NDB_SELECT_ALL -d mysql ndb_schema_result > $ndb_select_all_log;
   let $success=`SELECT LOAD_FILE("$ndb_select_all_log") LIKE "%5 rows returned%"`;
   if ($success)
   {

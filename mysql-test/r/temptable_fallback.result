@@ -149,7 +149,6 @@ t AS t5,
 t AS t6
 ORDER BY 1
 LIMIT 2;
-Got one of the listed errors
 SELECT @@internal_tmp_mem_storage_engine;
 @@internal_tmp_mem_storage_engine
 TempTable
@@ -158,7 +157,7 @@ Variable_name	Value
 Created_tmp_tables	5
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	1
+Created_tmp_disk_tables	2
 SET @@internal_tmp_mem_storage_engine = default;
 SET GLOBAL temptable_max_ram = default;
 SET debug = '-d,temptable_fetch_from_disk_return_null';

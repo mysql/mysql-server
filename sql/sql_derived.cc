@@ -41,6 +41,7 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
 #include "sql/opt_trace.h"  // opt_trace_disable_etc
@@ -547,6 +548,13 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
 
   ulong save_old_privilege = thd->want_privilege;
   thd->want_privilege = 0;
+  // Native functions introduced for INFORMATION_SCHEMA system views are
+  // allowed to be invoked from *only* INFORMATION_SCHEMA system views.
+  // THD::parsing_system_view is set if the view being parsed is
+  // INFORMATION_SCHEMA system view and is allowed to invoke native function.
+  // If not, error ER_NO_ACCESS_TO_NATIVE_FCT is reported.
+  bool parsing_system_view_saved = thd->parsing_system_view;
+  thd->parsing_system_view = is_system_view;
 
   bool result = parse_sql(thd, &parser_state, nullptr);
 
@@ -577,7 +585,7 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item) {
   thd->want_privilege = save_old_privilege;
   thd->lex->set_current_select(saved_current_select);
   thd->lex->allow_sum_func = save_allow_sum_func;
-  thd->lex->set_current_select(saved_current_select);
+  thd->parsing_system_view = parsing_system_view_saved;
   // If fix_fields returned error, do not return an unresolved cloned
   // expression.
   return ret ? nullptr : cloned_item;
@@ -886,8 +894,8 @@ bool Condition_pushdown::make_cond_for_derived() {
   if (m_where_cond &&
       attach_cond_to_derived(derived_select->where_cond(), m_where_cond, false))
     return true;
-  if (m_remainder_cond && !m_remainder_cond->fixed &&
-      !m_remainder_cond->fix_fields(thd, &m_remainder_cond))
+  if (m_remainder_cond != nullptr && !m_remainder_cond->fixed &&
+      m_remainder_cond->fix_fields(thd, &m_remainder_cond))
     return true;
   return false;
 }
@@ -1259,6 +1267,7 @@ bool Condition_pushdown::attach_cond_to_derived(Item *derived_cond,
   update_between_count(cond_to_attach);
   having ? derived_select->set_having_cond(derived_cond)
          : derived_select->set_where_cond(derived_cond);
+  thd->lex->set_current_select(saved_select);
   return false;
 }
 
@@ -1296,9 +1305,15 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
   if (unit->optimize(thd, table, /*create_iterators=*/false) || thd->is_error())
     return true;
 
-  if (materializable_is_const() &&
-      (create_materialized_table(thd) || materialize_derived(thd)))
-    return true;
+  // If the table is const, materialize it now. The hypergraph optimizer
+  // doesn't care about const tables, though, so it prefers to do this
+  // at execution time (in fact, it will get confused and crash if it has
+  // already been materialized).
+  if (!thd->lex->using_hypergraph_optimizer) {
+    if (materializable_is_const() &&
+        (create_materialized_table(thd) || materialize_derived(thd)))
+      return true;
+  }
 
   return false;
 }

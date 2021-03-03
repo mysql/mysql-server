@@ -186,6 +186,8 @@ BEGIN
     mysql.help_topic,
     mysql.procs_priv,
     mysql.proxies_priv,
+    mysql.replication_asynchronous_connection_failover,
+    mysql.replication_asynchronous_connection_failover_managed,
     mysql.role_edges,
     mysql.tables_priv,
     mysql.time_zone,
@@ -194,6 +196,10 @@ BEGIN
     mysql.time_zone_transition,
     mysql.time_zone_transition_type,
     mysql.user;
+
+  -- Check that Replica IO Monitor thread state is the same before
+  -- and after the test run, which is not running.
+  SELECT * FROM performance_schema.threads WHERE NAME="thread/sql/replica_monitor";
 
 END$$
 

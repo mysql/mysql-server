@@ -292,8 +292,8 @@ metadata_cache::ManagedInstance::ManagedInstance(
       xport(p_xport) {}
 
 metadata_cache::ManagedInstance::ManagedInstance(const TCPAddress &addr) {
-  host = addr.addr == "localhost" ? "127.0.0.1" : addr.addr;
-  port = addr.port;
+  host = addr.address() == "localhost" ? "127.0.0.1" : addr.address();
+  port = addr.port();
 }
 
 metadata_cache::ManagedInstance::operator TCPAddress() const {

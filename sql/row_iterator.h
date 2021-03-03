@@ -214,7 +214,4 @@ class TableRowIterator : public RowIterator {
   friend class AlternativeIterator;
 };
 
-// Used to describe what kind of join an iterator is executing.
-enum class JoinType { INNER, OUTER, ANTI, SEMI };
-
 #endif  // SQL_ROW_ITERATOR_H_

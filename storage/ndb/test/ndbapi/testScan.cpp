@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -487,7 +487,8 @@ int runScanReadExhaust(NDBT_Context* ctx, NDBT_Step* step)
   /* First take a TC resource snapshot */
   int savesnapshot= DumpStateOrd::TcResourceSnapshot;
   Uint32 checksnapshot= DumpStateOrd::TcResourceCheckLeak;
-  
+
+  sleep(2);
   restarter.dumpStateAllNodes(&savesnapshot, 1);
   Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
 
@@ -1442,7 +1443,7 @@ int takeResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb *pNdb = GETNDB(step);
   NdbRestarter restarter;
-  
+
   int checksnapshot = DumpStateOrd::TcResourceSnapshot;
   restarter.dumpStateAllNodes(&checksnapshot, 1);
   Ndb_internal::set_TC_COMMIT_ACK_immediate(pNdb, true);
@@ -1647,7 +1648,8 @@ int checkResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb *pNdb = GETNDB(step);
   NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
-  
+
+  sleep(2);
   Uint32 checksnapshot = DumpStateOrd::TcResourceCheckLeak;
   pDict->forceGCPWait(1);
   if (Ndb_internal::send_dump_state_all(pNdb, &checksnapshot, 1) != 0)
@@ -1682,15 +1684,6 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     printf("node: %u ", node);
     switch(loops % 2){
     case 0:
-      if (res.getNumDbNodes() >= 2)
-      {
-        err = 8088;
-        int val[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
-        res.dumpStateOneNode(node, val, 2);
-        res.insertErrorInNode(node, 8088);
-        ndbout_c("error 8088");
-        break;
-      }
       // fall through
     case 1:
       err = 5057;
@@ -1730,14 +1723,6 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
       pCon->execute(NoCommit);
       pCon->close();
     } 
-    if (err == 8088)
-    {
-      res.waitNodesNoStart(&node, 1);
-      res.startAll();
-      res.waitClusterStarted();
-      if (pNdb->waitUntilReady() != 0)
-        return NDBT_FAILED;
-    }
   }
 
   return NDBT_OK;

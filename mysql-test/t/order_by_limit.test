@@ -83,6 +83,7 @@ WHERE t1.pk > 7000 and t1.i1 > 2
 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
 eval $query;
 
 --echo # Changing range condition on i1 should make
@@ -106,6 +107,8 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 let query=
@@ -151,6 +154,8 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON t1.i1=t2.i1
 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 --echo # Check if the index for order by is used when
@@ -161,6 +166,8 @@ SELECT * FROM t1 FORCE INDEX FOR ORDER BY (k2) STRAIGHT_JOIN t2 ON
 t1.i1=t2.i1 WHERE t1.pk > 7000 ORDER BY t1.i1 LIMIT 5;
 
 eval EXPLAIN $query;
+--partially_sorted_result 1
+--replace_result 9091 9090  # These two records can both be chosen from t2.
 eval $query;
 
 DROP TABLE t0, t1, t2;
@@ -262,26 +269,31 @@ SET
 SET optimizer_switch = "prefer_ordering_index=on";
 ANALYZE TABLE t;
 EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 #echo "With prefer_ordering_index=off, ordering index should not be picked"
 SET optimizer_switch = "prefer_ordering_index=off";
 EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
 
 #echo "With prefer_ordering_index=default, ordering index should be picked"
 SET optimizer_switch = default;
 EXPLAIN SELECT non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 #echo "If an order by index is forced, plan will be to pick ordering index even if"
 #echo "prefer_ordering_index is switched off"
 SET optimizer_switch = "prefer_ordering_index=on";
 EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 SET optimizer_switch = "prefer_ordering_index=off";
 EXPLAIN SELECT /*+ ORDER_INDEX(t PRIMARY) */ non_covered_column FROM t WHERE other_id > 3 ORDER BY id ASC LIMIT 2;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 #Insert some more data for group by
@@ -299,26 +311,31 @@ while ($n)
 SET optimizer_switch = "prefer_ordering_index=on";
 ANALYZE TABLE t;
 EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 #echo "With prefer_ordering_index=off, ordering index should not be picked"
 SET optimizer_switch = "prefer_ordering_index=off";
 EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_0 FROM information_schema.optimizer_trace;
 
 #echo "With prefer_ordering_index=default, ordering index should be picked"
 SET optimizer_switch = default;
 EXPLAIN SELECT non_covered_column FROM t WHERE id > 8 GROUP BY id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 #echo "If a group by index is forced, plan will be to pick ordering index even if"
 #echo "prefer_ordering_index is switched off"
 SET optimizer_switch = "prefer_ordering_index=on";
 EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 SET optimizer_switch = "prefer_ordering_index=off";
 EXPLAIN SELECT /*+ GROUP_INDEX(t index_other_id_covered_column) */ non_covered_column FROM t WHERE id > 8 GROUP BY other_id LIMIT 1;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT (trace LIKE '%"plan_changed": true%') AS should_be_1 FROM information_schema.optimizer_trace;
 
 DROP TABLE t;

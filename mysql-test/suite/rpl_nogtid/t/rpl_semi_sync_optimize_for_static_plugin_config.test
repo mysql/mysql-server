@@ -1,0 +1,24 @@
+# ==== Purpose ====
+#
+# Test the same test cases that in `suite/rpl/t/rpl_semi_sync.test` with the
+# `replication_optimize_for_static_plugin_config` enabled.
+#
+# ==== Requirements ====
+#
+# R1. All test described in `rpl_semi_sync.test` MUST pass with
+#     `replication_optimize_for_static_plugin_config` enabled.
+#
+# ==== Implementation ====
+#
+# 1. Set `$rpl_test_optimize_for_static_plugin_config` to `1`.
+# 2. Include `rpl_semi_sync.test`
+#
+# ==== References ====
+#
+# BUG#30519928 INTERMEDIATE MASTER WITH SEMISYNC SHOWS HIGH CPU USAGE DUE TO
+#              MUTEX SPINNING
+#
+
+--let $rpl_test_optimize_for_static_plugin_config = 1
+--source suite/rpl_nogtid/t/rpl_semi_sync.test
+--let $rpl_test_optimize_for_static_plugin_config =

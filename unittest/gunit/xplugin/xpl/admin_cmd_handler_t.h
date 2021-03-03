@@ -20,15 +20,18 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_ADMIN_CMD_HANDLER_H_
-#define UNITTEST_GUNIT_XPLUGIN_XPL_ADMIN_CMD_HANDLER_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_ADMIN_CMD_HANDLER_T_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_ADMIN_CMD_HANDLER_T_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 #include "plugin/x/src/admin_cmd_arguments.h"
 #include "plugin/x/src/admin_cmd_handler.h"
+#include "unittest/gunit/xplugin/xpl/mock/protocol_encoder.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
@@ -77,9 +80,9 @@ class Admin_command_handler_test : public ::testing::Test {
                     {"options", Any::Object{{"validation", validation}}}});
   }
 
-  StrictMock<Mock_sql_data_context> mock_data_context;
-  StrictMock<Mock_protocol_encoder> mock_encoder;
-  StrictMock<Mock_session> mock_session;
+  StrictMock<mock::Sql_session> mock_data_context;
+  StrictMock<mock::Protocol_encoder> mock_encoder;
+  StrictMock<mock::Session> mock_session;
   std::unique_ptr<Admin_command_handler_stub> command;
   Admin_command_arguments_object::List m_list;
   std::unique_ptr<Admin_command_arguments_object> m_args;
@@ -88,4 +91,4 @@ class Admin_command_handler_test : public ::testing::Test {
 }  // namespace test
 }  // namespace xpl
 
-#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_ADMIN_CMD_HANDLER_H_
+#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_ADMIN_CMD_HANDLER_T_H_

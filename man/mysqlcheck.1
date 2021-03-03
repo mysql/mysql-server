@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlcheck\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLCHECK\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLCHECK\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -89,7 +89,7 @@ If
 \fBmysqlcheck\fR
 is unable to repair a table, see
 Section\ \&2.11.13, \(lqRebuilding or Repairing Tables or Indexes\(rq
-for manual table repair strategies\&. This will be the case, for example, for
+for manual table repair strategies\&. This is the case, for example, for
 InnoDB
 tables, which can be checked with
 CHECK TABLE, but not repaired with
@@ -337,7 +337,7 @@ option to check tables for incompatibilities with the current version of the ser
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
+As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp

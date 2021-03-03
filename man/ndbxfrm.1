@@ -1,0 +1,434 @@
+'\" t
+.\"     Title: \fBndbxfrm\fR
+.\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
+.\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
+.\"      Date: 11/26/2020
+.\"    Manual: MySQL Database System
+.\"    Source: MySQL 8.0
+.\"  Language: English
+.\"
+.TH "\FBNDBXFRM\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+ndbxfrm \- compress, decompress, encrypt, and decrypt files created by NDB Cluster
+.SH "SYNOPSIS"
+.HP \w'\fBndbxfrm\ \fR\fB\fIoptions\fR\fR\fB\ \fR\fB\fIfilenames\fR\fR\ 'u
+\fBndbxfrm \fR\fB\fIoptions\fR\fR\fB \fR\fB\fIfilenames\fR\fR
+.SH "DESCRIPTION"
+.PP
+The
+\fBndbxfrm\fR
+utility, introduced in NDB 8\&.0\&.22, can be used to decompress, decrypt, and output information about files created by NDB Cluster that are compressed, encrypted, or both\&. It can also be used to compress or encrypt files\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.B Table\ \&23.49.\ \&Command\-line options for the ndbxfrm program
+.TS
+allbox tab(:);
+lB lB lB.
+T{
+Format
+T}:T{
+Description
+T}:T{
+Added, Deprecated, or Removed
+T}
+.T&
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
+T{
+.PP
+\fB--compress\fR,
+.PP
+\fB \fR\fB-c\fR\fB \fR
+T}:T{
+Compress file
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB \fR\fB--decrypt-password=string\fR\fB \fR
+T}:T{
+Use this password to decrypt file
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB--encrypt-kdf-iter-count=#\fR,
+.PP
+\fB \fR\fB-k\fR\fB \fR
+T}:T{
+Number of iterations used in key definition
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB \fR\fB--encrypt-password=string\fR\fB \fR
+T}:T{
+Use this password to encrypt file
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB--help\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Print usage information
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB--info\fR,
+.PP
+\fB \fR\fB-i\fR\fB \fR
+T}:T{
+Print file information
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Prints usage information; synonym for --help
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB--version\fR,
+.PP
+\fB \fR\fB-V\fR\fB \fR
+T}:T{
+Output version information
+T}:T{
+.PP
+ADDED: NDB 8.0.22
+T}
+.TE
+.sp 1
+Usage
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndbxfrm \-\-info \fIfile\fR[ \fIfile\fR \&.\&.\&.]
+ndbxfrm \-\-compress \fIinput_file\fR \fIoutput_file\fR
+ndbxfrm \-\-decrypt\-password=\fIpassword\fR \fIinput_file\fR \fIoutput_file\fR
+ndbxfrm [\-\-encrypt\-ldf\-iter\-count=#] \-\-encrypt\-password=\fIpassword\fR \fIinput_file\fR \fIoutput_file\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fIinput_file\fR
+and
+\fIoutput_file\fR
+cannot be the same file\&.
+Options
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-compress\fR,
+\fB\-c\fR
+Compresses the input file, using the same compression method as is used for compressing NDB Cluster backups, and writes the output to an output file\&. To decompress a compressed
+NDB
+backup file that is not encrypted, it is necessary only to invoke
+\fBndbxfrm\fR
+using the names of the compressed file and an output file (with no options required)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-decrypt\-password=\fR\fB\fIpassword\fR\fR
+Decrypts a file encrypted by
+NDB
+using the password supplied\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-encrypt\-kdf\-iter\-count=\fR\fB\fI#\fR\fR,
+\fB\-k \fR\fB\fI#\fR\fR
+When encrypting a file, specifies the number of iterations to use for the encryption key\&. Requires the
+\fB\-\-encrypt\-password\fR
+option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-encrypt\-password=\fR\fB\fIpassword\fR\fR
+Encrypts the backup file using the password supplied by the option\&. The password must meet the requirements listed here:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Uses any of the printable ASCII characters except
+!,
+\*(Aq,
+",
+$,
+%,
+\e, and
+^
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Is no more than 256 characters in length
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Is enclosed by single or double quotation marks
+.RE
+.sp
+It is possible but not recommended to use an empty password (\*(Aq\*(Aq
+or
+"")\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR,
+\fB\-?\fR
+Prints usage information for the program\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-info\fR,
+\fB\-i\fR
+Prints the following information about one or more input files:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The name of the file
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Whether the file is compressed (compression=yes
+or
+compression=no)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Whether the file is encrypted (encryption=yes
+or
+encryption=no)
+.RE
+.sp
+Example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndbxfrm \-i BACKUP\-10\-0\&.5\&.Data BACKUP\-10\&.5\&.ctl BACKUP\-10\&.5\&.log\fR
+File=BACKUP\-10\-0\&.5\&.Data, compression=no, encryption=yes
+File=BACKUP\-10\&.5\&.ctl, compression=no, encryption=yes
+File=BACKUP\-10\&.5\&.log, compression=no, encryption=yes
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-usage\fR,
+\fB\-?\fR
+Synonym for
+\fB\-\-help\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR,
+\fB\-V\fR
+Prints out version information\&.
+.RE
+.PP
+\fBndbxfrm\fR
+can encrypt backups created by any version of NDB Cluster\&. The
+\&.Data,
+\&.ctl, and
+\&.log
+files comprising the backup must be encrypted separately, and these files must be encrypted separately for each data node\&. Once encrypted, such backups can be decrypted only by
+\fBndbxfrm\fR,
+\fBndb_restore\fR, or
+\fBndb_print_backup\fR
+from NDB Cluster 8\&.0\&.22 or later\&.
+.PP
+An encrypted file can be re\-encrypted with a new password using the
+\fB\-\-encrypt\-password\fR
+and
+\fB\-\-decrypt\-password\fR
+options together, like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndbxfrm \-\-decrypt\-password=\fIold\fR \-\-encrypt\-password=\fInew\fR \fIinput_file\fR \fIoutput_file\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+In the example just shown,
+\fIold\fR
+and
+\fInew\fR
+are the old and new passwords, respectively; both of these must be quoted\&. The input file is decrypted and then encrypted as the output file\&. The input file itself is not changed; if you do not want it to be accessible using the old password, you must remove the input file manually\&.
+.PP
+\fBndbxfrm\fR
+does not take any of the options shown in
+Options Common to NDB Cluster Programs(1), other than those explicitly listed in this section (that is,
+\fB\-\-help\fR,
+\fB\-\-usage\fR, and
+\fB\-\-version\fR)\&.
+.SH "COPYRIGHT"
+.br
+.PP
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+.PP
+This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
+.PP
+This documentation is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+.PP
+You should have received a copy of the GNU General Public License along with the program; if not, write to the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA or see http://www.gnu.org/licenses/.
+.sp
+.SH "SEE ALSO"
+For more information, please refer to the MySQL Reference Manual,
+which may already be installed locally and which is also available
+online at http://dev.mysql.com/doc/.
+.SH AUTHOR
+Oracle Corporation (http://dev.mysql.com/).

@@ -22,6 +22,7 @@
 
 #include <sstream>
 
+#include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/replication_threads_api.h"
 
 #include <mysql/components/services/log_builtins.h>
@@ -30,6 +31,14 @@
 
 using std::string;
 
+Replication_thread_api::Replication_thread_api(const char *channel_interface)
+    : stop_wait_timeout(get_components_stop_timeout_var()),
+      interface_channel(channel_interface) {}
+
+Replication_thread_api::Replication_thread_api()
+    : stop_wait_timeout(get_components_stop_timeout_var()),
+      interface_channel(nullptr) {}
+
 int Replication_thread_api::initialize_channel(
     char *hostname, uint port, char *user, char *password, bool use_ssl,
     char *ssl_ca, char *ssl_capath, char *ssl_cert, char *ssl_cipher,
@@ -37,7 +46,8 @@ int Replication_thread_api::initialize_channel(
     bool ssl_verify_server_cert, int priority, int retry_count,
     bool preserve_logs, char *public_key_path, bool get_public_key,
     char *compression_algorithm, uint zstd_compression_level, char *tls_version,
-    char *tls_ciphersuites) {
+    char *tls_ciphersuites, bool ignore_ws_mem_limit,
+    bool allow_drop_write_set) {
   DBUG_TRACE;
   int error = 0;
 
@@ -56,6 +66,10 @@ int Replication_thread_api::initialize_channel(
   if (priority == GROUP_REPLICATION_APPLIER_THREAD_PRIORITY) {
     info.thd_tx_priority = GROUP_REPLICATION_APPLIER_THREAD_PRIORITY;
   }
+
+  info.m_ignore_write_set_memory_limit = ignore_ws_mem_limit;
+  info.m_allow_drop_write_set = allow_drop_write_set;
+
   info.type = GROUP_REPLICATION_CHANNEL;
 
   info.retry_count = retry_count;
@@ -357,4 +371,11 @@ int Replication_thread_api::rpl_binlog_dump_thread_kill() {
 int Replication_thread_api::delete_credential(const char *channel_name) {
   DBUG_TRACE;
   return channel_delete_credentials(channel_name);
+}
+
+bool Replication_thread_api::
+    is_any_channel_using_uuid_for_assign_gtids_to_anonymous_transaction(
+        const char *group_name) {
+  DBUG_TRACE;
+  return channel_has_same_uuid_as_group_name(group_name);
 }

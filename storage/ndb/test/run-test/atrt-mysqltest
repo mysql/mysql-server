@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -59,11 +59,6 @@ if [ -f "$MYSQL_BASE_DIR/storage/ndb/src/kernel/ndbmtd" ]; then
   NDB_NDBD="$MYSQL_BASE_DIR/storage/ndb/src/kernel/ndbmtd"
 fi
 
-NDB_TOOLS_DIR="$MYSQL_BASE_DIR/bin"
-if [ -e "$MYSQL_BASE_DIR/storage/ndb/tools" ]; then
-  NDB_TOOLS_DIR="$MYSQL_BASE_DIR/storage/ndb/tools"
-fi
-
 NDB_EXAMPLES_DIR="$MYSQL_BASE_DIR/bin"
 if [ -e "$MYSQL_BASE_DIR/storage/ndb/ndbapi-examples" ]; then
   NDB_EXAMPLES_DIR="$MYSQL_BASE_DIR/storage/ndb/ndbapi-examples"
@@ -79,7 +74,7 @@ echo "Default group suffix: $MYSQL_GROUP_SUFFIX"
 # MYSQL_GROUP_SUFFIX: This is a MySQL client, started as a NDB API client by ATRT.
 NDB_CONNECTSTRING=$NDB_CONNECTSTRING MYSQL_TEST_DIR=$MYSQL_BASE_DIR/mysql-test \
 NDB_TOOLS_OUTPUT=$RUN_LOG NDB_EXAMPLES_OUTPUT=$RUN_LOG NDB_MGM=$NDB_MGM NDB_NDBD=NDB_NDBD \
-NDB_TOOLS_DIR=$NDB_TOOLS_DIR NDB_EXAMPLES_DIR=$NDB_EXAMPLES_DIR NDB_EXAMPLES_BINARY=$NDB_EXAMPLES_BINARY \
+NDB_EXAMPLES_DIR=$NDB_EXAMPLES_DIR NDB_EXAMPLES_BINARY=$NDB_EXAMPLES_BINARY \
 MYSQLTEST_VARDIR=$RUN_DIR MYSQL_GROUP_SUFFIX=.1.4node \
                               $MYSQL_BASE_DIR/bin/mysqltest --defaults-file=$MYSQL_HOME/my.cnf \
                               --tmpdir=$RUN_DIR \

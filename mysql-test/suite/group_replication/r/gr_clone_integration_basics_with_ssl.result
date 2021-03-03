@@ -14,7 +14,7 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
 GRANT BACKUP_ADMIN ON *.* TO "rec_ssl_user";
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 
 ############################################################
 # 3. Bootstrap server1 and add some data
@@ -37,7 +37,7 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 #    Start group replication on server 2
 #    Wait for it to restart and come back
 #    Check clone was completed
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 SET GLOBAL group_replication_clone_threshold= 1;
 START GROUP_REPLICATION;
 include/rpl_reconnect.inc

@@ -21,7 +21,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <array>
-#include <string>
 #include <utility>
 
 #define LOG_COMPONENT_TAG "test_session_attach"
@@ -38,87 +37,15 @@
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"
-#include "my_sys.h"  // my_write, my_malloc
 #include "mysql_com.h"
+
+#include "plugin/test_service_sql_api/helper/test_context.h"
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
 SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
-namespace Conversions {
-
-static std::string to_string(const char *value) { return value; }
-
-static std::string to_string(const std::string &value) { return value; }
-
-template <typename Value_type>
-static std::string to_string(const Value_type &value) {
-  return std::to_string(value);
-}
-
-template <typename FirstArg, typename... Args>
-static std::string to_string(const FirstArg &arg, const Args &... args) {
-  return to_string(arg) + to_string(args...);
-}
-
-}  // namespace Conversions
-
-class Test_logger {
- public:
-  Test_logger(const char *log_name) {
-    char filename[FN_REFLEN];
-
-    fn_format(filename, log_name, "", ".log",
-              MY_REPLACE_EXT | MY_UNPACK_FILENAME);
-
-    unlink(filename);
-
-    m_out_file = my_open(filename, O_CREAT | O_RDWR, MYF(0));
-  }
-
-  ~Test_logger() { my_close(m_out_file, MYF(0)); }
-
-  void print_to_file(const std::string &text) const {
-    my_write(m_out_file, (const uchar *)text.c_str(), text.length(), MYF(0));
-  }
-
- private:
-  File m_out_file;
-};
-
-class Plugin_context {
- public:
-  Plugin_context(void *plugin_handle) : m_plugin_handle(plugin_handle) {}
-
-  template <typename... Args>
-  void log_test_line(const Args &... args) {
-    log_test(Conversions::to_string(args...), "\n");
-  }
-
-  template <typename... Args>
-  void log_test(const Args &... args) {
-    m_logger.print_to_file(Conversions::to_string(args...));
-  }
-
-  void separator() { log_test_line(m_separator); }
-
-  template <typename... Args>
-  void log_error(const Args &... args) {
-    auto text = Conversions::to_string(args...);
-
-    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, text.c_str());
-  }
-
-  void *get_plugin_handler() { return m_plugin_handle; }
-
- private:
-  Test_logger m_logger{"test_session_attach"};
-  std::string m_separator = std::string(73, '=');
-  void *m_plugin_handle = nullptr;
-};
-
-static Plugin_context *plugin_context = nullptr;
+static Test_context *test_context{nullptr};
 
 static MYSQL_THDVAR_INT(var_int, PLUGIN_VAR_OPCMDARG, "Test variable", nullptr,
                         nullptr, 0, 0, 2147483, 0);
@@ -129,8 +56,8 @@ static int expected_session_variable_value(const int session_index) {
 
 static void handle_log_error(void *, uint sql_errno, const char *err_msg,
                              const char *) {
-  plugin_context->log_test_line("SQL execution failed with ", sql_errno,
-                                " error and message: ", err_msg);
+  test_context->log_test_line("SQL execution failed with ", sql_errno,
+                              " error and message: ", err_msg);
 }
 
 const struct st_command_service_cbs sql_cbs = {
@@ -152,14 +79,16 @@ const struct st_command_service_cbs sql_cbs = {
     nullptr,           // sql_get_string,
     nullptr,           // sql_handle_ok,
     handle_log_error,  // sql_handle_error,
-    nullptr            // sql_shutdown,
+    nullptr,           // sql_shutdown,
+    nullptr            // sql_alive
 };
 
 static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd) {
   COM_DATA cmd;
 
-  plugin_context->log_test_line(test_cmd);
+  test_context->log_test_line(test_cmd);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
 
@@ -169,7 +98,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd) {
                                        CS_BINARY_REPRESENTATION, nullptr);
 
   if (failed) {
-    plugin_context->log_error("exec_test_cmd: ret code: ", failed);
+    test_context->log_error("exec_test_cmd: ret code: ", failed);
   }
 }
 
@@ -182,15 +111,15 @@ static void test_sql() {
   /* Open Sessions */
   for (int i = 0; i < number_of_sessions; ++i) {
     sessions[i] = srv_session_open(nullptr, nullptr);
-    plugin_context->log_test_line("Opening Session ", i + 1);
+    test_context->log_test_line("Opening Session ", i + 1);
 
     if (!sessions[i]) {
-      plugin_context->log_test_line("Opening Session ", i + 1, " failed.");
-      plugin_context->log_error("Open Session failed.");
+      test_context->log_test_line("Opening Session ", i + 1, " failed.");
+      test_context->log_error("Open Session failed.");
     }
   }
 
-  plugin_context->separator();
+  test_context->separator();
 
   for (uint i = 0; i < number_of_sessions; i++) {
     const int buffer_size = 256;
@@ -200,7 +129,7 @@ static void test_sql() {
 
     if (1 == session_id_text.length()) session_id_text.insert(0, "0");
 
-    plugin_context->log_test("\nQuery ", session_id_text, ": ");
+    test_context->log_test("\nQuery ", session_id_text, ": ");
 
     snprintf(&(buffer[0]), buffer.length(),
              "SET SESSION test_session_attach_var_int = %i;",
@@ -209,7 +138,7 @@ static void test_sql() {
     exec_test_cmd(sessions[i], buffer.c_str());
   }
 
-  plugin_context->separator();
+  test_context->separator();
 
   /* Verify Sessions variables in another
      sequence than "set" was done */
@@ -219,49 +148,49 @@ static void test_sql() {
     const int session_index =
         number_of_sessions - ((i + session_offset) % number_of_sessions) - 1;
 
-    plugin_context->log_test_line("Attach Session ", i + 1);
+    test_context->log_test_line("Attach Session ", i + 1);
 
     if (srv_session_attach(sessions[session_index], nullptr)) {
-      plugin_context->log_test_line("Attach Session ", i + 1, " failed.");
+      test_context->log_test_line("Attach Session ", i + 1, " failed.");
 
       continue;
     }
 
-    plugin_context->log_test_line("Verify Session ", i + 1, " variable");
+    test_context->log_test_line("Verify Session ", i + 1, " variable");
     auto session_thd = srv_session_info_get_thd(sessions[session_index]);
 
     if (expected_session_variable_value(session_index) !=
         THDVAR(session_thd, var_int)) {
-      plugin_context->log_test_line("Verify Session ", i + 1,
-                                    " variable failed, actual value is ",
-                                    THDVAR(session_thd, var_int));
-      plugin_context->log_error("Verify Session variable failed.");
+      test_context->log_test_line("Verify Session ", i + 1,
+                                  " variable failed, actual value is ",
+                                  THDVAR(session_thd, var_int));
+      test_context->log_error("Verify Session variable failed.");
     }
 
-    plugin_context->log_test_line("Detach Session ", i + 1);
+    test_context->log_test_line("Detach Session ", i + 1);
 
     if (srv_session_detach(sessions[session_index])) {
-      plugin_context->log_test_line("Detach Session ", i + 1, " failed.");
-      plugin_context->log_error("Detach Session failed.");
+      test_context->log_test_line("Detach Session ", i + 1, " failed.");
+      test_context->log_error("Detach Session failed.");
 
       continue;
     }
   }
 
-  plugin_context->separator();
+  test_context->separator();
 
   /* Close Sessions */
   for (int i = 0; i < number_of_sessions; ++i) {
     auto result = srv_session_close(sessions[i]);
-    plugin_context->log_test_line("Close Session ", i + 1);
+    test_context->log_test_line("Close Session ", i + 1);
 
     if (result) {
-      plugin_context->log_test_line("Close Session ", i + 1, " failed.");
-      plugin_context->log_error("Close Session failed.");
+      test_context->log_test_line("Close Session ", i + 1, " failed.");
+      test_context->log_error("Close Session failed.");
     }
   }
 
-  plugin_context->log_test_line("Closed all sessions");
+  test_context->log_test_line("Closed all sessions");
 }
 
 struct test_thread_context {
@@ -275,14 +204,14 @@ static void *test_sql_threaded_wrapper(void *param) {
   struct test_thread_context *thread_context =
       (struct test_thread_context *)param;
 
-  plugin_context->separator();
-  plugin_context->log_test_line("init thread");
-  if (srv_session_init_thread(plugin_context->get_plugin_handler()))
-    plugin_context->log_error("srv_session_init_thread failed.");
+  test_context->separator();
+  test_context->log_test_line("init thread");
+  if (srv_session_init_thread(test_context->get_plugin_handler()))
+    test_context->log_error("srv_session_init_thread failed.");
 
   thread_context->test_function();
 
-  plugin_context->log_test_line("deinit thread");
+  test_context->log_test_line("deinit thread");
   srv_session_deinit_thread();
 
   thread_context->thread_finished = true;
@@ -302,7 +231,7 @@ static void test_in_spawned_thread(void (*test_function)()) {
   /* now create the thread and call test_session within the thread. */
   if (my_thread_create(&(thread_context.thread), &attr,
                        test_sql_threaded_wrapper, &thread_context) != 0) {
-    plugin_context->log_error("Could not create test session thread");
+    test_context->log_error("Could not create test session thread");
   } else {
     my_thread_join(&thread_context.thread, nullptr);
   }
@@ -325,14 +254,14 @@ long long execute_test(UDF_INIT *, UDF_ARGS *, unsigned char *,
 */
 long long execute_test(UDF_INIT *, UDF_ARGS *, unsigned char *,
                        unsigned char *) {
-  plugin_context->separator();
-  plugin_context->log_test_line(
+  test_context->separator();
+  test_context->log_test_line(
       "Test in a server thread. Attach must fail on non srv_session thread.");
 
   test_sql();
 
   /* Test in a new thread */
-  plugin_context->log_test_line("Follows threaded run. Successful scenario.");
+  test_context->log_test_line("Follows threaded run. Successful scenario.");
 
   test_in_spawned_thread(test_sql);
 
@@ -343,7 +272,7 @@ long long execute_test(UDF_INIT *, UDF_ARGS *, unsigned char *,
   UDF initialization function
 */
 bool execute_test_init(UDF_INIT *, UDF_ARGS *, char *error_message_buffer) {
-  if (nullptr == plugin_context) {
+  if (nullptr == test_context) {
     snprintf(error_message_buffer, MYSQL_ERRMSG_SIZE,
              "Daemon plugin was not installed.");
 
@@ -364,7 +293,7 @@ static int test_sql_service_plugin_init(void *p) {
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
-  plugin_context = new Plugin_context(p);
+  test_context = new Test_context("test_session_attach", p);
 
   return 0;
 }
@@ -376,8 +305,8 @@ static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
 
-  delete plugin_context;
-  plugin_context = nullptr;
+  delete test_context;
+  test_context = nullptr;
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   return 0;
 }

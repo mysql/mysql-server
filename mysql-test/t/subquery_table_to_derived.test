@@ -286,3 +286,24 @@ SELECT * FROM t1
 
 DROP TABLE t1,t2;
 SET OPTIMIZER_SWITCH="semijoin=on";
+
+--echo #
+--echo # Bug #31941934: WL#14071: ASSERTION `JOIN == NULLPTR' FAILED|SQL/SQL_SELECT.CC
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+CREATE TABLE t2 ( a INTEGER );
+CREATE TABLE t3 ( b INTEGER );
+
+# subquery_to_derived adds a DISTINCT to this query,
+# which the hypergraph optimizer can't handle yet.
+# It should error out and be properly skipped, instead of
+# being treated as false and then crashing on re-optimize.
+SELECT *
+  FROM t1 LEFT JOIN t2 ON 2 IN (
+    SELECT COUNT(*) FROM t1
+    WHERE NOT EXISTS ( SELECT b FROM t3 )
+    GROUP BY pk
+  );
+
+DROP TABLE t1, t2, t3;

@@ -23,7 +23,9 @@
 #ifndef MYSQL_PSI_MEMORY_H
 #define MYSQL_PSI_MEMORY_H
 
+/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_memory_bits.h"
 

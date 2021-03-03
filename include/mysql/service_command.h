@@ -314,6 +314,16 @@ typedef void (*handle_error_t)(void *ctx, uint sql_errno, const char *err_msg,
 */
 typedef void (*shutdown_t)(void *ctx, int server_shutdown);
 
+/**
+   If the user of the srv_service is bound to a connection,
+   this callback makes it possible to check if the connection is still alive.
+   It should always return true unless the client closed the connection.
+   @returns
+    true    if the connection is still alive
+    false   otherwise
+ */
+typedef bool (*connection_alive_t)(void *ctx);
+
 struct st_command_service_cbs {
   /*
     For a statement that returns a result, the flow of called callbacks will be:
@@ -370,6 +380,9 @@ struct st_command_service_cbs {
   handle_ok_t handle_ok;
   handle_error_t handle_error;
   shutdown_t shutdown;
+
+  /* Connection status */
+  connection_alive_t connection_alive;
 };
 
 enum cs_text_or_binary {

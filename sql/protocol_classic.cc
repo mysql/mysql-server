@@ -341,7 +341,7 @@
       <td>One of ::enum_mysql_set_option</td></tr>
   </table>
 
-  @sa ::mysql_set_server_option, ::mysql_parse
+  @sa ::mysql_set_server_option, ::dispatch_sql_command
 */
 
 /**
@@ -1465,6 +1465,13 @@ int Protocol_classic::read_packet() {
 
   Execution starts immediately.
 
+  If the client and server support it, the values for the named parameters
+  of the query are sent (if any) in @ref sect_protocol_binary_resultset_row_value
+  form. The type of each parameter is made up of two bytes (except for the
+  parameter name):
+    - the type as in @ref enum_field_types
+    - a flag byte which has the highest bit set if the type is unsigned [80]
+
   @return
   - @subpage page_protocol_com_query_response
 
@@ -1474,6 +1481,33 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>command</td>
       <td>0x03: COM_QUERY</td></tr>
+  <tr><td colspan="3">if @ref CLIENT_QUERY_ATTRIBUTES is set {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>parameter_count</td>
+      <td>Number of parameters</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>parameter_set_count</td>
+      <td>Number of parameter sets. Currently always 1</td></tr>
+  <tr><td colspan="3">if parameter_count > 0 {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>null_bitmap</td>
+      <td>NULL bitmap, length= (num_params + 7) / 8</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>new_params_bind_flag</td>
+      <td>Always 1. Malformed packet error if not 1</td></tr>
+  <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>param_type_and_flag</td>
+      <td>Parameter type (2 bytes). The MSB is reserved for unsigned flag</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+    <td>parameter name</td>
+    <td>String</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>parameter_values</td>
+      <td>value of each parameter: @ref sect_protocol_binary_resultset_row_value</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">}</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
       <td>query</td>
       <td>the text of the SQL query to execute</td></tr>
@@ -1481,13 +1515,17 @@ int Protocol_classic::read_packet() {
 
   @par Example
   ~~~~~~~~~
-  21 00 00 00 03 73 65 6c    65 63 74 20 40 40 76 65    !....select @@ve
-  72 73 69 6f 6e 5f 63 6f    6d 6d 65 6e 74 20 6c 69    rsion_comment li
-  6d 69 74 20 31                                        mit 1
+  21 00 00 00 03 01 01 00    01 fe 00 01 61 01 31 73   !....... ....a.1s
+  65 6c 65 63 74 20 40 40    76 65 72 73 69 6f 6e 5f   elect @@version_c
+  63 6f 6d 6d 65 6e 74 20    6c 69 6d 69 74 20 31      omment limit 1
+
   ~~~~~~~~~
 
-  @sa Protocol_classic::parse_packet, dispatch_command,
-    mysql_parse, alloc_query, THD::set_query
+  `null_bitmap` is like the NULL-bitmap for the
+  @ref sect_protocol_binary_resultset_row just that it has a bit_offset of 0.
+
+  @sa @ref Protocol_classic::parse_packet, @ref dispatch_command,
+    @ref dispatch_sql_command, @ref alloc_query, @ref THD::set_query
 */
 
 
@@ -1669,7 +1707,7 @@ int Protocol_classic::read_packet() {
   </table>
 
   If the ::SERVER_MORE_RESULTS_EXISTS flag is set in the last
-  @ref page_protocol_basic_eof_packet/@ref page_protocol_basic_ok_packet,
+  @ref page_protocol_basic_eof_packet / @ref page_protocol_basic_ok_packet,
   another @ref page_protocol_com_query_response_text_resultset will follow.
   See Multi-resultset.
 
@@ -2110,9 +2148,21 @@ int Protocol_classic::read_packet() {
     - the type as in @ref enum_field_types
     - a flag byte which has the highest bit set if the type is unsigned [80]
 
-  The `num_params` used for this packet has to match the `num_params` of the
+  The `num_params` used for this packet reffers to `num_params` of the
   @ref sect_protocol_com_stmt_prepare_response_ok of the corresponsing prepared
   statement.
+
+  The server will use the first num_params (from prepare) parameter values to
+  satisfy the positional anonymous question mark parameters in the statement
+  executed regardless of whether they have names supplied or not.
+  The rest num_remaining_attrs parameter values will just be stored into
+  the THD and if they have a name they can later be accessed as query attributes.
+  If any of the first num_params parameter values has a name supplied they
+  could then be accessed as a query attribute too.
+  If supplied, parameter_count will overwrite the num_params value by
+  eventually adding a non-zero num_params_remaining value to
+  the original num_params.
+
 
   @return @subpage page_protocol_com_stmt_execute_response
 
@@ -2131,6 +2181,12 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
       <td>iteration_count</td>
       <td>Number of times to execute the statement. Currently always 1.</td></tr>
+  <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+    <td>parameter_count</td>
+    <td>The number of parameter metadata and values supplied.
+      Overrrides the count coming from prepare (num_params) if present.</td></tr>
+  <tr><td colspan="3">}</td></tr>
   <tr><td colspan="3">if num_params > 0 {</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>null_bitmap</td>
@@ -2138,10 +2194,16 @@ int Protocol_classic::read_packet() {
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>new_params_bind_flag</td>
       <td>Flag if parameters must be re-bound</td></tr>
-  <tr><td colspan="3">if new_params_bind_flag {</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
-      <td>parameter_types</td>
-      <td>Type of each parameter, length: num_params * 2</td></tr>
+  <tr><td colspan="3">if new_params_bind_flag, for each parameter {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>parameter_type</td>
+    <td>Type of the paremeter value. See ::enum_field_type</td></tr>
+  <tr><td colspan="3">if ::CLIENT_QUERY_ATTRIBUTES is on {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>parameter_name</td>
+      <td>Name of the parameter or empty if not present</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">}</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
       <td>parameter_values</td>
       <td>value of each parameter</td></tr>
@@ -2590,6 +2652,163 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
   @sa @ref mysql_stmt_fetch
 */
 MY_COMPILER_DIAGNOSTIC_POP()
+
+static bool parse_query_bind_params(
+    THD *thd, uint param_count, PS_PARAM **out_parameters,
+    unsigned char *out_has_new_types, unsigned long *out_parameter_count,
+    Prepared_statement *stmt_data, uchar **inout_read_pos,
+    size_t *inout_packet_left, bool receive_named_params,
+    bool receive_parameter_set_count) {
+  uchar *read_pos = *inout_read_pos;
+  size_t packet_left = *inout_packet_left;
+
+  /* here we count the number of parameters actually received */
+  if (out_parameter_count) *out_parameter_count = 0;
+
+  if (receive_named_params) {
+    unsigned long n_params = 0, n_sets;
+    if (packet_left < 1 || packet_left < net_field_length_size(read_pos))
+      return true;
+    uchar *pre = read_pos;
+    /* read the number of params */
+    n_params = net_field_length(&read_pos);
+    packet_left -= read_pos - pre;
+
+    if (receive_parameter_set_count) {
+      if (packet_left < 1 || packet_left < net_field_length_size(read_pos))
+        return true;
+      pre = read_pos;
+      n_sets = net_field_length(&read_pos);
+      packet_left -= read_pos - pre;
+      if (n_sets != 1) return true;
+    }
+
+    /* Cap the param count to 64k. Should be enough for everybody! */
+    if (n_params > 65535) return true;
+    param_count = n_params;
+  }
+
+  if (param_count > 0) {
+    *out_parameters =
+        static_cast<PS_PARAM *>(thd->alloc(param_count * sizeof(PS_PARAM)));
+    if (!*out_parameters) return true; /* purecov: inspected */
+    memset(*out_parameters, 0, sizeof(PS_PARAM) * param_count);
+
+    /* Then comes the null bits */
+    const uint null_bits_packet_len = (param_count + 7) / 8;
+    if (packet_left < null_bits_packet_len) return true;
+    uchar *null_bits = read_pos;
+    read_pos += null_bits_packet_len;
+    packet_left -= null_bits_packet_len;
+
+    PS_PARAM *params = *out_parameters;
+
+    /* Then comes the types byte. If set, new types are provided */
+    if (!packet_left) return true;
+    bool has_new_types = static_cast<bool>(*read_pos++);
+    if (!has_new_types && !stmt_data) return true;
+
+    --packet_left;
+    if (out_has_new_types) *out_has_new_types = has_new_types;
+    if (has_new_types) {
+      DBUG_PRINT("info", ("Types provided"));
+      for (uint i = 0; i < param_count; ++i) {
+        if (packet_left < 2) return true;
+
+        ushort type_code = sint2korr(read_pos);
+        read_pos += 2;
+        packet_left -= 2;
+
+        const uint signed_bit = 1 << 15;
+        params[i].type =
+            static_cast<enum enum_field_types>(type_code & ~signed_bit);
+        params[i].unsigned_type = static_cast<bool>(type_code & signed_bit);
+        DBUG_PRINT("info", ("type=%u", (uint)params[i].type));
+        DBUG_PRINT("info", ("flags=%u", (uint)params[i].unsigned_type));
+        if (receive_named_params) {
+          if (packet_left < 1 || packet_left < net_field_length_size(read_pos))
+            return true;
+          uchar *pre = read_pos;
+          /* read the name length */
+          params[i].name_length = net_field_length(&read_pos);
+          packet_left -= read_pos - pre;
+          if (params[i].name_length > packet_left) return true;
+          params[i].name = params[i].name_length > 0 ? read_pos : nullptr;
+          read_pos += params[i].name_length;
+          packet_left -= params[i].name_length;
+          DBUG_PRINT("info",
+                     ("name=%.*s", (int)params[i].name_length, params[i].name));
+        } else {
+          params[i].name_length = 0;
+          params[i].name = nullptr;
+          DBUG_PRINT("info", ("no name"));
+        }
+      }
+    }
+    /*
+      No check for packet_left here or in case of only long data
+      we will return malformed, although the packet will be correct
+    */
+
+    /* Here comes the real data */
+    for (uint i = 0; i < param_count; ++i) {
+      params[i].null_bit = static_cast<bool>(null_bits[i / 8] & (1 << (i & 7)));
+      // Check if parameter is null
+      if (params[i].null_bit) {
+        DBUG_PRINT("info", ("null param"));
+        params[i].value = nullptr;
+        params[i].length = 0;
+        if (out_parameter_count) *out_parameter_count += 1;
+        continue;
+      }
+      enum enum_field_types type =
+          has_new_types ? params[i].type
+                        : stmt_data->param_array[i]->data_type_actual();
+      if (type == MYSQL_TYPE_BOOL)
+        return true;  // unsupported in this version of the Server
+      if (stmt_data && stmt_data->param_array[i]->param_state() ==
+                           Item_param::LONG_DATA_VALUE) {
+        DBUG_PRINT("info", ("long data"));
+        if (!((type >= MYSQL_TYPE_TINY_BLOB) && (type <= MYSQL_TYPE_STRING)))
+          return true;
+        if (type == MYSQL_TYPE_BOOL || type == MYSQL_TYPE_INVALID) return true;
+        if (out_parameter_count) *out_parameter_count += 1;
+        continue;
+      }
+
+      bool buffer_underrun = false;
+      ulong header_len;
+
+      // Set parameter length.
+      params[i].length = get_ps_param_len(type, read_pos, packet_left,
+                                          &header_len, &buffer_underrun);
+      if (buffer_underrun) return true;
+
+      read_pos += header_len;
+      packet_left -= header_len;
+
+      // Set parameter value
+      params[i].value = read_pos;
+      read_pos += params[i].length;
+      packet_left -= params[i].length;
+      if (out_parameter_count) *out_parameter_count += 1;
+      DBUG_PRINT("info", ("param len %ul", (uint)params[i].length));
+    }
+  } else {
+    *out_parameters = nullptr;
+    if (out_has_new_types) *out_has_new_types = 0;
+  }
+
+  if (out_parameter_count)
+    DBUG_PRINT("info", ("param count %ul", (uint)*out_parameter_count));
+  if (receive_named_params && out_parameter_count) {
+    DBUG_ASSERT(*out_parameter_count == param_count);
+    *out_parameter_count = param_count;  // dummy: keep compiler happy
+  }
+  *inout_read_pos = read_pos;
+  *inout_packet_left = packet_left;
+  return false;
+}
 /**
   @page page_protocol_com_stmt_fetch COM_STMT_FETCH
 
@@ -2645,104 +2864,21 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       Prepared_statement *stmt =
           m_thd->stmt_map.find(data->com_stmt_execute.stmt_id);
       data->com_stmt_execute.parameter_count = 0;
+      data->com_stmt_execute.parameters = nullptr;
 
       /*
         If no statement found there's no need to generate error.
         It will be generated in sql_parse.cc which will check again for the id.
       */
       if (!stmt || stmt->param_count < 1) break;
+      if (parse_query_bind_params(
+              m_thd, stmt->param_count, &data->com_stmt_execute.parameters,
+              &data->com_stmt_execute.has_new_types,
+              &data->com_stmt_execute.parameter_count, stmt, &read_pos,
+              &packet_left,
+              this->has_client_capability(CLIENT_QUERY_ATTRIBUTES), false))
+        goto malformed;
 
-      uint param_count = stmt->param_count;
-      data->com_stmt_execute.parameters =
-          static_cast<PS_PARAM *>(m_thd->alloc(param_count * sizeof(PS_PARAM)));
-      if (!data->com_stmt_execute.parameters)
-        goto malformed; /* purecov: inspected */
-
-      /* Then comes the null bits */
-      const uint null_bits_packet_len = (param_count + 7) / 8;
-      if (packet_left < null_bits_packet_len) goto malformed;
-      unsigned char *null_bits = read_pos;
-      read_pos += null_bits_packet_len;
-      packet_left -= null_bits_packet_len;
-
-      PS_PARAM *params = data->com_stmt_execute.parameters;
-
-      /* Then comes the types byte. If set, new types are provided */
-      if (!packet_left) goto malformed;
-      bool has_new_types = static_cast<bool>(*read_pos++);
-      --packet_left;
-      data->com_stmt_execute.has_new_types = has_new_types;
-      if (has_new_types) {
-        DBUG_PRINT("info", ("Types provided"));
-        for (uint i = 0; i < param_count; ++i) {
-          if (packet_left < 2) goto malformed;
-
-          ushort type_code = sint2korr(read_pos);
-          read_pos += 2;
-          packet_left -= 2;
-
-          const uint signed_bit = 1 << 15;
-          params[i].type =
-              static_cast<enum enum_field_types>(type_code & ~signed_bit);
-          params[i].unsigned_type = static_cast<bool>(type_code & signed_bit);
-          DBUG_PRINT("info", ("type=%u", (uint)params[i].type));
-          DBUG_PRINT("info", ("flags=%u", (uint)params[i].unsigned_type));
-        }
-      }
-      /*
-        No check for packet_left here or in case of only long data
-        we will return malformed, although the packet will be correct
-      */
-
-      /* Here comes the real data */
-      for (uint i = 0; i < param_count; ++i) {
-        params[i].null_bit =
-            static_cast<bool>(null_bits[i / 8] & (1 << (i & 7)));
-        // Check if parameter is null
-        if (params[i].null_bit) {
-          DBUG_PRINT("info", ("null param"));
-          params[i].value = nullptr;
-          params[i].length = 0;
-          data->com_stmt_execute.parameter_count++;
-          continue;
-        }
-        enum enum_field_types type =
-            has_new_types ? params[i].type
-                          : stmt->param_array[i]->data_type_actual();
-        if (type == MYSQL_TYPE_BOOL)
-          goto malformed;  // unsupported in this version of the Server
-        if (stmt->param_array[i]->param_state() ==
-            Item_param::LONG_DATA_VALUE) {
-          DBUG_PRINT("info", ("long data"));
-          if (!(type >= MYSQL_TYPE_TINY_BLOB && type <= MYSQL_TYPE_STRING))
-            goto malformed;
-          if (type == MYSQL_TYPE_BOOL || type == MYSQL_TYPE_INVALID)
-            goto malformed;
-          data->com_stmt_execute.parameter_count++;
-
-          continue;
-        }
-
-        bool buffer_underrun = false;
-        ulong header_len;
-
-        // Set parameter length.
-        params[i].length = get_ps_param_len(type, read_pos, packet_left,
-                                            &header_len, &buffer_underrun);
-        if (buffer_underrun) goto malformed;
-
-        read_pos += header_len;
-        packet_left -= header_len;
-
-        // Set parameter value
-        params[i].value = read_pos;
-        read_pos += params[i].length;
-        packet_left -= params[i].length;
-        data->com_stmt_execute.parameter_count++;
-        DBUG_PRINT("info", ("param len %ul", (uint)params[i].length));
-      }
-      DBUG_PRINT("info", ("param count %ul",
-                          (uint)data->com_stmt_execute.parameter_count));
       break;
     }
     case COM_STMT_FETCH: {
@@ -2779,8 +2915,22 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       break;
     }
     case COM_QUERY: {
-      data->com_query.query = reinterpret_cast<const char *>(input_raw_packet);
-      data->com_query.length = input_packet_length;
+      uchar *read_pos = input_raw_packet;
+      size_t packet_left = input_packet_length;
+
+      if (this->has_client_capability(CLIENT_QUERY_ATTRIBUTES)) {
+        if (parse_query_bind_params(m_thd, 0, &data->com_query.parameters,
+                                    nullptr, &data->com_query.parameter_count,
+                                    nullptr, &read_pos, &packet_left, true,
+                                    true))
+          goto malformed;
+      } else {
+        data->com_query.parameters = nullptr;
+        data->com_query.parameter_count = 0;
+      }
+
+      data->com_query.query = reinterpret_cast<const char *>(read_pos);
+      data->com_query.length = packet_left;
       break;
     }
     case COM_FIELD_LIST: {

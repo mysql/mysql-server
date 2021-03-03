@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,18 +25,21 @@
 #ifndef PLUGIN_X_SRC_CAPABILITIES_HANDLER_EXPIRED_PASSWORDS_H_
 #define PLUGIN_X_SRC_CAPABILITIES_HANDLER_EXPIRED_PASSWORDS_H_
 
-#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
-#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
+#include <string>
+
 #include "plugin/x/src/capabilities/handler.h"
-#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/ngs/mysqlx/getter_any.h"
+#include "plugin/x/src/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
 class Cap_handles_expired_passwords : public Capability_handler {
  public:
-  Cap_handles_expired_passwords(xpl::Client &client) : m_client(client) {
-    m_value = m_client.supports_expired_passwords();
+  explicit Cap_handles_expired_passwords(iface::Client *client)
+      : m_client(client) {
+    m_value = m_client->supports_expired_passwords();
   }
 
  private:
@@ -62,10 +65,10 @@ class Cap_handles_expired_passwords : public Capability_handler {
     return {};
   }
 
-  void commit() override { m_client.set_supports_expired_passwords(m_value); }
+  void commit() override { m_client->set_supports_expired_passwords(m_value); }
 
  private:
-  xpl::Client &m_client;
+  iface::Client *m_client;
   bool m_value;
 };
 

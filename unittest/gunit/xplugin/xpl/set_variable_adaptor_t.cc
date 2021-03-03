@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -92,9 +92,9 @@ Param_is_allowed_value is_allowed_value_param[] = {
     {k_label_a + k_label_b + k_label_c, true, true, true},
 };
 
-INSTANTIATE_TEST_CASE_P(Set_variable_adaptor_is_allowed_value,
-                        Set_variable_adaptor_is_allowed_value_test,
-                        testing::ValuesIn(is_allowed_value_param));
+INSTANTIATE_TEST_SUITE_P(Set_variable_adaptor_is_allowed_value,
+                         Set_variable_adaptor_is_allowed_value_test,
+                         testing::ValuesIn(is_allowed_value_param));
 
 }  // namespace test
 }  // namespace xpl

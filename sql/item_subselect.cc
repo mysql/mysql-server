@@ -64,6 +64,7 @@
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum_max
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/key.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // in_left_expr_name
@@ -509,14 +510,24 @@ void Item_in_subselect::cleanup() {
 }
 
 AccessPath *Item_in_subselect::root_access_path() const {
-  // Only subselect_hash_sj_engine owns its own iterator;
-  // for subselect_indexsubquery_engine, the unit still has it, since it's a
-  // normally executed query block. Thus, we should never get called otherwise.
-  DBUG_ASSERT(strategy == Subquery_strategy::SUBQ_MATERIALIZATION &&
-              indexsubquery_engine->engine_type() ==
-                  subselect_indexsubquery_engine::HASH_SJ_ENGINE);
-  return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
-      ->root_access_path();
+  if (strategy == Subquery_strategy::SUBQ_MATERIALIZATION &&
+      indexsubquery_engine->engine_type() ==
+          subselect_indexsubquery_engine::HASH_SJ_ENGINE) {
+    return down_cast<subselect_hash_sj_engine *>(indexsubquery_engine)
+        ->root_access_path();
+  } else {
+    // Only subselect_hash_sj_engine owns its own iterator;
+    // for subselect_indexsubquery_engine, the unit still has it, since it's a
+    // normally executed query block. Thus, we should never get called
+    // otherwise.
+    //
+    // However, in some situations where the hypergraph optimizer prints out
+    // the query to the log for debugging, it isn't fully optimized
+    // yet and might not yet have an iterator. Thus, return nullptr instead of
+    // assert-failing.
+    assert(current_thd->lex->using_hypergraph_optimizer);
+    return nullptr;
+  }
 }
 
 bool Item_subselect::fix_fields(THD *thd, Item **ref) {
@@ -3284,7 +3295,7 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
   DBUG_ASSERT(tab->type() != JT_REF_OR_NULL);
   AccessPath *path = NewRefAccessPath(thd, tab->table(), &tab->ref(),
                                       /*use_order=*/false, /*reverse=*/false,
-                                      tab, /*count_examined_rows=*/false);
+                                      /*count_examined_rows=*/false);
 
   if (tab->type() == JT_EQ_REF && (cond != nullptr || having != nullptr)) {
     path = NewLimitOffsetAccessPath(thd, path, /*limit=*/1, /*offset=*/0,
@@ -3401,7 +3412,7 @@ bool subselect_hash_sj_engine::exec(THD *thd) {
       // Index must be closed before starting to scan.
       if (table->file->inited) table->file->ha_index_or_rnd_end();
 
-      TableScanIterator scan(thd, table, /*qep_tab=*/nullptr,
+      TableScanIterator scan(thd, table, /*expected_rows=*/-1.0,
                              /*examined_rows=*/nullptr);
       int ret = scan.Read();
       if (ret == 1 || thd->is_error()) {

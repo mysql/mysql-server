@@ -23,12 +23,12 @@ INSERT INTO t1 VALUES (0);
 #
 # 1.1 Check the slave SQL thread fails
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -40,7 +40,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was inserted on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -57,12 +57,12 @@ LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t2;
 #
 # 2.1 Check the slave SQL thread fails
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -74,7 +74,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -92,12 +92,12 @@ INSERT INTO t1 VALUES (@v);
 #
 # 3.1 Check the slave SQL thread fails
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -109,7 +109,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -128,12 +128,12 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 #
 # 4.1 Check the slave SQL thread fails
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -145,7 +145,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -162,12 +162,12 @@ INSERT INTO t3 VALUES();
 #
 # 5.1 Check the slave SQL thread fails
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -179,7 +179,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [Nothing was insert on the table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -196,12 +196,12 @@ CREATE TEMPORARY TABLE temp1 (k INT PRIMARY KEY);
 #
 # 6.1 Check the slave SQL thread fails
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -213,7 +213,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [No temporary table was created]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc
@@ -232,12 +232,12 @@ DROP TEMPORARY TABLE temp1;
 #
 # 7.1 Check the slave SQL thread fails
 [connection slave]
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='slave-relay-bin.000001';;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -249,7 +249,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 include/assert_grep.inc [The slave stopped as there was an error in the SQL thread with REQUIRE_ROW_FORMAT]
 include/assert.inc [There is still a temporary table]
 # No issues when REQUIRE_ROW_FORMAT = 0
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='slave-relay-bin.000001';;
 include/start_slave.inc
 [connection master]
 include/sync_slave_sql_with_master.inc

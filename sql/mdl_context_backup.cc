@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,7 +182,7 @@ bool MDL_context_backup_manager::create_backup(const MDL_context *context,
 
     MUTEX_LOCK(guard, &m_LOCK_mdl_context_backup);
     m_backup_map.emplace(key_obj, std::move(element));
-  } catch (std::bad_alloc &ex) {
+  } catch (std::bad_alloc &) {
     result = true;
   }
   return result;
@@ -225,7 +225,7 @@ bool MDL_context_backup_manager::create_backup(MDL_request_list *mdl_requests,
     MUTEX_LOCK(guard, &m_LOCK_mdl_context_backup);
     m_backup_map.emplace(key_obj, std::move(element));
 
-  } catch (std::bad_alloc &ex) {
+  } catch (std::bad_alloc &) {
     result = true;
   }
 

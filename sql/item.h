@@ -818,7 +818,7 @@ class Item : public Parse_tree_node {
     REAL_ITEM,
     NULL_ITEM,
     VARBIN_ITEM,
-    COPY_STR_ITEM,
+    METADATA_COPY_ITEM,
     FIELD_AVG_ITEM,
     DEFAULT_VALUE_ITEM,
     PROC_ITEM,
@@ -1165,7 +1165,6 @@ class Item : public Parse_tree_node {
     as a scalar JSON value. Only relevant for the Item_param class.
   */
   virtual void mark_json_as_scalar() {}
-  virtual bool json_as_scalar() const { return false; }
 
  protected:
   /**
@@ -3290,7 +3289,7 @@ class Item : public Parse_tree_node {
     JSON column.
 
     For example, the expression `JSON_REPLACE(col, '$.foo', 'bar')`
-    can be used to partially update the column `foo`.
+    can be used to partially update the column `col`.
 
     @param field  the JSON column that is being updated
     @return true if this expression can be used for partial update,
@@ -3377,13 +3376,6 @@ class Item_basic_constant : public Item {
 *****************************************************************************/
 
 class Item_sp_variable : public Item {
- protected:
-  /*
-    THD, which is stored in fix_fields() and is used in this_item() to avoid
-    current_thd use.
-  */
-  THD *m_thd;
-
  public:
   Name_string m_name;
 
@@ -3393,7 +3385,7 @@ class Item_sp_variable : public Item {
     Routine to which this Item_splocal belongs. Used for checking if correct
     runtime context is used for variable handling.
   */
-  sp_head *m_sp;
+  sp_head *m_sp{nullptr};
 #endif
 
  public:
@@ -4312,7 +4304,6 @@ class Item_param final : public Item, private Settable_routine_parameter {
   enum enum_item_param_state param_state() const { return m_param_state; }
 
   void mark_json_as_scalar() override { m_json_as_scalar = true; }
-  bool json_as_scalar() const override { return m_json_as_scalar; }
 
   /*
     A buffer for string and long data values. Historically all allocated
@@ -4883,7 +4874,7 @@ class Item_float : public Item_num {
   }
   longlong val_int() override {
     DBUG_ASSERT(fixed == 1);
-    if (value <= (double)LLONG_MIN) {
+    if (value <= LLONG_MIN) {
       return LLONG_MIN;
     } else if (value > LLONG_MAX_DOUBLE) {
       return LLONG_MAX;
@@ -5890,44 +5881,12 @@ class Item_time_with_ref final : public Item_temporal_with_ref {
 };
 
 /**
-  Base class to implement typed value caching Item classes
-
-  Item_copy_ classes are very similar to the corresponding Item_
-  classes (e.g. Item_copy_int is similar to Item_int) but they add
-  the following additional functionality to Item_ :
-    1. Nullability
-    2. Possibility to store the value not only on instantiation time,
-       but also later.
-  Item_copy_ classes are a functionality subset of Item_cache_
-  classes, as e.g. they don't support comparisons with the original Item
-  as Item_cache_ classes do.
-  Item_copy_ classes are used in GROUP BY calculation.
-  TODO: Item_copy should be made an abstract interface and Item_copy_
-  classes should inherit both the respective Item_ class and the interface.
-  Ideally we should drop Item_copy_ classes altogether and merge
-  their functionality to Item_cache_ (and these should be made to inherit
-  from Item_).
-*/
-
-class Item_copy : public Item {
- protected:
-  /** The original item that is copied */
-  Item *item;
-
-  /**
-    Stores the result type of the original item, so it can be returned
-    without calling the original item's method
-  */
-  Item_result cached_result_type;
-
-  /**
-    Constructor of the Item_copy class
-
-    stores metadata information about the original class as well as a
-    pointer to it.
-  */
-  Item_copy(Item *i) {
-    item = i;
+  A dummy item that contains a copy/backup of the given Item's metadata;
+  not valid for data. Used only in type aggregation.
+ */
+class Item_metadata_copy final : public Item {
+ public:
+  explicit Item_metadata_copy(Item *item) {
     null_value = maybe_null = item->maybe_null;
     decimals = item->decimals;
     max_length = item->max_length;
@@ -5939,190 +5898,45 @@ class Item_copy : public Item {
     collation.set(item->collation);
   }
 
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override = 0;
-
- public:
-  /**
-    Factory method to create the appropriate subclass dependent on the type of
-    the original item.
-
-    @param item      the original item.
-  */
-  static Item_copy *create(Item *item);
-
-  /**
-    Update the cache with the value of the original item
-
-    This is the method that updates the cached value.
-    It must be explicitly called by the user of this class to store the value
-    of the orginal item in the cache.
-    @returns false if OK, true on error.
-  */
-  virtual bool copy(const THD *thd) = 0;
-
-  virtual Item *get_item() { return item; }
-  /** All of the subclasses should have the same type tag */
-  enum Type type() const override { return COPY_STR_ITEM; }
+  enum Type type() const override { return METADATA_COPY_ITEM; }
   Item_result result_type() const override { return cached_result_type; }
-
-  void make_field(Send_field *field) override { item->make_field(field); }
-
-  /*
-    The likely reason for used_tables() to return 1 is that Item_copy
-    represents a field in a temporary table used for group expressions,
-    and such tables are represented with table map = 1.
-  */
   table_map used_tables() const override { return 1; }
 
-  bool is_null() override { return null_value; }
-
-  void no_rows_in_result() override { item->no_rows_in_result(); }
-
-  /*
-    Override the methods below as pure virtual to make sure all the
-    sub-classes implement them.
-  */
-
-  String *val_str(String *) override = 0;
-  my_decimal *val_decimal(my_decimal *) override = 0;
-  double val_real() override = 0;
-  longlong val_int() override = 0;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override = 0;
-  bool get_time(MYSQL_TIME *ltime) override = 0;
-  /* purecov: begin deadcode */
-  bool val_json(Json_wrapper *) override {
+  String *val_str(String *) override {
     DBUG_ASSERT(false);
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
-    return error_json();
+    return nullptr;
   }
-  /* purecov: end */
-  bool check_function_as_value_generator(uchar *args) override {
-    Check_function_as_value_generator_parameters *func_arg =
-        pointer_cast<Check_function_as_value_generator_parameters *>(args);
-    func_arg->banned_function_name = "values";
+  my_decimal *val_decimal(my_decimal *) override {
+    DBUG_ASSERT(false);
+    return nullptr;
+  }
+  double val_real() override {
+    DBUG_ASSERT(false);
+    return 0.0;
+  }
+  longlong val_int() override {
+    DBUG_ASSERT(false);
+    return 0;
+  }
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override {
+    DBUG_ASSERT(false);
     return true;
   }
-};
-
-/**
- Implementation of a string cache.
-
- Uses Item::str_value for storage
-*/
-class Item_copy_string final : public Item_copy {
- protected:
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
-
- public:
-  Item_copy_string(Item *item_arg) : Item_copy(item_arg) {}
-
-  String *val_str(String *) override;
-  my_decimal *val_decimal(my_decimal *) override;
-  double val_real() override;
-  longlong val_int() override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  bool get_time(MYSQL_TIME *ltime) override;
-  bool copy(const THD *thd) override;
-};
-
-class Item_copy_json final : public Item_copy {
-  Json_wrapper *m_value;
-
- protected:
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
-
- public:
-  explicit Item_copy_json(Item *item);
-  ~Item_copy_json() override;
-  bool copy(const THD *thd) override;
-  bool val_json(Json_wrapper *) override;
-  String *val_str(String *) override;
-  my_decimal *val_decimal(my_decimal *) override;
-  double val_real() override;
-  longlong val_int() override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
-  bool get_time(MYSQL_TIME *ltime) override;
-};
-
-class Item_copy_int : public Item_copy {
- protected:
-  longlong cached_value;
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
-
- public:
-  Item_copy_int(Item *i) : Item_copy(i) {}
-
-  String *val_str(String *) override;
-  my_decimal *val_decimal(my_decimal *) override;
-  double val_real() override { return null_value ? 0.0 : (double)cached_value; }
-  longlong val_int() override { return null_value ? 0LL : cached_value; }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
-    return get_date_from_int(ltime, fuzzydate);
+  bool get_time(MYSQL_TIME *) override {
+    DBUG_ASSERT(false);
+    return true;
   }
-  bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
-  bool copy(const THD *thd) override;
-};
-
-class Item_copy_uint final : public Item_copy_int {
- public:
-  Item_copy_uint(Item *item_arg) : Item_copy_int(item_arg) {
-    unsigned_flag = true;
+  bool val_json(Json_wrapper *) override {
+    DBUG_ASSERT(false);
+    return true;
   }
 
-  String *val_str(String *) override;
-  double val_real() override {
-    return null_value ? 0.0 : (double)(ulonglong)cached_value;
-  }
-};
-
-class Item_copy_float final : public Item_copy {
- protected:
-  double cached_value;
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
-
- public:
-  Item_copy_float(Item *i) : Item_copy(i) {}
-
-  String *val_str(String *) override;
-  my_decimal *val_decimal(my_decimal *) override;
-  double val_real() override { return null_value ? 0.0 : cached_value; }
-  longlong val_int() override { return (longlong)rint(val_real()); }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
-    return get_date_from_real(ltime, fuzzydate);
-  }
-  bool get_time(MYSQL_TIME *ltime) override {
-    return get_time_from_real(ltime);
-  }
-  bool copy(const THD *thd) override;
-};
-
-class Item_copy_decimal final : public Item_copy {
- protected:
-  my_decimal cached_value;
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
-
- public:
-  Item_copy_decimal(Item *i) : Item_copy(i) {}
-
-  String *val_str(String *) override;
-  my_decimal *val_decimal(my_decimal *) override {
-    return null_value ? nullptr : &cached_value;
-  }
-  double val_real() override;
-  longlong val_int() override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
-    return get_date_from_decimal(ltime, fuzzydate);
-  }
-  bool get_time(MYSQL_TIME *ltime) override {
-    return get_time_from_decimal(ltime);
-  }
-  bool copy(const THD *thd) override;
+ private:
+  /**
+    Stores the result type of the original item, so it can be returned
+    without calling the original item's member function
+  */
+  Item_result cached_result_type;
 };
 
 class Item_cache;

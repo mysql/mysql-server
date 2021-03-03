@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ Iterable_buffer::iterator::~iterator() {}
 Iterable_buffer::iterator &Iterable_buffer::iterator::operator=(
     const Iterable_buffer::iterator &rhs) {
   m_target = rhs.m_target;
-  if (rhs.m_reader != nullptr) {
+  if (rhs.m_target != nullptr) {
     m_reader = std::make_unique<binary_log::Event_reader>(
         m_target->m_decompressed_buffer, m_target->m_decompressed_buffer_size);
     m_reader->go_to(rhs.m_reader->position());

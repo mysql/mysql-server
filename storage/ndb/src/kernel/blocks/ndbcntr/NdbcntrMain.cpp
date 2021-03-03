@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,10 +91,10 @@ extern EventLogger * g_eventLogger;
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
 //#define DEBUG_NODE_STOP 1
 //#define DEBUG_LOCAL_SYSFILE 1
-//#define DEBUG_LCP 1
 //#define DEBUG_UNDO 1
 //#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_NODE_GROUP_START 1
+//#define DEBUG_LCP 1
 #endif
 
 #ifdef DEBUG_NODE_GROUP_START
@@ -147,31 +147,38 @@ struct BlockInfo {
   Uint32 NextSP;            // Next start phase
   Uint32 ErrorInsertStart;
   Uint32 ErrorInsertStop;
+  bool in_ndbd;
 };
 
 static BlockInfo ALL_BLOCKS[] = { 
-  { NDBFS_REF,   0 ,  2000,  2999 },
-  { DBTC_REF,    1 ,  8000,  8035 },
-  { DBDIH_REF,   1 ,  7000,  7173 },
-  { DBLQH_REF,   1 ,  5000,  5030 },
-  { DBACC_REF,   1 ,  3000,  3999 },
-  { DBTUP_REF,   1 ,  4000,  4007 },
-  { DBDICT_REF,  1 ,  6000,  6003 },
-  { NDBCNTR_REF, 0 ,  1000,  1999 },
-  { CMVMI_REF,   1 ,  9000,  9999 }, // before QMGR
-  { QMGR_REF,    1 ,     1,   999 },
-  { TRIX_REF,    1 ,     0,     0 },
-  { BACKUP_REF,  1 , 10000, 10999 },
-  { DBUTIL_REF,  1 , 11000, 11999 },
-  { SUMA_REF,    1 , 13000, 13999 },
-  { DBTUX_REF,   1 , 12000, 12999 }
-  ,{ TSMAN_REF,  1 ,     0,     0 }
-  ,{ LGMAN_REF,  1 ,     0,     0 }
-  ,{ PGMAN_REF,  1 ,     0,     0 }
-  ,{ RESTORE_REF,1 ,     0,     0 }
-  ,{ DBINFO_REF, 1 ,     0,     0 }
-  ,{ DBSPJ_REF,  1 ,     0,     0 }
-  ,{ THRMAN_REF, 1 ,     0,     0 }
+  { NDBFS_REF,   0 ,  2000,  2999, true },
+  { DBTC_REF,    1 ,  8000,  8035, true },
+  { DBDIH_REF,   1 ,  7000,  7173, true },
+  { DBLQH_REF,   1 ,  5000,  5030, true },
+  { DBACC_REF,   1 ,  3000,  3999, true },
+  { DBTUP_REF,   1 ,  4000,  4007, true },
+  { DBDICT_REF,  1 ,  6000,  6003, true },
+  { NDBCNTR_REF, 0 ,  1000,  1999, true },
+  { CMVMI_REF,   1 ,  9000,  9999, true }, // before QMGR
+  { QMGR_REF,    1 ,     1,   999, true },
+  { TRIX_REF,    1 ,     0,     0, true },
+  { BACKUP_REF,  1 , 10000, 10999, true },
+  { DBUTIL_REF,  1 , 11000, 11999, true },
+  { SUMA_REF,    1 , 13000, 13999, true },
+  { DBTUX_REF,   1 , 12000, 12999, true }
+  ,{ TSMAN_REF,  1 ,     0,     0, true }
+  ,{ LGMAN_REF,  1 ,     0,     0, true }
+  ,{ PGMAN_REF,  1 ,     0,     0, true }
+  ,{ RESTORE_REF,1 ,     0,     0, true }
+  ,{ DBINFO_REF, 1 ,     0,     0, true }
+  ,{ DBSPJ_REF,  1 ,     0,     0, true }
+  ,{ THRMAN_REF, 1 ,     0,     0, true }
+  ,{ DBQLQH_REF, 1 ,     0,     0, false }
+  ,{ DBQACC_REF, 1 ,     0,     0, false }
+  ,{ DBQTUP_REF, 1 ,     0,     0, false }
+  ,{ QBACKUP_REF,1 ,     0,     0, false }
+  ,{ DBQTUX_REF, 1 ,     0,     0, false }
+  ,{ QRESTORE_REF,1,     0,     0, false }
 };
 
 static const Uint32 ALL_BLOCKS_SZ = sizeof(ALL_BLOCKS)/sizeof(BlockInfo);
@@ -198,7 +205,13 @@ static BlockReference readConfigOrder[ALL_BLOCKS_SZ] = {
   PGMAN_REF,
   RESTORE_REF,
   DBSPJ_REF,
-  THRMAN_REF
+  THRMAN_REF,
+  DBQLQH_REF,
+  DBQACC_REF,
+  DBQTUP_REF,
+  QBACKUP_REF,
+  DBQTUX_REF,
+  QRESTORE_REF
 };
 
 /*******************************/
@@ -278,7 +291,8 @@ Ndbcntr::execAPI_START_REP(Signal* signal)
   if(refToBlock(signal->getSendersBlockRef()) == QMGR)
   {
     for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
-      sendSignal(ALL_BLOCKS[i].Ref, GSN_API_START_REP, signal, 1, JBB);
+      if (isNdbMtLqh() || ALL_BLOCKS[i].in_ndbd)
+        sendSignal(ALL_BLOCKS[i].Ref, GSN_API_START_REP, signal, 1, JBB);
     }
   }
 }
@@ -2248,7 +2262,8 @@ Ndbcntr::execCNTR_START_REP(Signal* signal)
    * Inform all interested blocks that node has started
    */
   for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
-    sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
+    if (isNdbMtLqh() || ALL_BLOCKS[i].in_ndbd)
+      sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
   }
 
   g_eventLogger->info("Node %u has completed its restart", nodeId);
@@ -2301,7 +2316,7 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
   CntrStartReq *req = (CntrStartReq*)signal->getDataPtr();
   
   const Uint32 nodeId = req->nodeId;
-  const Uint32 lastGci = req->lastGci;
+  Uint32 lastGci = req->lastGci;
   const NodeState::StartType st = (NodeState::StartType)req->startType;
 
   if (signal->getLength() == CntrStartReq::OldSignalLength)
@@ -2371,24 +2386,12 @@ Ndbcntr::execCNTR_START_REQ(Signal * signal)
     jam();
     c_start.m_withLog.set(nodeId);
     ndbrequire(!(starting && lastGci > c_start.m_lastGci));
-    if (starting && lastGci > c_start.m_lastGci)
-    {
-      jam();
-      CntrStartRef * ref = (CntrStartRef*)signal->getDataPtrSend();
-      ref->errorCode = CntrStartRef::NotMaster;
-      ref->masterNodeId = nodeId;
-      NodeReceiverGroup rg (NDBCNTR, c_start.m_waiting);
-      sendSignal(rg, GSN_CNTR_START_REF, signal,
-                 CntrStartRef::SignalLength, JBB);
-      return;
-    }
     if (starting)
     {
       jam();
       signal->theData[0] = nodeId;
       EXECUTE_DIRECT(DBDIH, GSN_GET_LATEST_GCI_REQ, signal, 1);
       Uint32 gci = signal->theData[0];
-      Uint32 lastGci = req->lastGci;
       if (gci > lastGci)
       {
         jam();
@@ -2651,7 +2654,7 @@ Ndbcntr::checkNodeGroups(Signal* signal, const NdbNodeBitmask & mask){
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
   sd->mask = mask;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
+		 CheckNodeGroups::SignalLengthArbitCheckShort);
   jamEntry();
   return (CheckNodeGroups::Output)sd->output;
 }
@@ -4522,8 +4525,9 @@ void Ndbcntr::updateNodeState(Signal* signal, const NodeState& newState) const{
   stateRep->nodeState.setNodeGroup(c_nodeGroup);
   
   for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
-    sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_STATE_REP, signal,
-	       NodeStateRep::SignalLength, JBB);
+    if (isNdbMtLqh() || ALL_BLOCKS[i].in_ndbd)
+      sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_STATE_REP, signal,
+	         NodeStateRep::SignalLength, JBB);
   }
 }
 
@@ -4773,7 +4777,7 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   /**
    * Check if I can survive me stopping
    */
-  NdbNodeBitmask ndbMask; 
+  NdbNodeBitmask ndbMask;
   ndbMask.assign(cntr.c_startedNodeSet);
 
   if (StopReq::getStopNodes(stopReq.requestInfo))
@@ -4815,10 +4819,13 @@ Ndbcntr::StopRecord::checkNodeFail(Signal* signal){
   
   CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
   sd->blockRef = cntr.reference();
-  sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
+  sd->requestType = CheckNodeGroups::Direct |
+                    CheckNodeGroups::ArbitCheck |
+                    CheckNodeGroups::UseBeforeFailMask;
   sd->mask = ndbMask;
+  sd->before_fail_mask = cntr.c_startedNodeSet;
   cntr.EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		      CheckNodeGroups::SignalLength);
+		      CheckNodeGroups::SignalLengthArbitCheckLong);
   jamEntry();
   switch (sd->output) {
   case CheckNodeGroups::Win:
@@ -5383,9 +5390,23 @@ void Ndbcntr::Missra::execSTART_ORD(Signal* signal){
   sendNextREAD_CONFIG_REQ(signal);
 }
 
-void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal){
+void Ndbcntr::Missra::sendNextREAD_CONFIG_REQ(Signal* signal)
+{
+  if(currentBlockIndex < ALL_BLOCKS_SZ)
+  {
+    if (globalData.getBlock(refToBlock(readConfigOrder[currentBlockIndex])) ==
+        nullptr)
+    {
+      /**
+       * The block isn't used in this data node, skip to next.
+       * This can happen for Query thread blocks when no query threads
+       * or recover threads are configured.
+       */
+      currentBlockIndex++;
+      sendNextREAD_CONFIG_REQ(signal);
+      return;
+    }
 
-  if(currentBlockIndex < ALL_BLOCKS_SZ){
     jam();
 
     ReadConfigReq * req = (ReadConfigReq*)signal->getDataPtrSend();    
@@ -5444,7 +5465,8 @@ void Ndbcntr::Missra::execREAD_CONFIG_CONF(Signal* signal)
   sendNextREAD_CONFIG_REQ(signal);
 }
 
-void Ndbcntr::Missra::execSTTORRY(Signal* signal){
+void Ndbcntr::Missra::execSTTORRY(Signal* signal)
+{
   const BlockReference ref = signal->senderBlockRef();
   ndbrequire(refToBlock(ref) == refToBlock(ALL_BLOCKS[currentBlockIndex].Ref));
  
@@ -5458,16 +5480,26 @@ void Ndbcntr::Missra::execSTTORRY(Signal* signal){
       ALL_BLOCKS[currentBlockIndex].NextSP = signal->theData[i];
       break;
     }
-  }    
+  }
   
   currentBlockIndex++;
   sendNextSTTOR(signal);
 }
 
-void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
-
-  for(; currentStartPhase < 255 ;
-      currentStartPhase++, g_currentStartPhase = currentStartPhase){
+void Ndbcntr::Missra::sendNextSTTOR(Signal* signal)
+{
+  if (currentBlockIndex < ALL_BLOCKS_SZ &&
+      globalData.getBlock(
+        refToBlock(ALL_BLOCKS[currentBlockIndex].Ref)) ==
+          nullptr)
+  {
+    currentBlockIndex++;
+    sendNextSTTOR(signal);
+    return;
+  }
+  for (; currentStartPhase < 255 ;
+       currentStartPhase++, g_currentStartPhase = currentStartPhase)
+  {
     jam();
 
 #ifdef ERROR_INSERT
@@ -6762,13 +6794,33 @@ void Ndbcntr::execWAIT_ALL_COMPLETE_LCP_REQ(Signal* signal)
 {
   jamEntry();
   ndbrequire(m_local_lcp_started);
+  if (signal->theData[1] == 0)
+  {
+    /**
+     * The LDM had no fragments to restore and thus no fragments
+     * checkpoint either. We will wait to start the complete of
+     * the checkpoint until at least one LDM with fragments to
+     * restore have sent the signal. The code in DBLQH is not
+     * designed to handle that we start up new LCP_FRAG_ORD's
+     * in the first phase of the Copy fragment and at the same
+     * time complete an LCP. Thus we have to wait with completing
+     * the first local LCP until at least the second phase of
+     * copy fragment has started.
+     */
+    jam();
+    DEB_LCP(("WAIT_ALL_COMPLETE_LCP_REQ received from empty LDM"));
+    return;
+  }
   if (m_received_wait_all)
   {
     /**
      * Ignore, already received it from one of the LDMs.
      * It is sufficient to receive it from one, then we
      * will ensure that all receive the rest of the
-     * interaction.
+     * interaction. At least one fragment exists since someone
+     * decided to start a local LCP. Thus at least one LDM should
+     * send WAIT_ALL_COMPLETE_LCP_REQ with at least 1 fragment to
+     * restore.
      */
     jam();
     return;

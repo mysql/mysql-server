@@ -232,8 +232,7 @@ class Parallel_reader {
     /** Create BLOB heap. */
     void create_blob_heap() noexcept {
       ut_a(m_blob_heap == nullptr);
-      /* Keep the size small because it's currently not used. */
-      m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE / 64);
+      m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
     }
 
     /** Thread ID. */

@@ -15,7 +15,7 @@ GRANT REPLICATION SLAVE ON *.* TO u27122947;
 include/sync_slave_sql_with_master.inc
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
 Warnings:
 Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -32,7 +32,7 @@ c1
 ==== Stop slave and used empty values for master_public_key_path ====
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='';
 Warnings:
 Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -49,7 +49,7 @@ include/wait_for_slave_io_error.inc [errno=2061]
 ==== Try setting correct public key ====
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
 Warnings:
 Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -57,7 +57,7 @@ include/start_slave.inc
 ==== Try setting master_public_key_path to '' ====
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='';
 Warnings:
 Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -72,7 +72,7 @@ c1
 ==== Reset and cleanup ====
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

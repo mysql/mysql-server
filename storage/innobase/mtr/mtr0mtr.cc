@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -457,7 +457,7 @@ bool mtr_t::is_block_dirtied(const buf_block_t *block) {
   /* It is OK to read oldest_modification because no
   other thread can be performing a write of it and it
   is only during write that the value is reset to 0. */
-  return (block->page.oldest_modification == 0);
+  return !block->page.is_dirty();
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -781,10 +781,8 @@ the resources. */
 void mtr_t::Command::execute() {
   ut_ad(m_impl->m_log_mode != MTR_LOG_NONE);
 
-  ulint len;
-
 #ifndef UNIV_HOTBACKUP
-  len = prepare_write();
+  ulint len = prepare_write();
 
   if (len > 0) {
     mtr_write_log_t write_log;
@@ -897,9 +895,6 @@ int mtr_t::Logging::disable(THD *) {
   m_state.store(DISABLED);
 
   clone_mark_active();
-
-  /* Reset sync LSN if beyond current system LSN. */
-  reset_buf_flush_sync_lsn();
 
   return (0);
 }

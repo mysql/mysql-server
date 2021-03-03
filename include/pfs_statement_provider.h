@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,10 +30,11 @@
 
 #include <sys/types.h>
 
-#include "my_psi_config.h"
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-#ifdef MYSQL_SERVER
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
 #ifndef MYSQL_DYNAMIC_PLUGIN
 #ifndef WITH_LOCK_ORDER
 
@@ -47,6 +48,7 @@ struct sql_digest_storage;
 
 #define PSI_STATEMENT_CALL(M) pfs_##M##_v2
 #define PSI_DIGEST_CALL(M) pfs_##M##_v2
+#define PSI_PS_CALL(M) pfs_##M##_v2
 
 void pfs_register_statement_v2(const char *category, PSI_statement_info *info,
                                int count);
@@ -112,6 +114,23 @@ void pfs_set_statement_no_good_index_used_v2(PSI_statement_locker *locker);
 
 void pfs_end_statement_v2(PSI_statement_locker *locker, void *stmt_da);
 
+PSI_prepared_stmt *pfs_create_prepared_stmt_v2(void *identity, uint stmt_id,
+                                               PSI_statement_locker *locker,
+                                               const char *stmt_name,
+                                               size_t stmt_name_length,
+                                               const char *sql_text,
+                                               size_t sql_text_length);
+
+void pfs_destroy_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt);
+
+void pfs_reprepare_prepared_stmt_v2(PSI_prepared_stmt *prepared_stmt);
+
+void pfs_execute_prepared_stmt_v2(PSI_statement_locker *locker,
+                                  PSI_prepared_stmt *ps);
+
+void pfs_set_prepared_stmt_text_v2(PSI_prepared_stmt *prepared_stmt,
+                                   const char *text, uint text_len);
+
 PSI_digest_locker *pfs_digest_start_v2(PSI_statement_locker *locker);
 
 void pfs_digest_end_v2(PSI_digest_locker *locker,
@@ -119,7 +138,7 @@ void pfs_digest_end_v2(PSI_digest_locker *locker,
 
 #endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* MYSQL_SERVER */
+#endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
 #endif /* HAVE_PSI_STATEMENT_INTERFACE */
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -447,6 +447,7 @@ Dbtux::execALTER_INDX_IMPL_REQ(Signal* signal)
   IndexPtr indexPtr;
   c_indexPool.getPtr(indexPtr, req->indexId);
 
+  ndbassert(!m_is_query_block);
   //Uint32 save = indexPtr.p->m_state;
   if (! (refToBlock(req->senderRef) == DBDICT) &&
       ! (isNdbMt() && refToMain(req->senderRef) == DBTUX && 
@@ -550,13 +551,6 @@ Dbtux::dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 sen
     Uint32 i = --indexPtr.p->m_numFrags;
     FragPtr fragPtr;
     c_fragPool.getPtr(fragPtr, indexPtr.p->m_fragPtrI[i]);
-    /*
-     * Verify that LQH has terminated scans.  (If not, then drop order
-     * must change from TUP,TUX to TUX,TUP and we must wait for scans).
-     */
-    ScanOpPtr scanPtr;
-    bool b = fragPtr.p->m_scanList.first(scanPtr);
-    ndbrequire(!b);
     c_fragPool.release(fragPtr);
   }
   // drop attributes

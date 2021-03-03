@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,13 +38,13 @@ namespace iface {
 
 class Authentication_container {
  public:
-  virtual ~Authentication_container() {}
+  virtual ~Authentication_container() = default;
 
-  virtual std::unique_ptr<xpl::iface::Authentication> get_auth_handler(
-      const std::string &name, xpl::iface::Session *session) = 0;
+  virtual std::unique_ptr<iface::Authentication> get_auth_handler(
+      const std::string &name, iface::Session *session) = 0;
 
   virtual std::vector<std::string> get_authentication_mechanisms(
-      xpl::iface::Client *client) = 0;
+      iface::Client *client) = 0;
 };
 
 }  // namespace iface

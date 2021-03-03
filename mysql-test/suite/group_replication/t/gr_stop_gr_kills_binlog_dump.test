@@ -73,7 +73,7 @@ call mtr.add_suppression("Error reading packet from server for channel 'ch3_1': 
 set session sql_log_bin=1;
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_1 for channel 'ch3_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
 --source include/start_slave.inc
@@ -93,7 +93,7 @@ call mtr.add_suppression("Error reading packet from server for channel 'ch4_1': 
 set session sql_log_bin=1;
 
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_1 for channel 'ch4_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_1 for channel 'ch4_1'
 
 --let $rpl_channel_name='ch4_1'
 --source include/start_slave.inc

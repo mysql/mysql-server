@@ -109,6 +109,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
+#include "sql/rpl_handler.h"            // delegates_update_lock_type
 #include "sql/rpl_info_factory.h"       // Rpl_info_factory
 #include "sql/rpl_info_handler.h"       // INFO_REPOSITORY_TABLE
 #include "sql/rpl_log_encryption.h"
@@ -1002,18 +1003,26 @@ static bool check_partial_revokes(sys_var *self, THD *thd, set_var *setv) {
   return false;
 }
 
-/** Sets the changed value to the corresponding atomic system variable */
+/**
+  Set the updated global variable to the corresponding atomic system variable.
+*/
 static bool partial_revokes_update(sys_var *, THD *, enum_var_type) {
   set_mysqld_partial_revokes(opt_partial_revokes);
   return false;
 }
+
+/**
+  We also modify the global variable outside of sys_var structure.
+  Protect the global variable updates through this lock.
+*/
+static PolyLock_mutex Plock_partial_revokes(&LOCK_partial_revokes);
 
 static Sys_var_bool Sys_partial_revokes(
     "partial_revokes",
     "Access of database objects can be restricted, "
     "even if user has global privileges granted.",
     GLOBAL_VAR(opt_partial_revokes), CMD_LINE(OPT_ARG),
-    DEFAULT(DEFAULT_PARTIAL_REVOKES), NO_MUTEX_GUARD, IN_BINLOG,
+    DEFAULT(DEFAULT_PARTIAL_REVOKES), &Plock_partial_revokes, IN_BINLOG,
     ON_CHECK(check_partial_revokes), ON_UPDATE(partial_revokes_update), nullptr,
     sys_var::PARSE_EARLY);
 
@@ -1405,8 +1414,9 @@ static Sys_var_enum Sys_session_track_gtids(
     "included in the response packet sent by the server."
     "(Default: OFF).",
     SESSION_VAR(session_track_gtids), CMD_LINE(REQUIRED_ARG),
-    session_track_gtids_names, DEFAULT(OFF), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_outside_trx), ON_UPDATE(on_session_track_gtids_update));
+    session_track_gtids_names, DEFAULT(SESSION_TRACK_GTIDS_OFF), NO_MUTEX_GUARD,
+    NOT_IN_BINLOG, ON_CHECK(check_outside_trx),
+    ON_UPDATE(on_session_track_gtids_update));
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin(self, thd, var)) return true;
@@ -1475,8 +1485,9 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var,
   bool rpl_info_option = static_cast<uint>(var->save_result.ulonglong_value);
 
   /* don't convert if the repositories are same */
-  if (rpl_info_option == (thread_mask == SLAVE_THD_IO ? opt_mi_repository_id
-                                                      : opt_rli_repository_id))
+  if (rpl_info_option ==
+      (0 != (thread_mask == SLAVE_THD_IO ? opt_mi_repository_id
+                                         : opt_rli_repository_id)))
     return false;
 
   channel_map.wrlock();
@@ -1544,25 +1555,6 @@ static bool master_info_repository_check(sys_var *self, THD *thd,
   return repository_check(self, thd, var, SLAVE_THD_IO);
 }
 
-static bool relay_log_info_repository_update(sys_var *, THD *thd,
-                                             enum_var_type) {
-  if (opt_rli_repository_id == INFO_REPOSITORY_FILE) {
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "FILE", "'TABLE'");
-  }
-  return false;
-}
-
-static bool master_info_repository_update(sys_var *, THD *thd, enum_var_type) {
-  if (opt_mi_repository_id == INFO_REPOSITORY_FILE) {
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
-        ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX), "FILE", "'TABLE'");
-  }
-  return false;
-}
-
 static const char *repository_names[] = {"FILE", "TABLE",
 #ifndef DBUG_OFF
                                          "DUMMY",
@@ -1573,20 +1565,22 @@ ulong opt_mi_repository_id = INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_mi_repository(
     "master_info_repository",
     "Defines the type of the repository for the master information.",
-    GLOBAL_VAR(opt_mi_repository_id), CMD_LINE(REQUIRED_ARG), repository_names,
+    GLOBAL_VAR(opt_mi_repository_id),
+    CMD_LINE(REQUIRED_ARG, OPT_MASTER_INFO_REPOSITORY), repository_names,
     DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(master_info_repository_check),
-    ON_UPDATE(master_info_repository_update));
+    ON_CHECK(master_info_repository_check), ON_UPDATE(nullptr),
+    DEPRECATED_VAR(""));
 
 ulong opt_rli_repository_id = INFO_REPOSITORY_TABLE;
 static Sys_var_enum Sys_rli_repository(
     "relay_log_info_repository",
     "Defines the type of the repository for the relay log information "
     "and associated workers.",
-    GLOBAL_VAR(opt_rli_repository_id), CMD_LINE(REQUIRED_ARG), repository_names,
+    GLOBAL_VAR(opt_rli_repository_id),
+    CMD_LINE(REQUIRED_ARG, OPT_RELAY_LOG_INFO_REPOSITORY), repository_names,
     DEFAULT(INFO_REPOSITORY_TABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(relay_log_info_repository_check),
-    ON_UPDATE(relay_log_info_repository_update));
+    ON_CHECK(relay_log_info_repository_check), ON_UPDATE(nullptr),
+    DEPRECATED_VAR(""));
 
 static Sys_var_bool Sys_binlog_rows_query(
     "binlog_rows_query_log_events",
@@ -4136,12 +4130,11 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
-  // Not allowed with slave_sql_skip_counter
   DBUG_PRINT("info", ("sql_slave_skip_counter=%d", sql_slave_skip_counter));
   if (new_gtid_mode == Gtid_mode::ON && sql_slave_skip_counter > 0) {
-    my_error(ER_CANT_SET_GTID_MODE, MYF(0), "ON",
-             "@@GLOBAL.SQL_SLAVE_SKIP_COUNTER is greater than zero");
-    goto err;
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
+                 ER_THD(thd, ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
   }
 
   if (new_gtid_mode != Gtid_mode::ON && replicate_same_server_id &&
@@ -4163,9 +4156,9 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
       Master_info *mi = it->second;
-      DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
-                          mi->get_channel(), mi->is_auto_position()));
       if (mi != nullptr && mi->is_auto_position()) {
+        DBUG_PRINT("info", ("auto_position for channel '%s' is %d",
+                            mi->get_channel(), mi->is_auto_position()));
         char buf[1024];
         snprintf(buf, sizeof(buf),
                  "replication channel '%.192s' is configured "
@@ -4180,6 +4173,38 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     }
   }
 
+  // Cannot set to GTID_MODE <> ON when some channel uses
+  // ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|UUID.
+  if (old_gtid_mode == Gtid_mode::ON && new_gtid_mode != Gtid_mode::ON) {
+    for (auto it : channel_map) {
+      Master_info *mi = it.second;
+      if (mi != nullptr &&
+          mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() >
+              Assign_gtids_to_anonymous_transactions_info::enum_type::
+                  AGAT_OFF) {
+        DBUG_PRINT(
+            "info",
+            ("assign_gtids_to_anonymous_transactions for channel '%s' is %d",
+             mi->get_channel(),
+             static_cast<int>(
+                 mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                     .get_type())));
+        char buf[1024];
+        snprintf(buf, sizeof(buf),
+                 "replication channel '%.192s' is configured "
+                 "with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS set to LOCAL or "
+                 "to a UUID. "
+                 "Execute CHANGE MASTER TO "
+                 "ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF "
+                 "FOR CHANNEL '%.192s' before you set "
+                 "@@GLOBAL.GTID_MODE = '%s'.",
+                 mi->get_channel(), mi->get_channel(),
+                 Gtid_mode::to_string(new_gtid_mode));
+        my_error(ER_CANT_SET_GTID_MODE, MYF(0), "OFF", buf);
+        goto err;
+      }
+    }
+  }
   /*
     Cannot set OFF when source_connection_auto_failover is enabled for any
     channel.
@@ -4922,6 +4947,14 @@ static Sys_var_ulonglong Sys_temptable_max_ram(
     GLOBAL_VAR(temptable_max_ram), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(2 << 20 /* 2 MiB */, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */),
     BLOCK_SIZE(1));
+
+static Sys_var_ulonglong Sys_temptable_max_mmap(
+    "temptable_max_mmap",
+    "Maximum amount of memory (in bytes) the TempTable storage engine is "
+    "allowed to allocate from MMAP-backed files before starting to "
+    "store data on disk.",
+    GLOBAL_VAR(temptable_max_mmap), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(0, ULLONG_MAX), DEFAULT(1 << 30 /* 1 GiB */), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_temptable_use_mmap("temptable_use_mmap",
                                            "Use mmap files for temptables",
@@ -5805,18 +5838,18 @@ static Sys_var_uint Sys_slave_net_timeout(
     &PLock_slave_net_timeout, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_slave_net_timeout));
 
-static bool check_slave_skip_counter(sys_var *, THD *, set_var *) {
+static bool check_slave_skip_counter(sys_var *, THD *thd, set_var *var) {
   /*
     @todo: move this check into the set function and hold the lock on
     Gtid_mode::lock until the operation has completed, so that we are
     sure a concurrent connection does not change gtid_mode between
     check and fix.
   */
-  if (global_gtid_mode.get() == Gtid_mode::ON) {
-    my_error(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE, MYF(0));
-    return true;
-  }
-
+  if (global_gtid_mode.get() == Gtid_mode::ON &&
+      var->save_result.ulonglong_value > 0)
+    push_warning(thd, Sql_condition::SL_WARNING,
+                 ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
+                 ER_THD(thd, ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON));
   return false;
 }
 
@@ -6176,6 +6209,7 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
 bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
   DBUG_TRACE;
   bool error = false;
+  bool gtid_threshold_breach = false;
 
   global_sid_lock->wrlock();
 
@@ -6212,6 +6246,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
   gtid_state->get_executed_gtids()->to_string(&current_gtid_executed);
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
+  gtid_threshold_breach = (gtid_state->get_executed_gtids()->get_gtid_number() >
+                           GNO_WARNING_THRESHOLD);
+
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
   LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_UPDATED, previous_gtid_purged,
          current_gtid_purged);
@@ -6224,6 +6261,10 @@ end:
   my_free(previous_gtid_purged);
   my_free(current_gtid_executed);
   my_free(current_gtid_purged);
+
+  if (gtid_threshold_breach)
+    LogErr(WARNING_LEVEL, ER_WARN_GTID_THRESHOLD_BREACH);
+
   return error;
 }
 
@@ -6264,13 +6305,23 @@ static Sys_var_gtid_mode Sys_gtid_mode(
 
 static Sys_var_uint Sys_gtid_executed_compression_period(
     "gtid_executed_compression_period",
-    "When binlog is disabled, "
-    "a background thread wakes up to compress the gtid_executed table "
-    "every gtid_executed_compression_period transactions, as a "
-    "special case, if variable is 0, the thread never wakes up "
-    "to compress the gtid_executed table.",
+    "Compress the mysql.gtid_executed table whenever this number of "
+    "transactions have been added, by waking up a foreground thread "
+    "(compress_gtid_table). This compression method only operates when "
+    "binary logging is disabled on the replica; if binary logging is "
+    "enabled, the table is compressed every time the binary log is "
+    "rotated, and this value is ignored. Before MySQL 8.0.23, the "
+    "default is 1000, and from MySQL 8.0.23, the default is zero, which "
+    "disables this compression method. This is because in releases from "
+    "MySQL 8.0.17, InnoDB transactions are written to the "
+    "mysql.gtid_executed table by a separate process to non-InnoDB "
+    "transactions. If the server has a mix of InnoDB and non-InnoDB "
+    "transactions, attempting to compress the table with the "
+    "compress_gtid_table thread can slow this process, so from "
+    "MySQL 8.0.17 it is recommended that you set "
+    "gtid_executed_compression_period to 0.",
     GLOBAL_VAR(gtid_executed_compression_period), CMD_LINE(OPT_ARG),
-    VALID_RANGE(0, UINT_MAX32), DEFAULT(1000), BLOCK_SIZE(1));
+    VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_disconnect_on_expired_password(
     "disconnect_on_expired_password",
@@ -6348,8 +6399,9 @@ static Sys_var_enum Sys_session_track_transaction_info(
     "characteristics (isolation level, read only/read write, snapshot - "
     "but not any work done / data modified within the transaction).",
     SESSION_VAR(session_track_transaction_info), CMD_LINE(REQUIRED_ARG),
-    session_track_transaction_info_names, DEFAULT(OFF), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(update_session_track_tx_info));
+    session_track_transaction_info_names, DEFAULT(TX_TRACK_NONE),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(update_session_track_tx_info));
 
 static bool update_session_track_state_change(sys_var *, THD *thd,
                                               enum_var_type) {
@@ -6977,3 +7029,34 @@ static Sys_var_bool Sys_var_require_row_format(
     "and DDLs with the exception of temporary table creation/deletion.",
     SESSION_ONLY(require_row_format), NO_CMD_LINE, DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_set_require_row_format));
+
+/**
+  Changes the `Delegate` internal state in regards to which type of lock to
+  use and in regards to whether or not to take plugin locks in each hook
+  invocation.
+*/
+static bool handle_plugin_lock_type_change(sys_var *, THD *, enum_var_type) {
+  DBUG_TRACE;
+  delegates_acquire_locks();
+  delegates_update_lock_type();
+  delegates_release_locks();
+  return false;
+}
+
+static Sys_var_bool Sys_replication_optimize_for_static_plugin_config(
+    "replication_optimize_for_static_plugin_config",
+    "Optional flag that blocks plugin install/uninstall and allows skipping "
+    "the acquisition of the lock to read from the plugin list and the usage "
+    "of read-optimized spin-locks. Use only when plugin hook callback needs "
+    "optimization (a lot of semi-sync slaves, for instance).",
+    GLOBAL_VAR(opt_replication_optimize_for_static_plugin_config),
+    CMD_LINE(OPT_ARG), DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(handle_plugin_lock_type_change));
+
+static Sys_var_bool Sys_replication_sender_observe_commit_only(
+    "replication_sender_observe_commit_only",
+    "Optional flag that allows for only calling back observer hooks at "
+    "commit.",
+    GLOBAL_VAR(opt_replication_sender_observe_commit_only), CMD_LINE(OPT_ARG),
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr));

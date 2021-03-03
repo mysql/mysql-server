@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -143,6 +143,7 @@ public:
 
 
   void print(FILE*) const;
+  void print_header(FILE*) const;
 
   /* ----------------------------------------------------------------------- */
 
@@ -234,9 +235,9 @@ template<Uint32 sz, typename Pool, Uint32 Type_id = 0>
 class LocalDataBuffer : public DataBuffer<sz, Pool, Type_id>
 {
 public:
-  LocalDataBuffer(typename DataBuffer<sz, Pool, Type_id>::DataBufferPool & thePool,
+  LocalDataBuffer(typename DataBuffer<sz, Pool, Type_id>::DataBufferPool & pool,
                    typename DataBuffer<sz, Pool, Type_id>::HeadPOD & _src)
-    : DataBuffer<sz, Pool, Type_id>(thePool), src(_src)
+    : DataBuffer<sz, Pool, Type_id>(pool), src(_src)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
     if (src.in_use == true)
@@ -362,6 +363,22 @@ void DataBuffer<sz, Pool, Type_id>::print(FILE* out) const
       }
     }
     ptr.i = ptr.p->nextPool;
+  }
+  fprintf(out, " ]\n");
+}
+
+template<Uint32 sz, typename Pool, Uint32 Type_id>
+inline
+void DataBuffer<sz, Pool, Type_id>::print_header(FILE* out) const
+{
+  fprintf(out, "[DataBuffer used=%d words, segmentsize=%d words",
+	  head.used, sz);
+
+  if (head.firstItem == RNIL) {
+    fprintf(out, ": No segments seized.]\n");
+    return;
+  } else {
+    fprintf(out, "\n");
   }
   fprintf(out, " ]\n");
 }

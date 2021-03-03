@@ -199,6 +199,20 @@ void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
 @retval NULL if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd);
 
+#ifdef UNIV_DEBUG
+/** Obtain the value of the latest output from InnoDB Interpreter/Tester
+module (ib::Tester).
+@param[in]	thd	thread handle
+@return pointer to the output string. */
+char **thd_innodb_interpreter_output(THD *thd);
+
+/** Obtain the latest command executed by InnoDB Interpreter/Tester
+module (ib::Tester).
+@param[in]	thd	thread handle
+@return pointer to the output string. */
+char **thd_innodb_interpreter(THD *thd);
+#endif /* UNIV_DEBUG */
+
 /** Get the current setting of the table_cache_size global parameter. We do
  a dirty read because for one there is no synchronization object and
  secondly there is little harm in doing so even if we get a torn read.

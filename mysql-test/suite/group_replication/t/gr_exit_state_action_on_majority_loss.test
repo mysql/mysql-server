@@ -171,7 +171,9 @@ SET @@GLOBAL.group_replication_exit_state_action = ABORT_SERVER;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 # Wait until the connection is dropped
+--let $disconnect_timeout= 300
 --source include/wait_until_disconnected.inc
+--let $disconnect_timeout=
 
 --echo
 --echo #########################################################################

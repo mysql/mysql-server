@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 
 #include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/replication.h"
-#include "unittest/gunit/xplugin/xpl/mock/mock_component_services.h"
+#include "unittest/gunit/xplugin/xpl/mock/component_services.h"
 
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
@@ -67,20 +67,26 @@ void ssl_wrapper_version(Vio *, char *, const size_t) {}
 
 void ssl_wrapper_cipher(Vio *, char *, const size_t) {}
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_cipher_list(Vio *, const char **, const long) { return 0; }
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_verify_depth(Vio *) { return 0; }
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_verify_mode(Vio *) { return 0; }
 
 void ssl_wrapper_get_peer_certificate_issuer(Vio *, char *, const size_t) {}
 
 void ssl_wrapper_get_peer_certificate_subject(Vio *, char *, const size_t) {}
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_get_verify_result_and_cert(Vio *) { return 0; }
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *) { return 0; }
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *) { return 0; }
 
 void ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *, char *,
@@ -91,24 +97,26 @@ void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *, char *,
 
 void ssl_wrapper_thread_cleanup() {}
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_sess_accept(struct st_VioSSLFd *) { return 0; }
 
+// NOLINTNEXTLINE(runtime/int)
 long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *) { return 0; }
 
 SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() {
-  using xpl::test::Mock_mysql_plugin_registry;
+  using xpl::test::mock::Mysql_plugin_registry;
 
-  if (Mock_mysql_plugin_registry::m_mysql_plugin_registry)
-    return Mock_mysql_plugin_registry::m_mysql_plugin_registry
+  if (Mysql_plugin_registry::m_mysql_plugin_registry)
+    return Mysql_plugin_registry::m_mysql_plugin_registry
         ->mysql_plugin_registry_acquire();
   return nullptr;
 }
 
 int mysql_plugin_registry_release(SERVICE_TYPE(registry) * reg) {
-  using xpl::test::Mock_mysql_plugin_registry;
+  using xpl::test::mock::Mysql_plugin_registry;
 
-  if (Mock_mysql_plugin_registry::m_mysql_plugin_registry)
-    return Mock_mysql_plugin_registry::m_mysql_plugin_registry
+  if (Mysql_plugin_registry::m_mysql_plugin_registry)
+    return Mysql_plugin_registry::m_mysql_plugin_registry
         ->mysql_plugin_registry_release(reg);
 
   return 0;
@@ -121,6 +129,9 @@ THD *thd_get_current_thd() { return current_thd; }
 bool check_address_is_wildcard(const char *, size_t) { return false; }
 
 void conditional_sync_point(std::string) {}
+
+uint opt_debug_sync_timeout;
+void debug_sync(THD *, char const *, size_t) {}
 
 #ifdef HAVE_SETNS
 bool set_network_namespace(const std::string &) { return false; }

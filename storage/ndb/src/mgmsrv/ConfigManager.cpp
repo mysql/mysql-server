@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,17 +337,17 @@ reset_dynamic_ports_in_config(const Config* config)
   for(;iter.valid();iter.next()) {
     Uint32 port;
     require(iter.get(CFG_CONNECTION_SERVER_PORT, &port) == 0);
-    
+
     if ((int)port < 0)
     {
       port = 0;
       ConfigValues::Iterator i2(config->m_configValues->m_config,
                                 iter.m_config);
       require(i2.set(CFG_CONNECTION_SERVER_PORT, port));
-    } 
+    }
   }
 }
- 
+
 
 bool
 ConfigManager::init(void)
@@ -380,13 +380,13 @@ ConfigManager::init(void)
     Config* conf = load_config();
     if (conf == NULL)
       DBUG_RETURN(false);
-    
+
     delete conf;
-    
+
     if (!delete_saved_configs())
       DBUG_RETURN(false);
   }
-    
+
   if (failed_config_change_exists())
     DBUG_RETURN(false);
 
@@ -464,7 +464,7 @@ ConfigManager::init(void)
         DBUG_RETURN(false);
       }
 
-      /* 
+      /*
         The fetched config may contain dynamic ports for
         ndbd(s) which have to be reset to 0 before using
         the config
@@ -1472,7 +1472,7 @@ ConfigManager::execCONFIG_CHECK_REQ(SignalSender& ss, SimpleSignal* sig)
   case CS_INITIAL:
     if (other_state != CS_INITIAL)
     {
-      g_eventLogger->warning("Refusing CONGIG_CHECK_REQ from %u, "
+      g_eventLogger->warning("Refusing CONFIG_CHECK_REQ from %u, "
                              "  it's not CS_INITIAL (I am). "
                              " Waiting for my check",
                              nodeId);
@@ -1880,7 +1880,7 @@ ConfigManager::run()
   assert(m_facade);
   SignalSender & ss = * m_ss;
 
-  if (!m_opts.config_cache)   
+  if (!m_opts.config_cache)
   {
     /* Stop receiving signals by closing ConfigManager's
        block in TransporterFacade */
@@ -1893,10 +1893,10 @@ ConfigManager::run()
     m_config_state = CS_CONFIRMED;
     ndbout_c("== ConfigManager disabled -- manager thread will exit ==");
     return;
-  }  
+  }
 
   ss.lock();
-  
+
   // Build bitmaks of all mgm nodes in config
   m_config->get_nodemask(m_all_mgm, NDB_MGM_NODE_TYPE_MGM);
 

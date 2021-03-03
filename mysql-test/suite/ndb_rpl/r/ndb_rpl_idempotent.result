@@ -44,7 +44,6 @@ STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/check_slave_no_error.inc
-call mtr.add_suppression("NDB Slave: At SQL thread start applying epoch .*");
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

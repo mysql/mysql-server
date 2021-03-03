@@ -366,7 +366,7 @@ select count(*)
 #   failed, i.e code after that has *never* run
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 #--source include/ndb_backup.inc
-#--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 | grep Translate || true
+#--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 | grep Translate || true
 
 #
 # Cleanup

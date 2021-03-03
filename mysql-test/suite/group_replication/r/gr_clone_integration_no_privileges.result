@@ -28,7 +28,7 @@ include/spawn_monitoring_process.inc
 # 3. Start group replication using the created user credentials
 #    GR will attempt to clone a donor but due to the lack of
 #    privileges, recovery by binary logs will be used subsequently.
-CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET GLOBAL group_replication_clone_threshold= 1;
 include/start_group_replication.inc
 include/assert.inc [Clone status must be Failed]

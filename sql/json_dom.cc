@@ -53,7 +53,7 @@
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
 #include "my_time.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
@@ -2845,9 +2845,9 @@ longlong Json_wrapper::coerce_int(const char *msgnam,
       double j = get_double();
       longlong res;
 
-      if (j <= (double)LLONG_MIN) {
+      if (j <= LLONG_MIN) {
         res = LLONG_MIN;
-      } else if (j >= (double)(ulonglong)LLONG_MAX) {
+      } else if (j >= LLONG_MAX_DOUBLE) {
         res = LLONG_MAX;
       } else {
         return (longlong)rint(j);

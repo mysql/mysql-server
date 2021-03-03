@@ -1,3 +1,5 @@
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
+
 --disable_query_log
 eval INSTALL PLUGIN mock SONAME '$MOCK_PLUGIN';
 --enable_query_log

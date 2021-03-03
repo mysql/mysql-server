@@ -72,7 +72,11 @@ ulong srv_max_purge_lag_delay = 0;
 trx_purge_t *purge_sys = nullptr;
 
 /** Wait for a short delay between checks. */
+#ifdef UNIV_DEBUG
+static constexpr int64_t PURGE_CHECK_UNDO_TRUNCATE_DELAY_IN_MS = 10;
+#else
 static constexpr int64_t PURGE_CHECK_UNDO_TRUNCATE_DELAY_IN_MS = 1000;
+#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_DEBUG
 bool srv_purge_view_update_only_debug;
@@ -354,8 +358,8 @@ void trx_purge_add_update_undo_to_history(
                  undo_header + TRX_UNDO_HISTORY_NODE, mtr);
 
   if (update_rseg_history_len) {
-    os_atomic_increment_ulint(&trx_sys->rseg_history_len, n_added_logs);
-    if (trx_sys->rseg_history_len >
+    trx_sys->rseg_history_len.fetch_add(n_added_logs);
+    if (trx_sys->rseg_history_len.load() >
         srv_n_purge_threads * srv_purge_batch_size) {
       srv_wake_purge_thread_if_not_active();
     }
@@ -374,7 +378,7 @@ void trx_purge_add_update_undo_to_history(
   }
 
   /* Write GTID information if there. */
-  trx_undo_gtid_write(trx, undo_header, undo, mtr);
+  trx_undo_gtid_write(trx, undo_header, undo, mtr, false);
 
   if (rseg->last_page_no == FIL_NULL) {
     rseg->last_page_no = undo->hdr_page_no;
@@ -393,7 +397,7 @@ static void trx_purge_remove_log_hdr(trx_rsegf_t *rseg_hdr,
   flst_remove(rseg_hdr + TRX_RSEG_HISTORY, log_hdr + TRX_UNDO_HISTORY_NODE,
               mtr);
 
-  os_atomic_decrement_ulint(&trx_sys->rseg_history_len, 1);
+  trx_sys->rseg_history_len.fetch_sub(1);
 }
 
 /** Frees a rollback segment which is in the history list.
@@ -731,15 +735,15 @@ bool Tablespace::needs_truncation() {
   with BUF_REMOVE_NONE, the actual space is not deleted for that old
   space ID until all pages have been passively removed from the buffer
   pool. */
-  auto count = fil_count_deleted(undo::id2num(m_id));
+  auto count = fil_count_undo_deleted(undo::id2num(m_id));
   if (count > CONCURRENT_UNDO_TRUNCATE_LIMIT) {
     ib::warn(ER_IB_MSG_UNDO_TRUNCATE_TOO_OFTEN);
     return (false);
   }
 
-  page_no_t trunc_size = ut_max(
+  page_no_t trunc_size = std::max(
       static_cast<page_no_t>(srv_max_undo_tablespace_size / srv_page_size),
-      static_cast<page_no_t>(SRV_UNDO_TABLESPACE_SIZE_IN_PAGES));
+      static_cast<page_no_t>(INITIAL_UNDO_SPACE_SIZE_IN_PAGES));
 
   if (fil_space_get_size(id()) > trunc_size) {
     return (true);
@@ -1217,16 +1221,14 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
   /* In order to implicitly select an undo space to truncate, we need
   at least 2 active UNDO tablespaces.  As long as there is one undo
   tablespace active the server will continue to operate. */
-  ulint num_active = 0;
+  size_t num_active = 0;
 
   /* Look for any undo space that is inactive explicitly. */
-  for (auto undo_ts : undo::spaces->m_spaces) {
-    if (undo_ts->is_inactive_explicit()) {
-      undo_trunc->mark(undo_ts);
-      undo::spaces->s_unlock();
-      return (true);
-    }
-    num_active += (undo_ts->is_active() ? 1 : 0);
+  auto undo_ts = undo::spaces->find_first_inactive_explicit(&num_active);
+  if (undo_ts != nullptr) {
+    undo_trunc->mark(undo_ts);
+    undo::spaces->s_unlock();
+    return (true);
   }
 
   undo::spaces->s_unlock();
@@ -1307,11 +1309,6 @@ void undo::Truncate::mark(Tablespace *undo_space) {
   undo_space->set_inactive_implicit(&m_space_id_marked);
 
   m_marked_space_is_empty = false;
-
-  /* We found an UNDO-tablespace to truncate so set the
-  local purge rseg truncate frequency to 3. This will help
-  accelerate the purge action and in turn truncate. */
-  set_rseg_truncate_frequency(3);
 
   ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_FOR_TRUNCATE, undo_space->file_name()));
 }
@@ -1739,12 +1736,12 @@ static void trx_purge_rseg_get_next_history_log(
     size pieces, and if we here reach the head of the list, the
     list cannot be longer than 2000 000 undo logs now. */
 
-    if (trx_sys->rseg_history_len > 2000000) {
-      ib::warn(ER_IB_MSG_1177) << "Purge reached the head of the history"
-                                  " list, but its length is still reported as "
-                               << trx_sys->rseg_history_len
-                               << " which is"
-                                  " unusually high.";
+    ulint rseg_history_len = trx_sys->rseg_history_len.load();
+    if (rseg_history_len > 2000000) {
+      ib::warn(ER_IB_MSG_1177)
+          << "Purge reached the head of the history"
+             " list, but its length is still reported as "
+          << rseg_history_len << " which is unusually high.";
       ib::info(ER_IB_MSG_1178) << "This can happen for multiple reasons";
       ib::info(ER_IB_MSG_1179) << "1. A long running transaction is"
                                   " withholding purging of undo logs or a read"
@@ -2008,12 +2005,12 @@ static MY_ATTRIBUTE((warn_unused_result))
 
     if (!purge_sys->next_stored) {
       DBUG_PRINT("ib_purge", ("no logs left in the history list"));
-      return (nullptr);
+      return nullptr;
     }
   }
 
   if (purge_sys->iter.trx_no >= purge_sys->view.low_limit_no()) {
-    return (nullptr);
+    return nullptr;
   }
 
   /* fprintf(stderr, "Thread %lu purging trx %llu undo record %llu\n",
@@ -2204,11 +2201,11 @@ static ulint trx_purge_dml_delay(void) {
   Note: we do a dirty read of the trx_sys_t data structure here,
   without holding trx_sys->mutex. */
 
-  if (srv_max_purge_lag > 0 &&
-      trx_sys->rseg_history_len > srv_n_purge_threads * srv_purge_batch_size) {
+  if (srv_max_purge_lag > 0 && trx_sys->rseg_history_len.load() >
+                                   srv_n_purge_threads * srv_purge_batch_size) {
     float ratio;
 
-    ratio = float(trx_sys->rseg_history_len) / srv_max_purge_lag;
+    ratio = float(trx_sys->rseg_history_len.load()) / srv_max_purge_lag;
 
     if (ratio > 1.0) {
       /* If the history list length exceeds the srv_max_purge_lag, the data
@@ -2232,8 +2229,7 @@ static void trx_purge_wait_for_workers_to_complete() {
   ulint n_submitted = purge_sys->n_submitted;
 
   /* Ensure that the work queue empties out. */
-  while (!os_compare_and_swap_ulint(&purge_sys->n_completed, n_submitted,
-                                    n_submitted)) {
+  while (purge_sys->n_completed.load() != n_submitted) {
     if (++i < 10) {
       os_thread_yield();
     } else {
@@ -2330,7 +2326,7 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
 
     que_run_threads(thr);
 
-    os_atomic_inc_ulint(&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+    purge_sys->n_completed.fetch_add(1);
 
     if (n_purge_threads > 1) {
       trx_purge_wait_for_workers_to_complete();
@@ -2440,7 +2436,7 @@ void trx_purge_stop(void) {
 void trx_purge_run(void) {
   /* Flush any GTIDs to disk so that purge can proceed immediately. */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  gtid_persistor.wait_flush(true, false, false, nullptr);
+  gtid_persistor.wait_flush(false, false, nullptr);
 
   rw_lock_x_lock(&purge_sys->latch);
 

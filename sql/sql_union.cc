@@ -345,6 +345,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   fake_select_lex->context.table_list =
       fake_select_lex->context.first_name_resolution_table =
           fake_select_lex->get_table_list();
+  fake_select_lex->add_joined_table(fake_select_lex->get_table_list());
   if (!fake_select_lex->first_execution) {
     for (ORDER *order = fake_select_lex->order_list.first; order;
          order = order->next)
@@ -854,10 +855,7 @@ SELECT_LEX_UNIT::setup_materialization(THD *thd, TABLE *dst_table,
     query_block.join = join;
     query_block.disable_deduplication_by_hash_field =
         (mixed_union_operators() && !activate_deduplication);
-    // See the class comment on AggregateIterator.
-    query_block.copy_fields_and_items =
-        !join->streaming_aggregation ||
-        join->tmp_table_param.precomputed_group_by;
+    query_block.copy_fields_and_items = true;
     query_block.temp_table_param = &join->tmp_table_param;
     query_block.is_recursive_reference = select->recursive_reference;
     query_blocks.push_back(move(query_block));
@@ -939,7 +937,7 @@ void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
     if (fake_select_lex != nullptr) {
       table_path = fake_select_lex->join->root_access_path();
     } else {
-      table_path = NewTableScanAccessPath(thd, tmp_table, /*qep_tab=*/nullptr,
+      table_path = NewTableScanAccessPath(thd, tmp_table,
                                           /*count_examined_rows=*/false);
     }
     bool push_limit_down =
@@ -966,12 +964,10 @@ void SELECT_LEX_UNIT::create_access_paths(THD *thd) {
       DBUG_ASSERT(join && join->is_optimized());
       ConvertItemsToCopy(*join->fields, tmp_table->visible_field_ptr(),
                          &join->tmp_table_param);
-      bool copy_fields_and_items = !join->streaming_aggregation ||
-                                   join->tmp_table_param.precomputed_group_by;
       AppendPathParameters param;
       param.path = NewStreamingAccessPath(thd, join->root_access_path(), join,
                                           &join->tmp_table_param, tmp_table,
-                                          copy_fields_and_items);
+                                          /*ref_slice=*/-1);
       param.join = join;
       CopyCosts(*join->root_access_path(), param.path);
       union_all_sub_paths->push_back(param);

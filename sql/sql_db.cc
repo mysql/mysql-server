@@ -232,9 +232,9 @@ bool check_schema_readonly(THD *thd, const char *schema_name,
     DBUG_ASSERT(false);
   }
 
+  dd::Schema_MDL_locker mdl_handler(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj = nullptr;
-  dd::Schema_MDL_locker mdl_handler(thd);
 
   if (mdl_handler.ensure_locked(schema_name) ||
       thd->dd_client()->acquire(schema_name, &sch_obj)) {

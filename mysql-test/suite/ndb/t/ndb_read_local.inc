@@ -126,7 +126,7 @@ while ($i)
 explain select * from test.t1 where t1.a=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -142,7 +142,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 
 
@@ -152,7 +152,7 @@ if (!$bug_ui) {
 explain select * from test.t1 where t1.b=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -168,7 +168,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 }
 
 --echo OI scan
@@ -176,7 +176,7 @@ commit;
 explain select * from test.t1 where c > 6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --disable_query_log
 --disable_result_log
@@ -187,14 +187,14 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 --echo Table scan
 --replace_column 4 # 10 # 11 #
 explain select * from test.t1;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --disable_query_log
 --disable_result_log
@@ -205,7 +205,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 
 
@@ -224,7 +224,7 @@ explain select a.a, a.d, b.d
   where a.a = 6;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+--exec $NDB_MGM -e "ALL ERROR 17014"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -240,7 +240,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 
 --echo Pushed uk->uk
@@ -256,7 +256,7 @@ explain select a.a, a.d, b.d
   where a.b = 6;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+--exec $NDB_MGM -e "ALL ERROR 17014"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -272,7 +272,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 --echo Pushed uk->pk
 --echo Lookup to get a.d, feeding pk lookup of b.a
@@ -287,7 +287,7 @@ explain select a.a, a.d, b.d
   where a.b = 6;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+--exec $NDB_MGM -e "ALL ERROR 17014"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -303,7 +303,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 --echo Pushed pk->uk
 --echo Lookup to get a.d, feeding uk lookup of b.b
@@ -318,7 +318,7 @@ explain select a.a, a.d, b.d
   where a.a = 6;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+--exec $NDB_MGM -e "ALL ERROR 17014"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -334,7 +334,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 
 
@@ -350,7 +350,7 @@ explain select a.a, a.d, b.d
         a.d = b.a;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+--exec $NDB_MGM -e "ALL ERROR 17014"
 
 --disable_result_log
 
@@ -368,7 +368,7 @@ commit;
 --enable_result_log
 
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 
 
@@ -384,7 +384,7 @@ explain select a.a, a.d, b.d
         a.d = b.b;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+--exec $NDB_MGM -e "ALL ERROR 17014"
 
 --disable_result_log
 
@@ -401,7 +401,7 @@ commit;
 --enable_result_log
 
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 --echo Pushed scan originating sub-scans
 --echo Range scan on a.a > 10 getting a.d, feeding range scans on b.c = a.d
@@ -418,7 +418,7 @@ explain select a.a, a.d, b.d
         a.a>10;
 
 --echo Error insert to ensure that SPJ requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 17014"
+--exec $NDB_MGM -e "ALL ERROR 17014"
 
 --disable_result_log
 
@@ -438,7 +438,7 @@ commit;
 --enable_result_log
 
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 
 --echo Tests on T2 (Blobs)
@@ -452,7 +452,7 @@ if (!$bug_blob)
 explain select * from test.t2 where t2.a=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -468,7 +468,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 
 --echo UI lookups
@@ -476,7 +476,7 @@ commit;
 explain select * from test.t2 where t2.b=6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --let $idx=$KEYS
 --disable_query_log
@@ -492,14 +492,14 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 --echo OI scan
 --replace_column 4 # 10 # 11 #
 explain select * from test.t2 where c > 6;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --disable_query_log
 --disable_result_log
@@ -510,14 +510,14 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 
 --echo Table scan
 --replace_column 4 # 10 # 11 #
 explain select * from test.t2;
 
 --echo Error insert to ensure that TC requests are purely local
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 8083"
+--exec $NDB_MGM -e "ALL ERROR 8083"
 
 --disable_query_log
 --disable_result_log
@@ -528,7 +528,7 @@ commit;
 --enable_result_log
 --enable_query_log
 
---exec $NDB_MGM --verbose=0 -e "ALL ERROR 0"
+--exec $NDB_MGM -e "ALL ERROR 0"
 }
 
 # Decrement $i to next node hint value and rerun all tests against a new node

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,12 @@ const BlockName BlockNames[] = {
   ,{ "DBSPJ", DBSPJ }
   ,{ "THRMAN", THRMAN }
   ,{ "TRPMAN", TRPMAN }
+  ,{ "DBQLQH", DBQLQH }
+  ,{ "DBQACC", DBQACC }
+  ,{ "DBQTUP", DBQTUP }
+  ,{ "DBQTUX", DBQTUX }
+  ,{ "QBACKUP", QBACKUP }
+  ,{ "QRESTORE", QRESTORE }
 };
 
 const BlockNumber NO_OF_BLOCK_NAMES = sizeof(BlockNames) / sizeof(BlockName);

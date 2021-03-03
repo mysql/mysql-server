@@ -203,6 +203,7 @@ class MyRcuLock {
     */
   bool write_wait_and_delete(const T *newT) {
     const T *oldT = this->rcu_write(newT);
+    if (!oldT) return false;
     if (!wait_for_no_readers()) {
       delete oldT;
       return false;

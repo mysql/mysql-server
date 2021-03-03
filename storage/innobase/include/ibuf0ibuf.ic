@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,11 +78,11 @@ struct ibuf_t {
   ulint height;        /*!< tree height */
   dict_index_t *index; /*!< insert buffer index */
 
-  ulint n_merges; /*!< number of pages merged */
-  ulint n_merged_ops[IBUF_OP_COUNT];
+  std::atomic<ulint> n_merges; /*!< number of pages merged */
+  std::atomic<ulint> n_merged_ops[IBUF_OP_COUNT];
   /*!< number of operations of each type
   merged to index pages */
-  ulint n_discarded_ops[IBUF_OP_COUNT];
+  std::atomic<ulint> n_discarded_ops[IBUF_OP_COUNT];
   /*!< number of operations of each type
   discarded without merging due to the
   tablespace being deleted or the

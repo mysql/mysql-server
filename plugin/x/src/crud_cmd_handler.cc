@@ -26,7 +26,6 @@
 
 #include "plugin/x/src/crud_cmd_handler.h"
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
@@ -35,14 +34,15 @@
 #include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/document_id_generator.h"
 #include "plugin/x/src/interface/server.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/notices.h"
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/update_statement_builder.h"
 #include "plugin/x/src/view_statement_builder.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_resultset.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 
@@ -80,7 +80,7 @@ void Crud_command_handler::notice_handling_common(
   const auto &notice_config = m_session->get_notice_configuration();
   if (info.num_warnings > 0 &&
       notice_config.is_notice_enabled(ngs::Notice_type::k_warning))
-    notices::send_warnings(m_session->data_context(), m_session->proto());
+    notices::send_warnings(&m_session->data_context(), &m_session->proto());
 
   if (!info.message.empty())
     m_session->proto().send_notice_txt_message(info.message);

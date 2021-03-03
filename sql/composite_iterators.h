@@ -49,7 +49,9 @@
 #include "my_dbug.h"
 #include "my_table_map.h"
 #include "prealloced_array.h"
+#include "sql/hash_join_buffer.h"
 #include "sql/item.h"
+#include "sql/join_type.h"
 #include "sql/row_iterator.h"
 #include "sql/table.h"
 
@@ -169,35 +171,36 @@ class LimitOffsetIterator final : public RowIterator {
   already gives us the rows in a group-compatible order, or because there is no
   grouping.)
 
-  AggregateIterator is special in that it's one of the very few row iterators
-  that actually change the shape of the rows; some columns are dropped as part
-  of aggregation, others (the aggregates) are added. For this reason (and also
-  because we need to make copies of the group expressions -- see Read()), it
-  conceptually always outputs to a temporary table. If we _are_ outputting to a
-  temporary table, that's not a problem -- we take over responsibility for
-  copying the group expressions from MaterializeIterator, which would otherwise
-  do it.
+  AggregateIterator needs to be able to save and restore rows; it doesn't know
+  when a group ends until it's seen the first row that is part of the _next_
+  group. When that happens, it needs to tuck away that next row, and then
+  restore the previous row so that the output row gets the correct grouped
+  values. A simple example, doing SELECT a, SUM(b) FROM t1 GROUP BY a:
 
-  However, if we are outputting directly to the user, we need somewhere to store
-  the output. This is solved by abusing the slice system; since we only need to
-  buffer a single row, we can set up just enough items in the
-  REF_SLICE_ORDERED_GROUP_BY slice, so that it can hold a single row. This row
-  is then used for our output, and we then switch to it just before the end of
-  Read() so that anyone reading from the buffers will get that output.
-  The caller knows the context about where our output goes, and thus also picks
-  the appropriate output slice for us.
+    t1.a  t1.b                                       SUM(b)
+     1     1     <-- first row, save it                1
+     1     2                                           3
+     1     3                                           6
+     2     1     <-- group changed, save row
+    [1     1]    <-- restore first row, output         6
+                     reset aggregate              -->  0
+    [2     1]    <-- restore new row, process it       1
+     2    10                                          11
+                 <-- EOF, output                      11
 
-  This isn't very pretty. What should be done is probably a more abstract
-  concept of sending a row around and taking copies of it if needed, as opposed
-  to it implicitly staying in the table's buffer. (This would also solve some
+  To save and restore rows like this, it uses the infrastructure from
+  pack_rows.h to pack and unpack all relevant rows into record[0] of every input
+  table. (Currently, there can only be one input table, but this may very well
+  change in the future.) It would be nice to have a more abstract concept of
+  sending a row around and taking copies of it if needed, as opposed to it
+  implicitly staying in the table's buffer. (This would also solve some
   issues in EQRefIterator and when synthesizing NULL rows for outer joins.)
   However, that's a large refactoring.
  */
 class AggregateIterator final : public RowIterator {
  public:
   AggregateIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
-                    JOIN *join, Temp_table_param *temp_table_param,
-                    int output_slice, bool rollup);
+                    JOIN *join, pack_rows::TableCollection tables, bool rollup);
 
   bool Init() override;
   int Read() override;
@@ -220,7 +223,6 @@ class AggregateIterator final : public RowIterator {
   enum {
     READING_FIRST_ROW,
     LAST_ROW_STARTED_NEW_GROUP,
-    READING_ROWS,
     OUTPUTTING_ROLLUP_ROWS,
     DONE_OUTPUTTING_ROWS
   } m_state;
@@ -235,12 +237,6 @@ class AggregateIterator final : public RowIterator {
    */
   JOIN *m_join = nullptr;
 
-  /// The slice of the fields we are reading from (see the class comment).
-  int m_input_slice;
-
-  /// The slice of the fields we are outputting to. See the class comment.
-  int m_output_slice;
-
   /// Whether we have seen the last input row.
   bool m_seen_eof;
 
@@ -249,9 +245,6 @@ class AggregateIterator final : public RowIterator {
     zero input rows.
    */
   table_map m_save_nullinfo;
-
-  /// The parameters for the temporary table we are materializing into, if any.
-  Temp_table_param *m_temp_table_param;
 
   /// Whether this is a rollup query.
   const bool m_rollup;
@@ -277,57 +270,29 @@ class AggregateIterator final : public RowIterator {
    */
   int m_current_rollup_position;
 
-  void copy_sum_funcs();
-  void SetRollupLevel(int level);
-};
+  /**
+    The list of tables we are reading from; they are the ones for which we need
+    to save and restore rows.
+   */
+  pack_rows::TableCollection m_tables;
 
-/**
-  Similar to AggregateIterator, but asusmes that the actual aggregates are
-  already have been filled out (typically by QUICK_RANGE_MIN_MAX), and all the
-  iterator needs to do is copy over the non-aggregated fields.
- */
-class PrecomputedAggregateIterator final : public RowIterator {
- public:
-  PrecomputedAggregateIterator(THD *thd,
-                               unique_ptr_destroy_only<RowIterator> source,
-                               JOIN *join, Temp_table_param *temp_table_param,
-                               int output_slice)
-      : RowIterator(thd),
-        m_source(move(source)),
-        m_join(join),
-        m_temp_table_param(temp_table_param),
-        m_output_slice(output_slice) {}
-
-  bool Init() override;
-  int Read() override;
-  void SetNullRowFlag(bool is_null_row) override {
-    m_source->SetNullRowFlag(is_null_row);
-  }
-
-  void StartPSIBatchMode() override { m_source->StartPSIBatchMode(); }
-  void EndPSIBatchModeIfStarted() override {
-    m_source->EndPSIBatchModeIfStarted();
-  }
-  void UnlockRow() override {
-    // See AggregateIterator::UnlockRow().
-  }
-
- private:
-  unique_ptr_destroy_only<RowIterator> m_source;
+  /// Packed version of the first row in the group we are currently processing.
+  String m_first_row_this_group;
 
   /**
-    The join we are part of. It would be nicer not to rely on this,
-    but we need a large number of members from there, like which
-    aggregate functions we have, the THD, temporary table parameters
-    and so on.
+    If applicable, packed version of the first row in the _next_ group. This is
+    used only in the LAST_ROW_STARTED_NEW_GROUP state; we just saw a row that
+    didn't belong to the current group, so we saved it here and went to output
+    a group. On the next Read() call, we need to process this deferred row
+    first of all.
+
+    Even when not in use, this string contains a buffer that is large enough to
+    pack a full row into, sans blobs. (If blobs are present,
+    StoreFromTableBuffers() will automatically allocate more space if needed.)
    */
-  JOIN *m_join = nullptr;
+  String m_first_row_next_group;
 
-  /// The parameters for the temporary table we are materializing into, if any.
-  Temp_table_param *m_temp_table_param;
-
-  /// The slice of the fields we are outputting to.
-  int m_output_slice;
+  void SetRollupLevel(int level);
 };
 
 /**
@@ -504,7 +469,7 @@ class MaterializeIterator final : public TableRowIterator {
 
     /// If set to false, the Field objects in the output row are
     /// presumed already to be filled out. This is the case iff
-    /// there's an AggregateIterator earlier in the chain.
+    /// there's a windowing iterator earlier in the chain.
     bool copy_fields_and_items;
 
     /// If copy_fields_and_items is true, used for copying the Field objects
@@ -564,49 +529,6 @@ class MaterializeIterator final : public TableRowIterator {
                       Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
                       int ref_slice, bool rematerialize, ha_rows limit_rows,
                       bool reject_multiple_rows);
-
-  /**
-    A convenience form for materializing a single table only.
-
-    @param thd Thread handler.
-    @param subquery_iterator The iterator to read the actual rows from.
-    @param temp_table_param If copy_fields_and_items is true, used for copying
-      the Field objects into the temporary table row. Otherwise unused.
-    @param table Handle to table to materialize into.
-    @param table_iterator Iterator used for scanning the temporary table
-      after materialization.
-    @param cte If materializing a CTE, points to it (see m_cte), otherwise
-      nullptr.
-    @param select_number Used only for optimizer trace.
-    @param unit The query expression we are materializing (see m_unit).
-    @param join
-      When materializing within the same JOIN (e.g., into a temporary table
-      before sorting), as opposed to a derived table or a CTE, we may need
-      to change the slice on the join before returning rows from the result
-      table. If so, join and ref_slice would need to be set, and
-      query_blocks_to_materialize should contain only one member, with the same
-      join.
-    @param ref_slice See join. If we are materializing across JOINs,
-      e.g. derived tables, ref_slice should be left at -1.
-    @param copy_fields_and_items If set to false, the Field objects in the
-      output row are presumed already to be filled out. This is the case iff
-      there's an AggregateIterator earlier in the chain.
-    @param rematerialize true if rematerializing on every Init() call
-      (e.g., because we have a dependency on a value from outside the query
-      block).
-    @param limit_rows See limit_rows on the other constructor.
-    @param reject_multiple_rows true if this is the top level iterator for a
-      materialized derived table transformed from a scalar subquery which needs
-      run-time cardinality check.
-   */
-  MaterializeIterator(THD *thd,
-                      unique_ptr_destroy_only<RowIterator> subquery_iterator,
-                      Temp_table_param *temp_table_param, TABLE *table,
-                      unique_ptr_destroy_only<RowIterator> table_iterator,
-                      Common_table_expr *cte, int select_number,
-                      SELECT_LEX_UNIT *unit, JOIN *join, int ref_slice,
-                      bool copy_fields_and_items, bool rematerialize,
-                      ha_rows limit_rows, bool reject_multiple_rows);
 
   bool Init() override;
   int Read() override;
@@ -704,9 +626,8 @@ class MaterializeIterator final : public TableRowIterator {
   It is used for when the optimizer would normally set up a materialization,
   but you don't actually need one, ie. you don't want to read the rows multiple
   times after writing them, and you don't want to access them by index (only
-  a single table scan). If you don't need the copy functionality (ie., you
-  have an AggregateIterator, which does this job already), you still need a
-  StreamingIterator, to set the NULL row flag on the temporary table.
+  a single table scan). It also takes care of setting the NULL row flag
+  on the temporary table.
  */
 class StreamingIterator final : public TableRowIterator {
  public:
@@ -716,15 +637,16 @@ class StreamingIterator final : public TableRowIterator {
     @param temp_table_param Parameters for the temp table.
     @param table The table we are streaming through. Will never actually
       be written to, but its fields will be used.
-    @param copy_fields_and_items See MaterializeIterator.
     @param provide_rowid If true, generate a row ID for each row we stream.
       This is used if the parent needs row IDs for deduplication, in particular
       weedout.
+    @param join See MaterializeIterator.
+    @param ref_slice See MaterializeIterator.
    */
   StreamingIterator(THD *thd,
                     unique_ptr_destroy_only<RowIterator> subquery_iterator,
                     Temp_table_param *temp_table_param, TABLE *table,
-                    bool copy_fields_and_items, bool provide_rowid);
+                    bool provide_rowid, JOIN *join, int ref_slice);
 
   bool Init() override;
 
@@ -741,8 +663,10 @@ class StreamingIterator final : public TableRowIterator {
  private:
   unique_ptr_destroy_only<RowIterator> m_subquery_iterator;
   Temp_table_param *m_temp_table_param;
-  const bool m_copy_fields_and_items;
   ha_rows m_row_number;
+  JOIN *const m_join;
+  const int m_output_slice;
+  int m_input_slice;
 
   // Whether the iterator should generate and provide a row ID. Only true if the
   // iterator is part of weedout, where the iterator will create a fake row ID
@@ -979,10 +903,12 @@ class NestedLoopSemiJoinWithDuplicateRemovalIterator final
   aggregates (i.e., OVER expressions). It deals specifically with aggregates
   that don't need to buffer rows.
 
-  WindowingIterator always outputs to a temporary table. Similarly to
-  AggregateIterator, needs to do some of MaterializeIterator's work in
-  copying fields and Items into the destination fields (see AggregateIterator
-  for more information).
+  If we are outputting to a temporary table -- we take over responsibility
+  for storing the fields from MaterializeIterator, which would otherwise do it.
+  Otherwise, we do a fair amount of slice switching back and forth to be sure
+  to present the right output row to the user. Longer-term, we should probably
+  do as AggregateIterator does -- it used to do the same, but now instead saves
+  and restores rows, making for a more uniform data flow.
  */
 class WindowingIterator final : public RowIterator {
  public:

@@ -28,13 +28,17 @@
 #include <signal.h>
 #include <sys/types.h>
 
-#include <algorithm>
-#include <fstream>
-#include <limits>
+#include <my_macros.h>  // NOLINT(build/include_subdir)
+#include <mysql.h>      // NOLINT(build/include_subdir)
 
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <set>
+#include <sstream>
 #include <stdexcept>
 
 #include "mysqld_error.h"  // NOLINT(build/include_subdir)
@@ -54,10 +58,16 @@
 #include "plugin/x/tests/driver/processor/stream_processor.h"
 #include "plugin/x/tests/driver/processor/variable_names.h"
 
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+
 namespace {
 
 const char *const CMD_ARG_BE_QUIET = "be-quiet";
 const char *const CMD_ARG_SHOW_RECEIVED = "show-received";
+const char *const CMD_ARG_KEEP_SESSION = "keep-session";
 const char CMD_ARG_SEPARATOR = '\t';
 const std::string CMD_PREFIX = "-->";
 
@@ -169,9 +179,11 @@ Command::Command() {
   m_commands["repeat"] = &Command::cmd_repeat;
   m_commands["endrepeat"] = &Command::cmd_endrepeat;
   m_commands["system"] = &Command::cmd_system;
+  m_commands["system_in_background"] = &Command::cmd_system;
   m_commands["peerdisc"] = &Command::cmd_peerdisc;
   m_commands["enable_compression"] = &Command::cmd_enable_compression;
   m_commands["recv"] = &Command::cmd_recv;
+  m_commands["env"] = &Command::cmd_env;
   m_commands["exit"] = &Command::cmd_exit;
   m_commands["abort"] = &Command::cmd_abort;
   m_commands["shutdown_server"] = &Command::cmd_shutdown_server;
@@ -1089,9 +1101,25 @@ Command::Result Command::cmd_loginerror(std::istream &input,
   return Result::Continue;
 }
 
+#ifdef _WIN32
+static void replace_crlf_with_lf(char *buf) {
+  char *replace = buf;
+  while (*buf) {
+    *replace = *buf++;
+    if (!((*replace == '\x0D') && (*buf == '\x0A'))) {
+      replace++;
+    }
+  }
+  *replace = '\x0';
+}
+#endif
+
 Command::Result Command::cmd_system(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
+  const bool run_in_background =
+      std::string::npos != context->m_command_name.find("background");
+
   if (args.empty()) {
     context->print_error("'system' command, requires one argument.\n");
     return Result::Stop_with_failure;
@@ -1107,9 +1135,41 @@ Command::Result Command::cmd_system(std::istream &input,
 
   context->m_variables->replace(&s);
 
-  if (0 == system(s.c_str())) return Result::Continue;
+  if (run_in_background) {
+#ifdef _WIN32
+    s.insert(0, "START /B ");
+#else
+    s.append(" &");
+#endif
+  }
 
-  return Result::Stop_with_failure;
+  const char *mode = IF_WIN("rb", "r");
+
+  FILE *res_file = popen(s.c_str(), mode);
+  if (nullptr == res_file) {
+    context->print_error("Can't execute, following command: ", s);
+    return Result::Stop_with_failure;
+  }
+
+  if (!run_in_background) {
+    char buf[512];
+    std::string str;
+    while (std::fgets(buf, sizeof(buf), res_file)) {
+      if (std::strlen(buf) < 1) continue;
+
+#ifdef _WIN32
+      // Replace CRLF char with LF.
+      // See bug#22608247 and bug#22811243
+      DBUG_ASSERT(!std::strcmp(mode, "rb"));
+      replace_crlf_with_lf(buf);
+#endif
+      context->print(buf);
+    }
+  }
+
+  pclose(res_file);
+
+  return Result::Continue;
 }
 
 Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
@@ -1117,21 +1177,23 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
                                                  const std::string &args) {
   xcl::XProtocol::Server_message_type_id msgid;
   xcl::XError error;
-  bool show_all_received_messages = false;
+  std::vector<std::string> out_arguments;
+  std::string copy_args = args;
+  aux::trim(copy_args, " \t");
 
-  if (!args.empty()) {
-    std::string copy_arg = args;
-    aux::trim(copy_arg);
+  if (!copy_args.empty()) aux::split(out_arguments, copy_args, " \t,", true);
 
-    if (copy_arg != CMD_ARG_SHOW_RECEIVED) {
-      context->print_error(
-          "'recvuntildisc' command, accepts zero or one argument. "
-          "Acceptable value for the argument is \"",
-          CMD_ARG_SHOW_RECEIVED, "\"\n");
-      return Result::Stop_with_failure;
-    }
+  const auto k_show_received =
+      aux::remove_if(out_arguments, CMD_ARG_SHOW_RECEIVED);
+  const auto k_keep_session =
+      aux::remove_if(out_arguments, CMD_ARG_KEEP_SESSION);
 
-    show_all_received_messages = true;
+  if (out_arguments.size()) {
+    context->print_error(
+        "'recvuntildisc' command received unknown arguments: ", out_arguments,
+        ". Acceptable value for the arguments are \"", CMD_ARG_SHOW_RECEIVED,
+        "\",\"", CMD_ARG_KEEP_SESSION, "\"\n");
+    return Result::Stop_with_failure;
   }
 
   try {
@@ -1142,7 +1204,7 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
 
       if (error) throw error;
 
-      if (msg.get() && show_all_received_messages)
+      if (msg.get() && k_show_received)
         context->print(context->m_variables->unreplace(
                            formatter::message_to_text(*msg), true),
                        "\n");
@@ -1155,11 +1217,13 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
    executing disconnection flow */
   context->m_connection->active_xconnection()->close();
 
-  if (context->m_connection->is_default_active()) {
-    return Result::Stop_with_success;
-  }
+  if (!k_keep_session) {
+    if (context->m_connection->is_default_active()) {
+      return Result::Stop_with_success;
+    }
 
-  context->m_connection->close_active(false);
+    context->m_connection->close_active(false);
+  }
 
   return Result::Continue;
 }
@@ -1418,6 +1482,8 @@ Command::Result Command::cmd_reconnect(std::istream &input,
                                 ER_SECURE_TRANSPORT_REQUIRED};
 
   do {
+    context->m_console.print_verbose("Try reconnecting, last error:", error,
+                                     "\n");
     context->m_connection->active_xconnection()->close();
     cmd_sleep(input, context, "1");
     error = holder.reconnect();
@@ -2098,10 +2164,6 @@ Command::Result Command::cmd_noquery(std::istream &input,
   return Result::Continue;
 }
 
-void Command::try_result(Result result) {
-  if (result != Result::Continue) throw result;
-}
-
 Command::Result Command::cmd_wait_for(std::istream &input,
                                       Execution_context *context,
                                       const std::string &args) {
@@ -2389,6 +2451,32 @@ Command::Result Command::cmd_import(std::istream &input,
   return r ? Result::Continue : Result::Stop_with_failure;
 }
 
+Command::Result Command::cmd_env(std::istream &input,
+                                 Execution_context *context,
+                                 const std::string &args) {
+  std::vector<std::string> argl;
+  aux::split(argl, args, " ", true);
+
+  if (argl.size() != 2) {
+    context->print_error("'ENV' command failed, it requires two arguments.\n");
+
+    return Result::Stop_with_failure;
+  }
+
+  auto env = std::getenv(argl[1].c_str());
+
+  if (nullptr == env) {
+    context->print_error("'ENV' command failed, following env-variable '",
+                         argl[1], "', doesn't exist.\n");
+
+    return Result::Stop_with_failure;
+  }
+
+  context->m_variables->set(argl[0], env);
+
+  return Result::Continue;
+}
+
 void Command::print_resultset(Execution_context *context,
                               Result_fetcher *result,
                               const std::vector<std::string> &columns,
@@ -2451,8 +2539,35 @@ void Command::print_resultset(Execution_context *context,
       if (!quiet) context->print("\n");
     }
 
-    if (print_column_info) context->print(meta);
+    if (print_column_info) context->print(hide_container(meta));
   } while (result->next_data_set());
+}
+
+void Command::try_result(Result result) {
+  if (result != Result::Continue) throw result;
+}
+
+Command::Result Command::get_sql_variable(Execution_context *context,
+                                          const std::string &name,
+                                          std::string *out_var) {
+  try {
+    std::istringstream dummy_input;
+    std::string sql = "SELECT @@GLOBAL.";
+    sql += name;
+    try_result(cmd_stmtsql(dummy_input, context, sql));
+    try_result(cmd_recvresult(dummy_input, context, "",
+                              [out_var](const std::string result) {
+                                *out_var = result;
+                                return true;
+                              }));
+    std::string assign = "%__VAR_LAST% ";
+    assign += *out_var;
+    try_result(cmd_varlet(dummy_input, context, assign));
+
+    return Result::Continue;
+  } catch (const Result result) {
+    return result;
+  }
 }
 
 void print_help_commands() {
@@ -2548,29 +2663,34 @@ void print_help_commands() {
                "iteration\n";
   std::cout << "-->stmtsql <CMD>\n";
   std::cout << "  Send StmtExecute with sql command\n";
+  std::cout << "-->env <XVARIABLE> <ENV>\n";
+  std::cout << "  Assign environment variable to X variable.\n";
   std::cout << "-->stmtadmin <CMD> [json_string]\n";
   std::cout << "  Send StmtExecute with admin command with given aguments "
                "(formated as json object)\n";
+  std::cout << "-->system_in_background <CMD>\n";
+  std::cout << "  Execute application or script.\n";
   std::cout << "-->system <CMD>\n";
-  std::cout << "  Execute application or script (dev only)\n";
+  std::cout << "  Execute application or script\n";
   std::cout << "-->exit\n";
   std::cout << "  Stops reading commands, disconnects and exits (same as "
                "<eof>/^D)\n";
   std::cout << "-->abort\n";
   std::cout << "  Exit immediately, without performing cleanup\n";
   std::cout << "-->shutdown_server [timeout]\n";
-  std::cout << "  Shutdown the server associated with current session,\n";
-  std::cout << "  in case when the 'timeout' argument was set to '0'(for ";
-  std::cout << "now it only supported\n";
-  std::cout << "  option), the command kills the server.\n";
+  std::cout << "  Kills the server associated with current session.\n";
   std::cout << "-->nowarnings/-->yeswarnings\n";
   std::cout << "  Whether to print warnings generated by the statement "
                "(default no)\n";
-  std::cout << "-->recvuntildisc [" << CMD_ARG_SHOW_RECEIVED << "]\n";
+  std::cout << "-->recvuntildisc [" << CMD_ARG_SHOW_RECEIVED << ", "
+            << CMD_ARG_KEEP_SESSION << "]...\n";
   std::cout
       << "  Receive all messages until server drops current connection.\n";
   std::cout << "  " << CMD_ARG_SHOW_RECEIVED
             << " - received messages are printed to standard output.\n";
+  std::cout << "  " << CMD_ARG_KEEP_SESSION
+            << " - session descriptor is not released in mysqlxtest, user may "
+               "execute 'reconnect'.\n";
   std::cout << "-->peerdisc <MILLISECONDS> [TOLERANCE]\n";
   std::cout << "  Expect that xplugin disconnects after given number of "
                "milliseconds and tolerance\n";

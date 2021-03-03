@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -844,7 +844,7 @@ lsn_t Arch_File_Ctx::purge(lsn_t begin_lsn, lsn_t end_lsn, lsn_t purge_lsn) {
 
     if (success) {
       /** Removes the deleted file from reset info, thereby incrementing the
-       * iterator. */
+       iterator. */
       it = m_reset.erase(it);
     } else {
       ut_ad(0);
@@ -1329,8 +1329,8 @@ bool Arch_Block::add_page(buf_page_t *page, Arch_Page_Pos *pos) {
 
   /* Update oldest LSN from page. */
   if (arch_page_sys->get_latest_stop_lsn() > m_oldest_lsn ||
-      m_oldest_lsn > page->oldest_modification) {
-    m_oldest_lsn = page->oldest_modification;
+      m_oldest_lsn > page->get_oldest_lsn()) {
+    m_oldest_lsn = page->get_oldest_lsn();
   }
 
   return (true);
@@ -2233,7 +2233,7 @@ void Arch_Page_Sys::track_initial_pages() {
       earlier its travel and still haven't finished.
       The "much much" part is defined by the maximum
       allowed lag - log_buffer_flush_order_lag(). */
-      if (bpage->oldest_modification >
+      if (bpage->get_oldest_lsn() >
           buf_pool->max_lsn_io + log_buffer_flush_order_lag(*log_sys)) {
         /* All pages with oldest_modification
         smaller than bpage->oldest_modification

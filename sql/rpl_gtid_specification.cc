@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,6 +86,9 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
     case UNDEFINED_GTID:
     case ASSIGNED_GTID:
       return gtid.to_string(*sid, buf);
+    case PRE_GENERATE_GTID:
+      strcpy(buf, "PRE_GENERATE_GTID");
+      return 17;
   }
   DBUG_ASSERT(0);
   return 0;

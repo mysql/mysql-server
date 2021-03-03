@@ -1,0 +1,48 @@
+-- source include/have_ndb.inc
+-- source include/have_debug.inc
+
+--echo #
+--echo # Bug#31875229 DEADLOCK BETWEEN CREATE DATABASE IF NOT EXISTS AND CREATE TABLE
+--echo #
+
+# Create couple of connections to mysqld1
+connect(client1,127.0.0.1,root,,test,$MYSQLD_PORT_1);
+connect(client2,127.0.0.1,root,,test,$MYSQLD_PORT_1);
+
+--echo Send DDLs from both clients to trigger a deadlock
+
+--enable_connect_log
+--connection client1
+# After acquiring the GSL, this client should wait for
+# the other to acquire IX MDL on schema
+SET DEBUG_SYNC = 'ndb_global_schema_lock_acquired WAIT_FOR schema_mdl_acquired';
+
+# Send a 'CREATE DATABASE' - this will,
+#  1. acquire the GSL
+#  2. wait for other client to acquire IX MDL on schema
+#  3. continues and attempts to acquire exclusive MDL on schema
+--send CREATE DATABASE IF NOT EXISTS test
+
+--connection client2
+# This should signal the other after acquiring the IX MDL on schema
+# Send it right before attempting to upgrade the MDL on table
+SET DEBUG_SYNC = 'mdl_upgrade_lock SIGNAL schema_mdl_acquired';
+
+# Send a 'CREATE TABLE' - this will,
+#  1. acquire IX MDL on schema
+#  2. signal the other client to continue
+#  3. attempt to acquire the GSL so that its MDL on table could be upgraded
+#  4. Thus triggering a potential deadlock
+--send CREATE TABLE t1 (a int) engine ndb
+
+--echo # Reap both DDLs and verify that they succeeded after resolving the deadlock
+--connection client1
+--disable_warnings ER_DB_CREATE_EXISTS ONCE
+--reap
+
+--connection client2
+--reap
+
+--echo Cleanup
+--disable_connect_log
+DROP TABLE t1;

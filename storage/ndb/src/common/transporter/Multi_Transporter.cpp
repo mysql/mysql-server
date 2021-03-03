@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,9 +121,8 @@ Multi_Transporter::set_num_inactive_transporters(Uint32 num_used)
     if (m_num_inactive_transporters > num_used)
     {
       /* Decrease the number of inactive transporters */
-      for (Uint32 i = num_used;
-           i < m_num_inactive_transporters;
-           i++)
+      Uint32 num_inactive_transporters = m_num_inactive_transporters;
+      for (Uint32 i = num_used; i < num_inactive_transporters; i++)
       {
         Transporter *t = m_inactive_transporters[i];
         m_not_used_transporters[i] = t;

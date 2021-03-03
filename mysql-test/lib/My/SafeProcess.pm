@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -190,6 +190,7 @@ sub new {
                      SAFE_SHUTDOWN  => $shutdown,
                      SAFE_USER_DATA => $user_data,
                      SAFE_WINPID    => $pid,
+                     SAFE_CMDLINE   => $path . " " . join(" ", @$$args)
                    },
                    $class);
   # Put the new process in list of running
@@ -257,6 +258,9 @@ sub shutdown {
   return $shutdown_status if (@kill_processes == 0);
 
   foreach my $proc (@kill_processes) {
+    warn "ERROR: A process did not stop gracefully, killing it forcefully. If "
+    . "this happens, a child process seems to have a bug. [cmdline = \""
+    . $proc->{SAFE_CMDLINE} . "\"].";
     $proc->start_kill();
   }
 

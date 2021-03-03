@@ -1565,8 +1565,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
     */
     try {
       DBUG_ASSERT(thd->stmt_arena->mem_root);
-      view_ref->view_sctx = new (thd->stmt_arena->mem_root)
-          Security_context(thd->stmt_arena->mem_root);
+      view_ref->view_sctx = new (thd->stmt_arena->mem_root) Security_context();
       if (view_ref->view_sctx == nullptr) return true;
     } catch (...) {
       return true;

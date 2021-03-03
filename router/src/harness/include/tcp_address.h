@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,59 +27,32 @@
 
 #include <cstdint>
 #include <string>
+#include <system_error>
 
 #include "harness_export.h"
+
+#include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
 
 /** @brief Defines an IP address with port number  */
 class HARNESS_EXPORT TCPAddress {
  public:
-  enum class Family {
-    UNKNOWN = 0,
-    IPV4 = 1,
-    IPV6 = 2,
-    INVALID = 9,
-  };
+  TCPAddress() = default;
 
-  TCPAddress(const std::string &address = "", uint32_t tcp_port = 0)
-      : addr(address),
-        port(validate_port(tcp_port)),
-        ip_family_(Family::UNKNOWN) {
-    detect_family();
-  }
+  TCPAddress(std::string address, uint16_t tcp_port)
+      : addr_(std::move(address)), port_(tcp_port) {}
 
-  /** @brief Copy constructor */
-  TCPAddress(const TCPAddress &other)
-      : addr(other.addr), port(other.port), ip_family_(other.ip_family_) {}
+  TCPAddress(const TCPAddress &other) = default;
+  TCPAddress(TCPAddress &&other) = default;
+  TCPAddress &operator=(const TCPAddress &other) = default;
+  TCPAddress &operator=(TCPAddress &&other) = default;
 
-  /** @brief Move constructor */
-  TCPAddress(TCPAddress &&other)
-      : addr(std::move(other.addr)),
-        port(other.port),
-        ip_family_(other.ip_family_) {}
+  std::string address() const { return addr_; }
 
-  /** @brief Copy assignment */
-  TCPAddress &operator=(const TCPAddress &other) {
-    std::string *my_addr = const_cast<std::string *>(&this->addr);
-    *my_addr = other.addr;
-    uint16_t *my_port = const_cast<uint16_t *>(&this->port);
-    *my_port = other.port;
-    Family *my_family = const_cast<Family *>(&this->ip_family_);
-    *my_family = other.ip_family_;
-    return *this;
-  }
+  uint16_t port() const { return port_; }
 
-  /** @brief Move assignment */
-  TCPAddress &operator=(TCPAddress &&other) {
-    std::string *my_addr = const_cast<std::string *>(&this->addr);
-    *my_addr = other.addr;
-    uint16_t *my_port = const_cast<uint16_t *>(&this->port);
-    *my_port = other.port;
-    Family *my_family = const_cast<Family *>(&this->ip_family_);
-    *my_family = other.ip_family_;
-    return *this;
-  }
+  void port(uint16_t p) { port_ = p; }
 
   /** @brief Returns the address as a string
    *
@@ -93,63 +66,39 @@ class HARNESS_EXPORT TCPAddress {
    *
    */
   friend bool operator==(const TCPAddress &left, const TCPAddress &right) {
-    return (left.addr == right.addr) && (left.port == right.port);
+    return (left.addr_ == right.addr_) && (left.port_ == right.port_);
   }
 
   /**
    * @brief Function for performing comparision of TCPAddresses
    */
   friend bool operator<(const TCPAddress &left, const TCPAddress &right) {
-    if (left.addr < right.addr)
+    if (left.addr_ < right.addr_)
       return true;
-    else if (left.addr > right.addr)
+    else if (left.addr_ > right.addr_)
       return false;
-    return left.port < right.port;
+    return left.port_ < right.port_;
   }
-
-  /** @brief Returns whether the TCPAddress is valid
-   *
-   * Returns whether the address and port are valid. This function also
-   * detects the family when it was still Family::UNKNOWN.
-   */
-  bool is_valid() noexcept;
-
-  /** @brief Returns whether the TCPAddress is IPv4
-   *
-   * Returns true when the address is IPv4; false
-   * when it is IPv6.
-   */
-  bool is_ipv4();
-
-  template <Family T>
-  bool is_family() {
-    if (ip_family_ == T) {
-      return true;
-    }
-    return false;
-  }
-
-  /* @brief Returns the address family
-   *
-   * returns TCPAddress::Family
-   */
-  Family get_family() const noexcept { return ip_family_; }
-
-  /** @brief Network name IP */
-  const std::string addr;
-  /** @brief TCP port */
-  const uint16_t port;
 
  private:
-  /** @brief Initialize the address family */
-  void detect_family() noexcept;
+  /** @brief Network name IP */
+  std::string addr_;
 
-  /** @brief Validates the given port number */
-  uint16_t validate_port(uint32_t tcp_port);
-
-  /** @brief Address family for this IP Address */
-  Family ip_family_;
+  /** @brief TCP port */
+  uint16_t port_{};
 };
+
+/**
+ * create TCPAddress from endpoint string.
+ *
+ * - [::1]:1234
+ * - ::1
+ * - 10.0.1.1
+ * - 10.0.1.1:1234
+ * - example.org:1234
+ */
+HARNESS_EXPORT stdx::expected<TCPAddress, std::error_code> make_tcp_address(
+    const std::string &endpoint);
 
 }  // namespace mysql_harness
 

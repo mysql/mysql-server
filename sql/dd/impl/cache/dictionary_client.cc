@@ -114,42 +114,6 @@ class MDL_checker {
   /**
     Private helper function for asserting MDL for tables.
 
-    @note For temporary tables, we have no locks.
-
-    @param   thd            Thread context.
-    @param   schema_name    Schema name to use in the MDL key.
-    @param   object_name    Object name to use in the MDL key.
-    @param   mdl_namespace  MDL key namespace to use.
-    @param   lock_type      Weakest lock type accepted.
-
-    @return true if we have the required lock, otherwise false.
-  */
-
-  static bool is_locked(THD *thd, const char *schema_name,
-                        const char *object_name,
-                        MDL_key::enum_mdl_namespace mdl_namespace,
-                        enum_mdl_type lock_type) {
-    // For the schema name part, the behavior is dependent on whether
-    // the schema name is supplied explicitly in the sql statement
-    // or not. If it is, the case sensitive name is locked. If only
-    // the table name is supplied in the SQL statement, then the
-    // current schema is used as the schema part of the key, and in
-    // that case, the lowercase name is locked. This applies only
-    // when l_c_t_n == 2. To verify, we therefor use both variants
-    // of the schema name.
-    char schema_name_buf[NAME_LEN + 1];
-    return thd->mdl_context.owns_equal_or_stronger_lock(
-               mdl_namespace, schema_name, object_name, lock_type) ||
-           thd->mdl_context.owns_equal_or_stronger_lock(
-               mdl_namespace,
-               dd::Object_table_definition_impl::fs_name_case(schema_name,
-                                                              schema_name_buf),
-               object_name, lock_type);
-  }
-
-  /**
-    Private helper function for asserting MDL for tables.
-
     @note We need to retrieve the schema name, since this is required
           for the MDL key.
 
@@ -183,19 +147,29 @@ class MDL_checker {
     DBUG_ASSERT(!thd->is_dd_system_thread());
     DBUG_ASSERT(schema);
 
-    // We must take l_c_t_n into account when reconstructing the
-    // MDL key from the table name.
+    // We must take l_c_t_n into account when reconstructing the MDL key
+    // from the schema and table name, and we need buffers for this purpose.
     char table_name_buf[NAME_LEN + 1];
+    char schema_name_buf[NAME_LEN + 1];
 
-    if (!my_strcasecmp(system_charset_info, schema->name().c_str(),
-                       "information_schema"))
-      return is_locked(thd, schema->name().c_str(), table->name().c_str(),
-                       MDL_key::TABLE, lock_type);
+    const char *table_name = table->name().c_str();
+    const char *schema_name = dd::Object_table_definition_impl::fs_name_case(
+        schema->name(), schema_name_buf);
 
-    return is_locked(thd, schema->name().c_str(),
-                     dd::Object_table_definition_impl::fs_name_case(
-                         table->name(), table_name_buf),
-                     MDL_key::TABLE, lock_type);
+    // Information schema tables and views are always locked in upper
+    // case independently of lower_case_table_names. At this point, the
+    // table name should aldready be converted to upper case. This is
+    // asserted in the mdl system when checking the lock below. For non-
+    // I_S tables, the table name must be converted to the appropriate
+    // character case.
+    if (my_strcasecmp(system_charset_info, schema->name().c_str(),
+                      "information_schema")) {
+      table_name = dd::Object_table_definition_impl::fs_name_case(
+          table->name(), table_name_buf);
+    }
+
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+        MDL_key::TABLE, schema_name, table_name, lock_type);
   }
 
   /**

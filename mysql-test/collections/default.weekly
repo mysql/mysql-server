@@ -26,6 +26,9 @@ perl mysql-test-run.pl --debug-server --force --timer  --big-test --testcase-tim
 # Run default suites with ps protocol
 perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-timeout=90   --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol
 
+# Run default suites with hypergraph optimizer only on el7
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=hypergraph-debug-big --vardir=var-hyp-default-big --hypergraph --platform=el7-x86-64bit --no-skip
+
 ############END OF SECTION1(DEFAULT SUITES) ######################
 
 

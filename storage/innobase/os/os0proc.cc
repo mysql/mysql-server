@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -52,7 +52,7 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large(). */
-ulint os_total_large_mem_allocated = 0;
+std::atomic<ulint> os_total_large_mem_allocated{0};
 
 /** Whether to use large pages in the buffer pool */
 bool os_use_large_pages;
@@ -110,7 +110,7 @@ void *os_mem_alloc_large(ulint *n) {
 
   if (ptr) {
     *n = size;
-    os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_add(size);
 
     UNIV_MEM_ALLOC(ptr, size);
     return (ptr);
@@ -137,7 +137,7 @@ skip:
                                " Windows error "
                             << GetLastError();
   } else {
-    os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_add(size);
     UNIV_MEM_ALLOC(ptr, size);
   }
 #else
@@ -154,7 +154,7 @@ skip:
                              << errno;
     ptr = nullptr;
   } else {
-    os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_add(size);
     UNIV_MEM_ALLOC(ptr, size);
   }
 #endif
@@ -169,7 +169,7 @@ void os_mem_free_large(void *ptr, ulint size) {
 
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
   if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
-    os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_sub(size);
     UNIV_MEM_FREE(ptr, size);
     return;
   }
@@ -181,7 +181,7 @@ void os_mem_free_large(void *ptr, ulint size) {
     ib::error(ER_IB_MSG_857) << "VirtualFree(" << ptr << ", " << size
                              << ") failed; Windows error " << GetLastError();
   } else {
-    os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_sub(size);
     UNIV_MEM_FREE(ptr, size);
   }
 #elif !defined OS_MAP_ANON
@@ -197,7 +197,7 @@ void os_mem_free_large(void *ptr, ulint size) {
                                 " errno "
                              << errno;
   } else {
-    os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
+    os_total_large_mem_allocated.fetch_sub(size);
     UNIV_MEM_FREE(ptr, size);
   }
 #endif

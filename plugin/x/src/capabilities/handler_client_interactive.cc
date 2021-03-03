@@ -24,18 +24,18 @@
 
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
 
-#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
-#include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/config/config.h"
 #include "plugin/x/src/interface/client.h"
+#include "plugin/x/src/ngs/mysqlx/getter_any.h"
+#include "plugin/x/src/ngs/mysqlx/setter_any.h"
 #include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
 Capability_client_interactive::Capability_client_interactive(
-    iface::Client &client)
+    iface::Client *client)
     : m_client(client) {
-  m_value = m_client.is_interactive();
+  m_value = m_client->is_interactive();
 }
 
 void Capability_client_interactive::get_impl(::Mysqlx::Datatypes::Any *any) {
@@ -56,7 +56,7 @@ ngs::Error_code Capability_client_interactive::set_impl(
 }
 
 void Capability_client_interactive::commit() {
-  m_client.set_is_interactive(m_value);
+  m_client->set_is_interactive(m_value);
 }
 
 }  // namespace xpl

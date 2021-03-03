@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,11 +48,11 @@ extern class SignalLoggerManager globalSignalLoggers;
 #endif
 
 /* EMULATED_JAM_SIZE must be a power of two, so JAM_MASK will work. */
-#ifdef NDEBUG
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+#define EMULATED_JAM_SIZE 32768
+#else
 // Keep jam buffer small for optimized build to improve locality of reference.
 #define EMULATED_JAM_SIZE 1024
-#else
-#define EMULATED_JAM_SIZE 32768
 #endif
 #define JAM_MASK (EMULATED_JAM_SIZE - 1)
 

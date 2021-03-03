@@ -16,8 +16,8 @@ include/start_and_bootstrap_group_replication.inc
 SET SQL_LOG_BIN=0;
 CREATE USER 'u1'@'localhost';
 SET SQL_LOG_BIN=1;
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "group_replication_recovery";
 RESET MASTER;
 
 # 3. Start GR fails.

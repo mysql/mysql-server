@@ -21,7 +21,7 @@ include/rpl_restart_server.inc [server_number=2]
 include/assert_grep.inc [Assert that the expected entry is in the error log]
 include/assert.inc ["Relay_log_pos points at the beginning of the new relay log file now."]
 include/assert.inc ["Read_master_log_pos after restart points at the CREATE TABLE position."]
-CHANGE MASTER TO Relay_log_pos= RELAY_LOG_POS, Relay_log_file='SLAVE_RELAY_LOG_FILE_NAME';
+CHANGE REPLICATION SOURCE TO Relay_log_pos= RELAY_LOG_POS, Relay_log_file='SLAVE_RELAY_LOG_FILE_NAME';
 include/start_slave_sql.inc
 include/start_slave_io.inc
 [connection master]

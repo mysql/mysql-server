@@ -377,7 +377,7 @@ WHERE f1 IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize
-        -> Filter: (t1.f1 is null)
+        -> Filter: (rollup_group_item(t1.f1,0) is null)
             -> Group aggregate with rollup: sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -394,7 +394,7 @@ j IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize
-        -> Filter: (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null))
+        -> Filter: (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))
             -> Group aggregate with rollup: sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -415,7 +415,7 @@ j IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
     -> Materialize
-        -> Filter: ((avg(t1.f2) > 1) and (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null)))
+        -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)))
             -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -472,11 +472,10 @@ EXPLAIN
 -> Filter: (dt.f1 > 2)
     -> Table scan on dt  (cost=*** rows=***)
         -> Materialize
-            -> Group (computed in earlier step, no aggregates)
-                -> Window aggregate with buffering: sum(t1.f2) OVER () 
-                    -> Table scan on <temporary>
-                        -> Temporary table with deduplication  (cost=*** rows=***)
-                            -> Index range scan on t1 using index_for_group_by(f1_2)  (cost=*** rows=***)
+            -> Window aggregate with buffering: sum(t1.f2) OVER () 
+                -> Table scan on <temporary>
+                    -> Temporary table with deduplication  (cost=*** rows=***)
+                        -> Index range scan on t1 using index_for_group_by(f1_2)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
@@ -869,14 +868,14 @@ SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn2)) as dt WHERE f2 > 1;
 f2
+120
+120
 30
 30
 60
 60
 90
 90
-120
-120
 EXPLAIN FORMAT=tree SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn,qn2)) as dt WHERE f1 < 10 and f2 > 1;
@@ -899,6 +898,10 @@ SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn,qn2)) as dt WHERE f1 < 10 and f2 > 1;
 f1	f2
+0	120
+0	120
+0	120
+0	120
 0	30
 0	30
 0	30
@@ -911,10 +914,6 @@ f1	f2
 0	90
 0	90
 0	90
-0	120
-0	120
-0	120
-0	120
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 > 31 and t1.f2  > 40;
 EXPLAIN
@@ -979,22 +978,22 @@ SELECT * FROM t1 INNER JOIN (SELECT f1, f2 FROM t1) as dt ON dt.f1 > 3;
 f1	f2	f3	f1	f2
 0	0	0	4	44
 0	0	0	4	44
-1	11	111	4	44
-1	11	111	4	44
-2	22	222	4	44
-2	22	222	4	44
-3	33	333	4	44
-3	33	333	4	44
-4	44	444	4	44
-4	44	444	4	44
 0	0	0	4	44
 0	0	0	4	44
 1	11	111	4	44
 1	11	111	4	44
+1	11	111	4	44
+1	11	111	4	44
+2	22	222	4	44
+2	22	222	4	44
 2	22	222	4	44
 2	22	222	4	44
 3	33	333	4	44
 3	33	333	4	44
+3	33	333	4	44
+3	33	333	4	44
+4	44	444	4	44
+4	44	444	4	44
 4	44	444	4	44
 4	44	444	4	44
 NULL	1	2	4	44
@@ -1135,9 +1134,26 @@ SELECT NULL IN(SELECT (f1 between 0 and 1)
 FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
 );
 NULL IN(SELECT (f1 between 0 and 1)
-FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
 )
 0
-Warnings:
+FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warnings:
 DROP TABLE t;
+#
+# Bug#32127562:ERROR 3566 (HY000): ACCESS TO NATIVE FUNCTION IS
+#              REJECTED
+#
+set optimizer_switch="derived_merge=off";
+SELECT 1 FROM information_schema.tables WHERE 123 IN (CONCAT_WS(TABLE_ROWS, ''));
+1
+set optimizer_switch="derived_merge=on";
+# BUG#32150145: 8.0.22+ RELEASE BUILD QUERY FAILS SILENTLY,
+#                DEBUG ASSERTION `THD->IS_ERROR()'
+#
+CREATE TABLE t1(g INTEGER);
+SELECT w.g FROM t1 INNER JOIN (
+SELECT g, ROW_NUMBER() OVER (PARTITION BY g) AS r FROM t1
+) w ON w.g=t1.g AND w.r=1 WHERE w.g IS NULL;
+g
+DROP TABLE t1;

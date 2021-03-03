@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -182,6 +182,8 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   TablerecPtr regTabPtr;
 
   regOperPtr.i = signal->theData[0];
+  jamDebug();
+  jamLineDebug(Uint16(regOperPtr.i));
   ndbrequire(c_operation_pool.getValidPtr(regOperPtr));
   TransState trans_state= get_trans_state(regOperPtr.p);
   ndbrequire((trans_state == TRANS_STARTED) ||
@@ -497,8 +499,18 @@ void Dbtup::tupkeyErrorLab(KeyReqStruct* req_struct)
                  prepare_tabptr.p);
   }
 
-
+  bool use_lock = regOperPtr->op_struct.bit_field.in_active_list;
+  if (use_lock)
+  {
+    jamDebug();
+    acquire_frag_mutex(req_struct->fragPtrP, regOperPtr->fragPageId);
+  }
   removeActiveOpList(regOperPtr, (Tuple_header*)ptr);
+  if (use_lock)
+  {
+    jamDebug();
+    release_frag_mutex(req_struct->fragPtrP, regOperPtr->fragPageId);
+  }
   initOpConnection(regOperPtr);
   TupKeyRef * const tupKeyRef =
     (TupKeyRef *)req_struct->signal->getDataPtrSend();  
@@ -531,8 +543,16 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
     c_undo_buffer.free_copy_tuple(&regOperPtr->m_copy_tuple_location);
   }
 
+  prevOperPtr.i = regOperPtr->prevActiveOp;
+  nextOperPtr.i = RNIL;
   if (regOperPtr->op_struct.bit_field.in_active_list)
   {
+    /*
+     * Have called both prepareActiveOpList and insertActiveOpList.
+     * Could also be an initial INSERT operation or a REFRESH that inserts
+     * the record.
+     */
+    ndbassert(!m_is_query_block);
     nextOperPtr.i = regOperPtr->nextActiveOp;
     prevOperPtr.i = regOperPtr->prevActiveOp;
     regOperPtr->op_struct.bit_field.in_active_list= false;
@@ -547,42 +567,54 @@ void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
       jam();
       tuple_ptr->m_operation_ptr_i = prevOperPtr.i;
     }
-    if (prevOperPtr.i != RNIL)
+  }
+  else if (prevOperPtr.i != RNIL)
+  {
+    /**
+     * Aborted update after calling prepareActiveOpList but before calling
+     * insertActiveOpList. We have not inserted ourselves into the list and
+     * thus need no remove from the list, but we have transferred the leader
+     * role to our operation and this needs a reversal, ensure also that the
+     * update of nextActiveOp in the previous operation record is reverted.
+     */
+    ndbassert(!m_is_query_block);
+    ndbrequire(tuple_ptr->m_operation_ptr_i == prevOperPtr.i);
+  }
+  if (prevOperPtr.i != RNIL)
+  {
+    jam();
+    ndbrequire(c_operation_pool.getValidPtr(prevOperPtr));
+    prevOperPtr.p->nextActiveOp = nextOperPtr.i;
+    if (nextOperPtr.i == RNIL)
     {
       jam();
-      ndbrequire(c_operation_pool.getValidPtr(prevOperPtr));
-      prevOperPtr.p->nextActiveOp = nextOperPtr.i;
-      if (nextOperPtr.i == RNIL)
+      /**
+       * We are the leader in the list of the operations on this row.
+       * There is more operations behind us, so thus we are the leader
+       * in a group of more than one operation. This means that we
+       * to transfer the leader functionality to the second in line.
+       */
+      prevOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit =
+        regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit;
+      prevOperPtr.p->op_struct.bit_field.m_wait_log_buffer =
+        regOperPtr->op_struct.bit_field.m_wait_log_buffer;
+      if (regOperPtr->op_struct.bit_field.delete_insert_flag &&
+          regOperPtr->op_type == ZINSERT &&
+          prevOperPtr.p->op_type == ZDELETE)
       {
         jam();
         /**
-         * We are the leader in the list of the operations on this row.
-         * There is more operations behind us, so thus we are the leader
-         * in a group of more than one operation. This means that we
-         * to transfer the leader functionality to the second in line.
+         * If someone somehow manages to first delete the record and then
+         * starts a new operation on the same record using an insert, given
+         * that we now abort the insert operation we need to reset the
+         * delete+insert flag on the delete operation if this operation for
+         * some reason continues and becomes committed. In this case we
+         * want to ensure that the delete executes its index triggers.
          */
-        prevOperPtr.p->op_struct.bit_field.m_load_diskpage_on_commit =
-          regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit;
-        prevOperPtr.p->op_struct.bit_field.m_wait_log_buffer =
-          regOperPtr->op_struct.bit_field.m_wait_log_buffer;
-        if (regOperPtr->op_struct.bit_field.delete_insert_flag &&
-            regOperPtr->op_type == ZINSERT &&
-            prevOperPtr.p->op_type == ZDELETE)
-        {
-          jam();
-          /**
-           * If someone somehow manages to first delete the record and then
-           * starts a new operation on the same record using an insert, given
-           * that we now abort the insert operation we need to reset the
-           * delete+insert flag on the delete operation if this operation for
-           * some reason continues and becomes committed. In this case we
-           * want to ensure that the delete executes its index triggers.
-           */
-          prevOperPtr.p->op_struct.bit_field.delete_insert_flag = false;
-        }
+        prevOperPtr.p->op_struct.bit_field.delete_insert_flag = false;
       }
     }
-    regOperPtr->prevActiveOp= RNIL;
-    regOperPtr->nextActiveOp= RNIL;
   }
+  regOperPtr->prevActiveOp= RNIL;
+  regOperPtr->nextActiveOp= RNIL;
 }

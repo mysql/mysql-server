@@ -108,3 +108,34 @@ EXPLAIN
 
 DROP TABLE t1;
 SET sql_mode=DEFAULT;
+#
+# Bug #31588831: ASSERTION FAILURE IN NEWWEEDOUTACCESSPATHFORTABLES() AT SQL/SQL_EXECUTOR.CC
+#
+CREATE TABLE t1 (pk INTEGER, f2 INTEGER, PRIMARY KEY (pk));
+CREATE TABLE t2 (pk INTEGER, f2 INTEGER, PRIMARY KEY (pk));
+INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN FORMAT=tree SELECT * FROM
+t1
+LEFT JOIN t1 AS table2 ON 119 IN (
+SELECT SUBQUERY1_t2.pk
+FROM t1 AS SUBQUERY1_t1, (t2 AS SUBQUERY1_t2 STRAIGHT_JOIN t1 ON TRUE)
+)
+ORDER BY t1.f2;
+EXPLAIN
+-> Remove duplicate (t1, table2) rows using temporary table (weedout)
+    -> Nested loop left join
+        -> Sort row IDs: t1.f2
+            -> Table scan on t1
+        -> Nested loop inner join
+            -> Nested loop inner join
+                -> Nested loop inner join
+                    -> Constant row from SUBQUERY1_t2
+                    -> Table scan on table2
+                -> Index scan on SUBQUERY1_t1 using PRIMARY
+            -> Index scan on t1 using PRIMARY
+
+DROP TABLE t1, t2;

@@ -45,12 +45,14 @@ drop table t1;
 
 create table t1 (a bit(2)) engine=innodb;
 insert ignore into t1 values (b'00'), (b'01'), (b'10'), (b'100');
+--sorted_result
 select a+0 from t1;
 alter table t1 add key (a);
 -- disable_result_log
 analyze table t1;
 -- enable_result_log
 explain select a+0 from t1;
+--sorted_result
 select a+0 from t1;
 drop table t1;
 
@@ -66,12 +68,17 @@ insert into t1 values
 analyze table t1;
 -- enable_result_log
 explain select a+0 from t1;
+--sorted_result
 select a+0 from t1;
+--sorted_result
 explain select b+0 from t1;
+--sorted_result
 select b+0 from t1;
 explain select a+0, b+0 from t1;
+--sorted_result
 select a+0, b+0 from t1;
 explain select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
+--partially_sorted_result 1
 select a+0, b+0 from t1 where a > 40 and b > 200 order by 1;
 explain select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
 select a+0, b+0 from t1 where a > 40 and a < 70 order by 2;
@@ -84,6 +91,7 @@ create table t1 (a int not null, b bit, c bit(9), key(a, b, c)) engine=innodb;
 insert into t1 values
 (4, NULL, 1), (4, 0, 3), (2, 1, 4), (1, 1, 100), (4, 0, 23), (4, 0, 54),
 (56, 0, 22), (4, 1, 100), (23, 0, 1), (4, 0, 34);
+--sorted_result
 select a+0, b+0, c+0 from t1;
 select hex(min(b)) from t1 where a = 4;
 select hex(min(c)) from t1 where a = 4 and b = 0;
@@ -164,3 +172,20 @@ SELECT HEX(a) FROM t1 WHERE a =
  b'1111111111111111111111111111111111111111111111111111111111111111';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #31019130 CASTING DOUBLE TO LONGLONG CAUSES UB
+--echo #               IN FIELD_*::STORE(DOUBLE)
+--echo #
+
+CREATE TABLE t_double (a double not null);
+INSERT INTO t_double (a) VALUES
+(-20000000000000000000000000000.0001), (20000000000000000000000000000.0001);
+
+CREATE TABLE t_bit (
+  b bit(3)
+);
+INSERT IGNORE INTO t_bit (b) SELECT a from t_double;
+SELECT HEX(b) FROM t_bit;
+
+DROP TABLE t_double, t_bit;

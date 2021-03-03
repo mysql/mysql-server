@@ -2613,6 +2613,7 @@ INSERT INTO t1 VALUES ('2000-01-01 10:00:00.000002');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000000');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000001');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000002');
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001', '2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 SELECT * FROM t1 WHERE a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
@@ -2626,6 +2627,7 @@ EXPLAIN SELECT * FROM t1 WHERE a IN (0.000001,0);
 --echo # Testing IN with index: involves field->store_packed()
 --echo #
 ALTER TABLE t1 ADD KEY(a);
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001','2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 SELECT * FROM t1 WHERE a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
@@ -4493,6 +4495,7 @@ INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000000');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000001');
 INSERT INTO t1 VALUES ('2000-01-01 23:00:00.000002');
 SELECT * FROM t1;
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001', '2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 # This returns an empty set with a warning:
@@ -4514,6 +4517,7 @@ SELECT * FROM t1 WHERE a IN (0e0, 0.000001e0);
 --echo # Testing IN with index: involves field->store_packed()
 --echo #
 ALTER TABLE t1 ADD KEY(a);
+--skip_if_hypergraph   # Different warnings.
 SELECT * FROM t1 WHERE a IN ('2000-01-01 00:00:00', '0000-00-00 00:00:00.000001', '2000-01-01 23:00:00.000002');
 SELECT * FROM t1 WHERE a IN (0, 20000101000000, 20000101230000);
 SELECT * FROM t1 WHERE a IN (0.000001, 20000101000000.000001, 20000101230000.000001);
@@ -6377,6 +6381,7 @@ CREATE TABLE t1 (
   col_datetime_4_not_null_key datetime(4) NOT NULL,
   KEY col_time_3_not_null_key (col_time_3_not_null_key),
   KEY col_datetime_4_not_null_key (col_datetime_4_not_null_key));
+--skip_if_hypergraph   # Different warnings.
 SELECT col_time_3_not_null_key 
 FROM t1 
 WHERE col_datetime_4_not_null_key > 7;
@@ -7385,6 +7390,7 @@ CREATE TABLE t1 (
 key (col_datetime_6_not_null_key),
 key (col_datetime_3_key)) ENGINE=innodb;
 CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1;
+--skip_if_hypergraph   # Different warnings.
 SELECT col_datetime_3_key AS c1 FROM v1
 WHERE SYSDATE() IS NULL
 OR col_datetime_6_not_null_key < TIMEDIFF('0000-00-00','2002-11-24' )

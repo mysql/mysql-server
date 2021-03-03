@@ -93,38 +93,22 @@ static string JoinTypeToString(JoinType join_type) {
   }
 }
 
-static string HashJoinTypeToString(JoinType join_type) {
+static string HashJoinTypeToString(RelationalExpression::Type join_type) {
   switch (join_type) {
-    case JoinType::INNER:
+    case RelationalExpression::INNER_JOIN:
       return "Inner hash join";
-    case JoinType::OUTER:
+    case RelationalExpression::LEFT_JOIN:
       return "Left hash join";
-    case JoinType::ANTI:
+    case RelationalExpression::ANTIJOIN:
       return "Hash antijoin";
-    case JoinType::SEMI:
+    case RelationalExpression::SEMIJOIN:
       return "Hash semijoin";
+    case RelationalExpression::CARTESIAN_PRODUCT:
+      return "Hash cartesian product";
     default:
       assert(false);
       return "<error>";
   }
-}
-
-static bool MaterializeIsDoingDeduplication(TABLE *table) {
-  if (table->hash_field != nullptr) {
-    // Doing deduplication via hash field.
-    return true;
-  }
-
-  // We assume that if there's an unique index, it has to be used for
-  // deduplication.
-  if (table->key_info != nullptr) {
-    for (size_t i = 0; i < table->s->keys; ++i) {
-      if ((table->key_info[i].flags & HA_NOSAME) != 0) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
@@ -554,13 +538,13 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     case AccessPath::HASH_JOIN: {
       const JoinPredicate *predicate = path->hash_join().join_predicate;
-      string ret = HashJoinTypeToString(predicate->type);
+      string ret = HashJoinTypeToString(predicate->expr->type);
 
-      if (predicate->equijoin_conditions.empty()) {
+      if (predicate->expr->equijoin_conditions.empty()) {
         ret.append(" (no condition)");
       } else {
-        for (Item_func_eq *cond : predicate->equijoin_conditions) {
-          if (cond != predicate->equijoin_conditions[0]) {
+        for (Item_func_eq *cond : predicate->expr->equijoin_conditions) {
+          if (cond != predicate->expr->equijoin_conditions[0]) {
             ret.push_back(',');
           }
           HashJoinCondition hj_cond(cond, *THR_MALLOC);
@@ -573,8 +557,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
           }
         }
       }
-      for (Item *cond : predicate->join_conditions) {
-        if (cond == predicate->join_conditions[0]) {
+      for (Item *cond : predicate->expr->join_conditions) {
+        if (cond == predicate->expr->join_conditions[0]) {
           ret.append(", extra conditions: ");
         } else {
           ret += " and ";
@@ -629,30 +613,6 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       }
       description.push_back(move(ret));
       children.push_back({path->sort().child});
-      break;
-    }
-    case AccessPath::PRECOMPUTED_AGGREGATE: {
-      // If precomputed_group_by is set, there's always grouping; thus, our
-      // EXPLAIN output should always say “group”, unlike AggregateIterator.
-      // Do note that neither path->precomputed_aggregate.join->grouped nor
-      // path->precomputed_aggregate.join->group_optimized_away need to be set
-      // (in particular, this seems to be the case for skip index scan).
-      string ret;
-      if (*join->sum_funcs == nullptr) {
-        ret = "Group (computed in earlier step, no aggregates)";
-      } else {
-        ret = "Group aggregate (computed in earlier step): ";
-      }
-
-      for (Item_sum **item = join->sum_funcs; *item != nullptr; ++item) {
-        if (item != join->sum_funcs) {  // Not first element.
-          ret += ", ";
-        }
-        ret += ItemToString(*item);
-      }
-
-      description.push_back(move(ret));
-      children.push_back({path->precomputed_aggregate().child});
       break;
     }
     case AccessPath::AGGREGATE: {

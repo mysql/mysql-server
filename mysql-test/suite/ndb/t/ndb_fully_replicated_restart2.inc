@@ -48,10 +48,10 @@ if ($restart_type == 'SR')
 {
   --echo Now perform a system restart
 
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "all restart" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "all restart" >> $NDB_TOOLS_OUTPUT
 
   --echo Wait for SR to complete
-  --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 }
 
 if ($restart_type == 'NR')
@@ -61,20 +61,20 @@ if ($restart_type == 'NR')
   # required runtime state must be correctly rebuilt
 
   --echo Node 1
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "1 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "1 restart" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
   --echo Node 2
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "2 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "2 restart" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
   --echo Node 3
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "3 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "3 restart" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
   --echo Node 4
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "4 restart" >> $NDB_TOOLS_OUTPUT
-  --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "4 restart" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 }
 
 if ($restart_type == 'SRTO')
@@ -82,30 +82,30 @@ if ($restart_type == 'SRTO')
   --echo Now perform SR with takeover
 
   --echo Node 1 restart -n
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "1 restart -n" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "1 restart -n" >> $NDB_TOOLS_OUTPUT
   --echo Wait for Node 1 to enter NOSTART state
-  --exec $NDB_WAITER --no-defaults --not-started --wait-nodes=1 --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
 
   --echo Now make some change and trigger some LCP action
   # Potentially improve this to ensure LCPs complete
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 7099" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "ALL DUMP 7099" >> $NDB_TOOLS_OUTPUT
   --sleep 10
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 7099" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "ALL DUMP 7099" >> $NDB_TOOLS_OUTPUT
   --sleep 10
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL DUMP 7099" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "ALL DUMP 7099" >> $NDB_TOOLS_OUTPUT
   --sleep 10
 
   --echo Now bring down the other nodes
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "ALL restart -n" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "ALL restart -n" >> $NDB_TOOLS_OUTPUT
 
   --echo Wait for them to come down
-  --exec $NDB_WAITER --no-defaults --not-started --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER --not-started >> $NDB_TOOLS_OUTPUT
 
   --echo Now start-em up
-  --exec $NDB_MGM --no-defaults --verbose=0 --execute "all start" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM --execute "all start" >> $NDB_TOOLS_OUTPUT
 
   --echo Wait for SR to complete
-  --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 }
 
 

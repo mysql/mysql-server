@@ -3,7 +3,7 @@
 # Shut down replication initialized by include/rpl_init.inc.
 #
 # This syncs all servers, executes STOP REPLICA on all servers, executes
-# CHANGE MASTER on all servers, and disconnects all connections
+# CHANGE REPLICATION SOURCE on all servers, and disconnects all connections
 # configured by rpl_init.inc.
 #
 # It does not execute RESET MASTER or RESET REPLICA, because that would
@@ -14,11 +14,14 @@
 #
 # ==== Usage ====
 #
-# [--let $rpl_only_running_threads= 1]
-# [--let $rpl_debug= 1]
-# [--let $rpl_group_replication= 1]
-# [--let $rpl_gtid_utils= 1]
-# [--let $rpl_assert_transaction_length= 1]
+# [--let $rpl_skip_sync = 1]
+# [--let $rpl_skip_delete_channels = 1]
+# [--let $rpl_skip_stop_slave = 1]
+# [--let $rpl_only_running_threads = 1]
+# [--let $rpl_debug = 1]
+# [--let $rpl_group_replication = 1]
+# [--let $rpl_gtid_utils = 1]
+# [--let $rpl_assert_transaction_length = 1]
 # --source include/rpl_end.inc
 #
 # Parameters:
@@ -48,7 +51,7 @@
 #
 #   $rpl_group_replication
 #     This checks for whether we have Group Replication enabled or not. Based
-#     on the check this parameter we execute change master or not in this
+#     on the check this parameter we execute CHANGE REPLICATION SOURCE or not in this
 #     inc file.
 #
 #   $rpl_gtid_utils
@@ -129,6 +132,25 @@ if ($rpl_assert_transaction_length)
   }
 }
 
+# Assert that replication asynchronous connection failover tables are properly
+# clean on the tests that do use them.
+--let $_rpl_server= $rpl_server_count
+while ($_rpl_server)
+{
+  --let $rpl_connection_name= server_$_rpl_server
+  --source include/rpl_connection.inc
+
+  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover on server$_rpl_server'
+  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover, count, 1] = 0
+  --source include/assert.inc
+
+  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover_managed on server$_rpl_server'
+  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover_managed, count, 1] = 0
+  --source include/assert.inc
+
+  --dec $_rpl_server
+}
+
 if ($rpl_group_replication)
 {
   --let $_rpl_server= $rpl_server_count
@@ -173,17 +195,17 @@ if (!$rpl_group_replication)
 
         if (!$rpl_multi_source)
         {
-          CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL;
+          CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL;
         }
         if ($rpl_multi_source)
         {
           if($rpl_channel_name)
           {
-            eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL $rpl_channel_name;
+            eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL $rpl_channel_name;
           }
           if(!$rpl_channel_name)
           {
-            CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL '';
+            CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL '';
           }
         }
         --enable_query_log
@@ -211,7 +233,7 @@ if ($rpl_multi_source)
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
 
-# rpl_change_topology executes CHANGE MASTER for each connection.
+# rpl_change_topology executes CHANGE REPLICATION SOURCE for each connection.
 # we restore the gtid state by sourcing rpl_change_topology below
 --let $use_gtids= 0
 --let $rpl_group_replication= 0
@@ -244,7 +266,7 @@ while ($_rpl_server)
   if ($rpl_require_row_format)
   {
     --disable_query_log
-    CHANGE MASTER TO REQUIRE_ROW_FORMAT=0;
+    CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT=0;
     --enable_query_log
   }
 

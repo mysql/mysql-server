@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,8 @@ private:
     BACKUP_FRAGMENT_INFO = 5,
     RESET_DISK_SPEED_COUNTER = 6,
     ZGET_NEXT_FRAGMENT = 7,
-    ZDELETE_LCP_FILE = 8
+    ZDELETE_LCP_FILE = 8,
+    ZCHECK_PGMAN_PREP_LCP = 9
   };
 };
 

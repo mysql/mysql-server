@@ -453,6 +453,7 @@ FROM C table1
 ;
 
 # Test EXPLAIN on MaterializeIterator.
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT table1 . o1
 FROM C table1
   JOIN ( C table2
@@ -561,6 +562,7 @@ CREATE VIEW v3 AS SELECT * FROM t1 WHERE f1 IN (2,3);
 CREATE VIEW v4 AS SELECT * FROM t2 WHERE f2 IN (2,3);
 --echo  explain for simple views
 EXPLAIN SELECT * FROM v1;
+--sorted_result
 SELECT * FROM v1;
 --echo  explain for multitable views
 EXPLAIN SELECT * FROM v2;
@@ -617,6 +619,7 @@ SHOW CREATE VIEW v3;
 --enable_result_log
 --echo  explain for simple derived
 EXPLAIN SELECT * FROM v1;
+--sorted_result
 SELECT * FROM v1;
 --echo  explain showing created indexes and late materialization for views
 FLUSH STATUS;
@@ -636,29 +639,34 @@ SELECT * FROM t1,v3 AS v31,v3 WHERE t1.f1=v31.f1 and t1.f1=v3.f1;
 SHOW STATUS LIKE 'Handler_read%';
 --echo  explain showing late materialization for views
 EXPLAIN SELECT * FROM v1 JOIN v4 ON f1=f2;
+--sorted_result
 SELECT * FROM v1 JOIN v4 ON f1=f2;
 
 --echo merged derived in merged derived
 EXPLAIN SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
+--sorted_result
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
 
 --echo materialized derived in merged derived
 EXPLAIN  SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
+--sorted_result
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2) zz;
 
 --echo merged derived in materialized derived
 EXPLAIN SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
+--sorted_result
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2 GROUP BY f1) zz;
 
 --echo materialized derived in materialized derived
 EXPLAIN  SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
+--sorted_result
 SELECT * FROM (SELECT * FROM 
   (SELECT * FROM t1 WHERE f1 < 7 GROUP BY f1) tt WHERE f1 > 2 GROUP BY f1) zz;
 
@@ -717,6 +725,7 @@ JOIN
 --echo merged view in materialized derived
 EXPLAIN
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
+--sorted_result
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 
 --echo materialized view in merged derived
@@ -736,10 +745,12 @@ SELECT * FROM (SELECT * FROM v6) tt;
 --echo materialized view in a merged view in a materialized derived
 CREATE VIEW v7 AS SELECT * FROM v1;
 EXPLAIN SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
+--sorted_result
 SELECT * FROM (SELECT * FROM v7 GROUP BY 1) tt;
 
 --echo JOIN of above two
 EXPLAIN SELECT * FROM v6 JOIN v7 ON f2=f1;
+--sorted_result
 SELECT * FROM v6 JOIN v7 ON f2=f1;
 
 --echo test two keys
@@ -749,6 +760,7 @@ INSERT INTO t3 VALUES(1,1),(2,2),(3,3),(5,5);
 let $query= SELECT * FROM t1 JOIN (SELECT * FROM t2) tt ON t1.f1=tt.f2
   JOIN t3 ON tt.f22=t3.f3;
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
@@ -1564,6 +1576,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN (SELECT * FROM t2 UNION ALL SELECT * FROM t2) AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 eval explain $query;
 
@@ -2683,6 +2696,7 @@ SELECT * FROM t1 LEFT JOIN (
 ) AS sq ON a <= sq.c;
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1, t2, t3;
@@ -3240,3 +3254,12 @@ SET @a:='-77777';
 EXECUTE s USING @a,@a;
 DEALLOCATE PREPARE s;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #32162862: ORDER BY SUB-SELECT COLUMN SETS ALL VALUES TO NULL
+--echo #
+
+CREATE TABLE t1 ( a INTEGER ) Engine=InnoDB;
+INSERT INTO t1 VALUES (123);
+SELECT * FROM t1 LEFT JOIN ( SELECT 1 FROM t1 ) d1 ON TRUE ORDER BY a;
+DROP TABLE t1;

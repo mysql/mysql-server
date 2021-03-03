@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
-#define ATRT_VERSION_NUMBER 8
+#define ATRT_VERSION_NUMBER 9
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
@@ -146,7 +146,7 @@ bool gather_coverage_results(atrt_config &,
                              const atrt_testcase &);
 void set_coverage_parameters(atrt_coverage_config &, const char *, const char *);
 int compute_path_level(const char *);
-int compute_test_coverage(atrt_coverage_config &);
+int compute_test_coverage(atrt_coverage_config &, const char *);
 
 bool do_command(ProcessManagement& processManagement,
                 atrt_config& config);
@@ -490,7 +490,7 @@ int main(int argc, char **argv) {
       g_logger.debug("No testcases were run to compute coverage report");
     } else {
       g_logger.debug("Computing coverage report..");
-      if (compute_test_coverage(coverage_config) == 0) {
+      if (compute_test_coverage(coverage_config, g_build_dir) == 0) {
         g_logger.debug("Coverage report generated for the run!!");
       }
     }
@@ -1058,11 +1058,13 @@ int compute_path_level(const char *g_build_dir) {
   return path_level;
 }
 
-int compute_test_coverage(atrt_coverage_config &coverage_config) {
+int compute_test_coverage(atrt_coverage_config &coverage_config,
+                          const char *build_dir) {
   BaseString compute_coverage_progname = g_compute_coverage_progname;
   compute_coverage_progname.appfmt(" %s",
                                    coverage_config.m_lcov_files_dir.c_str());
   compute_coverage_progname.appfmt(" %s", g_cwd);
+  compute_coverage_progname.appfmt(" %s", build_dir);
   const int result = sh(compute_coverage_progname.c_str());
   if (result != 0) {
     g_logger.critical("Failed to compute coverage report");
@@ -1564,6 +1566,7 @@ bool find_scripts(const char *atrt_path) {
   std::vector<struct script_path> scripts = {
       {"atrt-gather-result.sh", &g_gather_progname},
       {"atrt-analyze-result.sh", &g_analyze_progname},
+      {"atrt-backtrace.sh", nullptr},  // used by atrt-analyze-result.sh
       {"atrt-setup.sh", &g_setup_progname},
       {"atrt-analyze-coverage.sh", &g_analyze_coverage_progname},
       {"atrt-compute-coverage.sh", &g_compute_coverage_progname}};
@@ -1571,12 +1574,16 @@ bool find_scripts(const char *atrt_path) {
   for (auto &script : scripts) {
     BaseString script_full_path;
     script_full_path.assfmt("%s/%s", atrt_path, script.name);
+
     if (!File_class::exists(script_full_path.c_str())) {
       g_logger.critical("atrt script %s could not be found in %s", script.name,
                         atrt_path);
       return false;
     }
-    *script.path = strdup(script_full_path.c_str());
+
+    if (script.path != nullptr) {
+      *script.path = strdup(script_full_path.c_str());
+    }
   }
   return true;
 }

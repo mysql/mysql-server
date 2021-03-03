@@ -74,8 +74,8 @@ connection server2;
 # MySQLD2 will get stuck and restart
 #
 
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
---exec $NDB_MGM --no-defaults -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id" > $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "ALL DUMP 900 $node_id2" > $NDB_TOOLS_OUTPUT
 
 #connection server1;
 #--echo Wait for 'server1' binlog rotate to indicate disconnect

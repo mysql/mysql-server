@@ -22,23 +22,6 @@
 
 /* HANDLER ... commands - direct access to the storage engine */
 
-/* TODO:
-  HANDLER blabla OPEN [ AS foobar ] [ (column-list) ]
-
-  the most natural (easiest, fastest) way to do it is to
-  compute List<Item> field_list not in mysql_ha_read
-  but in mysql_ha_open, and then store it in TABLE structure.
-
-  The problem here is that mysql_parse calls free_item to free all the
-  items allocated at the end of every query. The workaround would to
-  keep two item lists per THD - normal free_list and handler_items.
-  The second is to be freeed only on thread end. mysql_ha_open should
-  then do { handler_items=concat(handler_items, free_list); free_list=0; }
-
-  But !!! do_command calls free_root at the end of every query and frees up
-  all the sql_alloc'ed memory. It's harder to work around...
-*/
-
 /*
   The information about open HANDLER objects is stored in a HASH.
   It holds objects of type TABLE_LIST, which are indexed by table
@@ -566,8 +549,6 @@ retry:
 
   if (!lock) goto err1;  // mysql_lock_tables() printed error message already
 
-  // Always read all columns
-  hash_tables->table->read_set = &hash_tables->table->s->all_set;
   tables->table = hash_tables->table;
   tables->table->pos_in_table_list = tables;
 
@@ -599,10 +580,14 @@ retry:
   }
 
   {
+    // Mark all visible columns for read.
+    const enum_mark_columns save_mark_columns = thd->mark_used_columns;
+    thd->mark_used_columns = MARK_COLUMNS_READ;
     auto list_it = list.begin();
     if (insert_fields(thd, select_lex, tables->db, tables->alias, &list,
                       &list_it, false))
       goto err;
+    thd->mark_used_columns = save_mark_columns;
   }
 
   DBUG_EXECUTE_IF("simulate_handler_read_failure",

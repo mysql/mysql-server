@@ -38,12 +38,12 @@
 #include "my_sqlcommand.h"
 #include "my_systime.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_stage_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/service_thd_wait.h"
 #include "mysql_com.h"
@@ -87,19 +87,22 @@ using std::min;
   what follows. For now, this is just used to get the number of
   fields.
 */
-const char *info_rli_fields[] = {"number_of_lines",
-                                 "group_relay_log_name",
-                                 "group_relay_log_pos",
-                                 "group_master_log_name",
-                                 "group_master_log_pos",
-                                 "sql_delay",
-                                 "number_of_workers",
-                                 "id",
-                                 "channel_name",
-                                 "privilege_checks_user",
-                                 "privilege_checks_hostname",
-                                 "require_row_format",
-                                 "require_table_primary_key_check"};
+const char *info_rli_fields[] = {
+    "number_of_lines",
+    "group_relay_log_name",
+    "group_relay_log_pos",
+    "group_master_log_name",
+    "group_master_log_pos",
+    "sql_delay",
+    "number_of_workers",
+    "id",
+    "channel_name",
+    "privilege_checks_user",
+    "privilege_checks_hostname",
+    "require_row_format",
+    "require_table_primary_key_check",
+    "assign_gtids_to_anonymous_transactions_type",
+    "assign_gtids_to_anonymous_transactions_value"};
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery,
 #ifdef HAVE_PSI_INTERFACE
@@ -189,7 +192,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       row_stmt_start_timestamp(0),
       long_find_row_note_printed(false),
       thd_tx_priority(0),
-      is_engine_ha_data_detached(false),
+      m_ignore_write_set_memory_limit(false),
+      m_allow_drop_write_set(false),
+      m_is_engine_ha_data_detached(false),
       current_event(nullptr),
       ddl_not_atomic(false) {
   DBUG_TRACE;
@@ -1322,7 +1327,7 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
       xa_trans_force_rollback(thd);
       xid_state->reset();
       cleanup_trans_state(thd);
-      thd->rpl_unflag_detached_engine_ha_data();
+      if (thd->is_engine_ha_data_detached()) thd->rpl_reattach_engine_ha_data();
     }
     thd->mdl_context.release_transactional_locks();
   }
@@ -2029,6 +2034,8 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   int temp_sql_delay = 0;
   int temp_internal_id = internal_id;
   int temp_require_row_format = 0;
+  auto temp_assign_gtids_to_anonymous_transactions =
+      Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF;
   ulong temp_require_table_primary_key_check = Relay_log_info::PK_CHECK_STREAM;
   Rpl_info_handler::enum_field_get_status status{
       Rpl_info_handler::enum_field_get_status::FAILURE};
@@ -2169,6 +2176,61 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
       static_cast<Relay_log_info::enum_require_table_primary_key>(
           temp_require_table_primary_key_check);
 
+  if (lines >=
+      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE) {
+    const ulong off = static_cast<ulong>(
+        Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF);
+    const ulong manual = static_cast<ulong>(
+        Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID);
+
+    ulong long_assign_gtids_to_anonymous_transactions = off;
+
+    if (!!from->get_info((&long_assign_gtids_to_anonymous_transactions), 1))
+      return true;
+
+    if (long_assign_gtids_to_anonymous_transactions < off ||
+        long_assign_gtids_to_anonymous_transactions > manual)
+      return true;
+
+    temp_assign_gtids_to_anonymous_transactions =
+        static_cast<Assign_gtids_to_anonymous_transactions_info::enum_type>(
+            long_assign_gtids_to_anonymous_transactions);
+  }
+
+  if (lines >=
+      LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE) {
+    char temp_assign_gtids_to_anonymous_transactions_value
+        [binary_log::Uuid::TEXT_LENGTH + 1] = {0};
+    status = from->get_info(temp_assign_gtids_to_anonymous_transactions_value,
+                            binary_log::Uuid::TEXT_LENGTH + 1, "");
+    if (status == Rpl_info_handler::enum_field_get_status::FAILURE) return true;
+
+    if (temp_assign_gtids_to_anonymous_transactions >
+        Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF) {
+      if (status ==
+          Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL)
+        return true;
+    } else if (temp_assign_gtids_to_anonymous_transactions ==
+               Assign_gtids_to_anonymous_transactions_info::enum_type::
+                   AGAT_OFF) {
+      if (strcmp(temp_assign_gtids_to_anonymous_transactions_value, ""))
+        return true;
+    }
+    if (m_assign_gtids_to_anonymous_transactions_info.set_info(
+            temp_assign_gtids_to_anonymous_transactions,
+            temp_assign_gtids_to_anonymous_transactions_value)) {
+      LogErr(ERROR_LEVEL, ER_SERVER_WRONG_VALUE_FOR_VAR,
+             "ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS",
+             temp_assign_gtids_to_anonymous_transactions_value);
+      return true;
+    }
+  } else {
+    // If the file contains the TYPE, then the VALUE is mandatory.
+    if (lines >=
+        LINES_IN_RELAY_LOG_INFO_WITH_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE)
+      return true;
+  }
+
   group_relay_log_pos = temp_group_relay_log_pos;
   group_master_log_pos = temp_group_master_log_pos;
   sql_delay = (int32)temp_sql_delay;
@@ -2216,7 +2278,6 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
     Relay_log_info::read_info() for details. /Sven
   */
   // DBUG_ASSERT(!belongs_to_client());
-
   if (to->prepare_info_for_write() ||
       to->set_info((int)MAXIMUM_LINES_IN_RELAY_LOG_INFO_FILE) ||
       to->set_info(group_relay_log_name) ||
@@ -2257,6 +2318,15 @@ bool Relay_log_info::write_info(Rpl_info_handler *to) {
   }
 
   if (to->set_info((ulong)m_require_table_primary_key_check)) {
+    return true; /* purecov: inspected */
+  }
+  auto assign_gtids_to_anonymous_transactions =
+      m_assign_gtids_to_anonymous_transactions_info.get_type();
+  if (to->set_info((ulong)assign_gtids_to_anonymous_transactions)) {
+    return true; /* purecov: inspected */
+  }
+  if (to->set_info(
+          m_assign_gtids_to_anonymous_transactions_info.get_value().c_str())) {
     return true; /* purecov: inspected */
   }
   return false;
@@ -2684,7 +2754,7 @@ int Relay_log_info::init_until_option(THD *thd,
 }
 
 void Relay_log_info::detach_engine_ha_data(THD *thd) {
-  is_engine_ha_data_detached = true;
+  m_is_engine_ha_data_detached = true;
   /*
     In case of slave thread applier or processing binlog by client,
     detach the engine ha_data ("native" engine transaction)
@@ -2694,7 +2764,7 @@ void Relay_log_info::detach_engine_ha_data(THD *thd) {
 }
 
 void Relay_log_info::reattach_engine_ha_data(THD *thd) {
-  is_engine_ha_data_detached = false;
+  m_is_engine_ha_data_detached = false;
   /*
     In case of slave thread applier or processing binlog by client,
     reattach the engine ha_data ("native" engine transaction)
@@ -3178,6 +3248,45 @@ void Relay_log_info::set_require_table_primary_key_check(
     Relay_log_info::enum_require_table_primary_key require_pk) {
   DBUG_TRACE;
   this->m_require_table_primary_key_check = require_pk;
+}
+
+std::string Assign_gtids_to_anonymous_transactions_info::get_value() const {
+  return m_value;
+}
+
+Assign_gtids_to_anonymous_transactions_info::enum_type
+Assign_gtids_to_anonymous_transactions_info::get_type() const {
+  return m_type;
+}
+
+bool Assign_gtids_to_anonymous_transactions_info::set_info(
+    enum_type type_arg, const char *value_arg) {
+  m_type = type_arg;
+  switch (m_type) {
+    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_LOCAL:
+      m_value.assign(::server_uuid);
+      m_sidno = gtid_state->get_server_sidno();
+      break;
+    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID:
+      DBUG_ASSERT(value_arg != nullptr);
+      rpl_sid rename_sid;
+      if (rename_sid.parse(value_arg, strlen(value_arg))) {
+        return true;
+      }
+      global_sid_lock->rdlock();
+      m_sidno = global_sid_map->add_sid(rename_sid);
+      global_sid_lock->unlock();
+      char normalized_uuid[binary_log::Uuid::TEXT_LENGTH + 1];
+      rename_sid.to_string(normalized_uuid);
+      m_value.assign(normalized_uuid);
+      break;
+    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF:
+      m_value.assign("");
+      break;
+    default:
+      DBUG_ASSERT(0);
+  }
+  return false;
 }
 
 MDL_lock_guard::MDL_lock_guard(THD *target) : m_target{target} { DBUG_TRACE; }

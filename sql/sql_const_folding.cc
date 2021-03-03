@@ -1249,6 +1249,10 @@ static bool simplify_to_equal(THD *thd, Item *ref_or_field, Item *c,
 // Main entrypoint for this module. See Doxygen comments in sql_const_folding.h
 bool fold_condition(THD *thd, Item *cond, Item **retcond,
                     Item::cond_result *cond_value, bool manifest_result) {
+  uchar buff[STACK_BUFF_ALLOC];  // Max argument in function
+  if (check_stack_overrun(thd, STACK_MIN_SIZE * 2, buff))
+    return true;  // Fatal error if flag is set
+
   // A priori result, unless we find otherwise below
   *cond_value = Item::COND_OK;
   *retcond = cond;

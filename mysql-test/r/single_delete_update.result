@@ -18,6 +18,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -35,6 +36,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -69,6 +71,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -86,6 +89,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	8
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -121,6 +125,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -138,6 +143,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -180,6 +186,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -197,6 +204,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -226,6 +234,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -243,6 +252,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -270,6 +280,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -287,6 +298,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -318,6 +330,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	4
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -340,6 +353,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	4
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -372,6 +386,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -389,6 +404,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -427,6 +443,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	5
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -444,6 +461,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	26
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -497,6 +515,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -520,6 +539,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -537,6 +557,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -569,6 +590,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -586,6 +608,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -625,6 +648,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	5
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -642,6 +666,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	5
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -678,6 +703,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -695,6 +721,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -737,6 +764,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -754,6 +782,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -783,6 +812,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -800,6 +830,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -828,6 +859,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -845,6 +877,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	1
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -877,6 +910,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	4
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -899,6 +933,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	4
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -935,6 +970,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -952,6 +988,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -991,6 +1028,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	5
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -1008,6 +1046,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	5
 Sort_scan	1
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -1045,6 +1084,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
@@ -1068,6 +1108,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
@@ -1085,6 +1126,7 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
+This line exists only to help --skip_if_hypergraph diffing.
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0

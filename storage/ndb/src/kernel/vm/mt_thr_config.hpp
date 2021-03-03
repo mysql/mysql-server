@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,9 @@ public:
     T_TC    = 6, /* TC+SPJ */
     T_SEND  = 7, /* No blocks */
     T_IXBLD = 8, /* File thread during offline index build */
-
-    T_END  = 9
+    T_QUERY = 9, /* Query threads */
+    T_RECOVER=10,/* Recover threads */
+    T_END  = 11
   };
 
   THRConfig();
@@ -68,14 +69,22 @@ public:
   int setLockExecuteThreadToCPU(const char * val);
   int setLockIoThreadsToCPU(unsigned val);
 
+  int do_parse(unsigned realtime,
+               unsigned spintime,
+               unsigned num_cpus,
+               unsigned &num_rr_groups);
   int do_parse(const char * ThreadConfig,
                unsigned realtime,
-               unsigned spintime);
+               unsigned spintime,
+               unsigned &num_rr_groups,
+               bool check);
   int do_parse(unsigned MaxNoOfExecutionThreads,
                unsigned __ndbmt_lqh_threads,
                unsigned __ndbmt_classic,
                unsigned realtime,
-               unsigned spintime);
+               unsigned spintime,
+               unsigned &num_rr_groups,
+               bool check);
 
   const char * getConfigString();
   void append_name(const char *name,
@@ -106,6 +115,7 @@ protected:
     unsigned m_realtime; //0 = no realtime, 1 = realtime
     unsigned m_spintime; //0 = no spinning, > 0 spintime in microseconds
     unsigned m_nosend; //0 = assist send thread, 1 = cannot assist send thread
+    bool m_core_bind; // Bind to all CPUs in CPU core
   };
   bool m_classic;
   SparseBitmask m_LockExecuteThreadToCPU;
@@ -123,11 +133,24 @@ protected:
   int handle_spec(char *ptr, unsigned real_time, unsigned spin_time);
 
   unsigned createCpuSet(const SparseBitmask&, bool permanent);
+  void lock_io_threads();
   int do_bindings(bool allow_too_few_cpus);
   int do_validate();
 
   unsigned count_unbound(const Vector<T_Thread>& vec) const;
   void bind_unbound(Vector<T_Thread> & vec, unsigned cpu);
+
+  void compute_automatic_thread_config(
+    Uint32 num_cpus,
+    Uint32 & tc_threads,
+    Uint32 & ldm_threads,
+    Uint32 & query_threads,
+    Uint32 & recover_threads,
+    Uint32 & main_threads,
+    Uint32 & rep_threads,
+    Uint32 & send_threads,
+    Uint32 & recv_threads);
+  void reorganize_ldm_bindings(bool, unsigned&, bool);
 
 public:
   struct Entries

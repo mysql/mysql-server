@@ -35,6 +35,7 @@
 #include <rapidjson/document.h>
 
 #include "config.h"
+#include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql/harness/stdx/expected.h"
@@ -256,7 +257,7 @@ bool MySQLServerMockSessionX::process_handshake() {
       }
       case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START: {
         Mysqlx::Session::AuthenticateContinue msg_auth_cont;
-        msg_auth_cont.set_auth_data("abcd");
+        msg_auth_cont.set_auth_data("01234567890123456789");
         protocol_->send_message(
             Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, msg_auth_cont);
         break;

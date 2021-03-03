@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 other files in library. The code in this file is used to make a library for
 external tools. */
 
+#include "buf0checksum.h"
 #include "db0err.h"
 #include "fil0fil.h"
 #include "mach0data.h"
@@ -126,8 +127,10 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @param[in]	dblwr_read	true if double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression
-@param[in]	dst_len		Size of the scratch area in bytes
+@param[in,out]	dst		Scratch area to use for decompression or
+                                nullptr.
+@param[in]	dst_len		If dst is valid, size of the scratch area in
+                                bytes.
 @return DB_SUCCESS or error code */
 dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
                                  ulint dst_len) {
@@ -144,13 +147,16 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
 
   if (!is_valid_page_version(header.m_version) ||
       header.m_original_size < UNIV_PAGE_SIZE_MIN - (FIL_PAGE_DATA + 8) ||
-      header.m_original_size > UNIV_PAGE_SIZE_MAX - FIL_PAGE_DATA ||
-      dst_len < header.m_original_size + FIL_PAGE_DATA) {
-    /* The last check could potentially return DB_OVERFLOW,
-    the caller should be able to retry with a larger buffer. */
-
-    return (DB_CORRUPTION);
+      header.m_original_size > UNIV_PAGE_SIZE_MAX - FIL_PAGE_DATA) {
+    return DB_CORRUPTION;
   }
+
+  if (dst != nullptr && dst_len < header.m_original_size + FIL_PAGE_DATA) {
+    /* The caller can retry with a larger buffer. */
+    return DB_OVERFLOW;
+  }
+
+  ut_ad(dst == nullptr || dst_len == header.m_original_size + FIL_PAGE_DATA);
 
   // FIXME: We should use TLS for this and reduce the malloc/free
   bool allocated;
@@ -189,6 +195,7 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
         return (DB_IO_DECOMPRESS_FAIL);
       }
 
+      ut_ad(zlen <= len);
       len = static_cast<ulint>(zlen);
 
       break;
@@ -245,10 +252,8 @@ dberr_t Compression::deserialize(bool dblwr_read, byte *src, byte *dst,
 
   mach_write_to_2(src + FIL_PAGE_TYPE, header.m_original_type);
 
-  ut_ad(dblwr_read || memcmp(src + FIL_PAGE_LSN + 4,
-                             src + (header.m_original_size + FIL_PAGE_DATA) -
-                                 FIL_PAGE_END_LSN_OLD_CHKSUM + 4,
-                             4) == 0);
+  ut_ad(dblwr_read || BlockReporter::is_lsn_valid(
+                          src, header.m_original_size + FIL_PAGE_DATA));
 
   if (allocated) {
     ut_free(dst);
@@ -262,8 +267,10 @@ not then the source contents are left unchanged and DB_SUCCESS is returned.
 @param[in]	dblwr_read	true of double write recovery in progress
 @param[in,out]	src		Data read from disk, decompressed data will be
                                 copied to this page
-@param[in,out]	dst		Scratch area to use for decompression
-@param[in]	dst_len		Size of the scratch area in bytes
+@param[in,out]	dst		Scratch area to use for decompression or
+                                nullptr.
+@param[in]	dst_len		If dst is valid, then size of the scratch area
+                                in bytes
 @return DB_SUCCESS or error code */
 dberr_t os_file_decompress_page(bool dblwr_read, byte *src, byte *dst,
                                 ulint dst_len) {

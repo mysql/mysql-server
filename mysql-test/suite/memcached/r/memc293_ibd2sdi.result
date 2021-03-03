@@ -397,7 +397,7 @@ SET GLOBAL innodb_buf_flush_list_now = ON;
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -963,7 +963,7 @@ SET DEBUG = '-d, skip_sdi';
 ]
 [ERROR] ibd2sdi: Unable to create temporary file. err: Permission denied.
 [ERROR] ibd2sdi: Invalid Dumpfile passed.
-IBD2SDI Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+IBD2SDI Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -1004,7 +1004,7 @@ no-check                          FALSE
 pretty                            TRUE
 [ERROR] ibd2sdi: Error: Unable to seek to necessary offset for file with descriptor X and error msg is: Invalid argument.
 [ERROR] ibd2sdi: SDI doesn't exist for this tablespace or the SDI root page numbers couldn't be determined.
-[ERROR] ibd2sdi: Read requested on invalid page number 20. The maximum valid page number in the tablespace is 19.
+[ERROR] ibd2sdi: Read requested on invalid page number 21. The maximum valid page number in the tablespace is 20.
 [ERROR] ibd2sdi: SDI doesn't exist for this tablespace or the SDI root page numbers couldn't be determined.
 [ERROR] ibd2sdi: Unable to open file junk_file.
 [WARNING] ibd2sdi: There is a partial page at the end, of size 1. This partial page is ignored.
@@ -1759,7 +1759,7 @@ SET DEBUG = '-d, skip_sdi';
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -1900,7 +1900,7 @@ SET DEBUG = '-d, skip_sdi';
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -2041,7 +2041,7 @@ SET DEBUG = '-d, skip_sdi';
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -2187,7 +2187,7 @@ SET DEBUG = '-d, skip_sdi';
 IBD2SDI Ver #.#.#
 # 11. Print help
 IBD2SDI Ver #.#.#
-Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective

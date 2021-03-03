@@ -26,6 +26,9 @@ INCLUDE(innodb.cmake)
 
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="InnoDB")
 
+# Expand PSI_XXX_CALL into direct calls to the performance_schema.
+ADD_DEFINITIONS(-DPFS_DIRECT_CALL)
+
 # TODO: Fix up all non-canonical include paths and remove this.
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql
@@ -212,9 +215,25 @@ SET(INNOBASE_SOURCES
   ut/ut0new.cc
   ut/ut0rbt.cc
   ut/ut0rnd.cc
+  ut/ut0test.cc
   ut/ut0ut.cc
   ut/ut0vec.cc
   ut/ut0wqueue.cc)
+
+# There seems to be a bug in gcc for Oracle Linux 8 on ARM.
+# storage/innobase/ut/ut0test.cc:213:76:
+# warning: requested alignment 512 is larger than 16 [-Wattributes]
+# alignas(OS_FILE_LOG_BLOCK_SIZE) ....
+# We downgrade -Werror to warning to avoid broken build:
+IF(MY_COMPILER_IS_GNU AND CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
+  MY_CHECK_CXX_COMPILER_WARNING("error=attributes" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    ADD_COMPILE_FLAGS(
+      ut/ut0test.cc
+      COMPILE_FLAGS ${HAS_WARN_FLAG}
+      )
+  ENDIF()
+ENDIF()
 
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 TARGET_COMPILE_DEFINITIONS(

@@ -551,6 +551,7 @@ CREATE TABLE t2 (num int primary key);
 INSERT INTO t1 VALUES ('notnumber');
 INSERT INTO t2 VALUES (0), (1); 
 
+--skip_if_hypergraph  # Different warnings.
 SELECT * FROM t1, t2 WHERE num=str;
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 
@@ -1077,12 +1078,16 @@ CREATE TABLE t1 (a INT);
 CREATE VIEW v1 AS SELECT CRC32(a) AS C FROM t1;
 
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+--sorted_result
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1;
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1 ORDER BY 1;
+--sorted_result
 SELECT * FROM (SELECT CRC32(a) FROM t1) t2;
 CREATE TABLE t2 SELECT CRC32(a) FROM t1;
 desc t2;
+--sorted_result
 SELECT * FROM v1;
+--sorted_result
 SELECT * FROM (SELECT * FROM v1) x;
 
 DROP TABLE t1, t2;
@@ -2083,3 +2088,58 @@ DO INSERT(1, 1, 1, CAST(1 AS DECIMAL(1,3)));
 --echo # Bug #31798093 RECENT REGRESSION:
 --echo #               ARG_COMPARATOR::COMPARE JUMPING TO INVALID CODE IN MEMORY
 DO CONVERT( NULLIF( @a , 'c' ) USING BINARY);
+
+--echo #
+--echo # Bug #31887870
+--echo # QUERY WITH RPAD FUNCTION USING CHINESE STRING LEADS TO MESSY CODE
+--echo #
+
+CREATE TABLE t1 (
+  id INT NOT NULL,
+  c1 VARCHAR(10)
+);
+
+INSERT INTO t1 VALUES (111,'111');
+
+# E4B8ADE69687 == Zhōngwén
+SELECT
+RPAD(id, 11, _utf8mb4 x'E4B8ADE69687') as rpad_id,
+LPAD(id, 11, _utf8mb4 x'E4B8ADE69687') as lpad_id,
+RPAD(c1, 11, _utf8mb4 x'E4B8ADE69687') as rpad_c1,
+LPAD(c1, 11, _utf8mb4 x'E4B8ADE69687') as lpad_c1
+FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #22523946 GET MESS CODE FOR FUNC INSERT()
+--echo #               WITH STR AS INT CONST AND NEWSTR AS MULTI-BYTE
+--echo #
+
+# E4B8ADE69687 == Zhōngwén
+SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');
+
+--echo # Bug#32096341: ISNULL continuously returns the same value for LOAD_FILE
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug32096341.txt
+CREATE TABLE t1(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES(0);
+--disable_query_log
+eval CREATE PROCEDURE p1()
+SELECT ISNULL(LOAD_FILE("$file")) AS "is null";
+--enable_query_log
+CALL p1();
+--disable_query_log
+eval SELECT * INTO OUTFILE "$file" from t1;
+--enable_query_log
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
+#isable_query_log;
+remove_file $file;
+
+--echo #
+--echo # Bug #32163391 ASSERTION `CRC32_Z(CRC, POS, LENGTH)
+--echo #               < STD::NUMERIC_LIMITS<HA_CHECKSUM>::MAX()' FAILED.
+
+do crc32(char(1.134475e+308));

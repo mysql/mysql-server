@@ -1,7 +1,7 @@
 #ifndef SQL_HASH_JOIN_CHUNK_H_
 #define SQL_HASH_JOIN_CHUNK_H_
 
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stddef.h>
-
-#include "my_alloc.h"
 #include "my_base.h"
-#include "my_inttypes.h"
 #include "my_sys.h"
-#include "sql/hash_join_buffer.h"
+#include "sql/pack_rows.h"
 
 class String;
 
@@ -87,8 +83,7 @@ class HashJoinChunk {
   ///   flag, saying whether the row had a matching row.
   ///
   /// @returns true if the initialization failed.
-  bool Init(const hash_join_buffer::TableCollection &tables,
-            bool uses_match_flags);
+  bool Init(const pack_rows::TableCollection &tables, bool uses_match_flags);
 
   /// @returns the number of rows in this HashJoinChunk
   ha_rows num_rows() const { return m_num_rows; }
@@ -133,7 +128,7 @@ class HashJoinChunk {
  private:
   // A collection of which tables the chunk file holds data from. Used to
   // determine where to read data from, and where to put the data back.
-  hash_join_buffer::TableCollection m_tables;
+  pack_rows::TableCollection m_tables;
 
   // The number of rows in this chunk file.
   ha_rows m_num_rows{0};

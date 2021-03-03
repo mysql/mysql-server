@@ -259,7 +259,16 @@ bool net_realloc(NET *net, size_t length) {
 
 void net_clear(NET *net, bool check_buffer MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
-
+  DBUG_EXECUTE_IF("simulate_bad_field_length_1", {
+    net->pkt_nr = net->compress_pkt_nr = 0;
+    net->write_pos = net->buff;
+    return;
+  });
+  DBUG_EXECUTE_IF("simulate_bad_field_length_2", {
+    net->pkt_nr = net->compress_pkt_nr = 0;
+    net->write_pos = net->buff;
+    return;
+  });
   /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
   DBUG_ASSERT(!check_buffer || (vio_pending(net->vio) <= 1));
 
@@ -547,7 +556,7 @@ static int begin_packet_write_state(NET *net, uchar command,
   } else {
     /* Large query, create the vector and header buffer dynamically. */
     vec = (struct io_vec *)my_malloc(
-        PSI_NOT_INSTRUMENTED, sizeof(struct io_vec) * packet_count * 2 + 1,
+        PSI_NOT_INSTRUMENTED, sizeof(struct io_vec) * (packet_count * 2 + 1),
         MYF(MY_ZEROFILL));
     if (!vec) {
       return 0;

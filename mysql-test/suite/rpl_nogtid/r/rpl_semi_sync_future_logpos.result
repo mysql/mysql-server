@@ -16,7 +16,7 @@ include/stop_slave.inc
 INSERT INTO t1 VALUES(0);
 [connection master1]
 [connection slave]
-CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000002', MASTER_LOG_POS=4, MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='master-bin.000002', SOURCE_LOG_POS=4, SOURCE_AUTO_POSITION=0;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -27,7 +27,7 @@ INSERT INTO t1 VALUES (20);
 include/assert.inc [semi sync master clients should be 0.]
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_LOG_FILE=FILE,  MASTER_LOG_POS= POS, MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE=FILE,  SOURCE_LOG_POS= POS, SOURCE_AUTO_POSITION=0;
 include/start_slave.inc
 [connection master]
 DROP TABLE t1;

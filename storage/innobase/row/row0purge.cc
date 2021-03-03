@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -987,7 +987,7 @@ try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
   /* Disable purging for temp-tables as they are short-lived
-  and no point in re-organzing such short lived tables */
+  and no point in re-organizing such short lived tables */
   if (node->table->is_temporary()) {
     goto close_exit;
   }

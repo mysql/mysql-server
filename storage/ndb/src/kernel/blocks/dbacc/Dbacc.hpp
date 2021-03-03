@@ -25,7 +25,7 @@
 #ifndef DBACC_H
 #define DBACC_H
 
-#if defined (VM_TRACE) && !defined(ACC_SAFE_QUEUE)
+#if (defined (VM_TRACE) || defined(ERROR_INSERT)) && !defined(ACC_SAFE_QUEUE)
 #define ACC_SAFE_QUEUE
 #endif
 
@@ -39,6 +39,9 @@
 #include "signaldata/AccKeyReq.hpp"
 #include "TransientPool.hpp"
 #include "TransientSlotPool.hpp"
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 #define JAM_FILE_ID 344
 
@@ -242,6 +245,21 @@ class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
 
 public:
+  /**
+   * m_is_query_block is set to true for all query threads and false for all
+   * LDM threads.
+   *
+   * m_is_in_query_thread indicates we are executing as a query thread, this
+   * can be false even if m_is_query_block is true during restore operations.
+   * m_ldm_instance_used is set during execution of queries to enable us to
+   * get the operation record from the LDM instance owning the fragment.
+   * This is necessary when finding a locked row and a row that is in the
+   * process of being inserted.
+   */
+  bool m_is_query_block;
+  bool m_is_in_query_thread;
+  Uint32 m_lqh_block;
+  Dbacc *m_ldm_instance_used;
   void prepare_scan_ctx(Uint32 scanPtrI) override;
 
 // State values
@@ -374,7 +392,9 @@ typedef LocalDLCFifoList<Page8_pool, IA_Page8> LocalContainerPageList;
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
 /*         REC  A POINTER TO FRAGMENT RECORD IS SAVED IN ROOTFRAGMENTREC FRAGMENT    */
 /* --------------------------------------------------------------------------------- */
+#define NUM_ACC_FRAGMENT_MUTEXES 4
 struct Fragmentrec {
+  NdbMutex acc_frag_mutex[NUM_ACC_FRAGMENT_MUTEXES];
   Uint32 scan[MAX_PARALLEL_SCANS_PER_FRAG];
   Uint16 activeScanMask;
   union {
@@ -856,7 +876,9 @@ struct Tabrec {
   typedef Ptr<Tabrec> TabrecPtr;
 
 public:
-  Dbacc(Block_context&, Uint32 instanceNumber = 0);
+  Dbacc(Block_context&,
+        Uint32 instanceNumber = 0,
+        Uint32 blockNo = DBACC);
   ~Dbacc() override;
 
   // pointer to TUP instance in this thread
@@ -875,6 +897,10 @@ public:
 private:
   BLOCK_DEFINES(Dbacc);
 
+public:
+  void execACC_LOCKREQ(Signal* signal);
+
+private:
   // Transit signals
   void execDEBUG_SIG(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -891,7 +917,6 @@ private:
   void execNEXT_SCANREQ(Signal* signal);
   void execACC_SCANREQ(Signal* signal);
   void execACC_TO_REQ(Signal* signal);
-  void execACC_LOCKREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
@@ -1039,6 +1064,7 @@ private:
   void increaselistcont(Page8Ptr);
   void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
   void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
+  Uint32 find_key_operation(OperationrecPtr, bool);
   Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*,
                      bool xfrm);
   Uint32 getElement(const AccKeyReq* signal,
@@ -1096,12 +1122,21 @@ private:
   void releaseOpRec();
   void releaseFreeOpRec();
   void releaseOverpage(Page8Ptr ropPageptr);
-  void releasePage(Page8Ptr rpPageptr);
+  void releasePage(Page8Ptr rpPageptr,
+                   FragmentrecPtr fragPtr,
+                   EmulatedJamBuffer *jamBuf);
+  void releasePage_lock(Page8Ptr rpPageptr);
   void seizeDirectory(Signal* signal) const;
   void seizeFragrec();
   void seizeFsConnectRec(Signal* signal) const;
   void seizeFsOpRec(Signal* signal) const;
-  Uint32 seizePage(Page8Ptr& spPageptr, int sub_page_id);
+  Uint32 seizePage(Page8Ptr& spPageptr,
+                   int sub_page_id,
+                   bool allow_use_of_spare_pages,
+                   FragmentrecPtr fragPtr,
+                   EmulatedJamBuffer *jamBuf);
+  Uint32 seizePage_lock(Page8Ptr& spPageptr, int sub_page_id);
+  bool get_lock_information(Dbacc **acc_block, Dblqh** lqh_block);
   void seizeRootfragrec(Signal* signal) const;
   void seizeScanRec();
   void sendSystemerror(int line) const;
@@ -1114,10 +1149,9 @@ private:
   void checkNextFragmentLab(Signal* signal);
   void endofexpLab(Signal* signal);
   void endofshrinkbucketLab(Signal* signal);
-  void sttorrysignalLab(Signal* signal, Uint32 signalkey) const;
   void sendholdconfsignalLab(Signal* signal) const;
-  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
-  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
+  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr);
+  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr);
   void releaseScanLab(Signal* signal);
   void initialiseRecordsLab(Signal* signal, Uint32, Uint32, Uint32);
   void checkNextBucketLab(Signal* signal);
@@ -1135,16 +1169,18 @@ private:
   void debug_lh_vars(const char* where) const {}
 #endif
 
-private:
+public:
   // Variables
 /* --------------------------------------------------------------------------------- */
 /* DIRECTORY                                                                         */
 /* --------------------------------------------------------------------------------- */
+  DynArr256Pool*  directoryPoolPtr;
   DynArr256Pool   directoryPool;
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
 /*         REC  A POINTER TO FRAGMENT RECORD IS SAVED IN ROOTFRAGMENTREC FRAGMENT    */
 /* --------------------------------------------------------------------------------- */
+
   Fragmentrec *fragmentrec;
   FragmentrecPtr fragrecptr;
   Uint32 cfirstfreefrag;
@@ -1152,6 +1188,7 @@ private:
   RSS_OP_COUNTER(cnoOfFreeFragrec);
   RSS_OP_SNAPSHOT(cnoOfFreeFragrec);
 
+private:
 
 /* --------------------------------------------------------------------------------- */
 /* PAGE8                                                                             */
@@ -1228,7 +1265,85 @@ public:
                       Operationrec *opPtrP);
   void execACCKEY_ORD_no_ptr(Signal* signal,
                              Uint32 opPtrI);
+  Uint32 getDBLQH()
+  {
+    return m_lqh_block;
+  }
+
+  bool check_expand_shrink_ongoing(Uint32 fragPtrI);
+  Operationrec* getOperationPtrP(Uint32 opPtrI);
+
+  bool acquire_frag_mutex_get(Fragmentrec *fragPtrP,
+                              OperationrecPtr opPtr)
+  {
+    if (unlikely(m_is_in_query_thread))
+    {
+      LHBits32 hashVal = getElementHash(opPtr);
+      Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Lock(&fragPtrP->acc_frag_mutex[inx]);
+      return true;
+    }
+    return false;
+  }
+  void release_frag_mutex_get(Fragmentrec *fragPtrP,
+                              OperationrecPtr opPtr)
+  {
+    if (unlikely(m_is_in_query_thread))
+    {
+      LHBits32 hashVal = getElementHash(opPtr);
+      Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Unlock(&fragPtrP->acc_frag_mutex[inx]);
+    }
+  }
+  bool acquire_frag_mutex_hash(Fragmentrec *fragPtrP,
+                               OperationrecPtr opPtr)
+  {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
+    {
+      LHBits32 hashVal = getElementHash(opPtr);
+      Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Lock(&fragPtrP->acc_frag_mutex[inx]);
+      return true;
+    }
+    return false;
+  }
+  void release_frag_mutex_hash(Fragmentrec *fragPtrP,
+                               OperationrecPtr opPtr)
+  {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
+    {
+      LHBits32 hashVal = getElementHash(opPtr);
+      Uint32 inx = hashVal.get_bits(NUM_ACC_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Unlock(&fragPtrP->acc_frag_mutex[inx]);
+    }
+  }
+  void acquire_frag_mutex_bucket(Fragmentrec *fragPtrP,
+                                 Uint32 bucket)
+  {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
+    {
+      Uint32 inx = bucket & (NUM_ACC_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Lock(&fragPtrP->acc_frag_mutex[inx]);
+    }
+  }
+  void release_frag_mutex_bucket(Fragmentrec *fragPtrP, Uint32 bucket)
+  {
+    if (qt_likely(globalData.ndbMtQueryThreads > 0))
+    {
+      Uint32 inx = bucket & (NUM_ACC_FRAGMENT_MUTEXES - 1);
+      NdbMutex_Unlock(&fragPtrP->acc_frag_mutex[inx]);
+    }
+  }
 };
+
+inline bool
+Dbacc::check_expand_shrink_ongoing(Uint32 fragPtrI)
+{
+  fragrecptr.i = fragPtrI;
+  ndbrequire(fragrecptr.i < cfragmentsize);
+  ptrAss(fragrecptr, fragmentrec);
+  return fragrecptr.p->expandOrShrinkQueued;
+}
 
 inline void
 Dbacc::release_op_rec(Uint32 opPtrI,
@@ -1715,6 +1830,15 @@ inline bool Dbacc::Page32Lists::haveFreePage8(int sub_page_id) const
   return (list_id_set & nonempty_lists) != 0;
 }
 
+inline
+Dbacc::Operationrec*
+Dbacc::getOperationPtrP(Uint32 opPtrI)
+{
+  OperationrecPtr opPtr;
+  opPtr.i = opPtrI;
+  ndbrequire(oprec_pool.getValidPtr(opPtr));
+  return (Dbacc::Operationrec*)opPtr.p;
+}
 #endif
 
 #endif

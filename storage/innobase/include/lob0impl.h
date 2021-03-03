@@ -777,15 +777,33 @@ struct z_index_page_t {
   static const ulint OFFSET_VERSION = FIL_PAGE_DATA;
   static const ulint LOB_PAGE_DATA = OFFSET_VERSION + 1;
 
+  /** Constructor.
+  @param[in]	mtr     mini transaction context. */
   explicit z_index_page_t(mtr_t *mtr) : m_block(nullptr), m_mtr(mtr) {}
 
+  /** Constructor.
+  @param[in]	block	the buffer block.
+  @param[in]	mtr     mini transaction context.
+  @param[in]	index   the index to which the LOB belongs. */
+  z_index_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
+      : m_block(block), m_mtr(mtr), m_index(index) {}
+
+  /** Constructor.
+  @param[in]	mtr     mini transaction context.
+  @param[in]	index   the index to which the LOB belongs. */
   z_index_page_t(mtr_t *mtr, dict_index_t *index)
-      : m_block(nullptr), m_mtr(mtr), m_index(index) {}
+      : z_index_page_t(nullptr, mtr, index) {}
 
   /** Constructor
   @param[in]	block	the buffer block. */
   explicit z_index_page_t(buf_block_t *block)
-      : m_block(block), m_mtr(nullptr), m_index(nullptr) {}
+      : z_index_page_t(block, nullptr, nullptr) {}
+
+  /** Constructor.
+  @param[in]	block	the buffer block.
+  @param[in]	index   the index to which the LOB belongs. */
+  z_index_page_t(buf_block_t *block, dict_index_t *index)
+      : z_index_page_t(block, nullptr, index) {}
 
   /** Write the space identifier to the page header, without generating
   redo log records.

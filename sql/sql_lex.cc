@@ -472,6 +472,7 @@ void LEX::reset() {
   server_options.reset();
   explain_format = nullptr;
   is_explain_analyze = false;
+  using_hypergraph_optimizer = false;
   is_lex_started = true;
   reset_slave_info.all = false;
   mi.channel = nullptr;
@@ -2564,7 +2565,8 @@ void SELECT_LEX_UNIT::print(const THD *thd, String *str,
 void SELECT_LEX::print_order(const THD *thd, String *str, ORDER *order,
                              enum_query_type query_type) {
   for (; order; order = order->next) {
-    (*order->item)->print_for_order(thd, str, query_type, order->used_alias);
+    unwrap_rollup_group(*order->item)
+        ->print_for_order(thd, str, query_type, order->used_alias);
     if (order->direction == ORDER_DESC) str->append(STRING_WITH_LEN(" desc"));
     if (order->next) str->append(',');
   }
@@ -2741,6 +2743,11 @@ static void print_join(const THD *thd, String *str,
   Table_array tables_to_print(PSI_NOT_INSTRUMENTED);
 
   for (TABLE_LIST *t : *tables) {
+    // The single table added to fake_select_lex has no name;
+    // “from dual” looks slightly better than “from ``”, so drop it.
+    // (The fake_select_lex query is invalid either way.)
+    if (t->alias[0] == '\0') continue;
+
     if (print_const_tables || !t->optimized_away)
       if (tables_to_print.push_back(t)) return; /* purecov: inspected */
   }
@@ -4800,6 +4807,9 @@ void LEX_MASTER_INFO::initialize() {
   privilege_checks_username = privilege_checks_hostname = nullptr;
   require_row_format = -1;
   require_table_primary_key_check = LEX_MI_PK_CHECK_UNCHANGED;
+  assign_gtids_to_anonymous_transactions_type =
+      LEX_MI_ANONYMOUS_TO_GTID_UNCHANGED;
+  assign_gtids_to_anonymous_transactions_manual_uuid = nullptr;
 }
 
 void LEX_MASTER_INFO::set_unspecified() {

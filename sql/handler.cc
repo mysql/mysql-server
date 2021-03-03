@@ -57,6 +57,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"  // MEM_DEFINED_IF_ADDRESSABLE()
 #include "myisam.h"  // TT_FOR_UPGRADE
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
@@ -64,7 +65,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/mysql_transaction.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -1868,7 +1868,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       At execution of XA COMMIT ONE PHASE binlog or slave applier
       reattaches the engine ha_data to THD, previously saved at XA START.
     */
-    if (all && thd->rpl_unflag_detached_engine_ha_data()) {
+    if (all && thd->is_engine_ha_data_detached()) {
       DBUG_PRINT("info", ("query='%s'", thd->query().str));
       DBUG_ASSERT(thd->lex->sql_command == SQLCOM_XA_COMMIT);
       DBUG_ASSERT(
@@ -1943,9 +1943,9 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
       DBUG_ASSERT(!thd->status_var_aggregated);
       thd->status_var.ha_commit_count++;
       ha_info_next = ha_info->next();
-      if (restore_backup_ha_data) reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
+    if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
     trn_ctx->reset_scope(trx_scope);
 
     /*
@@ -1999,7 +1999,7 @@ int ha_rollback_low(THD *thd, bool all) {
       Similarly to the commit case, the binlog or slave applier
       reattaches the engine ha_data to THD.
     */
-    if (all && thd->rpl_unflag_detached_engine_ha_data()) {
+    if (all && thd->is_engine_ha_data_detached()) {
       DBUG_ASSERT(trn_ctx->xid_state()->get_state() != XID_STATE::XA_NOTR ||
                   thd->killed == THD::KILL_CONNECTION);
 
@@ -2018,9 +2018,9 @@ int ha_rollback_low(THD *thd, bool all) {
       DBUG_ASSERT(!thd->status_var_aggregated);
       thd->status_var.ha_rollback_count++;
       ha_info_next = ha_info->next();
-      if (restore_backup_ha_data) reattach_engine_ha_data_to_thd(thd, ht);
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
+    if (restore_backup_ha_data) thd->rpl_reattach_engine_ha_data();
     trn_ctx->reset_scope(trx_scope);
   }
 
@@ -2594,7 +2594,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
 // Prepare HA_CREATE_INFO to be used by ALTER as well as upgrade code.
 void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
-                                                    uint used_fields) {
+                                                    uint64_t used_fields) {
   if (!(used_fields & HA_CREATE_USED_MIN_ROWS)) min_rows = share->min_rows;
 
   if (!(used_fields & HA_CREATE_USED_MAX_ROWS)) max_rows = share->max_rows;
@@ -2645,6 +2645,13 @@ void HA_CREATE_INFO::init_create_options_from_share(const TABLE_SHARE *share,
   if (!(used_fields & HA_CREATE_USED_SECONDARY_ENGINE)) {
     DBUG_ASSERT(secondary_engine.str == nullptr);
     secondary_engine = share->secondary_engine;
+  }
+
+  if (!(used_fields & HA_CREATE_USED_AUTOEXTEND_SIZE)) {
+    /* m_implicit_tablespace_autoextend_size = 0 is a valid value. Hence,
+    we need a mechanism to indicate the value change. */
+    m_implicit_tablespace_autoextend_size = share->autoextend_size;
+    m_implicit_tablespace_autoextend_size_change = false;
   }
 
   if (engine_attribute.str == nullptr)
@@ -7691,10 +7698,14 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
       try {
         if (before_record && after_record) {
           /* capture both images pke */
-          add_pke(table, thd, table->record[0]);
-          add_pke(table, thd, table->record[1]);
+          if (add_pke(table, thd, table->record[0]) ||
+              add_pke(table, thd, table->record[1])) {
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
         } else {
-          add_pke(table, thd, table->record[0]);
+          if (add_pke(table, thd, table->record[0])) {
+            return HA_ERR_RBR_LOGGING_FAILED;
+          }
         }
       } catch (const std::bad_alloc &) {
         my_error(ER_OUT_OF_RESOURCES, MYF(0));

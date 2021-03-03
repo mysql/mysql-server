@@ -1061,23 +1061,10 @@ struct PFS_file_io_stat_row {
 
 /** Row fragment for memory statistics columns. */
 struct PFS_memory_stat_row {
-  PFS_memory_safe_stat m_stat;
+  PFS_memory_monitoring_stat m_stat;
 
   /** Build a row from a memory buffer. */
-  inline void set(const PFS_memory_safe_stat *stat) { m_stat = *stat; }
-
-  /** Build a row from a memory buffer. */
-  inline void set(const PFS_memory_shared_stat *stat) {
-    m_stat.m_used = stat->m_used;
-    m_stat.m_alloc_count = stat->m_alloc_count;
-    m_stat.m_free_count = stat->m_free_count;
-    m_stat.m_alloc_size = stat->m_alloc_size;
-    m_stat.m_free_size = stat->m_free_size;
-    m_stat.m_alloc_count_capacity = stat->m_alloc_count_capacity;
-    m_stat.m_free_count_capacity = stat->m_free_count_capacity;
-    m_stat.m_alloc_size_capacity = stat->m_alloc_size_capacity;
-    m_stat.m_free_size_capacity = stat->m_free_size_capacity;
-  }
+  inline void set(const PFS_memory_monitoring_stat *stat) { m_stat = *stat; }
 
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
@@ -1409,9 +1396,7 @@ class PFS_key_string : public PFS_key_pstring {
                        size_t record_value_length);
 
  private:
-  char m_key_value[SIZE *
-                   SYSTEM_CHARSET_MBMAXLEN];  // FIXME FILENAME_CHARSET_MBMAXLEN
-                                              // for file names
+  char m_key_value[SIZE * FILENAME_CHARSET_MBMAXLEN];
   uint m_key_value_length;
 };
 

@@ -19,8 +19,17 @@ typedef int myf;
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_cond_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_cond_key;
-struct PSI_cond;
+struct PSI_cond : PSI_instr {};
 typedef struct PSI_cond PSI_cond;
 struct PSI_cond_locker;
 typedef struct PSI_cond_locker PSI_cond_locker;
@@ -62,13 +71,6 @@ typedef struct PSI_cond_locker *(*start_cond_wait_v1_t)(
 typedef void (*end_cond_wait_v1_t)(struct PSI_cond_locker *locker, int rc);
 typedef struct PSI_cond_info_v1 PSI_cond_info;
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
-#include "psi_base.h"
-#include "my_psi_config.h"
-static constexpr unsigned PSI_INSTRUMENT_ME = 0;
-static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
-struct PSI_placeholder {
-  int m_placeholder;
-};
 struct PSI_cond_bootstrap {
   void *(*get_interface)(int version);
 };

@@ -423,4 +423,23 @@ char *test_invalid_args_charset(UDF_INIT *initid, UDF_ARGS *args, char *result,
 */
 void test_invalid_args_charset_deinit(UDF_INIT *initid);
 
+/**
+  Verifies that UDF can be executed without providing its init() and deinit()
+  methods. This udf takes an argument and returns the same as result.
+
+  @param [in,out] initid  Return value from xxxx_init
+  @param [in,out] args    Array of arguments
+  @param [out]    result  The result to be returned
+  @param [out]    length  Length of the result
+  @param [out]    is_null Flag indicating if the result vale could be null.
+  @param [out]    error   Flag indicating if UDF execution returned error.
+
+  @retval true    If UDF initialization failed
+  @retval false   Otherwise
+*/
+char *test_args_without_init_deinit_methods(UDF_INIT *initid, UDF_ARGS *args,
+                                            char *result, unsigned long *length,
+                                            unsigned char *is_null,
+                                            unsigned char *error);
+
 #endif  // UDF_EXTENSION_TEST_FUNCTIONS_INCLUDED

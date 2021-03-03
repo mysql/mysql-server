@@ -50,6 +50,8 @@ struct trx_t;
 /** The v5 .cfg writes number of nullable column in table before first instant
  * column. */
 #define IB_EXPORT_CFG_VERSION_V5 5
+/** The v6 .cfg writes the Compression::Type of the table. */
+#define IB_EXPORT_CFG_VERSION_V6 6
 /** Future version used to test that the correct error message is returned. */
 #define IB_EXPORT_CFG_VERSION_V99 99
 

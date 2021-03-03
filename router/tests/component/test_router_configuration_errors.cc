@@ -294,21 +294,27 @@ static const BrokenConfigParams broken_config_params[]{
                  {"routing_strategy", "round-robin"},
              }),
      },
-     "incorrect (invalid TCP port: impossible port number",
+     "in [routing:tests]: '127.0.0.1:99999' is not a valid endpoint",
      ""},
 
     {"routing_bind_address_invalid_address",
+     // '....' should be invalid in all environments as each "label" is 0 chars
+     // which isn't allowed.
+     //
+     // - 512.512.512.512 is not an IPv4 address and will be tried to be
+     //   resolved which may timeout.
+     // - a domainname's label is at least 1-char.
      {
          mysql_harness::ConfigBuilder::build_section(
              "routing:tests",
              {
-                 {"bind_address", "512.512.512.512:3306"},
+                 {"bind_address", "....:3306"},
                  {"destinations", "127.0.0.1:3306"},
                  {"routing_strategy", "round-robin"},
              }),
      },
-     "in [routing:tests]: invalid IP or name in bind_address "
-     "'512.512.512.512:3306'",
+     "in [routing:tests]: '....' in '....:3306' is not a valid IP-address or "
+     "hostname",
      ""},
 
     {"routing_bind_address_is_in_destinations",

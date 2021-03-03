@@ -375,10 +375,10 @@ reset master;
 --connection slave
 replace_result $MASTER_MYPORT MASTER_MYPORT;
 replace_column 2 ###;
-eval change master to
-  master_host='127.0.0.1',
-  master_port=$MASTER_MYPORT,
-  master_user='root';
+eval CHANGE REPLICATION SOURCE to
+  SOURCE_HOST='127.0.0.1',
+  SOURCE_PORT=$MASTER_MYPORT,
+  SOURCE_USER='root';
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=1;
 # to avoid warnings

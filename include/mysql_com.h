@@ -184,6 +184,8 @@
 
 /** Field will not be loaded in secondary engine. */
 #define NOT_SECONDARY_FLAG (1 << 29)
+/** Field is explicitly marked as invisible by the user. */
+#define FIELD_IS_INVISIBLE (1 << 30)
 
 /** @}*/
 
@@ -676,15 +678,6 @@
 #define CLIENT_DEPRECATE_EOF (1UL << 24)
 
 /**
-  Verify server certificate.
-
-  Client only flag.
-
-  @deprecated in favor of --ssl-mode.
-*/
-#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
-
-/**
   The client can handle optional metadata information in the resultset.
 */
 #define CLIENT_OPTIONAL_RESULTSET_METADATA (1UL << 25)
@@ -709,10 +702,38 @@
 #define CLIENT_ZSTD_COMPRESSION_ALGORITHM (1UL << 26)
 
 /**
+  Support optional extension for query parameters into the @ref
+  page_protocol_com_query and @ref page_protocol_com_stmt_execute packets.
+
+  Server
+  ------
+
+  Expects an optional part containing the query parameter set(s). Executes the
+  query for each set of parameters or returns an error if more than 1 set of
+  parameters is sent and the server can't execute it.
+
+  Client
+  ------
+
+  Can send the optional part containing the query parameter set(s).
+*/
+#define CLIENT_QUERY_ATTRIBUTES (1UL << 27)
+
+/**
   This flag will be reserved to extend the 32bit capabilities structure to
   64bits.
 */
 #define CLIENT_CAPABILITY_EXTENSION (1UL << 29)
+
+/**
+  Verify server certificate.
+
+  Client only flag.
+
+  @deprecated in favor of --ssl-mode.
+*/
+#define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
+
 /**
   Don't reset the options after an unsuccessful connect
 
@@ -741,7 +762,7 @@
    CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA |                                     \
    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS | CLIENT_SESSION_TRACK |                \
    CLIENT_DEPRECATE_EOF | CLIENT_OPTIONAL_RESULTSET_METADATA |                 \
-   CLIENT_ZSTD_COMPRESSION_ALGORITHM)
+   CLIENT_ZSTD_COMPRESSION_ALGORITHM | CLIENT_QUERY_ATTRIBUTES)
 
 /**
   Switch off from ::CLIENT_ALL_FLAGS the flags that are optional and

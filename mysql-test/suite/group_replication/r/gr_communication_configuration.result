@@ -92,7 +92,7 @@ ERROR HY000: The START GROUP_REPLICATION command failed as there was an error wh
 SET GLOBAL group_replication_bootstrap_group= 1;
 SET GLOBAL group_replication_local_address= @local_address;
 SET GLOBAL group_replication_group_seeds= "";
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 #######################################################
 #  8. Try start Group Replication on server2 with invalid
 #     invalid group_seeds, start must fail.
@@ -124,7 +124,7 @@ ERROR HY000: The START GROUP_REPLICATION command failed as there was an error wh
 #      succeed.
 SET GLOBAL group_replication_bootstrap_group= 0;
 SET GLOBAL group_replication_local_address= @local_address;
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 #######################################################
 #  12. We must have a group with two members.
 [connection server1]

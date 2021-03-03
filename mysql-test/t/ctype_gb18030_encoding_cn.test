@@ -291,9 +291,12 @@ CREATE TABLE `表一` (c1 CHAR(20), INDEX(c1)) DEFAULT CHARSET = gb18030;
 INSERT INTO `表一` VALUES ('12345678900987654321'), ('一二三四五伍肆叁贰壹'), ('六七八'), ('九十'), ('百'), ('𠻜𠻝𠻞𠻟');
 INSERT INTO `表一` VALUES ('䑂'), ('一䑂二三四'), ('𠀂𫭃');
 
+--sorted_result
 SELECT c1, LENGTH(c1) FROM `表一`;
 
+--sorted_result
 SELECT c1, LPAD(c1, 20, '中') FROM `表一`;
+--sorted_result
 SELECT c1, RPAD(c1, 20, '𤈼') FROM `表一`;
 
 TRUNCATE `表一`;
@@ -307,27 +310,47 @@ SELECT INSTR(c1, '𤈼') FROM `表一`;
 SELECT INSTR(c1, '𠻠') FROM `表一`;
 SELECT INSTR(c1, '䑂') FROM `表一`;
 
+--sorted_result
 SELECT c1, LEFT(c1, 0) FROM `表一`;
+--sorted_result
 SELECT c1, LEFT(c1, 1) FROM `表一`;
+--sorted_result
 SELECT c1, LEFT(c1, 2) FROM `表一`;
+--sorted_result
 SELECT c1, LEFT(c1, 3) FROM `表一`;
+--sorted_result
 SELECT c1, LEFT(c1, 4) FROM `表一`;
+--sorted_result
 SELECT c1, LEFT(c1, 5) FROM `表一`;
+--sorted_result
 SELECT c1, LEFT(c1, 6) FROM `表一`;
+--sorted_result
 SELECT c1, LEFT(c1, 7) FROM `表一`;
 
+--sorted_result
 SELECT c1, RIGHT(c1, 0) FROM `表一`;
+--sorted_result
 SELECT c1, RIGHT(c1, 1) FROM `表一`;
+--sorted_result
 SELECT c1, RIGHT(c1, 2) FROM `表一`;
+--sorted_result
 SELECT c1, RIGHT(c1, 3) FROM `表一`;
+--sorted_result
 SELECT c1, RIGHT(c1, 4) FROM `表一`;
+--sorted_result
 SELECT c1, RIGHT(c1, 5) FROM `表一`;
+--sorted_result
 SELECT c1, RIGHT(c1, 6) FROM `表一`;
+--sorted_result
 SELECT c1, RIGHT(c1, 7) FROM `表一`;
 
+--sorted_result
 SELECT REPLACE(c1, '一', '一一') FROM `表一`;
+--sorted_result
 SELECT REPLACE(c1, '四', '四四') FROM `表一`;
+--sorted_result
 SELECT REPLACE(c1, '𠻠', '𠻠𠻠') FROM `表一`;
+--sorted_result
 SELECT REPLACE(c1, '𤈼', '𤈼𤈼') FROM `表一`;
 
 
@@ -342,11 +365,16 @@ INSERT INTO `表一` VALUES ('𠻞𠻞一䑂二𤈼三𠻟');
 INSERT INTO `表一` VALUES ('𠻞𠻞𠻞一䑂二𤈼三𠻟');
 INSERT INTO `表一` VALUES ('   一䑂二𤈼三𠻟   ');
 
+--sorted_result
 SELECT c1, TRIM(TRAILING '𠻞' FROM c1) FROM `表一`;
+--sorted_result
 SELECT c1, TRIM(LEADING '𠻞' FROM c1) FROM `表一`;
+--sorted_result
 SELECT c1, TRIM(BOTH '𠻞' FROM c1) FROM `表一`;
+--sorted_result
 SELECT c1, TRIM(c1) FROM `表一`;
 
+--sorted_result
 SELECT REVERSE(c1) FROM `表一`;
 
 TRUNCATE `表一`;

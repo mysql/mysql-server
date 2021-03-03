@@ -94,9 +94,9 @@ reset master;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES -p --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -p -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -107,9 +107,9 @@ drop table test.t1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 0 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -179,9 +179,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -198,9 +198,9 @@ show warnings;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -216,9 +216,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -291,9 +291,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -314,9 +314,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 1 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -390,9 +390,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 4 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -413,9 +413,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 2 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 4 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -489,9 +489,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 1 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -512,9 +512,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 3 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 1 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -587,9 +587,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 1 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 1 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -676,9 +676,9 @@ drop table test.t1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 0 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -748,9 +748,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -771,9 +771,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 4 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -850,9 +850,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -925,9 +925,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -948,9 +948,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -1025,9 +1025,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 6 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -1048,9 +1048,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 5 : Expecting 3 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 3 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -1124,9 +1124,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
 --source ndb_binlog_count_event_t1.inc
@@ -1147,9 +1147,9 @@ set global debug=@save_debug;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 7 : Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 0 BLOB events for t1 (TODO clean up BLOB events always)   
 --source ndb_binlog_count_event_t1.inc
@@ -1223,9 +1223,9 @@ connection server1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Case 8 : Expecting 4 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 4 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc
@@ -1248,9 +1248,9 @@ drop table test.t1;
 
 if ($SHOW_DETAIL)
 {
-  --exec $NDB_SHOW_TABLES --no-defaults -t2
+  --exec $NDB_SHOW_TABLES -t2
   --exec echo Expecting 0 BLOB events for t1 >> $MYSQLTEST_VARDIR/tmp.dat
-  --exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0
+  --exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0
 }
 --echo Expecting 0 BLOB events for t1    
 --source ndb_binlog_count_event_t1.inc

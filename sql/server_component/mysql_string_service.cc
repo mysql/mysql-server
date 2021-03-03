@@ -46,14 +46,6 @@ struct my_h_string_imp {};
 
 struct my_h_string_iterator_imp {};
 
-/**
-  Creates a new instance of string object
-
-  @param out_string holds pointer to newly created string object.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::create, (my_h_string * out_string)) {
   try {
     String *res = new String[1];
@@ -65,16 +57,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::create, (my_h_string * out_string)) {
   return true;
 }
 
-/**
-  Convert a String pointed by handle to lower case. Conversion depends on the
-  client character set info
-
-  @param out_string Holds the converted lower case string object.
-  @param in_string Pointer to string object to be converted.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::tolower,
                    (my_h_string * out_string, my_h_string in_string)) {
   try {
@@ -100,16 +82,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::tolower,
   return true;
 }
 
-/**
-  Convert a String pointed by handle to upper case. Conversion depends on the
-  client character set info
-
-  @param out_string Holds the converted lower case string object.
-  @param in_string Pointer to string object to be converted.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
                    (my_h_string * out_string, my_h_string in_string)) {
   try {
@@ -135,22 +107,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
   return true;
 }
 
-/**
-  Allocates a string object and converts the character buffer to string
-  and just sets the specified charset_name in the string object. It does
-  not performs the conversion of buffer into the specified character set.
-  Caller must free the allocated string by calling destroy() api.
-
-  @param [out] out_string Pointer to string object handle to set new string
-    to.
-  @param in_buffer Pointer to the buffer with data to be interpreted as
-    string.
-  @param length Length of the buffer to copy in bytes, not in character count.
-  @param charset_name Handle to charset that is used for convertion.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
                    (my_h_string * out_string, const char *in_buffer,
                     uint64 length, const char *charset_name)) {
@@ -171,20 +127,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
   return true;
 }
 
-/**
-  converts the mysql_string to the character buffer specified by
-  charset_name parameter.
-
-  @param [out] out_buffer Pointer to char buffer used to hold the converted
-    string.
-  @param in_string pointer to string handle which will be converted to char
-    data.
-  @param length Length of the buffer to copy in bytes, not in character count.
-  @param charset_name Handle to charset that is used for convertion.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
                    (my_h_string in_string, char *out_buffer, uint64 length,
                     const char *charset_name)) {
@@ -205,14 +147,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
   return true;
 }
 
-/**
-  Destroys specified string object and data contained by it.
-
-  @param string String object handle to release.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_METHOD(void, mysql_string_imp::destroy, (my_h_string string)) {
   try {
     String *str = reinterpret_cast<String *>(string);
@@ -224,17 +158,6 @@ DEFINE_METHOD(void, mysql_string_imp::destroy, (my_h_string string)) {
   }
 }
 
-/**
-  Gets character code of character on specified index position in
-  string to a specified buffer.
-
-  @param string String object handle to get character from.
-  @param index Index, position of character to query.
-  @param [out] out_char Pointer to long value to store character to.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::get_char,
                    (my_h_string string, uint index, ulong *out_char)) {
   try {
@@ -255,15 +178,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_char,
   return true;
 }
 
-/**
-  Gets length of specified string expressed as number of characters.
-
-  @param string String object handle to get length of.
-  @param [out] out_length Pointer to 32bit value to store length of string to.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::get_char_length,
                    (my_h_string string, uint *out_length)) {
   try {
@@ -277,17 +191,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_char_length,
   return true;
 }
 
-/**
-  Gets byte code of string on specified index position in
-  string to a specified 32-bit buffer.
-
-  @param string String object handle to get character from.
-  @param index Index, position of character to query.
-  @param [out] out_char Pointer to 32bit value to store byte to.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::get_byte,
                    (my_h_string string, uint index, uint *out_char)) {
   try {
@@ -304,15 +207,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_byte,
   return true;
 }
 
-/**
-  Gets length of specified string expressed as number of bytes.
-
-  @param string String object handle to get length of.
-  @param [out] out_length Pointer to 32bit value to store length of string to.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::get_byte_length,
                    (my_h_string string, uint *out_length)) {
   try {
@@ -326,17 +220,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_byte_length,
   return true;
 }
 
-/**
-  Creates an iterator for a specified string to allow iteration through all
-    characters in the string.
-
-  @param string String object handle to get iterator to.
-  @param [out] out_iterator Pointer to string iterator handle to store result
-    object to.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::iterator_create,
                    (my_h_string string, my_h_string_iterator *out_iterator)) {
   try {
@@ -356,17 +239,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_create,
   return true;
 }
 
-/**
-  Retrieves character code at current iterator position and advances the
-    iterator.
-
-  @param iter String iterator object handle to advance.
-  @param [out] out_char Pointer to 32bit value to store character to. May be
-    NULL to omit retrieval of character and just advance the iterator.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
                    (my_h_string_iterator iter, int *out_char)) {
   try {
@@ -394,14 +266,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
   return true;
 }
 
-/**
-  Releases the string iterator object specified.
-
-  @param iter String iterator object handle te release.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_METHOD(void, mysql_string_imp::iterator_destroy,
               (my_h_string_iterator iter)) {
   try {
@@ -412,17 +276,6 @@ DEFINE_METHOD(void, mysql_string_imp::iterator_destroy,
   }
 }
 
-/**
-  Checks if character on current position the iterator points to is an upper
-  case.
-
-  @param iter String iterator object handle to advance.
-  @param [out] out Pointer to bool value to store if character is an upper
-    case.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::is_upper,
                    (my_h_string_iterator iter, bool *out)) {
   try {
@@ -436,17 +289,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_upper,
   return true;
 }
 
-/**
-  Checks if character on current position the iterator points to is a lower
-  case.
-
-  @param iter String iterator object handle to advance.
-  @param [out] out Pointer to bool value to store if character is a lower
-    case.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::is_lower,
                    (my_h_string_iterator iter, bool *out)) {
   try {
@@ -460,15 +302,6 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_lower,
   return true;
 }
 
-/**
-  Checks if character on current position the iterator points to is a digit.
-
-  @param iter String iterator object handle to advance.
-  @param [out] out Pointer to bool value to store if character is a digit.
-  @return Status of performed operation
-  @retval false success
-  @retval true failure
-*/
 DEFINE_BOOL_METHOD(mysql_string_imp::is_digit,
                    (my_h_string_iterator iter, bool *out)) {
   try {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,15 +87,15 @@ print(const char * filename, const Sysfile * sysfile){
 	 << " seq: " << hex << sysfile->m_restart_seq
 	 << " -----" << endl;
   ndbout << "Initial start ongoing: " 
-	 << Sysfile::getInitialStartOngoing(sysfile->systemRestartBits) 
+         << sysfile->getInitialStartOngoing()
 	 << ", ";
 
   ndbout << "Restart Ongoing: "
-	 << Sysfile::getRestartOngoing(sysfile->systemRestartBits) 
+         << sysfile->getRestartOngoing()
 	 << ", ";
 
   ndbout << "LCP Ongoing: "
-	 << Sysfile::getLCPOngoing(sysfile->systemRestartBits) 
+         << sysfile->getLCPOngoing()
 	 << endl;
 
 
@@ -117,16 +117,18 @@ print(const char * filename, const Sysfile * sysfile){
   ndbout << " -- " << endl;
 
   ndbout << "-- Node status: --" << endl;
-  for(int i = 1; i < MAX_NDB_NODES; i++){
-    if(g_all || Sysfile::getNodeStatus(i, sysfile->nodeStatus) !=Sysfile::NS_NotDefined){
+  for (int i = 1; i < MAX_NDB_NODES; i++)
+  {
+    if (g_all || sysfile->getNodeStatus(i) != Sysfile::NS_NotDefined)
+    {
       sprintf(buf, 
 	      "Node %.2d -- %s GCP: %d, NodeGroup: %d, TakeOverNode: %d, "
 	      "LCP Ongoing: %s",
 	      i, 
-	      getNSString(Sysfile::getNodeStatus(i,sysfile->nodeStatus)),
+              getNSString(sysfile->getNodeStatus(i)),
 	      sysfile->lastCompletedGCI[i],
-	      Sysfile::getNodeGroup(i, sysfile->nodeGroups),
-	      Sysfile::getTakeOverNode(i, sysfile->takeOver),
+              sysfile->getNodeGroup(i),
+              sysfile->getTakeOverNode(i),
 	      BitmaskImpl::get(NdbNodeBitmask::Size, 
 			       sysfile->lcpActive, i) != 0 ? "yes" : "no");
       ndbout << buf << endl;
@@ -177,7 +179,20 @@ int main(int argc, char** argv)
       continue;
     }
     
-    print(filename, (Sysfile *)&buf[0]);
+    Sysfile sysfile;
+    Uint32 size = sz / 4;
+    int ret = sysfile.unpack_sysfile_format_v2(buf, &size);
+    if (ret != 0)
+    {
+      ret = sysfile.unpack_sysfile_format_v1(buf, &size);
+    }
+    if (ret != 0)
+    {
+      ndbout << "Failure while parsing file" << endl;
+      delete [] buf;
+      continue;
+    }
+    print(filename, &sysfile);
     delete [] buf;
     continue;
   }

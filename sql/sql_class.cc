@@ -448,7 +448,10 @@ THD::THD(bool enable_plugins)
       m_stmt_da(&main_da),
       duplicate_slave_id(false),
       is_a_srv_session_thd(false),
-      m_is_plugin_fake_ddl(false) {
+      m_is_plugin_fake_ddl(false),
+      m_inside_system_variable_global_update(false),
+      bind_parameter_values(nullptr),
+      bind_parameter_values_count(0) {
   main_lex->reset();
   set_psi(nullptr);
   mdl_context.init(this);
@@ -2573,7 +2576,7 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership(bool claim) {
+void THD::claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   /*
     Ownership of the THD object is transfered to this thread.
@@ -2611,8 +2614,8 @@ void THD::rpl_detach_engine_ha_data() {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
 
-  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
-  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached());
+  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached());
 
   if (rli) rli->detach_engine_ha_data(this);
 }
@@ -2621,16 +2624,16 @@ void THD::rpl_reattach_engine_ha_data() {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
 
-  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
-  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_fake || rli_fake->is_engine_ha_data_detached());
+  DBUG_ASSERT(!rli_slave || rli_slave->is_engine_ha_data_detached());
 
   if (rli) rli->reattach_engine_ha_data(this);
 }
 
-bool THD::rpl_unflag_detached_engine_ha_data() const {
+bool THD::is_engine_ha_data_detached() const {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : nullptr);
-  return rli ? rli->unflag_detached_engine_ha_data() : false;
+  return rli ? rli->is_engine_ha_data_detached() : false;
 }
 
 bool THD::is_current_stmt_binlog_disabled() const {
@@ -2679,17 +2682,6 @@ bool THD::notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key,
 void THD::notify_hton_post_release_exclusive(const MDL_key *mdl_key) {
   bool unused_arg;
   ha_notify_exclusive_mdl(this, mdl_key, HA_NOTIFY_POST_EVENT, &unused_arg);
-}
-
-void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton) {
-  DBUG_TRACE;
-  if (hton->replace_native_transaction_in_thd) {
-    /* restore the saved original engine transaction's link with thd */
-    void **trx_backup = &thd->get_ha_data(hton->slot)->ha_ptr_backup;
-
-    hton->replace_native_transaction_in_thd(thd, *trx_backup, nullptr);
-    *trx_backup = nullptr;
-  }
 }
 
 /**

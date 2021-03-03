@@ -68,12 +68,17 @@ static Json_dom_ptr parse_json(const char *json_text) {
 }
 
 TEST_F(JsonBinaryTest, BasicTest) {
+  std::string std_string;
   Json_dom_ptr dom = parse_json("false");
   String buf;
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
   Value val1 = parse_binary(buf.ptr(), buf.length());
   EXPECT_TRUE(val1.is_valid());
   EXPECT_EQ(Value::LITERAL_FALSE, val1.type());
+  EXPECT_FALSE(val1.to_std_string(&std_string));
+  EXPECT_STREQ("false", std_string.c_str());
+  EXPECT_FALSE(val1.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("false", std_string.c_str());
 
   dom = parse_json("-123");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -81,6 +86,10 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_TRUE(val2.is_valid());
   EXPECT_EQ(Value::INT, val2.type());
   EXPECT_EQ(-123LL, val2.get_int64());
+  EXPECT_FALSE(val2.to_std_string(&std_string));
+  EXPECT_STREQ("-123", std_string.c_str());
+  EXPECT_FALSE(val2.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("-123", std_string.c_str());
 
   dom = parse_json("3.14");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -116,6 +125,10 @@ TEST_F(JsonBinaryTest, BasicTest) {
     EXPECT_EQ(i + 1, v.get_int64());
   }
   EXPECT_EQ(Value::ERROR, val6.element(3).type());
+  EXPECT_FALSE(val6.to_std_string(&std_string));
+  EXPECT_STREQ("[1, 2, 3]", std_string.c_str());
+  EXPECT_FALSE(val6.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("[\n  1,\n  2,\n  3\n]", std_string.c_str());
 
   dom = parse_json("[ 1, [ \"a\", [ 3.14 ] ] ]");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -149,6 +162,8 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_TRUE(v7_5.is_valid());
   EXPECT_EQ(Value::DOUBLE, v7_5.type());
   EXPECT_EQ(3.14, v7_5.get_double());
+  EXPECT_FALSE(val7.to_std_string(&std_string));
+  EXPECT_STREQ("[1, [\"a\", [3.14]]]", std_string.c_str());
 
   dom = parse_json("{\"key\" : \"val\"}");
   EXPECT_FALSE(serialize(thd(), dom.get(), &buf));
@@ -167,6 +182,8 @@ TEST_F(JsonBinaryTest, BasicTest) {
   EXPECT_EQ("val", get_string(val8_v));
   EXPECT_EQ(Value::ERROR, val8.key(1).type());
   EXPECT_EQ(Value::ERROR, val8.element(1).type());
+  EXPECT_FALSE(val8.to_pretty_std_string(&std_string));
+  EXPECT_STREQ("{\n  \"key\": \"val\"\n}", std_string.c_str());
 
   Value v8_v1 = val8.lookup("key");
   EXPECT_EQ(Value::STRING, v8_v1.type());

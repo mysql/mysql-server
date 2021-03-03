@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -66,6 +66,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dd/types/tablespace.h"
 #include "dict0dd.h"
+#include "mysqld.h"
+#include "sql/dd/dictionary.h"
 #include "sql_backup_lock.h"
 #include "sql_thd_internal_api.h"
 #include "thd_raii.h"
@@ -74,6 +76,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** DDL records for tablespace (un)encryption. */
 std::vector<DDL_Record *> ts_encrypt_ddl_records;
+
+#ifdef UNIV_DEBUG
+std::vector<space_id_t> flag_mismatch_spaces;
+#endif
 
 /** Group of pages to be marked dirty together during (un)encryption. */
 #define PAGE_GROUP_SIZE 1
@@ -1015,22 +1021,9 @@ bool fsp_header_dict_get_server_version(uint *version) {
   return (false);
 }
 
-/** Initializes the space header of a new created space and creates also the
-insert buffer tree root if space == 0.
-@param[in]	space_id	Space id
-@param[in]	size		Current size in blocks
-@param[in,out]	mtr		Mini-transaction
-@param[in]	is_boot		If it's for bootstrap
-@return	true on success, otherwise false. */
 bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
                      bool is_boot) {
-  fsp_header_t *header;
-  buf_block_t *block;
-  page_t *page;
-
-  ut_ad(mtr);
-
-  fil_space_t *space = fil_space_get(space_id);
+  auto space = fil_space_get(space_id);
   ut_ad(space != nullptr);
 
   mtr_x_lock_space(space, mtr);
@@ -1038,17 +1031,23 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   const page_id_t page_id(space_id, 0);
   const page_size_t page_size(space->flags);
 
-  block = buf_page_create(page_id, page_size, RW_SX_LATCH, mtr);
+  auto block = buf_page_create(page_id, page_size, RW_SX_LATCH, mtr);
   buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
   space->size_in_header = size;
   space->free_len = 0;
   space->free_limit = 0;
+  space->autoextend_size_in_bytes = 0;
 
   /* The prior contents of the file page should be ignored */
 
   fsp_init_file_page(block, mtr);
-  page = buf_block_get_frame(block);
+
+  auto page = buf_block_get_frame(block);
+
+  /* This page was just created or returned by the buffer pool - it can't be
+  stale. */
+  ut_ad(block->page.get_space() != nullptr && !block->page.was_stale());
 
   mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_TYPE_FSP_HDR, MLOG_2BYTES,
                    mtr);
@@ -1058,7 +1057,7 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   mlog_write_ulint(page + FIL_PAGE_SPACE_VERSION,
                    DD_SPACE_CURRENT_SPACE_VERSION, MLOG_4BYTES, mtr);
 
-  header = FSP_HEADER_OFFSET + page;
+  auto header = FSP_HEADER_OFFSET + page;
 
   mlog_write_ulint(header + FSP_SPACE_ID, space_id, MLOG_4BYTES, mtr);
   mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
@@ -1083,10 +1082,12 @@ bool fsp_header_init(space_id_t space_id, page_no_t size, mtr_t *mtr,
   /* For encryption tablespace, we need to save the encryption
   info to the page 0. */
   if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    ulint offset = fsp_header_get_encryption_offset(page_size);
+    auto offset = fsp_header_get_encryption_offset(page_size);
     byte encryption_info[Encryption::INFO_SIZE];
 
-    if (offset == 0) return (false);
+    if (offset == 0) {
+      return (false);
+    }
 
     if (!Encryption::fill_encryption_info(space->encryption_key,
                                           space->encryption_iv, encryption_info,
@@ -1309,18 +1310,54 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
     size_increase = srv_tmp_space.get_increment();
 
   } else {
-    page_no_t extent_pages = fsp_get_extent_size_in_pages(page_size);
-    if (size < extent_pages) {
-      /* Let us first extend the file to extent_size */
-      if (!fsp_try_extend_data_file_with_pages(space, extent_pages - 1, header,
-                                               mtr)) {
-        return false;
+    /* Check if the tablespace supports autoextend_size */
+    page_no_t autoextend_size_pages =
+        space->autoextend_size_in_bytes / page_size.physical();
+    if (autoextend_size_pages > 0) {
+      ut_ad((autoextend_size_pages % fsp_get_extent_size_in_pages(page_size)) ==
+            0);
+
+      /* If the current size is not a multiple of autoextend_size, allocate just
+      enough to make the file size a multiple of autoextend_size. */
+      if ((size % autoextend_size_pages) > 0) {
+        size_increase = autoextend_size_pages - (size % autoextend_size_pages);
+      } else {
+        size_increase = autoextend_size_pages;
+      }
+    } else {
+      page_no_t extent_pages = fsp_get_extent_size_in_pages(page_size);
+      if (size < extent_pages) {
+        /* Let us first extend the file to extent_size */
+        if (!fsp_try_extend_data_file_with_pages(space, extent_pages - 1,
+                                                 header, mtr)) {
+          return false;
+        }
+
+        size = extent_pages;
       }
 
-      size = extent_pages;
+      size_increase = fsp_get_pages_to_extend_ibd(page_size, size);
     }
 
-    size_increase = fsp_get_pages_to_extend_ibd(page_size, size);
+    /* There is an additional algorithm for extending an undo tablespace. */
+    if (fsp_is_undo_tablespace(space->id)) {
+      if (space->m_last_extended.elapsed() < 100) {
+        /* Aggressive Growth: increase the extend amount. */
+        if (space->m_undo_extend < (16 * INITIAL_UNDO_SPACE_SIZE_IN_PAGES)) {
+          space->m_undo_extend *= 2;
+        }
+      } else if (space->m_undo_extend > INITIAL_UNDO_SPACE_SIZE_IN_PAGES) {
+        /* No longer Aggressive Growth: decrease the extend amount. */
+        space->m_undo_extend /= 2;
+      }
+
+      space->m_last_extended.reset();
+
+      /* Use whichever increases the file size the most. */
+      size_increase = std::max(size_increase, space->m_undo_extend);
+    }
+
+    DBUG_EXECUTE_IF("fsp_crash_before_space_extend", DBUG_SUICIDE(););
   }
 
   if (size_increase == 0) {
@@ -1476,6 +1513,8 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
         fsp_init_file_page(block, mtr);
         mlog_write_ulint(buf_block_get_frame(block) + FIL_PAGE_TYPE,
                          FIL_PAGE_TYPE_XDES, MLOG_2BYTES, mtr);
+
+        ut_a(block->page.get_space() != nullptr && !block->page.was_stale());
       }
 
       /* Initialize the ibuf bitmap page in a separate
@@ -1499,6 +1538,8 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
         buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
         fsp_init_file_page(block, &ibuf_mtr);
+
+        ut_a(block->page.get_space() != nullptr && !block->page.was_stale());
 
         ibuf_bitmap_page_init(block, &ibuf_mtr);
 
@@ -3035,7 +3076,12 @@ static bool fsp_reserve_free_pages(fil_space_t *space,
 
   ut_a(!fsp_is_system_tablespace(space->id));
   ut_a(!fsp_is_global_temporary(space->id));
-  ut_a(size < FSP_EXTENT_SIZE);
+
+  const page_size_t page_size(space->flags);
+
+  ut_a(size < FSP_EXTENT_SIZE ||
+       (space->autoextend_size_in_bytes > 0 &&
+        (size * page_size.physical()) <= space->autoextend_size_in_bytes));
 
   descr = xdes_get_descriptor_with_space_hdr(space_header, space->id, 0, mtr);
   page_no_t n_used = xdes_get_n_used(descr, mtr);
@@ -3113,7 +3159,28 @@ try_again:
   size = mach_read_from_4(space_header + FSP_SIZE);
   ut_ad(size == space->size_in_header);
 
-  if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
+  if (space->autoextend_size_in_bytes > 0) {
+    page_no_t autoextend_size_pages =
+        space->autoextend_size_in_bytes / page_size.physical();
+
+    /* If the tablespace is smaller than the autoextend_size, extend it first
+    to make the size same as autoextend_size. */
+    if (size < autoextend_size_pages) {
+      goto try_to_extend;
+    }
+
+    if (size == autoextend_size_pages) {
+      /* Get the number of used pages */
+      xdes_t *descr =
+          xdes_get_descriptor_with_space_hdr(space_header, space->id, 0, mtr);
+      page_no_t n_used = xdes_get_n_used(descr, mtr);
+      if (n_used < autoextend_size_pages &&
+          n_pages < (autoextend_size_pages - (FSP_EXTENT_SIZE / 2))) {
+        *n_reserved = 0;
+        return fsp_reserve_free_pages(space, space_header, size, mtr, n_pages);
+      }
+    }
+  } else if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
     /* Use different rules for small single-table tablespaces */
     *n_reserved = 0;
     bool success =
@@ -4128,131 +4195,177 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
 #endif
 }
 
+/** Get the encryption progress by reading header page.
+@param[in]	space		tablespace
+@param[out]	operation	operation which was being performed */
+static uint32_t get_encryption_progress(fil_space_t *space, byte &operation) {
+  mtr_t mtr;
+
+  mtr_start(&mtr);
+  /* Open page 0 */
+  page_size_t pageSize(space->flags);
+  page_id_t page_id(space->id, 0);
+  buf_block_t *block =
+      buf_page_get_gen(page_id, pageSize, RW_X_LATCH, nullptr,
+                       Page_fetch::NORMAL, __FILE__, __LINE__, &mtr);
+
+  ut_ad(block != nullptr);
+
+  page_t *page = buf_block_get_frame(block);
+
+  /* Get the offset of Encryption progress information */
+  ulint offset = fsp_header_get_encryption_progress_offset(pageSize);
+
+  /* Read operation type (1 byte) */
+  operation = mach_read_from_1(page + offset);
+
+  /* Read maximum pages (4 byte) */
+  uint32_t progress =
+      mach_read_from_4(page + offset + Encryption::OPERATION_INFO_SIZE);
+  mtr_commit(&mtr);
+
+  return progress;
+}
+
+static dberr_t init_before_encrypt_processing(fil_space_t *space,
+                                              space_id_t space_id) {
+  dberr_t err = DB_SUCCESS;
+
+  /* Fill key, iv and prepare encryption_info to be written in page 0 */
+  byte encryption_info[Encryption::INFO_SIZE];
+  byte key[Encryption::KEY_LEN];
+  byte iv[Encryption::KEY_LEN];
+
+  memset(encryption_info, 0, Encryption::INFO_SIZE);
+  Encryption::random_value(key);
+  Encryption::random_value(iv);
+
+  /* Prepare encrypted encryption information to be written on page 0. */
+  if (!Encryption::fill_encryption_info(key, iv, encryption_info, false,
+                                        true)) {
+    ut_ad(false);
+  }
+
+  /* Write Encryption information and space flags now on page 0
+  NOTE : Not modifying space->flags as of now, because we want to persist
+  the changes on disk and then modify in memory flags. */
+  mtr_t mtr;
+  mtr_start(&mtr);
+  if (!fsp_header_write_encryption(space_id,
+                                   space->flags | FSP_FLAGS_MASK_ENCRYPTION,
+                                   encryption_info, true, false, &mtr)) {
+    ut_ad(false);
+  }
+
+  /* Write operation type and progress (0 now) on page 0 */
+  fsp_header_write_encryption_progress(
+      space_id, space->flags, 0, Encryption::ENCRYPT_IN_PROGRESS, true, &mtr);
+  mtr_commit(&mtr);
+
+  /* Set encryption for tablespace */
+  rw_lock_x_lock(&space->latch);
+  err = fil_set_encryption(space_id, Encryption::AES, key, iv);
+  rw_lock_x_unlock(&space->latch);
+
+  if (err != DB_SUCCESS) {
+    ut_ad(false);
+    return err;
+  }
+
+  /* Make sure encryption information is persisted on disk. Following scenario:
+  [1] Encryption key is written on page 0 but Page 0 is not flushed.
+  [2] page P is encrypted with K1 and flushed on disk.
+  [3] checkpoint hasn't reached [1] yet and has REDO for P before [1].
+  [4] Server crashed. During recovery REDO scan batch REDO [1] is not reached.
+  [5] Although REDO for P is to be discarded, but to confirm that page LSN is
+      to be checked, thus  P is read from disk. ERROR. */
+  buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
+                                false);
+
+  /* Set encryption operation in progress flag */
+  space->encryption_op_in_progress = ENCRYPTION;
+
+  /* Update In-mem Encryption flag for tablespace */
+  fsp_flags_set_encryption(space->flags);
+
+  return err;
+}
+
+static dberr_t init_before_decrypt_processing(fil_space_t *space,
+                                              space_id_t space_id) {
+  dberr_t err = DB_SUCCESS;
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+  /* Write operation type and progress (0 now) on page 0 */
+  if (!fsp_header_write_encryption_progress(space_id, space->flags, 0,
+                                            Encryption::DECRYPT_IN_PROGRESS,
+                                            true, &mtr)) {
+    ut_ad(false);
+    mtr_commit(&mtr);
+    return DB_ERROR;
+  }
+
+  mtr_commit(&mtr);
+
+  /* Set encryption operation in progress flag */
+  space->encryption_op_in_progress = DECRYPTION;
+
+  /* Update In-mem Encryption flag for tablespace */
+  fsp_flags_unset_encryption(space->flags);
+
+  /* Don't erase Encryption info from page 0 yet */
+
+  return err;
+}
+
+static inline dberr_t init_before_processing(fil_space_t *space,
+                                             space_id_t space_id,
+                                             bool to_encrypt) {
+  /* After following call, following would have been done
+  - For encryption, In-mem encryption information set for tablesapace.
+  - For encryption, encryption Info and space updated flags write to page 0.
+  - In-mem space flags update.
+  - Page 0 update to indicate operation type. */
+
+  return (to_encrypt ? init_before_encrypt_processing(space, space_id)
+                     : init_before_decrypt_processing(space, space_id));
+}
+
 /** Encrypt/Unencrypt a tablespace.
 @param[in]	thd		current thread
 @param[in]	space_id	Tablespace id
-@param[in]	from_page	page id from where operation to be done
-@param[in]	to_encrypt	true if to encrypt, false if to unencrypt
-@param[in]	in_recovery	true if its called after recovery
+@param[in]	to_encrypt	true if to encrypt, false if to decrypt
 @param[in,out]	dd_space_in	dd tablespace object
 @return 0 for success, otherwise error code */
 dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
-                                     page_no_t from_page, bool to_encrypt,
-                                     bool in_recovery, void *dd_space_in) {
+                                     bool to_encrypt, void *dd_space_in) {
   dberr_t err = DB_SUCCESS;
   fil_space_t *space = fil_space_get(space_id);
-  uint32_t space_flags = 0;
-  page_no_t total_pages = 0;
   dd::Tablespace *dd_space = reinterpret_cast<dd::Tablespace *>(dd_space_in);
-  byte operation_type = 0;
-  byte encryption_info[Encryption::INFO_SIZE];
-  memset(encryption_info, 0, Encryption::INFO_SIZE);
-  mtr_t mtr;
 
   DBUG_TRACE;
 
-  /* Page 0 is never encrypted */
-  ut_ad(from_page != 0);
+  /* Make an entry in DDL LOG for this tablespace. If an entry for tablespace
+  exists then remove that entry and insert a new one. */
+  encryption_op_type op_type_ddl_log = (to_encrypt) ? ENCRYPTION : DECRYPTION;
+  DDL_Record *old_ddl_rec = log_ddl->find_alter_encrypt_record(space_id);
+  if (DB_SUCCESS != log_ddl->write_alter_encrypt_space_log(
+                        space_id, op_type_ddl_log, old_ddl_rec)) {
+    ib::error(ER_IB_MSG_1283) << "Couldn't write DDL LOG for " << space_id;
+    return DB_ERROR;
+  }
 
-  operation_type |= (to_encrypt) ? Encryption::ENCRYPT_IN_PROGRESS
-                                 : Encryption::DECRYPT_IN_PROGRESS;
+  DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_after_ddl_entry",
+                  DBUG_SUICIDE(););
 
-  if (!in_recovery) { /* NOT IN RECOVERY */
-    ut_ad(space->encryption_op_in_progress == NONE);
-    if (to_encrypt) {
-      /* Assert that tablespace is not encrypted */
-      ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
+  page_no_t from_page = 1;
+  bool initialize = true;
 
-      /* Fill key, iv and prepare encryption_info to be written in page 0 */
-      byte key[Encryption::KEY_LEN];
-      byte iv[Encryption::KEY_LEN];
-
-      Encryption::random_value(key);
-      Encryption::random_value(iv);
-
-      /* Prepare encrypted encryption information to be written on page 0. */
-      if (!Encryption::fill_encryption_info(key, iv, encryption_info, false,
-                                            true)) {
-        ut_ad(0);
-      }
-
-      /* Write Encryption information and space flags now on page 0
-      NOTE : Not modifying space->flags as of now, because we want to persist
-      the changes on disk and then modify in memory flags. */
-      mtr_start(&mtr);
-      if (!fsp_header_write_encryption(space_id,
-                                       space->flags | FSP_FLAGS_MASK_ENCRYPTION,
-                                       encryption_info, true, false, &mtr)) {
-        ut_ad(0);
-      }
-
-      /* Write on page 0
-              - Operation type (Encryption/Unencryption)
-              - Write (Un)Encryption progress (0 now) */
-      fsp_header_write_encryption_progress(space_id, space->flags, 0,
-                                           operation_type, true, &mtr);
-      mtr_commit(&mtr);
-
-      /* Make sure REDO logs are flushed till this point */
-      log_buffer_flush_to_disk();
-
-      /* As DMLs are allowed in parallel, pass false for 'strict' */
-      buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
-                                    false);
-
-      /* Set encryption for tablespace */
-      rw_lock_x_lock(&space->latch);
-      err = fil_set_encryption(space_id, Encryption::AES, key, iv);
-      rw_lock_x_unlock(&space->latch);
-      ut_ad(err == DB_SUCCESS);
-
-      /* Set encryption operation in progress flag */
-      space->encryption_op_in_progress = ENCRYPTION;
-
-      /* Update Encryption flag for tablespace */
-      fsp_flags_set_encryption(space->flags);
-    } else {
-      /* Assert that tablespace is encrypted */
-      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-      mtr_start(&mtr);
-      /* Write on page 0
-              - Operation type (Encryption/Unencryption)
-              - Write (Un)Encryption progress (0 now) */
-      fsp_header_write_encryption_progress(space_id, space->flags, 0,
-                                           operation_type, true, &mtr);
-      mtr_commit(&mtr);
-
-      /* Make sure REDO logs are flushed till this point */
-      log_buffer_flush_to_disk();
-
-      /* As DMLs are allowed in parallel, pass false for 'strict' */
-      buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
-                                    false);
-
-      /* Set encryption operation in progress flag */
-      space->encryption_op_in_progress = DECRYPTION;
-
-      /* Update Encryption flag for tablespace */
-      fsp_flags_unset_encryption(space->flags);
-
-      /* Don't erase Encryption info from page 0 yet */
-    }
-
-    /* Till this point,
-            - ddl_log entry has been made.
-            For encryption :
-             - In-mem Encryption information set for tablesapace.
-             - In-mem Tablespace flags have been updated.
-             - Encryption Info, Tablespace updated flags have been
-               written to page 0.
-             - Page 0 have been updated to indicate operation type.
-            For Unencryption :
-             - In-mem Tablespace flags have been updated.
-             - Page 0 have been updated to indicate operation type.
-
-    Now, read tablespace pages one by one and mark them dirty. */
-  } else { /* IN RECOVERY */
+  if (old_ddl_rec != nullptr) {
+    /* Read page 0 and get encryption progress */
+    byte operation;
+    from_page = get_encryption_progress(space, operation) + 1;
 
     /* A corner case when crash happened after last page was processed but
     page 0 wasn't updated with this information. */
@@ -4260,50 +4373,96 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       goto all_done;
     }
 
-    /* If in recovery, update Tablespace Encryption flag again now
-    as DD flags wouldn't have been updated before crash. */
+    if (from_page == 1) {
+      if ((to_encrypt && FSP_FLAGS_GET_ENCRYPTION(space->flags)) ||
+          (!to_encrypt && !FSP_FLAGS_GET_ENCRYPTION(space->flags))) {
+        /* Crash just before the commit when all the pages have been processed
+        and progress/operation flag was reset. Just update space flags in DD
+        and return. */
+        space->encryption_op_in_progress = NONE;
+
+        /* Update space flags in DD Tablespace object */
+        ut_ad(dd_space != nullptr);
+        dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                        static_cast<uint32>(space->flags));
+
+        if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+          /* Reset In-mem encryption for tablespace */
+          err = fil_reset_encryption(space_id);
+          ut_ad(err == DB_SUCCESS);
+        }
+
+        return err;
+      } else {
+        /* Crash even before the first page could have been processed. In this
+        case, start processing again. */
+        initialize = true;
+      }
+    } else {
+      initialize = false;
+    }
+  }
+
+#ifdef UNIV_DEBUG
+  if (initialize) {
     if (to_encrypt) {
-      /* Tablespace Encryption flag were written on page 0
-      before crash. */
+      /* Assert that tablespace is not encrypted */
+      ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
+    } else {
+      /* Assert that tablespace is encrypted */
+      ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+    }
+    ut_ad(space->encryption_op_in_progress == NONE);
+  } else {
+    if (to_encrypt) {
+      /* Updated tablespace flags were written on page 0 before crash. It must
+      say encrypted tablespace. */
       ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-      /* It should have already been set */
+      /* In mem operation should have already been set */
       ut_ad(space->encryption_op_in_progress == ENCRYPTION);
     } else {
-      /* Tablespace Encryption flag were not written on page 0
-      before crash. */
+      /* Updated tablespace flags were not written on page 0 before crash. It
+      must still say encrypted tablespace. */
       ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
-      /* It should have already been set */
+      /* In mem operation should have already been set */
       ut_ad(space->encryption_op_in_progress == DECRYPTION);
+    }
+  }
+#endif
 
-      /* Update Encryption flag for tablespace */
+  if (initialize) {
+    /* Initialize for encrypt/decrypt */
+    err = init_before_processing(space, space_id, to_encrypt);
+    if (err != DB_SUCCESS) {
+      ut_ad(false);
+      return err;
+    }
+  } else {
+    if (!to_encrypt) {
+      /* Update In mem encryption flag for tablespace */
       fsp_flags_unset_encryption(space->flags);
-
       /* Don't erase Encryption information from page 0 yet */
     }
   }
 
-  space_flags = space->flags;
-  total_pages = space->size;
-
   /* Mark all pages in tablespace dirty */
-  mark_all_page_dirty_in_tablespace(thd, space_id, space_flags, total_pages,
+  mark_all_page_dirty_in_tablespace(thd, space_id, space->flags, space->size,
                                     from_page);
 
   /* As DMLs are allowed in parallel, pass false for 'strict' */
   buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
                                 false);
 
-  /* Till this point, all pages in tablespace have been marked dirty and
-  flushed to disk . */
-
 all_done:
   /* For unencryption, if server crashed, before tablespace flags were flushed
   on disk. Set them now. */
-  if (in_recovery && !to_encrypt) {
+  if (old_ddl_rec && !to_encrypt) {
     fsp_flags_unset_encryption(space->flags);
   }
+
+  mtr_t mtr;
 
   /* If it was an Unencryption operation */
   if (!to_encrypt) {
@@ -4313,11 +4472,9 @@ all_done:
                     DBUG_SUICIDE(););
 
     ut_ad(!FSP_FLAGS_GET_ENCRYPTION(space->flags));
-#ifdef UNIV_DEBUG
-    byte buf[Encryption::INFO_SIZE];
-    memset(buf, 0, Encryption::INFO_SIZE);
-    ut_ad(memcmp(encryption_info, buf, Encryption::INFO_SIZE) == 0);
-#endif
+
+    byte encryption_info[Encryption::INFO_SIZE];
+    memset(encryption_info, 0, Encryption::INFO_SIZE);
     /* Now on page 0
             - erase Encryption information
             - write updated Tablespace flag */
@@ -4338,12 +4495,10 @@ all_done:
   /* Reset encryption in progress flag */
   space->encryption_op_in_progress = NONE;
 
-  if (!in_recovery) {
-    ut_ad(dd_space != nullptr);
-    /* Update DD flags for tablespace */
-    dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                    static_cast<uint32>(space->flags));
-  }
+  /* Update space flags in DD Tablespace object */
+  ut_ad(dd_space != nullptr);
+  dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                  static_cast<uint32>(space->flags));
 
   /* Crash before resetting progress on page 0 */
   DBUG_EXECUTE_IF("alter_encrypt_tablespace_crash_before_resetting_progress",
@@ -4361,7 +4516,9 @@ all_done:
                   log_buffer_flush_to_disk();
                   DBUG_SUICIDE(););
 
-  /* As DMLs are allowed in parallel, pass false for 'strict' */
+  /* Flush page 0 here because MEB backup needs to read the key from page 0
+  before redo log is applied. This is not needed for innodb recovery and
+  ideally we would like to get rid of all such special purpose code. */
   buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_FLUSH_WRITE, nullptr,
                                 false);
 
@@ -4394,31 +4551,95 @@ static void validate_tablespace_encryption(fil_space_t *space) {
 }
 #endif
 
+/** Load encryption info from header page.
+@param[in]	space	tablespace
+@return false if success, true otherwise. */
+static bool load_encryption_from_header(fil_space_t *space) {
+  byte encryption_key[Encryption::KEY_LEN] = {0};
+  byte encryption_iv[Encryption::KEY_LEN] = {0};
+
+  /* Read and load encryption info from header page */
+  const page_size_t page_size(space->flags);
+  mtr_t mtr;
+  mtr_start(&mtr);
+  buf_block_t *block =
+      buf_page_get(page_id_t(space->id, 0), page_size, RW_SX_LATCH, &mtr);
+  ut_ad(block != nullptr);
+  ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
+  page_t *header_page = buf_block_get_frame(block);
+
+  bool ret = fsp_header_get_encryption_key(space->flags, encryption_key,
+                                           encryption_iv, header_page);
+  mtr_commit(&mtr);
+
+  if (!ret) {
+    /* NOTE : In case when crash happened just after DDL Log entry,
+    encryption info won't be loaded even now. Which is fine. In that case
+    flags on page 0 should not indicate tablespace encrypted. */
+    ut_ad(!FSP_FLAGS_GET_ENCRYPTION(fsp_header_get_flags(header_page)));
+    if (FSP_FLAGS_GET_ENCRYPTION(fsp_header_get_flags(header_page))) {
+      return true;
+    }
+  } else {
+    dberr_t err MY_ATTRIBUTE((unused)) = fil_set_encryption(
+        space->id, Encryption::AES, encryption_key, encryption_iv);
+    ut_ad(err == DB_SUCCESS);
+    if (err != DB_SUCCESS) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static const std::string enc("ENCRYPTION");
+static const std::string dec("DECRYPTION");
+static const std::string none("NONE");
+
+static inline const std::string &get_encryption_op_str(encryption_op_type op) {
+  switch (op) {
+    case ENCRYPTION:
+      return enc;
+      break;
+    case DECRYPTION:
+      return dec;
+      break;
+    default:
+      ut_ad(false);
+      return none;
+  }
+}
+
 /** Resume Encrypt/Unencrypt for tablespace(s) post recovery.
 If an error occurs while processing any tablespace needing encryption,
 post an error for that space and keep going.
 @param[in]	thd	background thread */
 static void resume_alter_encrypt_tablespace(THD *thd) {
-  dberr_t err = DB_SUCCESS;
-  mtr_t mtr;
-  char operation_name[3][20] = {"NONE", "ENCRYPTION", "DECRYPTION"};
-  /* List of MDLs taken. One for each tablespace. */
+  /* List of shared MDLs taken. One for each tablespace. */
   std::list<MDL_ticket *> shared_mdl_list;
 
-  Disable_autocommit_guard autocommit_guard(thd);
-  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
-  dd::cache::Dictionary_client::Auto_releaser releaser(client);
-  dd::Tablespace *recv_dd_space = nullptr;
-
-  /* Take a SHARED MDL to make sure no one could run any DDL on it and DMLs
-  are allowed. */
+  /* Take a SHARED MDL to make sure no user thread could run any DDL on the
+  tablespace. DMLs are allowed though. */
   for (auto it : ts_encrypt_ddl_records) {
-    /* Get the space_id and then read page0 to get
-    (un)encryption progress */
     space_id_t space_id = it->get_space_id();
     fil_space_t *space = fil_space_get(space_id);
+
+    ut_ad(space != nullptr);
+
     if (space == nullptr) {
       continue;
+    }
+
+    /* If encryption was going on, make sure encryption information is
+    read/loaded from disk. */
+    if (it->get_encryption_type() == ENCRYPTION &&
+        space->encryption_type == Encryption::NONE) {
+      if (load_encryption_from_header(space)) {
+        ib::error() << "Encryption information can't be read for tablesapce "
+                    << space->name
+                    << ". Skipping resume encryption operation for it.";
+        continue;
+      }
     }
 
     MDL_ticket *mdl_ticket;
@@ -4430,168 +4651,82 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
   }
 
   /* Let the startup thread proceed now */
+  mysql_mutex_lock(&resume_encryption_cond_m);
   mysql_cond_signal(&resume_encryption_cond);
+  mysql_mutex_unlock(&resume_encryption_cond_m);
 
-  /* In following loop :
-      - traverse every tablespace one by one and roll forward (un)encryption
-        operation.
-      - remove EXPLICIT MDL taken on tablespace explicitly */
+  DBUG_EXECUTE_IF("sleep_resume_alter_encrypt", sleep(10000););
+
+  /* server_uuid must have been generated by now. */
+  ut_ad(strlen(server_uuid) == UUID_LENGTH);
+
+#ifdef UNIV_DEBUG
+  std::vector<space_id_t>::iterator space_it;
+#endif
+
   std::list<MDL_ticket *>::iterator mdl_it = shared_mdl_list.begin();
   for (auto it : ts_encrypt_ddl_records) {
-    /* Get the space_id and then read page 0 to get (un)encryption progress */
+    ut_ad(it->get_encryption_type() != NONE);
+    ut_ad(mdl_it != shared_mdl_list.end());
+
     space_id_t space_id = it->get_space_id();
     fil_space_t *space = fil_space_get(space_id);
+    ut_ad(space != nullptr);
+
     if (space == nullptr) {
       ib::error(ER_IB_MSG_1277)
           << "Tablespace is missing for tablespace id" << space_id
           << ". Skipping (un)encryption resume operation.";
+      ut_ad(false);
       continue;
-    }
-
-    /* MDL list must not be empty */
-    ut_ad(mdl_it != shared_mdl_list.end());
-
-    page_size_t pageSize(space->flags);
-
-    mtr_start(&mtr);
-    buf_block_t *block =
-        buf_page_get(page_id_t(space_id, 0), pageSize, RW_X_LATCH, &mtr);
-
-    page_t *page = buf_block_get_frame(block);
-
-    /* Get the offset of Encryption progress information */
-    ulint offset = fsp_header_get_encryption_progress_offset(pageSize);
-
-    /* Read operation type (1 byte) */
-    byte operation = mach_read_from_1(page + offset);
-
-    /* Read maximum pages (4 byte) */
-    uint progress =
-        mach_read_from_4(page + offset + Encryption::OPERATION_INFO_SIZE);
-    mtr_commit(&mtr);
-
-    if (!(operation & Encryption::ENCRYPT_IN_PROGRESS) &&
-        !(operation & Encryption::DECRYPT_IN_PROGRESS)) {
-      /* There are two possibilities:
-      1. Crash happened even before operation/progress
-         was written to page 0. Nothing to do.
-      2. Crash happened after (un)encryption was done and progress/operation
-         was reset but before DD is updated.
-      Update DD in that case. */
-      ib::info(ER_IB_MSG_NO_ENCRYPT_PROGRESS_FOUND)
-          << "No operation/progress found. Updating DD for tablespace "
-          << space->name << ":" << space_id << ".";
-      goto update_dd;
     }
 
     ib::info(ER_IB_MSG_RESUME_OP_FOR_SPACE)
-        << "Resuming " << operation_name[operation] << " for tablespace "
-        << space->name << ":" << space_id << " from page " << progress + 1;
+        << "Resuming " << get_encryption_op_str(it->get_encryption_type())
+        << " for tablespace " << space->name << ":" << space_id;
 
-    /* Resume (Un)Encryption operation next page onwards */
-    err = fsp_alter_encrypt_tablespace(
-        thd, space_id, progress + 1,
-        (operation & Encryption::ENCRYPT_IN_PROGRESS) ? true : false, true,
-        recv_dd_space);
-
-    if (err != DB_SUCCESS) {
+    /* Call server API to resume operation */
+    bool res = dd::alter_tablespace_encryption(
+        thd, space->name, (it->get_encryption_type() == ENCRYPTION));
+    if (res) {
       ib::error(ER_IB_MSG_1280)
-          << operation_name[operation] << " for tablespace " << space->name
-          << ":" << space_id << " could not be done successfully.";
-      continue;
-    }
-
-  update_dd:
-    /* At this point, encryption/unencryption process would have been
-    finished and all pages in tablespace should have been written
-    correctly and flushed to disk. Now :
-    - Set/Update tablespace flags encryption.
-    - Remove In-mem encryption info from tablespace (If Unencrypted).
-    - Reset operation in progress to NONE. */
-    mtr_start(&mtr);
-    block = buf_page_get(page_id_t(space_id, 0), pageSize, RW_X_LATCH, &mtr);
-    page = buf_block_get_frame(block);
-    uint32_t latest_fsp_flags = fsp_header_get_flags(page);
-    if (FSP_FLAGS_GET_ENCRYPTION(latest_fsp_flags)) {
-      fsp_flags_set_encryption(space->flags);
+          << get_encryption_op_str(it->get_encryption_type())
+          << " for tablespace " << space->name << ":" << space_id
+          << " could not be done successfully.";
     } else {
-      fsp_flags_unset_encryption(space->flags);
-    }
-    ut_ad(space->flags == latest_fsp_flags);
-    mtr_commit(&mtr);
+      ib::info(ER_IB_MSG_1281)
+          << "Finished " << get_encryption_op_str(it->get_encryption_type())
+          << " for tablespace " << space->name << ":" << space_id;
 
-    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-      /* Reset In-mem encryption for tablespace */
-      err = fil_reset_encryption(space_id);
-      ut_ad(err == DB_SUCCESS);
+      /* Validate tablespace In-mem representation */
+      ut_d(validate_tablespace_encryption(space));
     }
 
-    space->encryption_op_in_progress = NONE;
-
-    /* In case of crash/recovery, following has to be set explicitly
-        - DD tablespace flags.
-        - DD encryption option value. */
-    while (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout)) {
-      os_thread_sleep(20);
+#ifdef UNIV_DEBUG
+    space_it = std::find(flag_mismatch_spaces.begin(),
+                         flag_mismatch_spaces.end(), space_id);
+    if (space_it != flag_mismatch_spaces.end()) {
+      flag_mismatch_spaces.erase(space_it);
     }
-
-    while (dd::acquire_exclusive_tablespace_mdl(thd, space->name, false)) {
-      os_thread_sleep(20);
-    }
-
-    while (client->acquire_for_modification<dd::Tablespace>(space->name,
-                                                            &recv_dd_space)) {
-      os_thread_sleep(20);
-    }
-
-    if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-      /* Update DD Option value, for Unencryption */
-      recv_dd_space->options().set("encryption", "N");
-
-    } else {
-      /* Update DD Option value, for Encryption */
-      recv_dd_space->options().set("encryption", "Y");
-    }
-
-    /* Update DD flags for tablespace */
-    recv_dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
-                                         static_cast<uint32>(space->flags));
-
-    /* Validate tablespace In-mem representation */
-    ut_d(validate_tablespace_encryption(space));
-
-    /* Pass 'true' for 'release_mdl_on_commit' parameter because we want
-    transactional locks to be released only in case of successful commit */
-    while (dd::commit_or_rollback_tablespace_change(thd, recv_dd_space, false,
-                                                    true)) {
-      os_thread_sleep(20);
-    }
-
-    ib::info(ER_IB_MSG_1281)
-        << "Finished " << operation_name[operation] << " for tablespace "
-        << space->name << ":" << space_id << ".";
+#endif
 
     /* Release MDL on tablespace explicitly */
     dd_release_mdl((*mdl_it));
     mdl_it = shared_mdl_list.erase(mdl_it);
   }
 
-  DBUG_EXECUTE_IF("DDL_Log_remove_inject_startup_error_1",
-                  srv_inject_too_many_concurrent_trxs = true;);
-
-  /* Delete DDL logs now */
-  err = log_ddl->post_ts_encryption(ts_encrypt_ddl_records);
-
-  /* Abort post recovery startup if this is not successful since
-  it would leave the DDL Log in an indeterminate state. */
-  if (err != DB_SUCCESS) {
-    ib::fatal(ER_IB_MSG_POST_RECOVER_POST_TS_ENCRYPT);
+  for (auto &record : ts_encrypt_ddl_records) {
+    ut_ad(!record->get_deletable());
+    UT_DELETE(record);
   }
-
   ts_encrypt_ddl_records.clear();
+
   /* All MDLs should have been released and removed from list by now */
   ut_ad(shared_mdl_list.empty());
   shared_mdl_list.clear();
+
+  ut_ad(flag_mismatch_spaces.empty());
+  return;
 }
 
 /* Initiate roll-forward of alter encrypt in background thread */

@@ -89,7 +89,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER="$recovery_user", MASTER_PASSWORD="$recovery_password" FOR CHANNEL "group_replication_recovery"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER="$recovery_user", SOURCE_PASSWORD="$recovery_password" FOR CHANNEL "group_replication_recovery"
 --enable_warnings
 
 SET SESSION sql_log_bin= 0;

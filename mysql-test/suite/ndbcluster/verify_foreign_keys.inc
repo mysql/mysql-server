@@ -30,7 +30,7 @@ eval SHOW CREATE TABLE $ndb_db_name.$ndb_table_name;
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_show_tables_dump.txt;
 
 # Build the string used for executing ndb_show_tables
-let $show_cmd = $NDB_SHOW_TABLES --no-defaults;
+let $show_cmd = $NDB_SHOW_TABLES;
 let $show_cmd = $show_cmd -p;  # parsable format
 
 # Run ndb_show_tables and dump output to file

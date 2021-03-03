@@ -26,8 +26,8 @@ SET GLOBAL relay_log_info_repository='TABLE';
 --echo #
 
 --echo # Create two additional replication channels
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='binlog-ch1.000001', SOURCE_LOG_POS=4 FOR CHANNEL 'ch1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='binlog-ch2.000001', SOURCE_LOG_POS=4 FOR CHANNEL 'ch2';
 
 --echo # Execute mysqldump with --dump-slave
 --exec $MYSQL_DUMP_SLAVE --compact --dump-slave --set-gtid-purged=OFF test > $MYSQL_TMP_DIR/chm_1_dump.sql
@@ -43,7 +43,7 @@ CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='binlog-ch2.000001', M
 --echo #
 
 --echo # Setup the default replication channel
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE="binlog-default.000001", MASTER_LOG_POS=4 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE="binlog-default.000001", SOURCE_LOG_POS=4 FOR CHANNEL '';
 
 --echo # Execute mysqldump with --dump-slave
 --replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=BINLOG_START/

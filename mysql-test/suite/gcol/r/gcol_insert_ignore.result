@@ -20,9 +20,15 @@ INSERT INTO data_examples (type_name,value_sql) VALUES
 ('BIGINT', '2000000000000000000'),
 ('BIGINT', '-2000000000000000000'),
 ('FLOAT', '-1.23456'),
+('FLOAT', '-1e38'),
+('FLOAT', '1e38'),
 ('DOUBLE', '-1.23456789012345'),
 ('DOUBLE', '1.23456789012345'),
+('DOUBLE', '-1e300'),
+('DOUBLE', '1e300'),
 ('DECIMAL(4,2)', '-10.99'),
+('DECIMAL(34,4)', '20000000000000000000000000000.0001'),
+('DECIMAL(34,4)', '-20000000000000000000000000000.0001'),
 ('BIT(64)', '0xDEADBEEFC0FEBABE'),
 ('BIT(4)', '0b1000'),
 ('YEAR', '2020'),
@@ -248,6 +254,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` json GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` json GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -280,6 +318,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` json GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` json GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -288,6 +358,38 @@ t	CREATE TABLE `t` (
   `b` json GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (-10.99);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` json GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` json GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
 SELECT * FROM t;
 a	b
 DELETE FROM t;
@@ -845,6 +947,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` tinyint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-128
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` tinyint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	127
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -881,6 +1023,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` tinyint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-128
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` tinyint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	127
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -893,6 +1075,48 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-11
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` tinyint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	127
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` tinyint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-128
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -1516,6 +1740,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` smallint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-32768
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` smallint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	32767
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -1552,6 +1816,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` smallint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-32768
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` smallint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	32767
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -1564,6 +1868,48 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-11
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` smallint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	32767
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` smallint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-32768
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -2185,6 +2531,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` mediumint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-8388608
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` mediumint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	8388607
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -2221,6 +2607,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` mediumint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-8388608
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` mediumint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	8388607
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -2233,6 +2659,48 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-11
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` mediumint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	8388607
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` mediumint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-8388608
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -2846,6 +3314,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` int GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-2147483648
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` int GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	2147483647
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -2882,6 +3390,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` int GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-2147483648
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` int GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	2147483647
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -2894,6 +3442,48 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-11
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` int GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	2147483647
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` int GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-2147483648
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -3519,6 +4109,47 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` int unsigned GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	0
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` int unsigned GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	4294967295
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -3557,6 +4188,47 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` int unsigned GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	0
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` int unsigned GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	4294967295
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -3571,6 +4243,47 @@ Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
 -10.99	0
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` int unsigned GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	4294967295
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` int unsigned GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	0
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -4180,6 +4893,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` bigint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-9223372036854775808
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` bigint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	9223372036854775807
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -4216,6 +4969,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` bigint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-9223372036854775808
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` bigint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	9223372036854775807
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -4228,6 +5021,46 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-11
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` bigint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	9223372036854775807
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` bigint GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-9223372036854775808
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -4831,6 +5664,42 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` float GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-1e38
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` float GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	1e38
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -4867,6 +5736,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` float GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-3.40282e38
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` float GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	3.40282e38
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -4879,6 +5788,42 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` float GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	2e28
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` float GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-2e28
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -5479,6 +6424,42 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` double GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` double GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -5515,6 +6496,42 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` double GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	-1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` double GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -5527,6 +6544,42 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` double GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	2e28
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` double GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-2e28
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -6136,6 +7189,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` decimal(4,2) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-99.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` decimal(4,2) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	99.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -6176,6 +7269,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` decimal(4,2) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-99.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` decimal(4,2) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	99.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -6188,6 +7321,46 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` decimal(4,2) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	99.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` decimal(4,2) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-99.99
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -6607,6 +7780,815 @@ Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
 #
+# Testing virtual column of type DECIMAL(34,4)
+#
+# Testing example of type JSON and value "{}"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` json NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("{}");
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+SELECT * FROM t;
+a	b
+{}	0.0000
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type JSON and value '["hello beautiful world"]'
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` json NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ('["hello beautiful world"]');
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+SELECT * FROM t;
+a	b
+["hello beautiful world"]	0.0000
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+Warning	3156	Invalid JSON value for CAST to DECIMAL from column a at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type JSON and value "-1"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` json NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("-1");
+SELECT * FROM t;
+a	b
+-1	-1.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type TINYINT and value -1
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` tinyint NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1);
+SELECT * FROM t;
+a	b
+-1	-1.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type SMALLINT and value -1
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` smallint NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1);
+SELECT * FROM t;
+a	b
+-1	-1.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type MEDIUMINT and value -1
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` mediumint NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1);
+SELECT * FROM t;
+a	b
+-1	-1.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type INT and value 2000000000
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (2000000000);
+SELECT * FROM t;
+a	b
+2000000000	2000000000.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type INT and value -2000000000
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-2000000000);
+SELECT * FROM t;
+a	b
+-2000000000	-2000000000.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type INT UNSIGNED and value 4000000000
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int unsigned NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (4000000000);
+SELECT * FROM t;
+a	b
+4000000000	4000000000.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type BIGINT and value 2000000000000000000
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bigint NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (2000000000000000000);
+SELECT * FROM t;
+a	b
+2000000000000000000	2000000000000000000.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type BIGINT and value -2000000000000000000
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bigint NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-2000000000000000000);
+SELECT * FROM t;
+a	b
+-2000000000000000000	-2000000000000000000.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value -1.23456
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1.23456);
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1.23456	-1.2346
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-999999999999999999999999999999.9999
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	999999999999999999999999999999.9999
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value -1.23456789012345
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1.23456789012345);
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1.23456789012345	-1.2346
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1.23456789012345
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1.23456789012345);
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1.23456789012345	1.2346
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-999999999999999999999999999999.9999
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	999999999999999999999999999999.9999
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(4,2) and value -10.99
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(4,2) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-10.99);
+SELECT * FROM t;
+a	b
+-10.99	-10.9900
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	20000000000000000000000000000.0001
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-20000000000000000000000000000.0001
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type BIT(64) and value 0xDEADBEEFC0FEBABE
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bit(64) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (0xDEADBEEFC0FEBABE);
+SELECT * FROM t;
+a	b
+Þ­¾ïÀþº¾	16045690984335325886.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type BIT(4) and value 0b1000
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` bit(4) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (0b1000);
+SELECT * FROM t;
+a	b
+	8.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type YEAR and value 2020
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` year NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (2020);
+SELECT * FROM t;
+a	b
+2020	2020.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DATE and value "2030-04-05"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` date NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("2030-04-05");
+SELECT * FROM t;
+a	b
+2030-04-05	20300405.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type TIME and value "11:12:13"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` time NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("11:12:13");
+SELECT * FROM t;
+a	b
+11:12:13	111213.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DATETIME and value "2030-04-05 11:12:13"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` datetime NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("2030-04-05 11:12:13");
+SELECT * FROM t;
+a	b
+2030-04-05 11:12:13	20300405111213.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type TIMESTAMP and value "2030-04-05 11:12:13"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` timestamp NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("2030-04-05 11:12:13");
+SELECT * FROM t;
+a	b
+2030-04-05 11:12:13	20300405111213.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type CHAR(40) and value "2000000000000000000000000000000000000"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` char(40) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("2000000000000000000000000000000000000");
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+2000000000000000000000000000000000000	999999999999999999999999999999.9999
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type BINARY(45) and value "200000000000000000000000000000000000000000"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` binary(45) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("200000000000000000000000000000000000000000");
+Warnings:
+Note	1265	Data truncated for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+200000000000000000000000000000000000000000   	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: '200000000000000000000000000000000000000000\x00\x00\x00' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type VARCHAR(50) and value "2000000000000000000000000000000000000000000000000"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` varchar(50) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("2000000000000000000000000000000000000000000000000");
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+2000000000000000000000000000000000000000000000000	999999999999999999999999999999.9999
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type CHAR(24) and value "hello beautiful world"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` char(24) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("hello beautiful world");
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello beautiful world' for column 'b' at row 1
+SELECT * FROM t;
+a	b
+hello beautiful world	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello beautiful world' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello beautiful world' for column 'b' at row 1
+Warning	1366	Incorrect decimal value: 'hello beautiful world' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type BINARY(12) and value "hello world"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` binary(12) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("hello world");
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello world\x00' for column 'b' at row 1
+SELECT * FROM t;
+a	b
+hello world 	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello world\x00' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello world\x00' for column 'b' at row 1
+Warning	1366	Incorrect decimal value: 'hello world\x00' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type VARCHAR(6) and value "hello"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` varchar(6) NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("hello");
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello' for column 'b' at row 1
+SELECT * FROM t;
+a	b
+hello	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect decimal value: 'hello' for column 'b' at row 1
+Warning	1366	Incorrect decimal value: 'hello' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type ENUM("up","down") and value "up"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` enum('up','down') NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("up");
+SELECT * FROM t;
+a	b
+up	1.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type SET("up","down") and value "up,down"
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` set('up','down') NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES ("up,down");
+SELECT * FROM t;
+a	b
+up,down	3.0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type GEOMETRY and value ST_GeomFromText("POINT(1 1)")
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` geometry NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POINT(1 1)"));
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+SELECT * FROM t;
+a	b
+             ð?      ð?	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type POINT and value ST_GeomFromText("POINT(1 1)")
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` point NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POINT(1 1)"));
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+SELECT * FROM t;
+a	b
+             ð?      ð?	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type LINESTRING and value ST_GeomFromText("LINESTRING(0 0,1 1,2 2)")
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` linestring NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("LINESTRING(0 0,1 1,2 2)"));
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+SELECT * FROM t;
+a	b
+                                ð?      ð?       @       @	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x02\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type POLYGON and value ST_GeomFromText("POLYGON((0 0,1 0,1 1,0 1,0 0),(5 5,7 5,7 7,5 7,5 5))")
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` polygon NOT NULL,
+  `b` decimal(34,4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (ST_GeomFromText("POLYGON((0 0,1 0,1 1,0 1,0 0),(5 5,7 5,7 7,5 7,5 5))"));
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+SELECT * FROM t;
+a	b
+                                   ð?              ð?      ð?              ð?                         @      @      @      @      @      @      @      @      @      @	0.0000
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+Warning	1366	Incorrect decimal value: '\x00\x00\x00\x00\x01\x03\x00\x00\x00\x02\x00\x00\x00\x05\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+#
 # Testing virtual column of type BIT(64)
 #
 # Testing example of type JSON and value "{}"
@@ -6827,6 +8809,42 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` bit(64) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	€       
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` bit(64) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	ÿÿÿÿÿÿÿ
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -6863,6 +8881,42 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` bit(64) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	€       
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` bit(64) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	ÿÿÿÿÿÿÿ
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -6877,6 +8931,46 @@ Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
 -10.99	        
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` bit(64) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	ÿÿÿÿÿÿÿÿ
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` bit(64) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	        
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -7486,6 +9580,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` bit(4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1406	Data too long for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` bit(4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1406	Data too long for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -7524,6 +9658,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` bit(4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1406	Data too long for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` bit(4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1406	Data too long for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -7538,6 +9712,47 @@ Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
 -10.99	 
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` bit(4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1406	Data too long for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` bit(4) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	 
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -8171,6 +10386,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` year GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` year GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -8209,6 +10464,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` year GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` year GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -8223,6 +10518,47 @@ Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t;
 a	b
 -10.99	0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` year GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	0000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` year GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	0000
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -8916,6 +11252,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` date GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '-9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect date value: '-9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect date value: '-9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` date GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect date value: '9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect date value: '9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -8966,6 +11352,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` date GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '-1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect date value: '-1e300' for column 'b' at row 1
+Warning	1292	Incorrect date value: '-1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` date GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect date value: '1e300' for column 'b' at row 1
+Warning	1292	Incorrect date value: '1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -8987,6 +11423,56 @@ DELETE IGNORE FROM t;
 Warnings:
 Warning	1292	Incorrect date value: '-10.99' for column 'b' at row 1
 Warning	1292	Incorrect date value: '-10.99' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` date GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect date value: '20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect date value: '20000000000000000000000000000.0001' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` date GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	0000-00-00
+Warnings:
+Warning	1292	Incorrect date value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect date value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect date value: '-20000000000000000000000000000.0001' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -9734,6 +12220,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` time GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	-838:59:59
+Warnings:
+Warning	1292	Incorrect time value: '-9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect time value: '-9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect time value: '-9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` time GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	838:59:59
+Warnings:
+Warning	1292	Incorrect time value: '9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect time value: '9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect time value: '9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -9770,6 +12306,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` time GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	-838:59:59
+Warnings:
+Warning	1292	Incorrect time value: '-1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect time value: '-1e300' for column 'b' at row 1
+Warning	1292	Incorrect time value: '-1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` time GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	838:59:59
+Warnings:
+Warning	1292	Incorrect time value: '1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect time value: '1e300' for column 'b' at row 1
+Warning	1292	Incorrect time value: '1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -9784,6 +12370,56 @@ a	b
 -10.99	-00:00:11
 DELETE FROM t;
 DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` time GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	838:59:59
+Warnings:
+Warning	1292	Incorrect time value: '20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect time value: '20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect time value: '20000000000000000000000000000.0001' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` time GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-838:59:59
+Warnings:
+Warning	1292	Incorrect time value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect time value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect time value: '-20000000000000000000000000000.0001' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -10529,6 +13165,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` datetime GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '-9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '-9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '-9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` datetime GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -10579,6 +13265,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` datetime GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '-1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '-1e300' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '-1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` datetime GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '1e300' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -10600,6 +13336,56 @@ DELETE IGNORE FROM t;
 Warnings:
 Warning	1292	Incorrect datetime value: '-10.99' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '-10.99' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` datetime GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '20000000000000000000000000000.0001' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` datetime GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '-20000000000000000000000000000.0001' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -11366,6 +14152,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` timestamp GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '-9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '-9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '-9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` timestamp GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '9.999999680285692e37' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '9.999999680285692e37' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '9.999999680285692e37' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -11416,6 +14252,56 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` timestamp GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '-1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '-1e300' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '-1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` timestamp GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '1e300' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '1e300' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '1e300' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -11437,6 +14323,56 @@ DELETE IGNORE FROM t;
 Warnings:
 Warning	1292	Incorrect datetime value: '-10.99' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '-10.99' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` timestamp GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '20000000000000000000000000000.0001' for column 'b' at row 1
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` timestamp GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1264	Out of range value for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	0000-00-00 00:00:00
+Warnings:
+Warning	1292	Incorrect datetime value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+DELETE FROM t;
+DELETE IGNORE FROM t;
+Warnings:
+Warning	1292	Incorrect datetime value: '-20000000000000000000000000000.0001' for column 'b' at row 1
+Warning	1292	Incorrect datetime value: '-20000000000000000000000000000.0001' for column 'b' at row 1
 CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
@@ -12119,6 +15055,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` char(40) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` char(40) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -12157,6 +15131,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` char(40) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	-1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` char(40) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -12170,6 +15182,44 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` char(40) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	20000000000000000000000000000.0001
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` char(40) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-20000000000000000000000000000.0001
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -12800,6 +15850,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` binary(45) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-9.999999680285692e37                        
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` binary(45) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	9.999999680285692e37                         
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -12838,6 +15926,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` binary(45) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	-1e300                                       
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` binary(45) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	1e300                                        
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -12851,6 +15977,44 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99                                       
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` binary(45) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	20000000000000000000000000000.0001           
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` binary(45) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-20000000000000000000000000000.0001          
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -13455,6 +16619,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` varchar(50) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` varchar(50) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -13493,6 +16695,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` varchar(50) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	-1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` varchar(50) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -13506,6 +16746,44 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` varchar(50) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	20000000000000000000000000000.0001
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` varchar(50) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-20000000000000000000000000000.0001
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -14134,6 +17412,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` char(24) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` char(24) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	9.999999680285692e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -14172,6 +17488,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` char(24) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	-1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` char(24) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -14185,6 +17539,48 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` char(24) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	200000000000000000000000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` char(24) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-20000000000000000000000
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -14813,6 +18209,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` binary(12) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-1e38       
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` binary(12) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	9.9999997e37
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -14851,6 +18285,44 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` binary(12) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	-1e300      
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` binary(12) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	1e300       
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -14864,6 +18336,48 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99      
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` binary(12) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	200000000000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` binary(12) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`),
+  KEY `on_b_prefix` (`b`(10))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-20000000000
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -15484,6 +18998,42 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` varchar(6) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+-1e38	-1e38
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` varchar(6) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+1e38	1e38
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -15520,6 +19070,42 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` varchar(6) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+-1e300	-1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` varchar(6) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+1e300	1e300
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -15532,6 +19118,46 @@ INSERT IGNORE INTO t (a) VALUES (-10.99);
 SELECT * FROM t;
 a	b
 -10.99	-10.99
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` varchar(6) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	200000
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` varchar(6) GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	-20000
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -16153,6 +19779,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` enum('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` enum('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -16191,6 +19857,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` enum('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` enum('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -16205,6 +19911,46 @@ Warning	1265	Data truncated for column 'b' at row 1
 SELECT * FROM t;
 a	b
 -10.99	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` enum('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` enum('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -16832,6 +20578,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` set('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e38	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` set('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e38	up,down
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -16870,6 +20656,46 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` set('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-1e300	
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` set('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+1e300	up,down
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -16884,6 +20710,46 @@ Warning	1265	Data truncated for column 'b' at row 1
 SELECT * FROM t;
 a	b
 -10.99	down
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` set('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+20000000000000000000000000000.0001	up,down
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` set('up','down') GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL,
+  KEY `on_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SELECT * FROM t;
+a	b
+-20000000000000000000000000000.0001	
 DELETE FROM t;
 DELETE IGNORE FROM t;
 CHECK TABLE t;
@@ -17461,6 +21327,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` geometry GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` geometry GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -17493,6 +21391,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` geometry GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` geometry GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -17501,6 +21431,38 @@ t	CREATE TABLE `t` (
   `b` geometry GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (-10.99);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` geometry GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` geometry GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
 SELECT * FROM t;
 a	b
 DELETE FROM t;
@@ -18012,6 +21974,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` point GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` point GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -18044,6 +22038,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` point GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` point GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -18052,6 +22078,38 @@ t	CREATE TABLE `t` (
   `b` point GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (-10.99);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` point GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` point GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
 SELECT * FROM t;
 a	b
 DELETE FROM t;
@@ -18561,6 +22619,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` linestring GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` linestring GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -18593,6 +22683,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` linestring GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` linestring GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -18601,6 +22723,38 @@ t	CREATE TABLE `t` (
   `b` linestring GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (-10.99);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` linestring GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` linestring GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
 SELECT * FROM t;
 a	b
 DELETE FROM t;
@@ -19109,6 +23263,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type FLOAT and value -1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` polygon GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type FLOAT and value 1e38
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` float NOT NULL,
+  `b` polygon GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e38);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DOUBLE and value -1.23456789012345
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -19141,6 +23327,38 @@ CHECK TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	check	status	OK
 DROP TABLE t;
+# Testing example of type DOUBLE and value -1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` polygon GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DOUBLE and value 1e300
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` double NOT NULL,
+  `b` polygon GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (1e300);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 # Testing example of type DECIMAL(4,2) and value -10.99
 SHOW CREATE TABLE t;
 Table	Create Table
@@ -19149,6 +23367,38 @@ t	CREATE TABLE `t` (
   `b` polygon GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT IGNORE INTO t (a) VALUES (-10.99);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value 20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` polygon GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (20000000000000000000000000000.0001);
+SELECT * FROM t;
+a	b
+DELETE FROM t;
+DELETE IGNORE FROM t;
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
+# Testing example of type DECIMAL(34,4) and value -20000000000000000000000000000.0001
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` decimal(34,4) NOT NULL,
+  `b` polygon GENERATED ALWAYS AS (`a`) VIRTUAL NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT IGNORE INTO t (a) VALUES (-20000000000000000000000000000.0001);
 SELECT * FROM t;
 a	b
 DELETE FROM t;

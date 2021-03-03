@@ -1195,25 +1195,6 @@ static bool setup_one_fetch_function(MYSQL_BIND *, MYSQL_FIELD *field);
 
 static bool reset_stmt_handle(MYSQL_STMT *stmt, uint flags);
 
-/*
-  Maximum sizes of MYSQL_TYPE_DATE, MYSQL_TYPE_TIME, MYSQL_TYPE_DATETIME
-  values stored in network buffer.
-*/
-
-/* 1 (length) + 2 (year) + 1 (month) + 1 (day) */
-#define MAX_DATE_REP_LENGTH 5
-
-/*
-  1 (length) + 1 (is negative) + 4 (day count) + 1 (hour)
-  + 1 (minute) + 1 (seconds) + 4 (microseconds)
-*/
-#define MAX_TIME_REP_LENGTH 13
-
-constexpr int MAX_DATETIME_REP_LENGTH =
-    1 /* length */ + 2 /* year */ + 1 /* month */ + 1 /* day */ + 1 /* hour */ +
-    1 /* minute */ + 1 /* second */ + 4 /* microseconds */ +
-    2 /* time zone displacement (signed) */;
-
 #define MAX_DOUBLE_STRING_REP_LENGTH 331
 
 /* A macro to check truncation errors */
@@ -1231,41 +1212,6 @@ constexpr int MAX_DATETIME_REP_LENGTH =
 #define REPORT_DATA_TRUNCATION 2
 
 /**************** Misc utility functions ****************************/
-
-/*
-  Reallocate the NET package to have at least length bytes available.
-
-  SYNPOSIS
-    my_realloc_str()
-    net                 The NET structure to modify.
-    length              Ensure that net->buff has space for at least
-                        this number of bytes.
-
-  RETURN VALUES
-    0   Success.
-    1   Error, i.e. out of memory or requested packet size is bigger
-        than max_allowed_packet. The error code is stored in net->last_errno.
-*/
-
-static bool my_realloc_str(NET *net, ulong length) {
-  ulong buf_length = (ulong)(net->write_pos - net->buff);
-  bool res = false;
-  DBUG_TRACE;
-  if (buf_length + length > net->max_packet) {
-    res = net_realloc(net, buf_length + length);
-    if (res) {
-      if (net->last_errno == ER_OUT_OF_RESOURCES)
-        net->last_errno = CR_OUT_OF_MEMORY;
-      else if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
-        net->last_errno = CR_NET_PACKET_TOO_LARGE;
-
-      my_stpcpy(net->sqlstate, unknown_sqlstate);
-      my_stpcpy(net->last_error, ER_CLIENT(net->last_errno));
-    }
-    net->write_pos = net->buff + buf_length;
-  }
-  return res;
-}
 
 static void stmt_clear_error(MYSQL_STMT *stmt) {
   if (stmt->last_errno) {
@@ -1763,191 +1709,6 @@ MYSQL_RES *STDCALL mysql_stmt_param_metadata(MYSQL_STMT *stmt) {
   return nullptr;
 }
 
-/* Store type of parameter in network buffer. */
-
-static void store_param_type(unsigned char **pos, MYSQL_BIND *param) {
-  uint typecode = param->buffer_type | (param->is_unsigned ? 32768 : 0);
-  int2store(*pos, typecode);
-  *pos += 2;
-}
-
-/*
-  Functions to store parameter data in network packet.
-
-  SYNOPSIS
-    store_param_xxx()
-    net			MySQL NET connection
-    param		MySQL bind param
-
-  DESCRIPTION
-    These funtions are invoked from mysql_stmt_execute() by
-    MYSQL_BIND::store_param_func pointer. This pointer is set once per
-    many executions in mysql_stmt_bind_param(). The caller must ensure
-    that network buffer have enough capacity to store parameter
-    (MYSQL_BIND::buffer_length contains needed number of bytes).
-*/
-
-static void store_param_tinyint(NET *net, MYSQL_BIND *param) {
-  *(net->write_pos++) = *(uchar *)param->buffer;
-}
-
-static void store_param_short(NET *net, MYSQL_BIND *param) {
-  short value = *(short *)param->buffer;
-  int2store(net->write_pos, value);
-  net->write_pos += 2;
-}
-
-static void store_param_int32(NET *net, MYSQL_BIND *param) {
-  int32 value = *(int32 *)param->buffer;
-  int4store(net->write_pos, value);
-  net->write_pos += 4;
-}
-
-static void store_param_int64(NET *net, MYSQL_BIND *param) {
-  longlong value = *(longlong *)param->buffer;
-  int8store(net->write_pos, value);
-  net->write_pos += 8;
-}
-
-static void store_param_float(NET *net, MYSQL_BIND *param) {
-  float value = *(float *)param->buffer;
-  float4store(net->write_pos, value);
-  net->write_pos += 4;
-}
-
-static void store_param_double(NET *net, MYSQL_BIND *param) {
-  double value = *(double *)param->buffer;
-  float8store(net->write_pos, value);
-  net->write_pos += 8;
-}
-
-static void store_param_time(NET *net, MYSQL_BIND *param) {
-  MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
-  uchar buff[MAX_TIME_REP_LENGTH], *pos;
-  uint length;
-
-  pos = buff + 1;
-  pos[0] = tm->neg ? 1 : 0;
-  int4store(pos + 1, tm->day);
-  pos[5] = (uchar)tm->hour;
-  pos[6] = (uchar)tm->minute;
-  pos[7] = (uchar)tm->second;
-  int4store(pos + 8, tm->second_part);
-  if (tm->second_part)
-    length = 12;
-  else if (tm->hour || tm->minute || tm->second || tm->day)
-    length = 8;
-  else
-    length = 0;
-  buff[0] = (char)length++;
-  memcpy((char *)net->write_pos, buff, length);
-  net->write_pos += length;
-}
-
-static void net_store_datetime(NET *net, MYSQL_TIME *tm) {
-  uchar buff[MAX_DATETIME_REP_LENGTH], *pos;
-  // The content of the buffer's length byte.
-  uchar length_byte;
-
-  pos = buff + 1;
-
-  int2store(pos, static_cast<std::uint16_t>(tm->year));
-  pos[2] = static_cast<std::uint8_t>(tm->month);
-  pos[3] = static_cast<std::uint8_t>(tm->day);
-  pos[4] = static_cast<std::uint8_t>(tm->hour);
-  pos[5] = static_cast<std::uint8_t>(tm->minute);
-  pos[6] = static_cast<std::uint8_t>(tm->second);
-  int4store(pos + 7, static_cast<std::uint32_t>(tm->second_part));
-  if (tm->time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
-    int tzd = tm->time_zone_displacement;
-    DBUG_ASSERT(tzd % SECS_PER_MIN == 0);
-    DBUG_ASSERT(std::abs(tzd) <= MAX_TIME_ZONE_HOURS * SECS_PER_HOUR);
-    int2store(pos + 11, static_cast<std::uint16_t>(tzd / SECS_PER_MIN));
-    length_byte = 13;
-  } else if (tm->second_part)
-    length_byte = 11;
-  else if (tm->hour || tm->minute || tm->second)
-    length_byte = 7;
-  else if (tm->year || tm->month || tm->day)
-    length_byte = 4;
-  else
-    length_byte = 0;
-
-  buff[0] = length_byte;
-
-  size_t buffer_length = length_byte + 1;
-  memcpy(net->write_pos, buff, buffer_length);
-  net->write_pos += buffer_length;
-}
-
-static void store_param_date(NET *net, MYSQL_BIND *param) {
-  MYSQL_TIME tm = *((MYSQL_TIME *)param->buffer);
-  tm.hour = tm.minute = tm.second = tm.second_part = 0;
-  net_store_datetime(net, &tm);
-}
-
-static void store_param_datetime(NET *net, MYSQL_BIND *param) {
-  MYSQL_TIME *tm = (MYSQL_TIME *)param->buffer;
-  net_store_datetime(net, tm);
-}
-
-static void store_param_str(NET *net, MYSQL_BIND *param) {
-  /* param->length is always set in mysql_stmt_bind_param */
-  ulong length = *param->length;
-  uchar *to = net_store_length(net->write_pos, length);
-  memcpy(to, param->buffer, length);
-  net->write_pos = to + length;
-}
-
-/*
-  Mark if the parameter is NULL.
-
-  SYNOPSIS
-    store_param_null()
-    net			MySQL NET connection
-    param		MySQL bind param
-
-  DESCRIPTION
-    A data package starts with a string of bits where we set a bit
-    if a parameter is NULL. Unlike bit string in result set row, here
-    we don't have reserved bits for OK/error packet.
-*/
-
-static void store_param_null(NET *net, MYSQL_BIND *param) {
-  uint pos = param->param_number;
-  net->buff[pos / 8] |= (uchar)(1 << (pos & 7));
-}
-
-/*
-  Store one parameter in network packet: data is read from
-  client buffer and saved in network packet by means of one
-  of store_param_xxxx functions.
-*/
-
-static bool store_param(MYSQL_STMT *stmt, MYSQL_BIND *param) {
-  NET *net = &stmt->mysql->net;
-  DBUG_TRACE;
-  DBUG_PRINT("enter",
-             ("type: %d  buffer: %p  length: %lu  is_null: %d",
-              param->buffer_type, (param->buffer ? param->buffer : NullS),
-              *param->length, *param->is_null));
-
-  if (*param->is_null)
-    store_param_null(net, param);
-  else {
-    /*
-      Param->length should ALWAYS point to the correct length for the type
-      Either to the length pointer given by the user or param->buffer_length
-    */
-    if ((my_realloc_str(net, *param->length))) {
-      set_stmt_errmsg(stmt, net);
-      return true;
-    }
-    (*param->store_param_func)(net, param);
-  }
-  return false;
-}
-
 static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len,
                                  MYSQL_ROWS ***prev_ptr) {
   MYSQL_ROWS *row;
@@ -2064,12 +1825,11 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
 
   if (stmt->param_count) {
     MYSQL *mysql = stmt->mysql;
-    NET *net = &mysql->net;
-    MYSQL_BIND *param, *param_end;
-    char *param_data;
-    ulong length;
-    uint null_count;
+    uchar *param_data = nullptr;
     bool result;
+    unsigned long param_length = 0;
+    bool send_named_params =
+        (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
 
     if (!stmt->bind_param_done) {
       set_stmt_error(stmt, CR_PARAMS_NOT_BOUND, unknown_sqlstate, nullptr);
@@ -2081,53 +1841,22 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
       return 1;
     }
 
-    if (net->vio)
-      net_clear(net, true); /* Sets net->write_pos */
+    if (mysql->net.vio)
+      net_clear(&mysql->net, true); /* Sets net->write_pos */
     else {
-      set_stmt_errmsg(stmt, net);
+      set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }
 
-    /* Reserve place for null-marker bytes */
-    null_count = (stmt->param_count + 7) / 8;
-    if (my_realloc_str(net, null_count + 1)) {
-      set_stmt_errmsg(stmt, net);
+    if (mysql_int_serialize_param_data(
+            &mysql->net, stmt->param_count, stmt->params, NULL, 1, &param_data,
+            &param_length, stmt->send_types_to_server, send_named_params,
+            false)) {
+      set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }
-    memset(net->write_pos, 0, null_count);
-    net->write_pos += null_count;
-    param_end = stmt->params + stmt->param_count;
 
-    /* In case if buffers (type) altered, indicate to server */
-    *(net->write_pos)++ = (uchar)stmt->send_types_to_server;
-    if (stmt->send_types_to_server) {
-      if (my_realloc_str(net, 2 * stmt->param_count)) {
-        set_stmt_errmsg(stmt, net);
-        return 1;
-      }
-      /*
-        Store types of parameters in first in first package
-        that is sent to the server.
-      */
-      for (param = stmt->params; param < param_end; param++)
-        store_param_type(&net->write_pos, param);
-    }
-
-    for (param = stmt->params; param < param_end; param++) {
-      /* check if mysql_stmt_send_long_data() was used */
-      if (param->long_data_used)
-        param->long_data_used = false; /* Clear for next execute call */
-      else if (store_param(stmt, param))
-        return 1;
-    }
-    length = (ulong)(net->write_pos - net->buff);
-    /* TODO: Look into avoding the following memdup */
-    if (!(param_data = pointer_cast<char *>(
-              my_memdup(PSI_NOT_INSTRUMENTED, net->buff, length, MYF(0))))) {
-      set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, nullptr);
-      return 1;
-    }
-    result = execute(stmt, param_data, length);
+    result = execute(stmt, pointer_cast<char *>(param_data), param_length);
     stmt->send_types_to_server = false;
     my_free(param_data);
     return result;
@@ -2522,9 +2251,6 @@ uint64_t STDCALL mysql_stmt_insert_id(MYSQL_STMT *stmt) {
   return stmt->insert_id;
 }
 
-static bool int_is_null_true = true; /* Used for MYSQL_TYPE_NULL */
-static bool int_is_null_false = false;
-
 /*
   Set up input data buffers for a statement.
 
@@ -2713,93 +2439,55 @@ bool STDCALL mysql_stmt_bind_param(MYSQL_STMT *stmt, MYSQL_BIND *my_bind) {
 
   for (param = stmt->params, end = param + stmt->param_count; param < end;
        param++) {
-    param->param_number = count++;
-    param->long_data_used = false;
-
-    /* If param->is_null is not set, then the value can never be NULL */
-    if (!param->is_null) param->is_null = &int_is_null_false;
-
-    /* Setup data copy functions for the different supported types */
-    switch (param->buffer_type) {
-      case MYSQL_TYPE_NULL:
-        param->is_null = &int_is_null_true;
-        break;
-      case MYSQL_TYPE_TINY:
-        /* Force param->length as this is fixed for this type */
-        param->length = &param->buffer_length;
-        param->buffer_length = 1;
-        param->store_param_func = store_param_tinyint;
-        break;
-      case MYSQL_TYPE_SHORT:
-        param->length = &param->buffer_length;
-        param->buffer_length = 2;
-        param->store_param_func = store_param_short;
-        break;
-      case MYSQL_TYPE_LONG:
-        param->length = &param->buffer_length;
-        param->buffer_length = 4;
-        param->store_param_func = store_param_int32;
-        break;
-      case MYSQL_TYPE_LONGLONG:
-        param->length = &param->buffer_length;
-        param->buffer_length = 8;
-        param->store_param_func = store_param_int64;
-        break;
-      case MYSQL_TYPE_FLOAT:
-        param->length = &param->buffer_length;
-        param->buffer_length = 4;
-        param->store_param_func = store_param_float;
-        break;
-      case MYSQL_TYPE_DOUBLE:
-        param->length = &param->buffer_length;
-        param->buffer_length = 8;
-        param->store_param_func = store_param_double;
-        break;
-      case MYSQL_TYPE_TIME:
-        param->store_param_func = store_param_time;
-        param->buffer_length = MAX_TIME_REP_LENGTH;
-        break;
-      case MYSQL_TYPE_DATE:
-        param->store_param_func = store_param_date;
-        param->buffer_length = MAX_DATE_REP_LENGTH;
-        break;
-      case MYSQL_TYPE_DATETIME:
-      case MYSQL_TYPE_TIMESTAMP:
-        param->store_param_func = store_param_datetime;
-        param->buffer_length = MAX_DATETIME_REP_LENGTH;
-        break;
-      case MYSQL_TYPE_TINY_BLOB:
-      case MYSQL_TYPE_MEDIUM_BLOB:
-      case MYSQL_TYPE_LONG_BLOB:
-      case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_VARCHAR:
-      case MYSQL_TYPE_VAR_STRING:
-      case MYSQL_TYPE_STRING:
-      case MYSQL_TYPE_DECIMAL:
-      case MYSQL_TYPE_NEWDECIMAL:
-      case MYSQL_TYPE_JSON:
-        param->store_param_func = store_param_str;
-        /*
-          For variable length types user must set either length or
-          buffer_length.
-        */
-        break;
-      default:
-        my_stpcpy(stmt->sqlstate, unknown_sqlstate);
-        sprintf(stmt->last_error,
-                ER_CLIENT(stmt->last_errno = CR_UNSUPPORTED_PARAM_TYPE),
-                param->buffer_type, count);
-        return true;
+    if (fix_param_bind(param, count++)) {
+      my_stpcpy(stmt->sqlstate, unknown_sqlstate);
+      sprintf(stmt->last_error,
+              ER_CLIENT(stmt->last_errno = CR_UNSUPPORTED_PARAM_TYPE),
+              param->buffer_type, count);
+      return true;
     }
-    /*
-      If param->length is not given, change it to point to buffer_length.
-      This way we can always use *param->length to get the length of data
-    */
-    if (!param->length) param->length = &param->buffer_length;
   }
   /* We have to send/resend type information to MySQL */
   stmt->send_types_to_server = true;
   stmt->bind_param_done = true;
+  return false;
+}
+
+bool STDCALL mysql_bind_param(MYSQL *mysql, unsigned n_params,
+                              MYSQL_BIND *binds, const char **names) {
+  MYSQL_EXTENSION *ext = MYSQL_EXTENSION_PTR(mysql);
+
+  mysql_extension_bind_free(ext);
+
+  /* if any of the above is empty our work here is done */
+  if (!n_params || !binds || !names) return false;
+
+  ext->bind_info.n_params = n_params;
+  ext->bind_info.bind = (MYSQL_BIND *)my_malloc(
+      PSI_NOT_INSTRUMENTED, sizeof(MYSQL_BIND) * n_params, MYF(0));
+  ext->bind_info.names = (char **)my_malloc(PSI_NOT_INSTRUMENTED,
+                                            sizeof(char *) * n_params, MYF(0));
+
+  memcpy(ext->bind_info.bind, binds, sizeof(MYSQL_BIND) * n_params);
+
+  MYSQL_BIND *param = ext->bind_info.bind;
+  for (uint idx = 0; idx < n_params; idx++, param++) {
+    ext->bind_info.names[idx] =
+        names[idx] ? my_strdup(PSI_NOT_INSTRUMENTED, names[idx], MYF(0))
+                   : nullptr;
+    if (fix_param_bind(param, idx)) {
+      my_stpcpy(mysql->net.sqlstate, unknown_sqlstate);
+      sprintf(mysql->net.last_error,
+              ER_CLIENT(mysql->net.last_errno = CR_UNSUPPORTED_PARAM_TYPE),
+              param->buffer_type, idx);
+      for (uint idx2 = 0; idx2 <= idx; idx2++)
+        my_free(ext->bind_info.names[idx]);
+      my_free(ext->bind_info.names);
+      my_free(ext->bind_info.bind);
+      memset(&ext->bind_info, 0, sizeof(ext->bind_info));
+      return true;
+    }
+  }
   return false;
 }
 
@@ -4022,7 +3710,7 @@ static int stmt_fetch_row(MYSQL_STMT *stmt, uchar *row) {
 int cli_unbuffered_fetch(MYSQL *mysql, char **row) {
   ulong len = 0;
   bool is_data_packet;
-  if (packet_error == cli_safe_read(mysql, &is_data_packet)) {
+  if (packet_error == (len = cli_safe_read(mysql, &is_data_packet))) {
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
     return 1;
   }
@@ -4715,6 +4403,7 @@ int STDCALL mysql_reset_connection(MYSQL *mysql) {
     mysql->affected_rows = ~(uint64_t)0;
     free_old_query(mysql);
     mysql->status = MYSQL_STATUS_READY;
+    mysql_extension_bind_free(MYSQL_EXTENSION_PTR(mysql));
     return 0;
   }
 }

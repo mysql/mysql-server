@@ -34,12 +34,12 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL, generate_password
@@ -778,12 +778,14 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
 
   LEX *lex = thd->lex;
   set_var_base *var;
-  {
+  if (!thd->lex->unit->is_prepared()) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     while ((var = it++)) {
       if ((error = var->resolve(thd))) goto err;
     }
     if ((error = thd->is_error())) goto err;
+    thd->lex->unit->set_prepared();
+    if (!thd->stmt_arena->is_regular()) thd->lex->save_cmd_properties(thd);
   }
   if (opened && lock_tables(thd, lex->query_tables, lex->table_count, 0)) {
     error = 1;

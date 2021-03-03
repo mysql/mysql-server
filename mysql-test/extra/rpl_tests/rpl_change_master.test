@@ -38,7 +38,7 @@ if ($read_pos == $exec_pos)
   die Failed because Read_Master_Log_Pos is equal to Exec_Master_Log_Pos;
 } 
 --replace_column 2 ####
-change master to master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 let $read_pos= query_get_value(SHOW SLAVE STATUS, Read_Master_Log_Pos, 1);
 let $exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
 if ($read_pos != $exec_pos)
@@ -88,7 +88,7 @@ delete from t1 where a=2;
 # Note: the follow change master will automatically reset
 # relay_log_purge to false, save the old value to restore
 let $relay_log_purge= `select @@global.relay_log_purge`;
-CHANGE MASTER TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
+CHANGE REPLICATION SOURCE TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
 start slave sql_thread;
 source include/wait_for_slave_sql_to_start.inc;
 
@@ -125,7 +125,7 @@ drop table t1;
 
 # action: change the initial value to some other value
 -- let $retry_count1= `SELECT $retry_count0+10`
--- eval CHANGE MASTER TO master_retry_count=$retry_count1
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count1
 
 -- source include/start_slave.inc
 
@@ -142,7 +142,7 @@ if (`SELECT $retry_count1 <> ($retry_count0+10)`)
 
 # action: change master_retry_count to zero will set it to zero.
 -- let $retry_count1= 0
--- eval CHANGE MASTER TO master_retry_count=$retry_count1
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count1
 
 -- source include/start_slave.inc
 
@@ -157,7 +157,7 @@ if ($retry_count2 != $retry_count1)
 -- source include/stop_slave.inc
 
 # action: change the value to the smallest value possible
-CHANGE MASTER TO master_retry_count=1;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=1;
 
 -- source include/start_slave.inc
 
@@ -172,7 +172,7 @@ if ($retry_count3 != 1)
 -- source include/stop_slave.inc
 
 # action: change the value back to the original one
--- eval CHANGE MASTER TO master_retry_count=$retry_count0
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count0
 
 -- source include/start_slave.inc
 
@@ -195,7 +195,7 @@ if ($retry_count4 != $retry_count0)
 -- source include/stop_slave.inc
 -- let $retry_count_set= 18446744073709551616
 -- replace_result 18446744073709551616 RETRY_COUNT_SET
--- eval CHANGE MASTER TO master_retry_count=$retry_count_set
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count_set
 -- let $retry_count_expected= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 -- replace_result 18446744073709551615 RETRY_COUNT_EXPECTED 4294967295 RETRY_COUNT_EXPECTED 9223372036854775807 RETRY_COUNT_EXPECTED
 -- eval SELECT $retry_count_expected AS current_retry_count
@@ -205,14 +205,14 @@ if ($retry_count4 != $retry_count0)
 -- let $connect_retry_old= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
 -- let $connect_retry_new= `SELECT $connect_retry_old + 1`
 -- let $retry_count_before= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
--- eval CHANGE MASTER TO master_connect_retry= $connect_retry_new
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= $connect_retry_new
 -- let $retry_count_after= query_get_value(SHOW SLAVE STATUS, Master_Retry_Count, 1)
 if ($retry_count_before != $retry_count_after)
 {
   -- echo Unexpected retry count value! Got: $retry_count_after, expected: $retry_count_before
   -- die
 }
--- eval CHANGE MASTER TO master_connect_retry= $connect_retry_old
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= $connect_retry_old
 
 ## Server restart persisting test
 --let $rpl_server_number= 2
@@ -229,15 +229,15 @@ if ($retry_count5 != $retry_count_expected)
 
 # action: change the value back to the original one
 -- source include/stop_slave.inc
--- eval CHANGE MASTER TO master_retry_count=$retry_count0
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=$retry_count0
 
 ## assert that there is a parse error if not using a numerical value
 -- error ER_PARSE_ERROR
-CHANGE MASTER TO master_retry_count='a';
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT='a';
 
 ## assert that there is a parse error if using a negative number
 -- error ER_PARSE_ERROR
-CHANGE MASTER TO master_retry_count=-1;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=-1;
 
 -- source include/start_slave.inc
 
@@ -257,7 +257,7 @@ if ($retry_count6 != $retry_count0)
 -- let $connect_old_value= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
 -- let $ignore_old_value= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1)
 
--- eval CHANGE MASTER TO master_connect_retry= 200, IGNORE_SERVER_IDS= (100, 200, 300, 400, 500)
+-- eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY= 200, IGNORE_SERVER_IDS= (100, 200, 300, 400, 500)
 
 -- let $connect_new_value= query_get_value(SHOW SLAVE STATUS, Connect_Retry, 1)
 -- let $ignore_new_value= query_get_value(SHOW SLAVE STATUS, Replicate_Ignore_Server_Ids, 1)
@@ -279,7 +279,7 @@ if (`SELECT "$ignore_new_value" <> "$ignore_crash_value" || $connect_new_value <
 
 # clean up
 --source include/stop_slave.inc
-CHANGE MASTER TO IGNORE_SERVER_IDS= ();
+CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
 --source include/start_slave.inc
 
 #
@@ -314,5 +314,5 @@ let $master_bind='';
 ### Revert to original master_host value
 --source include/stop_slave.inc
 --replace_result $save_master_host SAVE_MASTER_HOST
---eval CHANGE MASTER TO master_host='$save_master_host'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='$save_master_host'
 --source include/start_slave.inc

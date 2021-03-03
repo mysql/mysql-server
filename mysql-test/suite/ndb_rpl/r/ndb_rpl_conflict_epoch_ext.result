@@ -8,7 +8,6 @@ The circle is setup between Primary and Secondary
 Setup ndb_replication and t1 exceptions table
 Populate ndb_replication table as necessary
 -- 0 extra gci bits
-call mtr.add_suppression("NDB Slave: exceptions table .* has suspicious definition .*");
 create table `test`.`t1$EX`
   (ndb$server_id int unsigned,
 ndb$master_server_id int unsigned,
@@ -727,7 +726,6 @@ drop table test.t2;
 drop table test.t1$EX;
 Populate ndb_replication table as necessary
 -- 1 extra gci bits
-call mtr.add_suppression("NDB Slave: exceptions table .* has suspicious definition .*");
 create table `test`.`t1$EX`
   (ndb$server_id int unsigned,
 ndb$master_server_id int unsigned,
@@ -1446,7 +1444,6 @@ drop table test.t2;
 drop table test.t1$EX;
 Populate ndb_replication table as necessary
 -- 31 extra gci bits
-call mtr.add_suppression("NDB Slave: exceptions table .* has suspicious definition .*");
 create table `test`.`t1$EX`
   (ndb$server_id int unsigned,
 ndb$master_server_id int unsigned,
@@ -2165,7 +2162,6 @@ drop table test.t2;
 drop table test.t1$EX;
 Populate ndb_replication table as necessary
 -- Default extra Gci bits
-call mtr.add_suppression("NDB Slave: exceptions table .* has suspicious definition .*");
 create table `test`.`t1$EX`
   (ndb$server_id int unsigned,
 ndb$master_server_id int unsigned,

@@ -59,13 +59,14 @@ using std::vector;
 
 template <bool Reverse>
 IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx,
-                                              bool use_order, QEP_TAB *qep_tab,
+                                              bool use_order,
+                                              double expected_rows,
                                               ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
       m_idx(idx),
       m_use_order(use_order),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 template <bool Reverse>
@@ -88,7 +89,7 @@ bool IndexScanIterator<Reverse>::Init() {
       return true;
     }
 
-    if (set_record_buffer(m_qep_tab)) {
+    if (set_record_buffer(table(), m_expected_rows)) {
       return true;
     }
   }
@@ -158,17 +159,16 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
   } else if (table == nullptr) {
     table = qep_tab->table();
   }
-  empty_record(table);
 
   AccessPath *path;
   if (qep_tab != nullptr && qep_tab->quick() != nullptr) {
-    path = NewIndexRangeScanAccessPath(thd, table, qep_tab->quick(), qep_tab,
+    path = NewIndexRangeScanAccessPath(thd, table, qep_tab->quick(),
                                        count_examined_rows);
   } else if (qep_tab != nullptr && qep_tab->table_ref != nullptr &&
              qep_tab->table_ref->is_recursive_reference()) {
-    path = NewFollowTailAccessPath(thd, table, qep_tab, count_examined_rows);
+    path = NewFollowTailAccessPath(thd, table, count_examined_rows);
   } else {
-    path = NewTableScanAccessPath(thd, table, qep_tab, count_examined_rows);
+    path = NewTableScanAccessPath(thd, table, count_examined_rows);
   }
   if (qep_tab != nullptr && qep_tab->position() != nullptr) {
     SetCostOnTableAccessPath(*thd->cost_model(), qep_tab->position(),
@@ -190,7 +190,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
     iterator = NewIterator<SortFileIndirectIterator>(
-        thd, Prealloced_array<TABLE *, 4>{table}, table->unique_result.io_cache,
+        thd, Mem_root_array<TABLE *>{table}, table->unique_result.io_cache,
         ignore_not_found_rows, /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
     table->unique_result.io_cache =
@@ -203,7 +203,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
     DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
     iterator = NewIterator<SortBufferIndirectIterator>(
-        thd, Prealloced_array<TABLE *, 4>{table}, &table->unique_result,
+        thd, Mem_root_array<TABLE *>{table}, &table->unique_result,
         ignore_not_found_rows, /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
   } else {
@@ -262,14 +262,16 @@ void TableRowIterator::EndPSIBatchModeIfStarted() {
 
 IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
                                                QUICK_SELECT_I *quick,
-                                               QEP_TAB *qep_tab,
+                                               double expected_rows,
                                                ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_quick(quick),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 bool IndexRangeScanIterator::Init() {
+  empty_record(table());
+
   /*
     Only attempt to allocate a record buffer the first time the handler is
     initialized.
@@ -283,8 +285,14 @@ bool IndexRangeScanIterator::Init() {
     return true;
   }
 
-  if (first_init && table()->file->inited && set_record_buffer(m_qep_tab))
-    return true; /* purecov: inspected */
+  // NOTE: We don't try to set up record buffers for loose index scans,
+  // because they usually cannot read expected_rows_to_fetch rows in one go
+  // anyway.
+  if (first_init && table()->file->inited && !m_quick->is_loose_index_scan()) {
+    if (set_record_buffer(table(), m_expected_rows)) {
+      return true; /* purecov: inspected */
+    }
+  }
 
   m_seen_eof = false;
   return false;
@@ -312,11 +320,12 @@ int IndexRangeScanIterator::Read() {
   return 0;
 }
 
-TableScanIterator::TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+TableScanIterator::TableScanIterator(THD *thd, TABLE *table,
+                                     double expected_rows,
                                      ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 TableScanIterator::~TableScanIterator() {
@@ -326,6 +335,8 @@ TableScanIterator::~TableScanIterator() {
 }
 
 bool TableScanIterator::Init() {
+  empty_record(table());
+
   /*
     Only attempt to allocate a record buffer the first time the handler is
     initialized.
@@ -338,8 +349,9 @@ bool TableScanIterator::Init() {
     return true;
   }
 
-  if (first_init && set_record_buffer(m_qep_tab))
+  if (first_init && set_record_buffer(table(), m_expected_rows)) {
     return true; /* purecov: inspected */
+  }
 
   return false;
 }
@@ -360,11 +372,12 @@ int TableScanIterator::Read() {
   return 0;
 }
 
-FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+FollowTailIterator::FollowTailIterator(THD *thd, TABLE *table,
+                                       double expected_rows,
                                        ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_record(table->record[0]),
-      m_qep_tab(qep_tab),
+      m_expected_rows(expected_rows),
       m_examined_rows(examined_rows) {}
 
 FollowTailIterator::~FollowTailIterator() {
@@ -374,6 +387,8 @@ FollowTailIterator::~FollowTailIterator() {
 }
 
 bool FollowTailIterator::Init() {
+  empty_record(table());
+
   // BeginMaterialization() must be called before this.
   DBUG_ASSERT(m_stored_rows != nullptr);
 
@@ -403,8 +418,9 @@ bool FollowTailIterator::Init() {
       return true;
     }
 
-    if (first_init && set_record_buffer(m_qep_tab))
+    if (first_init && set_record_buffer(table(), m_expected_rows)) {
       return true; /* purecov: inspected */
+    }
 
     // The first seen record will start a new iteration.
     m_read_rows = 0;

@@ -41,23 +41,28 @@ while ($1)
 }
 --enable_query_log
 
+--sorted_result
 select * from t1 where (key1 >= 2 and key1 <= 10) or (pk >= 4 and pk <=8 );
 
 set @maxv=1000;
 
+--sorted_result
 select * from t1 where
   (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
   or key1=18 or key1=60;
 
+--sorted_result
 select * from t1 where
   (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
   or key1 < 3 or key1 > @maxv-11;
 
+--sorted_result
 select * from t1 where
   (pk < 5) or (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 ) or (pk > @maxv-10)
   or
   (key1 < 5) or (key1 > 10 and key1 < 15) or (key1 >= 50 and key1 < 55 ) or (key1 > @maxv-10);
 
+--sorted_result
 select * from t1 where
   (pk > 10 and pk < 15) or (pk >= 50 and pk < 55 )
   or

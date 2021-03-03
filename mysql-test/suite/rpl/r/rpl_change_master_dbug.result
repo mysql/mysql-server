@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/stop_slave.inc
-CHANGE MASTER TO master_retry_count=3, master_host='300.1.1.1', master_connect_retry=1;
+CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT=3, SOURCE_HOST='300.1.1.1', SOURCE_CONNECT_RETRY=1;
 START SLAVE io_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -12,5 +12,5 @@ include/wait_for_slave_io_to_stop.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO master_host = '127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1';
 include/rpl_end.inc

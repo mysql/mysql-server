@@ -129,4 +129,42 @@ constexpr size_t FIL_ADDR_SIZE = 6;
 /** Path separator e.g., 'dir;...;dirN' */
 constexpr char FIL_PATH_SEPARATOR = ';';
 
+/** A wrapper class to help print and inspect the file page header. */
+struct Fil_page_header {
+  /** The constructor that takes a pointer to page header as argument.
+  @param[in]  frame  the pointer to the page header. */
+  explicit Fil_page_header(const byte *frame) : m_frame(frame) {}
+
+  /** Get the space id from the page header.
+  @return the space identifier. */
+  space_id_t get_space_id() const noexcept MY_ATTRIBUTE((warn_unused_result));
+
+  /** Get the page number from the page header.
+  @return the page number. */
+  page_no_t get_page_no() const noexcept MY_ATTRIBUTE((warn_unused_result));
+
+  /** Get the page type from the page header.
+  @return the page type. */
+  uint16_t get_page_type() const noexcept MY_ATTRIBUTE((warn_unused_result));
+
+  /** Print the page header to the given output stream.
+  @param[in]  out  the output stream.
+  @return the ouput stream. */
+  std::ostream &print(std::ostream &out) const noexcept;
+
+ private:
+  /** Pointer to the page header. */
+  const byte *m_frame{};
+};
+
+/** Overload the global output operator to handle an object of type
+Fil_page_header.
+@param[in]  out      the output stream.
+@param[in]  header   an object of type Fil_page_header.
+@return the output stream. */
+inline std::ostream &operator<<(std::ostream &out,
+                                const Fil_page_header &header) noexcept {
+  return (header.print(out));
+}
+
 #endif /* fil0types_h */

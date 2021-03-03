@@ -136,7 +136,7 @@ extern const char *client_errors[]; /* Error messages */
 static inline const char *ER_CLIENT(int client_errno) {
   if (client_errno >= CR_ERROR_FIRST && client_errno <= CR_ERROR_LAST)
     return client_errors[client_errno - CR_ERROR_FIRST];
-  return client_errors[CR_UNKNOWN_ERROR];
+  return client_errors[CR_UNKNOWN_ERROR - CR_ERROR_FIRST];
 }
 
 #endif /* ERRMSG_INCLUDED */

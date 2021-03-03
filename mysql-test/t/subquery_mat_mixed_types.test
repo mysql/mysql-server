@@ -82,14 +82,23 @@ while ($i <= $table_count)
           let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
           --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt1;
+          --sorted_result
+          # The combination c2/c13 on this query hits bug #31832001
+          # (HASH JOIN MISMATCHES SIGNED AND UNSIGNED), which is not related
+          # to the hypergraph optimizer in itself, only exposed by it.
+          --skip_if_hypergraph
           eval $stmt1;
           let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
           --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt2;
+          --sorted_result
+          # Same bug as in the previous query.
+          --skip_if_hypergraph
           eval $stmt2;
           let $stmt3= SELECT * FROM t$i GROUP BY c1 HAVING c1 IN (SELECT c1 FROM t$j);
           --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt3;
+          --sorted_result
           eval $stmt3;
           if ($i == 11)
           {
@@ -102,6 +111,7 @@ while ($i <= $table_count)
                                               (SELECT 1 FROM t$j WHERE ASCII(c1) = 50);
           --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
           eval EXPLAIN $stmt4;
+          --sorted_result
           eval $stmt4;
           if ($i == 11)
           {
@@ -136,10 +146,12 @@ let $j=8;
 let $stmt1= SELECT * FROM t$i STRAIGHT_JOIN t$j WHERE t$i.c1=t$j.c1;
 --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
 eval EXPLAIN $stmt1;
+--sorted_result
 eval $stmt1;
 let $stmt2= SELECT * FROM t$i WHERE c1 IN (SELECT c1 FROM t$j);
 --replace_column 1 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 11 # 12 #
 eval EXPLAIN $stmt2;
+--sorted_result
 eval $stmt2;
 
 

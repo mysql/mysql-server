@@ -123,10 +123,10 @@ INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
 INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
 select a.id, b.category as catid, b.state as stateid, b.county as countyid from t1 a, t2 b ignore index (primary) where (a.token ='a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
 id	catid	stateid	countyid
+26	1	6	37
 27	2	12	11
 28	2	12	11
 29	2	12	25
-26	1	6	37
 select a.id, b.category as catid, b.state as stateid, b.county as
 countyid from t1 a, t2 b where (a.token =
 'a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id) order by a.id;
@@ -172,23 +172,19 @@ a	a	b
 DROP TABLE t1, t2;
 CREATE TABLE t1 (d DATE NOT NULL);
 CREATE TABLE t2 (d DATE NOT NULL);
-INSERT INTO t1 (d) VALUES ('2001-08-01'),('0000-00-00');
-Warnings:
-Warning	1264	Out of range value for column 'd' at row 2
+INSERT INTO t1 (d) VALUES ('2001-08-01'),('1000-01-01');
 SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE t2.d IS NULL;
 d
 2001-08-01
-0000-00-00
+1000-01-01
 SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE d IS NULL;
 d
-0000-00-00
 SELECT * from t1 WHERE t1.d IS NULL;
 d
-0000-00-00
 SELECT * FROM t1 WHERE 1/0 IS NULL;
 d
 2001-08-01
-0000-00-00
+1000-01-01
 Warnings:
 Warning	1365	Division by 0
 DROP TABLE t1,t2;
@@ -434,6 +430,10 @@ CREATE TABLE t2 (a int, d int, e int default 0);
 INSERT INTO t2 (a, d) VALUES (1,1),(2,2),(3,3),(4,4);
 INSERT INTO t2 (a, d) SELECT a+4, a+4 FROM t2;
 INSERT INTO t2 (a, d) SELECT a+8, a+8 FROM t2;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
 ORDER BY t1.b, t1.c;
@@ -559,8 +559,8 @@ NULL	10	1	2	NULL
 select * from (t1 natural join t2), (t3 natural join t4);
 b	c	a	c	b	y
 1	10	2	3	1	11
-1	3	2	3	1	11
 1	10	2	3	1	2
+1	3	2	3	1	11
 1	3	2	3	1	2
 select * from t5 natural join ((t1 natural join t2), (t3 natural join t4));
 y	z	b	c	a	c	b
@@ -623,20 +623,20 @@ c	b	a	y
 3	1	2	2
 select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
 c	b	a	b	b	c	y	c
-10	1	2	1	1	3	11	3
 10	1	2	1	1	10	11	3
-3	1	2	1	1	3	11	3
+10	1	2	1	1	3	11	3
 3	1	2	1	1	10	11	3
-3	2	2	1	1	3	11	3
+3	1	2	1	1	3	11	3
 3	2	2	1	1	10	11	3
+3	2	2	1	1	3	11	3
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
 c	b	a	b	b	c	y	c
-10	1	2	1	1	3	11	3
 10	1	2	1	1	10	11	3
-3	1	2	1	1	3	11	3
+10	1	2	1	1	3	11	3
 3	1	2	1	1	10	11	3
-3	2	2	1	1	3	11	3
+3	1	2	1	1	3	11	3
 3	2	2	1	1	10	11	3
+3	2	2	1	1	3	11	3
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
 b	c	a	c	b	y
 1	10	2	3	1	2
@@ -881,6 +881,11 @@ create table t2 (a int not null, primary key(a));
 insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t3 (a int not null, primary key(a));
 insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 a	b	a	a
@@ -894,8 +899,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`t
 We expect rnd_next=5, and read_key must be 0 because of short-cutting:
 show status like 'Handler_read%';
 Variable_name	Value
-Handler_read_first	0
-Handler_read_key	0
+Handler_read_first	1
+Handler_read_key	5
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -911,9 +916,14 @@ select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 insert into t3 select * from t2 where a < 800;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	a,b	NULL	NULL	NULL	1000	39.50	Using where
+1	SIMPLE	t2	NULL	ALL	a,b	NULL	NULL	NULL	1000	40.00	Using where
 1	SIMPLE	t3	NULL	ref	b	b	5	test.t2.b	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`filler` AS `filler`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` < 400))
@@ -924,14 +934,18 @@ create table t2 (a int, b int, primary key(a));
 insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 explain select * from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 show status like '%cost%';
 Variable_name	Value
-Last_query_cost	1.503272
+Last_query_cost	1.249000
 select 'The cost of accessing t1 (dont care if it changes' '^';
 The cost of accessing t1 (dont care if it changes
 The cost of accessing t1 (dont care if it changes^
@@ -947,7 +961,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`a`.`a` AS `a`,`test`.`a`.`b` AS `b`,`test`.`b`.`a` AS `a`,`test`.`b`.`b` AS `b` from `test`.`t1` join `test`.`t2` `a` join `test`.`t2` `b` where ((`test`.`b`.`a` = `test`.`a`.`b`) and (`test`.`a`.`a` = `test`.`t1`.`a`))
 show status like '%cost%';
 Variable_name	Value
-Last_query_cost	8.503272
+Last_query_cost	8.249000
 select '^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error' Z;
 Z
 ^^: The above should be ~= 8 + cost(select * from t1). Value less than 8 is an error
@@ -961,6 +975,10 @@ INSERT INTO t1 SELECT a + 16, b FROM t1;
 INSERT INTO t1 SELECT a + 32, b FROM t1;
 INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using where
@@ -981,13 +999,13 @@ a	b	c	d
 2	NULL	2	NULL
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	100.00	Using where; Using filesort
+1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	128	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`b`) order by `test`.`t1`.`a`
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	128	100.00	Using filesort
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	128	100.00	NULL
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`c` = `test`.`t1`.`a`) order by `test`.`t1`.`a`
@@ -1138,6 +1156,14 @@ INSERT INTO t2 VALUES
 (2), (2), (2), (2), (2), (2), (2), (2), (2), (2);
 INSERT INTO t3 VALUES
 (3), (3), (3), (3), (3), (3), (3), (3), (3), (3);
+ANALYZE TABLE t1, t2, t3, t4, t5, t6;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+test.t5	analyze	status	OK
+test.t6	analyze	status	OK
 EXPLAIN
 SELECT * 
 FROM 
@@ -1157,10 +1183,10 @@ ON t1.a = t3.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where; Using join buffer (hash join)
-1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.a	2	100.00	Using where; Using index
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Using where
+1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.a	10	100.00	Using where; Using index
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t4`.`a` AS `a`,`test`.`t5`.`a` AS `a`,`test`.`t6`.`a` AS `a` from `test`.`t1` join `test`.`t2` left join (`test`.`t3` left join `test`.`t4` on((`test`.`t4`.`a` = `test`.`t1`.`a`)) left join (`test`.`t5` left join `test`.`t6` on((`test`.`t6`.`a` = `test`.`t4`.`a`))) on((`test`.`t5`.`a` = `test`.`t4`.`a`))) on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))) where (`test`.`t2`.`a` = `test`.`t1`.`a`)
 SELECT * 
@@ -1300,6 +1326,10 @@ c1 INTEGER NOT NULL,
 PRIMARY KEY (pk)
 );
 INSERT INTO t2 VALUES (1,4),(3,5),(2,6);
+ANALYZE  TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 EXPLAIN SELECT t2.pk, t2.c1 FROM t2, t1 
 WHERE t2.pk = t1.c1 AND t2.pk >= 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1317,7 +1347,7 @@ EXPLAIN SELECT v_t2.pk, v_t2.c1 FROM v_t2, t1
 WHERE v_t2.pk = t1.c1 AND v_t2.pk >= 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c1	1	100.00	Using index condition
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.c1	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `pk`,`test`.`t2`.`c1` AS `c1` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`pk` = `test`.`t1`.`c1`) and (`test`.`t2`.`pk` >= 2))
 SELECT v_t2.pk, v_t2.c1 FROM v_t2, t1 
@@ -2031,4 +2061,36 @@ on true);
 a
 drop table t;
 set optimizer_switch=default;
-set global default_storage_engine=myisam;
+set global default_storage_engine=innodb;
+#
+# WL#14071: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED
+#
+CREATE TABLE t1 (
+a INTEGER
+);
+CREATE TABLE t2 (
+pk INTEGER NOT NULL,
+a INTEGER
+);
+SELECT * FROM
+(
+t2 LEFT JOIN t2 AS t3 ON t2.pk IS NULL
+) LEFT JOIN t1 ON t1.a = t3.a;
+pk	a	pk	a	a
+DROP TABLE t1, t2;
+#
+# Bug #31924828: WL#14071: HYPERGAPH RETURNS DIFFERENT RESULTS WITH ONLY_FULL_GROUP_BY DISABLED
+#
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 ( pk INTEGER );
+SELECT * FROM t1 LEFT JOIN t2 ON TRUE WHERE t2.pk <=> 3;
+pk	pk
+DROP TABLE t1, t2;
+#
+# Bug #31947917: WL#14071: ASAN LEAKS SEEN DURING SHUTDOWN
+#
+CREATE TABLE A ( pk INTEGER );
+SELECT t1.pk FROM A t1, A t2, A t3, A t4, A t5 GROUP BY t1.pk;
+pk
+DROP TABLE A;

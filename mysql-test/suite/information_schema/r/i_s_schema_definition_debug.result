@@ -118,7 +118,7 @@ include/assert.inc [All expected I_S system views are present.]
 #         I_S system views.
 ########################################################################
 # Print the actual I_S version stored on disk.
-Current I_S_VERSION=80022
+Current I_S_VERSION=80023
 CREATE TABLE I_S_check_table (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 t TEXT NOT NULL,
 row_hash VARCHAR(64) DEFAULT NULL);
@@ -219,7 +219,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   CASE col.type  WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_VAR_STRING' THEN     (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN     (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_SET' THEN (IF (cs.name='binary',NULL, coll.name))  ELSE NULL END AS COLLATION_NAME,
   col.column_type_utf8 AS COLUMN_TYPE,
   col.column_key AS COLUMN_KEY,
-  INTERNAL_GET_DD_COLUMN_EXTRA(ISNULL(col.generation_expression_utf8),  col.is_virtual, col.is_auto_increment, col.update_option,   IF(LENGTH(col.default_option), TRUE, FALSE), col.options) AS EXTRA,
+  INTERNAL_GET_DD_COLUMN_EXTRA(ISNULL(col.generation_expression_utf8),  col.is_virtual, col.is_auto_increment, col.update_option,   IF(LENGTH(col.default_option), TRUE, FALSE), col.options,   col.hidden, tbl.type) AS EXTRA,
   GET_DD_COLUMN_PRIVILEGES(sch.name, tbl.name, col.name) AS PRIVILEGES,
   IFNULL(col.comment, '') AS COLUMN_COMMENT,
   IFNULL(col.generation_expression_utf8, '') AS GENERATION_EXPRESSION,
@@ -232,7 +232,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMNS AS SELECT 
   cat.name AS TABLE_CATALOG,
@@ -252,7 +252,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   CASE col.type  WHEN 'MYSQL_TYPE_STRING' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_VAR_STRING' THEN     (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_VARCHAR' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_TINY_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_MEDIUM_BLOB' THEN     (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_LONG_BLOB' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_ENUM' THEN (IF (cs.name='binary',NULL, coll.name))  WHEN 'MYSQL_TYPE_SET' THEN (IF (cs.name='binary',NULL, coll.name))  ELSE NULL END AS COLLATION_NAME,
   col.column_type_utf8 AS COLUMN_TYPE,
   col.column_key AS COLUMN_KEY,
-  INTERNAL_GET_DD_COLUMN_EXTRA(ISNULL(col.generation_expression_utf8),  col.is_virtual, col.is_auto_increment, col.update_option,   IF(LENGTH(col.default_option), TRUE, FALSE), col.options) AS EXTRA,
+  INTERNAL_GET_DD_COLUMN_EXTRA(ISNULL(col.generation_expression_utf8),  col.is_virtual, col.is_auto_increment, col.update_option,   IF(LENGTH(col.default_option), TRUE, FALSE), col.options,   col.hidden, tbl.type) AS EXTRA,
   GET_DD_COLUMN_PRIVILEGES(sch.name, tbl.name, col.name) AS PRIVILEGES,
   IFNULL(col.comment, '') AS COLUMN_COMMENT,
   IFNULL(col.generation_expression_utf8, '') AS GENERATION_EXPRESSION,
@@ -265,7 +265,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMNS_EXTENSIONS AS SELECT 
   cat.name AS TABLE_CATALOG,
@@ -280,7 +280,7 @@ CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
 
 INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMNS_EXTENSIONS AS SELECT 
   cat.name AS TABLE_CATALOG,
@@ -295,7 +295,7 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   JOIN mysql.catalogs cat ON cat.id=sch.catalog_id WHERE 
   INTERNAL_GET_VIEW_WARNING_OR_ERROR(sch.name,tbl.name, tbl.type, tbl.options)
   AND CAN_ACCESS_COLUMN(sch.name, tbl.name, col.name)
-  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')
+  AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', 'User'))
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.COLUMN_STATISTICS AS SELECT 
   SCHEMA_NAME AS SCHEMA_NAME,
@@ -1649,8 +1649,8 @@ SET debug = '-d,fetch_system_view_definition';
 include/assert.inc [Found expected number of system views in DD.]
 include/assert.inc [Found expected number of system views in I_S_check_table.]
 include/assert.inc [The group concat max length is sufficient.]
-The schema checksum corresponds to I_S version 80022.
+The schema checksum corresponds to I_S version 80023.
 include/assert.inc [The schema checksum corresponds to a known I_S version.]
 include/assert.inc [The schema checksum corresponds to
-IS_VERSION 80022 stored on on disk.]
+IS_VERSION 80023 stored on on disk.]
 include/assert.inc [The stored I_S version is the latest published I_S version.]

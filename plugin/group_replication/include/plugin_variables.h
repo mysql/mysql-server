@@ -63,6 +63,7 @@ struct plugin_local_variables {
   bool wait_on_engine_initialization;
   int write_set_extraction_algorithm;
   bool abort_wait_on_start_process;
+  bool recovery_timeout_issue_on_stop;
 
   // (60min / 5min) * 24 * 7, i.e. a week.
   const uint MAX_AUTOREJOIN_TRIES = 2016;
@@ -100,6 +101,7 @@ struct plugin_local_variables {
     wait_on_engine_initialization = false;
     write_set_extraction_algorithm = HASH_ALGORITHM_OFF;
     abort_wait_on_start_process = false;
+    recovery_timeout_issue_on_stop = false;
     // the default is 5 minutes (300 secs).
     rejoin_timeout = 300ULL;
 
@@ -237,7 +239,9 @@ struct plugin_options_variables {
 #define DEFAULT_TRANSACTION_SIZE_LIMIT 150000000
 #define MAX_TRANSACTION_SIZE_LIMIT 2147483647
 #define MIN_TRANSACTION_SIZE_LIMIT 0
-  ulong transaction_size_limit_var;
+  /** Base variable that feeds the value to an atomic variable */
+  ulong transaction_size_limit_base_var;
+  std::atomic<ulong> transaction_size_limit_var;
 
   char *communication_debug_options_var;
 

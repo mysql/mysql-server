@@ -1,5 +1,8 @@
 --source include/have_debug_sync.inc
 
+# Does not contain the sync point used.
+--source include/not_hypergraph.inc
+
 CREATE TABLE t1 ( pk INTEGER );
 INSERT INTO t1 VALUES (1), (2), (3);
 ANALYZE TABLE t1;

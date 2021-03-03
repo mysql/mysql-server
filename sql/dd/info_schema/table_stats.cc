@@ -154,7 +154,12 @@ bool store_statistics_record(THD *thd, T *object) {
     return true;
   }
 
-  return trans_commit_stmt(thd) || trans_commit(thd);
+  /*
+    Ignore global read lock when committing attachable transaction,
+    so we can update statistics tables even if some other thread
+    owns GRL, similarly to how ANALYZE TABLE is allowed to do this.
+  */
+  return trans_commit_stmt(thd, true) || trans_commit(thd, true);
 }
 
 template bool store_statistics_record(THD *thd, dd::Table_stat *);

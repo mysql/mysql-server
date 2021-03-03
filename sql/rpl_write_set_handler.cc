@@ -470,15 +470,16 @@ static void debug_check_for_write_sets(
   Function to generate the hash of the string passed to this function.
 
   @param[in] pke - the string to be hashed.
-  @param[in] thd - THD object pointing to current thread. */
+  @param[in] thd - THD object pointing to current thread.
+  @return true if a problem occurred on generation or write set tracking.
+*/
 #ifndef DBUG_OFF
 /**
   @param[in] write_sets - list of all write sets
   @param[in] hash_list - list of all hashes
 */
 #endif
-
-static void generate_hash_pke(const std::string &pke, THD *thd
+static bool generate_hash_pke(const std::string &pke, THD *thd
 #ifndef DBUG_OFF
                               ,
                               std::vector<std::string> &write_sets,
@@ -491,13 +492,16 @@ static void generate_hash_pke(const std::string &pke, THD *thd
 
   uint64 hash = calc_hash<const char *>(
       thd->variables.transaction_write_set_extraction, pke.c_str(), pke.size());
-  thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash);
+  if (thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(
+          hash))
+    return true;
 
 #ifndef DBUG_OFF
   write_sets.push_back(pke);
   hash_list.push_back(hash);
 #endif
   DBUG_PRINT("info", ("pke: %s; hash: %" PRIu64, pke.c_str(), hash));
+  return false;
 }
 
 /**
@@ -505,7 +509,9 @@ static void generate_hash_pke(const std::string &pke, THD *thd
 
   @param[in] prefix_pke  - stringified non-multi-valued prefix of key
   @param[in] thd         - THD object pointing to current thread.
-  @param[in] fld         - multi-valued keypart's field */
+  @param[in] fld         - multi-valued keypart's field
+  @return true if a problem occurred on generation or write set tracking.
+*/
 #ifndef DBUG_OFF
 /**
   @param[in] write_sets  - DEBUG ONLY, vector of added PKEs
@@ -513,7 +519,7 @@ static void generate_hash_pke(const std::string &pke, THD *thd
 */
 #endif
 
-static void generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
+static bool generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
                                  Field *fld
 #ifndef DBUG_OFF
                                  ,
@@ -549,17 +555,19 @@ static void generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
       pke.append(pointer_cast<char *>(pk_value.get()), length);
       pke.append(HASH_STRING_SEPARATOR);
       pke.append(std::to_string(length));
-      generate_hash_pke(pke, thd
+      if (generate_hash_pke(pke, thd
 #ifndef DBUG_OFF
-                        ,
-                        write_sets, hash_list
+                            ,
+                            write_sets, hash_list
 #endif
-      );
+                            ))
+        return true;
     }
   }
+  return false;
 }
 
-void add_pke(TABLE *table, THD *thd, uchar *record) {
+bool add_pke(TABLE *table, THD *thd, uchar *record) {
   DBUG_TRACE;
   DBUG_ASSERT(record == table->record[0] || record == table->record[1]);
   /*
@@ -682,20 +690,22 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
       if (i == table->key_info[key_number].user_defined_key_parts) {
         if (mv_field) {
           mv_field->move_field_offset(ptrdiff);
-          generate_mv_hash_pke(pke, thd, mv_field
+          if (generate_mv_hash_pke(pke, thd, mv_field
 #ifndef DBUG_OFF
-                               ,
-                               write_sets, hash_list
+                                   ,
+                                   write_sets, hash_list
 #endif
-          );
+                                   ))
+            return true;
           mv_field->move_field_offset(-ptrdiff);
         } else {
-          generate_hash_pke(pke, thd
+          if (generate_hash_pke(pke, thd
 #ifndef DBUG_OFF
-                            ,
-                            write_sets, hash_list
+                                ,
+                                write_sets, hash_list
 #endif
-          );
+                                ))
+            return true;
         }
         writeset_hashes_added = true;
       } else {
@@ -763,12 +773,13 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
             pke_prefix.append(HASH_STRING_SEPARATOR);
             pke_prefix.append(std::to_string(length));
 
-            generate_hash_pke(pke_prefix, thd
+            if (generate_hash_pke(pke_prefix, thd
 #ifndef DBUG_OFF
-                              ,
-                              write_sets, hash_list
+                                  ,
+                                  write_sets, hash_list
 #endif
-            );
+                                  ))
+              return true;
             writeset_hashes_added = true;
           }
           /* revert the field object record offset back */
@@ -786,4 +797,5 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
   }
 
   if (!writeset_hashes_added) ws_ctx->set_has_missing_keys();
+  return false;
 }

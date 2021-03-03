@@ -46,7 +46,7 @@ INSERT INTO t1 VALUES (1);
 --echo # CHANGE MASTER with options apart from the MASTER_USER and
 --echo # MASTER_PASSWORD will cause error.
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO MASTER_USER='MANISH', MASTER_PASSWORD='abc_manish_abc', MASTER_PORT=13000 FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='MANISH', SOURCE_PASSWORD='abc_manish_abc', SOURCE_PORT=13000 FOR CHANNEL 'group_replication_recovery';
 
 --let $assert_text=No new user is created after the execution of the change master
 --let $assert_cond= `SELECT COUNT(*) = 0 FROM mysql.slave_master_info WHERE User_name LIKE 'MANISH'`
@@ -66,7 +66,7 @@ CHANGE MASTER TO MASTER_USER='MANISH', MASTER_PASSWORD='abc_manish_abc', MASTER_
 
 --echo # Second CHANGE MASTER with valid options will work fine.
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --let $assert_text= A new user is created after the execution of the change master

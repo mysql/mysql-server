@@ -1,6 +1,5 @@
 /*
- *
- Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -76,6 +75,7 @@ class Xcl_session_negotiation_tests : public Xcl_session_impl_tests {
         .Times(testing::AtLeast(1));
     EXPECT_CALL(*m_mock_protocol, remove_notice_handler(_))
         .Times(testing::AtLeast(1));
+    EXPECT_CALL(*m_mock_protocol, reset_buffering()).Times(testing::AtLeast(1));
 
     EXPECT_CALL(m_mock_connection, connect(_, 33060, _))
         .WillOnce(Return(XError{0, ""}));

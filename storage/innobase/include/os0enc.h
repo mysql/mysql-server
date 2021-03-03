@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+Copyright (c) 2019, 2020 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -305,6 +305,12 @@ class Encryption {
   @return encryption type **/
   Type get_type() const;
 
+  /** Check if the encryption algorithm is NONE.
+  @return true if no algorithm is set, false otherwise. */
+  bool is_none() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
+    return m_type == NONE;
+  }
+
   /** Set encryption type
   @param[in]  type  encryption type **/
   void set_type(Type type);
@@ -338,6 +344,17 @@ class Encryption {
   static uint32_t get_master_key_id();
 
  private:
+  /** Encrypt the page data contents. Page type can't be
+  FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
+  FIL_PAGE_ENCRYPTED_RTREE.
+  @param[in]  src       page data which need to encrypt
+  @param[in]  src_len   size of the source in bytes
+  @param[in,out]  dst       destination area
+  @param[in,out]  dst_len   size of the destination in bytes
+  @return true if operation successful, false otherwise. */
+  bool encrypt_low(byte *src, ulint src_len, byte *dst, ulint *dst_len) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
+
   /** Encrypt type */
   Type m_type;
 

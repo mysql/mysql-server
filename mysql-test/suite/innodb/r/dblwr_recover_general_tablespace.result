@@ -1,0 +1,72 @@
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENGINE=InnoDB ENCRYPTION='Y';
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) TABLESPACE=ts1 ENCRYPTION='Y' ENGINE=InnoDB;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='ts1';
+NAME	ENCRYPTION
+ts1	Y
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int NOT NULL,
+  `f2` blob,
+  PRIMARY KEY (`f1`)
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='Y' */
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart
+# Wait for purge to complete
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+# Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+Warnings:
+Warning	1235	InnoDB: This version of MySQL doesn't yet support 'FLUSH TABLES FOR EXPORT on table `test`.`t1` in a general tablespace.'
+UNLOCK TABLES;
+SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+SET SESSION innodb_interpreter = 'init';
+# Check if the DBLWR files contain encrypted pages.
+SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
+SELECT @@session.innodb_interpreter_output;
+@@session.innodb_interpreter_output
+Double write file has encrypted pages.
+SET SESSION innodb_interpreter = 'open_table test/t1';
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_id;
+SET SESSION innodb_interpreter = 'find_root_page_no test/t1';
+SELECT @@session.innodb_interpreter_output INTO @page_no;
+SET @cmd = CONCAT('find_ondisk_page_type ', @space_id, ' ', @page_no);
+SET SESSION innodb_interpreter = @cmd;
+SELECT @@session.innodb_interpreter_output INTO @page_type;
+SELECT @page_type;
+@page_type
+FIL_PAGE_ENCRYPTED
+SET SESSION innodb_interpreter = 'find_tablespace_file_name ts1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size ts1';
+SELECT @@session.innodb_interpreter_output INTO @space_page_size;
+SET SESSION innodb_interpreter = 'destroy';
+START TRANSACTION;
+INSERT INTO t1 VALUES(6, repeat('?',12));
+SET GLOBAL innodb_log_flush_now = ON;
+# Kill the server
+# Corrupt the root page of table t1 in the user tablespace.
+# restart
+Pattern "Double write file has encrypted pages" found
+Pattern "\[Note\] \[MY-\d+\] \[InnoDB\] Recovered page \[page id: space=\d+, page number=\d+\] from the doublewrite buffer" found
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT f1, f2 FROM t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+# Test End

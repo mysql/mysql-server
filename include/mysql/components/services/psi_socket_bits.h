@@ -27,6 +27,7 @@
 #include <stddef.h> /* size_t */
 #endif
 
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/components/services/my_io_bits.h> /* socklen_t */
 
 /**
@@ -64,7 +65,7 @@ typedef unsigned int PSI_socket_key;
   Interface for an instrumented socket descriptor.
   This is an opaque structure.
 */
-struct PSI_socket;
+struct PSI_socket : PSI_instr {};
 typedef struct PSI_socket PSI_socket;
 
 /**

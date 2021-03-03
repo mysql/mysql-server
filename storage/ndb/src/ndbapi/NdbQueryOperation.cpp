@@ -3478,7 +3478,15 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   {
     Uint32 scan_flags = 0;  // TODO: Specify with ScanOptions::SO_SCANFLAGS
 
-    bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan);
+    // The number of acc-scans are limited therefore use tup-scans instead.
+    bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan) || true;
+#if defined(VM_TRACE)
+    if (ndb.theImpl->forceAccTableScans)
+    {
+      tupScan = false;
+    }
+#endif
+
     bool rangeScan = false;
 
     /* Handle IndexScan specifics */

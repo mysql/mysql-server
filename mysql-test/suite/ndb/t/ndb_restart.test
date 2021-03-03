@@ -1,10 +1,10 @@
 --source include/have_ndb.inc
+CALL mtr.add_suppression("NDB: Failed to setup events for 'mysql.ndb_schema' table");
+CALL mtr.add_suppression("NDB: Failed to setup binlogging for table 'mysql.ndb_schema'");
 
 #
 # Setup
 #
-let $ndb_mgm_cmd = $NDB_MGM --no-defaults --verbose=0;
-let $ndb_waiter_cmd = $NDB_WAITER --no-defaults;
 
 #
 # Create metadata
@@ -46,10 +46,10 @@ INSERT INTO t2 VALUES (1, 1);
 #
 # Restart node 1
 #
---exec $ndb_mgm_cmd -e "1 RESTART -n"
---exec $ndb_waiter_cmd --nowait-nodes=2 --not-started > /dev/null
---exec $ndb_mgm_cmd -e "1 START"
---exec $ndb_waiter_cmd  > /dev/null
+--exec $NDB_MGM -e "1 RESTART -n"
+--exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
+--exec $NDB_MGM -e "1 START"
+--exec $NDB_WAITER  > /dev/null
 
 # Check that the metadata is still present
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
@@ -67,10 +67,10 @@ SELECT * FROM t2;
 #
 # Restart node 1 --initial
 #
---exec $ndb_mgm_cmd -e "1 RESTART -n -I"
---exec $ndb_waiter_cmd --nowait-nodes=2 --not-started  > /dev/null
---exec $ndb_mgm_cmd -e "1 START"
---exec $ndb_waiter_cmd  > /dev/null
+--exec $NDB_MGM -e "1 RESTART -n -I"
+--exec $NDB_WAITER --nowait-nodes=2 --not-started  > /dev/null
+--exec $NDB_MGM -e "1 START"
+--exec $NDB_WAITER  > /dev/null
 
 # Check that the metadata is still present
 SELECT TABLESPACE_NAME, LOGFILE_GROUP_NAME
@@ -88,10 +88,10 @@ SELECT * FROM t2;
 #
 # Restart all
 #
---exec $ndb_mgm_cmd -e "ALL RESTART -N"
---exec $ndb_waiter_cmd --not-started > /dev/null
---exec $ndb_mgm_cmd -e "ALL START"
---exec $ndb_waiter_cmd > /dev/null
+--exec $NDB_MGM -e "ALL RESTART -N"
+--exec $NDB_WAITER --not-started > /dev/null
+--exec $NDB_MGM -e "ALL START"
+--exec $NDB_WAITER > /dev/null
 
 # Wait for mysqld to reconnect
 --source include/ndb_not_readonly.inc
@@ -125,10 +125,10 @@ SELECT * FROM t2 ORDER BY a;
 # Restart all initial
 #
 
---exec $ndb_mgm_cmd -e "ALL RESTART -N -I"
---exec $ndb_waiter_cmd --not-started > /dev/null
---exec $ndb_mgm_cmd -e "ALL START"
---exec $ndb_waiter_cmd > /dev/null
+--exec $NDB_MGM -e "ALL RESTART -N -I"
+--exec $NDB_WAITER --not-started > /dev/null
+--exec $NDB_MGM -e "ALL START"
+--exec $NDB_WAITER > /dev/null
 
 # Wait for mysqld to reconnect
 --source include/ndb_not_readonly.inc

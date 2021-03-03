@@ -410,7 +410,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` order by `test`.`t1`.`gc`
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` order by (`test`.`t1`.`f1` + 1)
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
@@ -576,7 +576,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by `test`.`t1`.`gc`
+Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by (`test`.`t1`.`f1` + 1)
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
@@ -835,7 +835,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true order by `col_int_gc_key`,`field2`
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true order by `field1`,`field2`
 SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
 FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
 GROUP BY field1, field2;
@@ -848,7 +848,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true group by `col_int_gc_key`,`field2`
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true group by `field1`,`field2`
 DROP TABLE t1;
 #
 # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS

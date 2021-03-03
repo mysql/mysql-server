@@ -1612,7 +1612,7 @@ class Get_access_maps : public boost::default_bfs_visitor {
               *m_access & DB_ACLS, restrictions.db(), m_restrictions->db(),
               acl_user.access & DB_ACLS, m_db_map);
       if (aggregator) {
-        DB_restrictions db_restrictions(nullptr);
+        DB_restrictions db_restrictions;
         if (aggregator->generate(db_restrictions)) return;
         m_restrictions->set_db(db_restrictions);
       }
@@ -3200,6 +3200,81 @@ bool has_dynamic_privilege_grant_option(Security_context *sctx,
 }
 
 /**
+  Search if an auth_id (search_for@search_for_host) is granted either directly
+  or indirectly to an auth_id (start@start_host) or to one of the mandatory
+  roles
+
+  Searched if search_for@search_for_host is a direct or indirect descendant of
+  start@start_host or to one of the mandatory roles
+
+  @param start the user name to check
+  @param start_host the host name to check
+  @param search_for the user name of auth_id to look for
+  @param search_for_host the host name of the auth_id to look for
+  @retval true: search_for@search_for_host is granted directly or indirectly to
+     start@start_host
+  @retval false: the two auth ids are not related
+*/
+static bool check_if_granted_role_recursive(LEX_CSTRING start,
+                                            LEX_CSTRING start_host,
+                                            LEX_CSTRING search_for,
+                                            LEX_CSTRING search_for_host) {
+  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
+  bool visited;
+
+  // A visitor to check if Auth_id is granted to another Auth_id
+  class my_visitor : public boost::default_bfs_visitor {
+   public:
+    void examine_vertex(const Role_vertex_descriptor &s,
+                        const Granted_roles_graph &) {
+      if (s == m_needle) m_visited = true;
+    }
+    my_visitor(bool &visited, const Auth_id &needle) : m_visited(visited) {
+      Role_index_map::iterator needle_it =
+          g_authid_to_vertex->find(needle.auth_str());
+      if (needle_it != g_authid_to_vertex->end()) {
+        m_is_valid = true;
+        m_needle = needle_it->second;
+      } else
+        m_is_valid = false;
+    }
+    bool search_in(const Auth_id &haystack) {
+      if (!is_valid()) return false;
+      Role_index_map::iterator it =
+          g_authid_to_vertex->find(haystack.auth_str());
+      if (it != g_authid_to_vertex->end()) {
+        m_visited = false;
+        boost::breadth_first_search(*g_granted_roles, it->second,
+                                    boost::visitor(*this));
+        if (m_visited) return true;
+      }
+      return false;
+    }
+    bool is_valid() { return m_is_valid; }
+
+   private:
+    Role_vertex_descriptor m_needle;
+    bool &m_visited;
+    bool m_is_valid;
+  } my_v(visited, Auth_id(search_for, search_for_host));
+
+  if (!my_v.is_valid()) return false;
+
+  // search for search_for in the descendents of start
+  if (my_v.search_in(Auth_id(start, start_host))) return true;
+
+  // Now check if the search_for is granted to one of the mandatory roles
+  std::vector<Role_id> mandatory_roles;
+  get_mandatory_roles(&mandatory_roles);
+  for (auto &&rid : mandatory_roles) {
+    if (my_v.search_in(rid)) return true;
+  }
+
+  // no matches: return false
+  return false;
+}
+
+/**
   Grants a list of roles to a list of users. Changes are persistent and written
   in the mysql.roles_edges table.
 
@@ -3296,6 +3371,14 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
           if (sctx->can_operate_with({role}, consts::system_user)) {
             errors = true;
             break;
+          }
+          if (acl_user == acl_role ||
+              check_if_granted_role_recursive(role->user, role->host,
+                                              lex_user->user, lex_user->host)) {
+            std::string user_str = create_authid_str_from(acl_user);
+            std::string role_str = create_authid_str_from(role);
+            my_error(ER_ROLE_GRANTED_TO_ITSELF, MYF(0), user_str.c_str(),
+                     role_str.c_str());
           }
           grant_role(acl_role, acl_user, with_admin_opt);
           Auth_id_ref from_user = create_authid_from(role);
@@ -3407,8 +3490,8 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
       }
 
       ACL_USER *this_user = find_acl_user(user->host.str, user->user.str, true);
-      Restrictions restrictions(nullptr);
-      DB_restrictions db_restrictions(nullptr);
+      Restrictions restrictions;
+      DB_restrictions db_restrictions;
       ulong filtered_rights = rights;
       std::unique_ptr<Restrictions_aggregator> aggregator =
           Restrictions_aggregator_factory::create(thd, this_user, db, rights,
@@ -4016,6 +4099,10 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   if (!acl_cache_lock.lock()) return true;
 
   for (; !fields->end_of_fields(); fields->next()) {
+    // Skip invisible columns.
+    if (fields->field() != nullptr && fields->field()->is_hidden_by_user())
+      continue;
+
     grant = fields->grant(); /* Get cached GRANT_INFO on field */
     // Check the privileges at column level if table does not have wanted access
     want_access = want_access_arg & ~grant->privilege;
@@ -4736,7 +4823,7 @@ bool mysql_show_grants(THD *thd, LEX_USER *lex_user,
   Grant_acl_set with_admin_acl;
   Dynamic_privileges dynamic_acl;
   List_of_granted_roles granted_roles;
-  Restrictions restrictions(thd->mem_root);
+  Restrictions restrictions;
   ulong access;
   table_map.set_thd(thd);
   get_privilege_access_maps(acl_user, &using_roles, &access, &db_map,
@@ -5062,8 +5149,8 @@ bool mysql_revoke_all(THD *thd, List<LEX_USER> &list) {
       acl_table::Pod_user_what_to_update what_to_update;
       what_to_update.m_what = (what_to_set | ACCESS_RIGHTS_ATTR);
       ulong rights = ~(ulong)0;
-      DB_restrictions db_restrictions(nullptr);
-      Restrictions restrictions(nullptr);
+      DB_restrictions db_restrictions;
+      Restrictions restrictions;
       std::unique_ptr<Restrictions_aggregator> aggregator =
           Restrictions_aggregator_factory::create(thd, acl_user, nullptr,
                                                   rights, false);
@@ -5942,12 +6029,8 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
 */
 bool check_if_granted_role(LEX_CSTRING user, LEX_CSTRING host, LEX_CSTRING role,
                            LEX_CSTRING role_host) {
-  String key;
-  append_identifier(&key, user.str, user.length);
-  key.append('@');
-  append_identifier(&key, host.str, host.length);
   Role_index_map::iterator it =
-      g_authid_to_vertex->find(std::string(key.c_ptr_quick()));
+      g_authid_to_vertex->find(Auth_id(user, host).auth_str());
   if (it != g_authid_to_vertex->end()) {
     /* Check if role is part of current role graph */
     if (find_if_granted_role(it->second, role, role_host)) return true;
@@ -7297,10 +7380,9 @@ bool Security_context_factory::apply_pre_constructed_policies(
   return error;
 }
 
-Sctx_ptr<Security_context> Security_context_factory::create(
-    MEM_ROOT *mem_root) {
+Sctx_ptr<Security_context> Security_context_factory::create() {
   /* Setup default Security context */
-  Security_context *sctx = new Security_context(mem_root);
+  Security_context *sctx = new Security_context();
   sctx->assign_user(m_user.c_str(), m_user.length());
   sctx->assign_host(m_host.c_str(), m_host.length());
   sctx->assign_priv_user(m_user.c_str(), m_user.length());
@@ -7410,11 +7492,26 @@ bool do_update_sctx(Security_context *sctx, LEX_USER *from_user_ptr) {
 void update_sctx(Security_context *sctx, LEX_USER *to_user_ptr) {
   const char *to_user = to_user_ptr->user.str;
   const char *to_host = to_user_ptr->host.str;
-  if (!to_host) to_host = "";
-  if (!to_user) to_user = "";
+  const size_t to_user_length = to_user_ptr->user.length;
+  const size_t to_host_length = to_user_ptr->host.length;
 
-  sctx->assign_priv_user(to_user_ptr->user.str, to_user_ptr->user.length);
-  sctx->assign_priv_host(to_user_ptr->host.str, to_user_ptr->host.length);
+  DBUG_ASSERT(to_user != nullptr || to_user_length == 0);
+  DBUG_ASSERT(to_host != nullptr || to_host_length == 0);
+
+  /* Don't rename user as the connection is not changed. */
+
+  if (sctx->proxy_user().str && *sctx->proxy_user().str != '\0') {
+    /* Rename proxy_user. */
+    char proxy_user_buf[USERNAME_LENGTH + HOSTNAME_LENGTH + 6];
+    int proxy_user_buf_length =
+        snprintf(proxy_user_buf, sizeof(proxy_user_buf) - 1, "'%s'@'%s'",
+                 to_user ? to_user : "", to_host ? to_host : "");
+    sctx->assign_proxy_user(proxy_user_buf, proxy_user_buf_length);
+  } else {
+    /* Rename current_user. */
+    sctx->assign_priv_user(to_user, to_user_length);
+    sctx->assign_priv_host(to_host, to_host_length);
+  }
 }
 
 /**

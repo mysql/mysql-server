@@ -48,6 +48,7 @@
 #include "my_sqlcommand.h"
 #include "my_thread_local.h"
 #include "myisam.h"  // MI_MAX_KEY_LENGTH
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/mysql_lex_string.h"
@@ -55,7 +56,6 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_table.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql/udf_registration_types.h"
@@ -787,25 +787,35 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
   @param[in]     share         Pointer to TABLE_SHARE
   @param[in]     handler_file  Pointer to handler
   @param[in,out] usable_parts  Pointer to usable_parts variable
+  @param[in]     use_extended_sk  TRUE if use_index_extensions is ON
 
   @retval                      Number of added key parts
 */
 
 uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
                         TABLE_SHARE *share, handler *handler_file,
-                        uint *usable_parts) {
+                        uint *usable_parts, bool use_extended_sk) {
   uint max_key_length = sk->key_length;
-  bool is_unique_key = false;
+  /*
+    Secondary key becomes unique if the key does not exceed
+    key length limitation(MAX_KEY_LENGTH) and key parts
+    limitation(MAX_REF_PARTS) and PK parts are added to SK.
+  */
+  bool is_unique_key = use_extended_sk;
+  uint pk_part = 0;
   KEY_PART_INFO *current_key_part = &sk->key_part[sk->user_defined_key_parts];
 
   /*
      For each keypart in the primary key: check if the keypart is
      already part of the secondary key and add it if not.
   */
-  for (uint pk_part = 0; pk_part < pk->user_defined_key_parts; pk_part++) {
+  for (; pk_part < pk->user_defined_key_parts; pk_part++) {
     KEY_PART_INFO *pk_key_part = &pk->key_part[pk_part];
-    /* MySQL does not supports more key parts than MAX_REF_LENGTH */
-    if (sk->actual_key_parts >= MAX_REF_PARTS) goto end;
+    /* No more than MAX_REF_PARTS key parts are supported. */
+    if (sk->actual_key_parts >= MAX_REF_PARTS) {
+      is_unique_key = false;
+      break;
+    }
 
     bool pk_field_is_in_sk = false;
     for (uint j = 0; j < sk->user_defined_key_parts; j++) {
@@ -817,11 +827,19 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       }
     }
 
-    /* Add PK field to secondary key if it's not already  part of the key. */
+    /* Do not add key part if it's already present in SK. */
     if (!pk_field_is_in_sk) {
-      /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
-      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH) goto end;
-
+      /* MySQL does not support keys longer than MAX_KEY_LENGTH. */
+      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH) {
+        is_unique_key = false;
+        break;
+      }
+      max_key_length += pk_key_part->length;
+      /*
+        Do not add key part if SK is a unique key or
+        if use_index_extensions is OFF.
+      */
+      if ((sk->flags & HA_NOSAME) || !use_extended_sk) continue;
       *current_key_part = *pk_key_part;
       setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
                            sk->actual_key_parts, usable_parts, false);
@@ -830,17 +848,19 @@ uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
       sk->rec_per_key[sk->actual_key_parts - 1] = 0;
       sk->set_records_per_key(sk->actual_key_parts - 1, REC_PER_KEY_UNKNOWN);
       current_key_part++;
-      max_key_length += pk_key_part->length;
-      /*
-        Secondary key will be unique if the key  does not exceed
-        key length limitation and key parts limitation.
-      */
-      is_unique_key = true;
     }
   }
   if (is_unique_key) sk->actual_flags |= HA_NOSAME;
 
-end:
+  /*
+    Clean key maps for those PK parts which exceed
+    MAX_KEY_LENGTH or MAX_REF_PARTS limits.
+  */
+  for (; pk_part < pk->user_defined_key_parts; pk_part++) {
+    Field *fld = pk->key_part[pk_part].field;
+    fld->part_of_key.clear_bit(sk_n);
+    fld->part_of_sortkey.clear_bit(sk_n);
+  }
   return (sk->actual_key_parts - sk->user_defined_key_parts);
 }
 
@@ -2126,11 +2146,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         }
       }
 
-      if (use_extended_sk && primary_key < MAX_KEY && key &&
-          !(keyinfo->flags & HA_NOSAME))
-        key_part +=
-            add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
-                               share, handler_file, &usable_parts);
+      if (primary_key < MAX_KEY && key != primary_key &&
+          (ha_option & HA_PRIMARY_KEY_IN_READ_INDEX))
+        key_part += add_pk_parts_to_sk(keyinfo, key, share->key_info,
+                                       primary_key, share, handler_file,
+                                       &usable_parts, use_extended_sk);
 
       /* Skip unused key parts if they exist */
       key_part += keyinfo->unused_key_parts;
@@ -7067,6 +7087,64 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec) {
 }
 
 /**
+  Updates the values of the generated columns in the record buffer.
+
+  @param table the table where the generated columns live
+  @param columns bitmap of columns to update (typically table->read_set or
+  table->write_set)
+  @param virtual_only if true, only update virtual column; otherwise update both
+  virtual and stored generated columns
+  @param[in,out] updated_columns a bitmap in which bits will be set for each
+  column updated by this function, or nullptr if the caller doesn't care
+  @return true on error, false on success
+*/
+static bool update_generated_columns(TABLE *table, const MY_BITMAP *columns,
+                                     bool virtual_only,
+                                     MY_BITMAP *updated_columns) {
+  assert(table != nullptr);
+  assert(table->has_gcol());
+
+  const THD *const thd = table->in_use;
+  assert(!thd->is_error());
+
+  for (Field **field_ptr = table->vfield; *field_ptr != nullptr; ++field_ptr) {
+    Field *field = *field_ptr;
+    assert(field->is_gcol());
+    assert(field->gcol_info->expr_item != nullptr);
+
+    // Skip stored generated columns if the caller requested update of virtual
+    // generated column only.
+    if (virtual_only && !field->is_virtual_gcol()) continue;
+
+    // Skip columns not in the columns bitmap (which is typically
+    // table->read_set or table->write_set).
+    if (!bitmap_is_set(columns, field->field_index())) continue;
+
+    // For a virtual generated column of blob type, we have to keep the current
+    // blob value since it might be needed by the storage engine during updates.
+    // All arrays are BLOB fields.
+    if (field->handle_old_value()) {
+      const auto blob = down_cast<Field_blob *>(field);
+      blob->keep_old_value();
+      blob->set_keep_old_value(true);
+    }
+
+    type_conversion_status status =
+        field->gcol_info->expr_item->save_in_field(field, false);
+
+    // Give up on error, but keep going if we just got a warning.
+    if (status != TYPE_OK && thd->is_error()) return true;
+    assert(!thd->is_error());
+
+    if (updated_columns != nullptr) {
+      bitmap_set_bit(updated_columns, field->field_index());
+    }
+  }
+
+  return false;
+}
+
+/**
   Evaluate necessary virtual generated columns.
   This is used right after reading a row from the storage engine.
 
@@ -7083,8 +7161,8 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec) {
  */
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   DBUG_TRACE;
-  DBUG_ASSERT(table && table->vfield);
-  if (table->in_use->is_error()) return true;
+  assert(table != nullptr && table->has_gcol());
+  assert(!table->in_use->is_error());
   if (active_index != MAX_KEY && table->key_read) {
     /*
       The covering index is providing all necessary columns, including
@@ -7102,8 +7180,6 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
     return false;
   }
 
-  int error = 0;
-
   /*
     If the buffer storing the record data is not record[0], then the field
     objects must be temporarily changed to point into the supplied buffer.
@@ -7112,38 +7188,13 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   if (buf != table->record[0])
     repoint_field_to_record(table, table->record[0], buf);
 
-  for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
-    Field *vfield = *vfield_ptr;
-    DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-    /*
-      Only calculate those virtual generated fields that are marked in the
-      read_set bitmap.
-    */
-    if (vfield->is_virtual_gcol() &&
-        bitmap_is_set(table->read_set, vfield->field_index())) {
-      if (vfield->handle_old_value()) {
-        (down_cast<Field_blob *>(vfield))->keep_old_value();
-        (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
-      }
-
-      error = vfield->gcol_info->expr_item->save_in_field(vfield, false);
-      DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
-      if (error && !table->in_use->is_error()) {
-        /*
-          Most likely a calculation error which only triggered a warning, so
-          let's not make the read fail.
-        */
-        error = 0;
-      }
-    } else {
-      DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
-    }
-  }
+  const bool error =
+      update_generated_columns(table, table->read_set, true, nullptr);
 
   if (buf != table->record[0])
     repoint_field_to_record(table, buf, table->record[0]);
 
-  return error != 0;
+  return error;
   /*
     @todo
     this function is used by ha_rnd/etc, those ha_* functions are expected to
@@ -7172,47 +7223,8 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
  */
 bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   DBUG_TRACE;
-  Field **field_ptr;
-  int error = 0;
-
-  if (table->in_use->is_error()) return true;
-
-  if (table->vfield) {
-    /* Iterate over generated fields in the table */
-    for (field_ptr = table->vfield; *field_ptr; field_ptr++) {
-      Field *vfield;
-      vfield = (*field_ptr);
-      DBUG_ASSERT(vfield->gcol_info && vfield->gcol_info->expr_item);
-
-      /* Only update those fields that are marked in the bitmap */
-      if (bitmap_is_set(bitmap, vfield->field_index())) {
-        /*
-          For a virtual generated column of blob type, we have to keep
-          the current blob value since this might be needed by the
-          storage engine during updates.
-          All arrays are BLOB fields.
-        */
-        if (vfield->handle_old_value()) {
-          (down_cast<Field_blob *>(vfield))->keep_old_value();
-          (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
-        }
-
-        /* Generate the actual value of the generated fields */
-        error = vfield->gcol_info->expr_item->save_in_field(vfield, false);
-
-        DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
-        if (error && !table->in_use->is_error()) error = 0;
-        if (table->fields_set_during_insert)
-          bitmap_set_bit(table->fields_set_during_insert,
-                         vfield->field_index());
-      } else {
-        DBUG_PRINT("info", ("field '%s' - skipped", vfield->field_name));
-      }
-    }
-  }
-
-  if (error > 0) return true;
-  return false;
+  return update_generated_columns(table, bitmap, false,
+                                  table->fields_set_during_insert);
 }
 
 /**

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "mysql_protocol_common.h"
+#include "mysqlrouter/classic_protocol_constants.h"
 
 namespace server_mock {
 
@@ -57,7 +58,7 @@ struct OkResponse : public Response {
 struct ErrorResponse : public Response {
   ErrorResponse(unsigned int code_, std::string msg_,
                 std::string sql_state_ = "HY000")
-      : code(code_), msg(msg_), sql_state(sql_state_) {}
+      : code(code_), msg(std::move(msg_)), sql_state(std::move(sql_state_)) {}
 
   unsigned int code;
   std::string msg;
@@ -66,19 +67,19 @@ struct ErrorResponse : public Response {
 
 class Greeting : public Response {
  public:
-  Greeting(const std::string &server_version, uint32_t connection_id,
-           mysql_protocol::Capabilities::Flags capabilities,
+  Greeting(std::string server_version, uint32_t connection_id,
+           classic_protocol::capabilities::value_type capabilities,
            uint16_t status_flags, uint8_t character_set,
-           const std::string &auth_method, const std::string &auth_data)
-      : server_version_{server_version},
+           std::string auth_method, std::string auth_data)
+      : server_version_{std::move(server_version)},
         connection_id_{connection_id},
         capabilities_{capabilities},
         status_flags_{status_flags},
         character_set_{character_set},
-        auth_method_{auth_method},
-        auth_data_{auth_data} {}
+        auth_method_{std::move(auth_method)},
+        auth_data_{std::move(auth_data)} {}
 
-  mysql_protocol::Capabilities::Flags capabilities() const {
+  classic_protocol::capabilities::value_type capabilities() const {
     return capabilities_;
   }
 
@@ -94,7 +95,7 @@ class Greeting : public Response {
  private:
   std::string server_version_;
   uint32_t connection_id_;
-  mysql_protocol::Capabilities::Flags capabilities_;
+  classic_protocol::capabilities::value_type capabilities_;
   uint16_t status_flags_;
   uint8_t character_set_;
   std::string auth_method_;
@@ -103,8 +104,8 @@ class Greeting : public Response {
 
 class AuthSwitch : public Response {
  public:
-  AuthSwitch(const std::string &method, const std::string &data)
-      : method_{method}, data_{data} {}
+  AuthSwitch(std::string method, std::string data)
+      : method_{std::move(method)}, data_{std::move(data)} {}
 
   std::string method() const { return method_; }
   std::string data() const { return data_; }

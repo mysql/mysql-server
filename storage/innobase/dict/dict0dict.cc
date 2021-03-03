@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1535,7 +1535,7 @@ dberr_t dict_table_rename_in_cache(
       return (DB_OUT_OF_MEMORY);
     }
 
-    err = fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
+    err = fil_delete_tablespace(table->space, BUF_REMOVE_NONE);
 
     ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND ||
          err == DB_IO_ERROR);
@@ -4783,7 +4783,7 @@ static void dict_index_zip_pad_update(
       /* Use atomics even though we have the mutex.
       This is to ensure that we are able to read
       info->pad atomically. */
-      os_atomic_increment_ulint(&info->pad, ZIP_PAD_INCR);
+      info->pad.fetch_add(ZIP_PAD_INCR);
 
       MONITOR_INC(MONITOR_PAD_INCREMENTS);
     }
@@ -4803,7 +4803,7 @@ static void dict_index_zip_pad_update(
       /* Use atomics even though we have the mutex.
       This is to ensure that we are able to read
       info->pad atomically. */
-      os_atomic_decrement_ulint(&info->pad, ZIP_PAD_INCR);
+      info->pad.fetch_sub(ZIP_PAD_INCR);
 
       info->n_rounds = 0;
 
@@ -4870,7 +4870,7 @@ ulint dict_index_zip_pad_optimal_page_size(
   /* We use atomics to read index->zip_pad.pad. Here we use zero
   as increment as are not changing the value of the 'pad'. */
 
-  pad = os_atomic_increment_ulint(&index->zip_pad.pad, 0);
+  pad = index->zip_pad.pad.load();
 
   ut_ad(pad < UNIV_PAGE_SIZE);
   sz = UNIV_PAGE_SIZE - pad;
@@ -5697,7 +5697,7 @@ size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
 }
 
 /** Close SDI table.
-@param[in]	table		the in-meory SDI table object */
+@param[in]	table		the in-memory SDI table object */
 void dict_sdi_close_table(dict_table_t *table) {
   ut_ad(dict_table_is_sdi(table->id));
   dict_table_close(table, true, false);
@@ -5889,10 +5889,10 @@ happening on SDI table records. Purge will acquired shared
 MDL on SDI table.
 
 Exclusive MDL is transactional(released on trx commit). So
-for successful acquistion, there should be valid thd with
+for successful acquisition, there should be valid thd with
 trx associated.
 
-Acquistion order of SDI MDL and SDI table has to be in same
+Acquisition order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
@@ -5949,7 +5949,7 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
 prevent concurrent DROP table/tablespace.
 DROP table/tablespace will acquire exclusive MDL on SDI table
 
-Acquistion order of SDI MDL and SDI table has to be in same
+Acquisition order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
@@ -6004,15 +6004,19 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
   return (path);
 }
 
-dberr_t dict_set_compression(dict_table_t *table, const char *algorithm) {
+dberr_t dict_set_compression(dict_table_t *table, const char *algorithm,
+                             bool is_import_op) {
   ut_ad(table != nullptr);
 
-  /* We don't support Page Compression for the system tablespace,
-  the temporary tablespace, or any general tablespace because
-  COMPRESSION is set by TABLE DDL, not TABLESPACE DDL. There is
-  no other technical reason.  Also, do not use it for missing
-  tables or tables with compressed row_format. */
-  if (table->ibd_file_missing ||
+  /* We don't support Page Compression for the system tablespace, the temporary
+  tablespace, or any general tablespace because COMPRESSION is set by TABLE
+  DDL, not TABLESPACE DDL (there is no other technical reason). And neither do
+  we support it for tables with compressed row_format.
+
+  Also, do not use it for missing tables, unless it's an import operation as in
+  the case of import we would still be importing the tablespace at this stage
+  and would need to set the compression option for further processing. */
+  if ((table->ibd_file_missing && !is_import_op) ||
       !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE) ||
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY) ||
       page_size_t(table->flags).is_compressed()) {

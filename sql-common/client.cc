@@ -709,7 +709,13 @@ static void free_state_change_info(MYSQL_EXTENSION *ext) {
 */
 inline bool buffer_check_remaining(MYSQL *mysql, uchar *packet,
                                    ulong packet_length, size_t bytes) {
-  size_t remaining_bytes = packet_length - (packet - mysql->net.read_pos);
+  size_t remaining_bytes;
+  /* Check to avoid underflow */
+  if (packet_length < (ulong)(packet - mysql->net.read_pos)) {
+    set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+    return false;
+  }
+  remaining_bytes = packet_length - (packet - mysql->net.read_pos);
   if (remaining_bytes < bytes) {
     set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
     return false;
@@ -736,6 +742,8 @@ inline my_ulonglong net_field_length_ll_safe(MYSQL *mysql, uchar **packet,
                                              ulong packet_length,
                                              bool *is_error) {
   size_t sizeof_len = net_field_length_size(*packet);
+  DBUG_EXECUTE_IF("simulate_bad_packet",
+                  { *packet = *packet + packet_length + 1000000L; });
   if (!buffer_check_remaining(mysql, *packet, packet_length, sizeof_len)) {
     *is_error = true;
     return 0;
@@ -1124,6 +1132,7 @@ net_async_status cli_safe_read_nonblocking(MYSQL *mysql, bool *is_data_packet,
 */
 
 ulong cli_safe_read_with_ok(MYSQL *mysql, bool parse_ok, bool *is_data_packet) {
+  DBUG_TRACE;
   NET *net = &mysql->net;
   ulong len = 0;
 
@@ -3026,7 +3035,14 @@ static int read_one_row_complete(MYSQL *mysql, ulong pkt_len,
   pos = net->read_pos;
   end_pos = pos + pkt_len;
   for (field = 0; field < fields; field++) {
+    if (pos >= end_pos) {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      return -1;
+    }
     len = (ulong)net_field_length_checked(&pos, (ulong)(end_pos - pos));
+
+    DBUG_EXECUTE_IF("simulate_bad_field_length_1", { len = 1000000L; });
+    DBUG_EXECUTE_IF("simulate_bad_field_length_2", { len = pkt_len - 1; });
     if (pos > end_pos) {
       set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
       return -1;
@@ -3040,11 +3056,15 @@ static int read_one_row_complete(MYSQL *mysql, ulong pkt_len,
       pos += len;
       *lengths++ = len;
     }
+    /*
+     It's safe to write to prev_pos here because we already check
+     for a valid pos in the beginning of this loop.
+    */
     if (prev_pos) *prev_pos = 0; /* Terminate prev field */
     prev_pos = pos;
   }
-  row[field] = (char *)prev_pos + 1; /* End of last field */
-  *prev_pos = 0;                     /* Terminate last field */
+  row[field] = (char *)prev_pos + 1;     /* End of last field */
+  if (prev_pos < end_pos) *prev_pos = 0; /* Terminate last field */
   return 0;
 }
 
@@ -3171,6 +3191,7 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
 
 MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused))) {
   MYSQL_EXTENSION *ext;
+  DBUG_TRACE;
 
   ext = static_cast<MYSQL_EXTENSION *>(my_malloc(PSI_NOT_INSTRUMENTED,
                                                  sizeof(MYSQL_EXTENSION),
@@ -3183,7 +3204,20 @@ MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused))) {
 #ifdef MYSQL_SERVER
   ext->server_extn = nullptr;
 #endif
+  DBUG_PRINT("async",
+             ("set state=%d", ext->mysql_async_context->async_query_state));
   return ext;
+}
+
+void mysql_extension_bind_free(MYSQL_EXTENSION *ext) {
+  DBUG_TRACE;
+  if (ext->bind_info.n_params) {
+    my_free(ext->bind_info.bind);
+    for (uint idx = 0; idx < ext->bind_info.n_params; idx++)
+      my_free(ext->bind_info.names[idx]);
+    my_free(ext->bind_info.names);
+  }
+  memset(&ext->bind_info, 0, sizeof(ext->bind_info));
 }
 
 void mysql_extension_free(MYSQL_EXTENSION *ext) {
@@ -3199,12 +3233,17 @@ void mysql_extension_free(MYSQL_EXTENSION *ext) {
       my_free(ext->mysql_async_context->connect_context);
       ext->mysql_async_context->connect_context = nullptr;
     }
+    if (ext->mysql_async_context->async_qp_data) {
+      my_free(ext->mysql_async_context->async_qp_data);
+      ext->mysql_async_context->async_qp_data = nullptr;
+      ext->mysql_async_context->async_qp_data_length = 0;
+    }
     my_free(ext->mysql_async_context);
     ext->mysql_async_context = nullptr;
   }
   // free state change related resources.
   free_state_change_info(ext);
-
+  mysql_extension_bind_free(ext);
   my_free(ext);
 }
 
@@ -5198,6 +5237,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   do {
     status = ctx.state_function(&ctx);
+    DBUG_PRINT("info", ("status %d", (int)status));
   } while (status != STATE_MACHINE_FAILED && status != STATE_MACHINE_DONE);
 
   return status == STATE_MACHINE_FAILED;
@@ -5517,6 +5557,7 @@ static mysql_state_machine_status authsm_finish_auth(mysql_async_auth *ctx) {
 
 /** set some default attributes */
 static int set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len) {
+  DBUG_TRACE;
   int rc = 0;
 
   /*
@@ -7030,6 +7071,7 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
   DBUG_TRACE;
   NET *net = &mysql->net;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
+  MYSQL_ASYNC *async_context = ASYNC_DATA(mysql);
   uchar *pos = nullptr;
   ulong field_count;
   ulong length;
@@ -7051,6 +7093,9 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
       if (NET_ASYNC_DATA(net) != nullptr)
         net_async->async_read_query_result_status =
             NET_ASYNC_READ_QUERY_RESULT_IDLE;
+      async_context->async_op_status = ASYNC_OP_UNSET;
+      async_context->async_query_state = QUERY_IDLE;
+      async_context->async_query_length = 0;
       return NET_ASYNC_ERROR;
     }
     mysql->packet_length = length;
@@ -7070,6 +7115,9 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
 #endif
       net_async->async_read_query_result_status =
           NET_ASYNC_READ_QUERY_RESULT_IDLE;
+      async_context->async_op_status = ASYNC_OP_UNSET;
+      async_context->async_query_state = QUERY_IDLE;
+      async_context->async_query_length = 0;
       return NET_ASYNC_COMPLETE;
     }
 #ifndef MYSQL_SERVER
@@ -7083,6 +7131,9 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
         set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
         net_async->async_read_query_result_status =
             NET_ASYNC_READ_QUERY_RESULT_IDLE;
+        async_context->async_op_status = ASYNC_OP_UNSET;
+        async_context->async_query_state = QUERY_IDLE;
+        async_context->async_query_length = 0;
         return NET_ASYNC_ERROR;
       }
 
@@ -7094,6 +7145,9 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
       if ((length = cli_safe_read(mysql, nullptr)) == packet_error || error) {
         net_async->async_read_query_result_status =
             NET_ASYNC_READ_QUERY_RESULT_IDLE;
+        async_context->async_op_status = ASYNC_OP_UNSET;
+        async_context->async_query_state = QUERY_IDLE;
+        async_context->async_query_length = 0;
         return NET_ASYNC_ERROR;
       }
       goto get_info; /* Get info packet */
@@ -7119,6 +7173,9 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
     if (res) {
       net_async->async_read_query_result_status =
           NET_ASYNC_READ_QUERY_RESULT_IDLE;
+      async_context->async_op_status = ASYNC_OP_UNSET;
+      async_context->async_query_state = QUERY_IDLE;
+      async_context->async_query_length = 0;
       return NET_ASYNC_ERROR;
     }
   }
@@ -7126,30 +7183,134 @@ static net_async_status cli_read_query_result_nonblocking(MYSQL *mysql) {
   mysql->status = MYSQL_STATUS_GET_RESULT;
   DBUG_PRINT("exit", ("ok, %u", mysql->field_count));
   net_async->async_read_query_result_status = NET_ASYNC_READ_QUERY_RESULT_IDLE;
+  async_context->async_op_status = ASYNC_OP_UNSET;
+  async_context->async_query_state = QUERY_IDLE;
+  async_context->async_query_length = 0;
   return NET_ASYNC_COMPLETE;
 }
 
+/**
+  Helper function to serialize the parameters data.
+
+  @param mysql the mysql handle
+  @param[out] pret_data out pointer to the data. set to nullptr if there's no
+  data
+  @param[out] pret_data_length length of the data in pred_data. 0 if there's no
+  data
+  @return operation status
+  @retval non-zero failed
+  @retval zero success. Check pret_*
+*/
+static int mysql_prepare_com_query_parameters(MYSQL *mysql,
+                                              unsigned char **pret_data,
+                                              unsigned long *pret_data_length) {
+  DBUG_TRACE;
+  MYSQL_EXTENSION *ext = MYSQL_EXTENSION_PTR(mysql);
+  DBUG_ASSERT(ext);
+  bool send_named_params =
+      (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
+  *pret_data = nullptr;
+  *pret_data_length = 0;
+  if (send_named_params) {
+    /*
+      The state is checked later in cli_advanced_command too, but it's
+      already too late since the below will reset the NET buffers.
+      So we need to check before doing the below too.
+    */
+    if (mysql->status != MYSQL_STATUS_READY ||
+        mysql->server_status & SERVER_MORE_RESULTS_EXISTS) {
+      DBUG_PRINT("error", ("state: %d", mysql->status));
+      set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+      return 1;
+    }
+
+    if (mysql->net.vio == nullptr) { /* Do reconnect if possible */
+      if (mysql_reconnect(mysql)) return 1;
+      /* mysql has a new ext at this point, take it again */
+      ext = MYSQL_EXTENSION_PTR(mysql);
+      DBUG_ASSERT(ext);
+    }
+
+    if (mysql_int_serialize_param_data(
+            &mysql->net, ext->bind_info.n_params, ext->bind_info.bind,
+            const_cast<const char **>(ext->bind_info.names), 1, pret_data,
+            pret_data_length, 1, true, true)) {
+      set_mysql_error(mysql, mysql->net.last_errno, mysql->net.sqlstate);
+      return 1;
+    }
+    DBUG_ASSERT(ext == MYSQL_EXTENSION_PTR(mysql));
+    DBUG_ASSERT(ext);
+    mysql_extension_bind_free(ext);
+  }
+  return 0;
+}
 /*
-  Send the query and return so we can do something else.
-  Needs to be followed by mysql_read_query_result() when we want to
-  finish processing it.
+Send the query and return so we can do something else.
+Needs to be followed by mysql_read_query_result() when we want to
+finish processing it.
 */
 
 int STDCALL mysql_send_query(MYSQL *mysql, const char *query, ulong length) {
-  STATE_INFO *info;
-
   DBUG_TRACE;
+
+  STATE_INFO *info;
+  DBUG_ASSERT(mysql);
+
+  MYSQL_EXTENSION *ext = MYSQL_EXTENSION_PTR(mysql);
+  DBUG_ASSERT(ext);
+
+  if ((info = STATE_DATA(mysql))) free_state_change_info(ext);
+  uchar *ret_data;
+  unsigned long ret_data_length;
+  if (mysql_prepare_com_query_parameters(mysql, &ret_data, &ret_data_length))
+    return 1;
+  int ret = (*mysql->methods->advanced_command)(
+      mysql, COM_QUERY, ret_data, ret_data_length,
+      pointer_cast<const uchar *>(query), length, 1, NULL);
+  if (ret_data) my_free(ret_data);
+  return ret;
+}
+
+/**
+    Executes the SQL statement pointed by query. This API is called by
+    mysql_real_query_nonblocking to send query to server in asynchronous way.
+
+    @param[in]   mysql               connection handle
+    @param[in]   query               query string to be executed
+    @param[in]   length              length of query
+
+    @retval      NET_ASYNC_ERROR     query execution failed
+    @retval      NET_ASYNC_NOT_READY query not yet completed, call this API
+    again
+    @retval      NET_ASYNC_COMPLETE  query execution finished
+  */
+static net_async_status mysql_send_query_nonblocking_inner(MYSQL *mysql,
+                                                           const char *query,
+                                                           ulong length) {
+  DBUG_TRACE;
+  STATE_INFO *info;
 
   if ((info = STATE_DATA(mysql)))
     free_state_change_info(static_cast<MYSQL_EXTENSION *>(mysql->extension));
 
-  return simple_command(mysql, COM_QUERY, pointer_cast<const uchar *>(query),
-                        length, 1);
+  bool ret;
+  MYSQL_ASYNC *async_context = ASYNC_DATA(mysql);
+
+  if ((*mysql->methods->advanced_command_nonblocking)(
+          mysql, COM_QUERY, async_context->async_qp_data,
+          async_context->async_qp_data_length,
+          pointer_cast<const uchar *>(query), length, 1, NULL,
+          &ret) == NET_ASYNC_NOT_READY) {
+    return NET_ASYNC_NOT_READY;
+  }
+  if (ret)
+    return NET_ASYNC_ERROR;
+  else
+    return NET_ASYNC_COMPLETE;
 }
 
 /**
-  Executes the SQL statement pointed by query. This API is called by
-  mysql_real_query_nonblocking to send query to server in asynchronous way.
+  Wrapper around mysql_send_query_nonblocking_inner to be called externally
 
   @param[in]   mysql               connection handle
   @param[in]   query               query string to be executed
@@ -7163,21 +7324,56 @@ net_async_status STDCALL mysql_send_query_nonblocking(MYSQL *mysql,
                                                       const char *query,
                                                       ulong length) {
   DBUG_TRACE;
-  STATE_INFO *info;
+  MYSQL_ASYNC *async_context = ASYNC_DATA(mysql);
+  net_async_status ret = NET_ASYNC_NOT_READY;
+  DBUG_PRINT("async", ("enter mysql_send_query_nonblocking state=%d",
+                       async_context->async_query_state));
+  if (async_context->async_query_state == QUERY_IDLE) {
+    DBUG_ASSERT(async_context->async_qp_data == nullptr);
+    DBUG_ASSERT(async_context->async_qp_data_length == 0);
 
-  if ((info = STATE_DATA(mysql)))
-    free_state_change_info(static_cast<MYSQL_EXTENSION *>(mysql->extension));
+    async_context->async_query_length = length;
+    async_context->async_query_state = QUERY_SENDING;
+    async_context->async_op_status = ASYNC_OP_QUERY;
+    DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
 
-  bool ret;
-  if (simple_command_nonblocking(mysql, COM_QUERY,
-                                 pointer_cast<const uchar *>(query), length, 1,
-                                 &ret) == NET_ASYNC_NOT_READY) {
-    return NET_ASYNC_NOT_READY;
+    if (mysql_prepare_com_query_parameters(
+            mysql, &async_context->async_qp_data,
+            &async_context->async_qp_data_length)) {
+      async_context->async_op_status = ASYNC_OP_UNSET;
+      async_context->async_query_state = QUERY_IDLE;
+      async_context->async_query_length = 0;
+      DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
+      return NET_ASYNC_ERROR;
+    }
   }
-  if (ret)
-    return NET_ASYNC_ERROR;
-  else
-    return NET_ASYNC_COMPLETE;
+
+  ret = mysql_send_query_nonblocking_inner(mysql, query, length);
+
+  if (ret == NET_ASYNC_NOT_READY)
+    return ret;
+  else if (ret == NET_ASYNC_ERROR) {
+    async_context->async_op_status = ASYNC_OP_UNSET;
+    async_context->async_query_state = QUERY_IDLE;
+    DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
+    async_context->async_query_length = 0;
+    return ret;
+  }
+
+  async_context->async_query_state = QUERY_READING_RESULT;
+  DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
+  /*
+    Technically we don't need to keep the query attributes data until the
+    state change as they're stored into the NET at the first call to
+    advanced_command. But since advanced_command() requires these we
+    keep them as they are.
+  */
+  if (async_context->async_qp_data) {
+    my_free(async_context->async_qp_data);
+    async_context->async_qp_data = nullptr;
+    async_context->async_qp_data_length = 0;
+  }
+  return ret;
 }
 
 int STDCALL mysql_real_query(MYSQL *mysql, const char *query, ulong length) {
@@ -7193,6 +7389,7 @@ int STDCALL mysql_real_query(MYSQL *mysql, const char *query, ulong length) {
 
   if (mysql_send_query(mysql, query, length)) return 1;
   retval = (int)(*mysql->methods->read_query_result)(mysql);
+  mysql_extension_bind_free(MYSQL_EXTENSION_PTR(mysql));
   return retval;
 }
 
@@ -7227,20 +7424,43 @@ net_async_status STDCALL mysql_real_query_nonblocking(MYSQL *mysql,
               async_context->async_op_status == ASYNC_OP_QUERY);
 
   net_async_status status = NET_ASYNC_NOT_READY;
+  DBUG_PRINT("async", ("mysql_real_query_nonblocking start state=%d",
+                       async_context->async_query_state));
   /* 1st phase: send query. */
   if (async_context->async_query_state == QUERY_IDLE) {
+    DBUG_ASSERT(async_context->async_qp_data == nullptr);
+    DBUG_ASSERT(async_context->async_qp_data_length == 0);
+    if (mysql_prepare_com_query_parameters(
+            mysql, &async_context->async_qp_data,
+            &async_context->async_qp_data_length)) {
+      status = NET_ASYNC_ERROR;
+      goto end;
+    }
     async_context->async_query_length = length;
     async_context->async_op_status = ASYNC_OP_QUERY;
     async_context->async_query_state = QUERY_SENDING;
+    DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
   }
 
   if (async_context->async_query_state == QUERY_SENDING) {
-    status = mysql_send_query_nonblocking(mysql, query, length);
+    status = mysql_send_query_nonblocking_inner(mysql, query, length);
     if (status == NET_ASYNC_NOT_READY)
       return NET_ASYNC_NOT_READY;
     else if (status == NET_ASYNC_ERROR)
       goto end;
     async_context->async_query_state = QUERY_READING_RESULT;
+    DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
+    /*
+      Technically we don't need to keep the query attributes data until the
+      state change as they're stored into the NET at the first call to
+      advanced_command. But since advanced_command() requires these we
+      keep them as they are.
+    */
+    if (async_context->async_qp_data) {
+      my_free(async_context->async_qp_data);
+      async_context->async_qp_data = nullptr;
+      async_context->async_qp_data_length = 0;
+    }
   }
 
   /* 2nd phase: read query result (field count, field info) */
@@ -7255,6 +7475,7 @@ net_async_status STDCALL mysql_real_query_nonblocking(MYSQL *mysql,
 end:
   async_context->async_op_status = ASYNC_OP_UNSET;
   async_context->async_query_state = QUERY_IDLE;
+  DBUG_PRINT("async", ("set state=%d", async_context->async_query_state));
   async_context->async_query_length = 0;
   if (status == NET_ASYNC_ERROR)
     return NET_ASYNC_ERROR;

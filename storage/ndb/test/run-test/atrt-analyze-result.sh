@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 # Use is subject to license terms
 #
 # This program is free software; you can redistribute it and/or modify
@@ -23,14 +23,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-cores=`find result -name 'core*'`
-if [ "$cores" ]
-then
-    for i in "$cores"
-    do
-	atrt-backtrace.sh $i
-    done
-fi
+find result -name 'core*' -print0 | while read -d $'\0' core; do
+  "$(dirname $0)/atrt-backtrace.sh" "${core}"
+done
 
 # Log files may be left between test runs so we need to keep some
 # state about what results we have seen.

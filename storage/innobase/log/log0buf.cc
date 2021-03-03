@@ -499,10 +499,12 @@ static inline sn_t log_buffer_s_lock_enter_reserve(log_t &log, size_t len) {
   PSI_rwlock_locker *locker = nullptr;
   PSI_rwlock_locker_state state;
   if (log.pfs_psi != nullptr) {
-    /* Instrumented to inform we are aquiring a shared rwlock */
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, log.pfs_psi, PSI_RWLOCK_SHAREDLOCK, __FILE__,
-        static_cast<uint>(__LINE__));
+    if (log.pfs_psi->m_enabled) {
+      /* Instrumented to inform we are acquiring a shared rwlock */
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, log.pfs_psi, PSI_RWLOCK_SHAREDLOCK, __FILE__,
+          static_cast<uint>(__LINE__));
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
 
@@ -533,9 +535,11 @@ static inline void log_buffer_s_lock_exit_close(log_t &log, lsn_t start_lsn,
                                                 lsn_t end_lsn) {
 #ifdef UNIV_PFS_RWLOCK
   if (log.pfs_psi != nullptr) {
-    /* Inform performance schema we are unlocking the lock */
-    PSI_RWLOCK_CALL(unlock_rwlock)
-    (log.pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
+    if (log.pfs_psi->m_enabled) {
+      /* Inform performance schema we are unlocking the lock */
+      PSI_RWLOCK_CALL(unlock_rwlock)
+      (log.pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
   ut_d(rw_lock_remove_debug_info(log.sn_lock_inst, 0, RW_LOCK_S));
@@ -550,11 +554,13 @@ void log_buffer_x_lock_enter(log_t &log) {
   PSI_rwlock_locker *locker = nullptr;
   PSI_rwlock_locker_state state;
   if (log.pfs_psi != nullptr) {
-    /* Record the acquisition of a read-write lock in exclusive
-    mode in performance schema */
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, log.pfs_psi, PSI_RWLOCK_EXCLUSIVELOCK, __FILE__,
-        static_cast<uint>(__LINE__));
+    if (log.pfs_psi->m_enabled) {
+      /* Record the acquisition of a read-write lock in exclusive
+      mode in performance schema */
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, log.pfs_psi, PSI_RWLOCK_EXCLUSIVELOCK, __FILE__,
+          static_cast<uint>(__LINE__));
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
 
@@ -631,9 +637,11 @@ void log_buffer_x_lock_exit(log_t &log) {
 
 #ifdef UNIV_PFS_RWLOCK
   if (log.pfs_psi != nullptr) {
-    /* Inform performance schema we are unlocking the lock */
-    PSI_RWLOCK_CALL(unlock_rwlock)
-    (log.pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
+    if (log.pfs_psi->m_enabled) {
+      /* Inform performance schema we are unlocking the lock */
+      PSI_RWLOCK_CALL(unlock_rwlock)
+      (log.pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
   ut_d(rw_lock_remove_debug_info(log.sn_lock_inst, 0, RW_LOCK_X));
@@ -1254,7 +1262,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
 /** @{ */
 
-bool log_advance_ready_for_write_lsn(log_t &log) {
+void log_advance_ready_for_write_lsn(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
   ut_d(log_writer_thread_active_validate(log));
 
@@ -1297,11 +1305,6 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
     ut_a(log_buffer_ready_for_write_lsn(log) > previous_lsn);
 
     std::atomic_thread_fence(std::memory_order_acquire);
-
-    return (true);
-
-  } else {
-    return (false);
   }
 }
 

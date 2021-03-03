@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2019, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,26 +42,13 @@
 #include <unistd.h>
 #endif
 
+#include "mysql/harness/net_ts/local.h"
+#include "mysql/harness/net_ts/win32_named_pipe.h"
+#include "mysql/harness/stdx/expected.h"
 #include "router_test_helpers.h"
 #include "temp_dir.h"
 
-#ifndef _WIN32
-#include "socket_operations.h"
-#endif
-
 using mysql_harness::Path;
-
-#ifdef _WIN32
-using notify_socket_t = HANDLE;
-static /* constexpr */ const notify_socket_t kNotifySocketInvalid{
-    INVALID_HANDLE_VALUE};
-#else
-using notify_socket_t = mysql_harness::socket_t;
-static constexpr const notify_socket_t kNotifySocketInvalid{
-    mysql_harness::kInvalidSocket};
-notify_socket_t create_notify_socket(const std::string &name,
-                                     int type = SOCK_DGRAM);
-#endif
 
 /** @class ProcessManager
  *
@@ -71,13 +58,21 @@ notify_socket_t create_notify_socket(const std::string &name,
  **/
 class ProcessManager {
  public:
+#ifdef _WIN32
+  using wait_socket_t = local::byte_protocol::acceptor;
+  using notify_socket_t = local::byte_protocol::socket;
+#else
+  using wait_socket_t = local::datagram_protocol::socket;
+  using notify_socket_t = local::datagram_protocol::socket;
+#endif
+
   /**
    * set origin path.
    */
   static void set_origin(const Path &dir);
 
  protected:
-  virtual ~ProcessManager() {}
+  virtual ~ProcessManager() = default;
 
   /**
    * shutdown all managed processes.
@@ -178,6 +173,22 @@ class ProcessManager {
       const std::string &bind_address = "0.0.0.0",
       std::chrono::milliseconds wait_for_notify_ready =
           std::chrono::seconds(5));
+
+  /**
+   * launch mysql_server_mock from cmdline args.
+   */
+  ProcessWrapper &launch_mysql_server_mock(
+      const std::vector<std::string> &server_params, int expected_exit_code = 0,
+      std::chrono::milliseconds wait_for_notify_ready =
+          std::chrono::seconds(5));
+
+  /**
+   * build cmdline args for mysql_server_mock.
+   */
+  std::vector<std::string> mysql_server_mock_cmdline_args(
+      const std::string &json_file, uint16_t port, uint16_t http_port = 0,
+      uint16_t x_port = 0, const std::string &module_prefix = "",
+      const std::string &bind_address = "0.0.0.0");
 
   /** @brief Launches a process.
    *
@@ -280,21 +291,14 @@ class ProcessManager {
   std::string make_DEFAULT_section(
       const std::map<std::string, std::string> *params) const;
 
-#ifdef _WIN32
-  notify_socket_t create_notify_socket(const std::string &name);
-#else
-  notify_socket_t create_notify_socket(const std::string &name,
-                                       int type = SOCK_DGRAM);
-#endif
-  void close_notify_socket(notify_socket_t socket);
-  bool wait_for_notified(notify_socket_t sock,
-                         const std::string &expected_notification,
-                         std::chrono::milliseconds timeout);
+  stdx::expected<void, std::error_code> wait_for_notified(
+      wait_socket_t &sock, const std::string &expected_notification,
+      std::chrono::milliseconds timeout);
 
-  bool wait_for_notified_ready(notify_socket_t sock,
-                               std::chrono::milliseconds timeout);
-  bool wait_for_notified_stopping(notify_socket_t sock,
-                                  std::chrono::milliseconds timeout);
+  stdx::expected<void, std::error_code> wait_for_notified_ready(
+      wait_socket_t &sock, std::chrono::milliseconds timeout);
+  stdx::expected<void, std::error_code> wait_for_notified_stopping(
+      wait_socket_t &sock, std::chrono::milliseconds timeout);
 
  private:
   void check_port(bool should_be_ready, ProcessWrapper &process, uint16_t port,

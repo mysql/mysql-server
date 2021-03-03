@@ -1,0 +1,25 @@
+
+# 1.Create a table with a signed and unsigned column.
+#   Get the binlog in use and flush logs
+CREATE TABLE `t1` (
+`col_key` CHAR(255) DEFAULT "",
+`col_year_key` YEAR DEFAULT NULL,
+`col_float_key` FLOAT UNSIGNED,
+`col_bigint_key` BIGINT DEFAULT NULL,
+PRIMARY KEY (`col_key`)
+) ENGINE=InnoDB;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+INSERT INTO t1 VALUES  ('key', '1985', 1.7, 23);
+FLUSH LOGS;
+
+# 2. Execute mysqlbinlog with '--print-table-metadata'
+#    Check column metadata correctly reports what columns are signed or not
+#    YEAR is considered unsigned, but not shown as such
+include/assert_grep.inc [Check the YEAR metadata is marked signed and therefore, omitted info about signedness]
+include/assert_grep.inc [Check that FLOAT metadata is marked as unsigned]
+include/assert_grep.inc [Check that BIGINT metadata is marked signed and therefore, omitted info about signedness]
+
+# 3. Cleanup
+DROP TABLE t1;
+RESET MASTER;

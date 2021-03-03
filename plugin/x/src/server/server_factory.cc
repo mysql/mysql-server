@@ -26,8 +26,9 @@
 
 #include <memory>
 
-#include "plugin/x/src/xpl_client.h"
-#include "plugin/x/src/xpl_session.h"
+#include "plugin/x/src/client.h"
+#include "plugin/x/src/protocol_monitor.h"
+#include "plugin/x/src/session.h"
 
 namespace xpl {
 
@@ -36,7 +37,7 @@ Server_factory::Client_interface_ptr Server_factory::create_client(
   std::shared_ptr<xpl::iface::Client> result;
 
   result = ngs::allocate_shared<xpl::Client>(
-      connection, *server, ++m_client_id,
+      connection, server, ++m_client_id,
       ngs::allocate_object<xpl::Protocol_monitor>());
 
   return result;
@@ -45,7 +46,7 @@ Server_factory::Client_interface_ptr Server_factory::create_client(
 xpl::Server_factory::Session_interface_ptr Server_factory::create_session(
     xpl::iface::Client *client, xpl::iface::Protocol_encoder *proto,
     const xpl::iface::Session::Session_id session_id) {
-  return std::shared_ptr<ngs::Session>(
+  return std::shared_ptr<iface::Session>(
       ngs::allocate_shared<xpl::Session>(client, proto, session_id));
 }
 

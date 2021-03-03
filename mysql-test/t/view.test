@@ -3820,12 +3820,15 @@ CREATE VIEW v2 AS SELECT t1.a FROM t1, v1 AS a;
 
 --error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v2(a) SELECT 1 FROM t1,t1 AS c;
+--sorted_result
 SELECT * FROM v2;
 --error ER_VIEW_DELETE_MERGE_VIEW
 REPLACE INTO v2(a) SELECT 3 FROM t1,t1 AS c;
+--sorted_result
 SELECT * FROM v2;
 INSERT INTO v2(a) SELECT 1 FROM t1,t1 AS c
 ON DUPLICATE KEY UPDATE `v2`.`a`= 1;
+--sorted_result
 SELECT * FROM v2;
 
 DROP VIEW v1;
@@ -4450,6 +4453,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vu_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4457,6 +4461,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vu_2 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4464,6 +4469,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vd_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4471,6 +4477,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN va_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4478,6 +4485,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vg_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4485,6 +4493,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vh_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4492,6 +4501,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vl_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4499,6 +4509,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vlo_1 AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;
@@ -4506,6 +4517,7 @@ eval explain $query;
 let $query=
 SELECT *
 FROM t1 JOIN vrow AS dt ON t1.a=dt.a;
+--sorted_result
 eval $query;
 --replace_column 10 # 11 #
 eval explain $query;

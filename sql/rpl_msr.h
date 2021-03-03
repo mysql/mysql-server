@@ -38,6 +38,8 @@
 #include "sql/rpl_channel_service_interface.h"  // enum_channel_type
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
+#include "sql/rpl_io_monitor.h"
+#include "sql/rpl_mi.h"
 
 class Master_info;
 
@@ -258,6 +260,43 @@ class Multisource_info {
   }
 
   /**
+    Get the number of running channels which have asynchronous replication
+    failover feature, i.e. CHANGE MASTER TO option
+    SOURCE_CONNECTION_AUTO_FAILOVER, enabled.
+
+    @return The number of channels.
+  */
+  size_t get_number_of_connection_auto_failover_channels_running() {
+    DBUG_TRACE;
+    m_channel_map_lock->assert_some_lock();
+    size_t count = 0;
+
+    replication_channel_map::iterator map_it =
+        rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
+
+    for (mi_map::iterator it = map_it->second.begin();
+         it != map_it->second.end(); it++) {
+      Master_info *mi = it->second;
+      if (Master_info::is_configured(mi) &&
+          mi->is_source_connection_auto_failover()) {
+        mysql_mutex_lock(&mi->err_lock);
+        if (mi->slave_running || mi->is_error()) {
+          count++;
+        }
+        mysql_mutex_unlock(&mi->err_lock);
+      }
+    }
+
+#ifndef DBUG_OFF
+    if (Source_IO_monitor::get_instance().is_monitoring_process_running()) {
+      DBUG_ASSERT(count > 0);
+    }
+#endif
+
+    return count;
+  }
+
+  /**
     Get max channels allowed for this map.
   */
   inline uint get_max_channels() { return MAX_CHANNELS; }
@@ -361,9 +400,25 @@ class Multisource_info {
   inline void rdlock() { m_channel_map_lock->rdlock(); }
 
   /**
+    Try to acquire a read lock, return 0 if the read lock is held,
+    otherwise an error will be returned.
+
+    @return 0 in case of success, or 1 otherwise.
+  */
+  inline int tryrdlock() { return m_channel_map_lock->tryrdlock(); }
+
+  /**
     Acquire the write lock.
   */
   inline void wrlock() { m_channel_map_lock->wrlock(); }
+
+  /**
+    Try to acquire a write lock, return 0 if the write lock is held,
+    otherwise an error will be returned.
+
+    @return 0 in case of success, or 1 otherwise.
+  */
+  inline int trywrlock() { return m_channel_map_lock->trywrlock(); }
 
   /**
     Release the lock (whether it is a write or read lock).

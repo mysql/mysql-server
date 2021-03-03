@@ -28,7 +28,15 @@
   Instrumentation helpers for data locks.
 */
 
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 #include "mysql/psi/psi_data_lock.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_DATA_LOCK_CALL() as direct call. */
+#include "pfs_data_lock_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_DATA_LOCK_CALL
 #define PSI_DATA_LOCK_CALL(M) psi_data_lock_service->M

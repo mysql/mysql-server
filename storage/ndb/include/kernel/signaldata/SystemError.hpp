@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,8 @@ public:
     TestStopOnError = 6,
     CopySubscriptionRef = 7,
     CopySubscriberRef = 8,
-    StartFragRefError = 9
+    StartFragRefError = 9,
+    ProtocolError = 10
   };
   
   Uint32 errorRef;

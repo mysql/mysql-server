@@ -1222,7 +1222,7 @@ select * from v1|
 # And what will happen if we have recursion which involves
 # views and functions ?
 create function f1() returns int
-  return (select sum(data) from t1) + (select sum(data) from v1)|
+  return (select sum(data) from t1) + (select sum(a) from v1)|
 --error ER_SP_NO_RECURSION
 select f1()|
 --error ER_SP_NO_RECURSION
@@ -4321,9 +4321,11 @@ begin
 end|
 
 call bug6127()|
+--sorted_result
 select * from t3|
 --error ER_DUP_ENTRY
 call bug6127()|
+--sorted_result
 select * from t3|
 set sql_mode=@sm|
 drop table t3|
@@ -5478,8 +5480,10 @@ create procedure bug18344_2() begin end|
 
 use test|
 
+--sorted_result
 select schema_name from information_schema.schemata where 
   schema_name like 'bug18344%'|
+--sorted_result
 select routine_name,routine_schema from information_schema.routines where
   routine_schema like 'bug18344%'|
 
@@ -5972,6 +5976,9 @@ CREATE FUNCTION bug19862(x INT) RETURNS INT
   END|
 INSERT INTO t12 VALUES (1), (2)|
 SELECT bug19862(a) FROM t12 ORDER BY 1|
+# No StreamingIterator before the sort, so does indeed get evaluated twice
+# (but there is no guarantee by the standard it won't).
+--skip_if_hypergraph
 SELECT * FROM t11|
 DROP TABLE t11, t12|
 DROP FUNCTION bug19862|
@@ -7137,7 +7144,9 @@ call proc_25411_a();
 
 show create procedure proc_25411_b;
 # procedure - proc_25411_b
+--sorted_result
 select routine_name, routine_definition from information_schema.routines where routine_name like '%25411%';
+--sorted_result
 select parameter_name from information_schema.parameters where SPECIFIC_NAME= '%25411%';
 call proc_25411_b(10, 20);
 
@@ -9949,3 +9958,46 @@ CALL pc_with_flush();
 DROP PROCEDURE pc;
 DROP PROCEDURE pc_with_flush;
 DROP TABLE t1, t2;
+
+--echo # Bug#32078387: Incorrect caching of information_schema variables in procedure
+
+CREATE TABLE foo (
+  id INTEGER NOT NULL AUTO_INCREMENT,
+  fld INTEGER NOT NULL,
+  PRIMARY KEY(id),
+  UNIQUE KEY fld(fld)
+);
+delimiter //;
+CREATE PROCEDURE test() BEGIN
+ SET @exist := (SELECT COUNT(*) FROM information_schema.statistics
+                WHERE table_name = 'foo' and
+                      table_schema = database() and
+                      index_name = 'fld');
+ SELECT @exist;
+END;
+//
+delimiter ;//
+CALL test();
+CALL test();
+CALL test();
+DROP PROCEDURE test;
+DROP TABLE foo;
+
+--echo # Bug#31731334: m_sp != nullptr' at Item_func_sp::bind_fields in sql/item_func.cc
+
+DELIMITER //;
+CREATE FUNCTION f1 (i INTEGER) RETURNS INTEGER
+BEGIN
+  IF i = 0 THEN
+   RETURN 0;
+  END IF;
+  RETURN f2();
+END //
+CREATE FUNCTION f2 () RETURNS INTEGER
+ RETURN f1(0) //
+DELIMITER ;//
+SELECT f2();
+--error ER_SP_NO_RECURSION
+SELECT f1(1);
+DROP FUNCTION f1;
+DROP FUNCTION f2;

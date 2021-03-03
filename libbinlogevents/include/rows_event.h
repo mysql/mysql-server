@@ -563,6 +563,8 @@ class Table_map_event : public Binary_log_event {
                                      columns, optimized to minimize
                                      space when many columns have the
                                      same charset. */
+    COLUMN_VISIBILITY             /* Flag to indicate column visibility
+                                     attribute. */
   };
 
   /**
@@ -604,6 +606,7 @@ class Table_map_event : public Binary_log_event {
       whole column value is used.
     */
     std::vector<uint_pair> m_primary_key;
+    std::vector<bool> m_column_visibility;
 
     /*
       It parses m_optional_metadata and populates into above variables.

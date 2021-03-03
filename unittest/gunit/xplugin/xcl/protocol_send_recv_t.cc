@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@ using Msg_types = ::testing::Types<
     ::Mysqlx::Prepare::Prepare, ::Mysqlx::Prepare::Execute,
     ::Mysqlx::Prepare::Deallocate>;
 
-TYPED_TEST_CASE(Xcl_protocol_impl_tests_with_msg, Msg_types);
+TYPED_TEST_SUITE(Xcl_protocol_impl_tests_with_msg, Msg_types);
 
 TYPED_TEST(Xcl_protocol_impl_tests_with_msg,
            connection_send_successful_send_handler_consumed_msg_was_ignored) {
@@ -248,7 +248,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_in_two_read_op_call_multiple_handlers) {
       Server_message<::Mysqlx::Session::AuthenticateContinue>;
 
   const auto message = Auth_continue_desc::make_required();
-  StrictMock<Mock_handlers> mock_handlers[2];
+  StrictMock<mock::Message_handlers> mock_handlers[2];
 
   m_sut->add_received_message_handler(
       m_mock_handlers.get_mock_lambda_received_message_handler());
@@ -286,7 +286,7 @@ TEST_F(
 
   const auto msg_continue = Auth_continue_desc::make_required();
   const auto msg_error = Error_desc::make_required();
-  StrictMock<Mock_handlers> mock_handlers[2];
+  StrictMock<mock::Message_handlers> mock_handlers[2];
 
   m_sut->add_received_message_handler(
       m_mock_handlers.get_mock_lambda_received_message_handler());
@@ -377,7 +377,7 @@ TEST_F(Xcl_protocol_impl_tests, recv_ok) {
 }
 
 TEST_F(Xcl_protocol_impl_tests, recv_resultset) {
-  Mock_query_result *query_result = new Mock_query_result();
+  mock::XQuery_result *query_result = new mock::XQuery_result();
   static XQuery_result::Metadata metadata;
 
   EXPECT_CALL(m_mock_factory, create_result_raw(_, _, _))

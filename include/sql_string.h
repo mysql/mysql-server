@@ -43,8 +43,8 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
-#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"  // my_free
 
@@ -551,7 +551,10 @@ class String {
   size_t charpos(size_t i, size_t offset = 0) const;
 
   bool reserve(size_t space_needed) {
-    return mem_realloc(m_length + space_needed);
+    if (m_alloced_length < m_length + space_needed) {
+      return mem_realloc(m_length + space_needed);
+    }
+    return false;
   }
   bool reserve(size_t space_needed, size_t grow_by);
 

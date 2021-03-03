@@ -31,12 +31,15 @@
 #include "mock_io_service.h"
 #include "mock_socket_service.h"
 #include "mysql/harness/net_ts/impl/socket_constants.h"
+#include "mysql/harness/net_ts/impl/socket_error.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_error.h"
 #include "protocol/base_protocol.h"
 #include "protocol/classic_protocol.h"
 #include "routing_mocks.h"
 #include "socket_operations.h"
+#include "ssl_mode.h"
 #include "tcp_address.h"
 #include "tcp_port_pool.h"
 #include "test/helpers.h"
@@ -70,8 +73,6 @@ class TestRoutingConnection : public testing::Test {
  public:
   // context
   MockSocketOperations socket_operations_;
-  net::io_context io_ctx_{std::make_unique<MockSocketService>(),
-                          std::make_unique<MockIoService>()};
   const std::string name_{"routing_name"};
   const unsigned int net_buffer_length_{routing::kDefaultNetBufferLength};
   const std::chrono::milliseconds destination_connect_timeout_{10ms};
@@ -87,15 +88,24 @@ class TestRoutingConnection : public testing::Test {
  *       Verify if callback is called when run() function completes.
  */
 TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
-  MockProtocol protocol;
+  auto io_service = std::make_unique<MockIoService>();
+
+  // succeed the open
+  EXPECT_CALL(*io_service, open);
+
+  net::io_context io_ctx{std::make_unique<MockSocketService>(),
+                         std::move(io_service)};
+
+  ASSERT_TRUE(io_ctx.open_res());
 
   MySQLRoutingContext context(
       new MockProtocol, &socket_operations_, name_, net_buffer_length_,
       destination_connect_timeout_, client_connect_timeout_, bind_address_,
-      bind_named_socket_, max_connect_errors_, thread_stack_size_);
+      bind_named_socket_, max_connect_errors_, thread_stack_size_,
+      SslMode::kPassthrough, nullptr, SslMode::kAsClient, nullptr);
 
-  auto &sock_ops = *dynamic_cast<MockSocketService *>(io_ctx_.socket_service());
-  auto &io_ops = *dynamic_cast<MockIoService *>(io_ctx_.io_service());
+  auto &sock_ops = *dynamic_cast<MockSocketService *>(io_ctx.socket_service());
+  auto &io_ops = *dynamic_cast<MockIoService *>(io_ctx.io_service());
 
   constexpr const net::impl::socket::native_handle_type client_socket_handle{
       25};
@@ -106,20 +116,24 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
       .WillOnce(Return(client_socket_handle))
       .WillOnce(Return(server_socket_handle));
 
-  // client and server FD add an fd-interest once each
-  EXPECT_CALL(io_ops, add_fd_interest(client_socket_handle, _)).Times(1);
-  EXPECT_CALL(io_ops, add_fd_interest(server_socket_handle, _)).Times(1);
-
   // pretend the server side is readable.
   EXPECT_CALL(io_ops, poll_one(_))
-      .WillOnce(Return(net::fd_event{server_socket_handle, POLLIN}))
       .WillRepeatedly(
           Return(stdx::make_unexpected(make_error_code(std::errc::timed_out))));
 
   EXPECT_CALL(*dynamic_cast<MockProtocol *>(&context.get_protocol()),
+              get_type())
+      .WillOnce(Return(BaseProtocol::Type::kClassicProtocol));
+
+  EXPECT_CALL(*dynamic_cast<MockProtocol *>(&context.get_protocol()),
               on_block_client_host(server_socket_handle, _));
 
-  EXPECT_CALL(io_ops, notify()).Times(6);
+  EXPECT_CALL(io_ops, notify()).Times(3);
+
+  // pretend the server closed the socket on the first recvmsg().
+  EXPECT_CALL(sock_ops, recvmsg(server_socket_handle, _, _))
+      .WillOnce(Return(
+          stdx::make_unexpected(make_error_code(net::stream_errc::eof))));
 
   // each FD is removed once
   EXPECT_CALL(io_ops, remove_fd(client_socket_handle)).Times(1);
@@ -130,9 +144,9 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   EXPECT_CALL(sock_ops, close(client_socket_handle));
   EXPECT_CALL(sock_ops, close(server_socket_handle));
 
-  net::ip::tcp::socket client_socket(io_ctx_);
+  net::ip::tcp::socket client_socket(io_ctx);
   net::ip::tcp::endpoint client_endpoint;  // ipv4, 0.0.0.0:0
-  net::ip::tcp::socket server_socket(io_ctx_);
+  net::ip::tcp::socket server_socket(io_ctx);
   net::ip::tcp::endpoint server_endpoint;  // ipv4, 0.0.0.0:0
 
   // open the socket to trigger the socket() call
@@ -152,8 +166,8 @@ TEST_F(TestRoutingConnection, IsCallbackCalledAtRunExit) {
   // execution the connection until it would block.
   connection.async_run();
 
-  // each least the poll_one() should be accounted for.
-  EXPECT_GT(io_ctx_.run(), 0);
+  // nothing should be waited for.
+  EXPECT_EQ(io_ctx.run(), 0);
 
   //
   EXPECT_EQ(context.get_active_routes(), 0);

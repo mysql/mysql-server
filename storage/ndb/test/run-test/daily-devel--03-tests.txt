@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020 Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ max-time: 180
 
 cmd: testNdbApi
 args: -n FragmentedApiFailure T1
-max-time: 180
+max-time: 300
 
 cmd: testScan
 args: -n ScanRead40 -l 100 T1 D1 D2

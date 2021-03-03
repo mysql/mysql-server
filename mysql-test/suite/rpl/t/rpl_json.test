@@ -509,6 +509,21 @@ SELECT * FROM json_data;
 SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
 SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
 
+--source include/rpl_connection_master.inc
+--echo # Update via an updatable view.
+CREATE VIEW json_data_view AS SELECT * FROM json_data;
+UPDATE json_data_view SET jd = JSON_SET(jd, '$.key', '[]'),
+                          jd = JSON_REMOVE(jd, '$[0].a');
+
+--source include/sync_slave_sql_with_master.inc
+--echo [Connection Slave]
+
+--echo # Check whether values were updated
+
+SELECT * FROM json_data;
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+
 --let $diff_tables = master:json_data, slave:json_data
 --source include/diff_tables.inc
 
@@ -517,6 +532,7 @@ SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
 
 --echo # Clean up
 
+DROP VIEW json_data_view;
 DROP TABLE json_data;
 
 --source include/sync_slave_sql_with_master.inc

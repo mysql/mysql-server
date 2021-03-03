@@ -91,9 +91,9 @@ ALTER TABLE t1 ALGORITHM=INPLACE, RENAME COLUMN extra1 TO extra2, RENAME COLUMN 
 SELECT * FROM t1 ORDER BY a;
 
 # Restart cluster nodes
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all restart" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to start
---exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 #
 # Wait until the connection to the

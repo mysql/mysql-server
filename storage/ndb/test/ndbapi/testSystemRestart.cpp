@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -727,7 +727,7 @@ int runSystemRestartLCP_1(NDBT_Context *ctx, NDBT_Step *step)
                                          false,
                                          0,
                                          false,
-                                         true,
+                                         false,
                                          row_step) == NDBT_OK);
       if (result == NDBT_FAILED)
         return result;
@@ -852,7 +852,7 @@ int runSystemRestartLCP_2(NDBT_Context *ctx, NDBT_Step *step)
                                          false,
                                          0,
                                          false,
-                                         true,
+                                         false,
                                          1) == NDBT_OK);
       if (result == NDBT_FAILED)
         return result;
@@ -964,7 +964,7 @@ int runSystemRestartLCP_3(NDBT_Context *ctx, NDBT_Step *step)
                                            false,
                                            0,
                                            false,
-                                           true,
+                                           false,
                                            10)) == NDBT_OK);
         if (result == NDBT_FAILED)
           return result;
@@ -1087,7 +1087,7 @@ int runSystemRestartLCP_4(NDBT_Context *ctx, NDBT_Step *step)
                                        false,
                                        0,
                                        false,
-                                       true,
+                                       false,
                                        1) == NDBT_OK);
     if (result == NDBT_FAILED)
       return result;
@@ -1213,7 +1213,7 @@ int runSystemRestartLCP_5(NDBT_Context *ctx, NDBT_Step *step)
                                        false,
                                        0,
                                        false,
-                                       true,
+                                       false,
                                        1) == NDBT_OK);
     if (result == NDBT_FAILED)
       return result;

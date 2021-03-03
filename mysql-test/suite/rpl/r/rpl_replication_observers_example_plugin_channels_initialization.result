@@ -13,13 +13,17 @@ INSERT INTO t1 VALUES(1);
 SET @@GLOBAL.server_id= @original_slave_server_id;
 SET @@GLOBAL.relay_log_info_repository='FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.master_info_repository='TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(2);
 SET @@GLOBAL.relay_log_info_repository='TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.master_info_repository='FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES(3);
 SET @@GLOBAL.master_info_repository = @saved_master_info_repository;
 SET @@GLOBAL.relay_log_info_repository = @saved_relay_log_info_repository;

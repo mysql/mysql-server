@@ -81,11 +81,22 @@ class io_context : public execution_context {
   executor_type get_executor() noexcept;
 
   count_type run();
-  // run_for()
-  // run_until()
+
+  template <class Rep, class Period>
+  count_type run_for(const std::chrono::duration<Rep, Period> &rel_time);
+
+  template <class Clock, class Duration>
+  count_type run_until(
+      const std::chrono::time_point<Clock, Duration> &abs_time);
+
   count_type run_one();
-  // run_one_for()
-  // run_one_until()
+
+  template <class Rep, class Period>
+  count_type run_one_for(const std::chrono::duration<Rep, Period> &rel_time);
+
+  template <class Clock, class Duration>
+  count_type run_one_until(
+      const std::chrono::time_point<Clock, Duration> &abs_time);
 
   count_type poll();
   count_type poll_one();
@@ -128,6 +139,11 @@ class io_context : public execution_context {
   }
 
  private:
+  template <class Clock, class Duration>
+  count_type do_one_until(
+      std::unique_lock<std::mutex> &lk,
+      const std::chrono::time_point<Clock, Duration> &abs_time);
+
   count_type do_one(std::unique_lock<std::mutex> &lk,
                     std::chrono::milliseconds timeout);
 
@@ -763,13 +779,53 @@ inline io_context::count_type io_context::run() {
 }
 
 inline io_context::count_type io_context::run_one() {
-  std::unique_lock<std::mutex> lk(do_one_mtx_);
-
   using namespace std::chrono_literals;
+
+  std::unique_lock<std::mutex> lk(do_one_mtx_);
 
   wait_no_runner_unlocked_(lk);
 
   return do_one(lk, -1ms);
+}
+
+template <class Rep, class Period>
+io_context::count_type io_context::run_for(
+    const std::chrono::duration<Rep, Period> &rel_time) {
+  return run_until(std::chrono::steady_clock::now() + rel_time);
+}
+
+template <class Clock, class Duration>
+io_context::count_type io_context::run_until(
+    const std::chrono::time_point<Clock, Duration> &abs_time) {
+  count_type n = 0;
+
+  std::unique_lock<std::mutex> lk(do_one_mtx_);
+
+  using namespace std::chrono_literals;
+
+  // in the first round, we already have the lock, the all other rounds we
+  // need to take the lock first
+  for (wait_no_runner_unlocked_(lk); do_one_until(lk, abs_time) != 0;
+       wait_no_runner_(lk)) {
+    if (n != std::numeric_limits<count_type>::max()) ++n;
+  }
+  return n;
+}
+
+template <class Rep, class Period>
+inline io_context::count_type io_context::run_one_for(
+    const std::chrono::duration<Rep, Period> &rel_time) {
+  return run_one_until(std::chrono::steady_clock::now() + rel_time);
+}
+
+template <class Clock, class Duration>
+inline io_context::count_type io_context::run_one_until(
+    const std::chrono::time_point<Clock, Duration> &abs_time) {
+  std::unique_lock<std::mutex> lk(do_one_mtx_);
+
+  wait_no_runner_unlocked_(lk);
+
+  return do_one_until(lk, abs_time);
 }
 
 inline io_context::count_type io_context::poll() {
@@ -895,6 +951,27 @@ inline io_context::executor_type io_context::get_executor() noexcept {
   return executor_type(*this);
 }
 
+template <class Clock, class Duration>
+inline io_context::count_type io_context::do_one_until(
+    std::unique_lock<std::mutex> &lk,
+    const std::chrono::time_point<Clock, Duration> &abs_time) {
+  using namespace std::chrono_literals;
+
+  const auto rel_time = abs_time - std::chrono::steady_clock::now();
+  auto rel_time_ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(rel_time);
+
+  if (rel_time_ms < 0ms) {
+    // expired already.
+    rel_time_ms = 0ms;
+  } else if (rel_time_ms < rel_time) {
+    // std::chrono::ceil()
+    rel_time_ms += 1ms;
+  }
+
+  return do_one(lk, rel_time_ms);
+}
+
 // precond: lk MUST be locked
 inline io_context::count_type io_context::do_one(
     std::unique_lock<std::mutex> &lk, std::chrono::milliseconds timeout) {
@@ -973,12 +1050,16 @@ inline io_context::count_type io_context::do_one(
       break;
     }
 
-    if (timeout != timeout.zero()) {
-      if (timer_q == nullptr) {
-        min_duration = timeout;
-      } else if (timeout.zero() <= timeout && timeout < min_duration) {
-        min_duration = timeout;
-      }
+    // adjust min-duration according to caller's timeout
+    //
+    // - if there is no timer queued, use the caller's timeout
+    // - if there is a timer queued, reduce min_duration to callers timeout if
+    //   it is lower and non-negative.
+    //
+    // note: negative timeout == infinite.
+    if (timer_q == nullptr ||
+        (timeout > timeout.zero() && timeout < min_duration)) {
+      min_duration = timeout;
     }
 
     auto res = io_service_->poll_one(min_duration);
@@ -987,10 +1068,13 @@ inline io_context::count_type io_context::do_one(
         // poll again as it got interrupted
         continue;
       }
-      if (res.error() == std::errc::timed_out && timer_q != nullptr) {
-        // poll() timed out and we have a timer-queue
+      if (res.error() == std::errc::timed_out && min_duration != timeout &&
+          timer_q != nullptr) {
+        // poll_one() timed out, we have a timer-queue and the timer's expiry is
+        // less than the global timeout or there is no timeout.
         continue;
       }
+
       wake_one_runner_(lk);
 
 #if 0

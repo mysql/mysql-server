@@ -678,10 +678,28 @@ bool Item_func_like::resolve_type(THD *thd) {
   // Function returns 0 or 1
   max_length = 1;
 
-  // treat arguments as strings
-  if (param_type_is_default(thd, 0, -1)) return true;
-
-  if (Item_bool_func::resolve_type(thd)) return true;
+  /*
+    For dynamic parameters, assign character string data type.
+    When assigning character set and collation, If one argument is a string,
+    use its collation, if there are no string arguments, use the default
+    (connection) collation.
+  */
+  Item *base_item = nullptr;
+  for (uint i = 0; i < arg_count; i++) {
+    if (is_string_type(args[i]->data_type())) {
+      base_item = args[i];
+      break;
+    }
+  }
+  const CHARSET_INFO *charset = base_item != nullptr
+                                    ? base_item->collation.collation
+                                    : Item::default_charset();
+  for (uint i = 0; i < arg_count; i++) {
+    if (args[i]->data_type() == MYSQL_TYPE_INVALID &&
+        args[i]->propagate_type(thd,
+                                Type_properties(MYSQL_TYPE_VARCHAR, charset)))
+      return true;
+  }
 
   if (reject_geometry_args(arg_count, args, this)) return true;
 
@@ -3046,8 +3064,29 @@ static inline longlong compare_between_int_result(
         value = 1;
       }
     } else {
+      // Comparing as signed, but a is unsigned and > LLONG_MAX.
+      if (args[1]->unsigned_flag && static_cast<longlong>(a) < 0) {
+        if (value < 0) {
+          /*
+            value BETWEEN <large number> AND b
+            rewritten to
+            value BETWEEN 0 AND b
+          */
+          a = 0;
+        } else {
+          /*
+            value BETWEEN <large number> AND b
+            rewritten to
+            value BETWEEN LLONG_MAX AND b
+          */
+          a = LLONG_MAX;
+          // rewrite to: (value-1) BETWEEN LLONG_MAX AND b
+          if (value == LLONG_MAX) value -= 1;
+        }
+      }
+
       // Comparing as signed, but b is unsigned, and really large
-      if (args[2]->unsigned_flag && (longlong)b < 0) b = LLONG_MAX;
+      if (args[2]->unsigned_flag && static_cast<longlong>(b) < 0) b = LLONG_MAX;
     }
 
     if (!args[1]->null_value && !args[2]->null_value)
@@ -3473,6 +3512,7 @@ String *Item_func_nullif::val_str(String *str) {
     null_value = true;
     return nullptr;
   }
+  if (current_thd->is_error()) return error_str();
   res = args[0]->val_str(str);
   null_value = args[0]->null_value;
   return res;
@@ -5156,6 +5196,7 @@ longlong Item_func_in::val_int() {
     if (!(value_added_map & (1U << (uint)cmp_type))) {
       in_item->store_value(args[0]);
       value_added_map |= 1U << (uint)cmp_type;
+      if (current_thd->is_error()) return error_int();
     }
     const int rc = in_item->cmp(args[i]);
     if (rc == false) return (longlong)(!negated);
@@ -5344,10 +5385,34 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
       with an ALWAYS TRUE item. Else only the const item is removed.
     */
     /*
-      Make a note if this item has been created by IN to EXISTS
+      Make a note if the expression has been created by IN to EXISTS
       transformation. If so we cannot remove the entire condition.
-    */
-    if (item->created_by_in2exists()) {
+      We also cannot remove if the expression has a Item_view_ref.
+      For Ex:
+      SELECT 1 FROM (SELECT (SELECT a FROM t1) as b FROM t1) as dt
+      WHERE (FALSE AND b = 1) OR ( b = 2 );
+      The false condition in the WHERE triggers removal of 'b'.
+      But 'b' is referenced again. Removing a subquery which is
+      part of a projection list is forbidden for the same reason.
+      However for the above case when derived table "dt" gets merged
+      with the outer query block, "b" will not be part of the projection
+      list of the outer query block. So the check fails.
+      We add a check here for Item_view_refs as only in such a case
+      the original expression of an alias might not be part of
+      projection list.
+     */
+    bool view_ref_with_subquery = false;
+    if (item->has_subquery()) {
+      WalkItem(item, enum_walk::PREFIX,
+               [&view_ref_with_subquery](Item *inner_item) {
+                 if (inner_item->type() == Item::REF_ITEM &&
+                     down_cast<Item_ref *>(inner_item)->ref_type() ==
+                         Item_ref::VIEW_REF)
+                   view_ref_with_subquery = true;
+                 return false;
+               });
+    }
+    if (item->created_by_in2exists() || view_ref_with_subquery) {
       remove_condition = false;
       can_remove_cond = false;
     }
@@ -5755,6 +5820,7 @@ longlong Item_cond_and::val_int() {
       if (ignore_unknown() || !(null_value = item->null_value))
         return 0;  // return false
     }
+    if (current_thd->is_error()) return error_int();
   }
   return null_value ? 0 : 1;
 }
@@ -5799,6 +5865,7 @@ longlong Item_cond_or::val_int() {
       return 1;
     }
     if (item->null_value) null_value = true;
+    if (current_thd->is_error()) return error_int();
   }
   return 0;
 }
@@ -6327,6 +6394,7 @@ longlong Item_func_xor::val_int() {
       null_value = true;
       return 0;
     }
+    if (current_thd->is_error()) return error_int();
   }
   return result;
 }
@@ -6823,7 +6891,8 @@ longlong Item_equal::val_int() {
     /* Skip fields of non-const tables. They haven't been read yet */
     if (item_field->field->table->const_table) {
       const int rc = eval_item->cmp(item_field);
-      if ((rc == true) || (null_value = (rc == UNKNOWN))) return 0;
+      if ((rc == static_cast<int>(true)) || (null_value = (rc == UNKNOWN)))
+        return 0;
     }
   }
   return 1;
@@ -7269,14 +7338,25 @@ static bool append_string_value(Item *comparand,
   return false;
 }
 
-// Append a double or int value to join_key_buffer.
-static bool append_double_or_int_value(const char *value, size_t value_length,
-                                       bool is_null, String *join_key_buffer) {
-  if (is_null) {
-    return true;
-  }
+// Append a double value to join_key_buffer.
+static bool append_double_value(double value, bool is_null,
+                                String *join_key_buffer) {
+  if (is_null) return true;
+  join_key_buffer->append(pointer_cast<const char *>(&value), sizeof(value),
+                          static_cast<size_t>(0));
+  return false;
+}
 
-  join_key_buffer->append(value, value_length, static_cast<size_t>(0));
+// Append an integer value to join_key_buffer.
+// Storing an extra byte for unsigned_flag ensures that negative values do not
+// match large unsigned values.
+static bool append_int_value(longlong value, bool is_null, bool unsigned_flag,
+                             String *join_key_buffer) {
+  if (is_null) return true;
+  join_key_buffer->append(pointer_cast<const char *>(&value), sizeof(value),
+                          static_cast<size_t>(0));
+  // We do not need the extra byte for (0 <= value <= LLONG_MAX).
+  if (value < 0) join_key_buffer->append(static_cast<char>(unsigned_flag));
   return false;
 }
 
@@ -7416,15 +7496,12 @@ static bool extract_value_for_hash_join(THD *thd, Item *comparand,
     case REAL_RESULT: {
       double value = comparand->val_real();
       if (value == 0.0) value = 0.0;  // Ensure that -0.0 hashes as +0.0.
-      return append_double_or_int_value(pointer_cast<const char *>(&value),
-                                        sizeof(value), comparand->null_value,
-                                        join_key_buffer);
+      return append_double_value(value, comparand->null_value, join_key_buffer);
     }
     case INT_RESULT: {
       const longlong value = comparand->val_int();
-      return append_double_or_int_value(pointer_cast<const char *>(&value),
-                                        sizeof(value), comparand->null_value,
-                                        join_key_buffer);
+      return append_int_value(value, comparand->null_value,
+                              comparand->unsigned_flag, join_key_buffer);
     }
     case DECIMAL_RESULT: {
       return append_decimal_value(comparand, join_key_buffer);

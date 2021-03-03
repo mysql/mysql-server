@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,9 @@ Uint64 Dblqh::getTransactionMemoryNeed(
   else
   {
     require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_LQH_SCAN, &lqh_scan_recs));
-    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_LQH_TC_CONNECT, &lqh_op_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg,
+                                       CFG_LQH_TC_CONNECT,
+                                       &lqh_op_recs));
   }
   Uint64 scan_byte_count = 0;
   scan_byte_count += ScanRecord_pool::getMemoryNeed(lqh_scan_recs);
@@ -67,6 +69,7 @@ Uint64 Dblqh::getTransactionMemoryNeed(
   Uint64 commit_ack_marker_byte_count = 0;
   commit_ack_marker_byte_count +=
     CommitAckMarker_pool::getMemoryNeed(lqh_commit_ack_markers);
+  commit_ack_marker_byte_count *= ldm_instance_count;
   return (op_byte_count + scan_byte_count + commit_ack_marker_byte_count);
 }
 
@@ -83,6 +86,9 @@ void Dblqh::initData()
   m_insert_size = 0;
   m_delete_size = 0;
 
+  c_copy_fragment_ongoing = false;
+  c_copy_active_ongoing = false;
+
   c_gcp_stop_timer = 0;
   c_is_io_lag_reported = false;
   c_wait_lcp_surfacing = false;
@@ -92,18 +98,31 @@ void Dblqh::initData()
   c_send_gcp_saveref_needed = false;
   m_first_distributed_lcp_started = false;
   m_in_send_next_scan = 0;
+  m_fragment_lock_status = FRAGMENT_UNLOCKED;
+  m_old_fragment_lock_status = FRAGMENT_UNLOCKED;
 
-  caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
-  cgcprecFileSize = ZGCPREC_FILE_SIZE;
+  if (m_is_query_block)
+  {
+    caddfragrecFileSize = 0;
+    cgcprecFileSize = 0;
+    clcpFileSize = 0;
+    cpageRefFileSize = 0;
+    clogPartFileSize = 0;
+  }
+  else
+  {
+    caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
+    cgcprecFileSize = ZGCPREC_FILE_SIZE;
+    clcpFileSize = ZNO_CONCURRENT_LCP;
+    cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
+
+    NdbLogPartInfo lpinfo(instance());
+    clogPartFileSize = lpinfo.partCount;
+  }
   chostFileSize = MAX_NDB_NODES;
-  clcpFileSize = ZNO_CONCURRENT_LCP;
   clfoFileSize = 0;
   clogFileFileSize = 0;
 
-  NdbLogPartInfo lpinfo(instance());
-  clogPartFileSize = lpinfo.partCount;
-
-  cpageRefFileSize = ZPAGE_REF_FILE_SIZE;
   ctabrecFileSize = 0;
   ctcNodeFailrecFileSize = MAX_NDB_NODES;
   cTransactionDeadlockDetectionTimeout = 100;
@@ -115,7 +134,6 @@ void Dblqh::initData()
   logPartRecord = 0;
   logFileRecord = 0;
   logFileOperationRecord = 0;
-  logPageRecord = 0;
   pageRefRecord = 0;
   tablerec = 0;
   tcNodeFailRecord = 0;
@@ -139,10 +157,10 @@ void Dblqh::initData()
   delayOpenFilePtrI = 0;
 #endif
 
-  totalLogFiles = 0;
-  logFileInitDone = 0;
-  totallogMBytes = 0;
-  logMBytesInitDone = 0;
+  c_totalLogFiles = 0;
+  c_logFileInitDone = 0;
+  c_totallogMBytes = 0;
+  c_logMBytesInitDone = 0;
   m_startup_report_frequency = 0;
 
   c_active_add_frag_ptr_i = RNIL;
@@ -188,6 +206,9 @@ void Dblqh::initData()
 
   c_is_first_gcp_save_started = false;
   c_max_gci_in_lcp = 0;
+
+  c_lcpId_sent_last_LCP_FRAG_ORD = 0;
+  c_localLcpId_sent_last_LCP_FRAG_ORD = 0;
 
   c_current_local_lcp_instance = 0;
   c_local_lcp_started = false;
@@ -236,11 +257,6 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
       &prim_tab_fragptr,
       &gcpPtr,
       &lcpPtr,
-      &logPartPtr,
-      &logFilePtr,
-      &lfoPtr,
-      &logPagePtr,
-      &pageRefPtr,
       &scanptr,
       &tabptr,
       &m_tc_connect_ptr,
@@ -249,107 +265,132 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   }
 #endif
   // Records with dynamic sizes
-  addFragRecord = (AddFragRecord*)allocRecord("AddFragRecord",
-					      sizeof(AddFragRecord), 
-					      caddfragrecFileSize);
-
-  gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
-				      sizeof(GcpRecord), 
-				      cgcprecFileSize);
-
   hostRecord = (HostRecord*)allocRecord("HostRecord",
 					sizeof(HostRecord), 
 					chostFileSize);
 
-  lcpRecord = (LcpRecord*)allocRecord("LcpRecord",
-				      sizeof(LcpRecord), 
-				      clcpFileSize);
-
-  for(Uint32 i = 0; i<clcpFileSize; i++){
-    new (&lcpRecord[i])LcpRecord();
-  }
-
-  logPartRecord = (LogPartRecord*)allocRecord("LogPartRecord",
-					      sizeof(LogPartRecord), 
-					      NDB_MAX_LOG_PARTS);
-
-  logFileRecord = (LogFileRecord*)allocRecord("LogFileRecord",
-					      sizeof(LogFileRecord),
-					      clogFileFileSize);
-
-  logFileOperationRecord = (LogFileOperationRecord*)
-    allocRecord("LogFileOperationRecord", 
-		sizeof(LogFileOperationRecord), 
-		clfoFileSize);
-
+  if (!m_is_query_block)
   {
-    AllocChunk chunks[16];
-    const Uint32 chunkcnt = allocChunks(chunks, 16, RG_FILE_BUFFERS,
-                                        clogPageFileSize, CFG_DB_REDO_BUFFER);
+    addFragRecord = (AddFragRecord*)allocRecord("AddFragRecord",
+                                                sizeof(AddFragRecord),
+                                                caddfragrecFileSize);
 
+    gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
+                                        sizeof(GcpRecord),
+                                        cgcprecFileSize);
+
+    lcpRecord = (LcpRecord*)allocRecord("LcpRecord",
+                                        sizeof(LcpRecord), 
+                                        clcpFileSize);
+
+    for(Uint32 i = 0; i<clcpFileSize; i++)
     {
+      new (&lcpRecord[i])LcpRecord();
+    }
+
+    logPartRecord = (LogPartRecord*)allocRecord("LogPartRecord",
+                                                sizeof(LogPartRecord),
+                                                clogPartFileSize);
+
+    logFileRecord = (LogFileRecord*)allocRecord("LogFileRecord",
+                                                sizeof(LogFileRecord),
+                                                clogFileFileSize);
+
+    logFileOperationRecord = (LogFileOperationRecord*)
+      allocRecord("LogFileOperationRecord",
+		  sizeof(LogFileOperationRecord),
+		  clfoFileSize);
+
+    LogPartRecordPtr logPartPtr;
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      ptrAss(logPartPtr, logPartRecord);
+      new (logPartPtr.p) LogPartRecord();
+      AllocChunk chunks[16];
+      const Uint32 chunkcnt = allocChunks(chunks, 16, RG_FILE_BUFFERS,
+                                          clogPageFileSize / clogPartFileSize,
+                                          CFG_DB_REDO_BUFFER);
       Ptr<GlobalPage> pagePtr;
       m_shared_page_pool.getPtr(pagePtr, chunks[0].ptrI);
-      logPageRecord = (LogPageRecord*)pagePtr.p;
-    }
-
-    cfirstfreeLogPage = RNIL;
-    clogPageFileSize = 0;
-    clogPageCount = 0;
-    for (Int32 i = chunkcnt - 1; i >= 0; i--)
-    {
-      const Uint32 cnt = chunks[i].cnt;
-      ndbrequire(cnt != 0);
-
-      Ptr<GlobalPage> pagePtr;
-      m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
-      LogPageRecord * base = (LogPageRecord*)pagePtr.p;
-      ndbrequire(base >= logPageRecord);
-      const Uint32 ptrI = Uint32(base - logPageRecord);
-
-      for (Uint32 j = 0; j<cnt; j++)
+      logPartPtr.p->logPageRecord = (LogPageRecord*)pagePtr.p;
+      logPartPtr.p->logPageFileSize = clogPageFileSize / clogPartFileSize;
+      logPartPtr.p->firstFreeLogPage = RNIL;
+      logPartPtr.p->logPageCount = 0;
+      for (Int32 i = chunkcnt - 1; i >= 0; i--)
       {
-        refresh_watch_dog();
-        base[j].logPageWord[ZNEXT_PAGE] = ptrI + j + 1;
-        base[j].logPageWord[ZPOS_IN_FREE_LIST]= 1;
-        base[j].logPageWord[ZPOS_IN_WRITING]= 0;
+        const Uint32 cnt = chunks[i].cnt;
+        ndbrequire(cnt != 0);
+
+        Ptr<GlobalPage> pagePtr;
+        m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
+        LogPageRecord * base = (LogPageRecord*)pagePtr.p;
+        ndbrequire(base >= logPartPtr.p->logPageRecord);
+        const Uint32 ptrI = Uint32(base - logPartPtr.p->logPageRecord);
+
+        for (Uint32 j = 0; j<cnt; j++)
+        {
+          refresh_watch_dog();
+          base[j].logPageWord[ZNEXT_PAGE] = ptrI + j + 1;
+          base[j].logPageWord[ZPOS_IN_FREE_LIST]= 1;
+          base[j].logPageWord[ZPOS_IN_WRITING]= 0;
+        }
+
+        base[cnt-1].logPageWord[ZNEXT_PAGE] = logPartPtr.p->firstFreeLogPage;
+        logPartPtr.p->firstFreeLogPage = ptrI;
+
+        logPartPtr.p->logPageCount += cnt;
       }
+      /**
+       * We need to have one Redo Page cache per log part. This cache is
+       * indexed with the i-value of the page minus the starting page of
+       * the Redo Page Cache. It is important to separate those since
+       * they can be accessed from multiple threads in parallel.
+       */
+      logPartPtr.p->noOfFreeLogPages = logPartPtr.p->logPageCount;
+      logPartPtr.p->m_redo_page_cache.m_pool.set(
+        (RedoCacheLogPageRecord*)&logPartPtr.p->logPageRecord[0],
+        clogPageFileSize/clogPartFileSize);
+      logPartPtr.p->m_redo_page_cache.m_hash.setSize(1023);
+      logPartPtr.p->m_redo_page_cache.m_first_page = 0;
 
-      base[cnt-1].logPageWord[ZNEXT_PAGE] = cfirstfreeLogPage;
-      cfirstfreeLogPage = ptrI;
-
-      clogPageCount += cnt;
-      if (ptrI + cnt > clogPageFileSize)
-        clogPageFileSize = ptrI + cnt;
+      const Uint32 * base = (Uint32*)logPartPtr.p->logPageRecord;
+      const RedoCacheLogPageRecord* tmp1 =
+        (RedoCacheLogPageRecord*)logPartPtr.p->logPageRecord;
+      ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
+      ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
     }
-    cnoOfLogPages = clogPageCount;
+    m_redo_open_file_cache.m_pool.set(logFileRecord, clogFileFileSize);
+
+    pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
+                                                sizeof(PageRefRecord),
+                                                cpageRefFileSize);
+
+    c_scanTakeOverHash.setSize(128);
+
+    tablerec = (Tablerec*)allocRecord("Tablerec",
+                                      sizeof(Tablerec),
+                                      ctabrecFileSize);
   }
-
-#ifndef NO_REDO_PAGE_CACHE
-  m_redo_page_cache.m_pool.set((RedoCacheLogPageRecord*)logPageRecord,
-                               clogPageFileSize);
-  m_redo_page_cache.m_hash.setSize(63);
-
-  const Uint32 * base = (Uint32*)logPageRecord;
-  const RedoCacheLogPageRecord* tmp1 = (RedoCacheLogPageRecord*)logPageRecord;
-  ndbrequire(&base[ZPOS_PAGE_NO] == &tmp1->m_page_no);
-  ndbrequire(&base[ZPOS_PAGE_FILE_NO] == &tmp1->m_file_no);
-#endif
-
-#ifndef NO_REDO_OPEN_FILE_CACHE
-  m_redo_open_file_cache.m_pool.set(logFileRecord, clogFileFileSize);
-#endif
-
-  pageRefRecord = (PageRefRecord*)allocRecord("PageRefRecord",
-					      sizeof(PageRefRecord),
-					      cpageRefFileSize);
-
-  c_scanTakeOverHash.setSize(128);
-
-  tablerec = (Tablerec*)allocRecord("Tablerec",
-				    sizeof(Tablerec), 
-				    ctabrecFileSize);
-
+  else
+  {
+    tablerec = 0;
+    ctabrecFileSize = 0;
+    pageRefRecord = 0;
+    cpageRefFileSize = 0;
+    clogFileFileSize = 0;
+    addFragRecord = 0;
+    caddfragrecFileSize = 0;
+    gcpRecord = 0;
+    cgcprecFileSize = 0;
+    lcpRecord = 0;
+    clcpFileSize = 0;
+    logPartRecord = 0;
+    logFileRecord = 0;
+    logFileOperationRecord = 0;
+    clogFileFileSize = 0;
+    clogPageFileSize = 0;
+    clfoFileSize = 0;
+  }
   Pool_context pc;
   pc.m_block = this;
 
@@ -357,9 +398,13 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
               CFG_LDM_RESERVED_OPERATIONS, &reserveTcConnRecs));
 
+
+  if (m_is_query_block)
+  {
+    reserveTcConnRecs = 200;
+  }
   ctcConnectReserved = reserveTcConnRecs;
   ctcNumFree = reserveTcConnRecs;
-
   tcConnect_pool.init(
     TcConnectionrec::TYPE_ID,
     pc,
@@ -374,6 +419,10 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
                             CFG_LQH_RESERVED_SCAN_RECORDS,
                             &reserveScanRecs));
+  if (m_is_query_block)
+  {
+    reserveScanRecs = 1;
+  }
   c_scanRecordPool.init(
     ScanRecord::TYPE_ID,
     pc,
@@ -386,6 +435,10 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
 
   Uint32 reserveCommitAckMarkers = 1024;
 
+  if (m_is_query_block)
+  {
+    reserveCommitAckMarkers = 1;
+  }
   m_commitAckMarkerPool.init(
     CommitAckMarker::TYPE_ID,
     pc,
@@ -401,7 +454,7 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
 						    sizeof(TcNodeFailRecord),
 						    ctcNodeFailrecFileSize);
   
-  /*
+/*
   ndbout << "FRAGREC SIZE = " << sizeof(Fragrecord) << endl;
   ndbout << "TAB SIZE = " << sizeof(Tablerec) << endl;
   ndbout << "GCP SIZE = " << sizeof(GcpRecord) << endl;
@@ -416,13 +469,22 @@ void Dblqh::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   ndbout << "SCAN SIZE = " << sizeof(ScanRecord) << endl;
 */
 
-  // Initialize BAT for interface to file system
-  NewVARIABLE* bat = allocateBat(2);
-  bat[1].WA = &logPageRecord->logPageWord[0];
-  bat[1].nrr = clogPageFileSize;
-  bat[1].ClusterSize = sizeof(LogPageRecord);
-  bat[1].bits.q = ZTWOLOG_PAGE_SIZE;
-  bat[1].bits.v = 5;
+  if (!m_is_query_block)
+  {
+    LogPartRecordPtr logPartPtr;
+    NewVARIABLE* bat = allocateBat(clogPartFileSize);
+    // Initialize BAT for interface to file system
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      Uint32 i = logPartPtr.i;
+      ptrAss(logPartPtr, logPartRecord);
+      bat[i].WA = &logPartPtr.p->logPageRecord->logPageWord[0];
+      bat[i].nrr = logPartPtr.p->logPageFileSize;
+      bat[i].ClusterSize = sizeof(LogPageRecord);
+      bat[i].bits.q = ZTWOLOG_PAGE_SIZE;
+      bat[i].bits.v = 5;
+    }
+  }
 }//Dblqh::initRecords()
 
 bool
@@ -451,210 +513,284 @@ Dblqh::getParam(const char* name, Uint32* count)
   return false;
 }
 
-Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
-  SimulatedBlock(DBLQH, ctx, instanceNumber),
+Dblqh::Dblqh(Block_context& ctx,
+             Uint32 instanceNumber,
+             Uint32 blockNo):
+  SimulatedBlock(blockNo, ctx, instanceNumber),
   m_reserved_scans(c_scanRecordPool),
   c_scanTakeOverHash(c_scanRecordPool),
   c_lcp_waiting_fragments(c_fragment_pool),
   c_lcp_restoring_fragments(c_fragment_pool),
   c_lcp_complete_fragments(c_fragment_pool),
   c_queued_lcp_frag_ord(c_fragment_pool),
+  c_copy_fragment_queue(c_copy_fragment_pool),
+  c_copy_active_queue(c_copy_active_pool),
   m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
   BLOCK_CONSTRUCTOR(Dblqh);
 
-  addRecSignal(GSN_LOCAL_LATEST_LCP_ID_REP,
-               &Dblqh::execLOCAL_LATEST_LCP_ID_REP);
-  addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
-  addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);
-  addRecSignal(GSN_ATTRINFO, &Dblqh::execATTRINFO);
-  addRecSignal(GSN_KEYINFO, &Dblqh::execKEYINFO);
-  addRecSignal(GSN_LQHKEYREQ, &Dblqh::execLQHKEYREQ);
-  addRecSignal(GSN_LQHKEYREF, &Dblqh::execLQHKEYREF);
-  addRecSignal(GSN_COMMIT, &Dblqh::execCOMMIT);
-  addRecSignal(GSN_COMPLETE, &Dblqh::execCOMPLETE);
-  addRecSignal(GSN_LQHKEYCONF, &Dblqh::execLQHKEYCONF);
+  if (blockNo == DBLQH)
+  {
+    addRecSignal(GSN_LOCAL_LATEST_LCP_ID_REP,
+                 &Dblqh::execLOCAL_LATEST_LCP_ID_REP);
+    addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
+    addRecSignal(GSN_DEBUG_SIG, &Dblqh::execDEBUG_SIG);
+    addRecSignal(GSN_LQHKEYREQ, &Dblqh::execLQHKEYREQ);
+    addRecSignal(GSN_LQHKEYREF, &Dblqh::execLQHKEYREF);
+    addRecSignal(GSN_COMMIT, &Dblqh::execCOMMIT);
+    addRecSignal(GSN_COMPLETE, &Dblqh::execCOMPLETE);
+    addRecSignal(GSN_LQHKEYCONF, &Dblqh::execLQHKEYCONF);
 #ifdef VM_TRACE
-  addRecSignal(GSN_TESTSIG, &Dblqh::execTESTSIG);
+    addRecSignal(GSN_TESTSIG, &Dblqh::execTESTSIG);
 #endif
-  addRecSignal(GSN_CONTINUEB, &Dblqh::execCONTINUEB);
-  addRecSignal(GSN_START_RECREQ, &Dblqh::execSTART_RECREQ);
-  addRecSignal(GSN_START_RECCONF, &Dblqh::execSTART_RECCONF);
-  addRecSignal(GSN_EXEC_FRAGREQ, &Dblqh::execEXEC_FRAGREQ);
-  addRecSignal(GSN_EXEC_FRAGCONF, &Dblqh::execEXEC_FRAGCONF);
-  addRecSignal(GSN_EXEC_FRAGREF, &Dblqh::execEXEC_FRAGREF);
-  addRecSignal(GSN_START_EXEC_SR, &Dblqh::execSTART_EXEC_SR);
-  addRecSignal(GSN_EXEC_SRREQ, &Dblqh::execEXEC_SRREQ);
-  addRecSignal(GSN_EXEC_SRCONF, &Dblqh::execEXEC_SRCONF);
+    addRecSignal(GSN_CONTINUEB, &Dblqh::execCONTINUEB);
+    addRecSignal(GSN_START_RECREQ, &Dblqh::execSTART_RECREQ);
+    addRecSignal(GSN_START_RECCONF, &Dblqh::execSTART_RECCONF);
+    addRecSignal(GSN_EXEC_FRAGREQ, &Dblqh::execEXEC_FRAGREQ);
+    addRecSignal(GSN_EXEC_FRAGCONF, &Dblqh::execEXEC_FRAGCONF);
+    addRecSignal(GSN_EXEC_FRAGREF, &Dblqh::execEXEC_FRAGREF);
+    addRecSignal(GSN_START_EXEC_SR, &Dblqh::execSTART_EXEC_SR);
+    addRecSignal(GSN_EXEC_SRREQ, &Dblqh::execEXEC_SRREQ);
+    addRecSignal(GSN_EXEC_SRCONF, &Dblqh::execEXEC_SRCONF);
 
-  addRecSignal(GSN_ALTER_TAB_REQ, &Dblqh::execALTER_TAB_REQ);
+    addRecSignal(GSN_ALTER_TAB_REQ, &Dblqh::execALTER_TAB_REQ);
 
-  addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dblqh::execSIGNAL_DROPPED_REP, true);
+    addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dblqh::execSIGNAL_DROPPED_REP, true);
 
-  // Trigger signals, transit to from TUP
-  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dblqh::execCREATE_TRIG_IMPL_REQ);
-  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Dblqh::execCREATE_TRIG_IMPL_CONF);
-  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Dblqh::execCREATE_TRIG_IMPL_REF);
+    // Trigger signals, transit to from TUP
+    addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dblqh::execCREATE_TRIG_IMPL_REQ);
+    addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Dblqh::execCREATE_TRIG_IMPL_CONF);
+    addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Dblqh::execCREATE_TRIG_IMPL_REF);
 
-  addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dblqh::execDROP_TRIG_IMPL_REQ);
-  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Dblqh::execDROP_TRIG_IMPL_CONF);
-  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dblqh::execDROP_TRIG_IMPL_REF);
+    addRecSignal(GSN_DROP_TRIG_IMPL_REQ, &Dblqh::execDROP_TRIG_IMPL_REQ);
+    addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Dblqh::execDROP_TRIG_IMPL_CONF);
+    addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Dblqh::execDROP_TRIG_IMPL_REF);
 
-  addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Dblqh::execBUILD_INDX_IMPL_REF);
-  addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Dblqh::execBUILD_INDX_IMPL_CONF);
+    addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Dblqh::execBUILD_INDX_IMPL_REF);
+    addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Dblqh::execBUILD_INDX_IMPL_CONF);
 
-  addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
-  addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
-  addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
-  addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
-  addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
-  addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
-  addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);
-  addRecSignal(GSN_LQHADDATTREQ, &Dblqh::execLQHADDATTREQ);
-  addRecSignal(GSN_TUP_ADD_ATTCONF, &Dblqh::execTUP_ADD_ATTCONF);
-  addRecSignal(GSN_TUP_ADD_ATTRREF, &Dblqh::execTUP_ADD_ATTRREF);
-  addRecSignal(GSN_ACCFRAGCONF, &Dblqh::execACCFRAGCONF);
-  addRecSignal(GSN_ACCFRAGREF, &Dblqh::execACCFRAGREF);
-  addRecSignal(GSN_TUPFRAGCONF, &Dblqh::execTUPFRAGCONF);
-  addRecSignal(GSN_TUPFRAGREF, &Dblqh::execTUPFRAGREF);
-  addRecSignal(GSN_WAIT_LCP_IDLE_CONF, &Dblqh::execWAIT_LCP_IDLE_CONF);
-  addRecSignal(GSN_TAB_COMMITREQ, &Dblqh::execTAB_COMMITREQ);
-  addRecSignal(GSN_ACCSEIZECONF, &Dblqh::execACCSEIZECONF);
-  addRecSignal(GSN_ACCSEIZEREF, &Dblqh::execACCSEIZEREF);
-  addRecSignal(GSN_READ_NODESCONF, &Dblqh::execREAD_NODESCONF);
-  addRecSignal(GSN_READ_NODESREF, &Dblqh::execREAD_NODESREF);
-  addRecSignal(GSN_STTOR, &Dblqh::execSTTOR);
-  addRecSignal(GSN_NDB_STTOR, &Dblqh::execNDB_STTOR);
-  addRecSignal(GSN_TUPSEIZECONF, &Dblqh::execTUPSEIZECONF);
-  addRecSignal(GSN_TUPSEIZEREF, &Dblqh::execTUPSEIZEREF);
-  addRecSignal(GSN_ACCKEYCONF, &Dblqh::execACCKEYCONF);
-  addRecSignal(GSN_ACCKEYREF, &Dblqh::execACCKEYREF);
-  addRecSignal(GSN_TUPKEYREF, &Dblqh::execTUPKEYREF);
-  addRecSignal(GSN_ABORT, &Dblqh::execABORT);
-  addRecSignal(GSN_ABORTREQ, &Dblqh::execABORTREQ);
-  addRecSignal(GSN_COMMITREQ, &Dblqh::execCOMMITREQ);
-  addRecSignal(GSN_COMPLETEREQ, &Dblqh::execCOMPLETEREQ);
+    addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
+    addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
+    addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
+    addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
+    addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
+    addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
+    addRecSignal(GSN_LQHFRAGREQ, &Dblqh::execLQHFRAGREQ);
+    addRecSignal(GSN_LQHADDATTREQ, &Dblqh::execLQHADDATTREQ);
+    addRecSignal(GSN_TUP_ADD_ATTCONF, &Dblqh::execTUP_ADD_ATTCONF);
+    addRecSignal(GSN_TUP_ADD_ATTRREF, &Dblqh::execTUP_ADD_ATTRREF);
+    addRecSignal(GSN_ACCFRAGCONF, &Dblqh::execACCFRAGCONF);
+    addRecSignal(GSN_ACCFRAGREF, &Dblqh::execACCFRAGREF);
+    addRecSignal(GSN_TUPFRAGCONF, &Dblqh::execTUPFRAGCONF);
+    addRecSignal(GSN_TUPFRAGREF, &Dblqh::execTUPFRAGREF);
+    addRecSignal(GSN_WAIT_LCP_IDLE_CONF, &Dblqh::execWAIT_LCP_IDLE_CONF);
+    addRecSignal(GSN_TAB_COMMITREQ, &Dblqh::execTAB_COMMITREQ);
+    addRecSignal(GSN_ACCSEIZECONF, &Dblqh::execACCSEIZECONF);
+    addRecSignal(GSN_ACCSEIZEREF, &Dblqh::execACCSEIZEREF);
+    addRecSignal(GSN_READ_NODESCONF, &Dblqh::execREAD_NODESCONF);
+    addRecSignal(GSN_READ_NODESREF, &Dblqh::execREAD_NODESREF);
+    addRecSignal(GSN_STTOR, &Dblqh::execSTTOR);
+    addRecSignal(GSN_NDB_STTOR, &Dblqh::execNDB_STTOR);
+    addRecSignal(GSN_TUPSEIZECONF, &Dblqh::execTUPSEIZECONF);
+    addRecSignal(GSN_TUPSEIZEREF, &Dblqh::execTUPSEIZEREF);
+    addRecSignal(GSN_ACCKEYCONF, &Dblqh::execACCKEYCONF);
+    addRecSignal(GSN_ACCKEYREF, &Dblqh::execACCKEYREF);
+    addRecSignal(GSN_TUPKEYREF, &Dblqh::execTUPKEYREF);
+    addRecSignal(GSN_ABORT, &Dblqh::execABORT);
+    addRecSignal(GSN_ABORTREQ, &Dblqh::execABORTREQ);
+    addRecSignal(GSN_COMMITREQ, &Dblqh::execCOMMITREQ);
+    addRecSignal(GSN_COMPLETEREQ, &Dblqh::execCOMPLETEREQ);
 #ifdef VM_TRACE
-  addRecSignal(GSN_MEMCHECKREQ, &Dblqh::execMEMCHECKREQ);
+    addRecSignal(GSN_MEMCHECKREQ, &Dblqh::execMEMCHECKREQ);
 #endif
-  addRecSignal(GSN_SCAN_FRAGREQ, &Dblqh::execSCAN_FRAGREQ);
-  addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
-  addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
-  addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
-  addRecSignal(GSN_ACC_CHECK_SCAN, &Dblqh::execACC_CHECK_SCAN);
-  addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
-  addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
-  addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);
-  addRecSignal(GSN_COPY_ACTIVEREQ, &Dblqh::execCOPY_ACTIVEREQ);
-  addRecSignal(GSN_LQH_TRANSREQ, &Dblqh::execLQH_TRANSREQ);
-  addRecSignal(GSN_TRANSID_AI, &Dblqh::execTRANSID_AI);
-  addRecSignal(GSN_INCL_NODEREQ, &Dblqh::execINCL_NODEREQ);
-  addRecSignal(GSN_LCP_PREPARE_REF, &Dblqh::execLCP_PREPARE_REF);
-  addRecSignal(GSN_LCP_PREPARE_CONF, &Dblqh::execLCP_PREPARE_CONF);
-  addRecSignal(GSN_END_LCPCONF, &Dblqh::execEND_LCPCONF);
-  addRecSignal(GSN_WAIT_COMPLETE_LCP_REQ, &Dblqh::execWAIT_COMPLETE_LCP_REQ);
-  addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_CONF,
-               &Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF);
-  addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_CONF,
-               &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
-  addRecSignal(GSN_LCP_ALL_COMPLETE_CONF, &Dblqh::execLCP_ALL_COMPLETE_CONF);
+    addRecSignal(GSN_SCAN_FRAGREQ, &Dblqh::execSCAN_FRAGREQ);
+    addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
+    addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
+    addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
+    addRecSignal(GSN_ACC_CHECK_SCAN, &Dblqh::execACC_CHECK_SCAN);
+    addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
+    addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
+    addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);
+    addRecSignal(GSN_COPY_ACTIVEREQ, &Dblqh::execCOPY_ACTIVEREQ);
+    addRecSignal(GSN_LQH_TRANSREQ, &Dblqh::execLQH_TRANSREQ);
+    addRecSignal(GSN_TRANSID_AI, &Dblqh::execTRANSID_AI);
+    addRecSignal(GSN_INCL_NODEREQ, &Dblqh::execINCL_NODEREQ);
+    addRecSignal(GSN_LCP_PREPARE_REF, &Dblqh::execLCP_PREPARE_REF);
+    addRecSignal(GSN_LCP_PREPARE_CONF, &Dblqh::execLCP_PREPARE_CONF);
+    addRecSignal(GSN_END_LCPCONF, &Dblqh::execEND_LCPCONF);
+    addRecSignal(GSN_WAIT_COMPLETE_LCP_REQ, &Dblqh::execWAIT_COMPLETE_LCP_REQ);
+    addRecSignal(GSN_WAIT_ALL_COMPLETE_LCP_CONF,
+                 &Dblqh::execWAIT_ALL_COMPLETE_LCP_CONF);
+    addRecSignal(GSN_INFORM_BACKUP_DROP_TAB_CONF,
+                 &Dblqh::execINFORM_BACKUP_DROP_TAB_CONF);
+    addRecSignal(GSN_LCP_ALL_COMPLETE_CONF, &Dblqh::execLCP_ALL_COMPLETE_CONF);
 
-  addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);
+    addRecSignal(GSN_LCP_FRAG_ORD, &Dblqh::execLCP_FRAG_ORD);
   
-  addRecSignal(GSN_START_FRAGREQ, &Dblqh::execSTART_FRAGREQ);
-  addRecSignal(GSN_START_RECREF, &Dblqh::execSTART_RECREF);
-  addRecSignal(GSN_GCP_SAVEREQ, &Dblqh::execGCP_SAVEREQ);
-  addRecSignal(GSN_FSOPENREF, &Dblqh::execFSOPENREF, true);
-  addRecSignal(GSN_FSOPENCONF, &Dblqh::execFSOPENCONF);
-  addRecSignal(GSN_FSCLOSECONF, &Dblqh::execFSCLOSECONF);
-  addRecSignal(GSN_FSWRITECONF, &Dblqh::execFSWRITECONF);
-  addRecSignal(GSN_FSWRITEREF, &Dblqh::execFSWRITEREF, true);
-  addRecSignal(GSN_FSREADCONF, &Dblqh::execFSREADCONF);
-  addRecSignal(GSN_FSREADREF, &Dblqh::execFSREADREF, true);
-  addRecSignal(GSN_ACC_ABORTCONF, &Dblqh::execACC_ABORTCONF);
-  addRecSignal(GSN_TIME_SIGNAL,  &Dblqh::execTIME_SIGNAL);
-  addRecSignal(GSN_FSSYNCCONF,  &Dblqh::execFSSYNCCONF);
-  addRecSignal(GSN_REMOVE_MARKER_ORD, &Dblqh::execREMOVE_MARKER_ORD);
+    addRecSignal(GSN_START_FRAGREQ, &Dblqh::execSTART_FRAGREQ);
+    addRecSignal(GSN_START_RECREF, &Dblqh::execSTART_RECREF);
+    addRecSignal(GSN_GCP_SAVEREQ, &Dblqh::execGCP_SAVEREQ);
+    addRecSignal(GSN_FSOPENREF, &Dblqh::execFSOPENREF, true);
+    addRecSignal(GSN_FSOPENCONF, &Dblqh::execFSOPENCONF);
+    addRecSignal(GSN_FSCLOSECONF, &Dblqh::execFSCLOSECONF);
+    addRecSignal(GSN_FSWRITECONF, &Dblqh::execFSWRITECONF);
+    addRecSignal(GSN_FSWRITEREF, &Dblqh::execFSWRITEREF, true);
+    addRecSignal(GSN_FSREADCONF, &Dblqh::execFSREADCONF);
+    addRecSignal(GSN_FSREADREF, &Dblqh::execFSREADREF, true);
+    addRecSignal(GSN_ACC_ABORTCONF, &Dblqh::execACC_ABORTCONF);
+    addRecSignal(GSN_TIME_SIGNAL,  &Dblqh::execTIME_SIGNAL);
+    addRecSignal(GSN_FSSYNCCONF,  &Dblqh::execFSSYNCCONF);
+    addRecSignal(GSN_REMOVE_MARKER_ORD, &Dblqh::execREMOVE_MARKER_ORD);
 
-  addRecSignal(GSN_CREATE_TAB_REQ, &Dblqh::execCREATE_TAB_REQ);
-  addRecSignal(GSN_CREATE_TAB_REF, &Dblqh::execCREATE_TAB_REF);
-  addRecSignal(GSN_CREATE_TAB_CONF, &Dblqh::execCREATE_TAB_CONF);
+    addRecSignal(GSN_CREATE_TAB_REQ, &Dblqh::execCREATE_TAB_REQ);
+    addRecSignal(GSN_CREATE_TAB_REF, &Dblqh::execCREATE_TAB_REF);
+    addRecSignal(GSN_CREATE_TAB_CONF, &Dblqh::execCREATE_TAB_CONF);
 
-  addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dblqh::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
-  addRecSignal(GSN_DROP_TAB_REF, &Dblqh::execDROP_TAB_REF);
-  addRecSignal(GSN_DROP_TAB_CONF, &Dblqh::execDROP_TAB_CONF);
+    addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dblqh::execPREP_DROP_TAB_REQ);
+    addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
+    addRecSignal(GSN_DROP_TAB_REF, &Dblqh::execDROP_TAB_REF);
+    addRecSignal(GSN_DROP_TAB_CONF, &Dblqh::execDROP_TAB_CONF);
 
-  addRecSignal(GSN_LQH_WRITELOG_REQ, &Dblqh::execLQH_WRITELOG_REQ);
-  addRecSignal(GSN_TUP_DEALLOCREQ, &Dblqh::execTUP_DEALLOCREQ);
+    addRecSignal(GSN_LQH_WRITELOG_REQ, &Dblqh::execLQH_WRITELOG_REQ);
+    addRecSignal(GSN_TUP_DEALLOCREQ, &Dblqh::execTUP_DEALLOCREQ);
 
-  // TUX
-  addRecSignal(GSN_TUXFRAGCONF, &Dblqh::execTUXFRAGCONF);
-  addRecSignal(GSN_TUXFRAGREF, &Dblqh::execTUXFRAGREF);
-  addRecSignal(GSN_TUX_ADD_ATTRCONF, &Dblqh::execTUX_ADD_ATTRCONF);
-  addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
+    // TUX
+    addRecSignal(GSN_TUXFRAGCONF, &Dblqh::execTUXFRAGCONF);
+    addRecSignal(GSN_TUXFRAGREF, &Dblqh::execTUXFRAGREF);
+    addRecSignal(GSN_TUX_ADD_ATTRCONF, &Dblqh::execTUX_ADD_ATTRCONF);
+    addRecSignal(GSN_TUX_ADD_ATTRREF, &Dblqh::execTUX_ADD_ATTRREF);
 
-  addRecSignal(GSN_READ_PSEUDO_REQ, &Dblqh::execREAD_PSEUDO_REQ);
+    addRecSignal(GSN_READ_PSEUDO_REQ, &Dblqh::execREAD_PSEUDO_REQ);
 
-  addRecSignal(GSN_DEFINE_BACKUP_REF, &Dblqh::execDEFINE_BACKUP_REF);
-  addRecSignal(GSN_DEFINE_BACKUP_CONF, &Dblqh::execDEFINE_BACKUP_CONF);
+    addRecSignal(GSN_DEFINE_BACKUP_REF, &Dblqh::execDEFINE_BACKUP_REF);
+    addRecSignal(GSN_DEFINE_BACKUP_CONF, &Dblqh::execDEFINE_BACKUP_CONF);
 
-  addRecSignal(GSN_BACKUP_FRAGMENT_REF, &Dblqh::execBACKUP_FRAGMENT_REF);
-  addRecSignal(GSN_BACKUP_FRAGMENT_CONF, &Dblqh::execBACKUP_FRAGMENT_CONF);
+    addRecSignal(GSN_BACKUP_FRAGMENT_REF, &Dblqh::execBACKUP_FRAGMENT_REF);
+    addRecSignal(GSN_BACKUP_FRAGMENT_CONF, &Dblqh::execBACKUP_FRAGMENT_CONF);
 
-  addRecSignal(GSN_RESTORE_LCP_REF, &Dblqh::execRESTORE_LCP_REF);
-  addRecSignal(GSN_RESTORE_LCP_CONF, &Dblqh::execRESTORE_LCP_CONF);
+    addRecSignal(GSN_RESTORE_LCP_REF, &Dblqh::execRESTORE_LCP_REF);
+    addRecSignal(GSN_RESTORE_LCP_CONF, &Dblqh::execRESTORE_LCP_CONF);
 
-  addRecSignal(GSN_UPDATE_FRAG_DIST_KEY_ORD, 
-	       &Dblqh::execUPDATE_FRAG_DIST_KEY_ORD);
+    addRecSignal(GSN_UPDATE_FRAG_DIST_KEY_ORD,
+	         &Dblqh::execUPDATE_FRAG_DIST_KEY_ORD);
+
+    addRecSignal(GSN_PREPARE_COPY_FRAG_REQ,
+                 &Dblqh::execPREPARE_COPY_FRAG_REQ);
   
-  addRecSignal(GSN_PREPARE_COPY_FRAG_REQ,
-	       &Dblqh::execPREPARE_COPY_FRAG_REQ);
-  
-  addRecSignal(GSN_DROP_FRAG_REQ, &Dblqh::execDROP_FRAG_REQ);
-  addRecSignal(GSN_DROP_FRAG_REF, &Dblqh::execDROP_FRAG_REF);
-  addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
+    addRecSignal(GSN_DROP_FRAG_REQ, &Dblqh::execDROP_FRAG_REQ);
+    addRecSignal(GSN_DROP_FRAG_REF, &Dblqh::execDROP_FRAG_REF);
+    addRecSignal(GSN_DROP_FRAG_CONF, &Dblqh::execDROP_FRAG_CONF);
 
-  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
-  addRecSignal(GSN_FSWRITEREQ,
-               &Dblqh::execFSWRITEREQ);
-  addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
+    addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dblqh::execSUB_GCP_COMPLETE_REP);
+    addRecSignal(GSN_FSWRITEREQ,
+                 &Dblqh::execFSWRITEREQ);
+    addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
 
-  addRecSignal(GSN_FIRE_TRIG_REQ, &Dblqh::execFIRE_TRIG_REQ);
+    addRecSignal(GSN_FIRE_TRIG_REQ, &Dblqh::execFIRE_TRIG_REQ);
 
-  addRecSignal(GSN_LCP_STATUS_CONF, &Dblqh::execLCP_STATUS_CONF);
-  addRecSignal(GSN_LCP_STATUS_REF, &Dblqh::execLCP_STATUS_REF);
+    addRecSignal(GSN_LCP_STATUS_CONF, &Dblqh::execLCP_STATUS_CONF);
+    addRecSignal(GSN_LCP_STATUS_REF, &Dblqh::execLCP_STATUS_REF);
 
-  addRecSignal(GSN_INFO_GCP_STOP_TIMER, &Dblqh::execINFO_GCP_STOP_TIMER);
+    addRecSignal(GSN_INFO_GCP_STOP_TIMER, &Dblqh::execINFO_GCP_STOP_TIMER);
 
-  addRecSignal(GSN_READ_LOCAL_SYSFILE_CONF,
-               &Dblqh::execREAD_LOCAL_SYSFILE_CONF);
-  addRecSignal(GSN_WRITE_LOCAL_SYSFILE_CONF,
-               &Dblqh::execWRITE_LOCAL_SYSFILE_CONF);
-  addRecSignal(GSN_UNDO_LOG_LEVEL_REP,
-               &Dblqh::execUNDO_LOG_LEVEL_REP);
-  addRecSignal(GSN_CUT_REDO_LOG_TAIL_REQ,
-               &Dblqh::execCUT_REDO_LOG_TAIL_REQ);
-  addRecSignal(GSN_COPY_FRAG_NOT_IN_PROGRESS_REP,
-               &Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP);
-  addRecSignal(GSN_SET_LOCAL_LCP_ID_CONF,
-               &Dblqh::execSET_LOCAL_LCP_ID_CONF);
-  addRecSignal(GSN_START_NODE_LCP_REQ,
-               &Dblqh::execSTART_NODE_LCP_REQ);
-  addRecSignal(GSN_START_LOCAL_LCP_ORD,
-               &Dblqh::execSTART_LOCAL_LCP_ORD);
-  addRecSignal(GSN_START_FULL_LOCAL_LCP_ORD,
-               &Dblqh::execSTART_FULL_LOCAL_LCP_ORD);
-  addRecSignal(GSN_HALT_COPY_FRAG_REQ,
-               &Dblqh::execHALT_COPY_FRAG_REQ);
-  addRecSignal(GSN_HALT_COPY_FRAG_CONF,
-               &Dblqh::execHALT_COPY_FRAG_CONF);
-  addRecSignal(GSN_RESUME_COPY_FRAG_REQ,
-               &Dblqh::execRESUME_COPY_FRAG_REQ);
-  addRecSignal(GSN_RESUME_COPY_FRAG_CONF,
-               &Dblqh::execRESUME_COPY_FRAG_CONF);
-
+    addRecSignal(GSN_READ_LOCAL_SYSFILE_CONF,
+                 &Dblqh::execREAD_LOCAL_SYSFILE_CONF);
+    addRecSignal(GSN_WRITE_LOCAL_SYSFILE_CONF,
+                 &Dblqh::execWRITE_LOCAL_SYSFILE_CONF);
+    addRecSignal(GSN_UNDO_LOG_LEVEL_REP,
+                 &Dblqh::execUNDO_LOG_LEVEL_REP);
+    addRecSignal(GSN_CUT_REDO_LOG_TAIL_REQ,
+                 &Dblqh::execCUT_REDO_LOG_TAIL_REQ);
+    addRecSignal(GSN_COPY_FRAG_NOT_IN_PROGRESS_REP,
+                 &Dblqh::execCOPY_FRAG_NOT_IN_PROGRESS_REP);
+    addRecSignal(GSN_SET_LOCAL_LCP_ID_CONF,
+                 &Dblqh::execSET_LOCAL_LCP_ID_CONF);
+    addRecSignal(GSN_START_NODE_LCP_REQ,
+                 &Dblqh::execSTART_NODE_LCP_REQ);
+    addRecSignal(GSN_START_LOCAL_LCP_ORD,
+                 &Dblqh::execSTART_LOCAL_LCP_ORD);
+    addRecSignal(GSN_START_FULL_LOCAL_LCP_ORD,
+                 &Dblqh::execSTART_FULL_LOCAL_LCP_ORD);
+    addRecSignal(GSN_HALT_COPY_FRAG_REQ,
+                 &Dblqh::execHALT_COPY_FRAG_REQ);
+    addRecSignal(GSN_HALT_COPY_FRAG_CONF,
+                 &Dblqh::execHALT_COPY_FRAG_CONF);
+    addRecSignal(GSN_RESUME_COPY_FRAG_REQ,
+                 &Dblqh::execRESUME_COPY_FRAG_REQ);
+    addRecSignal(GSN_RESUME_COPY_FRAG_CONF,
+                 &Dblqh::execRESUME_COPY_FRAG_CONF);
+    m_is_query_block = false;
+    m_is_in_query_thread = false;
+    m_ldm_instance_used = this;
+    m_acc_block = DBACC;
+    m_tup_block = DBTUP;
+    m_lqh_block = DBLQH;
+    m_tux_block = DBTUX;
+    m_backup_block = BACKUP;
+    m_restore_block = RESTORE;
+  }
+  else
+  {
+    ndbrequire(blockNo == DBQLQH);
+    m_is_query_block = true;
+    m_is_in_query_thread = true;
+    m_acc_block = DBQACC;
+    m_tup_block = DBQTUP;
+    m_lqh_block = DBQLQH;
+    m_tux_block = DBQTUX;
+    m_backup_block = QBACKUP;
+    m_restore_block = QRESTORE;
+    m_ldm_instance_used = nullptr;
+    addRecSignal(GSN_TUP_DEALLOCREQ, &Dblqh::execTUP_DEALLOCREQ);
+    addRecSignal(GSN_READ_NODESCONF, &Dblqh::execREAD_NODESCONF);
+    addRecSignal(GSN_READ_NODESREF, &Dblqh::execREAD_NODESREF);
+    addRecSignal(GSN_LQHKEYREQ, &Dblqh::execLQHKEYREQ);
+    addRecSignal(GSN_LQHKEYREF, &Dblqh::execLQHKEYREF);
+    addRecSignal(GSN_LQHKEYCONF, &Dblqh::execLQHKEYCONF);
+    addRecSignal(GSN_PACKED_SIGNAL, &Dblqh::execPACKED_SIGNAL);
+    addRecSignal(GSN_READ_PSEUDO_REQ, &Dblqh::execREAD_PSEUDO_REQ);
+    addRecSignal(GSN_CONTINUEB, &Dblqh::execCONTINUEB);
+    addRecSignal(GSN_SIGNAL_DROPPED_REP, &Dblqh::execSIGNAL_DROPPED_REP, true);
+    addRecSignal(GSN_DUMP_STATE_ORD, &Dblqh::execDUMP_STATE_ORD);
+    addRecSignal(GSN_NODE_FAILREP, &Dblqh::execNODE_FAILREP);
+    addRecSignal(GSN_CHECK_LCP_STOP, &Dblqh::execCHECK_LCP_STOP);
+    addRecSignal(GSN_SEND_PACKED, &Dblqh::execSEND_PACKED, true);
+    addRecSignal(GSN_TUP_ATTRINFO, &Dblqh::execTUP_ATTRINFO);
+    addRecSignal(GSN_STTOR, &Dblqh::execSTTOR);
+    addRecSignal(GSN_READ_CONFIG_REQ, &Dblqh::execREAD_CONFIG_REQ, true);
+    addRecSignal(GSN_ACCSEIZECONF, &Dblqh::execACCSEIZECONF);
+    addRecSignal(GSN_ACCSEIZEREF, &Dblqh::execACCSEIZEREF);
+    addRecSignal(GSN_TUPSEIZECONF, &Dblqh::execTUPSEIZECONF);
+    addRecSignal(GSN_TUPSEIZEREF, &Dblqh::execTUPSEIZEREF);
+    addRecSignal(GSN_ACCKEYCONF, &Dblqh::execACCKEYCONF);
+    addRecSignal(GSN_ACCKEYREF, &Dblqh::execACCKEYREF);
+    addRecSignal(GSN_TUPKEYREF, &Dblqh::execTUPKEYREF);
+    addRecSignal(GSN_ABORT, &Dblqh::execABORT);
+    addRecSignal(GSN_ABORTREQ, &Dblqh::execABORTREQ);
+    addRecSignal(GSN_SCAN_FRAGREQ, &Dblqh::execSCAN_FRAGREQ);
+    addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
+    addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
+    addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
+    addRecSignal(GSN_ACC_CHECK_SCAN, &Dblqh::execACC_CHECK_SCAN);
+    addRecSignal(GSN_TRANSID_AI, &Dblqh::execTRANSID_AI);
+    addRecSignal(GSN_INCL_NODEREQ, &Dblqh::execINCL_NODEREQ);
+    addRecSignal(GSN_TIME_SIGNAL,  &Dblqh::execTIME_SIGNAL);
+    addRecSignal(GSN_DBINFO_SCANREQ, &Dblqh::execDBINFO_SCANREQ);
+  }
+  m_is_recover_block = false;
   initData();
+
+  init_restart_synch();
+  m_restore_mutex = 0;
+  m_lock_acc_page_mutex = 0;
+  m_lock_tup_page_mutex = 0;
+  c_restore_mutex_lqh = 0;
+  m_num_recover_active = 0;
+  m_num_restore_threads = 0;
+  m_num_restores_active = 0;
+  m_num_local_restores_active = 0;
+  m_num_copy_restores_active = 0;
+  m_current_ldm_instance = 0;
 
   c_transient_pools[DBLQH_OPERATION_RECORD_TRANSIENT_POOL_INDEX] =
     &tcConnect_pool;
@@ -666,66 +802,88 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   c_transient_pools_shrinking.clear();
 }//Dblqh::Dblqh()
 
-Dblqh::~Dblqh() 
+Dblqh::~Dblqh()
 {
-#ifndef NO_REDO_PAGE_CACHE
-  m_redo_page_cache.m_pool.clear();
-#endif
+  deinit_restart_synch();
+  if (!m_is_query_block)
+  {
+    NdbMutex_Destroy(m_lock_tup_page_mutex);
+    NdbMutex_Destroy(m_lock_acc_page_mutex);
+    if (!isNdbMtLqh() || instance() == 1)
+    {
+      if ((globalData.ndbMtRecoverThreads +
+           globalData.ndbMtQueryThreads) > 0)
+      {
+        NdbMutex_Destroy(m_restore_mutex);
+      }
+      m_restore_mutex = 0;
+      ndbd_free((void*)m_num_recover_active,
+                sizeof(Uint32) * (MAX_NDBMT_QUERY_THREADS + 1));
+      m_num_recover_active = 0;
+    }
+    {
+      LogPartRecordPtr logPartPtr;
+      for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+      {
+        ptrAss(logPartPtr, logPartRecord);
+        logPartPtr.p->m_redo_page_cache.m_pool.clear();
+        NdbMutex_Deinit(&logPartPtr.p->m_log_part_mutex);
+      }
+    }
 
-#ifndef NO_REDO_OPEN_FILE_CACHE
-  m_redo_open_file_cache.m_pool.clear();
-#endif
+    m_redo_open_file_cache.m_pool.clear();
 
   // Records with dynamic sizes
-  deallocRecord((void **)&addFragRecord, "AddFragRecord",
-		sizeof(AddFragRecord), 
-		caddfragrecFileSize);
+    deallocRecord((void **)&addFragRecord, "AddFragRecord",
+                  sizeof(AddFragRecord),
+                  caddfragrecFileSize);
 
-  deallocRecord((void**)&gcpRecord,
-		"GcpRecord",
-		sizeof(GcpRecord), 
-		cgcprecFileSize);
+    deallocRecord((void**)&gcpRecord,
+                  "GcpRecord",
+                  sizeof(GcpRecord),
+                  cgcprecFileSize);
   
+    deallocRecord((void**)&lcpRecord,
+                  "LcpRecord",
+                  sizeof(LcpRecord),
+                  clcpFileSize);
+
+    deallocRecord((void**)&logPartRecord,
+                  "LogPartRecord",
+                  sizeof(LogPartRecord), 
+                  clogPartFileSize);
+  
+    deallocRecord((void**)&logFileRecord,
+                  "LogFileRecord",
+                  sizeof(LogFileRecord),
+                  clogFileFileSize);
+
+    deallocRecord((void**)&logFileOperationRecord,
+                  "LogFileOperationRecord",
+                  sizeof(LogFileOperationRecord),
+                  clfoFileSize);
+  
+    deallocRecord((void**)&pageRefRecord,
+                  "PageRefRecord",
+                  sizeof(PageRefRecord),
+                  cpageRefFileSize);
+  
+
+    deallocRecord((void**)&tablerec,
+                  "Tablerec",
+                  sizeof(Tablerec),
+                  ctabrecFileSize);
+  }
+
   deallocRecord((void**)&hostRecord,
-		"HostRecord",
-		sizeof(HostRecord), 
-		chostFileSize);
-  
-  deallocRecord((void**)&lcpRecord,
-		"LcpRecord",
-		sizeof(LcpRecord), 
-		clcpFileSize);
-
-  deallocRecord((void**)&logPartRecord,
-		"LogPartRecord",
-		sizeof(LogPartRecord), 
-		clogPartFileSize);
-  
-  deallocRecord((void**)&logFileRecord,
-		"LogFileRecord",
-		sizeof(LogFileRecord),
-		clogFileFileSize);
-
-  deallocRecord((void**)&logFileOperationRecord,
-		"LogFileOperationRecord", 
-		sizeof(LogFileOperationRecord), 
-		clfoFileSize);
-  
-  deallocRecord((void**)&pageRefRecord,
-		"PageRefRecord",
-		sizeof(PageRefRecord),
-		cpageRefFileSize);
-  
-
-  deallocRecord((void**)&tablerec,
-		"Tablerec",
-		sizeof(Tablerec), 
-		ctabrecFileSize);
+                "HostRecord",
+                sizeof(HostRecord),
+                chostFileSize);
   
   deallocRecord((void**)&tcNodeFailRecord,
-		"TcNodeFailRecord",
-		sizeof(TcNodeFailRecord),
-		ctcNodeFailrecFileSize);
+                "TcNodeFailRecord",
+                sizeof(TcNodeFailRecord),
+                ctcNodeFailrecFileSize);
 }//Dblqh::~Dblqh()
 
 BLOCK_FUNCTIONS(Dblqh)

@@ -393,9 +393,7 @@ val int unsigned, UNIQUE (val)) ENGINE=NDBCluster;
 
 INSERT INTO test.t1 values (1,1), (2,2);
 
---source suite/ndb/include/ndb_find_index_stat_tool.inc
-
---exec $NDB_INDEX_STAT --no-defaults --update -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_INDEX_STAT --update -d test t1 >> $NDB_TOOLS_OUTPUT
 
 #clean up
 DROP TABLE t1;

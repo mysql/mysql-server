@@ -126,6 +126,7 @@ plugin
 procs_priv
 proxies_priv
 replication_asynchronous_connection_failover
+replication_asynchronous_connection_failover_managed
 role_edges
 server_cost
 servers
@@ -301,8 +302,8 @@ end|
 select parameter_style, sql_data_access, dtd_identifier
 from information_schema.routines where routine_schema='test';
 PARAMETER_STYLE	SQL_DATA_ACCESS	DTD_IDENTIFIER
-SQL	CONTAINS SQL	int
 SQL	CONTAINS SQL	NULL
+SQL	CONTAINS SQL	int
 show procedure status where db='test';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	sel2	PROCEDURE	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -887,7 +888,7 @@ AND table_name not like 'ndb%' AND table_name COLLATE utf8_general_ci not like '
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
 information_schema	48
-mysql	32
+mysql	33
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin
@@ -1028,8 +1029,8 @@ create procedure p2 () set @a = 5;
 select sql_data_access from information_schema.routines
 where specific_name like 'p%' and ROUTINE_SCHEMA != 'sys';
 SQL_DATA_ACCESS
-MODIFIES SQL DATA
 CONTAINS SQL
+MODIFIES SQL DATA
 drop procedure p1;
 drop procedure p2;
 show create database information_schema;
@@ -1435,14 +1436,14 @@ f8 datetime default '2006-01-01'
 );
 select column_default from information_schema.columns where table_name= 't1';
 COLUMN_DEFAULT
-NULL
-NULL
 
-NULL
-NULL
 10
-NULL
 2006-01-01 00:00:00
+NULL
+NULL
+NULL
+NULL
+NULL
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 f1	varchar(50)	YES		NULL	
@@ -1479,7 +1480,7 @@ MyISAM	YES	MyISAM storage engine	NO	NO	NO
 explain format=tree select * from information_schema.engines WHERE ENGINE="MyISAM";
 EXPLAIN
 -> Filter: (`engines`.`ENGINE` = 'MyISAM')
-    -> Table scan on engines  (cost=0.00 rows=0)
+    -> Table scan on engines
         -> Fill information schema table engines
 
 create user user3148@localhost;
@@ -1749,9 +1750,9 @@ numeric_scale, character_set_name,
 collation_name, dtd_identifier
 from information_schema.routines where routine_schema='test';
 DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER
+	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 char	10	40	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(10)
-	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 drop procedure p1;
 drop procedure p2;
 drop function f1;
@@ -2607,14 +2608,14 @@ fld7	varbinary(5)	NO		0x0A
 fld8	varbinary(5)	NO		0x09	
 SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
 COLUMN_DEFAULT
+0x09
+0x09
+0x0A
+0x0A
+0x61
 0x61
 0xAA
-0x0A
-0x09
-0x61
 0xAA
-0x0A
-0x09
 # Cleanup.
 DROP TABLE t1;
 #
@@ -2804,9 +2805,9 @@ SELECT TABLE_NAME, LENGTH(VIEW_DEFINITION) > 0
 FROM INFORMATION_SCHEMA.VIEWS
 WHERE TABLE_SCHEMA='test';
 TABLE_NAME	LENGTH(VIEW_DEFINITION) > 0
-v1	1
-Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
+v1	1
 # The SELECT causes unexpected error without the fix.
 SET SESSION max_error_count=0;
 SELECT TABLE_NAME, LENGTH(VIEW_DEFINITION) > 0
@@ -2834,12 +2835,12 @@ SELECT TABLE_NAME, TABLE_COMMENT
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_SCHEMA='test';
 TABLE_NAME	TABLE_COMMENT
+Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+Warnings:
 t1	
 v1	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 v2	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-Warnings:
-Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 # The behavior with max_error_count=0 should be unchanged after fix.
 SET SESSION max_error_count=0;
 SELECT TABLE_NAME, TABLE_COMMENT

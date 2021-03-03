@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,15 +28,24 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
-#include "plugin/x/src/interface/protocol_encoder.h"
-#include "plugin/x/src/interface/protocol_monitor.h"
 #include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
 
 namespace notices {
+
+std::string serialize_warning(const iface::Warning_level level,
+                              const uint32_t code, const std::string &msg) {
+  Mysqlx::Notice::Warning warning;
+  warning.set_level(static_cast<Mysqlx::Notice::Warning_Level>(level));
+  warning.set_code(static_cast<google::protobuf::uint32>(code));
+  warning.set_msg(msg);
+  std::string data;
+  warning.SerializeToString(&data);
+  return data;
+}
 
 namespace {
 
@@ -47,19 +56,17 @@ class Warning_resultset : public Process_resultset {
       : m_proto(proto), m_skip_single_error(skip_single_error) {}
 
  protected:
-  using Warning = Mysqlx::Notice::Warning;
-
   Row *start_row() override {
     m_row.clear();
     return &m_row;
   }
 
-  Warning::Level get_warning_level(const std::string &level) {
+  iface::Warning_level get_warning_level(const std::string &level) {
     static const char *const ERROR_STRING = "Error";
     static const char *const WARNING_STRING = "Warning";
-    if (level == WARNING_STRING) return Warning::WARNING;
-    if (level == ERROR_STRING) return Warning::ERROR;
-    return Warning::NOTE;
+    if (level == WARNING_STRING) return iface::Warning_level::k_warning;
+    if (level == ERROR_STRING) return iface::Warning_level::k_error;
+    return iface::Warning_level::k_note;
   }
 
   bool end_row(Row *row) override {
@@ -72,18 +79,11 @@ class Warning_resultset : public Process_resultset {
     Field_list &fields = row->fields;
     if (fields.size() != 3) return false;
 
-    const Warning::Level level = get_warning_level(*fields[0]->value.v_string);
+    const auto level = get_warning_level(*fields[0]->value.v_string);
+    const auto data = serialize_warning(level, fields[1]->value.v_long,
+                                        *fields[2]->value.v_string);
 
-    Warning warning;
-    warning.set_level(level);
-    warning.set_code(
-        static_cast<google::protobuf::uint32>(fields[1]->value.v_long));
-    warning.set_msg(*fields[2]->value.v_string);
-
-    std::string data;
-    warning.SerializeToString(&data);
-
-    if (level == Warning::ERROR) {
+    if (level == iface::Warning_level::k_error) {
       ++m_num_errors;
       if (m_skip_single_error && (m_num_errors <= 1)) {
         m_last_error = data;
@@ -106,14 +106,14 @@ class Warning_resultset : public Process_resultset {
 
 }  // namespace
 
-ngs::Error_code send_warnings(iface::Sql_session &da,
-                              iface::Protocol_encoder &proto,
+ngs::Error_code send_warnings(iface::Sql_session *da,
+                              iface::Protocol_encoder *proto,
                               bool skip_single_error) {
   DBUG_TRACE;
   static const std::string q = "SHOW WARNINGS";
-  Warning_resultset resultset(&proto, skip_single_error);
+  Warning_resultset resultset(proto, skip_single_error);
   // send warnings as notices
-  return da.execute(q.data(), q.length(), &resultset);
+  return da->execute(q.data(), q.length(), &resultset);
 }
 
 }  // namespace notices

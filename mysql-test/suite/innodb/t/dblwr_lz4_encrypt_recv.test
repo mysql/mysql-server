@@ -1,0 +1,65 @@
+--source include/have_debug.inc
+--source include/have_innodb_16k.inc
+--source include/have_punch_hole.inc
+
+--echo #
+--echo # WL#13775 - InnoDB: Encrypt DBLWR files
+--echo #
+
+--echo # Test scenario:
+--echo # Check if the DBLWR recovery works correctly for a page
+--echo # that is compressed and encrypted.
+
+create table t1 (f1 int primary key, f2 blob) COMPRESSION='lz4' ENCRYPTION='Y';
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+COMMIT WORK;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'open_table test/t1';
+
+--echo # Identify the space_id of the given table.
+SET SESSION innodb_interpreter = 'find_space_id test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_id;
+
+--echo # Find the root page number of the given table.
+SET SESSION innodb_interpreter = 'find_root_page_no test/t1';
+SELECT @@session.innodb_interpreter_output INTO @page_no;
+
+--echo # Find the on-disk page type of the given page.
+SET @cmd = CONCAT('find_ondisk_page_type ', @space_id, ' ', @page_no);
+SET SESSION innodb_interpreter = @cmd;
+SELECT @@session.innodb_interpreter_output INTO @page_type;
+SELECT @page_type;
+
+SET SESSION innodb_interpreter = 'corrupt_ondisk_root_page test/t1';
+SET SESSION innodb_interpreter = 'destroy';
+
+--source include/kill_and_restart_mysqld.inc
+
+set global innodb_interpreter = 'init';
+set global innodb_interpreter = 'print_dblwr_has_encrypted_pages';
+set global innodb_interpreter = 'destroy';
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Double write file has encrypted pages;
+--source include/search_pattern.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= \\[Note\\] \\[MY-\\d+\\] \\[InnoDB\\] Recovered page \\[page id: space=\\d+, page number=\\d+\\] from the doublewrite buffer;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;
+--echo # Test End

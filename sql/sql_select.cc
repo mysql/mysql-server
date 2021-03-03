@@ -73,6 +73,8 @@
 #include "sql/item_json_func.h"
 #include "sql/item_subselect.h"
 #include "sql/item_sum.h"  // Item_sum
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/join_optimizer.h"
 #include "sql/json_dom.h"
 #include "sql/key.h"  // key_copy, key_cmp, key_cmp_if_same
 #include "sql/key_spec.h"
@@ -91,6 +93,7 @@
 #include "sql/query_result.h"
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
+#include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -140,126 +143,6 @@ using Global_tables_list = IteratorContainer<Global_tables_iterator>;
 */
 inline bool is_show_cmd_using_system_view(THD *thd) {
   return sql_command_flags[thd->lex->sql_command] & CF_SHOW_USES_SYSTEM_VIEW;
-}
-
-/**
-  Handle data manipulation query which is not represented by Sql_cmd_dml class.
-  @todo: Integrate with Sql_cmd_dml::prepare() and ::execute()
-
-  @param thd       thread handler
-  @param lex       query to be processed
-  @param result    sink of result of query execution.
-                   may be protocol object (for passing result to a client),
-                   insert object, update object, delete object, etc.
-  @param added_options additional options for detailed control over execution
-  @param removed_options options that are not applicable for this command
-
-  @returns false if success, true if error
-
-  @details
-    Processing a query goes through 5 phases (parsing is already done)
-     - Preparation
-     - Locking of tables
-     - Optimization
-     - Execution or explain
-     - Cleanup
-
-    The statements handled by this function are:
-
-      CREATE TABLE with SELECT clause
-      SHOW statements
-*/
-
-bool handle_query(THD *thd, LEX *lex, Query_result *result,
-                  ulonglong added_options, ulonglong removed_options) {
-  DBUG_TRACE;
-
-  SELECT_LEX_UNIT *const unit = lex->unit;
-  SELECT_LEX *const select = unit->first_select();
-
-  // Prepared statements may be prepared already
-  DBUG_ASSERT(!unit->is_optimized() && !unit->is_executed());
-
-  const bool single_query = unit->is_simple();
-
-  THD_STAGE_INFO(thd, stage_init);
-
-  if (thd->lex->set_var_list.elements && resolve_var_assignments(thd, lex))
-    goto err;
-
-  if (!unit->is_prepared()) {
-    Prepared_stmt_arena_holder ps_arena_holder(thd);
-    if (single_query) {
-      select->context.resolve_in_select_list = true;
-      select->set_query_result(result);
-      select->make_active_options(added_options, removed_options);
-
-      if (select->prepare(thd, nullptr)) goto err;
-
-      unit->set_prepared();
-    } else {
-      if (unit->prepare(thd, result, nullptr, SELECT_NO_UNLOCK | added_options,
-                        removed_options))
-        goto err;
-    }
-
-    // TODO(sgunders): Get rid of this when we remove Query_result from the
-    // SELECT_LEX_UNIT.
-    unit->set_query_result(result);
-    if (!thd->stmt_arena->is_regular() && lex->save_cmd_properties(thd))
-      goto err;
-  } else {
-    // Restore prepared statement properties, bind table and field information
-    lex->restore_cmd_properties();
-    bind_fields(thd->stmt_arena->item_list());
-  }
-
-  lex->set_exec_started();
-
-  DBUG_ASSERT(!lex->is_query_tables_locked());
-  /*
-    Locking of tables is done after preparation but before optimization.
-    This allows to do better partition pruning and avoid locking unused
-    partitions. As a consequence, in such a case, prepare stage can rely only
-    on metadata about tables used and not data from them.
-  */
-  if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) goto err;
-
-  if (unit->optimize(thd, /*materialize_destination=*/nullptr,
-                     /*create_iterators=*/true))
-    goto err;
-
-  if (lex->is_explain()) {
-    if (explain_query(thd, thd, unit)) goto err; /* purecov: inspected */
-  } else {
-    if (unit->execute(thd)) goto err;
-  }
-
-  DBUG_ASSERT(!thd->is_error());
-
-  thd->update_previous_found_rows();
-  THD_STAGE_INFO(thd, stage_end);
-
-  // Do partial cleanup (preserve plans for EXPLAIN).
-  unit->cleanup(thd, false);
-
-  result->cleanup(thd);
-
-  return false;
-
-err:
-  DBUG_ASSERT(thd->is_error() || thd->killed);
-  DBUG_PRINT("info", ("report_error: %d", thd->is_error()));
-  THD_STAGE_INFO(thd, stage_end);
-
-  lex->cleanup(thd, false);
-
-  // Abort the result set (if it has been prepared).
-  result->abort_result_set(thd);
-
-  result->cleanup(thd);
-
-  return thd->is_error();
 }
 
 /**
@@ -445,6 +328,10 @@ bool Sql_cmd_dml::prepare(THD *thd) {
 
   DBUG_ASSERT(!lex->unit->is_prepared() && !lex->unit->is_optimized() &&
               !lex->unit->is_executed());
+
+  lex->using_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER) &&
+      lex->sql_command == SQLCOM_SELECT;
 
   /*
     Constant folding could cause warnings during preparation. Make
@@ -1820,6 +1707,30 @@ void JOIN::destroy() {
       }
       qep_tab[i].cleanup();
     }
+  } else {
+    // Same, for hypergraph queries.
+    for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
+      TABLE *table = tl->table;
+      if (table != nullptr) {
+        table->sorting_iterator = nullptr;
+        table->duplicate_removal_iterator = nullptr;
+      }
+    }
+    for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
+      close_tmp_table(thd, cleanup.table);
+      free_tmp_table(cleanup.table);
+      ::destroy(cleanup.temp_table_param);
+    }
+    for (AccessPath *sorting_path : sorting_paths) {
+      if (sorting_path->iterator != nullptr) {
+        SortingIterator *iterator = down_cast<SortingIterator *>(
+            sorting_path->iterator->real_iterator());
+        ::destroy(iterator->filesort());
+        ::destroy(iterator);
+      }
+    }
+    temp_tables.clear();
+    sorting_paths.clear();
   }
   if (join_tab || best_ref) {
     for (uint i = 0; i < tables; i++) {
@@ -1842,7 +1753,6 @@ void JOIN::destroy() {
   if (tmp_fields != nullptr) {
     cleanup_item_list(tmp_fields[REF_SLICE_TMP1]);
     cleanup_item_list(tmp_fields[REF_SLICE_TMP2]);
-    cleanup_item_list(tmp_fields[REF_SLICE_ORDERED_GROUP_BY]);
     for (uint widx = 0; widx < m_windows.elements; widx++) {
       cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx]);
       cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx +
@@ -3634,6 +3544,14 @@ void JOIN::join_free() {
   }
 }
 
+static void cleanup_table(TABLE *table) {
+  if (table->is_created()) {
+    table->file->ha_index_or_rnd_end();
+  }
+  free_io_cache(table);
+  filesort_free_buffers(table, false);
+}
+
 /**
   Free resources of given join.
 
@@ -3660,11 +3578,14 @@ void JOIN::cleanup() {
         table = (join_tab ? &join_tab[i] : best_ref[i])->table();
       }
       if (!table) continue;
-      if (table->is_created()) {
-        table->file->ha_index_or_rnd_end();
-      }
-      free_io_cache(table);
-      filesort_free_buffers(table, false);
+      cleanup_table(table);
+    }
+  } else if (thd->lex->using_hypergraph_optimizer) {
+    for (TABLE_LIST *tl = select_lex->leaf_tables; tl; tl = tl->next_leaf) {
+      cleanup_table(tl->table);
+    }
+    for (JOIN::TemporaryTableToCleanup cleanup : temp_tables) {
+      cleanup_table(cleanup.table);
     }
   }
 
@@ -4574,52 +4495,11 @@ bool JOIN::make_tmp_tables_info() {
   if ((grouped || implicit_grouping) && !m_windowing_steps) {
     if (make_group_fields(this, this)) return true;
 
-    // "save" slice of ref_items array is needed due to overwriting strategy.
-    if (ref_items[REF_SLICE_SAVED_BASE].is_null()) {
-      if (alloc_ref_item_slice(thd, REF_SLICE_SAVED_BASE)) return true;
-
-      copy_ref_item_slice(REF_SLICE_SAVED_BASE, REF_SLICE_ACTIVE);
-      current_ref_item_slice = REF_SLICE_SAVED_BASE;
-    }
-
-    /*
-      Allocate a slice of ref items that describe the items to be copied
-      from the record buffer for this temporary table.
-    */
-    if (alloc_ref_item_slice(thd, REF_SLICE_ORDERED_GROUP_BY)) return true;
-    setup_copy_fields(*curr_fields, thd, &tmp_table_param,
-                      ref_items[REF_SLICE_ORDERED_GROUP_BY],
-                      &tmp_fields[REF_SLICE_ORDERED_GROUP_BY]);
-
-    curr_fields = &tmp_fields[REF_SLICE_ORDERED_GROUP_BY];
-
-    last_slice_before_windowing = REF_SLICE_ORDERED_GROUP_BY;
-
-    if (qep_tab)  // remember when to switch to REF_SLICE_ORDERED_GROUP_BY in
-                  // execution
-      ref_slice_immediately_before_group_by =
-          &qep_tab[primary_tables + tmp_tables - 1];
-    /*
-      make_sum_func_list() calls rollup_make_fields() which needs the slice
-      TMP3 in input; indeed it compares *curr_all_fields (i.e. the fields_list
-      of TMP3) with the GROUP BY list (to know which Item of the SELECT list
-      should be set to NULL) so this GROUP BY had better point to the items in
-      TMP3 for the comparison to work:
-    */
-    uint save_sliceno = current_ref_item_slice;
-    set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
     if (make_sum_func_list(*curr_fields, true, true)) return true;
-    /*
-      Exit the TMP3 slice, to set up sum funcs, as they take input from
-      previous table, not from that slice.
-    */
-    set_ref_item_slice(save_sliceno);
     const bool need_distinct = !(qep_tab && qep_tab[0].quick() &&
                                  qep_tab[0].quick()->is_agg_loose_index_scan());
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) return true;
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error()) return true;
-    // And now set it as input for next phases:
-    set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
   }
 
   if (qep_tab && (!group_list.empty() ||
@@ -4839,6 +4719,27 @@ bool JOIN::make_tmp_tables_info() {
       }
 
       last_slice_before_windowing = widx;
+    }
+  }
+
+  {
+    // In the case of rollup (only): After the base slice list was made, we may
+    // have modified the field list to add rollup group items and sum switchers.
+    // Since there may be HAVING filters with refs that refer to the base slice,
+    // we need to refresh that slice (and its copy, REF_SLICE_SAVED_BASE) so
+    // that it includes the updated items.
+    //
+    // Note that we do this after we've made the TMP1 and TMP2 slices, since
+    // there's a lot of logic that looks through the GROUP BY list, which refers
+    // to the base slice and expects _not_ to find rollup items there.
+    unsigned num_hidden_fields = CountHiddenFields(*fields);
+    for (unsigned i = 0; i < fields->size(); ++i) {
+      Item *item = (*fields)[i];
+      int pos = item->hidden ? fields->size() - i - 1 : i - num_hidden_fields;
+      select_lex->base_ref_items[pos] = item;
+      if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
+        ref_items[REF_SLICE_SAVED_BASE][pos] = item;
+      }
     }
   }
 

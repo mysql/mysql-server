@@ -59,6 +59,7 @@
 extern EventLogger * g_eventLogger;
 
 #ifdef VM_TRACE
+//#define DEBUG_DISK 1
 //#define DEBUG_TUP_META 1
 //#define DEBUG_TUP_META_EXTRA 1
 //#define DEBUG_DROP_TAB 1
@@ -68,6 +69,12 @@ extern EventLogger * g_eventLogger;
 #define DEB_DROP_TAB(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_DROP_TAB(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_DISK
+#define DEB_DISK(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DISK(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_TUP_META
@@ -487,7 +494,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 
   /* Compute table aggregate metadata. */
-  terrorCode = computeTableMetaData(regTabPtr.p);
+  terrorCode = computeTableMetaData(regTabPtr, __LINE__);
   if (terrorCode)
   {
     jam();
@@ -762,6 +769,11 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     goto sendref;
   }
 
+  for (Uint32 i = 0; i < NUM_TUP_FRAGMENT_MUTEXES; i++)
+  {
+    NdbMutex_Init(&regFragPtr.p->tup_frag_mutex[i]);
+  }
+  NdbMutex_Init(&regFragPtr.p->tup_frag_page_map_mutex);
   {
     Uint32 noAllocatedPages = 1; //allocFragPage(regFragPtr.p);
 
@@ -1078,7 +1090,7 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
   case AlterTabReq::AlterTableCommit:
   {
     jam();
-    handleAlterTableCommit(signal, req, regTabPtr.p);
+    handleAlterTableCommit(signal, req, regTabPtr);
     return;
   }
   case AlterTabReq::AlterTableRevert:
@@ -1367,8 +1379,9 @@ Dbtup::sendAlterTabConf(Signal *signal, Uint32 connectPtr)
 void
 Dbtup::handleAlterTableCommit(Signal *signal,
                               const AlterTabReq* req,
-                              Tablerec *regTabPtr)
+                              TablerecPtr tabPtr)
 {
+  Tablerec *regTabPtr = tabPtr.p;
   if (AlterTableReq::getAddAttrFlag(req->changeMask))
   {
     jam();
@@ -1399,7 +1412,7 @@ Dbtup::handleAlterTableCommit(Signal *signal,
     releaseAlterTabOpRec(regAlterTabOpPtr);
 
     /* Recompute aggregate table meta data. */
-    computeTableMetaData(regTabPtr);
+    computeTableMetaData(tabPtr, __LINE__);
   }
 
   if (AlterTableReq::getReorgFragFlag(req->changeMask))
@@ -1553,8 +1566,9 @@ Dbtup::is_disk_columns_in_table(Uint32 tableId)
   both ALTER TABLE and CREATE TABLE.
  */
 Uint32
-Dbtup::computeTableMetaData(Tablerec *regTabPtr)
+Dbtup::computeTableMetaData(TablerecPtr tabPtr, Uint32 line)
 {
+  Tablerec *regTabPtr = tabPtr.p;
   Uint32 dyn_null_words[2];
 
   for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
@@ -1587,6 +1601,15 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   regTabPtr->m_no_of_disk_attributes= 
     regTabPtr->m_attributes[DD].m_no_of_fixsize +
     regTabPtr->m_attributes[DD].m_no_of_varsize;
+
+  regTabPtr->m_no_of_real_disk_attributes = regTabPtr->m_no_of_disk_attributes;
+
+  DEB_DISK(("(%u) Tab(%u) no of disk attr: %u, line: %u",
+            instance(),
+            tabPtr.i,
+            regTabPtr->m_no_of_disk_attributes,
+            line));
+
   if(regTabPtr->m_no_of_disk_attributes > 0)
   {
     /* Room for disk part location. */
@@ -2013,6 +2036,11 @@ Dbtup::execDROP_TAB_REQ(Signal* signal)
   tabPtr.p->m_dropTable.tabUserRef = req->senderRef;
   tabPtr.p->m_dropTable.tabUserPtr = req->senderData;
   tabPtr.p->tableStatus = DROPPING;
+
+  DEB_DISK(("(%u)Drop table(%u) start, pg_count: %u",
+            instance(),
+            tabPtr.i,
+            c_page_map_pool_ptr->m_pg_count));
 
   signal->theData[0]= ZREL_FRAG;
   signal->theData[1]= tabPtr.i;
@@ -2458,7 +2486,7 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   }
 
   DynArr256::ReleaseIterator iter;
-  DynArr256 map(c_page_map_pool, fragPtr.p->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, fragPtr.p->m_page_map);
   map.init(iter);
   signal->theData[0] = ZFREE_PAGES;
   signal->theData[1] = tabPtr.i;
@@ -2481,7 +2509,7 @@ Dbtup::drop_fragment_free_pages(Signal* signal)
   fragPtr.i = fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   
-  DynArr256 map(c_page_map_pool, fragPtr.p->m_page_map);
+  DynArr256 map(c_page_map_pool_ptr, fragPtr.p->m_page_map);
   Uint32 realpid;
   for (i = 0; i<16; i++)
   {
@@ -2532,6 +2560,10 @@ done:
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
+  DEB_DISK(("(%u)Drop table(%u) done, pg_count: %u",
+             instance(),
+             tableId,
+             c_page_map_pool_ptr->m_pg_count));
   /**
    * Remove LCP's for fragment
    */
@@ -3127,7 +3159,7 @@ Dbtup::get_max_lcp_record_size(Uint32 tableId)
 // End remove LCP
 
 void
-Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
+Dbtup::start_restore_table(Uint32 tableId)
 {
   jam();
   TablerecPtr tabPtr;
@@ -3141,23 +3173,31 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
     (Uint32(tabPtr.p->m_attributes[DD].m_no_of_fixsize) << 16) |
     (Uint32(tabPtr.p->m_attributes[DD].m_no_of_varsize) << 0);
 
-  tabPtr.p->m_dropTable.tabUserPtr= saveAttrCounts;
-  tabPtr.p->m_dropTable.tabUserRef= (tabPtr.p->m_bits & Tablerec::TR_RowGCI)? 1 : 0;
+  tabPtr.p->m_dropTable.tabUserPtr = saveAttrCounts;
+  tabPtr.p->m_dropTable.tabUserRef =
+    (tabPtr.p->m_bits & Tablerec::TR_RowGCI)? 1 : 0;
   tabPtr.p->m_createTable.defValLocation = tabPtr.p->m_default_value_location;
   
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
   for(Uint32 i= 0; i<tabPtr.p->m_no_of_attributes; i++)
   {
     jam();
-    Uint32 disk= AttributeDescriptor::getDiskBased(* tabDesc);
-    Uint32 null= AttributeDescriptor::getNullable(* tabDesc);
+    Uint32 disk = AttributeDescriptor::getDiskBased(* tabDesc);
+    Uint32 null = AttributeDescriptor::getNullable(* tabDesc);
 
     ndbrequire(tabPtr.p->notNullAttributeMask.get(i) != null);
-    if(disk)
+    if (disk)
+    {
       tabPtr.p->notNullAttributeMask.clear(i);
+    }
     tabDesc += 2;
   }
   
+  DEB_DISK(("(%u) start_restore_table Tab(%u) no of disk attr: %u",
+            instance(),
+            tabPtr.i,
+            tabPtr.p->m_no_of_disk_attributes));
+
   tabPtr.p->m_no_of_disk_attributes = 0;
   tabPtr.p->m_attributes[DD].m_no_of_fixsize = 0;
   tabPtr.p->m_attributes[DD].m_no_of_varsize = 0;
@@ -3166,16 +3206,9 @@ Dbtup::start_restore_lcp(Uint32 tableId, Uint32 fragId)
   tabPtr.p->m_default_value_location.setNull();
 }
 
+
 void
-Dbtup::complete_restore_lcp(Signal* signal, 
-                            Uint32 senderRef,
-                            Uint32 senderData,
-                            Uint32 restoredLcpId,
-                            Uint32 restoredLocalLcpId,
-                            Uint32 maxGciCompleted,
-                            Uint32 maxGciWritten,
-                            Uint32 tableId,
-                            Uint32 fragId)
+Dbtup::complete_restore_table(Uint32 tableId)
 {
   jam();
   TablerecPtr tabPtr;
@@ -3186,13 +3219,19 @@ Dbtup::complete_restore_lcp(Signal* signal,
 
   tabPtr.p->m_attributes[DD].m_no_of_fixsize= restoreAttrCounts >> 16;
   tabPtr.p->m_attributes[DD].m_no_of_varsize= restoreAttrCounts & 0xffff;
-  tabPtr.p->m_bits |= ((tabPtr.p->m_dropTable.tabUserRef & 1) ? Tablerec::TR_RowGCI : 0);
+  tabPtr.p->m_bits |= ((tabPtr.p->m_dropTable.tabUserRef & 1) ?
+    Tablerec::TR_RowGCI : 0);
 
   tabPtr.p->m_no_of_disk_attributes = 
     tabPtr.p->m_attributes[DD].m_no_of_fixsize + 
     tabPtr.p->m_attributes[DD].m_no_of_varsize;
   tabPtr.p->m_default_value_location = tabPtr.p->m_createTable.defValLocation;
   
+  DEB_DISK(("(%u) complete_restore_table Tab(%u) no of disk attr: %u",
+            instance(),
+            tabPtr.i,
+            tabPtr.p->m_no_of_disk_attributes));
+
   Uint32 *tabDesc = (Uint32*)(tableDescriptor+tabPtr.p->tabDescriptor);
   for(Uint32 i= 0; i<tabPtr.p->m_no_of_attributes; i++)
   {
@@ -3205,7 +3244,19 @@ Dbtup::complete_restore_lcp(Signal* signal,
     
     tabDesc += 2;
   }
+}
 
+void
+Dbtup::complete_restore_fragment(Signal* signal,
+                                 Uint32 senderRef,
+                                 Uint32 senderData,
+                                 Uint32 restoredLcpId,
+                                 Uint32 restoredLocalLcpId,
+                                 Uint32 maxGciCompleted,
+                                 Uint32 maxGciWritten,
+                                 Uint32 tableId,
+                                 Uint32 fragId)
+{
   /**
    * Rebuild free page list
    */
@@ -3217,6 +3268,9 @@ Dbtup::complete_restore_lcp(Signal* signal,
   fragOpPtr.p->m_restoredLocalLcpId = restoredLocalLcpId;
   fragOpPtr.p->m_maxGciCompleted = maxGciCompleted;
   Ptr<Fragrecord> fragPtr;
+  TablerecPtr tabPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   getFragmentrec(fragPtr, fragId, tabPtr.p);
   /**
    * Restore will simply restore an LCP, no need to record rows

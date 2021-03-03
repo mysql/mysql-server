@@ -34,8 +34,6 @@ FOREACH(warning
     "error=deprecated-copy"
     # Downgrade -Werror=stringop-truncation to warning for gcc 8/9
     "error=stringop-truncation"
-    # Downgrade -Werror=suggest-override to warning
-    "error=suggest-override"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

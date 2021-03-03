@@ -28,13 +28,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   An default implementation of the mysql_runtime_error service for minimal
-  chassis library to reportthe error messages.
+  chassis library to report the error messages.
 */
 class mysql_runtime_error_imp {
  public:
   /**
     This function reports the given error to the caller.
-    @param error_id error id is used to retrive the error description.
+    @param error_id error id is used to retrieve the error description.
     @param flags    flags for the given error do decide where to print the error
     @param args     variable list arguments which holds error message format
                     string

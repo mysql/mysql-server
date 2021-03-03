@@ -313,7 +313,7 @@ int Recovery_state_transfer::check_recovery_thread_status() {
   // if some of the threads are running
   if (donor_connection_interface.is_receiver_thread_running() ||
       donor_connection_interface.is_applier_thread_running()) {
-    return terminate_recovery_slave_threads(); /* purecov: inspected */
+    return terminate_recovery_slave_threads() != STATE_TRANSFER_OK;
   }
   return 0;
 }
@@ -507,22 +507,23 @@ int Recovery_state_transfer::initialize_donor_connection(std::string hostname,
   selected_donor_hostname.assign(hostname);
 
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>(hostname.c_str()), port, nullptr, nullptr,
-      recovery_use_ssl, recovery_ssl_ca, recovery_ssl_capath, recovery_ssl_cert,
-      recovery_ssl_cipher, recovery_ssl_key, recovery_ssl_crl,
-      recovery_ssl_crlpath, recovery_ssl_verify_server_cert,
-      DEFAULT_THREAD_PRIORITY, 1, false, recovery_public_key_path,
-      recovery_get_public_key, recovery_compression_algorithm,
-      recovery_zstd_compression_level, recovery_tls_version,
-      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites);
+      const_cast<char *>(hostname.c_str()), port, /*user*/ nullptr,
+      /*pass*/ nullptr, recovery_use_ssl, recovery_ssl_ca, recovery_ssl_capath,
+      recovery_ssl_cert, recovery_ssl_cipher, recovery_ssl_key,
+      recovery_ssl_crl, recovery_ssl_crlpath, recovery_ssl_verify_server_cert,
+      DEFAULT_THREAD_PRIORITY, /*retry_count*/ 1, /*preserve_logs*/ false,
+      recovery_public_key_path, recovery_get_public_key,
+      recovery_compression_algorithm, recovery_zstd_compression_level,
+      recovery_tls_version,
+      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites,
+      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
 
   if (!error) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
                  selected_donor->get_uuid().c_str(), hostname.c_str(), port);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CREATE_GRP_RPL_REC_CHANNEL,
-                 selected_donor->get_uuid().c_str(), hostname.c_str(),
-                 port); /* purecov: inspected */
+                 selected_donor->get_uuid().c_str(), hostname.c_str(), port);
   }
 
   return error;
@@ -603,21 +604,22 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
   return error;
 }
 
-int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs) {
+State_transfer_status Recovery_state_transfer::terminate_recovery_slave_threads(
+    bool purge_logs) {
   DBUG_TRACE;
 
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_DONOR_CONN_TERMINATION);
 
-  int error = 0;
+  State_transfer_status error = STATE_TRANSFER_OK;
 
   // If the threads never started, the method just returns
-  if ((error = donor_connection_interface.stop_threads(true, true))) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_STOPPING_GRP_REC); /* purecov: inspected */
+  if (donor_connection_interface.stop_threads(true, true)) {
+    error = STATE_TRANSFER_STOP;
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_STOPPING_GRP_REC);
   } else {
     if (purge_logs) {
       // If there is no repository in place nothing happens
-      error = purge_recovery_slave_threads_repos();
+      if (purge_recovery_slave_threads_repos()) error = STATE_TRANSFER_PURGE;
     }
   }
 
@@ -635,19 +637,26 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
     /* purecov: end */
   }
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>("<NULL>"), 0, nullptr, nullptr, false, nullptr,
-      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, false,
-      DEFAULT_THREAD_PRIORITY, 1, false, nullptr, false, nullptr, 0, nullptr,
-      nullptr);
+      /*host*/ const_cast<char *>("<NULL>"), /*port*/ 0, /*user*/ nullptr,
+      /*pass*/ nullptr, /*use_ssl*/ false, /*ssl_ca*/ nullptr,
+      /*ssl_capath*/ nullptr, /*ssl_cert*/ nullptr, /*ssl_cipher*/ nullptr,
+      /*ssl_key*/ nullptr, /*ssl_crl*/ nullptr, /*ssl_crlpath*/ nullptr,
+      /*ssl_verify*/ false,
+      /*priority*/ DEFAULT_THREAD_PRIORITY,
+      /*retry_count*/ 1,
+      /*preserve_logs*/ false, /*public_key_path*/ nullptr,
+      /*get_public_key*/ false, /*compression_alg*/ nullptr,
+      /*compression_level*/ 0, /*tls_version*/ nullptr, /*tls_cipher*/ nullptr,
+      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
 
   return error;
 }
 
-int Recovery_state_transfer::state_transfer(
+State_transfer_status Recovery_state_transfer::state_transfer(
     Plugin_stage_monitor_handler &stage_handler) {
   DBUG_TRACE;
 
-  int error = 0;
+  State_transfer_status error = STATE_TRANSFER_OK;
 
   while (!donor_transfer_finished && !recovery_aborted) {
     /*
@@ -680,12 +689,12 @@ int Recovery_state_transfer::state_transfer(
           recovery_channel_observer);
 
       // Stop the threads before reconfiguring the connection
-      if ((error = donor_connection_interface.stop_threads(true, true))) {
+      if (donor_connection_interface.stop_threads(true, true)) {
         /* purecov: begin inspected */
         LogPluginErr(ERROR_LEVEL,
                      ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_FAILOVER);
         // if we can't stop, abort recovery
-        return error;
+        return STATE_TRANSFER_STOP;
         /* purecov: end */
       }
     }
@@ -694,7 +703,8 @@ int Recovery_state_transfer::state_transfer(
                             __FILE__, __LINE__, 0, 0);
     if (!recovery_aborted) {
       // if the connection to the donor failed, abort recovery
-      if ((error = establish_donor_connection())) {
+      if (establish_donor_connection()) {
+        error = STATE_TRANSFER_NO_CONNECTION;
         break;
       }
     }
@@ -726,9 +736,14 @@ int Recovery_state_transfer::state_transfer(
       recovery_channel_observer);
 
   // do not purge logs if an error occur, keep the diagnose on SLAVE STATUS
-  bool purge_relay_logs = !error;
+  bool purge_relay_logs = (error == STATE_TRANSFER_OK);
   DBUG_EXECUTE_IF("gr_recovery_skip_purge_logs", { purge_relay_logs = false; });
-  terminate_recovery_slave_threads(purge_relay_logs);
+  State_transfer_status stop_error =
+      terminate_recovery_slave_threads(purge_relay_logs);
+
+  // If a connection error exists, we preserve it
+  if (error == STATE_TRANSFER_OK && stop_error != STATE_TRANSFER_OK)
+    error = stop_error;
 
   connected_to_donor = false;
 

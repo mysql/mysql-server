@@ -350,7 +350,7 @@ bool lookup_tablespace_ref(Sdi_rcontext *sdictx, const String_type &name,
                                         name, idp);
 }
 
-/** @} */  // sdi_cc_internal
+/** @{ */  // sdi_cc_internal
 
 /**
   @defgroup sdi_api SDI API
@@ -672,7 +672,7 @@ bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp) {
 
 }  // namespace sdi
 }  // namespace dd
-/** @} */  // end of group sdi_api
+/** @{ */  // end of group sdi_api
 
 /**
   @defgroup sdi_ut SDI Unit-testing API
@@ -681,7 +681,6 @@ bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp) {
   Special functions used by unit tests but which are not available in
   the normal api.
 
-  @{
 */
 
 /**

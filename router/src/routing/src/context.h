@@ -28,27 +28,24 @@
 #include <array>
 #include <atomic>
 #include <chrono>
-#include <condition_variable>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <vector>
 
-#include "mysql/harness/filesystem.h"
+#include "destination_ssl_context.h"
+#include "mysql/harness/filesystem.h"  // Path
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/tls_context.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/datatypes.h"
+#include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
+#include "protocol/base_protocol.h"
+#include "ssl_mode.h"
 #include "tcp_address.h"
-#include "utils.h"
-
-class BaseProtocol;
-namespace routing {
-class RoutingSockOpsInterface;
-}
-namespace mysql_harness {
-class SocketOperationsBase;
-}
 
 /**
  * @brief MySQLRoutingContext holds data used by MySQLRouting (1 per plugin
@@ -58,15 +55,29 @@ class SocketOperationsBase;
  */
 class MySQLRoutingContext {
  public:
-  MySQLRoutingContext(BaseProtocol *protocol,
-                      mysql_harness::SocketOperationsBase *socket_operations,
-                      const std::string &name, unsigned int net_buffer_length,
+  MySQLRoutingContext(BaseProtocol::Type protocol, std::string name,
+                      unsigned int net_buffer_length,
                       std::chrono::milliseconds destination_connect_timeout,
                       std::chrono::milliseconds client_connect_timeout,
-                      const mysql_harness::TCPAddress &bind_address,
-                      const mysql_harness::Path &bind_named_socket,
+                      mysql_harness::TCPAddress bind_address,
+                      mysql_harness::Path bind_named_socket,
                       unsigned long long max_connect_errors,
-                      size_t thread_stack_size);
+                      size_t thread_stack_size, SslMode client_ssl_mode,
+                      TlsServerContext *client_ssl_ctx, SslMode server_ssl_mode,
+                      DestinationTlsContext *dest_tls_context)
+      : protocol_(protocol),
+        name_(std::move(name)),
+        net_buffer_length_(net_buffer_length),
+        destination_connect_timeout_(destination_connect_timeout),
+        client_connect_timeout_(client_connect_timeout),
+        bind_address_(std::move(bind_address)),
+        bind_named_socket_(std::move(bind_named_socket)),
+        thread_stack_size_(thread_stack_size),
+        client_ssl_mode_{client_ssl_mode},
+        client_ssl_ctx_{client_ssl_ctx},
+        server_ssl_mode_{server_ssl_mode},
+        destination_tls_context_{dest_tls_context},
+        max_connect_errors_{max_connect_errors} {}
 
   /** @brief Checks and if needed, blocks a host from using this routing
    *
@@ -79,13 +90,10 @@ class MySQLRoutingContext {
    * otherwise false.
    *
    * @param endpoint IP address as array[16] of uint8_t
-   * @param server Server file descriptor to wish to send
-   *               fake handshake reply (default is not to send anything)
    * @return bool
    */
   template <class Protocol>
-  bool block_client_host(const typename Protocol::endpoint &endpoint,
-                         int server = -1);
+  bool block_client_host(const typename Protocol::endpoint &endpoint);
 
   /** @brief Clears error counter (if needed) for particular host
    *
@@ -116,11 +124,7 @@ class MySQLRoutingContext {
   uint64_t get_handled_routes() { return info_handled_routes_; }
   uint64_t get_max_connect_errors() { return max_connect_errors_; }
 
-  mysql_harness::SocketOperationsBase *get_socket_operations() {
-    return socket_operations_;
-  }
-
-  BaseProtocol &get_protocol() { return *protocol_; }
+  BaseProtocol::Type get_protocol() { return protocol_; }
 
   const std::string &get_name() const { return name_; }
 
@@ -144,12 +148,31 @@ class MySQLRoutingContext {
 
   size_t get_thread_stack_size() const { return thread_stack_size_; }
 
- private:
-  /** @brief object to handle protocol specific stuff */
-  std::unique_ptr<BaseProtocol> protocol_;
+  SslMode source_ssl_mode() const noexcept { return client_ssl_mode_; }
+  SslMode dest_ssl_mode() const noexcept { return server_ssl_mode_; }
 
-  /** @brief object handling the operations on network sockets */
-  mysql_harness::SocketOperationsBase *socket_operations_;
+  /**
+   * get the SSL context for the client side of the route.
+   */
+  TlsServerContext *source_ssl_ctx() const { return client_ssl_ctx_; }
+
+  /**
+   * get the SSL context for the server side of the route.
+   *
+   * @param dest_id id of the destination
+   *
+   * @returns a TlsClientContext for the destination.
+   * @retval nullptr if creating tls-context failed.
+   */
+  TlsClientContext *dest_ssl_ctx(const std::string &dest_id) {
+    if (destination_tls_context_ == nullptr) return nullptr;
+
+    return destination_tls_context_->get(dest_id);
+  }
+
+ private:
+  /** protocol type. */
+  BaseProtocol::Type protocol_;
 
   /** @brief Descriptive name of the connection routing */
   const std::string name_;
@@ -179,6 +202,12 @@ class MySQLRoutingContext {
   size_t thread_stack_size_ = mysql_harness::kDefaultStackSizeInKiloBytes;
 
   mutable std::mutex mutex_conn_errors_;
+
+  SslMode client_ssl_mode_{SslMode::kPreferred};
+  TlsServerContext *client_ssl_ctx_{};
+
+  SslMode server_ssl_mode_{SslMode::kPreferred};
+  DestinationTlsContext *destination_tls_context_{};
 
  public:
   /** @brief Connection error counters for IPv4 hosts */

@@ -187,7 +187,7 @@ determineMaxFragCount(NDBT_Context* ctx, NDBT_Step* step)
   return fc;
 }
 
-static const Uint32 defaultManyTableCount = 70;
+static const Uint32 defaultManyTableCount = 35;
 
 int 
 createManyTables(NDBT_Context* ctx, NDBT_Step* step)
@@ -473,27 +473,35 @@ static bool check_arbitration_setup(Ndb_cluster_connection* connection) {
     return false;
   }
 
-  bool arbitration_still_complete = true;
-  int ret;
-  while (arbitration_still_complete && (ret = scanOp->nextResult()) == 1) {
-    bool known_arbitrator = (arbitrator_nodeid_colval->u_32_value() != 0);
-    bool connected =
+  // Iterate through the result to check if arbitration has been set up
+  bool arbitration_setup = true;
+  do {
+    const int scan_next_result = scanOp->nextResult();
+    if (scan_next_result == -1) {
+      g_err << "Failure to process ndbinfo records" << endl;
+      ndbinfo.releaseScanOperation(scanOp);
+      ndbinfo.closeTable(table);
+      return false;
+    } else if (scan_next_result == 0) {
+      // All ndbinfo records processed
+      break;
+    } else {
+      // Check the arbitration status
+      const bool known_arbitrator =
+        (arbitrator_nodeid_colval->u_32_value() != 0);
+      const bool connected =
         static_cast<bool>(arbitration_connection_status_colval->u_32_value());
+      arbitration_setup = known_arbitrator && connected;
+    }
+  } while (arbitration_setup);
 
-    arbitration_still_complete = known_arbitrator && connected;
+  if (!arbitration_setup) {
+    ndbout << "Waiting for arbitration to be set up" << endl;
   }
+
   ndbinfo.releaseScanOperation(scanOp);
   ndbinfo.closeTable(table);
-
-  if (ret == -1) {
-    g_err << "Failure to process ndbinfo records" << endl;
-    return false;
-  }
-  if (!arbitration_still_complete) {
-    ndbout << "Waiting for arbitration to be setup" << endl;
-  }
-
-  return arbitration_still_complete;
+  return arbitration_setup;
 }
 
 /**

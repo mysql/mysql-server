@@ -26,7 +26,7 @@ RESET SLAVE ALL;
 # create a new channel
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
 --enable_warnings
 
 --echo #
@@ -41,7 +41,7 @@ RESET SLAVE ALL;
 #
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
 --enable_warnings
 
 --source include/start_slave.inc
@@ -52,13 +52,13 @@ RESET SLAVE ALL;
 RESET SLAVE ALL FOR CHANNEL 'ch1';
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch1'
 --enable_warnings
 
 # Lets configure the default channel as well.
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL ''
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL ''
 --enable_warnings
 
 # Lets start the slave (and as such, assert that the
@@ -78,7 +78,7 @@ RESET SLAVE ALL;
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT
 --enable_warnings
 --source include/start_slave.inc
 
@@ -109,7 +109,7 @@ RESET SLAVE ALL;
 SET @@global.slave_parallel_workers=5;
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_trunk'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_trunk'
 --enable_warnings
 
 # make sure that the IO thread related part for the
@@ -133,7 +133,7 @@ RESET SLAVE ALL;
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_MYPORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT
 --enable_warnings
 --source include/start_slave.inc
 

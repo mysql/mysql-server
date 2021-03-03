@@ -1,5 +1,5 @@
 --disable_query_log
---exec $NDB_SELECT_ALL --no-defaults -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
+--exec $NDB_SELECT_ALL -dsys NDB\$EVENTS_0 > $MYSQLTEST_VARDIR/tmp.dat
 create temporary table raw_binlog_events (txt varchar(1000));
 --eval load data local infile '$MYSQLTEST_VARDIR/tmp.dat' into table raw_binlog_events columns terminated by '\n';
 --enable_query_log

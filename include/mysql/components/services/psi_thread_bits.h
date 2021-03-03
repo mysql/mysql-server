@@ -27,6 +27,7 @@
 #include <stddef.h> /* size_t */
 #endif
 
+#include <mysql/components/services/bits/psi_bits.h>
 #include <mysql/components/services/my_io_bits.h>     /* sockaddr_storage */
 #include <mysql/components/services/my_thread_bits.h> /* my_thread_handle */
 

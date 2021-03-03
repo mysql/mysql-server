@@ -34,8 +34,11 @@ insert into t1 values ('Berkeley Public2','Berkeley');
 insert into t1 values ('NYC Lib','New York');
 --source include/turn_off_only_full_group_by.inc
 
+--sorted_result
 select t2.isbn,city,t1.libname,count(t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city,t1.libname;
+--sorted_result
 select t2.isbn,city,t1.libname,count(distinct t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city having count(distinct t1.libname) > 1;
+--sorted_result
 select t2.isbn,city,t1.libname,count(distinct t1.libname) as a from t3 left join t1 on t3.libname=t1.libname left join t2 on t3.isbn=t2.isbn group by city having count(distinct concat(t1.libname,'a')) > 1;
 
 select t2.isbn,city,@bar:=t1.libname,count(distinct t1.libname) as a
@@ -46,6 +49,7 @@ select t2.isbn,city,@bar:=t1.libname,count(distinct t1.libname) as a
 #
 # Wrong result, see bug#49872
 # 
+--skip_if_hypergraph  # Different result, no more or less wrong.
 SELECT @bar;
 
 select t2.isbn,city,concat(@bar:=t1.libname),count(distinct t1.libname) as a
@@ -55,6 +59,7 @@ select t2.isbn,city,concat(@bar:=t1.libname),count(distinct t1.libname) as a
 #
 # Wrong result, see bug#49872
 # 
+--skip_if_hypergraph  # Different result, no more or less wrong.
 SELECT @bar;
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,11 +24,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <gtest/gtest.h>
 #include <memory>
 
-#include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 #include "plugin/x/src/interface/listener_factory.h"
+#include "plugin/x/src/ngs/socket_acceptors_task.h"
 #include "plugin/x/src/variables/system_variables.h"
-#include "unittest/gunit/xplugin/xpl/mock/component_sys_variable_register.h"
-#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/listener_factory.h"
+#include "unittest/gunit/xplugin/xpl/mock/service_sys_variables.h"
+#include "unittest/gunit/xplugin/xpl/mock/socket_events.h"
 
 namespace xpl {
 namespace test {
@@ -41,9 +42,9 @@ using ::testing::SetArgPointee;
 using ::testing::StrEq;
 
 const uint32_t k_backlog = 10;
-const std::string k_unix_file = "unix test";
-const std::string k_host = "host test";
-const std::string k_net_ns = "";
+const char *k_unix_file = "unix test";
+const char *k_host = "host test";
+const char *k_net_ns = "";
 const uint16_t k_port = 11;
 const uint32_t k_open_timeout = 12;
 
@@ -55,9 +56,9 @@ class Socket_acceptors_task_suite : public ::testing::Test {
 
   void TearDown() override { xpl::Plugin_system_variables::cleanup(); }
 
-  Mock_listener_factory_interface m_mock_factory;
-  ngs::test::Mock_service_sys_variables m_mock_sys_vars;
-  std::shared_ptr<Mock_socket_events> m_mock_event{new Mock_socket_events()};
+  mock::Listener_factory m_mock_factory;
+  mock::Service_sys_variables m_mock_sys_vars;
+  std::shared_ptr<mock::Socket_events> m_mock_event{new mock::Socket_events()};
 };
 
 TEST_F(Socket_acceptors_task_suite, prepare_without_any_interface) {

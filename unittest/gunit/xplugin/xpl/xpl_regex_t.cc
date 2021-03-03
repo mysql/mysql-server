@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,8 @@ Param_regex_match regex_match_param[] = {
     {false, "decimal(10,5) "},
 };
 
-INSTANTIATE_TEST_CASE_P(regex_match_test, Regex_match_test,
-                        testing::ValuesIn(regex_match_param));
+INSTANTIATE_TEST_SUITE_P(regex_match_test, Regex_match_test,
+                         testing::ValuesIn(regex_match_param));
 
 struct Param_regex_match_groups {
   std::vector<std::string> expect_groups;
@@ -107,8 +107,8 @@ Param_regex_match_groups regex_match_groups_param[] = {
      "text(30) charset latin1 collate latin1_bin"},
 };
 
-INSTANTIATE_TEST_CASE_P(regex_match_groups_test, Regex_match_groups_test,
-                        testing::ValuesIn(regex_match_groups_param));
+INSTANTIATE_TEST_SUITE_P(regex_match_groups_test, Regex_match_groups_test,
+                         testing::ValuesIn(regex_match_groups_param));
 
 }  // namespace test
 }  // namespace xpl

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@ struct DA256Page;
 class DynArr256Pool
 {
   friend class DynArr256;
+  friend class Dbtup;
 public:
   DynArr256Pool();
   
@@ -124,7 +125,7 @@ public:
 #endif
   };
   
-  DynArr256(DynArr256Pool & pool, Head& head) : 
+  DynArr256(DynArr256Pool * pool, Head& head) : 
     m_head(head), m_pool(pool){}
   
   Uint32* set(Uint32 pos);
@@ -149,7 +150,7 @@ public:
   Uint32 truncate(Uint32 trunc_pos, ReleaseIterator&, Uint32* retptr);
 protected:
   Head & m_head;
-  DynArr256Pool & m_pool;
+  DynArr256Pool * m_pool;
   
   bool expand(Uint32 pos);
   void handle_invalid_ptr(Uint32 pos, Uint32 ptrI, Uint32 p0);
@@ -194,7 +195,7 @@ Uint32 DynArr256Pool::get_ERROR_INSERT_VALUE() const
 inline
 Uint32 DynArr256::get_ERROR_INSERT_VALUE() const
 {
-  return m_pool.get_ERROR_INSERT_VALUE();
+  return m_pool->get_ERROR_INSERT_VALUE();
 }
 #endif
 

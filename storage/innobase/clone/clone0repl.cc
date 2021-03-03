@@ -50,6 +50,19 @@ void Clone_persist_gtid::add(const Gtid_desc &gtid_desc) {
     return;
   }
   ut_ad(trx_sys_mutex_own());
+
+  /* If too many GTIDs are accumulated, wait for all to get flushed. */
+  while (check_max_gtid_threshold()) {
+    trx_sys_mutex_exit();
+    wait_flush(false, false, nullptr);
+    trx_sys_mutex_enter();
+    /* Starvation is possible theoretically here, if the active list gets
+    filled to threshold before a transaction could get hold of the mutex
+    after being woken up. Practically not feasible as the number of waiting
+    transactions at any point in time is far less than the threshold. */
+  }
+
+  ut_ad(trx_sys_mutex_own());
   /* Get active GTID list */
   auto &current_gtids = get_active_list();
 
@@ -62,14 +75,34 @@ void Clone_persist_gtid::add(const Gtid_desc &gtid_desc) {
   if (current_value == s_gtid_threshold) {
     os_event_set(m_event);
   }
+
+  DBUG_EXECUTE_IF("dont_compress_gtid_table", {
+    /* For predictable outcome of mtr test we flush the GTID immediately. */
+    trx_sys_mutex_exit();
+    wait_flush(false, false, nullptr);
+    trx_sys_mutex_enter();
+  });
 }
 
-bool Clone_persist_gtid::persists_gtid(const trx_t *trx) {
+trx_undo_t::Gtid_storage Clone_persist_gtid::persists_gtid(const trx_t *trx) {
   auto thd = trx->mysql_thd;
+
   if (thd == nullptr) {
     thd = thd_get_current_thd();
   }
-  return (thd != nullptr && thd->se_persists_gtid());
+
+  if (thd == nullptr || !thd->se_persists_gtid()) {
+    /* No need to persist GTID. */
+    return trx_undo_t::Gtid_storage::NONE;
+  }
+
+  if (thd->is_extrenal_xa()) {
+    /* Need to persist both XA prepare and commit GTID. */
+    return trx_undo_t::Gtid_storage::PREPARE_AND_COMMIT;
+  }
+
+  /* Need to persist only commit GTID. */
+  return trx_undo_t::Gtid_storage::COMMIT;
 }
 
 void Clone_persist_gtid::set_persist_gtid(trx_t *trx, bool set) {
@@ -96,14 +129,6 @@ void Clone_persist_gtid::set_persist_gtid(trx_t *trx, bool set) {
   ut_ad(set);
   /* Don't set if thread checks have failed. */
   if (!thd_check) {
-    return;
-  }
-
-  /* If GTID table is updated directly, don't add GTID for the transaction.
-  Try flushing in memory ones. */
-  if (thd->is_operating_gtid_table_implicitly) {
-    /* Trigger flush, don't wait; we could be in the middle of operation. */
-    os_event_set(m_event);
     return;
   }
 
@@ -134,12 +159,14 @@ void Clone_persist_gtid::set_persist_gtid(trx_t *trx, bool set) {
   thd->set_gtid_persisted_by_se();
 }
 
-bool Clone_persist_gtid::trx_check_set(trx_t *trx, bool prepare,
-                                       bool rollback) {
+bool Clone_persist_gtid::trx_check_set(trx_t *trx, bool prepare, bool rollback,
+                                       bool &set_explicit) {
   auto thd = trx->mysql_thd;
   bool alloc_check = false;
 
   bool gtid_exists = has_gtid(trx, thd, alloc_check);
+
+  set_explicit = false;
 
   if (prepare) {
     /* Check for XA prepare. */
@@ -150,7 +177,7 @@ bool Clone_persist_gtid::trx_check_set(trx_t *trx, bool prepare,
     alloc_check = gtid_exists;
   } else {
     /* Check for Commit. */
-    gtid_exists = check_gtid_commit(thd, gtid_exists);
+    gtid_exists = check_gtid_commit(thd, gtid_exists, set_explicit);
     alloc_check = gtid_exists;
   }
   /* Set transaction to persist GTID. This is one single point of decision
@@ -199,10 +226,15 @@ bool Clone_persist_gtid::check_gtid_prepare(THD *thd, trx_t *trx,
   return (true);
 }
 
-bool Clone_persist_gtid::check_gtid_commit(THD *thd, bool found_gtid) {
+bool Clone_persist_gtid::check_gtid_commit(THD *thd, bool found_gtid,
+                                           bool &set_explicit) {
+  set_explicit = (thd == nullptr) ? false : thd->se_persists_gtid_explicit();
+
   if (!found_gtid) {
+    ut_ad(!set_explicit || thd->is_attachable_transaction_active());
     return (false);
   }
+
   /* Persist if SE is set to persist GTID.*/
   return (thd->se_persists_gtid());
 }
@@ -259,12 +291,29 @@ bool Clone_persist_gtid::has_gtid(trx_t *trx, THD *&thd, bool &passed_check) {
     return (false);
   }
 
-  /* Transaction is updating GTID table implicitly. */
-  if (thd->is_operating_gtid_table_implicitly ||
-      thd->is_operating_substatement_implicitly ||
-      thd->is_attachable_transaction_active()) {
+  /* Attachable transactions can be started and committed while
+  the main transaction is in progress. We don't want to consider
+  GTID persistence for such transactions. */
+  if (thd->is_attachable_transaction_active()) {
     return (false);
   }
+
+  /* Explicit request is made while slave threads wants
+  to persist GTID for non innodb table. */
+  bool explicit_request = thd->se_persists_gtid_explicit();
+
+  if (!explicit_request) {
+    /* Transaction is updating GTID table implicitly. */
+    if (thd->is_operating_gtid_table_implicitly ||
+        thd->is_operating_substatement_implicitly) {
+      /* On slave, explicit request can be set after making some
+      modification and thus allocating undo. Allow space for GTID in
+      undo log for sub-statements always. */
+      passed_check = thd->is_operating_substatement_implicitly;
+      return (false);
+    }
+  }
+
   /* Transaction passed checks other than GTID. */
   passed_check = true;
 
@@ -315,19 +364,26 @@ int Clone_persist_gtid::write_other_gtids() {
 }
 
 bool Clone_persist_gtid::check_compress() {
-  /* Check local threshold on number of flush. */
-  if (m_compression_counter >= s_compression_threshold) {
+  /* Check for explicit flush request. */
+  if (m_explicit_request.load()) {
     return (true);
   }
+
+  /* Wait for explicit request when debug compress request is set.
+  This is to make the debug test outcome predictable. */
+  DBUG_EXECUTE_IF("compress_gtid_table", { return false; });
+
   /* Check replication global threshold on number of GTIDs. */
   if (!opt_bin_log && gtid_executed_compression_period != 0 &&
       m_compression_gtid_counter > gtid_executed_compression_period) {
     return (true);
   }
-  /* Check for explicit flush request. */
-  if (m_explicit_request.load()) {
+
+  /* Check local threshold on number of flush. */
+  if (m_compression_counter >= s_compression_threshold) {
     return (true);
   }
+
   return (false);
 }
 
@@ -488,15 +544,40 @@ void Clone_persist_gtid::flush_gtids(THD *thd) {
   }
 }
 
+bool Clone_persist_gtid::check_max_gtid_threshold() {
+  ut_ad(trx_sys_mutex_own());
+  /* Allow only one GTID to flush at a time. */
+  DBUG_EXECUTE_IF("dont_compress_gtid_table",
+                  { return m_num_gtid_mem.load() > 0; });
+  return m_num_gtid_mem.load() >= s_max_gtid_threshold;
+}
+
 void Clone_persist_gtid::periodic_write() {
   auto thd = create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
-
-  m_thread_id = thd_get_thread_id(thd);
 
   /* Allow GTID to be persisted on read only server. */
   thd->set_skip_readonly_check();
 
-  /* Write all accumulated GTIDs while starting. */
+  /* Write all accumulated GTIDs while starting server. These GTIDs
+  are found in undo log during recovery. We must make sure all these
+  GTIDs are flushed and on disk before server is open for new operation
+  and new GTIDs are generated.
+
+  Why is it needed ?
+
+  1. mysql.gtid_executed table must be up to date at this point as global
+     variable gtid_executed is updated from it when binary log is disabled.
+
+  2. In older versions we used to have only one GTID storage in undo log
+     and PREAPARE GTID was stored in same place as COMMIT GTID. We used to
+     wait for PREPARE GTID to flush before writing commit GTID. Now this
+     limitation is removed and we no longer wait for PREPARE GTID to get
+     flushed before COMMIT as we store the PREPARE GTID in separate location.
+     However, while upgrading from previous version, there could be XA
+     transaction in PREPARED state with GTID stored in place of commit GTID.
+     Those GTIDs are also flushed here so that they are not overwritten later
+     at COMMIT.
+*/
   flush_gtids(thd);
 
   /* Let the caller wait till first set of GTIDs are persisted to table
@@ -574,8 +655,10 @@ bool Clone_persist_gtid::wait_thread(bool start, bool wait_flush,
     }
 
     ++count;
-    /* Force early exit from wait loop. */
-    if (early_timeout && count > 1000) {
+    /* Force early exit from wait loop. We wait for about 1 sec
+    for early timeout: 10 x 100ms + 5 iteration for ramp up
+    from 1ms to 100ms. */
+    if (early_timeout && count > 15) {
       return (ER_QUERY_TIMEOUT);
     }
     return (0);
@@ -583,8 +666,8 @@ bool Clone_persist_gtid::wait_thread(bool start, bool wait_flush,
 
   bool is_timeout = false;
 
-  /* Sleep for 1 millisecond */
-  Clone_Msec sleep_time(1);
+  /* Sleep starts with 1ms and backs off to 100 ms. */
+  Clone_Msec sleep_time(100);
   /* Generate alert message every 5 seconds. */
   Clone_Sec alert_interval(5);
   /* Wait for 5 minutes. */
@@ -629,28 +712,14 @@ void Clone_persist_gtid::stop() {
   }
 }
 
-void Clone_persist_gtid::flush_if_implicit_gtid(THD *thd) {
-  /* Avoid recursive wait, when we are writing GTID. */
-  if (thd == nullptr || m_thread_id == thd_get_thread_id(thd)) {
-    return;
-  }
-  if (thd->is_operating_gtid_table_implicitly) {
-    wait_flush(false, false, false, nullptr);
-  }
-}
-
-void Clone_persist_gtid::wait_flush(bool wait, bool compress_gtid,
-                                    bool early_timeout, Clone_Alert_Func cbk) {
+void Clone_persist_gtid::wait_flush(bool compress_gtid, bool early_timeout,
+                                    Clone_Alert_Func cbk) {
   /* During recovery, avoid wait if called before persister is active. */
   if (!is_thread_active()) {
     return;
   }
   auto request_number = request_immediate_flush(compress_gtid);
   os_event_set(m_event);
-
-  if (!wait) {
-    return;
-  }
 
   /* For RESET MASTER we must wait for the flush. */
   auto thd = thd_get_current_thd();

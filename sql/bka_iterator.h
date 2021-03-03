@@ -48,22 +48,25 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <iterator>
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "my_alloc.h"
+#include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_table_map.h"
 #include "sql/handler.h"
 #include "sql/hash_join_buffer.h"
+#include "sql/join_type.h"
 #include "sql/mem_root_array.h"
+#include "sql/pack_rows.h"
 #include "sql/row_iterator.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
 class Item;
+class JOIN;
 class MultiRangeRowIterator;
-class QEP_TAB;
 class THD;
 struct KEY_MULTI_RANGE;
 struct TABLE;
@@ -204,7 +207,7 @@ class BKAIterator final : public RowIterator {
   /// Tables and columns needed for each outer row. Rows/columns that are not
   /// needed are filtered out in the constructor; the rest are read and stored
   /// in m_rows.
-  hash_join_buffer::TableCollection m_outer_input_tables;
+  pack_rows::TableCollection m_outer_input_tables;
 
   /// Used for serializing the row we read from the outer table(s), before it
   /// stored into the MEM_ROOT and put into m_rows. Should there not be room in
@@ -439,7 +442,7 @@ class MultiRangeRowIterator final : public TableRowIterator {
 
   /// Tables and columns needed for each outer row. Same as m_outer_input_tables
   /// in the corresponding BKAIterator.
-  hash_join_buffer::TableCollection m_outer_input_tables;
+  pack_rows::TableCollection m_outer_input_tables;
 
   /// The join type of the BKA join we are part of. Same as m_join_type in the
   /// corresponding BKAIterator.

@@ -1,0 +1,73 @@
+include/master-slave.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1. Add suppressions.
+#
+[connection server_2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+SET SESSION sql_log_bin= 1;
+#
+# 2. Verify Asynchronous Replication Connection Failover is initially
+#    disabled. Also verify Asynchronous Replication is initially
+#    connected to server_1.
+#
+[connection server_2]
+include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
+#
+# 3. Enable Asynchronous Replication Connection Failover and set retry
+#    count and retry time to 1 and verify its enabled in
+#    performance_schema.replication_connection_configuration.
+#
+[connection server_2]
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+include/start_slave.inc
+include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
+#
+# 4. Add two asynchronous connection failover servers including
+#    server 1 to which it is currently connected. Verify that they are
+#    inserted successfully in
+#    performance_schema.replication_asynchronous_connection_failover.
+#
+[connection server_2]
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_1, '', 70);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_1, '', 70)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 50);;
+asynchronous_connection_failover_add_source('', '127.0.0.1', SERVER_MYPORT_3, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/assert.inc ['There are two rows in performance_schema.replication_asynchronous_connection_failover']
+#
+# 5. Stop server 1.
+#
+include/rpl_stop_server.inc [server_number=1]
+#
+# 6. Verify connection is not attempted with server-1 when it is offline.
+#    Verify connection failover to server-3.
+#
+[connection server_2]
+include/assert.inc ['Asynch connection failover is not attempted with off single-server.']
+#
+# 7. Start server-1 again.
+#    Verify connection is fail over to server-1 when it is online.
+#
+include/rpl_start_server.inc [server_number=1]
+include/rpl_reconnect.inc
+[connection server_2]
+#
+# 8. Clean up
+#
+[connection server_2]
+include/stop_slave.inc
+include/rpl_reset_slave.inc
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+include/rpl_end.inc

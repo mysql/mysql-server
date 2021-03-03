@@ -453,4 +453,10 @@ ERROR HY000: Invalid collation '' was specified. It must be a collation name as 
 # cleanup
 DROP TABLE test.country;
 DROP TABLE test.names;
+#
+# Verify Bug#31701219. Must not crash.
+#
+SELECT test_args_without_init_deinit_methods("Meow");
+test_args_without_init_deinit_methods("Meow")
+Meow
 UNINSTALL COMPONENT "file://component_test_udf_services";

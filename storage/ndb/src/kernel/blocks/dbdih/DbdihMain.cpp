@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@
 #include <signaldata/DihSwitchReplica.hpp>
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/EventReport.hpp>
+#include <signaldata/FsConf.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/GCP.hpp>
 #include <signaldata/MasterGCP.hpp>
@@ -108,7 +109,14 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_NODE_STOP 1
 //#define DEBUG_REDO_CONTROL 1
 //#define DEBUG_LCP 1
-#define DEBUG_LCP_COMP 1
+//#define DEBUG_LCP_COMP 1
+//#define DEBUG_COPY_ACTIVE 1
+#endif
+
+#ifdef DEBUG_COPY_ACTIVE
+#define DEB_COPY_ACTIVE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_COPY_ACTIVE(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_MULTI_TRP
@@ -141,7 +149,7 @@ extern EventLogger * g_eventLogger;
 #define DEB_LCP_COMP(arglist) do { } while (0)
 #endif
 
-#define SYSFILE ((Sysfile *)&sysfileData[0])
+#define SYSFILE (&sysfile)
 #define ZINIT_CREATE_GCI Uint32(0)
 #define ZINIT_REPLICA_LAST_GCI Uint32(-1)
 
@@ -204,21 +212,28 @@ void Dbdih::sendCOPY_GCIREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   copyGCI->startWord = 0;
 
   const BlockReference ref = calcDihBlockRef(nodeId);
+  Uint32 cdata_size_in_words = DIH_CDATA_SIZE;
   if (ndbd_send_node_bitmask_in_section(getNodeInfo(nodeId).m_version))
   {
     jam();
-    pack_sysfile_format_v2();
-    send_COPY_GCIREQ_data_v2(signal, ref);
+    int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
+    send_COPY_GCIREQ_data_v2(signal, ref, cdata_size_in_words);
   }
   else
   {
     jam();
-    pack_sysfile_format_v1();
+    int ret = SYSFILE->pack_sysfile_format_v1(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
     send_COPY_GCIREQ_data_v1(signal, ref);
   }
 }
 
-void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal, BlockReference ref)
+void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal,
+                                     BlockReference ref,
+                                     Uint32 cdata_size_in_words)
 {
   LinearSectionPtr lsptr[3];
   lsptr[0].p = &cdata[0];
@@ -239,7 +254,9 @@ void Dbdih::send_COPY_GCIREQ_data_v2(Signal *signal, BlockReference ref)
              1);
 }
 
-void Dbdih::send_START_MECONF_data_v2(Signal *signal, BlockReference ref)
+void Dbdih::send_START_MECONF_data_v2(Signal *signal,
+                                      BlockReference ref,
+                                      Uint32 cdata_size_in_words)
 {
   LinearSectionPtr lsptr[3];
   lsptr[0].p = &cdata[0];
@@ -485,10 +502,101 @@ void Dbdih::sendUPDATE_TOREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
   sendSignal(ref, GSN_UPDATE_TOREQ, signal, UpdateToReq::SignalLength, JBB);
 }//sendUPDATE_TOREQ()
 
+void Dbdih::print_lcp_state(void)
+{
+  if (c_lcpState.lcpStatus == LCP_STATUS_ACTIVE)
+  {
+    TabRecordPtr tabPtr;
+    g_eventLogger->info("c_lcpState.lcpStatus = LCP_STATUS_ACTIVE");
+    for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+    {
+      ptrAss(tabPtr, tabRecord);
+      if ((tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) &&
+          (tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE))
+      {
+        g_eventLogger->info("Table(%u) tabStatus: %u, tabLcpStatus: %u",
+                            tabPtr.i,
+                            tabPtr.p->tabStatus,
+                            tabPtr.p->tabLcpStatus);
+        return;
+      }//if
+    }//for
+  }
+  else if (c_lcpState.lcpStatus == LCP_TAB_COMPLETED)
+  {
+    g_eventLogger->info("c_lcpState.lcpStatus = LCP_TAB_COMPLETED");
+    if (c_lcp_id_paused != RNIL)
+    {
+      g_eventLogger->info("c_lcp_id_paused stops us from completing LCP");
+      return;
+    }
+    TabRecordPtr tabPtr;
+    for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+    {
+      ptrAss(tabPtr, tabRecord);
+      if (tabPtr.p->tabLcpStatus != TabRecord::TLS_COMPLETED)
+      {
+        g_eventLogger->info("Table(%u) tabStatus: %u, tabLcpStatus: %u",
+                            tabPtr.i,
+                            tabPtr.p->tabStatus,
+                            tabPtr.p->tabLcpStatus);
+        return;
+      }
+    }
+  }
+  else if (c_lcpState.lcpStatus == LCP_TAB_SAVED)
+  {
+    g_eventLogger->info("c_lcpState.lcpStatus = LCP_TAB_SAVED");
+    bool is_complete = true;
+    if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.done())
+    {
+      jam();
+      is_complete = false;
+      DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, LQH not done"));
+    }
+    if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.done())
+    {
+      jam();
+      is_complete = false;
+      DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, DIH not done"));
+    }
+
+    if (!isMaster() && 
+        c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false)
+    {
+      jam();
+      is_complete = false;
+      DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, Master not done"));
+    }
+
+    if(c_lcpMasterTakeOverState.state != LMTOS_IDLE)
+    {
+      is_complete = false;
+      g_eventLogger->info("c_lcpMasterTakeOverState.state not IDLE");
+    }
+    if (is_complete)
+    {
+      g_eventLogger->info("LCP is suppposed to be completed");
+    }
+  }
+  else if (c_lcpState.lcpStatus != LCP_STATUS_IDLE)
+  {
+    g_eventLogger->info("c_lcpState.lcpStatus = %u", c_lcpState.lcpStatus);
+  }
+  return;
+}
+
 void Dbdih::execCONTINUEB(Signal* signal)
 {
   jamEntry();
   switch ((DihContinueB::Type)signal->theData[0]) {
+  case DihContinueB::ZPRINT_LCP_STATE:
+    {
+      jam();
+      print_lcp_state();
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+      return;
+    }
   case DihContinueB::ZPACK_TABLE_INTO_PAGES:
     {
       jam();
@@ -614,7 +722,7 @@ void Dbdih::execCONTINUEB(Signal* signal)
   case DihContinueB::ZCHECK_LCP_COMPLETED:
     {
       jam();
-      checkLcpCompletedLab(signal);
+      checkLcpCompletedLab(signal, __LINE__);
       return;
     }
   case DihContinueB::ZINIT_LCP:
@@ -825,596 +933,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
   ndbabort();
 }//Dbdih::execCONTINUEB()
 
-/**
- * Input to unpack functions is the v1 or v2 format stored in the cdata
- * array of integers.
- * Output of pack functions is the v1 or v2 format stored in the cdata
- * array of integers.
- */
-
-enum DataNodeStatusPacked
-{
-  NODE_ACTIVE = 0,
-  NODE_ACTIVE_NODE_DOWN = 1,
-  NODE_CONFIGURED = 2,
-  NODE_UNDEFINED = 3
-};
-
-void
-Dbdih::pack_sysfile_format_v2(void)
-{
-  /**
-   * Format for COPY_GCIREQ v2:
-   * --------------------------
-   * 1) MAGIC_v2
-   * 2) m_max_node_id
-   * 3) Total size in words of packed format
-   * 4) numGCIs (number of GCIs in non-packed form)
-   * 5) numNodeGroups (node groups in non-packed form)
-   * 6) Number of replicas
-   * 7) systemRestartBits
-   * 8) m_restart_seq
-   * 9) keepGCI
-   * 10) oldestRestorableGCI
-   * 11) newestRestorabeGCI
-   * 12) latestLCP_ID
-   * 13) lcpActive bits (m_max_node_id bits)
-   * 14) nodeStatus 4 bits * m_max_node_id
-   *     3 bits is DataNodeStatusPacked
-   *     1 bit is set if GCI is non-packed form
-   * 15) GCIs in non-packed form
-   * 16) Node group bit (m_max_node_id bits)
-   * 17) Node groups in non-packed form (16 bits per node group)
-   */
-#ifdef VM_TRACE
-  memset(SYSFILE->takeOver, 0, sizeof(SYSFILE->takeOver));
-  for (Uint32 i = 0; i < MAX_NDB_NODES; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
-    ndbrequire(active_status != Sysfile::NS_ActiveMissed_2);
-    ndbrequire(active_status != Sysfile::NS_ActiveMissed_3);
-    ndbrequire(active_status != Sysfile::NS_TakeOver);
-    ndbrequire(active_status != Sysfile::NS_NotActive_TakenOver);
-  }
-#endif
-  Uint32 index = 0;
-
-  std::memcpy(&cdata[index], Sysfile::MAGIC_v2, Sysfile::MAGIC_SIZE_v2);
-  static_assert(Sysfile::MAGIC_SIZE_v2 % sizeof(Uint32) == 0, "");
-  index += Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32);
-
-  ndbrequire(index == 2);
-  cdata[index] = m_max_node_id;
-  index++;
-
-  ndbrequire(index == 3);
-  const Uint32 index_cdata_size_in_words = index;
-  index++;
-
-  ndbrequire(index == 4);
-  const Uint32 index_numGCIs = index;
-  index++;
-
-  ndbrequire(index == 5);
-  const Uint32 index_numNodeGroups = index;
-  index++;
-
-  ndbrequire(index == 6);
-  const Uint32 index_num_replicas = index;
-  index++;
-
-  ndbrequire(index == 7);
-  for (Uint32 i = 0; i < 6; i++)
-  {
-    cdata[index] = sysfileData[i];
-    index++;
-  }
-
-  Uint32 lcp_active_words = ((m_max_node_id) + 31) / 32;
-  ndbrequire(index == 13);
-  for (Uint32 i = 0; i < lcp_active_words; i++)
-  {
-    cdata[index] = SYSFILE->lcpActive[i];
-    index++;
-  }
-  Uint32 data = 0;
-  Uint32 start_bit = 0;
-  const Uint32 index_node_bit_words = index;
-  Uint32 numGCIs = 0;
-  Uint32 node_bit_words = ((m_max_node_id * 4) + 31) / 32;
-  Uint32 indexGCI = index_node_bit_words + node_bit_words;
-  Uint32 expectedGCI = SYSFILE->newestRestorableGCI;
-  for (Uint32 i = 1; i <= m_max_node_id; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
-    Uint32 bits = 0;
-    Uint32 diff = 0;
-    Uint32 nodeGCI = SYSFILE->lastCompletedGCI[i];
-    switch (active_status)
-    {
-      case Sysfile::NS_Active:
-      {
-        jamDebug();
-        bits = NODE_ACTIVE;
-        if (nodeGCI != expectedGCI)
-        {
-          jamDebug();
-          diff = 1;
-        }
-        break;
-      }
-      case Sysfile::NS_ActiveMissed_1:
-      case Sysfile::NS_NotActive_NotTakenOver:
-      {
-        jamDebug();
-        bits = NODE_ACTIVE_NODE_DOWN;
-        diff = 1;
-        break;
-      }
-      case Sysfile::NS_ActiveMissed_2:
-      case Sysfile::NS_ActiveMissed_3:
-      case Sysfile::NS_NotActive_TakenOver:
-      case Sysfile::NS_TakeOver:
-      {
-        ndbout_c("active_status = %u", active_status);
-        ndbassert(false);
-        jamDebug();
-        bits = NODE_ACTIVE_NODE_DOWN;
-        diff = 1;
-        break;
-      }
-      case Sysfile::NS_NotDefined:
-      {
-        jamDebug();
-        bits = NODE_UNDEFINED;
-        if (nodeGCI != 0)
-        {
-          jamDebug();
-          diff = 1;
-        }
-        break;
-      }
-      case Sysfile::NS_Configured:
-      {
-        jamDebug();
-        bits = NODE_CONFIGURED;
-        if (nodeGCI != expectedGCI)
-        {
-          jamDebug();
-          diff = 1;
-        }
-        break;
-      }
-      default:
-      {
-        ndbout_c("active_status = %u", active_status);
-        ndbabort();
-      }
-    }
-    if (diff != 0)
-    {
-      numGCIs++;
-      bits += 8;
-      cdata[indexGCI] = nodeGCI;
-      indexGCI++;
-    }
-    data += (bits << start_bit);
-    ndbrequire(bits < 16);
-    start_bit += 4;
-    if (start_bit == 32)
-    {
-      jamDebug();
-      cdata[index] = data;
-      data = 0;
-      start_bit = 0;
-      index++;
-    }
-  }
-  if (start_bit != 0)
-  {
-    jamDebug();
-    cdata[index] = data;
-    index++;
-  }
-  ndbrequire((index + numGCIs) == indexGCI);
-  Uint32 numNodeGroups = 0;
-  Uint32 num_replicas = cnoReplicas;
-  Uint32 replica_index = 0;
-  index = indexGCI;
-  Uint32 node_group_bit_words = lcp_active_words;
-  const Uint32 index_ng = index + node_group_bit_words;
-  data = 0;
-  start_bit = 0;
-  Uint16 *ng_area = (Uint16*)&cdata[index_ng];
-  Uint32 predicted_ng = 0;
-  for (Uint32 i = 1; i <= m_max_node_id; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
-    Uint32 diff = 0;
-    Uint32 nodeGroup;
-    switch (active_status)
-    {
-      case Sysfile::NS_Active:
-      case Sysfile::NS_ActiveMissed_1:
-      case Sysfile::NS_NotActive_NotTakenOver:
-      case Sysfile::NS_ActiveMissed_2:
-      case Sysfile::NS_ActiveMissed_3:
-      case Sysfile::NS_NotActive_TakenOver:
-      case Sysfile::NS_TakeOver:
-      {
-        jamDebug();
-        nodeGroup = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
-        if (nodeGroup != predicted_ng)
-        {
-          jamDebug();
-          diff = 1;
-        }
-        replica_index++;
-        if (replica_index == num_replicas)
-        {
-          jamDebug();
-          replica_index = 0;
-          predicted_ng++;
-        }
-        break;
-      }
-      case Sysfile::NS_NotDefined:
-      {
-        jamDebug();
-        /* If a node is not configured the node group will never be used.
-         * Still the node group is expected to be NO_NODE_GROUP_ID.
-         * Sometimes it seems that node group is wrongly set to zero.
-         * While this is not critical, it should be examined why.
-         */
-        nodeGroup = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
-        ndbrequire(nodeGroup == NO_NODE_GROUP_ID ||
-                   nodeGroup == 0);
-        break;
-      }
-      case Sysfile::NS_Configured:
-      {
-        jamDebug();
-        nodeGroup = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
-        if (nodeGroup != NO_NODE_GROUP_ID)
-        {
-          jamDebug();
-          ndbabort();
-          diff = 1;
-        }
-        break;
-      }
-      default:
-      {
-        ndbabort();
-      }
-    }
-    if (diff != 0)
-    {
-      jamDebug();
-      ng_area[numNodeGroups] = nodeGroup;
-      numNodeGroups++;
-      data += (1 << start_bit);
-    }
-    start_bit++;
-    if (start_bit == 32)
-    {
-      jamDebug();
-      cdata[index] = data;
-      start_bit = 0;
-      index++;
-    }
-  }
-  if (start_bit != 0)
-  {
-    jamDebug();
-    cdata[index] = data;
-    index++;
-  }
-  ndbrequire(index == index_ng);
-  cdata_size_in_words = index_ng + ((numNodeGroups + 1)/2);
-  cdata[index_cdata_size_in_words] = cdata_size_in_words;
-  cdata[index_numGCIs] = numGCIs;
-  cdata[index_numNodeGroups] = numNodeGroups;
-  cdata[index_num_replicas] = num_replicas;
-}
-
-void
-Dbdih::pack_sysfile_format_v1(void)
-{
-  ndbrequire(m_max_node_id <= 48);
-  for (Uint32 i = 0; i < 6; i++)
-    cdata[i] = sysfileData[i];
-  for (Uint32 i = 0; i < 49; i++)
-    cdata[6 + i] = SYSFILE->lastCompletedGCI[i];
-  for (Uint32 i = 0; i < 7; i++)
-    cdata[55 + i] = SYSFILE->nodeStatus[i];
-
-  memset(&cdata[62], 0, 52);
-  for (Uint32 i = 1; i <= 48; i++)
-  {
-    NodeId ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
-    Sysfile::setNodeGroup_v1(i, &cdata[62], Uint8(ng));
-  }
-
-  memset(&cdata[75], 0, 52);
-  for (Uint32 i = 1; i <= 48; i++)
-  {
-    NodeId nodeId = Sysfile::getTakeOverNode(i, SYSFILE->takeOver);
-    ndbrequire(nodeId <= 48);
-    Sysfile::setTakeOverNode_v1(i, &cdata[75], Uint8(nodeId));
-  }
-
-  for (Uint32 i = 0; i < 2; i++)
-    cdata[88 + i] = SYSFILE->lcpActive[i];
-}
-
-void
-Dbdih::unpack_sysfile_format_v2(bool set_max_node_id)
-{
-  Uint32 index = 0;
-  ndbrequire(std::memcmp(&cdata[index],
-                         Sysfile::MAGIC_v2,
-                         Sysfile::MAGIC_SIZE_v2) == 0);
-  index += Sysfile::MAGIC_SIZE_v2 / sizeof(Uint32);
-
-  Uint32 max_node_id = cdata[index];
-  index++;
-
-  cdata_size_in_words = cdata[index];
-  index++;
-
-  if (set_max_node_id)
-  {
-    jam();
-    m_max_node_id = max_node_id;
-  }
-
-  Uint32 numGCIs = cdata[index];
-  index++;
-
-  Uint32 numNodeGroups = cdata[index];
-  index++;
-
-  Uint32 num_replicas = cdata[index];
-  index++;
-
-  for (Uint32 i = 0; i < 6; i++)
-  {
-    sysfileData[i] = cdata[index];
-    index++;
-  }
-  Uint32 lcp_active_words = ((max_node_id) + 31) / 32;
-  for (Uint32 i = 0; i < lcp_active_words; i++)
-  {
-    SYSFILE->lcpActive[i] = cdata[index];
-    index++;
-  }
-  Uint32 node_bit_words = ((max_node_id * 4) + 31) / 32;
-  Uint32 node_group_words = lcp_active_words;
-
-  const Uint32 index_node_bit_words = index;
-  Uint32 indexGCI = index_node_bit_words + node_bit_words;
-  Uint32 start_bit = 0;
-  Uint32 newestGCI = SYSFILE->newestRestorableGCI;
-  for (Uint32 i = 1; i <= max_node_id; i++)
-  {
-    Uint32 data = cdata[index];
-    Uint32 bits = (data >> start_bit) & 0xF;
-    Uint32 gci_bit = bits >> 3;
-    Uint32 state_bits = bits & 0x7;
-    switch (state_bits)
-    {
-      case NODE_ACTIVE:
-      {
-        if (gci_bit != 0)
-        {
-          jamDebug();
-          SYSFILE->lastCompletedGCI[i] = cdata[indexGCI];
-          indexGCI++;
-        }
-        else
-        {
-          jamDebug();
-          SYSFILE->lastCompletedGCI[i] = newestGCI;
-        }
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_Active);
-        break;
-      }
-      case NODE_ACTIVE_NODE_DOWN:
-      {
-        jamDebug();
-        ndbrequire(gci_bit != 0);
-        SYSFILE->lastCompletedGCI[i] = cdata[indexGCI];
-        indexGCI++;
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_ActiveMissed_1);
-        break;
-      }
-      case NODE_CONFIGURED:
-      {
-        if (gci_bit != 0)
-        {
-          jamDebug();
-          SYSFILE->lastCompletedGCI[i] = cdata[indexGCI];
-          indexGCI++;
-        }
-        else
-        {
-          jamDebug();
-          SYSFILE->lastCompletedGCI[i] = newestGCI;
-        }
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_Configured);
-        break;
-      }
-      case NODE_UNDEFINED:
-      {
-        if (gci_bit != 0)
-        {
-          jamDebug();
-          SYSFILE->lastCompletedGCI[i] = cdata[indexGCI];
-          indexGCI++;
-        }
-        else
-        {
-          jamDebug();
-          SYSFILE->lastCompletedGCI[i] = 0;
-        }
-        SYSFILE->setNodeStatus(i,
-                               SYSFILE->nodeStatus,
-                               Sysfile::NS_NotDefined);
-        break;
-      }
-      default:
-      {
-        ndbabort();
-      }
-    }
-    start_bit += 4;
-    if (start_bit == 32)
-    {
-      index++;
-      start_bit = 0;
-    }
-  }
-  if (start_bit != 0)
-  {
-    index++;
-  }
-  ndbrequire(index == (index_node_bit_words + node_bit_words));
-  ndbrequire((index + numGCIs) == indexGCI);
-  index = indexGCI;
-  const Uint32 index_ng = index + node_group_words;
-  Uint16* ng_array = (Uint16*)&cdata[index_ng];
-  start_bit = 0;
-  Uint32 replica_index = 0;
-  Uint32 ng_index = 0;
-  Uint32 current_ng = 0;
-  for (Uint32 i = 1; i <= max_node_id; i++)
-  {
-    Sysfile::ActiveStatus active_status = (Sysfile::ActiveStatus)
-      SYSFILE->getNodeStatus(i, SYSFILE->nodeStatus);
-    Uint32 data = cdata[index];
-    Uint32 ng_bit = (data >> start_bit) & 0x1;
-    Uint32 nodeGroup = NO_NODE_GROUP_ID;
-    switch (active_status)
-    {
-      case Sysfile::NS_Active:
-      case Sysfile::NS_ActiveMissed_1:
-      {
-        if (ng_bit == 0)
-        {
-          jamDebug();
-          nodeGroup = current_ng;
-        }
-        else
-        {
-          jamDebug();
-          nodeGroup = (Uint32) ng_array[ng_index];
-          ng_index++;
-        }
-        replica_index++;
-        if (replica_index == num_replicas)
-        {
-          jamDebug();
-          replica_index = 0;
-          current_ng++;
-        }
-        break;
-      }
-      case Sysfile::NS_NotDefined:
-      case Sysfile::NS_Configured:
-      {
-        jamDebug();
-        nodeGroup = NO_NODE_GROUP_ID;
-        break;
-      }
-      default:
-      {
-        ndbabort();
-      }
-    }
-    SYSFILE->setNodeGroup(i,
-                          SYSFILE->nodeGroups,
-                          nodeGroup);
-    start_bit++;
-    if (start_bit == 32)
-    {
-      jamDebug();
-      index++;
-      start_bit = 0;
-    }
-  }
-  if (start_bit != 0)
-  {
-    jamDebug();
-    index++;
-  }
-  ndbrequire(index == index_ng);
-  ndbrequire(ng_index == numNodeGroups);
-  index = index_ng + ((ng_index + 1)/2);
-  ndbrequire(cdata_size_in_words == index);
-}
-
-void
-Dbdih::unpack_sysfile_format_v1(bool set_max_node_id)
-{
-  jam();
-  for (Uint32 i = 0; i < 6; i++)
-  {
-    sysfileData[i] = cdata[i];
-  }
-  for (Uint32 i = 0; i < 49; i++)
-  {
-    SYSFILE->lastCompletedGCI[i] = cdata[6 + i];
-  }
-  for (Uint32 i = 0; i < 7; i++)
-  {
-    SYSFILE->nodeStatus[i] = cdata[55 + i];
-  }
-
-  memset(SYSFILE->nodeGroups, 0, sizeof(SYSFILE->nodeGroups));
-  for (NodeId i = 1; i <= 48; i++)
-  {
-    NodeId ng = Sysfile::getNodeGroup_v1(i, &cdata[62]);
-    if (ng == 255)
-      ng = NO_NODE_GROUP_ID;
-    Sysfile::setNodeGroup(i, SYSFILE->nodeGroups, ng);
-  }
-
-  memset(SYSFILE->takeOver, 0, sizeof(SYSFILE->takeOver));
-  for (NodeId i = 1; i <= 48; i++)
-  {
-    NodeId nodeId = Sysfile::getTakeOverNode_v1(i, &cdata[75]);
-    Sysfile::setNodeGroup(i, SYSFILE->takeOver, nodeId);
-  }
-
-  for (Uint32 i = 0; i < 2; i++)
-  {
-    SYSFILE->lcpActive[i] = cdata[88 + i];
-  }
-  if (set_max_node_id)
-  {
-    for (Uint32 i = 1; i <= 48; i++)
-    {
-      if (Sysfile::getNodeStatus(i, SYSFILE->nodeStatus) !=
-          Sysfile::NS_NotDefined)
-      {
-        jamLine((Uint16)i);
-        m_max_node_id = i;
-      }
-    }
-  }
-  ndbrequire(m_max_node_id <= 48);
-}
-
 void Dbdih::execCOPY_GCIREQ(Signal* signal) 
 {
   CopyGCIReq * const copyGCI = (CopyGCIReq *)&signal->theData[0];
@@ -1447,6 +965,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
   ndbrequire(reason != CopyGCIReq::IDLE);
   bool isdone = true;
   bool v2_format = true;
+  Uint32 cdata_size_in_words;
 
   Uint32 num_sections = signal->getNoOfSections();
   SectionHandle handle(this, signal);
@@ -1472,9 +991,10 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     ndbrequire(c_copyGCISlave.m_expectedNextWord == tstart);
     isdone = (tstart + CopyGCIReq::DATA_SIZE) >= Sysfile::SYSFILE_SIZE32_v1;
 
-    arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(sysfileData)/4);
+    arrGuard(tstart + CopyGCIReq::DATA_SIZE, sizeof(cdata)/4);
     for(Uint32 i = 0; i<CopyGCIReq::DATA_SIZE; i++)
       cdata[tstart+i] = copyGCI->data[i];
+    cdata_size_in_words = tstart + CopyGCIReq::DATA_SIZE;
   }
   if (isdone)
   {
@@ -1493,18 +1013,22 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     if (v2_format)
     {
       jam();
-      unpack_sysfile_format_v2(false);
+      int ret = SYSFILE->unpack_sysfile_format_v2(cdata, &cdata_size_in_words);
+      jamLine((Uint16)ret);
+      ndbrequire(ret == 0);
     }
     else
     {
       jam();
-      unpack_sysfile_format_v1(false);
+      int ret = SYSFILE->unpack_sysfile_format_v1(cdata, &cdata_size_in_words);
+      jamLine((Uint16)ret);
+      ndbrequire(ret == 0);
     }
     SYSFILE->m_restart_seq = tmp;
     if (c_set_initial_start_flag)
     {
       jam();
-      Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+      SYSFILE->setInitialStartOngoing();
     }
   }
 
@@ -1552,6 +1076,7 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     ok = true;
     jam();
     c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
+    DEB_LCP_COMP(("c_lcpState.setLcpStatus = LCP_COPY_GCI"));
     c_lcpState.m_masterLcpDihRef = cmasterdihref;
     setNodeActiveStatus();
     break;
@@ -1563,11 +1088,12 @@ void Dbdih::execCOPY_GCIREQ(Signal* signal)
     m_micro_gcp.m_old_gci = Uint64(newest) << 32;
     crestartGci = newest;
     c_newest_restorable_gci = newest;
-    Sysfile::setRestartOngoing(SYSFILE->systemRestartBits);
+    SYSFILE->setRestartOngoing();
     m_micro_gcp.m_current_gci = Uint64(newest + 1) << 32;
     setNodeActiveStatus();
     setNodeGroups();
-    if ((Sysfile::getLCPOngoing(SYSFILE->systemRestartBits))) {
+    if (SYSFILE->getLCPOngoing())
+    {
       jam();
       /* -------------------------------------------------------------------- */
       //  IF THERE WAS A LOCAL CHECKPOINT ONGOING AT THE CRASH MOMENT WE WILL
@@ -1904,16 +1430,17 @@ void Dbdih::execFSOPENREF(Signal* signal)
 
 void Dbdih::execFSREADCONF(Signal* signal) 
 {
+  const FsConf* conf = (const FsConf*)&signal->theData[0];
   FileRecordPtr filePtr;
   jamEntry();
-  filePtr.i = signal->theData[0];
+  filePtr.i = conf->userPointer;
   ptrCheckGuard(filePtr, cfileFileSize, fileRecord);
   FileRecord::ReqStatus status = filePtr.p->reqStatus;
   filePtr.p->reqStatus = FileRecord::IDLE;
   switch (status) {
   case FileRecord::READING_GCP:
     jam();
-    readingGcpLab(signal, filePtr);
+    readingGcpLab(signal, filePtr, conf->bytes_read);
     break;
   case FileRecord::READING_TABLE:
     jam();
@@ -2078,6 +1605,14 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   initData();
 
+  cnoReplicas = 1;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
+  if (cnoReplicas > MAX_REPLICAS)
+  {
+    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
+	      "Only up to four replicas are supported. Check NoOfReplicas.");
+  }
+
   cconnectFileSize = 256; // Only used for DDL
 
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
@@ -2089,14 +1624,41 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_TABLE, &ctabFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
 
-  if (isNdbMtLqh())
+  Uint32 use_auto_thread_config = 0;
+  ndb_mgm_get_int_parameter(p,
+                            CFG_DB_AUTO_THREAD_CONFIG,
+                            &use_auto_thread_config);
+
+  Uint32 use_classic_fragmentation = 1;
+  ndb_mgm_get_int_parameter(p,
+                            CFG_DB_CLASSIC_FRAGMENTATION,
+                            &use_classic_fragmentation);
+  m_use_classic_fragmentation = use_classic_fragmentation;
+  if (m_use_classic_fragmentation && use_auto_thread_config)
   {
     jam();
-    c_fragments_per_node_ = 0;
+    m_use_classic_fragmentation = 0;
+  }
+
+  c_fragments_per_node_ = 0;
+  if (!m_use_classic_fragmentation)
+  {
+    jam();
+    c_fragments_per_node_ = 2;
+    ndb_mgm_get_int_parameter(p, CFG_DB_PARTITIONS_PER_NODE,
+                              &c_fragments_per_node_);
     // try to get some LQH workers which initially handle no fragments
     if (ERROR_INSERTED(7215)) {
       c_fragments_per_node_ = 1;
       ndbout_c("Using %u fragments per node", c_fragments_per_node_);
+    }
+    if ((c_fragments_per_node_ * cnoReplicas) /
+         globalData.ndbMtLqhWorkers > MAX_FRAG_PER_LQH)
+    {
+      progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
+        "PartitionsPerNode * NoOfReplicas divided by Number of LDM threads"
+        " must not be larger than 16, increase number of LDMs in"
+        " configuration");
     }
   }
   ndb_mgm_get_int_parameter(p, CFG_DB_LCP_TRY_LOCK_TIMEOUT, 
@@ -2243,16 +1805,19 @@ void Dbdih::execTAB_COMMITREQ(Signal* signal)
 void Dbdih::execDIH_RESTARTREQ(Signal* signal)
 {
   jamEntry();
-  const DihRestartReq* req = CAST_CONSTPTR(DihRestartReq,
-                                           signal->getDataPtr());
+  DihRestartReq* req = (DihRestartReq*)signal->getDataPtr();
   if (req->senderRef != 0)
   {
     jam();
     cntrlblockref = req->senderRef;
     if(m_ctx.m_config.getInitialStart())
     {
+      jam();
       sendDihRestartRef(signal);
-    } else {
+    }
+    else
+    {
+      jam();
       readGciFileLab(signal);
     }
   }
@@ -2275,9 +1840,12 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
       if (mask.get(i))
       {
 	jam();
-	Uint32 ng = Sysfile::getNodeGroup(i, SYSFILE->nodeGroups);
+        jamLine(Uint16(i));
+        Uint32 ng = SYSFILE->getNodeGroup(i);
         if (ng != NO_NODE_GROUP_ID)
         {
+          jam();
+          jamLine(Uint16(ng));
           ndbrequire(ng < MAX_NDB_NODE_GROUPS);
           Uint32 gci = node_gcis[i];
           if (gci > ZUNDEFINED_GCI_LIMIT &&
@@ -2296,7 +1864,13 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
           if (gci > node_group_gcis[ng])
           {
             jam();
+            jamLine(Uint16(gci));
             node_group_gcis[ng] = gci;
+          }
+          else
+          {
+            jam();
+            jamLine(Uint16(node_group_gcis[ng]));
           }
         }
       }
@@ -2310,17 +1884,28 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
       signal->theData[0] = i;
       return;
     }
-    for (i++ ; i<MAX_NDB_NODES; i++)
+    else
     {
       jam();
-      if (node_group_gcis[i] && node_group_gcis[i] != gci)
+      bool return_flag = false;
+      for (i++ ; i<MAX_NDB_NODES; i++)
       {
-	jam();
-	signal->theData[0] = i;
-	return;
+        if (node_group_gcis[i] && node_group_gcis[i] != gci)
+        {
+	  jam();
+          jamLine(Uint16(i));
+	  signal->theData[0] = i;
+          return_flag = true;
+          break;
+        }
+      }
+      if (!return_flag)
+      {
+        jam();
+        signal->theData[0] = MAX_NDB_NODES;
       }
     }
-    signal->theData[0] = MAX_NDB_NODES;
+    memcpy(req->node_gcis, &node_group_gcis[0], 4*MAX_NDB_NODES);
     return;
   }
   return;
@@ -2361,6 +1946,10 @@ void Dbdih::execSTTOR(Signal* signal)
     jam();
     createMutexes(signal, 0);
     init_lcp_pausing_module();
+#ifdef DEBUG_LCP_COMP
+    signal->theData[0] = DihContinueB::ZPRINT_LCP_STATE;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
+#endif
     return;
   case 3:
     jam();
@@ -2431,6 +2020,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     cntrlblockref = cntrRef;
     clocaltcblockref = calcTcBlockRef(ownNodeId);
     clocallqhblockref = calcLqhBlockRef(ownNodeId);
+    clocalqlqhblockref = calcQlqhBlockRef(ownNodeId);
     cdictblockref = calcDictBlockRef(ownNodeId);
     c_lcpState.lcpStallStart = 0;
     c_lcpState.lcpManualStallStart = false;
@@ -2881,7 +2471,7 @@ void Dbdih::execREAD_NODESCONF(Signal* signal)
 
     for(i = 1; i <= m_max_node_id; i++)
     {
-      const Uint32 stat = Sysfile::getNodeStatus(i, SYSFILE->nodeStatus);
+      const Uint32 stat = SYSFILE->getNodeStatus(i);
       if(stat == Sysfile::NS_NotDefined && !tmp.get(i))
       {
 	jam();
@@ -3111,6 +2701,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   CRASH_INSERTION(7130);
   ndbrequire(nodeId == cownNodeId);
   bool v2_format = true;
+  Uint32 cdata_size_in_words;
   if (ndbd_send_node_bitmask_in_section(getNodeInfo(cmasterNodeId).m_version))
   {
     jam();
@@ -3140,6 +2731,7 @@ void Dbdih::execSTART_MECONF(Signal* signal)
        */
       return;
     }
+    cdata_size_in_words = Sysfile::SYSFILE_SIZE32_v1;
   }
 
   /**
@@ -3157,12 +2749,16 @@ void Dbdih::execSTART_MECONF(Signal* signal)
   if (v2_format)
   {
     jam();
-    unpack_sysfile_format_v2(false);
+    int ret = SYSFILE->unpack_sysfile_format_v2(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
   }
   else
   {
     jam();
-    unpack_sysfile_format_v1(false);
+    int ret = SYSFILE->unpack_sysfile_format_v1(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
   }
   SYSFILE->m_restart_seq = key;
   for (Uint32 i = 1; i <= m_max_node_id; i++)
@@ -4306,7 +3902,7 @@ void Dbdih::stop_pause(Signal *signal)
   ndbassert(check_pause_state_sanity());
   dequeue_lcp_rep(signal);
 
-  checkLcpCompletedLab(signal);
+  checkLcpCompletedLab(signal, __LINE__);
 }
 
 /**
@@ -4434,6 +4030,7 @@ void Dbdih::dequeue_lcp_rep(Signal *signal)
    */
   c_dequeue_lcp_rep_ongoing = false;
   c_lcp_id_paused = RNIL;
+  checkLcpCompletedLab(signal, __LINE__);
   ndbassert(check_pause_state_sanity());
 }
 
@@ -4756,10 +4353,8 @@ void Dbdih::gcpBlockedLab(Signal* signal)
     infoEvent("Adding node %d to sysfile, NS_Configured",
               nodePtr.i);
     setNodeActiveStatus(nodePtr.i, Sysfile::NS_Configured);
-    Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups,
-                          NO_NODE_GROUP_ID);
-    Sysfile::setNodeStatus(nodePtr.i,
-                           SYSFILE->nodeStatus, Sysfile::NS_Configured);
+    SYSFILE->setNodeGroup(nodePtr.i, NO_NODE_GROUP_ID);
+    SYSFILE->setNodeStatus(nodePtr.i, Sysfile::NS_Configured);
   }
 
   /*-------------------------------------------------------------------------*/
@@ -4785,14 +4380,15 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   Uint32 TstartNode = signal->theData[0];
   Uint32 TsendNodeId_or_blockref = signal->theData[1];
 
-  Uint32 blocklist[7];
+  Uint32 blocklist[8];
   blocklist[0] = clocallqhblockref;
-  blocklist[1] = clocaltcblockref;
-  blocklist[2] = cdictblockref;
-  blocklist[3] = numberToRef(BACKUP, getOwnNodeId());
-  blocklist[4] = numberToRef(SUMA, getOwnNodeId());
-  blocklist[5] = numberToRef(DBSPJ, getOwnNodeId());
-  blocklist[6] = 0;
+  blocklist[1] = clocalqlqhblockref;
+  blocklist[2] = clocaltcblockref;
+  blocklist[3] = cdictblockref;
+  blocklist[4] = numberToRef(BACKUP, getOwnNodeId());
+  blocklist[5] = numberToRef(SUMA, getOwnNodeId());
+  blocklist[6] = numberToRef(DBSPJ, getOwnNodeId());
+  blocklist[7] = 0;
   
   for (Uint32 i = 0; blocklist[i] != 0; i++)
   {
@@ -4820,7 +4416,8 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
 	jam();
 	signal->theData[0] = reference();
 	signal->theData[1] = c_nodeStartSlave.nodeId;
-	sendSignal(blocklist[i+1], GSN_INCL_NODEREQ, signal, 2, JBB);
+        signal->theData[2] = Uint32(m_micro_gcp.m_current_gci >> 32);
+	sendSignal(blocklist[i+1], GSN_INCL_NODEREQ, signal, 3, JBB);
 	return;
       }
       else
@@ -4909,16 +4506,21 @@ void Dbdih::execUNBLO_DICTCONF(Signal* signal)
 
   const Uint32 ref = calcDihBlockRef(c_nodeStartMaster.startNode);
   Uint32 node_version = getNodeInfo(c_nodeStartMaster.startNode).m_version;
+  Uint32 cdata_size_in_words = DIH_CDATA_SIZE;
   if (ndbd_send_node_bitmask_in_section(node_version))
   {
     jam();
-    pack_sysfile_format_v2();
-    send_START_MECONF_data_v2(signal, ref);
+    int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
+    send_START_MECONF_data_v2(signal, ref, cdata_size_in_words);
   }
   else
   {
     jam();
-    pack_sysfile_format_v1();
+    int ret = SYSFILE->pack_sysfile_format_v1(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
     send_START_MECONF_data_v1(signal, ref);
   }
   nodeResetStart(signal);
@@ -5028,8 +4630,7 @@ void Dbdih::execSTART_COPYREQ(Signal* signal)
      * We were in the process of taking over but it was not completed.
      * We will complete it now instead.
      *--------------------------------------------------------------------*/
-    Uint32 takeOverNode = Sysfile::getTakeOverNode(startNodeId, 
-						   SYSFILE->takeOver);
+    Uint32 takeOverNode = SYSFILE->getTakeOverNode(startNodeId);
     if(takeOverNode == 0){
       jam();
       warningEvent("Bug in take-over code restarting");
@@ -8589,10 +8190,15 @@ Dbdih::nr_start_logging(Signal* signal, TakeOverRecordPtr takeOverPtr)
         jam();
         ndbrequire(loopReplicaPtr.p->procNode == getOwnNodeId());
         takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_SL_COPY_ACTIVE;
-
-        BlockReference lqhRef = numberToRef(DBLQH, instanceKey,
+        Uint32 instanceNo = getInstanceNo(takeOverPtr.p->toStartingNode,
+                                          instanceKey);
+        BlockReference lqhRef = numberToRef(DBLQH, instanceNo,
                                             takeOverPtr.p->toStartingNode);
 
+        DEB_COPY_ACTIVE(("COPY_ACTIVEREQ: takeOverPtr.i: %u, tab(%u,%u)",
+                         takeOverPtr.i,
+                         takeOverPtr.p->toCurrentTabref,
+                         takeOverPtr.p->toCurrentFragid));
         CopyActiveReq * const req = (CopyActiveReq *)&signal->theData[0];
         req->userPtr = takeOverPtr.i;
         req->userRef = reference();
@@ -9053,7 +8659,9 @@ void Dbdih::toCopyFragLab(Signal* signal, Uint32 takeOverPtrI)
   req->startingNodeId = takeOverPtr.p->toStartingNode; // Dst
 
   Uint32 instanceKey = dihGetInstanceKey(req->tableId, req->fragId);
-  Uint32 ref = numberToRef(DBLQH, instanceKey, takeOverPtr.p->toStartingNode);
+  Uint32 instanceNo = getInstanceNo(takeOverPtr.p->toStartingNode,
+                                    instanceKey);
+  Uint32 ref = numberToRef(DBLQH, instanceNo, takeOverPtr.p->toStartingNode);
   
   sendSignal(ref, GSN_PREPARE_COPY_FRAG_REQ, signal, 
              PrepareCopyFragReq::SignalLength, JBB);
@@ -9307,7 +8915,9 @@ Dbdih::toStartCopyFrag(Signal* signal, TakeOverRecordPtr takeOverPtr)
   replicaPtr.p->m_restorable_gci = 0; // used in union...
   
   Uint32 instanceKey = dihGetInstanceKey(tabPtr.i, fragId);
-  BlockReference ref = numberToRef(DBLQH, instanceKey,
+  Uint32 instanceNo = getInstanceNo(takeOverPtr.p->toCopyNode,
+                                    instanceKey);
+  BlockReference ref = numberToRef(DBLQH, instanceNo,
                                    takeOverPtr.p->toCopyNode);
   CopyFragReq * const copyFragReq = (CopyFragReq *)&signal->theData[0];
   copyFragReq->userPtr = takeOverPtr.i;
@@ -9475,7 +9085,9 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   FragmentstorePtr fragPtr;
   getFragstore(tabPtr.p, takeOverPtr.p->toCurrentFragid, fragPtr);
   Uint32 instanceKey = dihGetInstanceKey(fragPtr);
-  BlockReference lqhRef = numberToRef(DBLQH, instanceKey,
+  Uint32 instanceNo = getInstanceNo(takeOverPtr.p->toStartingNode,
+                                    instanceKey);
+  BlockReference lqhRef = numberToRef(DBLQH, instanceNo,
                                       takeOverPtr.p->toStartingNode);
   CopyActiveReq * const req = (CopyActiveReq *)&signal->theData[0];
   req->userPtr = takeOverPtr.i;
@@ -9579,6 +9191,7 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
       jam();
       g_eventLogger->debug("QUEUED_SL_UPDATE_FRAG_STATE, inst: %u",
                            takeOverPtr.i);
+      DEB_COPY_ACTIVE(("QUEUED_SL_UPDATE_FRAG_STATE, inst: %u", takeOverPtr.i));
       takeOverPtr.p->toSlaveStatus =
         TakeOverRecord::TO_QUEUED_SL_UPDATE_FRAG_STATE;
       c_queued_for_commit_takeover_list.addLast(takeOverPtr);
@@ -9591,6 +9204,10 @@ void Dbdih::execCOPY_ACTIVECONF(Signal* signal)
                          takeOverPtr.p->toCurrentTabref,
                          takeOverPtr.p->toCurrentFragid,
                          takeOverPtr.p->toSlaveStatus);
+    DEB_COPY_ACTIVE(("COPY_ACTIVECONF: takeOverPtr.i: %u, tab(%u,%u)",
+                     takeOverPtr.i,
+                     takeOverPtr.p->toCurrentTabref,
+                     takeOverPtr.p->toCurrentFragid));
     sendUpdateFragStateReq(signal,
                            takeOverPtr.p->startGci,
                            UpdateFragStateReq::START_LOGGING,
@@ -9898,7 +9515,7 @@ void Dbdih::openingGcpLab(Signal* signal, FileRecordPtr filePtr)
   filePtr.p->reqStatus = FileRecord::READING_GCP;
 }//Dbdih::openingGcpLab()
 
-void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr) 
+void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr, Uint32 bytes_read)
 {
   /* ----------------------------------------------------------------------- */
   /*     WE HAVE NOW SUCCESSFULLY MANAGED TO READ IN THE GLOBAL CHECKPOINT   */
@@ -9911,18 +9528,29 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr)
   /*     WE ALSO COPY TO OUR OWN NODE. TO ENABLE US TO DO THIS PROPERLY WE   */
   /*     START BY CLOSING THIS FILE.                                         */
   /* ----------------------------------------------------------------------- */
+  // Assume all file is read in once.
+  Uint32 cdata_size_in_words = bytes_read / 4;
+  ndbrequire(cdata_size_in_words > Sysfile::MAGIC_SIZE_v2);
   if (std::memcmp(&cdata[0],
                   Sysfile::MAGIC_v2,
                   Sysfile::MAGIC_SIZE_v2) == 0)
   {
     jam();
-    unpack_sysfile_format_v2(true);
+    int ret = SYSFILE->unpack_sysfile_format_v2(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
   }
   else
   {
     jam();
-    unpack_sysfile_format_v1(true);
+    ndbrequire(Sysfile::SYSFILE_SIZE32_v1 <= cdata_size_in_words);
+    int ret = SYSFILE->unpack_sysfile_format_v1(cdata, &cdata_size_in_words);
+    jamLine((Uint16)ret);
+    ndbrequire(ret == 0);
   }
+  m_max_node_id = SYSFILE->getMaxNodeId();
+  jam();
+  jamLine(Uint16(m_max_node_id));
   /**
    * Initialise all nodes beyond m_max_node_id to not defined nodes.
    * Should not be necessary, but a protection.
@@ -9944,7 +9572,8 @@ void Dbdih::readingGcpLab(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::closingGcpLab(Signal* signal, FileRecordPtr filePtr) 
 {
-  if (Sysfile::getInitialStartOngoing(SYSFILE->systemRestartBits) == false){
+  if (!SYSFILE->getInitialStartOngoing())
+  {
     jam();
     selectMasterCandidateAndSend(signal); 
     return;
@@ -10019,12 +9648,12 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
   NdbNodeBitmask no_nodegroup_mask;
   for (nodePtr.i = 1; nodePtr.i <= m_max_node_id; nodePtr.i++) {
     jam();
-    if (Sysfile::getNodeStatus(nodePtr.i, SYSFILE->nodeStatus) == Sysfile::NS_NotDefined)
+    if (SYSFILE->getNodeStatus(nodePtr.i) == Sysfile::NS_NotDefined)
     {
       jam();
       continue;
     }
-    const Uint32 ng = Sysfile::getNodeGroup(nodePtr.i, SYSFILE->nodeGroups);
+    const Uint32 ng = SYSFILE->getNodeGroup(nodePtr.i);
     if(ng != NO_NODE_GROUP_ID)
     {
       jam();
@@ -10259,6 +9888,22 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   lsptr[0].p = allFailed.rep.data;
   lsptr[0].sz = allFailed.getPackedLengthInWords();
 
+  /*-------------------------------------------------------------------------*/
+  // The first step is to convert from a bit mask to an array of failed nodes.
+  /*-------------------------------------------------------------------------*/
+  Uint32 index = 0;
+  for (i = 1; i <= m_max_node_id; i++)
+  {
+    if (allFailed.get(i))
+    {
+      jamLine(i);
+      failedNodes[index] = i;
+      index++;
+    }//if
+  }//for
+  ndbrequire(noOfFailedNodes == index);
+  ndbrequire(noOfFailedNodes - 1 < MAX_NDB_NODES);
+
   sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB, lsptr, 1);
 
@@ -10289,6 +9934,32 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   sendSignal(DBSPJ_REF, GSN_NODE_FAILREP, signal,
              NodeFailRep::SignalLength, JBB, lsptr, 1);
 
+  if ((globalData.ndbMtQueryThreads +
+       globalData.ndbMtRecoverThreads) > 0)
+  {
+    sendSignal(DBQLQH_REF, GSN_NODE_FAILREP, signal,
+               NodeFailRep::SignalLength, JBB, lsptr, 1);
+  }
+  else
+  {
+    /* No query threads, report complete already here */
+    for (i = 0; i < noOfFailedNodes; i++)
+    {
+      jam();
+      NodeRecordPtr TNodePtr;
+      TNodePtr.i = failedNodes[i];
+      ptrCheckGuard(TNodePtr, MAX_NDB_NODES, nodeRecord);
+      /* ----------------------------------------------------------------- */
+      // Report the event that DBQLQH completed node failure handling.
+      /* ----------------------------------------------------------------- */
+      signal->theData[0] = NDB_LE_NodeFailCompleted;
+      signal->theData[1] = DBQLQH;
+      signal->theData[2] = TNodePtr.i;
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+    }
+  }
+
+
   if (ERROR_INSERTED(7179) || ERROR_INSERTED(7217))
   {
     CLEAR_ERROR_INSERT_VALUE;
@@ -10301,22 +9972,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   }
 
   c_increase_lcp_speed_after_nf = true;
-
-  /*-------------------------------------------------------------------------*/
-  // The first step is to convert from a bit mask to an array of failed nodes.
-  /*-------------------------------------------------------------------------*/
-  Uint32 index = 0;
-  for (i = 1; i <= m_max_node_id; i++)
-  {
-    if (allFailed.get(i))
-    {
-      jamLine(i);
-      failedNodes[index] = i;
-      index++;
-    }//if
-  }//for
-  ndbrequire(noOfFailedNodes == index);
-  ndbrequire(noOfFailedNodes - 1 < MAX_NDB_NODES);
 
   /*-------------------------------------------------------------------------*/
   // The second step is to update the node status of the failed nodes, remove
@@ -10674,6 +10329,17 @@ void Dbdih::failedNodeSynchHandling(Signal* signal,
   failedNodePtr.p->dbtcFailCompleted = ZFALSE;
   failedNodePtr.p->dbdihFailCompleted = ZFALSE;
   failedNodePtr.p->dblqhFailCompleted = ZFALSE;
+  if ((globalData.ndbMtQueryThreads +
+       globalData.ndbMtRecoverThreads) > 0)
+  {
+    jam();
+    failedNodePtr.p->dbqlqhFailCompleted = ZFALSE;
+  }
+  else
+  {
+    jam();
+    failedNodePtr.p->dbqlqhFailCompleted = ZTRUE;
+  }
   
   failedNodePtr.p->m_NF_COMPLETE_REP.clearWaitingFor();
 
@@ -11880,7 +11546,10 @@ void Dbdih::removeNodeFromTables(Signal* signal,
     }//if
 
     ptrAss(tabPtr, tabRecord);
-    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE) {
+    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE ||
+        (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+         tabPtr.p->connectrec == RNIL)) // Create work done
+    {
       jam();
       removeNodeFromTable(signal, nodeId, tabPtr);
       return;
@@ -12090,7 +11759,7 @@ Dbdih::removeNodeFromTablesComplete(Signal* signal, Uint32 nodeId)
   /**
    * Check if we "accidently" completed a LCP
    */
-  checkLcpCompletedLab(signal);
+  checkLcpCompletedLab(signal, __LINE__);
   
   /**
    * Check if we (DIH) are finished with node fail handling
@@ -12349,7 +12018,7 @@ err7230:
      */
     //Uint32 lcpId = SYSFILE->latestLCP_ID;
     SYSFILE->latestLCP_ID--;
-    Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+    SYSFILE->clearLCPOngoing();
     c_lcpState.m_participatingDIH.clear();
     c_lcpState.m_participatingLQH.clear();
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
@@ -12902,11 +12571,23 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
 
     failedNodePtr.p->dbdihFailCompleted = ZTRUE;
     break;
+  case DBQLQH:
+    jam();
+    ndbrequire(failedNodePtr.p->dbqlqhFailCompleted == ZFALSE);
+    /* --------------------------------------------------------------------- */
+    // Report the event that DBQLQH completed node failure handling.
+    /* --------------------------------------------------------------------- */
+    signal->theData[0] = NDB_LE_NodeFailCompleted;
+    signal->theData[1] = DBQLQH;
+    signal->theData[2] = failedNodePtr.i;
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3, JBB);
+    failedNodePtr.p->dbqlqhFailCompleted = ZTRUE;
+    break;
   case DBLQH:
     jam();
     ndbrequire(failedNodePtr.p->dblqhFailCompleted == ZFALSE);
     /* --------------------------------------------------------------------- */
-    // Report the event that DBDIH completed node failure handling.
+    // Report the event that DBLQH completed node failure handling.
     /* --------------------------------------------------------------------- */
     signal->theData[0] = NDB_LE_NodeFailCompleted;
     signal->theData[1] = DBLQH;
@@ -12968,6 +12649,10 @@ void Dbdih::execNF_COMPLETEREP(Signal* signal)
     return;
   }//if
   if (failedNodePtr.p->dblqhFailCompleted == ZFALSE) {
+    jam();
+    return;
+  }//if
+  if (failedNodePtr.p->dbqlqhFailCompleted == ZFALSE) {
     jam();
     return;
   }//if
@@ -13101,10 +12786,8 @@ Dbdih::getFragmentsPerNode()
   {
     return c_fragments_per_node_;
   }
-
+  ndbrequire(m_use_classic_fragmentation);
   c_fragments_per_node_ = getLqhWorkers();
-  if (c_fragments_per_node_ == 0)
-    c_fragments_per_node_ = 1; // ndbd
 
   NodeRecordPtr nodePtr;
   nodePtr.i = cfirstAliveNode;
@@ -13112,17 +12795,15 @@ Dbdih::getFragmentsPerNode()
   {
     jam();
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    Uint32 workers = getNodeInfo(nodePtr.i).m_lqh_workers;
-    if (workers == 0) // ndbd
-      workers = 1;
-
+    Uint32 workers;
+    workers = getNodeInfo(nodePtr.i).m_lqh_workers;
     c_fragments_per_node_ = MIN(workers, c_fragments_per_node_);
     nodePtr.i = nodePtr.p->nextNode;
   } while (nodePtr.i != RNIL);
 
   if (c_fragments_per_node_ == 0)
   {
-    ndbassert(false);
+    jam();
     c_fragments_per_node_ = 1;
   }
 #ifdef VM_TRACE
@@ -13143,6 +12824,149 @@ Dbdih::init_next_replica_node(
       (*next_replica_node)[i][j] = (j % noOfReplicas);
     }
   }
+}
+
+void
+Dbdih::find_min_used_log_part()
+{
+  NodeGroupRecordPtr NGPtr;
+  for (Uint32 NGPtrI = 0; NGPtrI < MAX_NDB_NODE_GROUPS; NGPtrI++)
+  {
+    jam();
+    NGPtr.i = NGPtrI;
+    ptrAss(NGPtr, nodeGroupRecord);
+    if (NGPtr.p->nodegroupIndex == RNIL)
+      continue;
+    Uint32 min_used_log_part = 0;
+    Uint32 min_value = NGPtr.p->m_used_log_parts[0];
+    for (Uint32 i = 1; i < MAX_INSTANCE_KEYS; i++)
+    {
+      if (NGPtr.p->m_used_log_parts[i] < min_value)
+      {
+        jam();
+        jamLine(Uint16(i));
+        min_used_log_part = i;
+        min_value = NGPtr.p->m_used_log_parts[i];
+      }
+    }
+    NGPtr.p->m_new_next_log_part = min_used_log_part;
+  }
+}
+
+bool
+Dbdih::select_ng(Uint32 fragNo,
+                 Uint32 default_node_group,
+                 NodeGroupRecordPtr & NGPtr,
+                 Uint32 & err)
+{
+  NGPtr.i = tmp_node_group_id[fragNo];
+  ndbrequire(default_node_group < MAX_NDB_NODE_GROUPS);
+  if (NGPtr.i == NDB_UNDEF_NODEGROUP)
+  {
+    jam();
+    NGPtr.i = c_node_groups[default_node_group];
+  }
+  if (NGPtr.i >= MAX_NDB_NODE_GROUPS)
+  {
+    jam();
+    err = CreateFragmentationRef::InvalidNodeGroup;
+    return false;
+  }
+  ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
+  if (NGPtr.p->nodegroupIndex == RNIL)
+  {
+    jam();
+    err = CreateFragmentationRef::InvalidNodeGroup;
+    return false;
+  }
+  return true;
+}
+
+void Dbdih::inc_ng(Uint32 fragNo,
+                   Uint32 noOfFragments,
+                   Uint32 partitionCount,
+                   Uint32 & default_node_group,
+                   Uint32 numNodeGroups)
+{
+  /**
+   * Next node group for next fragment
+   */
+  if (noOfFragments == partitionCount ||
+      ((fragNo + 1) % partitionCount == 0))
+  {
+    /**
+     * Change to new node group for
+     * 1) Normal tables
+     * 2) Tables not stored on all LDMs
+     * 3) Fully replicated when at last LDM
+     *
+     * Thus always except for fully replicated using all LDMs and
+     * not yet used all LDMs.
+     */
+    jam();
+    inc_node_or_group(default_node_group, numNodeGroups);
+  }
+}
+
+void
+Dbdih::add_nodes_to_fragment(Uint16 *fragments,
+                             Uint32 & node_index,
+                             Uint32 & count,
+                             NodeGroupRecordPtr NGPtr,
+                             Uint32 noOfReplicas)
+{
+  ndbrequire(node_index < noOfReplicas);
+  for (Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
+  {
+    jam();
+    const Uint16 nodeId = NGPtr.p->nodesInGroup[node_index];
+    fragments[count++]= nodeId;
+    inc_node_or_group(node_index, NGPtr.p->nodeCount);
+    ndbrequire(node_index < noOfReplicas);
+  }
+  inc_node_or_group(node_index, NGPtr.p->nodeCount);
+  ndbrequire(node_index < noOfReplicas);
+}
+
+bool
+Dbdih::find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part)
+{
+  bool can_use_new_fragmentation = true;
+  Uint32 log_part = 0;
+  NodeRecordPtr nodePtr;
+  NodeGroupRecordPtr NGPtr;
+  for (Uint32 fragNo = 0; fragNo < primTabPtrP->totalfragments; fragNo++)
+  {
+    FragmentstorePtr fragPtr;
+    getFragstore(primTabPtrP, fragNo, fragPtr);
+    if (fragNo != 0)
+    {
+      Uint32 expected_log_part = log_part;
+      nodePtr.i = fragPtr.p->activeNodes[0];
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+      NGPtr.i = nodePtr.p->nodeGroup;
+      ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
+      if (NGPtr.p->nodegroupIndex == 0)
+      {
+        jam();
+        expected_log_part++;
+        expected_log_part %= MAX_INSTANCE_KEYS;
+      }
+      if (log_part != expected_log_part)
+      {
+        jam();
+        can_use_new_fragmentation = false;
+      }
+    }
+    log_part = fragPtr.p->m_log_part_id;
+  }
+  if (can_use_new_fragmentation &&
+      !m_use_classic_fragmentation)
+  {
+    jam();
+    next_log_part = log_part;
+  }
+  return can_use_new_fragmentation;
 }
 
 /**
@@ -13244,7 +13068,7 @@ Dbdih::init_next_replica_node(
  *       a nodegroup.  NDB_UNDEF_NODEGROUP is used to mark that no specific
  *       nodegroup is wanted for fragment.
  *
- * == Adjust fragmentation by adding fragments (requestInfo RI_ADD_PARTITION) ==
+ * = Adjust fragmentation by adding fragments (requestInfo RI_ADD_PARTITION) =
  *
  *   primaryTableId - Id of table fragmentation to adjust, must not be RNIL.
  *
@@ -13261,7 +13085,7 @@ Dbdih::init_next_replica_node(
  *
  * == Get fragmentation (requestInfo RI_GET_FRAGMENTATION) ==
  *
- *   primaryTableId - Id of table whic fragmentation to return, must not be RNIL.
+ * primaryTableId - Id of table whic fragmentation to return, must not be RNIL.
  *
  * No other parameters are used from signal (except for the common parameters).
  *
@@ -13304,7 +13128,151 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
     Uint32 count = 2;
     Uint16 noOfReplicas = cnoReplicas;
     Uint16 *fragments = (Uint16*)(signal->theData+25);
-    if (primaryTableId == RNIL) {
+    if (primaryTableId == RNIL &&
+        !m_use_classic_fragmentation &&
+        ((DictTabInfo::FragmentType)fragType ==
+            DictTabInfo::UserDefined ||
+         (DictTabInfo::FragmentType)fragType ==
+            DictTabInfo::HashMapPartition))
+    {
+      jam();
+      switch ((DictTabInfo::FragmentType)fragType){
+      case DictTabInfo::UserDefined:
+      {
+        jam();
+        use_specific_fragment_count = true;
+        if (noOfFragments == 0)
+        {
+          jam();
+          err = CreateFragmentationRef::InvalidFragmentationType;
+        }
+        break;
+      }
+      case DictTabInfo::HashMapPartition:
+      {
+        jam();
+        ndbrequire(map_ptr_i != RNIL);
+        Ptr<Hash2FragmentMap> ptr;
+        g_hash_map.getPtr(ptr, map_ptr_i);
+        if (noOfFragments == 0 ||
+            partitionCount != ptr.p->m_fragments ||
+            noOfFragments % partitionCount != 0)
+        {
+          jam();
+          err = CreateFragmentationRef::InvalidFragmentationType;
+          break;
+        }
+        set_default_node_groups(signal, noOfFragments);
+        switch (partitionBalance)
+        {
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
+          case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
+          {
+            use_specific_fragment_count = false;
+            break;
+          }
+          case NDB_PARTITION_BALANCE_SPECIFIC:
+          {
+            use_specific_fragment_count = true;
+            break;
+          }
+          default:
+          {
+            ndbabort();
+          }
+        }
+        break;
+      }
+      default:
+      {
+        ndbabort();
+      }
+      }
+      /**
+       * We changed the default fragmentation to use a log part id that
+       * is between 0 and 1023. This log part id is an instanceKey that is
+       * mapped to an LDM instance dependent on the number of LDM instances
+       * in the node. Thus one can have different number of LDM instances
+       * when restarting a node and this is ok. The instanceKey is mapped
+       * to a log part similarly, but since log parts need to stable to
+       * find the REDO log entries for a fragment, we can only change the
+       * number of REDO log parts in a node using an initial node restart.
+       *
+       * In addition we try to spread the fragments on as many LDM instances
+       * as possible. This means that all fragments are spread out over
+       * different instance keys as much as possible. Thus if we create a
+       * table with 8 fragments we can spread those fragments over 8 different
+       * LDM instances. However if only 2 LDM instances exists there will be
+       * 4 fragments per LDM instance and if 16 LDM instances exists only
+       * half of them will be handling fragments for this table.
+       *
+       * To spread tables onto all existing LDM instances we don't start
+       * with instance key 0, rather we start with the instance key least
+       * used so far. However after this instance key we will simply use
+       * instanceKey++ to find the instance key of the next fragment.
+       */
+
+      memcpy(&tmp_node_group_id[0], &signal->theData[25], 2 * noOfFragments);
+      Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS]
+                                 [NDBMT_MAX_WORKER_INSTANCES] =
+        &tmp_next_replica_node;
+      init_next_replica_node(&tmp_next_replica_node, noOfReplicas);
+
+      Uint32 default_node_group = 0;
+      if (use_specific_fragment_count)
+      {
+        jam();
+        default_node_group = c_nextNodeGroup;
+      }
+      if ((DictTabInfo::FragmentType)fragType ==
+             DictTabInfo::HashMapPartition &&
+           partitionBalance != NDB_PARTITION_BALANCE_FOR_RP_BY_LDM)
+      {
+        jam();
+        next_replica_node = &c_next_replica_node;
+      }
+      /* Start with the currently least used log part */
+      find_min_used_log_part();
+      for(Uint32 fragNo = 0; fragNo < noOfFragments; fragNo++)
+      {
+        jam();
+        if (!select_ng(fragNo, default_node_group, NGPtr, err))
+        {
+          jam();
+          break;
+        }
+        fragments[count++] = NGPtr.p->m_new_next_log_part;
+        NGPtr.p->m_new_next_log_part++;
+        NGPtr.p->m_new_next_log_part %= MAX_INSTANCE_KEYS;
+
+        /**
+         * Select primary replica node as next index in array
+         * We spread primary replicas independent of log part and thus
+         * always use log part 0 here.
+         */
+        Uint32 node_index = (*next_replica_node)[NGPtr.i][0];
+        add_nodes_to_fragment(fragments,
+                              node_index,
+                              count,
+                              NGPtr,
+                              noOfReplicas);
+        (*next_replica_node)[NGPtr.i][0] = node_index;
+        inc_ng(fragNo,
+               noOfFragments,
+               partitionCount,
+               default_node_group,
+               cnoOfNodeGroups);
+      }
+      if (err)
+        break;
+    }
+    else if (primaryTableId == RNIL)
+    {
       jam();
       switch ((DictTabInfo::FragmentType)fragType){
         /*
@@ -13398,7 +13366,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         and there is an array of node groups sent along as well.
       */
       memcpy(&tmp_node_group_id[0], &signal->theData[25], 2 * noOfFragments);
-      Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES] =
+      Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS]
+                                 [NDBMT_MAX_WORKER_INSTANCES] =
         &tmp_next_replica_node;
       init_next_replica_node(&tmp_next_replica_node, noOfReplicas);
 
@@ -13562,24 +13531,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       for(Uint32 fragNo = 0; fragNo < noOfFragments; fragNo++)
       {
         jam();
-        NGPtr.i = tmp_node_group_id[fragNo];
-        ndbrequire(default_node_group < MAX_NDB_NODE_GROUPS);
-        if (NGPtr.i == NDB_UNDEF_NODEGROUP)
+        if (!select_ng(fragNo, default_node_group, NGPtr, err))
         {
           jam();
-	  NGPtr.i = c_node_groups[default_node_group];
-        }
-        if (NGPtr.i >= MAX_NDB_NODE_GROUPS)
-        {
-          jam();
-          err = CreateFragmentationRef::InvalidNodeGroup;
-          break;
-        }
-        ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
-        if (NGPtr.p->nodegroupIndex == RNIL)
-        {
-          jam();
-          err = CreateFragmentationRef::InvalidNodeGroup;
           break;
         }
         Uint32 logPart;
@@ -13618,38 +13572,17 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
 
         /* Select primary replica node as next index in double array */
         Uint32 node_index = (*next_replica_node)[NGPtr.i][logPart];
-        ndbrequire(node_index < noOfReplicas);
-
-        for(Uint32 replicaNo = 0; replicaNo < noOfReplicas; replicaNo++)
-        {
-          jam();
-          const Uint16 nodeId = NGPtr.p->nodesInGroup[node_index];
-          fragments[count++]= nodeId;
-          inc_node_or_group(node_index, NGPtr.p->nodeCount);
-          ndbrequire(node_index < noOfReplicas);
-        }
-        inc_node_or_group(node_index, NGPtr.p->nodeCount);
-        ndbrequire(node_index < noOfReplicas);
+        add_nodes_to_fragment(fragments,
+                              node_index,
+                              count,
+                              NGPtr,
+                              noOfReplicas);
         (*next_replica_node)[NGPtr.i][logPart] = node_index;
-
-        /**
-         * Next node group for next fragment
-         */
-        if (noOfFragments == partitionCount ||
-            ((fragNo + 1) % partitionCount == 0))
-        {
-          /**
-           * Change to new node group for
-           * 1) Normal tables
-           * 2) Tables not stored on all LDMs
-           * 3) Fully replicated when at last LDM
-           *
-           * Thus always except for fully replicated using all LDMs and
-           * not yet used all LDMs.
-           */
-          jam();
-          inc_node_or_group(default_node_group, cnoOfNodeGroups);
-        }
+        inc_ng(fragNo,
+               noOfFragments,
+               partitionCount,
+               default_node_group,
+               cnoOfNodeGroups);
       }
       if (err)
       {
@@ -13662,21 +13595,26 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         ndbrequire(default_node_group < MAX_NDB_NODE_GROUPS);
         c_nextNodeGroup = default_node_group;
       }
-    } else {
-      if (primaryTableId >= ctabFileSize) {
+    }
+    else
+    {
+      if (primaryTableId >= ctabFileSize)
+      {
         jam();
         err = CreateFragmentationRef::InvalidPrimaryTable;
         break;
       }
       primTabPtr.i = primaryTableId;
       ptrAss(primTabPtr, tabRecord);
-      if (primTabPtr.p->tabStatus != TabRecord::TS_ACTIVE) {
+      if (primTabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
+      {
         jam();
         err = CreateFragmentationRef::InvalidPrimaryTable;
         break;
       }
       // Keep track of no of (primary) fragments per node
-      Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS][NDBMT_MAX_WORKER_INSTANCES] =
+      Uint16 (*next_replica_node)[MAX_NDB_NODE_GROUPS]
+                                 [NDBMT_MAX_WORKER_INSTANCES] =
         &tmp_next_replica_node;
 
       memcpy(tmp_next_replica_node,
@@ -13685,13 +13623,13 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       memset(tmp_next_replica_node_set, 0, sizeof(tmp_next_replica_node_set));
       memset(tmp_fragments_per_node, 0, sizeof(tmp_fragments_per_node));
       memset(tmp_fragments_per_ldm, 0, sizeof(tmp_fragments_per_ldm));
-      for (Uint32 fragNo = 0; fragNo < primTabPtr.p->totalfragments; fragNo++) {
+      for (Uint32 fragNo = 0; fragNo < primTabPtr.p->totalfragments; fragNo++)
+      {
         jam();
         FragmentstorePtr fragPtr;
         ReplicaRecordPtr replicaPtr;
         getFragstore(primTabPtr.p, fragNo, fragPtr);
         Uint32 log_part_id = fragPtr.p->m_log_part_id;
-        ndbrequire(log_part_id < NDBMT_MAX_WORKER_INSTANCES);
 	fragments[count++] = log_part_id;
         fragments[count++] = fragPtr.p->preferredPrimary;
 
@@ -13714,7 +13652,8 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         }
         for (replicaPtr.i = fragPtr.p->storedReplicas;
              replicaPtr.i != RNIL;
-             replicaPtr.i = replicaPtr.p->nextPool) {
+             replicaPtr.i = replicaPtr.p->nextPool)
+        {
           jam();
           c_replicaRecordPool.getPtr(replicaPtr);
           tmp_fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
@@ -13726,12 +13665,14 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         }
         for (replicaPtr.i = fragPtr.p->oldStoredReplicas;
              replicaPtr.i != RNIL;
-             replicaPtr.i = replicaPtr.p->nextPool) {
+             replicaPtr.i = replicaPtr.p->nextPool)
+        {
           jam();
           c_replicaRecordPool.getPtr(replicaPtr);
           tmp_fragments_per_ldm[replicaPtr.p->procNode][log_part_id]++;
           tmp_fragments_per_node[replicaPtr.p->procNode]++;
-          if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary) {
+          if (replicaPtr.p->procNode != fragPtr.p->preferredPrimary)
+          {
             jam();
             fragments[count++]= replicaPtr.p->procNode;
             tmp_fragments_per_node[replicaPtr.p->procNode]++;
@@ -13783,8 +13724,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
          * nodes by ensuring that we have knowledge of which LDMs we primarily
          * used in the original table. This is necessary to support ALTER TABLE
          * from PARTITION_BALANCE_FOR_RP_BY_NODE to
-         * PARTITION_BALANCE_FOR_RA_BY_NODE e.g. PARTITION_BALANCE_FOR_RP_BY_NODE
-         * could have used any LDMs. So it is important to ensure that we
+         * PARTITION_BALANCE_FOR_RA_BY_NODE e.g.
+         * PARTITION_BALANCE_FOR_RP_BY_NODE could have used any LDMs.
+         * So it is important to ensure that we
          * spread evenly over all LDMs also after the ALTER TABLE. We do this
          * by always finding the LDM in the node with the minimum number of
          * fragments.
@@ -13846,6 +13788,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
             ndbabort();
           }
         }
+        find_min_used_log_part();
         Uint32 node = 0;
         NGPtr.i = RNIL;
         for (Uint32 i = primTabPtr.p->totalfragments; i<noOfFragments; i++)
@@ -13855,39 +13798,53 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           {
             node = find_min_index(tmp_fragments_per_node,
                                   m_max_node_id + 1,
-                                  1, 1);
+                                  1,
+                                  1);
             NGPtr.i = getNodeGroup(node);
           }
           ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
           Uint32 logPart;
-          if (use_old_variant)
+          Uint32 logPartIndex;
+          if (!m_use_classic_fragmentation)
           {
             jam();
-            logPart = (NGPtr.p->m_next_log_part++) % globalData.ndbLogParts;
+            logPart = NGPtr.p->m_new_next_log_part;
+            NGPtr.p->m_new_next_log_part++;
+            NGPtr.p->m_new_next_log_part %= MAX_INSTANCE_KEYS;
+            logPartIndex = 0;
           }
           else
           {
-            jam();
-            if (firstNG == NGPtr.i)
+            if (use_old_variant)
             {
               jam();
-              next_log_part++;
+              logPart = (NGPtr.p->m_next_log_part++) % globalData.ndbLogParts;
             }
-            logPart = next_log_part % globalData.ndbLogParts;
+            else
+            {
+              jam();
+              if (firstNG == NGPtr.i)
+              {
+                jam();
+                next_log_part++;
+              }
+              logPart = next_log_part % globalData.ndbLogParts;
+            }
+            ndbrequire(node != 0);
+            logPart = find_min_index(&tmp_fragments_per_ldm[node][0],
+                                     globalData.ndbLogParts,
+                                     logPart,
+                                     0);
+            logPartIndex = logPart;
           }
-          ndbrequire(node != 0);
-          logPart = find_min_index(&tmp_fragments_per_ldm[node][0],
-                                   globalData.ndbLogParts,
-                                   logPart, 0);
-          ndbrequire(logPart < NDBMT_MAX_WORKER_INSTANCES);
 
           /* Select primary replica node */
           Uint32 primary_node;
-          if (tmp_next_replica_node_set[NGPtr.i][logPart] ||
+          if (tmp_next_replica_node_set[NGPtr.i][logPartIndex] ||
               partitionBalance == NDB_PARTITION_BALANCE_FOR_RP_BY_LDM)
           {
             jam();
-            Uint32 node_index = (*next_replica_node)[NGPtr.i][logPart];
+            Uint32 node_index = (*next_replica_node)[NGPtr.i][logPartIndex];
             primary_node = NGPtr.p->nodesInGroup[node_index];
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
             ndbrequire(node_index < noOfReplicas);
@@ -13896,7 +13853,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           else
           {
             jam();
-            Uint32 node_index = c_next_replica_node[NGPtr.i][logPart];
+            Uint32 node_index = c_next_replica_node[NGPtr.i][logPartIndex];
             primary_node = NGPtr.p->nodesInGroup[node_index];
             inc_node_or_group(node_index, NGPtr.p->nodeCount);
             c_next_replica_node[NGPtr.i][logPart] = node_index;
@@ -13904,7 +13861,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           ndbrequire(primary_node < MAX_NDB_NODES);
           fragments[count++] = logPart;
           fragments[count++] = primary_node;
-          tmp_fragments_per_ldm[primary_node][logPart]++;
+          tmp_fragments_per_ldm[primary_node][logPartIndex]++;
           /* Ensure that we don't report this as min immediately again */
           tmp_fragments_per_node[primary_node]++;
           for (Uint32 r = 0; r < noOfReplicas; r++)
@@ -13916,20 +13873,20 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
               Uint32 replicaNode = NGPtr.p->nodesInGroup[r];
               fragments[count++] = replicaNode;
               tmp_fragments_per_node[replicaNode]++;
-              tmp_fragments_per_ldm[replicaNode][logPart]++;
+              tmp_fragments_per_ldm[replicaNode][logPartIndex]++;
             }
           }
         }
       }
     }
-    if(count != (2U + (1 + noOfReplicas) * noOfFragments)){
+    if(count != (2U + (1 + noOfReplicas) * noOfFragments))
+    {
         char buf[255];
         BaseString::snprintf(buf, sizeof(buf),
                            "Illegal configuration change: NoOfReplicas."
                            " Can't be applied online ");
         progError(__LINE__, NDBD_EXIT_INVALID_CONFIG, buf);
     }
-    
     CreateFragmentationConf * const conf = 
       (CreateFragmentationConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
@@ -13943,7 +13900,10 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
     if (flags == CreateFragmentationReq::RI_ADD_FRAGMENTS ||
         flags == CreateFragmentationReq::RI_CREATE_FRAGMENTATION)
     {
-      if (!verify_fragmentation(fragments, partitionCount, partitionBalance, getFragmentsPerNode()))
+      if (!verify_fragmentation(fragments,
+                                partitionCount,
+                                partitionBalance,
+                                getFragmentsPerNode()))
       {
         err = CreateFragmentationRef::InvalidFragmentationType;
         break;
@@ -14004,7 +13964,8 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
    * 1) No node have two copy fragments for same partition.
    * 2) The partition id that a fragment belongs to is calculated as module
    *    partition count.
-   * 3) The main copy fragment of a partition have the same id as the partition.
+   * 3) The main copy fragment of a partition have the same id as the
+   *    partition.
    * 4) Fragments with consequtive id belonging to partition 0 upto partition
    *    count - 1, are in this function called a partition set and should have
    *    its replicas in one nodegroup.
@@ -14039,7 +14000,8 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
     jam();
     Uint32 const partition_id = fragment_id % partition_count;
     Uint32 const partition_set = fragment_id / partition_count;
-    Uint32 const log_part_id = fragments[2 + fragment_id * (1 + replica_count)];
+    Uint32 const log_part_id =
+      fragments[2 + fragment_id * (1 + replica_count)];
     Uint32 const ldm = (log_part_id % ldm_count);
     for(Uint32 replica_id = 0; replica_id < replica_count; replica_id++)
     {
@@ -14408,18 +14370,20 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   }
 
   Uint32 index = 2;
-  for (Uint32 fragId = 0; fragId < noFragments; fragId++) {
+  for (Uint32 fragId = 0; fragId < noFragments; fragId++)
+  {
     jam();
     FragmentstorePtr fragPtr;
+    NodeGroupRecordPtr NGPtr;
     Uint32 activeIndex = 0;
     getFragstore(tabPtr.p, fragId, fragPtr);
     fragPtr.p->m_log_part_id = fragments[index++];
+    fragPtr.p->m_inc_used_log_parts = true;
     fragPtr.p->preferredPrimary = fragments[index];
+    getNodeGroupPtr(fragPtr.p->preferredPrimary, NGPtr);
+    NGPtr.p->m_used_log_parts[fragPtr.p->m_log_part_id]++;
     fragPtr.p->partition_id = fragId % tabPtr.p->partitionCount;
-
-    ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
-
-    inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
+    inc_ng_refcount(NGPtr.i);
     
     for (Uint32 i = 0; i<noReplicas; i++) {
       const Uint32 nodeId = fragments[index++];
@@ -14543,6 +14507,15 @@ Dbdih::sendAddFragreq(Signal* signal,
     req->logPartId = fragPtr.p->m_log_part_id;
     req->createGci = replicaPtr.p->initialGci;
 
+    if (!fragPtr.p->m_inc_used_log_parts)
+    {
+      jam();
+      NodeGroupRecordPtr NGPtr;
+      fragPtr.p->m_inc_used_log_parts = true;
+      ndbrequire(fragPtr.p->m_log_part_id < MAX_INSTANCE_KEYS);
+      getNodeGroupPtr(getOwnNodeId(), NGPtr);
+      NGPtr.p->m_used_log_parts[fragPtr.p->m_log_part_id]++;
+    }
     if (connectPtr.p->connectState != ConnectRecord::ALTER_TABLE)
     {
       jam();
@@ -14792,9 +14765,40 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
     break;
   case DropTabReq::CreateTabDrop:
     jam();
+    if (tabPtr.p->tabStatus == TabRecord::TS_CREATING)
+    {
+      tabPtr.p->tabStatus = TabRecord::TS_DROPPING;
+    }
     break;
   case DropTabReq::RestartDropTab:
     break;
+  }
+
+  {
+    /**
+     * Update m_used_log_parts to ensure that we get a smooth distribution
+     * of fragments over the instance keys that will hopefully derive a
+     * fairly balanced distribution of fragments over the LDM instances.
+     */
+    FragmentstorePtr fragPtr;
+    for(Uint32 fragNo = 0; fragNo < tabPtr.p->totalfragments; fragNo++)
+    {
+      jam();
+      getFragstoreCanFail(tabPtr.p, fragNo, fragPtr);
+      if (fragPtr.p == nullptr)
+      {
+        jam();
+        break;
+      }
+      if (fragPtr.p->m_inc_used_log_parts)
+      {
+        NodeGroupRecordPtr NGPtr;
+        fragPtr.p->m_inc_used_log_parts = false;
+        ndbrequire(fragPtr.p->m_log_part_id < MAX_INSTANCE_KEYS);
+        getNodeGroupPtr(fragPtr.p->preferredPrimary, NGPtr);
+        NGPtr.p->m_used_log_parts[fragPtr.p->m_log_part_id]--;
+      }
+    }
   }
 
   bool startNext = false;
@@ -14900,7 +14904,7 @@ Dbdih::execDROP_TAB_REQ(Signal* signal)
 	 * Then check if saving of tab info is done for all tables
 	 */
 	LcpStatus a = c_lcpState.lcpStatus;
-	checkLcpCompletedLab(signal);
+	checkLcpCompletedLab(signal, __LINE__);
 
         if(a != c_lcpState.lcpStatus)
         {
@@ -15232,11 +15236,15 @@ Dbdih::add_fragments_to_table(Ptr<TabRecord> tabPtr, const Uint16 buf[])
       goto error;
 
     fragPtr.p->m_log_part_id = buf[2+(1 + replicas)*i];
-    ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
+    fragPtr.p->m_inc_used_log_parts = true;
     fragPtr.p->preferredPrimary = buf[2+(1 + replicas)*i + 1];
     fragPtr.p->partition_id = fragId % tabPtr.p->partitionCount;
-
-    inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
+    {
+      NodeGroupRecordPtr NGPtr;
+      getNodeGroupPtr(fragPtr.p->preferredPrimary, NGPtr);
+      NGPtr.p->m_used_log_parts[fragPtr.p->m_log_part_id]++;
+      inc_ng_refcount(NGPtr.i);
+    }
 
     Uint32 activeIndex = 0;
     for (Uint32 j = 0; j<replicas; j++)
@@ -16078,7 +16086,7 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
    */
   if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
   {
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     tabPtr.i = tabPtr.p->primaryTableId;
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
@@ -16103,10 +16111,15 @@ loop:
      * The requester is interested in getting the next copy fragment.
      * This should only happen for Fully replicated tables atm.
      */
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     fragId = hashValue;
     ndbassert((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) != 0);
-    getFragstore(tabPtr.p, fragId, fragPtr);
+    getFragstoreCanFail(tabPtr.p, fragId, fragPtr);
+    if (unlikely(fragPtr.p == nullptr))
+    {
+      thrjam(jambuf);
+      goto crash_check_exit;
+    }
     conf->fragId = fragPtr.p->nextCopyFragment;
     conf->zero = 0;
     goto check_exit;
@@ -16117,7 +16130,7 @@ loop:
    */
   if (distr_key_indicator)
   {
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     fragId = hashValue;
     /**
      * This check isn't valid for scans, if we ever implement the possibility
@@ -16147,14 +16160,24 @@ loop:
   {
     if ((tabPtr.p->m_flags & TabRecord::TF_FULLY_REPLICATED) == 0)
     {
-      thrjam(jambuf);
-      g_hash_map.getPtr(ptr, map_ptr_i);
+      thrjamDebug(jambuf);
+      g_hash_map.getPtr(ptr, map_ptr_i, false);
+      if (unlikely(ptr.p == nullptr))
+      {
+        thrjam(jambuf);
+        goto crash_check_exit;
+      }
       fragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
 
       if (unlikely(new_map_ptr_i != RNIL))
       {
         thrjam(jambuf);
-        g_hash_map.getPtr(ptr, new_map_ptr_i);
+        g_hash_map.getPtr(ptr, new_map_ptr_i, false);
+        if (unlikely(ptr.p == nullptr))
+        {
+          thrjam(jambuf);
+          goto crash_check_exit;
+        }
         newFragId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
         if (newFragId == fragId)
         {
@@ -16176,7 +16199,12 @@ loop:
        *   We want the first new fragment.
        */
       thrjam(jambuf);
-      g_hash_map.getPtr(ptr, map_ptr_i);
+      g_hash_map.getPtr(ptr, map_ptr_i, false);
+      if (unlikely(ptr.p == nullptr))
+      {
+        thrjam(jambuf);
+        goto crash_check_exit;
+      }
       const Uint32 partId = ptr.p->m_map[hashValue % ptr.p->m_cnt];
       if (anyNode == 2)
       {
@@ -16189,6 +16217,8 @@ loop:
           conf->nodes[0] = 0;
           goto check_exit;
         }
+        if (unlikely(fragPtr.p == nullptr))
+          goto crash_check_exit;
       }
       else fragId = partId;
     }
@@ -16233,8 +16263,13 @@ loop:
     signal->theData[1]= ZLONG_MESSAGE_ERROR;
     return;
   }
-  getFragstore(tabPtr.p, fragId, fragPtr);
-  if (anyNode == 1)
+  getFragstoreCanFail(tabPtr.p, fragId, fragPtr);
+  if (unlikely(fragPtr.p == nullptr))
+  {
+    thrjam(jambuf);
+    goto crash_check_exit;
+  }
+  if (unlikely(anyNode == 1))
   {
     thrjam(jambuf);
 
@@ -16246,11 +16281,18 @@ loop:
      *
      */
     fragId = findLocalFragment(tabPtr.p, fragPtr, jambuf);
+    if (unlikely(fragPtr.p == nullptr))
+      goto crash_check_exit;
   }
-  nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes);
+  nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes, false);
+  if (unlikely(nodeCount == 0) || nodeCount > MAX_REPLICAS)
+  {
+    thrjam(jambuf);
+    goto crash_check_exit;
+  }
   sig2 = (nodeCount - 1) + 
-    (fragPtr.p->distributionKey << 16) + 
-    (dihGetInstanceKey(fragPtr) << 24);
+    (fragPtr.p->distributionKey << 16);
+  conf->instanceKey = dihGetInstanceKey(fragPtr);
   conf->zero = 0;
   conf->reqinfo = sig2;
   conf->fragId = fragId;
@@ -16262,11 +16304,17 @@ loop:
     getFragstore(tabPtr.p, newFragId, fragPtr);
     nodeCount = extractNodeInfo(jambuf,
                                fragPtr.p,
-                               conf->nodes + 2 + MAX_REPLICAS);
+                               conf->nodes + 3 + MAX_REPLICAS,
+                               false);
+    if (unlikely(nodeCount == 0))
+    {
+      thrjam(jambuf);
+      goto crash_check_exit;
+    }
     conf->nodes[MAX_REPLICAS] = newFragId;
     conf->nodes[MAX_REPLICAS + 1] = (nodeCount - 1) +
-      (fragPtr.p->distributionKey << 16) +
-      (dihGetInstanceKey(fragPtr) << 24);
+      (fragPtr.p->distributionKey << 16);
+    conf->nodes[MAX_REPLICAS + 2] = dihGetInstanceKey(fragPtr);
   }
 
 check_exit:
@@ -16274,6 +16322,14 @@ check_exit:
     goto loop;
   if (unlikely(!m_node_view_lock.read_unlock(node_val)))
     goto loop;
+  return;
+
+crash_check_exit:
+  if (unlikely(!tabPtr.p->m_lock.read_unlock(tab_val)))
+    goto loop;
+  if (unlikely(!m_node_view_lock.read_unlock(node_val)))
+    goto loop;
+  ndbabort();
 
 error:
   /**
@@ -16345,7 +16401,12 @@ Dbdih::findFirstNewFragment(const  TabRecord * tabPtrP,
    */
   do
   {
-    getFragstore(tabPtrP, fragId, fragPtr);
+    getFragstoreCanFail(tabPtrP, fragId, fragPtr);
+    if (unlikely(fragPtr.p == nullptr))
+    {
+      thrjam(jambuf);
+      return Uint32(~0);
+    }
     if (fragPtr.p->fragId >= tabPtrP->totalfragments)
     {
       /* Found first new fragment */
@@ -16389,7 +16450,12 @@ Dbdih::findLocalFragment(const  TabRecord * tabPtrP,
       thrjam(jambuf);
       break;
     }
-    getFragstore(tabPtrP, fragId, fragPtr);
+    getFragstoreCanFail(tabPtrP, fragId, fragPtr);
+    if (unlikely(fragPtr.p == nullptr))
+    {
+      thrjam(jambuf);
+      return 0;
+    }
   } while (1);
   /**
    * When no local fragment was found, simply use the last
@@ -16418,23 +16484,37 @@ Dbdih::check_if_local_fragment(EmulatedJamBuffer *jambuf,
 
 Uint32 Dbdih::extractNodeInfo(EmulatedJamBuffer *jambuf,
                               const Fragmentstore * fragPtr,
-                              Uint32 nodes[]) 
+                              Uint32 nodes[],
+                              bool crash_on_error)
 {
   Uint32 nodeCount = 0;
   nodes[0] = nodes[1] = nodes[2] = nodes[3] = 0;
-  for (Uint32 i = 0; i < fragPtr->fragReplicas; i++) {
+  for (Uint32 i = 0; i < fragPtr->fragReplicas; i++)
+  {
     thrjam(jambuf);
     NodeRecordPtr nodePtr;
-    ndbrequire(i < MAX_REPLICAS);
+    if (unlikely(i >= MAX_REPLICAS))
+    {
+      thrjam(jambuf);
+      ndbrequire(!crash_on_error);
+      return 0;
+    }
     nodePtr.i = fragPtr->activeNodes[i];
-    ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    if (nodePtr.p->useInTransactions) {
+    if (unlikely(nodePtr.i >= MAX_NDB_NODES))
+    {
+      thrjam(jambuf);
+      ndbrequire(!crash_on_error);
+      return 0;
+    }
+    ptrAss(nodePtr, nodeRecord);
+    if (nodePtr.p->useInTransactions)
+    {
       thrjam(jambuf);
       nodes[nodeCount] = nodePtr.i;
       nodeCount++;
     }//if
   }//for
-  ndbrequire(nodeCount > 0);
+  ndbrequire(nodeCount > 0 || !crash_on_error);
   return nodeCount;
 }//Dbdih::extractNodeInfo()
 
@@ -16976,7 +17056,7 @@ Dbdih::drop_fragments_from_new_table_view(TabRecordPtr tabPtr,
   D("5: totalfragments = " << org_frags);
 }
 
-void 
+void
 Dbdih::getFragstore(const TabRecord * tab,      //In parameter
                     Uint32 fragNo,              //In parameter
                     FragmentstorePtr & fragptr) //Out parameter
@@ -17016,7 +17096,7 @@ Dbdih::getFragstoreCanFail(const TabRecord * tab,      //In parameter
     }
   }//if
   fragptr.i = RNIL;
-  fragptr.p = NULL;
+  fragptr.p = nullptr;
 }//Dbdih::getFragstoreCanFail()
 
 /**
@@ -17174,7 +17254,7 @@ loop:
   Uint32 blocked = getBlockCommit() == true ? 1 : 0;
   if (blocked == 0)
   {
-    thrjam(jambuf);
+    thrjamDebug(jambuf);
     /*-----------------------------------------------------------------------*/
     // We are not blocked so we can simply reply back to TC immediately. The
     // method was called with EXECUTE_DIRECT so we reply back by setting signal
@@ -17203,14 +17283,13 @@ void Dbdih::execDIH_SCAN_TAB_REQ(Signal* signal)
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtr();
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
 
-  thrjamEntry(jambuf);
+  thrjamEntryDebug(jambuf);
 
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   start_scan_on_table(tabPtr, signal, req->schemaTransId, jambuf);
-  return;
 }//Dbdih::execDIH_SCAN_TAB_REQ()
 
 void
@@ -17848,13 +17927,13 @@ void Dbdih::GCP_SAVEhandling(Signal* signal, Uint32 nodeId)
    * RESTART.
    *------------------------------------------------------------------------*/
   SYSFILE->newestRestorableGCI = m_gcp_save.m_gci;
-  if(Sysfile::getInitialStartOngoing(SYSFILE->systemRestartBits) &&
+  if (SYSFILE->getInitialStartOngoing() &&
      getNodeState().startLevel == NodeState::SL_STARTED){
     jam();
 #if 0
     g_eventLogger->info("Dbdih: Clearing initial start ongoing");
 #endif
-    Sysfile::clearInitialStartOngoing(SYSFILE->systemRestartBits);
+    SYSFILE->clearInitialStartOngoing();
   }
   copyGciLab(signal, CopyGCIReq::GLOBAL_CHECKPOINT);
 
@@ -18470,7 +18549,7 @@ void Dbdih::execCOPY_GCICONF(Signal* signal)
      * after 15 attempts even when proper test conditions are not met.
      */
     if (ERROR_INSERTED(7222) &&
-        ((!Sysfile::getLCPOngoing(SYSFILE->systemRestartBits) &&
+        ((!SYSFILE->getLCPOngoing() &&
         c_newest_restorable_gci >= c_lcpState.lcpStopGcp) ||
         s_7222_count++ >= 15))
     {
@@ -18555,7 +18634,7 @@ Dbdih::check_node_in_restart(Signal *signal,
                              Uint32 nodeId)
 {
   NodeRecordPtr nodePtr;
-  if (m_max_node_id == Uint32(~0))
+  if (m_max_node_id == 0)
   {
     jam();
     sendCHECK_NODE_RESTARTCONF(signal, ref, 1);
@@ -18643,7 +18722,7 @@ void Dbdih::invalidateLcpInfoAfterSr(Signal* signal)
 {
   NodeRecordPtr nodePtr;
   SYSFILE->latestLCP_ID--;
-  Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->clearLCPOngoing();
   for (nodePtr.i = 1; nodePtr.i <= m_max_node_id; nodePtr.i++)
   {
     jam();
@@ -18880,6 +18959,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
       c_lcpState.m_participatingDIH = req->participatingDIH;
       c_lcpState.m_participatingLQH = req->participatingLQH;
       c_lcpState.m_masterLcpDihRef = cmasterdihref;
+      DEB_LCP_COMP(("(1)Set to LCP_STATUS_ACTIVE"));
       c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
       /**
        * We need to update the SYSFILE since it can take some time before we
@@ -19003,6 +19083,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
 
   c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received = false;  
 
+  DEB_LCP_COMP(("Set to LCP_INIT_TABLES"));
   c_lcpState.setLcpStatus(LCP_INIT_TABLES, __LINE__);
   
   ndbrequire(c_lcpState.m_masterLcpDihRef == req->senderRef);
@@ -19215,6 +19296,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
     return;
   }
 
+  DEB_LCP_COMP(("(2)Set to LCP_STATUS_ACTIVE"));
   c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
 
   CRASH_INSERTION2(7023, isMaster());
@@ -21004,6 +21086,7 @@ void Dbdih::checkTcCounterLab(Signal* signal)
     checkLcpStart(signal, __LINE__, 100);
     return;
   }//if 
+  DEB_LCP_COMP(("Set to LCP_TCGET"));
   c_lcpState.setLcpStatus(LCP_TCGET, __LINE__);
   
   c_lcpState.ctcCounter = c_lcpState.ctimer;
@@ -21134,6 +21217,7 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
   c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
 
   CRASH_INSERTION(7014);
+  DEB_LCP_COMP(("Set to LCP_TC_CLOPSIZE"));
   c_lcpState.setLcpStatus(LCP_TC_CLOPSIZE, __LINE__);
   sendLoopMacro(TC_CLOPSIZEREQ, sendTC_CLOPSIZEREQ, RNIL);
 }
@@ -21150,6 +21234,7 @@ void Dbdih::execTC_CLOPSIZECONF(Signal* signal)
   /*       UPDATE THE NEW LATEST LOCAL CHECKPOINT ID.                        */
   /* ----------------------------------------------------------------------- */
   cnoOfActiveTables = 0;
+  DEB_LCP_COMP(("Set to LCP_WAIT_MUTEX"));
   c_lcpState.setLcpStatus(LCP_WAIT_MUTEX, __LINE__);
   ndbrequire(((int)c_lcpState.oldestRestorableGci) > 0);
 
@@ -21218,6 +21303,7 @@ void Dbdih::start_lcp(Signal *signal)
  
   setLcpActiveStatusStart(signal);
 
+  DEB_LCP_COMP(("Set to LCP_CALCULATE_KEEP_GCI"));
   c_lcpState.setLcpStatus(LCP_CALCULATE_KEEP_GCI, __LINE__);
   c_lcpState.keepGci = m_micro_gcp.m_old_gci >> 32;
   c_lcpState.oldestRestorableGci = SYSFILE->oldestRestorableGCI;
@@ -21330,7 +21416,7 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
   /* SET BIT INDICATING THAT LOCAL CHECKPOINT IS ONGOING. THIS IS CLEARED    */
   /* AT THE END OF A LOCAL CHECKPOINT.                                       */
   /* ----------------------------------------------------------------------- */
-  SYSFILE->setLCPOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->setLCPOngoing();
   /* ---------------------------------------------------------------------- */
   /*    CHECK IF ANY NODE MUST BE TAKEN OUT OF SERVICE AND REFILLED WITH    */
   /*    NEW FRESH DATA FROM AN ACTIVE NODE.                                 */
@@ -21343,6 +21429,7 @@ void Dbdih::storeNewLcpIdLab(Signal* signal)
    */
   setNodeRestartInfoBits(signal);
 
+  DEB_LCP_COMP(("Set to LCP_COPY_GCI"));
   c_lcpState.setLcpStatus(LCP_COPY_GCI, __LINE__);
   //#ifdef VM_TRACE
   //  infoEvent("LocalCheckpoint %d started", SYSFILE->latestLCP_ID);
@@ -21560,6 +21647,7 @@ Dbdih::startLcpMutex_unlocked(Signal* signal, Uint32 data, Uint32 retVal){
     mutex.unlock();
   }
   CRASH_INSERTION(7015);
+  DEB_LCP_COMP(("Set to LCP_START_ROUND"));
   c_lcpState.setLcpStatus(LCP_START_LCP_ROUND, __LINE__);
   startLcpRoundLoopLab(signal, 0, 0);
 }
@@ -22273,7 +22361,8 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
 }
 
 bool
-Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
+Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line)
+{
   TabRecordPtr tabPtr;
 
   /**
@@ -22296,6 +22385,7 @@ Dbdih::checkLcpAllTablesDoneInLqh(Uint32 line){
   CRASH_INSERTION2(7026, isMaster());
   CRASH_INSERTION2(7017, !isMaster());
   
+  DEB_LCP_COMP(("Set to LCP_TAB_COMPLETED, line: %u", line));
   c_lcpState.setLcpStatus(LCP_TAB_COMPLETED, line);
 
   if (ERROR_INSERTED(7194))
@@ -22423,9 +22513,27 @@ Dbdih::reportLcpCompletion(const LcpFragRep* lcpReport)
   
   ReplicaRecordPtr replicaPtr;
   findReplica(replicaPtr, fragPtr.p, nodeId);
-  
-  ndbrequire(replicaPtr.p->lcpOngoingFlag == true);
-  if(lcpNo != replicaPtr.p->nextLcp){
+
+  if (unlikely(replicaPtr.p->lcpOngoingFlag == false))
+  {
+    g_eventLogger->info("lcpNo: %u, lcpId: %u, maxGciStarted: %u, "
+                        "maxGciCompleted: %u, tableId: %u, fragId: %u, "
+                        "nodeId: %u, replica->lcpStatus: %u"
+                        "replicaPtr->lcpId: %u, replicaPtr->nextLcp: %u",
+                        lcpNo,
+                        lcpId,
+                        maxGciStarted,
+                        maxGciCompleted,
+                        tableId,
+                        fragId,
+                        nodeId,
+                        replicaPtr.p->lcpStatus[lcpNo],
+                        replicaPtr.p->lcpId[lcpNo],
+                        replicaPtr.p->nextLcp);
+    ndbrequire(replicaPtr.p->lcpOngoingFlag == true);
+  }
+  if(lcpNo != replicaPtr.p->nextLcp)
+  {
     if (handle_invalid_lcp_no(lcpReport, replicaPtr))
     {
       g_eventLogger->error("lcpNo = %d replicaPtr.p->nextLcp = %d",
@@ -22555,11 +22663,12 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
   sendSignal(ref, GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
 }
 
-void Dbdih::checkLcpCompletedLab(Signal* signal) 
+void Dbdih::checkLcpCompletedLab(Signal* signal, Uint32 line) 
 {
   if (c_lcp_id_paused != RNIL)
   {
     jam();
+    DEB_LCP_COMP(("c_lcp_id_paused = %u", c_lcp_id_paused));
     return;
   }
 
@@ -22594,7 +22703,7 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
     /**
      * We're done
      */
-
+    DEB_LCP_COMP(("c_lcpState.setLcpStatus = LCP_TAB_SAVED, line: %u", line));
     c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
     sendLCP_COMPLETE_REP(signal);
     return;
@@ -23083,7 +23192,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
     jam();
   }
   
-  Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->clearLCPOngoing();
   setLcpActiveStatusEnd(signal);
 
   /**
@@ -23216,7 +23325,9 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
     tabPtr.p->tabUpdateState = TabRecord::US_IDLE;
     tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
-
+    jam();
+    signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
     /* Check whether there's some queued table definition flush op to start */
     if (c_lcpTabDefWritesControl.releaseMustStartQueued())
     {
@@ -23251,12 +23362,7 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
                              c_lcpTabDefWritesControl.totalResources);
       ndbabort();
     }
-    jam();
-    signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
-
     return;
-    break;
   case TabRecord::US_REMOVE_NODE:
     jam();
     releaseTabPages(tabPtr.i);
@@ -24698,7 +24804,6 @@ void Dbdih::initCommonData()
   cnoOfActiveTables = 0;
   cnoOfNodeGroups = 0;
   c_nextNodeGroup = 0;
-  cnoReplicas = 0;
   con_lineNodes = 0;
   creceivedfrag = 0;
   crestartGci = 0;
@@ -24714,8 +24819,7 @@ void Dbdih::initCommonData()
   nodeResetStart(0);
   c_nodeStartMaster.wait = ZFALSE;
 
-  memset(&sysfileData[0], 0, sizeof(sysfileData));
-  SYSFILE->initSysFile(SYSFILE->nodeStatus, SYSFILE->nodeGroups);
+  SYSFILE->initSysFile();
   SYSFILE->latestLCP_ID = 1; /* Ensure that first LCP id is 1 */
 
   const ndb_mgm_configuration_iterator * p = 
@@ -24742,14 +24846,6 @@ void Dbdih::initCommonData()
   ndb_mgm_get_int_parameter(p, CFG_DB_LCP_INTERVAL, &c_lcpState.clcpDelay);
   c_lcpState.clcpDelay = c_lcpState.clcpDelay > 31 ? 31 : c_lcpState.clcpDelay;
   
-  cnoReplicas = 1;
-  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REPLICAS, &cnoReplicas);
-  if (cnoReplicas > MAX_REPLICAS)
-  {
-    progError(__LINE__, NDBD_EXIT_INVALID_CONFIG,
-	      "Only up to four replicas are supported. Check NoOfReplicas.");
-  }
-
   init_next_replica_node(&c_next_replica_node, cnoReplicas);
   bzero(&m_gcp_save, sizeof(m_gcp_save));
   bzero(&m_micro_gcp, sizeof(m_micro_gcp));
@@ -24790,6 +24886,7 @@ void Dbdih::initFragstore(FragmentstorePtr fragPtr, Uint32 fragId)
   fragPtr.p->storedReplicas = RNIL;
   fragPtr.p->oldStoredReplicas = RNIL;
   fragPtr.p->m_log_part_id = RNIL; /* To ensure not used uninited */
+  fragPtr.p->m_inc_used_log_parts = true;
   fragPtr.p->partition_id = ~Uint32(0); /* To ensure not used uninited */
   
   fragPtr.p->noStoredReplicas = 0;
@@ -24861,7 +24958,7 @@ void Dbdih::initRestartInfo(Signal* signal)
     SYSFILE->lcpActive[0]        = 0;
   }//for
   memset(SYSFILE->takeOver, 0, sizeof(SYSFILE->takeOver));
-  Sysfile::setInitialStartOngoing(SYSFILE->systemRestartBits);
+  SYSFILE->setInitialStartOngoing();
   srand((unsigned int)time(0));
   globalData.m_restart_seq = SYSFILE->m_restart_seq = 1;
   g_eventLogger->info("Starting with m_restart_seq set to %u",
@@ -25028,7 +25125,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     c_diverify_queue[0].m_ref = calcTcBlockRef(getOwnNodeId());
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
-      if (globalData.ndbMtTcThreads > 0)
+      if (globalData.ndbMtTcWorkers > 0)
       {
         c_diverify_queue[i].m_ref = numberToRef(DBTC, i + 1, 0);
       }
@@ -25097,6 +25194,10 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
         loopNGPtr.p->nodegroupIndex = RNIL;
         loopNGPtr.p->m_ref_count = 0;
         loopNGPtr.p->m_next_log_part = 0;
+        loopNGPtr.p->m_new_next_log_part = 0;
+        memset(loopNGPtr.p->m_used_log_parts,
+               0,
+               sizeof(loopNGPtr.p->m_used_log_parts));
       }//for
       break;
     }
@@ -25413,7 +25514,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
    * Init sysfile
    */
 
-  SYSFILE->initSysFile(SYSFILE->nodeStatus, SYSFILE->nodeGroups);
+  SYSFILE->initSysFile();
 
   for (Uint32 i = 0; nodeArray[i] != RNIL; i++)
   {
@@ -25424,8 +25525,7 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
     if (mngNodeptr.p->nodeGroup != ZNIL)
     {
       jam();
-      Sysfile::setNodeGroup(nodeId, SYSFILE->nodeGroups,
-                            mngNodeptr.p->nodeGroup);
+      SYSFILE->setNodeGroup(nodeId, mngNodeptr.p->nodeGroup);
 
       if (mngNodeptr.p->nodeStatus == NodeRecord::ALIVE)
       {
@@ -25441,12 +25541,10 @@ void Dbdih::makeNodeGroups(Uint32 nodeArray[])
     else
     {
       jam();
-      Sysfile::setNodeGroup(mngNodeptr.i, SYSFILE->nodeGroups,
-                            NO_NODE_GROUP_ID);
+      SYSFILE->setNodeGroup(mngNodeptr.i, NO_NODE_GROUP_ID);
       mngNodeptr.p->activeStatus = Sysfile::NS_Configured;
     }
-    Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus,
-                           mngNodeptr.p->activeStatus);
+    SYSFILE->setNodeStatus(nodeId, mngNodeptr.p->activeStatus);
   }
 
   for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
@@ -25520,51 +25618,89 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
     releaseSections(handle);
   }
 
+  bool use_before_fail_mask = false;
+  if (sd->requestType & CheckNodeGroups::UseBeforeFailMask)
+  {
+    jamNoBlock();
+    ndbrequire(signal->length() >=
+               CheckNodeGroups::SignalLengthArbitCheckLong);
+    sd->requestType = sd->requestType & (~CheckNodeGroups::UseBeforeFailMask);
+    use_before_fail_mask = true;
+  }
   bool ok = false;
   switch(sd->requestType & ~CheckNodeGroups::Direct){
-  case CheckNodeGroups::ArbitCheck:{
+  case CheckNodeGroups::ArbitCheck:
+  {
     ok = true;
     jamNoBlock();
     unsigned missall = 0;
     unsigned haveall = 0;
-    for (Uint32 i = 0; i < cnoOfNodeGroups; i++) {
+    for (Uint32 i = 0; i < cnoOfNodeGroups; i++)
+    {
       jamNoBlock();
       NodeGroupRecordPtr ngPtr;
       ngPtr.i = c_node_groups[i];
       ptrCheckGuard(ngPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
       Uint32 count = 0;
-      for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++) {
+      bool all_up_in_nodegroup = true;
+      for (Uint32 j = 0; j < ngPtr.p->nodeCount; j++)
+      {
 	jamNoBlock();
 	Uint32 nodeId = ngPtr.p->nodesInGroup[j];
-	if (sd->mask.get(nodeId)) {
+	if (sd->mask.get(nodeId))
+        {
 	  jamNoBlock();
 	  count++;
 	}//if
+        if (use_before_fail_mask &&
+            sd->before_fail_mask.get(nodeId) &&
+            !sd->mask.get(nodeId))
+        {
+          /* At least one node in node group have failed */
+	  jamNoBlock();
+          all_up_in_nodegroup = false;
+        }
       }//for
-      if (count == 0) {
+      if (count == 0)
+      {
 	jamNoBlock();
 	missall++;
       }//if
-      if (count == ngPtr.p->nodeCount) {
-	haveall++;
-      }//if
+      if (use_before_fail_mask)
+      {
+        if (all_up_in_nodegroup)
+        {
+	  haveall++;
+        }//if
+      }
+      else
+      {
+        if (count == ngPtr.p->nodeCount)
+        {
+          haveall++;
+        }
+      }
     }//for
-
-    if (missall) {
+    if (missall)
+    {
       jamNoBlock();
       sd->output = CheckNodeGroups::Lose;
-    } else if (haveall) {
+    }
+    else if (haveall)
+    {
       jamNoBlock();
       sd->output = CheckNodeGroups::Win;
-    } else {
+    }
+    else
+    {
       jamNoBlock();
       sd->output = CheckNodeGroups::Partitioning;
     }//if
-  }
     break;
+  }
   case CheckNodeGroups::GetNodeGroup:{
     ok = true;
-    Uint32 ng = Sysfile::getNodeGroup(getOwnNodeId(), SYSFILE->nodeGroups);
+    Uint32 ng = SYSFILE->getNodeGroup(getOwnNodeId());
     if (ng == NO_NODE_GROUP_ID)
       ng = RNIL;
     sd->output = ng;
@@ -25572,7 +25708,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
   }
   case CheckNodeGroups::GetNodeGroupMembers: {
     ok = true;
-    Uint32 ng = Sysfile::getNodeGroup(sd->nodeId, SYSFILE->nodeGroups);
+    Uint32 ng = SYSFILE->getNodeGroup(sd->nodeId);
     DEB_MULTI_TRP(("My node group is %u", ng));
     if (ng == NO_NODE_GROUP_ID)
       ng = RNIL;
@@ -25898,19 +26034,11 @@ void Dbdih::readFragment(RWFragment* rf, FragmentstorePtr fragPtr)
   fragPtr.p->distributionKey = TdistKey;
 
   fragPtr.p->m_log_part_id = readPageWord(rf);
-
-  /* Older nodes stored unlimited log part ids in the fragment definition, 
-   * now we constrain them to a valid range of actual values for this node.  
-   * Here we ensure that unlimited log part ids fit in the value range for
-   * this node.
-   */
-  ndbrequire(globalData.ndbLogParts <= NDBMT_MAX_WORKER_INSTANCES);
-
-  fragPtr.p->m_log_part_id %= globalData.ndbLogParts;
-
-  ndbrequire(fragPtr.p->m_log_part_id < NDBMT_MAX_WORKER_INSTANCES);
-
-  inc_ng_refcount(getNodeGroup(fragPtr.p->preferredPrimary));
+  fragPtr.p->m_inc_used_log_parts = true;
+  NodeGroupRecordPtr NGPtr;
+  getNodeGroupPtr(fragPtr.p->preferredPrimary, NGPtr);
+  NGPtr.p->m_used_log_parts[fragPtr.p->m_log_part_id]++;
+  inc_ng_refcount(NGPtr.i);
 }//Dbdih::readFragment()
 
 Uint32 Dbdih::readPageWord(RWFragment* rf) 
@@ -26670,8 +26798,7 @@ void Dbdih::setNodeActiveStatus()
   for (snaNodeptr.i = 1; snaNodeptr.i <= m_max_node_id; snaNodeptr.i++)
   {
     ptrAss(snaNodeptr, nodeRecord);
-    const Uint32 tsnaNodeBits = Sysfile::getNodeStatus(snaNodeptr.i,
-                                                       SYSFILE->nodeStatus);
+    const Uint32 tsnaNodeBits = SYSFILE->getNodeStatus(snaNodeptr.i);
     switch (tsnaNodeBits) {
     case Sysfile::NS_Active:
       jam();
@@ -26727,8 +26854,7 @@ void Dbdih::setNodeGroups()
   {
     ptrAss(sngNodeptr, nodeRecord);
     Sysfile::ActiveStatus s = 
-      (Sysfile::ActiveStatus)Sysfile::getNodeStatus(sngNodeptr.i,
-						    SYSFILE->nodeStatus);
+      (Sysfile::ActiveStatus)SYSFILE->getNodeStatus(sngNodeptr.i);
     switch (s){
     case Sysfile::NS_Active:
     case Sysfile::NS_ActiveMissed_1:
@@ -26736,8 +26862,7 @@ void Dbdih::setNodeGroups()
     case Sysfile::NS_NotActive_NotTakenOver:
     case Sysfile::NS_TakeOver:
       jam();
-      sngNodeptr.p->nodeGroup = Sysfile::getNodeGroup(sngNodeptr.i,
-                                                      SYSFILE->nodeGroups);
+      sngNodeptr.p->nodeGroup = SYSFILE->getNodeGroup(sngNodeptr.i);
       NGPtr.i = sngNodeptr.p->nodeGroup;
       ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
       NGPtr.p->nodesInGroup[NGPtr.p->nodeCount] = sngNodeptr.i;
@@ -26809,7 +26934,7 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
   Uint32 i; 
   for(i = 1; i <= m_max_node_id; i++)
   {
-    Sysfile::setNodeStatus(i, SYSFILE->nodeStatus, Sysfile::NS_Active);
+    SYSFILE->setNodeStatus(i, Sysfile::NS_Active);
   }//for
   NdbNodeBitmask::clear(SYSFILE->lcpActive);
 
@@ -26853,8 +26978,7 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
       ndbabort();
       tsnrNodeActiveStatus = Sysfile::NS_NotDefined; // remove warning
     }//switch
-    Sysfile::setNodeStatus(nodePtr.i, SYSFILE->nodeStatus, 
-                           tsnrNodeActiveStatus);
+    SYSFILE->setNodeStatus(nodePtr.i, tsnrNodeActiveStatus);
     if (nodePtr.p->nodeGroup == ZNIL) {
       jam();
       tsnrNodeGroup = NO_NODE_GROUP_ID;
@@ -26862,14 +26986,14 @@ void Dbdih::setNodeRestartInfoBits(Signal * signal)
       jam();
       tsnrNodeGroup = nodePtr.p->nodeGroup;
     }//if
-    Sysfile::setNodeGroup(nodePtr.i, SYSFILE->nodeGroups, tsnrNodeGroup);
+    SYSFILE->setNodeGroup(nodePtr.i, tsnrNodeGroup);
     if (c_lcpState.m_participatingLQH.get(nodePtr.i))
     {
       jam();
       NdbNodeBitmask::set(SYSFILE->lcpActive, nodePtr.i);
     }//if
 #ifdef ERROR_INSERT
-    else if (Sysfile::getLCPOngoing(SYSFILE->systemRestartBits))
+    else if (SYSFILE->getLCPOngoing())
     {
       jam();
       if (nodePtr.p->activeStatus == Sysfile::NS_Active)
@@ -27026,9 +27150,17 @@ void Dbdih::writeReplicas(RWFragment* wf, Uint32 replicaStartIndex)
 
 void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
 {
-  pack_sysfile_format_v2();
+  jam();
+  Uint32 cdata_size_in_words = DIH_CDATA_SIZE;
+  int ret = SYSFILE->pack_sysfile_format_v2(cdata, &cdata_size_in_words);
+  jamLine((Uint16)ret);
+  ndbrequire(ret == 0);
   STATIC_ASSERT(Sysfile::SYSFILE_FILE_SIZE >= Sysfile::SYSFILE_SIZE32_v2);
   memcpy(&sysfileDataToFile[0], &cdata[0], 4 * cdata_size_in_words);
+  // zero fill unused part of file
+  memset(&sysfileDataToFile[cdata_size_in_words],
+         0,
+         4 * (Sysfile::SYSFILE_FILE_SIZE - cdata_size_in_words));
   FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
   req->filePointer = filePtr.p->fileRef;
   req->userReference = reference();
@@ -27413,10 +27545,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     NodeRecordPtr nodePtr;
     nodePtr.i = signal->theData[1];
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-    infoEvent("NF Node %d tc: %d lqh: %d dih: %d dict: %d recNODE_FAILREP: %d",
+    infoEvent("NF Node %d tc: %d lqh: %d qlqh: %d dih: %d dict: %d"
+              " recNODE_FAILREP: %d",
 	      nodePtr.i,
 	      nodePtr.p->dbtcFailCompleted,
 	      nodePtr.p->dblqhFailCompleted,
+	      nodePtr.p->dbqlqhFailCompleted,
 	      nodePtr.p->dbdihFailCompleted,
 	      nodePtr.p->dbdictFailCompleted,
 	      nodePtr.p->recNODE_FAILREP);
@@ -27755,6 +27889,10 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == DumpStateOrd::SchemaResourceSnapshot)
   {
+    g_eventLogger->info("SchemaResourceSnapshot: remainingfrags: %u"
+                        ", free replicas: %u",
+                        cremainingfrags,
+                        cnoFreeReplicaRec);
     RSS_OP_SNAPSHOT_SAVE(cremainingfrags);
     RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
@@ -27768,12 +27906,17 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
         cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
       }
       RSS_OP_SNAPSHOT_SAVE(cnghash);
+      g_eventLogger->info("Snapshot: cnghash: %u", cnghash);
     }
     return;
   }
 
   if (arg == DumpStateOrd::SchemaResourceCheckLeak)
   {
+    g_eventLogger->info("SchemaResourceCheckLeak: remainingfrags: %u"
+                        ", free replicas: %u",
+                        cremainingfrags,
+                        cnoFreeReplicaRec);
     RSS_OP_SNAPSHOT_CHECK(cremainingfrags);
     RSS_OP_SNAPSHOT_SAVE(cnoFreeReplicaRec);
 
@@ -27786,6 +27929,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
         ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
         cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
       }
+      g_eventLogger->info("CheckLeak: cnghash: %u", cnghash);
       RSS_OP_SNAPSHOT_CHECK(cnghash);
     }
   }
@@ -28276,6 +28420,7 @@ void Dbdih::execDIH_SWITCH_REPLICA_REQ(Signal* signal)
     ref->errorCode = StopPermRef::NF_CausedAbortOfStopProcedure;
     sendSignal(senderRef, GSN_DIH_SWITCH_REPLICA_REF, signal,
                DihSwitchReplicaRef::SignalLength, JBB);
+    return;
   }//if
 
   make_table_use_new_node_order(tabPtr,
@@ -29200,6 +29345,13 @@ Dbdih::getNodeGroup(Uint32 nodeId) const
   return nodePtr.p->nodeGroup;
 }
 
+void
+Dbdih::getNodeGroupPtr(Uint32 nodeId, NodeGroupRecordPtr  & NGPtr)
+{
+  NGPtr.i = getNodeGroup(nodeId);
+  ptrCheckGuard(NGPtr, MAX_NDB_NODE_GROUPS, nodeGroupRecord);
+}
+
 bool Dbdih::checkNodeAlive(Uint32 nodeId)
 {
   NodeRecordPtr nodePtr;
@@ -29234,6 +29386,7 @@ void Dbdih::initNodeRecord(NodeRecordPtr nodePtr)
   nodePtr.p->dbdictFailCompleted = ZTRUE;
   nodePtr.p->dbdihFailCompleted = ZTRUE;
   nodePtr.p->dblqhFailCompleted = ZTRUE;
+  nodePtr.p->dbqlqhFailCompleted = ZTRUE;
   nodePtr.p->noOfStartedChkpt = 0;
   nodePtr.p->noOfQueuedChkpt = 0;
   nodePtr.p->lcpStateAtTakeOver = (MasterLCPConf::State)255;
@@ -29582,11 +29735,11 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
     for (Uint32 i = 0; i<cnoReplicas; i++)
     {
       Uint32 nodeId = req->nodes[i];
-      Sysfile::setNodeGroup(nodeId, SYSFILE->nodeGroups, req->nodegroupId);
+      SYSFILE->setNodeGroup(nodeId, req->nodegroupId);
       if (getNodeStatus(nodeId) == NodeRecord::ALIVE)
       {
         jam();
-        Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus, Sysfile::NS_Active);
+        SYSFILE->setNodeStatus(nodeId, Sysfile::NS_Active);
         if (nodeId == getOwnNodeId())
         {
           jam();
@@ -29596,7 +29749,7 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
       else
       {
         jam();
-        Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus, Sysfile::NS_ActiveMissed_1);
+        SYSFILE->setNodeStatus(nodeId, Sysfile::NS_ActiveMissed_1);
       }
       setNodeActiveStatus();
       setNodeGroups();
@@ -29716,8 +29869,8 @@ Dbdih::execDROP_NODEGROUP_IMPL_REQ(Signal* signal)
     {
       jam();
       Uint32 nodeId = NGPtr.p->nodesInGroup[i];
-      Sysfile::setNodeGroup(nodeId, SYSFILE->nodeGroups, NO_NODE_GROUP_ID);
-      Sysfile::setNodeStatus(nodeId, SYSFILE->nodeStatus, Sysfile::NS_Configured);
+      SYSFILE->setNodeGroup(nodeId, NO_NODE_GROUP_ID);
+      SYSFILE->setNodeStatus(nodeId, Sysfile::NS_Configured);
     }
     setNodeActiveStatus();
     setNodeGroups();

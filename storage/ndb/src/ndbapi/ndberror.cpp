@@ -427,6 +427,7 @@ ErrorBundle ErrorCodes[] = {
   { 295,  DMEC, IE, "Unlocked operation has invalid state" },
   { 298,  DMEC, IE, "Invalid distribution key" },
   { 416,  DMEC, IE, "Bad state handling unlock request" },
+  { 1237, DMEC, IE, "LQHKEYREQ Protocol error" },
 
   /**
    * Application error

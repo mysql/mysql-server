@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -449,25 +449,26 @@ int SimpleCpcClient::connect() {
 }
 
 int SimpleCpcClient::open_connection() {
-  struct sockaddr_in sa;
-  struct hostent *hp;
+  struct sockaddr_in6 sa;
 
   /* Create socket */
-  cpc_sock = ndb_socket_create(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  cpc_sock = ndb_socket_create_dual_stack(SOCK_STREAM, IPPROTO_TCP);
   if (!ndb_socket_valid(cpc_sock)) return -1;
 
-  /* Connect socket */
-  sa.sin_family = AF_INET;
-  hp = gethostbyname(host);
-  if (hp == NULL) {
+  memset(&sa, 0, sizeof(sa));
+  sa.sin6_family = AF_INET6;
+  sa.sin6_port = htons(port);
+
+  // Resolve server address
+  if (Ndb_getInAddr6(&sa.sin6_addr, host))
+  {
+    ndb_socket_close(cpc_sock);
+    ndb_socket_invalidate(&cpc_sock);
     errno = ENOENT;
     return -1;
   }
 
-  memcpy(&sa.sin_addr, hp->h_addr, hp->h_length);
-  sa.sin_port = htons(port);
-
-  return ndb_connect_inet(cpc_sock, &sa);
+  return ndb_connect_inet6(cpc_sock, &sa);
 }
 
 int SimpleCpcClient::negotiate_client_protocol() {

@@ -506,6 +506,7 @@ Qmgr::execREAD_CONFIG_REQ(Signal* signal)
     jam();
     m_num_multi_trps = 1;
   }
+  m_num_multi_trps = MIN(m_num_multi_trps, MAX_NODE_GROUP_TRANSPORTERS);
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
@@ -1696,6 +1697,8 @@ void Qmgr::execCM_REGCONF(Signal* signal)
 
   // set own MT config here or in REF, and others in CM_NODEINFOREQ/CONF
   setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
+  setNodeInfo(getOwnNodeId()).m_query_threads = globalData.ndbMtQueryThreads;
+  setNodeInfo(getOwnNodeId()).m_log_parts = globalData.ndbLogParts;
 
 #ifdef DEBUG_STARTUP
   {
@@ -1908,6 +1911,8 @@ Qmgr::sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self){
   req->version = getNodeInfo(getOwnNodeId()).m_version;
   req->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
   req->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
+  req->query_threads = getNodeInfo(getOwnNodeId()).m_query_threads;
+  req->log_parts = getNodeInfo(getOwnNodeId()).m_log_parts;
   const Uint32 ref = calcQmgrBlockRef(nodeId);
   sendSignal(ref,GSN_CM_NODEINFOREQ, signal, CmNodeInfoReq::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOREQ, nodeId, "");
@@ -2030,6 +2035,8 @@ void Qmgr::execCM_REGREF(Signal* signal)
 
   // set own MT config here or in CONF, and others in CM_NODEINFOREQ/CONF
   setNodeInfo(getOwnNodeId()).m_lqh_workers = globalData.ndbMtLqhWorkers;
+  setNodeInfo(getOwnNodeId()).m_query_threads = globalData.ndbMtQueryThreads;
+  setNodeInfo(getOwnNodeId()).m_log_parts = globalData.ndbLogParts;
   
   char buf[100];
   switch (TrefuseReason) {
@@ -2204,8 +2211,10 @@ Qmgr::check_startup(Signal* signal)
     }
     else if (no_nodegroup_active)
     {
+      jam();
       if (elapsed < c_restartNoNodegroupTimeout)
       {
+        jam();
         signal->theData[1] = 6;
         signal->theData[2] = Uint32((c_restartNoNodegroupTimeout - elapsed + 500) / 1000);
         report_mask.assign(wait);
@@ -2215,6 +2224,7 @@ Qmgr::check_startup(Signal* signal)
       tmp.bitOR(c_start.m_no_nodegroup_nodes);
       if (tmp.equal(c_definedNodes))
       {
+        jam();
         signal->theData[1] = 0x8000;
         report_mask.assign(c_definedNodes);
         report_mask.bitANDC(c_start.m_starting_nodes);
@@ -2245,10 +2255,12 @@ Qmgr::check_startup(Signal* signal)
   if (c_restartNoNodegroupTimeout != Uint32(~0) &&
       elapsed >= c_restartNoNodegroupTimeout)
   {
+    jam();
     tmp.bitOR(c_start.m_no_nodegroup_nodes);
   }
 
   {
+    jam();
     const bool all = c_start.m_starting_nodes.equal(c_definedNodes);
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
 
@@ -2265,7 +2277,7 @@ Qmgr::check_startup(Signal* signal)
       sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
       sd->mask = check;
       EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                     CheckNodeGroups::SignalLength);
+                     CheckNodeGroups::SignalLengthArbitCheckShort);
 
       if (sd->output == CheckNodeGroups::Lose)
       {
@@ -2273,12 +2285,13 @@ Qmgr::check_startup(Signal* signal)
         goto missing_nodegroup;
       }
     }
-  
+
+    jam();
     sd->blockRef = reference();
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
     sd->mask = c_start.m_starting_nodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                   CheckNodeGroups::SignalLength);
+                   CheckNodeGroups::SignalLengthArbitCheckShort);
   
     const Uint32 result = sd->output;
   
@@ -2286,7 +2299,7 @@ Qmgr::check_startup(Signal* signal)
     sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
     sd->mask = c_start.m_starting_nodes_w_log;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-                   CheckNodeGroups::SignalLength);
+                   CheckNodeGroups::SignalLengthArbitCheckShort);
   
     const Uint32 result_w_log = sd->output;
 
@@ -2297,19 +2310,25 @@ Qmgr::check_startup(Signal* signal)
        *   this means that we will now start or die
        */
       jam();    
-      switch(result_w_log){
+      switch(result_w_log)
+      {
       case CheckNodeGroups::Lose:
       {
         jam();
         goto missing_nodegroup;
       }
       case CheckNodeGroups::Win:
+      {
+        jam();
         signal->theData[1] = all ? 0x8001 : 0x8002;
         report_mask.assign(c_definedNodes);
         report_mask.bitANDC(c_start.m_starting_nodes);
         retVal = 1;
         goto check_log;
+      }
       case CheckNodeGroups::Partitioning:
+      {
+        jam();
         ndbrequire(result != CheckNodeGroups::Lose);
         signal->theData[1] = 
           all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
@@ -2318,8 +2337,12 @@ Qmgr::check_startup(Signal* signal)
         retVal = 1;
         goto check_log;
       }
+      default:
+      {
+        ndbabort();
+      }
+      }
     }
-
     if (c_restartPartialTimeout == Uint32(~0) ||
         elapsed < c_restartPartialTimeout)
     {
@@ -2335,33 +2358,43 @@ Qmgr::check_startup(Signal* signal)
 
       if (no_nodegroup_active && elapsed < c_restartNoNodegroupTimeout)
       {
+        jam();
         signal->theData[1] = 7;
         signal->theData[2] = Uint32((c_restartNoNodegroupTimeout - elapsed + 500) / 1000);
       }
       else if (no_nodegroup_active && elapsed >= c_restartNoNodegroupTimeout)
       {
+        jam();
         report_mask.bitANDC(c_start.m_no_nodegroup_nodes);
       }
-
       goto start_report;
     }
   
     /**
      * Start partial has passed...check for partitioning...
      */  
-    switch(result_w_log){
+    switch(result_w_log)
+    {
     case CheckNodeGroups::Lose:
+    {
       jam();
       goto missing_nodegroup;
+    }
     case CheckNodeGroups::Partitioning:
+    {
+      jam();
       if (elapsed != Uint32(~0) &&
           elapsed < partitionedTimeout &&
           result != CheckNodeGroups::Win)
       {
+        jam();
         goto missinglog;
       }
-      // Fall through...
+    }
+    // Fall through
     case CheckNodeGroups::Win:
+    {
+      jam();
       signal->theData[1] = 
         all ? 0x8001 : (result == CheckNodeGroups::Win ? 0x8002 : 0x8003);
       report_mask.assign(c_definedNodes);
@@ -2369,13 +2402,17 @@ Qmgr::check_startup(Signal* signal)
       retVal = 2;
       goto check_log;
     }
+    default:
+    {
+      ndbabort();
+    }
+    }
   }
-  ndbabort();
 
 check_log:
   jam();
   {
-    Uint32 save[4+4*NdbNodeBitmask::Size];
+    Uint32 save[1+1*NdbNodeBitmask::Size];
     memcpy(save, signal->theData, sizeof(save));
 
     DihRestartReq * req = CAST_PTR(DihRestartReq, signal->getDataPtrSend());
@@ -2466,6 +2503,22 @@ missing_nodegroup:
 incomplete_log:
   jam();
   {
+    DihRestartReq * req = (DihRestartReq*)&signal->theData[0];
+    for (Uint32 i = 0; i <= incompleteng; i++)
+    {
+      g_eventLogger->info("Node group GCI = %u for NG %u",
+                          req->node_gcis[i],
+                          i);
+    }
+    for (Uint32 i = 1; i < MAX_NDB_NODES; i++)
+    {
+      if (c_start.m_node_gci[i] != 0)
+      {
+        g_eventLogger->info("Node group GCI = %u for NG %u",
+                            c_start.m_node_gci[i],
+                            i);
+      }
+    }
     const Uint32 extra = 100;
     char buf[NdbNodeBitmask::TextLength + 1 + extra];
     char mask1[NdbNodeBitmask::TextLength + 1];
@@ -2565,6 +2618,13 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 version = conf->version;
   Uint32 mysql_version = conf->mysql_version;
   Uint32 lqh_workers = conf->lqh_workers;
+  Uint32 query_threads = conf->query_threads;
+  Uint32 log_parts = conf->log_parts;
+  if (signal->length() == CmNodeInfoConf::OldSignalLength)
+  {
+    query_threads = 0;
+    log_parts = lqh_workers;
+  }
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -2584,6 +2644,8 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   setNodeInfo(replyNodePtr.i).m_version = version;
   setNodeInfo(replyNodePtr.i).m_mysql_version = mysql_version;
   setNodeInfo(replyNodePtr.i).m_lqh_workers = lqh_workers;
+  setNodeInfo(replyNodePtr.i).m_query_threads = query_threads;
+  setNodeInfo(replyNodePtr.i).m_log_parts = log_parts;
 
   recompute_version_info(NodeInfo::DB, version);
   
@@ -2617,6 +2679,7 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   jamEntry();
 
   const Uint32 Tblockref = signal->getSendersBlockRef();
+  const Uint32 sig_len = signal->length();
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -2643,6 +2706,16 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
 
   Uint32 lqh_workers = req->lqh_workers;
   setNodeInfo(addNodePtr.i).m_lqh_workers = lqh_workers;
+
+  Uint32 query_threads = req->query_threads;
+  Uint32 log_parts = req->log_parts;
+  if (sig_len == CmNodeInfoReq::OldSignalLength)
+  {
+    query_threads = 0;
+    log_parts = lqh_workers;
+  }
+  setNodeInfo(addNodePtr.i).m_query_threads = query_threads;
+  setNodeInfo(addNodePtr.i).m_log_parts = log_parts;
 
   c_maxDynamicId = req->dynamicId & 0xFFFF;
 
@@ -2707,6 +2780,8 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   conf->version = getNodeInfo(getOwnNodeId()).m_version;
   conf->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
   conf->lqh_workers = getNodeInfo(getOwnNodeId()).m_lqh_workers;
+  conf->query_threads = getNodeInfo(getOwnNodeId()).m_query_threads;
+  conf->log_parts = getNodeInfo(getOwnNodeId()).m_log_parts;
   sendSignal(nodePtr.p->blockRef, GSN_CM_NODEINFOCONF, signal,
 	     CmNodeInfoConf::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOCONF, refToNode(nodePtr.p->blockRef), "");
@@ -6404,6 +6479,7 @@ Qmgr::handleArbitCheck(Signal* signal)
   Uint32 prev_alive_nodes = count_previously_alive_nodes();
   ndbrequire(cpresident == getOwnNodeId());
   NdbNodeBitmask survivorNodes;
+  NdbNodeBitmask beforeFailureNodes;
   /**
    * computeArbitNdbMask will only count nodes in the state ZRUNNING, crashed
    * nodes are thus not part of this set of nodes. The method
@@ -6413,14 +6489,18 @@ Qmgr::handleArbitCheck(Signal* signal)
    * arbitration is required.
    */
   computeArbitNdbMask(survivorNodes);
+  computeBeforeFailNdbMask(beforeFailureNodes);
   {
     jam();
     CheckNodeGroups* sd = (CheckNodeGroups*)&signal->theData[0];
     sd->blockRef = reference();
-    sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::ArbitCheck;
+    sd->requestType = CheckNodeGroups::Direct |
+                      CheckNodeGroups::ArbitCheck |
+                      CheckNodeGroups::UseBeforeFailMask;
     sd->mask = survivorNodes;
+    sd->before_fail_mask = beforeFailureNodes;
     EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		   CheckNodeGroups::SignalLength);
+		   CheckNodeGroups::SignalLengthArbitCheckLong);
     jamEntry();
     if (ERROR_INSERTED(943))
     {
@@ -7331,6 +7411,25 @@ Qmgr::computeArbitNdbMask(NdbNodeBitmaskPOD& aMask)
     ptrAss(aPtr, nodeRec);
     if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
         aPtr.p->phase == ZRUNNING)
+    {
+      jam();
+      aMask.set(aPtr.i);
+    }
+  }
+}
+
+void
+Qmgr::computeBeforeFailNdbMask(NdbNodeBitmaskPOD& aMask)
+{
+  NodeRecPtr aPtr;
+  aMask.clear();
+  for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++)
+  {
+    jam();
+    ptrAss(aPtr, nodeRec);
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB &&
+        (aPtr.p->phase == ZRUNNING ||
+         aPtr.p->phase == ZPREPARE_FAIL))
     {
       jam();
       aMask.set(aPtr.i);

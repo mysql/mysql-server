@@ -31,12 +31,12 @@
 #include <vector>
 
 #include "mysql/plugin.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/interface/socket_events.h"
 #include "plugin/x/src/interface/timeout_callback.h"
 #include "plugin/x/src/io/xpl_listener_factory.h"
+#include "plugin/x/src/ngs/protocol/protocol_config.h"
+#include "plugin/x/src/ngs/scheduler.h"
 
 namespace xpl {
 

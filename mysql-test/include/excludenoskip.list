@@ -36,6 +36,7 @@ have_open_file_limit_more_than_5000.inc
 have_partition_open_file_limit.inc
 have_posix_locale.inc
 have_punch_hole.inc
+have_no_punch_hole.inc
 # Test need to run only on Linux and OSX and skip all other platforms.
 costmodel_planchange.test
 # Checks if server is started with MET timezone. Including the below inc file until Bug#25188655 is fixed.
@@ -190,10 +191,6 @@ not_group_replication_plugin.inc
 # Linux, Solaris and OS X platforms.
 have_memcached_plugin.inc
 
-# 13.1 NDB Memcached is not available on all PB2 builds. The ndb_memcache
-# suite should only be run if all required components have been found.
-have_memcache.inc
-
 # 14.0 MTR tests that runs only with specific rpl modes:
 
 # 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
@@ -282,4 +279,8 @@ no_checkpoint_cleanup.inc
 # 28. This file is used by test scenarios which should be skipped when
 # PARTIAL_REVOKES feature is set to ON. Setting this variables to ON
 # disables wildcard grants at database level.
-no_partial_revokes.inc
+not_partial_revokes.inc
+
+# 29. This file is used for skipping tests which cannot be run successfully
+# with the hypergraph optimizer yet.
+not_hypergraph.inc

@@ -264,7 +264,7 @@ int Clone_Snapshot::synchronize_binlog_gtid(Clone_Alert_Func cbk) {
 
   /* Persist non-innodb GTIDs */
   auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  gtid_persistor.wait_flush(true, true, false, cbk);
+  gtid_persistor.wait_flush(true, false, cbk);
 
   error = update_binlog_position();
   return (error);

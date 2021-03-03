@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,8 +31,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <iostream>
 #include <limits>
 
+#ifdef _WIN64
+using ulint = unsigned __int64;
+using lobid_t = unsigned __int64;
+#else
 using ulint = unsigned long int;
 using lobid_t = unsigned long int;
+#endif
 using byte = unsigned char;
 using frag_id_t = ulint;
 typedef uint32_t space_id_t;

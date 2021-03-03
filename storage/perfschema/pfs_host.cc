@@ -290,19 +290,35 @@ void PFS_host::rebase_memory_stats() {
   }
 }
 
-void PFS_host::carry_memory_stat_delta(PFS_memory_stat_delta *delta,
-                                       uint index) {
+void PFS_host::carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                             uint index) {
   PFS_memory_shared_stat *event_name_array;
   PFS_memory_shared_stat *stat;
-  PFS_memory_stat_delta delta_buffer;
-  PFS_memory_stat_delta *remaining_delta;
+  PFS_memory_stat_alloc_delta delta_buffer;
+  PFS_memory_stat_alloc_delta *remaining_delta;
 
   event_name_array = write_instr_class_memory_stats();
   stat = &event_name_array[index];
-  remaining_delta = stat->apply_delta(delta, &delta_buffer);
+  remaining_delta = stat->apply_alloc_delta(delta, &delta_buffer);
 
   if (remaining_delta != nullptr) {
-    carry_global_memory_stat_delta(remaining_delta, index);
+    carry_global_memory_stat_alloc_delta(remaining_delta, index);
+  }
+}
+
+void PFS_host::carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                            uint index) {
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
+  PFS_memory_stat_free_delta delta_buffer;
+  PFS_memory_stat_free_delta *remaining_delta;
+
+  event_name_array = write_instr_class_memory_stats();
+  stat = &event_name_array[index];
+  remaining_delta = stat->apply_free_delta(delta, &delta_buffer);
+
+  if (remaining_delta != nullptr) {
+    carry_global_memory_stat_free_delta(remaining_delta, index);
   }
 }
 

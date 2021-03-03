@@ -1,9 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 #
 # Initialization
 --disable_warnings
@@ -51,14 +45,18 @@ insert into t1 values (107);
 
 insert into t2 values (107),(75),(1000);
 
+--sorted_result
 select t1.id, t2.id from t1, t2 where t2.id = t1.id;
+--sorted_result
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t1.id;
 # We see the functional dependency implied by WHERE!
+--sorted_result
 select t1.id, count(t2.id) from t1,t2 where t2.id = t1.id group by t2.id;
 
 #
 # Test problems with impossible ON or WHERE
 #
+--sorted_result
 select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
 explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0 where t2.id=75 and t1.id is null;
 explain select t1.id, t2.id from t1, t2 where t2.id = t1.id and t1.id <0 and t1.id > 0;
@@ -106,6 +104,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (3,2,11,12,5400,7800);
 INSERT INTO t2 VALUES (4,2,25,12,6500,11200);
 INSERT INTO t2 VALUES (5,1,37,6,10000,12000);
+--sorted_result
 select a.id, b.category as catid, b.state as stateid, b.county as countyid from t1 a, t2 b ignore index (primary) where (a.token ='a71250b7ed780f6ef3185bfffe027983') and (a.count = b.id);
 select a.id, b.category as catid, b.state as stateid, b.county as
 countyid from t1 a, t2 b where (a.token =
@@ -154,7 +153,7 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1 (d DATE NOT NULL);
 CREATE TABLE t2 (d DATE NOT NULL);
-INSERT INTO t1 (d) VALUES ('2001-08-01'),('0000-00-00');
+INSERT INTO t1 (d) VALUES ('2001-08-01'),('1000-01-01');
 SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE t2.d IS NULL;
 SELECT * FROM t1 LEFT JOIN t2 USING (d) WHERE d IS NULL;
 SELECT * from t1 WHERE t1.d IS NULL;
@@ -255,6 +254,7 @@ CREATE TABLE t2 (
   PRIMARY KEY  (id)
 ) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,'s1'),(2,'s2'),(3,'s3'),(4,'s4'),(5,'s5');
+--skip_if_hypergraph  # No ORDER BY, so depends on the query plan.
 select t1.*, t2.*  from t1, t2 where t2.id=t1.t2_id limit 2;
 drop table t1,t2;
 
@@ -360,7 +360,7 @@ CREATE TABLE t2 (a int, d int, e int default 0);
 INSERT INTO t2 (a, d) VALUES (1,1),(2,2),(3,3),(4,4);
 INSERT INTO t2 (a, d) SELECT a+4, a+4 FROM t2;
 INSERT INTO t2 (a, d) SELECT a+8, a+8 FROM t2;
-
+ANALYZE TABLE t1, t2;
 # should use join cache
 EXPLAIN
 SELECT STRAIGHT_JOIN t2.e FROM t1,t2 WHERE t2.d=1 AND t1.b=t2.e
@@ -452,6 +452,7 @@ select * from t1 natural join (t2 natural join (t3 natural join t4));
 # select * from ((t3 natural left join (t1 natural left join t2)) natural left join t4) natural left join t5;
 --sorted_result
 select * from t5 natural right join (t4 natural right join ((t2 natural right join t1) natural right join t3));
+--sorted_result
 select * from (t1 natural join t2), (t3 natural join t4);
 # MySQL extension - nested comma ',' operator instead of cross join.
 --sorted_result
@@ -487,10 +488,13 @@ select * from t1 natural left join (t4 natural join t5) where t5.z is not NULL;
 select * from t1 join (t2 join t4 on b + 1 = y) on t1.c = t4.c;
 --sorted_result
 select * from (t2 join t4 on b + 1 = y) join t1 on t1.c = t4.c;
+--sorted_result
 select * from t1 natural join (t2 join t4 on b + 1 = y);
+--sorted_result
 select * from (t1 cross join t2) join (t3 cross join t4) on (a < y and t2.b < t3.c);
 
 # MySQL extension - 'join ... on' over nested comma operator
+--sorted_result
 select * from (t1, t2) join (t3, t4) on (a < y and t2.b < t3.c);
 --sorted_result
 select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
@@ -498,6 +502,7 @@ select * from (t1 natural join t2) join (t3 natural join t4) on a = y;
 select * from ((t3 join (t1 join t2 on c > a) on t3.b < t2.a) join t4 on y > t1.c) join t5 on z = t1.b + 3;
 
 # MySQL extension - refererence qualified coalesced columns
+--sorted_result
 select * from t1 natural join t2 where t1.b > 0;
 --sorted_result
 select * from t1 natural join (t4 natural join t5) where t4.y > 7;
@@ -530,9 +535,13 @@ select * from (select * from t3 natural join t4) as t34
               (select * from t1 natural join t2) as t12;
 
 # Queries over views
+--sorted_result
 select * from v1a;
+--sorted_result
 select * from v1b;
+--sorted_result
 select * from v1c;
+--sorted_result
 select * from v1d;
 --sorted_result
 select * from v2a;
@@ -542,11 +551,16 @@ select * from v2b;
 select * from v3a;
 --sorted_result
 select * from v3b;
+--sorted_result
 select * from v4;
+--sorted_result
 select * from v1a natural join v2a;
 select v2a.* from v1a natural join v2a;
+--sorted_result
 select * from v1b join v2a on v1b.b = v2a.c;
+--sorted_result
 select * from v1c join v2a on v1c.b = v2a.c;
+--sorted_result
 select * from v1d join v2a on v1d.a = v2a.c;
 --sorted_result
 select * from v1a join (t3 natural join t4) on a = y;
@@ -698,7 +712,7 @@ insert into t2 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 create table t3 (a int not null, primary key(a));
 insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
-
+ANALYZE TABLE t1, t2, t3;
 flush status;
 select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
 explain select * from t1, t2, t3 where t3.a=t1.a and t2.a=t1.b;
@@ -719,7 +733,7 @@ create table t3 (a int, b int, filler char(100), key(a), key(b));
 insert into t2 
   select @a:= A.a + 10*(B.a + 10*C.a), @a, 'filler' from t1 A, t1 B, t1 C;
 insert into t3 select * from t2 where a < 800;
-
+ANALYZE TABLE t1, t2, t3;
 # The order of tables must be t2,t3:
 explain select * from t2,t3 where t2.a < 400 and t2.b=t3.b;
 
@@ -732,7 +746,8 @@ insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
 create table t2 (a int, b int, primary key(a));
 insert into t2 select @v:=A.a+10*B.a, @v  from t1 A, t1 B;
-
+ANALYZE TABLE t1, t2;
+--replace_column 10 #
 explain select * from t1;
 --skip_if_hypergraph  # Different cost model.
 show status like '%cost%';
@@ -764,7 +779,7 @@ INSERT INTO t1 SELECT a + 16, b FROM t1;
 INSERT INTO t1 SELECT a + 32, b FROM t1;
 INSERT INTO t1 SELECT a + 64, b FROM t1;
 INSERT INTO t2 SELECT a, b FROM t1;
-
+ANALYZE TABLE t1, t2;
 #expect indexed ORDER BY
 EXPLAIN SELECT * FROM t1 JOIN t2 ON b=c ORDER BY a LIMIT 2;
 EXPLAIN SELECT * FROM t1 JOIN t2 ON a=c ORDER BY a LIMIT 2;
@@ -797,7 +812,7 @@ INSERT INTO t2 VALUES
 
 INSERT INTO t3 VALUES
 (3), (3), (3), (3), (3), (3), (3), (3), (3), (3);
-
+ANALYZE TABLE t1, t2, t3, t4, t5, t6;
 EXPLAIN
 SELECT * 
 FROM 
@@ -991,12 +1006,13 @@ CREATE TABLE t2 (
 );
 
 INSERT INTO t2 VALUES (1,4),(3,5),(2,6);
-
+ANALYZE  TABLE t1, t2;
 let $query=
 SELECT t2.pk, t2.c1 FROM t2, t1 
 WHERE t2.pk = t1.c1 AND t2.pk >= 2;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 # Create a view on one of the tables. The same query plan should
@@ -1008,6 +1024,7 @@ SELECT v_t2.pk, v_t2.c1 FROM v_t2, t1
 WHERE v_t2.pk = t1.c1 AND v_t2.pk >= 2;
 
 eval EXPLAIN $query;
+--sorted_result
 eval $query;
 
 DROP VIEW v_t2;
@@ -1247,6 +1264,7 @@ INSERT INTO t SELECT NULL, NULL FROM t;
 ANALYZE TABLE t;
 
 # Verify that we indeed get a backwards index scan.
+--skip_if_hypergraph  # Does not support this access method yet.
 EXPLAIN FORMAT=tree SELECT t1.i AS a, (SELECT t2.i FROM t t2 WHERE t1.j = t2.j ORDER BY j DESC, i DESC LIMIT 1) AS b FROM t t1;
 
 FLUSH STATUS;
@@ -1283,6 +1301,7 @@ let query=
                from t t2
                left join t t3 on t3.a>t2.a-t1.a)
  from t t1;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -1293,6 +1312,7 @@ let query=
                left join t t3 on t3.a>t2.a-t1.a)
  from t t1
  group by t1.a;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -1303,6 +1323,7 @@ let query=
                from t t2
                left join t t3 on t3.a>t2.a-v1.a)
  from v1;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 drop view v1;
@@ -1315,6 +1336,7 @@ let query=
                  from t t2
                  left join t t3 on t3.a>t2.a-t1.a) as dt)
  from t t1;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -1338,6 +1360,7 @@ let query=
  (select count(*) as c
   from t t2
   left join t t3 on t3.a>t2.a-t1.a) as dt;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -1350,6 +1373,7 @@ let query=
  (select count(*) as c
   from t t2
   left join t t3 on t3.a>t2.a-t1.a) as dt;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -1361,6 +1385,7 @@ let query=
   from t t2
   left join t t3 on t3.a>t2.a-t1.a) as dt
  on true;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -1408,10 +1433,56 @@ let query=
                 from t t2
                 left join (select * from t t3 where t3.a>t1.a) dt
                 on true);
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
 drop table t;
 set optimizer_switch=default;
 
-set global default_storage_engine=myisam;
+set global default_storage_engine=innodb;
+
+--echo #
+--echo # WL#14071: ASSERTION `!(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))' FAILED
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER
+);
+CREATE TABLE t2 (
+  pk INTEGER NOT NULL,
+  a INTEGER
+);
+
+# t2.pk IS NULL can never be true, so the condition touches no tables.
+# We need to take this into account when estimating its selectivity.
+SELECT * FROM
+  (
+    t2 LEFT JOIN t2 AS t3 ON t2.pk IS NULL
+  ) LEFT JOIN t1 ON t1.a = t3.a;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #31924828: WL#14071: HYPERGAPH RETURNS DIFFERENT RESULTS WITH ONLY_FULL_GROUP_BY DISABLED
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1);
+
+CREATE TABLE t2 ( pk INTEGER );
+
+# Demonstrates that WHERE conditions should not be pushed into the inner side
+# of LEFT JOIN, even when the join condition is degenerate. (The <=> instead of
+# <> is to make sure the join is not simplified to an inner join.)
+SELECT * FROM t1 LEFT JOIN t2 ON TRUE WHERE t2.pk <=> 3;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #31947917: WL#14071: ASAN LEAKS SEEN DURING SHUTDOWN
+--echo #
+
+CREATE TABLE A ( pk INTEGER );
+SELECT t1.pk FROM A t1, A t2, A t3, A t4, A t5 GROUP BY t1.pk;
+DROP TABLE A;

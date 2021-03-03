@@ -2626,3 +2626,257 @@ DROP TABLE sink;
 --echo #
 
 SELECT JSON_OBJECT("a",1) IN (1,(LEAD(1,70) OVER()));
+
+--echo #
+--echo # Bug #31856260 STILL SEEING A FEW ASSERTION
+--echo #                `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED
+--echo #
+
+--error ER_WRONG_VALUE_FOR_TYPE
+DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) AND ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+
+--error ER_WRONG_VALUE_FOR_TYPE
+DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) OR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO NULLIF(FROM_BASE64(JSON_STORAGE_FREE('') XOR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
+
+--echo # Bug#32063203: Problem with prepared statements
+
+# MEMBER OF
+
+CREATE TABLE t1(c1 JSON);
+INSERT INTO t1 VALUES ('["a", "b"]'), ('["b", "c"]'), ('["c", "a"]');
+SELECT * FROM t1 WHERE 'a' MEMBER OF (c1 -> '$');
+prepare s1 from "SELECT * FROM t1 WHERE ? MEMBER OF (c1 -> '$')";
+set @x = 'a';
+execute s1 using @x # OK - returns ["a", "b"] and ["c", "a"];
+
+DROP TABLE t1;
+
+# JSON_ARRAY_APPEND
+
+SET @j = '["a", ["b", "c"], "d"]';
+SELECT JSON_ARRAY_APPEND(@j, '$[1]', 'z'); # OK, returns ["a", ["b", "c", "z"], "d"]
+SELECT JSON_ARRAY_APPEND(@j, '$[1]', '"z"'); # OK, returns ["a", ["b", "c", "\"z\""], "d"]
+prepare s from "SELECT JSON_ARRAY_APPEND(@j, '$[1]', ?)";
+set @x='z';
+execute s using @x; # OK - returns ["a", ["b", "c", "z"], "d"]
+set @x='"z"';
+execute s using @x; # OK - returns ["a", ["b", "c", "\"z\""], "d"]
+
+# JSON_ARRAY_INSERT
+
+SET @j = '["a", ["b", "c"], "d"]';
+SELECT JSON_ARRAY_INSERT(@j, '$[1]', 'z'); # OK, returns ["a", "z", ["b", "c"], "d"]
+SELECT JSON_ARRAY_INSERT(@j, '$[1]', '"z"'); # OK, returns ["a", "\"z\"", ["b", "c"], "d"]
+prepare s from "SELECT JSON_ARRAY_INSERT(@j, '$[1]', ?)";
+set @x='z';
+execute s using @x; # OK - returns ["a", "z", ["b", "c"], "d"]
+set @x='"z"';
+execute s using @x; # OK - returns ["a", "\"z\"", ["b", "c"], "d"]
+
+# JSON_OVERLAPS
+
+SELECT JSON_OVERLAPS("true","true"); # OK, returns true
+prepare s from "SELECT JSON_OVERLAPS('true',?)";
+set @jv='true';
+execute s using @jv; # OK, returns true
+SELECT JSON_OVERLAPS('"abc"','"abc"'); # OK, returns true
+prepare s from "SELECT JSON_OVERLAPS('\"abc\"',?)";
+set @jv='"abc"';
+execute s using @jv; # OK, returns true
+set @jv="abc";
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @jv; # Fails, error 3141
+
+# JSON_ARRAY
+
+set @p1 = 1;
+set @p2 = 'abc';
+set @p3 = '"abc"';
+set @p4 = NULL;
+set @p5 = 'true';
+set @p6 = DATE'2000-01-01';
+SELECT JSON_ARRAY(1, 'abc', '"abc"', NULL, 'true', DATE'2000-01-01');
+# OK -> [1, "abc", "\"abc\"", null, true, "2000-01-01"]
+prepare s from "SELECT JSON_ARRAY(?, ?, ?, ?, ?, ?)";
+execute s using @p1, @p2, @p3, @p4, @p5, @p6;
+
+# JSON_OBJECT
+
+SELECT JSON_OBJECT('a', 1, 'b', 'abc', 'c', '"abc"', 'd', NULL,
+                   'e', 'true', 'f', DATE'2000-01-01'); # OK
+prepare s from "SELECT JSON_OBJECT('a', ?, 'b', ?, 'c', ?, 'd', ?,
+                                   'e', ?, 'f', ?)";
+execute s using @p1, @p2, @p3, @p4, @p5, @p6; # OK
+
+# JSON_CONTAINS
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select JSON_CONTAINS('{"a": "x", "b": "y"}', 'x', '$.a'); # Fail
+select JSON_CONTAINS('{"a": "x", "b": "y"}', '"x"', '$.a'); # OK, returns true
+
+prepare s from "SELECT JSON_CONTAINS('{""a"": ""x"", ""b"": ""y""}', ?, '$.a')";
+set @a='x';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @a; # Fails
+set @a='"x"';
+execute s using @a; # OK, returns true
+
+# JSON_SEARCH
+
+SET @j = '["abc", [{"k": "10"}, "def"], {"x":"abc"}, {"y":"bcd"}]';
+SELECT JSON_SEARCH(@j, 'one', 'abc'); # -> OK, returns "$[0]"
+SELECT JSON_SEARCH(@j, 'one', '"abc"'); # -> OK, returns NULL
+
+prepare s from "SELECT JSON_SEARCH(@j, 'one', ?)";
+set @x='abc';
+execute s using @x; # -> OK, returns "$[0]"
+set @x='"abc"';
+execute s using @x; # -> OK, returns NULL
+
+# JSON_MERGE_PATCH
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PATCH('[1, 2]', 'xyz'); # Fails - error 3141
+SELECT JSON_MERGE_PATCH('[1, 2]', '"xyz"'); # OK - returns "xyz"
+prepare s from "SELECT JSON_MERGE_PATCH('[1, 2]', ?)";
+set @x='xyz';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @x; # Fails - error 3141
+set @x='"xyz"';
+execute s using @x; # OK - returns "xyz"
+
+# JSON_MERGE_PRESERVE
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_MERGE_PRESERVE('[1, 2]', 'xyz'); # Fails - error 3141
+SELECT JSON_MERGE_PRESERVE('[1, 2]', '"xyz"'); # OK - returns [1, 2, "xyz"]
+prepare s from "SELECT JSON_MERGE_PRESERVE('[1, 2]', ?)";
+set @x='xyz';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+execute s using @x; # Fails - error 3141
+set @x='"xyz"';
+execute s using @x; # OK - returns [1, 2, "xyz"]
+
+# JSON_INSERT
+
+SELECT JSON_INSERT('{"a" : 1}', '$.b', 'xyz'); # OK - returns {"a": 1, "b": "xyz"}
+SELECT JSON_INSERT('{"a" : 1}', '$.b', '"xyz"'); # OK - returns {"a": 1, "b": "\"xyz\""}
+prepare s from "SELECT JSON_INSERT('{""a"" : 1}', '$.b', ?)";
+set @x='xyz';
+execute s using @x; # OK - returns {"a": 1, "b": "xyz"}
+set @x='"xyz"';
+execute s using @x; # OK - returns {"a": 1, "b": "\"xyz\""}
+
+# JSON_REPLACE
+
+SELECT JSON_REPLACE('{"a" : 1}', '$.a', 'xyz'); # OK - returns {"a": "xyz"}
+SELECT JSON_REPLACE('{"a" : 1}', '$.a', '"xyz"'); # OK - returns {"a": "\"xyz\""}
+prepare s from "SELECT JSON_REPLACE('{""a"" : 1}', '$.a', ?)";
+set @x='xyz';
+execute s using @x; # OK - returns {"a": "xyz"}
+set @x='"xyz"';
+execute s using @x; # OK - returns {"a": "\"xyz\""}
+
+# JSON_SET
+
+SELECT JSON_SET('{"a" : 1}', '$.a', 'xyz'); # OK - returns {"a": "xyz"}
+SELECT JSON_SET('{"a" : 1}', '$.a', '"xyz"'); # OK - returns {"a": "\"xyz\""}
+prepare s from "SELECT JSON_SET('{""a"" : 1}', '$.a', ?)";
+set @x='xyz';
+execute s using @x; # OK - returns {"a": "xyz"}
+set @x='"xyz"';
+execute s using @x; # OK - returns {"a": "\"xyz\""}
+
+--echo #
+--echo # Bug #32162329 BOOL JSON_VALUE: ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED.
+--echo #
+
+--error ER_INVALID_TYPE_FOR_JSON
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+ +
+ (JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+--error ER_INVALID_TYPE_FOR_JSON
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+ -
+ (JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+--error ER_INVALID_TYPE_FOR_JSON
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+ *
+ (JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+--error ER_INVALID_TYPE_FOR_JSON
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+ /
+ (JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+--error ER_INVALID_TYPE_FOR_JSON
+DO TO_BASE64
+(((JSON_PRETTY(CONVERT(JSON_KEYS(1,1) USING utf8mb4)))
+ %
+ (JSON_MERGE_PRESERVE('{ }' ,'{ }')))
+);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO CAST(JSON_PRETTY('') AS SIGNED) + CAST(JSON_PRETTY('') AS SIGNED);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO CAST(JSON_PRETTY('') AS SIGNED) - CAST(JSON_PRETTY('') AS SIGNED);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO CAST(JSON_PRETTY('') AS SIGNED) * CAST(JSON_PRETTY('') AS SIGNED);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO CAST(JSON_PRETTY('') AS SIGNED) / CAST(JSON_PRETTY('') AS SIGNED);
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO CAST(JSON_PRETTY('') AS SIGNED) % CAST(JSON_PRETTY('') AS SIGNED);
+
+--echo #
+--echo # Bug #32206506 ASSERTION `!CURRENT_THD->IS_ERROR()' FAILED.
+--echo #
+
+--error ER_INVALID_TYPE_FOR_JSON
+do nullif((week(json_merge(88,1,'[false,1001892796]' ,8 ))),(0x4622ae3d ));
+--error ER_INVALID_TYPE_FOR_JSON
+do truncate(sum(1),json_pretty((not(1))));
+--error ER_INCORRECT_TYPE
+do ifnull((json_unquote(1)),(json_type(1)));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((json_depth(from_unixtime(1536999222)))<=>(1));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do ((json_length('key2','key1'))<=>(1));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((1)not in((json_keys(4353)),(current_role())));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((1)<=>(json_length(2,'key2')));
+--error ER_INVALID_TYPE_FOR_JSON
+do aes_decrypt(json_type(1),json_keys('-4*2c*'));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((1)not in ((json_remove(19,'{}')),((not(1)))));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((json_storage_size(1))<=(json_storage_size('')));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do ((select(95))<=>(json_contains('{ }',' * }* ')));
+--error ER_DATA_OUT_OF_RANGE
+do truncate(exp(0xa701c3bc),(not(json_valid('{}'))));
+--error ER_INVALID_TYPE_FOR_JSON
+do ((' ')<=>(json_type(CURRENT_TIMESTAMP)));
+--error ER_DATA_OUT_OF_RANGE
+do ((cot(':-%%& 1*'))>>(json_keys('{ }')));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do ((get_format(datetime,'JIS'))<=>(json_type('key3')));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do strcmp(json_storage_size('*1'),json_valid(null));
+--error ER_INVALID_TYPE_FOR_JSON
+do sha2((!(json_keys(abs('')))),json_pretty(null));
+--error ER_WRONG_ARGUMENTS
+do ((period_diff(20259,1872))>((not(('{ }')))));
+--error ER_DATA_OUT_OF_RANGE
+do ((exp(4812))>>(year((!((not(degrees(''))))))));
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+do pow(json_storage_size(':*'),(!(oct(1))));

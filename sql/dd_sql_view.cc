@@ -468,8 +468,21 @@ static bool open_views_and_update_metadata(
     uint counter = 0;
     DML_prelocking_strategy prelocking_strategy;
     view->select_lex = thd->lex->select_lex;
+    /*
+      open_tables() will normally switch the current memory allocation context
+      from the execution context to the prepared statement context, if
+      such context is active. However, open_views_and_update_metadata() should
+      be done only as part of a single execution, and will be fully cleaned up
+      as part of that execution.
+      The following code forces the preparation code in open_tables() to
+      be performed on the execution mem_root, regardless of the current
+      embedding memory allocation context.
+    */
+    MEM_ROOT *saved_arena_mem_root = thd->stmt_arena->mem_root;
+    thd->stmt_arena->mem_root = thd->mem_root;
     if (open_tables(thd, &view, &counter, MYSQL_OPEN_NO_NEW_TABLE_IN_SE,
                     &prelocking_strategy)) {
+      thd->stmt_arena->mem_root = saved_arena_mem_root;
       thd->pop_internal_handler();
 
       if (error_handler.is_view_invalid()) {
@@ -489,6 +502,7 @@ static bool open_views_and_update_metadata(
       }
       continue;
     }
+    thd->stmt_arena->mem_root = saved_arena_mem_root;
     if (view->is_view() == false) {
       // In between listing views and locking(opening), if view is dropped and
       // created as table then skip it.

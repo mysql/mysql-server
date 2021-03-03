@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0buf.h"
 #include "buf0types.h"
 #include "fil0fil.h"
+#include "fil0types.h"
 #include "mach0data.h"
 #include "my_dbug.h"
 #include "page0size.h"
@@ -270,12 +271,27 @@ bool BlockReporter::is_checksum_valid_crc32(ulint checksum_field1,
   return (checksum_field1 == crc32);
 }
 
+bool BlockReporter::is_encrypted() const noexcept {
+  ulint page_type = mach_read_from_2(m_read_buf + FIL_PAGE_TYPE);
+
+  return page_type == FIL_PAGE_ENCRYPTED ||
+         page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED ||
+         page_type == FIL_PAGE_ENCRYPTED_RTREE;
+}
+
 /** Checks if a page is corrupt.
 @retval	true	if page is corrupt
 @retval	false	if page is not corrupt */
 bool BlockReporter::is_corrupted() const {
   ulint checksum_field1;
   ulint checksum_field2;
+
+  /* This function should be used for unencrypted pages. During recovery it is
+   * possible that this function is called for encrypted pages, when decryption
+   * failed. So report it as corrupted. */
+  if (is_encrypted()) {
+    return true;
+  }
 
   if (!m_page_size.is_compressed() &&
       memcmp(
@@ -740,4 +756,26 @@ std::ostream &operator<<(std::ostream &out, const page_id_t &page_id) {
   out << "[page id: space=" << page_id.m_space
       << ", page number=" << page_id.m_page_no << "]";
   return (out);
+}
+
+bool BlockReporter::is_lsn_valid(const byte *frame,
+                                 uint32_t page_size) noexcept {
+  const uint32_t lsn1 = mach_read_from_4(frame + FIL_PAGE_LSN + 4);
+  const uint32_t lsn2 = mach_read_from_4(frame + page_size - 4);
+
+#ifdef UNIV_DEBUG
+  if (lsn1 != lsn2) {
+    ut_ad(lsn1 == lsn2);
+  }
+#endif /* UNIV_DEBUG */
+
+  return lsn1 == lsn2;
+}
+
+space_id_t BlockReporter::space_id() const noexcept {
+  return mach_read_from_4(m_read_buf + FIL_PAGE_SPACE_ID);
+}
+
+page_no_t BlockReporter::page_no() const noexcept {
+  return mach_read_from_4(m_read_buf + FIL_PAGE_OFFSET);
 }

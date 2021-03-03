@@ -340,6 +340,9 @@ set password for unpriv@localhost = 'x';
 -->newsession_mysql41 x_root	x_root
 -->stmtadmin kill_client	{"id": %CLIENT_ID%}
 -->recvresult
+-->setsession unpriv
+-->recvuntildisc
+-->setsession x_root
 -->stmtsql drop user unpriv@localhost;
 -->recvresult
 -->callmacro Show_sql_history

@@ -173,5 +173,4 @@ DROP LOGFILE GROUP lg1
 
 --exec $NDB_DROP_TABLE -d mysql db user tables_priv columns_priv procs_priv proxies_priv  >> $NDB_TOOLS_OUTPUT
 
-let NDB_RESTORE=;
 --remove_file $NDB_TOOLS_OUTPUT

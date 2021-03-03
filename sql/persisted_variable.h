@@ -31,9 +31,9 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "sql_string.h"
 
 class Json_dom;

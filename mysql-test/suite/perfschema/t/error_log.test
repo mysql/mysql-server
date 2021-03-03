@@ -1,6 +1,8 @@
 --echo # WL#13681: Make error-log available for queries from a connection
 --echo
 
+--source include/not_parallel.inc
+
 SET @@global.log_error_verbosity=3;
 
 # This test does not rely on debug features. If you need to add a case that
@@ -127,7 +129,7 @@ SELECT prio,error_code,subsystem
                          "MY-012937", "MY-012366", "MY-000067", "MY-010159",
                          "MY-013602", "MY-010069", "MY-013595", "MY-010108",
                          "MY-012363", "MY-011953")
- ORDER BY logged;
+ ORDER BY logged, error_code;
 
 --echo
 --echo # Don't show NOTEs:

@@ -62,6 +62,18 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     "  REQUIRE_TABLE_PRIMARY_KEY_CHECK ENUM('STREAM','ON','OFF') not null"
     "    COMMENT 'Indicates what is the channel policy regarding tables having"
     " primary keys on create and alter table queries',\n"
+    "  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE "
+    "ENUM('OFF','LOCAL','UUID')  not null "
+    "    COMMENT 'Indicates whether the channel will generate a new GTID for"
+    " anonymous transactions. OFF means that anonymous transactions will remain"
+    " anonymous. LOCAL means that anonymous transactions will be assigned a"
+    " newly generated GTID based on server_uuid. UUID indicates that"
+    " anonymous transactions will be assigned a newly generated GTID based on"
+    " Assign_gtids_to_anonymous_transactions_value',\n"
+    "  ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE TEXT CHARACTER SET utf8 "
+    "COLLATE utf8_bin null "
+    "    COMMENT 'Indicates the UUID used while generating GTIDs for anonymous"
+    " transactions',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -231,6 +243,12 @@ int table_replication_applier_configuration::make_row(Master_info *mi) {
   m_row.require_table_primary_key_check =
       mi->rli->get_require_table_primary_key_check();
 
+  m_row.assign_gtids_to_anonymous_transactions_type =
+      mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type();
+
+  m_row.assign_gtids_to_anonymous_transactions_value.assign(
+      mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_value());
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -268,6 +286,20 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
           break;
         case 4: /** require_table_primary_key_check */
           set_field_enum(f, m_row.require_table_primary_key_check);
+          break;
+        case 5: /** assign_gtids_to_anonymous_transactions_type */
+          set_field_enum(
+              f, static_cast<ulong>(
+                     m_row.assign_gtids_to_anonymous_transactions_type));
+          break;
+        case 6: /** assign_gtids_to_anonymous_transactions_value */
+          if (m_row.assign_gtids_to_anonymous_transactions_value.length() != 0)
+            set_field_text(
+                f, m_row.assign_gtids_to_anonymous_transactions_value.data(),
+                m_row.assign_gtids_to_anonymous_transactions_value.length(),
+                &my_charset_utf8mb4_bin);
+          else
+            f->set_null();
           break;
         default:
           DBUG_ASSERT(false);

@@ -8,7 +8,7 @@
 
 let MYSQLD_DATADIR= `select @@datadir`;
 # Setup path to server output log file
-let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $error_log= $MYSQLTEST_VARDIR/tmp/my_restart.err;
 
 # Setup MYSQLD_CMD_11 with correct group suffix to first
 # mysqld in the cluster

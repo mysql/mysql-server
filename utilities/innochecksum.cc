@@ -184,6 +184,11 @@ fatal::~fatal() {
 }
 }  // namespace ib
 
+/** A dummy implementation.  Actual implementation available in fil0fil.cc */
+std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
+  return out;
+}
+
 /** Check that a page_size is correct for InnoDB. If correct, set the
 associated page_size_shift which is the power of 2 for this page size.
 @param[in]	page_size	page size to evaluate

@@ -379,14 +379,9 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         /*
           If the item is a function, a pointer to the item is stored in
           copy_func. We separate fields from functions by checking if the
-          item is a result field item. The real_item() must be checked to
-          avoid falsely identifying Item_ref and its subclasses as functions
-          when they refer to field-like items, such as Item_copy and
-          subclasses. References to true fields have already been untangled
-          in the beginning of create_tmp_field().
+          item is a result field item.
          */
-        if (item->real_item()->is_result_field())
-          copy_func->push_back(Func_ptr(item));
+        if (item->is_result_field()) copy_func->push_back(Func_ptr(item));
       } else {
         result = create_tmp_field_from_field(
             thd, item_field->field,
@@ -484,8 +479,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         result = create_tmp_field_from_item(item, table);
         if (result == nullptr) return nullptr;
         if (modify_item) item->set_result_field(result);
-        if (copy_func && !make_copy_field &&
-            item->real_item()->is_result_field())
+        if (copy_func && !make_copy_field && item->is_result_field())
           copy_func->push_back(Func_ptr(item));
         if (copy_result_field) result->set_flag(FIELD_IS_MARKED);
       }
@@ -729,37 +723,13 @@ static void sort_copy_func(const SELECT_LEX *select,
     expr2 ...)" -> "EXISTS (SELECT * ... HAVING x = expr1 AND y = expr2 ...").
 
     Let's go through the process of writing to the tmp table
-    (e.g. end_write(), end_write_group()). We also include here the
-    "pseudo-tmp table" embedded into REF_SLICE_ORDERED_GROUP_BY, used by
-    end_send_group().
+    (MaterializeIterator).
     (1) we switch to the REF_SLICE used to read from that tmp table
-    (2.1) we (copy_fields() part 1) copy some columns from the
+    (2) we (copy_fields()) copy some columns from the
     output of the previous step of execution (e.g. the join's output) to the
     tmp table
-    (2.2) (specifically for REF_SLICE_ORDERED_GROUP_BY in end_send_group()) we
-    (copy_fields() part 2) evaluate some expressions from the same previous
-    step of execution, with Item_copy::copy(). The mechanism of Item_copy is:
-    * copy() evaluates the expression and caches its value in memory
-    * val_*() returns the cached value;
-    so Item_copy::copy() for "a+2" evaluates "a+2" (using the join's value
-    of "a") and caches the value; then Item_copy::copy() for "x+3" evaluates
-    "x", through Item_ref (because of the alias), that Item_ref points to
-    the Item_copy for "a+2" (does not point to the "a+2" Item_func_plus
-    expression, as we advanced the REF_SLICE to TMP3); copy() on
-    "x+3" thus evaluates the Item_copy for "a+2" which returns the cached value.
-    This way, if "a+2" were rather some non-deterministic expression
-    (e.g. rand()), the logic above does only one evaluation of rand(), which is
-    correct (the two objects "x" and "a+2" in 'fields' thus have equal
-    values).
-    For this to work, the Item_copy for "x" must be copy()d after that
-    of "a+2", so it can use the value cached for "a+2". setup_copy_fields()
-    ensures this by putting Item_copy-s of hidden elements last.
-    (3) We are now done with copy_fields(). Next is copy_funcs(). It
-    is meant to evaluate expressions and store their values into the tmp table.
-    [ note that we could replace Item_copy in (2) with a real one-row tmp
-    table; then end_send_group() could just use copy_funcs() instead of
-    Item_copy: copy_funcs() would store into the tmp table's column which
-    would thus be the storage for the cached value ].
+    (3) Next is copy_funcs(). It is meant to evaluate expressions and
+    store their values into the tmp table.
     Because we advanced the REF_SLICE, when copy_funcs() evaluates an
     expression which uses Item_ref, that Item_ref may point to a column of
     the tmp table. It is thus important that this column has been filled
@@ -785,25 +755,16 @@ static void sort_copy_func(const SELECT_LEX *select,
     SELECT::all_fields (i.e. they share 'next' pointers, in the
     implementation).
 
-    You may wonder why setup_copy_fields() can solve the dependency problem
-    by putting all hidden elements last, while for the copy_func array we
-    have a (more complex) sort. It's because setup_copy_fields() is for
-    end_send_group() which handles only queries with GROUP BY without ORDER
-    BY, window functions or DISTINCT. So the hidden elements produced by
-    split_sum_func are only group aggregates (not anything from WFs), which
-    setup_copy_fields() ignores: these aggregates are thus not cached
-    (neither in Item_copy, nor in a further tmp table's row as there's no tmp
-    table); so any parent item which references them,
-    if evaluated, will reach to the aggregate, not to any cache
-    materializing the aggregate, so will get an up-to-date value.
-    Whereas with window functions, it's possible to have a hidden element be an
-    aggregate (produced by split_sum_func) _and_ be materialized (into a
-    further tmp table), so we cannot ignore such Item anymore: we have to
-    leave it at the beginning of the copy_func array. Except if it contains
-    an alias to an expression of the SELECT list: in that case, the sorting
-    will move it to the end, but will also move the aliased expression, and
-    their relative order will remain unchanged thanks to stable_partition, so
-    their evaluation will be in the right order.
+    You may wonder why we need a (relatively complex) sort, instead of just
+    putting all the hidden elements last: With window functions,
+    it's possible to have a hidden element be an aggregate (produced by
+    split_sum_func) _and_ be materialized (into a further tmp table),
+    so we have to leave it at the beginning of the copy_func array.
+    Except if it contains an alias to an expression
+    of the SELECT list: in that case, the sorting will move it to the end,
+    but will also move the aliased expression, and their relative order
+    will remain unchanged thanks to stable_partition, so their evaluation
+    will be in the right order.
 
     So we walk each item to copy, put the ones that don't reference other
     expressions in the query block first, and put those that reference other
@@ -1010,11 +971,6 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     Item::Type type = item->type();
     const bool is_sum_func =
         type == Item::SUM_FUNC_ITEM && !item->m_is_window_function;
-
-    if (type == Item::COPY_STR_ITEM) {
-      item = down_cast<Item_copy *>(item)->get_item();
-      type = item->type();
-    }
 
     bool store_column = true;
     if (not_all_columns) {
@@ -1474,9 +1430,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
       */
       Field *orig_field = default_field[i];
       /*
-        Get the value from default_values. Note that orig_field->ptr might not
-        point into record[0] if previous step is REF_SLICE_ORDERED_GROUP_BY and
-        we are creating a tmp table to materialize the query's result.
+        Get the value from default_values.
       */
       ptrdiff_t diff = orig_field->table->default_values_offset();
       Field *f_in_record0 = orig_field->table->field[orig_field->field_index()];
@@ -2531,12 +2485,10 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
   }
 
   if (wtable->s->db_type() != heap_hton) {
-    if (wtable->s->db_type() != temptable_hton || temptable_use_mmap) {
+    if (wtable->s->db_type() != temptable_hton) {
       /* Do not convert in-memory temporary tables to on-disk
       temporary tables if the storage engine is anything other
-      than the temptable engine or if the user has set the variable
-      temptable_use_mmap to true to use mmap'ed files for temporary
-      tables. */
+      than the temptable engine. */
       wtable->file->print_error(error, MYF(ME_FATALERROR));
       return true;
     }
@@ -2722,10 +2674,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
       // Close the in-memory table
       if (table->s->db_type() == temptable_hton) {
-        /* Drop the in-memory temptable.
-        This code can execute only if mmap'ed temporary
-        files were disabled using temptable_use_mmap variable */
-        DBUG_ASSERT(temptable_use_mmap == false);
+        /* Drop the in-memory temptable. */
         table->file->ha_drop_table(table->s->table_name.str);
       } else {
         // Closing the MEMORY table drops it if its ref count is down to zero

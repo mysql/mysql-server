@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,9 +88,13 @@ static const Uint32 WaitScanTempErrorRetryMillis = 10;
 static NDB_TICKS startTime;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_LCP 1
-//#define DEBUG_LCP_ROW 1
+//#define DEBUG_EMPTY_LCP 1
+//#define DEBUG_END_LCP 1
 //#define DEBUG_LCP_DEL_FILES 1
+//#define DEBUG_LCP 1
+//#define DEBUG_EMPTY_LCP 1
+//#define DEBUG_UNDO_LCP 1
+//#define DEBUG_LCP_ROW 1
 //#define DEBUG_LCP_DEL 1
 //#define DEBUG_EXTRA_LCP 1
 //#define DEBUG_REDO_CONTROL 1
@@ -98,6 +102,18 @@ static NDB_TICKS startTime;
 //#define DEBUG_LCP_DD 1
 //#define DEBUG_LCP_STAT 1
 //#define DEBUG_LCP_LAG 1
+#endif
+
+#ifdef DEBUG_END_LCP
+#define DEB_END_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_END_LCP(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_EMPTY_LCP
+#define DEB_EMPTY_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_EMPTY_LCP(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_REDO_CONTROL
@@ -110,6 +126,12 @@ static NDB_TICKS startTime;
 #define DEB_REDO_CONTROL_DETAIL(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_REDO_CONTROL_DETAIL(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_UNDO_LCP
+#define DEB_UNDO_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_UNDO_LCP(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_LCP
@@ -181,7 +203,6 @@ static Uint32 g_TypeOfStart = NodeState::ST_ILLEGAL_TYPE;
  */
 #define HIGH_LOAD_LEVEL 32
 #define VERY_HIGH_LOAD_LEVEL 48
-#define NUMBER_OF_SIGNALS_PER_SCAN_BATCH 3
 #define MAX_RAISE_PRIO_MEMORY 16
 
 void
@@ -233,9 +254,13 @@ Backup::execSTTOR(Signal* signal)
     c_initial_start_lcp_not_done_yet = false;
     m_redo_alert_factor = 1;
     m_redo_alert_state = RedoStateRep::NO_REDO_ALERT;
-    signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
-                        Backup::DISK_SPEED_CHECK_DELAY, 1);
+    if (!m_is_query_block)
+    {
+      jam();
+      signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                          Backup::DISK_SPEED_CHECK_DELAY, 1);
+    }
   }
   if (startphase == 3)
   {
@@ -325,13 +350,28 @@ Backup::execREAD_NODESCONF(Signal* signal)
 void
 Backup::sendSTTORRY(Signal* signal)
 {
-  signal->theData[0] = 0;
-  signal->theData[3] = 1;
-  signal->theData[4] = 3;
-  signal->theData[5] = 7;
-  signal->theData[6] = 255; // No more start phases from missra
-  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : BACKUP_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
+  Uint32 sig_len;
+  if (m_is_query_block)
+  {
+    jam();
+    signal->theData[0] = 0;
+    signal->theData[3] = 1;
+    signal->theData[4] = 255;
+    sig_len = 5;
+  }
+  else
+  {
+    jam();
+    signal->theData[0] = 0;
+    signal->theData[3] = 1;
+    signal->theData[4] = 3;
+    signal->theData[5] = 7;
+    signal->theData[6] = 255; // No more start phases from missra
+    sig_len = 7;
+  }
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF :
+                           m_is_query_block ? QBACKUP_REF : BACKUP_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, sig_len, JBB);
 }
 
 void
@@ -706,17 +746,41 @@ Backup::lcp_start_point(Signal *signal)
                     (m_insert_size_lcp_last / (1024 * 1024))));
 }
 
-void
-Backup::lcp_end_point()
+bool
+Backup::lcp_end_point(BackupRecordPtr ptr)
 {
+  Uint32 num_fragments = ptr.p->m_num_fragments;
+  ptr.p->backupId = 0; /* Ensure next LCP_PREPARE_REQ sees a new LCP id */
+  ptr.p->m_num_fragments = 0;
+  ptr.p->m_first_fragment = false;
   NDB_TICKS current_time = getHighResTimer();
+
+  if (num_fragments == 0)
+  {
+    jam();
+    /**
+     * We haven't started LCP in this LDM since there are no fragments, so
+     * won't update any LCP sizes here.
+     */
+    m_last_lcp_exec_time_in_ms = 0;
+    return true;
+  }
+  jam();
   ndbrequire(NdbTick_IsValid(m_lcp_start_time));
   m_last_lcp_exec_time_in_ms =
     NdbTick_Elapsed(m_lcp_start_time, current_time).milliSec();
   m_lcp_current_cut_point = m_lcp_start_time;
 
-  c_pgman->lcp_end_point(m_last_lcp_exec_time_in_ms);
+  bool ready = true;
+  if (isNdbMt())
+  {
+    /**
+     * Only call for ndbmtd since ndbd has no extra PGMAN worker.
+     */
+    ready = c_pgman->lcp_end_point(m_last_lcp_exec_time_in_ms, true, false);
+  }
   reset_lcp_timing_factors();
+
 #ifdef DEBUG_REDO_CONTROL
   Uint64 checkpoint_size = m_insert_size_lcp[1] - m_insert_size_lcp[0];
   Uint64 checkpoint_rate = 0;
@@ -739,6 +803,7 @@ Backup::lcp_end_point()
   m_delete_size_lcp[0] = m_delete_size_lcp[1];
   m_lcp_lag[0] = m_lcp_lag[1];
   m_lcp_lag[1] = Int64(0);
+  return ready;
 }
 
 Uint64
@@ -1774,7 +1839,7 @@ Backup::calculate_current_speed_bounds(Uint64& max_speed,
    * When the Backup completes, balance is restored.
    */
 
-  const Uint32 num_ldm_threads = globalData.ndbMtLqhThreads;
+  const Uint32 num_ldm_threads = globalData.ndbMtLqhWorkers;
 
   if (m_is_backup_running && m_skew_disk_speed &&
       num_ldm_threads > 1)
@@ -2288,6 +2353,12 @@ Backup::execCONTINUEB(Signal* signal)
   const Uint32 Tdata3 = signal->theData[3];
   
   switch(Tdata0) {
+  case BackupContinueB::ZCHECK_PGMAN_PREP_LCP:
+  {
+    jam();
+    check_pgman_prep_lcp_ready(signal, Tdata1);
+    return;
+  }
   case BackupContinueB::RESET_DISK_SPEED_COUNTER:
   {
     jam();
@@ -2741,11 +2812,11 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
      */
     if (signal->length() == 2)
     {
-      if (signal->theData[1] == true)
+      if (signal->theData[1] == 1)
       {
         c_defaults.m_encryption_required = true;
       }
-      else if (signal->theData[1] == false)
+      else if (signal->theData[1] == 0)
       {
         c_defaults.m_encryption_required = false;
       }
@@ -3957,16 +4028,17 @@ Backup::verifyNodesAlive(BackupRecordPtr ptr,
 {
   Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
   for (Uint32 i = 0; i < MAX_NDB_NODES; i++) {
-    jam();
     if(aNodeBitMask.get(i)) {
       if(!c_aliveNodes.get(i)){
         jam();
+        jamLine(i);
 	ptr.p->setErrorCode(AbortBackupOrd::BackupFailureDueToNodeFail);
         return false;
       }//if
       if(getNodeInfo(i).m_version != version)
       {
-	jam();
+        jam();
+        jamLine(i);
 	ptr.p->setErrorCode(AbortBackupOrd::IncompatibleVersions);
 	return false;
       }
@@ -4737,7 +4809,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
    * If backup is not multithreaded, DEFINE_BACKUP_REQ sent only to LDM 1
    * on all nodes. Only 1 backup fileset created per node.
    *
-   * instanceKey() selects instance to send signal to:
+   * instanceNo() selects instance to send signal to:
    * - for LCP, send to self
    * - for single-threaded backup: only one LDM thread, send to that thread
    * - for multithreaded backup, send to the BackupProxy LDM0, which then
@@ -4755,7 +4827,7 @@ Backup::sendDefineBackupReq(Signal *signal, BackupRecordPtr ptr)
   NdbNodeBitmask nodes = ptr.p->nodes;
   while ((recNode = nodes.find(recNode + 1)) != NdbNodeBitmask::NotFound)
   {
-    const Uint32 ref = numberToRef(BACKUP, instanceKey(ptr), recNode);
+    const Uint32 ref = numberToRef(BACKUP, instanceNo(ptr), recNode);
 
     // Backup is not allowed for mixed versions data nodes
     ndbrequire(ndbd_send_node_bitmask_in_section(getNodeInfo(recNode).m_version));
@@ -5182,7 +5254,7 @@ Backup::sendStartBackup(Signal* signal, BackupRecordPtr ptr, TablePtr tabPtr)
    */
   ptr.p->masterData.gsn = GSN_START_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceKey(ptr));
+  BlockNumber backupBlockNo = numberToBlock(BACKUP, instanceNo(ptr));
   NodeReceiverGroup rg(backupBlockNo, ptr.p->nodes);
   sendSignal(rg, GSN_START_BACKUP_REQ, signal,
 	     StartBackupReq::SignalLength, JBB);
@@ -5201,6 +5273,7 @@ Backup::execSTART_BACKUP_REF(Signal* signal)
   BackupRecordPtr ptr;
   c_backupPool.getPtr(ptr, ptrI);
 
+  ndbrequire(ref->errorCode != StartBackupRef::FailedStartSinceDefineFailed);
   ptr.p->setErrorCode(ref->errorCode);
   startBackupReply(signal, ptr, nodeId);
 }
@@ -5900,7 +5973,7 @@ Backup::sendStopBackup(Signal* signal, BackupRecordPtr ptr)
 
   ptr.p->masterData.gsn = GSN_STOP_BACKUP_REQ;
   ptr.p->masterData.sendCounter = ptr.p->nodes;
-  Uint32 receiverInstance = instanceKey(ptr);
+  Uint32 receiverInstance = instanceNo(ptr);
 
   if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
       && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
@@ -6130,7 +6203,7 @@ Backup::masterAbort(Signal* signal, BackupRecordPtr ptr)
   ord->backupId = ptr.p->backupId;
   ord->backupPtr = ptr.i;
   ord->senderData= ptr.i;
-  Uint32 receiverInstance = instanceKey(ptr); // = BackupProxy for mt-backup
+  Uint32 receiverInstance = instanceNo(ptr); // = BackupProxy for mt-backup
 
   if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
       && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
@@ -7700,11 +7773,10 @@ Backup::getFragmentInfo(Signal* signal,
                           DiGetNodesReq::SignalLength, 0);
         jamEntry();
         DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
-        Uint32 reqinfo = conf->reqinfo;
         Uint32 nodeId = conf->nodes[0];
         /* Require successful read of table fragmentation */
         ndbrequire(conf->zero == 0);
-        Uint32 instanceKey = (reqinfo >> 24) & 127;
+        Uint32 instanceKey = conf->instanceKey;
         fragPtr.p->lqhInstanceKey = instanceKey;
         fragPtr.p->node = nodeId;
         if (++loopCount >= DiGetNodesReq::MAX_DIGETNODESREQS ||
@@ -7814,6 +7886,19 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
    * Tell DBTUP to create triggers to start recording logs
    */
   TablePtr tabPtr;
+  if (ptr.p->tables.getCount() == 0)
+  {
+    jam();
+    ptr.p->m_gsn = GSN_START_BACKUP_REF;
+    StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
+    ref->backupPtr = ptr.i;
+    ref->backupId = ptr.p->backupId;
+    ref->errorCode = StartBackupRef::FailedStartSinceDefineFailed;
+    ref->nodeId = getOwnNodeId();
+    sendSignal(ptr.p->senderRef, GSN_START_BACKUP_REF, signal,
+               StartBackupRef::SignalLength, JBB);
+    return;
+  }
   ndbrequire(ptr.p->tables.first(tabPtr));
   sendCreateTrig(signal, ptr, tabPtr);
 }
@@ -8248,7 +8333,7 @@ Backup::init_file_for_lcp(Signal *signal,
  * transporting 150 MBytes of data to the write buffers in the Backup block.
  * So we use a formula here where we assume that the fixed cost of scanning
  * a row is about 550 ns and cost per word of data is 4 ns. The reason we
- * a different formula for LCP scans compared to the formula we assume in
+ * use a different formula for LCP scans compared to the formula we assume in
  * DBLQH for generic scans is that the copy of data is per row for LCPs
  * whereas it is per column for generic scans. Similarly we never use any
  * scan filters for LCPs, we only check for LCP_SKIP bits and FREE bits.
@@ -8340,8 +8425,8 @@ Backup::init_file_for_lcp(Signal *signal,
  * in this overload situation.
  *
  * The following "magic" constants control these algorithms:
- * 1) ZMAX_SCAN_DIRECT_COUNT set to 5
- * Means that at most 6 rows will be scanned per execute direct, set in
+ * 1) ZMAX_SCAN_DIRECT_COUNT set to 16
+ * Means that at most 16 rows will be scanned per execute direct, set in
  * Dblqh.hpp. This applies to all scan types, not only to LCP scans.
  *
  * 2) ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO set to 1600
@@ -8387,12 +8472,6 @@ Backup::init_file_for_lcp(Signal *signal,
  * normal priority mode.
  * Defined in this block Backup.cpp.
  *
- * 8) NUMBER_OF_SIGNALS_PER_SCAN_BATCH set to 3
- * When starting up the algorithm we check how many signals are in the
- * B-level job buffer. Based on this number we set the initial value to
- * high priority or not. This is based on that we expect a set of 16
- * rows to be executed in 3 signals with 6 rows, 6 rows and last signal
- * 4 rows.
  * Defined in this block Backup.cpp.
  */
 
@@ -8403,14 +8482,16 @@ Backup::init_file_for_lcp(Signal *signal,
  */
 void Backup::init_scan_prio_level(Signal *signal, BackupRecordPtr ptr)
 {
-  Uint32 level = getSignalsInJBB();
-  if ((level * NUMBER_OF_SIGNALS_PER_SCAN_BATCH) > HIGH_LOAD_LEVEL)
+  Uint32 level = getEstimatedJobBufferLevel();
+  Uint32 signal_id = signal->getSignalId();
+  if (likely(level < signal_id))
   {
-    /* Ensure we use prio A and only 1 signal at prio A */
-    jam();
-    level = VERY_HIGH_LOAD_LEVEL;
+    ptr.p->m_lastSignalId = signal_id - level;
   }
-  ptr.p->m_lastSignalId = signal->getSignalId() - level;
+  else
+  {
+    ptr.p->m_lastSignalId = 0;
+  }
   ptr.p->m_prioA_scan_batches_to_execute = 0;
 }
 
@@ -8528,7 +8609,8 @@ Backup::sendScanFragReq(Signal* signal,
     } else {
       const Uint32 instanceKey = fragPtr.p->lqhInstanceKey;
       ndbrequire(instanceKey != 0);
-      lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
+      Uint32 instanceNo = getInstanceNo(getOwnNodeId(), instanceKey);
+      lqhRef = numberToRef(DBLQH, instanceNo, getOwnNodeId());
       if (lqhRef != calcInstanceBlockRef(DBLQH))
       {
         /* We can't send delayed signals to other threads. */
@@ -9918,7 +10000,19 @@ Backup::fragmentCompleted(Signal* signal,
      * LCP. We update both LQH and ourselves with this value.
      */
     c_lqh->lcp_complete_scan(ptr.p->newestGci);
-
+#ifdef DEBUG_END_LCP
+    {
+      TablePtr tabPtr;
+      FragmentPtr fragPtr;
+      ptr.p->tables.first(tabPtr);
+      tabPtr.p->fragments.getPtr(fragPtr, 0);
+      DEB_END_LCP(("(%u)1:lcp_complete_scan, tab(%u,%u), newestGCI: %u",
+                   instance(),
+                   tabPtr.p->tableId,
+                   fragPtr.p->fragmentId,
+                   ptr.p->newestGci));
+    }
+#endif
     /**
      * The actual complete processing is started from checkFile which is
      * called regularly from a CONTINUEB loop. We cannot start the complete
@@ -10174,7 +10268,8 @@ Backup::checkScan(Signal* signal,
     FragmentPtr fragPtr;
     tabPtr.p->fragments.getPtr(fragPtr, filePtr.p->fragmentNo);
     const Uint32 instanceKey = fragPtr.p->lqhInstanceKey;
-    lqhRef = numberToRef(DBLQH, instanceKey, getOwnNodeId());
+    const Uint32 instanceNo = getInstanceNo(getOwnNodeId(), instanceKey);
+    lqhRef = numberToRef(DBLQH, instanceNo, getOwnNodeId());
   }
   if (check_error(ptr, filePtr))
   {
@@ -10986,7 +11081,7 @@ Backup::sendAbortBackupOrd(Signal* signal, BackupRecordPtr ptr,
   ord->requestType = requestType;
   ord->senderData= ptr.i;
   NodePtr node;
-  Uint32 receiverInstance = instanceKey(ptr); // = BackupProxy for mt-backup
+  Uint32 receiverInstance = instanceNo(ptr); // = BackupProxy for mt-backup
 
   if((ptr.p->fragWorkers[getOwnNodeId()].count() == 1)
       && (ptr.p->fragWorkers[getOwnNodeId()].find_first() == instance()))
@@ -13354,6 +13449,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     ptr.p->localLcpId = req.localLcpId;
     ptr.p->m_initial_lcp_started = true;
     ndbrequire(ptr.p->m_first_fragment == false);
+    ndbrequire(ptr.p->m_num_fragments == 0);
     ptr.p->m_first_fragment = true;
     ptr.p->m_is_lcp_scan_active = false;
     ptr.p->m_current_lcp_lsn = Uint64(0);
@@ -13365,6 +13461,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
                                   m_delete_lcp_file_head);
     ndbrequire(queue.isEmpty());
   }
+  ptr.p->m_num_fragments++;
 
   /**
    * We need to open both header files. One of them contains the latest
@@ -14466,6 +14563,13 @@ Backup::lcp_update_ctl_page(BackupRecordPtr ptr,
   lcpCtlFilePtr->MaxGciCompleted = maxCompletedGci;
   ptr.p->slaveState.setState(STOPPING);
   c_lqh->lcp_complete_scan(ptr.p->newestGci);
+  DEB_END_LCP(("(%u)2:lcp_complete_scan, tab(%u,%u), newestGCI: %u"
+               ", maxCompletedGci = %u",
+               instance(),
+               lcpCtlFilePtr->TableId,
+               lcpCtlFilePtr->FragmentId,
+               ptr.p->newestGci,
+               maxCompletedGci));
   if (ptr.p->newestGci != lcpCtlFilePtr->MaxGciWritten)
   {
     /**
@@ -15351,6 +15455,12 @@ Backup::lcp_write_undo_log(Signal *signal,
       ptr.p->m_current_lcp_lsn = lgman.exec_lcp_frag_ord(signal,
                                c_lqh->get_current_local_lcp_id());
       ndbrequire(ptr.p->m_current_lcp_lsn > Uint64(0));
+      DEB_UNDO_LCP(("(%u) tab(%u,%u) LCP %u start at lsn=%llu",
+                    instance(),
+                    tabPtr.p->tableId,
+                    fragPtr.p->fragmentId,
+                    ptr.p->backupId,
+                    ptr.p->m_current_lcp_lsn));
     }
   }
   else
@@ -15920,7 +16030,24 @@ Backup::lcp_write_ctl_file(Signal *signal, BackupRecordPtr ptr)
            lcpCtlFilePtr->MaxGciCompleted,
            lcpCtlFilePtr->MaxGciWritten,
            lcpCtlFilePtr->CreateGci));
-  ndbrequire((lcpCtlFilePtr->MaxGciWritten + 1) >= fragPtr.p->createGci);
+  if (unlikely((lcpCtlFilePtr->MaxGciWritten + 1) < fragPtr.p->createGci))
+  {
+    g_eventLogger->info("(%u)tab(%u,%u).%u, use ctl file %u,"
+                        " GCI completed: %u,"
+                        " GCI written: %u, createGci: %u"
+                        ", ptr.p->newestGci: %u, m_newestRestorableGci: %u",
+                        instance(),
+                        lcpCtlFilePtr->TableId,
+                        lcpCtlFilePtr->FragmentId,
+                        lcpCtlFilePtr->CreateTableVersion,
+                        (ptr.p->deleteCtlFileNumber == 0 ? 1 : 0),
+                        lcpCtlFilePtr->MaxGciCompleted,
+                        lcpCtlFilePtr->MaxGciWritten,
+                        lcpCtlFilePtr->CreateGci,
+                        ptr.p->newestGci,
+                        m_newestRestorableGci);
+    ndbrequire((lcpCtlFilePtr->MaxGciWritten + 1) >= fragPtr.p->createGci);
+  }
   /**
    * LcpId and LocalLcpId was set in prepare phase.
    */
@@ -16327,9 +16454,9 @@ Backup::delete_lcp_file_processing(Signal *signal)
   if (deleteLcpFilePtr.p->waitCompletedGci > m_newestRestorableGci)
   {
     jam();
-    DEB_LCP(("(%u)TAGW Wait for completed GCI: %u",
-             instance(),
-             deleteLcpFilePtr.p->waitCompletedGci));
+    DEB_LCP_DEL_FILES(("(%u)TAGW Wait for completed GCI: %u",
+                       instance(),
+                       deleteLcpFilePtr.p->waitCompletedGci));
     m_delete_lcp_files_ongoing = false;
     return;
   }
@@ -16813,9 +16940,12 @@ Backup::check_wait_end_lcp(Signal *signal, BackupRecordPtr ptr)
   if (queue.isEmpty() && ptr.p->m_wait_end_lcp)
   {
     jam();
+    DEB_END_LCP(("(%u)wait_end_lcp done: lcpId: %u",
+                 instance(),
+                 ptr.p->backupId));
     ndbrequire(ptr.p->prepareState != PREPARE_DROP);
     ptr.p->m_wait_end_lcp = false;
-    sendEND_LCPCONF(signal, ptr);
+    handleEND_LCPCONF(signal, ptr);
   }
 }
 
@@ -17057,7 +17187,7 @@ Backup::execEND_LCPREQ(Signal* signal)
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->slaveState.setState(DEFINED);
 
-  DEB_LCP(("(%u)TAGE Send SYNC_EXTENT_PAGES_REQ", instance()));
+  DEB_END_LCP(("(%u)TAGE Send SYNC_EXTENT_PAGES_REQ", instance()));
   /**
    * As part of ending the LCP we need to ensure that the extent pages
    * are synchronised. This is to ensure that the case with dropped
@@ -17067,6 +17197,8 @@ Backup::execEND_LCPREQ(Signal* signal)
    * sharing those pages again and then we need to ensure that the
    * free status is up-to-date in preparation for a potential restart.
    */
+  ndbrequire(!ptr.p->m_wait_final_sync_extent);
+  ndbrequire(!ptr.p->m_wait_end_lcp);
   ptr.p->m_wait_final_sync_extent = true;
   ptr.p->m_num_sync_extent_pages_written = Uint32(~0);
   ptr.p->m_start_sync_op = getHighResTimer();
@@ -17074,10 +17206,11 @@ Backup::execEND_LCPREQ(Signal* signal)
     SyncExtentPagesReq *req = (SyncExtentPagesReq*)signal->getDataPtrSend();
     req->senderData = ptr.i;
     req->senderRef = reference();
-    if (ptr.p->m_first_fragment)
+    if (ptr.p->m_first_fragment || ptr.p->m_num_fragments == 0)
     {
       jam();
       ptr.p->m_first_fragment = false;
+      DEB_EMPTY_LCP(("(%u)FIRST_AND_END_LCP", instance()));
       req->lcpOrder = SyncExtentPagesReq::FIRST_AND_END_LCP;
     }
     else
@@ -17094,9 +17227,9 @@ Backup::execEND_LCPREQ(Signal* signal)
 void
 Backup::finish_end_lcp(Signal *signal, BackupRecordPtr ptr)
 {
-  DEB_LCP(("(%u)TAGE SYNC_EXTENT_PAGES_CONF: lcpId: %u",
-          instance(),
-          ptr.p->backupId));
+  DEB_END_LCP(("(%u)TAGE SYNC_EXTENT_PAGES_CONF: lcpId: %u",
+               instance(),
+               ptr.p->backupId));
   ptr.p->m_wait_final_sync_extent = false;
   LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                 m_delete_lcp_file_head);
@@ -17104,6 +17237,9 @@ Backup::finish_end_lcp(Signal *signal, BackupRecordPtr ptr)
   {
     jam();
     ptr.p->m_wait_end_lcp = true;
+    DEB_END_LCP(("(%u)wait_end_lcp: lcpId: %u",
+                 instance(),
+                 ptr.p->backupId));
     return;
   }
   /**
@@ -17114,18 +17250,18 @@ Backup::finish_end_lcp(Signal *signal, BackupRecordPtr ptr)
    * this signal until we have emptied the queue and thus completed
    * the full LCP.
    */
-  sendEND_LCPCONF(signal, ptr);
+  handleEND_LCPCONF(signal, ptr);
 }
 
 void
-Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
+Backup::handleEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
 {
-  DEB_LCP(("(%u)TAGE END_LCPREQ: lcpId: %u",
-          instance(),
-          ptr.p->backupId));
+  DEB_END_LCP(("(%u)TAGE END_LCPREQ: lcpId: %u",
+               instance(),
+               ptr.p->backupId));
   ndbrequire(!ptr.p->m_wait_end_lcp);
-  ptr.p->backupId = 0; /* Ensure next LCP_PREPARE_REQ sees a new LCP id */
 
+  if (ptr.p->m_num_fragments > 0)
   {
     NDB_TICKS now = getHighResTimer();
     Uint64 lcp_elapsed_us =
@@ -17134,13 +17270,47 @@ Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
     dd_percentage = dd_percentage / lcp_elapsed_us;
     m_last_lcp_dd_percentage = dd_percentage;
     c_pgman->set_lcp_dd_percentage(dd_percentage);
+    DEB_LCP_STAT(("(%u)Bytes written in this LCP: %llu MB, dd_percent: %u",
+                   instance(),
+                   ptr.p->noOfBytes / (1024 * 1024),
+                   m_last_lcp_dd_percentage));
   }
-  DEB_LCP_STAT(("(%u)Bytes written in this LCP: %llu MB, dd_percent: %u",
-                 instance(),
-                 ptr.p->noOfBytes / (1024 * 1024),
-                 m_last_lcp_dd_percentage));
-  lcp_end_point();
+  bool ready = lcp_end_point(ptr);
+  checkEND_LCPCONF(signal, ptr, ready);
+}
 
+void
+Backup::check_pgman_prep_lcp_ready(Signal *signal, Uint32 ptrI)
+{
+  BackupRecordPtr ptr;
+  jamEntry();
+  c_backupPool.getPtr(ptr, ptrI);
+  bool ready = c_pgman->lcp_end_point(m_last_lcp_exec_time_in_ms,
+                                      false,
+                                      false);
+  checkEND_LCPCONF(signal, ptr, ready);
+}
+
+void
+Backup::checkEND_LCPCONF(Signal *signal, BackupRecordPtr ptr, bool ready)
+{
+  if (ready)
+  {
+    jam();
+    sendEND_LCPCONF(signal, ptr);
+  }
+  else
+  {
+    jam();
+    signal->theData[0] = BackupContinueB::ZCHECK_PGMAN_PREP_LCP;
+    signal->theData[1] = ptr.i;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 2);
+  }
+}
+
+void
+Backup::sendEND_LCPCONF(Signal *signal, BackupRecordPtr ptr)
+{
   EndLcpConf* conf= (EndLcpConf*)signal->getDataPtrSend();
   conf->senderData = ptr.p->senderData;
   conf->senderRef = reference();

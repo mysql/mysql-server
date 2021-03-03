@@ -63,7 +63,7 @@
 #include "my_macros.h"
 #include "my_sys.h"  // IWYU pragma: keep
 #include "my_thread.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"

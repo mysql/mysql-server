@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -189,11 +189,11 @@ TEST_F(Xcl_protocol_impl_tests, cursor_fetch_msg_with_payload) {
   auto msg_send = Send_desc::make_required();
   XError out_error;
 
-  Mock_query_result *expected_result = new Mock_query_result();
+  mock::XQuery_result *expected_result = new mock::XQuery_result();
   expect_write_message(msg_send);
 
   XQuery_result::Metadata metadata;
-  std::unique_ptr<Mock_query_result> open_result(new Mock_query_result());
+  std::unique_ptr<mock::XQuery_result> open_result(new mock::XQuery_result());
   EXPECT_CALL(*open_result.get(), get_metadata(_))
       .WillOnce(ReturnRef(metadata));
   EXPECT_CALL(m_mock_factory, create_result_raw(_, _, _))
@@ -211,7 +211,7 @@ using Msg_vs_method_types =
                      ::Mysqlx::Crud::Insert, ::Mysqlx::Crud::Update,
                      ::Mysqlx::Crud::Delete, ::Mysqlx::Cursor::Open>;
 
-TYPED_TEST_CASE(xcl_protocol_impl_tests_execute_msg, Msg_vs_method_types);
+TYPED_TEST_SUITE(xcl_protocol_impl_tests_execute_msg, Msg_vs_method_types);
 
 TYPED_TEST(xcl_protocol_impl_tests_execute_msg, msg_with_payload) {
   XError out_error;

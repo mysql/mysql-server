@@ -11,6 +11,7 @@ PARTITION BY HASH (a) PARTITIONS 3;
 INSERT INTO t1 VALUES (1, "1"), (2, "2"), (3, "3"), (4, "Four"), (5, "Five"),
 (6, "Six"), (7, "Seven"), (8, "Eight"), (9, "Nine");
 SET SESSION debug="+d,partition_fail_index_init";
+--skip_if_hypergraph  # Depends on using indexes, which the hypergraph optimizer does not support.
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 SELECT * FROM t1 WHERE b = "Seven";
 SET SESSION debug="-d,partition_fail_index_init";
@@ -87,6 +88,51 @@ DROP TABLE t1_normal_table;
 CREATE TABLE t1(a int) PARTITION BY LIST (a) (PARTITION x1 VALUES IN
 (2),PARTITION x2 VALUES IN (3));
 ALTER TABLE t1 DISCARD TABLESPACE;
+--skip_if_hypergraph  # Error message is worded differently.
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*)FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #31941543	EXCHANGE PARTITION ASSERT
+--echo #
+
+# Choosing a table with auto generated primary key
+# and a secondary index whose name is less than  "PRIMARY".
+# so when sorted "IX_LogTime" comes first  and "PRIMARY" comes
+# after that. This condtion was not caught by the fix for
+# Bug 29706669.
+CREATE TABLE t1 (
+    LogTime TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:00',
+    UserAgent VARCHAR(256) COLLATE utf8mb4_bin DEFAULT NULL,
+    KEY IX_LogTime (LogTime)
+) ENGINE=INNODB
+PARTITION BY RANGE(UNIX_TIMESTAMP(LogTime))
+  (
+   PARTITION p201407 VALUES LESS THAN (UNIX_TIMESTAMP('2014-08-01')),
+   PARTITION p201412 VALUES LESS THAN (UNIX_TIMESTAMP('2015-01-01')),
+   PARTITION p201501 VALUES LESS THAN (UNIX_TIMESTAMP('2015-02-01')),
+   PARTITION p201502 VALUES LESS THAN (UNIX_TIMESTAMP('2015-03-01')),
+   PARTITION p201503 VALUES LESS THAN (UNIX_TIMESTAMP('2015-04-01')),
+   PARTITION future VALUES LESS THAN MAXVALUE
+  );
+SHOW CREATE TABLE t1;
+
+CREATE TABLE t2 (
+    LogTime TIMESTAMP NOT NULL DEFAULT '2000-01-01 00:00:00',
+    UserAgent VARCHAR(256) COLLATE utf8mb4_bin DEFAULT NULL,
+    KEY IX_LogTime (LogTime)
+) ENGINE=INNODB;
+SHOW CREATE TABLE t2;
+
+INSERT INTO t2 VALUES('2014-08-02 00:00:00','useragent');
+
+SELECT * FROM t2;
+SELECT * FROM t1;
+
+ALTER TABLE t1 EXCHANGE PARTITION p201412 WITH TABLE t2;
+
+SELECT * FROM t2;
+SELECT * FROM t1;
+
+DROP TABLE t1,t2;

@@ -298,6 +298,7 @@ SELECT HEX(SOUNDEX(_utf16le 0x00BF00C0));
 --echo # Bug#14290: character_maximum_length for text fields
 --echo #
 CREATE TABLE t1(a BLOB, b TEXT CHARSET utf16le);
+--sorted_result
 SELECT data_type, character_octet_length, character_maximum_length
   FROM information_schema.columns where table_name='t1';
 DROP TABLE t1;

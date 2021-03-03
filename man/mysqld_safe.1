@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -97,7 +97,7 @@ sections in option files\&. For example, if you specify a
 [mysqld]
 section like this,
 \fBmysqld_safe\fR
-will find and use the
+finds and uses the
 \fB\-\-log\-error\fR
 option:
 .sp
@@ -201,7 +201,7 @@ The path to the data directory\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file in addition to the usual option files\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
+Read this option file in addition to the usual option files\&. If the file does not exist or is otherwise inaccessible, the server exits with an error\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
 .sp
@@ -218,7 +218,7 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, the server will exit with an error\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, the server exits with an error\&.
 \fIfile_name\fR
 is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
 .sp
@@ -788,7 +788,7 @@ with the
 \fB\-\-defaults\-file\fR
 or
 \fB\-\-defaults\-extra\-file\fR
-option to name an option file, the option must be the first one given on the command line or the option file will not be used\&. For example, this command will not use the named option file:
+option to name an option file, the option must be the first one given on the command line or the option file is not used\&. For example, this command does not use the named option file:
 .sp
 .if n \{\
 .RS 4
@@ -815,7 +815,7 @@ mysql> \fBmysqld_safe \-\-defaults\-file=\fR\fB\fIfile_name\fR\fR\fB \-\-port=\f
 The
 \fBmysqld_safe\fR
 script is written so that it normally can start a server that was installed from either a source or a binary distribution of MySQL, even though these types of distributions typically install the server in slightly different locations\&. (See
-Section\ \&2.1.4, \(lqInstallation Layouts\(rq\&.)
+Section\ \&2.1.5, \(lqInstallation Layouts\(rq\&.)
 \fBmysqld_safe\fR
 expects one of the following conditions to be true:
 .sp

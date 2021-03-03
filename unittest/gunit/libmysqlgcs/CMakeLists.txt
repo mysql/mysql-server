@@ -93,6 +93,12 @@ FOREACH(tpath ${GCS_INTERFACE_TESTS} ${GCS_XCOM_TESTS})
     LINK_LIBRARIES gunit_small mysqlgcs ${LZ4_LIBRARY}
     )
   SET(GCS_UNIT_TESTS "${GCS_UNIT_TESTS}" "${test}-t")
+  IF(WIN32)
+    # Suppress linker warnings arising from linking to mysqlgcs and mysys
+    # LNK4217: symbol 'symbol' defined in 'f1.obj' is imported by 'f2.obj'...
+    # LNK4286: symbol 'symbol' defined in 'f1.obj' is imported by 'f2.obj'
+    MY_TARGET_LINK_OPTIONS(${test}-t "/ignore:4217 /ignore:4286")
+  ENDIF()
 ENDFOREACH()
 
 IF(MY_COMPILER_IS_CLANG)

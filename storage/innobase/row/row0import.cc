@@ -195,6 +195,14 @@ struct row_import {
   dberr_t match_col_default_values(THD *thd,
                                    const dd::Table *dd_table) UNIV_NOTHROW;
 
+  /** Check if the table schema that was read from the .cfg file matches the
+  in memory table definition.
+  @param[in]	thd		MySQL session variable
+  @param[in]	dd_table	dd::Table
+  @return DB_SUCCESS or error code. */
+  dberr_t match_compression_type_option(THD *thd,
+                                        const dd::Table *dd_table) UNIV_NOTHROW;
+
   /** Check if the table schema that was read from the .cfg file
   matches the in memory table definition.
   @param thd MySQL session variable
@@ -259,6 +267,9 @@ struct row_import {
 
   bool m_cfp_missing; /*!< true if a .cfp file was
                       found and was readable */
+
+  /** Compression type in the meta-data file */
+  Compression::Type m_compression_type{};
 };
 
 /** Use the page cursor to iterate over records in a block. */
@@ -1175,6 +1186,32 @@ dberr_t row_import::match_col_default_values(
 
 /** Check if the table schema that was read from the .cfg file matches the
 in memory table definition.
+@param[in]	thd		MySQL session variable
+@param[in]	dd_table	dd::Table
+@return DB_SUCCESS or error code. */
+dberr_t row_import::match_compression_type_option(
+    THD *thd, const dd::Table *dd_table) UNIV_NOTHROW {
+  dd::String_type compress_option;
+  auto &options = dd_table->options();
+
+  if (options.exists("compress")) {
+    options.get("compress", &compress_option);
+  } else {
+    compress_option = "none";
+  }
+
+  if (innobase_strcasecmp(Compression::to_string(m_compression_type),
+                          compress_option.c_str()) != 0) {
+    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "Compression option does not match");
+    return DB_ERROR;
+  }
+
+  return DB_SUCCESS;
+}
+
+/** Check if the table schema that was read from the .cfg file matches the
+in memory table definition.
 @param thd MySQL session variable
 @return DB_SUCCESS or error code. */
 dberr_t row_import::match_table_columns(THD *thd) UNIV_NOTHROW {
@@ -1307,7 +1344,17 @@ dberr_t row_import::match_schema(THD *thd,
     return (DB_ERROR);
   }
 
-  dberr_t err = match_table_columns(thd);
+  dberr_t err;
+
+  if (m_version >= IB_EXPORT_CFG_VERSION_V6) {
+    err = match_compression_type_option(thd, dd_table);
+
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+  }
+
+  err = match_table_columns(thd);
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -2092,7 +2139,8 @@ dberr_t PageConverter::update_page(buf_block_t *block,
     }
 
     case FIL_PAGE_TYPE_ZLOB_INDEX: {
-      lob::z_index_page_t ipage(block);
+      lob::z_index_page_t ipage(
+          block, const_cast<dict_index_t *>(m_index->m_srv_index));
       ipage.import(m_trx->id);
       byte *ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
       mach_write_to_4(ptr, get_space_id());
@@ -3240,14 +3288,31 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
                 strerror(errno), "while reading meta-data tablespace flags.");
 
-    return (DB_IO_ERROR);
+    return DB_IO_ERROR;
   }
 
   ulint space_flags = mach_read_from_4(value);
   ut_ad(space_flags != UINT32_UNDEFINED);
   cfg->m_has_sdi = FSP_FLAGS_HAS_SDI(space_flags);
 
-  return (DB_SUCCESS);
+  if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V6) {
+    /* Read the tablespace flags */
+    if (fread(value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
+                  strerror(errno), "while reading meta-data tablespace flags.");
+
+      return DB_IO_ERROR;
+    }
+
+    auto compression_type =
+        static_cast<Compression::Type>(mach_read_from_1(value));
+
+    ut_ad(Compression::validate(compression_type));
+
+    cfg->m_compression_type = compression_type;
+  }
+
+  return DB_SUCCESS;
 }
 
 /** Read the contents of the @<tablespace@>.cfg file
@@ -3307,6 +3372,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
     case IB_EXPORT_CFG_VERSION_V3:
     case IB_EXPORT_CFG_VERSION_V4:
     case IB_EXPORT_CFG_VERSION_V5:
+    case IB_EXPORT_CFG_VERSION_V6:
       err = row_import_read_v1(file, thd, &cfg);
 
       if (err == DB_SUCCESS) {
@@ -3582,12 +3648,6 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     return (row_import_cleanup(prebuilt, trx, err));
   }
 
-  /* Check and store compression type. */
-  Compression compression;
-
-  err = Compression::check(prebuilt->m_mysql_table->s->compress.str,
-                           &compression);
-
   ut_a(err == DB_SUCCESS);
 
   prebuilt->trx->op_info = "read meta-data file";
@@ -3663,12 +3723,21 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
     cfg.m_page_size.copy_from(univ_page_size);
 
+    /* Check and store compression type. */
+    Compression compression;
+
+    err = Compression::check(prebuilt->m_mysql_table->s->compress.str,
+                             &compression);
+
+    ut_a(err == DB_SUCCESS);
+    cfg.m_compression_type = compression.m_type;
+
     FetchIndexRootPages fetchIndexRootPages(table, trx);
 
     err = fil_tablespace_iterate(
         table,
         IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
-        compression.m_type, fetchIndexRootPages);
+        cfg.m_compression_type, fetchIndexRootPages);
 
     if (err == DB_SUCCESS) {
       err = fetchIndexRootPages.build_row_import(&cfg);
@@ -3727,7 +3796,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   err = fil_tablespace_iterate(
       table,
       IO_BUFFER_SIZE(cfg.m_page_size.physical(), cfg.m_page_size.physical()),
-      compression.m_type, converter);
+      cfg.m_compression_type, converter);
 
   DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
                   err = DB_TOO_MANY_CONCURRENT_TRXS;);
@@ -3806,7 +3875,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
     ut_free(filepath);
 
-    return (row_import_cleanup(prebuilt, trx, err));
+    return row_import_cleanup(prebuilt, trx, err);
   }
 
   /* For encrypted tablespace, set encryption information. */
@@ -3815,11 +3884,31 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                              table->encryption_key, table->encryption_iv);
   }
 
-  if (compression.m_type != Compression::Type::NONE) {
-    err = dict_set_compression(table, prebuilt->m_mysql_table->s->compress.str);
+  const char *compression_algorithm =
+      Compression::to_string(cfg.m_compression_type);
+
+  if (err == DB_SUCCESS && !Compression::is_none(compression_algorithm)) {
+    err = dict_set_compression(table, compression_algorithm, true);
   }
 
   row_mysql_unlock_data_dictionary(trx);
+
+  if (err != DB_SUCCESS) {
+    return row_import_cleanup(prebuilt, trx, err);
+  }
+
+  /* Set the autoextend_size attribute. */
+  {
+    auto dc = dd::get_dd_client(trx->mysql_thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+    uint64_t autoextend_size{};
+    if (!dd_get_tablespace_size_option(dc, table->dd_space_id,
+                                       &autoextend_size)) {
+      ut_d(dberr_t ret =)
+          fil_set_autoextend_size(table->space, autoextend_size);
+      ut_ad(ret == DB_SUCCESS);
+    }
+  }
 
   ut_free(filepath);
 

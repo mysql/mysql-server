@@ -3,8 +3,8 @@
 # The aim of this test is to check support for usage of network     #
 # namespaces introduced by WL#12720 in a replication connection.    #
 # It includes verifying that replication works on using the         #
-# NETWORK_NAMESPACE clause added to the CHANGE MASTER command       #
-# and that details about the network namespace used for the         #
+# NETWORK_NAMESPACE clause added to the CHANGE REPLICATION SOURCE   #
+# command and that details about the network namespace used for the #
 # replication is reflected through SHOW SLAVE STATUS and below      #
 # tables -                                                          #
 # - performance_schema.replication_connection_configuration         #
@@ -103,10 +103,10 @@ INSERT INTO t1 VALUES (3, 'ghi');
 --connection slave
 --echo # Change master to listen to the master on IP '10.0.2.1' in the 'red' namespace
 --replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE MASTER TO MASTER_HOST='10.0.2.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
+--let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.2.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
- --let $chm= $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+ --let $chm= $chm, SOURCE_LOG_POS=$MASTER_LOG_POS
 }
 --exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
 --source include/start_slave.inc
@@ -138,10 +138,10 @@ SELECT Network_namespace FROM mysql.slave_master_info;
 --connection slave
 --echo # Change master to original connection
 --replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
---let $chm= CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
+--let $chm= CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
- --let $chm= $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+ --let $chm= $chm, SOURCE_LOG_POS=$MASTER_LOG_POS
 }
 --exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
 

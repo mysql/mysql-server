@@ -36,8 +36,9 @@ BEGIN { use_ok ("My::SafeProcess");}
 my $perl_path= $^X;
 
 my $bindir= $ENV{MYSQL_BIN_PATH} || ".";
+my $client_bindir = $ENV{MYSQL_CLIENT_BIN_PATH};
 
-My::SafeProcess::find_bin($bindir, ".");
+My::SafeProcess::find_bin($bindir, $client_bindir);
 
 {
   # Test exit codes

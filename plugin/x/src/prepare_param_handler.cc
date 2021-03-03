@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/src/ngs/mysqlx/getter_any.h"
 #include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
@@ -41,36 +41,37 @@ class Any_to_param_handler {
       : m_params(params), m_param_values(param_values) {}
 
   void operator()() {
-    m_params->push_back({true, MYSQL_TYPE_NULL, false, nullptr, 0ul});
+    m_params->push_back(
+        {true, MYSQL_TYPE_NULL, false, nullptr, 0ul, nullptr, 0ul});
   }
   void operator()(const int64_t value) {
-    m_params->push_back(
-        {false, MYSQL_TYPE_LONGLONG, false, store_value(value), sizeof(value)});
+    m_params->push_back({false, MYSQL_TYPE_LONGLONG, false, store_value(value),
+                         sizeof(value), nullptr, 0ul});
   }
   void operator()(const uint64_t value) {
-    m_params->push_back(
-        {false, MYSQL_TYPE_LONGLONG, true, store_value(value), sizeof(value)});
+    m_params->push_back({false, MYSQL_TYPE_LONGLONG, true, store_value(value),
+                         sizeof(value), nullptr, 0ul});
   }
   void operator()(const std::string &value) {
-    m_params->push_back(
-        {false, MYSQL_TYPE_STRING, false,
-         reinterpret_cast<const unsigned char *>(value.data()),
-         static_cast<unsigned long>(value.size())});  // NOLINT(runtime/int)
+    m_params->push_back({false, MYSQL_TYPE_STRING, false,
+                         reinterpret_cast<const unsigned char *>(value.data()),
+                         static_cast<unsigned long>(value.size()), nullptr,
+                         0ul});  // NOLINT(runtime/int)
   }
   void operator()(const std::string &value, const uint32_t) {
     operator()(value);
   }
   void operator()(const double value) {
-    m_params->push_back(
-        {false, MYSQL_TYPE_DOUBLE, false, store_value(value), sizeof(value)});
+    m_params->push_back({false, MYSQL_TYPE_DOUBLE, false, store_value(value),
+                         sizeof(value), nullptr, 0ul});
   }
   void operator()(const float value) {
-    m_params->push_back(
-        {false, MYSQL_TYPE_FLOAT, false, store_value(value), sizeof(value)});
+    m_params->push_back({false, MYSQL_TYPE_FLOAT, false, store_value(value),
+                         sizeof(value), nullptr, 0ul});
   }
   void operator()(const bool value) {
     m_params->push_back(
-        {false, MYSQL_TYPE_TINY, false, store_value(value), 1ul});
+        {false, MYSQL_TYPE_TINY, false, store_value(value), 1ul, nullptr, 0ul});
   }
 
  protected:

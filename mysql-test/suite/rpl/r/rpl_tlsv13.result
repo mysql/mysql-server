@@ -13,7 +13,7 @@ SET @tls_version_saved= @@GLOBAL.tls_version;
 SET GLOBAL tls_version='TLSv1.3';
 ALTER INSTANCE RELOAD TLS;
 [connection slave]
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='replssl', MASTER_PASSWORD='password', MASTER_SSL=1 FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='replssl', SOURCE_PASSWORD='password', SOURCE_SSL=1 FOR CHANNEL 'my_channel';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -27,7 +27,7 @@ SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
 SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
 ALTER INSTANCE RELOAD TLS;
 [connection slave]
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
 include/start_slave.inc [FOR CHANNEL 'my_channel']
 include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
 ########################################################################
@@ -41,7 +41,7 @@ include/assert.inc [TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256]
 ########################################################################
 # 4. Check replication with TLSv1.3 and different ciphersuite on master
 #    and slave will fail.
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', MASTER_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', SOURCE_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
 START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -53,7 +53,7 @@ include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
 ALTER INSTANCE RELOAD TLS;
 [connection slave]
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
 include/assert.inc [TLS_CIPHERSUITES has the value ""]
 START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
 Warnings:
@@ -62,7 +62,7 @@ include/wait_for_slave_io_error.inc [errno=2026 FOR CHANNEL 'my_channel']
 ########################################################################
 # 6. Clean-up.
 [connection slave]
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channel';
 include/assert.inc [TLS_CIPHERSUITES has the default NULL value]
 include/start_slave.inc [FOR CHANNEL 'my_channel']
 include/stop_slave.inc [FOR CHANNEL 'my_channel']

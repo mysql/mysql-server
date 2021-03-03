@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 #include "my_dbug.h"  // DBUG_ASSERT
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"  // current_thd

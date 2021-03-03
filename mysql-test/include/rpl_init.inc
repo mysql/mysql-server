@@ -8,7 +8,7 @@
 #    server_N_1. server_I and server_I_1 are connections to the same
 #    server.
 #  - Verifies that @@server_id of all servers are different.
-#  - Calls RESET MASTER, RESET REPLICA, USE test, CHANGE MASTER, START REPLICA.
+#  - Calls RESET MASTER, RESET REPLICA, USE test, CHANGE REPLICATION SOURCE, START REPLICA.
 #  - Sets the connection to server_1 before exiting.
 #  - Sets the following mtr variables for convenience:
 #    $gtid_mode: the value of @@global.gtid_mode on server 1
@@ -104,14 +104,14 @@
 #
 #    $rpl_skip_reset_master_and_slave
 #      By default, this script issues RESET MASTER and RESET REPLICA
-#      before CHANGE MASTER and START REPLICA.  RESET MASTER and RESET
-#      REPLICA are suppressed if $rpl_skip_reset_master_and_slave is
-#      set.
+#      before CHANGE REPLICATION SOURCE and START REPLICA.  RESET MASTER
+#      and RESET REPLICA are suppressed if $rpl_skip_reset_master_and_slave
+#      is set.
 #
 #    $rpl_skip_change_master
-#      By default, this script issues CHANGE MASTER so that all slaves
-#      are ready to run as specified by $rpl_topology. CHANGE MASTER
-#      is suppressed if $rpl_skip_change_master is set.
+#      By default, this script issues CHANGE REPLICATION SOURCE so that
+#      all slaves are ready to run as specified by $rpl_topology. CHANGE
+#      REPLICATION SOURCE is suppressed if $rpl_skip_change_master is set.
 #
 #    $rpl_skip_start_slave
 #      By default, this script issues START REPLICA on all slaves
@@ -129,15 +129,15 @@
 #      See include/wait_for_slave_param.inc
 #
 #    $use_gtids
-#      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER, and use
+#      Use option SOURCE_AUTO_POSITION = 1 to CHANGE REPLICATION SOURCE, and use
 #      GTIDs in sync_*.inc. If the variable is not set, then this
 #      script sets it to 1 if GTID_MODE = ON and 0 otherwise.
 #
 #    $rpl_group_replication
 #      This checks for whether we have Group Replication enabled or not. Based
-#      on the check this parameter we execute change master or not in this
-#      inc file. Moreover, it also sets the default timeouts for the group
-#      replication tests.
+#      on the check this parameter we execute CHANGE REPLICATION SOURCE or not 
+#      in this inc file. Moreover, it also sets the default timeouts for the 
+#      group replication tests.
 #
 #    $rpl_gtid_utils
 #      Create stored functions for GTID manipulation on every server (see

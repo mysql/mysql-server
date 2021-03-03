@@ -1446,7 +1446,7 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
     ulint zip_free_len_local[BUF_BUDDY_SIZES_MAX + 1];
-    buf_buddy_stat_t buddy_stat_local[BUF_BUDDY_SIZES_MAX + 1];
+    buf_buddy_stat_t::snapshot_t buddy_stat_local[BUF_BUDDY_SIZES_MAX + 1];
 
     status = 0;
 
@@ -1460,10 +1460,10 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
           (x < BUF_BUDDY_SIZES) ? UT_LIST_GET_LEN(buf_pool->zip_free[x]) : 0;
 
       os_rmb;
-      buddy_stat_local[x] = buf_pool->buddy_stat[x];
+      buddy_stat_local[x] = buf_pool->buddy_stat[x].take_snapshot();
 
       if (reset) {
-        /* This is protected by buf_pool->mutex. */
+        /* This is protected by buf_pool->zip_free_mutex. */
         buf_pool->buddy_stat[x].relocated = 0;
         buf_pool->buddy_stat[x].relocated_usec = 0;
       }
@@ -1472,9 +1472,7 @@ static int i_s_cmpmem_fill_low(THD *thd, TABLE_LIST *tables, Item *item,
     mutex_exit(&buf_pool->zip_free_mutex);
 
     for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
-      buf_buddy_stat_t *buddy_stat;
-
-      buddy_stat = &buddy_stat_local[x];
+      const buf_buddy_stat_t::snapshot_t *buddy_stat = &buddy_stat_local[x];
 
       table->field[0]->store(BUF_BUDDY_LOW << x);
       table->field[1]->store(i, true);
@@ -2671,6 +2669,12 @@ static int i_s_fts_index_cache_fill(
   cache = user_table->fts->cache;
 
   ut_a(cache);
+
+  /* Check if cache is being synced.
+  Note: we wait till cache is being synced. */
+  while (cache->sync->in_progress) {
+    os_event_wait(cache->sync->event);
+  }
 
   for (ulint i = 0; i < ib_vector_size(cache->indexes); i++) {
     fts_index_cache_t *index_cache;
@@ -4442,9 +4446,9 @@ static void i_s_innodb_buffer_page_get_info(
 
     page_info->fix_count = bpage->buf_fix_count;
 
-    page_info->newest_mod = bpage->newest_modification;
+    page_info->newest_mod = bpage->get_newest_lsn();
 
-    page_info->oldest_mod = bpage->oldest_modification;
+    page_info->oldest_mod = bpage->get_oldest_lsn();
 
     page_info->access_time = bpage->access_time;
 
@@ -6160,7 +6164,7 @@ static void process_rows(THD *thd, TABLE_LIST *tables, const rec_t *rec,
       v_name = table_rec->v_col_names;
     }
 
-    for (int32_t i = 0, v_i = 0;
+    for (size_t i = 0, v_i = 0;
          i < table_rec->n_cols || v_i < table_rec->n_v_cols;) {
       if (i < table_rec->n_cols &&
           (!has_virtual_cols || v_i == table_rec->n_v_cols ||
@@ -6597,26 +6601,33 @@ static ST_FIELD_INFO innodb_tablespaces_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_SERVER_VESION 10
+#define INNODB_TABLESPACES_AUTOEXTEND_SIZE 10
+    {STRUCT_FLD(field_name, "AUTOEXTEND_SIZE"),
+     STRUCT_FLD(field_length, MY_INT64_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONGLONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
+#define INNODB_TABLESPACES_SERVER_VERSION 11
     {STRUCT_FLD(field_name, "SERVER_VERSION"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_SPACE_VESION 11
+#define INNODB_TABLESPACES_SPACE_VERSION 12
     {STRUCT_FLD(field_name, "SPACE_VERSION"),
      STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
      STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_ENCRYPTION 12
+#define INNODB_TABLESPACES_ENCRYPTION 13
     {STRUCT_FLD(field_name, "ENCRYPTION"), STRUCT_FLD(field_length, 1),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
-#define INNODB_TABLESPACES_STATE 13
+#define INNODB_TABLESPACES_STATE 14
     {STRUCT_FLD(field_name, "STATE"), STRUCT_FLD(field_length, 10),
      STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
@@ -6635,13 +6646,14 @@ collected by scanning INNODB_TABLESPACESS table.
 @param[in]      server_version  server version
 @param[in]      space_version   tablespace version
 @param[in]      is_encrypted    true if tablespace is encrypted
+@param[in]	autoextend_size autoextend_size attribute value
 @param[in]      state           tablespace state
 @param[in,out]  table_to_fill   fill this table
 @return 0 on success */
 static int i_s_dict_fill_innodb_tablespaces(
     THD *thd, space_id_t space_id, const char *name, uint32_t flags,
     uint32 server_version, uint32 space_version, bool is_encrypted,
-    const char *state, TABLE *table_to_fill) {
+    uint64_t autoextend_size, const char *state, TABLE *table_to_fill) {
   Field **fields;
   ulint atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
   bool is_compressed = FSP_FLAGS_GET_ZIP_SSIZE(flags);
@@ -6694,6 +6706,8 @@ static int i_s_dict_fill_innodb_tablespaces(
   OK(field_store_string(fields[INNODB_TABLESPACES_ENCRYPTION],
                         is_encrypted ? "Y" : "N"));
 
+  OK(fields[INNODB_TABLESPACES_AUTOEXTEND_SIZE]->store(autoextend_size, true));
+
   OK(field_store_string(fields[INNODB_TABLESPACES_ROW_FORMAT], row_format));
 
   OK(fields[INNODB_TABLESPACES_PAGE_SIZE]->store(univ_page_size.physical(),
@@ -6704,25 +6718,17 @@ static int i_s_dict_fill_innodb_tablespaces(
 
   OK(field_store_string(fields[INNODB_TABLESPACES_SPACE_TYPE], space_type));
 
-  OK(field_store_string(fields[INNODB_TABLESPACES_SERVER_VESION], version_str));
+  OK(field_store_string(fields[INNODB_TABLESPACES_SERVER_VERSION],
+                        version_str));
 
-  OK(fields[INNODB_TABLESPACES_SPACE_VESION]->store(space_version, true));
+  OK(fields[INNODB_TABLESPACES_SPACE_VERSION]->store(space_version, true));
 
-  char *filepath = nullptr;
-  if (FSP_FLAGS_HAS_DATA_DIR(flags) || FSP_FLAGS_GET_SHARED(flags)) {
-    mutex_enter(&dict_sys->mutex);
-    filepath = fil_space_get_first_path(space_id);
-    mutex_exit(&dict_sys->mutex);
-  }
+  mutex_enter(&dict_sys->mutex);
+  char *filepath = fil_space_get_first_path(space_id);
+  mutex_exit(&dict_sys->mutex);
 
   if (filepath == nullptr) {
-    if (strstr(name, dict_sys_t::s_file_per_table_name) != nullptr) {
-      mutex_enter(&dict_sys->mutex);
-      filepath = fil_space_get_first_path(space_id);
-      mutex_exit(&dict_sys->mutex);
-    } else {
-      filepath = Fil_path::make_ibd_from_table_name(name);
-    }
+    filepath = Fil_path::make_ibd_from_table_name(name);
   }
 
   os_file_stat_t stat;
@@ -6732,8 +6738,6 @@ static int i_s_dict_fill_innodb_tablespaces(
   memset(&stat, 0x0, sizeof(stat));
 
   if (filepath != nullptr) {
-    file = os_file_get_size(filepath);
-
     /* Get the file system (or Volume) block size. */
     dberr_t err = os_file_get_status(filepath, &stat, false, false);
 
@@ -6744,6 +6748,9 @@ static int i_s_dict_fill_innodb_tablespaces(
         break;
 
       case DB_SUCCESS:
+        file = os_file_get_size(filepath);
+        break;
+
       case DB_NOT_FOUND:
         break;
 
@@ -6812,20 +6819,21 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
     uint32 space_version;
     bool is_encrypted = false;
     dd::String_type state;
+    uint64_t autoextend_size;
 
     /* Extract necessary information from a INNODB_TABLESPACES
     row */
-    ret = dd_process_dd_tablespaces_rec(heap, rec, &space, &name, &flags,
-                                        &server_version, &space_version,
-                                        &is_encrypted, &state, dd_spaces);
+    ret = dd_process_dd_tablespaces_rec(
+        heap, rec, &space, &name, &flags, &server_version, &space_version,
+        &is_encrypted, &autoextend_size, &state, dd_spaces);
 
     mtr_commit(&mtr);
     mutex_exit(&dict_sys->mutex);
 
     if (ret && space != 0) {
-      i_s_dict_fill_innodb_tablespaces(thd, space, name, flags, server_version,
-                                       space_version, is_encrypted,
-                                       state.c_str(), tables->table);
+      i_s_dict_fill_innodb_tablespaces(
+          thd, space, name, flags, server_version, space_version, is_encrypted,
+          autoextend_size, state.c_str(), tables->table);
     }
 
     mem_heap_empty(heap);

@@ -477,6 +477,11 @@ static void sql_handle_error(void *ctx, uint sql_errno,
 
 static void sql_shutdown(void *, int) { DBUG_TRACE; }
 
+static bool sql_alive(void *) {
+  DBUG_TRACE;
+  return true;
+}
+
 const struct st_command_service_cbs protocol_callbacks = {
     sql_start_result_metadata,
     sql_field_metadata,
@@ -497,6 +502,7 @@ const struct st_command_service_cbs protocol_callbacks = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    sql_alive,
 };
 
 #define WRITE_DASHED_LINE() \
@@ -745,6 +751,7 @@ static void dump_closing_ok(struct st_plugin_ctx *ctx) {
 static void set_query_in_com_data(const char *query, union COM_DATA *cmd) {
   char buffer[STRING_BUFFER_SIZE];
 
+  memset(cmd, 0, sizeof(union COM_DATA));
   cmd->com_query.query = query;
   cmd->com_query.length = strlen(query);
   WRITE_VAL2("EXECUTING:[%u][%s]\n", cmd->com_query.length, query);

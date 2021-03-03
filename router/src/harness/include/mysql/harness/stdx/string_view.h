@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@
 #include <stdexcept>  // out_of_range
 #include <string>
 
+#include "mysql/harness/stdx/attribute.h"
+
 namespace stdx {
 
 // implementation of C++17's std::string_view on C++11:
@@ -42,20 +44,6 @@ namespace stdx {
 //
 // - most of the find_xxx() methods
 // - padding support for ostream
-
-#ifndef __has_builtin
-#define __has_builtin(x) 0
-#endif
-
-#ifndef __has_cpp_attribute
-#define __has_cpp_attribute(x) 0
-#endif
-
-#if __has_cpp_attribute(gnu::nonnull)
-#define STDX_NONNULL [[gnu::nonnull]]
-#else
-#define STDX_NONNULL
-#endif
 
 namespace impl {
 // constexpr variant of std::char_traits<charT>::length()

@@ -297,6 +297,11 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
     Field_iterator_table_ref field_iterator;
     field_iterator.set(table_list);
     for (; !field_iterator.end_of_fields(); field_iterator.next()) {
+      // Do not include user hidden fields.
+      if (field_iterator.field() != nullptr &&
+          field_iterator.field()->is_hidden())
+        continue;
+
       Item *item;
       if (!(item = field_iterator.create_item(thd))) return true;
 

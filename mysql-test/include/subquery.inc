@@ -929,6 +929,7 @@ CREATE TABLE `t4` (`task_id` smallint(6) NOT NULL default '0',`description` varc
 INSERT INTO `t4` (`task_id`, `description`) VALUES (1, 'Daily Check List'),(2, 'Weekly Status');
 --sorted_result
 select  dbid, name, (date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01') from t3 a, t2 b, t4  WHERE dbid = - 1 AND primary_uid = '1' AND t4.task_id = taskid;
+--sorted_result
 SELECT dbid, name FROM t3 a, t2 b, t4 WHERE dbid = - 1 AND primary_uid = '1' AND ((date_format(now() , '%Y-%m-%d') - INTERVAL how_often DAY) >= ifnull((SELECT date_format(max(create_date),'%Y-%m-%d') FROM t1 WHERE dbid = b.db_id AND taskid = a.taskgenid), '1950-01-01')) AND t4.task_id = taskid;
 drop table t1,t2,t3,t4;
 
@@ -1090,6 +1091,7 @@ explain select * from t1 as tt where not exists (select id from t1 where id < 8 
 insert into t1 (id, text) values (1000, 'text1000'), (1001, 'text1001');
 create table t2 (id int not null, text varchar(20) not null default '', primary key (id));
 insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, 'text4'), (5, 'text5'), (6, 'text6'), (7, 'text7'), (8, 'text8'), (9, 'text9'), (10, 'text10'), (11, 'text1'), (12, 'text2'), (13, 'text3'), (14, 'text4'), (15, 'text5'), (16, 'text6'), (17, 'text7'), (18, 'text8'), (19, 'text9'), (20, 'text10'),(21, 'text1'), (22, 'text2'), (23, 'text3'), (24, 'text4'), (25, 'text5'), (26, 'text6'), (27, 'text7'), (28, 'text8'), (29, 'text9'), (30, 'text10'), (31, 'text1'), (32, 'text2'), (33, 'text3'), (34, 'text4'), (35, 'text5'), (36, 'text6'), (37, 'text7'), (38, 'text8'), (39, 'text9'), (40, 'text10'), (41, 'text1'), (42, 'text2'), (43, 'text3'), (44, 'text4'), (45, 'text5'), (46, 'text6'), (47, 'text7'), (48, 'text8'), (49, 'text9'), (50, 'text10');
+--sorted_result
 select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 explain select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 drop table t1,t2;
@@ -1992,11 +1994,13 @@ SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2), a;
 --error ER_SUBQUERY_NO_1_ROW
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1), a;
 
+--sorted_result
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 2);
 --error ER_SUBQUERY_NO_1_ROW
 SELECT b, MAX(c) FROM t2 GROUP BY b, (SELECT c FROM t2 WHERE b > 1);
 
 
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 2),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2005,6 +2009,7 @@ SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 1),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
 
+--sorted_result
 SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b)) > 3;
@@ -2013,6 +2018,7 @@ SELECT a FROM t1 GROUP BY a
   HAVING IFNULL((SELECT b FROM t2 WHERE b > 4),
                 (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b)) > 3;
 
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 2),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2021,6 +2027,7 @@ SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 1),
                   (SELECT c FROM t2 WHERE c=a AND b > 1 ORDER BY b));
 
+--sorted_result
 SELECT a FROM t1
   ORDER BY IFNULL((SELECT b FROM t2 WHERE b > 4),
                   (SELECT c FROM t2 WHERE c=a AND b > 2 ORDER BY b));
@@ -2055,6 +2062,7 @@ CREATE TABLE t1 (
 
 insert into t1 values (1, 1), (2, 2), (2, 3), (3, 4), (3, 5), (3, 6), (NULL, NULL);
 select * from t1;
+--sorted_result
 select min(a) from t1 group by grp;
 drop table t1;
 
@@ -2754,24 +2762,29 @@ INSERT INTO t1 VALUES (1,1,0,'a'), (1,2,0,'b'), (1,3,0,'c'), (1,4,0,'d'),
 (1,5,0,'e'), (2,1,0,'f'), (2,2,0,'g'), (2,3,0,'h'), (3,4,0,'i'), (3,3,0,'j'),
 (3,2,0,'k'), (3,1,0,'l'), (1,9,0,'m'), (1,0,10,'n'), (2,0,5,'o'), (3,0,7,'p');
 
+--sorted_result
 SELECT a, MAX(b),
   (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=MAX(t1.b + 0)) as test
   FROM t1 GROUP BY a;
+--sorted_result
 SELECT a, AVG(b),
   (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.b=AVG(t1.b)) AS test
   FROM t1 WHERE t1.d=0 GROUP BY a;
 
+--sorted_result
 SELECT tt.a,
  (SELECT (SELECT c FROM t1 as t WHERE t1.a=t.a AND t.d=MAX(t1.b + tt.a)
   LIMIT 1) FROM t1 WHERE t1.a=tt.a GROUP BY a LIMIT 1) as test
   FROM t1 as tt;
 
+--sorted_result
 SELECT tt.a,
  (SELECT (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.d=MAX(t1.b + tt.a)
   LIMIT 1)
   FROM t1 WHERE t1.a=tt.a GROUP BY a LIMIT 1) as test
   FROM t1 as tt GROUP BY tt.a;
 
+--sorted_result
 SELECT tt.a, MAX(
  (SELECT (SELECT t.c FROM t1 AS t WHERE t1.a=t.a AND t.d=MAX(t1.b + tt.a)
   LIMIT 1)
@@ -2788,9 +2801,12 @@ DROP TABLE t1;
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 
+--sorted_result
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+--sorted_result
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
 
+--sorted_result
 SELECT a FROM t1 t0
   WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
 
@@ -2856,14 +2872,18 @@ INSERT INTO t1 VALUES
 CREATE TABLE t2 (id int NOT NULL, INDEX idx(id));
 INSERT INTO t2 VALUES (7), (5), (1), (3);
 
+--sorted_result
 SELECT id, st FROM t1
   WHERE st IN ('GA','FL') AND EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id);
+--sorted_result
 SELECT id, st FROM t1
   WHERE st IN ('GA','FL') AND EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id)
     GROUP BY id;
 
+--sorted_result
 SELECT id, st FROM t1
   WHERE st IN ('GA','FL') AND NOT EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id);
+--sorted_result
 SELECT id, st FROM t1
   WHERE st IN ('GA','FL') AND NOT EXISTS(SELECT 1 FROM t2 WHERE t2.id=t1.id)
     GROUP BY id;
@@ -4288,9 +4308,12 @@ drop table t_in;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
 
+--sorted_result
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 0 GROUP BY a;
+--sorted_result
 SELECT a FROM t1 WHERE (SELECT COUNT(b) FROM DUAL) > 1 GROUP BY a;
 
+--sorted_result
 SELECT a FROM t1 t0
   WHERE (SELECT COUNT(t0.b) FROM t1 t WHERE t.b>20) GROUP BY a;
 

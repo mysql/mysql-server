@@ -94,9 +94,6 @@ class RouterPidfileTest : public RouterComponentTest {
 
   void start_router() {
     router = &ProcessManager::launch_router(router_cmdline);
-    // make sure to get past the setup of the signal handler, otherwise
-    // ProcessManager will complain about the "signal 15"
-    wait_log_contains(*router, "Starting all plugins", 5s);
   }
 
   void stop_router() {

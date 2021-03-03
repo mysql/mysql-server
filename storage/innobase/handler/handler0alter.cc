@@ -152,7 +152,8 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_IGNORE =
     Alter_inplace_info::ALTER_RENAME | Alter_inplace_info::CHANGE_INDEX_OPTION |
     Alter_inplace_info::ADD_CHECK_CONSTRAINT |
     Alter_inplace_info::DROP_CHECK_CONSTRAINT |
-    Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT;
+    Alter_inplace_info::SUSPEND_CHECK_CONSTRAINT |
+    Alter_inplace_info::ALTER_COLUMN_VISIBILITY;
 
 /** Operations on foreign key definitions (changing the schema only) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_FOREIGN_OPERATIONS =
@@ -3446,6 +3447,23 @@ static dberr_t innobase_check_gis_columns(Alter_inplace_info *ha_alter_info,
   return DB_SUCCESS;
 }
 
+/** Update the attributes for the implicit tablespaces
+@param[in]  thd             THD object
+@param[in]  ha_alter_info   Data used during in-place alter
+@param[in]  table           MySQL table that is being modified
+@return true Failure
+@return false Success */
+static bool prepare_inplace_change_implicit_tablespace_option(
+    THD *thd, Alter_inplace_info *ha_alter_info, const dict_table_t *table) {
+  dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  dd::Object_id space_id = table->dd_space_id;
+
+  return dd_implicit_alter_tablespace(client, thd, space_id,
+                                      ha_alter_info->create_info);
+}
+
 /** Collect virtual column info for its addition
 @param[in] ha_alter_info	Data used during in-place alter
 @param[in] altered_table	MySQL table that is being altered to
@@ -3824,17 +3842,25 @@ static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
   if (new_table->is_temporary() || old_table == new_table) {
     /* No need to fill in metadata for temporary tables,
     which would not be stored in Global DD */
-    return (false);
+    return false;
   }
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
+  uint64_t autoextend_size{};
+
   if (dict_table_is_file_per_table(old_table)) {
     dd::Object_id old_space_id = dd_first_index(old_dd_tab)->tablespace_id();
 
+    /* Copy the autoextend_size attribute value for the tablespace being
+    dropped. This value will be copied to the new tablespace created later. */
+    if (dd_get_tablespace_size_option(client, old_space_id, &autoextend_size)) {
+      return true;
+    }
+
     if (dd_drop_tablespace(client, thd, old_space_id)) {
-      return (true);
+      return true;
     }
   }
 
@@ -3859,13 +3885,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool dd_prepare_inplace_alter_table(
                " InnoDB can't create tablespace object"
                " for ",
                new_table->name);
-      return (true);
+      return true;
     }
 
     new_table->dd_space_id = dd_space_id;
   }
 
-  return (false);
+  return false;
 }
 
 /** Update table level instant metadata in commit phase
@@ -4220,7 +4246,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   dict_index_t *fts_index = nullptr;
   ulint new_clustered = 0;
   dberr_t error;
-  const char *punch_hole_warning = nullptr;
   ulint num_fts_index;
   dict_add_v_col_t *add_v = nullptr;
   dict_table_t *table;
@@ -4277,6 +4302,20 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       add_v->n_v_col = ha_alter_info->virtual_column_add_count;
       add_v->v_col = ctx->add_vcol;
       add_v->v_col_name = ctx->add_vcol_name;
+    }
+  }
+
+  if ((ha_alter_info->handler_flags &
+       Alter_inplace_info::CHANGE_CREATE_OPTION) &&
+      !(ha_alter_info->create_info->used_fields & HA_CREATE_USED_TABLESPACE) &&
+      ha_alter_info->create_info
+          ->m_implicit_tablespace_autoextend_size_change) {
+    /* Update the autoextend_size value in the data dictionary. Do not update
+    if the table is being moved to a new tablespace. The autoextend_size value
+    for the new tablespace will be updated later. */
+    if (prepare_inplace_change_implicit_tablespace_option(
+            ctx->prebuilt->trx->mysql_thd, ha_alter_info, ctx->old_table)) {
+      return true;
     }
   }
 
@@ -4545,12 +4584,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
             ctx->new_table, ctx->heap, field->field_name, col_type,
             dtype_form_prtype(field_type, charset_no), col_len, i,
             field->gcol_info->non_virtual_base_columns(),
-            !field->is_hidden_from_user());
+            !field->is_hidden_by_system());
       } else {
         dict_mem_table_add_col(ctx->new_table, ctx->heap, field->field_name,
                                col_type,
                                dtype_form_prtype(field_type, charset_no),
-                               col_len, !field->is_hidden_from_user());
+                               col_len, !field->is_hidden_by_system());
       }
     }
 
@@ -4599,28 +4638,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
     mutex_exit(&dict_sys->mutex);
 
-    error = row_create_table_for_mysql(ctx->new_table, compression, ctx->trx);
+    error = row_create_table_for_mysql(ctx->new_table, compression,
+                                       ha_alter_info->create_info, ctx->trx);
 
     mutex_enter(&dict_sys->mutex);
 
-    punch_hole_warning = (error == DB_IO_NO_PUNCH_HOLE_FS)
-                             ? "Punch hole is not supported by the file system"
-                             : "Page Compression is not supported for this"
-                               " tablespace";
-
     switch (error) {
       dict_table_t *temp_table;
-      case DB_IO_NO_PUNCH_HOLE_FS:
-      case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
-
-        push_warning_printf(ctx->prebuilt->trx->mysql_thd,
-                            Sql_condition::SL_WARNING, HA_ERR_UNSUPPORTED,
-                            "%s. Compression disabled for '%s'",
-                            punch_hole_warning, ctx->old_table->name.m_name);
-
-        error = DB_SUCCESS;
-        // Fall through.
-
       case DB_SUCCESS:
         /* To bump up the table ref count and move it
         to LRU list if it's not temporary table */
@@ -4650,6 +4674,15 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
         goto new_clustered_failed;
       case DB_UNSUPPORTED:
         my_error(ER_UNSUPPORTED_EXTENSION, MYF(0), ctx->new_table->name.m_name);
+        goto new_clustered_failed;
+      case DB_IO_NO_PUNCH_HOLE_FS:
+        my_error(ER_INNODB_COMPRESSION_FAILURE, MYF(0),
+                 "Punch hole not supported by the filesystem or the tablespace "
+                 "page size is not large enough.");
+        goto new_clustered_failed;
+      case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+        my_error(ER_INNODB_COMPRESSION_FAILURE, MYF(0),
+                 "Page Compression is not supported for this tablespace");
         goto new_clustered_failed;
       default:
         my_error_innodb(error, table_name, flags);
@@ -5190,7 +5223,8 @@ template <typename Table>
 void static adjust_row_format(TABLE *old_table, TABLE *altered_table,
                               Alter_inplace_info *ha_alter_info,
                               const Table *old_dd_tab, Table *new_dd_tab) {
-  ut_ad(old_table->s->row_type == ROW_TYPE_DEFAULT);
+  ut_ad(old_table->s->row_type == ROW_TYPE_DEFAULT ||
+        old_table->s->row_type == ROW_TYPE_COMPRESSED);
   ut_ad(old_table->s->row_type == altered_table->s->row_type);
   ut_ad(old_table->s->real_row_type != altered_table->s->real_row_type);
   ut_ad(old_dd_tab->table().row_format() != new_dd_tab->table().row_format());
@@ -5775,6 +5809,14 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     if (ha_alter_info->handler_ctx != nullptr) {
       ha_innobase_inplace_ctx *ctx =
           static_cast<ha_innobase_inplace_ctx *>(ha_alter_info->handler_ctx);
+      if ((ha_alter_info->handler_flags &
+           Alter_inplace_info::CHANGE_CREATE_OPTION) &&
+          ha_alter_info->create_info
+              ->m_implicit_tablespace_autoextend_size_change &&
+          prepare_inplace_change_implicit_tablespace_option(
+              m_user_thd, ha_alter_info, ctx->old_table)) {
+        return true;
+      }
       return dd_prepare_inplace_alter_table(
           m_user_thd, ctx->old_table, ctx->new_table, old_dd_tab, new_dd_tab);
     } else {
@@ -8130,9 +8172,11 @@ class alter_part {
                                   tablespace specified
   @param[in]	file_per_table	Current value of innodb_file_per_table
   @param[in]	autoinc		Next AUTOINC value to use
+  @param[in]	autoextend_size Value of AUTOEXTEND_SIZE for this tablespace
   @return 0 or error number */
   int create(const char *part_name, dd::Partition *dd_part, TABLE *table,
-             const char *tablespace, bool file_per_table, ib_uint64_t autoinc);
+             const char *tablespace, bool file_per_table, ib_uint64_t autoinc,
+             ib_uint64_t autoextend_size);
 
  protected:
   /** InnoDB transaction, nullptr if not used */
@@ -8193,10 +8237,12 @@ bool alter_part::build_partition_name(const dd::Partition *dd_part, bool temp,
                                 it means no tablespace specified
 @param[in]	file_per_table	Current value of innodb_file_per_table
 @param[in]	autoinc		Next AUTOINC value to use
+@param[in]	autoextend_size Value of AUTOEXTEND_SIZE for this tablespace
 @return 0 or error number */
 int alter_part::create(const char *part_name, dd::Partition *dd_part,
                        TABLE *table, const char *tablespace,
-                       bool file_per_table, ib_uint64_t autoinc) {
+                       bool file_per_table, ib_uint64_t autoinc,
+                       ib_uint64_t autoextend_size) {
   ut_ad(m_state == PART_TO_BE_ADDED || m_state == PART_CHANGED);
 
   dd::Table &dd_table = dd_part->table();
@@ -8227,6 +8273,7 @@ int alter_part::create(const char *part_name, dd::Partition *dd_part,
   create_info.key_block_size = key_block_size;
   create_info.data_file_name = data_file_name.empty() ? nullptr : full_path;
   create_info.tablespace = tablespace[0] == '\0' ? nullptr : tablespace;
+  create_info.m_implicit_tablespace_autoextend_size = autoextend_size;
 
   /* The below check is the same as for CREATE TABLE, but since we are
   doing an alter here it will not trigger the check in
@@ -8599,8 +8646,17 @@ class alter_part_add : public alter_part {
       return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
     }
 
+    /* Get the autoextend_size value from the old partition
+    and set this value to the partition being added. */
+    const dd::Table &part_table = old_part->table();
+
+    ulonglong autoextend_size{};
+
+    dd::get_implicit_tablespace_options(current_thd, &part_table,
+                                        &autoextend_size);
+
     int error = create(part_name, new_part, altered_table, m_tablespace,
-                       m_file_per_table, m_autoinc);
+                       m_file_per_table, m_autoinc, autoextend_size);
 
     if (error == 0 && alter_parts::need_copy(m_ha_alter_info)) {
       mutex_enter(&dict_sys->mutex);
@@ -8906,8 +8962,17 @@ int alter_part_change::prepare(TABLE *altered_table,
     return (HA_ERR_TOO_LONG_PATH); /* purecov: inspected */
   }
 
+  /* Copy the autoextend_size attribute for the partition being
+  created. */
+  const dd::Table &part_table = old_part->table();
+
+  ulonglong autoextend_size{};
+
+  dd::get_implicit_tablespace_options(current_thd, &part_table,
+                                      &autoextend_size);
+
   int error = create(part_name, new_part, altered_table, m_tablespace,
-                     m_file_per_table, m_autoinc);
+                     m_file_per_table, m_autoinc, autoextend_size);
 
   if (error == 0) {
     mutex_enter(&dict_sys->mutex);
@@ -10540,7 +10605,7 @@ static bool dd_part_has_datadir(const dd::Partition *dd_part) {
               dd_table_key_strings[DD_TABLE_DATA_DIRECTORY]));
 }
 
-/** Adjust data directory for exchange parition. Special handling of
+/** Adjust data directory for exchange partition. Special handling of
 dict_table_t::data_dir_path is necessary if DATA DIRECTORY is specified. For
 exaple if DATA DIRECTORY Is '/tmp', the data directory for nomral table is
 '/tmp/t1', while for partition is '/tmp'. So rename, the postfix table name 't1'
@@ -10602,6 +10667,10 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
   std::vector<dd::Partition_index *>::iterator p_iter;
   std::vector<dd::Index *> swap_indexes;
   std::vector<dd::Index *>::iterator s_iter;
+#ifdef UNIV_DEBUG
+  std::vector<dd::Index *> part_table_indexes;
+  std::vector<dd::Index *>::iterator pt_iter;
+#endif
 
   if (high_level_read_only) {
     my_error(ER_READ_ONLY_MODE, MYF(0));
@@ -10650,8 +10719,13 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
   ut_ad(swap != nullptr);
   ut_ad(swap->n_ref_count == 1);
 
-  /* Declare earlier before 'goto' */
-  ut_d(auto part_table_i = part_table->indexes()->begin());
+#ifdef UNIV_DEBUG
+  /* Store and sort part_table indexes */
+  std::copy(part_table->indexes()->begin(), part_table->indexes()->end(),
+            std::back_inserter(part_table_indexes));
+  std::sort(part_table_indexes.begin(), part_table_indexes.end(),
+            [](dd::Index *a, dd::Index *b) { return (a->name() < b->name()); });
+#endif
   dd::Object_id p_se_id = dd_part->se_private_id();
 
   /* Try to rename files. Tablespace checking ensures that
@@ -10735,14 +10809,18 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
       swap_index->se_private_data().clear();
       swap_index->set_se_private_data(*p_se_data);
     }
+  }
+#ifdef UNIV_DEBUG
+  for (s_iter = swap_indexes.begin(), pt_iter = part_table_indexes.begin();
+       s_iter < swap_indexes.end() && pt_iter < part_table_indexes.end();
+       pt_iter++, s_iter++) {
+    auto part_table_index = *pt_iter;
+    auto swap_index = *s_iter;
 
-    ut_ad(part_table_i != part_table->indexes()->end());
-    ut_d(auto part_table_index = *part_table_i);
-    ut_d(++part_table_i);
     ut_ad(part_table_index->options().raw_string() ==
           swap_index->options().raw_string());
   }
-  ut_ad(part_table_i == part_table->indexes()->end());
+#endif
 
   /* Swap the se_private_data and options of the two tables.
   Only the max autoinc should be set to both tables */

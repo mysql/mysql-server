@@ -246,6 +246,8 @@ class Protocol_impl : public XProtocol,
   void use_compression(const Compression_algorithm algo,
                        const int32_t level) override;
 
+  void reset_buffering() override;
+
  private:
   using CodedInputStream = google::protobuf::io::CodedInputStream;
   template <typename Handler>

@@ -349,7 +349,7 @@ f6 = 0 AND f7 = 0 AND f8 = 0 AND f9 = 0 AND f10 = 0 AND
 f11 = 0 AND f12 = 0 AND f13 = 0 AND f14 = 0 AND
 f15 = 0 AND f16 = 0 AND f17 = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	k1	k1	35	const,const,const,const,const,const,const	#	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	k1	k1	35	const,const,const,const,const,const,const	#	100.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f17` AS `f17` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f17` = 0) and (`test`.`t1`.`f16` = 0) and (`test`.`t1`.`f15` = 0) and (`test`.`t1`.`f14` = 0) and (`test`.`t1`.`f13` = 0) and (`test`.`t1`.`f12` = 0) and (`test`.`t1`.`f11` = 0) and (`test`.`t1`.`f10` = 0) and (`test`.`t1`.`f9` = 0) and (`test`.`t1`.`f8` = 0) and (`test`.`t1`.`f7` = 0) and (`test`.`t1`.`f6` = 0) and (`test`.`t1`.`f5` = 0) and (`test`.`t1`.`f4` = 0) and (`test`.`t1`.`f3` = 0) and (`test`.`t1`.`f2` = 0) and (`test`.`t1`.`f1` = 0))
 EXPLAIN SELECT f17 FROM t1 FORCE INDEX (k1) WHERE
@@ -377,7 +377,7 @@ EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	k1	k1	1509	const,const,const	#	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	k1	k1	1509	const,const,const	#	100.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f7` = 'a') and (`test`.`t1`.`f6` = 'a') and (`test`.`t1`.`f5` = 'a') and (`test`.`t1`.`f4` = 'a') and (`test`.`t1`.`f3` = 'a') and (`test`.`t1`.`f2` = 'a') and (`test`.`t1`.`f1` = 'a'))
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
@@ -391,7 +391,7 @@ EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	k1	k1	1509	const,const,const	#	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	k1	k1	1509	const,const,const	#	100.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f5` AS `f5` from `test`.`t1` FORCE INDEX (`k1`) where ((`test`.`t1`.`f7` = 'a') and (`test`.`t1`.`f6` = 'a') and (`test`.`t1`.`f5` = 'a') and (`test`.`t1`.`f4` = 'a') and (`test`.`t1`.`f2` = 'a') and (`test`.`t1`.`f1` = 'a'))
 DROP TABLE t1;
@@ -449,4 +449,27 @@ SELECT st_astext(a) FROM t1 WHERE st_equals(a, point(7, 7));
 st_astext(a)
 POINT(7 7)
 DROP TABLE t1;
+#
+# Bug #31617858 INCORRECT RESULTS WHEN USING INDEX ON LONG CHARACTER COLS.
+#
+CREATE TABLE t(
+a VARCHAR(256) NOT NULL,
+i VARCHAR(512) NOT NULL,
+PRIMARY KEY (a),
+KEY (i)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+INSERT INTO t VALUES
+('aaa12345678','aaa'), ('aaa2','aaa'), ('aaa4','aaa'),
+('aaa3','aaa'),('aaa1','aaa');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN SELECT DISTINCT(i) FROM t FORCE INDEX(i) WHERE a LIKE '%aaa12345678%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	index	i	i	2050	NULL	5	20.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`i` AS `i` from `test`.`t` FORCE INDEX (`i`) where (`test`.`t`.`a` like '%aaa12345678%')
+SELECT DISTINCT(i) FROM t FORCE INDEX(i) WHERE a LIKE '%aaa12345678%';
+i
+aaa
+DROP TABLE t;
 set optimizer_switch=default;

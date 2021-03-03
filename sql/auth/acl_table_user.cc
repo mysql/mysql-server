@@ -37,10 +37,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_loglevel.h"   /* WARNING_LEVEL, loglevel, ERROR_LEVEL */
 #include "my_sqlcommand.h" /* SQLCOM_ALTER_USER, SQLCOM_GRANT */
 #include "my_sys.h"        /* my_error */
-#include "mysql/components/services/log_builtins.h" /* for LogEvent, LogErr */
+#include "mysql/components/services/bits/psi_bits.h" /* PSI_NOT_INSTRUMENTED */
+#include "mysql/components/services/log_builtins.h"  /* for LogEvent, LogErr */
 #include "mysql/plugin.h" /* st_mysql_plugin, MYSQL_AUTHENTICATION_PLUGIN */
 #include "mysql/plugin_auth.h"      /* st_mysql_auth */
-#include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
 #include "mysql_time.h"             /* MYSQL_TIME, MYSQL_TIMESTAMP_ERROR */
 #include "mysqld_error.h"           /* ER_* */
 #include "prealloced_array.h"       /* Prealloced_array */
@@ -133,7 +133,7 @@ Acl_user_attributes::Acl_user_attributes(MEM_ROOT *mem_root,
       m_read_restrictions(read_restrictions),
       m_auth_id(auth_id),
       m_additional_password(),
-      m_restrictions(mem_root),
+      m_restrictions(),
       m_global_privs(global_privs),
       m_password_lock(),
       m_user_attributes_json(nullptr) {}
@@ -265,7 +265,7 @@ bool Acl_user_attributes::deserialize(const Json_object &json_object) {
 
   /* In cse of writes, DB restrictions are always overwritten */
   if (m_read_restrictions) {
-    DB_restrictions db_restrictions(nullptr);
+    DB_restrictions db_restrictions;
     if (db_restrictions.add(json_object)) return true;
     /* Filtering & warnings */
     report_and_remove_invalid_db_restrictions(
@@ -393,13 +393,13 @@ bool parse_user_attributes(THD *thd, TABLE *table,
 }
 }  // namespace
 
-Acl_table_user_writer_status::Acl_table_user_writer_status(MEM_ROOT *mem_root)
+Acl_table_user_writer_status::Acl_table_user_writer_status()
     : skip_cache_update(true),
       updated_rights(NO_ACCESS),
       error(consts::CRITICAL_ERROR),
       password_change_timestamp(consts::BEGIN_TIMESTAMP),
       second_cred(consts::empty_string),
-      restrictions(mem_root),
+      restrictions(),
       password_lock() {}
 
 /**
@@ -451,8 +451,8 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   bool update_password = (m_what_to_update.m_what & PLUGIN_ATTR);
   Table_op_error_code error;
   LEX *lex = m_thd->lex;
-  Acl_table_user_writer_status return_value(m_thd->mem_root);
-  Acl_table_user_writer_status err_return_value(m_thd->mem_root);
+  Acl_table_user_writer_status return_value;
+  Acl_table_user_writer_status err_return_value;
 
   DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(m_thd));
@@ -1276,9 +1276,9 @@ std::string Acl_table_user_writer::get_current_credentials() {
   @param [in] table  mysql.user table handle. Must be non-null
 */
 Acl_table_user_reader::Acl_table_user_reader(THD *thd, TABLE *table)
-    : Acl_table(thd, table, acl_table::Acl_table_operation::OP_READ) {
+    : Acl_table(thd, table, acl_table::Acl_table_operation::OP_READ),
+      m_restrictions(new Restrictions) {
   init_sql_alloc(PSI_NOT_INSTRUMENTED, &m_mem_root, ACL_ALLOC_BLOCK_SIZE, 0);
-  m_restrictions = new Restrictions(&m_mem_root);
 }
 
 /**
@@ -1993,7 +1993,7 @@ bool Acl_table_user_reader::driver() {
 
   m_iterator.reset();
   if (read_rec_errcode > 0) return true;
-  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
+  std::sort(acl_users->begin(), acl_users->end(), ACL_USER_compare());
   acl_users->shrink_to_fit();
   rebuild_cached_acl_users_for_name();
 
@@ -2080,7 +2080,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
       return false;
     });
   }
-  acl_table::Acl_table_user_writer_status return_value(thd->mem_root);
+  acl_table::Acl_table_user_writer_status return_value;
 
   DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));

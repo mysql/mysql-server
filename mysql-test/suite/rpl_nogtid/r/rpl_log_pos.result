@@ -9,7 +9,7 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB	Executed_Gtid_Set
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>	<Executed_Gtid_Set>
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-change master to master_log_pos=MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=MASTER_LOG_POS;
 Read_Master_Log_Pos = '75'
 start slave;
 Warnings:
@@ -24,7 +24,7 @@ create table if not exists t1 (n int);
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values (1),(2),(3);
-change master to master_log_pos=MASTER_LOG_POS;
+CHANGE REPLICATION SOURCE to SOURCE_LOG_POS=MASTER_LOG_POS;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

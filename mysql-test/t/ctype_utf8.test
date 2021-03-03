@@ -1063,10 +1063,13 @@ INSERT INTO t1(id, a, b) VALUES
   (7, 'dddd', 30), (8, 'aaaa', 10), (9, 'aaaa', 50),
   (10, 'eeeee', 40), (11, 'bbbbbb', 60);
 
+--sorted_result
 SELECT id, a, b FROM t1;
 
+--sorted_result
 SELECT id, a, b FROM t1 WHERE a BETWEEN 'aaaa' AND 'bbbbbb';
 
+--sorted_result
 SELECT id, a FROM t1 WHERE a='bbbbbb';
 SELECT id, a FROM t1 WHERE a='bbbbbb' ORDER BY b;
 
@@ -1487,15 +1490,20 @@ CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL);
 INSERT INTO t1 VALUES (70000, 1092), (70001, 1085), (70002, 1065);
 
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 ALTER TABLE t1 ADD UNIQUE (b);
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 DROP INDEX b ON t1;
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) FROM t1 GROUP BY b;
 ALTER TABLE t1 ADD INDEX (b);
+--sorted_result
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 
@@ -1526,6 +1534,7 @@ SELECT HEX(INSERT(_utf8 0xD18FD18E, 2, 1, 0x20));
 CREATE TABLE t1 (a VARCHAR(10) CHARACTER SET utf8 COLLATE utf8_general_mysql500_ci);
 INSERT INTO t1 VALUES ('a'),('r'),('s'),(_latin1 0xDF),(_latin1 0xF7),('t'),('z');
 SELECT * FROM t1 ORDER BY a;
+--sorted_result
 SELECT a, COUNT(*) FROM t1 GROUP BY a;
 DROP TABLE t1;
 

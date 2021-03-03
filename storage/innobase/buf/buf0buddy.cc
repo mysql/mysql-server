@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -462,7 +462,7 @@ alloc_big:
   mutex_exit(&buf_pool->zip_free_mutex);
 
 func_exit:
-  os_atomic_increment_ulint(&buf_pool->buddy_stat[i].used, 1);
+  buf_pool->buddy_stat[i].used.fetch_add(1);
   return (block);
 }
 
@@ -626,7 +626,7 @@ void buf_buddy_free_low(buf_pool_t *buf_pool, void *buf, ulint i,
 
   ut_ad(mutex_own(&buf_pool->zip_free_mutex));
   ut_ad(buf_pool->buddy_stat[i].used > 0);
-  os_atomic_decrement_ulint(&buf_pool->buddy_stat[i].used, 1);
+  buf_pool->buddy_stat[i].used.fetch_sub(1);
 recombine:
   UNIV_MEM_ASSERT_AND_ALLOC(buf, BUF_BUDDY_LOW << i);
 
@@ -738,7 +738,7 @@ bool buf_buddy_realloc(buf_pool_t *buf_pool, void *buf, ulint size) {
     mutex_enter(&buf_pool->zip_free_mutex);
   }
 
-  os_atomic_increment_ulint(&buf_pool->buddy_stat[i].used, 1);
+  buf_pool->buddy_stat[i].used.fetch_add(1);
 
   /* Try to relocate the buddy of buf to the free block. */
   if (buf_buddy_relocate(buf_pool, buf, block, i, true)) {
@@ -795,7 +795,7 @@ void buf_buddy_condense_free(buf_pool_t *buf_pool) {
         /* Both buf and buddy are free.
         Try to combine them. */
         buf_buddy_remove_from_free(buf_pool, buf, i);
-        os_atomic_increment_ulint(&buf_pool->buddy_stat[i].used, 1);
+        buf_pool->buddy_stat[i].used.fetch_add(1);
 
         buf_buddy_free_low(buf_pool, buf, i, true);
       }

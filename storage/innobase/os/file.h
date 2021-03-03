@@ -49,7 +49,7 @@ external tools. */
 /** Compression algorithm. */
 struct Compression {
   /** Algorithm types supported */
-  enum Type {
+  enum Type : uint8_t {
     /* Note: During recovery we don't have the compression type
     because the .frm file has not been read yet. Therefore
     we write the recovered pages out without compression. */
@@ -156,6 +156,11 @@ struct Compression {
   @return DB_SUCCESS or error code */
   static dberr_t validate(const char *algorithm)
       MY_ATTRIBUTE((warn_unused_result));
+
+  /** Validate the algorithm string.
+  @param[in]  type  compression type
+  @return true if type is valid, else false */
+  static bool validate(const Type type) MY_ATTRIBUTE((warn_unused_result));
 
   /** Convert to a "string".
   @param[in]      type            The compression type

@@ -53,17 +53,33 @@
 #define MEM_ROOT_SINGLE_CHUNKS 0
 #endif
 
-MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
+std::pair<MEM_ROOT::Block *, size_t> MEM_ROOT::AllocBlock(
+    size_t wanted_length, size_t minimum_length) {
   DBUG_TRACE;
 
-  if (m_max_capacity != 0 && (m_allocated_size > m_max_capacity ||
-                              length > m_max_capacity - m_allocated_size)) {
-    if (m_error_for_capacity_exceeded) {
-      my_error(EE_CAPACITY_EXCEEDED, MYF(0),
-               static_cast<ulonglong>(m_max_capacity));
-      // NOTE: No early return; we will abort the query at the next safe point.
+  size_t length = wanted_length;
+  if (m_max_capacity != 0) {
+    size_t bytes_left;
+    if (m_allocated_size > m_max_capacity) {
+      bytes_left = 0;
     } else {
-      return nullptr;
+      bytes_left = m_max_capacity - m_allocated_size;
+    }
+    if (wanted_length > bytes_left) {
+      if (m_error_for_capacity_exceeded) {
+        my_error(EE_CAPACITY_EXCEEDED, MYF(0),
+                 static_cast<ulonglong>(m_max_capacity));
+        // NOTE: No early return; we will abort the query at the next safe
+        // point. We also don't go down to minimum_length, as this will give a
+        // new block on every subsequent Alloc() (of which there might be
+        // many, since we don't know when the next safe point will be).
+      } else if (minimum_length <= bytes_left) {
+        // Make one final chunk with all that we have left.
+        length = bytes_left;
+      } else {
+        // We don't have enough memory left to satisfy minimum_length.
+        return {nullptr, 0};
+      }
     }
   }
 
@@ -72,7 +88,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
                 MYF(MY_WME | ME_FATALERROR)));
   if (new_block == nullptr) {
     if (m_error_handler) (m_error_handler)();
-    return nullptr;
+    return {nullptr, 0};
   }
 
   m_allocated_size += length;
@@ -80,7 +96,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
   // Make the default block size 50% larger next time.
   // This ensures O(1) total mallocs (assuming Clear() is not called).
   m_block_size += m_block_size / 2;
-  return new_block;
+  return {new_block, length};
 }
 
 void *MEM_ROOT::AllocSlow(size_t length) {
@@ -97,7 +113,8 @@ void *MEM_ROOT::AllocSlow(size_t length) {
     // Allocate an entirely new block, not disturbing anything;
     // since the new block isn't going to be used for the next allocation
     // anyway, we can just as well keep the previous one.
-    Block *new_block = AllocBlock(length);
+    Block *new_block =
+        AllocBlock(/*wanted_length=*/length, /*minimum_length=*/length).first;
     if (new_block == nullptr) return nullptr;
 
     if (m_current_block == nullptr) {
@@ -119,19 +136,30 @@ void *MEM_ROOT::AllocSlow(size_t length) {
   } else {
     // The normal case: Throw away the current block, allocate a new block,
     // and use that to satisfy the new allocation.
-    const size_t new_block_size = m_block_size;
-    Block *new_block = AllocBlock(new_block_size);  // Will modify block_size.
-    if (new_block == nullptr) return nullptr;
-
-    new_block->prev = m_current_block;
-    m_current_block = new_block;
-
-    char *new_mem =
-        pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
-    m_current_free_start = new_mem + length;
-    m_current_free_end = new_mem + new_block_size;
+    if (ForceNewBlock(/*minimum_length=*/length)) {
+      return nullptr;
+    }
+    char *new_mem = m_current_free_start;
+    m_current_free_start += length;
     return new_mem;
   }
+}
+
+bool MEM_ROOT::ForceNewBlock(size_t minimum_length) {
+  std::pair<Block *, size_t> block_and_length =
+      AllocBlock(/*wanted_length=*/ALIGN_SIZE(m_block_size),
+                 minimum_length);  // Will modify block_size.
+  Block *new_block = block_and_length.first;
+  if (new_block == nullptr) return true;
+
+  new_block->prev = m_current_block;
+  m_current_block = new_block;
+
+  char *new_mem =
+      pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
+  m_current_free_start = new_mem;
+  m_current_free_end = new_mem + block_and_length.second;
+  return false;
 }
 
 void MEM_ROOT::Clear() {

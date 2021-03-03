@@ -1,5 +1,6 @@
 # For stable statistics
 --source include/have_innodb_16k.inc
+--source include/not_hypergraph.inc  # Does not support materialized table functions.
 --echo # 
 --echo # WL#8867: Add JSON_TABLE table function
 --echo # 

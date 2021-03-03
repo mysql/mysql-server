@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -986,8 +986,10 @@ void rtr_clean_rtr_info(rtr_info_t *rtr_info, /*!< in: RTree search info */
         UT_DELETE(rtr_info->matches->matched_recs);
       }
 
-      rw_lock_free(&(rtr_info->matches->block.lock));
+      /* Clear any space references in the page copied. */
+      buf_page_prepare_for_free(&rtr_info->matches->block.page);
 
+      rw_lock_free(&(rtr_info->matches->block.lock));
       mutex_destroy(&rtr_info->matches->rtr_match_mutex);
     }
 
@@ -1366,39 +1368,38 @@ static void rtr_non_leaf_insert_stack_push(
                           mbr_inc);
 }
 
-/** Copy a buf_block_t strcuture, except "block->lock", "block->mutex" and
-"block->debug_latch."
+/** Copy a buf_block_t structure, except "block->lock",
+"block->mutex","block->debug_latch", "block->n_pointers and block->frame."
 @param[in,out]	matches	copy to match->block
 @param[in]	block	block to copy */
 static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
+  /* Clear any space references in the page if it was copied before. */
+  buf_page_prepare_for_free(&matches->block.page);
+
   /* Copy all members of "block" to "matches->block" except "mutex"
-  and "lock". We skip "mutex" and "lock" because they are not used
-  from the dummy buf_block_t we create here and because memcpy()ing
-  them generates (valid) compiler warnings that the vtable pointer
-  will be copied. It is also undefined what will happen with the
-  newly memcpy()ed mutex if the source mutex was acquired by
-  (another) thread while it was copied. */
+  and "lock". We skip "mutex" and "lock" because we can't copy mutex nor rwlock.
+  We don't copy pointer to frame as well, because we would have two rw_locks
+  protecting that frame (one from original block and one from dummy)*/
   new (&matches->block.page) buf_page_t(block->page);
-  matches->block.frame = block->frame;
   matches->block.unzip_LRU = block->unzip_LRU;
 
   ut_d(matches->block.in_unzip_LRU_list = block->in_unzip_LRU_list);
   ut_d(matches->block.in_withdraw_list = block->in_withdraw_list);
 
   /* Skip buf_block_t::mutex */
-  /* Skip buf_block_t::lock */
+  /* Skip buf_block_t::lock as it was already initialized by rtr_create_rtr_info
+   */
+  ut_ad(rw_lock_validate(&matches->block.lock));
   matches->block.lock_hash_val = block->lock_hash_val;
-  matches->block.modify_clock = block->modify_clock;
   matches->block.n_hash_helps = block->n_hash_helps;
+  matches->block.n_bytes = block->n_bytes;
   matches->block.n_fields = block->n_fields;
   matches->block.left_side = block->left_side;
-#if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-  matches->block.n_pointers = block->n_pointers;
-#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
   matches->block.curr_n_fields = block->curr_n_fields;
   matches->block.curr_left_side = block->curr_left_side;
   matches->block.index = block->index;
   matches->block.made_dirty_with_no_latch = block->made_dirty_with_no_latch;
+  matches->block.modify_clock = block->modify_clock;
 
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
@@ -1409,6 +1410,8 @@ static void rtr_copy_buf(matched_rec_t *matches, const buf_block_t *block) {
   because an std::atomic<bool> member was added and rw_lock_t became explicitly
   non copyable. */
   UNIV_MEM_INVALID(&matches->block.debug_latch, sizeof(rw_lock_t));
+  UNIV_MEM_INVALID(&matches->block.mutex, sizeof(BPageMutex));
+  UNIV_MEM_INVALID(&matches->block.n_pointers, sizeof(std::atomic<ulint>));
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 }

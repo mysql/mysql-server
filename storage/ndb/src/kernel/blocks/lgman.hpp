@@ -525,6 +525,7 @@ public:
     Uint32 len;
   };
 
+  Uint64 get_latest_lsn();
   Uint64 add_entry_simple(const Change*,
                           Uint32 cnt,
                           Uint32 alloc_size,

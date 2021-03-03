@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -501,6 +501,24 @@ class PT_generated_default_val_column_attr : public PT_column_attr_base {
 
  private:
   Value_generator m_default_value_expression;
+};
+
+/**
+  Node for the @SQL{VISIBLE|INVISIBLE} column attribute
+
+  @ingroup ptn_column_attrs
+*/
+class PT_column_visibility_attr : public PT_column_attr_base {
+ public:
+  explicit PT_column_visibility_attr(bool is_visible)
+      : m_is_visible(is_visible) {}
+  void apply_type_flags(unsigned long *type_flags) const override {
+    *type_flags &= ~FIELD_IS_INVISIBLE;
+    if (!m_is_visible) *type_flags |= FIELD_IS_INVISIBLE;
+  }
+
+ private:
+  const bool m_is_visible;
 };
 
 // Type nodes:

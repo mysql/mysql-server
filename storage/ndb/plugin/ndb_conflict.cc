@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -764,7 +764,7 @@ st_ndb_slave_state::st_ndb_slave_state()
       total_reflect_op_discard_count(0),
       total_refresh_op_count(0),
       max_rep_epoch(0),
-      sql_run_id(~Uint32(0)),
+      applier_sql_thread_start(true),
       trans_row_conflict_count(0),
       trans_row_reject_count(0),
       trans_detect_iter_count(0),
@@ -916,7 +916,7 @@ void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
 
   if (DBUG_EVALUATE_IF("ndb_slave_fail_marking_epoch_committed", true, false)) {
     fprintf(stderr,
-            "Slave clearing epoch committed flag "
+            "Replica clearing epoch committed flag "
             "for epoch %llu/%llu (%llu)\n",
             current_master_server_epoch >> 32,
             current_master_server_epoch & 0xffffffff,
@@ -946,21 +946,18 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     epoch - to make sure that we are getting a sensible sequence
     of epochs.
   */
-  bool first_epoch_since_slave_start =
-      (ndb_mi_get_slave_run_id() != sql_run_id);
+  bool first_epoch_since_slave_start = applier_sql_thread_start;
 
   DBUG_PRINT(
       "info",
-      ("ndb_apply_status write from upstream master."
+      ("ndb_apply_status write from upstream source"
        "ServerId %u, Epoch %llu/%llu (%llu) "
-       "Current master server epoch %llu/%llu (%llu)"
-       "Current master server epoch committed? %u",
+       "Current source Server epoch %llu/%llu (%llu)"
+       "Current source Server epoch committed? %u",
        master_server_id, next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
        current_master_server_epoch >> 32,
        current_master_server_epoch & 0xffffffff, current_master_server_epoch,
        current_master_server_epoch_committed));
-  DBUG_PRINT("info", ("mi_slave_run_id=%u, ndb_slave_state_run_id=%u",
-                      ndb_mi_get_slave_run_id(), sql_run_id));
   DBUG_PRINT("info", ("First epoch since slave start : %u",
                       first_epoch_since_slave_start));
 
@@ -973,21 +970,19 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     */
     if (next_epoch < current_master_server_epoch) {
       ndb_log_warning(
-          "NDB Slave: At SQL thread start "
+          "NDB Replica: At SQL thread start "
           "applying epoch %llu/%llu (%llu) from "
-          "Master ServerId %u which is lower than "
+          "Source ServerId %u which is lower than "
           "previously applied epoch %llu/%llu (%llu).  "
-          "Group Master Log : %s  "
-          "Group Master Log Pos : %" PRIu64
+          "Group Source Log : %s  "
+          "Group Source Log Pos : %" PRIu64
           ".  "
-          "Slave run id from slave's master info %u, "
-          "Slave run id %u.  "
-          "Check slave positioning.  ",
+          "Check replica positioning.  ",
           next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
           master_server_id, current_master_server_epoch >> 32,
           current_master_server_epoch & 0xffffffff, current_master_server_epoch,
-          ndb_mi_get_group_master_log_name(), ndb_mi_get_group_master_log_pos(),
-          ndb_mi_get_slave_run_id(), sql_run_id);
+          ndb_mi_get_group_master_log_name(),
+          ndb_mi_get_group_master_log_pos());
       /* Slave not stopped */
     } else if (next_epoch == current_master_server_epoch) {
       /**
@@ -1011,20 +1006,17 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
     if (next_epoch < current_master_server_epoch) {
       /* Should never happen */
       ndb_log_error(
-          "NDB Slave: SQL thread stopped as "
+          "NDB Replica: SQL thread stopped as "
           "applying epoch %llu/%llu (%llu) from "
-          "Master ServerId %u which is lower than "
+          "Source ServerId %u which is lower than "
           "previously applied epoch %llu/%llu (%llu).  "
-          "Group Master Log : %s  "
-          "Group Master Log Pos : %" PRIu64
-          ".  "
-          "Slave run id from slave's master info %u, "
-          "Slave run id %u.  ",
+          "Group Source Log : %s  "
+          "Group Source Log Pos : %." PRIu64,
           next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
           master_server_id, current_master_server_epoch >> 32,
           current_master_server_epoch & 0xffffffff, current_master_server_epoch,
-          ndb_mi_get_group_master_log_name(), ndb_mi_get_group_master_log_pos(),
-          ndb_mi_get_slave_run_id(), sql_run_id);
+          ndb_mi_get_group_master_log_name(),
+          ndb_mi_get_group_master_log_pos());
       /* Stop the slave */
       return false;
     } else if (next_epoch == current_master_server_epoch) {
@@ -1035,20 +1027,16 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
       if (current_master_server_epoch_committed) {
         /* This epoch is committed already, why are we replaying it? */
         ndb_log_error(
-            "NDB Slave: SQL thread stopped as attempted to "
+            "NDB Replica: SQL thread stopped as attempted to "
             "reapply already committed epoch %llu/%llu (%llu) "
             "from server id %u.  "
-            "Group Master Log : %s  "
-            "Group Master Log Pos : %" PRIu64
-            ".  "
-            "Slave run id from slave's master info %u, "
-            "Slave run id %u.  ",
+            "Group Source Log : %s  "
+            "Group Source Log Pos : %." PRIu64,
             current_master_server_epoch >> 32,
             current_master_server_epoch & 0xffffffff,
             current_master_server_epoch, master_server_id,
             ndb_mi_get_group_master_log_name(),
-            ndb_mi_get_group_master_log_pos(), ndb_mi_get_slave_run_id(),
-            sql_run_id);
+            ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         return false;
       } else {
@@ -1068,22 +1056,18 @@ bool st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
            the last - probably a bug in transaction retry
         */
         ndb_log_error(
-            "NDB Slave: SQL thread stopped as attempting to "
+            "NDB Replica: SQL thread stopped as attempting to "
             "apply new epoch %llu/%llu (%llu) while lower "
             "received epoch %llu/%llu (%llu) has not been "
-            "committed.  Master server id : %u.  "
-            "Group Master Log : %s  "
-            "Group Master Log Pos : %" PRIu64
-            ".  "
-            "Slave run id from slave's master info %u, "
-            "Slave run id %u.  ",
+            "committed.  Source Server id : %u.  "
+            "Group Source Log : %s  "
+            "Group Source Log Pos : %." PRIu64,
             next_epoch >> 32, next_epoch & 0xffffffff, next_epoch,
             current_master_server_epoch >> 32,
             current_master_server_epoch & 0xffffffff,
             current_master_server_epoch, master_server_id,
             ndb_mi_get_group_master_log_name(),
-            ndb_mi_get_group_master_log_pos(), ndb_mi_get_slave_run_id(),
-            sql_run_id);
+            ndb_mi_get_group_master_log_pos());
         /* Stop the slave */
         return false;
       } else {
@@ -1146,9 +1130,6 @@ int st_ndb_slave_state::atApplyStatusWrite(Uint32 master_server_id,
 void st_ndb_slave_state::atResetSlave() {
   /* Reset the Maximum replicated epoch vars
    * on slave reset
-   * No need to touch the sql_run_id as that
-   * will increment if the slave is started
-   * again.
    */
   resetPerAttemptCounters();
 
@@ -1233,8 +1214,8 @@ bool st_ndb_slave_state::checkSlaveConflictRoleChange(
   /* Check that Slave SQL thread is not running */
   if (ndb_mi_get_slave_sql_running()) {
     *failure_cause =
-        "Cannot change role while Slave SQL "
-        "thread is running.  Use STOP SLAVE first.";
+        "Cannot change role while Replica SQL "
+        "thread is running.  Use STOP REPLICA first.";
     return false;
   }
 
@@ -1656,7 +1637,7 @@ static int row_conflict_fn_old(NDB_CONFLICT_FN_SHARE *cfn_share,
   assert((resolve_size == 4) || (resolve_size == 8));
 
   if (unlikely(!bitmap_is_set(bi_cols, resolve_column))) {
-    ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
+    ndb_log_info("NDB Replica: missing data for %s timestamp column %u.",
                  cfn_share->m_conflict_fn->name, resolve_column);
     return 1;
   }
@@ -1726,7 +1707,7 @@ static int row_conflict_fn_max_update_only(
   assert((resolve_size == 4) || (resolve_size == 8));
 
   if (unlikely(!bitmap_is_set(ai_cols, resolve_column))) {
-    ndb_log_info("NDB Slave: missing data for %s timestamp column %u.",
+    ndb_log_info("NDB Replica: missing data for %s timestamp column %u.",
                  cfn_share->m_conflict_fn->name, resolve_column);
     return 1;
   }
@@ -2278,12 +2259,13 @@ static int slave_set_resolve_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
         ndbtab_g.release();
 
         /* Table looked suspicious, warn user */
-        if (msg) ndb_log_warning("NDB Slave: %s", msg);
+        if (msg) ndb_log_warning("NDB Replica: %s", msg);
 
-        ndb_log_verbose(1, "NDB Slave: Table %s.%s logging exceptions to %s.%s",
+        ndb_log_verbose(1,
+                        "NDB Replica: Table %s.%s logging exceptions to %s.%s",
                         dbName, tabName, dbName, ex_tab_name);
       } else {
-        ndb_log_warning("NDB Slave: %s", msg);
+        ndb_log_warning("NDB Replica: %s", msg);
       }
       break;
     } /* if (ex_tab) */
@@ -2411,7 +2393,7 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
        * represent SavePeriod/EpochPeriod
        */
       if (ndbtab->getExtraRowGciBits() == 0)
-        ndb_log_info("NDB Slave: Table %s.%s : %s, low epoch resolution",
+        ndb_log_info("NDB Replica: Table %s.%s : %s, low epoch resolution",
                      dbName, tabName, conflict_fn->name);
 
       if (ndbtab->getExtraRowAuthorBits() == 0) {

@@ -473,6 +473,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 static void get_data_str(void *ctx) {
@@ -512,6 +513,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
   COM_DATA cmd;
 
   WRITE_VAL("%s\n", test_cmd);
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
 

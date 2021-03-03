@@ -202,6 +202,7 @@ let $query=
 select (with dt as (select t1.a as a from t2 limit 1) select * from dt dt1 where dt1.a=(select * from dt as dt2)) as subq from t1;
 
 eval explain $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;  # Demonstrates printing of CTEs printed multiple times.
 eval $query;
 
@@ -504,6 +505,7 @@ flush status;
 eval $query;
 --echo # when a row of t1 produces two rows of t2 passed to "dt",
 --echo # it still makes one materialization.
+--skip_if_hypergraph  # LATERAL is not supported, so no writes done.
 show status like "handler_write";
 
 let $query=
@@ -512,6 +514,7 @@ eval explain $query;
 flush status;
 --sorted_result
 eval $query;
+--skip_if_hypergraph  # LATERAL is not supported, so no writes done.
 show status like "handler_write";
 
 let $query=
@@ -525,6 +528,7 @@ eval $query;
 --echo # each row of t1 it's joined to all rows of t2 and passed to t2;
 --echo # when a row of t1 produces two rows of t2 passed to "dt",
 --echo # it still makes one materialization.
+--skip_if_hypergraph  # LATERAL is not supported, so no writes done.
 show status like "handler_write";
 
 --echo # Let the planner find the best plan.
@@ -547,6 +551,7 @@ select * from t1, t2, lateral (select t1.a) as dt;
 eval explain $query;
 flush status;
 eval $query;
+--skip_if_hypergraph  # LATERAL is not supported, so no writes done.
 show status like "handler_write";
 
 --echo # This one finds the best plan. Yes we simply swapped tables in the query,
@@ -564,6 +569,7 @@ eval explain $query;
 flush status;
 --sorted_result
 eval $query;
+--skip_if_hypergraph  # LATERAL is not supported, so no writes done.
 show status like "handler_write";
 
 --echo # This one is intermediate: t1 uses join buffer (good), but
@@ -575,12 +581,14 @@ eval explain $query;
 flush status;
 --sorted_result
 eval $query;
+--skip_if_hypergraph  # LATERAL is not supported, so no writes done.
 show status like "handler_write";
 
 --echo # Show the trace of planning of lateral derived tables
 let $query=
 select * from t1, lateral (select t1.a from t2 as t3, t2 as t4) as dt, t2;
 eval explain $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 select trace from information_schema.optimizer_trace;
 
 --echo # LDT depending on const table only
@@ -620,6 +628,7 @@ select * from t2, t1, lateral (select t1.a+t2.a) as dt;
 eval explain $query;
 eval explain format=json $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_trace;
 
 --echo # Test when a dependency of LDT uses BKA: BKA code must
@@ -637,6 +646,7 @@ JOIN LATERAL (SELECT t12a) dt;
 eval explain $query;
 flush status;
 eval $query;
+--skip_if_hypergraph  # LATERAL is not supported, so no writes done.
 show status like "handler_write";
 DROP TABLE t11,t12;
 set @@optimizer_switch=@old_opt_switch;
@@ -944,6 +954,7 @@ CREATE ALGORITHM=TEMPTABLE VIEW v2 AS SELECT ( SELECT f2 FROM v1 WHERE v1.f1 = t
 # the index lookup against it is outer-correlated, and it is part of
 # a query block which is also itself outer-correlated.
 #
+--skip_if_hypergraph  # Depends on query plan.
 EXPLAIN FORMAT=TREE SELECT * FROM v2 WHERE f3 = 3;
 
 DROP TABLE t1, t2;

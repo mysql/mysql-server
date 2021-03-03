@@ -31,9 +31,11 @@ select case when 1<0 then "TRUE" else "FALSE" END;
 #
 create table t1 (a int);
 insert into t1 values(1),(2),(3),(4);
+--sorted_result
 select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
 analyze table t1;
 explain select case a when 1 then 2 when 2 then 3 else 0 end as fcase, count(*) from t1 group by fcase;
+--sorted_result
 select case a when 1 then "one" when 2 then "two" else "nothing" end as fcase, count(*) from t1 group by fcase;
 drop table t1;
 

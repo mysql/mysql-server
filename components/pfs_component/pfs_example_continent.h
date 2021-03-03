@@ -44,7 +44,7 @@ extern native_mutex_t LOCK_continent_records_array;
 
 /* A structure to denote a single row of the table. */
 struct {
-  char name[20];
+  char name[CONTINENT_NAME_LEN];
   unsigned int name_length;
 
   /* If there is a value in this row */
@@ -95,7 +95,8 @@ class Continent_index {
 class Continent_index_by_name : public Continent_index {
  public:
   PSI_plugin_key_string m_name;
-  char m_name_buffer[20];
+  /* Number of characters * max multibyte length of character set */
+  char m_name_buffer[CONTINENT_NAME_LEN];
 
   bool match(Continent_record *record) override {
     return mysql_service_pfs_plugin_table->match_key_string(

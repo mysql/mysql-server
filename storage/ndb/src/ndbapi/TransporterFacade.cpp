@@ -244,7 +244,9 @@ TRACE_GSN(Uint32 gsn)
  */
 bool
 TransporterFacade::deliver_signal(SignalHeader * const header,
-                                  Uint8 prio, Uint32 * const theData,
+                                  Uint8 prio,
+                                  TransporterError &error_code,
+                                  Uint32 * const theData,
                                   LinearSectionPtr ptr[3])
 {
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
@@ -3170,7 +3172,13 @@ TransporterFacade::propose_poll_owner()
     if (NdbMutex_Trylock(new_owner->m_mutex) == 0)
     {
       assert(new_owner->m_poll.m_poll_queue == true);
-      assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
+      /**
+       * It can happen that new_owner is in state PQ_WOKEN if it is currently
+       * closing down its client and another thread comes in between as poll
+       * owner before the closing thread has the chance to become poll owner.
+       */
+      assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING ||
+             new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN);
       unlock_poll_mutex();
 
       /**
@@ -3267,7 +3275,22 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
       switch(clnt->m_poll.m_waiting) {
       case trp_client::PollQueue::PQ_WOKEN:
         dbg("%p - PQ_WOKEN", clnt);
-        // We have already been taken out of poll queue
+        /**
+         *  We have already been taken out of poll queue
+         * in the normal case, but when we sent CLOSE_COMREQ the
+         * state PQ_WOKEN signals that the receiver has executed
+         * perform_close_clnt. So in this case we might still be left
+         * in the poll queue.
+         */
+        if (clnt->m_poll.m_poll_queue)
+        {
+          lock_poll_mutex();
+          if (clnt->m_poll.m_poll_queue)
+          {
+            remove_from_poll_queue(clnt);
+          }
+          unlock_poll_mutex();
+        }
         assert(clnt->m_poll.m_poll_queue == false);
         assert(clnt->m_poll.m_poll_owner == false);
         clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;

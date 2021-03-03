@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,8 +37,9 @@
 
 namespace xpl {
 
-Session_scheduler::Session_scheduler(const char *name, void *plugin,
-                                     std::unique_ptr<Monitor_interface> monitor)
+Session_scheduler::Session_scheduler(
+    const char *name, void *plugin,
+    std::unique_ptr<iface::Scheduler_dynamic::Monitor> monitor)
     : ngs::Scheduler_dynamic(name, KEY_thread_x_worker, std::move(monitor)),
       m_plugin_ptr(plugin) {}
 

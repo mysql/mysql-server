@@ -52,10 +52,16 @@ public:
    */
   void assign_trps(Uint32 *recv_thread_idx_array);
 #endif
+  void *m_trpman;
 
+  void assign_trpman(void *trpman)
+  {
+    m_trpman = trpman;
+  }
   /* TransporterCallback interface. */
   bool deliver_signal(SignalHeader * const header,
                       Uint8 prio,
+                      TransporterError &error_code,
                       Uint32 * const signalData,
                       LinearSectionPtr ptr[3]) override;
   void reportReceiveLen(NodeId nodeId, Uint32 count, Uint64 bytes) override;

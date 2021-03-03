@@ -299,6 +299,12 @@ class Datafile {
                               bool for_import)
       MY_ATTRIBUTE((warn_unused_result));
 
+  /** Get LSN of first page */
+  lsn_t get_flush_lsn() {
+    ut_ad(m_first_page != nullptr);
+    return mach_read_from_8(m_first_page + FIL_PAGE_LSN);
+  }
+
   /** Get Datafile::m_name.
   @return m_name */
   const char *name() const { return (m_name); }

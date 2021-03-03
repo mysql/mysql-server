@@ -13,9 +13,6 @@
 ## The last two parameters are normally provided by
 ##   --source suite/ndb/include/ndb_info.inc
 ##
-## In addition, $NDB_CONNECTSTRING, $NDB_MGM, $NDB_TOOLS_DIR and $NDB_TOOLS_OUTPUT
-## must be set (they are normally proivided by MTR).
-##
 
 --let $ndb_node_id = `SELECT FLOOR($MTR_NDB_FIRST_NDBD_NODEID + (RAND() * $MTR_NDB_NO_OF_NODES))`
 --echo # Restarting random node $ndb_node_id

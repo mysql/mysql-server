@@ -182,7 +182,7 @@ SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER b
 
 # Clean up tables
 DROP TABLE t_num,t_string_1,t_string_2,t_gis;
---exec $NDB_DROP_TABLE --no-defaults -d test t_datetime >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t_datetime >> $NDB_TOOLS_OUTPUT
 
 #
 # Restore backup files (from big endian)
@@ -209,7 +209,7 @@ SELECT ST_AsText(t_multipoint), ST_AsText(t_multilinestring),ST_AsText(t_multipo
 SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER by t_pk;
 
 DROP TABLE t_num,t_string_1,t_string_2,t_gis;
---exec $NDB_DROP_TABLE --no-defaults -d test t_datetime >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t_datetime >> $NDB_TOOLS_OUTPUT
 
 # Reset metadata check value
 --connection server2

@@ -3358,8 +3358,8 @@ use test;
 create user mysqltest_1@localhost;
 create table t1(a int, b varchar(34));
 reset master;
-mysqldump: Couldn't execute 'FLUSH /*!40101 LOCAL */ TABLES': Access denied; you need (at least one of) the RELOAD privilege(s) for this operation (1227)
-mysqldump: Couldn't execute 'FLUSH /*!40101 LOCAL */ TABLES': Access denied; you need (at least one of) the RELOAD privilege(s) for this operation (1227)
+mysqldump: Couldn't execute 'FLUSH /*!40101 LOCAL */ TABLES': Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation (1227)
+mysqldump: Couldn't execute 'FLUSH /*!40101 LOCAL */ TABLES': Access denied; you need (at least one of) the RELOAD or FLUSH_TABLES privilege(s) for this operation (1227)
 grant RELOAD on *.* to mysqltest_1@localhost;
 mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation (1227)
 mysqldump: Couldn't execute 'SHOW MASTER STATUS': Access denied; you need (at least one of) the SUPER, REPLICATION CLIENT privilege(s) for this operation (1227)
@@ -5272,10 +5272,10 @@ Variable_name	Value
 relay_log_info_repository	TABLE
 SET GLOBAL master_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'FILE';
 Warnings:
-Warning	1287	'FILE' is deprecated and will be removed in a future release. Please use 'TABLE' instead
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	FILE
@@ -5347,6 +5347,8 @@ CREATE TABLE IF NOT EXISTS `slave_relay_log_info` (
   `Privilege_checks_hostname` char(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.',
   `Require_row_format` tinyint(1) NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.',
   `Require_table_primary_key_check` enum('STREAM','ON','OFF') NOT NULL DEFAULT 'STREAM' COMMENT 'Indicates what is the channel policy regarding tables having primary keys on create and alter table queries',
+  `Assign_gtids_to_anonymous_transactions_type` enum('OFF','LOCAL','UUID') NOT NULL DEFAULT 'OFF' COMMENT 'Indicates whether the channel will generate a new GTID for anonymous transactions. OFF means that anonymous transactions will remain anonymous. LOCAL means that anonymous transactions will be assigned a newly generated GTID based on server_uuid. UUID indicates that anonymous transactions will be assigned a newly generated GTID based on Assign_gtids_to_anonymous_transactions_value',
+  `Assign_gtids_to_anonymous_transactions_value` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Indicates the UUID used while generating GTIDs for anonymous transactions',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information';
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -5361,7 +5363,11 @@ CREATE TABLE IF NOT EXISTS `slave_relay_log_info` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 SET GLOBAL master_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET GLOBAL relay_log_info_repository= 'TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SHOW VARIABLES LIKE "master_info_repository";
 Variable_name	Value
 master_info_repository	TABLE
@@ -5436,3 +5442,80 @@ DROP DATABASE bug26171967;
 # WL#9465 & WL#8383 coverage tests
 #
 USE test;
+#
+# WL10905 - Support for INVISIBLE columns.
+#           Test case to verify Logical Dump using mysqldump tool
+#
+CREATE TABLE t1(f1 INT INVISIBLE, f2 INT,
+f3 INT AS (f1 + 10), f4 INT AS (f2 + 10) INVISIBLE,
+f5 INT AS (f2 + 10) STORED INVISIBLE);
+CREATE TABLE t2(f1 INT, f2 INT INVISIBLE);
+INSERT INTO t1(f1, f2) VALUES (10, 20), (20, 30);
+INSERT INTO t2(f1, f2) VALUES (10, 20), (20, 30);
+DROP TABLE t1, t2;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL /*!80023 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL /*!80023 INVISIBLE */,
+  `f2` int DEFAULT NULL,
+  `f3` int GENERATED ALWAYS AS ((`f1` + 10)) VIRTUAL,
+  `f4` int GENERATED ALWAYS AS ((`f2` + 10)) VIRTUAL /*!80023 INVISIBLE */,
+  `f5` int GENERATED ALWAYS AS ((`f2` + 10)) STORED /*!80023 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1 ORDER BY f2;
+f2	f3
+20	20
+30	30
+SELECT f1, f2, f3, f4, f5 FROM t1 ORDER BY f2;
+f1	f2	f3	f4	f5
+10	20	20	30	30
+20	30	30	40	40
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL /*!80023 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT f1, f2 FROM t2 ORDER BY f2;
+f1	f2
+10	20
+20	30
+DELETE FROM t1;
+DELETE FROM t2;
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t1 (f1, f2);;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int DEFAULT NULL /*!80023 INVISIBLE */,
+  `f2` int DEFAULT NULL,
+  `f3` int GENERATED ALWAYS AS ((`f1` + 10)) VIRTUAL,
+  `f4` int GENERATED ALWAYS AS ((`f2` + 10)) VIRTUAL /*!80023 INVISIBLE */,
+  `f5` int GENERATED ALWAYS AS ((`f2` + 10)) STORED /*!80023 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1 ORDER BY f2;
+f2	f3
+20	20
+30	30
+SELECT f1, f2, f3, f4, f5 FROM t1 ORDER BY f2;
+f1	f2	f3	f4	f5
+10	20	20	30	30
+20	30	30	40	40
+LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp1.xml" INTO TABLE t2 (f1, f2);;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int DEFAULT NULL,
+  `f2` int DEFAULT NULL /*!80023 INVISIBLE */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT f1, f2 FROM t2 ORDER BY f2;
+f1	f2
+10	20
+20	30
+DROP TABLE t1, t2;

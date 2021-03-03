@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -95,6 +95,11 @@ class BlockReporter {
   @retval	false	if page is not corrupt */
   bool MY_ATTRIBUTE((warn_unused_result)) is_corrupted() const;
 
+  /** Checks if a page is encrypted.
+  @retval	true	if page is encrypted
+  @retval	false	if page is not encrypted */
+  bool is_encrypted() const noexcept MY_ATTRIBUTE((warn_unused_result));
+
   /** Print message if page is empty.
   @param[in]	empty		true if page is empty */
   virtual inline void report_empty_page(bool empty) const {}
@@ -186,6 +191,9 @@ class BlockReporter {
   uint32_t calc_zip_checksum(srv_checksum_algorithm_t algo,
                              bool use_legacy_big_endian = false) const;
 
+  static bool is_lsn_valid(const byte *frame, uint32_t page_size) noexcept
+      MY_ATTRIBUTE((warn_unused_result));
+
  private:
   /** Checks if the page is in innodb checksum format.
   @param[in]	checksum_field1	new checksum field
@@ -221,6 +229,9 @@ class BlockReporter {
   void page_warn_strict_checksum(srv_checksum_algorithm_t curr_algo,
                                  srv_checksum_algorithm_t page_checksum,
                                  const page_id_t &page_id) const;
+
+  space_id_t space_id() const noexcept MY_ATTRIBUTE((warn_unused_result));
+  page_no_t page_no() const noexcept MY_ATTRIBUTE((warn_unused_result));
 
  protected:
   /** If true, do a LSN check during innodb recovery. */

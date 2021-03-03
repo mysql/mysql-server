@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.279.\ \&Command\-line options common to all MySQL NDB Cluster programs
+.B Table\ \&23.50.\ \&Command\-line options common to all MySQL NDB Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -117,23 +117,23 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB--character-sets-dir=dir_name\fR\fB \fR
@@ -304,10 +304,10 @@ T}
 .sp 1
 .PP
 For options specific to individual NDB Cluster programs, see
-Section\ \&22.4, \(lqNDB Cluster Programs\(rq\&.
+Section\ \&23.4, \(lqNDB Cluster Programs\(rq\&.
 .PP
 See
-Section\ \&22.3.3.9.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
+Section\ \&23.3.3.9.1, \(lqMySQL Server Options for NDB Cluster\(rq, for
 \fBmysqld\fR
 options relating to NDB Cluster\&.
 .sp
@@ -767,7 +767,7 @@ shell> \fBndbd \-\-ndb\-connectstring="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186
 .\}
 .sp
 For more information, see
-Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
+Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq\&.
 .RE
 .sp
 .RS 4
@@ -839,7 +839,7 @@ T}
 .sp 1
 Sets this node\*(Aqs NDB Cluster node ID\&.
 \fIThe range of permitted values depends on the node\*(Aqs type (data, management, or API) and the NDB Cluster software version\fR\&. See
-Section\ \&22.1.7.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
+Section\ \&23.1.7.2, \(lqLimits and Differences of NDB Cluster from Standard MySQL Limits\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -973,7 +973,7 @@ T}
 Prints the NDB Cluster version number of the executable\&. The version number is relevant because not all versions can be used together, and the NDB Cluster startup process verifies that the versions of the binaries being used can co\-exist in the same cluster\&. This is also important when performing an online (rolling) software upgrade or downgrade of NDB Cluster\&.
 .sp
 See
-Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for more information\&.
+Section\ \&23.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for more information\&.
 .RE
 .SH "COPYRIGHT"
 .br

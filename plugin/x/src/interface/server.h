@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
 #include <string>
 #include <vector>
 
-#include "plugin/x/ngs/include/ngs/client_list.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/interface/authentication.h"
 #include "plugin/x/src/interface/authentication_container.h"
@@ -39,6 +38,7 @@
 namespace ngs {
 class Scheduler_dynamic;
 class Protocol_global_config;
+class Client_list;
 }  // namespace ngs
 
 namespace xpl {
@@ -58,6 +58,7 @@ class Server {
   virtual void delayed_start_tasks() = 0;
   virtual void start_tasks() = 0;
   virtual void stop() = 0;
+  virtual void gracefull_shutdown() = 0;
 
   virtual iface::Authentication_container &get_authentications() = 0;
 

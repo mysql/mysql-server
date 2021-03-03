@@ -31,7 +31,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_sys.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"

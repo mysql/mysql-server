@@ -477,14 +477,14 @@ static int check_slave_config() {
 
   if (ndb_get_number_of_channels() > 1) {
     ndb_log_error(
-        "NDB Slave: Configuration with number of replication "
-        "masters = %u is not supported when applying to NDB",
+        "NDB Replica: Configuration with number of replication "
+        "sources = %u is not supported when applying to NDB",
         ndb_get_number_of_channels());
     return HA_ERR_UNSUPPORTED;
   }
   if (ndb_mi_get_slave_parallel_workers() > 0) {
     ndb_log_error(
-        "NDB Slave: Configuration 'slave_parallel_workers = %lu' is "
+        "NDB Replica: Configuration 'slave_parallel_workers = %lu' is "
         "not supported when applying to NDB",
         ndb_mi_get_slave_parallel_workers());
     return HA_ERR_UNSUPPORTED;
@@ -498,20 +498,17 @@ static int check_slave_state(THD *thd) {
 
   if (!thd->slave_thread) return 0;
 
-  const Uint32 runId = ndb_mi_get_slave_run_id();
-  DBUG_PRINT("info", ("Slave SQL thread run id is %u", runId));
-  if (unlikely(runId != g_ndb_slave_state.sql_run_id)) {
-    DBUG_PRINT("info", ("Slave run id changed from %u, "
-                        "treating as Slave restart",
-                        g_ndb_slave_state.sql_run_id));
-
+  if (g_ndb_slave_state.applier_sql_thread_start) {
+    DBUG_PRINT("info", ("We have detected Slave start/restart"));
     /*
      * Check that the slave configuration is supported
      */
     int error = check_slave_config();
     if (unlikely(error)) return error;
 
-    g_ndb_slave_state.sql_run_id = runId;
+    DBUG_PRINT("info",
+               ("Resetting g_ndb_slave_state.applier_sql_thread_start"));
+    g_ndb_slave_state.applier_sql_thread_start = false;
 
     g_ndb_slave_state.atStartSlave();
 
@@ -594,8 +591,8 @@ static int check_slave_state(THD *thd) {
 
       if (ndb_error.code != 0) {
         ndb_log_warning(
-            "NDB Slave: Could not determine maximum replicated "
-            "epoch from '%s.%s' at Slave start, error %u %s",
+            "NDB Replica: Could not determine maximum replicated "
+            "epoch from '%s.%s' at Replica start, error %u %s",
             Ndb_apply_status_table::DB_NAME.c_str(),
             Ndb_apply_status_table::TABLE_NAME.c_str(), ndb_error.code,
             ndb_error.message);
@@ -608,8 +605,8 @@ static int check_slave_state(THD *thd) {
       */
       g_ndb_slave_state.max_rep_epoch = highestAppliedEpoch;
       ndb_log_info(
-          "NDB Slave: MaxReplicatedEpoch set to %llu (%u/%u) at "
-          "Slave start",
+          "NDB Replica: MaxReplicatedEpoch set to %llu (%u/%u) at "
+          "Replica start",
           g_ndb_slave_state.max_rep_epoch,
           (Uint32)(g_ndb_slave_state.max_rep_epoch >> 32),
           (Uint32)(g_ndb_slave_state.max_rep_epoch & 0xffffffff));
@@ -770,7 +767,10 @@ static SHOW_VAR ndb_status_vars_dynamic[] = {
 
 static SHOW_VAR ndb_status_vars_slave[] = {
     NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
+    NDBAPI_COUNTERS("_replica", &g_slave_api_client_stats),
     {"slave_max_replicated_epoch", (char *)&g_ndb_slave_state.max_rep_epoch,
+     SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"replica_max_replicated_epoch", (char *)&g_ndb_slave_state.max_rep_epoch,
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
@@ -857,6 +857,7 @@ int ndb_to_mysql_error(const NdbError *ndberr) {
 }
 
 ulong opt_ndb_slave_conflict_role;
+ulong opt_ndb_applier_conflict_role;
 
 static int handle_conflict_op_error(NdbTransaction *trans, const NdbError &err,
                                     const NdbOperation *op);
@@ -1992,9 +1993,6 @@ int ha_ndbcluster::get_metadata(THD *thd, const dd::Table *table_def) {
     // the table definition will be correct
     return HA_ERR_TABLE_DEF_CHANGED;
   }
-
-  // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, tab, table_def));
 
   if (DBUG_EVALUATE_IF("ndb_get_metadata_fail", true, false)) {
     fprintf(stderr, "ndb_get_metadata_fail\n");
@@ -4331,8 +4329,8 @@ int ha_ndbcluster::prepare_conflict_detection(
     Ndb_binlog_extra_row_info extra_row_info;
     if (extra_row_info.loadFromBuffer(thd->binlog_row_event_extra_data) != 0) {
       ndb_log_warning(
-          "NDB Slave: Malformed event received on table %s "
-          "cannot parse.  Stopping Slave.",
+          "NDB Replica: Malformed event received on table %s "
+          "cannot parse. Stopping SQL thread.",
           m_share->key_string());
       return ER_SLAVE_CORRUPT_EVENT;
     }
@@ -4378,9 +4376,9 @@ int ha_ndbcluster::prepare_conflict_detection(
       switch (opt_ndb_slave_conflict_role) {
         case SCR_NONE: {
           ndb_log_warning(
-              "NDB Slave: Conflict function %s defined on "
-              "table %s requires ndb_slave_conflict_role variable "
-              "to be set.  Stopping slave.",
+              "NDB Replica: Conflict function %s defined on "
+              "table %s requires ndb_applier_conflict_role variable "
+              "to be set. Stopping SQL thread.",
               conflict_fn->name, m_share->key_string());
           return ER_SLAVE_CONFIGURATION;
         }
@@ -4452,7 +4450,7 @@ int ha_ndbcluster::prepare_conflict_detection(
                (transaction_id ==
                 Ndb_binlog_extra_row_info::InvalidTransactionId))) {
     ndb_log_warning(
-        "NDB Slave: Transactional conflict detection defined on "
+        "NDB Replica: Transactional conflict detection defined on "
         "table %s, but events received without transaction ids.  "
         "Check --ndb-log-transaction-id setting on "
         "upstream Cluster.",
@@ -4556,7 +4554,7 @@ int ha_ndbcluster::prepare_conflict_detection(
       }
     } else {
       ndb_log_warning(
-          "NDB Slave: Binlog event on table %s missing "
+          "NDB Replica: Binlog event on table %s missing "
           "info necessary for conflict detection.  "
           "Check binlog format options on upstream cluster.",
           m_share->key_string());
@@ -7812,7 +7810,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
         */
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_SLAVE_SILENT_RETRY_TRANSACTION,
-                     "Slave transaction rollback requested");
+                     "Replica transaction rollback requested");
         /*
           Set retry count to zero to:
           1) Avoid consuming slave-temp-error retry attempts
@@ -7828,7 +7826,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
            too many retries mechanism will cause exit
          */
         ndb_log_error(
-            "Ndb slave retried transaction %u time(s) in vain.  "
+            "Ndb replica retried transaction %u time(s) in vain.  "
             "Giving up.",
             st_ndb_slave_state::MAX_RETRY_TRANS_COUNT);
       }
@@ -9105,12 +9103,6 @@ static bool parsePartitionBalance(
   return true;
 }
 
-extern bool ndb_fk_util_truncate_allowed(THD *thd,
-                                         NdbDictionary::Dictionary *dict,
-                                         const char *db,
-                                         const NdbDictionary::Table *tab,
-                                         bool &allow);
-
 /*
   Forward declaration of the utility functions used
   when creating partitioned tables
@@ -9123,98 +9115,106 @@ static int create_table_set_range_data(const partition_info *part_info,
 static int create_table_set_list_data(const partition_info *part_info,
                                       NdbDictionary::Table &);
 
+/**
+  @brief Check that any table modifiers specified in the table COMMENT= matches
+  the NDB table properties.
+
+  @note Traditionally this function was used to augment the create info of a
+  table but has since been superseded by implementation of the new data
+  dictionary.
+
+  @note The values for PARTITION_BALANCE and FULLY_REPLICATED are only
+  checked when READ_BACKUP is set
+*/
 void ha_ndbcluster::append_create_info(String *) {
+  if (DBUG_EVALUATE_IF("ndb_append_create_info_unsync", true, false)) {
+    // Trigger all warnings by using non default modifier values
+    const char *unsync_props =
+        "NDB_TABLE=NOLOGGING=1,READ_BACKUP=0,"
+        "PARTITION_BALANCE=FOR_RA_BY_LDM_X_3,FULLY_REPLICATED=1";
+    table_share->comment.str =
+        strdup_root(&table_share->mem_root, unsync_props);
+    table_share->comment.length = strlen(unsync_props);
+  }
+
+  if (DBUG_EVALUATE_IF("ndb_append_create_info_unparse", true, false)) {
+    // Test failure to load comment by using unparsable comment,
+    const char *unparse_props = "NDB_TABLE=UNPARSABLE=1";
+    table_share->comment.str =
+        strdup_root(&table_share->mem_root, unparse_props);
+    table_share->comment.length = strlen(unparse_props);
+  }
+
   if (table_share->comment.length == 0) {
     return;
   }
 
   THD *thd = current_thd;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  Ndb *ndb = thd_ndb->ndb;
-  NDBDICT *dict = ndb->getDictionary();
-  ndb->setDatabaseName(table_share->db.str);
-  Ndb_table_guard ndbtab_g(dict, table_share->table_name.str);
+
+  // Load table definition from NDB
+  Ndb_table_guard ndbtab_g(thd_ndb->ndb, table_share->db.str,
+                           table_share->table_name.str);
   const NdbDictionary::Table *tab = ndbtab_g.get_table();
-  NdbDictionary::Object::PartitionBalance part_bal = tab->getPartitionBalance();
-  bool logged_table = tab->getLogging();
-  bool read_backup = tab->getReadBackupFlag();
-  bool fully_replicated = tab->getFullyReplicated();
+  if (!tab) {
+    // Could not load table from NDB, push error and skip further checks
+    thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
+    return;
+  }
 
   /* Parse the current comment string */
   NDB_Modifiers table_modifiers(ndb_table_modifier_prefix, ndb_table_modifiers);
   if (table_modifiers.loadComment(table_share->comment.str,
                                   table_share->comment.length) == -1) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_ILLEGAL_HA_CREATE_OPTION, "%s",
-                        table_modifiers.getErrMsg());
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "Syntax error in COMMENT modifier");
+    thd_ndb->push_warning(ER_ILLEGAL_HA_CREATE_OPTION, "%s",
+                          table_modifiers.getErrMsg());
     return;
   }
-  const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
-  const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
-  const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
-  const NDB_Modifier *mod_fully_replicated =
-      table_modifiers.get("FULLY_REPLICATED");
 
+  /*
+     Check for differences between COMMENT= and NDB table properties
+  */
+  const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
   if (mod_nologging->m_found) {
-    bool comment_logged_table = !mod_nologging->m_val_bool;
-    if (logged_table != comment_logged_table) {
-      /**
-       * The table property and the comment property differs, we will
-       * print comment string as is and issue a warning to this effect.
-       */
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
-                          ER_THD(thd, ER_GET_ERRMSG), 4502,
-                          "Table property is not the same as in"
-                          " comment for NOLOGGING property",
-                          "NDB");
+    const bool comment_logged_table = !mod_nologging->m_val_bool;
+    if (tab->getLogging() != comment_logged_table) {
+      thd_ndb->push_warning(4502,
+                            "Table property is not the same as in comment for "
+                            "NOLOGGING property");
     }
   }
 
+  const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
   if (mod_read_backup->m_found) {
-    bool comment_read_backup = mod_read_backup->m_val_bool;
-    if (read_backup != comment_read_backup) {
-      /**
-       * The table property and the comment property differs, we will
-       * print comment string as is and issue a warning to this effect.
-       */
-      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
-                          ER_THD(thd, ER_GET_ERRMSG), 4502,
-                          "Table property is not the same as in"
-                          " comment for READ_BACKUP property",
-                          "NDB");
+    const bool comment_read_backup = mod_read_backup->m_val_bool;
+    if (tab->getReadBackupFlag() != comment_read_backup) {
+      thd_ndb->push_warning(4502,
+                            "Table property is not the same as in comment for "
+                            "READ_BACKUP property");
     }
 
+    const NDB_Modifier *mod_frags = table_modifiers.get("PARTITION_BALANCE");
     if (mod_frags->m_found) {
       NdbDictionary::Object::PartitionBalance comment_part_bal =
           g_default_partition_balance;
-      if (parsePartitionBalance(thd /* for pushing warning */, mod_frags,
-                                &comment_part_bal)) {
-        if (comment_part_bal != part_bal) {
-          /**
-           * The table property and the comment on the table differs.
-           * Let the comment string stay as is, but push warning
-           * about this fact.
-           */
-          push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
-                              ER_THD(thd, ER_GET_ERRMSG), 4501,
-                              "Table property is not the same as in"
-                              " comment for PARTITION_BALANCE"
-                              " property",
-                              "NDB");
+      if (parsePartitionBalance(thd, mod_frags, &comment_part_bal)) {
+        if (tab->getPartitionBalance() != comment_part_bal) {
+          thd_ndb->push_warning(4501,
+                                "Table property is not the same as in comment "
+                                "for PARTITION_BALANCE property");
         }
       }
     }
 
+    const NDB_Modifier *mod_fully_replicated =
+        table_modifiers.get("FULLY_REPLICATED");
     if (mod_fully_replicated->m_found) {
-      bool comment_fully_replicated = mod_fully_replicated->m_val_bool;
-      if (fully_replicated != comment_fully_replicated) {
-        push_warning_printf(thd, Sql_condition::SL_WARNING, ER_GET_ERRMSG,
-                            ER_THD(thd, ER_GET_ERRMSG), 4502,
-                            "Table property is not the same as in"
-                            " comment for FULLY_REPLICATED property",
-                            "NDB");
+      const bool comment_fully_replicated = mod_fully_replicated->m_val_bool;
+      if (tab->getFullyReplicated() != comment_fully_replicated) {
+        thd_ndb->push_warning(
+            4502,
+            "Table property is not the same as in comment for "
+            "FULLY_REPLICATED property");
       }
     }
   }
@@ -9402,22 +9402,6 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     Ndb_table_guard ndbtab_g(dict, m_tabname);
     if (!ndbtab_g.get_table()) ERR_RETURN(dict->getNdbError());
 
-    /*
-      Don't allow truncate on table which is foreign key parent.
-      This is kind of a kludge to get legacy compatibility behaviour
-      but it also reduces the complexity involved in rewriting
-      fks during this "recreate".
-     */
-    bool allow;
-    if (!ndb_fk_util_truncate_allowed(thd, dict, m_dbname, ndbtab_g.get_table(),
-                                      allow)) {
-      return HA_ERR_NO_CONNECTION;
-    }
-    if (!allow) {
-      my_error(ER_TRUNCATE_ILLEGAL_FK, MYF(0), "");
-      return 1;
-    }
-
     /* save the foreign key information in fk_list */
     if (!retrieve_foreign_key_list_from_ndb(dict, ndbtab_g.get_table(),
                                             &fk_list_for_truncate)) {
@@ -9449,8 +9433,7 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
       table_modifiers.get("FULLY_REPLICATED");
   NdbDictionary::Object::PartitionBalance part_bal =
       g_default_partition_balance;
-  if (parsePartitionBalance(thd /* for pushing warning */, mod_frags,
-                            &part_bal) == false) {
+  if (parsePartitionBalance(thd, mod_frags, &part_bal) == false) {
     /**
      * unable to parse => modifier which is not found
      */
@@ -10007,8 +9990,8 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
 
   if (!fk_list_for_truncate.empty()) {
     // create foreign keys from the list extracted from old table
-    const int recreate_fk_result =
-        recreate_fk_for_truncate(thd, ndb, m_tabname, &fk_list_for_truncate);
+    const int recreate_fk_result = recreate_fk_for_truncate(
+        thd, ndb, m_dbname, m_tabname, &fk_list_for_truncate);
     if (recreate_fk_result != 0) {
       return recreate_fk_result;
     }
@@ -10057,9 +10040,6 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     ndb_dd_table_fix_partition_count(table_def, ndbtab->getPartitionCount());
   }
 
-  // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, ndbtab, table_def));
-
   mysql_mutex_lock(&ndbcluster_mutex);
 
   // Create NDB_SHARE for the new table
@@ -10080,6 +10060,9 @@ int ha_ndbcluster::create(const char *name, TABLE *form,
     // Temporary named table created OK
     return create.succeeded();  // All OK
   }
+
+  // Check that NDB and DD metadata matches
+  DBUG_ASSERT(Ndb_metadata::compare(thd, ndb, ndbtab, table_def));
 
   // Apply the mysql.ndb_replication settings
   if (binlog_client.apply_replication_info(ndb, share, ndbtab, conflict_fn,
@@ -10636,8 +10619,13 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   }
 
   if (commit_alter) {
-    /* Final phase of offline alter table.
-       Skip logging on participant if this is a rollback.
+    // Final phase of offline alter table.
+
+    // Check that NDB and DD metadata matches if this isn't a rollback
+    DBUG_ASSERT(rollback_in_progress ||
+                Ndb_metadata::compare(thd, ndb, ndbtab, to_table_def));
+
+    /* Skip logging on participant if this is a rollback.
        Note : Regardless of the outcome, during rollback, we always have to
               schema distribute an ALTER COPY to update the table version in
               connected servers' DD. So we don't have to log this in the DDL
@@ -11916,6 +11904,16 @@ static int ndbcluster_discover(handlerton *, THD *thd, const char *db,
         return 1;
       }
     }
+
+#ifndef DBUG_OFF
+    // Run metadata check except if this is discovery during a DROP TABLE
+    if (thd_sql_command(thd) != SQLCOM_DROP_TABLE) {
+      const dd::Table *dd_table;
+      DBUG_ASSERT(dd_client.get_table(db, name, &dd_table) &&
+                  Ndb_metadata::compare(thd, ndb, ndbtab, dd_table));
+    }
+#endif
+
     // NOTE! It might be possible to not commit the transaction
     // here, assuming the caller would then commit or rollback.
     dd_client.commit();
@@ -12140,6 +12138,7 @@ static int ndb_wait_setup_func(ulong max_wait) {
 */
 
 static int ndb_wait_setup_server_startup(void *) {
+  DBUG_TRACE;
   ndbcluster_hton->notify_alter_table = ndbcluster_notify_alter_table;
   ndbcluster_hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
   // Signal components that server is started
@@ -12203,9 +12202,11 @@ static int ndb_dd_upgrade_hook(void *) {
 */
 
 static int ndb_wait_setup_replication_applier(void *) {
+  DBUG_TRACE;
+  g_ndb_slave_state.applier_sql_thread_start = true;
   if (ndb_wait_setup_func(opt_ndb_wait_setup) != 0) {
     ndb_log_error(
-        "NDB Slave: Tables not available after %lu seconds. Consider "
+        "NDB Replica: Tables not available after %lu seconds. Consider "
         "increasing --ndb-wait-setup value",
         opt_ndb_wait_setup);
   }
@@ -12249,7 +12250,7 @@ static bool ndbcluster_notify_alter_table(
   bool result;
   do {
     result = ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
-                          false /* is_tablespace */, &victimized);
+                          false /* record_gsl */, &victimized);
     if (result && thd_killed(thd)) {
       // Failed to acuire GSL and THD is killed -> give up!
       return true;
@@ -12294,9 +12295,12 @@ static bool ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
              ("namespace: %u, db: '%s', name: '%s'", mdl_key->mdl_namespace(),
               mdl_key->db_name(), mdl_key->name()));
 
-  const bool result =
-      ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
-                   mdl_key->mdl_namespace() == MDL_key::TABLESPACE, victimized);
+  // If the MDL being acquired is on a Schema or a Tablespace, record the GSL
+  // acquire so that it can be used to detect any possible deadlocks
+  const bool record_gsl = mdl_key->mdl_namespace() == MDL_key::TABLESPACE ||
+                          mdl_key->mdl_namespace() == MDL_key::SCHEMA;
+  const bool result = ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
+                                   record_gsl, victimized);
   if (result && *victimized == false) {
     /*
       Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
@@ -12556,6 +12560,27 @@ static int ndbcluster_init(void *handlerton_ptr) {
     ndbcluster_init_abort("Failed to acquire PFS service handles");
   }
   mysql_plugin_registry_release(registry);
+
+  // Mysql client not available. So, pusing the warning to log file
+  if (opt_ndb_slave_conflict_role != SCR_NONE) {
+    push_deprecated_warn(nullptr, "ndb_slave_conflict_role",
+                         "ndb_applier_conflict_role");
+  }
+
+  /*
+    If user sets both deprecated and new variable use
+    the value in new variable.
+  */
+  if (opt_ndb_applier_conflict_role != SCR_NONE) {
+    /*
+      new variable opt_ndb_applier_conflict_role is introduced only to identify
+      and report above deprecated warning during startup. And, the plugin code
+      only uses opt_ndb_slave_conflict_role internally. So, when ever
+      opt_ndb_applier_conflict_role is updated, opt_ndb_slave_conflict_role
+      needs to be set to the same value.
+    */
+    opt_ndb_slave_conflict_role = opt_ndb_applier_conflict_role;
+  }
 
   ndbcluster_inited = 1;
 
@@ -15563,15 +15588,21 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
       new_tab.setPartitionBalance(
           NdbDictionary::Object::PartitionBalance_Specific);
       if (new_tab.getFullyReplicated()) {
-        DBUG_PRINT("info", ("Add partition isn't supported on fully"
-                            " replicated tables"));
-        return HA_ALTER_INPLACE_NOT_SUPPORTED;
+        // No add partition on fully replicated table
+        return inplace_unsupported(
+            ha_alter_info, "Can't add partition to fully replicated table");
       }
     }
-    if (comment_changed && parse_comment_changes(&new_tab, old_tab, create_info,
-                                                 thd, max_rows_changed)) {
-      return inplace_unsupported(ha_alter_info, "Unsupported table modifiers");
-    } else if (max_rows_changed) {
+
+    if (comment_changed) {
+      const char *unsupported_reason;
+      if (inplace_parse_comment(&new_tab, old_tab, create_info, thd, ndb,
+                                &unsupported_reason, max_rows_changed)) {
+        return inplace_unsupported(ha_alter_info, unsupported_reason);
+      }
+    }
+
+    if (max_rows_changed) {
       ulonglong rows = create_info->max_rows;
       uint no_fragments = get_no_fragments(rows);
       uint reported_frags = no_fragments;
@@ -15661,19 +15692,21 @@ enum_alter_inplace_result ha_ndbcluster::check_if_supported_inplace_alter(
   return result;
 }
 
-bool ha_ndbcluster::parse_comment_changes(
-    NdbDictionary::Table *new_tab, const NdbDictionary::Table *old_tab,
-    HA_CREATE_INFO *create_info, THD *thd, bool &max_rows_changed,
-    bool *partition_balance_in_comment) const {
+bool ha_ndbcluster::inplace_parse_comment(NdbDictionary::Table *new_tab,
+                                          const NdbDictionary::Table *old_tab,
+                                          HA_CREATE_INFO *create_info, THD *thd,
+                                          Ndb *ndb, const char **reason,
+                                          bool &max_rows_changed,
+                                          bool *partition_balance_in_comment) {
   DBUG_TRACE;
   NDB_Modifiers table_modifiers(ndb_table_modifier_prefix, ndb_table_modifiers);
   if (table_modifiers.loadComment(create_info->comment.str,
                                   create_info->comment.length) == -1) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_ILLEGAL_HA_CREATE_OPTION, "%s",
-                        table_modifiers.getErrMsg());
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "Syntax error in COMMENT modifier");
+    // The comment has already been parsed in update_comment_info() and syntax
+    // error would have failed the command, crash here in debug if syntax error
+    // occurs anyway
+    DBUG_ASSERT(false);
+    *reason = "Syntax error in COMMENT modifier";
     return true;
   }
   const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
@@ -15684,61 +15717,43 @@ bool ha_ndbcluster::parse_comment_changes(
 
   NdbDictionary::Object::PartitionBalance part_bal =
       g_default_partition_balance;
-  if (parsePartitionBalance(thd /* for pushing warning */, mod_frags,
-                            &part_bal) == false) {
+  if (parsePartitionBalance(thd, mod_frags, &part_bal) == false) {
     /**
      * unable to parse => modifier which is not found
      */
     mod_frags = table_modifiers.notfound();
-  } else if (ndbd_support_partition_balance(
-                 get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0) {
-    /**
-     * NDB_TABLE=PARTITION_BALANCE not supported by data nodes.
-     */
-    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-             "PARTITION_BALANCE not supported by current data node versions");
+  } else if (ndbd_support_partition_balance(ndb->getMinDbNodeVersion()) == 0) {
+    *reason = "PARTITION_BALANCE not supported by current data node versions";
     return true;
   }
+
   if (mod_nologging->m_found) {
     if (new_tab->getLogging() != (!mod_nologging->m_val_bool)) {
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "Cannot alter nologging inplace. Try ALGORITHM=copy");
+      *reason = "Cannot alter NOLOGGING inplace";
       return true;
     }
     new_tab->setLogging(!mod_nologging->m_val_bool);
   }
+
   if (mod_read_backup->m_found) {
-    if (ndbd_support_read_backup(
-            get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0) {
-      /**
-       * NDB_TABLE=READ_BACKUP not supported by data nodes.
-       */
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "READ_BACKUP not supported by current data node versions");
+    if (ndbd_support_read_backup(ndb->getMinDbNodeVersion()) == 0) {
+      *reason = "READ_BACKUP not supported by current data node versions";
       return true;
     }
     if (old_tab->getFullyReplicated() && (!mod_read_backup->m_val_bool)) {
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-               "ALGORITHM=INPLACE", "READ_BACKUP off with FULLY_REPLICATED on",
-               "ALGORITHM=COPY");
+      *reason = "READ_BACKUP off with FULLY_REPLICATED on";
       return true;
     }
     new_tab->setReadBackupFlag(mod_read_backup->m_val_bool);
   }
+
   if (mod_fully_replicated->m_found) {
-    if (ndbd_support_fully_replicated(
-            get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0) {
-      /**
-       * NDB_TABLE=FULLY_REPLICATED not supported by data nodes.
-       */
-      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), ndbcluster_hton_name,
-               "FULLY_REPLICATED not supported by current data node versions");
+    if (ndbd_support_fully_replicated(ndb->getMinDbNodeVersion()) == 0) {
+      *reason = "FULLY_REPLICATED not supported by current data node versions";
       return true;
     }
     if (old_tab->getFullyReplicated() != mod_fully_replicated->m_val_bool) {
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-               "ALGORITHM=INPLACE", "Turning FULLY_REPLICATED on after create",
-               "ALGORITHM=COPY");
+      *reason = "Turning FULLY_REPLICATED on after create";
       return true;
     }
   }
@@ -15765,15 +15780,9 @@ bool ha_ndbcluster::parse_comment_changes(
   }
   if (old_tab->getFullyReplicated()) {
     if (part_bal != old_tab->getPartitionBalance()) {
-      /**
-       * We cannot change partition balance inplace for fully
-       * replicated tables.
-       */
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-               "ALGORITHM=INPLACE",
-               "Changing PARTITION_BALANCE with FULLY_REPLICATED on",
-               "ALGORITHM=COPY");
-      return true; /* Error */
+      // Can't change partition balance inplace for fully replicated table
+      *reason = "Changing PARTITION_BALANCE with FULLY_REPLICATED on";
+      return true;
     }
     max_rows_changed = false;
   }
@@ -15963,10 +15972,19 @@ bool ha_ndbcluster::prepare_inplace_alter_table(
     }
   }
 
-  if (comment_changed &&
-      parse_comment_changes(new_tab, old_tab, create_info, thd,
-                            max_rows_changed, &partition_balance_in_comment)) {
-    goto abort;
+  if (comment_changed) {
+    // Parse comment again, this is done in order to extract "max_rows_changed"
+    // and "partition_balance_in_comment"
+    const char *unsupported_reason;
+    if (inplace_parse_comment(new_tab, old_tab, create_info, thd, ndb,
+                              &unsupported_reason, max_rows_changed,
+                              &partition_balance_in_comment)) {
+      // The comment has been parsed earlier, thus syntax error or unsupported
+      // ALTER should have been detected already and failed the command (this
+      // function should actually not be called in such case) -> don't push any
+      // warnings or set error
+      goto abort;
+    }
   }
 
   if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
@@ -16227,6 +16245,10 @@ bool ha_ndbcluster::commit_inplace_alter_table(
         ndb_dd_table_fix_partition_count(new_table_def,
                                          ndbtab->getPartitionCount());
       }
+
+      // Check that NDB and DD metadata matches
+      DBUG_ASSERT(
+          Ndb_metadata::compare(thd, thd_ndb->ndb, ndbtab, new_table_def));
     }
   }
 
@@ -17759,7 +17781,7 @@ static MYSQL_SYSVAR_BOOL(
     clear_apply_status,         /* name */
     opt_ndb_clear_apply_status, /* var  */
     PLUGIN_VAR_OPCMDARG,
-    "Whether RESET SLAVE will clear all entries in ndb_apply_status",
+    "Whether RESET REPLICA will clear all entries in ndb_apply_status",
     NULL, /* check func. */
     NULL, /* update func. */
     1     /* default */
@@ -17916,6 +17938,69 @@ static int slave_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
 }
 
 /**
+ * applier_conflict_role_check_func.
+ *
+ * Perform most validation of a role change request.
+ * Inspired by sql_plugin.cc::check_func_enum()
+ */
+static int applier_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
+                                            st_mysql_value *value) {
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str;
+  long result;
+  int length;
+
+  if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
+    length = sizeof(buff);
+    if (!(str = value->val_str(value, buff, &length))) return 1;
+    if ((result = static_cast<long>(
+             find_type(str, &slave_conflict_role_typelib, 0) - 1)) < 0)
+      return 1;
+  } else {
+    long long tmp;
+    if (value->val_int(value, &tmp)) return 1;
+    if (tmp < 0 ||
+        tmp >= static_cast<long long>(slave_conflict_role_typelib.count))
+      return 1;
+    result = static_cast<long>(tmp);
+  }
+
+  const char *failure_cause_str = nullptr;
+  if (!st_ndb_slave_state::checkSlaveConflictRoleChange(
+          (enum_slave_conflict_role)opt_ndb_applier_conflict_role,
+          (enum_slave_conflict_role)result, &failure_cause_str)) {
+    char msgbuf[256];
+    snprintf(
+        msgbuf, sizeof(msgbuf), "Role change from %s to %s failed : %s",
+        get_type(&slave_conflict_role_typelib, opt_ndb_applier_conflict_role),
+        get_type(&slave_conflict_role_typelib, result), failure_cause_str);
+
+    thd->raise_error_printf(ER_ERROR_WHEN_EXECUTING_COMMAND,
+                            "SET GLOBAL ndb_applier_conflict_role", msgbuf);
+
+    return 1;
+  }
+
+  /* Ok */
+  *(long *)save = result;
+  return 0;
+}
+
+/**
+ * applier_conflict_role_update_func
+ *
+ * Perform actual change of role, using saved 'long' enum value
+ * prepared by the update func above.
+ *
+ * Inspired by sql_plugin.cc::update_func_long()
+ */
+static void applier_conflict_role_update_func(THD *, SYS_VAR *, void *tgt,
+                                              const void *save) {
+  *(long *)tgt = *static_cast<const long *>(save);
+  opt_ndb_slave_conflict_role = *static_cast<const long *>(save);
+}
+
+/**
  * slave_conflict_role_update_func
  *
  * Perform actual change of role, using saved 'long' enum value
@@ -17923,20 +18008,43 @@ static int slave_conflict_role_check_func(THD *thd, SYS_VAR *, void *save,
  *
  * Inspired by sql_plugin.cc::update_func_long()
  */
-static void slave_conflict_role_update_func(THD *, SYS_VAR *, void *tgt,
+static void slave_conflict_role_update_func(THD *thd, SYS_VAR *, void *tgt,
                                             const void *save) {
+  push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+                      ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX),
+                      "ndb_slave_conflict_role", "ndb_applier_conflict_role");
   *(long *)tgt = *static_cast<const long *>(save);
+  opt_ndb_applier_conflict_role = *static_cast<const long *>(save);
 }
 
 static MYSQL_SYSVAR_ENUM(
     slave_conflict_role,         /* Name */
     opt_ndb_slave_conflict_role, /* Var */
     PLUGIN_VAR_RQCMDARG,
-    "Role for Slave to play in asymmetric conflict algorithms.",
+    "Role for applier to play in asymmetric conflict algorithms. "
+    "This variable is deprecated and will be removed in a future release. Use "
+    "ndb_applier_conflict_role instead",
     slave_conflict_role_check_func,  /* Check func */
     slave_conflict_role_update_func, /* Update func */
     SCR_NONE,                        /* Default value */
     &slave_conflict_role_typelib     /* typelib */
+);
+
+/*
+  opt_ndb_applier_conflict_role is a hack and is used only to identify if the
+  user sets slave_conflict_role during startup. pugin code only uses
+  opt_ndb_slave_conflict_role. So, if one of the variables is changed then
+  other variable also need to be set to the same value.
+*/
+static MYSQL_SYSVAR_ENUM(
+    applier_conflict_role,         /* Name */
+    opt_ndb_applier_conflict_role, /* Var */
+    PLUGIN_VAR_RQCMDARG,
+    "Role for applier to play in asymmetric conflict algorithms.",
+    applier_conflict_role_check_func,  /* Check func */
+    applier_conflict_role_update_func, /* Update func */
+    SCR_NONE,                          /* Default value */
+    &slave_conflict_role_typelib       /* typelib */
 );
 
 #ifndef DBUG_OFF
@@ -18018,6 +18126,7 @@ static SYS_VAR *system_variables[] = {
     MYSQL_SYSVAR(version_string),
     MYSQL_SYSVAR(show_foreign_key_mock_tables),
     MYSQL_SYSVAR(slave_conflict_role),
+    MYSQL_SYSVAR(applier_conflict_role),
     MYSQL_SYSVAR(default_column_format),
     MYSQL_SYSVAR(metadata_check),
     MYSQL_SYSVAR(metadata_check_interval),

@@ -25,9 +25,6 @@
 #ifndef ROUTING_DESTINATION_INCLUDED
 #define ROUTING_DESTINATION_INCLUDED
 
-#include "mysqlrouter/destination.h"
-#include "router_config.h"
-
 #include <atomic>
 #include <cstdint>
 #include <list>
@@ -35,9 +32,12 @@
 #include <string>
 #include <vector>
 
+#include "my_compiler.h"  // MY_ATTRIBUTE
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
-#include "socket_operations.h"
+#include "router_config.h"
 #include "tcp_address.h"
 
 namespace mysql_harness {
@@ -107,16 +107,13 @@ class RouteDestination : public DestinationNodesStateNotifier {
 
   /** @brief Default constructor
    *
+   * @param io_ctx context for IO operations
    * @param protocol Protocol for the destination, defaults to value returned
    *        by Protocol::get_default()
-   * @param sock_ops Socket operations implementation to use, defaults
-   *        to "real" (not mock) implementation
-   * (mysql_harness::SocketOperations)
    */
-  RouteDestination(Protocol::Type protocol = Protocol::get_default(),
-                   mysql_harness::SocketOperationsBase *sock_ops =
-                       mysql_harness::SocketOperations::instance())
-      : sock_ops_(sock_ops), protocol_(protocol) {}
+  RouteDestination(net::io_context &io_ctx,
+                   Protocol::Type protocol = Protocol::get_default())
+      : io_ctx_(io_ctx), protocol_(protocol) {}
 
   /** @brief Destructor */
   virtual ~RouteDestination() = default;
@@ -229,7 +226,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
   /** @brief Mutex for updating destinations and iterator */
   std::mutex mutex_update_;
 
-  mysql_harness::SocketOperationsBase *sock_ops_;
+  net::io_context &io_ctx_;
 
   /** @brief Protocol for the destination */
   Protocol::Type protocol_;

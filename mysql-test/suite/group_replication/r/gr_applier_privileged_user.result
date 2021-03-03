@@ -31,7 +31,7 @@ SET @@sql_log_bin = 0;
 CREATE USER 'u1'@'localhost';
 GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO 'u1'@'localhost';
 SET @@sql_log_bin = 1;
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'u1'@'localhost' FOR CHANNEL "group_replication_applier";
 include/assert.inc [Privilege_checks_user column in performance_schema.replication_applier_configuration is set to 'u1'@'localhost']
 
 # 5) Start `server1`.

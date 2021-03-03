@@ -345,8 +345,8 @@ spinning.
 @param[in]	line		line where requested
 @return true if success */
 UNIV_INLINE
-ibool rw_lock_s_lock_low(rw_lock_t *lock, ulint pass MY_ATTRIBUTE((unused)),
-                         const char *file_name, ulint line);
+bool rw_lock_s_lock_low(rw_lock_t *lock, ulint pass MY_ATTRIBUTE((unused)),
+                        const char *file_name, ulint line);
 
 /** NOTE! Use the corresponding macro, not directly this function, except if
 you supply the file name and line number. Lock an rw-lock in shared mode for
@@ -370,8 +370,8 @@ immediately.
 @param[in]	line		line where requested
 @return true if success */
 UNIV_INLINE
-ibool rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
-                                 ulint line);
+bool rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
+                                ulint line);
 
 /** Releases a shared mode lock. */
 #ifdef UNIV_DEBUG
@@ -402,7 +402,7 @@ void rw_lock_x_lock_func(
     ulint line);           /*!< in: line where requested */
 /** Low-level function for acquiring an sx lock.
  @return false if did not succeed, true if success. */
-ibool rw_lock_sx_lock_low(
+bool rw_lock_sx_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */
@@ -471,9 +471,9 @@ ulint rw_lock_get_x_lock_count(const rw_lock_t *lock); /*!< in: rw-lock */
 UNIV_INLINE
 ulint rw_lock_get_sx_lock_count(const rw_lock_t *lock); /*!< in: rw-lock */
 /** Check if there are threads waiting for the rw-lock.
- @return 1 if waiters, 0 otherwise */
+ @return true if waiters, false otherwise */
 UNIV_INLINE
-ulint rw_lock_get_waiters(const rw_lock_t *lock); /*!< in: rw-lock */
+bool rw_lock_get_waiters(const rw_lock_t *lock); /*!< in: rw-lock */
 /** Returns the write-status of the lock - this function made more sense
  with the old rw_lock implementation.
  @return RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_X_WAIT, RW_LOCK_SX */
@@ -577,10 +577,10 @@ struct rw_lock_t
   rw_lock_t &operator=(const rw_lock_t &) = delete;
 
   /** Holds the state of the lock. */
-  volatile lint lock_word;
+  std::atomic<int32_t> lock_word;
 
   /** 1: there are waiters */
-  volatile ulint waiters;
+  std::atomic<bool> waiters;
 
   /** Default value FALSE which means the lock is non-recursive.
   The value is typically set to TRUE making normal rw_locks recursive.
@@ -593,14 +593,14 @@ struct rw_lock_t
   reset in x_unlock functions before incrementing the lock_word */
   std::atomic<bool> recursive;
 
-  /** number of granted SX locks. */
-  volatile ulint sx_recursive;
-
   /** This is TRUE if the writer field is RW_LOCK_X_WAIT; this field
   is located far from the memory update hotspot fields which are at
   the start of this struct, thus we can peek this field without
   causing much memory bus traffic */
   bool writer_is_wait_ex;
+
+  /** number of granted SX locks. */
+  volatile ulint sx_recursive;
 
   /** Thread id of writer thread. Is only guaranteed to have non-stale value if
   recursive flag is set, otherwise it may contain native thread handle of a
@@ -624,16 +624,16 @@ struct rw_lock_t
   const char *last_x_file_name;
 
   /** Line where created */
-  unsigned cline : 13;
+  uint16_t cline;
 
   /** If 1 then the rw-lock is a block lock */
-  unsigned is_block_lock : 1;
+  bool is_block_lock;
 
   /** Line number where last time s-locked */
-  unsigned last_s_line : 14;
+  uint16_t last_s_line;
 
   /** Line number where last time x-locked */
-  unsigned last_x_line : 14;
+  uint16_t last_x_line;
 
   /** Count of os_waits. May not be accurate */
   uint32_t count_os_wait;
@@ -645,11 +645,6 @@ struct rw_lock_t
   /** The instrumentation hook */
   struct PSI_rwlock *pfs_psi;
 #endif /* UNIV_PFS_RWLOCK */
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-  /** The mutex protecting rw_lock_t */
-  mutable ib_mutex_t mutex;
-#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 #ifdef UNIV_DEBUG
   /** Destructor */
@@ -758,8 +753,8 @@ NOTE! Please use the corresponding macro, not directly this function!
 @param[in]	line		line where requested
 @return true if success */
 UNIV_INLINE
-ibool pfs_rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
-                                     ulint line);
+bool pfs_rw_lock_x_lock_func_nowait(rw_lock_t *lock, const char *file_name,
+                                    ulint line);
 
 /** Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not directly this
@@ -848,8 +843,8 @@ NOTE! Please use the corresponding macro, not directly this function!
 @param[in]	file_name	file name where lock requested
 @param[in]	line		line where requested */
 UNIV_INLINE
-ibool pfs_rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass,
-                              const char *file_name, ulint line);
+bool pfs_rw_lock_sx_lock_low(rw_lock_t *lock, ulint pass, const char *file_name,
+                             ulint line);
 
 /** Performance schema instrumented wrap function for rw_lock_sx_unlock_func()
 NOTE! Please use the corresponding macro rw_lock_sx_unlock(), not directly this

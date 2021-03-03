@@ -261,23 +261,23 @@ Warning	1296	Node <nodeid> 'Distribution of CREATE TABLE 't3oneex' failed'
 show variables like 'server_id';
 Variable_name	Value
 server_id	1
-MySQLD error output for server 1.1 matching pattern %NDB Slave%
+MySQLD error output for server 1.1 matching pattern %NDB Replica%
 relevant
-[note] ndb slave: table test.t2diffex using conflict_fn ndb$old on attribute x.
-[note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
-[note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
-[note] ndb slave: table test.t2_max using conflict_fn ndb$max on attribute x.
+[note] ndb replica: table test.t2diffex using conflict_fn ndb$old on attribute x.
+[note] ndb replica: table test.t2diffex logging exceptions to test.t2diffex$ex
+[note] ndb replica: table test.t1allsame using conflict_fn ndb$max on attribute x.
+[note] ndb replica: table test.t2_max using conflict_fn ndb$max on attribute x.
 show variables like 'server_id';
 Variable_name	Value
 server_id	3
-MySQLD error output for server 2.1 matching pattern %NDB Slave%
+MySQLD error output for server 2.1 matching pattern %NDB Replica%
 relevant
-[warning] ndb slave: table test.t3oneex : no extra row author bits in table.
-[note] ndb slave: table test.t3oneex : ndb$epoch, low epoch resolution
-[note] ndb slave: table test.t2diffex using conflict_fn ndb$max on attribute x.
-[note] ndb slave: table test.t2diffex logging exceptions to test.t2diffex$ex
-[note] ndb slave: table test.t1allsame using conflict_fn ndb$max on attribute x.
-[note] ndb slave: table test.t2_max using conflict_fn ndb$max on attribute x.
+[warning] ndb replica: table test.t3oneex : no extra row author bits in table.
+[note] ndb replica: table test.t3oneex : ndb$epoch, low epoch resolution
+[note] ndb replica: table test.t2diffex using conflict_fn ndb$max on attribute x.
+[note] ndb replica: table test.t2diffex logging exceptions to test.t2diffex$ex
+[note] ndb replica: table test.t1allsame using conflict_fn ndb$max on attribute x.
+[note] ndb replica: table test.t2_max using conflict_fn ndb$max on attribute x.
 drop table t3oneex, t2diffex, t1allsame, t3oneex$EX, t2diffex$EX;
 delete from mysql.ndb_replication;
 Test exceptions table schema flexibility
@@ -388,9 +388,6 @@ monteverdi	asparagi	plenipotentiary	mountebank	server_id	master_server_id	master
 2	1	<epoch_num>	1	1	1	1	1	NULL	Slussen
 drop table test.t1;
 drop table test.t1$EX;
-call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
-call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
-call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
 And some bad exceptions table schemata
 Keys in wrong positions
 create table test.t1$EX(
@@ -409,10 +406,10 @@ create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
 primary key(a,b,c)) engine=ndb;
 show warnings;
 Level	Code	Message
-MySQLD error output for server 1.1 matching pattern %NDB Slave%
+MySQLD error output for server 1.1 matching pattern %NDB Replica%
 relevant
-[note] ndb slave: table test.t1 using conflict_fn ndb$max on attribute x.
-[warning] ndb slave: exceptions table t1$ex has wrong definition (initial 4 columns)
+[note] ndb replica: table test.t1 using conflict_fn ndb$max on attribute x.
+[warning] ndb replica: exceptions table t1$ex has wrong definition (initial 4 columns)
 drop table test.t1;
 drop table test.t1$EX;
 Test conflict_fn definitions in ndb_replication which cover  

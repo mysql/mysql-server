@@ -19,6 +19,8 @@ struct PS_PARAM {
   unsigned char unsigned_type;
   const unsigned char *value;
   unsigned long length;
+  const unsigned char *name;
+  unsigned long name_length;
 };
 struct COM_STMT_EXECUTE_DATA {
   unsigned long stmt_id;
@@ -50,6 +52,8 @@ struct COM_STMT_RESET_DATA {
 struct COM_QUERY_DATA {
   const char *query;
   unsigned int length;
+  PS_PARAM *parameters;
+  unsigned long parameter_count;
 };
 struct COM_FIELD_LIST_DATA {
   unsigned char *table_name;
@@ -180,6 +184,7 @@ typedef void (*handle_ok_t)(void *ctx, uint server_status,
 typedef void (*handle_error_t)(void *ctx, uint sql_errno, const char *err_msg,
                                const char *sqlstate);
 typedef void (*shutdown_t)(void *ctx, int server_shutdown);
+typedef bool (*connection_alive_t)(void *ctx);
 struct st_command_service_cbs {
   start_result_metadata_t start_result_metadata;
   field_metadata_t field_metadata;
@@ -200,6 +205,7 @@ struct st_command_service_cbs {
   handle_ok_t handle_ok;
   handle_error_t handle_error;
   shutdown_t shutdown;
+  connection_alive_t connection_alive;
 };
 enum cs_text_or_binary {
   CS_TEXT_REPRESENTATION = 1,
@@ -256,6 +262,15 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
     MY_ATTRIBUTE((format(printf, 3, 4)));
 #include <mysql/service_mysql_alloc.h>
 #include "mysql/components/services/psi_memory_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1 {

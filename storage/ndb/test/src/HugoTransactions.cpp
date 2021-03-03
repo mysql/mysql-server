@@ -695,7 +695,7 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
       batch = records - c;
     key = c * row_step;
     if (retryAttempt >= retryMax){
-      g_info << "Record " << c << " could not be inserted, has retried "
+      g_err << "Record " << c << " could not be inserted, has retried "
 	     << retryAttempt << " times " << endl;
       // Reset retry counters and continue with next record
       retryAttempt = 0;
@@ -725,7 +725,8 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
         return NDBT_FAILED;
       }
     }
-    if(pkInsertRecord(pNdb, key + startFrom, batch, value, row_step) != NDBT_OK)
+    if (pkInsertRecord(pNdb, key + startFrom, batch, value, row_step) !=
+                       NDBT_OK)
     { 
       NDB_ERR(pTrans->getNdbError());
       setNdbError(pTrans->getNdbError());
@@ -764,15 +765,15 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
       switch(err.status){
       case NdbError::Success:
 	NDB_ERR(err);
-	g_info << "ERROR: NdbError reports success when transcaction failed"
-	       << endl;
+	g_err << "ERROR: NdbError reports success when transaction failed"
+	      << endl;
 	setNdbError(err);
 	return NDBT_FAILED;
-	break;
 	
       case NdbError::TemporaryError:      
         if (abort_on_first_error || row_step != 1)
         {
+          NDB_ERR(err);
           return err.code;
         }
 	NDB_ERR(err);
@@ -783,13 +784,11 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	retryAttempt++;
         batch = 1;
 	continue;
-	break;
 	
       case NdbError::UnknownResult:
 	NDB_ERR(err);
 	setNdbError(err);
 	return NDBT_FAILED;
-	break;
 	
       case NdbError::PermanentError:
 	if (allowConstraintViolation == true){
@@ -799,7 +798,6 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	    g_info << c << ": " << err.code << " " << err.message << endl;
 	    c++;
 	    continue;
-	    break;
 	  default:	    
 	    break;
 	  }
@@ -807,7 +805,6 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	NDB_ERR(err);
 	setNdbError(err);
 	return err.code;
-	break;
       }
     }
     else{
@@ -901,20 +898,17 @@ HugoTransactions::fillTableStartFrom(Ndb* pNdb,
 	g_info << "ERROR: NdbError reports success when transcaction failed"
 	       << endl;
 	return NDBT_FAILED;
-	break;
 	
       case NdbError::TemporaryError:      
 	NDB_ERR(err);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
-	break;
 	
       case NdbError::UnknownResult:
 	NDB_ERR(err);
 	setNdbError(err);
 	return NDBT_FAILED;
-	break;
 	
       case NdbError::PermanentError:
 	//  if (allowConstraintViolation == true){
@@ -960,7 +954,6 @@ HugoTransactions::fillTableStartFrom(Ndb* pNdb,
 	NDB_ERR(err);
 	setNdbError(err);
 	return NDBT_FAILED;
-	break;
       }
     }
     else{      
@@ -1652,7 +1645,6 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
 	continue;
-	break;
 
       case NdbError::PermanentError:
 	if (allowConstraintViolation == true){
@@ -1661,7 +1653,6 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 	    // Tuple did not exist, OK but should be reported
 	    g_info << r << ": " << err.code << " " << err.message << endl;
 	    continue;
-	    break;
 	  default:	    
 	    break;
 	  }
@@ -1672,7 +1663,6 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 	g_err << r << ": " << err.code << " " << err.message << endl;
 	closeTransaction(pNdb);
 	return NDBT_FAILED;
-	break;
 	
       default:
 	NDB_ERR(err);
@@ -1696,6 +1686,7 @@ HugoTransactions::pkDelRecords(Ndb* pNdb,
 
     r += batch; // Read next record
     batch_no++;
+    retryAttempt = 0;
   }
 
   g_info << "|- " << deleted << " records deleted" << endl;

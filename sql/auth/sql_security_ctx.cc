@@ -34,8 +34,8 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -51,19 +51,14 @@
 extern bool initialized;
 
 Security_context::Security_context(THD *thd /*= nullptr */)
-    : m_restrictions(nullptr), m_thd(thd) {
-  init();
-}
-
-Security_context::Security_context(MEM_ROOT *mem_root, THD *thd /* = nullptr*/)
-    : m_restrictions(mem_root), m_thd(thd) {
+    : m_restrictions(), m_thd(thd) {
   init();
 }
 
 Security_context::~Security_context() { destroy(); }
 
 Security_context::Security_context(const Security_context &src_sctx)
-    : m_restrictions(nullptr), m_thd(nullptr) {
+    : m_restrictions(), m_thd(nullptr) {
   copy_security_ctx(src_sctx);
 }
 
@@ -109,8 +104,8 @@ void Security_context::logout() {
     get_global_acl_cache()->return_acl_map(m_acl_map);
     m_acl_map = nullptr;
     clear_active_roles();
-    clear_db_restrictions();
   }
+  clear_db_restrictions();
 }
 
 bool Security_context::has_drop_policy(void) { return m_has_drop_policy; }
@@ -640,10 +635,10 @@ bool Security_context::any_table_acl(const LEX_CSTRING &db) {
   @param [in] priv      privilege to check
   @param [in] priv_len  length of privilege
 
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>  has required privilege with grant option
-    @retval /<true, false/> has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"  has required privilege with grant option
+    @retval "<true, false>" has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege
 */
 std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                                          size_t priv_len) {
@@ -692,10 +687,10 @@ std::pair<bool, bool> Security_context::has_global_grant(const char *priv,
                                   roles granted to it irrespective the roles are
                                   active or not.
 
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>  has required privilege with grant option
-    @retval /<true, false/> has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege, OR
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"  has required privilege with grant option
+    @retval "<true, false>" has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege, OR
                              auth_id does not exist.
 */
 std::pair<bool, bool> Security_context::has_global_grant(
@@ -1149,10 +1144,10 @@ ulong Security_context::filter_access(const ulong access,
                           true  - privileges granted directly or coming through
                                   roles granted to it irrespective the roles are
                                   active or not.
-  @returns  pair/<has_privilege, has_with_grant_option/>
-    @retval /<true, true/>   has required privilege with grant option
-    @retval /<true, false/>  has required privilege without grant option
-    @retval /<false, false/> does not have the required privilege
+  @returns  pair@<has_privilege, has_with_grant_option@>
+    @retval "<true, true>"   has required privilege with grant option
+    @retval "<true, false>"  has required privilege without grant option
+    @retval "<false, false>" does not have the required privilege
 */
 std::pair<bool, bool> Security_context::fetch_global_grant(
     const ACL_USER &acl_user, const std::string &privilege,

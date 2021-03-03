@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 #include "plugin/x/src/sql_statement_builder.h"
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/src/ngs/error_code.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
@@ -71,9 +71,9 @@ TEST_P(Sql_statement_builder_success_test, build_query_success) {
   EXPECT_STREQ(param.expect_query.c_str(), m_qb.get().c_str());
 }
 
-INSTANTIATE_TEST_CASE_P(Sql_statement_builder,
-                        Sql_statement_builder_success_test,
-                        testing::ValuesIn(sql_statement_builder_success_param));
+INSTANTIATE_TEST_SUITE_P(
+    Sql_statement_builder, Sql_statement_builder_success_test,
+    testing::ValuesIn(sql_statement_builder_success_param));
 
 struct Param_sql_statement_builder_fail {
   std::string query;
@@ -95,8 +95,8 @@ TEST_P(Sql_statement_builder_fail_test, build_query_fail) {
   ASSERT_THROW(m_builder.build(param.query, param.args), ngs::Error_code);
 }
 
-INSTANTIATE_TEST_CASE_P(Sql_statement_builder, Sql_statement_builder_fail_test,
-                        testing::ValuesIn(sql_statement_builder_fail_param));
+INSTANTIATE_TEST_SUITE_P(Sql_statement_builder, Sql_statement_builder_fail_test,
+                         testing::ValuesIn(sql_statement_builder_fail_param));
 
 struct Param_sql_statement_builder_placeholders {
   std::string expect_query;
@@ -132,7 +132,7 @@ TEST_P(Sql_statement_builder_placeholders_test,
   EXPECT_EQ(param.expect_placeholders, phs);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Sql_statement_builder_placeholders, Sql_statement_builder_placeholders_test,
     testing::ValuesIn(sql_statement_builder_placeholders_param));
 

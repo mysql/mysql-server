@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,10 +60,12 @@ Trpman::Trpman(Block_context & ctx, Uint32 instanceno) :
   addRecSignal(GSN_ROUTE_ORD, &Trpman::execROUTE_ORD);
   addRecSignal(GSN_SYNC_THREAD_VIA_REQ, &Trpman::execSYNC_THREAD_VIA_REQ);
   addRecSignal(GSN_ACTIVATE_TRP_REQ, &Trpman::execACTIVATE_TRP_REQ);
+  addRecSignal(GSN_UPD_QUERY_DIST_ORD, &Trpman::execUPD_QUERY_DIST_ORD);
 
   addRecSignal(GSN_NDB_TAMPER, &Trpman::execNDB_TAMPER, true);
   addRecSignal(GSN_DUMP_STATE_ORD, &Trpman::execDUMP_STATE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Trpman::execDBINFO_SCANREQ);
+  m_distribution_handler_inited = false;
 }
 
 BLOCK_FUNCTIONS(Trpman)
@@ -892,6 +894,52 @@ Trpman::execACTIVATE_TRP_REQ(Signal *signal)
     DEB_MULTI_TRP(("(%u)ACTIVATE_TRP_REQ is not receiver (%u,%u)",
                    instance(), node_id, trp_id));
   }
+}
+
+Uint32
+Trpman::distribute_signal(SignalHeader * const header,
+                          const Uint32 instance_no)
+{
+  DistributionHandler *handle = &m_distribution_handle;
+  Uint32 gsn = header->theVerId_signalNumber;
+  ndbrequire(m_distribution_handler_inited);
+  if (gsn == GSN_LQHKEYREQ)
+  {
+    return get_lqhkeyreq_ref(handle, instance_no);
+  }
+  else if (gsn == GSN_SCAN_FRAGREQ)
+  {
+    return get_scan_fragreq_ref(handle, instance_no);
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+void
+Trpman::execUPD_QUERY_DIST_ORD(Signal *signal)
+{
+  /**
+   * Receive an array of weights for each LDM and query thread.
+   * These weights are used to create an array used for a quick round robin
+   * distribution of the signals received in distribute_signal.
+   */
+  DistributionHandler *dist_handle = &m_distribution_handle;
+  if (!m_distribution_handler_inited)
+  {
+    fill_distr_references(dist_handle);
+    calculate_distribution_signal(dist_handle);
+    m_distribution_handler_inited = true;
+  }
+  ndbrequire(signal->getNoOfSections() == 1);
+  SegmentedSectionPtr ptr;
+  SectionHandle handle(this, signal);
+  handle.getSection(ptr, 0);
+  memset(dist_handle->m_weights, 0, sizeof(dist_handle->m_weights));
+  copy(dist_handle->m_weights, ptr);
+  releaseSections(handle);
+  calculate_distribution_signal(dist_handle);
 }
 
 TrpmanProxy::TrpmanProxy(Block_context & ctx) :

@@ -34,6 +34,7 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -44,7 +45,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "pfs_thread_provider.h"

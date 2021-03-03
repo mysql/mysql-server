@@ -1674,6 +1674,8 @@ INSERT INTO t1(id, a, b) VALUES
 SELECT id, a, b FROM t1;
 id	a	b
 1	cccc	50
+10	eeeee	40
+11	bbbbbb	60
 2	cccc	70
 3	cccc	30
 4	cccc	30
@@ -1682,18 +1684,16 @@ id	a	b
 7	dddd	30
 8	aaaa	10
 9	aaaa	50
-10	eeeee	40
-11	bbbbbb	60
 SELECT id, a, b FROM t1 WHERE a BETWEEN 'aaaa' AND 'bbbbbb';
 id	a	b
+11	bbbbbb	60
+6	bbbbbb	40
 8	aaaa	10
 9	aaaa	50
-6	bbbbbb	40
-11	bbbbbb	60
 SELECT id, a FROM t1 WHERE a='bbbbbb';
 id	a
-6	bbbbbb
 11	bbbbbb
+6	bbbbbb
 SELECT id, a FROM t1 WHERE a='bbbbbb' ORDER BY b;
 id	a
 6	bbbbbb
@@ -2356,9 +2356,9 @@ CONVERT(a, CHAR)	CONVERT(b, CHAR)
 ALTER TABLE t1 ADD INDEX (b);
 SELECT CONVERT(a, CHAR), CONVERT(b, CHAR) from t1 GROUP BY b;
 CONVERT(a, CHAR)	CONVERT(b, CHAR)
-70002	1065
-70001	1085
 70000	1092
+70001	1085
+70002	1065
 DROP TABLE t1;
 End of 5.0 tests
 SELECT LENGTH(RPAD(0.0115E88, 61297, _utf8'яэюя'));
@@ -2433,10 +2433,10 @@ a	COUNT(*)
 a	1
 r	1
 s	1
-ß	1
-÷	1
 t	1
 z	1
+ß	1
+÷	1
 DROP TABLE t1;
 End of 5.1 tests
 Start of 5.4 tests

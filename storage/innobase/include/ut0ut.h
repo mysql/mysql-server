@@ -115,6 +115,14 @@ to memory). */
 the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-
 independent way by using YieldProcessor. */
 #define UT_RELAX_CPU() YieldProcessor()
+#elif defined(__aarch64__)
+/* A "yield" instruction in aarch64 is essentially a nop, and does not cause
+enough delay to help backoff. "isb" is a barrier that, especially inside a
+loop, creates a small delay without consuming ALU resources.
+Experiments shown that adding the isb instruction improves stability and reduces
+result jitter. Adding more delay to the UT_RELAX_CPU than a single isb reduces
+performance. */
+#define UT_RELAX_CPU() __asm__ __volatile__("isb" ::: "memory")
 #else
 #define UT_RELAX_CPU() __asm__ __volatile__("" ::: "memory")
 #endif
@@ -843,19 +851,19 @@ may be influenced by a change in system time, it might not be steady.
 So we use std::chrono::steady_clock for ellapsed time. */
 class Timer {
  public:
-  using MS = std::chrono::milliseconds;
   using SC = std::chrono::steady_clock;
 
  public:
   /** Constructor. Starts/resets the timer to the current time. */
-  Timer() { reset(); }
+  Timer() noexcept { reset(); }
 
   /** Reset the timer to the current time. */
   void reset() { m_start = SC::now(); }
 
   /** @return the time elapsed in milliseconds. */
-  int64_t elapsed() const {
-    return (std::chrono::duration_cast<MS>(SC::now() - m_start).count());
+  template <typename T = std::chrono::milliseconds>
+  int64_t elapsed() const noexcept {
+    return std::chrono::duration_cast<T>(SC::now() - m_start).count();
   }
 
   /** Print time elapsed since last reset (in milliseconds) to the stream.
@@ -864,8 +872,8 @@ class Timer {
   @return stream instance that was passed in. */
   template <typename T, typename Traits>
   friend std::basic_ostream<T, Traits> &operator<<(
-      std::basic_ostream<T, Traits> &out, const Timer &timer) {
-    return (out << timer.elapsed());
+      std::basic_ostream<T, Traits> &out, const Timer &timer) noexcept {
+    return out << timer.elapsed();
   }
 
  private:

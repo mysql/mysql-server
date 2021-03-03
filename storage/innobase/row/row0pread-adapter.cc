@@ -77,7 +77,7 @@ void Parallel_reader_adapter::set(row_prebuilt_t *prebuilt) {
 
   m_parallel_reader.set_start_callback(
       [=](Parallel_reader::Thread_ctx *reader_thread_ctx) {
-        return init(reader_thread_ctx);
+        return init(reader_thread_ctx, prebuilt);
       });
 
   m_parallel_reader.set_finish_callback(
@@ -100,7 +100,7 @@ dberr_t Parallel_reader_adapter::run(void **thread_ctxs, Init_fn init_fn,
 }
 
 dberr_t Parallel_reader_adapter::init(
-    Parallel_reader::Thread_ctx *reader_thread_ctx) {
+    Parallel_reader::Thread_ctx *reader_thread_ctx, row_prebuilt_t *prebuilt) {
   auto thread_ctx = UT_NEW(Thread_ctx(), mem_key_archive);
 
   if (thread_ctx == nullptr) {
@@ -119,7 +119,9 @@ dberr_t Parallel_reader_adapter::init(
   To solve the blob heap issue in prebuilt we request parallel reader thread to
   use blob heap per thread and we pass this blob heap to the InnoDB to MySQL
   row format conversion function. */
-  reader_thread_ctx->create_blob_heap();
+  if (prebuilt->templ_contains_blob) {
+    reader_thread_ctx->create_blob_heap();
+  }
 
   auto ret = m_init_fn(m_thread_ctxs[reader_thread_ctx->m_thread_id],
                        static_cast<ulong>(m_mysql_row.m_offsets.size()),
@@ -159,6 +161,7 @@ dberr_t Parallel_reader_adapter::process_rows(
     const Parallel_reader::Ctx *reader_ctx) {
   auto reader_thread_ctx = reader_ctx->thread_ctx();
   auto ctx = reader_thread_ctx->get_callback_ctx<Thread_ctx>();
+  auto blob_heap = reader_thread_ctx->m_blob_heap;
 
   ut_a(ctx->m_n_read >= ctx->m_n_sent);
   ut_a(ctx->m_n_read - ctx->m_n_sent <= m_batch_size);
@@ -179,6 +182,11 @@ dberr_t Parallel_reader_adapter::process_rows(
       if (err != DB_SUCCESS) {
         return (err);
       }
+
+      /* Empty the heap for the next batch */
+      if (blob_heap != nullptr) {
+        mem_heap_empty(blob_heap);
+      }
     }
   }
 
@@ -198,7 +206,7 @@ dberr_t Parallel_reader_adapter::process_rows(
   if (row_sel_store_mysql_rec(buffer_loc, m_prebuilt, reader_ctx->m_rec,
                               nullptr, true, reader_ctx->index(),
                               reader_ctx->index(), offsets, false, nullptr,
-                              reader_thread_ctx->m_blob_heap)) {
+                              blob_heap)) {
     ++ctx->m_n_read;
 
     if (m_parallel_reader.is_error_set()) {

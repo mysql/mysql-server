@@ -84,6 +84,7 @@ EXPLAIN SELECT a FROM t1;
 
 --connect ( con1, localhost, root, , )
 --connection con1
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT @@optimizer_switch;
 --replace_column 10 X
 EXPLAIN SELECT a FROM t1;
@@ -92,11 +93,13 @@ SET @@optimizer_switch='use_invisible_indexes=on';
 EXPLAIN SELECT a FROM t1;
 
 --connection default
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT @@optimizer_switch;
 --replace_column 10 X
 EXPLAIN SELECT a FROM t1;
 
 --connection con1
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 SELECT @@optimizer_switch;
 SET @@optimizer_switch='use_invisible_indexes=off';
 --replace_column 10 X

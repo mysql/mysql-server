@@ -345,6 +345,7 @@ let $query=SELECT DISTINCT SUM(b) s FROM t1 GROUP BY a ORDER BY s;
 FLUSH STATUS;
 --eval $query
 --disable_warnings
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS WHERE (Variable_name LIKE 'Sort_%' OR Variable_name LIKE 'Created_%_tables') AND Value > 0;
 --enable_warnings
 

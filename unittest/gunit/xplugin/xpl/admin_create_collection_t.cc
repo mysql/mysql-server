@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ TEST_P(Admin_command_handler_create_or_ensure_collection,
   ASSERT_NE(ER_X_SUCCESS, ((*command).*GetParam())(m_args.get()).error);
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_create_collection_common,
     Admin_command_handler_create_or_ensure_collection,
     ::testing::Values(&Admin_command_handler_stub::create_collection,
@@ -300,7 +300,7 @@ TEST_P(Admin_command_handler_check_validation,
                     ((*command).*GetParam())(m_args.get()));
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     Instantiation_create_collection_with_validation,
     Admin_command_handler_check_validation,
     ::testing::Values(&Admin_command_handler_stub::create_collection,

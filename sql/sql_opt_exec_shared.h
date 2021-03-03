@@ -619,51 +619,6 @@ enum {
   */
   REF_SLICE_TMP2,
   /**
-     Stores the unfinished aggregated row when doing GROUP BY on an
-     ordered table.
-
-     For certain queries with GROUP BY (e.g., when using an index),
-     rows arrive already sorted in the right order for grouping.
-     In that case, we do not need nor use a temporary table, but can
-     just group values as we go. However, we do not necessarily know when
-     a group ends -- a group implicitly ends when we see that the
-     group index values have changed, and by that time, it's too late to
-     output them in the aggregated row (the Fields already point to the
-     new row, so the data is lost).
-
-     Thus, we need to store the values for the current group somewhere.
-     We use a set of Items, which together represent a one-row
-     pseudo-tmp-table holding the current group. These items are created
-     by setup_copy_fields().
-
-     When we have finished reading a row from the last pre-grouping table, we
-     process it either with end_send_group() or end_send():
-
-       * end_send_group(): Compare the new row with the current group.
-         If it belongs to the current group, we update the aggregation functions
-         and move on. If not, we output the aggregated row and overwrite the
-         contents of this slice with the new group.
-
-       * end_send(): Used when we know there's exactly one row for each group
-         (e.g., during a loose index scan). In this case, we can skip the
-         comparison and just output the group directly; however, we still need
-         the temporary table to avoid evaluating Items more than once (see the
-         next paragraph).
-
-     Both functions build the group by copying values of items from the previous
-     stages into a pseudo-table, e.g.
-
-       SELECT a, RAND() AS r FROM t GROUP BY a HAVING r=1;
-
-     copies "a" from "t" and stores it into the pseudo-table (this slice),
-     evaluates rand() and stores it, then finally evaluates "r=1" based on the
-     stored value (so that "r" in the SELECT list and "r" in "r=1" match).
-
-     Groups from this slice are always directly sent to the query's result,
-     and never buffered to any further temporary table.
-  */
-  REF_SLICE_ORDERED_GROUP_BY,
-  /**
      The slice with pointers to columns of table(s), ie., the actual Items.
      Only used for queries involving temporary tables or the likes; for simple
      queries, they always live in REF_SLICE_ACTIVE, so we don't need a copy

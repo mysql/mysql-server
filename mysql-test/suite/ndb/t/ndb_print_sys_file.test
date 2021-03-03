@@ -1,0 +1,7 @@
+source include/have_ndb.inc;
+source suite/ndb/include/have_little_endian.inc;
+
+exec $NDB_PRINT_SYS_FILE_EXE suite/ndb/ndbfs_files/7.6.15/DBDIH/P0.sysfile;
+exec $NDB_PRINT_SYS_FILE_EXE suite/ndb/ndbfs_files/8.0.17/DBDIH/P0.sysfile;
+exec $NDB_PRINT_SYS_FILE_EXE suite/ndb/ndbfs_files/8.0.21/DBDIH/P0.sysfile;
+exec $NDB_PRINT_SYS_FILE_EXE suite/ndb/ndbfs_files/8.0.22/DBDIH/P0.sysfile;

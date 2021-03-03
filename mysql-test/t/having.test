@@ -63,7 +63,9 @@ INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
 select Fld1, max(Fld2) as q from t1 group by Fld1 having q is not null;
 select Fld1, max(Fld2) from t1 group by Fld1 having max(Fld2) is not null;
 select Fld1, max(Fld2) from t1 group by Fld1 having avg(Fld2) is not null;
+--skip_if_hypergraph  # Hits bug #31848191 (ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()).
 select Fld1, max(Fld2) from t1 group by Fld1 having std(Fld2) is not null;
+--skip_if_hypergraph  # Hits bug #31848191 (ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()).
 select Fld1, max(Fld2) from t1 group by Fld1 having variance(Fld2) is not null;
 drop table t1;
 
@@ -213,20 +215,30 @@ select count(*) as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
 select count(*) from t1 group by col2 having col2 = 'hello';
 --error 1054
 select count(*) from t1 group by col2 having col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by col1 having col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by col1 having count_col1 = 10;
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by count_col1 having col1 = 10;
+--sorted_result
 # ANSI: should return SQLSTATE 42000 Syntax error or access violation 
 # MySQL: returns 10 - because of GROUP BY name resolution
+--sorted_result
 select col1 as count_col1 from t1 as tmp1 group by count_col1 having count_col1 = 10;
 # ANSI: should return SQLSTATE 42000 Syntax error or access violation 
 # MySQL: returns 10 - because of GROUP BY name resolution
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col1 = 10;
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having count_col1 = 10;
+--sorted_result
 select col1 as count_col1,col2 from t1 as tmp1 group by col1,col2 having col2 = 'hello';
+--sorted_result
 select col1 as count_col1,col2 as group_col2 from t1 as tmp1 group by col1,col2 having group_col2 = 'hello';
 --error 1064
 select sum(col1) as co12 from t1 group by col2 having col2 10; 
+--sorted_result
 select sum(col1) as co2, count(col2) as cc from t1 group by col1 having col1 =10; 
 --error 1054
 select t2.col2 from t2 group by t2.col1, t2.col2 having t1.col1 <= 10;
@@ -741,18 +753,22 @@ ANALYZE TABLE t1;
 # Print starting point, for debugging
 SELECT * FROM series, seq_calls;
 
+# NOTE: This currently gives the wrong result, because HAVING
+# and send() both evaluate next_seq_value() instead
+# of sharing the result between them. See the comment in
+# JOIN::create_access_path_for_join() for more details.
 SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
        GROUP BY t HAVING r = 1  ORDER BY t1.u;
 
 # Statement with select distinct so reference to functions in having will
 # result in re-execution of functions.
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 
-# NOTE: This currently gives the wrong result, because HAVING
-# and the materialization both evaluate next_seq_value() instead
-# of sharing the result between them. See the comment in
-# JOIN::create_iterators() for more details.
+# NOTE: This currently gives the wrong result, for the same
+# reason as above.
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
        WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 
@@ -760,13 +776,17 @@ SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
               GROUP BY t HAVING (SELECT 1 FROM t1 WHERE r = 1 LIMIT 1)
               ORDER BY t1.u';
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 EXECUTE stmt;
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=1;
 
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -775,6 +795,7 @@ DEALLOCATE PREPARE stmt;
 INSERT INTO t1 SELECT * FROM t1;
 ALTER TABLE t1 ADD KEY(t, u);
 ANALYZE TABLE t1;
+--skip_if_hypergraph  # Depends on the query plan, no guarantees about side effects in HAVING aliases.
 SELECT * FROM series, seq_calls;
 UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;

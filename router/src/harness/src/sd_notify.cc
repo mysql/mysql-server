@@ -25,12 +25,7 @@
 #include "mysql/harness/sd_notify.h"
 
 #ifndef _WIN32
-#include <sys/un.h>
 #include <unistd.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #endif
 
 #include <array>
@@ -42,7 +37,10 @@
 
 #include "common.h"
 #include "mysql/harness/logging/logging.h"
-#include "socket_operations.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/local.h"
+#include "mysql/harness/net_ts/win32_named_pipe.h"
+#include "mysql/harness/stdx/expected.h"
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -70,73 +68,82 @@ static std::string get_notify_socket_name() {
 
 #ifdef _WIN32
 
-static bool notify(const std::string &msg) {
-  const std::string pipe_name = get_notify_socket_name();
-  if (pipe_name.empty()) {
-    log_debug("NOTIFY_SOCKET is empty, skipping sending '%s' notification",
-              msg.c_str());
-    return false;
+static stdx::expected<void, std::error_code> notify(
+    const std::string &msg, const std::string &pipe_name) {
+  net::io_context io_ctx;
+  local::byte_protocol::socket sock(io_ctx);
+
+  auto connect_res = sock.connect({pipe_name});
+  if (!connect_res) {
+    return connect_res.get_unexpected();
+  }
+  auto write_res = net::write(sock, net::buffer(msg));
+  if (!write_res) {
+    return write_res.get_unexpected();
   }
 
-  log_debug("Using NOTIFY_SOCKET='%s' for the '%s' notification",
-            pipe_name.c_str(), msg.c_str());
-
-  DWORD written;
-  HANDLE hPipe =
-      CreateFile(TEXT(pipe_name.c_str()), GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                 OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-
-  if (hPipe != INVALID_HANDLE_VALUE) {
-    const auto res =
-        WriteFile(hPipe, msg.c_str(), msg.length() + 1, &written, NULL);
-
-    CloseHandle(hPipe);
-    if (res) return true;
-  }
-
-  log_warning(
-      "Failed to send notification '%s' to the named pipe '%s', error=%d",
-      msg.c_str(), pipe_name.c_str(), GetLastError());
-
-  return false;
+  return {};
 }
 
 #else
 
-static socket_t connect_to_notify_socket(const std::string &socket_name,
-                                         std::string &out_error) {
-  const size_t sunpathlen = sizeof(sockaddr_un::sun_path) - 1;
-  if (socket_name.length() > sunpathlen || socket_name.empty()) {
-    out_error = "Socket name " + socket_name +
-                " is invalid: " + std::to_string(socket_name.length());
-    return kInvalidSocket;
-  }
-  socket_t result = socket(AF_UNIX, SOCK_DGRAM, 0);
-
-  sockaddr_un addr{};
-  socklen_t addrlen;
-  addr.sun_family = AF_UNIX;
-
-  strcpy(addr.sun_path, socket_name.c_str());
-  addrlen = offsetof(struct sockaddr_un, sun_path) +
-            static_cast<socklen_t>(socket_name.length());
-  if (socket_name[0] == '@') {
-    // Abstract namespace socket
-    addr.sun_path[0] = '\0';
+static stdx::expected<local::datagram_protocol::socket, std::error_code>
+connect_to_notify_socket(net::io_context &io_ctx,
+                         const std::string &socket_name) {
+  if (socket_name.empty()) {
+    return stdx::make_unexpected(make_error_code(std::errc::invalid_argument));
   }
 
-  int ret = -1;
+  auto sock_name = socket_name;
+  // transform abstract namespace socket
+  if (sock_name[0] == '@') sock_name[0] = '\0';
+
+  const local::datagram_protocol::endpoint ep(sock_name);
+
+  if (ep.path() != sock_name) {
+    // socket name was truncated
+    return stdx::make_unexpected(make_error_code(std::errc::filename_too_long));
+  }
+
+  local::datagram_protocol::socket sock(io_ctx);
   do {
-    ret = connect(result, reinterpret_cast<const sockaddr *>(&addr), addrlen);
-  } while (ret == -1 && errno == EINTR);
-  if (ret == -1) {
-    out_error = mysql_harness::get_strerror(errno);
-    return kInvalidSocket;
-  }
+    const auto connect_res = sock.connect(ep);
+    if (!connect_res) {
+      if (connect_res.error() != make_error_code(std::errc::interrupted)) {
+        return connect_res.get_unexpected();
+      }
 
-  return result;
+      // stay in the loop in case we got interrupted.
+    } else {
+#if defined(__SUNPRO_CC)
+      // suncc needs a std::move(), while gcc complains about redundant
+      // std::move().
+      return std::move(sock);
+#else
+      return sock;
+#endif
+    }
+  } while (true);
 }
 
+static stdx::expected<void, std::error_code> notify(
+    const std::string &msg, const std::string &socket_name) {
+  net::io_context io_ctx;
+  auto connect_res = connect_to_notify_socket(io_ctx, socket_name);
+  if (!connect_res) {
+    return connect_res.get_unexpected();
+  }
+
+  auto sock = std::move(connect_res.value());
+
+  const auto write_res = net::write(sock, net::buffer(msg));
+  if (!write_res) {
+    return connect_res.get_unexpected();
+  }
+
+  return {};
+}
+#endif
 static bool notify(const std::string &msg) {
   const std::string socket_name = get_notify_socket_name();
   if (socket_name.empty()) {
@@ -148,31 +155,15 @@ static bool notify(const std::string &msg) {
   log_debug("Using NOTIFY_SOCKET='%s' for the '%s' notification",
             socket_name.c_str(), msg.c_str());
 
-  std::string connect_err;
-  auto notify_socket = connect_to_notify_socket(socket_name, connect_err);
-  if (notify_socket == kInvalidSocket) {
-    log_warning("Could not connect to the NOTIFY_SOCKET='%s': %s",
-                socket_name.c_str(), connect_err.c_str());
-    return false;
-  }
-
-  auto *sock_ops = mysql_harness::SocketOperations::instance();
-
-  std::shared_ptr<void> exit_guard(
-      nullptr, [&](void *) { sock_ops->close(notify_socket); });
-
-  auto write_res = sock_ops->write_all(notify_socket, msg.data(), msg.length());
-  if (!write_res) {
-    log_warning("Failed writing '%s' to the NOTIFY_SOCKET='%s': %s",
-                msg.c_str(), socket_name.c_str(),
-                write_res.error().message().c_str());
+  auto notify_res = notify(msg, socket_name);
+  if (!notify_res) {
+    log_warning("sending '%s' to NOTIFY_SOCKET='%s' failed: %s", msg.c_str(),
+                socket_name.c_str(), notify_res.error().message().c_str());
     return false;
   }
 
   return true;
 }
-
-#endif
 
 bool notify_ready() { return notify("READY=1"); }
 

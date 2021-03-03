@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -261,64 +261,65 @@ bool Connection_manager::is_default_active() {
 
 void Connection_manager::close_active(const bool shutdown,
                                       const bool be_quiet) {
-  if (m_active_holder) {
-    if (m_active_session_name.empty() && !shutdown)
-      throw std::runtime_error("cannot close default session");
-    try {
-      if (!m_active_session_name.empty() && !be_quiet)
-        m_console.print("closing session ", m_active_session_name, "\n");
+  if (!m_active_holder) {
+    if (!shutdown) throw std::runtime_error("no active session");
+    return;
+  }
 
-      if (active_xconnection()->state().is_connected()) {
-        // send a close message and wait for the corresponding Ok message
-        active_xprotocol()->send(Mysqlx::Connection::Close());
-        xcl::XProtocol::Server_message_type_id msgid;
-        xcl::XError error;
+  if (m_active_session_name.empty() && !shutdown) {
+    throw std::runtime_error("cannot close default session");
+  }
+
+  try {
+    if (!m_active_session_name.empty() && !be_quiet)
+      m_console.print("closing session ", m_active_session_name, "\n");
+
+    if (active_xconnection()->state().is_connected()) {
+      // send a close message and wait for the corresponding Ok message
+      active_xprotocol()->send(Mysqlx::Connection::Close());
+      xcl::XProtocol::Server_message_type_id msgid;
+      xcl::XError error;
+      Message_ptr msg{active_xprotocol()->recv_single_message(&msgid, &error)};
+
+      if (error) throw error;
+
+      if (!be_quiet) m_console.print(*msg);
+      if (Mysqlx::ServerMessages::OK != msgid)
+        throw xcl::XError(CR_COMMANDS_OUT_OF_SYNC,
+                          "Disconnect was expecting Mysqlx.Ok(bye!), but "
+                          "got the one above (one or more calls to -->recv "
+                          "are probably missing)");
+
+      std::string text = static_cast<Mysqlx::Ok *>(msg.get())->msg();
+      if (text != "bye!" && text != "tchau!")
+        throw xcl::XError(CR_COMMANDS_OUT_OF_SYNC,
+                          "Disconnect was expecting Mysqlx.Ok(bye!), but "
+                          "got the one above (one or more calls to -->recv "
+                          "are probably missing)");
+
+      if (!m_default_connection_options.dont_wait_for_disconnect) {
         Message_ptr msg{
             active_xprotocol()->recv_single_message(&msgid, &error)};
 
-        if (error) throw error;
-
-        if (!be_quiet) m_console.print(*msg);
-        if (Mysqlx::ServerMessages::OK != msgid)
-          throw xcl::XError(CR_COMMANDS_OUT_OF_SYNC,
-                            "Disconnect was expecting Mysqlx.Ok(bye!), but "
-                            "got the one above (one or more calls to -->recv "
-                            "are probably missing)");
-
-        std::string text = static_cast<Mysqlx::Ok *>(msg.get())->msg();
-        if (text != "bye!" && text != "tchau!")
-          throw xcl::XError(CR_COMMANDS_OUT_OF_SYNC,
-                            "Disconnect was expecting Mysqlx.Ok(bye!), but "
-                            "got the one above (one or more calls to -->recv "
-                            "are probably missing)");
-
-        if (!m_default_connection_options.dont_wait_for_disconnect) {
-          Message_ptr msg{
-              active_xprotocol()->recv_single_message(&msgid, &error)};
-
-          if (!error && !be_quiet) {
-            m_console.print_error("Was expecting closure but got message:",
-                                  *msg);
-          }
+        if (!error && !be_quiet) {
+          m_console.print_error("Was expecting closure but got message:", *msg);
         }
-
-        active_xconnection()->close();
       }
-      m_session_holders.erase(m_active_session_name);
-      if (!shutdown) set_active("", be_quiet);
-    } catch (const std::exception &error) {
+
       active_xconnection()->close();
-      m_session_holders.erase(m_active_session_name);
-      if (!shutdown) set_active("", be_quiet);
-      throw error;
-    } catch (const xcl::XError &error) {
-      active_xconnection()->close();
-      m_session_holders.erase(m_active_session_name);
-      if (!shutdown) set_active("", be_quiet);
-      throw error;
     }
-  } else {
-    if (!shutdown) throw std::runtime_error("no active session");
+    m_session_holders.erase(m_active_session_name);
+    if (!shutdown) set_active("", be_quiet);
+  } catch (const std::exception &error) {
+    active_xconnection()->close();
+    m_session_holders.erase(m_active_session_name);
+    if (!shutdown) set_active("", be_quiet);
+    throw error;
+  } catch (const xcl::XError &error) {
+    active_xconnection()->close();
+    m_session_holders.erase(m_active_session_name);
+    if (!shutdown) set_active("", be_quiet);
+    throw error;
   }
 }
 

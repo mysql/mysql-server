@@ -25,8 +25,13 @@
 #include "sql/sql_class.h"
 
 #include "sql/auth/auth_acls.h"
+#include "sql/derror.h" /* ER_THD */
 #include "sql/rpl_async_conn_failover_delete_source_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
+#include "sql/rpl_io_monitor.h"
+
+const std::string Rpl_async_conn_failover_delete_source::m_udf_name =
+    "asynchronous_connection_failover_delete_source";
 
 bool Rpl_async_conn_failover_delete_source::init() {
   DBUG_TRACE;
@@ -56,23 +61,31 @@ char *Rpl_async_conn_failover_delete_source::delete_source(
   std::string err_msg{};  // error message returned during delete row operation
 
   {
-    Rpl_async_conn_failover_table_operations sql_operations(TL_WRITE,
-                                                            args->arg_count);
+    Rpl_async_conn_failover_table_operations sql_operations(TL_WRITE);
 
     std::string channel(args->args[0], args->lengths[0]);  // channel name
     std::string host(args->args[1], args->lengths[1]);     // hostname
     uint port = *(reinterpret_cast<long long *>(args->args[2]));  // port
 
-    std::string network_namespace{""};  // network_namespace
-    /* if network_namespace is provided */
-    if (args->arg_count > 3 && args->lengths[3])
-      network_namespace.assign(args->args[3], args->lengths[3]);
-
-    auto source_conn_details =
-        std::make_tuple(0, channel, host, port, network_namespace);
-
     /* delete row */
-    std::tie(err_val, err_msg) = sql_operations.delete_row(source_conn_details);
+    std::tie(err_val, err_msg) =
+        sql_operations.delete_source(channel, host, port, "");
+  }
+
+  if (err_val) {
+    *error = 1;
+    my_error(ER_UDF_ERROR, MYF(0), m_udf_name.c_str(), err_msg.c_str());
+  } else {
+    err_msg.assign(
+        "The UDF asynchronous_connection_failover_delete_source() "
+        "executed successfully.");
+
+    if (args->arg_count > 3 && args->lengths[3] > 0) {
+      push_warning(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE,
+          ER_THD(current_thd, ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE));
+    }
   }
 
   my_stpcpy(result, err_msg.c_str());
@@ -112,7 +125,7 @@ bool Rpl_async_conn_failover_delete_source::delete_source_init(
 
   if (args->arg_count > 3 && args->arg_type[3] != STRING_RESULT) {
     my_stpcpy(message,
-              "Wrong arguments: You need to specify correct value for "
+              "Wrong arguments: You need to specify a string value for "
               "network_namespace.");
     return true;
   }

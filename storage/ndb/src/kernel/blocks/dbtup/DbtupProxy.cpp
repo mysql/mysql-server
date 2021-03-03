@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -582,9 +582,9 @@ DbtupProxy::disk_restart_undo_finish(Signal* signal)
 
   if (undo.m_actions & Proxy_undo::GetInstance) {
     jam();
-    Uint32 instanceKey = getInstanceKeyCanFail(undo.m_table_id,
-                                               undo.m_fragment_id);
-    if (instanceKey == RNIL)
+    Uint32 instanceNo = getInstanceNoCanFail(undo.m_table_id,
+                                             undo.m_fragment_id);
+    if (instanceNo == RNIL)
     {
       jam();
       /**
@@ -594,7 +594,6 @@ DbtupProxy::disk_restart_undo_finish(Signal* signal)
       disk_restart_undo_send_next(signal, tup_instance);
       goto finish;
     }
-    Uint32 instanceNo = getInstanceFromKey(instanceKey);
     tup_instance = undo.m_instance_no = instanceNo;
   }
 
@@ -703,17 +702,16 @@ DbtupProxy::disk_restart_alloc_extent(EmulatedJamBuffer *jamBuf,
   thrjam(jamBuf);
   thrjamLine(jamBuf, Uint16(tableId));
   thrjamLine(jamBuf, Uint16(fragId));
-  Uint32 instanceKey = getInstanceKeyCanFail(tableId, fragId);
-  if (instanceKey == RNIL)
+  Uint32 instanceNo = getInstanceNoCanFail(tableId, fragId);
+  if (instanceNo == RNIL)
   {
     thrjam(jamBuf);
-    DEB_TUP_RESTART(("disk_restart_alloc_extent failed, instanceKey = RNIL"));
+    DEB_TUP_RESTART(("disk_restart_alloc_extent failed, instanceNo = RNIL"));
     D("proxy: table either dropped, non-existent or fragment not existing"
       << V(tableId));
     return -1;
   }
   thrjam(jamBuf);
-  Uint32 instanceNo = getInstanceFromKey(instanceKey);
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);
@@ -743,8 +741,7 @@ DbtupProxy::disk_restart_page_bits(Uint32 tableId,
    * preceded by a call to disk_restart_alloc_extent above where
    * this is checked.
    */
-  Uint32 instanceKey = getInstanceKey(tableId, fragId);
-  Uint32 instanceNo = getInstanceFromKey(instanceKey);
+  Uint32 instanceNo = getInstance(tableId, fragId);
 
   Uint32 i = workerIndex(instanceNo);
   Dbtup* dbtup = (Dbtup*)workerBlock(i);

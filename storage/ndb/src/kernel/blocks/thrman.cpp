@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2020 Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,13 +27,14 @@
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/Sync.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/LoadOrd.hpp>
 
 #include <EventLogger.hpp>
 #include <NdbSpin.h>
+#include <NdbHW.hpp>
 
 #define JAM_FILE_ID 440
 
-#define MAIN_THRMAN_INSTANCE 1
 #define NUM_MEASUREMENTS 20
 #define NUM_MEASUREMENT_RECORDS (3 * NUM_MEASUREMENTS)
 
@@ -43,10 +44,18 @@ static Uint32 g_freeze_waiters = 0;
 static bool g_freeze_wakeup = 0;
 
 //#define DEBUG_SPIN 1
+//#define DEBUG_SCHED_WEIGHTS 1
+
 #ifdef DEBUG_SPIN
 #define DEB_SPIN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_SPIN(arglist) do { } while (0)
+#endif
+
+#ifdef DEBUG_SCHED_WEIGHTS
+#define DEB_SCHED_WEIGHTS(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_SCHED_WEIGHTS(arglist) do { } while (0)
 #endif
 
 //define HIGH_DEBUG_CPU_USAGE 1
@@ -81,11 +90,37 @@ Thrman::Thrman(Block_context & ctx, Uint32 instanceno) :
   addRecSignal(GSN_STTOR, &Thrman::execSTTOR);
   addRecSignal(GSN_MEASURE_WAKEUP_TIME_ORD, &Thrman::execMEASURE_WAKEUP_TIME_ORD);
   addRecSignal(GSN_DUMP_STATE_ORD, &Thrman::execDUMP_STATE_ORD);
+  addRecSignal(GSN_UPD_THR_LOAD_ORD, &Thrman::execUPD_THR_LOAD_ORD);
 
   m_enable_adaptive_spinning = false;
   m_allowed_spin_overhead = 130;
   m_phase2_done = false;
   m_is_idle = true;
+  if (!isNdbMtLqh())
+  {
+    jam();
+    m_rep_thrman_instance = 0;
+  }
+  else if (globalData.ndbMtMainThreads == 2)
+  {
+    jam();
+    m_rep_thrman_instance = 2;
+  }
+  else if (globalData.ndbMtMainThreads == 1)
+  {
+    jam();
+    m_rep_thrman_instance = 1;
+  }
+  else
+  {
+    jam();
+    /* Main and rep threads are handled by first receive thread */
+    m_rep_thrman_instance =
+      1 + globalData.ndbMtLqhThreads +
+          globalData.ndbMtTcThreads +
+          globalData.ndbMtQueryThreads +
+          globalData.ndbMtRecoverThreads;
+  }
 }
 
 Thrman::~Thrman()
@@ -137,7 +172,7 @@ Thrman::set_configured_spintime(Uint32 val, bool specific)
   if (val > MAX_SPIN_TIME)
   {
     if (specific ||
-        instance() == MAIN_THRMAN_INSTANCE)
+        instance() == m_main_thrman_instance)
     {
       g_eventLogger->info("(%u)Attempt to set spintime > 500 not possible",
                           instance());
@@ -167,7 +202,7 @@ Thrman::set_allowed_spin_overhead(Uint32 val)
 {
   if (val > MAX_SPIN_OVERHEAD)
   {
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       g_eventLogger->info("AllowedSpinOverhead is max 10000");
     }
@@ -231,7 +266,7 @@ Thrman::set_enable_adaptive_spinning(bool val)
 {
   m_enable_adaptive_spinning = val;
   setSpintime(m_configured_spintime);
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     g_eventLogger->info("(%u) %s adaptive spinning",
                         instance(),
@@ -242,7 +277,7 @@ Thrman::set_enable_adaptive_spinning(bool val)
 void
 Thrman::set_spintime_per_call(Uint32 val)
 {
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     if (val < MIN_SPINTIME_PER_CALL || val > MAX_SPINTIME_PER_CALL)
     {
@@ -285,6 +320,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
   m_send_thread_name = "send";
   m_send_thread_description = "Send thread";
   m_enable_adaptive_spinning = false;
+  m_main_thrman_instance = getMainThrmanInstance();
 
   if (NdbSpin_is_supported())
   {
@@ -298,7 +334,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       jam();
       if (native_strcasecmp(conf, "staticspinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using StaticSpinning according to spintime"
                               " configuration");
@@ -306,7 +342,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       }
       else if (native_strcasecmp(conf, "costbasedspinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using CostBasedSpinning with max spintime = 100"
                               " and allowed spin overhead 70 percent");
@@ -317,7 +353,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       }
       else if (native_strcasecmp(conf, "latencyoptimisedspinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using LatencyOptimisedSpinning with max"
                               " spintime = 200 and allowed spin"
@@ -329,7 +365,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
       }
       else if (native_strcasecmp(conf, "databasemachinespinning"))
       {
-        if (instance() == MAIN_THRMAN_INSTANCE)
+        if (instance() == m_main_thrman_instance)
         {
           g_eventLogger->info("Using DatabaseMachineSpinning with max"
                               " spintime = 500 and"
@@ -405,16 +441,85 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
   m_num_threads = getNumThreads();
 
   c_measurementRecordPool.setSize(NUM_MEASUREMENT_RECORDS);
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     jam();
     c_sendThreadRecordPool.setSize(m_num_send_threads);
     c_sendThreadMeasurementPool.setSize(NUM_MEASUREMENT_RECORDS *
                                         m_num_send_threads);
+    struct ndb_hwinfo *hwinfo = Ndb_GetHWInfo(false);
+    m_is_cpuinfo_available = hwinfo->is_cpuinfo_available;
+    m_is_cpudata_available = hwinfo->is_cpudata_available;
+    if (!m_is_cpudata_available)
+    {
+      jam();
+      c_CPURecordPool.setSize(0);
+      c_CPUMeasurementRecordPool.setSize(0);
+    }
+    else
+    {
+      jam();
+      Uint32 cpu_count = hwinfo->cpu_cnt_max;
+      c_CPURecordPool.setSize(cpu_count);
+      /**
+       * We need one list of 20 records for each CPU and there are
+       * 3 lists, 50ms list, 1sec list and 20sec list.
+       */
+      c_CPUMeasurementRecordPool.setSize(cpu_count *
+                                         NUM_MEASUREMENTS *
+                                         3);
+      for (Uint32 cpu_no = 0; cpu_no < cpu_count; cpu_no++)
+      {
+        jam();
+        CPURecordPtr cpuPtr;
+        c_CPURecordPool.seizeId(cpuPtr, cpu_no);
+        jam();
+        cpuPtr.p = new (cpuPtr.p) CPURecord();
+        ndbrequire(cpuPtr.i == cpu_no);
+        cpuPtr.p->m_cpu_no = cpu_no;
+        for (Uint32 i = 0; i < NUM_MEASUREMENTS; i++)
+        {
+          jam();
+          {
+            LocalDLCFifoList<CPUMeasurementRecord_pool>
+              list(c_CPUMeasurementRecordPool,
+                   cpuPtr.p->m_next_50ms_measure);
+            CPUMeasurementRecordPtr cpuMeasurePtr;
+            c_CPUMeasurementRecordPool.seize(cpuMeasurePtr);
+            jam();
+            cpuMeasurePtr.p = new (cpuMeasurePtr.p) CPUMeasurementRecord();
+            list.addFirst(cpuMeasurePtr);
+            jam();
+	  }
+	  {
+            LocalDLCFifoList<CPUMeasurementRecord_pool>
+              list(c_CPUMeasurementRecordPool,
+                   cpuPtr.p->m_next_1sec_measure);
+            CPUMeasurementRecordPtr cpuMeasurePtr;
+            c_CPUMeasurementRecordPool.seize(cpuMeasurePtr);
+            cpuMeasurePtr.p = new (cpuMeasurePtr.p) CPUMeasurementRecord();
+            list.addFirst(cpuMeasurePtr);
+	  }
+	  {
+            LocalDLCFifoList<CPUMeasurementRecord_pool>
+              list(c_CPUMeasurementRecordPool,
+                   cpuPtr.p->m_next_20sec_measure);
+            CPUMeasurementRecordPtr cpuMeasurePtr;
+            c_CPUMeasurementRecordPool.seize(cpuMeasurePtr);
+            cpuMeasurePtr.p = new (cpuMeasurePtr.p) CPUMeasurementRecord();
+            list.addFirst(cpuMeasurePtr);
+	  }
+        }
+      }
+    }
   }
   else
   {
     jam();
+    c_CPURecordPool.setSize(0);
+    m_is_cpuinfo_available = false;
+    m_is_cpudata_available = false;
+    c_CPUMeasurementRecordPool.setSize(0);
     c_sendThreadRecordPool.setSize(0);
     c_sendThreadMeasurementPool.setSize(0);
   }
@@ -434,7 +539,7 @@ void Thrman::execREAD_CONFIG_REQ(Signal *signal)
     measurePtr.p = new (measurePtr.p) MeasurementRecord();
     c_next_20sec_measure.addFirst(measurePtr);
   }
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     jam();
     for (Uint32 send_instance = 0;
@@ -557,7 +662,7 @@ Thrman::execSTTOR(Signal *signal)
     m_last_1sec_base_measure = m_last_50ms_base_measure;
     m_last_20sec_base_measure = m_last_50ms_base_measure;
 
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       jam();
       for (Uint32 send_instance = 0;
@@ -621,7 +726,7 @@ Thrman::execSTTOR(Signal *signal)
           send_elapsed_time_os;
       }
     }
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       if (getNumThreads() > 1 && NdbSpin_is_supported())
       {
@@ -641,7 +746,6 @@ Thrman::execSTTOR(Signal *signal)
       }
       sendNextCONTINUEB(signal, 50, ZCONTINUEB_MEASURE_CPU_USAGE);
       sendNextCONTINUEB(signal, 10, ZCONTINUEB_CHECK_SPINTIME);
-      return;
     }
     else
     {
@@ -649,16 +753,34 @@ Thrman::execSTTOR(Signal *signal)
       sendNextCONTINUEB(signal, 10, ZCONTINUEB_CHECK_SPINTIME);
       sendSTTORRY(signal, false);
     }
+    if (instance() == m_rep_thrman_instance &&
+        globalData.ndbMtQueryThreads > 0)
+    {
+      jam();
+      initial_query_distribution(signal);
+    }
     return;
   case 2:
   {
     m_gain_spintime_in_us = getWakeupLatency();
-    if (instance() == MAIN_THRMAN_INSTANCE)
+    if (instance() == m_main_thrman_instance)
     {
       g_eventLogger->info("Set wakeup latency to %u microseconds",
                           m_gain_spintime_in_us);
     }
     set_spin_stat(0, true);
+    sendSTTORRY(signal, true);
+    return;
+  }
+  case 9:
+  {
+    if (instance() == m_rep_thrman_instance &&
+        globalData.ndbMtQueryThreads > 0)
+    {
+      jam();
+      signal->theData[0] = ZUPDATE_QUERY_DISTRIBUTION;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+    }
     sendSTTORRY(signal, true);
     return;
   }
@@ -711,10 +833,12 @@ Thrman::measure_wakeup_time(Signal *signal, Uint32 count)
     }
     do
     {
+#ifdef NDB_HAVE_CPU_PAUSE
       for (Uint32 i = 0; i < 20; i++)
       {
         NdbSpin();
       }
+#endif
       NDB_TICKS now2 = NdbTick_getCurrentTicks();
       Uint64 micros_wait = NdbTick_Elapsed(now, now2).microSec();
       if (micros_wait >= 50)
@@ -741,7 +865,7 @@ Thrman::measure_wakeup_time(Signal *signal, Uint32 count)
   }
   m_measured_wait_time = NdbTick_getCurrentTicks();
   BlockReference ref = numberToRef(THRMAN,
-                                   MAIN_THRMAN_INSTANCE + 1, // rep thread
+                                   m_main_thrman_instance + 1, // rep thread
                                    getOwnNodeId());
   signal->theData[0] = count;
   signal->theData[1] = reference();
@@ -755,7 +879,7 @@ Thrman::execMEASURE_WAKEUP_TIME_ORD(Signal *signal)
 {
   Uint32 count = signal->theData[0];
   BlockReference ref = signal->theData[1];
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     measure_wakeup_time(signal, count);
     return;
@@ -776,9 +900,10 @@ Thrman::sendSTTORRY(Signal* signal, bool phase2_done)
   signal->theData[2] = 0;
   signal->theData[3] = 1;
   signal->theData[4] = 2;
-  signal->theData[5] = 255; // No more start phases from missra
+  signal->theData[5] = 9;
+  signal->theData[6] = 255; // No more start phases from missra
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : THRMAN_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
 }
 
 void
@@ -788,11 +913,30 @@ Thrman::execCONTINUEB(Signal *signal)
   Uint32 tcase = signal->theData[0];
   switch (tcase)
   {
+    case ZUPDATE_QUERY_DISTRIBUTION:
+    {
+      jam();
+      update_query_distribution(signal);
+      signal->theData[0] = ZUPDATE_QUERY_DISTRIBUTION;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
+      break;
+    }
+    case ZCONTINUEB_MEASURE_CPU_DATA:
+    {
+      jam();
+      measure_cpu_data(signal);
+      break;
+    }
     case ZCONTINUEB_MEASURE_CPU_USAGE:
     {
       jam();
       measure_cpu_usage(signal);
       sendNextCONTINUEB(signal, 50, ZCONTINUEB_MEASURE_CPU_USAGE);
+      if (m_is_cpudata_available)
+      {
+        signal->theData[0] = ZCONTINUEB_MEASURE_CPU_DATA;
+        sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+      }
       break;
     }
     case ZWAIT_ALL_STOP:
@@ -1506,6 +1650,798 @@ Thrman::check_spintime(bool local_call)
   return;
 }
 
+bool Thrman::calculate_next_CPU_measure(
+   CPUMeasurementRecord *lastCPUMeasurePtrP,
+   CPUMeasurementRecord *firstCPUMeasurePtrP,
+   CPUMeasurementRecord *baseCPUMeasurePtrP,
+   CPURecord *cpuPtrP,
+   Uint32 ms_between_measurements)
+{
+  bool swap = false;
+  if (baseCPUMeasurePtrP->m_first_measure_done)
+  {
+    /**
+     * Last measurement was recorded in firstCPUMeasurePtrP
+     * If there is no measurement there we will record the
+     * measurement in firstCPUMeasurePtrP. If there was a
+     * measurement recorded in firstCPUMeasurePtrP we will
+     * record it in lastCPUMeasurePtrP instead and swap
+     * last into first.
+     */
+    Int64 elapsed_time =
+      cpuPtrP->m_curr_measure.m_time -
+      baseCPUMeasurePtrP->m_time;
+    if (elapsed_time <= 0)
+    {
+      jam();
+      elapsed_time = ms_between_measurements;
+    }
+    if ((elapsed_time + 5) < ms_between_measurements)
+    {
+      jam();
+      /**
+       * It's not time to perform this measurement right now.
+       * We will postpone this measurement until later when elapsed time
+       * is ready for it. We wait until we are within 5ms of the time
+       * between measurements. If elapsed time is negative we have lost
+       * track of time for a short period and will assume that the
+       * estimated time have passed.
+       */
+      return false;
+    }
+    CPUMeasurementRecord *recordCPUMeasurePtrP;
+    if (firstCPUMeasurePtrP->m_first_measure_done)
+    {
+      jam();
+      recordCPUMeasurePtrP = lastCPUMeasurePtrP;
+      swap = true;
+    }
+    else
+    {
+      recordCPUMeasurePtrP = firstCPUMeasurePtrP;
+      swap = false;
+    }
+    recordCPUMeasurePtrP->m_first_measure_done = true;
+    recordCPUMeasurePtrP->m_elapsed_time = elapsed_time;
+
+    Int64 user_time = cpuPtrP->m_curr_measure.m_user_time -
+                       baseCPUMeasurePtrP->m_user_time;
+    if (user_time < 0)
+    {
+      jam();
+      user_time = 0;
+    }
+    recordCPUMeasurePtrP->m_user_time = user_time;
+
+    Int64 sys_time = cpuPtrP->m_curr_measure.m_sys_time -
+                       baseCPUMeasurePtrP->m_sys_time;
+    if (sys_time < 0)
+    {
+      jam();
+      sys_time = 0;
+    }
+    recordCPUMeasurePtrP->m_sys_time = sys_time;
+
+    Int64 idle_time = cpuPtrP->m_curr_measure.m_idle_time -
+                       baseCPUMeasurePtrP->m_idle_time;
+    if (idle_time < 0)
+    {
+      jam();
+      idle_time = 0;
+    }
+    recordCPUMeasurePtrP->m_idle_time = idle_time;
+
+    Int64 interrupt_time =
+                       cpuPtrP->m_curr_measure.m_interrupt_time -
+                       baseCPUMeasurePtrP->m_interrupt_time;
+    if (interrupt_time < 0)
+    {
+      jam();
+      interrupt_time = 0;
+    }
+    recordCPUMeasurePtrP->m_interrupt_time = interrupt_time;
+
+    Int64 exec_vm_time = cpuPtrP->m_curr_measure.m_exec_vm_time -
+                       baseCPUMeasurePtrP->m_exec_vm_time;
+    if (exec_vm_time < 0)
+    {
+      jam();
+      exec_vm_time = 0;
+    }
+    recordCPUMeasurePtrP->m_exec_vm_time = exec_vm_time;
+  }
+  baseCPUMeasurePtrP->m_first_measure_done = true;
+  baseCPUMeasurePtrP->m_user_time = cpuPtrP->m_curr_measure.m_user_time;
+  baseCPUMeasurePtrP->m_sys_time = cpuPtrP->m_curr_measure.m_sys_time;
+  baseCPUMeasurePtrP->m_idle_time = cpuPtrP->m_curr_measure.m_idle_time;
+  baseCPUMeasurePtrP->m_interrupt_time =
+    cpuPtrP->m_curr_measure.m_interrupt_time;
+  baseCPUMeasurePtrP->m_exec_vm_time = cpuPtrP->m_curr_measure.m_exec_vm_time;
+  baseCPUMeasurePtrP->m_time = cpuPtrP->m_curr_measure.m_time;
+  return swap;
+}
+
+#define MICROSEC_PER_MILLISEC 1000
+void Thrman::fill_in_current_measure(CPURecordPtr cpuPtr,
+                                     struct ndb_hwinfo *hwinfo)
+{
+  struct ndb_cpudata *cpu_data = &hwinfo->cpu_data[cpuPtr.i];
+  cpuPtr.p->m_curr_measure.m_user_time =
+    (cpu_data->cs_user_us + cpu_data->cs_nice_us) / MICROSEC_PER_MILLISEC;
+  cpuPtr.p->m_curr_measure.m_sys_time =
+    cpu_data->cs_sys_us / MICROSEC_PER_MILLISEC;
+  cpuPtr.p->m_curr_measure.m_idle_time =
+    (cpu_data->cs_idle_us + cpu_data->cs_iowait_us) / MICROSEC_PER_MILLISEC;
+  cpuPtr.p->m_curr_measure.m_interrupt_time =
+    (cpu_data->cs_irq_us + cpu_data->cs_sirq_us) / MICROSEC_PER_MILLISEC;
+  cpuPtr.p->m_curr_measure.m_exec_vm_time =
+    (cpu_data->cs_steal_us +
+     cpu_data->cs_guest_us +
+     cpu_data->cs_guest_nice_us) / MICROSEC_PER_MILLISEC;
+  cpuPtr.p->m_curr_measure.m_unknown_time =
+    (cpu_data->cs_unknown1_us + cpu_data->cs_unknown2_us) /
+      MICROSEC_PER_MILLISEC;
+  cpuPtr.p->m_curr_measure.m_time =
+    cpuPtr.p->m_curr_measure.m_user_time +
+    cpuPtr.p->m_curr_measure.m_sys_time +
+    cpuPtr.p->m_curr_measure.m_idle_time +
+    cpuPtr.p->m_curr_measure.m_interrupt_time +
+    cpuPtr.p->m_curr_measure.m_exec_vm_time +
+    cpuPtr.p->m_curr_measure.m_unknown_time;
+}
+
+/**
+ *
+ */
+void Thrman::measure_cpu_data(Signal *signal)
+{
+  /**
+   * We start by generating the CPU data for the last 50 ms.
+   */
+  struct ndb_hwinfo *hwinfo = Ndb_GetHWInfo(true);
+  ndbrequire(hwinfo->is_cpuinfo_available);
+  CPUMeasurementRecordPtr firstCPUMeasurePtr;
+  CPUMeasurementRecordPtr lastCPUMeasurePtr;
+  CPUMeasurementRecordPtr baseCPUMeasurePtr;
+  for (Uint32 cpu_no = 0; cpu_no < hwinfo->cpu_cnt_max; cpu_no++)
+  {
+    CPURecordPtr cpuPtr;
+    bool swap;
+    cpuPtr.i = cpu_no;
+    c_CPURecordPool.getPtr(cpuPtr);
+    fill_in_current_measure(cpuPtr, hwinfo);
+    /* Handle 50ms list by generating diff against last measure */
+    {
+      LocalDLCFifoList<CPUMeasurementRecord_pool>
+        list(c_CPUMeasurementRecordPool,
+             cpuPtr.p->m_next_50ms_measure);
+      list.last(lastCPUMeasurePtr);
+      list.first(firstCPUMeasurePtr);
+    }
+    baseCPUMeasurePtr.p = &cpuPtr.p->m_last_50ms_base_measure;
+    swap = calculate_next_CPU_measure(lastCPUMeasurePtr.p,
+                                      firstCPUMeasurePtr.p,
+                                      baseCPUMeasurePtr.p,
+                                      cpuPtr.p,
+                                      50);
+    if (swap)
+    {
+      {
+        LocalDLCFifoList<CPUMeasurementRecord_pool>
+          list(c_CPUMeasurementRecordPool,
+               cpuPtr.p->m_next_50ms_measure);
+        jam();
+        list.remove(lastCPUMeasurePtr);
+        list.addFirst(lastCPUMeasurePtr);
+      }
+    }
+    /* Handle 1sec list by generating diff against last measure */
+    {
+      LocalDLCFifoList<CPUMeasurementRecord_pool>
+        list(c_CPUMeasurementRecordPool,
+             cpuPtr.p->m_next_1sec_measure);
+      list.last(lastCPUMeasurePtr);
+      list.first(firstCPUMeasurePtr);
+    }
+    baseCPUMeasurePtr.p = &cpuPtr.p->m_last_1sec_base_measure;
+    swap = calculate_next_CPU_measure(lastCPUMeasurePtr.p,
+                                      firstCPUMeasurePtr.p,
+                                      baseCPUMeasurePtr.p,
+                                      cpuPtr.p,
+                                      1000);
+    if (swap)
+    {
+      {
+        LocalDLCFifoList<CPUMeasurementRecord_pool>
+          list(c_CPUMeasurementRecordPool,
+               cpuPtr.p->m_next_1sec_measure);
+        jam();
+        list.remove(lastCPUMeasurePtr);
+        list.addFirst(lastCPUMeasurePtr);
+      }
+    }
+    /* Handle 20sec list by generating diff against last measure */
+    {
+      LocalDLCFifoList<CPUMeasurementRecord_pool>
+        list(c_CPUMeasurementRecordPool,
+             cpuPtr.p->m_next_20sec_measure);
+      list.last(lastCPUMeasurePtr);
+      list.first(firstCPUMeasurePtr);
+    }
+    baseCPUMeasurePtr.p = &cpuPtr.p->m_last_20sec_base_measure;
+    swap = calculate_next_CPU_measure(lastCPUMeasurePtr.p,
+                                      firstCPUMeasurePtr.p,
+                                      baseCPUMeasurePtr.p,
+                                      cpuPtr.p,
+                                      20000);
+    if (swap)
+    {
+      {
+        LocalDLCFifoList<CPUMeasurementRecord_pool>
+          list(c_CPUMeasurementRecordPool,
+               cpuPtr.p->m_next_20sec_measure);
+        jam();
+        list.remove(lastCPUMeasurePtr);
+        list.addFirst(lastCPUMeasurePtr);
+      }
+    }
+  }
+}
+
+void
+Thrman::execUPD_THR_LOAD_ORD(Signal *signal)
+{
+  UpdThrLoadOrd * const thrLoadOrd = (UpdThrLoadOrd*)&signal->theData[0];
+  ndbrequire(instance() == m_rep_thrman_instance);
+  Uint32 cpu_load = thrLoadOrd->cpuLoad;
+  Uint32 send_load = thrLoadOrd->sendLoad;
+  Uint32 send_instance = thrLoadOrd->sendInstance;
+  Uint32 first_ldm_instance = getFirstLDMThreadInstance();
+  Uint32 last_ldm_instance = first_ldm_instance +
+                             globalData.ndbMtLqhThreads - 1;
+  Uint32 last_query_instance = last_ldm_instance +
+                               globalData.ndbMtQueryThreads;
+  ndbrequire(send_instance >= first_ldm_instance);
+  ndbrequire(send_instance <= last_query_instance);
+  Uint32 instance_no = send_instance - first_ldm_instance;
+  m_thr_load[instance_no][1] = m_thr_load[instance_no][0];
+  m_thr_load[instance_no][0].m_cpu_load = cpu_load;
+  m_thr_load[instance_no][0].m_send_load = send_load;
+}
+
+void
+Thrman::send_measure_to_rep_thrman(Signal *signal,
+                                   MeasurementRecordPtr measurePtr)
+{
+  Uint32 first_ldm_instance = getFirstLDMThreadInstance();
+  Uint32 last_ldm_instance = first_ldm_instance +
+                             globalData.ndbMtLqhThreads - 1;
+  Uint32 last_query_instance = last_ldm_instance +
+                               globalData.ndbMtQueryThreads;
+  Uint32 our_instance = instance();
+  if (our_instance < first_ldm_instance ||
+      our_instance > last_query_instance)
+  {
+    jam();
+    /* Only THRMAN in LDM and query threads need to send this signal */
+    return;
+  }
+  jam();
+  UpdThrLoadOrd * const thrLoadOrd = (UpdThrLoadOrd*)signal->getDataPtrSend();
+  thrLoadOrd->cpuLoad = m_current_cpu_usage;
+  Uint64 send_time = measurePtr.p->m_send_time_thread;
+  Uint64 elapsed_time = measurePtr.p->m_elapsed_time;
+  if (elapsed_time > 0)
+  {
+    Uint64 send_perc = (send_time * 1000) + 500;
+    send_perc /= (10 * elapsed_time);
+    if ((send_perc + m_current_cpu_usage) <= 100)
+    {
+      thrLoadOrd->sendLoad = send_perc;
+    }
+    else
+    {
+      thrLoadOrd->sendLoad = (100 - m_current_cpu_usage);
+    }
+  }
+  else
+  {
+    thrLoadOrd->sendLoad = 0;
+  }
+  thrLoadOrd->sendInstance = instance();
+  BlockReference ref = numberToRef(THRMAN,
+                                   m_rep_thrman_instance,
+                                   getOwnNodeId());
+  sendSignal(ref, GSN_UPD_THR_LOAD_ORD, signal, 3, JBB);
+}
+
+void
+Thrman::initial_query_distribution(Signal *signal)
+{
+  Uint32 num_ldm_instances = getNumLDMInstances();
+  Uint32 num_query_threads = globalData.ndbMtQueryThreads;
+  Uint32 num_distr_threads = num_ldm_instances + num_query_threads;
+  memset(m_curr_weights, 0, sizeof(m_curr_weights));
+  for (Uint32 i = 0; i < num_distr_threads; i++)
+  {
+    if (i < num_ldm_instances)
+      m_curr_weights[i] = 33;
+    else
+      m_curr_weights[i] = 8;
+  }
+  send_query_distribution(&m_curr_weights[0], signal);
+}
+
+static Int32 get_change_percent(Int32 diff)
+{
+  if (diff <= -40)
+  {
+    /**
+     * There is a major difference such that query threads work much
+     * harder. We will raise weight for all LDM threads to compensate
+     * for this.
+     */
+    return +35;
+  }
+  else if (diff <= -30)
+  {
+    return +30;
+  }
+  else if (diff <= -25)
+  {
+    return +25;
+  }
+  else if (diff <= -20)
+  {
+    return +20;
+  }
+  else if (diff <= -15)
+  {
+    return +15;
+  }
+  else if (diff <= -10)
+  {
+    return +10;
+  }
+  else if (diff <= -5)
+  {
+    return +5;
+  }
+  else if (diff < +5)
+  {
+    /* No major difference, only act on individual differences */
+    return 0;
+  }
+  else if (diff <= +10)
+  {
+    return -5;
+  }
+  else if (diff <= +15)
+  {
+    return -10;
+  }
+  else if (diff <= +20)
+  {
+    return -15;
+  }
+  else if (diff <= +25)
+  {
+    return -20;
+  }
+  else if (diff <= +30)
+  {
+    return -25;
+  }
+  else if (diff <= +35)
+  {
+    return -30;
+  }
+  else
+  {
+    return -35;
+  }
+}
+
+/**
+ * A weighted load takes the load from 100ms into account a bit, it can
+ * affect the weighted load with up to 5%.
+ */
+static Uint32 calculate_weighted_load(Uint32 last_load, Uint32 prev_load)
+{
+  Uint32 abs_difference = last_load > prev_load ?
+                            (last_load - prev_load) :
+                            (prev_load - last_load);
+  if (abs_difference < 10)
+  {
+    return ((last_load + prev_load) / 2);
+  }
+  else if (last_load > prev_load)
+  {
+    return last_load > 25 ? (last_load - 5) : last_load;
+  }
+  else
+  {
+    return last_load < 90 ? (last_load + 5) : last_load;
+  }
+}
+
+static Uint32 apply_change_query(Int32 change,
+                                 bool move_weights_down,
+                                 Uint32 in_weight)
+{
+  Int32 desired_change = 0;
+  Uint32 abs_change = (change > 0) ? Uint32(change) : Uint32(-change);
+  Uint32 max_change = 1;
+  if ((change > 0 && !move_weights_down) ||
+      (change < 0 && move_weights_down))
+  {
+    max_change = 2;
+  }
+  if (max_change == 1)
+  {
+    if (abs_change >= 5)
+    {
+      desired_change = 1;
+    }
+  }
+  else
+  {
+    if (abs_change >= 20)
+    {
+      desired_change = 2;
+    }
+    else if (abs_change >= 5)
+    {
+      desired_change = 1;
+    }
+  }
+  if (change < 0)
+  {
+    desired_change *= Int32(-1);
+  }
+  Int32 new_weight = Int32(in_weight) + desired_change;
+  if (new_weight < 0)
+  {
+    new_weight = 0;
+  }
+  else if (new_weight > MAX_DISTRIBUTION_WEIGHT)
+  {
+    new_weight = MAX_DISTRIBUTION_WEIGHT;
+  }
+  return Uint32(new_weight);
+
+}
+
+static Uint32 apply_change_ldm(Int32 change,
+                               Uint32 in_weight)
+{
+  Int32 desired_change = 0;
+  if (change < Int32(-2))
+  {
+    if (change < Int32(-15))
+    {
+      desired_change = -3;
+    }
+    else if (change < Int32(-9))
+    {
+      desired_change = -2;
+    }
+    else
+    {
+      desired_change = -1;
+    }
+    /* Decrease weight */
+  }
+  else if (change >= 3)
+  {
+    if (change > Int32(+15))
+    {
+      desired_change = +3;
+    }
+    else if (change > Int32(+9))
+    {
+      desired_change = +3;
+    }
+    else
+    {
+      desired_change = +1;
+    }
+  }
+  else
+  {
+    desired_change = 0;
+  }
+
+  Int32 new_weight = (Int32)in_weight + desired_change;
+  if (new_weight < 0)
+  {
+    new_weight = 0;
+  }
+  else if (new_weight > MAX_LDM_DISTRIBUTION_WEIGHT)
+  {
+    new_weight = MAX_DISTRIBUTION_WEIGHT;
+  }
+  return Uint32(new_weight);
+}
+
+void Thrman::check_weights()
+{
+  Uint32 num_ldm_instances = getNumLDMInstances();
+  Uint32 num_query_threads = globalData.ndbMtQueryThreads;
+  Uint32 num_distr_threads = num_ldm_instances + num_query_threads;
+  for (Uint32 i = 0; i < num_ldm_instances; i++)
+  {
+    ndbrequire(m_curr_weights[i] <= MAX_LDM_DISTRIBUTION_WEIGHT);
+  }
+  for (Uint32 i = num_ldm_instances; i < num_distr_threads; i++)
+  {
+    ndbrequire(m_curr_weights[i] <= MAX_DISTRIBUTION_WEIGHT);
+  }
+}
+
+void
+Thrman::update_query_distribution(Signal *signal)
+{
+  Uint32 average_cpu_load_ldm = 0;
+  Uint32 average_cpu_load_query = 0;
+  Uint32 average_send_load_ldm = 0;
+  Uint32 average_send_load_query = 0;
+  Uint32 max_load_ldm = 0;
+  Uint32 max_load_query = 0;
+  check_weights();
+  /**
+   * This function takes the CPU load information from the last
+   * 100 milliseconds and use this information to calculate the
+   * weights to be used by DBTC, DBSPJ and the receive threads
+   * when mapping virtual blocks to LDM and query thread instances.
+   */
+  Uint32 num_ldm_instances = getNumLDMInstances();
+  Uint32 num_query_threads = globalData.ndbMtQueryThreads;
+  Uint32 num_distr_threads = num_ldm_instances + num_query_threads;
+  Uint32 sum_cpu_load = 0;
+  Uint32 sum_send_load = 0;
+  Uint32 weighted_cpu_load[MAX_DISTR_THREADS];
+  /**
+   * Count sum of CPU load in LDM threads
+   * Count sum of send CPU load in LDM threads
+   * Count sum of CPU load in LDM and Query threads
+   * Count sum of send CPU load in LDM and Query threads
+   * Count max CPU load on any LDM thread
+   * Count max send CPU load on any LDM thread
+   */
+  for (Uint32 i = 0; i < num_ldm_instances; i++)
+  {
+    Uint32 cpu_load =
+      calculate_weighted_load(m_thr_load[i][0].m_cpu_load,
+                              m_thr_load[i][1].m_cpu_load);
+    weighted_cpu_load[i] = cpu_load;
+    Uint32 send_load =
+      calculate_weighted_load(m_thr_load[i][0].m_send_load,
+                              m_thr_load[i][1].m_send_load);
+    sum_cpu_load += cpu_load;
+    sum_send_load += send_load;
+    max_load_ldm = MAX(cpu_load + send_load, max_load_ldm);
+  }
+  /* Calculate average CPU and send CPU load on LDM threads */
+  average_cpu_load_ldm = sum_cpu_load / num_ldm_instances;
+  average_send_load_ldm = sum_send_load / num_ldm_instances;
+  sum_cpu_load = 0;
+  sum_send_load = 0;
+  ndbrequire(num_query_threads != 0)
+  {
+    /**
+     * Count sum of CPU load on Query threads
+     * Count sum of send CPU load on Query threads
+     * Count sum of CPU load in LDM and Query threads
+     * Count sum of send CPU load in LDM and Query threads
+     * Count max CPU load on any Query thread
+     * Count max send CPU load on any Query thread
+     */
+    for (Uint32 i = num_ldm_instances; i < num_distr_threads; i++)
+    {
+      Uint32 cpu_load =
+        calculate_weighted_load(m_thr_load[i][0].m_cpu_load,
+                                m_thr_load[i][1].m_cpu_load);
+      weighted_cpu_load[i] = cpu_load;
+      Uint32 send_load =
+        calculate_weighted_load(m_thr_load[i][0].m_send_load,
+                                m_thr_load[i][1].m_send_load);
+      sum_cpu_load += cpu_load;
+      sum_send_load += send_load;
+      max_load_query = MAX(cpu_load + send_load, max_load_query);
+    }
+    /* Calculate average CPU and send CPU load on Query threads */
+    average_cpu_load_query = sum_cpu_load / num_query_threads;
+    average_send_load_query = sum_send_load / num_query_threads;
+  }
+  /* Calculate average and max CPU load on Query and LDM threads */
+  Uint32 average_cpu_load = sum_cpu_load /
+                            (num_ldm_instances + num_query_threads);
+  Uint32 max_load = MAX(max_load_ldm, max_load_query);
+
+  if (average_cpu_load < 30 &&
+      max_load < 40)
+  {
+    /**
+     * No high average load on LDM threads and no threads in critical
+     * load states. We use the initial query distribution again to
+     * initialise the state machinery again.
+     */
+    jam();
+    initial_query_distribution(signal);
+    return;
+  }
+  Uint32 average_weight;
+  {
+    /**
+     * We first check if we primarily should move weights up or
+     * down. If average is 8 or above we should primarily drive
+     * weights downs and if below we should primarily drive them
+     * up.
+     *
+     * In practice what we do is that we allow a change of 1 step
+     * only in the opposite direction and up to 2 steps in the
+     * desired direction.
+     */
+    Uint32 sum_weights = 0;
+    for (Uint32 i = 0; i < num_ldm_instances; i++)
+    /* Count sum of LDM thread weights that we currently use */
+    {
+      sum_weights += m_curr_weights[i];
+    }
+    /* Count sum of Query thread weights that we currently use */
+    ndbrequire(num_query_threads != 0)
+    {
+      for (Uint32 i = num_ldm_instances; i < num_distr_threads; i++)
+      {
+        sum_weights += m_curr_weights[i];
+      }
+      /* Count average Query thread weights that we currently use */
+      average_weight = sum_weights / (num_query_threads + num_ldm_instances);
+    }
+  }
+  bool move_weights_down = (average_weight < (MAX_DISTRIBUTION_WEIGHT / 2));
+
+  /**
+   * Now for each thread try to move the weight such that it moves towards
+   * the average CPU load. For query threads we want all query threads to
+   * move towards the same average load. Thus we compare our load with
+   * the load of the other query threads.
+   *
+   * For LDM threads it can be expected that they sometimes have differing
+   * loads since they don't necessarily have a balanced load. Here we try
+   * to move the weight such that LDMs conform to the average load of all
+   * CPUs.
+   */
+  for (Uint32 i = 0; i < num_ldm_instances; i++)
+  {
+    Uint32 cpu_load = weighted_cpu_load[i];
+    Uint32 diff = average_cpu_load_query - cpu_load;
+    m_curr_weights[i] = apply_change_ldm(diff,
+                                         m_curr_weights[i]);
+  }
+  for (Uint32 i = num_ldm_instances; i < num_distr_threads; i++)
+  {
+    Uint32 cpu_load = weighted_cpu_load[i];
+    Uint32 loc_change =
+      get_change_percent(cpu_load - average_cpu_load_query);
+    m_curr_weights[i] = apply_change_query(loc_change,
+                                           move_weights_down,
+                                           m_curr_weights[i]);
+  }
+  DEB_SCHED_WEIGHTS(("LDM/QT CPU load stats: %u %u %u %u %u %u %u %u"
+                     " %u %u %u %u %u %u %u %u",
+    weighted_cpu_load[0], weighted_cpu_load[1], weighted_cpu_load[2],
+    weighted_cpu_load[3], weighted_cpu_load[4], weighted_cpu_load[5],
+    weighted_cpu_load[6], weighted_cpu_load[7], weighted_cpu_load[8],
+    weighted_cpu_load[9], weighted_cpu_load[10], weighted_cpu_load[11],
+    weighted_cpu_load[12], weighted_cpu_load[13], weighted_cpu_load[14],
+    weighted_cpu_load[15]));
+  check_weights();
+  for (Uint32 i = 0; i < num_ldm_instances; i++)
+  {
+    if (m_curr_weights[i] == 0)
+    {
+      Uint32 num_query_thread_per_ldm = globalData.QueryThreadsPerLdm;
+      Uint32 query_inx = num_ldm_instances +
+                         (i * num_query_thread_per_ldm);
+      Uint32 query_load = weighted_cpu_load[query_inx];
+      Uint32 ldm_load = weighted_cpu_load[i];
+      /**
+       * LDM load is only allowed to be at 0 if it is fully used,
+       * we set the limit to be 80% CPU load. If the LDM load is over
+       * 80% we will stop assisting the query threads since our
+       * adaptive algorithm decided so.
+       *
+       * We will not stop using LDM thread until query thread is at least
+       * 8% higher than the LDM thread. If LDM thread is very highly loaded
+       * AND query threads as well, it makes sense to continue using the
+       * LDM thread as well for READ COMMITTED queries even if the load
+       * is above 80%.
+       */
+      if (((query_load + 8) >= ldm_load) ||
+          ldm_load <= 80)
+      {
+        m_curr_weights[i] = 1;
+      }
+    }
+  }
+  for (Uint32 i = num_ldm_instances; i < num_distr_threads; i++)
+  {
+    if (m_curr_weights[i] == 0)
+    {
+      /**
+       * Only LDM threads are allowed to set their weight to 0.
+       * Query threads must always be accessible with at least a
+       * small weight. If set to 0 the query thread would not
+       * be used at all which is a bit useless. So going below
+       * 1 for query threads isn't very practical.
+       *
+       * LDM threads has a lot of activities that they will do
+       * even in the case when they don't assist query threads.
+       * So they are allowed to drop to 0 and not do any work
+       * on query thread activities.
+       */
+      m_curr_weights[i] = 1;
+    }
+  }
+  send_query_distribution(&m_curr_weights[0], signal);
+}
+
+void
+Thrman::send_query_distribution(Uint32 *weights, Signal *signal)
+{
+  Uint32 num_ldm_instances = getNumLDMInstances();
+  Uint32 num_query_threads = globalData.ndbMtQueryThreads;
+  Uint32 num_distr_threads = num_ldm_instances + num_query_threads;
+  BlockReference ref;
+
+  DEB_SCHED_WEIGHTS(("LDM/QT weights: %u %u %u %u %u %u %u %u"
+                     " %u %u %u %u %u %u %u %u",
+                     weights[0], weights[1], weights[2], weights[3],
+                     weights[4], weights[5], weights[6], weights[7],
+                     weights[8], weights[9], weights[10], weights[11],
+                     weights[12], weights[13], weights[14], weights[15]));
+  if (!isNdbMtLqh())
+  {
+    {
+      signal->theData[0] = 0;
+      LinearSectionPtr lsptr[3];
+      lsptr[0].p = weights;
+      lsptr[0].sz = 1;
+      sendSignal(DBTC, GSN_UPD_QUERY_DIST_ORD, signal, 1, JBB, lsptr, 1);
+    }
+    {
+      signal->theData[0] = 0;
+      LinearSectionPtr lsptr[3];
+      lsptr[0].p = weights;
+      lsptr[0].sz = 1;
+      sendSignal(TRPMAN, GSN_UPD_QUERY_DIST_ORD, signal, 1, JBB, lsptr, 1);
+    }
+    return;
+  }
+  Uint32 num_recv_threads = globalData.ndbMtReceiveThreads;
+  for (Uint32 i = 0; i < num_recv_threads; i++)
+  {
+    ref = numberToRef(TRPMAN, i + 1, getOwnNodeId());
+    signal->theData[0] = 0;
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = weights;
+    lsptr[0].sz = num_distr_threads;
+    sendSignal(ref, GSN_UPD_QUERY_DIST_ORD, signal, 1, JBB, lsptr, 1);
+  }
+  Uint32 num_tc_instances = getNumTCInstances();
+  for (Uint32 i = 0; i < num_tc_instances; i++)
+  {
+    ref = numberToRef(DBTC, i + 1, getOwnNodeId());
+    signal->theData[0] = 0;
+    LinearSectionPtr lsptr[3];
+    lsptr[0].p = weights;
+    lsptr[0].sz = num_distr_threads;
+    sendSignal(ref, GSN_UPD_QUERY_DIST_ORD, signal, 1, JBB, lsptr, 1);
+  }
+}
+
 /**
  * We call this function every 50 milliseconds.
  * 
@@ -1734,13 +2670,14 @@ Thrman::measure_cpu_usage(Signal *signal)
     }
     if (m_current_cpu_usage >= 40)
     {
-    DEB_SPIN(("(%u)Current CPU usage is %u percent",
-              instance(),
-              m_current_cpu_usage));
+      DEB_SPIN(("(%u)Current CPU usage is %u percent",
+                instance(),
+                m_current_cpu_usage));
     }
     c_next_50ms_measure.remove(measurePtr);
     c_next_50ms_measure.addLast(measurePtr);
     prev_50ms_tick = curr_time;
+    send_measure_to_rep_thrman(signal, measurePtr);
   }
   if (elapsed_1sec > Uint64(1000 * 1000))
   {
@@ -1772,7 +2709,7 @@ Thrman::measure_cpu_usage(Signal *signal)
     c_next_20sec_measure.addLast(measurePtr);
     prev_20sec_tick = curr_time;
   }
-  if (instance() == MAIN_THRMAN_INSTANCE)
+  if (instance() == m_main_thrman_instance)
   {
     jam();
     for (Uint32 send_instance = 0;
@@ -2840,7 +3777,7 @@ Thrman::sendOVERLOAD_STATUS_REP(Signal *signal)
   signal->theData[0] = instance();
   signal->theData[1] = m_current_overload_status;
   BlockReference ref = numberToRef(THRMAN,
-                                   MAIN_THRMAN_INSTANCE,
+                                   m_main_thrman_instance,
                                    getOwnNodeId());
   sendSignal(ref, GSN_OVERLOAD_STATUS_REP, signal, 2, JBB);
 }
@@ -3117,6 +4054,68 @@ Thrman::check_overload_status(Signal *signal,
 }
 
 void
+Thrman::send_cpu_measurement_row(DbinfoScanReq & req,
+                                 Ndbinfo::Ratelimit & rl,
+                                 Signal *signal,
+                                 CPUMeasurementRecordPtr cpuMeasurePtr,
+                                 Uint32 cpu_no,
+                                 Uint32 online)
+{
+  Ndbinfo::Row row(signal, req);
+  row.write_uint32(getOwnNodeId());
+  row.write_uint32(cpu_no);
+  row.write_uint32(online);
+
+  Uint64 elapsed_time = cpuMeasurePtr.p->m_elapsed_time;
+  Uint64 user_time = cpuMeasurePtr.p->m_user_time;
+  user_time = (user_time * elapsed_time) / 1000;
+  row.write_uint32(Uint32(user_time));
+
+  Uint64 idle_time = cpuMeasurePtr.p->m_idle_time;
+  idle_time = (idle_time * elapsed_time) / 1000;
+  row.write_uint32(Uint32(idle_time));
+
+  Uint64 sys_time = cpuMeasurePtr.p->m_sys_time;
+  sys_time = (sys_time * elapsed_time) / 1000;
+  row.write_uint32(Uint32(sys_time));
+
+  Uint64 interrupt_time = cpuMeasurePtr.p->m_interrupt_time;
+  interrupt_time = (interrupt_time * elapsed_time) / 1000;
+  row.write_uint32(Uint32(interrupt_time));
+
+  Uint64 exec_vm_time = cpuMeasurePtr.p->m_exec_vm_time;
+  exec_vm_time = (exec_vm_time * elapsed_time) / 1000;
+  row.write_uint32(Uint32(exec_vm_time));
+
+  ndbinfo_send_row(signal, req, row, rl);
+}
+
+void
+Thrman::send_cpu_raw_measurement_row(DbinfoScanReq & req,
+                                     Ndbinfo::Ratelimit & rl,
+                                     Signal *signal,
+                                     CPUMeasurementRecordPtr cpuMeasurePtr,
+                                     Uint32 cpu_no,
+                                     Uint32 measurement_id,
+                                     Uint32 online)
+{
+  Ndbinfo::Row row(signal, req);
+  row.write_uint32(getOwnNodeId());
+  row.write_uint32(measurement_id);
+  row.write_uint32(cpu_no);
+  row.write_uint32(online);
+
+  row.write_uint32(Uint32(cpuMeasurePtr.p->m_user_time));
+  row.write_uint32(Uint32(cpuMeasurePtr.p->m_idle_time));
+  row.write_uint32(Uint32(cpuMeasurePtr.p->m_sys_time));
+  row.write_uint32(Uint32(cpuMeasurePtr.p->m_interrupt_time));
+  row.write_uint32(Uint32(cpuMeasurePtr.p->m_exec_vm_time));
+  row.write_uint32(Uint32(cpuMeasurePtr.p->m_elapsed_time));
+
+  ndbinfo_send_row(signal, req, row, rl);
+}
+
+void
 Thrman::execDBINFO_SCANREQ(Signal* signal)
 {
   jamEntry();
@@ -3127,6 +4126,190 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
   Ndbinfo::Ratelimit rl;
 
   switch(req.tableId) {
+  case Ndbinfo::HWINFO_TABLEID:
+  {
+    if (instance() == m_main_thrman_instance)
+    {
+      struct ndb_hwinfo *info = Ndb_GetHWInfo(false);
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(info->cpu_cnt_max);
+      row.write_uint32(info->cpu_cnt);
+      row.write_uint32(info->num_cpu_cores);
+      row.write_uint32(info->num_cpu_sockets);
+      row.write_uint64(info->hw_memory_size);
+      row.write_string(info->cpu_model_name);
+      ndbinfo_send_row(signal, req, row, rl);
+    }
+    break;
+  }
+  case Ndbinfo::CPUINFO_TABLEID:
+  {
+    if (m_is_cpuinfo_available)
+    {
+      struct ndb_hwinfo *info = Ndb_GetHWInfo(false);
+      Uint32 pos = cursor->data[0];
+      for (;;)
+      {
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        row.write_uint32(info->cpu_info[pos].cpu_no);
+        row.write_uint32(info->cpu_info[pos].online);
+        row.write_uint32(info->cpu_info[pos].core_id);
+        row.write_uint32(info->cpu_info[pos].socket_id);
+        ndbinfo_send_row(signal, req, row, rl);
+        pos++;
+        if (pos == info->cpu_cnt_max)
+        {
+          break;
+        }
+        if (rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, pos);
+          return;
+        }
+      }
+    }
+    break;
+  }
+  case Ndbinfo::CPUDATA_TABLEID:
+  {
+    if (m_is_cpudata_available)
+    {
+      struct ndb_hwinfo *info = Ndb_GetHWInfo(false);
+      Uint32 cpu_no = cursor->data[0];
+      for (;;)
+      {
+        CPURecordPtr cpuPtr;
+        CPUMeasurementRecordPtr cpuMeasurePtr;
+        cpuPtr.i = cpu_no;
+        c_CPURecordPool.getPtr(cpuPtr);
+        {
+          LocalDLCFifoList<CPUMeasurementRecord_pool>
+            list(c_CPUMeasurementRecordPool,
+                 cpuPtr.p->m_next_1sec_measure);
+	  list.first(cpuMeasurePtr);
+        }
+        if (cpuMeasurePtr.p->m_first_measure_done)
+        {
+          send_cpu_measurement_row(req,
+                                   rl,
+                                   signal,
+                                   cpuMeasurePtr,
+                                   cpu_no,
+                                   info->cpu_data[cpu_no].online);
+        }
+        cpu_no++;
+        if (cpu_no == info->cpu_cnt_max)
+        {
+          break;
+        }
+        if (rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, cpu_no);
+          return;
+        }
+      }
+    }
+    break;
+  }
+  case Ndbinfo::CPUDATA_50MS_TABLEID:
+  case Ndbinfo::CPUDATA_1SEC_TABLEID:
+  case Ndbinfo::CPUDATA_20SEC_TABLEID:
+  {
+    if (m_is_cpudata_available)
+    {
+      struct ndb_hwinfo *info = Ndb_GetHWInfo(false);
+      Uint32 cpu_no = cursor->data[0];
+      for (;;)
+      {
+        CPURecordPtr cpuPtr;
+        CPUMeasurementRecordPtr cpuMeasurePtr;
+        cpuPtr.i = cpu_no;
+        c_CPURecordPool.getPtr(cpuPtr);
+        if (req.tableId == Ndbinfo::CPUDATA_50MS_TABLEID)
+        {
+          LocalDLCFifoList<CPUMeasurementRecord_pool>
+            list(c_CPUMeasurementRecordPool,
+                 cpuPtr.p->m_next_50ms_measure);
+          list.first(cpuMeasurePtr);
+        }
+        else if (req.tableId == Ndbinfo::CPUDATA_1SEC_TABLEID)
+        {
+          LocalDLCFifoList<CPUMeasurementRecord_pool>
+            list(c_CPUMeasurementRecordPool,
+                 cpuPtr.p->m_next_1sec_measure);
+          list.first(cpuMeasurePtr);
+        }
+        else if (req.tableId == Ndbinfo::CPUDATA_20SEC_TABLEID)
+        {
+          LocalDLCFifoList<CPUMeasurementRecord_pool>
+            list(c_CPUMeasurementRecordPool,
+                 cpuPtr.p->m_next_20sec_measure);
+          list.first(cpuMeasurePtr);
+        }
+        else
+        {
+          ndbabort();
+        }
+        Uint32 loop_count = 0;
+        do
+        {
+          ndbrequire(loop_count < NUM_MEASUREMENTS);
+          if (cpuMeasurePtr.p->m_first_measure_done)
+          {
+            send_cpu_raw_measurement_row(req,
+                                         rl,
+                                         signal,
+                                         cpuMeasurePtr,
+                                         cpu_no,
+                                         loop_count,
+                                         info->cpu_data[cpu_no].online);
+          }
+          if (req.tableId == Ndbinfo::CPUDATA_50MS_TABLEID)
+          {
+            LocalDLCFifoList<CPUMeasurementRecord_pool>
+              list(c_CPUMeasurementRecordPool,
+                   cpuPtr.p->m_next_50ms_measure);
+            list.next(cpuMeasurePtr);
+          }
+          else if (req.tableId == Ndbinfo::CPUDATA_1SEC_TABLEID)
+          {
+            LocalDLCFifoList<CPUMeasurementRecord_pool>
+              list(c_CPUMeasurementRecordPool,
+                   cpuPtr.p->m_next_1sec_measure);
+            list.next(cpuMeasurePtr);
+          }
+          else if (req.tableId == Ndbinfo::CPUDATA_20SEC_TABLEID)
+          {
+            LocalDLCFifoList<CPUMeasurementRecord_pool>
+              list(c_CPUMeasurementRecordPool,
+                   cpuPtr.p->m_next_20sec_measure);
+            list.next(cpuMeasurePtr);
+          }
+          else
+          {
+            ndbabort();
+          }
+          loop_count++;
+        } while (cpuMeasurePtr.i != RNIL);
+        cpu_no++;
+        if (cpu_no == info->cpu_cnt_max)
+        {
+          break;
+        }
+        if (rl.need_break(req))
+        {
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, cpu_no);
+          return;
+        }
+      }
+    }
+    break;
+  }
   case Ndbinfo::THREADS_TABLEID: {
     Uint32 pos = cursor->data[0];
     for (;;)
@@ -3141,7 +4324,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         row.write_string(m_thread_description);
         ndbinfo_send_row(signal, req, row, rl);
       }
-      if (instance() != MAIN_THRMAN_INSTANCE)
+      if (instance() != m_main_thrman_instance)
       {
         jam();
         break;
@@ -3178,7 +4361,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
     break;
   }
   case Ndbinfo::THREADBLOCKS_TABLEID: {
-    Uint32 arr[NO_OF_BLOCKS];
+    Uint32 arr[MAX_INSTANCES_PER_THREAD];
     Uint32 len = mt_get_blocklist(this, arr, NDB_ARRAY_SIZE(arr));
     Uint32 pos = cursor->data[0];
     for (; ; )
@@ -3311,7 +4494,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
          * main thread.
          */
         jam();
-        if (instance() != MAIN_THRMAN_INSTANCE)
+        if (instance() != m_main_thrman_instance)
         {
           g_eventLogger->info("pos_thread_id = %u in non-main thread",
                               pos_thread_id);
@@ -3368,7 +4551,8 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         row.write_uint32(Uint32(measurePtr.p->m_elapsed_time));
         ndbinfo_send_row(signal, req, row, rl);
       }
-      else if (pos_thread_id != 0 && sendThreadMeasurementPtr.p->m_first_measure_done)
+      else if (pos_thread_id != 0 &&
+               sendThreadMeasurementPtr.p->m_first_measure_done)
       {
         jam();
         row.write_uint32(getOwnNodeId());
@@ -3403,7 +4587,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
          * We are done with this thread, we need to either move on to next
          * send thread or stop.
          */
-        if (instance() != MAIN_THRMAN_INSTANCE)
+        if (instance() != m_main_thrman_instance)
         {
           jam();
           break;
@@ -3711,7 +4895,7 @@ Thrman::execDBINFO_SCANREQ(Signal* signal)
         }
 
         ndbinfo_send_row(signal, req, row, rl);
-        if (instance() != MAIN_THRMAN_INSTANCE ||
+        if (instance() != m_main_thrman_instance ||
             m_num_send_threads == 0)
         {
           jam();
@@ -3876,7 +5060,7 @@ Thrman::execFREEZE_THREAD_REQ(Signal *signal)
    * load. It is important synchronize this to ensure that signals
    * continue to arrive to the destination threads in signal order.
    */
-  if (instance() != 1)
+  if (instance() != m_main_thrman_instance)
   {
     flush_send_buffers();
     wait_freeze(false);
@@ -3980,7 +5164,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104000 spintime");
       }
@@ -3992,7 +5176,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 3)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104001 thr_no spintime");
       }
@@ -4009,7 +5193,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104002 AllowedSpinOverhead");
       }
@@ -4021,7 +5205,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104003 SpintimePerCall");
       }
@@ -4033,7 +5217,7 @@ Thrman::execDUMP_STATE_ORD(Signal *signal)
   {
     if (signal->length() != 2)
     {
-      if (instance() == MAIN_THRMAN_INSTANCE)
+      if (instance() == m_main_thrman_instance)
       {
         g_eventLogger->info("Use: DUMP 104004 0/1"
                             " (Enable/Disable Adaptive Spinning");

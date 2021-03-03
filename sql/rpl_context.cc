@@ -38,7 +38,7 @@ Session_consistency_gtids_ctx::Session_consistency_gtids_ctx()
     : m_sid_map(nullptr),
       m_gtid_set(nullptr),
       m_listener(nullptr),
-      m_curr_session_track_gtids(OFF) {}
+      m_curr_session_track_gtids(SESSION_TRACK_GTIDS_OFF) {}
 
 Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx() {
   if (m_gtid_set) {
@@ -55,7 +55,8 @@ Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx() {
 inline bool Session_consistency_gtids_ctx::shall_collect(const THD *thd) {
   return /* Do not track OWN_GTID if session does not own a
             (non-anonymous) GTID. */
-      (thd->owned_gtid.sidno > 0 || m_curr_session_track_gtids == ALL_GTIDS) &&
+      (thd->owned_gtid.sidno > 0 ||
+       m_curr_session_track_gtids == SESSION_TRACK_GTIDS_ALL_GTIDS) &&
       /* if there is no listener/tracker, then there is no reason to collect */
       m_listener != nullptr &&
       /* ROLLBACK statements may end up calling trans_commit_stmt */
@@ -71,7 +72,7 @@ bool Session_consistency_gtids_ctx::notify_after_transaction_commit(
 
   if (!shall_collect(thd)) return res;
 
-  if (m_curr_session_track_gtids == ALL_GTIDS) {
+  if (m_curr_session_track_gtids == SESSION_TRACK_GTIDS_ALL_GTIDS) {
     /*
      If one is configured to read all writes, we always collect
      the GTID_EXECUTED.
@@ -97,7 +98,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
 
   if (!shall_collect(thd)) return res;
 
-  if (m_curr_session_track_gtids == OWN_GTID) {
+  if (m_curr_session_track_gtids == SESSION_TRACK_GTIDS_OWN_GTID) {
     DBUG_ASSERT(global_gtid_mode.get() != Gtid_mode::OFF);
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
     const Gtid &gtid = thd->owned_gtid;

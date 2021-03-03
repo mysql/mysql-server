@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&22.255.\ \&Command\-line options for the ndb_mgmd program
+.B Table\ \&23.25.\ \&Command\-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -57,23 +57,23 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l.
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l.
 T{
 .PP
 \fB \fR\fB--bind-address=host\fR\fB \fR
@@ -320,7 +320,7 @@ TRUE, or
 ON), can be used to disable the management server\*(Aqs configuration cache, so that it reads its configuration from
 config\&.ini
 every time it starts (see
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
+Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
 \fBndb_mgmd\fR
 process with any one of the following options:
 .sp
@@ -477,7 +477,7 @@ option, or because the management server could not find any configuration cache\
 \fBndb_mgmd\fR
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
+Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -592,7 +592,7 @@ T}
 .TE
 .sp 1
 Configuration data is cached internally, rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
+Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
 \fB\-\-initial\fR
 option overrides this behavior, by forcing the management server to delete any existing cache files, and then to re\-read the configuration data from the cluster configuration file and to build a new cache\&.
 .sp
@@ -611,7 +611,7 @@ is invoked with
 but cannot find a global configuration file, the management server cannot start\&.
 .sp
 When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data\&. This behavior has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+Section\ \&23.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .sp
 When used together with the
 \fB\-\-config\-file\fR
@@ -983,7 +983,7 @@ shell> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as NDB Cluster SQL nodes connected to this cluster\&. See
-Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
+Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -1085,7 +1085,7 @@ T}
 .TE
 .sp 1
 NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
 \fB\-\-initial\fR
@@ -1104,7 +1104,7 @@ When
 is used, the management server must be able to communicate with data nodes and any other management servers in the cluster before it attempts to read the global configuration file; otherwise, the management server fails to start\&. This can happen due to changes in the networking environment, such as new IP addresses for nodes or an altered firewall configuration\&. In such cases, you must use
 \fB\-\-initial\fR
 instead to force the exsiting cached configuration to be discarded and reloaded from the file\&. See
-Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
+Section\ \&23.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
 .RE
 .sp
 .RS 4
@@ -1185,7 +1185,7 @@ Remove a management server process that has been installed as a Windows service,
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
+Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
 \fBndb_mgmd\fR(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP
@@ -1209,7 +1209,7 @@ is the unique node identifier\&.
 .\}
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&22.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
+Section\ \&23.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4
@@ -1222,7 +1222,7 @@ Section\ \&22.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up t
 .\}
 ndb_\fInode_id\fR_cluster\&.log
 is the cluster events log file\&. Examples of such events include checkpoint startup and completion, node startup events, node failures, and levels of memory usage\&. A complete listing of cluster events with descriptions may be found in
-Section\ \&22.5, \(lqManagement of NDB Cluster\(rq\&.
+Section\ \&23.5, \(lqManagement of NDB Cluster\(rq\&.
 .sp
 By default, when the size of the cluster log reaches one million bytes, the file is renamed to
 ndb_\fInode_id\fR_cluster\&.log\&.\fIseq_id\fR, where

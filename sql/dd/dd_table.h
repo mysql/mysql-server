@@ -494,5 +494,16 @@ void warn_on_deprecated_prefix_key_partition(THD *thd, const char *schema_name,
                                              const Table *table,
                                              const bool is_upgrade);
 
+/**
+  Get the autoextend_size option value for implicit tablespaces
+  @param  thd             Thread handler
+  @param  table           dd::Table instance
+  @param  autoextend_size Value of autoextend_size attribute
+
+  @return true  - On failure
+  @return false - On success
+*/
+bool get_implicit_tablespace_options(THD *thd, const Table *table,
+                                     ulonglong *autoextend_size);
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

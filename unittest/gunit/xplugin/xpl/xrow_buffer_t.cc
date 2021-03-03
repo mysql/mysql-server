@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,8 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
+#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "unittest/gunit/xplugin/xpl/encoder_validator.h"
 #include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 

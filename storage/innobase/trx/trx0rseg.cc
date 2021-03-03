@@ -258,7 +258,7 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
   auto len = flst_get_len(rseg_header + TRX_RSEG_HISTORY);
 
   if (len > 0) {
-    trx_sys->rseg_history_len += len;
+    trx_sys->rseg_history_len.fetch_add(len);
 
     /* Extract GTID from history and send to GTID persister. */
     trx_rseg_persist_gtid(rseg, gtid_trx_no);
@@ -337,7 +337,7 @@ They require an upgrade of undo tablespaces and that cannot happen with
 active undo logs.
 @param[in]	purge_queue	queue of rsegs to purge */
 void trx_rsegs_init(purge_pq_t *purge_queue) {
-  trx_sys->rseg_history_len = 0;
+  trx_sys->rseg_history_len.store(0);
 
   ulint slot;
   mtr_t mtr;

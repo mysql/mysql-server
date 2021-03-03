@@ -744,8 +744,8 @@ f1	f11
 2	2
 3	3
 5	5
-9	9
 7	7
+9	9
 explain for multitable views
 EXPLAIN SELECT * FROM v2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -876,8 +876,8 @@ f1	f11
 2	2
 3	3
 5	5
-9	9
 7	7
+9	9
 explain showing created indexes and late materialization for views
 FLUSH STATUS;
 EXPLAIN SELECT * FROM t1 JOIN v2 ON f1=f2;
@@ -1161,8 +1161,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`v1`.`f1` AS `f1`,`test`.`v1`.`f11` AS `f11`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`v1` join `test`.`t2` where ((`test`.`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` in (2,3)))
 SELECT * FROM v1 JOIN v4 ON f1=f2;
 f1	f11	f2	f22
-3	3	3	3
 2	2	2	2
+3	3	3	3
 merged derived in merged derived
 EXPLAIN SELECT * FROM (SELECT * FROM 
 (SELECT * FROM t1 WHERE f1 < 7) tt WHERE f1 > 2) zz;
@@ -1308,8 +1308,8 @@ Warnings:
 Note	1003	/* select#1 */ select `tt`.`f2` AS `f2`,`tt`.`f22` AS `f22` from (/* select#2 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22` from `test`.`t2` where (`test`.`t2`.`f2` in (2,3)) group by `test`.`t2`.`f2`) `tt`
 SELECT * FROM (SELECT * FROM v4 GROUP BY 1) tt;
 f2	f22
-3	3
 2	2
+3	3
 materialized view in merged derived
 EXPLAIN 
 SELECT * FROM ( SELECT * FROM v1 WHERE f1 < 7) tt;
@@ -1350,8 +1350,8 @@ f1	f11
 2	2
 3	3
 5	5
-9	9
 7	7
+9	9
 JOIN of above two
 EXPLAIN SELECT * FROM v6 JOIN v7 ON f2=f1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1362,8 +1362,8 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f22` AS `f22`,`test`.`v1`.`f1` AS `f1`,`test`.`v1`.`f11` AS `f11` from `test`.`t2` join `test`.`v1` where ((`test`.`v1`.`f1` = `test`.`t2`.`f2`) and (`test`.`t2`.`f2` < 7) and (`test`.`t2`.`f2` in (2,3)))
 SELECT * FROM v6 JOIN v7 ON f2=f1;
 f2	f22	f1	f11
-3	3	3	3
 2	2	2	2
+3	3	3	3
 test two keys
 CREATE TABLE t3(f3 INT, f33 INT);
 INSERT INTO t1 VALUES(6,6),(8,8);
@@ -3904,9 +3904,9 @@ SELECT * FROM t1 LEFT JOIN (
 SELECT t3.* FROM t2 INNER JOIN t3 ON b = c
 ) AS sq ON a <= sq.c;
 a	c
-NULL	NULL
 1	1
 1	5
+NULL	NULL
 DROP TABLE t1, t2, t3;
 # Bug#22343301: Error 1093 (HY000): You can't specify target table'.'
 #               for update in FROM clause
@@ -4561,3 +4561,12 @@ NULL
 NULL
 DEALLOCATE PREPARE s;
 DROP TABLE t;
+#
+# Bug #32162862: ORDER BY SUB-SELECT COLUMN SETS ALL VALUES TO NULL
+#
+CREATE TABLE t1 ( a INTEGER ) Engine=InnoDB;
+INSERT INTO t1 VALUES (123);
+SELECT * FROM t1 LEFT JOIN ( SELECT 1 FROM t1 ) d1 ON TRUE ORDER BY a;
+a	1
+123	1
+DROP TABLE t1;

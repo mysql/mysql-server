@@ -208,22 +208,6 @@ enum Copy_func_type {
     Copies all window functions.
   */
   CFT_WF,
-  /**
-    Copies all items that are expressions containing aggregates, but are not
-    themselves aggregates. Such expressions are typically split into their
-    constituent parts during setup_fields(), such that the parts that are
-    _not_ aggregates are replaced by Item_refs that point into a slice.
-    See AggregateIterator::Read() for more details.
-   */
-  CFT_DEPENDING_ON_AGGREGATE,
-  /**
-    Copies all items that depend on rollup group items that are NULL at the
-    current rollup level. These are necessary to copy when we decrease the
-    rollup level. (Other rollup group items may not be safe to copy in all
-    cases, as they may have been overwritten with the elements from the next
-    group.)
-   */
-  CFT_ROLLUP_NULLS
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
@@ -267,9 +251,6 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
-bool setup_copy_fields(const mem_root_deque<Item *> &fields, THD *thd,
-                       Temp_table_param *param, Ref_item_array ref_item_array,
-                       mem_root_deque<Item *> *res_fields);
 bool check_unique_constraint(TABLE *table);
 ulonglong unique_hash(const Field *field, ulonglong *hash);
 
@@ -317,13 +298,6 @@ class QEP_TAB : public QEP_shared_owner {
   void set_table(TABLE *t) {
     m_qs->set_table(t);
     if (t) t->reginfo.qep_tab = this;
-  }
-
-  bool temporary_table_deduplicates() const {
-    return m_temporary_table_deduplicates;
-  }
-  void set_temporary_table_deduplicates(bool arg) {
-    m_temporary_table_deduplicates = arg;
   }
 
   /// @returns semijoin strategy for this table.
@@ -526,15 +500,6 @@ class QEP_TAB : public QEP_shared_owner {
 
   Mem_root_array<const AccessPath *> *invalidators = nullptr;
 
-  /**
-    If this table is a temporary table used for whole-JOIN materialization
-    (e.g. before sorting): true iff the table deduplicates, typically by way
-    of an unique index.
-
-    Otherwise, unused.
-   */
-  bool m_temporary_table_deduplicates = false;
-
   QEP_TAB(const QEP_TAB &);             // not defined
   QEP_TAB &operator=(const QEP_TAB &);  // not defined
 };
@@ -560,7 +525,7 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
-bool set_record_buffer(const QEP_TAB *tab);
+bool set_record_buffer(TABLE *table, double expected_rows_to_fetch);
 void init_tmptable_sum_functions(Item_sum **func_ptr);
 void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
 bool has_rollup_result(Item *item);
@@ -599,9 +564,24 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);
+AccessPath *GetAccessPathForDerivedTable(
+    THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
+    Mem_root_array<const AccessPath *> *invalidators, AccessPath *table_path);
+
 void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
                         Temp_table_param *param);
 std::string RefToString(const TABLE_REF &ref, const KEY *key,
                         bool include_nulls);
+
+bool MaterializeIsDoingDeduplication(TABLE *table);
+
+/**
+  Split AND conditions into their constituent parts, recursively.
+  Conditions that are not AND conditions are appended unchanged onto
+  condition_parts. E.g. if you have ((a AND b) AND c), condition_parts
+  will contain [a, b, c], plus whatever it contained before the call.
+ */
+void ExtractConditions(Item *condition,
+                       Mem_root_array<Item *> *condition_parts);
 
 #endif /* SQL_EXECUTOR_INCLUDED */

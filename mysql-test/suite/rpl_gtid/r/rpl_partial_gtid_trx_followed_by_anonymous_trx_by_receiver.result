@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 SET GLOBAL GTID_MODE = ON_PERMISSIVE;
 call mtr.add_suppression("An unexpected event sequence was detected by the IO thread");
 call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream");
@@ -46,7 +46,7 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 [connection master]
 SET GLOBAL GTID_MODE = ON;
 DROP TABLE t1;

@@ -69,6 +69,7 @@ ANALYZE TABLE t1, t2;
 
 # The following query should not trigger calculation of condition filter
 # in the later query.
+--sorted_result
 SELECT t1.a, t2.a FROM t1 JOIN t2
   ON t1.a+t2.a = (SELECT COUNT(*) FROM t1);
 

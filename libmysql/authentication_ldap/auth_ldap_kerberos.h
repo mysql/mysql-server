@@ -64,9 +64,8 @@ class Kerberos {
     it again.
 
     @return
-      @retval true, If function is successfully able to obtain and store
-    credentials.
-      @retval false, If function is failed to obtain and store credentials.
+      @retval true Successfully able to obtain and store credentials.
+      @retval false Failed to obtain and store credentials.
   */
   bool obtain_store_credentials();
   /**
@@ -75,8 +74,8 @@ class Kerberos {
     MySQL client, This method can be used to get the user name  and use for
     authentication.
     @return
-      @retval true, If function is successfully able to get user name.
-      @retval false, If function is failed to get user name.
+      @retval true Successfully able to get user name.
+      @retval false Failed to get user name.
   */
   bool get_user_name(std::string *name);
   void destroy_credentials();
@@ -90,9 +89,9 @@ class Kerberos {
     This function creates kerberos context, initializes credentials cache and
     user principal.
     @return
-      @retval true, If all the required kerberos objects like context,
-    credentials cache and  user principal are initialized correctly.
-      @retval false, If required kerberos objects are failed to initialized.
+      @retval true All the required kerberos objects like context,
+    credentials cache and user principal are initialized correctly.
+      @retval false Required kerberos objects failed to initialized.
   */
   bool setup();
   /**

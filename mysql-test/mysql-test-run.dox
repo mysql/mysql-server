@@ -435,7 +435,7 @@
         colon you may add a <b>\@<em>platform</em></b> to have the
         test disabled only on a specific platform. Basic OS names as
         reported by <b>$^O</b> in Perl, or <b>'windows'</b> are
-        supported. Alternatively, <b>@!<em>platform</i></b> will
+        supported. Alternatively, <b>@!<em>platform</em></b> will
         disable the test on all except the named platform.
 
         <b>BUG#<em>nnnnn</em></b> or <b>WL#<em>nnnn</em></b> indicates
@@ -3810,6 +3810,18 @@
         Users have to make sure this variable is set to the same path
         on all environments, and that this common path is mounted on
         all the environments.
+     <tr>
+      <td><tt>MYSQL_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having mysql binaries.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL_CLIENT_BIN_PATH</tt></td>
+      <td>
+        Path to the directory having client binaries.
+      </td>
+    </tr>
     <tr>
       <td><tt>MYSQL_CONFIG_EDITOR</tt></td>
       <td>
@@ -4614,10 +4626,12 @@
       tests are run. An excluded list (<b>excludenoskip.list</b>) is
       maintained to track which tests should continue to be skipped.
       The <b>`--no-skip`</b> option continues to skip the tests that
-      are named in the excluded list. The default value of
-      <b>--no-skip</b> introduced variable is OFF, which implies users
-      are not forced to run all tests unless the <b>--no-skip</b> is
-      explicitly used.
+      are named in the excluded list. In case the test or file invoking
+      the <b>`--skip`</b> command is not present in the excluded list, the
+      outcome of the test will be identified as <b>[ noskip-pass ]</b> or
+      <b>[ noskip-fail ]</b> .The default value of <b>--no-skip</b>
+      introduced variable is OFF, which implies users are not forced to
+      run all tests unless the <b>--no-skip</b> is explicitly used.
 
       @verbatim
   shell> mysql-test-run.pl --suite=innodb --no-skip
@@ -5808,19 +5822,19 @@
       @endverbatim
     </li>
 
-     <li>
-       <tt>assert (<b>expr</b>)</tt>
+    <li>
+      <tt>assert (<b>expr</b>)</tt>
 
-       Assert that <b>expr</b> is true; otherwise terminate the test program
-       with an error message indicating that <b>expr</b> failed.
-       <b>expr</b> is parsed as it is for <tt>if()</tt> and <tt>while()</tt>,
-       as described at @ref PAGE_MYSQL_TEST_FLOW_CONTROL.
+      Assert that <b>expr</b> is true; otherwise terminate the test program
+      with an error message indicating that <b>expr</b> failed.
+      <b>expr</b> is parsed as it is for <tt>if()</tt> and <tt>while()</tt>,
+      as described at @ref PAGE_MYSQL_TEST_FLOW_CONTROL.
 
-       @verbatim
-         assert(1);
-         assert($x);
-         assert(!$x);
-         assert(`select count(*) from t1`);
+      @verbatim
+        assert(1);
+        assert($x);
+        assert(!$x);
+        assert(`select count(*) from t1`);
       @endverbatim
     </li>
 
@@ -6775,7 +6789,6 @@
       issue, the command can be retried for a <b>retry</b> number
       of times. Each retry happens after an interval of one second.
 
-
       @verbatim
   file_exists /etc/passwd;
   file_exists /etc/passwd 5;
@@ -7007,7 +7020,6 @@
       can be retried for a <b>retry</b> number of times. Each retry
       happens after an interval of one second.
 
-
       @verbatim
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out;
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out 5;
@@ -7222,7 +7234,7 @@
       than <em> -1e10 </em></b> are represented using the
       exponential notation after they are rounded off.
 
-     @verbatim
+      @verbatim
   --replace_numeric_round 6
   SELECT 12379.79459775333;
   12379.794598
@@ -7230,7 +7242,7 @@
   replace_numeric_round 0;
   SELECT 876.87302;
   877
-     @endverbatim
+      @endverbatim
     </li>
 
 

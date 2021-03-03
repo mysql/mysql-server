@@ -659,19 +659,15 @@ DROP TABLESPACE s_bad;
 --echo #
 --echo # Try the syntax that MySQL docs say is ignored.
 --echo #
-CREATE TABLESPACE s_ignore1 ADD DATAFILE 's_ignore1.ibd' AUTOEXTEND_SIZE = 10M;
-CREATE TABLESPACE s_ignore2 ADD DATAFILE 's_ignore2.ibd' MAX_SIZE = 1G;
-CREATE TABLESPACE s_ignore3 ADD DATAFILE 's_ignore3.ibd' NODEGROUP = 5;
-CREATE TABLESPACE s_ignore4 ADD DATAFILE 's_ignore4.ibd' WAIT;
-CREATE TABLESPACE s_ignore5 ADD DATAFILE 's_ignore5.ibd' COMMENT = 'This comment is ignored';
+CREATE TABLESPACE s_ignore1 ADD DATAFILE 's_ignore1.ibd' NODEGROUP = 5;
+CREATE TABLESPACE s_ignore2 ADD DATAFILE 's_ignore2.ibd' WAIT;
+CREATE TABLESPACE s_ignore3 ADD DATAFILE 's_ignore3.ibd' COMMENT = 'This comment is ignored';
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 
 DROP TABLESPACE s_ignore1;
 DROP TABLESPACE s_ignore2;
 DROP TABLESPACE s_ignore3;
-DROP TABLESPACE s_ignore4;
-DROP TABLESPACE s_ignore5;
 
 --echo #
 --echo # Try various ALTER TABLE statements.

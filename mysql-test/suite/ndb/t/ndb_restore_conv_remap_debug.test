@@ -23,7 +23,7 @@ while ($backup_type)
   select a, b, length(c), sha1(c) from t1 order by a;
 
   --echo Cause backup stall
-  --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 
   if ($backup_type == 1)
   {
@@ -137,7 +137,7 @@ while ($backup_type)
   select a, b, length(c), sha1(c) from t1 order by a;
   show create table t1;
 
-  --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+  --exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
   --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
   drop table test.t1;

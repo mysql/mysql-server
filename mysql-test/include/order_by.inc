@@ -237,7 +237,7 @@ drop table t1;
 
 create table t1 (a int not null, b int, c varchar(10), key (a, b, c)) charset utf8mb4;
 insert into t1 values (1, NULL, NULL), (1, NULL, 'b'), (1, 1, NULL), (1, 1, 'b'), (1, 1, 'b'), (2, 1, 'a'), (2, 1, 'b'), (2, 2, 'a'), (2, 2, 'b'), (2, 3, 'c'),(1,3,'b');
-
+ANALYZE TABLE t1;
 explain select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 select * from t1 where (a = 1 and b is null and c = 'b') or (a > 2) order by a desc;
 explain select * from t1 where a >= 1 and a < 3 order by a desc;
@@ -265,6 +265,7 @@ select * from t1 where a = 1 order by b desc;
 #
 
 alter table t1 modify b int not null, modify c varchar(10) not null;
+ANALYZE TABLE t1;
 explain select * from t1 order by a, b, c;
 select * from t1 order by a, b, c;
 explain select * from t1 order by a desc, b desc, c desc;
@@ -315,7 +316,7 @@ CREATE TABLE t3 (
 ) ENGINE=MyISAM;
 INSERT INTO t3 VALUES (1),(15),(27),(75),(117),(250);
 ALTER TABLE t3 add skr int(10) not null;
-
+ANALYZE TABLE t1, t2, t3;
 select t1.gid, t2.sid, t3.uid from t2, t1, t3 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 select t1.gid, t2.sid, t3.uid from t3, t2, t1 where t2.gid = t1.gid and t2.uid = t3.uid order by t3.uid, t1.gid;
 
@@ -395,6 +396,7 @@ while ($1)
   dec $1;
  }
 enable_query_log;
+ANALYZE TABLE t1;
 explain select id,t from t1 order by id;
 explain select id,t from t1 force index (primary) order by id;
 drop table t1;
@@ -446,6 +448,7 @@ drop table t1;
 
 create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
+ANALYZE TABLE t1;
 explain select * from t1 where b=1 or b is null order by a;
 --skip_if_hypergraph  # Depends on the query plan.
 explain format=tree select * from t1 where b=1 or b is null order by a;
@@ -707,7 +710,7 @@ drop table t1;
 #
 CREATE TABLE t1 (a int, b int, PRIMARY KEY  (a));
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
-
+ANALYZE TABLE t1, t2;
 explain SELECT t1.b as a, t2.b as c FROM 
  t1 LEFT JOIN t1 t2 ON (t1.a = t2.a AND t2.a = 2) 
 ORDER BY c;
@@ -799,7 +802,8 @@ SELECT COUNT(*) FROM t1;
 
 CREATE TABLE t2 LIKE t1;
 INSERT INTO t2 SELECT * FROM t1 ORDER BY id;
-
+ANALYZE TABLE t1, t2;
+--replace_column 10 # 11 #
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 4000;
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 10 AND 12 ORDER BY c3 LIMIT 20;
@@ -824,7 +828,7 @@ INSERT INTO t1 SELECT a + 8, b + 8 FROM t1;
 INSERT INTO t1 SELECT a +16, b +16 FROM t1;
 INSERT INTO t1 SELECT a +32, b +32 FROM t1;
 INSERT INTO t1 SELECT a +64, b +64 FROM t1;
-
+ANALYZE TABLE t1;
 let $query=
 SELECT a FROM t1 IGNORE INDEX FOR GROUP BY (PRIMARY, ab) GROUP BY a;
 
@@ -837,7 +841,7 @@ show status like 'Created_tmp_tables';
 
 let $query=
 SELECT a FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY, ab) ORDER BY a;
-
+ANALYZE TABLE t1;
 eval EXPLAIN $query;
 flush status;
 eval $query;
@@ -845,12 +849,13 @@ eval $query;
 show status like 'Created_tmp_tables';
 
 flush status;
+ANALYZE TABLE t1;
 let $query=
 SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) GROUP BY a;
 eval EXPLAIN $query;
 --sorted_result
 eval $query;
-
+ANALYZE TABLE t1;
 let $query=
 SELECT a FROM t1 IGNORE INDEX (PRIMARY, ab) ORDER BY a;
 eval EXPLAIN $query;
@@ -1648,7 +1653,7 @@ INSERT INTO t1 SELECT a + 160, b, c  + 160  FROM t1;
 INSERT INTO t1 SELECT a + 320, b, c  + 320  FROM t1;
 INSERT INTO t1 SELECT a + 640, b, c  + 640  FROM t1;
 INSERT INTO t1 SELECT a + 1280, b, c + 1280 FROM t1 LIMIT 80;
-
+ANALYZE TABLE t1;
 EXPLAIN
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
 SELECT a FROM t1 WHERE b = 1 ORDER BY c DESC LIMIT 9;
@@ -1704,7 +1709,7 @@ CREATE TABLE t2( a INT PRIMARY KEY, b INT );
 
 INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 INSERT INTO t2 SELECT a + 5, b + 5 FROM t2;
-
+ANALYZE TABLE t1, t2;
 EXPLAIN
 SELECT count(*) AS c, t1.a
 FROM t1 JOIN t2 ON t1.b = t2.a
@@ -1727,7 +1732,7 @@ DROP TABLE t1, t2;
 
 CREATE TABLE t1 (a INT,KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
 SELECT DISTINCT a,1 FROM t1 WHERE a <> 1 ORDER BY a DESC;
 
@@ -1754,7 +1759,7 @@ CREATE TABLE t3 (i3 integer);
 
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12);
 INSERT INTO t2 SELECT * FROM t1;
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN
 SELECT t1.*, t2.* FROM t1 JOIN t2 ON t1.i1 = t2.i2 
                      LEFT JOIN t3 ON t2.i2 = t3.i3

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,10 +58,10 @@ public:
   LocalDictCache();
   ~LocalDictCache();
   
-  Ndb_local_table_info * get(const char * name);
+  Ndb_local_table_info * get(const BaseString& name);
   
-  void put(const char * name, Ndb_local_table_info *);
-  void drop(const char * name);
+  void put(const BaseString& name, Ndb_local_table_info *);
+  void drop(const BaseString& name);
   
   NdbLinHash<Ndb_local_table_info> m_tableHash; // On name
 };
@@ -74,12 +74,12 @@ public:
   GlobalDictCache();
   ~GlobalDictCache();
   
-  NdbTableImpl * get(const char * name, int *error);
+  NdbTableImpl * get(const BaseString& name, int *error);
   
-  NdbTableImpl* put(const char * name, NdbTableImpl *);
+  NdbTableImpl* put(const BaseString& name, NdbTableImpl *);
   void release(const NdbTableImpl *, int invalidate = 0);
 
-  void alter_table_rep(const char * name, 
+  void alter_table_rep(const BaseString& name,
 		       Uint32 tableId, Uint32 tableVersion, bool altered);
 
   unsigned get_size();

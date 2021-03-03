@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,8 @@
 
 #include <cstdint>
 #include <memory>
+
+#include "plugin/x/src/interface/vio.h"
 
 namespace xpl {
 namespace iface {
@@ -65,6 +67,8 @@ class Protocol_flusher {
     Write timeout to be used at flush execution
    */
   virtual void set_write_timeout(const uint32_t timeout) = 0;
+
+  virtual Vio *get_connection() = 0;
 };
 
 }  // namespace iface

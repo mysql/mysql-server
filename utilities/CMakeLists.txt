@@ -1,5 +1,5 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
-# 
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -62,14 +62,14 @@ FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})
 # Please see errmsg_readme.txt in the same directory for more information.
 #
 ADD_CUSTOM_COMMAND(OUTPUT
-  ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+  ${PROJECT_BINARY_DIR}/include/mysqld_error.h
   ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/english/errmsg.sys
   COMMAND comp_err
   --charset=${PROJECT_SOURCE_DIR}/share/charsets
   --out-dir=${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR}/
-  --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h 
+  --header_file=${PROJECT_BINARY_DIR}/include/mysqld_error.h
   --name_file=${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   --errmsg_file=${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
   --in_file_errlog=${PROJECT_SOURCE_DIR}/share/messages_to_error_log.txt
@@ -81,7 +81,7 @@ ADD_CUSTOM_COMMAND(OUTPUT
 
 
 ADD_CUSTOM_TARGET(GenError ALL
-  DEPENDS 
+  DEPENDS
   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
   ${PROJECT_BINARY_DIR}/include/mysqld_ername.h
   ${PROJECT_BINARY_DIR}/include/mysqld_errmsg.h
@@ -143,30 +143,6 @@ IF(WITHOUT_SERVER)
 ENDIF()
 
 ADD_DEFINITIONS(-DHAVE_LZ4=1)
-
-IF(NOT MSVC)
-  IF(NOT CMAKE_CROSSCOMPILING)
-    CHECK_C_SOURCE_RUNS(
-      "#include<stdint.h>
-      int main()
-      {
-        unsigned char       a = 0;
-        unsigned char       b = 0;
-        unsigned char       c = 1;
-
-        __atomic_exchange(&a, &b,  &c, __ATOMIC_RELEASE);
-        __atomic_compare_exchange(&a, &b, &c, 0,
-                                __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
-        return(0);
-      }"
-      HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE
-      )
-  ENDIF()
-
-  IF(HAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE)
-    ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_COMPARE_EXCHANGE=1)
-  ENDIF()
-ENDIF(NOT MSVC)
 
 # Add path to the InnoDB headers and DD
 INCLUDE_DIRECTORIES(

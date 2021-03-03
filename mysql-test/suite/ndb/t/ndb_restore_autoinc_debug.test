@@ -25,7 +25,7 @@ insert into test.t1 (b) values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10)
 insert into test.t2 (b) values (1), (2);
 
 --echo Cause backup stall
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT
 
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -41,7 +41,7 @@ select auto_increment from information_schema.tables where table_schema='test' a
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t1';
 select auto_increment from information_schema.tables where table_schema='test' and table_name='t2';
 
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 drop table signed;

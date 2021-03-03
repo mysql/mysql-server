@@ -1,0 +1,114 @@
+# ==== Purpose ====
+#
+# This test verifies below checks:
+#
+# I. It verifies that disabling AUTO_POSITION while enabling Asynchronous
+#    Replication Connection Failover results in error and does not change
+#    their existing values.
+#
+# II. It also verifies that replica thread does not start when Asynchronous
+#     Replication Connection Failover is enabled and GTID_MODE = OFF_PERMISSIVE
+#     is provided as startup option on server start, and even after server start
+#     starting replica won't be allowed for the same options.
+#
+# ==== Implementation ====
+#
+# 1. Enable AUTO_POSITION.
+# 2. Verify disabling AUTO_POSITION while enabling Asynchronous
+#    Replication Connection Failover results in
+#    ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF error.
+# 3. Verify Asynchronous Replication Connection Failover is disabled and
+#    Auto_position is enabled.
+# 4. Verify restart server with Asynchronous Replication Connection
+#    Failover enabled and GTID_MODE = OFF_PERMISSIVE will stop replica
+#    thread from start with ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
+#    error logged in error log.
+# 5. Verify start replica after restart server also does not start replica
+#    threads and fails with with ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF
+#    error.
+# 6. Clean up.
+#
+
+--let $use_gtids= 1
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+call mtr.add_suppression("Detected misconfiguration: replication channel '' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1.*");
+
+--echo #
+--echo # 1. Enable AUTO_POSITION.
+--echo #
+
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
+
+
+--echo #
+--echo # 2. Verify disabling AUTO_POSITION while enabling Asynchronous
+--echo #    Replication Connection Failover results in
+--echo #    ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF error.
+--echo #
+
+--error ER_DISABLE_AUTO_POSITION_REQUIRES_ASYNC_RECONNECT_OFF
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+
+
+--echo #
+--echo # 3. Verify Asynchronous Replication Connection Failover is disabled and
+--echo #    Auto_position is enabled.
+--echo #
+
+--let $assert_text= 'Asynchronous Replication Connection Failover is disabled'
+--let $assert_cond= [SELECT SOURCE_CONNECTION_AUTO_FAILOVER FROM performance_schema.replication_connection_configuration, SOURCE_CONNECTION_AUTO_FAILOVER, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'Auto_position is enabled'
+--let $assert_cond= [SELECT AUTO_POSITION FROM performance_schema.replication_connection_configuration, AUTO_POSITION, 1] = 1
+--source include/assert.inc
+
+
+--echo #
+--echo # 4. Verify restart server with Asynchronous Replication Connection
+--echo #    Failover enabled and GTID_MODE = OFF_PERMISSIVE will stop replica
+--echo #    thread from start with ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF_CHANNEL
+--echo #    error logged in error log.
+--echo #
+
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+
+--let $rpl_server_number = 2
+--let $rpl_skip_start_slave=
+--let $rpl_server_parameters = --gtid-mode=off_permissive
+--source include/rpl_restart_server.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_count = 1
+--let $assert_select = Detected misconfiguration: replication channel '' was configured with SOURCE_CONNECTION_AUTO_FAILOVER = 1, but the server was started with a value other then --gtid-mode = ON. Either reconfigure replication using CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER = 0 FOR CHANNEL '', or change GTID_MODE to value ON, before starting the replica receiver thread.
+--let $assert_text = Replication channel '' could not be started as GTID_MODE was not ON.
+--source include/assert_grep.inc
+
+
+--let $rpl_channel_name= ''
+--let $slave_param= Slave_IO_Running
+--let $slave_param_value= No
+--source include/check_slave_param.inc
+
+
+--echo #
+--echo # 5. Verify start replica after restart server also does not start
+--echo #    replica threads and fails with with
+--echo #    ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF error.
+--echo #
+
+--error ER_RPL_ASYNC_RECONNECT_GTID_MODE_OFF
+START SLAVE;
+
+
+--echo #
+--echo # 6. Clean up.
+--echo #
+
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER = 0, SOURCE_AUTO_POSITION = 0;
+
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

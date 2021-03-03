@@ -1101,6 +1101,7 @@ let $query=
 SELECT t1.a, SUM(t2.b) OVER(ORDER BY t1.a) FROM t1, t1 AS t2 ORDER BY t2.a;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Windowing functions are not supported, so no temporary tables are used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 DROP TABLE t1;
@@ -1156,6 +1157,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
 # which makes the trace have non-chronological order.
 # Eliminate numbers which may vary:
 --replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/ /("max_rows_per_buffer":) [0-9]+/\1 "NNN"/
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 SELECT REGEXP_SUBSTR(TRACE, 'join_optimization.*', 1, 1, 'n') FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=off";
 

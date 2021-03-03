@@ -33,13 +33,13 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/plugin_auth.h"  // st_mysql_auth
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
@@ -221,7 +221,30 @@ const ACL_internal_schema_access *ACL_internal_schema_registry::lookup(
   return nullptr;
 }
 
-const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
+bool ACL_HOST_AND_IP::calc_cidr_mask(const char *ip_arg, long *val) {
+  long tmp;
+  if (!(ip_arg = str2int(ip_arg, 10, 0, 32, &tmp)) || *ip_arg != '\0')
+    return true;
+
+  /* Create IP mask. */
+  *val = UINT_MAX32 << (32 - tmp);
+
+  return false;
+}
+
+bool ACL_HOST_AND_IP::calc_ip_mask(const char *ip_arg, long *val) {
+  long tmp = 0;
+  if (!(ip_arg = calc_ip(ip_arg, &tmp)) || *ip_arg != '\0') return true;
+
+  /* Valid IP mask must be continuous bit flags. */
+  if (((~tmp & UINT_MAX32) + 1) & ~tmp) return true;
+
+  *val = tmp;
+
+  return false;
+}
+
+const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val) {
   long ip_val, tmp;
   if (!(ip_arg = str2int(ip_arg, 10, 0, 255, &ip_val)) || *ip_arg != '.')
     return nullptr;
@@ -232,8 +255,7 @@ const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
   if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp)) || *ip_arg != '.')
     return nullptr;
   ip_val += tmp << 8;
-  if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp)) || *ip_arg != end)
-    return nullptr;
+  if (!(ip_arg = str2int(ip_arg + 1, 10, 0, 255, &tmp))) return nullptr;
   *val = ip_val + tmp;
   return ip_arg;
 }
@@ -245,10 +267,30 @@ const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
  */
 void ACL_HOST_AND_IP::update_hostname(const char *host_arg) {
   hostname = host_arg;  // This will not be modified!
-  hostname_length = hostname ? strlen(hostname) : 0;
-  if (!host_arg || (!(host_arg = calc_ip(host_arg, &ip, '/')) ||
-                    !(host_arg = calc_ip(host_arg + 1, &ip_mask, '\0')))) {
-    ip = ip_mask = 0;  // Not a masked ip
+
+  ip = ip_mask = 0;
+
+  if (!host_arg) {
+    hostname_length = 0;
+    return;
+  }
+
+  hostname_length = strlen(hostname);
+
+  if ((host_arg = calc_ip(host_arg, &ip))) {
+    if (*host_arg == '\0') {
+      /* There is only IP part specified. */
+      ip_mask_type = ip_mask_type_implicit;
+      ip_mask = UINT_MAX32;
+    } else if (*host_arg == '/') {
+      if (!calc_ip_mask(host_arg + 1, &ip_mask)) {
+        ip_mask_type = ip_mask_type_subnet;
+      } else if (!calc_cidr_mask(host_arg + 1, &ip_mask)) {
+        ip_mask_type = ip_mask_type_cidr;
+      } else
+        /* Invalid or unsupported IP mask.*/
+        ip = 0;
+    }
   }
 }
 
@@ -278,7 +320,8 @@ void ACL_HOST_AND_IP::update_hostname(const char *host_arg) {
 bool ACL_HOST_AND_IP::compare_hostname(const char *host_arg,
                                        const char *ip_arg) {
   long tmp;
-  if (ip_mask && ip_arg && calc_ip(ip_arg, &tmp, '\0')) {
+  const char *p;
+  if (ip_mask && ip_arg && (p = calc_ip(ip_arg, &tmp)) && *p == '\0') {
     return (tmp & ip_mask) == ip;
   }
   return (!hostname ||
@@ -1036,7 +1079,7 @@ void rebuild_cached_acl_users_for_name(void) {
       list->push_back(*it2);
     }
 
-    list->sort(ACL_compare());
+    list->sort(ACL_USER_compare());
   }
 }
 
@@ -1694,6 +1737,15 @@ bool acl_init(bool dont_read_acl_tables) {
   */
   return_val |= acl_reload(thd, false);
   notify_flush_event(thd);
+  /*
+    Turn ON the system variable '@@partial_revokes' during server
+    start in case there exist at least one restrictions instance.
+    Don't log warning in case partial_revokes is already ON.
+  */
+  if (mysqld_partial_revokes() == false &&
+      check_and_update_partial_revokes_sysvar(thd)) {
+    LogErr(WARNING_LEVEL, ER_TURNING_ON_PARTIAL_REVOKES);
+  }
   thd->release_resources();
   delete thd;
 
@@ -2897,7 +2949,7 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                     mqh, privileges, plugin, auth, EMPTY_CSTR,
                     password_change_time, password_life, true, restrictions,
                     failed_login_attempts, password_lock_time, thd);
-  std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
+  std::sort(acl_users->begin(), acl_users->end(), ACL_USER_compare());
   rebuild_cached_acl_users_for_name();
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
@@ -3115,7 +3167,7 @@ Acl_cache::~Acl_cache() {
 }
 
 Acl_map::Acl_map(Security_context *sctx, uint64 ver)
-    : m_reference_count(0), m_version(ver), m_restrictions(nullptr) {
+    : m_reference_count(0), m_version(ver), m_restrictions() {
   DBUG_TRACE;
   Acl_cache_lock_guard acl_cache_lock(current_thd,
                                       Acl_cache_lock_mode::READ_MODE);
@@ -3145,9 +3197,7 @@ Acl_map::~Acl_map() {
   // Db_access_map is automatically destroyed and cleaned up.
 }
 
-Acl_map::Acl_map(const Acl_map &&map) : m_restrictions(nullptr) {
-  operator=(map);
-}
+Acl_map::Acl_map(const Acl_map &&map) { operator=(map); }
 
 Acl_map &Acl_map::operator=(Acl_map &&map) {
   m_db_acls = move(map.m_db_acls);
@@ -3198,20 +3248,6 @@ void Acl_cache::increase_version() {
 uint64 Acl_cache::version() { return m_role_graph_version.load(); }
 
 int32 Acl_cache::size() { return m_cache.count.load(); }
-
-/**
-  Finds an Acl_map entry in the Acl_cache and increase its reference count.
-  If no Acl_map is located, a new one is created with reference count one.
-  The Acl_map is returned to the caller.
-
-  @param sctx The target Security_context
-  @param uid The target authid
-  @param active_roles A list of active roles
-
-  @return A pointer to an Acl_map
-    @retval !NULL Success
-    @retval NULL A fatal OOM error happened.
-*/
 
 Acl_map *Acl_cache::checkout_acl_map(Security_context *sctx, Auth_id_ref &uid,
                                      List_of_auth_id_refs &active_roles) {
@@ -3590,6 +3626,8 @@ bool reload_acl_caches(THD *thd, bool mdl_locked) {
       grant_reload(thd, mdl_locked)) {
     goto end;
   }
+  // If there exists at least a partial revoke then update the sys variable
+  check_and_update_partial_revokes_sysvar(thd);
   retval = false;
   DBUG_EXECUTE_IF("wl14084_trigger_acl_ddl_timeout", sleep(2););
 
@@ -3616,28 +3654,56 @@ end:
   return retval;
 }
 
-/**
-  Determine sort order for two user accounts
-
-  @param [in] a First user account's sort value
-  @param [in] b Secound user account's sort value
-
-  @returns Whether a comes before b or not
-*/
 bool ACL_compare::operator()(const ACL_ACCESS &a, const ACL_ACCESS &b) {
+  if (a.host.ip != 0) {
+    if (b.host.ip != 0) {
+      /* Both elements have specified IPs. The one with the greater mask goes
+       * first. */
+      if (a.host.ip_mask_type != b.host.ip_mask_type)
+        return a.host.ip_mask_type < b.host.ip_mask_type;
+
+      return a.host.ip_mask > b.host.ip_mask;
+    }
+    /* The element with the IP goes first. */
+    return true;
+  }
+
+  /* The element with the IP goes first. */
+  if (b.host.ip != 0) return false;
+
+  /* None of the elements has IP defined. Use default comparison. */
   return a.sort > b.sort;
 }
 
-/**
-  Determine sort order for two user accounts
-
-  @param [in] a First user account's sort value
-  @param [in] b Secound user account's sort value
-
-  @returns Whether a comes before b or not
-*/
 bool ACL_compare::operator()(const ACL_ACCESS *a, const ACL_ACCESS *b) {
-  return a->sort > b->sort;
+  return this->operator()(*a, *b);
+}
+
+bool ACL_USER_compare::operator()(const ACL_USER &a, const ACL_USER &b) {
+  if (a.host.ip != 0) {
+    if (b.host.ip != 0) {
+      /* Both elements have specified IPs. The one with the greater mask goes
+       * first. */
+      if (a.host.ip_mask_type != b.host.ip_mask_type)
+        return a.host.ip_mask_type < b.host.ip_mask_type;
+
+      if (a.host.ip_mask == b.host.ip_mask) return a.user > b.user;
+
+      return a.host.ip_mask > b.host.ip_mask;
+    }
+    /* The element with the IP goes first. */
+    return true;
+  }
+
+  /* The element with the IP goes first. */
+  if (b.host.ip != 0) return false;
+
+  /* None of the elements has IP defined. Use default comparison. */
+  return a.sort > b.sort;
+}
+
+bool ACL_USER_compare::operator()(const ACL_USER *a, const ACL_USER *b) {
+  return this->operator()(*a, *b);
 }
 
 /**
@@ -3705,7 +3771,7 @@ Restrictions Acl_restrictions::find_restrictions(
   if (restrictions_itr != m_restrictions_map.end())
     return restrictions_itr->second;
   else
-    return Restrictions(nullptr);
+    return Restrictions{};
 }
 
 /**
@@ -3725,24 +3791,17 @@ size_t Acl_restrictions::size() const { return m_restrictions_map.size(); }
 */
 bool is_partial_revoke_exists(THD *thd) {
   bool partial_revoke = false;
-  if (thd) {
-    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-    if (!acl_cache_lock.lock(false)) {
-      return true;
-    }
-    /*
-      Check the restrictions only if server has initialized the acl caches
-      (i.e. Server is not started with --skip-grant-tables=1 option).
-    */
-    if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
-  } else {
-    /*
-      We need to determine the number of partial revokes at the time of server
-      start. In that case thd(s) is not be available so it is safe to
-      determine the number of partial revokes without lock.
-    */
-    if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
+  DBUG_ASSERT(thd);
+  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+  // In case of failure assume that partial revokes exists to be on safe side.
+  if (!acl_cache_lock.lock(false)) {
+    return true;
   }
+  /*
+    Check the restrictions only if server has initialized the acl caches
+    (i.e. Server is not started with --skip-grant-tables=1 option).
+  */
+  if (acl_restrictions) partial_revoke = (acl_restrictions->size() > 0);
   return partial_revoke;
 }
 

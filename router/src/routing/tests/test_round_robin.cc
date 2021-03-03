@@ -30,7 +30,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "routing_mocks.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "tcp_address.h"
 #include "test/helpers.h"  // init_test_logger
 
@@ -38,18 +38,18 @@ using ::testing::StrEq;
 
 class RoundRobinDestinationTest : public ::testing::Test {
  protected:
-  MockSocketOperations mock_sock_ops_;
+  net::io_context io_ctx_;
 };
 
 TEST_F(RoundRobinDestinationTest, Constructor) {
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   size_t exp = 0;
   ASSERT_EQ(exp, d.size());
 }
 
 TEST_F(RoundRobinDestinationTest, Add) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   exp = 1;
   d.add("addr1", 1);
   ASSERT_EQ(exp, d.size());
@@ -65,7 +65,7 @@ TEST_F(RoundRobinDestinationTest, Add) {
 
 TEST_F(RoundRobinDestinationTest, Remove) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   d.add("addr1", 1);
   d.add("addr99", 99);
   d.add("addr2", 2);
@@ -80,23 +80,23 @@ TEST_F(RoundRobinDestinationTest, Remove) {
 }
 
 TEST_F(RoundRobinDestinationTest, Get) {
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   ASSERT_THROW(d.get("addr1", 1), std::out_of_range);
   d.add("addr1", 1);
   ASSERT_NO_THROW(d.get("addr1", 1));
 
   mysql_harness::TCPAddress addr = d.get("addr1", 1);
-  ASSERT_THAT(addr.addr, StrEq("addr1"));
-  EXPECT_EQ(addr.port, 1);
+  ASSERT_THAT(addr.address(), StrEq("addr1"));
+  EXPECT_EQ(addr.port(), 1);
 
   d.remove("addr1", 1);
-  ASSERT_THAT(addr.addr, StrEq("addr1"));
-  EXPECT_EQ(addr.port, 1);
+  ASSERT_THAT(addr.address(), StrEq("addr1"));
+  EXPECT_EQ(addr.port(), 1);
 }
 
 TEST_F(RoundRobinDestinationTest, Size) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   exp = 0;
   ASSERT_EQ(exp, d.size());
   d.add("addr1", 1);
@@ -109,7 +109,7 @@ TEST_F(RoundRobinDestinationTest, Size) {
 
 TEST_F(RoundRobinDestinationTest, RemoveAll) {
   size_t exp;
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
 
   d.add("addr1", 1);
   d.add("addr2", 2);
@@ -128,7 +128,7 @@ TEST_F(RoundRobinDestinationTest, RemoveAll) {
  *       does not block/deadlock and forces the thread close (bug#27145261).
  */
 TEST_F(RoundRobinDestinationTest, SpawnAndJoinQuarantineThread) {
-  DestRoundRobin d;
+  DestRoundRobin d(io_ctx_);
   d.start(nullptr);
 }
 
@@ -155,7 +155,7 @@ MATCHER(IsGoodEq, "") {
 }
 
 TEST_F(RoundRobinDestinationTest, RepeatedFetch) {
-  DestRoundRobin dest(Protocol::Type::kClassicProtocol, &mock_sock_ops_);
+  DestRoundRobin dest(io_ctx_, Protocol::Type::kClassicProtocol);
   dest.add("41", 41);
   dest.add("42", 42);
   dest.add("43", 43);

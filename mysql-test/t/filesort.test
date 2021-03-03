@@ -97,3 +97,27 @@ eval EXPLAIN FORMAT=tree $query;
 
 DROP TABLE t1;
 SET sql_mode=DEFAULT;
+
+--echo #
+--echo # Bug #31588831: ASSERTION FAILURE IN NEWWEEDOUTACCESSPATHFORTABLES() AT SQL/SQL_EXECUTOR.CC
+--echo #
+
+CREATE TABLE t1 (pk INTEGER, f2 INTEGER, PRIMARY KEY (pk));
+CREATE TABLE t2 (pk INTEGER, f2 INTEGER, PRIMARY KEY (pk));
+
+INSERT INTO t1 VALUES (1,1), (2,2);
+ANALYZE TABLE t1, t2;
+
+# Sets up a filesort on t1 which initially is not part of weedout,
+# but gets caught in one anyway later, and thus needs to be sorted by row ID.
+--replace_regex / *\(cost=\d+\.\d+\ rows=\d+\)//
+--skip_if_hypergraph  # Does not support weedout.
+EXPLAIN FORMAT=tree SELECT * FROM
+  t1
+  LEFT JOIN t1 AS table2 ON 119 IN (
+    SELECT SUBQUERY1_t2.pk
+    FROM t1 AS SUBQUERY1_t1, (t2 AS SUBQUERY1_t2 STRAIGHT_JOIN t1 ON TRUE)
+  )
+  ORDER BY t1.f2;
+
+DROP TABLE t1, t2;

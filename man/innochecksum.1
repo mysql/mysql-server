@@ -2,12 +2,12 @@
 .\"     Title: \fBinnochecksum\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 09/04/2020
+.\"      Date: 11/26/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBINNOCHECKSUM\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBINNOCHECKSUM\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -48,11 +48,11 @@ cannot be used on tablespace files that the server already has open\&. For such 
 CHECK TABLE
 to check tables within the tablespace\&. Attempting to run
 \fBinnochecksum\fR
-on a tablespace that the server already has open will result in an
-\(lqUnable to lock file\(rq
+on a tablespace that the server already has open results in an
+Unable to lock file
 error\&.
 .PP
-If checksum mismatches are found, you would normally restore the tablespace from backup or start the server and attempt to use
+If checksum mismatches are found, restore the tablespace from backup or start the server and attempt to use
 \fBmysqldump\fR
 to make a backup of the tables within the tablespace\&.
 .PP
@@ -477,7 +477,7 @@ option\&. If the
 \fB\-\-write\fR
 option is not specified,
 \fBinnochecksum\fR
-will terminate\&.
+terminates\&.
 .sp
 In this example, an
 innodb
@@ -788,7 +788,7 @@ option is missing when
 \(lqread from standard in\(rq
 is expected,
 \fBinnochecksum\fR
-will output
+prints
 \fBinnochecksum\fR
 usage information indicating that the
 \(lq\-\(rq

@@ -24,6 +24,8 @@
 
 #include "plugin/x/tests/driver/connector/session_holder.h"
 
+#include <array>
+
 #include "my_dbug.h"         // NOLINT(build/include_subdir)
 #include "template_utils.h"  // NOLINT(build/include_subdir)
 
@@ -359,17 +361,18 @@ xcl::Handler_result Session_holder::count_received_messages(
   if (msg_name != Mysqlx::Notice::Frame::descriptor()->full_name())
     return xcl::Handler_result::Continue;
 
-  static const std::string notice_type_id[] = {
+  static const std::array<std::string, 5> k_notice_type_id = {
       Mysqlx::Notice::Warning::descriptor()->full_name(),
       Mysqlx::Notice::SessionVariableChanged::descriptor()->full_name(),
       Mysqlx::Notice::SessionStateChanged::descriptor()->full_name(),
       Mysqlx::Notice::GroupReplicationStateChanged::descriptor()->full_name(),
-      Mysqlx::Notice::ServerHello::descriptor()->full_name()};
+      Mysqlx::Notice::ServerHello::descriptor()->full_name(),
+  };
 
   const auto notice_type =
       static_cast<const Mysqlx::Notice::Frame *>(&msg)->type() - 1u;
-  if (notice_type < array_elements(notice_type_id))
-    ++m_received_msg_counters[notice_type_id[notice_type]];
+  if (notice_type < k_notice_type_id.size())
+    ++m_received_msg_counters[k_notice_type_id[notice_type]];
 
   /** None of processed messages should be filtered out*/
   return xcl::Handler_result::Continue;

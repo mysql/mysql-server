@@ -33,26 +33,9 @@
 #include <stdexcept>
 #include <system_error>  // error_code
 #include <thread>
+#include <type_traits>
 
-#ifndef _WIN32
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/un.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
 #include <sys/types.h>
-
-#if defined(__sun)
-#include <ucred.h>
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-#include <sys/ucred.h>
-#endif
 
 #include "common.h"  // rename_thread
 #include "connection.h"
@@ -60,6 +43,8 @@
 #include "dest_metadata_cache.h"
 #include "dest_next_available.h"
 #include "dest_round_robin.h"
+#include "destination_ssl_context.h"
+#include "hostname_validator.h"
 #include "mysql/harness/filesystem.h"  // make_file_private
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/logging.h"
@@ -72,14 +57,16 @@
 #include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/stdx/io/file_handle.h"
 #include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/io_component.h"
 #include "mysqlrouter/io_thread.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
+#include "protocol/base_protocol.h"
 #include "protocol/protocol.h"
-#include "socket_operations.h"
+#include "ssl_mode.h"
 #include "tcp_address.h"
 
 using mysqlrouter::string_format;
@@ -93,6 +80,26 @@ static const int kListenQueueSize{1024};
 
 static const char *kDefaultReplicaSetName = "default";
 
+/**
+ * encode a initial error-msg into a buffer.
+ *
+ * Assumes that no capability exchange happened yet. For classic-protocol that
+ * means Error messages will be encoded in 3.23 format.
+ *
+ * works for error-packets that are encoded by the Acceptor.
+ */
+static stdx::expected<size_t, std::error_code> encode_initial_error_packet(
+    BaseProtocol::Type protocol, std::vector<uint8_t> &error_frame,
+    uint32_t error_code, const std::string &msg, const std::string &sql_state) {
+  if (protocol == BaseProtocol::Type::kClassicProtocol) {
+    return ClassicProtocolSplicer::encode_error_packet(
+        error_frame, 0, {}, error_code, msg, sql_state);
+  } else {
+    return XProtocolSplicer::encode_error_packet(error_frame, error_code, msg,
+                                                 sql_state);
+  }
+}
+
 MySQLRouting::MySQLRouting(
     net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
     uint16_t port, const Protocol::Type protocol,
@@ -101,14 +108,14 @@ MySQLRouting::MySQLRouting(
     int max_connections, std::chrono::milliseconds destination_connect_timeout,
     unsigned long long max_connect_errors,
     std::chrono::milliseconds client_connect_timeout,
-    unsigned int net_buffer_length,
-    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size)
-    : context_(Protocol::create(protocol, sock_ops), sock_ops, route_name,
-               net_buffer_length, destination_connect_timeout,
-               client_connect_timeout,
+    unsigned int net_buffer_length, size_t thread_stack_size,
+    SslMode client_ssl_mode, TlsServerContext *client_ssl_ctx,
+    SslMode server_ssl_mode, DestinationTlsContext *dest_ssl_ctx)
+    : context_(protocol, route_name, net_buffer_length,
+               destination_connect_timeout, client_connect_timeout,
                mysql_harness::TCPAddress(bind_address, port), named_socket,
-               max_connect_errors, thread_stack_size),
-      sock_ops_(sock_ops),
+               max_connect_errors, thread_stack_size, client_ssl_mode,
+               client_ssl_ctx, server_ssl_mode, dest_ssl_ctx),
       io_ctx_{io_ctx},
       routing_strategy_(routing_strategy),
       access_mode_(access_mode),
@@ -121,8 +128,6 @@ MySQLRouting::MySQLRouting(
 {
   validate_destination_connect_timeout(destination_connect_timeout);
 
-  assert(sock_ops_ != nullptr);
-
 #ifdef _WIN32
   if (named_socket.is_set()) {
     throw std::invalid_argument(
@@ -133,7 +138,7 @@ MySQLRouting::MySQLRouting(
   // This test is only a basic assertion.  Calling code is expected to check the
   // validity of these arguments more thoroughally. At the time of writing,
   // routing_plugin.cc : init() is one such place.
-  if (!context_.get_bind_address().port && !named_socket.is_set()) {
+  if (!context_.get_bind_address().port() && !named_socket.is_set()) {
     throw std::invalid_argument(
         string_format("No valid address:port (%s:%d) or socket (%s) to bind to",
                       bind_address.c_str(), port, named_socket.c_str()));
@@ -144,7 +149,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
   mysql_harness::rename_thread(
       get_routing_thread_name(context_.get_name(), "RtM")
           .c_str());  // "Rt main" would be too long :(
-  if (context_.get_bind_address().port > 0) {
+  if (context_.get_bind_address().port() > 0) {
     auto res = setup_tcp_service();
     if (!res) {
       clear_running(env);
@@ -180,7 +185,7 @@ void MySQLRouting::start(mysql_harness::PluginFuncEnv *env) {
              context_.get_bind_named_socket().c_str());
   }
 #endif
-  if (context_.get_bind_address().port > 0 ||
+  if (context_.get_bind_address().port() > 0 ||
       context_.get_bind_named_socket().is_set()) {
     start_acceptor(env);
 #ifndef _WIN32
@@ -342,8 +347,12 @@ class Connector : public ConnectorBase {
     }
 
     while (true) {
-      // log_debug("fd=%d state: %s", client_sock_.native_handle(),
-      //           mysqlrouter::to_string(state()).c_str());
+#if 0
+      if (client_sock_still_owned_) {
+        log_debug("fd=%d state: %s", client_sock_.native_handle(),
+                  mysqlrouter::to_string(state()).c_str());
+      }
+#endif
       switch (state()) {
         case State::INIT:
           state(init());
@@ -390,7 +399,9 @@ class Connector : public ConnectorBase {
  private:
   State init() {
     client_sock_.native_non_blocking(true);
-    client_sock_.set_option(net::ip::tcp::no_delay{true});
+    if (std::is_same<client_protocol_type, net::ip::tcp>::value) {
+      client_sock_.set_option(net::ip::tcp::no_delay{true});
+    }
 
     return State::INIT_DESTINATION;
   }
@@ -627,11 +638,26 @@ class Connector : public ConnectorBase {
   }
 
   State error() {
-    r_->get_context().get_protocol().send_error(
-        client_sock_.native_handle(), 2003,
+    std::vector<uint8_t> error_frame;
+
+    const auto encode_res = encode_initial_error_packet(
+        r_->get_context().get_protocol(), error_frame, 2003,
         "Can't connect to remote MySQL server for client connected to '" +
             r_->get_context().get_bind_address().str() + "'",
-        "HY000", r_->get_context().get_name());
+        "HY000");
+
+    if (!encode_res) {
+      log_debug(
+          "[%s] fd=%d encode error: %s", r_->get_context().get_name().c_str(),
+          client_sock_.native_handle(), encode_res.error().message().c_str());
+    } else {
+      auto write_res = net::write(client_sock_, net::buffer(error_frame));
+      if (!write_res) {
+        log_debug(
+            "[%s] fd=%d write error: %s", r_->get_context().get_name().c_str(),
+            client_sock_.native_handle(), write_res.error().message().c_str());
+      }
+    }
 
     // note: tests as checking for this message
     log_warning(
@@ -842,18 +868,51 @@ class Acceptor {
           if (r_->get_context().is_blocked<protocol_type>(client_endpoint)) {
             const std::string msg = "Too many connection errors from " +
                                     mysqlrouter::to_string(client_endpoint);
-            r_->get_context().get_protocol().send_error(
-                sock.native_handle(), 1129, msg, "HY000",
-                r_->get_context().get_name());
+
+            std::vector<uint8_t> error_frame;
+            const auto encode_res =
+                encode_initial_error_packet(r_->get_context().get_protocol(),
+                                            error_frame, 1129, msg, "HY000");
+
+            if (!encode_res) {
+              log_debug("[%s] fd=%d encode error: %s",
+                        r_->get_context().get_name().c_str(),
+                        sock.native_handle(),
+                        encode_res.error().message().c_str());
+            } else {
+              auto write_res = net::write(sock, net::buffer(error_frame));
+              if (!write_res) {
+                log_debug("[%s] fd=%d write error: %s",
+                          r_->get_context().get_name().c_str(),
+                          sock.native_handle(),
+                          write_res.error().message().c_str());
+              }
+            }
+
             // log_info("%s", msg.c_str());
             sock.close();
           } else if (r_->get_context().info_active_routes_.load(
                          std::memory_order_relaxed) >=
                      r_->get_max_connections()) {
-            r_->get_context().get_protocol().send_error(
-                sock.native_handle(), 1040,
-                "Too many connections to MySQL Router", "08004",
-                r_->get_context().get_name());
+            std::vector<uint8_t> error_frame;
+            const auto encode_res = encode_initial_error_packet(
+                r_->get_context().get_protocol(), error_frame, 1040,
+                "Too many connections to MySQL Router", "08004");
+
+            if (!encode_res) {
+              log_debug("[%s] fd=%d encode error: %s",
+                        r_->get_context().get_name().c_str(),
+                        sock.native_handle(),
+                        encode_res.error().message().c_str());
+            } else {
+              auto write_res = net::write(sock, net::buffer(error_frame));
+              if (!write_res) {
+                log_debug("[%s] fd=%d write error: %s",
+                          r_->get_context().get_name().c_str(),
+                          sock.native_handle(),
+                          write_res.error().message().c_str());
+              }
+            }
 
             sock.close();  // no shutdown() before close()
 
@@ -935,8 +994,8 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
                                    const std::string &reason) {
     std::ostringstream oss;
 
-    if (!context_.get_bind_address().addr.empty()) {
-      oss << context_.get_bind_address().port;
+    if (!context_.get_bind_address().address().empty()) {
+      oss << context_.get_bind_address().port();
       if (!context_.get_bind_named_socket().str().empty()) oss << " and ";
     }
 
@@ -1094,8 +1153,8 @@ stdx::expected<void, std::error_code> MySQLRouting::setup_tcp_service() {
   net::ip::tcp::resolver resolver(io_ctx_);
 
   auto resolve_res =
-      resolver.resolve(context_.get_bind_address().addr,
-                       std::to_string(context_.get_bind_address().port));
+      resolver.resolve(context_.get_bind_address().address(),
+                       std::to_string(context_.get_bind_address().port()));
 
   if (!resolve_res) {
     return stdx::make_unexpected(resolve_res.error());
@@ -1234,9 +1293,9 @@ void MySQLRouting::set_destinations_from_uri(const mysqlrouter::URI &uri) {
     if (uri.path.size() > 0 && !uri.path[0].empty())
       replicaset_name = uri.path[0];
 
-    destination_.reset(new DestMetadataCacheGroup(
-        uri.host, replicaset_name, routing_strategy_, uri.query,
-        context_.get_protocol().get_type(), access_mode_));
+    destination_ = std::make_unique<DestMetadataCacheGroup>(
+        io_ctx_, uri.host, replicaset_name, routing_strategy_, uri.query,
+        context_.get_protocol(), access_mode_);
   } else {
     throw std::runtime_error(string_format(
         "Invalid URI scheme; expecting: 'metadata-cache' is: '%s'",
@@ -1260,16 +1319,17 @@ routing::RoutingStrategy get_default_routing_strategy(
   return routing::RoutingStrategy::kFirstAvailable;
 }
 
-RouteDestination *create_standalone_destination(
-    const routing::RoutingStrategy strategy, const Protocol::Type protocol,
-    mysql_harness::SocketOperationsBase *sock_ops, size_t thread_stack_size) {
+std::unique_ptr<RouteDestination> create_standalone_destination(
+    net::io_context &io_ctx, const routing::RoutingStrategy strategy,
+    const Protocol::Type protocol, size_t thread_stack_size) {
   switch (strategy) {
     case RoutingStrategy::kFirstAvailable:
-      return new DestFirstAvailable(protocol, sock_ops);
+      return std::make_unique<DestFirstAvailable>(io_ctx, protocol);
     case RoutingStrategy::kNextAvailable:
-      return new DestNextAvailable(protocol, sock_ops);
+      return std::make_unique<DestNextAvailable>(io_ctx, protocol);
     case RoutingStrategy::kRoundRobin:
-      return new DestRoundRobin(protocol, sock_ops, thread_stack_size);
+      return std::make_unique<DestRoundRobin>(io_ctx, protocol,
+                                              thread_stack_size);
     case RoutingStrategy::kUndefined:
     case RoutingStrategy::kRoundRobinWithFallback:;  // unsupported, fall
                                                      // through
@@ -1283,7 +1343,6 @@ RouteDestination *create_standalone_destination(
 void MySQLRouting::set_destinations_from_csv(const string &csv) {
   std::stringstream ss(csv);
   std::string part;
-  std::pair<std::string, uint16_t> info;
 
   // if no routing_strategy is defined for standalone routing
   // we set the default based on the mode
@@ -1291,23 +1350,29 @@ void MySQLRouting::set_destinations_from_csv(const string &csv) {
     routing_strategy_ = get_default_routing_strategy(access_mode_);
   }
 
-  destination_.reset(create_standalone_destination(
-      routing_strategy_, context_.get_protocol().get_type(), sock_ops_,
-      context_.get_thread_stack_size()));
+  destination_ = create_standalone_destination(
+      io_ctx_, routing_strategy_, context_.get_protocol(),
+      context_.get_thread_stack_size());
 
   // Fall back to comma separated list of MySQL servers
   while (std::getline(ss, part, ',')) {
-    info = mysqlrouter::split_addr_port(part);
-    if (info.second == 0) {
-      info.second =
-          Protocol::get_default_port(context_.get_protocol().get_type());
+    auto make_res = mysql_harness::make_tcp_address(part);
+    if (!make_res) {
+      throw std::runtime_error(
+          string_format("Destination address '%s' is invalid", part.c_str()));
     }
-    mysql_harness::TCPAddress addr(info.first, info.second);
-    if (addr.is_valid()) {
+
+    auto addr = make_res.value();
+
+    if (mysql_harness::is_valid_domainname(addr.address())) {
+      if (addr.port() == 0) {
+        addr.port(Protocol::get_default_port(context_.get_protocol()));
+      }
+
       destination_->add(addr);
     } else {
-      throw std::runtime_error(string_format(
-          "Destination address '%s' is invalid", addr.str().c_str()));
+      throw std::runtime_error(
+          string_format("Destination address '%s' is invalid", part.c_str()));
     }
   }
 

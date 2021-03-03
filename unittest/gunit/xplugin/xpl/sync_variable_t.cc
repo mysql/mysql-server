@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,15 +20,16 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <cstddef>
-#include <thread>
-
 #include <gtest/gtest.h>
-#include "my_sys.h"
-#include "my_systime.h"  // my_sleep()
 
-#include "plugin/x/ngs/include/ngs/thread.h"
+#include <cstddef>
+#include <thread>  // NOLINT(build/c++11)
+
+#include "my_sys.h"      // NOLINT(build/include_subdir)
+#include "my_systime.h"  // my_sleep() NOLINT(build/include_subdir)
+
 #include "plugin/x/src/helper/multithread/sync_variable.h"
+#include "plugin/x/src/ngs/thread.h"
 
 namespace xpl {
 
@@ -47,14 +48,14 @@ class Xpl_sync_variable : public ::testing::Test {
         m_thread_ended(false) {}
 
   static void *start_routine_set(void *data) {
-    Xpl_sync_variable *self = (Xpl_sync_variable *)data;
+    Xpl_sync_variable *self = static_cast<Xpl_sync_variable *>(data);
     self->set_value();
 
     return nullptr;
   }
 
   static void *start_routine_set_and_expect(void *data) {
-    Xpl_sync_variable *self = (Xpl_sync_variable *)data;
+    Xpl_sync_variable *self = static_cast<Xpl_sync_variable *>(data);
     self->set_value();
     self->m_sut.wait_for(EXPECTED_VALUE_SET_EXPECT);
 

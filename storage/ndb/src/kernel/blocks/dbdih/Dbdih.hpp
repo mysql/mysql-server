@@ -288,6 +288,7 @@ public:
     Uint32 partition_id;
     Uint32 nextCopyFragment;
     
+    Uint8 m_inc_used_log_parts;
     Uint8 distributionKey;
     Uint8 fragReplicas;
     Uint8 noOldStoredReplicas;  /* NUMBER OF "DEAD" STORED REPLICAS */
@@ -307,8 +308,10 @@ public:
     Uint32 activeTakeOver; // Which node...
     Uint32 activeTakeOverCount;
     Uint32 m_next_log_part;
+    Uint32 m_new_next_log_part;
     Uint32 nodegroupIndex;
     Uint32 m_ref_count;
+    Uint32 m_used_log_parts[MAX_INSTANCE_KEYS];
   };
   typedef Ptr<NodeGroupRecord> NodeGroupRecordPtr;
   /**
@@ -483,6 +486,7 @@ public:
     
     Uint8 dbtcFailCompleted;
     Uint8 dblqhFailCompleted;
+    Uint8 dbqlqhFailCompleted;
     Uint8 dbdihFailCompleted;
     Uint8 dbdictFailCompleted;
     Uint8 recNODE_FAILREP;
@@ -720,10 +724,10 @@ public:
     };
     Uint32 m_scan_reorg_flag;
     Uint32 m_flags;
+    Uint32 primaryTableId;
 
     Uint8 noOfBackups;
     Uint8 kvalue;
-    Uint16 primaryTableId;
 
     Uint16 noPages;
     Uint16 tableType;
@@ -1029,7 +1033,6 @@ private:
   void execSTART_COPYREF(Signal *);
   void execUPDATE_FRAG_STATEREQ(Signal *);
   void execUPDATE_FRAG_STATECONF(Signal *);
-  void execDIVERIFYREQ(Signal *);
   void execGCP_SAVEREQ(Signal *);
   void execGCP_SAVECONF(Signal *);
   void execGCP_PREPARECONF(Signal *);
@@ -1259,9 +1262,12 @@ private:
   void execPREPARE_COPY_FRAG_REF(Signal*);
   void execPREPARE_COPY_FRAG_CONF(Signal*);
   void execDIADDTABREQ(Signal *);
+public:
   void execDIGETNODESREQ(Signal *);
-  void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_REQ(Signal *);
+  void execDIVERIFYREQ(Signal *);
+private:
+  void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_COMPLETE_REP(Signal*);
   void execGCP_SAVEREF(Signal *);
   void execGCP_TCFINISHED(Signal *);
@@ -1453,7 +1459,7 @@ private:
   void closingTableSrLab(Signal *, FileRecordPtr regFilePtr);
   void tableCloseLab(Signal *, FileRecordPtr regFilePtr);
   void tableCloseErrorLab(FileRecordPtr regFilePtr);
-  void readingGcpLab(Signal *, FileRecordPtr regFilePtr);
+  void readingGcpLab(Signal *, FileRecordPtr regFilePtr, Uint32 bytes_read);
   void readingTableLab(Signal *, FileRecordPtr regFilePtr);
   void readingGcpErrorLab(Signal *, FileRecordPtr regFilePtr);
   void readingTableErrorLab(Signal *, FileRecordPtr regFilePtr);
@@ -1485,14 +1491,10 @@ private:
                    NodeGroupRecordPtr NGPtr,
                    FragmentstorePtr regFragptr);
   void sendDihRestartRef(Signal*);
-  void unpack_sysfile_format_v1(bool set_max_node_id);
-  void pack_sysfile_format_v1();
-  void unpack_sysfile_format_v2(bool set_max_node_id);
-  void pack_sysfile_format_v2();
   void send_COPY_GCIREQ_data_v1(Signal*, Uint32);
-  void send_COPY_GCIREQ_data_v2(Signal*, Uint32);
+  void send_COPY_GCIREQ_data_v2(Signal*, Uint32, Uint32);
   void send_START_MECONF_data_v1(Signal*, Uint32);
-  void send_START_MECONF_data_v2(Signal*, Uint32);
+  void send_START_MECONF_data_v2(Signal*, Uint32, Uint32);
   void selectMasterCandidateAndSend(Signal *);
   void setLcpActiveStatusEnd(Signal*);
   void setLcpActiveStatusStart(Signal *);
@@ -1564,7 +1566,7 @@ private:
   void checkTcCounterLab(Signal *);
   void calculateKeepGciLab(Signal *, Uint32 tableId, Uint32 fragId);
   void tableUpdateLab(Signal *, TabRecordPtr regTabPtr);
-  void checkLcpCompletedLab(Signal *);
+  void checkLcpCompletedLab(Signal *, Uint32);
   void initLcpLab(Signal *, Uint32 masterRef, Uint32 tableId);
   void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
@@ -1673,7 +1675,8 @@ private:
                           Uint32 tableId);
   Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
                          const Fragmentstore * fragPtr,
-                         Uint32 nodes[]);
+                         Uint32 nodes[],
+                         bool crash_on_error = true);
   Uint32 findLocalFragment(const TabRecord *,
                            Ptr<Fragmentstore> & fragPtr,
                            EmulatedJamBuffer *jambuf);
@@ -2406,6 +2409,7 @@ private:
   Uint32 cMinTcFailNo;            /* Minimum TC handled failNo allowed to close GCP */
 
   BlockReference clocallqhblockref;
+  BlockReference clocalqlqhblockref;
   BlockReference clocaltcblockref;
   BlockReference cmasterdihref;
   Uint16 cownNodeId;
@@ -2647,13 +2651,12 @@ private:
   /**
    * This variable must be atleast the size of Sysfile::SYSFILE_SIZE32_v2
    */
-  Uint32 cdata_size_in_words;
   Uint32 cdata[DIH_CDATA_SIZE];       /* TEMPORARY ARRAY VARIABLE */
 
   /**
    * Sys file data
    */
-  Uint32 sysfileData[DIH_CDATA_SIZE];
+  Sysfile sysfile;
   Uint32 sysfileDataToFile[DIH_CDATA_SIZE];
 
   /**
@@ -2771,10 +2774,11 @@ private:
    * NDBMT_MAX_WORKER_INSTANCES inclusive.
    * 0 is the proxy block instance.
    */
-  Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
+  Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr)
+  {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    ndbrequire(log_part_id < NDBMT_MAX_WORKER_INSTANCES);
+    ndbrequire(log_part_id < MAX_INSTANCE_KEYS);
     return 1 + log_part_id;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
@@ -2811,10 +2815,30 @@ private:
   /* The highest data node id in the cluster. */
   Uint32 m_max_node_id;
   bool m_set_up_multi_trp_in_node_restart;
+  bool m_use_classic_fragmentation;
+
+  void find_min_used_log_part();
+  bool select_ng(Uint32 fragNo,
+                 Uint32 default_node_group,
+                 NodeGroupRecordPtr & NGPtr,
+                 Uint32 & err);
+  void inc_ng(Uint32 fragNo,
+              Uint32 noOfFragments,
+              Uint32 partitionCount,
+              Uint32 & default_node_group,
+              Uint32 numNodeGroups);
+  void add_nodes_to_fragment(Uint16 *fragments,
+                             Uint32 & node_index,
+                             Uint32 & count,
+                             NodeGroupRecordPtr NGPtr,
+                             Uint32 noOfReplicas);
+  bool find_next_log_part(TabRecord *primTabPtrP, Uint32 & next_log_part);
+  void getNodeGroupPtr(Uint32 nodeId, NodeGroupRecordPtr & NGPtr);
 public:
   bool is_master() { return isMaster(); }
   
   NdbNodeBitmask c_shutdownReqNodes;
+  void print_lcp_state();
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32_v2)

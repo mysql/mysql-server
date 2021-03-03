@@ -167,7 +167,8 @@ bool Ha_innopart_share::open_one_table_part(
 
   if (part_table != nullptr) {
     /* Set compression type like ha_innobase::open() does */
-    dberr_t err = dict_set_compression(part_table, table->s->compress.str);
+    dberr_t err =
+        dict_set_compression(part_table, table->s->compress.str, false);
     switch (err) {
       case DB_NOT_FOUND:
       case DB_UNSUPPORTED:

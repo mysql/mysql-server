@@ -36,7 +36,7 @@ Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release.
 #    will be forced to recover from member 5, since it will
 #    not be able to authenticate on any other member.
 [connection server2]
-CHANGE MASTER TO MASTER_USER="recovery_user", MASTER_PASSWORD="recovery_password" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="recovery_user", SOURCE_PASSWORD="recovery_password" FOR CHANNEL "group_replication_recovery";
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");

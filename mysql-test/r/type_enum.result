@@ -1834,16 +1834,16 @@ Warning	1265	Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES ('');
 SELECT c1 + 0, COUNT(c1) FROM t1 GROUP BY c1;
 c1 + 0	COUNT(c1)
-3	1
-2	2
 0	1
+2	2
+3	1
 CREATE TABLE t2 SELECT * FROM t1;
 SELECT c1 + 0 FROM t2;
 c1 + 0
-3
-2
 0
 2
+2
+3
 DROP TABLE t1,t2;
 CREATE TABLE t1(a enum('a','b','c','d'));
 INSERT INTO t1 VALUES (4),(1),(0),(3);
@@ -1953,3 +1953,22 @@ SELECT COUNT(*) FROM grants WHERE priv = 'XA_RECOVER_ADMIN';
 COUNT(*)
 1
 drop table grants;
+#
+# Bug #31019130 CASTING DOUBLE TO LONGLONG CAUSES UB
+#               IN FIELD_*::STORE(DOUBLE)
+#
+CREATE TABLE t_double (a double not null);
+INSERT INTO t_double (a) VALUES
+(-20000000000000000000000000000.0001), (20000000000000000000000000000.0001);
+CREATE TABLE t_enum (
+b enum('N','Y')
+);
+INSERT IGNORE INTO t_enum (b) SELECT a from t_double;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'b' at row 2
+SELECT b FROM t_enum;
+b
+
+
+DROP TABLE t_double, t_enum;

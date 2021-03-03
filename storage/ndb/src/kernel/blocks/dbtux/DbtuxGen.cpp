@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,10 +33,13 @@
 
 #define JAM_FILE_ID 365
 
-Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
-  SimulatedBlock(DBTUX, ctx, instanceNumber),
+Dbtux::Dbtux(Block_context& ctx,
+             Uint32 instanceNumber,
+             Uint32 blockNo) :
+  SimulatedBlock(blockNo, ctx, instanceNumber),
   c_tup(0),
   c_lqh(0),
+  c_acc(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
@@ -63,48 +66,75 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   /*
    * DbtuxGen.cpp
    */
-  addRecSignal(GSN_CONTINUEB, &Dbtux::execCONTINUEB);
-  addRecSignal(GSN_STTOR, &Dbtux::execSTTOR);
-  addRecSignal(GSN_READ_CONFIG_REQ, &Dbtux::execREAD_CONFIG_REQ, true);
-  /*
-   * DbtuxMeta.cpp
-   */
-  addRecSignal(GSN_CREATE_TAB_REQ, &Dbtux::execCREATE_TAB_REQ);
-  addRecSignal(GSN_TUXFRAGREQ, &Dbtux::execTUXFRAGREQ);
-  addRecSignal(GSN_TUX_ADD_ATTRREQ, &Dbtux::execTUX_ADD_ATTRREQ);
-  addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtux::execALTER_INDX_IMPL_REQ);
-  addRecSignal(GSN_DROP_TAB_REQ, &Dbtux::execDROP_TAB_REQ);
-  /*
-   * DbtuxMaint.cpp
-   */
-  addRecSignal(GSN_TUX_MAINT_REQ, &Dbtux::execTUX_MAINT_REQ);
-  /*
-   * DbtuxScan.cpp
-   */
-  addRecSignal(GSN_ACC_SCANREQ, &Dbtux::execACC_SCANREQ);
-  addRecSignal(GSN_TUX_BOUND_INFO, &Dbtux::execTUX_BOUND_INFO);
-  addRecSignal(GSN_NEXT_SCANREQ, &Dbtux::execNEXT_SCANREQ);
-  addRecSignal(GSN_ACC_CHECK_SCAN, &Dbtux::execACC_CHECK_SCAN);
-  addRecSignal(GSN_ACCKEYCONF, &Dbtux::execACCKEYCONF);
-  addRecSignal(GSN_ACCKEYREF, &Dbtux::execACCKEYREF);
-  addRecSignal(GSN_ACC_ABORTCONF, &Dbtux::execACC_ABORTCONF);
-  /*
-   * DbtuxStat.cpp
-   */
-  addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
-  addRecSignal(GSN_INDEX_STAT_REP, &Dbtux::execINDEX_STAT_REP);
-  addRecSignal(GSN_INDEX_STAT_IMPL_REQ, &Dbtux::execINDEX_STAT_IMPL_REQ);
-  /*
-   * DbtuxDebug.cpp
-   */
-  addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
+  if (blockNo == DBTUX)
+  {
+    addRecSignal(GSN_CONTINUEB, &Dbtux::execCONTINUEB);
+    addRecSignal(GSN_STTOR, &Dbtux::execSTTOR);
+    addRecSignal(GSN_READ_CONFIG_REQ, &Dbtux::execREAD_CONFIG_REQ, true);
+    /*
+     * DbtuxMeta.cpp
+     */
+    addRecSignal(GSN_CREATE_TAB_REQ, &Dbtux::execCREATE_TAB_REQ);
+    addRecSignal(GSN_TUXFRAGREQ, &Dbtux::execTUXFRAGREQ);
+    addRecSignal(GSN_TUX_ADD_ATTRREQ, &Dbtux::execTUX_ADD_ATTRREQ);
+    addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtux::execALTER_INDX_IMPL_REQ);
+    addRecSignal(GSN_DROP_TAB_REQ, &Dbtux::execDROP_TAB_REQ);
+    /*
+     * DbtuxMaint.cpp
+     */
+    addRecSignal(GSN_TUX_MAINT_REQ, &Dbtux::execTUX_MAINT_REQ);
+    /*
+     * DbtuxScan.cpp
+     */
+    addRecSignal(GSN_ACC_SCANREQ, &Dbtux::execACC_SCANREQ);
+    addRecSignal(GSN_TUX_BOUND_INFO, &Dbtux::execTUX_BOUND_INFO);
+    addRecSignal(GSN_NEXT_SCANREQ, &Dbtux::execNEXT_SCANREQ);
+    addRecSignal(GSN_ACC_CHECK_SCAN, &Dbtux::execACC_CHECK_SCAN);
+    addRecSignal(GSN_ACCKEYCONF, &Dbtux::execACCKEYCONF);
+    addRecSignal(GSN_ACCKEYREF, &Dbtux::execACCKEYREF);
+    addRecSignal(GSN_ACC_ABORTCONF, &Dbtux::execACC_ABORTCONF);
+    /*
+     * DbtuxStat.cpp
+     */
+    addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
+    addRecSignal(GSN_INDEX_STAT_REP, &Dbtux::execINDEX_STAT_REP);
+    addRecSignal(GSN_INDEX_STAT_IMPL_REQ, &Dbtux::execINDEX_STAT_IMPL_REQ);
+    /*
+     * DbtuxDebug.cpp
+     */
+    addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
+    addRecSignal(GSN_DBINFO_SCANREQ, &Dbtux::execDBINFO_SCANREQ);
+    addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
 
-  addRecSignal(GSN_DBINFO_SCANREQ, &Dbtux::execDBINFO_SCANREQ);
-
-  addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
-
-  addRecSignal(GSN_DROP_FRAG_REQ, &Dbtux::execDROP_FRAG_REQ);
-
+    addRecSignal(GSN_DROP_FRAG_REQ, &Dbtux::execDROP_FRAG_REQ);
+    m_is_query_block = false;
+    m_acc_block = DBACC;
+    m_lqh_block = DBLQH;
+    m_tux_block = DBTUX;
+  }
+  else
+  {
+    m_is_query_block = true;
+    m_acc_block = DBQACC;
+    m_lqh_block = DBQLQH;
+    m_tux_block = DBQTUX;
+    ndbrequire(blockNo == DBQTUX);
+    addRecSignal(GSN_CONTINUEB, &Dbtux::execCONTINUEB);
+    addRecSignal(GSN_STTOR, &Dbtux::execSTTOR);
+    addRecSignal(GSN_READ_CONFIG_REQ, &Dbtux::execREAD_CONFIG_REQ, true);
+    addRecSignal(GSN_TUX_MAINT_REQ, &Dbtux::execTUX_MAINT_REQ);
+    addRecSignal(GSN_ACC_SCANREQ, &Dbtux::execACC_SCANREQ);
+    addRecSignal(GSN_TUX_BOUND_INFO, &Dbtux::execTUX_BOUND_INFO);
+    addRecSignal(GSN_NEXT_SCANREQ, &Dbtux::execNEXT_SCANREQ);
+    addRecSignal(GSN_ACC_CHECK_SCAN, &Dbtux::execACC_CHECK_SCAN);
+    addRecSignal(GSN_ACCKEYCONF, &Dbtux::execACCKEYCONF);
+    addRecSignal(GSN_ACCKEYREF, &Dbtux::execACCKEYREF);
+    addRecSignal(GSN_ACC_ABORTCONF, &Dbtux::execACC_ABORTCONF);
+    addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
+    addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
+    addRecSignal(GSN_DBINFO_SCANREQ, &Dbtux::execDBINFO_SCANREQ);
+    addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
+  }
   c_signal_bug32040 = 0;
 
   c_transient_pools[DBTUX_SCAN_OPERATION_TRANSIENT_POOL_INDEX] =
@@ -244,10 +274,25 @@ Dbtux::execSTTOR(Signal* signal)
   case 1:
     jam();
     CLEAR_ERROR_INSERT_VALUE;
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
-    ndbrequire(c_tup != 0);
-    c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
-    ndbrequire(c_lqh != 0);
+    m_my_scan_instance = get_my_scan_instance();
+    if (m_is_query_block)
+    {
+      c_tup = (Dbtup*)globalData.getBlock(DBQTUP, instance());
+      ndbrequire(c_tup != 0);
+      c_lqh = (Dblqh*)globalData.getBlock(DBQLQH, instance());
+      ndbrequire(c_lqh != 0);
+      c_acc = (Dbacc*)globalData.getBlock(DBQACC, instance());
+      ndbrequire(c_acc != 0);
+    }
+    else
+    {
+      c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+      ndbrequire(c_tup != 0);
+      c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
+      ndbrequire(c_lqh != 0);
+      c_acc = (Dbacc*)globalData.getBlock(DBACC, instance());
+      ndbrequire(c_acc != 0);
+    }
     c_signal_bug32040 = signal;
     break;
   case 3:
@@ -275,15 +320,30 @@ Dbtux::execSTTOR(Signal* signal)
     jam();
     break;
   }
-  signal->theData[0] = 0;       // garbage
-  signal->theData[1] = 0;       // garbage
-  signal->theData[2] = 0;       // garbage
-  signal->theData[3] = 1;
-  signal->theData[4] = 3;       // for c_typeOfStart
-  signal->theData[5] = 7;       // for c_internalStartPhase
-  signal->theData[6] = 255;
-  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUX_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
+  if (m_is_query_block)
+  {
+    jam();
+    signal->theData[0] = 0;       // garbage
+    signal->theData[1] = 0;       // garbage
+    signal->theData[2] = 0;       // garbage
+    signal->theData[3] = 1;
+    signal->theData[4] = 3;       // for c_typeOfStart
+    signal->theData[5] = 255;
+    sendSignal(DBQTUX_REF, GSN_STTORRY, signal, 6, JBB);
+  }
+  else
+  {
+    jam();
+    signal->theData[0] = 0;       // garbage
+    signal->theData[1] = 0;       // garbage
+    signal->theData[2] = 0;       // garbage
+    signal->theData[3] = 1;
+    signal->theData[4] = 3;       // for c_typeOfStart
+    signal->theData[5] = 7;       // for c_internalStartPhase
+    signal->theData[6] = 255;
+    BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : DBTUX_REF;
+    sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
+  }
 }
 
 void
@@ -392,11 +452,21 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
                             nAttribute * AttributeHeaderSize +
                             DescPageSize - 1) / DescPageSize;
   const Uint32 nStatOp = 8;
-  
-  c_indexPool.setSize(nIndex);
-  c_fragPool.setSize(nFragment);
-  c_descPagePool.setSize(nDescPage);
-  c_fragOpPool.setSize(MaxIndexFragments);
+
+  if (m_is_query_block)
+  {
+    c_fragOpPool.setSize(0);
+    c_indexPool.setSize(0);
+    c_fragPool.setSize(0);
+    c_descPagePool.setSize(0);
+  }
+  else
+  {
+    c_fragOpPool.setSize(MaxIndexFragments);
+    c_indexPool.setSize(nIndex);
+    c_fragPool.setSize(nFragment);
+    c_descPagePool.setSize(nDescPage);
+  }
   c_statOpPool.setSize(nStatOp);
   c_indexStatAutoUpdate = nStatAutoUpdate;
   c_indexStatSaveSize = nStatSaveSize;
@@ -440,7 +510,9 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
                                              (MaxXfrmDataSize + 1) >> 1);
 
 #ifdef VM_TRACE
-  c_ctx.c_debugBuffer = (char*)allocRecord("c_debugBuffer", sizeof(char), DebugBufferBytes);
+  c_ctx.c_debugBuffer = (char*)allocRecord("c_debugBuffer",
+                                           sizeof(char),
+                                           DebugBufferBytes);
 #endif
 
   Pool_context pc;
@@ -449,6 +521,10 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 reserveScanOpRecs = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUX_RESERVED_SCAN_RECORDS,
                                         &reserveScanOpRecs));
+  if (m_is_query_block)
+  {
+    reserveScanOpRecs = 1;
+  }
   c_scanOpPool.init(
     ScanOp::TYPE_ID,
     pc,
@@ -461,6 +537,10 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 
   c_freeScanLock = RNIL;
   Uint32 reserveScanLockRecs = 1000;
+  if (m_is_query_block)
+  {
+    reserveScanLockRecs = 1;
+  }
   c_scanLockPool.init(
     ScanLock::TYPE_ID,
     pc,

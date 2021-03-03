@@ -28,7 +28,7 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "errmsg.h"
+#include "errmsg.h"  // NOLINT(build/include_subdir)
 #include "plugin/x/client/mysqlxclient/mysqlxclient_error.h"
 #include "plugin/x/src/helper/to_string.h"
 

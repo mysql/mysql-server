@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -426,7 +426,8 @@ operator<<(NdbOut& out, const Dbtux::TreeNode& node)
   out << " [side " << dec << node.m_side << "]";
   out << " [occup " << dec << node.m_occup << "]";
   out << " [balance " << dec << (int)node.m_balance - 1 << "]";
-  out << " [nodeScan " << hex << node.m_nodeScan << "]";
+  out << " [nodeScanPtrI " << hex << node.m_nodeScanPtrI << "]";
+  out << " [nodeScanInstance " << hex << node.m_nodeScanInstance << "]";
   out << "]";
   return out;
 }

@@ -139,6 +139,7 @@ PARTITION BY RANGE (TO_DAYS(c3))
 
 insert into t1(c2,c3) values ("Test row",'2010-01-01 00:00:00');
 
+--sorted_result
 SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1' AND TABLE_SCHEMA = 'test';
 SELECT count(*) FROM t1 p where c3 in
 (SELECT c3 FROM t1 t WHERE t.c3 < TIMESTAMP'2011-04-26 19:19:44'
@@ -768,10 +769,13 @@ START TRANSACTION WITH CONSISTENT SNAPSHOT;
 ALTER TABLE t1 ADD INDEX idx1 (b);
 --connection default
 --echo # con default
+--skip_if_hypergraph  # Doesn't use the index, so the plan is still valid.
 --error ER_TABLE_DEF_CHANGED
 SELECT b FROM t1 WHERE b = 0;
+--skip_if_hypergraph  # Doesn't use the index, so the plan is still valid.
 --error ER_TABLE_DEF_CHANGED
 SELECT b FROM t1 WHERE b = 0;
+--skip_if_hypergraph  # Doesn't use the index, so the plan is still valid.
 --error ER_TABLE_DEF_CHANGED
 SELECT * FROM t1;
 --disconnect con1
@@ -789,10 +793,13 @@ START TRANSACTION WITH CONSISTENT SNAPSHOT;
 ALTER TABLE t1 ADD INDEX idx1 (b);
 --connection default
 --echo # con default
+--skip_if_hypergraph  # Doesn't use the index, so the plan is still valid.
 --error ER_TABLE_DEF_CHANGED
 SELECT b FROM t1 WHERE b = 0;
+--skip_if_hypergraph  # Doesn't use the index, so the plan is still valid.
 --error ER_TABLE_DEF_CHANGED
 SELECT b FROM t1 WHERE b = 0;
+--skip_if_hypergraph  # Doesn't use the index, so the plan is still valid.
 --error ER_TABLE_DEF_CHANGED
 SELECT * FROM t1;
 --disconnect con1
@@ -1007,6 +1014,7 @@ PARTITION BY HASH (a) PARTITIONS 2;
 
 ANALYZE TABLE t1;
 
+--sorted_result
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 
@@ -1388,30 +1396,42 @@ ANALYZE TABLE t1;
 
 --echo # Test non ordered index access
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`);
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 FORCE INDEX (`ab_asc`);
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 FORCE INDEX (`a_asc_b_desc`);
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
+--sorted_result
 SELECT * FROM t1 FORCE INDEX (`a_desc_b_asc`);
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 
 --echo # Test sorted index access
 FLUSH STATUS;
 SELECT * FROM t1 ORDER BY a DESC, b DESC;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
 SELECT * FROM t1 ORDER BY a, b;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
 SELECT * FROM t1 ORDER BY a, b DESC;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
 SELECT * FROM t1 ORDER BY a DESC, b;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
 EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b DESC;
@@ -1425,15 +1445,19 @@ EXPLAIN FORMAT=JSON SELECT * FROM t1 ORDER BY a DESC, b;
 --echo # Test index access in different sort order
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
+--skip_if_hypergraph  # Index not supported, so different query plan.
 SHOW STATUS WHERE Variable_name LIKE 'Handler%' AND Value >0;
 --replace_regex /"rows_examined_per_scan": [0-9]+/"rows_examined_per_scan": "X"/ /_per_join": [0-9]+/_per_join": "X"/ /_per_join": "[0-9]+K"/_per_join": "X"/  /"filtered": "[0-9.]+"/"filtered": "X"/ /_cost": "[0-9.]+"/_cost": "X"/ /"data_read_per_join": "[0-9.]+"/"data_read_per_join": "X"/
 EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;

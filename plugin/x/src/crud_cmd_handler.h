@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,11 @@
 #ifndef PLUGIN_X_SRC_CRUD_CMD_HANDLER_H_
 #define PLUGIN_X_SRC_CRUD_CMD_HANDLER_H_
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/protocol_fwd.h"
-#include "plugin/x/ngs/include/ngs/session_status_variables.h"
 #include "plugin/x/src/interface/resultset.h"
 #include "plugin/x/src/interface/sql_session.h"
+#include "plugin/x/src/ngs/error_code.h"
+#include "plugin/x/src/ngs/protocol_fwd.h"
+#include "plugin/x/src/ngs/session_status_variables.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_context.h"
 

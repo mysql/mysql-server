@@ -869,6 +869,7 @@ INSERT INTO g1 VALUES (ST_geomfromtext('point(1 2)'));
 
 FLUSH TABLES;
 
+--skip_if_hypergraph   # Differing warnings.
 SELECT 1 FROM g1 WHERE a = date_sub(now(), interval 2808.4 year_month);
 
 DROP TABLE g1;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,9 @@ namespace password_hasher {
 
 char *octet2hex(char *to, const char *str, size_t len);
 std::string generate_user_salt();
-std::string scramble(const char *message, const char *password);
-bool check_scramble_mysql41_hash(const char *scramble_arg, const char *message,
+std::string scramble(const std::string &message, const std::string &password);
+bool check_scramble_mysql41_hash(const std::string &scramble_arg,
+                                 const std::string &message,
                                  const uint8_t *hash_stage2);
 std::string get_password_from_salt(const std::string &hash_stage2);
 

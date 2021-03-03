@@ -67,7 +67,7 @@ FLUSH PRIVILEGES;
 --echo #
 
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_password' FOR CHANNEL 'group_replication_recovery';
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER='$recovery_user', SOURCE_PASSWORD='$recovery_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --echo #
@@ -107,7 +107,7 @@ SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG='d,recovery_thread_wait_before_finish';
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='$recovery_user', MASTER_PASSWORD='$recovery_bad_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='$recovery_user', SOURCE_PASSWORD='$recovery_bad_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --echo # Set the retry count to try only twice. One time for each member.
@@ -134,7 +134,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 
 --source include/stop_group_replication.inc
 
-CHANGE MASTER TO MASTER_USER= '', MASTER_PASSWORD= '' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= '', SOURCE_PASSWORD= '' FOR CHANNEL 'group_replication_recovery';
 
 --echo # Start recovery and wait to verify the member is in recovery
 --let $group_replication_start_member_state= RECOVERING
@@ -155,7 +155,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_end";
 --echo # Set MASTER_USER to non existing user, watching it fail
 --echo #
 
-CHANGE MASTER TO MASTER_USER= 'parveez', MASTER_PASSWORD= 'me' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'parveez', SOURCE_PASSWORD= 'me' FOR CHANNEL 'group_replication_recovery';
 
 --echo # Start recovery and wait to verify the member is in recovery
 --let $group_replication_start_member_state= RECOVERING

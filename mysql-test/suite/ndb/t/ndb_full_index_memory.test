@@ -8,7 +8,7 @@ create table t1(x int primary key) engine=ndbcluster;
 # Node 2 can use 90% of index memory (MinFreePct=10)
 
 # Stop node 2 so it is possible to use 95% of index memory
---exec $NDB_MGM --verbose=0 -e "2 restart -n"
+--exec $NDB_MGM -e "2 restart -n"
 --exec $NDB_WAITER --not-started --wait-nodes=2 >> $NDB_TOOLS_OUTPUT
 
 # Avoid problem with too large transactions.
@@ -27,7 +27,7 @@ while (!$mysql_errno)
 --enable_query_log
 
 # Start node 2, during restart it can use all index memory (100%).
---exec $NDB_MGM --verbose=0 -e "2 start"
+--exec $NDB_MGM -e "2 start"
 --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
 
 # Now after restart node 2 have no usable memory free.

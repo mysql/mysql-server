@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,9 @@
 #ifndef MYSQLROUTER_HTTP_CLIENT_INCLUDED
 #define MYSQLROUTER_HTTP_CLIENT_INCLUDED
 
-#include <openssl/ssl.h>
-
+#include "mysql/harness/tls_client_context.h"
 #include "mysqlrouter/http_client_export.h"
 #include "mysqlrouter/http_common.h"
-#include "mysqlrouter/tls_client_context.h"
 
 struct evhttp_connection;
 struct event_base;

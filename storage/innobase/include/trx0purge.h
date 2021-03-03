@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -117,17 +117,20 @@ struct purge_iter_t {
     // Do nothing
   }
 
-  trx_id_t trx_no;   /*!< Purge has advanced past all
-                     transactions whose number is less
-                     than this */
-  undo_no_t undo_no; /*!< Purge has advanced past all records
-                     whose undo number is less than this */
+  /** Purge has advanced past all transactions whose number
+  is less than this */
+  trx_id_t trx_no;
+
+  /** Purge has advanced past all records whose undo number
+  is less than this. */
+  undo_no_t undo_no;
+
+  /** The last undo record resided in this space id */
   space_id_t undo_rseg_space;
-  /*!< Last undo record resided in this
-  space id. */
+
+  /** The transaction that created the undo log record,
+  the Modifier trx id */
   trx_id_t modifier_trx_id;
-  /*!< the transaction that created the
-  undo log record. Modifier trx id.*/
 };
 
 /* Namespace to hold all the related functions and variables needed
@@ -180,7 +183,7 @@ inline space_id_t num2id(space_id_t space_num, size_t ndx) {
 }
 
 /** Convert an undo space number (from 1 to 127) into an undo space_id.
-Use the undo::space_id_bank to return the curent space_id assigned to
+Use the undo::space_id_bank to return the current space_id assigned to
 that undo number.
 @param[in]  space_num   undo tablespace number
 @return space_id of the undo tablespace */
@@ -204,7 +207,7 @@ NOTE: This may be an undo space_id from a pre-exisiting 5.7
 database which used space_ids from 1 to 127.  If so, the
 space_id is the space_num.
 The space_ids are assigned to number ranges in reverse from high to low.
-In addition, the first space IDs for each undo number occur sequentionally
+In addition, the first space IDs for each undo number occur sequentially
 and descending before the second space_id.
 
 Since s_max_undo_space_id = 0xFFFFFFEF, FSP_MAX_UNDO_TABLESPACES = 127
@@ -264,7 +267,7 @@ return the next available space_id for that space number.
 space_id_t use_next_space_id(space_id_t space_num);
 
 /** Mark an undo number associated with a given space_id as unused and
-available to be resused.  This happens when the fil_space_t is closed
+available to be reused.  This happens when the fil_space_t is closed
 associated with a drop undo tablespace.
 @param[in] space_id  Undo Tablespace ID */
 void unuse_space_id(space_id_t space_id);
@@ -397,7 +400,7 @@ struct Tablespace {
   of the file name provided. This name can come in three forms:
   absolute path, relative path, and basename.  Undo ADD DATAFILE
   does not accept a relative path.  So if that comes in here, it
-  was the scaneed name and is relative to the datadir.
+  was the scanned name and is relative to the datadir.
   If this is just a basename, add it to srv_undo_dir.
   @param[in]  file_name  explicit undo file name */
   void set_file_name(const char *file_name);
@@ -717,6 +720,31 @@ class Tablespaces {
     return (nullptr);
   }
 
+  /** Find the first undo space that is marked inactive explicitly.
+  @param[in,out]  num_active  If there are no inactive_explicit spaces
+                              found, this will contain the number of
+                              active spaces found.
+  @return pointer to an undo::Tablespace struct */
+  Tablespace *find_first_inactive_explicit(size_t *num_active) {
+    ut_ad(own_latch());
+
+    if (m_spaces.empty()) {
+      return (nullptr);
+    }
+
+    for (auto undo_space : m_spaces) {
+      if (undo_space->is_inactive_explicit()) {
+        return (undo_space);
+      }
+
+      if (num_active != nullptr && undo_space->is_active()) {
+        (*num_active)++;
+      }
+    }
+
+    return (nullptr);
+  }
+
 #ifdef UNIV_DEBUG
   /** Determine if this thread owns a lock on m_latch. */
   bool own_latch() {
@@ -744,7 +772,7 @@ class Tablespaces {
   rw_lock_t *m_latch;
 };
 
-/** Mutext for serializing undo tablespace related DDL.  These have to do with
+/** Mutex for serializing undo tablespace related DDL.  These have to do with
 creating and dropping undo tablespaces. */
 extern ib_mutex_t ddl_mutex;
 
@@ -816,7 +844,7 @@ void add_space_to_construction_list(space_id_t space_id);
 /** Clear the s_under_construction vector. */
 void clear_construction_list();
 
-/** Is an undo tablespace under constuction at the moment.
+/** Is an undo tablespace under construction at the moment.
 @param[in]	space_id	space id to check
 @return true if marked for truncate, else false. */
 bool is_under_construction(space_id_t space_id);
@@ -837,13 +865,11 @@ constexpr ulint TRUNCATE_FREQUENCY = 128;
 /** Track an UNDO tablespace marked for truncate. */
 class Truncate {
  public:
-  Truncate()
-      : m_space_id_marked(SPACE_UNKNOWN),
-        m_purge_rseg_truncate_frequency(
-            static_cast<ulint>(srv_purge_rseg_truncate_frequency)),
-        m_timer() {
-    /* Do Nothing. */
-  }
+  /** Constructor. */
+  Truncate() : m_space_id_marked(SPACE_UNKNOWN), m_timer() {}
+
+  /** Destructor. */
+  ~Truncate() = default;
 
   /** Is tablespace selected for truncate.
   @return true if undo tablespace is marked for truncate */
@@ -869,10 +895,6 @@ class Truncate {
 
   /** Reset for next rseg truncate. */
   void reset() {
-    /* Sync with global value as we are done with truncate now. */
-    set_rseg_truncate_frequency(
-        static_cast<ulint>(srv_purge_rseg_truncate_frequency));
-
     reset_timer();
     m_marked_space_is_empty = false;
     m_space_id_marked = SPACE_UNKNOWN;
@@ -901,17 +923,6 @@ class Truncate {
     return (get_scan_space_num());
   }
 
-  /** Get local rseg purge truncate frequency
-  @return rseg purge truncate frequency. */
-  ulint get_rseg_truncate_frequency() const {
-    return (m_purge_rseg_truncate_frequency);
-  }
-
-  /** Set local rseg purge truncate frequency */
-  void set_rseg_truncate_frequency(ulint frequency) {
-    m_purge_rseg_truncate_frequency = frequency;
-  }
-
   /** Check if the given space id is equal to the space ID that is marked for
   truncation.
   @return true if they are equal, false otherwise. */
@@ -934,12 +945,6 @@ class Truncate {
   truncated and rebuilt.  This allow the code to do the check for undo
   logs only once. */
   bool m_marked_space_is_empty;
-
-  /** Rollback segment(s) purge frequency. This is a local value maintained
-  along with the global value. It is set to the global value before each
-  truncate.  But when a tablespace is marked for truncate it is updated
-  to 1 and then minimum value among 2 is used by the purge action. */
-  ulint m_purge_rseg_truncate_frequency;
 
   /** Elapsed time since last truncate check. */
   ib::Timer m_timer;
@@ -994,7 +999,7 @@ struct trx_purge_t {
   volatile ulint n_submitted;
 
   /** Count of total tasks completed */
-  volatile ulint n_completed;
+  std::atomic<ulint> n_completed;
 
   /* The following two fields form the 'purge pointer' which advances
   during a purge, and which is used in history list truncation */

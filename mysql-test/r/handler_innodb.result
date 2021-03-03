@@ -1847,3 +1847,19 @@ ERROR HY000: Incorrect arguments to HANDLER ... READ
 HANDLER t READ col_year_key <= ('p');
 ERROR HY000: Incorrect arguments to HANDLER ... READ
 DROP TABLE t;
+#
+# Bug#31977414: ASSERT `!TABLE || (!TABLE->READ_SET ||
+#               BITMAP_IS_SET(TABLE->READ_SET, FIELD_IND
+#
+CREATE TABLE t(x INT);
+INSERT INTO t VALUES (1);
+CREATE VIEW v AS SELECT MAX(x) AS x FROM t;
+HANDLER t OPEN;
+UPDATE v v1, v v2 SET v1.x = v2.x;
+ERROR HY000: The target table v1 of the UPDATE is not updatable
+HANDLER t READ NEXT;
+x
+1
+HANDLER t CLOSE;
+DROP VIEW v;
+DROP TABLE t;

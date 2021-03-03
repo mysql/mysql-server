@@ -34,10 +34,10 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_statement.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
@@ -211,7 +211,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   qbuf.length(0);
   const char *cur = query_str.str;
   int prev_pos = 0;
-  int res = 0;
+  bool res = 0;
   thd->query_name_consts = 0;
 
   for (Item_splocal **splocal = sp_vars_uses.begin();

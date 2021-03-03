@@ -89,6 +89,7 @@ protected:
                        Page_cache_client::Request& req,
                        Uint32 flags);
 
+  void set_lsn(Page_cache_client& caller, Local_key key, Uint64 lsn);
   void update_lsn(Signal *signal,
                   Page_cache_client& caller,
                   Local_key key, Uint64 lsn);

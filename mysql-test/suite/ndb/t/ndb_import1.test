@@ -187,7 +187,6 @@ EOF
 # run test
 
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_import_tool.inc
 --source $MYSQLTEST_VARDIR/tmp/ndb_import1.inc
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t*.csv

@@ -22,28 +22,44 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <gmock/gmock.h>
 #include <chrono>
 #include <climits>
+#include <initializer_list>
+#include <system_error>
 #include <thread>
 
 #ifdef _WIN32
 #include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 #else
 #include <sys/stat.h>  // chmod
 #include <unistd.h>    // symlink
 #endif
 
+#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest-typed-test.h>
+
 #include "config_builder.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysql/harness/net_ts/local.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/stdx/expected_ostream.h"
+#include "process_manager.h"
 #include "random_generator.h"
 #include "rest_api_testutils.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
-#include "socket_operations.h"
+
+#define EXPECT_NO_ERROR(x) \
+  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
+
+#define EXPECT_ERROR(x) \
+  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return !bool(v); }))
+
+#define ASSERT_NO_ERROR(x) \
+  ASSERT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
 
 using mysql_harness::ConfigBuilder;
 using mysqlrouter::ClusterType;
@@ -52,6 +68,23 @@ using ::testing::PrintToString;
 using namespace std::chrono_literals;
 
 Path g_origin_path;
+
+template <class Iterable>
+static std::string make_error_message_regex(
+    const Iterable &expected_error_codes) {
+  std::string expected_error_regex("(");
+
+  for (auto const &ec : expected_error_codes) {
+    if (expected_error_codes.size() > 1) {
+      expected_error_regex += "|";
+    }
+    expected_error_regex += ec.message();
+  }
+
+  expected_error_regex += ")";
+
+  return expected_error_regex;
+}
 
 class NotifyTest : public RestApiComponentTest {
  protected:
@@ -63,6 +96,7 @@ class NotifyTest : public RestApiComponentTest {
 
   bool wait_signal_handler_ready(ProcessWrapper &router) {
 #ifdef _WIN32
+    UNREFERENCED_PARAMETER(router);
     return true;
 #else
     return wait_log_contains(router, "Service 'signal handler' ready", 5s);
@@ -93,18 +127,19 @@ class NotifyTest : public RestApiComponentTest {
 
     std::vector<std::pair<std::string, std::string>> env_vars;
 
-    auto notify_socket{kNotifySocketInvalid};
-    std::shared_ptr<void> notify_socket_close_guard(
-        nullptr, [&](void *) { close_notify_socket(notify_socket); });
-
     std::string socket_node;
     if (notification_socket_node == "default") {
       socket_node = generate_notify_socket_path(get_test_temp_dir_name());
     } else {
       socket_node = notification_socket_node;
     }
+
+    net::io_context io_ctx;
+    wait_socket_t notify_socket{io_ctx};
+
     if (do_create_notify_socket) {
-      notify_socket = create_notify_socket(socket_node);
+      EXPECT_NO_ERROR(notify_socket.open());
+      EXPECT_NO_ERROR(notify_socket.bind({socket_node})) << socket_node;
     }
     env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
 
@@ -112,9 +147,14 @@ class NotifyTest : public RestApiComponentTest {
         launch_router({"-c", conf_file}, env_vars, expected_exit_code);
 
     if (wait_on_notify_socket) {
-      const bool wait_for_ready_result =
+      const auto wait_for_ready_result =
           wait_for_notified_ready(notify_socket, wait_for_ready_timeout);
-      EXPECT_EQ(wait_for_ready_expected_result, wait_for_ready_result);
+
+      if (wait_for_ready_expected_result) {
+        EXPECT_NO_ERROR(wait_for_ready_result);
+      } else {
+        EXPECT_ERROR(wait_for_ready_result);
+      }
     }
 
     return router;
@@ -157,7 +197,8 @@ class NotifyTest : public RestApiComponentTest {
             length, mysql_harness::RandomGenerator::AlphabetLowercase);
 
 #ifdef _WIN32
-    return std::string("\\\\.\\pipe\\") + unique_id;
+    UNREFERENCED_PARAMETER(tmp_dir);
+    return R"(\\.\pipe\)" + unique_id;
 #else
     Path result(tmp_dir);
     result.append(unique_id);
@@ -410,15 +451,11 @@ TEST_F(NotifyTest, NotifyReadyMetadataCacheNoServer) {
                                   /*wait_for_ready_timeout*/ 500ms);
 }
 
-class NotifyReadySocketEmptyTest
-    : public NotifyTest,
-      public ::testing::WithParamInterface<std::string> {};
-
 /**
  * @test TS_R6_1, TS_R7_10, TS_R8_2
  *
  */
-TEST_F(NotifyReadySocketEmptyTest, NotifyReadySocketEmpty) {
+TEST_F(NotifyTest, NotifyReadySocketEmpty) {
   SCOPED_TRACE("// Launch the Router with only keepalive plugin");
 
   const std::vector<std::string> config_sections{
@@ -431,18 +468,17 @@ TEST_F(NotifyReadySocketEmptyTest, NotifyReadySocketEmpty) {
       "// Notification socket is empty so we should not get ready "
       "notification, still the Router should start and close successfully");
   auto &router = launch_router(config_sections,
-                               /*wait_for_ready_expected_result*/ false,
-                               /*wait_for_ready_timeout*/ 500ms,
-                               /*notification_socket_node*/ "");
+                               false,  // wait_for_ready_expected_result
+                               500ms,  // wait_for_ready_timeout
+                               "",     // notification_socket_node
+                               false   // don't bind the socket
+  );
 
   EXPECT_TRUE(wait_log_contains(router,
                                 "DEBUG .* NOTIFY_SOCKET is empty, skipping "
                                 "sending 'READY=1' notification",
                                 2s));
 }
-
-INSTANTIATE_TEST_CASE_P(NotifyReadySocketEmpty, NotifyReadySocketEmptyTest,
-                        ::testing::Values("", "\0", "\0path\0"));
 
 /**
  * @test TS_R7_1
@@ -468,17 +504,19 @@ TEST_F(NotifyTest, NotifyReadyNonExistingNotifySocket) {
                                /*do_create_notify_socket*/ false,
                                /*expected_exit_code*/ EXIT_SUCCESS);
 
-#ifndef _WIN32
-  EXPECT_TRUE(wait_log_contains(router,
-                                "WARNING .* Could not connect to the "
-                                "NOTIFY_SOCKET='.*': No such file or directory",
-                                2s));
-#else
-  EXPECT_TRUE(wait_log_contains(
-      router,
-      "WARNING .* Failed to send notification 'READY=1' to the named pipe .*",
-      2s));
+  const auto expected_error_codes = {
+    make_error_code(std::errc::no_such_file_or_directory),
+#if defined(_WIN32)
+    std::error_code{ERROR_FILE_NOT_FOUND, std::system_category()},
 #endif
+  };
+
+  EXPECT_TRUE(
+      wait_log_contains(router,
+                        "WARNING .* sending .* to NOTIFY_SOCKET='.*' "
+                        "failed: " +
+                            make_error_message_regex(expected_error_codes),
+                        2s));
 }
 
 class NotifyTestInvalidSocketNameTest
@@ -509,18 +547,21 @@ TEST_P(NotifyTestInvalidSocketNameTest, NotifyTestInvalidSocketName) {
                                /*do_create_notify_socket*/ false,
                                /*expected_exit_code*/ EXIT_SUCCESS);
 
-#ifndef _WIN32
-  EXPECT_TRUE(wait_log_contains(
-      router,
-      "WARNING .* Could not connect to the "
-      "NOTIFY_SOCKET='.*': (No such file or directory)|(Connection refused)",
-      5s));
-#else
-  EXPECT_TRUE(wait_log_contains(
-      router,
-      "WARNING .* Failed to send notification 'READY=1' to the named pipe .*",
-      500ms));
+  const auto expected_error_codes = {
+    make_error_code(std::errc::connection_refused),
+    make_error_code(std::errc::no_such_file_or_directory),
+#if defined(_WIN32)
+    std::error_code{ERROR_FILE_NOT_FOUND, std::system_category()},
+    std::error_code{ERROR_ACCESS_DENIED, std::system_category()},
 #endif
+  };
+
+  EXPECT_TRUE(
+      wait_log_contains(router,
+                        "WARNING .* sending .* to NOTIFY_SOCKET='.*' "
+                        "failed: " +
+                            make_error_message_regex(expected_error_codes),
+                        2s));
 }
 
 INSTANTIATE_TEST_CASE_P(
@@ -553,14 +594,16 @@ TEST_F(NotifyTest, NotifyReadyNotRelatedSocket) {
   const std::string socket_name =
       generate_notify_socket_path(get_test_temp_dir_name());
 
-  auto notify_socket = create_notify_socket(socket_name);
-  std::shared_ptr<void> notify_socket_close_guard(
-      nullptr, [&](void *) { close_notify_socket(notify_socket); });
+  net::io_context io_ctx;
+  notify_socket_t notify_socket(io_ctx);
+
+  ASSERT_NO_ERROR(notify_socket.open());
+  ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
 
   auto &router = launch_router(config_sections,
                                /*wait_for_ready_expected_result*/ false,
                                /*wait_for_ready_timeout*/ 500ms,
-                               /*notifiication_socket_node*/ socket_name,
+                               /*notification_socket_node*/ socket_name,
                                /*do_create_notify_socket*/ false,
                                /*expected_exit_code*/ EXIT_SUCCESS,
                                /*wait_on_notify_socket*/ false);
@@ -571,16 +614,25 @@ TEST_F(NotifyTest, NotifyReadyNotRelatedSocket) {
   EXPECT_TRUE(wait_signal_handler_ready(router));
 }
 
-class NotifyReadyNotRelatedSocketNonDatagramTest
-    : public NotifyTest,
-      public ::testing::WithParamInterface<int> {};
+template <class T>
+class NotifyReadyNotRelatedSocketNonDatagramTest : public NotifyTest {};
+
+using NotifyReadyNotRelatedSocketNonDatagramTestTypes =
+#if !defined(__APPLE__)
+    ::testing::Types<local::stream_protocol, local::seqpacket_protocol>;
+#else
+    // on Mac os trying to create a socket type SOCK_SEQPACKET
+    // leads to "Protocol not supported" error
+    ::testing::Types<local::stream_protocol>;
+#endif
+TYPED_TEST_SUITE(NotifyReadyNotRelatedSocketNonDatagramTest,
+                 NotifyReadyNotRelatedSocketNonDatagramTestTypes);
 
 /**
  * @test TS_R7_7, TS_R7_8
  *
  */
-TEST_P(NotifyReadyNotRelatedSocketNonDatagramTest,
-       NotifyReadyNotRelatedSocketNonDatagram) {
+TYPED_TEST(NotifyReadyNotRelatedSocketNonDatagramTest, check) {
   SCOPED_TRACE("// Launch the Router with only keepalive plugin");
 
   const std::vector<std::string> config_sections{
@@ -595,38 +647,27 @@ TEST_P(NotifyReadyNotRelatedSocketNonDatagramTest,
       "that anyone is reading from (mimic socket not created by the systemd)");
 
   const std::string socket_name =
-      generate_notify_socket_path(get_test_temp_dir_name());
+      this->generate_notify_socket_path(TestFixture::get_test_temp_dir_name());
 
-  auto notify_socket =
-      create_notify_socket(socket_name, /*socket type*/ GetParam());
-  std::shared_ptr<void> notify_socket_close_guard(
-      nullptr, [&](void *) { close_notify_socket(notify_socket); });
+  net::io_context io_ctx;
+  auto notify_socket = typename TypeParam::socket{io_ctx};
+  ASSERT_NO_ERROR(notify_socket.open());
+  ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
 
-  auto &router = launch_router(config_sections,
-                               /*wait_for_ready_expected_result*/ false,
-                               /*wait_for_ready_timeout*/ 500ms,
-                               /*notifiication_socket_node*/ socket_name,
-                               /*do_create_notify_socket*/ false,
-                               /*expected_exit_code*/ EXIT_SUCCESS,
-                               /*wait_on_notify_socket*/ false);
+  auto &router = this->launch_router(config_sections,
+                                     /*wait_for_ready_expected_result*/ false,
+                                     /*wait_for_ready_timeout*/ 500ms,
+                                     /*notifiication_socket_node*/ socket_name,
+                                     /*do_create_notify_socket*/ false,
+                                     /*expected_exit_code*/ EXIT_SUCCESS,
+                                     /*wait_on_notify_socket*/ false);
 
   SCOPED_TRACE(
       "// We test a socket ready error scenario so we need to 'manually' wait "
       "for the signal handler to become ready to safely stop the Router");
-  EXPECT_TRUE(wait_signal_handler_ready(router));
+  EXPECT_TRUE(this->wait_signal_handler_ready(router));
 }
 
-#ifndef __APPLE__
-#define TESTED_SOCKET_TYPES SOCK_STREAM, SOCK_SEQPACKET
-#else
-// on Mac os trying to create a socket type SOCK_SEQPACKET leads
-// to "Protocol not supported" error
-#define TESTED_SOCKET_TYPES SOCK_STREAM
-#endif
-
-INSTANTIATE_TEST_CASE_P(NotifyReadyNotRelatedSocketNonDatagram,
-                        NotifyReadyNotRelatedSocketNonDatagramTest,
-                        ::testing::Values(TESTED_SOCKET_TYPES));
 /**
  * @test TS_R7_9
  *
@@ -650,10 +691,12 @@ TEST_F(NotifyTest, NotifyTestSocketNameTooLong) {
                                /*do_create_notify_socket*/ false,
                                /*expected_exit_code*/ EXIT_SUCCESS);
 
-  EXPECT_TRUE(wait_log_contains(router,
-                                "WARNING .* Could not connect to the "
-                                "NOTIFY_SOCKET='.*': Socket name .* is invalid",
-                                500ms));
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "WARNING .* sending .* to NOTIFY_SOCKET='.*' "
+      "failed: " +
+          make_error_code(std::errc::filename_too_long).message(),
+      500ms));
 }
 
 /**
@@ -683,10 +726,12 @@ TEST_F(NotifyTest, NotifyTestSocketDirNameTooLong) {
                     /*do_create_notify_socket*/ false,
                     /*expected_exit_code*/ EXIT_SUCCESS);
 
-  EXPECT_TRUE(wait_log_contains(router,
-                                "WARNING .* Could not connect to the "
-                                "NOTIFY_SOCKET",
-                                500ms));
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "WARNING .* sending 'READY=1' to NOTIFY_SOCKET='" + socket_path.str() +
+          "' failed: " +
+          make_error_code(std::errc::filename_too_long).message(),
+      500ms));
 }
 
 /**
@@ -704,15 +749,18 @@ TEST_F(NotifyTest, NotifyReadyNoSocketAccess) {
       "// Let's create notify socket and limit its access to read-only");
   const std::string socket_name =
       generate_notify_socket_path(get_test_temp_dir_name());
-  auto notify_socket = create_notify_socket(socket_name);
-  std::shared_ptr<void> notify_socket_close_guard(
-      nullptr, [&](void *) { close_notify_socket(notify_socket); });
+
+  net::io_context io_ctx;
+  notify_socket_t notify_socket{io_ctx};
+  ASSERT_NO_ERROR(notify_socket.open());
+  ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
+
   EXPECT_EQ(chmod(socket_name.c_str(), 0100), 0);
 
   SCOPED_TRACE(
       "// Let's launch the Router passing that NOTIFY_SOCKET as env variable");
   std::vector<std::pair<std::string, std::string>> env_vars;
-  env_vars.push_back({"NOTIFY_SOCKET", socket_name});
+  env_vars.emplace_back("NOTIFY_SOCKET", socket_name);
   const std::string conf_file = create_config_file(config_sections);
   auto &router = launch_router({"-c=" + conf_file}, env_vars, EXIT_SUCCESS);
 
@@ -720,10 +768,14 @@ TEST_F(NotifyTest, NotifyReadyNoSocketAccess) {
       "// We expect a warning and no notification sent to the socket, the "
       "Router should still exit with SUCCESS");
   EXPECT_FALSE(wait_for_notified_ready(notify_socket, 100ms));
-  EXPECT_TRUE(wait_log_contains(router,
-                                "WARNING .* Could not connect to the "
-                                "NOTIFY_SOCKET='.*': Permission denied",
-                                5s));
+
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "WARNING .* sending .* to NOTIFY_SOCKET='.*' "
+      "failed: " +
+          make_error_code(std::errc::permission_denied).message(),
+      5s));
+
   SCOPED_TRACE(
       "// We test a socket ready error scenario so we need to 'manually' wait "
       "for the signal handler to become ready to safely stop the Router");
@@ -751,9 +803,13 @@ TEST_F(NotifyTest, NotifyReadySymlink) {
       generate_notify_socket_path(get_test_temp_dir_name());
   const std::string symlink_name =
       generate_notify_socket_path(get_test_temp_dir_name());
-  auto notify_socket = create_notify_socket(socket_name);
-  std::shared_ptr<void> notify_socket_close_guard(
-      nullptr, [&](void *) { close_notify_socket(notify_socket); });
+
+  net::io_context io_ctx;
+  notify_socket_t notify_socket{io_ctx};
+
+  ASSERT_NO_ERROR(notify_socket.open());
+  ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
+
   const std::string socket_name_full = Path(socket_name).real_path().str();
   EXPECT_EQ(symlink(socket_name_full.c_str(), symlink_name.c_str()), 0);
 
@@ -761,7 +817,7 @@ TEST_F(NotifyTest, NotifyReadySymlink) {
       "// Let's launch the Router passing the symbolic link to the socket as "
       "NOTIFY_SOCKET");
   std::vector<std::pair<std::string, std::string>> env_vars;
-  env_vars.push_back({"NOTIFY_SOCKET", symlink_name});
+  env_vars.emplace_back("NOTIFY_SOCKET", symlink_name);
   const std::string conf_file = create_config_file(config_sections);
   /*auto &router =*/launch_router({"-c=" + conf_file}, env_vars, EXIT_SUCCESS);
 
@@ -787,9 +843,11 @@ TEST_F(NotifyTest, NotifyStoppingBasic) {
   const std::string socket_name =
       generate_notify_socket_path(get_test_temp_dir_name());
 
-  auto notify_socket = create_notify_socket(socket_name);
-  std::shared_ptr<void> notify_socket_close_guard(
-      nullptr, [&](void *) { close_notify_socket(notify_socket); });
+  net::io_context io_ctx;
+  wait_socket_t notify_socket{io_ctx};
+
+  ASSERT_NO_ERROR(notify_socket.open());
+  ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
 
   auto &router = launch_router(config_sections,
                                /*wait_for_ready_expected_result*/ false,
@@ -801,7 +859,8 @@ TEST_F(NotifyTest, NotifyStoppingBasic) {
 
   EXPECT_TRUE(wait_for_notified_ready(notify_socket, 5s));
 
-  bool stopped_notification_read = false;
+  stdx::expected<void, std::error_code> stopped_notification_read{
+      stdx::make_unexpected(std::error_code{})};
   auto wait_for_stopped = std::thread([&] {
     stopped_notification_read = wait_for_notified_stopping(notify_socket, 5s);
   });
@@ -838,12 +897,15 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
   const std::string socket_name =
       generate_notify_socket_path(get_test_temp_dir_name());
 
-  auto notify_socket = create_notify_socket(socket_name);
-  std::shared_ptr<void> notify_socket_close_guard(
-      nullptr, [&](void *) { close_notify_socket(notify_socket); });
+  net::io_context io_ctx;
+  wait_socket_t notify_socket{io_ctx};
+
+  ASSERT_NO_ERROR(notify_socket.open());
+  ASSERT_NO_ERROR(notify_socket.bind({socket_name}));
 
   SCOPED_TRACE("// Listen for notification while we are bootstrapping");
-  bool ready_notification_read = false;
+  stdx::expected<void, std::error_code> ready_notification_read{
+      stdx::make_unexpected(std::error_code{})};
   auto wait_for_stopped = std::thread([&] {
     ready_notification_read =
         wait_for_notified(notify_socket, GetParam(), 300ms);
@@ -851,7 +913,7 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
 
   SCOPED_TRACE("// Do the bootstrap");
   std::vector<std::pair<std::string, std::string>> env_vars;
-  env_vars.push_back({"NOTIFY_SOCKET", socket_name});
+  env_vars.emplace_back("NOTIFY_SOCKET", socket_name);
 
   auto &router = launch_router(
       {"--bootstrap=localhost:" + std::to_string(metadata_server_port),
@@ -865,7 +927,8 @@ TEST_P(NotifyBootstrapNotAffectedTest, NotifyBootstrapNotAffected) {
 
   SCOPED_TRACE("// No notification should be sent by the Router");
   wait_for_stopped.join();
-  EXPECT_FALSE(ready_notification_read);
+  ASSERT_EQ(ready_notification_read,
+            stdx::make_unexpected(make_error_code(std::errc::timed_out)));
 }
 
 INSTANTIATE_TEST_CASE_P(
