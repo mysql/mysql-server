@@ -3441,6 +3441,13 @@ bool Item_func_if::resolve_type_inner(THD *thd) {
   return false;
 }
 
+TYPELIB *Item_func_if::get_typelib() const {
+  assert((args[1]->data_type() == MYSQL_TYPE_NULL) ^
+         (args[2]->data_type() == MYSQL_TYPE_NULL));
+  return args[1]->data_type() != MYSQL_TYPE_NULL ? args[1]->get_typelib()
+                                                 : args[2]->get_typelib();
+}
+
 uint Item_func_if::decimal_precision() const {
   int arg1_prec = args[1]->decimal_int_part();
   int arg2_prec = args[2]->decimal_int_part();
@@ -4001,6 +4008,22 @@ bool Item_func_case::resolve_type_inner(THD *thd) {
   return false;
 }
 
+TYPELIB *Item_func_case::get_typelib() const {
+  TYPELIB *typelib = nullptr;
+  for (uint i = 0; i < ncases; i += 2) {
+    if (typelib == nullptr) {
+      typelib = args[i + 1]->get_typelib();
+    } else {
+      assert(args[i + 1]->get_typelib() == nullptr);
+    }
+  }
+  if (else_expr_num != -1 && typelib == nullptr) {
+    typelib = args[else_expr_num]->get_typelib();
+  }
+  assert(typelib != nullptr);
+  return typelib;
+}
+
 uint Item_func_case::decimal_precision() const {
   int max_int_part = 0;
   for (uint i = 0; i < ncases; i += 2)
@@ -4149,6 +4172,19 @@ bool Item_func_coalesce::resolve_type_inner(THD *thd) {
     }
   }
   return false;
+}
+
+TYPELIB *Item_func_coalesce::get_typelib() const {
+  TYPELIB *typelib = nullptr;
+  for (uint i = 0; i < arg_count; i++) {
+    if (typelib == nullptr) {
+      typelib = args[i]->get_typelib();
+    } else {
+      assert(args[i]->get_typelib() == nullptr);
+    }
+  }
+  assert(typelib != nullptr);
+  return typelib;
 }
 
 /****************************************************************************

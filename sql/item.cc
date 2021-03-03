@@ -2887,6 +2887,10 @@ void Item_ident::print(const THD *thd, String *str, enum_query_type query_type,
   append_identifier(thd, str, field_name, strlen(field_name));
 }
 
+TYPELIB *Item_field::get_typelib() const {
+  return down_cast<Field_enum *>(field)->typelib;
+}
+
 String *Item_field::val_str(String *str) {
   assert(fixed == 1);
   if ((null_value = field->is_null())) return nullptr;
@@ -9592,11 +9596,11 @@ void Item_cache_row::bring_value() {
 }
 
 Item_aggregate_type::Item_aggregate_type(THD *thd, Item *item)
-    : Item(thd, item), enum_set_typelib(nullptr) {
+    : Item(thd, item) {
   assert(item->fixed);
   set_nullable(item->is_nullable());
   set_data_type(real_data_type(item));
-  get_full_info(item);
+  set_typelib(item);
   if (item->data_type() == MYSQL_TYPE_GEOMETRY)
     geometry_type = item->get_geometry_type();
   else
@@ -9743,7 +9747,7 @@ bool Item_aggregate_type::join_types(THD *thd, Item *item) {
   } else
     aggregate_num_type(merge_type, args, 2);
   set_nullable(is_nullable() | item->is_nullable());
-  get_full_info(item);
+  set_typelib(item);
   DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u", (int)data_type(),
                       max_length, (uint)decimals));
   return false;
@@ -9828,19 +9832,19 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
 
   switch (data_type()) {
     case MYSQL_TYPE_ENUM:
-      assert(enum_set_typelib);
+      assert(m_typelib != nullptr);
       field = new (*THR_MALLOC)
           Field_enum(max_length, is_nullable(), item_name.ptr(),
-                     get_enum_pack_length(enum_set_typelib->count),
-                     enum_set_typelib, collation.collation);
+                     get_enum_pack_length(m_typelib->count), m_typelib,
+                     collation.collation);
       if (field) field->init(table);
       break;
     case MYSQL_TYPE_SET:
-      assert(enum_set_typelib);
+      assert(m_typelib != nullptr);
       field = new (*THR_MALLOC)
           Field_set(max_length, is_nullable(), item_name.ptr(),
-                    get_set_pack_length(enum_set_typelib->count),
-                    enum_set_typelib, collation.collation);
+                    get_set_pack_length(m_typelib->count), m_typelib,
+                    collation.collation);
       if (field) field->init(table);
       break;
     case MYSQL_TYPE_NULL:
@@ -9867,32 +9871,25 @@ Field *Item_aggregate_type::make_field_by_type(TABLE *table, bool strict) {
 }
 
 /**
-  Get full information from Item about enum/set fields to be able to create
-  them later.
+  Set typelib information for an aggregated enum/set field.
+  Aggregation of typelib information is possible only if there is a single
+  underlying item with type enum/set, all other items must be the NULL value.
+  Aggregation is performed by calling this function repeatedly for each
+  underlying item.
 
   @param item    Item for information collection
 */
-void Item_aggregate_type::get_full_info(Item *item) {
-  if (data_type() == MYSQL_TYPE_ENUM || data_type() == MYSQL_TYPE_SET) {
-    if (item->type() == Item::SUM_FUNC_ITEM &&
-        (((Item_sum *)item)->sum_func() == Item_sum::MAX_FUNC ||
-         ((Item_sum *)item)->sum_func() == Item_sum::MIN_FUNC))
-      item = (down_cast<Item_sum *>(item))->get_arg(0);
-    /*
-      We can have enum/set type after merging only if we have one enum|set
-      field (or MIN|MAX(enum|set field)) and number of NULL fields
-    */
-    if (enum_set_typelib) {
-      assert(real_data_type(item) == MYSQL_TYPE_NULL);
-    } else {
-      Item *real_item = item->real_item();
-      Item_field *item_field = down_cast<Item_field *>(real_item);
-      Field_enum *field_enum = down_cast<Field_enum *>(item_field->field);
-      assert((real_data_type(item) == MYSQL_TYPE_ENUM ||
-              real_data_type(item) == MYSQL_TYPE_SET) &&
-             field_enum->typelib);
-      enum_set_typelib = field_enum->typelib;
-    }
+void Item_aggregate_type::set_typelib(Item *item) {
+  if (data_type() != MYSQL_TYPE_ENUM && data_type() != MYSQL_TYPE_SET) return;
+
+  // Check that only one underlying item is not the NULL value
+  if (m_typelib != nullptr) {
+    assert(real_data_type(item) == MYSQL_TYPE_NULL);
+  } else {
+    assert(real_data_type(item) == MYSQL_TYPE_ENUM ||
+           real_data_type(item) == MYSQL_TYPE_SET);
+    m_typelib = item->get_typelib();
+    assert(m_typelib != nullptr);
   }
 }
 

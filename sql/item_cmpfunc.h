@@ -1369,6 +1369,7 @@ class Item_func_coalesce : public Item_func_numhybrid {
   Item_func_coalesce(Item *a, Item *b) : Item_func_numhybrid(a, b) {
     null_on_null = false;
   }
+  TYPELIB *get_typelib() const override;
   double real_op() override;
   longlong int_op() override;
   String *str_op(String *) override;
@@ -1450,6 +1451,7 @@ class Item_func_if final : public Item_func {
   bool resolve_type_inner(THD *thd) override;
   void fix_after_pullout(Query_block *parent_query_block,
                          Query_block *removed_query_block) override;
+  TYPELIB *get_typelib() const override;
   uint decimal_precision() const override;
   const char *func_name() const override { return "if"; }
   enum Functype functype() const override { return IF_FUNC; }
@@ -1958,6 +1960,7 @@ class Item_func_case final : public Item_func {
   }
   bool resolve_type(THD *thd) override;
   bool resolve_type_inner(THD *thd) override;
+  TYPELIB *get_typelib() const override;
   uint decimal_precision() const override;
   enum Item_result result_type() const override { return cached_result_type; }
   const char *func_name() const override { return "case"; }
