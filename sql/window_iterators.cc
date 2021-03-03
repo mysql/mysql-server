@@ -263,8 +263,8 @@ bool buffer_windowing_record(THD *thd, Temp_table_param *param,
 
     if (!first_partition && w->partition_rowno() == 1) {
       *new_partition = true;
-      w->save_special_record(Window::FBC_FIRST_IN_NEXT_PARTITION,
-                             w->frame_buffer());
+      w->save_special_row(Window::FBC_FIRST_IN_NEXT_PARTITION,
+                          w->frame_buffer());
       return false;
     }
   }
@@ -281,7 +281,7 @@ bool buffer_windowing_record(THD *thd, Temp_table_param *param,
   */
 
   if (w->needs_restore_input_row()) {
-    w->save_special_record(Window::FBC_LAST_BUFFERED_ROW, w->frame_buffer());
+    w->save_special_row(Window::FBC_LAST_BUFFERED_ROW, w->frame_buffer());
   }
 
   if (buffer_record_somewhere(thd, w, w->partition_rowno())) return true;
@@ -439,10 +439,10 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
   if (rowno == Window::FBC_FIRST_IN_NEXT_PARTITION) {
     do_fetch = true;
-    w->restore_special_record(rowno, fb_rec);
+    w->restore_special_row(rowno, fb_rec);
   } else if (rowno == Window::FBC_LAST_BUFFERED_ROW) {
     do_fetch = w->row_has_fields_in_out_table() != w->last_rowno_in_cache();
-    if (do_fetch) w->restore_special_record(rowno, fb_rec);
+    if (do_fetch) w->restore_special_row(rowno, fb_rec);
   } else {
     assert(reason != Window_retrieve_cached_row_reason::WONT_UPDATE_HINT);
     do_fetch = w->row_has_fields_in_out_table() != rowno;
@@ -508,8 +508,8 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
   Save row special_rowno in table t->record[0] to an in-memory copy for later
   restoration.
 */
-void Window::save_special_record(uint64 special_rowno, TABLE *t) {
-  DBUG_PRINT("info", ("save_special_record: %" PRIu64, special_rowno));
+void Window::save_special_row(uint64 special_rowno, TABLE *t) {
+  DBUG_PRINT("info", ("save_special_row: %" PRIu64, special_rowno));
   size_t l = t->s->reclength;
   assert(m_special_rows_cache_max_length >= l);  // check room.
   // From negative enum, get proper array index:
@@ -526,8 +526,8 @@ void Window::save_special_record(uint64 special_rowno, TABLE *t) {
   for the window function although the pointer is copied here. The
   result field storage is stable across reads from the frame buffer, so safe.
 */
-void Window::restore_special_record(uint64 special_rowno, uchar *record) {
-  DBUG_PRINT("info", ("restore_special_record: %" PRIu64, special_rowno));
+void Window::restore_special_row(uint64 special_rowno, uchar *record) {
+  DBUG_PRINT("info", ("restore_special_row: %" PRIu64, special_rowno));
   int idx = FBC_FIRST_KEY - special_rowno;
   size_t l = m_special_rows_cache_length[idx];
   std::memcpy(record,
@@ -1641,7 +1641,7 @@ int BufferingWindowingIterator::Read() {
       /*
         copy_funcs(CFT_HAS_NO_WF) is not necessary: a non-WF function was
         calculated and saved in OUT, then this OUT column was copied to
-        special record, then restored to OUT column.
+        special row, then restored to OUT column.
       */
 
       m_window->reset_partition_state();

@@ -62,7 +62,7 @@ class Temp_table_param;
   accesses, cf. #Window::m_frame_buffer_positions.
 */
 enum class Window_retrieve_cached_row_reason {
-  WONT_UPDATE_HINT = -1,  // special value when using restore_special_record
+  WONT_UPDATE_HINT = -1,  // special value when using restore_special_row
   FIRST_IN_PARTITION = 0,
   CURRENT = 1,
   FIRST_IN_FRAME = 2,
@@ -345,7 +345,12 @@ class Window {
 
   /**
      Keys for m_frame_buffer_cache and m_special_rows_cache, for special
-     rows.
+     rows (see the comment on m_special_row_cache). Note that they are negative,
+     so that they will never collide with actual row numbers in the frame.
+     This allows us to treat them interchangeably with real row numbers
+     as function arguments; e.g., bring_back_frame_row() can restore either
+     a “normal” row from the frame, or one of the special rows, and does not
+     need to take in separate flags for the two.
   */
   enum Special_keys {
     /**
@@ -411,7 +416,10 @@ class Window {
 
   /**
     Holds a fixed number of copies of special rows; each copy can use up to
-    #m_special_rows_cache_max_length bytes.
+    #m_special_rows_cache_max_length bytes. Special rows are those that are
+    not part of our frame, but that we need to store away nevertheless, because
+    they might be in the table's buffers, which we need for our own purposes
+    during window processing.
     cf. the Special_keys enumeration.
   */
   uchar *m_special_rows_cache;
@@ -859,8 +867,8 @@ class Window {
   */
   bool at_partition_border() const { return m_partition_border; }
 
-  void save_special_record(uint64 special_rowno, TABLE *t);
-  void restore_special_record(uint64 special_rowno, uchar *record);
+  void save_special_row(uint64 special_rowno, TABLE *t);
+  void restore_special_row(uint64 special_rowno, uchar *record);
 
   /**
     Resolve any named window to its definition
