@@ -294,7 +294,6 @@ void rw_lock_s_lock_spin(
 {
   ulint i = 0; /* spin round count */
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
 
   /* We reuse the thread id to index into the counter, cache
@@ -317,8 +316,6 @@ lock_loop:
   if (i >= srv_n_spin_wait_rounds) {
     std::this_thread::yield();
   }
-
-  ++spin_count;
 
   /* We try once again to obtain the lock */
   if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
@@ -399,7 +396,6 @@ void rw_lock_x_lock_wait_func(
     ulint line)            /*!< in: line where requested */
 {
   ulint i = 0;
-  ulint n_spins = 0;
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
 
@@ -418,8 +414,6 @@ void rw_lock_x_lock_wait_func(
     }
 
     /* If there is still a reader, then go to sleep.*/
-    ++n_spins;
-
     sync_cell_t *cell;
 
     sync_arr = sync_array_get_and_reserve_cell(lock, RW_LOCK_X_WAIT, file_name,
@@ -614,7 +608,6 @@ void rw_lock_x_lock_func(
 {
   ulint i = 0;
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
   bool spinning = false;
 
@@ -645,8 +638,6 @@ lock_loop:
 
       i++;
     }
-
-    spin_count += i;
 
     if (i >= srv_n_spin_wait_rounds) {
       std::this_thread::yield();
@@ -703,7 +694,6 @@ void rw_lock_sx_lock_func(
 {
   ulint i = 0;
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
   ulint spin_wait_count = 0;
 
@@ -732,8 +722,6 @@ lock_loop:
 
       i++;
     }
-
-    spin_count += i;
 
     if (i >= srv_n_spin_wait_rounds) {
       std::this_thread::yield();
