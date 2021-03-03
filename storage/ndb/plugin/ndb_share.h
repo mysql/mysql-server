@@ -34,6 +34,9 @@
 #include "storage/ndb/include/ndbapi/Ndb.hpp"  // Ndb::TupleIdRange
 #include "thr_lock.h"                          // THR_LOCK
 
+class ha_ndbcluster;
+class NdbEventOperation;
+
 enum Ndb_binlog_type {
   NBT_DEFAULT = 0,
   NBT_NO_LOGGING = 1,
@@ -150,8 +153,8 @@ struct NDB_SHARE {
   struct NDB_CONFLICT_FN_SHARE *m_cfn_share;
 
   // The event operation used for listening to changes in NDB for this
-  // table, protected by mutex
-  class NdbEventOperation *op;
+  // table, (mostly) protected by mutex
+  NdbEventOperation *op;
 
   // Check if an event operation has been setup for this share
   bool have_event_operation() const {
@@ -160,6 +163,9 @@ struct NDB_SHARE {
     mysql_mutex_unlock(&mutex);
     return have_op;
   }
+
+  // Install event operation
+  bool install_event_op(NdbEventOperation *new_op, bool replace_op);
 
   // Raw pointer for passing table definition from schema dist client to
   // participant in the same node to avoid that participant have to access
@@ -201,16 +207,16 @@ struct NDB_SHARE {
   // Acquire NDB_SHARE reference for use by ha_ndbcluster
   static NDB_SHARE *acquire_for_handler(const char *db_name,
                                         const char *table_name,
-                                        const class ha_ndbcluster *reference);
+                                        const ha_ndbcluster *reference);
   // Create NDB_SHARE reference for use by ha_ndbcluster
   // NOTE! Used only in a few special cases to allow opening table before
   // connection to NDB has been initialized
   static NDB_SHARE *create_for_handler(const char *db_name,
                                        const char *table_name,
-                                       const class ha_ndbcluster *);
+                                       const ha_ndbcluster *);
   // Release NDB_SHARE reference acquired by ha_ndbcluster
   static void release_for_handler(NDB_SHARE *share,
-                                  const class ha_ndbcluster *reference);
+                                  const ha_ndbcluster *reference);
 
   // Acquire or create NDB_SHARE
   // - used when table has just been created or discovered/synced/installed
@@ -289,16 +295,16 @@ struct NDB_SHARE {
   // in a programmatic way.
   // Protected by "shares_mutex" in the same way as "m_use_count".
   struct Ndb_share_references {
-    std::unordered_set<const class ha_ndbcluster *> handlers;
+    std::unordered_set<const ha_ndbcluster *> handlers;
     std::unordered_set<std::string> strings;
 
     size_t size() const { return handlers.size() + strings.size(); }
 
-    bool exists(const class ha_ndbcluster *ref) const {
+    bool exists(const ha_ndbcluster *ref) const {
       return handlers.find(ref) != handlers.end();
     }
 
-    bool insert(const class ha_ndbcluster *ref) {
+    bool insert(const ha_ndbcluster *ref) {
       // The reference should not already exist
       assert(!exists(ref));
 
@@ -309,7 +315,7 @@ struct NDB_SHARE {
       return result.second;
     }
 
-    bool erase(const class ha_ndbcluster *ref) {
+    bool erase(const ha_ndbcluster *ref) {
       // The reference must already exist
       assert(exists(ref));
 
@@ -354,14 +360,13 @@ struct NDB_SHARE {
   void refs_insert(const char *reference MY_ATTRIBUTE((unused))) {
     assert(refs->insert(reference));
   }
-  void refs_insert(
-      const class ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
+  void refs_insert(const ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
     assert(refs->insert(reference));
   }
   void refs_erase(const char *reference MY_ATTRIBUTE((unused))) {
     assert(refs->erase(reference));
   }
-  void refs_erase(const class ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
+  void refs_erase(const ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
     assert(refs->erase(reference));
   }
 
@@ -383,7 +388,7 @@ struct NDB_SHARE {
           reference and release it when going out of scope.
  */
 class Ndb_share_temp_ref {
-  NDB_SHARE *m_share;
+  NDB_SHARE *const m_share;
   const std::string m_reference;
 
   Ndb_share_temp_ref(const Ndb_share_temp_ref &) = delete;
@@ -392,19 +397,17 @@ class Ndb_share_temp_ref {
  public:
   Ndb_share_temp_ref(const char *db_name, const char *table_name,
                      const char *reference)
-      : m_reference(reference) {
-    m_share =
-        NDB_SHARE::acquire_reference(db_name, table_name, m_reference.c_str());
+      : m_share(NDB_SHARE::acquire_reference(db_name, table_name, reference)),
+        m_reference(reference) {
     // Should always exist
     assert(m_share);
   }
 
   Ndb_share_temp_ref(NDB_SHARE *share, const char *reference)
-      : m_reference(reference) {
+      : m_share(share), m_reference(reference) {
     // The share and a reference should exist
     assert(share);
     assert(share->refs_exists(reference));
-    m_share = share;
   }
 
   ~Ndb_share_temp_ref() {

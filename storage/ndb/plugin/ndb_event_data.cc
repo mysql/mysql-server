@@ -34,11 +34,14 @@
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_table_map.h"
 
-Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns)
-    : shadow_table(nullptr), share(the_share) {
-  ndb_value[0] = nullptr;
-  ndb_value[1] = nullptr;
-
+Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns,
+                               size_t ndbtab_num_attribs,
+                               bool ndbtab_have_blobs)
+    : shadow_table(nullptr),
+      share(the_share),
+      ndb_value{std::make_unique<NdbValue[]>(ndbtab_num_attribs),
+                std::make_unique<NdbValue[]>(ndbtab_num_attribs)},
+      have_blobs(ndbtab_have_blobs) {
   // Initialize bitmaps, using dynamically allocated bitbuf
   bitmap_init(&stored_columns, nullptr, num_columns);
   bitmap_init(&pk_bitmap, nullptr, num_columns);
@@ -48,19 +51,14 @@ Ndb_event_data::Ndb_event_data(NDB_SHARE *the_share, size_t num_columns)
 }
 
 Ndb_event_data::~Ndb_event_data() {
-  if (shadow_table) closefrm(shadow_table, 1);
-  shadow_table = nullptr;
+  if (shadow_table) {
+    closefrm(shadow_table, true);
+  }
 
   bitmap_free(&stored_columns);
   bitmap_free(&pk_bitmap);
 
   free_root(&mem_root, MYF(0));
-  share = nullptr;
-  /*
-    ndbvalue[] allocated with my_multi_malloc -> only
-    first pointer need to be freed
-  */
-  my_free(ndb_value[0]);
 }
 
 /*
@@ -124,7 +122,9 @@ void Ndb_event_data::init_stored_columns() {
   if (Ndb_table_map::has_virtual_gcol(shadow_table)) {
     for (uint i = 0; i < shadow_table->s->fields; i++) {
       Field *field = shadow_table->field[i];
-      if (field->stored_in_db) bitmap_set_bit(&stored_columns, i);
+      if (field->stored_in_db) {
+        bitmap_set_bit(&stored_columns, i);
+      }
     }
   } else {
     bitmap_set_all(&stored_columns);  // all columns are stored
@@ -184,25 +184,39 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
   return shadow_table;
 }
 
-/*
-  Create event data for the table given in share. This includes
-  opening a shadow table. The shadow table is used when
-  receiving an event which need to be injected from the data nodes.
-*/
-Ndb_event_data *Ndb_event_data::create_event_data(THD *thd, NDB_SHARE *share,
-                                                  const char *db,
-                                                  const char *table_name,
-                                                  const char *key,
-                                                  const dd::Table *table_def) {
+/**
+   @brief Create event data used for receiving event for NDB table.
+   This includes opening a shadow table which is used when injecting the
+   received event into injector.
+
+   @param thd             Thread handle (for creating the shadow table)
+   @param db              Database of table to create event data for
+   @param table_name      Name of table to create event data for
+   @param key             Key of table to create event data for
+   @param share           Pointer to the NDB_SHARE (opaque type in this module)
+   @param table_def       Pointer to MySQL table definition for shadow table
+   @param ndbtab_num_attribs Number of attributes in the NDB table (for
+                          sizing the value arrays storing attributes received
+                          in events)
+   @param ndbtab_have_blobs Does the NDB table have blobs.
+
+   @return Pointer to the newly created Ndb_event_data or nullptr if create
+   fails.
+ */
+const Ndb_event_data *Ndb_event_data::create_event_data(
+    THD *thd, const char *db, const char *table_name, const char *key,
+    NDB_SHARE *share, const dd::Table *table_def, size_t ndbtab_num_attribs,
+    bool ndbtab_have_blobs) {
   DBUG_TRACE;
   assert(table_def);
 
   const size_t num_columns = ndb_dd_table_get_num_columns(table_def);
 
-  Ndb_event_data *event_data = new Ndb_event_data(share, num_columns);
+  auto event_data = std::make_unique<Ndb_event_data>(
+      share, num_columns, ndbtab_num_attribs, ndbtab_have_blobs);
 
-  // Setup THR_MALLOC to allocate memory from the MEM_ROOT in the
-  // newly created Ndb_event_data
+  // Setup THR_MALLOC to allocate memory for shadow table from the MEM_ROOT in
+  // the newly created Ndb_event_data
   MEM_ROOT **root_ptr = THR_MALLOC;
   MEM_ROOT *old_root = *root_ptr;
   *root_ptr = &event_data->mem_root;
@@ -212,10 +226,12 @@ Ndb_event_data *Ndb_event_data::create_event_data(THD *thd, NDB_SHARE *share,
       event_data->open_shadow_table(thd, db, table_name, key, table_def);
   if (!shadow_table) {
     DBUG_PRINT("error", ("failed to open shadow table"));
-    delete event_data;
     *root_ptr = old_root;
     return nullptr;
   }
+
+  // Restore original MEM_ROOT
+  *root_ptr = old_root;
 
   // Check that number of columns from table_def match the
   // number in shadow_table
@@ -227,14 +243,7 @@ Ndb_event_data *Ndb_event_data::create_event_data(THD *thd, NDB_SHARE *share,
   event_data->init_pk_bitmap();
   event_data->init_stored_columns();
 
-  // Calculate if the assigned shadow_table have blobs and save that
-  // information for later when events are received
-  event_data->have_blobs = Ndb_table_map::have_physical_blobs(shadow_table);
-
-  // Restore old root
-  *root_ptr = old_root;
-
-  return event_data;
+  return event_data.release();
 }
 
 void Ndb_event_data::destroy(const Ndb_event_data *event_data) {
@@ -249,4 +258,28 @@ uint32 Ndb_event_data::unpack_uint32(unsigned attr_id) const {
 
 const char *Ndb_event_data::unpack_string(unsigned attr_id) const {
   return ndb_value[0][attr_id].rec->aRef();
+}
+
+bool Ndb_event_data::check_custom_data(void *check_event_data_ptr,
+                                       const NDB_SHARE *check_share) {
+  Ndb_event_data *event_data =
+      static_cast<Ndb_event_data *>(check_event_data_ptr);
+
+  // No event_data pointer is not allowed
+  if (!event_data) {
+    return false;
+  }
+
+  if (event_data->shadow_table == nullptr ||
+      event_data->ndb_value[0] == nullptr ||
+      event_data->ndb_value[1] == nullptr) {
+    return false;
+  }
+
+  // The share pointer should match, unless checking against nullptr
+  if (check_share && event_data->share != check_share) {
+    return false;
+  }
+
+  return true;
 }

@@ -93,7 +93,7 @@ NDB_SHARE *NDB_SHARE::create(const char *key) {
 
   share->m_cfn_share = nullptr;
 
-  share->op = 0;
+  share->op = nullptr;
 
 #ifndef NDEBUG
   assert(share->m_use_count == 0);
@@ -562,7 +562,7 @@ int NDB_SHARE::rename_share(NDB_SHARE *share, NDB_SHARE_KEY *new_key) {
 
   if (share->op) {
     Ndb_event_data *event_data =
-        static_cast<Ndb_event_data *>(share->op->getCustomData());
+        Ndb_event_data::get_event_data(share->op->getCustomData());
     if (event_data && event_data->shadow_table) {
       if (!ndb_name_is_temp(share->table_name)) {
         DBUG_PRINT("info", ("Renaming shadow table"));
@@ -708,15 +708,15 @@ void NDB_SHARE::mark_share_dropped_impl(NDB_SHARE **share_ptr) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&shares_mutex);
 
-  // The NDB_SHARE should not have any event operations, those
-  // should have been removed already _before_ marking the NDB_SHARE
-  // as dropped.
-  assert(share->op == nullptr);
-
   if (share->state == NSS_DROPPED) {
     // The NDB_SHARE was already marked as dropped
     return;
   }
+
+  // The NDB_SHARE should not have any event operation, it
+  // should have been removed already _before_ marking the NDB_SHARE
+  // as dropped.
+  assert(share->have_event_operation() == false);
 
   // The index_stat is not needed anymore, free it.
   ndb_index_stat_free(share);
@@ -807,3 +807,26 @@ void NDB_SHARE::dbg_check_shares_update() {
   }
 }
 #endif
+
+bool NDB_SHARE::install_event_op(NdbEventOperation *new_op, bool replace_op) {
+  // Require mutex to be held
+  mysql_mutex_assert_owner(&mutex);
+
+  // Only allow installing op with properly setup custom data
+  ndbcluster::ndbrequire(
+      Ndb_event_data::check_custom_data(new_op->getCustomData(), this));
+
+  // Only allow replacing op unless "replace_op" (which is used by inplace alter
+  // who will replace the old op with new in an atomic fashion)
+  ndbcluster::ndbrequire(op == nullptr || (op && replace_op));
+
+  // Don't allow installing op in other states than NSS_INITIAL. This will for
+  // example detect when a user thread tries to install event op on a share
+  // which has been "dropped" (by the binlog thread) during CREATE TABLE.
+  if (state != NSS_INITIAL) {
+    return false;
+  }
+
+  op = new_op;
+  return true;
+}

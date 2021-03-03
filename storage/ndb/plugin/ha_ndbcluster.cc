@@ -9982,9 +9982,7 @@ int ha_ndbcluster::create(const char *path MY_ATTRIBUTE((unused)),
     }
 
     if (binlog_client.table_should_have_event_op(share)) {
-      Ndb_event_data *event_data;
-      if (!binlog_client.create_event_data(share, table_def, &event_data) ||
-          binlog_client.create_event_op(share, ndbtab, event_data)) {
+      if (binlog_client.create_event_op(share, table_def, ndbtab) != 0) {
         // Failed to create event operation for this table
         return create.failed_internal_error("Failed to create event operation");
       }
@@ -10446,17 +10444,14 @@ int rename_table_impl(THD *thd, Ndb *ndb,
 
       if (binlog_client.table_should_have_event_op(share)) {
         // NOTE! Simple renames performs the rename without recreating the event
-        // operation, thus the check for share->have_event_operation() below.
-        Ndb_event_data *event_data;
+        // operation, thus the check if share have event operation  below.
         if (share->have_event_operation() == false &&
-            (!binlog_client.create_event_data(share, to_table_def,
-                                              &event_data) ||
-             binlog_client.create_event_op(share, ndbtab, event_data))) {
+            binlog_client.create_event_op(share, to_table_def, ndbtab) != 0) {
           // Failed to create event for this table, fail the rename
           // NOTE! Should cover whole function with schema transaction to
           // cleanup
           my_printf_error(ER_INTERNAL_ERROR,
-                          "Failed to to create event operation for table '%s'",
+                          "Failed to create event operation for table '%s'",
                           MYF(0), share->key_string());
           return ER_INTERNAL_ERROR;
         }

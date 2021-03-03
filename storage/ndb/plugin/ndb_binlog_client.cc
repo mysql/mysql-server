@@ -55,7 +55,7 @@ bool Ndb_binlog_client::table_should_have_event(
   }
 
   // Never create event(or event operation) for tables which have
-  // hidden primary key and blobs
+  // hidden primary key AND blobs
   if (ndb_table_has_hidden_pk(ndbtab) && ndb_table_has_blobs(ndbtab)) {
     // NOTE! Legacy warning message, could certainly be improved to simply
     // just say:
@@ -81,7 +81,8 @@ bool Ndb_binlog_client::table_should_have_event(
 
 extern bool ndb_binlog_running;
 
-bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE *share) {
+bool Ndb_binlog_client::table_should_have_event_op(
+    const NDB_SHARE *share) const {
   DBUG_TRACE;
 
   if (!share->get_have_event()) {
@@ -163,7 +164,7 @@ bool Ndb_binlog_client::event_exists_for_table(Ndb *ndb,
   DBUG_TRACE;
 
   // Generate event name
-  std::string event_name =
+  const std::string event_name =
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
 
   // Get event from NDB
@@ -197,33 +198,4 @@ void Ndb_binlog_client::log_warning(uint code, const char *fmt, ...) const {
     ndb_log_warning("NDB Binlog: [%s.%s] %d: %s", m_dbname, m_tabname, code,
                     buf);
   }
-}
-
-/**
-   @brief Ndb_binlog_client::create_event_data
-
-   @param share           The NDB_SHARE to create event data for
-   @param table_def       The table definition of table to create event data for
-   @param[out] event_data Pointer where created event data will be returned
-
-   @return true creation of event data was sucessful
- */
-bool Ndb_binlog_client::create_event_data(NDB_SHARE *share,
-                                          const dd::Table *table_def,
-                                          Ndb_event_data **event_data) const {
-  DBUG_TRACE;
-  assert(table_def);
-  assert(event_data);
-
-  Ndb_event_data *new_event_data = Ndb_event_data::create_event_data(
-      m_thd, share, share->db, share->table_name, share->key_string(),
-      table_def);
-  if (new_event_data == nullptr) {
-    return false;
-  }
-
-  // Return the newly created event_data to caller
-  *event_data = new_event_data;
-
-  return true;
 }
