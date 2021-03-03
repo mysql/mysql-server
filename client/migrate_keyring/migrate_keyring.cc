@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
 
   int exit_code;
   if (process_options(&argc, &argv, exit_code) == false) {
-    return exit_status;
+    return exit_code;
   }
 
   {
@@ -136,5 +136,5 @@ int main(int argc, char **argv) {
     }
     log_info << "Key migration successful." << std::endl;
   }
-  return 0;
+  return EXIT_SUCCESS;
 }

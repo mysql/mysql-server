@@ -70,6 +70,7 @@ enum migration_options {
   OPT_LAST
 };
 
+bool Options::s_help = false;
 bool Options::s_verbose = false;
 char *Options::s_component_dir = nullptr;
 char *Options::s_source_keyring = nullptr;
@@ -173,11 +174,13 @@ static void usage(bool version_only) {
 bool get_one_option(int optid, const struct my_option *opt, char *argument) {
   switch (optid) {
     case 'V':
+      Options::s_help = true;
       usage(true);
       break;
     case 'I':
       // Fall through
     case '?':
+      Options::s_help = true;
       usage(false);
       break;
     case 'v':
@@ -226,6 +229,11 @@ static bool get_options(int argc, char **argv, int &exit_code) {
   exit_code = handle_options(&argc, &argv, my_long_options, get_one_option);
   if (exit_code != 0) {
     log_error << "Failed to parse command line arguments." << std::endl;
+    return false;
+  }
+
+  if (Options::s_help == true) {
+    exit_code = EXIT_SUCCESS;
     return false;
   }
 
