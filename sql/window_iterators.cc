@@ -541,7 +541,7 @@ namespace {
 /**
   Process window functions that need partition cardinality
 */
-bool process_wfs_needing_card(
+bool process_wfs_needing_partition_cardinality(
     THD *thd, Temp_table_param *param, const Window::st_nth &have_nth_value,
     const Window::st_lead_lag &have_lead_lag, const int64 current_row,
     Window *w, Window_retrieve_cached_row_reason current_row_reason) {
@@ -551,7 +551,7 @@ bool process_wfs_needing_card(
   if (!have_lead_lag.m_offsets.empty()) w->reset_lead_lag();
 
   // This also handles LEAD(.., 0)
-  if (copy_funcs(param, thd, CFT_WF_NEEDS_CARD)) return true;
+  if (copy_funcs(param, thd, CFT_WF_NEEDS_PARTITION_CARDINALITY)) return true;
 
   if (!have_lead_lag.m_offsets.empty()) {
     int fno = 0;
@@ -577,7 +577,8 @@ bool process_wfs_needing_card(
           return true;
       }
 
-      if (copy_funcs(param, thd, CFT_WF_NEEDS_CARD)) return true;
+      if (copy_funcs(param, thd, CFT_WF_NEEDS_PARTITION_CARDINALITY))
+        return true;
     }
     /* Bring back the fields for the output row */
     if (bring_back_frame_row(thd, w, param, current_row, current_row_reason))
@@ -914,7 +915,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
   if (!((lower_limit <= last_rowno_in_cache &&
          upper_limit <= last_rowno_in_cache &&
-         !w.needs_card()) || /* we have cached enough rows */
+         !w.needs_partition_cardinality()) || /* we have cached enough rows */
         new_partition_or_eof /* we have cached all rows */))
     return false;  // We haven't read enough rows yet, so return
 
@@ -929,7 +930,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
     Both resettings require restoring the row from the FB. And, as we have
     restored this row, we use this opportunity to compute non-framing
-    does-not-need-card functions.
+    does-not-need-partition-cardinality functions.
 
     The meaning of if statements below is that in some cases, we can avoid
     this default behaviour.
@@ -1514,11 +1515,11 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
     return true;
 
   /* NTILE and other non-framing wfs */
-  if (w.needs_card()) {
+  if (w.needs_partition_cardinality()) {
     /* Set up the non-wf fields for aggregating to the output row. */
-    if (process_wfs_needing_card(thd, param, have_nth_value, have_lead_lag,
-                                 current_row, &w,
-                                 Window_retrieve_cached_row_reason::CURRENT))
+    if (process_wfs_needing_partition_cardinality(
+            thd, param, have_nth_value, have_lead_lag, current_row, &w,
+            Window_retrieve_cached_row_reason::CURRENT))
       return true;
   }
 

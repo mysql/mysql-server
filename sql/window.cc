@@ -149,9 +149,9 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
       assert(wfs->framing());
       m_needs_last_peer_in_frame = true;
     }
-    if (wfs->needs_card()) {
+    if (wfs->needs_partition_cardinality()) {
       assert(!wfs->framing());
-      m_needs_card = true;
+      m_needs_partition_cardinality = true;
     }
     m_opt_first_row |= reqs.opt_first_row;
     m_opt_last_row |= reqs.opt_last_row;
@@ -963,8 +963,8 @@ class AdjacencyList {
  public:
   static constexpr uint UNUSED = std::numeric_limits<uint>::max();
   uint *const m_list;
-  const uint m_card;
-  AdjacencyList(uint elements) : m_list(new uint[elements]), m_card(elements) {
+  const uint m_size;
+  AdjacencyList(uint elements) : m_list(new uint[elements]), m_size(elements) {
     for (auto &i : Bounds_checked_array<uint>(m_list, elements)) {
       i = UNUSED;
     }
@@ -977,7 +977,7 @@ class AdjacencyList {
     @param depends_on the window referenced
   */
   void add(uint wno, uint depends_on) {
-    assert(wno <= m_card && depends_on <= m_card);
+    assert(wno <= m_size && depends_on <= m_size);
     assert(m_list[wno] == UNUSED);
     m_list[wno] = depends_on;
   }
@@ -989,7 +989,7 @@ class AdjacencyList {
     @returns the out degree
   */
   uint out_degree(uint wno) {
-    assert(wno <= m_card);
+    assert(wno <= m_size);
     return m_list[wno] == UNUSED ? 0 : 1;
   }
 
@@ -1000,10 +1000,10 @@ class AdjacencyList {
     @returns the in degree
   */
   uint in_degree(uint wno) {
-    assert(wno <= m_card);
+    assert(wno <= m_size);
     uint degree = 0;  // a priori
 
-    for (auto i : Bounds_checked_array<uint>(m_list, m_card)) {
+    for (auto i : Bounds_checked_array<uint>(m_list, m_size)) {
       degree += i == wno ? 1 : 0;
     }
     return degree;
@@ -1013,7 +1013,7 @@ class AdjacencyList {
     Return true of there is a circularity in the graph
   */
   bool check_circularity() {
-    if (m_card == 1)
+    if (m_size == 1)
       return m_list[0] != UNUSED;  // could have been resolved to itself
 
     /*
@@ -1022,7 +1022,7 @@ class AdjacencyList {
     */
     std::unordered_set<uint> completed;
 
-    for (uint i = 0; i < m_card; i++) {
+    for (uint i = 0; i < m_size; i++) {
       // Look for loop in the chain which starts at node #i
 
       if (completed.count(i) != 0) continue;  // Chain already checked.
@@ -1033,7 +1033,7 @@ class AdjacencyList {
       completed.insert(i);
 
       for (uint dep = m_list[i]; dep != UNUSED; dep = m_list[dep]) {
-        assert(dep <= m_card);
+        assert(dep <= m_size);
         if (visited.count(dep) != 0) return true;  // found circularity
         visited.insert(dep);
         completed.insert(dep);

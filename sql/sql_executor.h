@@ -187,7 +187,7 @@ enum Copy_func_type {
     that is we need to read all rows of a partition before we can compute the
     wf's value for the the first row in the partition.
   */
-  CFT_WF_NEEDS_CARD,
+  CFT_WF_NEEDS_PARTITION_CARDINALITY,
   /**
     In windowing step, copies framing window functions that read only one row
     per frame.

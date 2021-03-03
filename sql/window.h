@@ -140,7 +140,7 @@ class Window {
     (At least) one window function needs the cardinality of the partition of
     the current row to evaluate the wf for the current row
   */
-  bool m_needs_card;
+  bool m_needs_partition_cardinality;
 
   /**
     The functions are optimizable with ROW unit. For example SUM is, MAX is
@@ -605,7 +605,7 @@ class Window {
         m_needs_frame_buffering(false),
         m_needs_peerset(false),
         m_needs_last_peer_in_frame(false),
-        m_needs_card(false),
+        m_needs_partition_cardinality(false),
         m_row_optimizable(true),
         m_range_optimizable(true),
         m_static_aggregates(false),
@@ -1002,7 +1002,9 @@ class Window {
     some window function(s) on this window,
     @returns true if that is the case, else false
   */
-  bool needs_card() const { return m_needs_card; }
+  bool needs_partition_cardinality() const {
+    return m_needs_partition_cardinality;
+  }
 
   /**
     Return true if the set of window functions are all ROW unit optimizable.

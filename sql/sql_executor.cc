@@ -460,11 +460,11 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
       case CFT_WF_NON_FRAMING:
         do_copy = (item->m_is_window_function &&
                    !down_cast<Item_sum *>(item)->framing() &&
-                   !down_cast<Item_sum *>(item)->needs_card());
+                   !down_cast<Item_sum *>(item)->needs_partition_cardinality());
         break;
-      case CFT_WF_NEEDS_CARD:
+      case CFT_WF_NEEDS_PARTITION_CARDINALITY:
         do_copy = (item->m_is_window_function &&
-                   down_cast<Item_sum *>(item)->needs_card());
+                   down_cast<Item_sum *>(item)->needs_partition_cardinality());
         break;
       case CFT_WF_USES_ONLY_ONE_ROW:
         do_copy = (item->m_is_window_function &&
