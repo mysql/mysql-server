@@ -1766,8 +1766,6 @@ void JOIN::destroy() {
     cleanup_item_list(tmp_fields[REF_SLICE_TMP2]);
     for (uint widx = 0; widx < m_windows.elements; widx++) {
       cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx]);
-      cleanup_item_list(tmp_fields[REF_SLICE_WIN_1 + widx +
-                                   m_windows.elements]);  // frame buffer
     }
   }
 
@@ -4652,7 +4650,6 @@ bool JOIN::make_tmp_tables_info() {
         from the next temporary table.
       */
       const uint widx = REF_SLICE_WIN_1 + wno;
-      const int fbidx = widx + m_windows.elements;  // use far area
       m_windows[wno]->set_needs_restore_input_row(
           wno == 0 && qep_tab[primary_tables - 1].type() == JT_EQ_REF);
 
@@ -4672,13 +4669,6 @@ bool JOIN::make_tmp_tables_info() {
             create_tmp_table(thd, par, *curr_fields, nullptr, false, false,
                              query_block->active_options(), HA_POS_ERROR, "");
         if (table == nullptr) return true;
-
-        if (alloc_ref_item_slice(thd, fbidx)) return true;
-
-        if (change_to_use_tmp_fields(curr_fields, thd, ref_items[fbidx],
-                                     &tmp_fields[fbidx],
-                                     query_block->m_added_non_hidden_fields))
-          return true;
 
         m_windows[wno]->set_frame_buffer_param(par);
         m_windows[wno]->set_frame_buffer(table);

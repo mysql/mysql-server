@@ -495,18 +495,11 @@ class JOIN {
     - slice 3 is a copy of the original slice 0. It is created if
       slice overwriting is necessary, and it is used to restore
       original values in slice 0 after having been overwritten.
-    - slices 4 -> N are used by windowing:
-      first are all the window's out tmp tables,
-      the next indexes are reserved for the windows' frame buffers (in the same
-      order), if any, e.g.
-
-      One window:      4: window 1's out table
-                       5: window 1's FB
+    - slices 4 -> N are used by windowing: all the window's out tmp tables,
 
       Two windows:     4: window 1's out table
                        5: window 2's out table
-                       6: window 1's FB
-                       7: window 2's FB
+
       and so on.
 
     Slice 0 is allocated for the lifetime of a statement, whereas slices 1-3

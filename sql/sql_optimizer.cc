@@ -204,14 +204,15 @@ bool JOIN::alloc_ref_item_slice(THD *thd_arg, int sliceno) {
 }
 
 bool JOIN::alloc_indirection_slices() {
-  const uint card = REF_SLICE_WIN_1 + m_windows.elements * 2;
+  const int num_slices = REF_SLICE_WIN_1 + m_windows.elements;
 
   assert(ref_items == nullptr);
-  ref_items = (*THR_MALLOC)->ArrayAlloc<Ref_item_array>(card);
+  ref_items = (*THR_MALLOC)->ArrayAlloc<Ref_item_array>(num_slices);
   if (ref_items == nullptr) return true;
 
   tmp_fields =
-      (*THR_MALLOC)->ArrayAlloc<mem_root_deque<Item *>>(card, *THR_MALLOC);
+      (*THR_MALLOC)
+          ->ArrayAlloc<mem_root_deque<Item *>>(num_slices, *THR_MALLOC);
   if (tmp_fields == nullptr) return true;
 
   return false;
