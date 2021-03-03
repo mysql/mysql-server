@@ -1357,7 +1357,6 @@ void Window::cleanup() {
   m_special_rows_cache_max_length = 0;
 
   m_frame_buffer_param = nullptr;
-  m_outtable_param = nullptr;
   m_frame_buffer = nullptr;
 }
 

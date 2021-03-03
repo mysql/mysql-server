@@ -177,9 +177,6 @@ class Temp_table_param {
   /// create_result_table()).
   bool force_hash_field_for_unique{false};
 
-  /// (Last) window's tmp file step can be skipped
-  bool m_window_short_circuit;
-
   /// This tmp table is used for a window's frame buffer
   bool m_window_frame_buffer{false};
 
@@ -207,7 +204,6 @@ class Temp_table_param {
         skip_create_table(false),
         bit_fields_as_long(false),
         can_use_pk_for_unique(true),
-        m_window_short_circuit(false),
         m_window(nullptr) {}
 
   void cleanup() { copy_fields.clear(); }

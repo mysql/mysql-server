@@ -856,7 +856,7 @@ bool JOIN::optimize() {
     windowing creates one anyway, and so does the materialization of a derived
     table.
 
-    See also the computation of Temp_table_param::m_window_short_circuit,
+    See also the computation of Window::m_short_circuit,
     where we make sure to create a tmp table if the clauses above want one.
 
     (8) If the first windowing step needs sorting, filesort() will be used; it

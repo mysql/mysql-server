@@ -371,9 +371,10 @@ class Window {
   Temp_table_param *m_frame_buffer_param;
 
   /**
-    Execution state: Holds the temporary output table (for next step) parameters
+    Holds whether this window should be “short-circuit”, ie., goes directly
+    to the query output instead of to a temporary table.
   */
-  Temp_table_param *m_outtable_param;
+  bool m_short_circuit = false;
 
   /**
     Execution state: used iff m_needs_frame_buffering. Holds the TABLE
@@ -616,7 +617,6 @@ class Window {
         m_ancestor(nullptr),
         m_tmp_pos(nullptr, -1),
         m_frame_buffer_param(nullptr),
-        m_outtable_param(nullptr),
         m_frame_buffer(nullptr),
         m_frame_buffer_total_rows(0),
         m_frame_buffer_partition_offset(0),
@@ -1079,15 +1079,10 @@ class Window {
   */
   void set_frame_buffer(TABLE *tab) { m_frame_buffer = tab; }
 
-  /**
-   Getter for m_outtable_param, q.v.
-   */
-  Temp_table_param *outtable_param() const { return m_outtable_param; }
-
-  /**
-   Setter for m_outtable_param, q.v.
-   */
-  void set_outtable_param(Temp_table_param *p) { m_outtable_param = p; }
+  bool short_circuit() const { return m_short_circuit; }
+  void set_short_circuit(bool short_circuit) {
+    m_short_circuit = short_circuit;
+  }
 
   /**
     Getter for m_part_row_number, q.v., the current row number within the

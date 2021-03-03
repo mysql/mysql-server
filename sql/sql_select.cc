@@ -4670,8 +4670,6 @@ bool JOIN::make_tmp_tables_info() {
       if (create_intermediate_table(tab, *curr_fields, dummy, false))
         return true;
 
-      m_windows[wno]->set_outtable_param(tab->tmp_table_param);
-
       if (m_windows[wno]->make_special_rows_cache(thd, tab->table()))
         return true;
 
@@ -4714,7 +4712,7 @@ bool JOIN::make_tmp_tables_info() {
             a previous tmp table): hence any row needn't be written to
             tmp table's storage; send it out to query's result instead:
           */
-          tab->tmp_table_param->m_window_short_circuit = true;
+          m_windows[wno]->set_short_circuit(true);
         }
       }
 
