@@ -4229,8 +4229,6 @@ bool JOIN::make_tmp_tables_info() {
     tmp_table_param.precomputed_group_by =
         !qep_tab[0].quick()->is_agg_loose_index_scan();
 
-  uint last_slice_before_windowing = REF_SLICE_ACTIVE;
-
   /*
     Create the first temporary table if distinct elimination is requested or
     if the sort is too complicated to be evaluated as a filesort.
@@ -4310,7 +4308,6 @@ bool JOIN::make_tmp_tables_info() {
     set_ref_item_slice(REF_SLICE_TMP1);
     qep_tab[curr_tmp_table].ref_item_slice = REF_SLICE_TMP1;
     setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_outer);
-    last_slice_before_windowing = REF_SLICE_TMP1;
 
     /*
       If having is not handled here, it will be checked before the row is sent
@@ -4454,7 +4451,6 @@ bool JOIN::make_tmp_tables_info() {
       set_ref_item_slice(REF_SLICE_TMP2);
       qep_tab[curr_tmp_table].ref_item_slice = REF_SLICE_TMP2;
       setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
-      last_slice_before_windowing = REF_SLICE_TMP2;
     }
     if (qep_tab[curr_tmp_table].table()->s->is_distinct)
       select_distinct = false; /* Each row is unique */
@@ -4635,15 +4631,7 @@ bool JOIN::make_tmp_tables_info() {
 
       ORDER_with_src dummy;
 
-      if (last_slice_before_windowing == REF_SLICE_ACTIVE) {
-        tmp_table_param.hidden_field_count = CountHiddenFields(*fields);
-      } else {
-        assert(tmp_tables >= 1 &&
-               last_slice_before_windowing > REF_SLICE_ACTIVE);
-
-        tmp_table_param.hidden_field_count =
-            CountHiddenFields(tmp_fields[last_slice_before_windowing]);
-      }
+      tmp_table_param.hidden_field_count = CountHiddenFields(*curr_fields);
 
       /*
         Allocate a slice of ref items that describe the items to be copied
@@ -4689,12 +4677,9 @@ bool JOIN::make_tmp_tables_info() {
 
       if (alloc_ref_item_slice(thd, widx)) return true;
 
-      if (change_to_use_tmp_fields(
-              (last_slice_before_windowing == REF_SLICE_ACTIVE
-                   ? fields
-                   : &tmp_fields[last_slice_before_windowing]),
-              thd, ref_items[widx], &tmp_fields[widx],
-              query_block->m_added_non_hidden_fields))
+      if (change_to_use_tmp_fields(curr_fields, thd, ref_items[widx],
+                                   &tmp_fields[widx],
+                                   query_block->m_added_non_hidden_fields))
         return true;
 
       curr_fields = &tmp_fields[widx];
@@ -4737,8 +4722,6 @@ bool JOIN::make_tmp_tables_info() {
         tab->having = having_cond;
         having_cond = nullptr;
       }
-
-      last_slice_before_windowing = widx;
     }
   }
 
