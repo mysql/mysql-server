@@ -877,8 +877,9 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr,
   } else {
     if (state != BUF_BLOCK_FILE_PAGE) {
       ib::fatal(ER_IB_MSG_DBLWR_1297)
-          << "Invalid page state: state: " << state
-          << " block state: " << buf_page_get_state(bpage);
+          << "Invalid page state: state: " << static_cast<unsigned>(state)
+          << " block state: "
+          << static_cast<unsigned>(buf_page_get_state(bpage));
     } else {
       ut_ad(state == buf_block_get_state(block));
     }

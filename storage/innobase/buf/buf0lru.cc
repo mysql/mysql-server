@@ -758,9 +758,9 @@ scan_again:
 
     ut_ad(mutex_own(block_mutex));
 
-    DBUG_PRINT("ib_buf",
-               ("evict page " UINT32PF ":" UINT32PF " state %u",
-                bpage->id.space(), bpage->id.page_no(), bpage->state));
+    DBUG_PRINT("ib_buf", ("evict page " UINT32PF ":" UINT32PF " state %u",
+                          bpage->id.space(), bpage->id.page_no(),
+                          static_cast<unsigned>(bpage->state)));
 
     if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
       /* Do nothing, because the adaptive hash index
