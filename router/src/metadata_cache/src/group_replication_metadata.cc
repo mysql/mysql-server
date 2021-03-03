@@ -207,3 +207,22 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
 
   return members;
 }
+
+const char *to_string(GroupReplicationMember::State member_state) {
+  switch (member_state) {
+    case GroupReplicationMember::State::Online:
+      return "Online";
+    case GroupReplicationMember::State::Recovering:
+      return "Recovering";
+    case GroupReplicationMember::State::Unreachable:
+      return "Unreachable";
+    case GroupReplicationMember::State::Offline:
+      return "Offline";
+    case GroupReplicationMember::State::Error:
+      return "Error";
+    case GroupReplicationMember::State::Other:
+        /* fallthrough  */;
+  }
+
+  return "Other";
+}

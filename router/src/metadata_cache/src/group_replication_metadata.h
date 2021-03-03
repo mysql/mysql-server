@@ -61,4 +61,6 @@ struct GroupReplicationMember {
 std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
     mysqlrouter::MySQLSession &connection, bool &single_primary);
 
+const char *to_string(GroupReplicationMember::State member_state);
+
 #endif

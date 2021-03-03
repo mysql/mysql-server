@@ -176,6 +176,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
               UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes);
+  FRIEND_TEST(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_3NodeSetup);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariableNodeSetup);
