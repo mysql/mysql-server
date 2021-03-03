@@ -244,7 +244,7 @@ bool Window::setup_range_expressions(THD *thd) {
     }
   }
 
-  for (auto border : {m_frame->m_from, m_frame->m_to}) {
+  for (PT_border *border : {m_frame->m_from, m_frame->m_to}) {
     Item_func *cmp = nullptr, **cmp_ptr = nullptr /* to silence warning */;
     Item_func *inv_cmp = nullptr,
               **inv_cmp_ptr = nullptr /* to silence warning */;
@@ -824,7 +824,7 @@ bool Window::check_constant_bound(THD *thd, PT_border *border) {
 bool Window::check_border_sanity1(THD *thd) {
   const PT_frame &fr = *m_frame;
 
-  for (auto border : {fr.m_from, fr.m_to}) {
+  for (PT_border *border : {fr.m_from, fr.m_to}) {
     enum_window_border_type border_t = border->m_border_type;
     switch (fr.m_query_expression) {
       case WFU_ROWS:
@@ -898,9 +898,9 @@ bool Window::check_border_sanity2(THD *thd) {
   const PT_frame &fr = *m_frame;
 
   PT_border *ba[] = {fr.m_from, fr.m_to};
-  auto constexpr siz = sizeof(ba) / sizeof(PT_border *);
+  constexpr size_t siz = sizeof(ba) / sizeof(PT_border *);
 
-  for (auto border : Bounds_checked_array<PT_border *>(ba, siz)) {
+  for (PT_border *border : Bounds_checked_array<PT_border *>(ba, siz)) {
     enum_window_border_type border_t = border->m_border_type;
     switch (fr.m_query_expression) {
       case WFU_ROWS:
@@ -1003,7 +1003,7 @@ class AdjacencyList {
     assert(wno <= m_size);
     uint degree = 0;  // a priori
 
-    for (auto i : Bounds_checked_array<uint>(m_list, m_size)) {
+    for (uint i : Bounds_checked_array<uint>(m_list, m_size)) {
       degree += i == wno ? 1 : 0;
     }
     return degree;
@@ -1081,7 +1081,7 @@ void Window::eliminate_unused_objects(List<Window> &windows) {
       if (!window_used) {
         w1->cleanup();
         w1->destroy();
-        for (auto it : {w1->m_partition_by, w1->m_order_by}) {
+        for (PT_order_list *it : {w1->m_partition_by, w1->m_order_by}) {
           if (it != nullptr) {
             for (ORDER *o = it->value.first; o != nullptr; o = o->next) {
               Item *item = *o->item;
@@ -1404,7 +1404,7 @@ void Window::reset_execution_state(Reset_level level) {
         partition.
       */
       if (!m_frame_buffer_positions.empty()) {
-        for (auto &it : m_frame_buffer_positions) {
+        for (Frame_buffer_position &it : m_frame_buffer_positions) {
           it.m_rowno = -1;
         }
       }  // else not allocated, empty result set
@@ -1529,7 +1529,7 @@ void Window::reset_all_wf_state() {
   List_iterator<Item_sum> ls(m_functions);
   Item_sum *sum;
   while ((sum = ls++)) {
-    for (auto f : {false, true}) {
+    for (bool f : {false, true}) {
       (void)sum->walk(&Item::reset_wf_state, enum_walk::POSTFIX, (uchar *)&f);
     }
   }

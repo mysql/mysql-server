@@ -73,7 +73,7 @@ void SwitchSlice(JOIN *join, int slice_num) {
   @param framing      true if we want to reset for framing window functions
 */
 inline void reset_wf_states(Func_ptr_array *func_ptr, bool framing) {
-  for (auto it : *func_ptr) {
+  for (Func_ptr it : *func_ptr) {
     (void)it.func()->walk(&Item::reset_wf_state, enum_walk::POSTFIX,
                           (uchar *)&framing);
   }
@@ -308,7 +308,7 @@ bool read_frame_buffer_row(int64 rowno, Window *w,
 
   // Find the saved position closest to where we want to go
   for (int i = w->m_frame_buffer_positions.size() - 1; i >= 0; i--) {
-    auto cand = w->m_frame_buffer_positions[i];
+    Window::Frame_buffer_position cand = w->m_frame_buffer_positions[i];
     if (cand.m_rowno == -1 || cand.m_rowno > rowno) continue;
 
     if (rowno - cand.m_rowno < diff) {
@@ -318,7 +318,7 @@ bool read_frame_buffer_row(int64 rowno, Window *w,
     }
   }
 
-  auto cand = &w->m_frame_buffer_positions[use_idx];
+  Window::Frame_buffer_position *cand = &w->m_frame_buffer_positions[use_idx];
 
   int error =
       t->file->ha_rnd_pos(w->frame_buffer()->record[0], cand->m_position);
@@ -367,7 +367,7 @@ bool read_frame_buffer_row(int64 rowno, Window *w,
 #if !defined(NDEBUG)
 inline void dbug_allow_write_all_columns(
     Temp_table_param *param, std::map<TABLE *, my_bitmap_map *> &map) {
-  for (auto &copy_field : param->copy_fields) {
+  for (Copy_field &copy_field : param->copy_fields) {
     TABLE *const t = copy_field.from_field()->table;
     if (t != nullptr) {
       auto it = map.find(t);
@@ -557,7 +557,7 @@ bool process_wfs_needing_partition_cardinality(
     int fno = 0;
     const int nths = have_nth_value.m_offsets.size();
 
-    for (auto &ll : have_lead_lag.m_offsets) {
+    for (const Window::st_ll_offset &ll : have_lead_lag.m_offsets) {
       const int64 rowno_to_visit = current_row - ll.m_rowno;
 
       if (rowno_to_visit == current_row)
@@ -1225,7 +1225,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
     if (!have_nth_value.m_offsets.empty()) {
       int fno = 0;
-      for (auto nth : have_nth_value.m_offsets) {
+      for (Window::st_offset nth : have_nth_value.m_offsets) {
         if (lower_limit + nth.m_rowno - 1 <= upper) {
           if (bring_back_frame_row(
                   thd, &w, param, lower_limit + nth.m_rowno - 1,
@@ -1456,7 +1456,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         // frame is non-empty, so we might find NTH_VALUE
         assert(w.first_rowno_in_range_frame() <= w.last_rowno_in_range_frame());
         int fno = 0;
-        for (auto nth : have_nth_value.m_offsets) {
+        for (Window::st_offset nth : have_nth_value.m_offsets) {
           const int64 row_to_get =
               w.first_rowno_in_range_frame() + nth.m_rowno - 1;
           if (row_to_get <= w.last_rowno_in_range_frame()) {
