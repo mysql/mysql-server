@@ -35,6 +35,8 @@ namespace options {
 
 class Options {
  public:
+  /** Help */
+  static bool s_help;
   /** Be loud */
   static bool s_verbose;
   /** Component directory location */
