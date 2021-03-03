@@ -109,7 +109,7 @@ table is changed, this value has to be increased accordingly */
 constexpr uint8_t i_s_innodb_plugin_version_postfix = 2;
 
 /** I_S.innodb_* views version. It would be X.Y and X should be the server major
- * version while Y is the InnoDB I_S views version, starting from 1 */
+version while Y is the InnoDB I_S views version, starting from 1 */
 constexpr uint64_t i_s_innodb_plugin_version =
     (INNODB_VERSION_MAJOR << 8 | i_s_innodb_plugin_version_postfix);
 
@@ -4978,6 +4978,9 @@ static int i_s_innodb_buf_page_lru_fill(
         break;
       case BUF_IO_WRITE:
         OK(field_store_string(fields[IDX_BUF_LRU_PAGE_IO_FIX], "IO_WRITE"));
+        break;
+      case BUF_IO_PIN:
+        OK(field_store_string(fields[IDX_BUF_LRU_PAGE_IO_FIX], "IO_PIN"));
         break;
     }
 
