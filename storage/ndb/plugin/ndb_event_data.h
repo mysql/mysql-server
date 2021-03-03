@@ -54,7 +54,7 @@ class Ndb_event_data {
   void init_pk_bitmap();
   TABLE *open_shadow_table(class THD *thd, const char *db,
                            const char *table_name, const char *key,
-                           const dd::Table *table_def, class THD *owner_thd);
+                           const dd::Table *table_def);
 
  public:
   MEM_ROOT mem_root;
@@ -73,9 +73,11 @@ class Ndb_event_data {
 
   // Factory function to create Ndb_event_data, open the shadow_table and
   // initialize bitmaps.
-  static Ndb_event_data *create_event_data(
-      class THD *thd, NDB_SHARE *share, const char *db, const char *table_name,
-      const char *key, class THD *owner_thd, const dd::Table *table_def);
+  static Ndb_event_data *create_event_data(class THD *thd, NDB_SHARE *share,
+                                           const char *db,
+                                           const char *table_name,
+                                           const char *key,
+                                           const dd::Table *table_def);
   static void destroy(const Ndb_event_data *);
 
   // Read uint32 value directly from NdbRecAttr in received event

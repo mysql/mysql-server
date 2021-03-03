@@ -134,8 +134,7 @@ void Ndb_event_data::init_stored_columns() {
 TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
                                          const char *table_name,
                                          const char *key,
-                                         const dd::Table *table_def,
-                                         THD *owner_thd) {
+                                         const dd::Table *table_def) {
   DBUG_TRACE;
   assert(table_def);
 
@@ -168,7 +167,14 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
   lex_string_strmake(&mem_root, &shadow_table->s->table_name, table_name,
                      strlen(table_name));
 
-  shadow_table->in_use = owner_thd;
+  // The shadow table is not really "in_use" by the thd who opened it, rather
+  // only used later on to tell injector which table data changes are for.
+  // NOTE! There is small chance that opening of the shadow table have
+  // side-effects on the THD or vice versa that shadow table is affected by some
+  // setting in THD, in such case this need to be changed so that shadow table
+  // are opened by it's own THD object.
+  assert(shadow_table->in_use == thd);
+  shadow_table->in_use = nullptr;
 
   // Can't use 'use_all_columns()' as the file object is not setup
   // yet (and never will)
@@ -181,13 +187,13 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
 /*
   Create event data for the table given in share. This includes
   opening a shadow table. The shadow table is used when
-  receiving and event from the data nodes which need to be written
-  to the binlog injector.
+  receiving an event which need to be injected from the data nodes.
 */
-
-Ndb_event_data *Ndb_event_data::create_event_data(
-    THD *thd, NDB_SHARE *share, const char *db, const char *table_name,
-    const char *key, THD *owner_thd, const dd::Table *table_def) {
+Ndb_event_data *Ndb_event_data::create_event_data(THD *thd, NDB_SHARE *share,
+                                                  const char *db,
+                                                  const char *table_name,
+                                                  const char *key,
+                                                  const dd::Table *table_def) {
   DBUG_TRACE;
   assert(table_def);
 
@@ -202,8 +208,8 @@ Ndb_event_data *Ndb_event_data::create_event_data(
   *root_ptr = &event_data->mem_root;
 
   // Create the shadow table
-  TABLE *shadow_table = event_data->open_shadow_table(thd, db, table_name, key,
-                                                      table_def, owner_thd);
+  TABLE *shadow_table =
+      event_data->open_shadow_table(thd, db, table_name, key, table_def);
   if (!shadow_table) {
     DBUG_PRINT("error", ("failed to open shadow table"));
     delete event_data;

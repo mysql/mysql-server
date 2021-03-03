@@ -32,6 +32,7 @@ class Table;
 }
 class Ndb_sync_pending_objects_table;
 class Ndb_sync_excluded_objects_table;
+struct NDB_SHARE;
 
 /*
   Initialize the binlog part of the ndbcluster plugin
@@ -42,7 +43,7 @@ int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
                                   const char *table_name,
                                   const dd::Table *table_def);
 
-int ndbcluster_binlog_wait_synch_drop_table(THD *thd, struct NDB_SHARE *share);
+int ndbcluster_binlog_wait_synch_drop_table(THD *thd, const NDB_SHARE *share);
 
 int ndbcluster_binlog_start();
 

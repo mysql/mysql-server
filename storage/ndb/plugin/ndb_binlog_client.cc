@@ -30,6 +30,7 @@
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_conflict.h"
 #include "storage/ndb/plugin/ndb_dist_priv_util.h"
+#include "storage/ndb/plugin/ndb_event_data.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_ndbapi_util.h"
 #include "storage/ndb/plugin/ndb_schema_dist.h"
@@ -196,4 +197,33 @@ void Ndb_binlog_client::log_warning(uint code, const char *fmt, ...) const {
     ndb_log_warning("NDB Binlog: [%s.%s] %d: %s", m_dbname, m_tabname, code,
                     buf);
   }
+}
+
+/**
+   @brief Ndb_binlog_client::create_event_data
+
+   @param share           The NDB_SHARE to create event data for
+   @param table_def       The table definition of table to create event data for
+   @param[out] event_data Pointer where created event data will be returned
+
+   @return true creation of event data was sucessful
+ */
+bool Ndb_binlog_client::create_event_data(NDB_SHARE *share,
+                                          const dd::Table *table_def,
+                                          Ndb_event_data **event_data) const {
+  DBUG_TRACE;
+  assert(table_def);
+  assert(event_data);
+
+  Ndb_event_data *new_event_data = Ndb_event_data::create_event_data(
+      m_thd, share, share->db, share->table_name, share->key_string(),
+      table_def);
+  if (new_event_data == nullptr) {
+    return false;
+  }
+
+  // Return the newly created event_data to caller
+  *event_data = new_event_data;
+
+  return true;
 }

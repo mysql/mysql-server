@@ -171,12 +171,12 @@ static mysql_cond_t injector_data_cond;
 /*
   NOTE:
   Several of the ndb_binlog* variables use a 'relaxed locking' schema.
-  Such a variable is only modified by the 'injector_thd' thread,
-  but could be read by any 'thd'. Thus:
+  Such a variable is only modified by the ndb binlog injector thread,
+  but could be read by any other thread. Thus:
     - Any update of such a variable need a mutex lock.
-    - Reading such a variable outside of the injector_thd need the mutex.
-  However, it should be safe to read the variable within the injector_thd
-  without holding the mutex! (As there are no other threads updating it)
+    - Reading such a variable from another thread need the mutex.
+  However, it should be safe to read the variable within the ndb binlog injector
+  thread without holding the mutex! (As there are no other threads updating it)
 */
 
 /**
@@ -212,14 +212,12 @@ bool ndb_binlog_is_read_only(void) {
   return false;
 }
 
-static THD *injector_thd = NULL;
-
 /*
-  Global reference to ndb injector thd object.
+  Global pointers to ndb injector objects.
 
   Used mainly by the binlog index thread, but exposed to the client sql
-  thread for one reason; to setup the events operations for a table
-  to enable ndb injector thread receiving events.
+  threads; for example to setup the events operations for a table
+  to enable ndb injector thread to receive events.
 
   Must therefore always be used with a surrounding
   mysql_mutex_lock(&injector_event_mutex), when create/dropEventOperation
@@ -229,7 +227,6 @@ static Ndb *schema_ndb = NULL;    // Need injector_event_mutex
 
 static int ndbcluster_binlog_inited = 0;
 
-/* NDB Injector thread (used for binlog creation) */
 static ulonglong ndb_latest_applied_binlog_epoch = 0;
 static ulonglong ndb_latest_handled_binlog_epoch = 0;
 static ulonglong ndb_latest_received_binlog_epoch = 0;
@@ -240,24 +237,6 @@ extern bool opt_log_replica_updates;
 static bool g_ndb_log_replica_updates;
 
 static bool g_injector_v1_warning_emitted = false;
-
-bool Ndb_binlog_client::create_event_data(NDB_SHARE *share,
-                                          const dd::Table *table_def,
-                                          Ndb_event_data **event_data) const {
-  DBUG_TRACE;
-  assert(table_def);
-  assert(event_data);
-
-  Ndb_event_data *new_event_data = Ndb_event_data::create_event_data(
-      m_thd, share, share->db, share->table_name, share->key_string(),
-      injector_thd, table_def);
-  if (!new_event_data) return false;
-
-  // Return the newly created event_data to caller
-  *event_data = new_event_data;
-
-  return true;
-}
 
 /*
   @brief Wait until the last committed epoch from the session enters the
@@ -987,27 +966,6 @@ constexpr uint SCHEMA_ID_I = 6;
 constexpr uint SCHEMA_VERSION_I = 7;
 constexpr uint SCHEMA_TYPE_I = 8;
 constexpr uint SCHEMA_OP_ID_I = 9;
-
-static void ndb_report_waiting(const char *key, int the_time, const char *op,
-                               const char *obj) {
-  ulonglong ndb_latest_epoch = 0;
-  const char *proc_info = "<no info>";
-  mysql_mutex_lock(&injector_event_mutex);
-  if (injector_ndb) ndb_latest_epoch = injector_ndb->getLatestGCI();
-  if (injector_thd) proc_info = injector_thd->proc_info;
-  mysql_mutex_unlock(&injector_event_mutex);
-  {
-    ndb_log_info(
-        "%s, waiting max %u sec for %s %s."
-        "  epochs: (%u/%u,%u/%u,%u/%u)"
-        "  injector proc_info: %s",
-        key, the_time, op, obj, (uint)(ndb_latest_handled_binlog_epoch >> 32),
-        (uint)(ndb_latest_handled_binlog_epoch),
-        (uint)(ndb_latest_received_binlog_epoch >> 32),
-        (uint)(ndb_latest_received_binlog_epoch),
-        (uint)(ndb_latest_epoch >> 32), (uint)(ndb_latest_epoch), proc_info);
-  }
-}
 
 bool Ndb_schema_dist_client::write_schema_op_to_NDB(
     Ndb *ndb, const char *query, int query_length, const char *db,
@@ -2605,7 +2563,7 @@ class Ndb_schema_event_handler {
       // the new NdbEventOperation
       Ndb_event_data *event_data = Ndb_event_data::create_event_data(
           m_thd, share, share->db, share->table_name, share->key_string(),
-          injector_thd, new_table_def);
+          new_table_def);
       if (!event_data) {
         ndb_log_error("NDB Binlog: Failed to create event data for table %s.%s",
                       schema->db, schema->name);
@@ -2686,7 +2644,7 @@ class Ndb_schema_event_handler {
     // Create new event_data
     Ndb_event_data *event_data = Ndb_event_data::create_event_data(
         m_thd, share, schema_name, table_name, share->key_string(),
-        injector_thd, dd_table.get_table_def());
+        dd_table.get_table_def());
     if (!event_data) {
       ndb_log_error("NDB Binlog: Failed to create event data for table '%s.%s'",
                     share->db, share->table_name);
@@ -5546,19 +5504,20 @@ void Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   }
 }
 
-/*
-  Wait for the binlog thread to drop it's NdbEventOperations
-  during a drop table
+/**
+  Wait for the binlog thread to remove its NdbEventOperation and other resources
+  it uses to listen to changes to the table in NDB during a drop table.
 
-  Syncronized drop between client and injector thread is
+  @note Syncronized drop between client and injector thread is
   necessary in order to maintain ordering in the binlog,
   such that the drop occurs _after_ any inserts/updates/deletes.
 
-  Also the injector thread need to be given time to detect the
-  drop and release it's resources allocated in the NDB_SHARE.
-*/
+  @param thd   Thread handle of the waiting thread
+  @param share The NDB_SHARE whose resources are waiting to be released
 
-int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
+  @return Always return 0 for success
+*/
+int ndbcluster_binlog_wait_synch_drop_table(THD *thd, const NDB_SHARE *share) {
   DBUG_TRACE;
   assert(share);
 
@@ -5582,7 +5541,12 @@ int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
     mysql_mutex_unlock(&injector_data_mutex);
     mysql_mutex_lock(&share->mutex);
 
-    if (thd->killed || share->op == 0) break;
+    if (thd->killed || share->op == nullptr) {
+      // The waiting thread has beeen killed or the event operation has been
+      // removed from NDB_SHARE (by the binlog thread) -> done!
+      break;
+    }
+
     if (ret) {
       max_timeout--;
       if (max_timeout == 0) {
@@ -5591,9 +5555,25 @@ int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
         assert(false);
         break;
       }
-      if (ndb_log_get_verbose_level())
-        ndb_report_waiting("delete table", max_timeout, "delete table",
-                           share->key_string());
+      if (ndb_log_get_verbose_level()) {
+        // Log message that may provide some insight into why the binlog thread
+        // is not detecting the drop table and removes the event operation
+        ulonglong ndb_latest_epoch = 0;
+        mysql_mutex_lock(&injector_event_mutex);
+        if (injector_ndb) ndb_latest_epoch = injector_ndb->getLatestGCI();
+        mysql_mutex_unlock(&injector_event_mutex);
+        // NOTE! Excessive use of mutex synchronization, locking both NDB_SHARE
+        // and injector_event_mutex in order to print a log message.
+        ndb_log_info(
+            "wait_synch_drop_table, waiting max %u sec for %s."
+            "  epochs: (%u/%u,%u/%u,%u/%u)",
+            max_timeout, share->key_string(),
+            (uint)(ndb_latest_handled_binlog_epoch >> 32),
+            (uint)(ndb_latest_handled_binlog_epoch),
+            (uint)(ndb_latest_received_binlog_epoch >> 32),
+            (uint)(ndb_latest_received_binlog_epoch),
+            (uint)(ndb_latest_epoch >> 32), (uint)(ndb_latest_epoch));
+      }
     }
   }
   mysql_mutex_unlock(&share->mutex);
@@ -7165,7 +7145,6 @@ restart_cluster_failure:
     with the storage
   */
   mysql_mutex_lock(&injector_event_mutex);
-  injector_thd = thd;
   injector_ndb = i_ndb;
   schema_ndb = s_ndb;
   DBUG_PRINT("info", ("set schema_ndb to s_ndb"));
@@ -7641,11 +7620,10 @@ err:
 
   mysql_mutex_lock(&injector_event_mutex);
 
-  Ndb_stored_grants::shutdown(injector_thd, thd_ndb,
+  Ndb_stored_grants::shutdown(thd, thd_ndb,
                               binlog_thread_state == BCCC_restart);
 
   /* don't mess with the injector_ndb anymore from other threads */
-  injector_thd = NULL;
   injector_ndb = NULL;
   schema_ndb = NULL;
   mysql_mutex_unlock(&injector_event_mutex);
