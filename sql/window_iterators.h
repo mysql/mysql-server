@@ -36,12 +36,59 @@ class Window;
   aggregates (i.e., OVER expressions). It deals specifically with aggregates
   that don't need to buffer rows.
 
-  If we are outputting to a temporary table -- we take over responsibility
+  Window function execution is centered around temporary table materialization;
+  every window corresponds to exactly one materialization (although the
+  “materialization” can often be shortcut to streaming). For every window,
+  we must materialize/evaluate exactly the aggregates that belong to that
+  window, and no others (earlier ones are just copied from the temporary table
+  fields, later ones are ignored). Thus, create_tmp_table() has special logic
+  when materializing a temporary table for a window functon; if the
+  Temp_table_param has m_window set (non-nullptr), we ignore all aggregates that
+  don't belong to that window. E.g., assume we have foo() OVER w1, bar() OVER
+  w2, baz() OVER w2, quux() OVER w3, the temporary tables and field lists will
+  look like:
+
+                     Temp table       |     SELECT list
+               foo()   bar()   baz()  |
+   before wnd:                        | foo()        bar()        baz()
+   window 1:   value   -----   -----  | temp_w1.foo  bar()        baz()
+   window 2:   value   value   value  | temp_w2.foo  temp_w2.bar  temp_w2.baz
+
+  In e.g. step 2, w2.foo is simply copied from w1.foo (through
+  temp_table_param->copy_fields), while w2.bar and w2.baz are evaluated
+  from bar() and baz() (through temp_table_param->copy_func).
+
+  WindowingIterator only takes responsibility for resetting the window functions
+  on a window boundary; the rest is handled by correct input ordering (typically
+  through sorting) and delicate ordering of copy_funcs() calls.
+  (BufferingWindowingIterator, below, has more intricate logic for feeding rows
+  into the window functions, and only stopping to output new rows whenever
+  process_buffered_windowing_record() signals it is time to do that -- but apart
+  from that, the separation of concerns is much the same.)
+
+  In particular, ordering of copies gets complicated when we have expressions
+  that depend on window functions, or even window functions from multiple
+  windows. Say we have something like foo() OVER w1 + bar() OVER w2.
+  split_sum_funcs() will have made slices for us so that we have separate items
+  for foo() and bar():
+
+                           base slice    window 1 output   window 2 output
+    0: <ref1> + <ref2>     +             +                 temp_w2.+
+    1: foo() OVER w1       foo()         temp_w1.foo       temp_w2.foo
+    2: bar() OVER w2       bar()         N/A               temp_w2.bar
+
+  We first copy fields and non-WF-related functions into the output table,
+  from the previous slice (e.g., for window 2, we copy temp_w1.foo to
+  temp_w2.foo); these are always safe. Then, we copy/evaluate the window
+  functions themselves (#1 or #2, depending on which window we are evaluating).
+  Finally, we get to the composite item (#0); in order not to evaluate the
+  window functions anew, the references in the add expression must refer to the
+  temporary table fields that we just populated, so we need to be in the
+  _output_ slice. When buffering is active (BufferingWindowingIterator), we have
+  more phases to deal with; it would be good to have this documented as well.
+
+  If we are outputting to a temporary table, we take over responsibility
   for storing the fields from MaterializeIterator, which would otherwise do it.
-  Otherwise, we do a fair amount of slice switching back and forth to be sure
-  to present the right output row to the user. Longer-term, we should probably
-  do as AggregateIterator does -- it used to do the same, but now instead saves
-  and restores rows, making for a more uniform data flow.
  */
 class WindowingIterator final : public RowIterator {
  public:
