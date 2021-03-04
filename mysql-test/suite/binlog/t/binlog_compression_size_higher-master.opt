@@ -1,0 +1,1 @@
+--binlog-format=ROW --binlog-row-image=minimal --binlog-transaction-compression=ON --binlog-transaction-compression-level-zstd=5 --binlog-cache-size=102400

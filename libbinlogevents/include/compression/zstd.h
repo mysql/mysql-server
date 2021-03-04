@@ -113,6 +113,17 @@ class Zstd_comp : public Compressor {
     @return false on success, true otherwise.
    */
   bool close() override;
+
+ private:
+  /**
+    Expands the size of `m_buffer` by `extra_bytes` (if needed) and updates
+    the size and pointer of `m_obuf`.
+
+    @param extra_bytes The amount of extra bytes to expand the buffer with
+
+    @return false on success, true otherwise.
+   */
+  bool expand_buffer(size_t const &extra_bytes);
 };
 
 /**
