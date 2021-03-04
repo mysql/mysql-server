@@ -196,7 +196,7 @@ using std::string;
 
 struct Nothing {};
 
-/** @class MySQLRoutering
+/** @class MySQLRouter
  *  @brief Manage Connections from clients to MySQL servers
  *
  *  The class MySQLRouter is used to start a service listening on a particular
