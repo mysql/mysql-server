@@ -4480,7 +4480,7 @@ static void i_s_innodb_buffer_page_get_info(
 
     page_info->zip_ssize = bpage->zip.ssize;
 
-    page_info->io_fix = bpage->io_fix;
+    page_info->io_fix = bpage->get_io_fix();
 
     page_info->is_old = bpage->old;
 

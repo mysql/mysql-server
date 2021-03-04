@@ -270,7 +270,7 @@ scan_again:
     ut_a(buf_page_in_file(bpage));
 
     if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
-        bpage->id.space() != space_id || bpage->io_fix != BUF_IO_NONE) {
+        bpage->id.space() != space_id || bpage->was_io_fixed()) {
       /* Compressed pages are never hashed.
       Skip blocks of other tablespaces.
       Skip I/O-fixed blocks (to be dealt with later). */
@@ -402,10 +402,14 @@ static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_try_yield(
   loop we release buf_pool->LRU_list_mutex to let other threads
   do their job but only if the block is not IO fixed. This
   ensures that the block stays in its position in the
-  flush_list. */
+  flush_list.
+  We read io_fix without block_mutex, because we will recheck with block_mutex.
+  And in case io_fixed is not NONE now we do the same thing as when is not NONE
+  later: return false.
+  */
 
   if (bpage != nullptr && processed >= BUF_LRU_DROP_SEARCH_SIZE &&
-      buf_page_get_io_fix_unlocked(bpage) == BUF_IO_NONE) {
+      bpage->was_io_fix_none()) {
     BPageMutex *block_mutex = buf_page_get_mutex(bpage);
 
     buf_flush_list_mutex_exit(buf_pool);
@@ -463,9 +467,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool buf_flush_or_remove_page(
   ut_ad(buf_flush_list_mutex_own(buf_pool));
 
   /* It is safe to check bpage->space and bpage->io_fix while holding
-  buf_pool->LRU_list_mutex only. */
+  buf_pool->LRU_list_mutex only.
+  We will repeat the check of io_fix under block_mutex later, this is just an
+  optimization to avoid the mutex acquisition if its likely io_fix is not NONE.
+  */
 
-  if (buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+  if (bpage->was_io_fixed()) {
     /* We cannot remove this page during this scan
     yet; maybe the system is currently reading it
     in, or flushing the modifications to the file */
@@ -723,7 +730,7 @@ scan_again:
       /* Skip this block, as it does not belong to
       the space that is being invalidated. */
       goto next_page;
-    } else if (buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+    } else if (bpage->was_io_fixed()) {
       /* We cannot remove this page during this scan
       yet; maybe the system is currently reading it
       in, or flushing the modifications to the file */
@@ -1250,6 +1257,7 @@ loop:
   block = buf_LRU_get_free_only(buf_pool);
 
   if (block != nullptr) {
+    ut_ad(!block->page.someone_has_io_responsibility());
     ut_ad(buf_pool_from_block(block) == buf_pool);
     memset(&block->page.zip, 0, sizeof block->page.zip);
 
@@ -1972,6 +1980,7 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block) {
     mutex_enter(&buf_pool->free_list_mutex);
     UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
     ut_d(block->page.in_free_list = TRUE);
+    ut_ad(!block->page.someone_has_io_responsibility());
     mutex_exit(&buf_pool->free_list_mutex);
   }
 }
