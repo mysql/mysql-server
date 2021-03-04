@@ -5272,7 +5272,6 @@ bool Alter_info::add_field(
 
 void add_to_list(SQL_I_List<ORDER> &list, ORDER *order) {
   DBUG_TRACE;
-  order->item = &order->item_ptr;
   order->used_alias = false;
   order->used = 0;
   list.link_in_list(order, &order->next);

@@ -4101,7 +4101,7 @@ void Query_block::remove_redundant_subquery_clauses(
       m_windows.elements == 0) {
     changelog |= REMOVE_GROUP;
     for (ORDER *g = group_list.first; g != nullptr; g = g->next) {
-      if (*g->item == g->item_ptr) {
+      if (g->is_item_original()) {
         Item::Cleanup_after_removal_context ctx(this);
         (*g->item)->walk(&Item::clean_up_after_removal,
                          enum_walk::SUBQUERY_POSTFIX,
@@ -4156,9 +4156,9 @@ void Query_block::empty_order_list(Query_block *sl) {
       the comments in Item_cond::fix_fields on the removal of
       Item_view_ref type.
     */
-    if (*o->item == o->item_ptr &&
-        (!o->item_ptr->has_subquery() ||
-         !WalkItem(o->item_ptr, enum_walk::PREFIX, [](Item *inner_item) {
+    if (o->is_item_original() &&
+        (!o->item[0]->has_subquery() ||
+         !WalkItem(o->item[0], enum_walk::PREFIX, [](Item *inner_item) {
            if (inner_item->type() == Item::REF_ITEM &&
                down_cast<Item_ref *>(inner_item)->ref_type() ==
                    Item_ref::VIEW_REF) {
@@ -6218,7 +6218,6 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
                 return true; /* purecov: inspected */
               new_item->update_used_tables();
               if (new_item != *ord->item) {
-                ord->item_ptr = new_item;
                 *ord->item = new_item;
               }
             }
@@ -6646,7 +6645,6 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
         o->is_position = false;
         o->in_field_list = true;
         o->used = in_select->used_tables();
-        o->item = &o->item_ptr;
         // Add at back of list
         group_list.link_in_list(o, &o->next);
       }

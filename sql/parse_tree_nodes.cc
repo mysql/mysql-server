@@ -297,7 +297,7 @@ bool PT_order::contextualize(Parse_context *pc) {
 }
 
 bool PT_order_expr::contextualize(Parse_context *pc) {
-  return super::contextualize(pc) || item_ptr->itemize(pc, &item_ptr);
+  return super::contextualize(pc) || item_initial->itemize(pc, &item_initial);
 }
 
 bool PT_internal_variable_name_1d::contextualize(Parse_context *pc) {

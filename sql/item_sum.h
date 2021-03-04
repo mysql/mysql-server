@@ -2059,11 +2059,23 @@ int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
 class Item_func_group_concat final : public Item_sum {
   typedef Item_sum super;
 
-  Temp_table_param *tmp_table_param;
-  String result;
+  /// True if GROUP CONCAT has the DISTINCT attribute
+  bool distinct;
+  /// True if the result is always NULL
+  bool always_null{false};
+  /// The number of ORDER BY items.
+  uint m_order_arg_count;
+  /// The number of selected items, aka the concat field list
+  uint m_field_arg_count;
+  /// Resolver context, points to containing query block
+  Name_resolution_context *context;
+  /// String containing separator between group items
   String *separator;
+  /// Describes the temporary table used to perform group concat
+  Temp_table_param *tmp_table_param{nullptr};
+  String result;
   TREE tree_base;
-  TREE *tree;
+  TREE *tree{nullptr};
 
   /**
      If DISTINCT is used with this GROUP_CONCAT, this member is used to filter
@@ -2072,29 +2084,25 @@ class Item_func_group_concat final : public Item_sum {
      @see Item_func_group_concat::add
      @see Item_func_group_concat::clear
    */
-  Unique *unique_filter;
-  TABLE *table;
+  Unique *unique_filter{nullptr};
+  /// Temporary table used to perform group concat
+  TABLE *table{nullptr};
   Mem_root_array<ORDER> order_array;
-  Name_resolution_context *context;
-  /** The number of ORDER BY items. */
-  uint arg_count_order;
-  /** The number of selected items, aka the expr list. */
-  uint arg_count_field;
-  uint row_count;
-  /** The maximum permitted result length in bytes as set for
-      group_concat_max_len system variable */
-  uint group_concat_max_len;
-  bool distinct;
-  bool warning_for_row;
-  bool always_null;
-  bool force_copy_fields;
-  /** True if result has been written to output buffer. */
-  bool m_result_finalized;
-  /*
+  uint row_count{0};
+  /**
+    The maximum permitted result length in bytes as set in
+    group_concat_max_len system variable
+  */
+  uint group_concat_max_len{0};
+  bool warning_for_row{false};
+  bool force_copy_fields{false};
+  /// True if result has been written to output buffer.
+  bool m_result_finalized{false};
+  /**
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)
   */
-  Item_func_group_concat *original;
+  Item_func_group_concat *original{nullptr};
 
   friend int group_concat_key_cmp_with_distinct(const void *arg,
                                                 const void *key1,
@@ -2153,7 +2161,7 @@ class Item_func_group_concat final : public Item_sum {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool change_context_processor(uchar *arg) override {
-    context = reinterpret_cast<Item_ident::Change_context *>(arg)->m_context;
+    context = pointer_cast<Item_ident::Change_context *>(arg)->m_context;
     return false;
   }
 

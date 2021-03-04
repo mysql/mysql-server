@@ -202,7 +202,7 @@ class PT_order_expr : public Parse_tree_node, public ORDER {
 
  public:
   PT_order_expr(Item *item_arg, enum_order dir) {
-    item_ptr = item_arg;
+    item_initial = item_arg;
     direction = (dir == ORDER_DESC) ? ORDER_DESC : ORDER_ASC;
   }
 
@@ -225,7 +225,6 @@ class PT_order_list : public Parse_tree_node {
   }
 
   void push_back(PT_order_expr *order) {
-    order->item = &order->item_ptr;
     order->used_alias = false;
     order->used = 0;
     order->is_position = false;
