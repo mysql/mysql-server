@@ -1569,6 +1569,9 @@ class Item : public Parse_tree_node {
       return MYSQL_TYPE_VARCHAR;
   }
 
+  /// Get the typelib information for an item of type set or enum
+  virtual TYPELIB *get_typelib() const { return nullptr; }
+
   virtual Item_result cast_to_int_type() const { return result_type(); }
   virtual enum Type type() const = 0;
 
@@ -4086,6 +4089,7 @@ class Item_field : public Item_ident {
   Item_result numeric_context_result_type() const override {
     return field->numeric_context_result_type();
   }
+  TYPELIB *get_typelib() const override;
   Item_result cast_to_int_type() const override {
     return field->cast_to_int_type();
   }
@@ -5511,6 +5515,8 @@ class Item_ref : public Item_ident {
                          Query_block *removed_query_block) override;
 
   Item_result result_type() const override { return (*ref)->result_type(); }
+  TYPELIB *get_typelib() const override { return (*ref)->get_typelib(); }
+
   Field *get_tmp_table_field() override {
     return result_field ? result_field : (*ref)->get_tmp_table_field();
   }
@@ -6706,10 +6712,12 @@ class Item_cache_json : public Item_cache {
 */
 class Item_aggregate_type : public Item {
  protected:
-  TYPELIB *enum_set_typelib;
+  /// Typelib information, only used for data type ENUM and SET.
+  TYPELIB *m_typelib{nullptr};
+  /// Geometry type, only used for data type GEOMETRY.
   Field::geometry_type geometry_type;
 
-  void get_full_info(Item *item);
+  void set_typelib(Item *item);
 
  public:
   Item_aggregate_type(THD *, Item *);

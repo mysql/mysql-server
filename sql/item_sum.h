@@ -1642,6 +1642,10 @@ class Item_sum_hybrid : public Item_sum {
   bool val_json(Json_wrapper *wr) override;
   bool keep_field_type() const override { return true; }
   enum Item_result result_type() const override { return hybrid_type; }
+  TYPELIB *get_typelib() const override {
+    assert(sum_func() == MAX_FUNC || sum_func() == MIN_FUNC);
+    return arguments()[0]->get_typelib();
+  }
   void update_field() override;
   void cleanup() override;
   bool any_value() { return was_values; }
