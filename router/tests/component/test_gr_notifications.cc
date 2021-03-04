@@ -1043,14 +1043,6 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   const std::string routing_section_ro = get_metadata_cache_routing_section(
       router_port_ro, "SECONDARY", "round-robin", "ro");
 
-  SCOPED_TRACE("// Launch ther router");
-  auto &router =
-      launch_router(temp_test_dir.name(), metadata_cache_section,
-                    routing_section_rw + routing_section_ro, state_file);
-
-  wait_for_new_md_queries(2, http_ports[0], 1s);
-  EXPECT_TRUE(wait_for_port_ready(router_port_ro));
-
   SCOPED_TRACE("// Prepare a new node before adding it to the cluster");
   nodes_ports.push_back(port_pool_.get_next_available());
   nodes_xports.push_back(port_pool_.get_next_available());
@@ -1076,6 +1068,14 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
     set_mock_metadata(http_ports[i], "00-000", nodes_ports, nodes_xports,
                       /*send=*/true, cluster_nodes_ports);
   }
+
+  SCOPED_TRACE("// Launch ther router");
+  auto &router =
+      launch_router(temp_test_dir.name(), metadata_cache_section,
+                    routing_section_rw + routing_section_ro, state_file);
+
+  wait_for_new_md_queries(2, http_ports[0], 1s);
+  EXPECT_TRUE(wait_for_port_ready(router_port_ro));
 
   // wait for the md update resulting from the GR notification that we have
   // scheduled
