@@ -7504,9 +7504,13 @@ static bool append_hash_for_string_value(Item *comparand,
                                          const CHARSET_INFO *character_set,
                                          String *join_key_buffer) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
-  String *str = comparand->val_str(&str_buffer);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> str_converted;
 
-  if (comparand->null_value) {
+  String *str = comparand->val_str(&str_buffer);
+  if (str != nullptr) {
+    str = convert_or_validate_string(str, character_set, &str_converted);
+  }
+  if (str == nullptr) {
     return true;
   }
 
