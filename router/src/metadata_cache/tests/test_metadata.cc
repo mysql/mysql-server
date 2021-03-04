@@ -629,6 +629,32 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
 /**
  * @test
+ * Verify that `ClusterMetadata::check_replicaset_status()` returns
+ * AvailableWritable when there are 2 nodes in the GR, one Online and the other
+ * one Recovering and the second one is missing in the metadata (simulates
+ * cloning scenario)
+ */
+TEST_F(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata) {
+  std::vector<ManagedInstance> servers_in_metadata{
+      // ServerMode doesn't matter ---vvvvv
+      {"", "instance-1", ServerMode::Unavailable, "", 0, 0},
+  };
+  bool metadata_gr_discrepancy{false};
+
+  std::map<std::string, GroupReplicationMember> server_status{
+      {"instance-1", {"", "", 0, State::Online, Role::Primary}},
+      {"instance-2", {"", "", 0, State::Recovering, Role::Secondary}},
+  };
+
+  EXPECT_EQ(RS::AvailableWritable,
+            metadata.check_replicaset_status(servers_in_metadata, server_status,
+                                             metadata_gr_discrepancy));
+  EXPECT_EQ(ServerMode::ReadWrite, servers_in_metadata.at(0).mode);
+  EXPECT_TRUE(metadata_gr_discrepancy);
+}
+
+/**
+ * @test
  * Verify that `ClusterMetadata::check_replicaset_status()` returns proper
  * status for each node (instance) that it received from MD server, and
  * calculates proper replicaset availability.
