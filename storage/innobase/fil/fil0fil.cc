@@ -8147,7 +8147,9 @@ void fil_aio_wait(ulint segment) {
       /* async single page writes from the dblwr buffer don't have
       access to the page */
       if (m2 != nullptr) {
-        buf_page_io_complete(static_cast<buf_page_t *>(m2), false);
+        auto bpage = static_cast<buf_page_t *>(m2);
+        ut_d(bpage->take_io_responsibility());
+        buf_page_io_complete(bpage, false);
       }
       return;
     case FIL_TYPE_LOG:
@@ -8179,9 +8181,24 @@ dberr_t fil_io(const IORequest &type, bool sync, const page_id_t &page_id,
                const page_size_t &page_size, ulint byte_offset, ulint len,
                void *buf, void *message) {
   auto shard = fil_system->shard_by_id(page_id.space());
+#ifdef UNIV_DEBUG
+  if (!sync) {
+    /* In case of async io we transfer the io responsibility to the thread which
+    will perform the io completion routine. */
+    static_cast<buf_page_t *>(message)->release_io_responsibility();
+  }
+#endif
 
-  return shard->do_io(type, sync, page_id, page_size, byte_offset, len, buf,
-                      message);
+  auto const err = shard->do_io(type, sync, page_id, page_size, byte_offset,
+                                len, buf, message);
+#ifdef UNIV_DEBUG
+  /* If the error prevented async io, then we haven't actually transfered the
+  io responsibility at all, so we revert the debug io responsibility info. */
+  if (err != DB_SUCCESS && !sync) {
+    static_cast<buf_page_t *>(message)->take_io_responsibility();
+  }
+#endif
+  return err;
 }
 
 /** If the tablespace is on the unflushed list and there are no pending
@@ -8581,7 +8598,7 @@ static void fil_buf_block_init(buf_block_t *block, byte *frame) {
 
   block->frame = frame;
 
-  block->page.io_fix = BUF_IO_NONE;
+  block->page.init_io_fix();
   /* There are assertions that check for this. */
   block->page.buf_fix_count.store(1);
   block->page.state = BUF_BLOCK_READY_FOR_USE;

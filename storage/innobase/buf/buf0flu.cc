@@ -706,7 +706,17 @@ bool buf_flush_ready_for_replace(buf_page_t *bpage) {
   return !bpage->is_dirty();
 }
 
-bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
+/** Check if the block was modified and was ready for flushing.
+This is a common part of the logic of buf_flush_was_ready_for_flush() and
+buf_flush_ready_for_flush() which differ by the tolerance for stale result.
+@param[in]	bpage		buffer control block, must be buf_page_in_file()
+@param[in]	flush_type	type of flush
+@param[in]      atomic          false if the caller can tolerate stale data,
+                                true if the caller needs accurate answer, which
+                                requires the caller to hold buf_page_get_mutex.
+@return true if page seems ready for flush */
+static bool buf_flush_ready_for_flush_gen(buf_page_t *bpage,
+                                          buf_flush_t flush_type, bool atomic) {
 #ifdef UNIV_DEBUG
   auto buf_pool = buf_pool_from_bpage(bpage);
 
@@ -718,8 +728,20 @@ bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
        buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 #endif /* UNIV_DEBUG */
 
+  /*As buf_flush_insert_into_flush_list() acquires SYNC_BUF_BLOCK after
+  SYNC_BUF_FLUSH_LIST, the latch ordering prevents buf_do_flush_list_batch()
+  from acquiring SYNC_BUF_BLOCK after SYNC_BUF_FLUSH_LIST taken for iterating
+  over the flush_list. Thus for BUF_FLUSH_LIST we first perform a heuristic
+  check with atomic==false, and if it looks ready to flush, we relatch, and
+  recheck under proper mutex protection. In all other cases we already have
+  the block_mutex.
+  However, for BUF_LRU_LIST if we are called with atomic==false, then we will
+  have the block mutex which will allow us to provide exact answer, even if we
+  don't require it to be so (because atomic==false), and this is not required to
+  have flush_list mutex in such situation.*/
   ut_ad(mutex_own(buf_page_get_mutex(bpage)) ||
-        (flush_type == BUF_FLUSH_LIST && buf_flush_list_mutex_own(buf_pool)));
+        (!atomic && flush_type == BUF_FLUSH_LIST &&
+         buf_flush_list_mutex_own(buf_pool)));
 
   ut_ad(flush_type < BUF_FLUSH_N_TYPES);
 
@@ -728,7 +750,7 @@ bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
   }
 
   if (!bpage->is_dirty() ||
-      buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+      (atomic ? bpage->get_io_fix() != BUF_IO_NONE : bpage->was_io_fixed())) {
     return false;
   }
 
@@ -746,6 +768,20 @@ bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
   }
 
   ut_error;
+}
+
+/** Check if the block was modified and was ready for flushing at some point in
+time during the call. Result might be obsolete.
+@param[in]	bpage		buffer control block, must be buf_page_in_file()
+@param[in]	flush_type	type of flush
+@return true if can flush immediately */
+static bool buf_flush_was_ready_for_flush(buf_page_t *bpage,
+                                          buf_flush_t flush_type) {
+  return buf_flush_ready_for_flush_gen(bpage, flush_type, false);
+}
+
+bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
+  return buf_flush_ready_for_flush_gen(bpage, flush_type, true);
 }
 
 /** Remove a block from the flush list of modified blocks.
@@ -1160,7 +1196,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
   flush_list or LRU_list. */
   ut_ad(!buf_flush_list_mutex_own(buf_pool));
   ut_ad(!buf_page_get_mutex(bpage)->is_owned());
-  ut_ad(buf_page_get_io_fix_unlocked(bpage) == BUF_IO_WRITE);
+  ut_ad(bpage->is_io_fix_write());
   ut_ad(bpage->is_dirty());
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -1628,7 +1664,9 @@ static bool buf_flush_page_and_try_neighbors(buf_page_t *bpage,
        buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 #endif /* UNIV_DEBUG */
 
-  if (buf_flush_ready_for_flush(bpage, flush_type)) {
+  /* This is just a heuristic check, perhaps without block mutex latch, so we
+  will repeat the check with block mutexes in buf_flush_try_neighbors. */
+  if (buf_flush_was_ready_for_flush(bpage, flush_type)) {
     buf_pool_t *buf_pool;
 
     buf_pool = buf_pool_from_bpage(bpage);

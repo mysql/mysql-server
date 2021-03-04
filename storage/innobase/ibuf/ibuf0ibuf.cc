@@ -4066,8 +4066,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
   ulint dops[IBUF_OP_COUNT];
 
   ut_ad(block == nullptr || page_id == block->page.id);
-  ut_ad(block == nullptr ||
-        buf_block_get_io_fix_unlocked(block) == BUF_IO_READ);
+  ut_ad(block == nullptr || block->page.is_io_fix_read());
 
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE ||
       trx_sys_hdr_page(page_id) || fsp_is_system_temporary(page_id.space())) {
