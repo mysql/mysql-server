@@ -275,14 +275,26 @@ class View_creation_ctx : public Default_object_creation_ctx {
 class Item_rollup_group_item;
 
 struct ORDER {
+  /// @returns true if item pointer is same as original
+  bool is_item_original() const { return item[0] == item_initial; }
+
   ORDER *next{nullptr};
+
+ protected:
+  /**
+    The initial ordering expression. Usually substituted during resolving
+    and must not be used during optimization and execution.
+  */
+  Item *item_initial{nullptr}; /* Storage for initial item */
+
+ public:
   /**
     Points at the item in the select fields. Note that this means that
     after resolving, it points into a slice (see JOIN::ref_items),
     even though the item is not of type Item_ref!
    */
-  Item **item{nullptr};
-  Item *item_ptr{nullptr}; /* Storage for initial item */
+  Item **item{&item_initial};
+
   Item_rollup_group_item *rollup_item{nullptr};
 
   enum_order direction{

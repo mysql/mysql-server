@@ -2706,7 +2706,7 @@ bool Item_sum_hybrid::check_wf_semantics1(THD *thd, Query_block *select,
     ORDER *o = order->value.first;
     // The logic below (see class's doc) makes sense only for MIN and MAX
     assert(sum_func() == MIN_FUNC || sum_func() == MAX_FUNC);
-    if (o->item_ptr->real_item()->eq(args[0]->real_item(), false)) {
+    if ((*o->item)->real_item()->eq(args[0]->real_item(), false)) {
       if (r->row_optimizable || r->range_optimizable) {
         m_optimize = true;
         value->setup(args[0]);  // no comparisons needed
@@ -3926,7 +3926,7 @@ int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
       static_cast<const Item_func_group_concat *>(arg);
   TABLE *table = item_func->table;
 
-  for (uint i = 0; i < item_func->arg_count_field; i++) {
+  for (uint i = 0; i < item_func->m_field_arg_count; i++) {
     Item *item = item_func->args[i];
     /*
       If item is a const item then either get_tmp_table_field returns 0
@@ -4007,7 +4007,7 @@ int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
   String tmp2;
   uchar *key = (uchar *)key_arg;
   String *result = &item->result;
-  Item **arg = item->args, **arg_end = item->args + item->arg_count_field;
+  Item **arg = item->args, **arg_end = item->args + item->m_field_arg_count;
   size_t old_length = result->length();
 
   if (!item->m_result_finalized)
@@ -4091,30 +4091,20 @@ Item_func_group_concat::Item_func_group_concat(
     const POS &pos, bool distinct_arg, PT_item_list *select_list,
     PT_order_list *opt_order_list, String *separator_arg, PT_window *w)
     : super(pos, w),
-      tmp_table_param(nullptr),
-      separator(separator_arg),
-      tree(nullptr),
-      unique_filter(nullptr),
-      table(nullptr),
-      order_array(*THR_MALLOC),
-      arg_count_order(opt_order_list ? opt_order_list->value.elements : 0),
-      arg_count_field(select_list->elements()),
-      row_count(0),
-      group_concat_max_len(0),
       distinct(distinct_arg),
-      warning_for_row(false),
-      always_null(false),
-      force_copy_fields(false),
-      original(nullptr) {
+      m_order_arg_count(opt_order_list ? opt_order_list->value.elements : 0),
+      m_field_arg_count(select_list->elements()),
+      separator(separator_arg),
+      order_array(*THR_MALLOC) {
   Item **arg_ptr;
 
   allow_group_via_temp_table = false;
-  arg_count = arg_count_field + arg_count_order;
+  arg_count = m_field_arg_count + m_order_arg_count;
 
   if (!(args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count)))
     return;
 
-  if (order_array.reserve(arg_count_order)) return;
+  if (order_array.reserve(m_order_arg_count)) return;
 
   /* fill args items of show and sort */
   auto it = select_list->value.begin();
@@ -4123,7 +4113,7 @@ Item_func_group_concat::Item_func_group_concat(
     *arg_ptr = *it;
   }
 
-  if (arg_count_order) {
+  if (m_order_arg_count > 0) {
     for (ORDER *order_item = opt_order_list->value.first; order_item != nullptr;
          order_item = order_item->next) {
       order_array.push_back(*order_item);
@@ -4145,20 +4135,20 @@ bool Item_func_group_concat::itemize(Parse_context *pc, Item **res) {
 Item_func_group_concat::Item_func_group_concat(THD *thd,
                                                Item_func_group_concat *item)
     : Item_sum(thd, item),
-      tmp_table_param(item->tmp_table_param),
+      distinct(item->distinct),
+      always_null(item->always_null),
+      m_order_arg_count(item->m_order_arg_count),
+      m_field_arg_count(item->m_field_arg_count),
+      context(item->context),
       separator(item->separator),
+      tmp_table_param(item->tmp_table_param),
       tree(item->tree),
       unique_filter(item->unique_filter),
       table(item->table),
       order_array(thd->mem_root),
-      context(item->context),
-      arg_count_order(item->arg_count_order),
-      arg_count_field(item->arg_count_field),
       row_count(item->row_count),
       group_concat_max_len(item->group_concat_max_len),
-      distinct(item->distinct),
       warning_for_row(item->warning_for_row),
-      always_null(item->always_null),
       force_copy_fields(item->force_copy_fields),
       original(item) {
   allow_group_via_temp_table = item->allow_group_via_temp_table;
@@ -4171,9 +4161,9 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     such modifications done in this object would not have any effect on the
     object being copied.
   */
-  if (order_array.reserve(arg_count_order)) return;
+  if (order_array.reserve(m_order_arg_count)) return;
 
-  for (uint i = 0; i < arg_count_order; i++) {
+  for (uint i = 0; i < m_order_arg_count; i++) {
     /*
       Compiler generated copy constructor is used to
       to copy all the members of ORDER struct.
@@ -4182,7 +4172,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     */
     order_array.push_back(item->order_array[i]);
   }
-  if (arg_count_order) {
+  if (m_order_arg_count > 0) {
     for (ORDER *ord = order_array.begin(); ord < order_array.end(); ++ord)
       ord->next = ord != &order_array.back() ? ord + 1 : nullptr;
   }
@@ -4214,17 +4204,6 @@ void Item_func_group_concat::cleanup() {
       }
     }
     assert(tree == nullptr);
-  }
-  /*
-   As the ORDER structures pointed to by the elements of the
-   'order' array may be modified in find_order_in_list() called
-   from Item_func_group_concat::setup() to point to runtime
-   created objects, we need to reset them back to the original
-   arguments of the function.
-   */
-  for (uint i = 0; i < arg_count_order; i++) {
-    if (order_array[i].is_position)
-      args[arg_count_field + i] = order_array[i].item_ptr;
   }
   row_count = 0;
 }
@@ -4282,7 +4261,7 @@ bool Item_func_group_concat::add() {
   if (copy_fields(tmp_table_param, thd)) return true;
   if (copy_funcs(tmp_table_param, thd)) return true;
 
-  for (uint i = 0; i < arg_count_field; i++) {
+  for (uint i = 0; i < m_field_arg_count; i++) {
     Item *show_item = args[i];
     if (show_item->const_item()) continue;
 
@@ -4335,9 +4314,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 
   Condition_context CCT(thd->lex->current_query_block());
 
-  /*
-    Fix fields for select list and ORDER clause
-  */
+  // Fix fields for select list and ORDER clause
 
   for (uint i = 0; i < arg_count; i++) {
     if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
@@ -4346,14 +4323,13 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
   }
 
   if (param_type_is_default(thd, 0, -1)) return true;
+
   // Aggregate character set for expression columns (not order columns)
   if (agg_item_charsets_for_string_result(collation, func_name(), args,
-                                          arg_count_field))
+                                          m_field_arg_count))
     return true;
 
   result.set_charset(collation.collation);
-  result_field = nullptr;
-  null_value = true;
   group_concat_max_len = thd->variables.group_concat_max_len;
   uint32 max_chars = group_concat_max_len / collation.collation->mbminlen;
   uint max_byte_length = max_chars * collation.collation->mbmaxlen;
@@ -4364,17 +4340,16 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
   if (separator->needs_conversion(separator->length(), separator->charset(),
                                   collation.collation, &offset)) {
     size_t buflen = collation.collation->mbmaxlen * separator->length();
+
+    char *buf = pointer_cast<char *>(thd->alloc(buflen));
+    if (buf == nullptr) return true;
+
+    String *new_separator =
+        new (thd->mem_root) String(buf, buflen, collation.collation);
+    if (new_separator == nullptr) return true;
+
     uint errors;
-    size_t conv_length;
-    char *buf;
-    String *new_separator;
-
-    if (!(buf = (char *)thd->stmt_arena->alloc(buflen)) ||
-        !(new_separator = new (thd->stmt_arena->mem_root)
-              String(buf, buflen, collation.collation)))
-      return true;
-
-    conv_length =
+    size_t conv_length =
         copy_and_convert(buf, buflen, collation.collation, separator->ptr(),
                          separator->length(), separator->charset(), &errors);
     new_separator->length(conv_length);
@@ -4383,12 +4358,44 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 
   if (check_sum_func(thd, ref)) return true;
 
+  // Create a list with all the non-NULL fields:
+  mem_root_deque<Item *> fields(thd->mem_root);
+  for (uint i = 0; i < m_field_arg_count; i++) {
+    Item *item = args[i];
+    fields.push_back(item);
+    if (item->const_item() && item->is_null()) {
+      // "is_null()" may cause error:
+      if (thd->is_error()) return true;
+      always_null = true;
+    }
+  }
+
+  /*
+    Find and resolve every ORDER BY expression in the list of GROUP_CONCAT
+    arguments.
+    The "fields" list is not used after the call to setup_order(), however it
+    must be recreated during optimization to create tmp table columns.
+  */
+  if (m_order_arg_count > 0 && !always_null &&
+      setup_order(thd, Ref_item_array(args, arg_count), context->table_list,
+                  &fields, order_array.begin()))
+    return true;
+
   fixed = true;
+
   return false;
 }
 
 bool Item_func_group_concat::setup(THD *thd) {
   DBUG_TRACE;
+  /*
+    Currently setup() can be called twice. Please add
+    assertion here when this is fixed.
+  */
+  if (table != nullptr || tree != nullptr) return false;
+
+  // Nothing to set up if always NULL:
+  if (always_null) return false;
 
   assert(thd->lex->current_query_block() == aggr_query_block);
 
@@ -4403,44 +4410,31 @@ bool Item_func_group_concat::setup(THD *thd) {
     // Continue; we'll truncate more than wanted. Should not happen.
   }
 
-  const bool order_or_distinct = (arg_count_order > 0 || distinct);
+  const bool order_or_distinct = m_order_arg_count > 0 || distinct;
 
-  /*
-    Currently setup() can be called twice. Please add
-    assertion here when this is fixed.
-  */
-  if (table || tree) return false;
+  assert(tmp_table_param == nullptr);
+  tmp_table_param = new (thd->mem_root) Temp_table_param;
+  if (tmp_table_param == nullptr) return true;
 
-  if (!(tmp_table_param = new (thd->mem_root) Temp_table_param)) return true;
-
-  // Push all non-constant fields to a temporary list
+  // Create a temporary list with the required fields
   mem_root_deque<Item *> fields(thd->mem_root);
-  always_null = false;
-  for (uint i = 0; i < arg_count_field; i++) {
-    Item *item = args[i];
-    fields.push_back(item);
-    if (item->const_item() && item->is_null()) {
-      // "is_null()" may cause error:
-      if (thd->is_error()) return true;
-      always_null = true;
-      return false;
-    }
-  }
 
-  /*
-    Try to find every ORDER expression in the list of GROUP_CONCAT
-    arguments. If an expression is not found, prepend it to
-    "all_fields". The resulting field list is used as input to create
-    tmp table columns.
-  */
-  if (arg_count_order > 0 &&
-      setup_order(thd, Ref_item_array(args, arg_count), context->table_list,
-                  &fields, order_array.begin()))
-    return true;
+  // First add the fields from the concat field list
+  for (uint i = 0; i < m_field_arg_count; i++) {
+    fields.push_back(args[i]);
+  }
+  // Then prepend the ordered fields not already in the "fields" list
+  for (uint i = 0; i < m_order_arg_count; i++) {
+    bool skip = false;
+    for (Item *item : fields) {
+      if (item == order_array[i].item[0]) skip = true;
+    }
+    if (skip) continue;
+    fields.push_front(order_array[i].item[0]);
+  }
 
   count_field_types(aggr_query_block, tmp_table_param, fields, false, true);
   tmp_table_param->force_copy_fields = force_copy_fields;
-  assert(table == nullptr);
   if (order_or_distinct) {
     /*
       Force the create_tmp_table() to convert BIT columns to INT
@@ -4457,16 +4451,15 @@ bool Item_func_group_concat::setup(THD *thd) {
   }
 
   /*
-    We have to create a temporary table to get descriptions of fields
-    (types, sizes and so on).
-
-    Note that in the table, we first have the ORDER BY fields, then the
-    field list.
+    Create a temporary table to get descriptions of fields (types, sizes, etc).
+    The table contains the ORDER BY fields followed by the field list.
   */
-  if (!(table = create_tmp_table(thd, tmp_table_param, fields, nullptr, false,
-                                 true, aggr_query_block->active_options(),
-                                 HA_POS_ERROR, "")))
-    return true;
+  assert(table == nullptr);
+  table =
+      create_tmp_table(thd, tmp_table_param, fields, nullptr, false, true,
+                       aggr_query_block->active_options(), HA_POS_ERROR, "");
+  if (table == nullptr) return true;
+
   table->file->ha_extra(HA_EXTRA_NO_ROWS);
   table->no_rows = true;
 
@@ -4474,9 +4467,10 @@ bool Item_func_group_concat::setup(THD *thd) {
     Initialize blob_storage if GROUP_CONCAT is used
     with ORDER BY | DISTINCT and BLOB field count > 0.
   */
-  if (order_or_distinct && table->s->blob_fields)
+  if (order_or_distinct && table->s->blob_fields) {
     table->blob_storage = new (thd->mem_root) Blob_mem_storage();
-
+    if (table->blob_storage == nullptr) return true;
+  }
   /*
      Need sorting or uniqueness: init tree and choose a function to sort.
      Don't reserve space for NULLs: if any of gconcat arguments is NULL,
@@ -4484,7 +4478,7 @@ bool Item_func_group_concat::setup(THD *thd) {
   */
   uint tree_key_length = table->s->reclength - table->s->null_bytes;
 
-  if (arg_count_order) {
+  if (m_order_arg_count > 0) {
     tree = &tree_base;
     /*
       Create a tree for sorting. The tree is used to sort (according to the
@@ -4501,6 +4495,8 @@ bool Item_func_group_concat::setup(THD *thd) {
                tree_key_length, ram_limitation(thd));
     if (unique_filter == nullptr) return true;
   }
+
+  null_value = true;
 
   return false;
 }
@@ -4551,15 +4547,15 @@ void Item_func_group_concat::print(const THD *thd, String *str,
                                    enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct) str->append(STRING_WITH_LEN("distinct "));
-  for (uint i = 0; i < arg_count_field; i++) {
+  for (uint i = 0; i < m_field_arg_count; i++) {
     if (i) str->append(',');
     args[i]->print(thd, str, query_type);
   }
-  if (arg_count_order) {
+  if (m_order_arg_count > 0) {
     str->append(STRING_WITH_LEN(" order by "));
-    for (uint i = 0; i < arg_count_order; i++) {
+    for (uint i = 0; i < m_order_arg_count; i++) {
       if (i) str->append(',');
-      args[i + arg_count_field]->print(thd, str, query_type);
+      args[i + m_field_arg_count]->print(thd, str, query_type);
       if (order_array[i].direction == ORDER_ASC)
         str->append(STRING_WITH_LEN(" ASC"));
       else
@@ -5815,7 +5811,7 @@ bool Item_sum_json_object::check_wf_semantics1(
   const PT_order_list *order = m_window->effective_order_by();
   if (order != nullptr) {
     ORDER *o = order->value.first;
-    if (o->item_ptr->real_item()->eq(args[0]->real_item(), false)) {
+    if (o->item[0]->real_item()->eq(args[0]->real_item(), false)) {
       r->needs_last_peer_in_frame = true;
       m_optimize = true;
     }

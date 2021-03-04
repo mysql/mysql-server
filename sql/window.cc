@@ -1392,21 +1392,6 @@ void Window::reset_execution_state(Reset_level level) {
       m_partition_items.clear();
       m_order_by_items.clear();
       m_sorting_order = nullptr;
-      /*
-        order by elements in window functions need to be reset
-        before the next execution. This is in line with resetting of
-        global order by in "reinit_stmt_before_use".
-        find_order_in_list() changes the item in order by. Hence the
-        need to reset it to original pointer(item_ptr).
-      */
-      {
-        for (auto it : {m_partition_by, m_order_by}) {
-          if (it != nullptr) {
-            for (ORDER *o = it->value.first; o != nullptr; o = o->next)
-              o->item = &o->item_ptr;
-          }
-        }
-      }
     // fall-through
     case RL_ROUND:
       if (m_frame_buffer != nullptr) (void)m_frame_buffer->empty_result_table();

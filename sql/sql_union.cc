@@ -347,11 +347,6 @@ bool Query_expression::prepare_fake_query_block(THD *thd_arg) {
       fake_query_block->context.first_name_resolution_table =
           fake_query_block->get_table_list();
   fake_query_block->add_joined_table(fake_query_block->get_table_list());
-  if (!fake_query_block->first_execution) {
-    for (ORDER *order = fake_query_block->order_list.first; order;
-         order = order->next)
-      order->item = &order->item_ptr;
-  }
   for (ORDER *order = fake_query_block->order_list.first; order;
        order = order->next) {
     Item_ident::Change_context ctx(&fake_query_block->context);
