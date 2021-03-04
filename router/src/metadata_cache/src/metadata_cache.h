@@ -387,7 +387,7 @@ class METADATA_API MetadataCache
    * Flag indicating if socket acceptors state should be updated on next
    * metadata refresh even if instance information has not changed.
    */
-  bool trigger_acceptor_update_on_next_refresh_{false};
+  std::atomic<bool> trigger_acceptor_update_on_next_refresh_{false};
 };
 
 bool operator==(const MetaData::ReplicaSetsByName &map_a,
