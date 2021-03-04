@@ -9528,9 +9528,11 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
                  : new (mem_root)
                        Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
                                  bit_offset, auto_flags, field_name);
-
-    case MYSQL_TYPE_INVALID:
     case MYSQL_TYPE_BOOL:
+      return new (mem_root)
+          Field_boolean(ptr, null_pos, null_bit, auto_flags, field_name, is_zerofill);
+          
+    case MYSQL_TYPE_INVALID:
     default:  // Impossible (Wrong version)
       break;
   }
