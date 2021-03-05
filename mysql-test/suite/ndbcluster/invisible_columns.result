@@ -898,4 +898,10 @@ b	a	c
 2	NULL	NULL
 3	NULL	NULL
 DROP TABLE t1, t2;
+#------------------------------------------------------------------------
+# Test case to verify my_row_id name usage for invisible columns.
+#------------------------------------------------------------------------
+CREATE TABLE t1(a INT, my_row_id INT);
+CREATE TABLE t2(a INT, my_row_id INT INVISIBLE);
+DROP TABLE t1, t2;
 SET SESSION DEFAULT_STORAGE_ENGINE = DEFAULT;

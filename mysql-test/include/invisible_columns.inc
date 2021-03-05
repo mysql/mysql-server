@@ -552,3 +552,12 @@ SELECT * FROM t1 JOIN t2 ON (t1.b = t2.b);
 SELECT * FROM t1 JOIN t2 USING(b) ORDER BY (b);
 
 DROP TABLE t1, t2;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify my_row_id name usage for invisible columns.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(a INT, my_row_id INT);
+# Following statement should not fail.
+CREATE TABLE t2(a INT, my_row_id INT INVISIBLE);
+DROP TABLE t1, t2;

@@ -449,29 +449,6 @@ static bool check_if_field_used_by_generated_column_or_default(
     TABLE *table, const Field *field, const Alter_info *alter_info);
 
 /**
-   Check if given column is reserved invisible column.
-
-   WL13784 is to implement Generated Implicit Primary Key feature. If CREATE
-   TABLE doesn't have primary key or user defined implicit key then WL13784
-   generates primary key on INVISIBLE column "my_row_id". Invisible column
-   "my_row_id" is reserved in this version for WL13784.
-
-   @param cr_field Instance of Create_field.
-
-   @return true  If given column is reserved invisible column.
-   @return false Otherwise.
-*/
-static bool is_reserved_invisible_column(const Create_field *cr_field) {
-  assert(cr_field != nullptr);
-
-  if (!is_hidden_by_user(cr_field)) return false;
-
-  const char *reserved_column_name = "my_row_id";
-  return (my_strcasecmp(system_charset_info, cr_field->field_name,
-                        reserved_column_name) == 0);
-}
-
-/**
   RAII class to control the atomic DDL commit on slave.
   A slave context flag responsible to mark the DDL as committed is
   raised and kept for the entirety of DDL commit block.
@@ -4503,14 +4480,6 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
 
   if (check_column_name(sql_field->field_name)) {
     my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
-    return true;
-  }
-
-  if (is_reserved_invisible_column(sql_field)) {
-    my_printf_error(ER_UNKNOWN_ERROR,
-                    "Invisible column '%s' is reserved for purposes internal "
-                    "to the MySQL server. Please use a different name.",
-                    MYF(0), sql_field->field_name);
     return true;
   }
 
