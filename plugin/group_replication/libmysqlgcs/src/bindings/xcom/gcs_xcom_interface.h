@@ -233,7 +233,7 @@ class Gcs_xcom_interface : public Gcs_interface {
 
     @return the list of allowlisted IP addresses and subnet masks.
    */
-  const Gcs_ip_allowlist &get_ip_allowlist();
+  Gcs_ip_allowlist &get_ip_allowlist();
 
   /*
      Notify all controllers that XCOM's thread has finished.

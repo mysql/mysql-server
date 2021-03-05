@@ -399,6 +399,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   map<std::string, gcs_xcom_group_interfaces *>::const_iterator
       registered_group;
   Gcs_xcom_control *xcom_control = nullptr;
+  const std::string *ip_allowlist_str{nullptr};
 
   // Error! Interface still not initialized or finalize has already been invoked
   if (!is_initialized()) return GCS_NOK;
@@ -432,9 +433,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   }
 
   if (should_configure_allowlist) {
-    const std::string *ip_allowlist_str =
-        validated_params.get_parameter("ip_allowlist");
-
+    ip_allowlist_str = validated_params.get_parameter("ip_allowlist");
     if (!ip_allowlist_str || !m_ip_allowlist.is_valid(*ip_allowlist_str)) {
       MYSQL_GCS_LOG_ERROR("The ip_allowlist parameter is not valid")
       return GCS_NOK;
@@ -543,6 +542,13 @@ enum_gcs_error Gcs_xcom_interface::configure(
   // Set suspicion configuration parameters
   if (GCS_OK == configure_suspicions_mgr(
                     validated_params, xcom_control->get_suspicions_manager())) {
+    reconfigured |= true;
+  }
+
+  // ip_allowlist
+  if (should_configure_allowlist &&
+      GCS_OK == m_ip_allowlist.configure(*ip_allowlist_str)) {
+    // configure allowlist
     reconfigured |= true;
   }
 
@@ -1217,7 +1223,7 @@ enum_gcs_error Gcs_xcom_interface::configure_suspicions_mgr(
   return ret;
 }
 
-const Gcs_ip_allowlist &Gcs_xcom_interface::get_ip_allowlist() {
+Gcs_ip_allowlist &Gcs_xcom_interface::get_ip_allowlist() {
   return m_ip_allowlist;
 }
 
@@ -1694,7 +1700,7 @@ int cb_xcom_socket_accept(int fd, site_def const *xcom_config) {
   Gcs_xcom_interface *intf =
       static_cast<Gcs_xcom_interface *>(Gcs_xcom_interface::get_interface());
 
-  const Gcs_ip_allowlist &wl = intf->get_ip_allowlist();
+  Gcs_ip_allowlist &wl = intf->get_ip_allowlist();
 
   return wl.shall_block(fd, xcom_config) ? 0 : 1;
 }

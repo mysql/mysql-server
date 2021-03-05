@@ -245,21 +245,18 @@ START GROUP_REPLICATION;
 --let $assert_text= Assert value changed to "AUTOMATIC"
 --source include/assert.inc
 
-#
-# Assert that we cannot change the variable while group replication
-# is running
-#
---let $before= `SELECT @@group_replication_ip_allowlist`
-
---error ER_GROUP_REPLICATION_RUNNING
+# assert that we can set the ip_allowlist while GR is running
 --eval SET GLOBAL group_replication_ip_allowlist="$correct_ip1"
+--let $current= `SELECT @@group_replication_ip_allowlist`
+--let $assert_cond= "$current" = "$correct_ip1"
+--let $assert_text= Assert value changed to "$correct_ip1"
+--source include/assert.inc
 
-#
-# Assert that despite the error the value remains unchanged
-#
---let $after= `SELECT @@group_replication_ip_allowlist`
---let $assert_cond= [SELECT "$before" = "$after"] = 1
---let $assert_text= Assert that value remains unchanged
+# Validate the invalid values are detected,
+--error ER_GROUP_REPLICATION_CONFIGURATION
+--eval SET GLOBAL group_replication_ip_allowlist="$incorrect_ip1"
+--let $assert_cond= "$current" = "$correct_ip1"
+--let $assert_text= Assert value has not changed to "$incorrect_ip1"
 --source include/assert.inc
 
 --source include/stop_group_replication.inc

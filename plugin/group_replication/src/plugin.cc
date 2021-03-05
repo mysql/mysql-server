@@ -3042,16 +3042,6 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
 
   if (plugin_running_mutex_trylock()) return 1;
 
-  if (plugin_is_group_replication_running()) {
-    mysql_mutex_unlock(&lv.plugin_running_mutex);
-    std::string msg;
-    msg.append("The ");
-    msg.append(var->name);
-    msg.append(" cannot be set while Group Replication is running");
-    my_message(ER_GROUP_REPLICATION_RUNNING, msg.c_str(), MYF(0));
-    return 1;
-  }
-
   (*(const char **)save) = nullptr;
 
   if ((str = value->val_str(value, buff, &length)))
@@ -3062,20 +3052,32 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
     return 1;                                     /* purecov: inspected */
   }
 
+  std::stringstream ss;
+  ss << "The " << var->name << " is invalid. Make sure that when ";
+  ss << "specifying \"AUTOMATIC\" the list contains no other values.";
+
   // remove trailing whitespaces
   std::string v(str);
   v.erase(std::remove(v.begin(), v.end(), ' '), v.end());
   std::transform(v.begin(), v.end(), v.begin(), ::tolower);
   if (v.find("automatic") != std::string::npos && v.size() != 9) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    std::string msg;
-    msg.append("The ");
-    msg.append(var->name);
-    msg.append(
-        " is invalid. Make sure that when specifying \"AUTOMATIC\" the list "
-        "contains no other values.");
-    my_message(ER_GROUP_REPLICATION_CONFIGURATION, msg.c_str(), MYF(0));
+    my_message(ER_GROUP_REPLICATION_CONFIGURATION, ss.str().c_str(), MYF(0));
     return 1;
+  }
+
+  if (plugin_is_group_replication_running()) {
+    Gcs_interface_parameters gcs_module_parameters;
+    gcs_module_parameters.add_parameter("group_name",
+                                        std::string(ov.group_name_var));
+    gcs_module_parameters.add_parameter("ip_allowlist", v.c_str());
+    gcs_module_parameters.add_parameter("reconfigure_ip_allowlist", "true");
+
+    if (gcs_module->reconfigure(gcs_module_parameters)) {
+      mysql_mutex_unlock(&lv.plugin_running_mutex);
+      my_message(ER_GROUP_REPLICATION_CONFIGURATION, ss.str().c_str(), MYF(0));
+      return 1;
+    }
   }
 
   *(const char **)save = str;
