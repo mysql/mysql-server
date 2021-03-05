@@ -7872,37 +7872,82 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
     return error;
   }
 
-  // After the row is unpacked, we need to update all hidden generated columns
-  // for functional indexes since those values are not included in the binlog
-  // in any mode of binlog_row_image.
-  if (is_after_image &&
-      !bitmap_is_clear_all(&m_table->fields_for_functional_indexes)) {
-    // If there are a different number of columns on the master and slave, we
-    // need to adjust the backup bitmap since the bitmap was initialized with
-    // the number of columns on the master.
-    if (write_set_backup.n_bits != m_table->s->fields) {
-      bitmap_free(&write_set_backup);
-      if (bitmap_init(&write_set_backup, nullptr, m_table->s->fields)) {
-        return HA_ERR_OUT_OF_MEM; /* purecov: deadcode */
+  // After the row is unpacked, we need to update all generated columns
+  // that aren't included in the row image provided by the source, that is,
+  // hidden generated columns for functional indexes, generated columns
+  // that have associated indexes, stored generated columns for which base
+  // columns have changed and stored generated columns that only exist on
+  // the replica. We do it in two steps, first all the generated columns
+  // that aren't functional indexes and then the columns for functional
+  // indexes, since functional indexes may use generated columns as the
+  // base column for the index.
+  if (m_table->has_gcol()) {
+    if (!only_seek) {
+      Table_columns_view<> updatable_columns_view{
+          // A table view for generated columns that need to be updated on the
+          // replica, excluding columns for functional indexes
+          this->m_table,
+          [=](TABLE const *table, size_t column_index) -> bool {
+            auto field = table->field[column_index];
+            if (field->is_field_for_functional_index())  // Always exlcude
+                                                         // functional indexes
+              return true;
+            if (!is_after_image &&  // Always exclude virtual generated columns
+                field->is_virtual_gcol())  // if not processing after-image
+              return true;
+            if (field->m_indexed)  // Never exclude generated columns that
+                                   // have indexes
+              return false;
+            if (bitmap_is_overlapping(  // Never exclude generated columns for
+                                        // which the base column value changed.
+                    table->write_set, &field->gcol_info->base_columns_map))
+              return false;
+            if (!is_after_image)  // Else, exclude if not in after-image
+              return true;
+            return column_index <
+                       this->m_cols    // Else, exclude generated columns that
+                           .n_bits ||  // also exists on the source
+                   field->is_virtual_gcol();  // or that are virtual
+          },
+          Table_columns_view<>::VFIELDS_ONLY};
+
+      if (updatable_columns_view.filtered_size() != 0 &&
+          this->update_generated_columns(
+              updatable_columns_view.get_included_fields_bitmap())) {
+        return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
       }
     }
-
-    // Make a copy of the write set, and mark all hidden generated columns.
-    bitmap_copy(&write_set_backup, m_table->write_set);
-    bitmap_union(m_table->write_set, &m_table->fields_for_functional_indexes);
-
-    // Calculate the values for all hidden generated columns.
-    bool res = update_generated_write_fields(
-        &m_table->fields_for_functional_indexes, m_table);
-
-    // Restore the write set.
-    bitmap_copy(m_table->write_set, &write_set_backup);
-    if (res) {
-      return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
+    if (is_after_image &&
+        !bitmap_is_clear_all(&this->m_table->fields_for_functional_indexes)) {
+      if (this->update_generated_columns(
+              this->m_table->fields_for_functional_indexes))
+        return thd->get_stmt_da()->mysql_errno(); /* purecov: deadcode */
     }
   }
 
   return 0;
+}
+
+int Rows_log_event::update_generated_columns(
+    MY_BITMAP const &fields_to_update) {
+  assert(!bitmap_is_clear_all(&fields_to_update));  // Do not call this function
+                                                    // if there is nothing to do
+  // Readjust the size of the backup bitmap, if needed
+  if (this->write_set_backup.n_bits != this->m_table->s->fields) {
+    bitmap_free(&this->write_set_backup);
+    if (bitmap_init(&this->write_set_backup, nullptr,
+                    this->m_table->s->fields)) {
+      return HA_ERR_OUT_OF_MEM; /* purecov: deadcode */
+    }
+  }
+  // Make a copy of the write set, and mark all hidden generated columns.
+  bitmap_copy(&this->write_set_backup, this->m_table->write_set);
+  bitmap_union(this->m_table->write_set, &fields_to_update);
+  // Calculate the values for all columns set in param `fields_to_update.
+  auto res = update_generated_write_fields(&fields_to_update, this->m_table);
+  // Restore the write set before return
+  bitmap_copy(this->m_table->write_set, &this->write_set_backup);
+  return res;
 }
 #endif  // ifdef MYSQL_SERVER
 
