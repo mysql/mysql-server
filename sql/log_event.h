@@ -2927,7 +2927,17 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   */
   int unpack_current_row(const Relay_log_info *const rli, MY_BITMAP const *cols,
                          bool is_after_image, bool only_seek = false);
+  /**
+    Updates the generated columns of the `TABLE` object referenced by
+    `m_table`, that have an active bit in the parameter bitset
+    `fields_to_update`.
 
+    @param fields_to_update A bitset where the bit at the index of
+                            generated columns to update must be set to `1`
+
+    @return 0 if the operation terminated successfully, 1 otherwise.
+   */
+  int update_generated_columns(MY_BITMAP const &fields_to_update);
   /*
     This member function is called when deciding the algorithm to be used to
     find the rows to be updated on the slave during row based replication.
