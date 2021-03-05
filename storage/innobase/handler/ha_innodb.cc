@@ -8342,8 +8342,11 @@ void ha_innobase::build_template(bool whole_row) {
       /* Virtual columns may have to be read from the secondary index before
       evaluating an end-range condition in row_search_end_range_check(). Set
       ICP field number for virtual column. */
-      if (is_virtual) {
-        set_templ_icp(templ, index, m_prebuilt->index, num_v);
+      auto scan_index = m_prebuilt->index;
+      bool is_sec_idx = (scan_index != nullptr && !scan_index->is_clustered());
+
+      if (is_virtual && is_sec_idx) {
+        set_templ_icp(templ, index, scan_index, num_v);
       }
 
       if (templ->is_virtual) {
