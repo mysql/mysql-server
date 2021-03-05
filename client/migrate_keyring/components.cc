@@ -105,8 +105,9 @@ Keyring_services::Keyring_services(const std::string implementation_name,
     return;
   }
 
-  if (keyring_load_service_->load(Options::s_component_dir,
-                                  instance_path.c_str()) == true) {
+  if (keyring_load_service_->load(
+          Options::s_component_dir,
+          instance_path.length() ? instance_path.c_str() : nullptr) == true) {
     std::string message("Failed to initialize keyring");
     log_error << message << std::endl;
     return;
