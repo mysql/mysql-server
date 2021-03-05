@@ -2491,3 +2491,16 @@ FROM
     ( SELECT 1 UNION SELECT MAX(alias1.pk) ) = alias3.pk;
 
 DROP TABLE t1, t2;
+
+--echo # Bug#32579184: Hash join: my_lengthsp_utf32: assertion (length % 4)
+
+CREATE TABLE t (
+  a TEXT CHARACTER SET ucs2 COLLATE ucs2_sinhala_ci,
+  b TEXT CHARACTER SET utf32 COLLATE utf32_german2_ci
+);
+INSERT INTO t(a, b) VALUES('h','k'), ('w','e');
+let $query =
+SELECT 1 FROM t AS a INNER JOIN t AS b ON a.a=b.b;
+eval explain $query;
+eval $query;
+DROP TABLE t;
