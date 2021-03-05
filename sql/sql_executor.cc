@@ -838,8 +838,9 @@ AccessPath *CreateNestedLoopAccessPath(THD *thd, AccessPath *outer,
   return path;
 }
 
-static AccessPath *NewInvalidatorAccessPathForTable(THD *thd, AccessPath *path,
-                                                    QEP_TAB *qep_tab) {
+static AccessPath *NewInvalidatorAccessPathForTable(
+    THD *thd, AccessPath *path, QEP_TAB *qep_tab,
+    plan_idx table_index_to_invalidate) {
   AccessPath *invalidator =
       NewInvalidatorAccessPath(thd, path, qep_tab->table()->alias);
 
@@ -847,16 +848,12 @@ static AccessPath *NewInvalidatorAccessPathForTable(THD *thd, AccessPath *path,
   invalidator->num_output_rows = path->num_output_rows;
   invalidator->cost = path->cost;
 
-  table_map deps = qep_tab->lateral_derived_tables_depend_on_me;
-  for (QEP_TAB **tab2 = qep_tab->join()->map2qep_tab; deps;
-       tab2++, deps >>= 1) {
-    if (!(deps & 1)) continue;
-    if ((*tab2)->invalidators == nullptr) {
-      (*tab2)->invalidators =
-          new (thd->mem_root) Mem_root_array<const AccessPath *>(thd->mem_root);
-    }
-    (*tab2)->invalidators->push_back(invalidator);
+  QEP_TAB *tab2 = qep_tab->join()->map2qep_tab[table_index_to_invalidate];
+  if (tab2->invalidators == nullptr) {
+    tab2->invalidators =
+        new (thd->mem_root) Mem_root_array<const AccessPath *>(thd->mem_root);
   }
+  tab2->invalidators->push_back(invalidator);
   return invalidator;
 }
 
@@ -1001,14 +998,19 @@ void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
   param->items_to_copy = copy_func;
 }
 
-/** Similar to PendingCondition, but for cache invalidator iterators. */
+/**
+  Cache invalidator iterators we need to apply, but cannot yet due to outer
+  joins. As soon as “table_index_to_invalidate” is visible in our current join
+  nest (which means there could no longer be NULL-complemented rows we could
+  forget), we can and must output this invalidator and remove it from the array.
+ */
 struct PendingInvalidator {
   /**
     The table whose every (post-join) row invalidates one or more derived
     lateral tables.
    */
   QEP_TAB *qep_tab;
-  int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
+  plan_idx table_index_to_invalidate;
 };
 
 /// @param item The item we want to see if is a join condition.
@@ -1573,11 +1575,11 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
     // (so in effect, a “virtual join”).
     qep_tab_map unhandled_duplicates = 0;
     table_map conditions_depend_on_outer_tables = 0;
+    vector<PendingInvalidator> pending_invalidators;
     AccessPath *subtree_path = ConnectJoins(
         /*upper_first_idx=*/NO_PLAN_IDX, join_start, join_end, qep_tabs, thd,
         TOP_LEVEL,
-        /*pending_conditions=*/nullptr,
-        /*pending_invalidators=*/nullptr,
+        /*pending_conditions=*/nullptr, &pending_invalidators,
         /*pending_join_conditions=*/nullptr, &unhandled_duplicates,
         &conditions_depend_on_outer_tables);
 
@@ -2124,9 +2126,9 @@ static bool InsideOuterOrAntiJoin(QEP_TAB *qep_tab) {
   return qep_tab->last_inner() != NO_PLAN_IDX;
 }
 
-template <class T>
-void PickOutConditionsForTableIndex(int table_idx, vector<T> *from,
-                                    vector<T> *to) {
+void PickOutConditionsForTableIndex(int table_idx,
+                                    vector<PendingCondition> *from,
+                                    vector<PendingCondition> *to) {
   for (auto it = from->begin(); it != from->end();) {
     if (it->table_index_to_attach_to == table_idx) {
       to->push_back(*it);
@@ -2153,7 +2155,6 @@ void PickOutConditionsForTableIndex(int table_idx,
 AccessPath *FinishPendingOperations(
     THD *thd, AccessPath *path, QEP_TAB *remove_duplicates_loose_scan_qep_tab,
     const vector<PendingCondition> &pending_conditions,
-    const vector<PendingInvalidator> &pending_invalidators,
     table_map *conditions_depend_on_outer_tables) {
   path = PossiblyAttachFilter(path, pending_conditions, thd,
                               conditions_depend_on_outer_tables);
@@ -2166,13 +2167,6 @@ AccessPath *FinishPendingOperations(
     path = NewRemoveDuplicatesAccessPath(thd, path, qep_tab->table(), key,
                                          qep_tab->loosescan_key_len);
     CopyCosts(*old_path, path);  // We have nothing better.
-  }
-
-  // It's highly unlikely that we have more than one pending QEP_TAB here
-  // (the most common case will be zero), so don't bother combining them
-  // into one invalidator.
-  for (const PendingInvalidator &invalidator : pending_invalidators) {
-    path = NewInvalidatorAccessPathForTable(thd, path, invalidator.qep_tab);
   }
 
   return path;
@@ -2228,10 +2222,10 @@ AccessPath *FinishPendingOperations(
   @param pending_conditions if nullptr, we are not at the right (inner) side of
     any outer join and can evaluate conditions immediately. If not, we need to
     push any WHERE predicates to that vector and evaluate them only after joins.
-  @param pending_invalidators similar to pending_conditions, but for tables
-    that should have a CacheInvalidatorIterator synthesized for them;
-    NULL-complemented rows must also invalidate materialized lateral derived
-    tables.
+  @param pending_invalidators a global list of CacheInvalidatorIterators we
+    need to emit, but cannot yet due to pending outer joins. Note that unlike
+    pending_conditions and pending_join_conditions, this is never nullptr,
+    and is always the same pointer when recursing within the same JOIN.
   @param pending_join_conditions if not nullptr, we are at the inner side of
     semijoin/antijoin. The join iterator is created at the outer side, so any
     join conditions at the inner side needs to be pushed to this vector so that
@@ -2256,7 +2250,6 @@ static AccessPath *ConnectJoins(
     qep_tab_map *unhandled_duplicates,
     table_map *conditions_depend_on_outer_tables) {
   assert(last_idx > first_idx);
-  assert((pending_conditions == nullptr) == (pending_invalidators == nullptr));
   AccessPath *path = nullptr;
 
   // A special case: If we are at the top but the first table is an outer
@@ -2267,12 +2260,10 @@ static AccessPath *ConnectJoins(
       qep_tabs[first_idx].last_inner() != NO_PLAN_IDX;
 
   vector<PendingCondition> top_level_pending_conditions;
-  vector<PendingInvalidator> top_level_pending_invalidators;
   vector<PendingCondition> top_level_pending_join_conditions;
   if (is_top_level_outer_join) {
     path = NewFakeSingleRowAccessPath(thd, /*count_examined_rows=*/false);
     pending_conditions = &top_level_pending_conditions;
-    pending_invalidators = &top_level_pending_invalidators;
     pending_join_conditions = &top_level_pending_join_conditions;
   }
 
@@ -2284,16 +2275,31 @@ static AccessPath *ConnectJoins(
   //    the sub-join recursively, and thus move it past the end of said
   //    sub-join.
   for (plan_idx i = first_idx; i < last_idx;) {
+    // See if there are any invalidators we couldn't output before
+    // (typically on a lower recursion level), but that are in-scope now.
+    // It's highly unlikely that we have more than one pending table here
+    // (the most common case will be zero), so don't bother combining them
+    // into one invalidator.
+    for (auto it = pending_invalidators->begin();
+         it != pending_invalidators->end();) {
+      assert(path != nullptr);
+      if (it->table_index_to_invalidate < last_idx) {
+        path = NewInvalidatorAccessPathForTable(thd, path, it->qep_tab,
+                                                it->table_index_to_invalidate);
+        it = pending_invalidators->erase(it);
+      } else {
+        ++it;
+      }
+    }
+
     if (is_top_level_outer_join && i == qep_tabs[first_idx].last_inner() + 1) {
       // Finished the top level outer join.
       path = FinishPendingOperations(
           thd, path, /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
-          top_level_pending_conditions, top_level_pending_invalidators,
-          conditions_depend_on_outer_tables);
+          top_level_pending_conditions, conditions_depend_on_outer_tables);
 
       is_top_level_outer_join = false;
       pending_conditions = nullptr;
-      pending_invalidators = nullptr;
       pending_join_conditions = nullptr;
     }
 
@@ -2314,7 +2320,6 @@ static AccessPath *ConnectJoins(
       // and then join the returned root into our existing tree.
       AccessPath *subtree_path;
       vector<PendingCondition> subtree_pending_conditions;
-      vector<PendingInvalidator> subtree_pending_invalidators;
       vector<PendingCondition> subtree_pending_join_conditions;
       table_map conditions_depend_on_outer_tables_subtree = 0;
       if (substructure == Substructure::SEMIJOIN) {
@@ -2328,7 +2333,7 @@ static AccessPath *ConnectJoins(
           subtree_path = ConnectJoins(
               first_idx, i, substructure_end, qep_tabs, thd,
               DIRECTLY_UNDER_SEMIJOIN, &subtree_pending_conditions,
-              &subtree_pending_invalidators, &subtree_pending_join_conditions,
+              pending_invalidators, &subtree_pending_join_conditions,
               unhandled_duplicates, &conditions_depend_on_outer_tables_subtree);
         } else {
           // Send in "subtree_pending_join_conditions", so that any semijoin
@@ -2354,10 +2359,6 @@ static AccessPath *ConnectJoins(
         PickOutConditionsForTableIndex(i, pending_conditions,
                                        &subtree_pending_conditions);
 
-        // Similarly, for invalidators.
-        PickOutConditionsForTableIndex(i, pending_invalidators,
-                                       &subtree_pending_invalidators);
-
         // Similarly, for join conditions.
         if (pending_join_conditions != nullptr) {
           PickOutConditionsForTableIndex(i, pending_join_conditions,
@@ -2369,7 +2370,7 @@ static AccessPath *ConnectJoins(
         subtree_path = ConnectJoins(
             first_idx, i, substructure_end, qep_tabs, thd,
             DIRECTLY_UNDER_OUTER_JOIN, &subtree_pending_conditions,
-            &subtree_pending_invalidators, &subtree_pending_join_conditions,
+            pending_invalidators, &subtree_pending_join_conditions,
             unhandled_duplicates, &conditions_depend_on_outer_tables_subtree);
       }
       *conditions_depend_on_outer_tables |=
@@ -2543,8 +2544,7 @@ static AccessPath *ConnectJoins(
           remove_duplicates_loose_scan ? &qep_tabs[i - 1] : nullptr;
       path = FinishPendingOperations(
           thd, path, remove_duplicates_loose_scan_qep_tab,
-          subtree_pending_conditions, subtree_pending_invalidators,
-          conditions_depend_on_outer_tables);
+          subtree_pending_conditions, conditions_depend_on_outer_tables);
 
       i = substructure_end;
       continue;
@@ -2685,12 +2685,22 @@ static AccessPath *ConnectJoins(
       CopyCosts(*old_path, table_path);  // We have nothing better.
     }
 
-    if (qep_tab->lateral_derived_tables_depend_on_me) {
-      if (pending_invalidators != nullptr) {
-        pending_invalidators->push_back(
-            PendingInvalidator{qep_tab, /*table_index_to_attach_to=*/i});
+    // If there are lateral derived tables that depend on this table,
+    // output invalidators to clear them when we output a new row.
+    for (plan_idx table_idx :
+         BitsSetIn(qep_tab->lateral_derived_tables_depend_on_me)) {
+      if (table_idx < last_idx) {
+        table_path = NewInvalidatorAccessPathForTable(thd, table_path, qep_tab,
+                                                      table_idx);
       } else {
-        table_path = NewInvalidatorAccessPathForTable(thd, table_path, qep_tab);
+        // The table to invalidate belongs to a higher outer join nest,
+        // which means that we cannot emit the invalidator right away --
+        // the outer join we are a part of could be emitting NULL-complemented
+        // rows that also need to invalidate the cache in question.
+        // We'll deal with them in as soon as we get into the same join nest.
+        // (But if we deal with them later than that, it might be too late!)
+        pending_invalidators->push_back(PendingInvalidator{
+            qep_tab, /*table_index_to_attach_to=*/table_idx});
       }
     }
 
@@ -2772,15 +2782,10 @@ static AccessPath *ConnectJoins(
     }
   }
   if (is_top_level_outer_join) {
-    // We can't have any invalidators here, because there's no later table
-    // to invalidate.
-    assert(top_level_pending_invalidators.empty());
-
     assert(last_idx == qep_tabs[first_idx].last_inner() + 1);
     path = FinishPendingOperations(
         thd, path, /*remove_duplicates_loose_scan_qep_tab=*/nullptr,
-        top_level_pending_conditions, top_level_pending_invalidators,
-        conditions_depend_on_outer_tables);
+        top_level_pending_conditions, conditions_depend_on_outer_tables);
   }
   return path;
 }
@@ -2843,9 +2848,10 @@ AccessPath *JOIN::create_root_access_path_for_join() {
   } else {
     qep_tab_map unhandled_duplicates = 0;
     qep_tab_map conditions_depend_on_outer_tables = 0;
+    vector<PendingInvalidator> pending_invalidators;
     path = ConnectJoins(
         /*upper_first_idx=*/NO_PLAN_IDX, const_tables, primary_tables, qep_tab,
-        thd, TOP_LEVEL, nullptr, nullptr,
+        thd, TOP_LEVEL, nullptr, &pending_invalidators,
         /*pending_join_conditions=*/nullptr, &unhandled_duplicates,
         &conditions_depend_on_outer_tables);
 
