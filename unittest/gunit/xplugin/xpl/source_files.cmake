@@ -37,6 +37,7 @@ SET(XPL_TEST_SRC
   document_id_generator_t.cc
   expect_noerror_t.cc
   expr_generator_t.cc
+  expr_generator_parametric_t.cc
   find_statement_builder_t.cc
   getter_any_t.cc
   index_array_field_t.cc
