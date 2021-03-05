@@ -287,23 +287,14 @@ bool Table_function_json::init() {
   if (m_vt_list.elements == 0) {
     uint nest_idx = 0;
     if (init_json_table_col_lists(&nest_idx, &top)) return true;
-    List_iterator<Json_table_column> li(m_vt_list);
 
-    /*
-      Check for duplicate names.
-      Two iterators over vt_list are used. First is used to get a field,
-      second - to compare the field with fields in the rest of the list.
-      For each iteration of the first list, we skip fields prior to the
-      first iterator's field.
-    */
-    Json_table_column *first;
-    while ((first = li++)) {
-      Json_table_column *col;
-      List_iterator<Json_table_column> li2(m_vt_list);
-      // Compare 'first' with all columns prior to it
-      while ((col = li2++) && col != first) {
-        if (!strncmp(first->field_name, col->field_name, NAME_CHAR_LEN)) {
-          my_error(ER_DUP_FIELDNAME, MYF(0), first->field_name);
+    // Check for duplicate field names.
+    for (Create_field &outer : m_vt_list) {
+      Name_string outer_name(to_lex_cstring(outer.field_name));
+      for (Create_field &inner : m_vt_list) {
+        if (&outer == &inner) break;
+        if (outer_name.eq(inner.field_name)) {
+          my_error(ER_DUP_FIELDNAME, MYF(0), inner.field_name);
           return true;
         }
       }
