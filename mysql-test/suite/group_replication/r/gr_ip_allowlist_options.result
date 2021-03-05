@@ -59,8 +59,10 @@ SET GLOBAL group_replication_ip_allowlist=AUTOMATIC;
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [Assert value changed to "AUTOMATIC"]
 SET GLOBAL group_replication_ip_allowlist="192.168.1.1";
-ERROR HY000: The group_replication_ip_allowlist cannot be set while Group Replication is running
-include/assert.inc [Assert that value remains unchanged]
+include/assert.inc [Assert value changed to "192.168.1.1"]
+SET GLOBAL group_replication_ip_allowlist="192.256.1.20";
+ERROR HY000: The group_replication_ip_allowlist is invalid. Make sure that when specifying "AUTOMATIC" the list contains no other values.
+include/assert.inc [Assert value has not changed to "192.256.1.20"]
 include/stop_group_replication.inc
 [connection server1]
 SET GLOBAL group_replication_ip_allowlist="";
