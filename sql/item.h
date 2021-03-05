@@ -6339,6 +6339,8 @@ class Item_cache : public Item_basic_constant {
   bool value_cached{false};
 
   friend bool has_rollup_result(Item *item);
+  friend bool replace_contents_of_rollup_wrappers_with_tmp_fields(
+      THD *thd, Query_block *select, Item *item_arg);
 
  public:
   Item_cache() {

@@ -6308,8 +6308,9 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
   Which temporary field to use is found by looking at the Query_block's group
   items, and looking up their (previously set) result fields.
  */
-static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
-    THD *thd, Query_block *select, Item *item_arg) {
+bool replace_contents_of_rollup_wrappers_with_tmp_fields(THD *thd,
+                                                         Query_block *select,
+                                                         Item *item_arg) {
   return WalkAndReplace(
       thd, item_arg,
       [thd, select](Item *item, Item *, unsigned) -> ReplaceResult {
@@ -6322,6 +6323,14 @@ static bool replace_contents_of_rollup_wrappers_with_tmp_fields(
         Item *real_item = item;
         while (is_rollup_group_wrapper(real_item)) {
           real_item = unwrap_rollup_group(real_item)->real_item();
+        }
+
+        // If the item was found to be constant, we could have added caches
+        // around it before we wrapped it in a rollup group wrapper -- but we
+        // wouldn't do it in the group list, so we need to unwrap the cache
+        // to get comparable items.
+        if (real_item->type() == Item::CACHE_ITEM) {
+          real_item = down_cast<Item_cache *>(real_item)->example;
         }
 
         ORDER *order = select->find_in_group_list(real_item, nullptr);
