@@ -7640,6 +7640,7 @@ ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
     case dd::enum_column_types::TINY:
     case dd::enum_column_types::SHORT:
     case dd::enum_column_types::INT24:
+    case dd::enum_column_types::BOOL:
       /* Types based on Field_num set unsigned flag from value stored
       in the data-dictionary (YEAR being the exception). */
       if (is_unsigned) *unsigned_flag = DATA_UNSIGNED;
