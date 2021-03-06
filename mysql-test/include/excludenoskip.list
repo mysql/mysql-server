@@ -172,6 +172,8 @@ have_grep.inc
 # 10.2 Make sure we have sed. Note that MacOS and FreeBSD do not support
 # replacement patterns containing escape sequences, e.g. newline.
 have_util_sed.inc
+# 10.3 Check if nc or netcat is available
+have_util_nc.inc
 
 # 11.0
 # In mysql source, all the plugins might not be in the same location. Some MTR

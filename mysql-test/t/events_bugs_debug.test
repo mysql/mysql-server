@@ -100,3 +100,8 @@ DISCONNECT con2;
 --source include/restart_mysqld.inc
 # Ensure the event scheduler is OFF.
 SELECT @@event_scheduler='DISABLED';
+
+
+# Clean up, clear option
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

@@ -58,3 +58,4 @@ disconnect con2;
 SELECT @@event_scheduler='DISABLED';
 @@event_scheduler='DISABLED'
 1
+# restart:
