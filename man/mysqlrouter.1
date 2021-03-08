@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlrouter\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Router"
+.TH "\FBMYSQLROUTER\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -96,7 +96,7 @@ Displays the version number and related information of the application, and exit
 .\}
 .nf
 shell> \fBmysqlrouter \-\-version\fR
-MySQL Router v8\&.0\&.23 on Linux (64\-bit) (GPL community edition)
+MySQL Router v8\&.0\&.25 on Linux (64\-bit) (GPL community edition)
 .fi
 .if n \{\
 .RE
@@ -1080,8 +1080,22 @@ T}
 .sp 1
 Optionally define Router\*(Aqs hostname instead of relying on auto\-detection to determine the externally visible hostname registered to metadata during the bootstrap process\&.
 .sp
-Router does not check or confirm that the supplied hostname is reachable, and it only checks the hostname string for illegal characters\&. Only alphanumeric, \*(Aq\-\*(Aq, \*(Aq\&.\*(Aq, and \*(Aq_\*(Aq characters are allowed\&.
+Router does not check or confirm that the supplied hostname is reachable, but does use RFC 1123 to validate host names, and RFC 2181 to validate addresses\&.
+.if n \{\
 .sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+Before 8\&.0\&.23, validation checked the hostname string for illegal characters where only alphanumeric, \*(Aq\-\*(Aq, \*(Aq\&.\*(Aq, and \*(Aq_\*(Aq characters were allowed\&. For example, this meant that IPv6 addresses were not allowed\&.
+.sp .5v
+.RE
 The supplied hostname is written to the host_name field of the mysql_innodb_cluster_metadata\&.hosts table in the MySQL InnoDB cluster metadata store\&.
 .RE
 .sp
@@ -2246,7 +2260,7 @@ at bootstrap\&. It defaults to 8443\&. Availability of the port is not checked\&
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 2006, 2020, Oracle and/or its affiliates.
+Copyright \(co 2006, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

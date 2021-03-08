@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -90,7 +90,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.39.\ \&Command\-line options for the ndb_restore program
+.B Table\ \&23.41.\ \&Command\-line options used with the program ndb_restore
 .TS
 allbox tab(:);
 lB lB lB.
@@ -102,6 +102,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
 lB l l
 lB l l
 lB l l
@@ -170,7 +171,7 @@ T}:T{
 Append data to tab-delimited file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -184,12 +185,22 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
+\fB \fR\fB--backup-password-from-stdin[=value]\fR\fB \fR
+T}:T{
+Get decryption password in a secure fashion from STDIN; use together
+              with --decrypt option
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
 \fB \fR\fB--backup-path=dir_name\fR\fB \fR
 T}:T{
 Path to backup files directory
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -200,7 +211,7 @@ T}:T{
 Restore from backup having this ID
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -211,7 +222,7 @@ T}:T{
 Alias for --connectstring
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -230,7 +241,7 @@ Causes indexes from backup to be ignored; may decrease time needed to
               restore data
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -242,7 +253,7 @@ Do not ignore system table during restore; experimental only; not for
               production use
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -251,7 +262,7 @@ T}:T{
 List of one or more databases to exclude (includes those not named)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -262,7 +273,7 @@ If TRUE (default), do not restore any intermediate tables (having names
               ALTER TABLE operations
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -272,7 +283,7 @@ Causes columns from backup version of table that are missing from
               version of table in database to be ignored
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -281,7 +292,7 @@ T}:T{
 Causes tables from backup that are missing from database to be ignored
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -292,7 +303,7 @@ List of one or more tables to exclude (includes those in same database
               database name
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -301,7 +312,7 @@ T}:T{
 Fields are enclosed by this character
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -310,7 +321,7 @@ T}:T{
 Fields are optionally enclosed by this character
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -319,7 +330,7 @@ T}:T{
 Fields are terminated by this character
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -328,7 +339,7 @@ T}:T{
 Print binary types in hexadecimal format
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -347,7 +358,7 @@ T}:T{
 List of one or more databases to restore (excludes those not named)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -367,7 +378,7 @@ List of one or more tables to restore (excludes those in same database
               database name
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -376,7 +387,7 @@ T}:T{
 Lines are terminated by this character
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -388,7 +399,7 @@ Allow lossy conversions of column values (type demotions or changes in
               sign) when restoring data from backup
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -398,7 +409,7 @@ If mysqld is connected and using binary logging, do not log restored
               data
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -409,7 +420,7 @@ T}:T{
 Do not restore objects relating to Disk Data
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -421,7 +432,7 @@ Do not upgrade array type for varsize attributes which do not already
               resize VAR data, and do not change column attributes
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -433,7 +444,7 @@ Nodegroup map for NDBCLUSTER storage engine; syntax: list of
               (source_nodegroup, destination_nodegroup)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -444,7 +455,7 @@ T}:T{
 ID of node where backup was taken
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -464,7 +475,7 @@ T}:T{
 Number of parallel transactions to use while restoring data
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -476,7 +487,7 @@ Allow preservation of trailing spaces (including padding) when promoting
               fixed-width string types to variable-width types
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -486,7 +497,7 @@ Print metadata, data, and log to stdout (equivalent to --print-meta
               --print-data --print-log)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -495,7 +506,7 @@ T}:T{
 Print data to stdout
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -504,7 +515,7 @@ T}:T{
 Print log to stdout
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -513,7 +524,7 @@ T}:T{
 Print metadata to stdout
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -522,7 +533,7 @@ T}:T{
 Write SQL log to stdout; default is FALSE
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -531,7 +542,7 @@ T}:T{
 Print status of restore each given number of seconds
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -542,7 +553,7 @@ T}:T{
 Allow attributes to be promoted when restoring data from backup
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -553,7 +564,7 @@ Causes multithreaded rebuilding of ordered indexes found in backup;
               BuildIndexThreads
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -574,7 +585,7 @@ T}:T{
 Restore table data and logs into NDB Cluster using NDB API
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -587,7 +598,7 @@ Restore epoch info into status table; useful on replica cluster for
               mysql.ndb_apply_status with ID 0
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -598,7 +609,7 @@ T}:T{
 Restore metadata to NDB Cluster using NDB API
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -616,7 +627,7 @@ T}:T{
 Restore to differently named database
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -625,7 +636,7 @@ T}:T{
 Ignore missing blob tables in backup file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -636,7 +647,7 @@ T}:T{
 Skip table structure check during restore
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -647,7 +658,7 @@ Causes schema objects not recognized by ndb_restore to be ignored when
               version
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -667,7 +678,7 @@ T}:T{
 Creates a tab-separated .txt file for each table in path provided
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -676,7 +687,7 @@ T}:T{
 Level of verbosity in output
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -1072,9 +1083,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.20 to a cluster running NDB Cluster 7\&.4\&.30, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.22 to a cluster running NDB Cluster 7\&.4\&.32, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.20 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.22 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1137,6 +1148,57 @@ $,
 %,
 \e, and
 ^\&.
+.sp
+In MySQL 8\&.0\&.24 and later, it is possible to omit the password, in which case
+\fBndb_restore\fR
+waits for it to be supplied from
+stdin, as when using
+\fB\-\-backup\-password\-from\-stdin\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-backup\-password\-from\-stdin[=TRUE|FALSE]\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--backup-password-from-stdin[=value]
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+FALSE
+T}
+.TE
+.sp 1
+When used in place of
+\fB\-\-backup\-password\fR, this option enables input of the backup password from the system shell (stdin), similar to how this is done when supplying the password interactively to
+\fBmysql\fR
+when using the
+\fB\-\-password\fR
+without supplying the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -1498,7 +1560,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.40.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
+.B Table\ \&23.42.\ \&Several invocations of ndb_restore using \-\-exclude\-* options, and the effects these options have on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -1996,7 +2058,7 @@ options (other options possibly required have been omitted for clarity), and the
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.41.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
+.B Table\ \&23.43.\ \&Several invocations of ndb_restore using \-\-include\-* options, and their effects on restoring from an NDB Cluster backup\&.
 .TS
 allbox tab(:);
 lB lB.
@@ -4288,41 +4350,6 @@ BACKUP\-1\&.2\&.log
 .sp -1
 .IP \(bu 2.3
 .\}
-BACKUP\-1\-0\&.6\&.Data
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-BACKUP\-1\&.6\&.ctl
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-BACKUP\-1\&.6\&.log
-.RE
-.sp
-Then copy the backup files from nodes 6 and 8 to node 5; these files are shown in the following list:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 BACKUP\-1\-0\&.4\&.Data
 .RE
 .sp
@@ -4346,6 +4373,41 @@ BACKUP\-1\&.4\&.ctl
 .IP \(bu 2.3
 .\}
 BACKUP\-1\&.4\&.log
+.RE
+.sp
+Then copy the backup files from nodes 6 and 8 to node 5; these files are shown in the following list:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\-0\&.6\&.Data
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.6\&.ctl
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+BACKUP\-1\&.6\&.log
 .RE
 .sp
 .RS 4
@@ -4812,7 +4874,7 @@ binary supplied with the older version of the NDB Cluster software\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

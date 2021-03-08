@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisampack\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMPACK\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYISAMPACK\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -100,7 +100,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisampack [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name\fR\fR\fB \&.\&.\&.\fR
+myisampack [\fIoptions\fR] \fIfile_name\fR \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -797,7 +797,7 @@ to re\-create any indexes\&. At this time, you can also sort the index blocks an
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-rq \-\-sort\-index \-\-analyze \fR\fB\fItbl_name\fR\fR\fB\&.MYI\fR
+myisamchk \-rq \-\-sort\-index \-\-analyze \fItbl_name\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -816,7 +816,7 @@ option to
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

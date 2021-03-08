@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisam_ftdump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAM_FTDUMP\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYISAM_FTDUMP\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -57,7 +57,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \fR\fB\fIindex_num\fR\fR
+myisam_ftdump [\fIoptions\fR] \fItbl_name\fR \fIindex_num\fR
 .fi
 .if n \{\
 .RE
@@ -111,7 +111,7 @@ as follows:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump mytexttable 1\fR
+myisam_ftdump mytexttable 1
 .fi
 .if n \{\
 .RE
@@ -128,7 +128,7 @@ in the database directory:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump /usr/local/mysql/data/test/mytexttable 1\fR
+myisam_ftdump /usr/local/mysql/data/test/mytexttable 1
 .fi
 .if n \{\
 .RE
@@ -142,7 +142,7 @@ to generate a list of index entries in order of frequency of occurrence like thi
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump \-c mytexttable 1 | sort \-r\fR
+myisam_ftdump \-c mytexttable 1 | sort \-r
 .fi
 .if n \{\
 .RE
@@ -154,7 +154,7 @@ On Windows, use:
 .RS 4
 .\}
 .nf
-shell> \fBmyisam_ftdump \-c mytexttable 1 | sort /R\fR
+myisam_ftdump \-c mytexttable 1 | sort /R
 .fi
 .if n \{\
 .RE
@@ -244,7 +244,7 @@ Verbose mode\&. Print more output about what the program does\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

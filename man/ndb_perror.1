@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_perror\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_PERROR\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_PERROR\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -35,9 +35,9 @@ ndb_perror \- obtain NDB error message information
 .SH "DESCRIPTION"
 .PP
 \fBndb_perror\fR
-shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&. Added to the MySQL NDB Cluster distribution in NDB 7\&.6\&.4, it is intended as a drop\-in replacement for
+shows information about an NDB error, given its error code\&. This includes the error message, the type of error, and whether the error is permanent or temporary\&. This is intended as a drop\-in replacement for
 \fBperror\fR
-\fB\-\-ndb\fR\&.
+\fB\-\-ndb\fR, which is no longer supported\&.
 Usage
 .sp
 .if n \{\
@@ -106,7 +106,7 @@ are described later in this section\&.
 \fBndb_perror\fR
 replaces
 \fBperror\fR
-\fB\-\-ndb\fR, which is deprecated as of NDB 7\&.6\&.4 and subject to removal in a future release of MySQL NDB Cluster\&. To make substitution easier in scripts and other applications that might depend on
+\fB\-\-ndb\fR, which is no longer supported by NDB Cluster\&. To make substitution easier in scripts and other applications that might depend on
 \fBperror\fR
 for obtaining NDB error information,
 \fBndb_perror\fR
@@ -122,7 +122,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.37.\ \&Command\-line options for the ndb_perror program
+.B Table\ \&23.38.\ \&Command\-line options used with the program ndb_perror
 .TS
 allbox tab(:);
 lB lB lB.
@@ -148,7 +148,7 @@ T}:T{
 Display help text
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -158,7 +158,7 @@ For compatibility with applications depending on old versions of perror;
               does nothing
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -169,7 +169,7 @@ T}:T{
 Show error message only
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -180,7 +180,7 @@ T}:T{
 Print program version information and exit
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -191,7 +191,7 @@ T}:T{
 Verbose output; disable with --silent
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -380,7 +380,7 @@ Verbose output; disable with
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
