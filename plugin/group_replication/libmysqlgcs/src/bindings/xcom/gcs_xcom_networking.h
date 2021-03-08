@@ -292,7 +292,9 @@ class Gcs_ip_allowlist {
   std::string m_original_list;
 
  public:
-  Gcs_ip_allowlist() : m_ip_allowlist(), m_original_list() {}
+  Gcs_ip_allowlist() : m_ip_allowlist(), m_original_list() {
+    m_atomic_guard.clear();
+  }
   virtual ~Gcs_ip_allowlist();
 
   /**
@@ -377,7 +379,7 @@ class Gcs_ip_allowlist {
   /**
    * @brief An atomic lock to guard the ip allowlist.
    */
-  std::atomic_flag m_atomic_guard{ATOMIC_FLAG_INIT};
+  std::atomic_flag m_atomic_guard;
 
  private:
   Gcs_ip_allowlist(Gcs_ip_allowlist const &);
