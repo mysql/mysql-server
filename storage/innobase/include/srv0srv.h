@@ -1165,7 +1165,7 @@ struct export_var_t {
   ulint innodb_system_rows_deleted;    /*!< srv_n_system_rows_deleted*/
   ulint innodb_sampled_pages_read;
   ulint innodb_sampled_pages_skipped;
-  ulint innodb_num_open_files;            /*!< fil_n_file_opened */
+  ulint innodb_num_open_files;            /*!< fil_n_files_open */
   ulint innodb_truncated_status_writes;   /*!< srv_truncated_status_writes */
   ulint innodb_undo_tablespaces_total;    /*!< total number of undo tablespaces
                                           innoDB is tracking. */

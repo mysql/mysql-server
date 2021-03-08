@@ -1896,7 +1896,7 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_N_FILE_OPENED:
-      value = fil_n_file_opened;
+      value = fil_n_files_open;
       break;
 
     case MONITOR_OVLD_IBUF_MERGE_INSERT:
