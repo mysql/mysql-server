@@ -2629,7 +2629,9 @@ double Item_sum_variance::val_real() {
       for a window function, which does not use Aggregator, it has to be called
       here.
     */
-    if (wf_common_init() || add() || null_value) return 0.0;
+    if (wf_common_init()) return 0.0;
+    if (add()) return error_real();
+    if (null_value) return 0.0;
   } else if ((null_value = (count <= sample)))
     return 0.0;
 
@@ -3042,7 +3044,7 @@ String *Item_sum_bit::val_str(String *str) {
       here.
     */
     if (!wf_common_init()) {
-      if (add()) return str;
+      if (add()) return error_str();
     }
   }
 
@@ -3086,7 +3088,9 @@ my_decimal *Item_sum_bit::val_decimal(my_decimal *dec_buf) {
       for a window function, which does not use Aggregator, it has be called
       here.
     */
-    if (!wf_common_init()) add();
+    if (!wf_common_init()) {
+      if (add()) return error_decimal(dec_buf);
+    }
   }
 
   if (hybrid_type == INT_RESULT)
@@ -3104,7 +3108,9 @@ double Item_sum_bit::val_real() {
       for a window function, which does not use Aggregator, it has be called
       here.
     */
-    if (!wf_common_init()) add();
+    if (!wf_common_init()) {
+      if (add()) return error_real();
+    }
   }
 
   if (hybrid_type == INT_RESULT) return bits;
@@ -3127,7 +3133,9 @@ longlong Item_sum_bit::val_int() {
       for a window function, which does not use Aggregator, it has be called
       here.
     */
-    if (!wf_common_init()) add();
+    if (!wf_common_init()) {
+      if (add()) return error_int();
+    }
   }
 
   if (hybrid_type == INT_RESULT) return (longlong)bits;
@@ -5615,7 +5623,7 @@ String *Item_sum_json::val_str(String *str) {
       for window functions, which does not use Aggregator, it has to be called
       here.
     */
-    if (add()) return str;
+    if (add()) return error_str();
   }
   if (null_value || m_wrapper->empty()) return nullptr;
   str->length(0);
@@ -5655,7 +5663,7 @@ double Item_sum_json::val_real() {
       for window functions, which does not use Aggregator, it has to be called
       here.
     */
-    add();
+    if (add()) return error_real();
   }
   if (null_value || m_wrapper->empty()) return 0.0;
 
@@ -5670,7 +5678,7 @@ longlong Item_sum_json::val_int() {
       for window functions, which does not use Aggregator, it has to be called
       here.
     */
-    add();
+    if (add()) return error_int();
   }
   if (null_value || m_wrapper->empty()) return 0;
 
@@ -5685,7 +5693,7 @@ my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value) {
       for window functions, which does not use Aggregator, it has to be called
       here.
     */
-    add();
+    if (add()) return error_decimal(decimal_value);
   }
   if (null_value || m_wrapper->empty()) {
     return error_decimal(decimal_value);
