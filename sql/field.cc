@@ -3174,6 +3174,104 @@ bool Field_new_decimal::send_to_protocol(Protocol *protocol) const {
 }
 
 /****************************************************************************
+** boolean
+****************************************************************************/ 
+
+type_conversion_status Field_boolean::store(const char *from, size_t len,
+                                            const CHARSET_INFO *cs) {
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+  longlong rnd;
+
+  const type_conversion_status error = 
+      get_int(cs, from, len, &rnd, 1, 0, 1);
+  ptr[0] = (bool)rnd;
+  return error;
+}
+
+type_conversion_status Field_boolean::store(double nr) {
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+  type_conversion_status error = TYPE_OK;
+  if(nr != 0) {
+    *ptr = 1;
+    if (nr != 1){
+      set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      error = TYPE_WARN_OUT_OF_RANGE;
+    }
+  }else {
+    *ptr = 0;
+  }
+
+  return error;
+}
+
+//Why?
+//Change double and longlong
+//How is decimal numbers converted to booleans today?
+type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
+  return Field_boolean::store((double)nr);
+}
+
+double Field_boolean::val_real() const {
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  bool tmp = (bool)ptr[0];
+  return (double)tmp;
+}
+
+longlong Field_boolean::val_int() const {
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  bool tmp = (bool)ptr[0];
+  return (longlong)tmp;
+}
+
+// #TODO ask about string rep. 0 or 1, or FALSE or TRUE?
+//Test both ways
+//Use static_cast or eliminiate casting
+//No need to check is_unsigned
+String *Field_boolean::val_str(String *val_buffer, String *) const {
+  ASSERT_COLUMN_MARKED_FOR_READ;
+  const CHARSET_INFO *cs = &my_charset_numeric;
+  uint length;
+  uint mlength = max(field_length + 1, 5 * cs->mbmaxlen);
+  val_buffer->alloc(mlength);
+  char *to = val_buffer->ptr();
+
+  if (is_unsigned())
+    length = (uint)cs->cset->long10_to_str(cs, to, mlength, 10, (long)*ptr);
+  else
+    length = (uint)cs->cset->long10_to_str(cs, to, mlength, -10,
+                                           (long)*((signed char *)ptr));
+
+  val_buffer->length(length);
+  if (zerofill) prepend_zeros(val_buffer);
+  val_buffer->set_charset(cs);
+  return val_buffer;
+}
+
+bool Field_boolean::send_to_protocol(Protocol *protocol) const {
+  if (is_null()) return protocol->store_null();
+  return protocol->store_boolean(Field_boolean::val_int());
+}
+
+int Field_boolean::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
+  bool a, b;
+  a = (bool)a_ptr[0];
+  b = (bool)b_ptr[0];
+  return (a < b) ? -1 : (a > b) ? 1 : 0;
+}
+
+//DEBUG_ASSERT is now assert
+size_t Field_boolean::make_sort_key(uchar *to,
+                                 size_t length MY_ATTRIBUTE((unused))) const {
+  assert(length == 1);
+  *to = *ptr;
+  return 1;
+}
+
+void Field_boolean::sql_type(String &res) const {
+  integer_sql_type(this, "boolean", &res);
+}
+
+/****************************************************************************
 ** tiny int
 ****************************************************************************/
 
@@ -3309,6 +3407,9 @@ size_t Field_tiny::make_sort_key(uchar *to,
 void Field_tiny::sql_type(String &res) const {
   if (field_length == 1 && !is_unsigned() && !zerofill) {
     // Print TINYINT(1) since connectors use this to indicate BOOLEAN
+
+    // #TODO Look at this later 
+
     res.length(0);
     res.append("tinyint(1)");
   } else {
@@ -9433,9 +9534,11 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
                  : new (mem_root)
                        Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
                                  bit_offset, auto_flags, field_name);
-
-    case MYSQL_TYPE_INVALID:
     case MYSQL_TYPE_BOOL:
+      return new (mem_root)
+          Field_boolean(ptr, null_pos, null_bit, auto_flags, field_name, is_zerofill);
+          
+    case MYSQL_TYPE_INVALID:
     default:  // Impossible (Wrong version)
       break;
   }

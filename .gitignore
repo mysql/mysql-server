@@ -19,4 +19,6 @@ source_downloads
 # Configuration files for Visual Studio Code
 .vscode/
 .idea/
+
+# Build folder
 build/

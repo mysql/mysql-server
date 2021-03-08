@@ -626,7 +626,7 @@ class PT_bit_type : public PT_type {
 */
 class PT_boolean_type : public PT_type {
  public:
-  PT_boolean_type() : PT_type(MYSQL_TYPE_TINY) {}
+  PT_boolean_type() : PT_type(MYSQL_TYPE_BOOL) {}
   const char *get_length() const override { return "1"; }
 };
 

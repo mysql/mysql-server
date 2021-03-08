@@ -275,6 +275,7 @@ class Protocol_local final : public Protocol {
 
  protected:
   bool store_null() override;
+  bool store_boolean(longlong from) override;
   bool store_tiny(longlong from, uint32) override;
   bool store_short(longlong from, uint32) override;
   bool store_long(longlong from, uint32) override;
@@ -3764,6 +3765,13 @@ bool Protocol_local::store_string(const char *str, size_t length,
   m_current_column->length = length;
   ++m_current_column;
   return false;
+}
+
+/** Store a boolean as is (1 byte, 0x00 or 0x01) in a result set column. */
+
+bool Protocol_local::store_boolean(longlong value) {
+  bool v = (bool)value;
+  return store_column(&v, 1);
 }
 
 /** Store a tiny int as is (1 byte) in a result set column. */
