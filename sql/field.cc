@@ -3205,6 +3205,8 @@ type_conversion_status Field_boolean::store(double nr) {
 }
 
 //Why?
+//Change double and longlong
+//How is decimal numbers converted to booleans today?
 type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
   return Field_boolean::store((double)nr);
 }
@@ -3222,6 +3224,9 @@ longlong Field_boolean::val_int() const {
 }
 
 // #TODO ask about string rep. 0 or 1, or FALSE or TRUE?
+//Test both ways
+//Use static_cast or eliminiate casting
+//No need to check is_unsigned
 String *Field_boolean::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
@@ -3254,9 +3259,10 @@ int Field_boolean::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
+//DEBUG_ASSERT is now assert
 size_t Field_boolean::make_sort_key(uchar *to,
                                  size_t length MY_ATTRIBUTE((unused))) const {
-  DBUG_ASSERT(length == 1);
+  assert(length == 1);
   *to = *ptr;
   return 1;
 }
