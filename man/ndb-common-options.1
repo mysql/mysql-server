@@ -2,12 +2,12 @@
 .\"     Title: Options Common to NDB Cluster Programs
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "OPTIONS COMMON TO NDB CLUSTER PROGRAMS" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -105,7 +105,7 @@ The options in the following table are common to all NDB Cluster executables (ex
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.50.\ \&Command\-line options common to all MySQL NDB Cluster programs
+.B Table\ \&23.52.\ \&Command\-line options common to all MySQL NDB Cluster programs
 .TS
 allbox tab(:);
 lB lB lB.
@@ -141,7 +141,7 @@ T}:T{
 Directory where character sets are installed
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -150,7 +150,7 @@ T}:T{
 Set the number of times to retry a connection before giving up
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -159,7 +159,7 @@ T}:T{
 Time to wait between attempts to contact a management server, in seconds
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -168,7 +168,7 @@ T}:T{
 Write core on errors (defaults to TRUE in debug builds)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -178,7 +178,7 @@ Enable output from debug calls. Can be used only for versions compiled
               with debugging enabled
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -187,7 +187,7 @@ T}:T{
 Read this file after global option files are read
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -196,7 +196,7 @@ T}:T{
 Read default options from this file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -205,7 +205,7 @@ T}:T{
 Also read groups with names ending in this suffix
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -218,7 +218,7 @@ T}:T{
 Display help message and exit
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -227,7 +227,7 @@ T}:T{
 Read this path from the login file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -242,7 +242,7 @@ Set connection string for connecting to ndb_mgmd. Syntax:
               Overrides entries specified in NDB_CONNECTSTRING or my.cnf
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -251,7 +251,7 @@ T}:T{
 Set the host (and port, if desired) for connecting to management server
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -260,7 +260,7 @@ T}:T{
 Set node id for this node
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -269,7 +269,7 @@ T}:T{
 Select nodes for transactions in a more optimal way
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -278,7 +278,7 @@ T}:T{
 Do not read default options from any option file other than login file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -287,7 +287,7 @@ T}:T{
 Print the program argument list and exit
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -298,7 +298,7 @@ T}:T{
 Output version information and exit
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -978,7 +978,7 @@ Section\ \&23.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq), for 
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

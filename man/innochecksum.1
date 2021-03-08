@@ -2,12 +2,12 @@
 .\"     Title: \fBinnochecksum\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBINNOCHECKSUM\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBINNOCHECKSUM\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -64,7 +64,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name\fR\fR
+innochecksum [\fIoptions\fR] \fIfile_name\fR
 .fi
 .if n \{\
 .RE
@@ -91,7 +91,7 @@ Displays command line help\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-help\fR
+innochecksum \-\-help
 .fi
 .if n \{\
 .RE
@@ -115,7 +115,7 @@ Synonym for
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-info\fR
+innochecksum \-\-info
 .fi
 .if n \{\
 .RE
@@ -138,7 +138,7 @@ Displays version information\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-version\fR
+innochecksum \-\-version
 .fi
 .if n \{\
 .RE
@@ -164,7 +164,7 @@ mode, run:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-verbose\fR
+innochecksum \-\-verbose
 .fi
 .if n \{\
 .RE
@@ -176,7 +176,7 @@ To turn off verbose mode, run:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-verbose=FALSE\fR
+innochecksum \-\-verbose=FALSE
 .fi
 .if n \{\
 .RE
@@ -192,7 +192,7 @@ option can be specified at the same time\&. For example:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-verbose \-\-log=/var/lib/mysql/test/logtest\&.txt\fR
+innochecksum \-\-verbose \-\-log=/var/lib/mysql/test/logtest\&.txt
 .fi
 .if n \{\
 .RE
@@ -204,7 +204,7 @@ To locate the progress indicator information in the log file, you can perform th
 .RS 4
 .\}
 .nf
-shell> \fBcat \&./logtest\&.txt | grep \-i "okay"\fR
+cat \&./logtest\&.txt | grep \-i "okay"
 .fi
 .if n \{\
 .RE
@@ -250,7 +250,7 @@ Print a count of the number of pages in the file and exit\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-count \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-count \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -273,7 +273,7 @@ Start at this page number\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-start\-page=600 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-start\-page=600 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -285,7 +285,7 @@ or:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-s 600 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-s 600 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -308,7 +308,7 @@ End at this page number\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-end\-page=700 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-end\-page=700 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -320,7 +320,7 @@ or:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-p 700 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-p 700 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -343,7 +343,7 @@ Check only this page number\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-page=701 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-page=701 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -373,7 +373,7 @@ checksum algorithm is specified:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-strict\-check=innodb \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-strict\-check=innodb \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -387,7 +387,7 @@ checksum algorithm is specified:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-C crc32 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-C crc32 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -487,7 +487,7 @@ checksum is rewritten to replace an invalid checksum:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-no\-check \-\-write innodb \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-no\-check \-\-write innodb \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -529,7 +529,7 @@ to 1\&.
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-allow\-mismatches=1 \-\-write innodb \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-allow\-mismatches=1 \-\-write innodb \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -624,7 +624,7 @@ tab1\&.ibd:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-w crc32 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-w crc32 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -640,7 +640,7 @@ checksum:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-no\-check \-\-write crc32 \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-no\-check \-\-write crc32 \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -663,7 +663,7 @@ Display a count of each page type in a tablespace\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-page\-type\-summary \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-page\-type\-summary \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -722,7 +722,7 @@ stdout\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-page\-type\-dump=/tmp/a\&.txt \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-page\-type\-dump=/tmp/a\&.txt \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -751,7 +751,7 @@ option, which was available in earlier releases\&. Example usage:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-\-log=/tmp/log\&.txt \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-\-log=/tmp/log\&.txt \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -763,7 +763,7 @@ or:
 .RS 4
 .\}
 .nf
-shell> \fBinnochecksum \-l /tmp/log\&.txt \&.\&./data/test/tab1\&.ibd\fR
+innochecksum \-l /tmp/log\&.txt \&.\&./data/test/tab1\&.ibd
 .fi
 .if n \{\
 .RE
@@ -798,7 +798,7 @@ option was omitted\&. Example usages:
 .RS 4
 .\}
 .nf
-shell> \fBcat t1\&.ibd | innochecksum \-\fR
+cat t1\&.ibd | innochecksum \-
 .fi
 .if n \{\
 .RE
@@ -818,7 +818,7 @@ file\&.
 .RS 4
 .\}
 .nf
-shell> \fBcat t1\&.ibd | innochecksum \-\-write=crc32 \- > a\&.ibd\fR
+cat t1\&.ibd | innochecksum \-\-write=crc32 \- > a\&.ibd
 .fi
 .if n \{\
 .RE
@@ -841,7 +841,7 @@ database:
 .RS 4
 .\}
 .nf
-shell> innochecksum \&./data/test/*\&.ibd
+innochecksum \&./data/test/*\&.ibd
 .fi
 .if n \{\
 .RE
@@ -857,7 +857,7 @@ files) that have a file name starting with
 .RS 4
 .\}
 .nf
-shell> innochecksum \&./data/test/t*\&.ibd
+innochecksum \&./data/test/t*\&.ibd
 .fi
 .if n \{\
 .RE
@@ -874,7 +874,7 @@ directory:
 .RS 4
 .\}
 .nf
-shell> innochecksum \&./data/*/*\&.ibd
+innochecksum \&./data/*/*\&.ibd
 .fi
 .if n \{\
 .RE
@@ -905,9 +905,9 @@ must be run separately for each user\-defined tablespace file\&. For example:
 .RS 4
 .\}
 .nf
-cmd> innochecksum\&.exe t1\&.ibd
-cmd> innochecksum\&.exe t2\&.ibd
-cmd> innochecksum\&.exe t3\&.ibd
+innochecksum\&.exe t1\&.ibd
+innochecksum\&.exe t2\&.ibd
+innochecksum\&.exe t3\&.ibd
 .fi
 .if n \{\
 .RE
@@ -931,7 +931,7 @@ ibdata3\&.
 .RS 4
 .\}
 .nf
-shell> \fB\&./bin/mysqld \-\-no\-defaults \-\-innodb\-data\-file\-path="ibdata1:10M;ibdata2:10M;ibdata3:10M:autoextend"\fR
+\&./bin/mysqld \-\-no\-defaults \-\-innodb\-data\-file\-path="ibdata1:10M;ibdata2:10M;ibdata3:10M:autoextend"
 .fi
 .if n \{\
 .RE
@@ -953,7 +953,7 @@ command would be used:
 .RS 4
 .\}
 .nf
-shell> cat ibdata* | innochecksum \-
+cat ibdata* | innochecksum \-
 .fi
 .if n \{\
 .RE
@@ -989,9 +989,9 @@ must be run separately for each system tablespace file\&. For example:
 .RS 4
 .\}
 .nf
-cmd> innochecksum\&.exe ibdata1
-cmd> innochecksum\&.exe ibdata2
-cmd> innochecksum\&.exe ibdata3
+innochecksum\&.exe ibdata1
+innochecksum\&.exe ibdata2
+innochecksum\&.exe ibdata3
 .fi
 .if n \{\
 .RE
@@ -1001,7 +1001,7 @@ cmd> innochecksum\&.exe ibdata3
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

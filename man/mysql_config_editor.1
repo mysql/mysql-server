@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_config_editor\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_CONFIG_EDITOR\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -119,7 +119,7 @@ option, client programs read the same option groups from the login path file tha
 .RS 4
 .\}
 .nf
-shell> \fBmysql\fR
+mysql
 .fi
 .if n \{\
 .RE
@@ -150,7 +150,7 @@ option, client programs additionally read the named login path from the login pa
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=mypath\fR
+mysql \-\-login\-path=mypath
 .fi
 .if n \{\
 .RE
@@ -216,7 +216,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor [\fR\fB\fIprogram_options\fR\fR\fB] \fR\fB\fIcommand\fR\fR\fB [\fR\fB\fIcommand_options\fR\fR\fB]\fR
+mysql_config_editor [\fIprogram_options\fR] \fIcommand\fR [\fIcommand_options\fR]
 .fi
 .if n \{\
 .RE
@@ -280,8 +280,8 @@ The position of the command name within the set of program arguments is signific
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor \-\-help set\fR
-shell> \fBmysql_config_editor set \-\-help\fR
+mysql_config_editor \-\-help set
+mysql_config_editor set \-\-help
 .fi
 .if n \{\
 .RE
@@ -410,7 +410,7 @@ option when you invoke a client program\&. For example, to connect to the remote
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=remote\fR
+mysql \-\-login\-path=remote
 .fi
 .if n \{\
 .RE
@@ -434,7 +434,7 @@ To connect to the local server, use this command:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=client\fR
+mysql \-\-login\-path=client
 .fi
 .if n \{\
 .RE
@@ -454,7 +454,7 @@ option does not add anything in this case\&. That command is equivalent to this 
 .RS 4
 .\}
 .nf
-shell> \fBmysql\fR
+mysql
 .fi
 .if n \{\
 .RE
@@ -489,7 +489,7 @@ remote2\&.example\&.com, connect to the server on that host like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-login\-path=remote \-\-host=remote2\&.example\&.com\fR
+mysql \-\-login\-path=remote \-\-host=remote2\&.example\&.com
 .fi
 .if n \{\
 .RE
@@ -524,7 +524,7 @@ help:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor \fR\fB\fIcommand\fR\fR\fB \-\-help\fR
+mysql_config_editor \fIcommand\fR \-\-help
 .fi
 .if n \{\
 .RE
@@ -615,7 +615,7 @@ help:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor \fR\fB\fIcommand\fR\fR\fB \-\-help\fR
+mysql_config_editor \fIcommand\fR \-\-help
 .fi
 .if n \{\
 .RE
@@ -728,7 +728,7 @@ login path:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor remove \-\-login\-path=mypath \-\-user\fR
+mysql_config_editor remove \-\-login\-path=mypath \-\-user
 .fi
 .if n \{\
 .RE
@@ -742,7 +742,7 @@ login path:
 .RS 4
 .\}
 .nf
-shell> \fBmysql_config_editor remove \-\-login\-path=mypath\fR
+mysql_config_editor remove \-\-login\-path=mypath
 .fi
 .if n \{\
 .RE
@@ -1078,7 +1078,7 @@ to disable it\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

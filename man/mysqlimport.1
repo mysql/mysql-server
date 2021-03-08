@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -53,7 +53,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlimport [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB \fR\fB\fItextfile1\fR\fR\fB [\fR\fB\fItextfile2\fR\fR\fB \&.\&.\&.]\fR
+mysqlimport [\fIoptions\fR] \fIdb_name\fR \fItextfile1\fR [\fItextfile2\fR \&.\&.\&.]
 .fi
 .if n \{\
 .RE
@@ -257,9 +257,9 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -274,9 +274,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -302,9 +302,8 @@ normally reads the
 [client]
 and
 [mysqlimport]
-groups\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+groups\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmysqlimport\fR
 also reads the
 [client_other]
@@ -550,13 +549,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -779,7 +778,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -1004,7 +1003,7 @@ shell> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
