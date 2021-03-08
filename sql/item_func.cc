@@ -1685,14 +1685,8 @@ void Item_typecast_signed::print(const THD *thd, String *str,
 }
 
 bool Item_typecast_signed::resolve_type(THD *thd) {
-  if (args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG, false, true))
-    return true;
-
-  const unsigned max_digits = max(1, args[0]->decimal_int_part());
-  // Max character length is the max number of digits plus one for the sign.
-  fix_char_length(min(max_digits + 1, MY_INT64_NUM_DECIMAL_DIGITS));
-
-  return reject_geometry_args(arg_count, args, this);
+  if (reject_geometry_args(arg_count, args, this)) return true;
+  return args[0]->propagate_type(thd, MYSQL_TYPE_LONGLONG, false, true);
 }
 
 static longlong val_int_from_str(Item *item, bool unsigned_flag,

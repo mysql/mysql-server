@@ -2171,7 +2171,7 @@ Table	Create Table
 t	CREATE TABLE `t` (
   `col1` varchar(21) CHARACTER SET latin1 DEFAULT NULL,
   `col2` decimal(23,1) NOT NULL DEFAULT '0.0',
-  `col3` varchar(20) CHARACTER SET latin1 DEFAULT NULL
+  `col3` varchar(21) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t;
 col1	col2	col3
