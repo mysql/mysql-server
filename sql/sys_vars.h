@@ -176,126 +176,146 @@ struct CMD_LINE {
   Backing store: uint, ulong, ha_rows, ulonglong, long, depending on the
   Sys_var_*
 */
+// clang-format off
 template <typename T, ulong ARGT, enum enum_mysql_show_type SHOWT, bool SIGNED>
 class Sys_var_integer : public sys_var {
-  public : Sys_var_integer(
-      const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, T min_val, T max_val,
-      T def_val, uint block_size, PolyLock *lock = nullptr,
+ public:
+  Sys_var_integer(
+      const char *name_arg, const char *comment, int flag_args,
+      ptrdiff_t off, size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      T min_val, T max_val, T def_val, uint block_size,
+      PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       on_update_function on_update_func = nullptr,
-      const char *substitute = nullptr, int parse_flag = PARSE_NORMAL) :
-      sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
-              getopt.arg_type, SHOWT, def_val, lock, binlog_status_arg,
-              on_check_func, on_update_func, substitute, parse_flag){
-          option.var_type = ARGT; option.min_value = min_val;
-          option.max_value = max_val; option.block_size = block_size;
-          option.u_max_value = (uchar **)max_var_ptr();
-          if (max_var_ptr()) * max_var_ptr() = max_val;
+      const char *substitute = nullptr, int parse_flag = PARSE_NORMAL)
+      : sys_var(&all_sys_vars, name_arg, comment, flag_args, off,
+                getopt.id, getopt.arg_type, SHOWT, def_val, lock,
+                binlog_status_arg, on_check_func, on_update_func,
+                substitute, parse_flag) {
+    option.var_type = ARGT;
+    if ((min_val % block_size) != 0)
+      min_val += block_size - (min_val % block_size);
+    option.min_value = min_val;
+    option.max_value = max_val - (max_val % block_size);
+    option.block_size = block_size;
+    option.u_max_value = (uchar **)max_var_ptr();
+    if (max_var_ptr()) * max_var_ptr() = max_val;
 
-          // Do not set global_var for Sys_var_keycache objects
-          if (offset >= 0) global_var(T) = def_val;
+    // Do not set global_var for Sys_var_keycache objects
+    if (offset >= 0) global_var(T) = def_val;
 
-          assert(size == sizeof(T)); assert(min_val < max_val);
-          assert(min_val <= def_val); assert(max_val >= def_val);
-          assert(block_size > 0); assert(def_val % block_size == 0);}
-bool do_check(THD *thd, set_var *var) override {
-  bool fixed = false;
-  longlong v;
-  ulonglong uv;
+    assert(size == sizeof(T));
+    assert(min_val <= def_val);
+    assert(def_val <= max_val);
+    assert(block_size > 0);
+    assert(option.min_value % block_size == 0);
+    assert(def_val % block_size == 0);
+    assert(option.max_value % block_size == 0);
+  }
+  bool do_check(THD *thd, set_var *var) override {
+    bool fixed = false;
+    longlong v;
+    ulonglong uv;
 
-  v = var->value->val_int();
-  if (SIGNED) /* target variable has signed type */
-  {
-    if (var->value->unsigned_flag) {
-      /*
-        Input value is such a large positive number that MySQL used an
-        unsigned item to hold it. When cast to a signed longlong, if the
-        result is negative there is "cycling" and this is incorrect (large
-        positive input value should not end up as a large negative value in
-        the session signed variable to be set); instead, we need to pick the
-        allowed number closest to the positive input value, i.e. pick the
-        biggest allowed positive integer.
-      */
-      if (v < 0)
-        uv = max_of_int_range(ARGT);
-      else /* no cycling, longlong can hold true value */
-        uv = (ulonglong)v;
-    } else
-      uv = v;
-    /* This will further restrict with VALID_RANGE, BLOCK_SIZE */
-    var->save_result.ulonglong_value =
+    v = var->value->val_int();
+    if (SIGNED) { /* target variable has signed type */
+      if (var->value->unsigned_flag) {
+        /*
+          Input value is such a large positive number that MySQL used
+          an unsigned item to hold it. When cast to a signed longlong,
+          if the result is negative there is "cycling" and this is
+          incorrect (large positive input value should not end up as a
+          large negative value in the session signed variable to be
+          set); instead, we need to pick the allowed number closest to
+          the positive input value, i.e. pick the biggest allowed
+          positive integer.
+        */
+        if (v < 0)
+          uv = max_of_int_range(ARGT);
+        else /* no cycling, longlong can hold true value */
+          uv = (ulonglong)v;
+      } else
+        uv = v;
+      /* This will further restrict with VALID_RANGE, BLOCK_SIZE */
+      var->save_result.ulonglong_value =
         getopt_ll_limit_value(uv, &option, &fixed);
-  } else {
-    if (var->value->unsigned_flag) {
-      /* Guaranteed positive input value, ulonglong can hold it */
-      uv = (ulonglong)v;
     } else {
-      /*
-        Maybe negative input value; in this case, cast to ulonglong makes it
-        positive, which is wrong. Pick the closest allowed value i.e. 0.
-      */
-      uv = (ulonglong)(v < 0 ? 0 : v);
-    }
-    var->save_result.ulonglong_value =
+      if (var->value->unsigned_flag) {
+        /* Guaranteed positive input value, ulonglong can hold it */
+        uv = (ulonglong)v;
+      } else {
+        /*
+          Maybe negative input value; in this case, cast to ulonglong
+          makes it positive, which is wrong. Pick the closest allowed
+          value i.e. 0.
+        */
+        uv = (ulonglong)(v < 0 ? 0 : v);
+      }
+      var->save_result.ulonglong_value =
         getopt_ull_limit_value(uv, &option, &fixed);
-  }
-
-  if (max_var_ptr()) {
-    /* check constraint set with --maximum-...=X */
-    if (SIGNED) {
-      longlong max_val = *max_var_ptr();
-      if (((longlong)(var->save_result.ulonglong_value)) > max_val)
-        var->save_result.ulonglong_value = max_val;
-      /*
-        Signed variable probably has some kind of symmetry. Then it's good
-        to limit negative values just as we limit positive values.
-      */
-      max_val = -max_val;
-      if (((longlong)(var->save_result.ulonglong_value)) < max_val)
-        var->save_result.ulonglong_value = max_val;
-    } else {
-      ulonglong max_val = *max_var_ptr();
-      if (var->save_result.ulonglong_value > max_val)
-        var->save_result.ulonglong_value = max_val;
     }
+
+    if (max_var_ptr()) {
+      /* check constraint set with --maximum-...=X */
+      if (SIGNED) {
+        longlong max_val = *max_var_ptr();
+        if (((longlong)(var->save_result.ulonglong_value)) > max_val)
+          var->save_result.ulonglong_value = max_val;
+        /*
+          Signed variable probably has some kind of symmetry. Then
+          it's good to limit negative values just as we limit positive
+          values.
+        */
+        max_val = -max_val;
+        if (((longlong)(var->save_result.ulonglong_value)) < max_val)
+          var->save_result.ulonglong_value = max_val;
+      } else {
+        ulonglong max_val = *max_var_ptr();
+        if (var->save_result.ulonglong_value > max_val)
+          var->save_result.ulonglong_value = max_val;
+      }
+    }
+
+    return throw_bounds_warning(
+        thd, name.str, var->save_result.ulonglong_value != (ulonglong)v,
+        var->value->unsigned_flag, v);
+  }
+  bool session_update(THD *thd, set_var *var) override {
+    session_var(thd, T) = static_cast<T>(var->save_result.ulonglong_value);
+    return false;
+  }
+  bool global_update(THD *, set_var *var) override {
+    global_var(T) = static_cast<T>(var->save_result.ulonglong_value);
+    return false;
+  }
+  bool check_update_type(Item_result type) override {
+    return type != INT_RESULT;
+  }
+  void session_save_default(THD *thd, set_var *var) override {
+    var->save_result.ulonglong_value = static_cast<ulonglong>(
+      *pointer_cast<const T *>(global_value_ptr(thd, nullptr)));
+  }
+  void global_save_default(THD *, set_var *var) override {
+    var->save_result.ulonglong_value = option.def_value;
+  }
+  void saved_value_to_string(THD *, set_var *var, char *def_val) override {
+    if (SIGNED)
+      longlong10_to_str((longlong)var->save_result.ulonglong_value,
+                        def_val, -10);
+    else
+      longlong10_to_str((longlong)var->save_result.ulonglong_value,
+                        def_val, 10);
   }
 
-  return throw_bounds_warning(thd, name.str,
-                              var->save_result.ulonglong_value != (ulonglong)v,
-                              var->value->unsigned_flag, v);
-}
-bool session_update(THD *thd, set_var *var) override {
-  session_var(thd, T) = static_cast<T>(var->save_result.ulonglong_value);
-  return false;
-}
-bool global_update(THD *, set_var *var) override {
-  global_var(T) = static_cast<T>(var->save_result.ulonglong_value);
-  return false;
-}
-bool check_update_type(Item_result type) override { return type != INT_RESULT; }
-void session_save_default(THD *thd, set_var *var) override {
-  var->save_result.ulonglong_value = static_cast<ulonglong>(
-      *pointer_cast<const T *>(global_value_ptr(thd, nullptr)));
-}
-void global_save_default(THD *, set_var *var) override {
-  var->save_result.ulonglong_value = option.def_value;
-}
-void saved_value_to_string(THD *, set_var *var, char *def_val) override {
-  if (SIGNED)
-    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, -10);
-  else
-    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
-}
-
-private:
-T *max_var_ptr() {
-  return scope() == SESSION ? (T *)(((uchar *)&max_system_variables) + offset)
-                            : nullptr;
-}
-}
-;
+ private:
+  T *max_var_ptr() {
+    return scope() == SESSION
+        ? (T *)(((uchar *)&max_system_variables) + offset)
+        : nullptr;
+  }
+};
+// clang-format on
 
 typedef Sys_var_integer<int32, GET_UINT, SHOW_INT, false> Sys_var_int32;
 typedef Sys_var_integer<uint, GET_UINT, SHOW_INT, false> Sys_var_uint;
