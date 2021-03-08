@@ -70,7 +70,7 @@ Collations::Collations() {
   m_target_def.add_field(FIELD_CHARACTER_SET_ID, "FIELD_CHARACTER_SET_ID",
                          "character_set_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_IS_COMPILED, "FIELD_IS_COMPILED",
-                         "is_compiled BOOL NOT NULL");
+                         "is_compiled TINYINT(1) NOT NULL");
   m_target_def.add_field(FIELD_SORT_LENGTH, "FIELD_SORT_LENGTH",
                          "sort_length INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_PAD_ATTRIBUTE, "FIELD_PAD_ATTRIBUTE",

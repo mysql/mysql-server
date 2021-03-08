@@ -84,9 +84,9 @@ Routines::Routines() {
                          "FIELD_RESULT_DATA_TYPE_UTF8",
                          "result_data_type_utf8 MEDIUMTEXT NOT NULL");
   m_target_def.add_field(FIELD_RESULT_IS_ZEROFILL, "FIELD_RESULT_IS_ZEROFILL",
-                         "result_is_zerofill BOOL DEFAULT NULL");
+                         "result_is_zerofill TINYINT(1) DEFAULT NULL");
   m_target_def.add_field(FIELD_RESULT_IS_UNSIGNED, "FIELD_RESULT_IS_UNSIGNED",
-                         "result_is_unsigned BOOL DEFAULT NULL");
+                         "result_is_unsigned TINYINT(1) DEFAULT NULL");
   m_target_def.add_field(FIELD_RESULT_CHAR_LENGTH, "FIELD_RESULT_CHAR_LENGTH",
                          "result_char_length INT UNSIGNED DEFAULT NULL");
   m_target_def.add_field(FIELD_RESULT_NUMERIC_PRECISION,
@@ -107,7 +107,7 @@ Routines::Routines() {
   m_target_def.add_field(FIELD_PARAMETER_STR, "FIELD_PARAMETER_STR",
                          "parameter_str BLOB");
   m_target_def.add_field(FIELD_IS_DETERMINISTIC, "FIELD_IS_DETERMINISTIC",
-                         "is_deterministic BOOL NOT NULL");
+                         "is_deterministic TINYINT(1) NOT NULL");
   m_target_def.add_field(FIELD_SQL_DATA_ACCESS, "FIELD_SQL_DATA_ACCESS",
                          "sql_data_access ENUM('CONTAINS SQL', 'NO SQL',\n"
                          "     'READS SQL DATA',\n"

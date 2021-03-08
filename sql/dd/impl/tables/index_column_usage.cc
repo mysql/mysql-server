@@ -56,7 +56,7 @@ Index_column_usage::Index_column_usage() {
   m_target_def.add_field(FIELD_ORDER, "FIELD_ORDER",
                          "`order` ENUM('UNDEF', 'ASC', 'DESC') "
                          "NOT NULL");
-  m_target_def.add_field(FIELD_HIDDEN, "FIELD_HIDDEN", "hidden BOOL NOT NULL");
+  m_target_def.add_field(FIELD_HIDDEN, "FIELD_HIDDEN", "hidden TINYINT(1) NOT NULL");
 
   m_target_def.add_index(INDEX_UK_INDEX_ID_ORDINAL_POSITION,
                          "INDEX_UK_INDEX_ID_ORDINAL_POSITION",

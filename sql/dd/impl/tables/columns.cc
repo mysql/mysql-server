@@ -77,11 +77,11 @@ Columns::Columns() {
                          "    'MYSQL_TYPE_JSON'\n"
                          "  ) NOT NULL");
   m_target_def.add_field(FIELD_IS_NULLABLE, "FIELD_IS_NULLABLE",
-                         "is_nullable BOOL NOT NULL");
+                         "is_nullable TINYINT(1) NOT NULL");
   m_target_def.add_field(FIELD_IS_ZEROFILL, "FIELD_IS_ZEROFILL",
-                         "is_zerofill BOOL");
+                         "is_zerofill TINYINT(1)");
   m_target_def.add_field(FIELD_IS_UNSIGNED, "FIELD_IS_UNSIGNED",
-                         "is_unsigned BOOL");
+                         "is_unsigned TINYINT(1)");
   m_target_def.add_field(FIELD_CHAR_LENGTH, "FIELD_CHAR_LENGTH",
                          "char_length INT UNSIGNED");
   m_target_def.add_field(FIELD_NUMERIC_PRECISION, "FIELD_NUMERIC_PRECISION",
@@ -93,7 +93,7 @@ Columns::Columns() {
   m_target_def.add_field(FIELD_COLLATION_ID, "FIELD_COLLATION_ID",
                          "collation_id BIGINT UNSIGNED");
   m_target_def.add_field(FIELD_HAS_NO_DEFAULT, "FIELD_HAS_NO_DEFAULT",
-                         "has_no_default BOOL");
+                         "has_no_default TINYINT(1)");
   m_target_def.add_field(FIELD_DEFAULT_VALUE, "FIELD_DEFAULT_VALUE",
                          "default_value BLOB");
   m_target_def.add_field(FIELD_DEFAULT_VALUE_UTF8, "FIELD_DEFAULT_VALUE_UTF8",
@@ -103,9 +103,9 @@ Columns::Columns() {
   m_target_def.add_field(FIELD_UPDATE_OPTION, "FIELD_UPDATE_OPTION",
                          "update_option VARCHAR(32)");
   m_target_def.add_field(FIELD_IS_AUTO_INCREMENT, "FIELD_IS_AUTO_INCREMENT",
-                         "is_auto_increment BOOL");
+                         "is_auto_increment TINYINT(1)");
   m_target_def.add_field(FIELD_IS_VIRTUAL, "FIELD_IS_VIRTUAL",
-                         "is_virtual BOOL");
+                         "is_virtual TINYINT(1)");
   m_target_def.add_field(FIELD_GENERATION_EXPRESSION,
                          "FIELD_GENERATION_EXPRESSION",
                          "generation_expression LONGBLOB");
@@ -128,7 +128,7 @@ Columns::Columns() {
                          "srs_id INT UNSIGNED DEFAULT NULL");
   m_target_def.add_field(FIELD_IS_EXPLICIT_COLLATION,
                          "FIELD_IS_EXPLICIT_COLLATION",
-                         "is_explicit_collation BOOL");
+                         "is_explicit_collation TINYINT(1)");
 
   m_target_def.add_field(FIELD_ENGINE_ATTRIBUTE, "FIELD_ENGINE_ATTRIBUTE",
                          "engine_attribute JSON");
