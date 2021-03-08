@@ -770,6 +770,9 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
       int processId = nodes[i].processId;
       int nodeGroup= nodes[i].nodeGroup;
 
+      if (nodeGroup != 0) {
+        ndberr << "Expected nodeGroup 0, but got " << nodeGroup << endl;
+      }
       if (seen_groups.get(nodeGroup))
       {
         // One node in this node group already down
