@@ -73,6 +73,7 @@ class Backup_page_tracker {
   static void initialize_udf_list();
 
  public:
+  static char *m_changed_pages_file;
   static bool m_receive_changed_page_data;
 
   // Page track UDF functions

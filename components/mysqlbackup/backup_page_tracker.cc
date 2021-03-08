@@ -41,7 +41,7 @@ extern char *mysqlbackup_backup_id;
 
 // page track system variables
 uchar *Backup_page_tracker::m_changed_pages_buf = nullptr;
-static std::string changed_pages_file;
+char *Backup_page_tracker::m_changed_pages_file = nullptr;
 bool Backup_page_tracker::m_receive_changed_page_data = false;
 std::list<udf_data_t *> Backup_page_tracker::m_udf_list;
 
@@ -51,7 +51,7 @@ bool Backup_page_tracker::backup_id_update() {
     Backup_page_tracker::m_receive_changed_page_data = false;
 
   // delete the existing page tracker file
-  remove(changed_pages_file.c_str());
+  if (m_changed_pages_file != nullptr) remove(m_changed_pages_file);
   return true;
 }
 
@@ -331,6 +331,9 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
 void Backup_page_tracker::page_track_get_changed_pages_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {
   free(m_changed_pages_buf);
+  m_changed_pages_buf = nullptr;
+  free(m_changed_pages_file);
+  m_changed_pages_file = nullptr;
 }
 
 /**
@@ -371,7 +374,8 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (var_len == 0) return 2;
 
   std::string changed_pages_file_dir =
-      mysqlbackup_backupdir + Backup_comp_constants::backup_scratch_dir;
+      mysqlbackup_backupdir +
+      std::string(Backup_comp_constants::backup_scratch_dir);
 
 #if defined _MSC_VER
   _mkdir(changed_pages_file_dir.c_str());
@@ -381,10 +385,13 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   }
 #endif
 
-  changed_pages_file = changed_pages_file_dir + FN_LIBCHAR + backupid +
-                       Backup_comp_constants::change_file_extension;
+  free(m_changed_pages_file);
+  m_changed_pages_file =
+      strdup((changed_pages_file_dir + FN_LIBCHAR + backupid +
+              Backup_comp_constants::change_file_extension)
+                 .c_str());
   // if file already exists return error
-  FILE *fd = fopen(changed_pages_file.c_str(), "r");
+  FILE *fd = fopen(m_changed_pages_file, "r");
   if (fd) {
     fclose(fd);
     return (-1);
@@ -422,7 +429,7 @@ int page_track_callback(MYSQL_THD opaque_thd MY_ATTRIBUTE((unused)),
                         size_t buffer_length MY_ATTRIBUTE((unused)),
                         int page_count, void *context MY_ATTRIBUTE((unused))) {
   // append to the disk file in binary mode
-  FILE *fd = fopen(changed_pages_file.c_str(), "ab");
+  FILE *fd = fopen(Backup_page_tracker::m_changed_pages_file, "ab");
   if (!fd) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
