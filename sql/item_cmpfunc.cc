@@ -3765,6 +3765,9 @@ bool Item_func_case::val_json(Json_wrapper *wr) {
   String dummy_str(buff, sizeof(buff), default_charset());
   Item *item = find_item(&dummy_str);
 
+  // Make sure that calling find_item did not result in error
+  if (current_thd->is_error()) return error_json();
+
   if (item == nullptr) {
     null_value = true;
     return false;
