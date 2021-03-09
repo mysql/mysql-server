@@ -4277,7 +4277,7 @@ TEST_F(MDLHtonNotifyTest, NotifyClone) {
 }
 
 /**
-  Thread class for testing optimization which skips
+  Thread class for testing optimizations which skip or delay
   MDL_context::find_deadlock() in some cases.
 */
 
@@ -4287,12 +4287,16 @@ class MDL_skip_find_deadlock_thread : public Thread,
   enum enum_simulation_type {
     AUTOCOMMIT_STMT,
     TRANSACTION_STMT,
+    TRANSACTION_STMT_DEADLOCK,
     REPLICATION_APPLIER
   };
 
   MDL_skip_find_deadlock_thread(enum_simulation_type simulation_type,
-                                Notification *lock_blocked)
-      : m_simulation_type(simulation_type), m_lock_blocked(lock_blocked) {
+                                Notification *lock_blocked,
+                                Notification *wait_resume)
+      : m_simulation_type(simulation_type),
+        m_lock_blocked(lock_blocked),
+        m_wait_resume(wait_resume) {
     m_mdl_context.init(this);
   }
 
@@ -4313,18 +4317,27 @@ class MDL_skip_find_deadlock_thread : public Thread,
     return;
   }
 
-  bool might_have_non_mdl_waiters() const override {
+  void exit_cond(const PSI_stage_info *stage, const char *src_function,
+                 const char *src_file, int src_line) override {
+    Test_MDL_context_owner::exit_cond(stage, src_function, src_file, src_line);
+    if (m_wait_resume) m_wait_resume->wait_for_notification();
+    return;
+  }
+
+  bool might_have_commit_order_waiters() const override {
     return m_simulation_type == REPLICATION_APPLIER;
   }
 
  private:
   enum_simulation_type m_simulation_type;
   Notification *m_lock_blocked;
+  Notification *m_wait_resume;
   MDL_context m_mdl_context;
 };
 
 void MDL_skip_find_deadlock_thread::run() {
-  if (m_simulation_type == TRANSACTION_STMT) {
+  if (m_simulation_type == TRANSACTION_STMT ||
+      m_simulation_type == TRANSACTION_STMT_DEADLOCK) {
     MDL_request request1;
     MDL_REQUEST_INIT(&request1, MDL_key::TABLE, db_name, table_name1,
                      MDL_SHARED_WRITE, MDL_TRANSACTION);
@@ -4335,10 +4348,66 @@ void MDL_skip_find_deadlock_thread::run() {
   MDL_REQUEST_INIT(&request, MDL_key::ACL_CACHE, "", "", MDL_SHARED,
                    MDL_EXPLICIT);
 
-  EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  if (m_simulation_type == TRANSACTION_STMT_DEADLOCK) {
+    // We expect that deadlock will be detected and reported.
+    expected_error = ER_LOCK_DEADLOCK;
+    EXPECT_TRUE(m_mdl_context.acquire_lock(&request, long_timeout));
+  } else {
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
 
-  m_mdl_context.release_lock(request.ticket);
+    m_mdl_context.release_lock(request.ticket);
+  }
+
   m_mdl_context.release_transactional_locks();
+}
+
+/**
+  Additional thread class for testing optimization which delays
+  MDL_context::find_deadlock() in some cases.
+*/
+
+class MDL_skip_find_deadlock_helper_thread : public Thread,
+                                             public Test_MDL_context_owner {
+ public:
+  MDL_skip_find_deadlock_helper_thread(Notification *acl_lock_acquired,
+                                       Notification *non_acl_acquire)
+      : m_acl_lock_acquired(acl_lock_acquired),
+        m_non_acl_acquire(non_acl_acquire) {
+    m_mdl_context.init(this);
+  }
+
+  ~MDL_skip_find_deadlock_helper_thread() override { m_mdl_context.destroy(); }
+
+  void run() override;
+
+  void notify_shared_lock(MDL_context_owner *, bool) override {}
+
+ private:
+  Notification *m_acl_lock_acquired;
+  Notification *m_non_acl_acquire;
+  MDL_context m_mdl_context;
+};
+
+void MDL_skip_find_deadlock_helper_thread::run() {
+  // Acquire X lock on ACL_CACHE singleton and notify that we have done so.
+  MDL_request request1;
+  MDL_REQUEST_INIT(&request1, MDL_key::ACL_CACHE, "", "", MDL_EXCLUSIVE,
+                   MDL_EXPLICIT);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request1, long_timeout));
+  m_acl_lock_acquired->notify();
+
+  // Wait until we are commanded to acquire X lock on the table.
+  m_non_acl_acquire->wait_for_notification();
+
+  // Acquire X lock on db_name.table_name1.
+  MDL_request request2;
+  MDL_REQUEST_INIT(&request2, MDL_key::TABLE, db_name, table_name1,
+                   MDL_EXCLUSIVE, MDL_EXPLICIT);
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&request2, long_timeout));
+
+  // Clean-up.
+  m_mdl_context.release_lock(request1.ticket);
+  m_mdl_context.release_lock(request2.ticket);
 }
 
 /**
@@ -4370,7 +4439,7 @@ TEST_F(MDLTest, SkipFindDeadlock) {
   Notification lock_blocked1;
   Mock_MDL_wait_for_subgraph mock_subgraph1;
   MDL_skip_find_deadlock_thread thread1(
-      MDL_skip_find_deadlock_thread::AUTOCOMMIT_STMT, &lock_blocked1);
+      MDL_skip_find_deadlock_thread::AUTOCOMMIT_STMT, &lock_blocked1, nullptr);
 
   /*
     Acquire X lock on ACL_CACHE singleton and pretend that we are blocked
@@ -4400,10 +4469,11 @@ TEST_F(MDLTest, SkipFindDeadlock) {
   m_mdl_context.release_lock(m_request.ticket);
   thread1.join();
 
-  Notification lock_blocked2;
+  Notification lock_blocked2, wait_resume2;
   Mock_MDL_wait_for_subgraph mock_subgraph2;
   MDL_skip_find_deadlock_thread thread2(
-      MDL_skip_find_deadlock_thread::TRANSACTION_STMT, &lock_blocked2);
+      MDL_skip_find_deadlock_thread::TRANSACTION_STMT, &lock_blocked2,
+      &wait_resume2);
   /*
     Acquire X lock on ACL_CACHE singleton and pretend that we are blocked
     waiting for some other lock/resource again.
@@ -4415,26 +4485,67 @@ TEST_F(MDLTest, SkipFindDeadlock) {
   /*
     Start the concurrent thread that will try to acquire S lock on ACL_CACHE
     after acquiring another lock, simulating privilege check in the middle
-    of transaction. Wait until it gets blocked.
+    of transaction. Wait until it gets blocked and is pauses during initial
+    1 second wait for the lock.
   */
   thread2.start();
   lock_blocked2.wait_for_notification();
 
   /*
-    The concurrent thread should do deadlock detection as optimization
-    should not apply.
+    The concurrent thread should not do immediate deadlock detection,
+    before 1 second wait for the lock completes, as delayed deadlock
+    detection optimization applies.
   */
-  EXPECT_TRUE(mock_subgraph2.was_visited());
+  EXPECT_FALSE(mock_subgraph2.was_visited());
+
+  // Unpause initial 1 second wait.
+  wait_resume2.notify();
 
   /* Clean-up. Release lock and wait for concurrent thread to complete. */
   m_mdl_context.done_waiting_for();
   m_mdl_context.release_lock(m_request.ticket);
   thread2.join();
 
-  Notification lock_blocked3;
-  Mock_MDL_wait_for_subgraph mock_subgraph3;
+  Notification acl_acquired3, non_acl_acquire3, lock_blocked3;
+  MDL_skip_find_deadlock_helper_thread helper_thread(&acl_acquired3,
+                                                     &non_acl_acquire3);
   MDL_skip_find_deadlock_thread thread3(
-      MDL_skip_find_deadlock_thread::REPLICATION_APPLIER, &lock_blocked3);
+      MDL_skip_find_deadlock_thread::TRANSACTION_STMT_DEADLOCK, &lock_blocked3,
+      nullptr);
+  /*
+    Start thread that will acquire X lock on ACL_CACHE singleton and
+    pause before trying to acquire X lock on the table.
+  */
+  helper_thread.start();
+  acl_acquired3.wait_for_notification();
+
+  /*
+    Start another thread that will acquire shared lock on the same table and
+    gets blocked while trying to acquire S lock on ACL_CACHE singleton.
+    This simulates privilege check in the middle of transaction.
+  */
+  thread3.start();
+  lock_blocked3.wait_for_notification();
+
+  /*
+    Ask the first thread to acquire X lock on the table. This will created
+    deadlock which will be detected and resolved by aborting the second's
+    thread wait.
+  */
+  non_acl_acquire3.notify();
+
+  /*
+    The first thread should be able to proceed and complete.
+    Do clean-up.
+  */
+  helper_thread.join();
+  thread3.join();
+
+  Notification lock_blocked4;
+  Mock_MDL_wait_for_subgraph mock_subgraph4;
+  MDL_skip_find_deadlock_thread thread4(
+      MDL_skip_find_deadlock_thread::REPLICATION_APPLIER, &lock_blocked4,
+      nullptr);
 
   /*
     Acquire X lock on ACL_CACHE singleton and pretend that we are blocked
@@ -4442,26 +4553,26 @@ TEST_F(MDLTest, SkipFindDeadlock) {
   */
   m_request.ticket = nullptr;
   EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
-  m_mdl_context.will_wait_for(&mock_subgraph3);
+  m_mdl_context.will_wait_for(&mock_subgraph4);
 
   /*
     Start the concurrent thread that will try to acquire S lock on ACL_CACHE
     while pretending to be replication applier thread. Wait until it gets
     blocked.
   */
-  thread3.start();
-  lock_blocked3.wait_for_notification();
+  thread4.start();
+  lock_blocked4.wait_for_notification();
 
   /*
     The concurrent thread should do deadlock detection as optimization
     should not apply.
   */
-  EXPECT_TRUE(mock_subgraph3.was_visited());
+  EXPECT_TRUE(mock_subgraph4.was_visited());
 
   /* Clean-up. Release lock and wait for concurrent thread to complete. */
   m_mdl_context.done_waiting_for();
   m_mdl_context.release_lock(m_request.ticket);
-  thread3.join();
+  thread4.join();
 }
 
 /** Test class for MDL_key class testing. Doesn't require MDL initialization. */
