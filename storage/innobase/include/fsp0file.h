@@ -85,7 +85,6 @@ class Datafile {
         m_flags(),
         m_exists(),
         m_is_valid(),
-        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(),
         m_filepath(),
@@ -108,7 +107,6 @@ class Datafile {
         m_flags(flags),
         m_exists(),
         m_is_valid(),
-        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(),
         m_filepath(),
@@ -132,7 +130,6 @@ class Datafile {
         m_flags(file.m_flags),
         m_exists(file.m_exists),
         m_is_valid(file.m_is_valid),
-        m_first_page_buf(),
         m_first_page(),
         m_atomic_write(file.m_atomic_write),
         m_last_os_error(),
@@ -190,7 +187,6 @@ class Datafile {
 
     /* Do not make a copy of the first page,
     it should be reread if needed */
-    m_first_page_buf = nullptr;
     m_first_page = nullptr;
     m_encryption_key = nullptr;
     m_encryption_iv = nullptr;
@@ -478,9 +474,6 @@ class Datafile {
   bool m_is_valid;
 
   /** Buffer to hold first page */
-  byte *m_first_page_buf;
-
-  /** Pointer to the first page held in the buffer above */
   byte *m_first_page;
 
   /** true if atomic writes enabled for this file */

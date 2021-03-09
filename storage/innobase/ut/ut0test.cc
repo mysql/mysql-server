@@ -434,7 +434,7 @@ Ret_t Tester::corrupt_ondisk_root_page(
 Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
                                 const size_t prefix_length) {
   TLOG("Tester::clear_page_prefix()");
-  aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> mem;
+  ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE> mem;
   /* We read before write, as writes have to have length divisible by
   OS_FILE_LOG_BLOCK_SIZE thus we need to learn the content of non-zeroed suffix.
   Also, it's easier to spot errors during read than write, and this requires
@@ -442,7 +442,7 @@ Ret_t Tester::clear_page_prefix(const space_id_t space_id, page_no_t page_no,
   const auto buf_size =
       ut_uint64_align_up(prefix_length, OS_FILE_LOG_BLOCK_SIZE);
 
-  mem.create(buf_size);
+  mem.alloc(buf_size);
   const page_id_t page_id{space_id, page_no};
   fil_space_t *space = fil_space_get(space_id);
 

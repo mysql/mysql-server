@@ -2792,18 +2792,14 @@ void log_flush_notifier(log_t *log_ptr) {
 bool log_read_encryption() {
   space_id_t log_space_id = dict_sys_t::s_log_space_first_id;
   const page_id_t page_id(log_space_id, 0);
-  byte *log_block_buf_ptr;
   byte *log_block_buf;
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
   fil_space_t *space = fil_space_get(log_space_id);
   dberr_t err;
 
-  log_block_buf_ptr =
-      static_cast<byte *>(ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
-  memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
-  log_block_buf =
-      static_cast<byte *>(ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+  log_block_buf = static_cast<byte *>(
+      ut::aligned_zalloc(OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE));
 
   err = fil_redo_io(IORequestLogRead, page_id, univ_page_size, LOG_ENCRYPTION,
                     OS_FILE_LOG_BLOCK_SIZE, log_block_buf);
@@ -2814,7 +2810,7 @@ bool log_read_encryption() {
              Encryption::MAGIC_SIZE) == 0) {
     /* Make sure the keyring is loaded. */
     if (!Encryption::check_keyring()) {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       ib::error(ER_IB_MSG_1238) << "Redo log was encrypted,"
                                 << " but keyring is not loaded.";
       return (false);
@@ -2830,18 +2826,18 @@ bool log_read_encryption() {
       err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 
       if (err == DB_SUCCESS) {
-        ut_free(log_block_buf_ptr);
+        ut::aligned_free(log_block_buf);
         ib::info(ER_IB_MSG_1239) << "Read redo log encryption"
                                  << " metadata successful.";
         return (true);
       } else {
-        ut_free(log_block_buf_ptr);
+        ut::aligned_free(log_block_buf);
         ib::error(ER_IB_MSG_1240) << "Can't set redo log tablespace"
                                   << " encryption metadata.";
         return (false);
       }
     } else {
-      ut_free(log_block_buf_ptr);
+      ut::aligned_free(log_block_buf);
       ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
                                    " information in log file header, please"
                                    " check if keyring is loaded.";
@@ -2849,7 +2845,7 @@ bool log_read_encryption() {
     }
   }
 
-  ut_free(log_block_buf_ptr);
+  ut::aligned_free(log_block_buf);
   return (true);
 }
 
@@ -2871,14 +2867,8 @@ bool log_file_header_fill_encryption(byte *buf, byte *key, byte *iv,
 
 bool log_write_encryption(byte *key, byte *iv, bool is_boot) {
   const page_id_t page_id{dict_sys_t::s_log_space_first_id, 0};
-  byte *log_block_buf_ptr;
-  byte *log_block_buf;
-
-  log_block_buf_ptr =
-      static_cast<byte *>(ut_malloc_nokey(2 * OS_FILE_LOG_BLOCK_SIZE));
-  memset(log_block_buf_ptr, 0, 2 * OS_FILE_LOG_BLOCK_SIZE);
-  log_block_buf =
-      static_cast<byte *>(ut_align(log_block_buf_ptr, OS_FILE_LOG_BLOCK_SIZE));
+  byte *log_block_buf = static_cast<byte *>(
+      ut::aligned_zalloc(OS_FILE_LOG_BLOCK_SIZE, OS_FILE_LOG_BLOCK_SIZE));
 
   if (key == nullptr && iv == nullptr) {
     fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
@@ -2888,7 +2878,7 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot) {
   }
 
   if (!log_file_header_fill_encryption(log_block_buf, key, iv, is_boot, true)) {
-    ut_free(log_block_buf_ptr);
+    ut::aligned_free(log_block_buf);
     return (false);
   }
 
@@ -2897,7 +2887,7 @@ bool log_write_encryption(byte *key, byte *iv, bool is_boot) {
 
   ut_a(err == DB_SUCCESS);
 
-  ut_free(log_block_buf_ptr);
+  ut::aligned_free(log_block_buf);
   return (true);
 }
 

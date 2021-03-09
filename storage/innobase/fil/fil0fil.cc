@@ -51,6 +51,7 @@ The tablespace memory cache */
 #include "mem0mem.h"
 #include "mtr0log.h"
 #include "my_dbug.h"
+#include "ut0new.h"
 
 #include "clone0api.h"
 #include "os0file.h"
@@ -2592,15 +2593,13 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
   ut_a(space->purpose != FIL_TYPE_LOG);
 
-  /* Read the first page of the tablespace */
-
-  byte *buf2 = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-
   /* Align memory for file I/O if we might have O_DIRECT set */
-
-  byte *page = static_cast<byte *>(ut_align(buf2, UNIV_PAGE_SIZE));
+  auto page =
+      static_cast<byte *>(ut::aligned_alloc(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
 
   ut_ad(page == page_align(page));
+
+  /* Read the first page of the tablespace */
 
   IORequest request(IORequest::READ);
 
@@ -2715,7 +2714,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
     space->free_len = (uint32_t)free_len;
   }
 
-  ut_free(buf2);
+  ut::aligned_free(page);
 
   /* For encrypted tablespace, we need to check the
   encryption key and iv(initial vector) is read. */
@@ -4017,12 +4016,10 @@ system tablespace.
 @param[in]	lsn		Flushed LSN
 @return DB_SUCCESS or error number */
 dberr_t fil_write_flushed_lsn(lsn_t lsn) {
-  byte *buf1;
-  byte *buf;
   dberr_t err;
 
-  buf1 = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE));
-  buf = static_cast<byte *>(ut_align(buf1, UNIV_PAGE_SIZE));
+  auto buf =
+      static_cast<byte *>(ut::aligned_alloc(UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
 
   const page_id_t page_id(TRX_SYS_SPACE, 0);
 
@@ -4036,7 +4033,7 @@ dberr_t fil_write_flushed_lsn(lsn_t lsn) {
     fil_system->flush_file_spaces(to_int(FIL_TYPE_TABLESPACE));
   }
 
-  ut_free(buf1);
+  ut::aligned_free(buf);
 
   return err;
 }
@@ -5506,7 +5503,6 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
                                      page_no_t size, fil_type_t type) {
   pfs_os_file_t file;
   dberr_t err;
-  byte *buf2;
   byte *page;
   bool success;
   bool has_shared_space = FSP_FLAGS_GET_SHARED(flags);
@@ -5626,12 +5622,9 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   with zeros from the call of os_file_set_size(), until a buffer pool
   flush would write to it. */
 
-  buf2 = static_cast<byte *>(ut_malloc_nokey(3 * page_size.logical()));
-
   /* Align the memory for file i/o if we might have O_DIRECT set */
-  page = static_cast<byte *>(ut_align(buf2, page_size.logical()));
-
-  memset(page, '\0', page_size.logical());
+  page = static_cast<byte *>(
+      ut::aligned_zalloc(2 * page_size.logical(), page_size.logical()));
 
   /* Add the UNIV_PAGE_SIZE to the table flags and write them to the
   tablespace header. */
@@ -5676,7 +5669,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     punch_hole = false;
   }
 
-  ut_free(buf2);
+  ut::aligned_free(page);
 
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_304, path);
@@ -6462,9 +6455,7 @@ static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
   /* Extend at most 1M at a time */
   os_offset_t n_bytes = ut_min(static_cast<os_offset_t>(1024 * 1024), len);
 
-  byte *ptr = reinterpret_cast<byte *>(ut_zalloc_nokey(n_bytes + page_size));
-
-  byte *buf = reinterpret_cast<byte *>(ut_align(ptr, page_size));
+  byte *buf = reinterpret_cast<byte *>(ut::aligned_zalloc(n_bytes, page_size));
 
   os_offset_t offset = start;
   dberr_t err = DB_SUCCESS;
@@ -6491,7 +6482,7 @@ static dberr_t fil_write_zeros(const fil_node_t *file, ulint page_size,
     DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension", DBUG_SUICIDE(););
   }
 
-  ut_free(ptr);
+  ut::aligned_free(buf);
 
   return err;
 }
@@ -8967,8 +8958,8 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   We allocate an extra page in case it is a compressed table. One
   page is to ensure alignement. */
 
-  void *page_ptr = ut_malloc_nokey(3 * UNIV_PAGE_SIZE);
-  byte *page = static_cast<byte *>(ut_align(page_ptr, UNIV_PAGE_SIZE));
+  byte *page = static_cast<byte *>(
+      ut::aligned_alloc(2 * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
 
   fil_buf_block_init(block, page);
 
@@ -9033,15 +9024,12 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
 
       /** Add an extra page for compressed page scratch
       area. */
-      void *io_buffer =
-          ut_malloc_nokey((2 + iter.m_n_io_buffers) * UNIV_PAGE_SIZE);
-
-      iter.m_io_buffer =
-          static_cast<byte *>(ut_align(io_buffer, UNIV_PAGE_SIZE));
+      iter.m_io_buffer = static_cast<byte *>(ut::aligned_alloc(
+          (1 + iter.m_n_io_buffers) * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE));
 
       err = fil_iterate(iter, block, callback);
 
-      ut_free(io_buffer);
+      ut::aligned_free(iter.m_io_buffer);
     }
   }
 
@@ -9058,7 +9046,7 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
 
   os_file_close(file);
 
-  ut_free(page_ptr);
+  ut::aligned_free(page);
   ut_free(filepath);
 
   mutex_free(&block->mutex);

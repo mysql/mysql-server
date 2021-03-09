@@ -89,8 +89,6 @@ struct fts_psort_t {
   merge_file_t *merge_file[FTS_NUM_AUX_INDEX];
   /*!< sort file */
   row_merge_block_t *merge_block[FTS_NUM_AUX_INDEX];
-  /*!< buffer to write to file */
-  row_merge_block_t *block_alloc[FTS_NUM_AUX_INDEX];
   /*!< buffer to allocated */
   ulint child_status;               /*!< child thread status */
   ulint state;                      /*!< parent thread state */

@@ -368,7 +368,7 @@ Read more about redo log details:
 *******************************************************/
 
 /** Redo log system. Singleton used to populate global pointer. */
-aligned_pointer<log_t> *log_sys_object;
+ut::aligned_pointer<log_t, ut::INNODB_CACHE_LINE_SIZE> *log_sys_object;
 
 /** Redo log system (singleton). */
 log_t *log_sys;
@@ -496,9 +496,10 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   exit without proper cleanup for redo log in some cases, we
   need to forbid dtor calls then. */
 
-  log_sys_object = UT_NEW_NOKEY(aligned_pointer<log_t>{});
+  using log_t_aligned_pointer = std::decay_t<decltype(*log_sys_object)>;
+  log_sys_object = UT_NEW_NOKEY(log_t_aligned_pointer{});
+  log_sys_object->alloc();
 
-  log_sys_object->create();
   log_sys = *log_sys_object;
 
   log_t &log = *log_sys;
@@ -710,8 +711,7 @@ void log_sys_close() {
   os_event_destroy(log.writer_threads_resume_event);
   os_event_destroy(log.sn_lock_event);
 
-  log_sys_object->destroy();
-
+  log_sys_object->dealloc();
   UT_DELETE(log_sys_object);
   log_sys_object = nullptr;
 
@@ -1124,29 +1124,29 @@ static void log_allocate_buffer(log_t &log) {
   ut_a(srv_log_buffer_size <= INNODB_LOG_BUFFER_SIZE_MAX);
   ut_a(srv_log_buffer_size >= 4 * UNIV_PAGE_SIZE);
 
-  log.buf.create(srv_log_buffer_size);
+  log.buf.alloc(srv_log_buffer_size);
 }
 
-static void log_deallocate_buffer(log_t &log) { log.buf.destroy(); }
+static void log_deallocate_buffer(log_t &log) { log.buf.dealloc(); }
 
 static void log_allocate_write_ahead_buffer(log_t &log) {
   ut_a(srv_log_write_ahead_size >= INNODB_LOG_WRITE_AHEAD_SIZE_MIN);
   ut_a(srv_log_write_ahead_size <= INNODB_LOG_WRITE_AHEAD_SIZE_MAX);
 
   log.write_ahead_buf_size = srv_log_write_ahead_size;
-  log.write_ahead_buf.create(log.write_ahead_buf_size);
+  log.write_ahead_buf.alloc(log.write_ahead_buf_size);
 }
 
 static void log_deallocate_write_ahead_buffer(log_t &log) {
-  log.write_ahead_buf.destroy();
+  log.write_ahead_buf.dealloc();
 }
 
 static void log_allocate_checkpoint_buffer(log_t &log) {
-  log.checkpoint_buf.create(OS_FILE_LOG_BLOCK_SIZE);
+  log.checkpoint_buf.alloc(OS_FILE_LOG_BLOCK_SIZE);
 }
 
 static void log_deallocate_checkpoint_buffer(log_t &log) {
-  log.checkpoint_buf.destroy();
+  log.checkpoint_buf.dealloc();
 }
 
 static void log_allocate_flush_events(log_t &log) {
@@ -1221,12 +1221,11 @@ static void log_deallocate_recent_closed(log_t &log) {
 static void log_allocate_file_header_buffers(log_t &log) {
   const uint32_t n_files = log.n_files;
 
-  using Buf_ptr = aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE>;
-
+  using Buf_ptr = ut::aligned_array_pointer<byte, OS_FILE_LOG_BLOCK_SIZE>;
   log.file_header_bufs = UT_NEW_ARRAY_NOKEY(Buf_ptr, n_files);
 
   for (uint32_t i = 0; i < n_files; i++) {
-    log.file_header_bufs[i].create(LOG_FILE_HDR_SIZE);
+    log.file_header_bufs[i].alloc(LOG_FILE_HDR_SIZE);
   }
 }
 

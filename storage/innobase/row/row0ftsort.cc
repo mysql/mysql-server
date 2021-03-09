@@ -272,11 +272,8 @@ dberr_t row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
       }
 
       /* Need to align memory for O_DIRECT write */
-      psort_info[j].block_alloc[i] =
-          static_cast<row_merge_block_t *>(ut_malloc_nokey(block_size + 1024));
-
-      psort_info[j].merge_block[i] = static_cast<row_merge_block_t *>(
-          ut_align(psort_info[j].block_alloc[i], 1024));
+      psort_info[j].merge_block[i] =
+          static_cast<row_merge_block_t *>(ut::aligned_alloc(block_size, 1024));
 
       if (!psort_info[j].merge_block[i]) {
         error = DB_OUT_OF_MEMORY;
@@ -318,7 +315,7 @@ void row_fts_psort_info_destroy(
           row_merge_file_destroy(psort_info[j].merge_file[i]);
         }
 
-        ut_free(psort_info[j].block_alloc[i]);
+        ut::aligned_free(psort_info[j].merge_block[i]);
         ut_free(psort_info[j].merge_file[i]);
       }
 

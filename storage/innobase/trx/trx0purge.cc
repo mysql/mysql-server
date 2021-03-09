@@ -947,23 +947,21 @@ dberr_t start_logging(Tablespace *undo_space) {
   }
 
   ulint sz = UNIV_PAGE_SIZE;
-  void *buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
+  void *buf = ut::aligned_zalloc(sz, UNIV_PAGE_SIZE);
   if (buf == nullptr) {
     os_file_close(handle);
     return (DB_OUT_OF_MEMORY);
   }
 
-  byte *log_buf = static_cast<byte *>(ut_align(buf, UNIV_PAGE_SIZE));
-
   IORequest request(IORequest::WRITE);
 
   request.disable_compression();
 
-  err = os_file_write(request, log_file_name, handle, log_buf, 0, sz);
+  err = os_file_write(request, log_file_name, handle, buf, 0, sz);
 
   os_file_flush(handle);
   os_file_close(handle);
-  ut_free(buf);
+  ut::aligned_free(buf);
 
   return (err);
 }
@@ -1000,29 +998,27 @@ void done_logging(space_id_t space_num) {
   }
 
   ulint sz = UNIV_PAGE_SIZE;
-  void *buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
+  byte *buf = static_cast<byte *>(ut::aligned_zalloc(sz, UNIV_PAGE_SIZE));
   if (buf == nullptr) {
     os_file_close(handle);
     os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
     return;
   }
 
-  byte *log_buf = static_cast<byte *>(ut_align(buf, UNIV_PAGE_SIZE));
-
-  mach_write_to_4(log_buf, undo::s_magic);
+  mach_write_to_4(buf, undo::s_magic);
 
   IORequest request(IORequest::WRITE);
 
   request.disable_compression();
 
-  err = os_file_write(request, log_file_name, handle, log_buf, 0, sz);
+  err = os_file_write(request, log_file_name, handle, buf, 0, sz);
 
   ut_a(err == DB_SUCCESS);
 
   os_file_flush(handle);
   os_file_close(handle);
 
-  ut_free(buf);
+  ut::aligned_free(buf);
   os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
 }
 
@@ -1051,14 +1047,12 @@ bool is_active_truncate_log_present(space_id_t space_num) {
     }
 
     ulint sz = UNIV_PAGE_SIZE;
-    void *buf = ut_zalloc_nokey(sz + UNIV_PAGE_SIZE);
+    byte *buf = static_cast<byte *>(ut::aligned_zalloc(sz, UNIV_PAGE_SIZE));
     if (buf == nullptr) {
       os_file_close(handle);
       os_file_delete_if_exists(innodb_log_file_key, log_file_name, nullptr);
       return (false);
     }
-
-    byte *log_buf = static_cast<byte *>(ut_align(buf, UNIV_PAGE_SIZE));
 
     IORequest request(IORequest::READ);
 
@@ -1066,7 +1060,7 @@ bool is_active_truncate_log_present(space_id_t space_num) {
 
     dberr_t err;
 
-    err = os_file_read(request, log_file_name, handle, log_buf, 0, sz);
+    err = os_file_read(request, log_file_name, handle, buf, 0, sz);
 
     os_file_close(handle);
 
@@ -1076,14 +1070,14 @@ bool is_active_truncate_log_present(space_id_t space_num) {
 
       os_file_delete(innodb_log_file_key, log_file_name);
 
-      ut_free(buf);
+      ut::aligned_free(buf);
 
       return (false);
     }
 
-    ulint magic_no = mach_read_from_4(log_buf);
+    ulint magic_no = mach_read_from_4(buf);
 
-    ut_free(buf);
+    ut::aligned_free(buf);
 
     if (magic_no == undo::s_magic) {
       /* Found magic number. */

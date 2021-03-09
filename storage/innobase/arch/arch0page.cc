@@ -1484,7 +1484,6 @@ bool ArchPageData::init() {
   ut_ad(ut_is_2pow(m_num_data_blocks));
 
   alloc_size = m_block_size * m_num_data_blocks;
-  alloc_size += m_block_size;
 
   /* For reset block. */
   alloc_size += m_block_size;
@@ -1493,13 +1492,13 @@ bool ArchPageData::init() {
   alloc_size += m_block_size;
 
   /* Allocate buffer for memory blocks. */
-  m_buffer = static_cast<byte *>(ut_zalloc(alloc_size, mem_key_archive));
+  m_buffer = static_cast<byte *>(
+      ut::aligned_zalloc_withkey(mem_key_archive, alloc_size, m_block_size));
 
   if (m_buffer == nullptr) {
     return (false);
   }
-
-  mem_ptr = static_cast<byte *>(ut_align(m_buffer, m_block_size));
+  mem_ptr = m_buffer;
 
   Arch_Block *cur_blk;
 
@@ -1552,9 +1551,7 @@ void ArchPageData::clean() {
     m_partial_flush_block = nullptr;
   }
 
-  if (m_buffer != nullptr) {
-    ut_free(m_buffer);
-  }
+  ut::aligned_free(m_buffer);
 }
 
 /** Get the block for a position
