@@ -124,6 +124,14 @@ def	mysql	replication_asynchronous_connection_failover_managed	Channel_name	1	NU
 def	mysql	replication_asynchronous_connection_failover_managed	Managed_name	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references	The name of the source which needs to be managed.		NULL
 def	mysql	replication_asynchronous_connection_failover_managed	Managed_type	3		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references	Determines the managed type.		NULL
 def	mysql	replication_asynchronous_connection_failover_managed	Configuration	4	NULL	YES	json	NULL	NULL	NULL	NULL	NULL	NULL	NULL	json			select,insert,update,references	The data to help manage group. For Managed_type = GroupReplication, Configuration value should contain {"Primary_weight": 80, "Secondary_weight": 60}, so that it assigns weight=80 to PRIMARY of the group, and weight=60 for rest of the members in mysql.replication_asynchronous_connection_failover table.		NULL
+def	mysql	replication_group_configuration_version	name	1	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	The configuration name.		NULL
+def	mysql	replication_group_configuration_version	version	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint unsigned			select,insert,update,references	The version of the configuration name.		NULL
+def	mysql	replication_group_member_actions	name	1	NULL	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references	The action name.		NULL
+def	mysql	replication_group_member_actions	event	2	NULL	NO	char	64	64	NULL	NULL	NULL	ascii	ascii_general_ci	char(64)	PRI		select,insert,update,references	The event that will trigger the action.		NULL
+def	mysql	replication_group_member_actions	enabled	3	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Whether the action is enabled.		NULL
+def	mysql	replication_group_member_actions	type	4	NULL	NO	char	64	64	NULL	NULL	NULL	ascii	ascii_general_ci	char(64)			select,insert,update,references	The action type.		NULL
+def	mysql	replication_group_member_actions	priority	5	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references	The order on which the action will be run, value between 1 and 100, lower values first.		NULL
+def	mysql	replication_group_member_actions	error_handling	6	NULL	NO	char	64	64	NULL	NULL	NULL	ascii	ascii_general_ci	char(64)			select,insert,update,references	On errors during the action will be handled: IGNORE, CRITICAL.		NULL
 def	mysql	role_edges	FROM_HOST	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	FROM_USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	TO_HOST	3		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
@@ -478,6 +486,14 @@ NULL	mysql	replication_asynchronous_connection_failover	Weight	tinyint	NULL	NULL
 3.0000	mysql	replication_asynchronous_connection_failover_managed	Managed_name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	replication_asynchronous_connection_failover_managed	Managed_type	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	replication_asynchronous_connection_failover_managed	Configuration	json	NULL	NULL	NULL	NULL	json
+1.0000	mysql	replication_group_configuration_version	name	char	255	255	ascii	ascii_general_ci	char(255)
+NULL	mysql	replication_group_configuration_version	version	bigint	NULL	NULL	NULL	NULL	bigint unsigned
+1.0000	mysql	replication_group_member_actions	name	char	255	255	ascii	ascii_general_ci	char(255)
+1.0000	mysql	replication_group_member_actions	event	char	64	64	ascii	ascii_general_ci	char(64)
+NULL	mysql	replication_group_member_actions	enabled	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
+1.0000	mysql	replication_group_member_actions	type	char	64	64	ascii	ascii_general_ci	char(64)
+NULL	mysql	replication_group_member_actions	priority	tinyint	NULL	NULL	NULL	NULL	tinyint unsigned
+1.0000	mysql	replication_group_member_actions	error_handling	char	64	64	ascii	ascii_general_ci	char(64)
 1.0000	mysql	role_edges	FROM_HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	role_edges	FROM_USER	char	32	96	utf8	utf8_bin	char(32)
 1.0000	mysql	role_edges	TO_HOST	char	255	255	ascii	ascii_general_ci	char(255)

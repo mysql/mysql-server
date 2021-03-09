@@ -69,6 +69,10 @@ while ($_rpl_server <= $_rpl_server_max)
       }
     }
 
+    # Clear GR member actions configuration
+    --disable_result_log ONCE
+    SELECT group_replication_reset_member_actions();
+
     --enable_query_log
 
     --connection default

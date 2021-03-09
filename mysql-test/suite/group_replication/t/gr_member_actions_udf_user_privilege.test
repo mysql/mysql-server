@@ -1,0 +1,132 @@
+###############################################################################
+# Validate that the UDFs:
+#   group_replication_enable_member_action
+#   group_replication_disable_member_action
+#   group_replication_reset_member_actions
+# do require the GROUP_REPLICATION_ADMIN privilege.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Try to enable, disable and reset member actions without
+#      GROUP_REPLICATION_ADMIN privilege.
+#   2. Try to enable, disable and reset member actions with
+#      GROUP_REPLICATION_ADMIN privilege.
+#   3. Assert log messages.
+#      include/assert_grep.inc requires more privileges, thence
+#      doing it on server1 connection.
+#   4. Clean up
+###############################################################################
+--source include/not_have_privilege_checks_user.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Try to enable, disable and reset member actions without
+--echo #    GROUP_REPLICATION_ADMIN privilege.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE USER 'group_rpl_user' IDENTIFIED BY '';
+--connect (con_group_rpl_user,127.0.0.1,group_rpl_user,,test,$MASTER_MYPORT,,)
+
+--let $rpl_connection_name= con_group_rpl_user
+--source include/rpl_connection.inc
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--error ER_CANT_INITIALIZE_UDF
+SELECT group_replication_reset_member_actions();
+
+
+--echo
+--echo ############################################################
+--echo # 2. Try to enable, disable and reset member actions with
+--echo #    GROUP_REPLICATION_ADMIN privilege.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'group_rpl_user';
+GRANT SELECT ON performance_schema.* TO 'group_rpl_user';
+
+--let $rpl_connection_name= con_group_rpl_user
+--source include/rpl_connection.inc
+
+SELECT group_replication_disable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 2
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 2
+--source include/assert.inc
+
+
+SELECT group_replication_enable_member_action("mysql_disable_super_read_only_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be enabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 3
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 3
+--source include/assert.inc
+
+
+SELECT group_replication_reset_member_actions();
+
+--let $assert_text= The action mysql_disable_super_read_only_if_primary must be enabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= The version of replication_group_member_actions must be 1
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_group_member_actions\', version, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Assert log messages.
+--echo #    include/assert_grep.inc requires more privileges, thence
+--echo #    doing it on server1 connection.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_udf_user_privilege
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Member action disabled: "mysql_disable_super_read_only_if_primary", type: "INTERNAL", event: "AFTER_PRIMARY_ELECTION", priority: "1", error_handling: "IGNORE".
+--let $assert_count= 1
+--let $assert_text= Member action disabled: "mysql_disable_super_read_only_if_primary", type: "INTERNAL", event: "AFTER_PRIMARY_ELECTION", priority: "1", error_handling: "IGNORE".
+--source include/assert_grep.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_udf_user_privilege
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Member action enabled: "mysql_disable_super_read_only_if_primary", type: "INTERNAL", event: "AFTER_PRIMARY_ELECTION", priority: "1", error_handling: "IGNORE".
+--let $assert_count= 1
+--let $assert_text= Member action enabled: "mysql_disable_super_read_only_if_primary", type: "INTERNAL", event: "AFTER_PRIMARY_ELECTION", priority: "1", error_handling: "IGNORE".
+--source include/assert_grep.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_member_actions_udf_user_privilege
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select= Member actions configuration was reset.
+--let $assert_count= 1
+--let $assert_text= Member actions configuration was reset.
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--disconnect con_group_rpl_user
+DROP USER group_rpl_user;
+
+--source include/group_replication_end.inc

@@ -13,9 +13,11 @@
 #      global scope, so new connections have it
 #   4. On server 2 create a slave connection to server 3
 #   5. Create table t1 an t2 on server3 and replicate to group
-#   6. Lock tables t1 to hold primary election
+#   6. Pause applier threads to hold primary election (on wait
+#      for stabilizing transactions from former primaries)
 #   7. Execute transaction on group
-#   8. Server2 will certify transaction but won't apply due lock tables
+#   8. Server2 will certify transaction but won't apply due to
+#      paused applier threads.
 #   9. Execute group_replication_switch_to_single_primary_mode to appoint
 #      server2 as primary on single primary mode group
 #  10. Validate that primary election is executing
@@ -33,6 +35,7 @@
 #
 ###############################################################################
 
+--source include/have_debug_sync.inc
 --source include/have_group_replication_plugin.inc
 
 --let $rpl_server_count= 3
@@ -91,12 +94,13 @@ CREATE TABLE test.t2 (a int primary key);
 --source include/sync_slave_sql_with_master.inc
 
 --echo
---echo # 6. Lock tables t1 to hold primary election
+--echo # 6. Pause applier threads to hold primary election (on wait
+--echo #    for stabilizing transactions from former primaries)
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
-LOCK TABLES t1 READ;
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 --echo
 --echo # 7. Execute transaction on group
@@ -107,10 +111,13 @@ LOCK TABLES t1 READ;
 INSERT INTO t1 VALUES (1);
 
 --echo
---echo # 8. Server2 will certify transaction but won't apply due lock tables
+--echo # 8. Server2 will certify transaction but won't apply due to
+--echo #    paused applier threads.
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 
 --let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_member_stats WHERE member_id='$member2_uuid' AND count_transactions_checked = 3 AND count_transactions_remote_in_applier_queue = 1
 --source include/wait_condition.inc
@@ -150,6 +157,13 @@ SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 
 --let $wait_condition= SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE STATE='Executing hook on transaction begin.' AND INFO='SELECT COUNT(*)=1 FROM t1 WHERE a = 1'
 --source include/wait_condition.inc
+
+# Before resume applier threads, lock table t1 to allow verify
+# @@SESSION.group_replication_consistency to handle `INSERT INTO t2 VALUES (1)`
+LOCK TABLES t1 READ;
+
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 --echo
 --echo # 13. Statement executed on server3
@@ -193,6 +207,10 @@ UNLOCK TABLES;
 
 SET @@SESSION.group_replication_consistency= DEFAULT;
 
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'RESET';
+
 --echo
 --echo # 18. Reap with success execution of set as primary server2
 
@@ -231,8 +249,8 @@ DROP TABLE t2;
 
 SET @@GLOBAL.group_replication_consistency= DEFAULT;
 
-STOP SLAVE FOR CHANNEL 'ch3_2';
-RESET SLAVE ALL FOR CHANNEL 'ch3_2';
+STOP REPLICA FOR CHANNEL 'ch3_2';
+RESET REPLICA ALL FOR CHANNEL 'ch3_2';
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc

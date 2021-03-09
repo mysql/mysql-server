@@ -9,16 +9,14 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 include/rpl_sync.inc
 [connection server2]
 
-# 2. Lock table on server2 to monitor
+# 2. Pause transactions on server2 to monitor
 #    group_replication_enforce_update_everywhere_checks
-LOCK TABLE t1 WRITE;
+# Adding debug point 'group_replication_wait_on_observer_trans' to @@GLOBAL.debug
 
 # 3. Push data to server1.
-#    It won't be committed on server2 due to the lock on the table
+#    It won't be committed on server2 due to paused transactions
 [connection server1]
 INSERT INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (2);
-INSERT INTO t1 VALUES (3);
 
 # 4. Execute action switch to single primary mode,
 #    with server2 as primary member
@@ -27,15 +25,17 @@ SELECT group_replication_switch_to_single_primary_mode("MEMBER2_UUID");
 
 # 5. Confirm stages on server2
 [connection server2]
+SET DEBUG_SYNC= "now WAIT_FOR signal.group_replication_wait_on_observer_trans_waiting";
 include/assert.inc [stage/group_rpl/Single-primary Switch: executing Primary election]
 include/assert.inc [stage/group_rpl/Primary Election: stabilizing transactions from former primaries]
 
-# 6. Since server2 has table t1 locked, the values aren't committed, so
+# 6. Since server2 has paused transactions, the values aren't committed, so
 #    group_replication_enforce_update_everywhere_checks is enabled
 include/assert.inc [group_replication_enforce_update_everywhere_checks is ON]
 
-# 7. Unlock table on server2
-UNLOCK TABLES;
+# 7. Resume transactions on server2
+# Removing debug point 'group_replication_wait_on_observer_trans' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal.group_replication_wait_on_observer_trans_continue';
 
 # 8. On primary member the super_read_only shall be disable
 include/assert.inc [The super_read_only mode should be 0 here.]
@@ -56,5 +56,6 @@ include/gr_assert_secondary_member.inc
 
 # 12. Cleanup
 [connection server2]
+SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 include/group_replication_end.inc

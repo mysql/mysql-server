@@ -17,7 +17,7 @@
 #
 ###############################################################################
 
---let $nr_gr_udfs= 7
+--let $nr_gr_udfs= 10
 
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

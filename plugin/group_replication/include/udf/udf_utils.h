@@ -138,6 +138,17 @@ privilege_result user_has_gr_admin_privilege();
  */
 void log_privilege_status_result(privilege_result const &privilege,
                                  char *message);
+/**
+ * Checks that `super_read_only` is disabled on the server.
+ *
+ * @returns std::pair<bool, std::string> where each element has the
+ *          following meaning:
+ *            first element of the pair is the function error value:
+ *              false  Successful
+ *              true   Error
+ *            second element of the pair is the error message.
+ */
+std::pair<bool, std::string> check_super_read_only_is_disabled();
 
 /**
  * Checks whether the server is ONLINE and belongs to the majority partition.

@@ -54,6 +54,7 @@
 // Forward declarations
 class Autorejoin_thread;
 class Transaction_consistency_manager;
+class Member_actions_handler;
 
 // Definition of system var structures
 
@@ -112,6 +113,7 @@ struct gr_modules {
     REMOTE_CLONE_HANDLER,
     MESSAGE_SERVICE_HANDLER,
     BINLOG_DUMP_THREAD_KILL,
+    MEMBER_ACTIONS_HANDLER,
     NUM_MODULES
   };
   using mask = std::bitset<NUM_MODULES>;
@@ -155,6 +157,7 @@ extern Group_action_coordinator *group_action_coordinator;
 extern Primary_election_handler *primary_election_handler;
 extern Autorejoin_thread *autorejoin_module;
 extern Message_service_handler *message_service_handler;
+extern Member_actions_handler *member_actions_handler;
 
 // Auxiliary Functionality
 extern Plugin_gcs_events_handler *events_handler;

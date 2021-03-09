@@ -31,16 +31,19 @@ CREATE TABLE test.t2 (a int primary key);
 include/sync_slave_sql_with_master.inc
 include/sync_slave_sql_with_master.inc
 
-# 6. Lock tables t1 to hold primary election
+# 6. Pause applier threads to hold primary election (on wait
+#    for stabilizing transactions from former primaries)
 [connection server_2]
-LOCK TABLES t1 READ;
+SET @@GLOBAL.DEBUG='+d,block_applier_updates';
 
 # 7. Execute transaction on group
 [connection server1]
 INSERT INTO t1 VALUES (1);
 
-# 8. Server2 will certify transaction but won't apply due lock tables
+# 8. Server2 will certify transaction but won't apply due to
+#    paused applier threads.
 [connection server2]
+SET DEBUG_SYNC = "now WAIT_FOR applier_read_blocked";
 
 # 9. Execute group_replication_switch_to_single_primary_mode to appoint
 #    server2 as primary on single primary mode group
@@ -57,6 +60,9 @@ SELECT COUNT(*)=1 FROM t1 WHERE a = 1;
 
 # 12. Validate statement is on hold
 [connection server_2]
+LOCK TABLES t1 READ;
+SET @@GLOBAL.DEBUG='-d,block_applier_updates';
+SET DEBUG_SYNC = "now SIGNAL resume_applier_read";
 
 # 13. Statement executed on server3
 [connection server3]
@@ -77,6 +83,8 @@ UNLOCK TABLES;
 COUNT(*)=1
 1
 SET @@SESSION.group_replication_consistency= DEFAULT;
+[connection server_2]
+SET DEBUG_SYNC= 'RESET';
 
 # 18. Reap with success execution of set as primary server2
 [connection server1]
@@ -94,12 +102,8 @@ include/sync_slave_sql_with_master.inc
 include/sync_slave_sql_with_master.inc
 [connection server2]
 SET @@GLOBAL.group_replication_consistency= DEFAULT;
-STOP SLAVE FOR CHANNEL 'ch3_2';
-Warnings:
-Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-RESET SLAVE ALL FOR CHANNEL 'ch3_2';
-Warnings:
-Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+STOP REPLICA FOR CHANNEL 'ch3_2';
+RESET REPLICA ALL FOR CHANNEL 'ch3_2';
 [connection server3]
 RESET MASTER;
 include/group_replication_end.inc

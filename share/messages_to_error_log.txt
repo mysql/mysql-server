@@ -10534,7 +10534,7 @@ ER_GRP_RPL_SERVER_SET_TO_OFFLINE_MODE_DUE_TO_ERRORS
   eng "The server was automatically set into offline mode after an error was detected."
 
 ER_GRP_RPL_MESSAGE_SERVICE_FATAL_ERROR
-  eng "Message delivery error on message service of Group Replication. The server will now leave the group."
+  eng "A message sent through the Group Replication message deliver service was not delivered successfully. The server will now leave the group. Try to add the server back to the group and check if the problem persists, or check previous messages in the log for hints of what could be the problem."
 
 ER_WARN_WRONG_COMPRESSION_ALGORITHM_LOG
   eng "Invalid MASTER_COMPRESSION_ALGORITHMS '%.192s' found in repository for channel '%.192s'. Resetting to 'uncompressed' (no compression)."
@@ -11264,6 +11264,48 @@ ER_IB_WRN_OLD_GEOMETRY_TYPE
 
 ER_NET_WAIT_ERROR2
   eng "'wait_timeout' period of %s seconds was exceeded for %s. The idle time since last command was too long."
+
+ER_GRP_RPL_MEMBER_ACTION_TRIGGERED
+  eng "The member action "%s" for event "%s" with priority "%u" will be run."
+
+ER_GRP_RPL_MEMBER_ACTION_FAILURE_IGNORE
+  eng "The member action "%s" for event "%s" with priority "%u" failed, this error is ignored as instructed. Please check previous messages in the error log for hints about what could have caused this failure."
+
+ER_GRP_RPL_MEMBER_ACTION_FAILURE
+  eng "The member action "%s" for event "%s" with priority "%u" failed. Please check previous messages in the error log for hints about what could have caused this failure."
+
+ER_GRP_RPL_MEMBER_ACTION_PARSE_ON_RECEIVE
+  eng "Unable to parse the member actions configuration sent by the primary."
+
+ER_GRP_RPL_MEMBER_ACTION_UPDATE_ACTIONS
+  eng "Unable to update the member actions configuration with the one sent by the primary. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_GET_EXCHANGEABLE_DATA
+  eng "Unable to read the member actions configuration during group membership change. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_DEFAULT_CONFIGURATION
+  eng "This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one."
+
+ER_GRP_RPL_MEMBER_ACTION_UNABLE_TO_SET_DEFAULT_CONFIGURATION
+  eng "Unable to reset to member actions default configuration on member join. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_PARSE_ON_MEMBER_JOIN
+  eng "Unable to parse the member actions configuration sent by the group on member join."
+
+ER_GRP_RPL_MEMBER_ACTION_UPDATE_ACTIONS_ON_MEMBER_JOIN
+  eng "Unable to update the member actions configuration on member join. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'."
+
+ER_GRP_RPL_MEMBER_ACTION_INVALID_ACTIONS_ON_MEMBER_JOIN
+  eng "The group members were unable to send their member actions configuration. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version' on all members."
+
+ER_GRP_RPL_MEMBER_ACTION_ENABLED
+  eng "Member action enabled: "%s", type: "%s", event: "%s", priority: "%u", error_handling: "%s"."
+
+ER_GRP_RPL_MEMBER_ACTION_DISABLED
+  eng "Member action disabled: "%s", type: "%s", event: "%s", priority: "%u", error_handling: "%s"."
+
+ER_GRP_RPL_MEMBER_ACTIONS_RESET
+  eng "Member actions configuration was reset."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

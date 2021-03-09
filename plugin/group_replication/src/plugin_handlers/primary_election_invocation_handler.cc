@@ -22,6 +22,7 @@
 
 #include "plugin/group_replication/include/plugin_handlers/primary_election_invocation_handler.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_handlers/primary_election_utils.h"
 
 Primary_election_handler::Primary_election_handler(
@@ -298,11 +299,8 @@ int Primary_election_handler::legacy_primary_election(
   applier_module->add_single_primary_action_packet(single_primary_action);
 
   if (is_primary_local) {
-    if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
-      LogPluginErr(
-          WARNING_LEVEL,
-          ER_GRP_RPL_DISABLE_READ_ONLY_FAILED); /* purecov: inspected */
-    }
+    member_actions_handler->trigger_actions(
+        Member_actions::AFTER_PRIMARY_ELECTION);
   } else {
     if (enable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
       LogPluginErr(WARNING_LEVEL,

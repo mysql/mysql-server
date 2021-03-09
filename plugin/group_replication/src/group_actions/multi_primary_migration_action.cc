@@ -193,15 +193,25 @@ Multi_primary_migration_action::execute_action(
       events_handler->disable_read_mode_for_compatible_members(true);
     }
   } else {
-    /* Case when 8.0.13 <> 8.0.16 member is present and 8.0.17(or greater) was
-     * primary. Post MPM switch read_only need to be set in 8.0.17 primary. */
-    if (!multi_primary_switch_aborted &&
-        Compatibility_module::check_version_incompatibility(
-            local_member_info->get_member_version(),
-            group_member_mgr->get_group_lowest_online_version()) ==
-            READ_COMPATIBLE) {
-      if (enable_server_read_mode(PSESSION_USE_THREAD)) {
-        LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
+    if (!multi_primary_switch_aborted) {
+      /* Case when 8.0.13 <> 8.0.16 member is present and 8.0.17(or greater) was
+       * primary. Post MPM switch read_only need to be set in 8.0.17 primary. */
+      if (Compatibility_module::check_version_incompatibility(
+              local_member_info->get_member_version(),
+              group_member_mgr->get_group_lowest_online_version()) ==
+          READ_COMPATIBLE) {
+        if (enable_server_read_mode(PSESSION_USE_THREAD)) {
+          /* purecov: begin inspected */
+          LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_ENABLE_READ_ONLY_FAILED);
+          /* purecov: end */
+        }
+      } else {
+        /*
+          Even when this members was the primary on single-primary mode, it
+          might had read_only_mode enabled, as such we need to disable
+          read_only_mode.
+        */
+        events_handler->disable_read_mode_for_compatible_members(true);
       }
     }
   }

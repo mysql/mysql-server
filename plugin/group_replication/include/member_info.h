@@ -1015,9 +1015,15 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   | payload_item_len  |   8 bytes | size of CT_MEMBER_INFO_MESSAGE data  |
   | payload_item      |   X bytes | CT_MEMBER_INFO_MESSAGE data          |
   +-------------------+-----------+--------------------------------------+
+  | payload_item_type |   2 bytes | PIT_MEMBER_ACTIONS                   |
+  | payload_item_len  |   8 bytes | size of PIT_MEMBER_ACTIONS data      |
+  | payload_item      |   X bytes | PIT_MEMBER_ACTIONS data              |
+  +-------------------+-----------+--------------------------------------+
 
- The last tree lines occur the number of times specified on
+ The PIT_MEMBER_DATA lines occur the number of times specified on
  PIT_MEMBERS_NUMBER.
+ The PIT_MEMBER_ACTIONS line will exist if the member that sent the
+ Group_member_info_manager message is not joining.
 */
 class Group_member_info_manager_message : public Plugin_gcs_message {
  public:
@@ -1031,8 +1037,11 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
     // Length of the payload item: variable
     PIT_MEMBER_DATA = 2,
 
+    // Length of the payload item: variable
+    PIT_MEMBER_ACTIONS = 3,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 3
+    PIT_MAX = 4
   };
 
   /**
@@ -1065,6 +1074,37 @@ class Group_member_info_manager_message : public Plugin_gcs_message {
     @return a vector with copies to all members.
    */
   std::vector<Group_member_info *> *get_all_members();
+
+  /**
+    Adds a already serialized member actions configuration
+    to the Group_member_info_manager_message content.
+
+    @param[in] buffer  message buffer
+    @param[in] member_actions_serialized_configuration
+                       serialized member actions configuration
+   */
+  void add_member_actions_serialized_configuration(
+      std::vector<unsigned char> *buffer,
+      const std::string &member_actions_serialized_configuration) const;
+
+  /**
+    Gets the serialized member actions configuration.
+
+    @param[in]  buffer  message buffer
+    @param[in]  length  message buffer length
+    @param[out] member_actions_serialized_configuration
+                       serialized member actions configuration
+    @param[out] member_actions_serialized_configuration_length
+                       serialized member actions configuration length
+
+    @return the operation status
+      @retval false  OK
+      @retval true   member actions do not exist on the message
+   */
+  bool get_member_actions_serialized_configuration(
+      const unsigned char *buffer, size_t length,
+      const unsigned char **member_actions_serialized_configuration,
+      size_t *member_actions_serialized_configuration_length);
 
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const override;

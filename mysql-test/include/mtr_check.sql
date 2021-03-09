@@ -218,6 +218,8 @@ BEGIN
     mysql.proxies_priv,
     mysql.replication_asynchronous_connection_failover,
     mysql.replication_asynchronous_connection_failover_managed,
+    mysql.replication_group_configuration_version,
+    mysql.replication_group_member_actions,
     mysql.role_edges,
     mysql.tables_priv,
     mysql.time_zone,

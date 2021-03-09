@@ -120,6 +120,14 @@ while ($_rpl_server)
     query_vertical
     SELECT * FROM performance_schema.replication_group_member_stats;
     --echo
+    --echo **** replication_group_configuration_version on $CURRENT_CONNECTION ****
+    query_vertical
+    SELECT * FROM performance_schema.replication_group_configuration_version;
+    --echo
+    --echo **** replication_group_member_actions on $CURRENT_CONNECTION ****
+    query_vertical
+    SELECT * FROM performance_schema.replication_group_member_actions;
+    --echo
     --echo **** group replication stages on $CURRENT_CONNECTION ****
     query_vertical
     SELECT * FROM performance_schema.events_stages_current WHERE event_name LIKE "%stage/group_rpl%";
@@ -140,6 +148,14 @@ while ($_rpl_server)
   --echo **** replication_applier_configuration on $CURRENT_CONNECTION ****
   query_vertical
   SELECT * FROM performance_schema.replication_applier_configuration;
+  --echo
+  --echo **** replication_asynchronous_connection_failover on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+  --echo
+  --echo **** replication_asynchronous_connection_failover_managed on $CURRENT_CONNECTION ****
+  query_vertical
+  SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
   --echo
   --echo **** SHOW MASTER STATUS on $CURRENT_CONNECTION ****
   query_vertical

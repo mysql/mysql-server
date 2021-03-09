@@ -75,26 +75,31 @@ void Plugin_gcs_message::encode(std::vector<unsigned char> *buffer) const {
   encode_payload(buffer);
 }
 
+void Plugin_gcs_message::decode_header(const unsigned char **slider) {
+  DBUG_TRACE;
+
+  m_version = uint4korr(*slider);
+  *slider += WIRE_VERSION_SIZE;
+
+  m_fixed_header_len = uint2korr(*slider);
+  *slider += WIRE_HD_LEN_SIZE;
+
+  m_msg_len = uint8korr(*slider);
+  *slider += WIRE_MSG_LEN_SIZE;
+
+  unsigned short s_cargo_type = 0;
+  s_cargo_type = uint2korr(*slider);
+  // enum may have 32bit storage
+  m_cargo_type = (Plugin_gcs_message::enum_cargo_type)s_cargo_type;
+  *slider += WIRE_CARGO_TYPE_SIZE;
+}
+
 void Plugin_gcs_message::decode(const unsigned char *buffer, size_t length) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   const unsigned char *end = buffer + length;
 
-  m_version = uint4korr(slider);
-  slider += WIRE_VERSION_SIZE;
-
-  m_fixed_header_len = uint2korr(slider);
-  slider += WIRE_HD_LEN_SIZE;
-
-  m_msg_len = uint8korr(slider);
-  slider += WIRE_MSG_LEN_SIZE;
-
-  unsigned short s_cargo_type = 0;
-  s_cargo_type = uint2korr(slider);
-  // enum may have 32bit storage
-  m_cargo_type = (Plugin_gcs_message::enum_cargo_type)s_cargo_type;
-  slider += WIRE_CARGO_TYPE_SIZE;
-
+  decode_header(&slider);
   decode_payload(slider, end);
 }
 

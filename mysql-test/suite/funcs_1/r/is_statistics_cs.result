@@ -135,6 +135,10 @@ def	mysql	replication_asynchronous_connection_failover	mysql	PRIMARY
 def	mysql	replication_asynchronous_connection_failover	mysql	PRIMARY
 def	mysql	replication_asynchronous_connection_failover_managed	mysql	PRIMARY
 def	mysql	replication_asynchronous_connection_failover_managed	mysql	PRIMARY
+def	mysql	replication_group_configuration_version	mysql	PRIMARY
+def	mysql	replication_group_member_actions	mysql	PRIMARY
+def	mysql	replication_group_member_actions	mysql	PRIMARY
+def	mysql	replication_group_member_actions	mysql	event
 def	mysql	role_edges	mysql	PRIMARY
 def	mysql	role_edges	mysql	PRIMARY
 def	mysql	role_edges	mysql	PRIMARY

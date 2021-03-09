@@ -1397,3 +1397,61 @@ void Group_member_info_manager_message::decode_payload(
     slider += payload_item_length;
   }
 }
+
+void Group_member_info_manager_message::
+    add_member_actions_serialized_configuration(
+        std::vector<unsigned char> *buffer,
+        const std::string &member_actions_serialized_configuration) const {
+  DBUG_TRACE;
+
+  encode_payload_item_type_and_length(
+      buffer, PIT_MEMBER_ACTIONS,
+      member_actions_serialized_configuration.size());
+  buffer->insert(buffer->end(), member_actions_serialized_configuration.begin(),
+                 member_actions_serialized_configuration.end());
+}
+
+bool Group_member_info_manager_message::
+    get_member_actions_serialized_configuration(
+        const unsigned char *buffer, size_t length,
+        const unsigned char **member_actions_serialized_configuration,
+        size_t *member_actions_serialized_configuration_length) {
+  DBUG_TRACE;
+  const unsigned char *slider = buffer;
+  const unsigned char *end = buffer + length;
+  uint16 payload_item_type = 0;
+  unsigned long long payload_item_length = 0;
+
+  decode_header(&slider);
+
+  uint16 number_of_members = 0;
+  decode_payload_item_int2(&slider, &payload_item_type, &number_of_members);
+
+  for (uint16 i = 0; i < number_of_members; i++) {
+    decode_payload_item_type_and_length(&slider, &payload_item_type,
+                                        &payload_item_length);
+    slider += payload_item_length;
+  }
+
+  while (slider + Plugin_gcs_message::WIRE_PAYLOAD_ITEM_HEADER_SIZE <= end) {
+    // Read payload item header to find payload item length.
+    decode_payload_item_type_and_length(&slider, &payload_item_type,
+                                        &payload_item_length);
+
+    switch (payload_item_type) {
+      case PIT_MEMBER_ACTIONS:
+        if (slider + payload_item_length <= end) {
+          *member_actions_serialized_configuration = slider;
+          *member_actions_serialized_configuration_length = payload_item_length;
+          return false;
+        }
+        slider += payload_item_length;
+        break;
+      default:
+        slider += payload_item_length;
+        break;
+    }
+  }
+
+  return true;
+}

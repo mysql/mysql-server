@@ -35,8 +35,10 @@
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
 #include "plugin/group_replication/include/observer_trans.h"
+#include "plugin/group_replication/include/perfschema/pfs.h"
 #include "plugin/group_replication/include/pipeline_stats.h"
 #include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_handlers/member_actions_handler.h"
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
@@ -117,6 +119,7 @@ Remote_clone_handler *remote_clone_handler = nullptr;
 Message_service_handler *message_service_handler = nullptr;
 /** Handle validation of advertised recovery endpoints */
 Advertised_recovery_endpoints *advertised_recovery_endpoints = nullptr;
+Member_actions_handler *member_actions_handler = nullptr;
 
 Plugin_gcs_events_handler *events_handler = nullptr;
 Plugin_gcs_view_modification_notifier *view_change_notifier = nullptr;
@@ -131,6 +134,11 @@ Compatibility_module *compatibility_mgr = nullptr;
 /* Runtime error service */
 SERVICE_TYPE_NO_CONST(mysql_runtime_error) *mysql_runtime_error_service =
     nullptr;
+
+/* Performance schema module */
+static gr::perfschema::Perfschema_module *perfschema_module = nullptr;
+static bool initialize_perfschema_module();
+static void finalize_perfschema_module();
 
 /*
   Internal auxiliary functions signatures.
@@ -346,6 +354,34 @@ void terminate_wait_on_start_process(bool abort) {
   lv.abort_wait_on_start_process = abort;
   // unblocked waiting threads
   lv.online_wait_mutex->end_wait_lock();
+}
+
+static void finalize_perfschema_module() {
+  if (nullptr != perfschema_module) {
+    perfschema_module->finalize();
+    delete perfschema_module;
+    perfschema_module = nullptr;
+  }
+}
+
+static bool initialize_perfschema_module() {
+  if (nullptr != perfschema_module) {
+    return true; /* purecov: inspected */
+  }
+
+  perfschema_module = new gr::perfschema::Perfschema_module{};
+  if (nullptr == perfschema_module) {
+    return true; /* purecov: inspected */
+  }
+
+  if (perfschema_module->initialize()) {
+    /* purecov: begin inspected */
+    finalize_perfschema_module();
+    return true;
+    /* purecov: end */
+  }
+
+  return false;
 }
 
 static bool initialize_registry_module() {
@@ -705,6 +741,13 @@ int initialize_plugin_and_join(
     /* purecov: end */
   }
 
+  if (member_actions_handler->acquire_send_service()) {
+    /* purecov: begin inspected */
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+    /* purecov: end */
+  }
+
   lv.group_replication_running = true;
   lv.plugin_is_stopping = false;
   log_primary_member_details();
@@ -724,6 +767,9 @@ err:
           "wait_for signal.continue_leave_process";
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
+
+    member_actions_handler->release_send_service();
+    unregister_gr_message_service_send();
 
     auto modules_to_terminate = gr_modules::all_modules;
     modules_to_terminate.reset(gr_modules::ASYNC_REPL_CHANNELS);
@@ -1088,11 +1134,18 @@ int plugin_group_replication_stop(char **error_message) {
     blocked_transaction_handler->unblock_waiting_transactions();
   }
 
-  unregister_gr_message_service_send();
-
   lv.recovery_timeout_issue_on_stop = false;
   int error = leave_group_and_terminate_plugin_modules(gr_modules::all_modules,
                                                        error_message);
+
+  /*
+    We do terminate these services after call `terminate_plugin_modules()`,
+    despite that is after leaving the group, to ensure that these services
+    are terminated after cancelled auto-rejoin attempts.
+  */
+  member_actions_handler->release_send_service();
+  unregister_gr_message_service_send();
+
   /* Delete of credentials is safe now from recovery thread. */
   Replication_thread_api::delete_credential("group_replication_recovery");
 
@@ -1264,6 +1317,15 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
   }
 
   /*
+    Member actions handler.
+  */
+  if (modules_to_init[gr_modules::MEMBER_ACTIONS_HANDLER]) {
+    if (member_actions_handler->init()) {
+      return GROUP_REPLICATION_CONFIGURATION_ERROR;
+    }
+  }
+
+  /*
     The GCS events handler module.
   */
   if (modules_to_init[gr_modules::GCS_EVENTS_HANDLER]) {
@@ -1367,6 +1429,13 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
   */
   if (modules_to_terminate[gr_modules::AUTO_INCREMENT_HANDLER])
     reset_auto_increment_handler_values();
+
+  /*
+    Member actions handler.
+  */
+  if (modules_to_terminate[gr_modules::MEMBER_ACTIONS_HANDLER]) {
+    member_actions_handler->deinit();
+  }
 
   /*
     The service message handler.
@@ -1505,9 +1574,18 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::GROUP_ACTION_COORDINATOR, true);
   modules_mask.set(gr_modules::GCS_EVENTS_HANDLER, true);
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
+  modules_mask.set(gr_modules::MEMBER_ACTIONS_HANDLER, true);
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
   modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
   modules_mask.set(gr_modules::RECOVERY_MODULE, true);
+
+  /*
+    Before leaving the group we need to terminate services that
+    do depend on GCS.
+  */
+  member_actions_handler->release_send_service();
+  unregister_gr_message_service_send();
+
   /*
     The first step is to issue a GCS leave() operation. This is done because
     the join() operation will assume that the GCS layer is not initiated and
@@ -1608,8 +1686,33 @@ bool attempt_rejoin() {
         LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_TIMEOUT_RECEIVED_VC_ON_REJOIN);
       }
     } else {
-      ret = false;
-      lv.error_state_due_to_error_during_autorejoin = false;
+      /*
+        Restart services that do depend on GCS.
+      */
+      if (register_gr_message_service_send() ||
+          member_actions_handler->acquire_send_service()) {
+        /* purecov: begin inspected */
+        member_actions_handler->release_send_service();
+        unregister_gr_message_service_send();
+
+        Notification_context ctx;
+        group_member_mgr->update_member_status(local_member_info->get_uuid(),
+                                               Group_member_info::MEMBER_ERROR,
+                                               ctx);
+        notify_and_reset_ctx(ctx);
+
+        view_change_notifier->start_view_modification();
+        Gcs_operations::enum_leave_state state =
+            gcs_module->leave(view_change_notifier);
+        if (state != Gcs_operations::ERROR_WHEN_LEAVING &&
+            state != Gcs_operations::ALREADY_LEFT) {
+          view_change_notifier->wait_for_view_modification();
+          /* purecov: end */
+        }
+      } else {
+        ret = false;
+        lv.error_state_due_to_error_during_autorejoin = false;
+      }
     }
   }
 
@@ -1688,6 +1791,15 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   mysql_mutex_init(key_GR_LOCK_plugin_modules_termination,
                    &lv.plugin_modules_termination_mutex, MY_MUTEX_INIT_FAST);
 
+  // Initialize performance_schema tables
+  if (initialize_perfschema_module()) {
+    /* purecov: begin inspected */
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                 "Failed to initialize Performance Schema tables.");
+    return 1;
+    /* purecov: end */
+  }
+
   if (group_replication_init()) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_HANDLER);
@@ -1727,6 +1839,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   group_action_coordinator =
       new Group_action_coordinator(ov.components_stop_timeout_var);
   group_action_coordinator->register_coordinator_observers();
+  member_actions_handler = new Member_actions_handler();
 
   bool const error = register_udfs();
   if (error) return 1;
@@ -1782,6 +1895,12 @@ int plugin_group_replication_deinit(void *p) {
 
   lv.plugin_is_being_uninstalled = true;
   int observer_unregister_error = 0;
+
+  /*
+    We make this call early because perfschema tables may rely on
+    `group_member_mgr`.
+  */
+  finalize_perfschema_module();
 
   if (plugin_group_replication_stop())
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_STOP_ON_PLUGIN_UNINSTALL);
@@ -1865,6 +1984,9 @@ int plugin_group_replication_deinit(void *p) {
   unregister_udfs();
   sql_service_interface_deinit();
 
+  delete member_actions_handler;
+  member_actions_handler = nullptr;
+
   if (advertised_recovery_endpoints) delete advertised_recovery_endpoints;
   delete transaction_consistency_manager;
   transaction_consistency_manager = nullptr;
@@ -1901,8 +2023,6 @@ int plugin_group_replication_deinit(void *p) {
 static int plugin_group_replication_check_uninstall(void *) {
   DBUG_TRACE;
 
-  int result = 0;
-
   /*
     Uninstall fails
     1. Plugin is setting the read mode so uninstall would deadlock
@@ -1911,14 +2031,16 @@ static int plugin_group_replication_check_uninstall(void *) {
   if (lv.plugin_is_setting_read_mode ||
       (plugin_is_group_replication_running() &&
        group_member_mgr->is_majority_unreachable())) {
-    result = 1;
     my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), "group_replication",
              "Plugin is busy, it cannot be uninstalled. To"
              " force a stop run STOP GROUP_REPLICATION and then UNINSTALL"
              " PLUGIN group_replication.");
+    return 1;
   }
 
-  return result;
+  finalize_perfschema_module();
+
+  return 0;
 }
 
 static bool init_group_sidno() {

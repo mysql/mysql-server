@@ -124,7 +124,9 @@ extern PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_view_modification_wait,
     key_GR_LOCK_wait_ticket,
     key_GR_LOCK_write_lock_protection,
-    key_GR_LOCK_primary_promotion_policy;
+    key_GR_LOCK_primary_promotion_policy,
+    key_GR_LOCK_mysql_thread_run,
+    key_GR_LOCK_mysql_thread_dispatcher_run;
 
 extern PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_applier_module_suspend,
@@ -158,7 +160,9 @@ extern PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_view_modification_wait,
     key_GR_COND_wait_ticket,
     key_GR_COND_write_lock_protection,
-    key_GR_COND_primary_promotion_policy;
+    key_GR_COND_primary_promotion_policy,
+    key_GR_COND_mysql_thread_run,
+    key_GR_COND_mysql_thread_dispatcher_run;
 
 extern PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_autorejoin,
@@ -171,7 +175,8 @@ extern PSI_thread_key key_GR_THD_applier_module_receiver,
     key_GR_THD_primary_election_secondary_process,
     key_GR_THD_group_partition_handler,
     key_GR_THD_recovery,
-    key_GR_THD_message_service_handler;
+    key_GR_THD_message_service_handler,
+    key_GR_THD_mysql_thread;
 
 extern PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
     key_GR_RWLOCK_channel_observation_list,

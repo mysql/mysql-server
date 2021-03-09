@@ -20,7 +20,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+# Destination of generated protobuf files.
+SET(GR_GENERATE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
+IF(WIN32)
+  # Activate necessary dllexport/dllimport declarations.
+  ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
+ENDIF()
+
 ADD_SUBDIRECTORY(libmysqlgcs)
+ADD_SUBDIRECTORY(protobuf)
 
 SET(GROUP_REPLICATION_SOURCES
   src/applier.cc
@@ -54,10 +63,15 @@ SET(GROUP_REPLICATION_SOURCES
   src/observer_server_channels.cc
   src/observer_server_state.cc
   src/observer_trans.cc
+  src/perfschema/pfs.cc
+  src/perfschema/table_replication_group_configuration_version.cc
+  src/perfschema/table_replication_group_member_actions.cc
   src/pipeline_factory.cc
   src/pipeline_stats.cc
   src/plugin.cc
   src/plugin_handlers/group_partition_handling.cc
+  src/plugin_handlers/member_actions_handler.cc
+  src/plugin_handlers/member_actions_handler_configuration.cc
   src/plugin_handlers/offline_mode_handler.cc
   src/plugin_handlers/persistent_variables_handler.cc
   src/plugin_handlers/primary_election_invocation_handler.cc
@@ -98,7 +112,9 @@ SET(GROUP_REPLICATION_SOURCES
   src/sql_service/sql_service_context.cc
   src/sql_service/sql_service_context_base.cc
   src/sql_service/sql_service_interface.cc
+  src/thread/mysql_thread.cc
   src/udf/udf_communication_protocol.cc
+  src/udf/udf_member_actions.cc
   src/udf/udf_multi_primary.cc
   src/udf/udf_registration.cc
   src/udf/udf_single_primary.cc
@@ -127,6 +143,10 @@ IF(WITH_UNIT_TESTS)
     )
 ENDIF()
 
+ADD_COMPILE_FLAGS(${GROUP_REPLICATION_SOURCES}
+  COMPILE_FLAGS "${GR_PROTOBUF_FLAGS}"
+)
+
 ### Configuration ###
 
 # declare the plugin itself
@@ -136,7 +156,13 @@ MYSQL_ADD_PLUGIN(group_replication
   LINK_LIBRARIES
   ${LZ4_LIBRARY}
   ${SSL_LIBRARIES}
+  ${PROTOBUF_LITE_LIBRARY}
+  ${GR_PROTOBUF_LITE_LIB}
   mysqlgcs
   MODULE_ONLY
   MODULE_OUTPUT_NAME "group_replication"
   )
+
+IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
+  ADD_INSTALL_RPATH_FOR_PROTOBUF(group_replication)
+ENDIF()

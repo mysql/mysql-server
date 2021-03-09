@@ -28,8 +28,6 @@
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/json_dom.h"  // Json_wrapper
-#include "sql/mysqld_thd_manager.h"
-#include "sql/rpl_rli.h"
 #include "sql/rpl_sys_key_access.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
@@ -41,7 +39,8 @@
 Rpl_sys_table_access::Rpl_sys_table_access(const std::string &schema_name,
                                            const std::string &table_name,
                                            uint max_num_field)
-    : m_schema_name(schema_name),
+    : m_lock_type(TL_READ),
+      m_schema_name(schema_name),
       m_table_name(table_name),
       m_max_num_field(max_num_field) {}
 
@@ -99,60 +98,110 @@ bool Rpl_sys_table_access::get_field(Field *field, Json_wrapper &fld) {
   return true;
 }
 
-void Rpl_sys_table_access::before_open(THD *) {
-  DBUG_TRACE;
-
-  m_flags = (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
-             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY | MYSQL_OPEN_IGNORE_FLUSH |
-             MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_LOCK_RPL_INFO_TABLE);
-}
-
 bool Rpl_sys_table_access::open(enum thr_lock_type lock_type) {
   assert(nullptr == m_thd);
+  m_lock_type = lock_type;
   m_current_thd = current_thd;
-  m_thd = create_thd();
-  if (m_thd == nullptr) {
-    set_error();
-    return m_error;
+
+  THD *thd = nullptr;
+  thd = new THD;
+  thd->thread_stack = (char *)&thd;
+  thd->store_globals();
+  thd->security_context()->skip_grants();
+  thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  thd->set_new_thread_id();
+  thd->variables.option_bits &= ~OPTION_BIN_LOG;
+  thd->variables.option_bits &= ~OPTION_AUTOCOMMIT;
+  thd->variables.option_bits |= OPTION_NOT_AUTOCOMMIT;
+  thd->set_skip_readonly_check();
+  m_thd = thd;
+
+  // m_table_list[0] is m_schema_name.m_table_name
+  // m_table_list[1] is m_schema_version_name.m_table_version_name
+  m_table_list = new TABLE_LIST[m_table_list_size];
+
+  TABLE_LIST *table_version = &m_table_list[m_table_version_index];
+  *table_version =
+      TABLE_LIST(m_schema_version_name.c_str(), m_schema_version_name.length(),
+                 m_table_version_name.c_str(), m_table_version_name.length(),
+                 m_table_version_name.c_str(), m_lock_type);
+  table_version->open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
+  table_version->next_local = nullptr;
+  table_version->next_global = nullptr;
+
+  TABLE_LIST *table_data = &m_table_list[m_table_data_index];
+  *table_data = TABLE_LIST(m_schema_name.c_str(), m_schema_name.length(),
+                           m_table_name.c_str(), m_table_name.length(),
+                           m_table_name.c_str(), m_lock_type);
+  table_data->open_strategy = TABLE_LIST::OPEN_IF_EXISTS;
+  table_data->next_local = table_version;
+  table_data->next_global = table_version;
+
+  uint flags =
+      (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK | MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
+       MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT);
+  if (open_and_lock_tables(m_thd, m_table_list, flags)) {
+    /* purecov: begin inspected */
+    m_error = true;
+    goto err;
+    /* purecov: end */
   }
 
-  m_thd->set_new_thread_id();
-  m_thd->variables.option_bits &= ~OPTION_BIN_LOG;
-  m_thd->variables.option_bits &= ~OPTION_AUTOCOMMIT;
-  m_thd->variables.option_bits |= OPTION_NOT_AUTOCOMMIT;
-  m_thd->set_skip_readonly_check();
+  if (table_data->table->s->fields < m_max_num_field) {
+    /* purecov: begin inspected */
+    m_error = true;
+    goto err;
+    /* purecov: end */
+  }
 
-  Global_THD_manager::get_instance()->add_thd(m_thd);
+  table_version->table->use_all_columns();
+  table_data->table->use_all_columns();
 
-  if (this->open_table(m_thd, m_schema_name, m_table_name, m_max_num_field,
-                       lock_type, &m_table, &m_backup)) {
-    set_error();
+err:
+  if (m_error) {
+    /* purecov: begin inspected */
+    close(true);
+    /* purecov: end */
   }
 
   return m_error;
 }
 
-bool Rpl_sys_table_access::close(bool error) {
-  if (m_key_deinit) return false;
+bool Rpl_sys_table_access::close(bool error, bool ignore_global_read_lock) {
+  DBUG_EXECUTE_IF("force_error_on_configuration_table_close", m_error = true;);
 
-  if (this->close_table(m_thd, m_table, &m_backup, m_error, true))
-    m_error = true;
+  if (!m_thd) return false;
 
   if (error || m_error) {
     trans_rollback_stmt(m_thd);
     trans_rollback(m_thd);
   } else {
-    m_error = trans_commit_stmt(m_thd) || trans_commit(m_thd);
+    m_error = trans_commit_stmt(m_thd, ignore_global_read_lock) ||
+              trans_commit(m_thd, ignore_global_read_lock);
   }
 
-  m_thd->release_resources();
-  Global_THD_manager::get_instance()->remove_thd(m_thd);
-  drop_thd(m_thd);
-  m_thd = nullptr;
-  if (m_current_thd) m_current_thd->store_globals();
+  close_thread_tables(m_thd);
+  delete[] m_table_list;
+  m_table_list = nullptr;
 
-  m_key_deinit = true;
+  m_thd->release_resources();
+  delete m_thd;
+  m_thd = nullptr;
+
+  if (m_current_thd) m_current_thd->store_globals();
+  m_current_thd = nullptr;
+
+  m_lock_type = TL_READ;
+
   return m_error;
+}
+
+TABLE *Rpl_sys_table_access::get_table() {
+  if (nullptr != m_table_list) {
+    return m_table_list[m_table_data_index].table;
+  }
+
+  return nullptr; /* purecov: inspected */
 }
 
 void Rpl_sys_table_access::handler_write_row_func(
@@ -206,4 +255,95 @@ std::string Rpl_sys_table_access::get_field_error_msg(
   str_stream << "Error saving " << field_name << " field of " << m_schema_name
              << "." << m_table_name << ".";
   return str_stream.str();
+}
+
+bool Rpl_sys_table_access::increment_version() {
+  DBUG_TRACE;
+  assert(m_lock_type >= TL_WRITE_ALLOW_WRITE);
+  longlong version = 0;
+
+  TABLE *table_version = m_table_list[m_table_version_index].table;
+  Field **fields = table_version->field;
+  fields[0]->set_notnull();
+  fields[0]->store(m_table_name.c_str(), m_table_name.length(),
+                   &my_charset_bin);
+
+  Rpl_sys_key_access key_access;
+  int error = key_access.init(table_version);
+
+  if (HA_ERR_KEY_NOT_FOUND == error) {
+    /* purecov: begin inspected */
+    error = 0;
+    version = 1;
+    /* purecov: end */
+  } else if (error) {
+    return true; /* purecov: inspected */
+  } else {
+    version = 1 + fields[1]->val_int();
+    error |= table_version->file->ha_delete_row(table_version->record[0]);
+  }
+
+  if (!error) {
+    fields[1]->set_notnull();
+    fields[1]->store(version, true);
+    error |= table_version->file->ha_write_row(table_version->record[0]);
+  }
+
+  error |= key_access.deinit();
+
+  return error;
+}
+
+bool Rpl_sys_table_access::update_version(longlong version) {
+  DBUG_TRACE;
+  assert(m_lock_type >= TL_WRITE_ALLOW_WRITE);
+
+  TABLE *table_version = m_table_list[m_table_version_index].table;
+  Field **fields = table_version->field;
+  fields[0]->set_notnull();
+  fields[0]->store(m_table_name.c_str(), m_table_name.length(),
+                   &my_charset_bin);
+
+  Rpl_sys_key_access key_access;
+  int error = key_access.init(table_version);
+
+  if (HA_ERR_KEY_NOT_FOUND == error) {
+    error = 0; /* purecov: inspected */
+  } else if (error) {
+    return true; /* purecov: inspected */
+  } else {
+    error |= table_version->file->ha_delete_row(table_version->record[0]);
+  }
+
+  if (!error) {
+    fields[1]->set_notnull();
+    fields[1]->store(version, true);
+    error |= table_version->file->ha_write_row(table_version->record[0]);
+  }
+
+  error |= key_access.deinit();
+
+  return error;
+}
+
+longlong Rpl_sys_table_access::get_version() {
+  DBUG_TRACE;
+  longlong version = 0;
+
+  TABLE *table_version = m_table_list[m_table_version_index].table;
+  Field **fields = table_version->field;
+  fields[0]->set_notnull();
+  fields[0]->store(m_table_name.c_str(), m_table_name.length(),
+                   &my_charset_bin);
+
+  Rpl_sys_key_access key_access;
+  int error = key_access.init(table_version);
+
+  if (!error) {
+    version = fields[1]->val_int();
+  }
+
+  key_access.deinit();
+
+  return version;
 }

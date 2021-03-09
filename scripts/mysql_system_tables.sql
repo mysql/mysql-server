@@ -456,6 +456,32 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+-- replication_group_member_actions
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_group_member_actions (
+    name CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The action name.',
+    event CHAR(64) CHARACTER SET ASCII NOT NULL COMMENT 'The event that will trigger the action.',
+    enabled BOOLEAN NOT NULL COMMENT 'Whether the action is enabled.',
+    type CHAR(64) CHARACTER SET ASCII NOT NULL COMMENT 'The action type.',
+    priority TINYINT UNSIGNED NOT NULL COMMENT 'The order on which the action will be run, value between 1 and 100, lower values first.',
+    error_handling CHAR(64) CHARACTER SET ASCII NOT NULL COMMENT 'On errors during the action will be handled: IGNORE, CRITICAL.',
+    PRIMARY KEY(name, event), KEY(event)) DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=0 COMMENT 'The member actions configuration.'";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+-- replication_group_configuration_version
+SET @cmd= "CREATE TABLE IF NOT EXISTS replication_group_configuration_version (
+    name CHAR(255) CHARACTER SET ASCII NOT NULL COMMENT 'The configuration name.',
+    version BIGINT UNSIGNED NOT NULL COMMENT 'The version of the configuration name.',
+    PRIMARY KEY(name)) DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=0 COMMENT 'The group configuration version.'";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 --
 -- Optimizer Cost Model configuration
 -- (Note: Column definition for default_value needs to be updated when a

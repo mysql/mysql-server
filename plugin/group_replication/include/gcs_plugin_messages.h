@@ -260,6 +260,15 @@ class Plugin_gcs_message {
   explicit Plugin_gcs_message(enum_cargo_type cargo_type);
 
   /**
+    Decodes the header of the buffer into this instance.
+
+    @param[out] slider before call `decode_header`: the start of the buffer
+                       after call `decode_header`: the position on which the
+                                                   header ends on the buffer.
+  */
+  void decode_header(const unsigned char **slider);
+
+  /**
     Encodes the contents of this instance payload into the buffer.
 
     @param[out] buffer the buffer to encode to.

@@ -806,6 +806,7 @@ ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
 ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover STATS_PERSISTENT=0;
 ALTER TABLE replication_asynchronous_connection_failover_managed STATS_PERSISTENT=0;
+ALTER TABLE replication_group_member_actions STATS_PERSISTENT=0;
 ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 
 #
@@ -1321,6 +1322,7 @@ ALTER TABLE mysql.slave_master_info TABLESPACE = mysql;
 ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover TABLESPACE = mysql;
 ALTER TABLE mysql.replication_asynchronous_connection_failover_managed TABLESPACE = mysql;
+ALTER TABLE mysql.replication_group_member_actions TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
@@ -1392,6 +1394,7 @@ ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover ROW_FORMAT=DYNAMIC;
 ALTER TABLE replication_asynchronous_connection_failover_managed ROW_FORMAT=DYNAMIC;
+ALTER TABLE replication_group_member_actions ROW_FORMAT=DYNAMIC;
 ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
 ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
 ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;

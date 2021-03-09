@@ -77,6 +77,8 @@ def	mysql	PRIMARY	mysql	procs_priv
 def	mysql	PRIMARY	mysql	proxies_priv
 def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover
 def	mysql	PRIMARY	mysql	replication_asynchronous_connection_failover_managed
+def	mysql	PRIMARY	mysql	replication_group_configuration_version
+def	mysql	PRIMARY	mysql	replication_group_member_actions
 def	mysql	PRIMARY	mysql	role_edges
 def	mysql	PRIMARY	mysql	server_cost
 def	mysql	PRIMARY	mysql	servers

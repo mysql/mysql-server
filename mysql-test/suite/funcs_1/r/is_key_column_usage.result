@@ -120,6 +120,9 @@ def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Network
 def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover	Port
 def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover_managed	Channel_name
 def	mysql	PRIMARY	def	mysql	replication_asynchronous_connection_failover_managed	Managed_name
+def	mysql	PRIMARY	def	mysql	replication_group_configuration_version	name
+def	mysql	PRIMARY	def	mysql	replication_group_member_actions	event
+def	mysql	PRIMARY	def	mysql	replication_group_member_actions	name
 def	mysql	PRIMARY	def	mysql	role_edges	FROM_HOST
 def	mysql	PRIMARY	def	mysql	role_edges	FROM_USER
 def	mysql	PRIMARY	def	mysql	role_edges	TO_HOST
