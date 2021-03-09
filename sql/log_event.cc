@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4785,10 +4785,6 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
-        /*
-          Prevent "hanging" of previous rewritten query in SHOW PROCESSLIST.
-        */
-        thd->reset_rewritten_query();
         mysql_parse(thd, &parser_state);
 
         /*
@@ -5057,6 +5053,7 @@ end:
 
   /* Mark the statement completed. */
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->reset_rewritten_query();
   thd->m_statement_psi= NULL;
   thd->m_digest= NULL;
 

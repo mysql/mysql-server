@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2021, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -5895,11 +5895,7 @@ ha_innobase::open(
 	normalize_table_name(norm_name, name);
 
 	m_user_thd = NULL;
-
-	if (!(m_share = get_share(name))) {
-
-		DBUG_RETURN(1);
-	}
+	m_share = NULL;
 
 	/* Will be allocated if it is needed in ::update_row() */
 	m_upd_buf = NULL;
@@ -5933,6 +5929,18 @@ ha_innobase::open(
 		ut_ad(dict_table_is_intrinsic(ib_table));
 	}
 
+	/* m_share might hold pointers to dict table indexes without any pin.
+	We must always allocate m_share after opening the dict_table_t object
+	and free it before de-allocating dict_table_t to avoid race. */
+	if (ib_table != NULL) {
+		m_share = get_share(name);
+		if (m_share == NULL) {
+			dict_table_close(ib_table, FALSE, FALSE);
+			DBUG_RETURN(HA_ERR_SE_OUT_OF_MEMORY);
+		}
+	}
+
+
 	if (ib_table != NULL
 	    && ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
 		 && table->s->fields != dict_table_get_n_tot_u_cols(ib_table))
@@ -5951,6 +5959,7 @@ ha_innobase::open(
 		/* Mark this table as corrupted, so the drop table
 		or force recovery can still use it, but not others. */
 		ib_table->corrupted = true;
+		free_share(m_share);
 		dict_table_close(ib_table, FALSE, FALSE);
 		ib_table = NULL;
 		is_part = NULL;
@@ -5966,11 +5975,11 @@ ha_innobase::open(
 		/* Mark this table as corrupted, so the drop table
 		or force recovery can still use it, but not others. */
 
+		free_share(m_share);
 		dict_table_close(ib_table, FALSE, FALSE);
 		ib_table = NULL;
 		is_part = NULL;
 
-		free_share(m_share);
 		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
 
 		DBUG_RETURN(HA_ERR_TABLE_CORRUPT);
@@ -5987,7 +5996,6 @@ ha_innobase::open(
 			" internal data dictionary of InnoDB though the .frm"
 			" file for the table exists. " << TROUBLESHOOTING_MSG;
 
-		free_share(m_share);
 		set_my_errno(ENOENT);
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -6418,6 +6426,8 @@ ha_innobase::close()
 		innobase_release_temporary_latches(ht, thd);
 	}
 
+	free_share(m_share);
+
 	row_prebuilt_free(m_prebuilt, FALSE);
 
 	if (m_upd_buf != NULL) {
@@ -6426,8 +6436,6 @@ ha_innobase::close()
 		m_upd_buf = NULL;
 		m_upd_buf_size = 0;
 	}
-
-	free_share(m_share);
 
 	MONITOR_INC(MONITOR_TABLE_CLOSE);
 

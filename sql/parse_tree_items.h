@@ -757,7 +757,7 @@ public:
       error(pc, var_pos);
       return true;
     }
-    if (!(*res= get_system_var(pc, var_type, var, component)))
+    if (!(*res= get_system_var(pc, var_type, var, component, true)))
       return true;
     if (!my_strcasecmp(system_charset_info, var.str, "warning_count") ||
         !my_strcasecmp(system_charset_info, var.str, "error_count"))
@@ -770,9 +770,6 @@ public:
       */
       lex->keep_diagnostics= DA_KEEP_COUNTS;
     }
-    if (!((Item_func_get_system_var*) *res)->is_written_to_binlog())
-      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
-
     return false;
   }
 };
