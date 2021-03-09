@@ -34,19 +34,6 @@ Clone Plugin: Server implementation
 /* Namespace for all clone data types */
 namespace myclone {
 
-/** All configuration parameters to be validated. */
-Key_Values Server::s_configs = {{"version", ""},
-                                {"version_compile_machine", ""},
-                                {"version_compile_os", ""},
-                                {"character_set_server", ""},
-                                {"character_set_filesystem", ""},
-                                {"collation_server", ""},
-                                {"innodb_page_size", ""}};
-
-/** All other configuration required by recipient. */
-Key_Values Server::s_other_configs = {
-    {"clone_donor_timeout_after_network_failure", ""}};
-
 Server::Server(THD *thd, MYSQL_SOCKET socket)
     : m_server_thd(thd),
       m_is_master(false),
@@ -514,7 +501,20 @@ int Server::send_params() {
 }
 
 int Server::send_configs(Command_Response rcmd) {
-  auto &configs = (rcmd == COM_RES_CONFIG_V3) ? s_other_configs : s_configs;
+  /** All configuration parameters to be validated. */
+  Key_Values all_configs = {{"version", ""},
+                            {"version_compile_machine", ""},
+                            {"version_compile_os", ""},
+                            {"character_set_server", ""},
+                            {"character_set_filesystem", ""},
+                            {"collation_server", ""},
+                            {"innodb_page_size", ""}};
+
+  /** All other configuration required by recipient. */
+  Key_Values other_configs = {
+      {"clone_donor_timeout_after_network_failure", ""}};
+
+  auto &configs = (rcmd == COM_RES_CONFIG_V3) ? other_configs : all_configs;
 
   auto err =
       mysql_service_clone_protocol->mysql_clone_get_configs(get_thd(), configs);

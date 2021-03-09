@@ -126,12 +126,6 @@ class Server {
     return m_protocol_version < CLONE_PROTOCOL_VERSION_V3;
   }
 
-  /** Configuration parameters to be validated by remote. */
-  static Key_Values s_configs;
-
-  /** Additional configuration parameters needed by recipient. */
-  static Key_Values s_other_configs;
-
  private:
   /** Check if network error
   @param[in]	err	error code
