@@ -745,6 +745,28 @@ ConfigManager::config_ok(const Config* conf)
                          datadir);
     return false;
   }
+
+  /**
+   * Gives information to users to start all the management nodes for multiple
+   * mgmd node configuration.
+   */
+  if (!(m_started.get(m_node_id) || m_opts.print_full_config)) {
+    Uint32 num_mgm_nodes = 0;
+    ConfigIter it(conf, CFG_SECTION_NODE);
+    for (it.first(); it.valid(); it.next()) {
+      unsigned int type;
+      require(it.get(CFG_TYPE_OF_SECTION, &type) == 0);
+
+      if (type == NODE_TYPE_MGM) num_mgm_nodes++;
+      if (num_mgm_nodes > 1) {
+        g_eventLogger->info("Cluster configuration has multiple "
+                            "Management nodes. Please start the other "
+                            "mgmd nodes if not started yet.");
+        break;
+      }
+    }
+  }
+
   return true;
 }
 

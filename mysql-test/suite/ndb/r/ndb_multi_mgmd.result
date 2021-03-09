@@ -1,0 +1,3 @@
+Bug32339789
+MySQL Cluster Management Server
+ INFO     -- Cluster configuration has multiple Management nodes. Please start the other mgmd nodes if not started yet.

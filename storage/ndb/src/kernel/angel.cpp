@@ -593,6 +593,16 @@ angel_run(const char* progname,
                            retriever.get_mgmd_port());
   g_eventLogger->info("Angel connected to '%s'", sockaddr_string);
 
+  /**
+   * Gives information to users before allocating nodeid if invalid
+   * configuration is fetched or configuration is not yet committed.
+   */
+  if (!retriever.getConfig(retriever.get_mgmHandle())) {
+    g_eventLogger->info("Could not fetch configuration/invalid "
+                        "configuration, message: '%s'",
+                        retriever.getErrorString());
+  }
+
   const int alloc_retries = 10;
   const int alloc_delay = 3;
   const Uint32 nodeid = retriever.allocNodeId(alloc_retries, alloc_delay);
