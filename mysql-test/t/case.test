@@ -359,3 +359,14 @@ INSERT INTO t1 VALUES (REPEAT("a",100));
 SELECT (t1.a,t1.a) IN (('a','c'),('a','b')) END FROM t1;
 SELECT CASE t1.a WHEN 'a' THEN 'c' ELSE 'd' END FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32591239: VAL_JSON(JSON_WRAPPER*):ASSERTION
+--echo #               `!CURRENT_THD->IS_ERROR() && HAS_VALUE' FAILED
+--echo #
+CREATE TABLE t1 (col_int int, col_double double, j json);
+INSERT INTO t1 VALUES (382218415, -36452.389, '{"key1": 220655528}');
+--error ER_DATA_OUT_OF_RANGE
+SELECT col_int FROM t1
+WHERE CASE WHEN POWER(col_double, col_int) THEN j ELSE j END;
+DROP TABLE t1;
