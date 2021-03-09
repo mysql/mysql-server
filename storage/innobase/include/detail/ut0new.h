@@ -35,11 +35,30 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <limits>
 #include <memory>
 #include <utility>
+
 #include "my_compiler.h"
+#include "my_dbug.h"
+#include "mysql/psi/mysql_memory.h"
 #include "storage/innobase/include/ut0tuple.h"
 
 namespace ut {
 namespace detail {
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+constexpr bool WITH_PFS_MEMORY = true;
+#else
+constexpr bool WITH_PFS_MEMORY = false;
+#endif
+
+/** Simple wrapping type around malloc, calloc and friends.*/
+template <bool Zero_initialized>
+struct Alloc_fn {
+  static void *alloc(size_t nbytes) { return std::malloc(nbytes); }
+};
+template <>
+struct Alloc_fn<true> {
+  static void *alloc(size_t nbytes) { return std::calloc(1, nbytes); }
+};
 
 struct Aligned_alloc_impl {
   /** Block of memory returned by this functor will have an additional
@@ -49,6 +68,9 @@ struct Aligned_alloc_impl {
       exemplary usages of it.
    */
   static constexpr uint32_t metadata_size = alignof(max_align_t);
+
+  /** Alias that we will be using to denote ptr to DATA segment. */
+  using data_segment_ptr = void *;
 
   /** Dynamically allocates storage of given size and at the address aligned to
       the requested alignment.
@@ -75,16 +97,16 @@ struct Aligned_alloc_impl {
       at address 128. This address must be a multiple of
       alignof(std::max_align_t) which in this example is 16.
 
-           ---------------------------
-           | VAR |   META  |   DATA  |
-           ---------------------------
-           128   144       160     170
+           ------------------------------
+           | VARLEN |   META  |   DATA  |
+           ------------------------------
+           128      144       160     170
 
       DATA is an actual data which has been requested with given size (10) and
       alignment (32).
       META is the alignof(std::max_align_t) segment that can always be freely
       used by other implementations.
-      VAR is the leftover variable segment of bytes that specialized
+      VARLEN is the leftover variable-length segment that specialized
       implementations can further make use of by deducing its size from returned
       offset.
 
@@ -100,7 +122,8 @@ struct Aligned_alloc_impl {
       dynamic allocation function (e.g. std::malloc). Otherwise {nullptr, 0} if
       dynamic storage allocation failed.
    */
-  inline std::pair<void *, std::size_t> operator()(
+  template <bool Zero_initialized>
+  static inline std::pair<data_segment_ptr, std::size_t> alloc(
       std::size_t size, std::size_t alignment) noexcept {
     // This API is only about the extended alignments. Non-extended are
     // already handled with std::malloc.
@@ -193,8 +216,8 @@ struct Aligned_alloc_impl {
     // Given that P is a runtime value which we cannot know upfront we must opt
     // for N = S + A.
     const std::size_t data_len = size + alignment;
-    void *mem = std::malloc(data_len);
-    if (!mem) return {nullptr, 0};
+    void *mem = Alloc_fn<Zero_initialized>::alloc(data_len);
+    if (unlikely(!mem)) return {nullptr, 0};
 
     // To guarantee that storage allocated by this function is as advertised
     // (exactly (size + alignment) big with at least alignof(std::max_align_t)
@@ -217,253 +240,630 @@ struct Aligned_alloc_impl {
     return {buf, reinterpret_cast<std::uintptr_t>(buf) -
                      reinterpret_cast<std::uintptr_t>(mem)};
   }
+
+  /** Releases storage allocated through alloc().
+
+      @param[in] ptr data_segment_pointer decreased by offset bytes. Both are
+      obtained through alloc().
+  */
+  static inline void free(void *ptr) noexcept { std::free(ptr); }
+};
+
+/** Memory layout representation of metadata segment guaranteed by
+    the inner workings of Aligned_alloc_impl.
+
+     ----------------------------------------------------
+     | VARLEN | ALIGNED-ALLOC-META |    ... DATA ...    |
+     ----------------------------------------------------
+                 ^                  ^
+                 |                  |
+                 |                  |
+                 |         ptr returned by Aligned_alloc_impl
+                 |
+                --------------------------------
+                |    META_2    |     META_1    |
+                --------------------------------
+                 \                              \
+                  0                              \
+                                                  \
+                                        alignof(max_align_t) - 1
+
+   VARLEN and ALIGNED-ALLOC-META are direct byproduct of Aligned_alloc_impl
+   layout and guarantees.
+
+   VARLEN is the leftover variable-length segment that specialized
+   implementations can further make use of by deducing its size from returned
+   offset. Not used by this implementation.
+
+   ALIGNED-ALLOC-META is the segment which this abstraction is about. It
+   can hold up to sizeof(META_1) + sizeof(META_2) bytes which is, due to
+   Aligned_alloc_impl guarantees, at most alignof(max_align_t) bytes large.
+   Providing larger data than supported is not possible and it is guarded
+   through the means of static_assert. META_1 and META_2 fields can be
+   arbitrarily sized meaning that they can even be of different sizes each.
+
+   DATA is an actual segment which will keep the user data.
+  */
+template <typename Meta_1_type, typename Meta_2_type>
+struct Aligned_alloc_metadata {
+  /** Convenience types that we will be using to serialize necessary details
+      into the metadata segment.
+   */
+  using meta_1_t = Meta_1_type;
+  using meta_2_t = Meta_2_type;
+  using unaligned_meta_2_t = meta_2_t;
+
+  /** Metadata size */
+  static constexpr auto allocator_metadata_size =
+      sizeof(meta_1_t) + sizeof(meta_2_t);
+  /** Max metadata size */
+  static constexpr auto max_metadata_size = Aligned_alloc_impl::metadata_size;
+  /** Bail out if we cannot fit the requested data size. */
+  static_assert(allocator_metadata_size <= max_metadata_size,
+                "Aligned_alloc_impl provides a strong guarantee "
+                "of only up to Aligned_alloc_impl::metadata_size bytes.");
+
+  /** Helper function which stores user-provided detail into the META_1 field.
+   */
+  static inline void meta_1(Aligned_alloc_impl::data_segment_ptr data,
+                            std::size_t meta_1_v) noexcept {
+    assert(meta_1_v <= std::numeric_limits<meta_1_t>::max());
+    *ptr_to_meta_1(data) = meta_1_v;
+  }
+  /** Helper function which stores user-provided detail into the META_2 field.
+   */
+  static inline void meta_2(Aligned_alloc_impl::data_segment_ptr data,
+                            std::size_t meta_2_v) noexcept {
+    assert(meta_2_v <= std::numeric_limits<meta_2_t>::max());
+    memcpy(ptr_to_meta_2(data), &meta_2_v, sizeof(meta_2_t));
+  }
+  /** Helper function which recovers the information user previously stored in
+      META_1 field.
+   */
+  static inline meta_1_t meta_1(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    return *ptr_to_meta_1(data);
+  }
+  /** Helper function which recovers the information user previously stored in
+      META_2 field.
+   */
+  static inline meta_2_t meta_2(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    meta_2_t meta_2_v;
+    memcpy(&meta_2_v, ptr_to_meta_2(data), sizeof(meta_2_t));
+    return meta_2_v;
+  }
+
+ private:
+  /** Helper accessor function to metadata (offset). */
+  static inline meta_1_t *ptr_to_meta_1(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    return reinterpret_cast<meta_1_t *>(data) - 1;
+  }
+  /** Helper accessor function to metadata (data length). */
+  static inline unaligned_meta_2_t *ptr_to_meta_2(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    return reinterpret_cast<meta_2_t *>(ptr_to_meta_1(data)) - 1;
+  }
+};
+
+/** Memory layout representation of PFS metadata segment that is used by
+    the allocator variants which also want to trace the memory consumption
+    through PFS (PSI) interface.
+
+     --------------------------------------------------
+     | PFS-META | VARLEN | PFS-META-OFFSET |   DATA   |
+     --------------------------------------------------
+      ^    ^                                ^
+      |    |                                |
+      |   ---------------------------       |
+      |   | OWNER |  DATALEN  | KEY |       |
+      |   ---------------------------       |
+      |                                     |
+   ptr returned by                          |
+   Aligned_alloc_impl                       |
+                                            |
+                               ptr to be returned to call-site
+                                   will be pointing here
+
+   PFS-META is a segment that will hold all the necessary details one needs
+   to otherwise carry around in order to exercise the PFS memory tracing.
+   Following data will be serialized into this segment:
+     * Owning thread
+     * Total length of bytes allocated
+     * Key
+
+   VARLEN is the leftover variable-length segment that specialized
+   implementations can further make use of by deducing its size from the
+   following formulae: requested_alignment - sizeof(PFS-META-OFFSET) -
+   sizeof(PFS-META). In code that would be alignment -
+   PFS_metadata::pfs_metadata_size. Not used by this implementation.
+
+   PFS-META-OFFSET is a field which allows us to recover the pointer to PFS-META
+   segment from a pointer to DATA segment.
+
+   DATA is an actual segment which will keep the user data.
+ */
+struct PFS_metadata {
+  /** Convenience types that we will be using to serialize necessary details
+      into the Aligned_alloc metadata (allocator and PFS) segments.
+   */
+  using pfs_owning_thread_t = PSI_thread *;
+  using pfs_datalen_t = std::size_t;
+  using pfs_memory_key_t = PSI_memory_key;
+  using pfs_meta_offset_t = std::uint32_t;
+  using data_segment_ptr = void *;
+
+  /** Metadata size */
+  static constexpr auto pfs_metadata_size =
+      sizeof(pfs_memory_key_t) + sizeof(pfs_owning_thread_t) +
+      sizeof(pfs_datalen_t) + sizeof(pfs_meta_offset_t);
+
+  /** Helper function which stores the PFS thread info into the OWNER field. */
+  static inline void pfs_owning_thread(
+      Aligned_alloc_impl::data_segment_ptr data,
+      pfs_owning_thread_t thread) noexcept {
+    *ptr_to_pfs_owning_thread(data) = thread;
+  }
+  /** Helper function which stores the PFS datalen info into the DATALEN field.
+   */
+  static inline void pfs_datalen(Aligned_alloc_impl::data_segment_ptr data,
+                                 size_t datalen) noexcept {
+    assert(datalen <= std::numeric_limits<pfs_datalen_t>::max());
+    *ptr_to_pfs_datalen(data) = datalen;
+  }
+  /** Helper function which stores the PFS key info into the KEY field. */
+  static inline void pfs_key(Aligned_alloc_impl::data_segment_ptr data,
+                             pfs_memory_key_t key) noexcept {
+    *ptr_to_pfs_key(data) = key;
+  }
+  /** Helper function which stores the offset to PFS metadata segment into the
+   * PFS-META-OFFSET field.
+   */
+  static inline void pfs_metaoffset(Aligned_alloc_impl::data_segment_ptr data,
+                                    std::size_t alignment) noexcept {
+    assert(pfs_metadata_size <= alignment);
+    *ptr_to_pfs_meta_offset(data, alignment) = alignment;
+  }
+  /** Helper function which recovers the information user previously stored in
+      OWNER field.
+   */
+  static inline pfs_owning_thread_t pfs_owning_thread(
+      data_segment_ptr data) noexcept {
+    auto offset = pfs_meta_offset(data);
+    return *reinterpret_cast<pfs_owning_thread_t *>(
+        static_cast<uint8_t *>(data) - offset);
+  }
+  /** Helper function which recovers the information user previously stored in
+      DATALEN field.
+   */
+  static inline pfs_datalen_t pfs_datalen(data_segment_ptr data) noexcept {
+    auto offset = pfs_meta_offset(data);
+    return *reinterpret_cast<pfs_datalen_t *>(
+        static_cast<uint8_t *>(data) - offset + sizeof(pfs_owning_thread_t));
+  }
+  /** Helper function which recovers the information user previously stored in
+      KEY field.
+   */
+  static inline pfs_memory_key_t pfs_key(data_segment_ptr data) noexcept {
+    auto offset = pfs_meta_offset(data);
+    return *reinterpret_cast<pfs_memory_key_t *>(
+        static_cast<uint8_t *>(data) - offset + sizeof(pfs_datalen_t) +
+        sizeof(pfs_owning_thread_t));
+  }
+  /** Helper function which deduces the pointer to the beginning of PFS metadata
+      segment given the pointer to DATA segment.
+    */
+  static inline void *deduce_pfs_meta(data_segment_ptr data) noexcept {
+    auto offset = pfs_meta_offset(data);
+    return reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(data) -
+                                    offset);
+  }
+
+ private:
+  /** Helper accessor function to OWNER metadata. */
+  static inline pfs_owning_thread_t *ptr_to_pfs_owning_thread(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    return reinterpret_cast<pfs_owning_thread_t *>(data);
+  }
+  /** Helper accessor function to DATALEN metadata. */
+  static inline pfs_datalen_t *ptr_to_pfs_datalen(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    return reinterpret_cast<pfs_datalen_t *>(ptr_to_pfs_owning_thread(data) +
+                                             1);
+  }
+  /** Helper accessor function to PFS metadata. */
+  static inline pfs_memory_key_t *ptr_to_pfs_key(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    return reinterpret_cast<pfs_memory_key_t *>(ptr_to_pfs_datalen(data) + 1);
+  }
+  /** Helper accessor function to PFS-META-OFFSET metadata. */
+  static inline pfs_meta_offset_t *ptr_to_pfs_meta_offset(
+      Aligned_alloc_impl::data_segment_ptr data,
+      std::size_t alignment) noexcept {
+    return reinterpret_cast<pfs_meta_offset_t *>(
+        static_cast<uint8_t *>(data) + alignment - sizeof(pfs_meta_offset_t));
+  }
+  /** Helper function which deduces PFS-META-OFFSET metadata value given the
+      pointer to DATA segment. */
+  static inline pfs_meta_offset_t pfs_meta_offset(
+      data_segment_ptr data) noexcept {
+    return *(reinterpret_cast<pfs_meta_offset_t *>(
+        static_cast<uint8_t *>(data) - sizeof(pfs_meta_offset_t)));
+  }
+};
+
+/** Simple allocator traits. */
+template <bool Pfs_instrumented>
+struct allocator_traits {
+  // Is allocator PFS instrumented or not
+  static constexpr auto is_pfs_instrumented_v = Pfs_instrumented;
 };
 
 /** Aligned allocation routines.
 
-    They're implemented in terms of Aligned_alloc_impl, and given the guarantees
-    it provides, Aligned_alloc::alloc() will encode offset into the metadata
-    section without sacrificing memory or making the implementation or end usage
-    more complex.
+    They're implemented in terms of Aligned_alloc_impl (and
+    Aligned_alloc_metadata), and given the guarantees it provides,
+    Aligned_alloc::alloc() is able to encode offset and requested
+    allocation datalen into the metadata section without sacrificing memory or
+    making the implementation or end usage more complex.
 
     Serializing offset into the metadata is what will enable
     Aligned_alloc::free() to later on recover original pointer returned by
-    the underlying Aligned_alloc_impl allocation mechanism (std::malloc) and
-    consequently be able to appropriately release it (std::free).
- */
-struct Aligned_alloc {
- private:
-  /** Aligned_alloc memory layout representation of metadata segment.
+    the underlying Aligned_alloc_impl allocation mechanism (std::malloc,
+    std::calloc) and consequently be able to appropriately release it
+    (std::free).
 
-      ---------------------------
-      | VAR |   META  |   DATA  |
-      ---------------------------
-                  \
-                   --------------------------------
-                   |   NOT USED   |     OFFSET    |
-                   --------------------------------
-                    \              \               \
-                     0              \               \
-                         alignof(max_align_t) / 2    \
-                                                      \
+    Serializing requested allocation datalen into the metadata is what will
+    enable higher-kinded functions, implemented on top of Aligned_alloc, to
+    take necessary actions such as cleaning up the resources by invoking
+    appropriate number of destructors of non-trivially-destructible types.
+    Otherwise, this would create a burden on end users by having to remember and
+    carry the array size all around the code. This is equivalent to what we find
+    in other standard implementations. For example, new int x[10] is always
+    released without passing the array size: delete[] x; The same holds with
+    this design.
+
+    Memory layout representation looks like the following:
+
+     ----------------------------------------------------
+     | VARLEN | ALIGNED-ALLOC-META |    ... DATA ...    |
+     ----------------------------------------------------
+                 ^                  ^
+                 |                  |
+                 |                  |
+                 |          ptr returned by Aligned_alloc_impl
+                 |
+                -----------------------------------
+                |   DATALEN    |   VARLEN-OFFSET  |
+                -----------------------------------
+                 \                                 \
+                  0                                 \
+                                                     \
                                            alignof(max_align_t) - 1
-   */
-  struct Metadata {
-    /** Convenience type that we will be using to serialize necessary details
-        into the Aligned_alloc metadata segment.
-     */
-    using offset_t = std::uint32_t;
 
-    /** Helper function which stores the metadata we want to persist (offset).
-        It also makes sure that we do not touch more space than what is
-        available and that is Aligned_alloc_impl::metadata_size bytes.
-     */
-    static inline void store(void *buf, std::size_t offset) noexcept {
-      static_assert(sizeof(offset_t) <= Aligned_alloc_impl::metadata_size,
-                    "Aligned_alloc_impl provides a strong guarantee "
-                    "of only up to Aligned_alloc_impl::metadata_size bytes.");
-      assert(offset <= std::numeric_limits<decltype(offset)>::max());
-      *ptr_to_offset(buf) = offset;
-    }
-    /** Helper function which recovers the metadata (offset) we previously
-        stored.
-     */
-    static inline offset_t offset(void *buf) noexcept {
-      return *ptr_to_offset(buf);
-    }
-    /** Helper function which deduces the original pointer returned by
-        Aligned_alloc_impl
-     */
-    static inline void *deduce(void *buf) noexcept {
-      return reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(buf) -
-                                      *ptr_to_offset(buf));
-    }
-    /** Helper accessor function to metadata (offset). */
-    static inline offset_t *ptr_to_offset(void *buf) noexcept {
-      return reinterpret_cast<offset_t *>(buf) - 1;
-    }
-  };
+    VARLEN and ALIGNED-ALLOC-META are direct byproduct of Aligned_alloc_impl
+    layout and guarantees.
 
- public:
+    VARLEN is the leftover variable segment of bytes that specialized
+    implementations can further make use of by deducing its size from returned
+    offset. Not used by this implementation.
+
+    DATALEN field in ALIGNED-ALLOC-META segment encodes the total length of DATA
+    segment, which is the actual allocation size that client code has requested.
+
+    VARLEN-OFFSET in ALIGNED-ALLOC-META segment encodes the offset to VARLEN
+    segment which represents the original pointer obtained by underlying
+    allocation Aligned_alloc_impl mechanism.
+ */
+struct Aligned_alloc : public allocator_traits<false> {
+  using allocator_metadata = Aligned_alloc_metadata<uint32_t, uint32_t>;
+
   /** Dynamically allocates storage of given size and at the address aligned
       to the requested alignment.
 
-       @param[in] size Size of storage (in bytes) requested to be allocated.
-       @param[in] alignment Alignment requirement for storage to be allocated.
-       @return Pointer to the allocated storage. nullptr if dynamic storage
-       allocation failed.
-   */
-  static inline void *alloc(std::size_t size, std::size_t alignment) {
-    auto ret = Aligned_alloc_impl()(size, alignment);
-    // We are here taking advantage of Aligned_alloc_impl(S, A) for which
-    // we know that it will always return pointer P and offset O such that:
-    //   1. (P - O) expression is always well-defined.
-    //   2. And O is never less than alignof(std::max_align_t), that is
-    //      Aligned_alloc_impl::metadata_size.
-    //
-    // Practically, this means that we can encode whatever metadata we want
-    // into [P - O, P> segment of memory whose length corresponds to
-    // the value of alignof(std::max_align_t). Commonly, this value is 8 bytes
-    // on 32-bit platforms and 16 bytes on 64-bit platforms.
-    //
-    // Here we encode the offset so we can later on recover the
-    // original pointer, P' = (P - O), from within Aligned_alloc::free(P)
-    // context.
-    if (ret.first) {
-      Metadata::store(ret.first, ret.second);
-    }
-    return ret.first;
-  }
-
-  /** Releases storage dynamically allocated through Aligned_alloc::alloc().
-      @param[in] ptr Pointer to storage allocated through Aligned_alloc::alloc()
-   */
-  static inline void free(void *ptr) noexcept {
-    // Here we make use of the offset which has been encoded by
-    // Aligned_alloc::alloc() to be able to deduce the original pointer and
-    // simply forward it to std::free.
-    std::free(Metadata::deduce(ptr));
-  }
-};
-
-/** Aligned allocation routines specialized for arrays.
-
-    They're implemented in terms of Aligned_alloc_impl, and given the
-    guarantees it provides, Aligned_alloc_arr::alloc() will encode offset and
-    number of array elements into the metadata section without sacrificing
-    memory or making the implementation or end usage more complex.
-
-    Serializing offset into the metadata is what will enable
-    Aligned_alloc_arr::free() to later on recover original pointer returned by
-    the underlying Aligned_alloc_impl allocation mechanism (std::malloc) and
-    consequntly be able to appropriately release it (std::free).
-
-    Serializing number of elements of an array is what will enable higher-kinded
-    functions such as ut::aligned_array_delete() to:
-       * Invoke neccessary number of destructors.
-       * Remove burden from end users having to remember and carry the array
-         size all around the code. This is equivalent to what we find in other
-         standard implementations. For example, new int x[10] is always released
-         without passing the array size: delete[] x; The same holds with this
-         design.
- */
-struct Aligned_alloc_arr {
- private:
-  /** Aligned_alloc_arr memory layout representation of metadata segment.
-
-      ---------------------------
-      | VAR |   META  |   DATA  |
-      ---------------------------
-                  \
-                   --------------------------------
-                   |  N_ELEMENTS  |     OFFSET    |
-                   --------------------------------
-                    \              \               \
-                     0              \               \
-                         alignof(max_align_t) / 2    \
-                                                      \
-                                           alignof(max_align_t) - 1
-   */
-  struct Metadata {
-    /** Convenience types that we will be using to serialize necessary details
-        into the Aligned_alloc_arr metadata segment.
-     */
-    using offset_t = std::uint32_t;
-    using n_elements_t = std::uint32_t;
-
-    /** Helper function which stores the metadata we want to persist (offset and
-        number of elements in an array). It also makes sure that we do not
-        touch more space than what is available and that is
-        Aligned_alloc_impl::metadata_size bytes.
-     */
-    static inline void store(void *buf, std::size_t offset,
-                             std::size_t n_elements) noexcept {
-      static_assert(sizeof(offset_t) + sizeof(n_elements_t) <=
-                        Aligned_alloc_impl::metadata_size,
-                    "Aligned_alloc_impl provides a strong guarantee "
-                    "of only up to Aligned_alloc_impl::metadata_size bytes.");
-      assert(offset <= std::numeric_limits<offset_t>::max());
-      assert(n_elements <= std::numeric_limits<n_elements_t>::max());
-      *ptr_to_offset(buf) = offset;
-      *ptr_to_n_elements(buf) = n_elements;
-    }
-    /** Helper function which recovers the metadata (offset) we previously
-        stored.
-     */
-    static inline offset_t offset(void *buf) noexcept {
-      return *ptr_to_offset(buf);
-    }
-    /** Helper function which recovers the metadata (number of elements of an
-        array) we previously stored
-      */
-    static inline n_elements_t n_elements(void *buf) noexcept {
-      return *ptr_to_n_elements(buf);
-    }
-    /** Helper function which deduces the original pointer returned by
-        Aligned_alloc_impl
-     */
-    static inline void *deduce(void *ptr) noexcept {
-      return reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(ptr) -
-                                      *ptr_to_offset(ptr));
-    }
-    /** Helper accessor function to metadata (offset). */
-    static inline offset_t *ptr_to_offset(void *buf) noexcept {
-      return reinterpret_cast<offset_t *>(buf) - 1;
-    }
-    /** Helper accessor function to metadata (number of elements of an array).
-     */
-    static inline n_elements_t *ptr_to_n_elements(void *buf) noexcept {
-      return reinterpret_cast<n_elements_t *>(buf) - 2;
-    }
-  };
-
- public:
-  /** Dynamically allocates storage of given size and count at the address
-      aligned to the requested alignment.
-
       @param[in] size Size of storage (in bytes) requested to be allocated.
-      @param[in] count Number of elements in an array.
       @param[in] alignment Alignment requirement for storage to be allocated.
       @return Pointer to the allocated storage. nullptr if dynamic storage
       allocation failed.
    */
-  static inline void *alloc(std::size_t size, std::size_t count,
-                            std::size_t alignment) noexcept {
-    auto ret = Aligned_alloc_impl()(size * count, alignment);
-    // Similarly to what we do in Aligned_alloc::alloc(S, A), here we encode
-    // two different things:
-    //   1. offset, so we can later on recover the original pointer,
-    //      P' = (P - O), from within Aligned_alloc_arr::free(P) context.
-    //   2. number of elements in array, so we can invoke corresponding number
-    //      of element destructors and remove the burden from end users carrying
-    //      this piece of information.
-    if (ret.first) {
-      Metadata::store(ret.first, ret.second, count);
+  template <bool Zero_initialized>
+  static inline void *alloc(std::size_t size, std::size_t alignment) {
+    auto ret = Aligned_alloc_impl::alloc<Zero_initialized>(size, alignment);
+    if (likely(ret.first)) {
+      // We are here taking advantage of Aligned_alloc_impl(S, A) for which
+      // we know that it will always return pointer P and offset O such that:
+      //   1. (P - O) expression is always well-defined.
+      //   2. And O is never less than alignof(std::max_align_t), that is
+      //      Aligned_alloc_impl::metadata_size.
+      //
+      // Practically, this means that we can encode whatever metadata we want
+      // into [P - O, P> segment of memory whose length corresponds to
+      // the value of alignof(std::max_align_t). Commonly, this value is 8 bytes
+      // on 32-bit platforms and 16 bytes on 64-bit platforms but not always
+      // (e.g. Windows) and which is why we have to handle it in more generic
+      // way to be fully portable.
+      //
+      // Here we encode the offset so we can later on recover the
+      // original pointer, P' = (P - O), from within Aligned_alloc::free(P)
+      // context. Similarly, we encode the requested allocation datalen.
+      allocator_metadata::meta_1(ret.first, ret.second);
+      allocator_metadata::meta_2(ret.first, size);
     }
     return ret.first;
   }
 
-  /** Releases storage dynamically allocated through Aligned_alloc_arr::alloc().
+  /** Releases storage dynamically allocated through
+      Aligned_alloc::alloc().
 
-      @param[in] ptr Pointer to storage allocated through
-      Aligned_alloc_arr::alloc()
+      @param[in] data Pointer to storage allocated through
+      Aligned_alloc::alloc()
    */
-  static inline void free(void *ptr) noexcept {
+  static inline void free(Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    if (unlikely(!data)) return;
     // Here we make use of the offset which has been encoded by
-    // Aligned_alloc_arr::alloc() to be able to deduce the original pointer and
+    // Aligned_alloc::alloc() to be able to deduce the original pointer and
     // simply forward it to std::free.
-    std::free(Metadata::deduce(ptr));
+    Aligned_alloc_impl::free(deduce(data));
   }
 
-  /** Returns the size of an array.
+  /** Returns the number of bytes requested to be allocated.
 
-      @param[in] ptr Pointer to storage allocated through
-      Aligned_alloc_arr::alloc()
-      @return Number of elements of given array.
+      @param[in] data Pointer to storage allocated through
+      Aligned_alloc::alloc()
+      @return Number of bytes.
    */
-  static inline Metadata::n_elements_t n_elements(void *ptr) {
-    return Metadata::n_elements(ptr);
+  static inline allocator_metadata::meta_2_t datalen(
+      Aligned_alloc_impl::data_segment_ptr data) {
+    // Deducing the datalen field is straightforward, provided that
+    // data points to the DATA segment, which it is expected to do so.
+    return allocator_metadata::meta_2(data);
   }
+
+ private:
+  /** Helper function which deduces the original pointer returned by
+      Aligned_alloc_impl from a pointer which is passed to us by the call-site.
+   */
+  static inline void *deduce(
+      Aligned_alloc_impl::data_segment_ptr data) noexcept {
+    // To recover the original pointer we just need to read the offset
+    // we have serialized into the first (allocator) metadata field.
+    auto offset = allocator_metadata::meta_1(data);
+    return reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(data) -
+                                    offset);
+  }
+};
+
+/** Aligned allocation routines which are instrumented through PFS
+    (performance-schema).
+
+    They're implemented in terms of Aligned_alloc_impl (and
+    Aligned_alloc_metadata), and given the guarantees it provides,
+    Aligned_alloc::alloc() is able to encode offset and requested
+    allocation datalen into the metadata section without sacrificing memory or
+    making the implementation or end usage more complex.
+
+    Serializing offset into the metadata is what will enable
+    Aligned_alloc_pfs::free() to later on recover original pointer returned
+    by the underlying Aligned_alloc_impl allocation mechanism (std::malloc,
+    std::calloc) and consequently be able to appropriately release it
+    (std::free).
+
+    Serializing requested allocation datalen into the metadata is what will
+    enable higher-kinded functions, implemented on top of
+    Aligned_alloc_pfs, to take necessary actions such as cleaning up the
+    resources by invoking appropriate number of destructors of
+    non-trivially-destructible types. Otherwise, this would create a burden on
+    end users by having to remember and carry the array size all around the
+    code. This is equivalent to what we find in other standard implementations.
+    For example, new int x[10] is always released without passing the array
+    size: delete[] x; The same holds with this design.
+
+    PFS-wise this allocation routine will be storing the information that PFS
+    needs to do its own work:
+     * Owning thread
+     * Total length of bytes allocated
+     * Key
+
+    Memory layout representation looks like the following:
+
+  ------------------------------------------------------------------------------
+  | VARLEN1 | ALIGNED-ALLOC-META | PFS-META | VARLEN2 | PFS-META-OFFSET | DATA |
+  ------------------------------------------------------------------------------
+                ^                 ^    ^                                 ^
+                |                 |    |                                 |
+                |                 |   ---------------------------        |
+                |                 |   | OWNER |  DATALEN' | KEY |        |
+                |                 |   ---------------------------        |
+                |                 |                                      |
+                |            ptr returned by                             |
+                |           Aligned_alloc_impl                           |
+                |                                                        |
+                |                                ptr to be returned to call-site
+                |                                   will be pointing here
+                |
+               ------------------------------
+               |  DATALEN  | VARLEN1-OFFSET |
+               ------------------------------
+                \                            \
+                 0                            \
+                                               \
+                                     alignof(max_align_t) - 1
+
+    VARLEN1 and ALIGNED-ALLOC-META are direct byproduct of Aligned_alloc_impl
+    (and Aligned_alloc_metadata) layout and guarantees.
+
+    VARLEN1 is the leftover variable-length segment that specialized
+    implementations can further make use of by deducing its size from returned
+    offset. Not used by this implementation.
+
+    DATALEN field in ALIGNED-ALLOC-META segment encodes the total length of DATA
+    segment, which is the actual allocation size that client code has requested.
+
+    VARLEN1-OFFSET in ALIGNED-ALLOC-META segment encodes the offset to VARLEN1
+    segment which represents the original pointer obtained by underlying
+    allocation Aligned_alloc_impl mechanism.
+
+    PFS-META, VARLEN2 and PFS-META-OFFSET are memory layout representation of
+    PFS_metadata.
+
+    OWNER field encode the owning thread. DATALEN' field encodes total size
+    of memory consumed and not only the size of the DATA segment. KEY field
+    encodes the PFS/PSI key.
+
+    VARLEN2 is the leftover variable-length segment that specialized
+    implementations can further make use of by deducing its size from the
+    following formulae: requested_alignment - sizeof(PFS-META-OFFSET) -
+    sizeof(PFS-META). In code that would be alignment -
+    PFS_metadata::pfs_metadata_size. Not used by this implementation.
+
+    PFS-META-OFFSET is a field which allows us to recover the pointer to
+    PFS-META segment from a pointer to DATA segment. Having a pointer to
+    PFS-META segment allows us to deduce the VARLEN1-OFFSET field from
+    ALIGNED-ALLOC-META segment which finally gives us a pointer obtained by the
+    underlying allocation Aligned_alloc_impl mechanism.
+ */
+struct Aligned_alloc_pfs : public allocator_traits<true> {
+  using allocator_metadata = Aligned_alloc_metadata<uint32_t, uint32_t>;
+  using pfs_metadata = PFS_metadata;
+
+  /** Dynamically allocates storage of given size at the address aligned to the
+      requested alignment.
+
+      @param[in] size Size of storage (in bytes) requested to be allocated.
+      @param[in] alignment Alignment requirement for storage to be allocated.
+      @param[in] key PSI memory key to be used for PFS memory instrumentation.
+      @return Pointer to the allocated storage. nullptr if dynamic storage
+      allocation failed.
+   */
+  template <bool Zero_initialized>
+  static inline void *alloc(std::size_t size, std::size_t alignment,
+                            pfs_metadata::pfs_memory_key_t key) {
+    auto ret = Aligned_alloc_impl::alloc<Zero_initialized>(size + alignment,
+                                                           alignment);
+    if (unlikely(!ret.first)) return nullptr;
+
+    // Same as we do with non-PFS variant of Aligned_alloc::alloc(), here we
+    // encode the offset so we can later on recover the original pointer, P' =
+    // (P - O), from within Aligned_alloc_pfs::free(P) context. Similarly, we
+    // encode the requested allocation datalen.
+    allocator_metadata::meta_1(ret.first, ret.second);
+    allocator_metadata::meta_2(ret.first, size);
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+    // When computing total number of bytes allocated. we must not only account
+    // for the size that we have requested (size + alignment) but we also need
+    // to account for extra memory Aligned_alloc_impl may have allocated in
+    // order to be able to accomodate the request. Amount of extra memory
+    // allocated corresponds to the offset value returned by Aligned_alloc_impl.
+    const auto datalen = size + alignment + ret.second;
+    // The point of this allocator variant is to trace the memory allocations
+    // through PFS (PSI) so do it.
+    pfs_metadata::pfs_owning_thread_t owner;
+    key = PSI_MEMORY_CALL(memory_alloc)(key, datalen, &owner);
+    // To be able to do the opposite action of tracing when we are releasing the
+    // memory, we need right about the same data we passed to the tracing
+    // memory_alloc function. Let's encode this it into our allocator so we
+    // don't have to carry and keep this data around.
+    pfs_metadata::pfs_owning_thread(ret.first, owner);
+    pfs_metadata::pfs_datalen(ret.first, datalen);
+    pfs_metadata::pfs_key(ret.first, key);
+    pfs_metadata::pfs_metaoffset(ret.first, alignment);
+#endif
+
+    return static_cast<uint8_t *>(ret.first) + alignment;
+  }
+
+  /** Releases storage dynamically allocated through
+      Aligned_alloc_pfs::alloc().
+
+      @param[in] data Pointer to storage allocated through
+      Aligned_alloc_pfs::alloc()
+   */
+  static inline void free(PFS_metadata::data_segment_ptr data) noexcept {
+    if (unlikely(!data)) return;
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+    // Deduce the PFS data we encoded in Aligned_alloc_pfs::alloc()
+    auto key = pfs_metadata::pfs_key(data);
+    auto owner = pfs_metadata::pfs_owning_thread(data);
+    auto datalen = pfs_metadata::pfs_datalen(data);
+    // With the deduced PFS data, now trace the memory release action.
+    PSI_MEMORY_CALL(memory_free)
+    (key, datalen, owner);
+#endif
+
+    // Here we make use of the offset which has been encoded by
+    // Aligned_alloc_pfs::alloc() to be able to deduce the original pointer and
+    // simply forward it to std::free.
+    Aligned_alloc_impl::free(deduce(data));
+  }
+
+  /** Returns the number of bytes requested to be allocated.
+
+      @param[in] data Pointer to storage allocated through
+      Aligned_alloc_pfs::alloc()
+      @return Number of bytes.
+   */
+  static inline allocator_metadata::meta_2_t datalen(
+      PFS_metadata::data_segment_ptr data) {
+    // In order to be able to deduce the datalen field, we have to deduce the
+    // beginning of PFS metadata segment first.
+    return allocator_metadata::meta_2(pfs_metadata::deduce_pfs_meta(data));
+  }
+
+ private:
+  /** Helper function which deduces the original pointer returned by
+      Aligned_alloc_impl from a pointer which is passed to us by the call-site.
+   */
+  static inline void *deduce(PFS_metadata::data_segment_ptr data) noexcept {
+    // To recover the original pointer we need to read the offset
+    // we have serialized into the first (allocator) metadata field. But to read
+    // that offset we have to jump over the PFS metadata first. We use PFS meta
+    // offset for that.
+    auto pfs_meta = pfs_metadata::deduce_pfs_meta(data);
+    auto offset = allocator_metadata::meta_1(pfs_meta);
+    return reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(pfs_meta) -
+                                    offset);
+  }
+};
+
+/** Simple utility metafunction which selects appropriate allocator variant
+    (implementation) depending on the input parameter(s).
+  */
+template <bool Pfs_memory_instrumentation_on>
+struct select_alloc_impl {
+  using type =
+      Aligned_alloc;  // When PFS is OFF, pick ordinary, non-PFS, variant
+};
+
+template <>
+struct select_alloc_impl<true> {
+  using type = Aligned_alloc_pfs;  // Otherwise, pick PFS variant
+};
+
+/** Just a small helper type which saves us some keystrokes. */
+template <bool Pfs_memory_instrumentation_on>
+using select_alloc_impl_t =
+    typename select_alloc_impl<Pfs_memory_instrumentation_on>::type;
+
+/** Small wrapper which utilizes SFINAE to dispatch the call to appropriate
+    aligned allocator implementation.
+  */
+template <typename Impl = select_alloc_impl_t<WITH_PFS_MEMORY>>
+struct Aligned_alloc_ {
+  template <bool Zero_initialized, typename T = Impl>
+  static inline typename std::enable_if<T::is_pfs_instrumented_v, void *>::type
+  alloc(size_t size, size_t alignment, PSI_memory_key key) {
+    return Impl::template alloc<Zero_initialized>(size, alignment, key);
+  }
+  template <bool Zero_initialized, typename T = Impl>
+  static inline typename std::enable_if<!T::is_pfs_instrumented_v, void *>::type
+  alloc(size_t size, size_t alignment, PSI_memory_key /*key*/) {
+    return Impl::template alloc<Zero_initialized>(size, alignment);
+  }
+  static inline void free(void *ptr) { Impl::free(ptr); }
+  static inline size_t datalen(void *ptr) { return Impl::datalen(ptr); }
 };
 
 /** Generic utility function which invokes placement-new statement on type T.
