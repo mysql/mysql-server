@@ -57,9 +57,8 @@
 #include "x_protocol_splicer.h"
 
 // #define DEBUG_SSL
-
-#define DEBUG_IO
-#define DEBUG_STATE
+// #define DEBUG_IO
+// #define DEBUG_STATE
 
 IMPORT_LOG_FUNCTIONS()
 
