@@ -3449,11 +3449,30 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
     pending request will create more waiters depends on situation with
     max_write_lock_count at least for object locks) and is likely to provide
     less benefits.
+
+    There is another optimization for case when we try to acquire S lock on
+    ACL_CACHE singleton and there are MDL waiters for this context.
+    In this case we delay deadlock detection for 1 second in the hope that
+    our request will be granted before that and the deadlock detection
+    will be skipped. Note that this should be most common case as ACL_CACHE
+    lock is supposed to be held for short periods only. If threads acquiring
+    S lock on ACL_CACHE have to wait for more than 1 second, then the system
+    is likely to be trouble (as it means more than 1 second stalls for any
+    statement doing privilege checks).
+
+    We don't apply this optimization in cases when locks are acquired on
+    behalf of replication applier with commit order waits, as deadlocks
+    are likely in such situation and it is better to detect it ASAP.
   */
+  bool delayed_find_deadlock = false;
   if (lock->key.mdl_namespace() != MDL_key::ACL_CACHE ||
-      ticket->m_type != MDL_SHARED || has_locks() ||
-      get_owner()->might_have_non_mdl_waiters()) {
+      ticket->m_type != MDL_SHARED ||
+      get_owner()->might_have_commit_order_waiters()) {
     find_deadlock();
+  } else if (has_locks()) {
+    // Locks in ACL_CACHE namespace always need connection check, so
+    assert(lock->needs_connection_check());
+    delayed_find_deadlock = true;
   }
 
   if (lock->needs_notification(ticket) || lock->needs_connection_check()) {
@@ -3488,6 +3507,11 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
         mysql_prlock_wrlock(&lock->m_rwlock);
         lock->notify_conflicting_locks(this);
         mysql_prlock_unlock(&lock->m_rwlock);
+      }
+
+      if (delayed_find_deadlock) {
+        find_deadlock();
+        delayed_find_deadlock = false;
       }
 
       set_timespec(&abs_shortwait, 1);
