@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -532,7 +532,6 @@ struct Encryption {
 #define IORequestWrite		IORequest(IORequest::WRITE)
 #define IORequestLogRead	IORequest(IORequest::LOG | IORequest::READ)
 #define IORequestLogWrite	IORequest(IORequest::LOG | IORequest::WRITE)
-
 /**
 The IO Context that is passed down to the low level IO code */
 class IORequest {
@@ -576,7 +575,10 @@ public:
 		This can be used to force a read and write without any
 		compression e.g., for redo log, merge sort temporary files
 		and the truncate redo log. */
-		NO_COMPRESSION = 512
+		NO_COMPRESSION = 512,
+
+		/** Row log used in online DDL */
+		ROW_LOG = 1024
 	};
 
 	/** Default constructor */
@@ -600,7 +602,7 @@ public:
 		m_compression(),
 		m_encryption()
 	{
-		if (is_log()) {
+		if (is_log() || is_row_log()) {
 			disable_compression();
 		}
 
@@ -638,6 +640,13 @@ public:
 		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return((m_type & LOG) == LOG);
+	}
+
+	/** @return true if it is a row log entry used in online DDL */
+	bool is_row_log() const
+		MY_ATTRIBUTE((warn_unused_result))
+	{
+		return((m_type & ROW_LOG) == ROW_LOG);
 	}
 
 	/** @return true if the simulated AIO thread should be woken up */

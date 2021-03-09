@@ -3737,8 +3737,7 @@ end:
   if (show_warnings == 1 && (warnings >= 1 || error))
     print_warnings();
 
-  if (!error && !status.batch && 
-      (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+  if (!error && (mysql.server_status & SERVER_STATUS_DB_DROPPED))
     get_current_db();
 
   executing_query= 0;

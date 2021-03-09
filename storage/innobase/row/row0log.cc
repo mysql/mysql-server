@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -364,7 +364,7 @@ row_log_online_op(
 
 	if (mrec_size >= avail_size) {
 		dberr_t			err;
-		IORequest		request(IORequest::WRITE);
+		IORequest		request(IORequest::ROW_LOG | IORequest::WRITE);
 		const os_offset_t	byte_offset
 			= (os_offset_t) log->tail.blocks
 			* srv_sort_buf_size;
@@ -483,7 +483,8 @@ row_log_table_close_func(
 
 	if (size >= avail) {
 		dberr_t			err;
-		IORequest		request(IORequest::WRITE);
+		IORequest		request(IORequest::ROW_LOG | IORequest::WRITE);
+
 		const os_offset_t	byte_offset
 			= (os_offset_t) log->tail.blocks
 			* srv_sort_buf_size;
@@ -2917,8 +2918,7 @@ all_done:
 			goto func_exit;
 		}
 
-		IORequest	request;
-
+		IORequest request(IORequest::READ | IORequest::ROW_LOG);
 		err = os_file_read_no_error_handling_int_fd(
 			request,
 			index->online_log->fd,
@@ -3756,7 +3756,7 @@ all_done:
 			goto func_exit;
 		}
 
-		IORequest	request;
+		IORequest	request(IORequest::READ | IORequest::ROW_LOG);
 		dberr_t	err = os_file_read_no_error_handling_int_fd(
 			request,
 				index->online_log->fd,
