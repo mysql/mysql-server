@@ -230,7 +230,7 @@ ENDIF()
 # Add all policies *after* CMAKE_MINIMUM_REQUIRED
 # Repeating CMAKE_MINIMUM_REQUIRED here will load defaults for 3.5.1
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
-INCLUDE(cmake_policies)
+INCLUDE(cmake_policies NO_POLICY_SCOPE)
 
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'

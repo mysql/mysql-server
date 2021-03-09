@@ -58,6 +58,5 @@ ENDIF()
 # link dependencies. We use them in MERGE_CONVENIENCE_LIBRARIES.
 # TODO(tdidriks): manage our own dependencies for "convenience" libraries.
 IF(POLICY CMP0073)
-  MESSAGE(STATUS "CMP0073 OLD")
   CMAKE_POLICY(SET CMP0073 OLD)
 ENDIF()
