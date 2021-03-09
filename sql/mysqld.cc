@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4279,15 +4279,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     mysql_mutex_unlock(log_lock);
   }
 
-#ifdef HAVE_REPLICATION
-  if (opt_bin_log && expire_logs_days)
-  {
-    time_t purge_time= server_start_time - expire_logs_days*24*60*60;
-    if (purge_time >= 0)
-      mysql_bin_log.purge_logs_before_date(purge_time, true);
-  }
-#endif
-
   if (opt_myisam_log)
     (void) mi_log(1);
 
@@ -4917,6 +4908,17 @@ int mysqld_main(int argc, char **argv)
         mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
       unireg_abort(MYSQLD_ABORT_EXIT);
     mysql_bin_log.update_binlog_end_pos();
+
+#ifdef HAVE_REPLICATION
+    if (opt_bin_log && expire_logs_days)
+    {
+      time_t purge_time= server_start_time - expire_logs_days * 24 * 60 * 60;
+      DBUG_EXECUTE_IF("expire_logs_always_at_start",
+                      { purge_time= my_time(0); });
+      if (purge_time >= 0)
+        mysql_bin_log.purge_logs_before_date(purge_time, true);
+    }
+#endif
 
     (void) RUN_HOOK(server_state, after_engine_recovery, (NULL));
   }

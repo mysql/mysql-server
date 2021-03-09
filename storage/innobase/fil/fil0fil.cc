@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -3009,12 +3009,8 @@ fil_reinit_space_header_for_table(
 	row_mysql_unlock_data_dictionary(trx);
 	DEBUG_SYNC_C("trunc_table_index_dropped_release_dict_lock");
 
-	/* Lock the search latch in shared mode to prevent user
-	from disabling AHI during the scan */
-	btr_search_s_lock_all();
 	DEBUG_SYNC_C("simulate_buffer_pool_scan");
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
-	btr_search_s_unlock_all();
 
 	row_mysql_lock_data_dictionary(trx);
 
