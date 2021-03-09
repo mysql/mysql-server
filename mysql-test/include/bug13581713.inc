@@ -1,5 +1,3 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-
 --source include/turn_off_only_full_group_by.inc
 
 insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);

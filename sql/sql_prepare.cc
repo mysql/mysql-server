@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1484,6 +1484,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   {
     if (var->light_check(thd))
       DBUG_RETURN(true);              /* purecov: inspected */
+    var->cleanup();
   }
 
   DBUG_RETURN(false);
@@ -4015,6 +4016,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   if (! cursor)
     cleanup_stmt();
+
+  thd->lex->release_plugins();
 
   /*
     Expanded query is needed for slow logging, so we want thd->query

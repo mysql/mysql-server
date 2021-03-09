@@ -1,8 +1,4 @@
 #
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
-#
 # Test that provides code coverage for the code that checks and handles
 # entries in the cost constant tables that has invalid values.
 # This will cause warnings to be written to the MySQL error log.

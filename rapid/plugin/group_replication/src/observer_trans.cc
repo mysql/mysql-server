@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -276,6 +276,10 @@ int group_replication_trans_before_commit(Trans_param *param)
   */
   Replication_thread_api channel_interface;
   if (GR_APPLIER_CHANNEL == param->rpl_channel_type) {
+    // If plugin is not initialized, there is nothing to do.
+    if (NULL == local_member_info) {
+      DBUG_RETURN(0);
+    }
 
     // If plugin is stopping, there is no point in update the statistics.
     bool fail_to_lock= shared_plugin_stop_lock->try_grab_read_lock();
