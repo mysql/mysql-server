@@ -29,10 +29,43 @@ locate('he','hello')	locate('he','hello',2)	locate('lo','hello',2)
 1	0	4
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE');
 instr('hello','HE')	instr('hello',binary 'HE')	instr(binary 'hello','HE')
-1	0	0
+1	1	0
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');
 position(binary 'll' in 'hello')	position('a' in binary 'hello')
 3	0
+SELECT LOCATE('d', _utf8mb4'abcdef');
+LOCATE('d', _utf8mb4'abcdef')
+4
+SELECT LOCATE(x'44', _utf8mb4'abcdef');
+LOCATE(x'44', _utf8mb4'abcdef')
+4
+SELECT POSITION('d' IN _utf8mb4'abcdef');
+POSITION('d' IN _utf8mb4'abcdef')
+4
+SELECT POSITION(x'44' IN _utf8mb4'abcdef');
+POSITION(x'44' IN _utf8mb4'abcdef')
+4
+SELECT INSTR(_utf8mb4'abcdef', 'd');
+INSTR(_utf8mb4'abcdef', 'd')
+4
+SELECT INSTR(_utf8mb4'abcdef', x'44');
+INSTR(_utf8mb4'abcdef', x'44')
+4
+SELECT LOCATE(x'64', _utf8mb4'abcdef');
+LOCATE(x'64', _utf8mb4'abcdef')
+4
+SELECT POSITION(x'64' IN _utf8mb4'abcdef');
+POSITION(x'64' IN _utf8mb4'abcdef')
+4
+SELECT INSTR(_utf8mb4'abcdef', x'64');
+INSTR(_utf8mb4'abcdef', x'64')
+4
+SELECT LOCATE(x'ff', _utf8mb4'abcdef');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT POSITION(x'ff' IN _utf8mb4'abcdef');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT INSTR(_utf8mb4'abcdef', x'ff');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
 select left('hello',null), right('hello',null);
 left('hello',null)	right('hello',null)
 NULL	NULL
@@ -457,14 +490,18 @@ FIELD('b' COLLATE latin1_bin,'A','B')
 0
 select FIELD('b','A' COLLATE latin1_bin,'B');
 FIELD('b','A' COLLATE latin1_bin,'B')
-0
+2
 select FIELD(_latin2'b','A','B');
-ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
+FIELD(_latin2'b','A','B')
+2
 select FIELD('b',_latin2'A','B');
-ERROR HY000: Illegal mix of collations (latin1_swedish_ci,COERCIBLE), (latin2_general_ci,COERCIBLE), (latin1_swedish_ci,COERCIBLE) for operation 'field'
+FIELD('b',_latin2'A','B')
+2
 select FIELD('1',_latin2'3','2',1);
 FIELD('1',_latin2'3','2',1)
 3
+SELECT FIELD(_utf8mb4'abc', x'ff');
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
 select POSITION(_latin1'B' IN _latin1'abcd');
 POSITION(_latin1'B' IN _latin1'abcd')
 2
@@ -473,11 +510,13 @@ POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin)
 0
 select POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd');
 POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd')
-0
+2
 select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin);
-ERROR HY000: Illegal mix of collations (latin1_bin,EXPLICIT) and (latin1_general_ci,EXPLICIT) for operation 'locate'
+POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin)
+0
 select POSITION(_latin1'B' IN _latin2'abcd');
-ERROR HY000: Illegal mix of collations (latin2_general_ci,COERCIBLE) and (latin1_swedish_ci,COERCIBLE) for operation 'locate'
+POSITION(_latin1'B' IN _latin2'abcd')
+2
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');
 FIND_IN_SET(_latin1'B',_latin1'a,b,c,d')
 2

@@ -166,56 +166,6 @@ bool Item_str_func::fix_fields(THD *thd, Item **ref) {
   return res;
 }
 
-/**
-  Evaluate an argument string and return it in character set of the parent.
-  Perform character set conversion if needed.
-  Perform character set validation (from a binary string) if needed.
-
-  @param arg    Argument to evaluate as a string value
-  @param buffer String buffer where argument is evaluated, if necessary
-
-  @returns string pointer if success, NULL if error or NULL value
-*/
-String *Item_str_func::eval_string_arg(Item *arg, String *buffer) {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr);
-
-  size_t offset;
-  const bool convert = String::needs_conversion(0, arg->collation.collation,
-                                                collation.collation, &offset);
-  String *res = arg->val_str(convert ? &local_string : buffer);
-
-  // Return immediately if argument is a NULL value, or there was an error
-  if (res == nullptr) {
-    return nullptr;
-  }
-  if (convert) {
-    /*
-      String must be converted from source character set. It has been built
-      in the "local_string" buffer and will be copied with conversion into the
-      caller provided buffer.
-    */
-    uint errors = 0;
-    buffer->length(0);
-    buffer->copy(res->ptr(), res->length(), res->charset(), collation.collation,
-                 &errors);
-    if (errors) {
-      report_conversion_error(collation.collation, res->ptr(), res->length(),
-                              res->charset());
-      return nullptr;
-    }
-    return buffer;
-  }
-  // If source is a binary string, the string may have to be validated:
-  if (collation.collation != &my_charset_bin &&
-      arg->collation.collation == &my_charset_bin &&
-      !res->is_valid_string(collation.collation)) {
-    report_conversion_error(collation.collation, res->ptr(), res->length(),
-                            res->charset());
-    return nullptr;
-  }
-  return res;
-}
-
 my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   assert(fixed == 1);
   char buff[64];
@@ -1007,7 +957,7 @@ String *Item_func_concat::val_str(String *str) {
   null_value = false;
   tmp_value.length(0);
   for (uint i = 0; i < arg_count; ++i) {
-    String *res = eval_string_arg(args[i], str);
+    String *res = eval_string_arg(collation.collation, args[i], str);
     if (res == nullptr) {  // NULL value or error
       assert(thd->is_error() || (args[i]->null_value && is_nullable()));
       return error_str();
@@ -1052,14 +1002,14 @@ String *Item_func_concat_ws::val_str(String *str) {
   THD *thd = current_thd;
   null_value = false;
 
-  String *sep_str = eval_string_arg(args[0], &tmp_sep_str);
+  String *sep_str = eval_string_arg(collation.collation, args[0], &tmp_sep_str);
   if (sep_str == nullptr) return error_str();
 
   tmp_value.set("", 0, collation.collation);
 
   uint non_null_args = 0;
   for (uint i = 1; i < arg_count; i++) {
-    String *res = eval_string_arg(args[i], str);
+    String *res = eval_string_arg(collation.collation, args[i], str);
     if (res == nullptr) {
       if (thd->is_error()) return error_str();
       continue;  // Skip NULL
@@ -1157,10 +1107,10 @@ String *Item_func_replace::val_str(String *str) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr);
   StringBuffer<STRING_BUFFER_USUAL_SIZE> res3_converted(nullptr);
 
-  String *res2 = eval_string_arg(args[1], &res2_converted);
+  String *res2 = eval_string_arg(collation.collation, args[1], &res2_converted);
   if (res2 == nullptr) return error_str();
 
-  String *res3 = eval_string_arg(args[2], &res3_converted);
+  String *res3 = eval_string_arg(collation.collation, args[2], &res3_converted);
   if (res3 == nullptr) return error_str();
 
   if (res1->length() == 0 || res2->length() == 0) return res1;
@@ -1220,19 +1170,17 @@ bool Item_func_replace::resolve_type(THD *thd) {
 String *Item_func_insert::val_str(String *str) {
   assert(fixed);
 
-  String *res = eval_string_arg(args[0], str);
+  String *res = eval_string_arg(collation.collation, args[0], str);
   if (res == nullptr) return error_str();
 
-  String *res2 = eval_string_arg(args[3], &tmp_value);
+  String *res2 = eval_string_arg(collation.collation, args[3], &tmp_value);
   if (res2 == nullptr) return error_str();
 
   longlong start = args[1]->val_int();
-  longlong length = args[2]->val_int();
+  if (args[1]->null_value) return error_str();
 
-  if (args[1]->null_value || args[2]->null_value) {
-    assert(is_nullable());
-    return error_str(); /* purecov: inspected */
-  }
+  longlong length = args[2]->val_int();
+  if (args[2]->null_value) return error_str();
 
   longlong orig_len = static_cast<longlong>(res->length());
 
@@ -1243,30 +1191,18 @@ String *Item_func_insert::val_str(String *str) {
 
   if ((length < 0) || (length > orig_len)) length = orig_len;
 
-  /*
-    There is one exception not handled (intentionaly) by the character set
-    aggregation code. If one string is strong side and is binary, and
-    another one is weak side and is a multi-byte character string,
-    then we need to operate on the second string in terms on bytes when
-    calling ::numchars() and ::charpos(), rather than in terms of characters.
-    Lets substitute its character set to binary.
-  */
-  if (collation.collation == &my_charset_bin) {
-    res->set_charset(&my_charset_bin);
-    res2->set_charset(&my_charset_bin);
-  }
-
   /* start and length are now sufficiently valid to pass to charpos function */
-  start = res->charpos((int)start);
-  length = res->charpos((int)length, (uint32)start);
+  start = res->charpos(static_cast<size_t>(start));
+  length =
+      res->charpos(static_cast<size_t>(length), static_cast<size_t>(start));
 
   /* Re-testing with corrected params */
   if (start > orig_len)
     return res; /* purecov: inspected */  // Wrong param; skip insert
   if (length > orig_len - start) length = orig_len - start;
 
-  if ((ulonglong)(orig_len - length + res2->length()) >
-      (ulonglong)current_thd->variables.max_allowed_packet) {
+  if (static_cast<ulonglong>(orig_len - length + res2->length()) >
+      static_cast<ulonglong>(current_thd->variables.max_allowed_packet)) {
     return push_packet_overflow_warning(current_thd, func_name());
   }
   if (res->uses_buffer_owned_by(str)) {
@@ -1276,7 +1212,7 @@ String *Item_func_insert::val_str(String *str) {
   } else
     res = copy_if_not_alloced(str, res, orig_len);
 
-  res->replace((uint32)start, (uint32)length, *res2);
+  res->replace(static_cast<size_t>(start), static_cast<size_t>(length), *res2);
   res->set_charset(collation.collation);
   return res;
 }
@@ -1286,8 +1222,9 @@ bool Item_func_insert::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;
   if (param_type_is_default(thd, 3, 4)) return true;
 
-  // Handle character set for args[0] and args[3].
-  if (agg_arg_charsets_for_string_result(collation, args, 2, 3)) return true;
+  // Character set of result is based on first argument
+  if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+  if (simplify_string_args(thd, collation, args + 3, 1)) return true;
   ulonglong length = ulonglong{args[0]->max_char_length()} +
                      ulonglong{args[3]->max_char_length()};
   set_data_type_string(length);
@@ -1547,7 +1484,8 @@ String *Item_func_substr_index::val_str(String *str) {
   res->set_charset(collation.collation);
 
   StringBuffer<STRING_BUFFER_USUAL_SIZE> delimiter_converted(nullptr);
-  String *delimiter = eval_string_arg(args[1], &delimiter_converted);
+  String *delimiter =
+      eval_string_arg(collation.collation, args[1], &delimiter_converted);
   if (delimiter == nullptr) return error_str();
   size_t delimiter_length = delimiter->length();
 
@@ -1647,9 +1585,9 @@ String *Item_func_substr_index::val_str(String *str) {
 }
 
 String *Item_func_trim::val_str(String *str) {
-  assert(fixed == 1);
+  assert(fixed);
 
-  String *res = args[0]->val_str(str);
+  String *res = eval_string_arg(collation.collation, args[0], str);
   if ((null_value = args[0]->null_value)) return nullptr;
 
   char buff[MAX_FIELD_WIDTH];
@@ -1659,7 +1597,8 @@ String *Item_func_trim::val_str(String *str) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> remove_converted(nullptr);
 
   if (arg_count == 2) {
-    remove_str = eval_string_arg(args[1], &remove_converted);
+    remove_str =
+        eval_string_arg(collation.collation, args[1], &remove_converted);
     if (remove_str == nullptr) return error_str();
   }
 
@@ -2273,7 +2212,7 @@ String *Item_func_elt::val_str(String *str) {
   if (eltno <= 0 || eltno >= arg_count) {
     return error_str();
   }
-  String *result = eval_string_arg(args[eltno], str);
+  String *result = eval_string_arg(collation.collation, args[eltno], str);
   if (result == nullptr) {
     return error_str();
   }
@@ -2342,7 +2281,7 @@ String *Item_func_make_set::val_str(String *str) {
     if ((bits & 1) == 0) {
       continue;
     }
-    String *res = eval_string_arg(*ptr, str);
+    String *res = eval_string_arg(collation.collation, *ptr, str);
     if (res == nullptr) {
       if (thd->is_error()) {
         null_value = true;
@@ -3628,9 +3567,9 @@ String *Item_func_export_set::val_str(String *str) {
     return error_str();
   }
 
-  const String *yes = eval_string_arg(args[1], &yes_buf);
+  const String *yes = eval_string_arg(collation.collation, args[1], &yes_buf);
   if (yes == nullptr) return error_str();
-  const String *no = eval_string_arg(args[2], &no_buf);
+  const String *no = eval_string_arg(collation.collation, args[2], &no_buf);
   if (no == nullptr) return error_str();
 
   const String *sep = nullptr;
@@ -3651,7 +3590,7 @@ String *Item_func_export_set::val_str(String *str) {
 
       /* Fall through */
     case 4:
-      sep = eval_string_arg(args[3], &sep_buf);
+      sep = eval_string_arg(collation.collation, args[3], &sep_buf);
       if (sep == nullptr) return error_str();
       break;
     case 3: {

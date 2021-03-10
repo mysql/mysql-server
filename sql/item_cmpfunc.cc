@@ -146,47 +146,6 @@ static Item_result agg_cmp_type(Item **items, uint nitems) {
   return type;
 }
 
-/**
-  Convert and/or validate input_string according to charset 'to_cs'.
-
-  If input_string needs conversion to 'to_cs' then do the conversion,
-  and verify the result.
-  Otherwise, if input_string has charset my_charset_bin, then verify
-  that it contains a valid string according to 'to_cs'.
-
-  Will call my_error() in case conversion/validation fails.
-
-  @param input_string        string to be converted/validated.
-  @param to_cs               result character set
-  @param output_string [out] output result variable
-
-  @return nullptr in case of error, otherwise pointer to result.
-*/
-static String *convert_or_validate_string(String *input_string,
-                                          const CHARSET_INFO *to_cs,
-                                          String *output_string) {
-  String *retval = input_string;
-  if (input_string->needs_conversion(to_cs)) {
-    uint errors = 0;
-    output_string->copy(input_string->ptr(), input_string->length(),
-                        input_string->charset(), to_cs, &errors);
-    if (errors) {
-      report_conversion_error(to_cs, input_string->ptr(),
-                              input_string->length(), input_string->charset());
-      return nullptr;
-    }
-    retval = output_string;
-  } else if (to_cs != &my_charset_bin &&
-             input_string->charset() == &my_charset_bin) {
-    if (!input_string->is_valid_string(to_cs)) {
-      report_conversion_error(to_cs, input_string->ptr(),
-                              input_string->length(), input_string->charset());
-      return nullptr;
-    }
-  }
-  return retval;
-}
-
 static void write_histogram_to_trace(THD *thd, Item_func *item,
                                      const double selectivity) {
   Opt_trace_object obj(&thd->opt_trace, "histogram_selectivity");
@@ -755,7 +714,6 @@ bool Item_func_like::resolve_type(THD *thd) {
   } else {
     cmp.cmp_collation = args[0]->collation;
   }
-
   // LIKE is always carried out as string operation
   args[0]->cmp_context = STRING_RESULT;
   args[1]->cmp_context = STRING_RESULT;
@@ -1737,21 +1695,13 @@ int Arg_comparator::compare_json() {
 }
 
 int Arg_comparator::compare_string() {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> res1_converted(nullptr);
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> res2_converted(nullptr);
   const CHARSET_INFO *cs = cmp_collation.collation;
-  String *res1 = (*left)->val_str(&value1);
-  if (res1 != nullptr) {
-    res1 = convert_or_validate_string(res1, cs, &res1_converted);
-  }
+  String *res1 = eval_string_arg(cs, *left, &value1);
   if (res1 == nullptr) {
     if (set_null) owner->null_value = true;
     return -1;
   }
-  String *res2 = (*right)->val_str(&value2);
-  if (res2 != nullptr) {
-    res2 = convert_or_validate_string(res2, cs, &res2_converted);
-  }
+  String *res2 = eval_string_arg(cs, *right, &value2);
   if (res2 == nullptr) {
     if (set_null) owner->null_value = true;
     return -1;
@@ -2688,16 +2638,22 @@ longlong Item_func_lt::val_int() {
 }
 
 longlong Item_func_strcmp::val_int() {
-  assert(fixed == 1);
-  String *a = args[0]->val_str(&cmp.value1);
-  String *b = args[1]->val_str(&cmp.value2);
-  if (!a || !b) {
+  assert(fixed);
+  const CHARSET_INFO *cs = cmp.cmp_collation.collation;
+  String *a = eval_string_arg(cs, args[0], &cmp.value1);
+  if (a == nullptr) {
     null_value = true;
     return 0;
   }
-  int value = sortcmp(a, b, cmp.cmp_collation.collation);
+
+  String *b = eval_string_arg(cs, args[1], &cmp.value2);
+  if (b == nullptr) {
+    null_value = true;
+    return 0;
+  }
+  int value = sortcmp(a, b, cs);
   null_value = false;
-  return !value ? 0 : (value < 0 ? (longlong)-1 : (longlong)1);
+  return value == 0 ? 0 : value < 0 ? -1 : 1;
 }
 
 bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
@@ -3177,7 +3133,8 @@ static inline longlong compare_between_int_result(
 }
 
 longlong Item_func_between::val_int() {  // ANSI BETWEEN
-  assert(fixed == 1);
+  assert(fixed);
+  THD *thd = current_thd;
   if (compare_as_dates_with_strings) {
     int ge_res, le_res;
 
@@ -3193,11 +3150,22 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
       null_value = ge_res < 0;
     }
   } else if (cmp_type == STRING_RESULT) {
-    String *value, *a, *b;
-    value = args[0]->val_str(&value0);
-    if ((null_value = args[0]->null_value)) return 0;
-    a = args[1]->val_str(&value1);
-    b = args[2]->val_str(&value2);
+    const CHARSET_INFO *cs = cmp_collation.collation;
+
+    String *value = eval_string_arg(cs, args[0], &value0);
+    null_value = args[0]->null_value;
+    if (value == nullptr) {
+      null_value = true;
+      return 0;
+    }
+    String *a = eval_string_arg(cs, args[1], &value1);
+    if (thd->is_error()) {
+      return error_int();
+    }
+    String *b = eval_string_arg(cs, args[2], &value2);
+    if (thd->is_error()) {
+      return error_int();
+    }
     if (!args[1]->null_value && !args[2]->null_value)
       return (longlong)((sortcmp(value, a, cmp_collation.collation) >= 0 &&
                          sortcmp(value, b, cmp_collation.collation) <= 0) !=
@@ -3240,12 +3208,12 @@ longlong Item_func_between::val_int() {  // ANSI BETWEEN
       null_value = (my_decimal_cmp(dec, a_dec) >= 0);
   } else {
     double value = args[0]->val_real(), a, b;
-    if (current_thd->is_error()) return false;
+    if (thd->is_error()) return false;
     if ((null_value = args[0]->null_value)) return 0; /* purecov: inspected */
     a = args[1]->val_real();
-    if (current_thd->is_error()) return false;
+    if (thd->is_error()) return false;
     b = args[2]->val_real();
-    if (current_thd->is_error()) return false;
+    if (thd->is_error()) return false;
     if (!args[1]->null_value && !args[2]->null_value)
       return (longlong)((value >= a && value <= b) != negated);
     if (args[1]->null_value && args[2]->null_value)
@@ -4404,7 +4372,7 @@ void in_string::resize_and_sort() {
 
 bool in_string::find_item(Item *item) {
   if (used_count == 0) return false;
-  const String *str = item->val_str(&tmp);
+  const String *str = eval_string_arg(collation, item, &tmp);
   if (str == nullptr) return false;
   return std::binary_search(base_pointers.begin(), base_pointers.end(), str,
                             Cmp_string(collation));
@@ -4534,6 +4502,14 @@ cmp_item *cmp_item::get_comparator(Item_result result_type, const Item *item,
 
 cmp_item *cmp_item_string::make_same() {
   return new (*THR_MALLOC) cmp_item_string(cmp_charset);
+}
+
+int cmp_item_string::cmp(Item *arg) {
+  if (m_null_value) return UNKNOWN;
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp(cmp_charset);
+  String *res = eval_string_arg(cmp_charset, arg, &tmp);
+  if (res == nullptr) return UNKNOWN;
+  return sortcmp(value_res, res, cmp_charset) != 0;
 }
 
 cmp_item *cmp_item_int::make_same() { return new (*THR_MALLOC) cmp_item_int(); }
@@ -6244,16 +6220,18 @@ float Item_func_like::get_filtering_effect(THD *, table_map filter_for_table,
 }
 
 longlong Item_func_like::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
 
   if (!escape_evaluated && eval_escape_clause(current_thd)) return error_int();
 
-  String *res = args[0]->val_str(&cmp.value1);
+  const CHARSET_INFO *cs = cmp.cmp_collation.collation;
+
+  String *res = eval_string_arg(cs, args[0], &cmp.value1);
   if (args[0]->null_value) {
     null_value = true;
     return 0;
   }
-  String *res2 = args[1]->val_str(&cmp.value2);
+  String *res2 = eval_string_arg(cs, args[1], &cmp.value2);
   if (args[1]->null_value) {
     null_value = true;
     return 0;
@@ -6261,8 +6239,7 @@ longlong Item_func_like::val_int() {
   null_value = false;
   if (current_thd->is_error()) return 0;
 
-  return my_wildcmp(cmp.cmp_collation.collation, res->ptr(),
-                    res->ptr() + res->length(), res2->ptr(),
+  return my_wildcmp(cs, res->ptr(), res->ptr() + res->length(), res2->ptr(),
                     res2->ptr() + res2->length(), escape(),
                     (escape() == wild_one) ? -1 : wild_one,
                     (escape() == wild_many) ? -1 : wild_many)
@@ -7507,12 +7484,8 @@ static bool append_hash_for_string_value(Item *comparand,
                                          const CHARSET_INFO *character_set,
                                          String *join_key_buffer) {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> str_converted;
 
-  String *str = comparand->val_str(&str_buffer);
-  if (str != nullptr) {
-    str = convert_or_validate_string(str, character_set, &str_converted);
-  }
+  String *str = eval_string_arg(character_set, comparand, &str_buffer);
   if (str == nullptr) {
     return true;
   }

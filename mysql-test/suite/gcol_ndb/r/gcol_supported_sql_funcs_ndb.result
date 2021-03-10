@@ -809,7 +809,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
-  `c` int GENERATED ALWAYS AS (field(_latin1'aa',`a`,`b`)) VIRTUAL
+  `c` int GENERATED ALWAYS AS (field(_utf8mb4'aa',`a`,`b`)) VIRTUAL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into t1 values ('aa','bb',default);
 insert into t1 values ('bb','aa',default);

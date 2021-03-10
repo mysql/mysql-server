@@ -22,6 +22,34 @@ select hex(char(256));
 select locate('he','hello'),locate('he','hello',2),locate('lo','hello',2) ;
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE'); 
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');
+
+# Check LOCATE with binary substring, which is converted to string's collation
+SELECT LOCATE('d', _utf8mb4'abcdef');
+SELECT LOCATE(x'44', _utf8mb4'abcdef');
+
+SELECT POSITION('d' IN _utf8mb4'abcdef');
+SELECT POSITION(x'44' IN _utf8mb4'abcdef');
+
+SELECT INSTR(_utf8mb4'abcdef', 'd');
+SELECT INSTR(_utf8mb4'abcdef', x'44');
+
+# Case sensitivity is determined by string's collation
+SELECT LOCATE(x'64', _utf8mb4'abcdef');
+
+SELECT POSITION(x'64' IN _utf8mb4'abcdef');
+
+SELECT INSTR(_utf8mb4'abcdef', x'64');
+
+# Conversion may be invalid:
+--error ER_CANNOT_CONVERT_STRING
+SELECT LOCATE(x'ff', _utf8mb4'abcdef');
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT POSITION(x'ff' IN _utf8mb4'abcdef');
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT INSTR(_utf8mb4'abcdef', x'ff');
+
 #
 # Bug#11728 string function LEFT,
 # strange undocumented behaviour, strict mode
@@ -231,18 +259,17 @@ select FIELD('b','A','B');
 select FIELD('B','A','B');
 select FIELD('b' COLLATE latin1_bin,'A','B');
 select FIELD('b','A' COLLATE latin1_bin,'B');
---error 1270
 select FIELD(_latin2'b','A','B');
---error 1270
 select FIELD('b',_latin2'A','B');
 select FIELD('1',_latin2'3','2',1);
+
+--error ER_CANNOT_CONVERT_STRING
+SELECT FIELD(_utf8mb4'abc', x'ff');
 
 select POSITION(_latin1'B' IN _latin1'abcd');
 select POSITION(_latin1'B' IN _latin1'abcd' COLLATE latin1_bin);
 select POSITION(_latin1'B' COLLATE latin1_bin IN _latin1'abcd');
---error 1267
 select POSITION(_latin1'B' COLLATE latin1_general_ci IN _latin1'abcd' COLLATE latin1_bin);
---error 1267
 select POSITION(_latin1'B' IN _latin2'abcd');
 
 select FIND_IN_SET(_latin1'B',_latin1'a,b,c,d');

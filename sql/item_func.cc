@@ -172,6 +172,110 @@ void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
 }
 
 /**
+  Simplify the string arguments to a function, if possible.
+
+  Currently used to substitute const values with character strings
+  in the desired character set. Only used during resolving.
+
+  @param thd      thread handler
+  @param c        Desired character set and collation
+  @param args     Pointer to argument array
+  @param nargs    Number of arguments to process
+
+  @returns false if success, true if error
+*/
+bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
+                          uint nargs) {
+  // Only used during resolving
+  assert(!thd->lex->is_exec_started());
+
+  uint i;
+  Item **arg;
+  for (i = 0, arg = args; i < nargs; i++, arg++) {
+    size_t dummy_offset;
+    // Only convert const values.
+    if (!(*arg)->const_item()) continue;
+    if (!String::needs_conversion(1, (*arg)->collation.collation, c.collation,
+                                  &dummy_offset))
+      continue;
+
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
+    StringBuffer<STRING_BUFFER_USUAL_SIZE> converted;
+    String *ostr = (*arg)->val_str(&original);
+    if (ostr == nullptr) return true;
+    uint conv_status;
+    converted.copy(ostr->ptr(), ostr->length(), ostr->charset(), c.collation,
+                   &conv_status);
+    if (conv_status != 0) {
+      report_conversion_error(c.collation, ostr->ptr(), ostr->length(),
+                              ostr->charset());
+      return true;
+    }
+
+    char *ptr = thd->strmake(converted.ptr(), converted.length());
+    if (ptr == nullptr) return true;
+    Item *conv = new Item_string(ptr, converted.length(), converted.charset(),
+                                 c.derivation);
+    if (conv == nullptr) return true;
+
+    *arg = conv;
+
+    assert(conv->fixed);
+  }
+  return false;
+}
+
+/**
+  Evaluate an argument string and return it in the desired character set.
+  Perform character set conversion if needed.
+  Perform character set validation (from a binary string) if needed.
+
+  @param to_cs  The desired character set
+  @param arg    Argument to evaluate as a string value
+  @param buffer String buffer where argument is evaluated, if necessary
+
+  @returns string pointer if success, NULL if error or NULL value
+*/
+
+String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer) {
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> local_string(nullptr);
+
+  size_t offset;
+  const bool convert =
+      String::needs_conversion(0, arg->collation.collation, to_cs, &offset);
+  String *res = arg->val_str(convert ? &local_string : buffer);
+
+  // Return immediately if argument is a NULL value, or there was an error
+  if (res == nullptr) {
+    return nullptr;
+  }
+  if (convert) {
+    /*
+      String must be converted from source character set. It has been built
+      in the "local_string" buffer and will be copied with conversion into the
+      caller provided buffer.
+    */
+    uint errors = 0;
+    buffer->length(0);
+    buffer->copy(res->ptr(), res->length(), res->charset(), to_cs, &errors);
+    if (errors) {
+      report_conversion_error(to_cs, res->ptr(), res->length(), res->charset());
+      return nullptr;
+    }
+    return buffer;
+  }
+  // If source is a binary string, the string may have to be validated:
+  if (to_cs != &my_charset_bin && arg->collation.collation == &my_charset_bin &&
+      !res->is_valid_string(to_cs)) {
+    report_conversion_error(to_cs, res->ptr(), res->length(), res->charset());
+    return nullptr;
+  }
+  // Adjust target character set to the desired value
+  res->set_charset(to_cs);
+  return res;
+}
+
+/**
   Evaluate a constant condition, represented by an Item tree
 
   @param      thd   Thread handler
@@ -3886,14 +3990,23 @@ bool Item_func_locate::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 2)) return true;
   if (param_type_is_default(thd, 2, 3, MYSQL_TYPE_LONGLONG)) return true;
   max_length = MY_INT32_NUM_DECIMAL_DIGITS;
-  return agg_arg_charsets_for_comparison(cmp_collation, args, 2);
+  if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+  if (simplify_string_args(thd, collation, args + 1, 1)) return true;
+  return false;
 }
 
 longlong Item_func_locate::val_int() {
-  assert(fixed == 1);
-  String *a = args[0]->val_str(&value1);
-  String *b = args[1]->val_str(&value2);
-  if (!a || !b) {
+  assert(fixed);
+  // Evaluate the string argument first
+  const CHARSET_INFO *cs = collation.collation;
+  String *a = eval_string_arg(cs, args[0], &value1);
+  if (a == nullptr) {
+    null_value = true;
+    return 0; /* purecov: inspected */
+  }
+  // Evaluate substring argument in same character set as string argument
+  String *b = eval_string_arg(cs, args[1], &value2);
+  if (b == nullptr) {
     null_value = true;
     return 0; /* purecov: inspected */
   }
@@ -3919,11 +4032,11 @@ longlong Item_func_locate::val_int() {
   if (!b->length())  // Found empty string at start
     return start + 1;
 
-  if (!cmp_collation.collation->coll->strstr(
-          cmp_collation.collation, a->ptr() + start,
-          (uint)(a->length() - start), b->ptr(), b->length(), &match, 1))
+  if (!cs->coll->strstr(cs, a->ptr() + start,
+                        static_cast<uint>(a->length() - start), b->ptr(),
+                        b->length(), &match, 1))
     return 0;
-  return (longlong)match.mb_len + start0 + 1;
+  return static_cast<longlong>(match.mb_len) + start0 + 1;
 }
 
 void Item_func_locate::print(const THD *thd, String *str,
@@ -3948,22 +4061,25 @@ longlong Item_func_validate_password_strength::val_int() {
 }
 
 longlong Item_func_field::val_int() {
-  assert(fixed == 1);
+  assert(fixed);
 
   if (cmp_type == STRING_RESULT) {
-    String *field;
-    if (!(field = args[0]->val_str(&value))) return 0;
+    const CHARSET_INFO *cs = collation.collation;
+    String *field = eval_string_arg(cs, args[0], &value);
+    if (field == nullptr) return 0;
     for (uint i = 1; i < arg_count; i++) {
-      String *tmp_value = args[i]->val_str(&tmp);
-      if (tmp_value && !sortcmp(field, tmp_value, cmp_collation.collation))
-        return (longlong)(i);
+      String *tmp_value = eval_string_arg(cs, args[i], &tmp);
+      if (tmp_value != nullptr && !sortcmp(field, tmp_value, cs)) {
+        return i;
+      }
     }
   } else if (cmp_type == INT_RESULT) {
     longlong val = args[0]->val_int();
     if (args[0]->null_value) return 0;
     for (uint i = 1; i < arg_count; i++) {
-      if (val == args[i]->val_int() && !args[i]->null_value)
-        return (longlong)(i);
+      if (val == args[i]->val_int() && !args[i]->null_value) {
+        return i;
+      }
     }
   } else if (cmp_type == DECIMAL_RESULT) {
     my_decimal dec_arg_buf, *dec_arg, dec_buf,
@@ -3971,15 +4087,17 @@ longlong Item_func_field::val_int() {
     if (args[0]->null_value) return 0;
     for (uint i = 1; i < arg_count; i++) {
       dec_arg = args[i]->val_decimal(&dec_arg_buf);
-      if (!args[i]->null_value && !my_decimal_cmp(dec_arg, dec))
-        return (longlong)(i);
+      if (!args[i]->null_value && !my_decimal_cmp(dec_arg, dec)) {
+        return i;
+      }
     }
   } else {
     double val = args[0]->val_real();
     if (args[0]->null_value) return 0;
     for (uint i = 1; i < arg_count; i++) {
-      if (val == args[i]->val_real() && !args[i]->null_value)
-        return (longlong)(i);
+      if (val == args[i]->val_real() && !args[i]->null_value) {
+        return i;
+      }
     }
   }
   return 0;
@@ -3992,8 +4110,11 @@ bool Item_func_field::resolve_type(THD *thd) {
   cmp_type = args[0]->result_type();
   for (uint i = 1; i < arg_count; i++)
     cmp_type = item_cmp_type(cmp_type, args[i]->result_type());
-  if (cmp_type == STRING_RESULT)
-    return agg_arg_charsets_for_comparison(cmp_collation, args, arg_count);
+  if (cmp_type == STRING_RESULT) {
+    if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
+    if (simplify_string_args(thd, collation, args + 1, arg_count - 1))
+      return true;
+  }
   return false;
 }
 

@@ -1784,17 +1784,7 @@ class cmp_item_string final : public cmp_item_scalar {
     set_null_value(item->null_value);
   }
 
-  int cmp(Item *arg) override {
-    StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp(cmp_charset);
-    String *res = arg->val_str(&tmp);
-    if (m_null_value || arg->null_value) return UNKNOWN;
-    if (value_res && res)
-      return sortcmp(value_res, res, cmp_charset) != 0;
-    else if (!value_res && !res)
-      return false;
-    else
-      return true;
-  }
+  int cmp(Item *arg) override;
   cmp_item *make_same() override;
 };
 

@@ -85,6 +85,11 @@ void unsupported_json_comparison(size_t arg_count, Item **args,
 void report_conversion_error(const CHARSET_INFO *to_cs, const char *from,
                              size_t from_length, const CHARSET_INFO *from_cs);
 
+bool simplify_string_args(THD *thd, const DTCollation &c, Item **items,
+                          uint nitems);
+
+String *eval_string_arg(const CHARSET_INFO *to_cs, Item *arg, String *buffer);
+
 class Item_func : public Item_result_field {
  protected:
   /**
@@ -1681,7 +1686,6 @@ class Item_func_coercibility final : public Item_int_func {
 
 class Item_func_locate : public Item_int_func {
   String value1, value2;
-  DTCollation cmp_collation;
 
  public:
   Item_func_locate(Item *a, Item *b) : Item_int_func(a, b) {}
@@ -1723,7 +1727,6 @@ class Item_func_validate_password_strength final : public Item_int_func {
 class Item_func_field final : public Item_int_func {
   String value, tmp;
   Item_result cmp_type;
-  DTCollation cmp_collation;
 
  public:
   Item_func_field(const POS &pos, PT_item_list *opt_list)
