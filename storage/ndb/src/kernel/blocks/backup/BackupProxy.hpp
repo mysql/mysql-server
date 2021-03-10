@@ -67,6 +67,7 @@ protected:
   void execEVENT_REP(Signal* );
   void sendSUM_EVENT_REP(Signal*, Uint32 ssId);
   void execRESTORABLE_GCI_REP(Signal*);
+  void execNODE_START_REP(Signal* signal);
 };
 
 
