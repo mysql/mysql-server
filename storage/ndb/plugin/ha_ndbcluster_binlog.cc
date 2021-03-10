@@ -7399,12 +7399,26 @@ restart_cluster_failure:
       }
       update_injector_stats(s_ndb, i_ndb);
     }
-
-    // Handle current epoch that can be a gap, empty or a non-empty epoch
+    /*
+     * The logic of handling the current epoch:
+     * if <current event operation belongs to current_epoch)> {
+     *   if <event_type of the op is a gap> {
+     *     <handle gap epoch>; <get nextEvent2>
+     *   } else { // handle non-gap epoch
+     *     if <empty epoch> {
+     *       <handle empty epoch>; <get nextEvent2>
+     *     } else { // handle non-empty epoch
+     *        for <all event ops belonging to the current epoch>
+     *          <handle one op> ; <get nextEvent2>
+     *     } // else: handle non-empty epoch
+     *   }   // else: handle non-gap epoch
+     * }     // else if (i_pOp != NULL ..
+     */
     else if (i_pOp != NULL && i_pOp->getEpoch() == current_epoch) {
       const NdbDictionary::Event::TableEvent event_type =
           i_pOp->getEventType2();
 
+      // Handle current epoch that can be a gap, empty or a non-empty epoch
       if (event_type == NdbDictionary::Event::TE_INCONSISTENT ||
           event_type == NdbDictionary::Event::TE_OUT_OF_MEMORY) {
         // Handle gap epoch
@@ -7417,8 +7431,7 @@ restart_cluster_failure:
         // created by the event buffer, not sent by Ndb.
         i_pOp = i_ndb->nextEvent2();
       } else {
-        // Handle non-gap events withen 'current_epoch' -
-        // whether an empty or a non-empty epoch
+        // Handle non-gap epoch: whether an empty or a non-empty epoch
 
         thd->proc_info = "Processing events";
         ndb_binlog_index_row _row;
@@ -7433,7 +7446,7 @@ restart_cluster_failure:
         inj->new_trans(thd, &trans);
 
         if (event_type == NdbDictionary::Event::TE_EMPTY) {
-          // Handle empty epochs
+          // Handle empty epoch
           if (ndb_log_empty_epochs()) {
             DBUG_PRINT("info",
                        ("Writing empty epoch %u/%u "
@@ -7450,7 +7463,7 @@ restart_cluster_failure:
           // No need to updateInjectorStats(), since this event is
           // created by the event buffer, not sent by Ndb.
         } else {
-          // Handle non-empty epochs
+          // Handle non-empty epoch: all event ops withen 'current_epoch'
           DBUG_PRINT("info",
                      ("Handling non-empty epoch: %u/%u",
                       (uint)(current_epoch >> 32), (uint)(current_epoch)));
