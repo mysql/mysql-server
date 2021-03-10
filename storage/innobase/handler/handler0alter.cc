@@ -1181,21 +1181,21 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   trx_assign_read_view(trx);
 
-  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  size_t max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  n_threads =
-      Parallel_reader::available_threads(n_threads, use_reserved_threads);
+  max_threads =
+      Parallel_reader::available_threads(max_threads, use_reserved_threads);
 
-  if (n_threads == 0) {
+  if (max_threads == 0) {
     return (HA_ERR_GENERIC);
   }
 
   const auto row_len = m_prebuilt->mysql_row_len;
 
-  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(n_threads, row_len));
+  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(max_threads, row_len));
 
   if (adapter == nullptr) {
-    Parallel_reader::release_threads(n_threads);
+    Parallel_reader::release_threads(max_threads);
     return (HA_ERR_OUT_OF_MEM);
   }
 
@@ -1214,7 +1214,7 @@ int ha_innobase::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
   }
 
   scan_ctx = adapter;
-  *num_threads = n_threads;
+  *num_threads = max_threads;
 
   build_template(true);
 
@@ -9769,13 +9769,13 @@ static inline Instant_Type innopart_support_instant(
 
 int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
                                     bool use_reserved_threads) {
-  auto n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
-  ut_a(n_threads <= Parallel_reader::MAX_THREADS);
+  auto max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  ut_a(max_threads <= Parallel_reader::MAX_THREADS);
 
-  n_threads = static_cast<ulong>(
-      Parallel_reader::available_threads(n_threads, use_reserved_threads));
+  max_threads = static_cast<ulong>(
+      Parallel_reader::available_threads(max_threads, use_reserved_threads));
 
-  if (n_threads == 0) {
+  if (max_threads == 0) {
     return (HA_ERR_GENERIC);
   }
 
@@ -9783,10 +9783,10 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
 
   const auto row_len = m_prebuilt->mysql_row_len;
 
-  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(n_threads, row_len));
+  auto adapter = UT_NEW_NOKEY(Parallel_reader_adapter(max_threads, row_len));
 
   if (adapter == nullptr) {
-    Parallel_reader::release_threads(n_threads);
+    Parallel_reader::release_threads(max_threads);
     return (HA_ERR_OUT_OF_MEM);
   }
 
@@ -9844,7 +9844,7 @@ int ha_innopart::parallel_scan_init(void *&scan_ctx, size_t *num_threads,
   }
 
   scan_ctx = adapter;
-  *num_threads = n_threads;
+  *num_threads = max_threads;
 
   adapter->set(m_prebuilt);
 

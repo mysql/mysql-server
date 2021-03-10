@@ -4633,7 +4633,7 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
 }
 
 dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
-                                 size_t n_threads, bool check_keys,
+                                 size_t max_threads, bool check_keys,
                                  ulint *n_rows) {
   *n_rows = 0;
 
@@ -4662,9 +4662,9 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
       (check_keys || prebuilt->trx->mysql_n_tables_locked == 0) &&
       !prebuilt->ins_sel_stmt) {
 
-    n_threads = Parallel_reader::available_threads(n_threads);
+    max_threads = Parallel_reader::available_threads(max_threads);
 
-    if (n_threads > 0) {
+    if (max_threads > 0) {
       /* No INSERT INTO  ... SELECT  and non-locking selects only. */
       trx_start_if_not_started_xa(prebuilt->trx, false);
 
@@ -4679,11 +4679,11 @@ dberr_t row_scan_index_for_mysql(row_prebuilt_t *prebuilt, dict_index_t *index,
       indexes.push_back(index);
 
       if (!check_keys) {
-        return (row_mysql_parallel_select_count_star(trx, indexes, n_threads,
+        return (row_mysql_parallel_select_count_star(trx, indexes, max_threads,
                                                      n_rows));
       }
 
-      return (parallel_check_table(trx, index, n_threads, n_rows));
+      return (parallel_check_table(trx, index, max_threads, n_rows));
     }
   }
 

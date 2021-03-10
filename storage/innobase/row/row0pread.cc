@@ -189,8 +189,12 @@ dberr_t Parallel_reader::Ctx::split() {
 }
 
 Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
+    : Parallel_reader(max_threads, 0, sync) {}
+
+Parallel_reader::Parallel_reader(size_t max_threads, size_t n_threads,
+                                 bool sync)
     : m_max_threads(max_threads),
-      m_n_threads{max_threads},
+      m_n_threads(n_threads),
       m_ctxs(),
       m_sync(sync) {
   m_n_completed = 0;
@@ -1148,18 +1152,18 @@ void Parallel_reader::parallel_read() {
   join();
 }
 
-dberr_t Parallel_reader::run(size_t n_threads) {
+dberr_t Parallel_reader::run() {
   if (!m_scan_ctxs.empty()) {
-    if (n_threads == 0) {
-      n_threads = std::min(m_max_threads, m_ctxs.size());
+    if (m_n_threads == 0) {
+      size_t n_threads = std::min(m_max_threads, m_ctxs.size());
 
       /* No need to spawn any threads if only one thread is required. */
       if (n_threads == 1 || m_single_threaded_mode) {
         n_threads = 0;
       }
-    }
 
-    m_n_threads = n_threads;
+      m_n_threads = n_threads;
+    }
 
     if (!m_single_threaded_mode) {
       release_unused_threads(m_max_threads - m_n_threads);

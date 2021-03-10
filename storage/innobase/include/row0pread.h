@@ -259,6 +259,13 @@ class Parallel_reader {
   @param[in]  sync        true if the read is synchronous */
   explicit Parallel_reader(size_t max_threads, bool sync = true);
 
+  /** Constructor.
+  @param[in]  max_threads Maximum number of threads to use.
+  @param[in]  n_threads   Number of threads to be spawned.
+  @param[in]  sync        true if the read is synchronous */
+  explicit Parallel_reader(size_t max_threads, size_t n_threads,
+                           bool sync = true);
+
   /** Destructor. */
   ~Parallel_reader();
 
@@ -282,6 +289,7 @@ class Parallel_reader {
   void fallback_to_single_threaded_mode() {
     m_single_threaded_mode = true;
     release_unused_threads(m_n_threads);
+    m_n_threads = 0;
     reset_error_state();
   }
 
@@ -321,9 +329,8 @@ class Parallel_reader {
   void set_finish_callback(Finish &&f) { m_finish_callback = std::move(f); }
 
   /** Start the threads to do the parallel read for the specified range.
-  @param[in]  n_threads number of threads that *needs* to be spawned
   @return DB_SUCCESS or error code. */
-  dberr_t run(size_t n_threads = 0) MY_ATTRIBUTE((warn_unused_result));
+  dberr_t run() MY_ATTRIBUTE((warn_unused_result));
 
   /** @return the configured max threads size. */
   size_t max_threads() const MY_ATTRIBUTE((warn_unused_result)) {
@@ -339,6 +346,13 @@ class Parallel_reader {
   @param[in] err                Error state to set to. */
   void set_error_state(dberr_t err) {
     m_err.store(err, std::memory_order_relaxed);
+  }
+
+  /** Set the number of threads to be spawned.
+  @param[in]  n_threads number of threads to be spawned. */
+  void set_n_threads(size_t n_threads) {
+    ut_ad(n_threads <= m_max_threads);
+    m_n_threads = n_threads;
   }
 
   // Disable copying.
