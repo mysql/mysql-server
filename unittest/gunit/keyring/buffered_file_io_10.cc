@@ -41,8 +41,9 @@ bool Buffered_file_io_10::flush_to_file(
           file_version.length(), MYF(0)) == file_version.length() &&
       mysql_file_write(file, buffer.data, buffer.size, MYF(0)) == buffer.size &&
       mysql_file_write(
-          file, reinterpret_cast<const uchar *>(Checker::eofTAG.c_str()),
-          Checker::eofTAG.length(), MYF(0)) == Checker::eofTAG.length() &&
+          file, reinterpret_cast<const uchar *>(Checker::get_eofTAG().c_str()),
+          Checker::get_eofTAG().length(),
+          MYF(0)) == Checker::get_eofTAG().length() &&
       mysql_file_close(file, MYF(0)) >= 0) {
     was_error = false;
   }

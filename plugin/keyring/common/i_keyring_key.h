@@ -29,10 +29,10 @@
 
 namespace keyring {
 
-const std::string AES = "AES";
-const std::string RSA = "RSA";
-const std::string DSA = "DSA";
-const std::string SECRET = "SECRET";
+constexpr const char *AES = "AES";
+constexpr const char *RSA = "RSA";
+constexpr const char *DSA = "DSA";
+constexpr const char *SECRET = "SECRET";
 
 enum class Operation_type { fetch = 0, store, remove, generate };
 

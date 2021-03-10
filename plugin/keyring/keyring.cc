@@ -161,7 +161,7 @@ static int keyring_deinit(void *arg MY_ATTRIBUTE((unused))) {
   CRYPTO_cleanup_all_ex_data();
   keys.reset();
   logger.reset();
-  keyring_file_data.reset();
+  delete_keyring_file_data();
   mysql_rwlock_destroy(&LOCK_keyring);
 
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);

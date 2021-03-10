@@ -349,8 +349,9 @@ bool Buffered_file_io::flush_buffer_to_file(Buffer *buffer,
                     MYF(MY_WME)) == file_version.length() &&
       file_io.write(file, data, data_size, MYF(MY_WME)) == data_size &&
       file_io.write(
-          file, reinterpret_cast<const uchar *>(Checker::eofTAG.c_str()),
-          Checker::eofTAG.length(), MYF(MY_WME)) == Checker::eofTAG.length() &&
+          file, reinterpret_cast<const uchar *>(Checker::get_eofTAG().c_str()),
+          Checker::get_eofTAG().length(),
+          MYF(MY_WME)) == Checker::get_eofTAG().length() &&
       file_io.write(file, reinterpret_cast<const uchar *>(buffer_digest->value),
                     SHA256_DIGEST_LENGTH, MYF(0)) == SHA256_DIGEST_LENGTH)
     return false;
