@@ -40,6 +40,7 @@ extern "C" void ndb_usage(void);
 extern "C" void myRandom48Init(void);
 extern "C" void ndb_rand(void);
 
+extern "C"
 #ifdef _MSC_VER
 /*
   Make at least one symbol defined in ndbclient in order to force
