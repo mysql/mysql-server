@@ -208,7 +208,8 @@ bool Ndb_local_connection::create_util_table(const std::string &table_def_sql) {
 
 bool Ndb_local_connection::run_acl_statement(const std::string &acl_sql) {
   DBUG_TRACE;
-  uint ignore_mysql_errors[2] = {ER_NO_SUCH_TABLE, ER_NONEXISTING_TABLE_GRANT};
+  uint ignore_mysql_errors[3] = {ER_NO_SUCH_TABLE, ER_NONEXISTING_TABLE_GRANT,
+                                 0};
   MYSQL_LEX_STRING sql_text = {const_cast<char *>(acl_sql.c_str()),
                                acl_sql.length()};
   m_thd->set_query_id(next_query_id());
