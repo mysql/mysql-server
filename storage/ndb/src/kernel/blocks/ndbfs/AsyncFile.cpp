@@ -327,7 +327,10 @@ require(!"m_file.extend");
         req->userPointer = request->theUserPointer;          // DATA 2
         req->numberOfPages = 1;        // DATA 5
         req->varIndex = index++;
-        req->data.pageData[0] = m_page_ptr.i + cnt;
+        req->operationFlag = 0;
+        FsReadWriteReq::setFormatFlag(req->operationFlag,
+                                      FsReadWriteReq::fsFormatSharedPage);
+        req->data.sharedPage.pageNumber = m_page_ptr.i + cnt;
 
         m_fs.callFSWRITEREQ(request->theUserReference, req);
 

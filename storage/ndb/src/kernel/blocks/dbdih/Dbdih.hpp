@@ -48,8 +48,6 @@
 /*###################*/
 /* FILE SYSTEM FLAGS */
 /*###################*/
-#define ZLIST_OF_PAIRS 0
-#define ZLIST_OF_PAIRS_SYNCH 16
 #define ZOPEN_READ_WRITE 2
 #define ZCREATE_READ_WRITE 0x302
 #define ZCLOSE_NO_DELETE 0

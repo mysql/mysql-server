@@ -1642,7 +1642,9 @@ Lgman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
   Ptr<GlobalPage> page_ptr;
   
   m_file_pool.getPtr(ptr, req->userPointer);
-  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+  ndbrequire(req->getFormatFlag(req->operationFlag) ==
+               req->fsFormatSharedPage);
+  m_shared_page_pool.getPtr(page_ptr, req->data.sharedPage.pageNumber);
   /**
    * This code is executed when creating a new UNDO logfile group.
    * In this case we always use the new v2 format.
@@ -1826,10 +1828,9 @@ Lgman::execFSOPENCONF(Signal* signal)
     req->userPointer = file_ptr.i;
     req->varIndex = 0;
     req->numberOfPages = 1;
-    req->data.pageData[0] = file_ptr.p->m_zero_page_i;
+    req->data.sharedPage.pageNumber = file_ptr.p->m_zero_page_i;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag,
-				  FsReadWriteReq::fsFormatSharedPage);
+    req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
 	       FsReadWriteReq::FixedLength + 1, JBA);
@@ -3305,10 +3306,9 @@ Lgman::write_log_pages(Signal* signal, Ptr<Logfile_group> ptr,
   req->userPointer = filePtr.i;
   req->varIndex = 1+head.m_idx; // skip zero page
   req->numberOfPages = pages;
-  req->data.pageData[0] = pageId;
+  req->data.sharedPage.pageNumber = pageId;
   req->operationFlag = 0;
-  FsReadWriteReq::setFormatFlag(req->operationFlag,
-				FsReadWriteReq::fsFormatSharedPage);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
 
   DEB_LGMAN(("Writing %u pages, start page: %u",
              pages,
@@ -4113,10 +4113,9 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> lg_ptr)
     req->userPointer = file_ptr.i;
     req->varIndex = 1; // skip zero page
     req->numberOfPages = 1;
-    req->data.pageData[0] = page_id;
+    req->data.sharedPage.pageNumber = page_id;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag,
-				  FsReadWriteReq::fsFormatSharedPage);
+    req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
 	       FsReadWriteReq::FixedLength + 1, JBA);
@@ -4153,10 +4152,9 @@ Lgman::find_log_head(Signal* signal, Ptr<Logfile_group> lg_ptr)
     req->userPointer = file_ptr.i;
     req->varIndex = lg_ptr.p->m_file_pos[HEAD].m_ptr_i;
     req->numberOfPages = 1;
-    req->data.pageData[0] = page_id;
+    req->data.sharedPage.pageNumber = page_id;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag,
-				  FsReadWriteReq::fsFormatSharedPage);
+    req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
@@ -4404,10 +4402,9 @@ Lgman::find_log_head_in_file(Signal* signal,
     req->userPointer = file_ptr.i;
     req->varIndex = curr;
     req->numberOfPages = 1;
-    req->data.pageData[0] = page_id;
+    req->data.sharedPage.pageNumber = page_id;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag,
-				  FsReadWriteReq::fsFormatSharedPage);
+    req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
     
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
@@ -4527,10 +4524,9 @@ Lgman::find_log_head_end_check(Signal* signal,
     req->userPointer = file_ptr.i;
     req->varIndex = curr;
     req->numberOfPages = 1;
-    req->data.pageData[0] = page_id;
+    req->data.sharedPage.pageNumber = page_id;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag,
-                                  FsReadWriteReq::fsFormatSharedPage);
+    req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
 
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
                FsReadWriteReq::FixedLength + 1, JBA);
@@ -4556,10 +4552,9 @@ Lgman::find_log_head_end_check(Signal* signal,
   req->userPointer = file_ptr.i;
   req->varIndex = curr;
   req->numberOfPages = 1;
-  req->data.pageData[0] = page_id;
+  req->data.sharedPage.pageNumber = page_id;
   req->operationFlag = 0;
-  FsReadWriteReq::setFormatFlag(req->operationFlag,
-                                FsReadWriteReq::fsFormatSharedPage);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
 
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
              FsReadWriteReq::FixedLength + 1, JBA);
@@ -4875,8 +4870,7 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> lg_ptr,
   req->userReference = reference();
   req->userPointer = filePtr.i;
   req->operationFlag = 0;
-  FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				FsReadWriteReq::fsFormatSharedPage);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatSharedPage);
 
 
   if (max > pages)
@@ -4886,7 +4880,7 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> lg_ptr,
 
     req->varIndex = 1 + tail.m_idx;
     req->numberOfPages = pages;
-    req->data.pageData[0] = pageId - pages;
+    req->data.sharedPage.pageNumber = pageId - pages;
     lg_ptr.p->m_file_pos[TAIL] = tail;
     
     if (DEBUG_UNDO_EXECUTION)
@@ -4909,7 +4903,7 @@ Lgman::read_undo_pages(Signal* signal, Ptr<Logfile_group> lg_ptr,
     ndbrequire(tail.m_idx - max == 0);
     req->varIndex = 1;
     req->numberOfPages = max;
-    req->data.pageData[0] = pageId - max;
+    req->data.sharedPage.pageNumber = pageId - max;
     
     if (DEBUG_UNDO_EXECUTION)
       g_eventLogger->info("b reading from file: %d page(%d-%d) into (%d-%d)",

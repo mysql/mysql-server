@@ -25787,7 +25787,9 @@ Dblqh::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
    * be written to safely since they are owned by the file system thread.
    */
   Ptr<GlobalPage> page_ptr;
-  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+  ndbrequire(req->getFormatFlag(req->operationFlag) ==
+               req->fsFormatSharedPage);
+  m_shared_page_pool.getPtr(page_ptr, req->data.sharedPage.pageNumber);
 
   LogFileRecordPtr currLogFilePtr;
   currLogFilePtr.i = req->userPointer;
@@ -26312,14 +26314,18 @@ void Dblqh::writeSinglePage(Signal* signal,
 /*       LOG RECORD HAS BEEN SENT AT THIS TIME.       */
 /* -------------------------------------------------- */
   logPartPtrP->logPartTimer = logPartPtrP->logTimer;
-  signal->theData[0] = logFilePtr.p->fileRef;
-  signal->theData[1] = logPartPtrP->myRef;
-  signal->theData[2] = lfoPtr.i;
-  signal->theData[3] = sync ? ZLIST_OF_PAIRS_SYNCH : ZLIST_OF_PAIRS;
-  signal->theData[4] = logPartPtrP->ptrI;
-  signal->theData[5] = 1;                     /* ONE PAGE WRITTEN */
-  signal->theData[6] = logPagePtr.i;
-  signal->theData[7] = pageNo;
+
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = logFilePtr.p->fileRef;
+  req->userReference = logPartPtrP->myRef;
+  req->userPointer = lfoPtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setSyncFlag(req->operationFlag, sync);
+  req->varIndex = logPartPtrP->ptrI;
+  req->numberOfPages = 1;                     /* ONE PAGE WRITTEN */
+  req->data.listOfPair[0].varIndex = logPagePtr.i;
+  req->data.listOfPair[0].fileOffset = pageNo;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
   if (logFilePtr.p->fileRef == RNIL)
@@ -31583,11 +31589,12 @@ void Dblqh::completedLogPage(Signal* signal,
 /* ------------------------------------------------------------------------- */
   seizeLfo(lfoPtr, logPartPtrP);
   initLfo(lfoPtr.p, logFilePtr.i);
-  Uint32* dataPtr = &signal->theData[6];
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  Uint32* varIndex = req->data.listOfMemPages.varIndex;
   twlpNoPages = 0;
   wlpLogPagePtr.i = logFilePtr.p->firstFilledPage;
   do {
-    dataPtr[twlpNoPages] = wlpLogPagePtr.i;
+    varIndex[twlpNoPages] = wlpLogPagePtr.i;
     twlpNoPages++;
     ptrCheckGuard(wlpLogPagePtr,
                   logPartPtrP->logPageFileSize,
@@ -31603,30 +31610,28 @@ void Dblqh::completedLogPage(Signal* signal,
     wlpLogPagePtr.p->logPageWord[ZPOS_CHECKSUM] =
       calcPageCheckSum(wlpLogPagePtr);
     wlpLogPagePtr.i = wlpLogPagePtr.p->logPageWord[ZNEXT_PAGE];
-  } while (wlpLogPagePtr.i != RNIL);
-  ndbrequire(twlpNoPages < 9);
-  dataPtr[twlpNoPages] = logFilePtr.p->filePosition;
+  } while (wlpLogPagePtr.i != RNIL &&
+           twlpNoPages < NDB_ARRAY_SIZE(req->data.listOfMemPages.varIndex));
+  ndbrequire(wlpLogPagePtr.i == RNIL); // If not too many pages to write
 /* -------------------------------------------------- */
 /*       SET TIMER ON THIS LOG PART TO SIGNIFY THAT A */
 /*       LOG RECORD HAS BEEN SENT AT THIS TIME.       */
 /* -------------------------------------------------- */
   logPartPtrP->logPartTimer = logPartPtrP->logTimer;
-  signal->theData[0] = logFilePtr.p->fileRef;
-  signal->theData[1] = logPartPtrP->myRef;
-  signal->theData[2] = lfoPtr.i;
-  if (twlpType == ZLAST_WRITE_IN_FILE || sync_flag)
-  {
-    jam();
-    signal->theData[3] = ZLIST_OF_MEM_PAGES_SYNCH;
-  }
-  else
-  {
-    jam();
-    signal->theData[3] = ZLIST_OF_MEM_PAGES;
-  }//if
-  signal->theData[4] = logPartPtrP->ptrI;
-  signal->theData[5] = twlpNoPages;
-  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 15, JBA);
+
+  req->filePointer = logFilePtr.p->fileRef;
+  req->userReference = logPartPtrP->myRef;
+  req->userPointer = lfoPtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag,
+                     FsReadWriteReq::fsFormatListOfMemPages);
+  req->setSyncFlag(req->operationFlag,
+                   (twlpType == ZLAST_WRITE_IN_FILE) || sync_flag);
+  req->varIndex = logPartPtrP->ptrI;;
+  req->numberOfPages = twlpNoPages;
+  req->data.listOfMemPages.fileOffset = logFilePtr.p->filePosition;
+  // req->data.listOfMemPages.varIndex[] filled in loop above.
+  sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 7 + twlpNoPages, JBA);
 
   ndbrequire(logFilePtr.p->fileRef != RNIL);
 
@@ -33098,17 +33103,23 @@ void Dblqh::readExecLog(Signal* signal,
   lfoPtr.p->noPagesRw = (logPartPtrP->execSrStopPageNo -
 			 logPartPtrP->execSrStartPageNo) + 1;
   lfoPtr.p->firstLfoPage = lfoPtr.p->logPageArray[0];
-  signal->theData[0] = logFilePtr.p->fileRef;
-  signal->theData[1] = cownref;
-  signal->theData[2] = lfoPtr.i;
-  signal->theData[3] = ZLIST_OF_MEM_PAGES; // edtjamo TR509 //ZLIST_OF_PAIRS;
-  signal->theData[4] = logPartPtrP->ptrI;
-  signal->theData[5] = lfoPtr.p->noPagesRw;
+
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = logFilePtr.p->fileRef;
+  req->userReference = cownref;
+  req->userPointer = lfoPtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag,
+                     FsReadWriteReq::fsFormatListOfMemPages);
+  req->varIndex = logPartPtrP->ptrI;
+  req->numberOfPages = lfoPtr.p->noPagesRw;
+  req->data.listOfMemPages.fileOffset = logPartPtrP->execSrStartPageNo;
+  static_assert(LogFileOperationRecord::LOG_PAGE_ARRAY_SIZE <=
+                  NDB_ARRAY_SIZE(req->data.listOfMemPages.varIndex), "");
   for (unsigned i = 0; i < lfoPtr.p->noPagesRw; i++)
   {
-    signal->theData[6 + i] = lfoPtr.p->logPageArray[i];
+    req->data.listOfMemPages.varIndex[i] = lfoPtr.p->logPageArray[i];
   }
-  signal->theData[6 + lfoPtr.p->noPagesRw] = lfoPtr.p->lfoPageNo;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 7 + lfoPtr.p->noPagesRw, JBA);
 
   logPartPtrP->m_redoWorkStats.m_pagesRead+= lfoPtr.p->noPagesRw;
@@ -33181,21 +33192,25 @@ void Dblqh::readExecSr(Signal* signal,
   logPartPtrP->execSrPagesReading = logPartPtrP->execSrPagesReading + 8;
   lfoPtr.p->noPagesRw = 8;
   lfoPtr.p->firstLfoPage = lfoPtr.p->logPageArray[0];
-  signal->theData[0] = logFilePtr.p->fileRef;
-  signal->theData[1] = cownref;
-  signal->theData[2] = lfoPtr.i;
-  signal->theData[3] = ZLIST_OF_MEM_PAGES;
-  signal->theData[4] = logPartPtrP->ptrI;
-  signal->theData[5] = 8;
-  signal->theData[6] = lfoPtr.p->logPageArray[0];
-  signal->theData[7] = lfoPtr.p->logPageArray[1];
-  signal->theData[8] = lfoPtr.p->logPageArray[2];
-  signal->theData[9] = lfoPtr.p->logPageArray[3];
-  signal->theData[10] = lfoPtr.p->logPageArray[4];
-  signal->theData[11] = lfoPtr.p->logPageArray[5];
-  signal->theData[12] = lfoPtr.p->logPageArray[6];
-  signal->theData[13] = lfoPtr.p->logPageArray[7];
-  signal->theData[14] = tresPageid;
+
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = logFilePtr.p->fileRef;
+  req->userReference = cownref;
+  req->userPointer = lfoPtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag,
+                     FsReadWriteReq::fsFormatListOfMemPages);
+  req->varIndex = logPartPtrP->ptrI;
+  req->numberOfPages = 8;
+  req->data.listOfMemPages.fileOffset = tresPageid;
+  req->data.listOfMemPages.varIndex[0] = lfoPtr.p->logPageArray[0];
+  req->data.listOfMemPages.varIndex[1] = lfoPtr.p->logPageArray[1];
+  req->data.listOfMemPages.varIndex[2] = lfoPtr.p->logPageArray[2];
+  req->data.listOfMemPages.varIndex[3] = lfoPtr.p->logPageArray[3];
+  req->data.listOfMemPages.varIndex[4] = lfoPtr.p->logPageArray[4];
+  req->data.listOfMemPages.varIndex[5] = lfoPtr.p->logPageArray[5];
+  req->data.listOfMemPages.varIndex[6] = lfoPtr.p->logPageArray[6];
+  req->data.listOfMemPages.varIndex[7] = lfoPtr.p->logPageArray[7];
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 15, JBA);
 
   logPartPtrP->m_redoWorkStats.m_pagesRead +=8;
@@ -33390,14 +33405,16 @@ void Dblqh::readSinglePage(Signal* signal,
   lfoPtr.p->firstLfoPage = logPagePtr.i;
   lfoPtr.p->lfoPageNo = pageNo;
   lfoPtr.p->noPagesRw = 1;
-  signal->theData[0] = logFilePtr.p->fileRef;
-  signal->theData[1] = cownref;
-  signal->theData[2] = lfoPtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS;
-  signal->theData[4] = logPartPtrP->ptrI;
-  signal->theData[5] = 1;
-  signal->theData[6] = logPagePtr.i;
-  signal->theData[7] = pageNo;
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = logFilePtr.p->fileRef;
+  req->userReference = cownref;
+  req->userPointer = lfoPtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->varIndex = logPartPtrP->ptrI;
+  req->numberOfPages = 1;
+  req->data.listOfPair[0].varIndex = logPagePtr.i;
+  req->data.listOfPair[0].fileOffset = pageNo;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 
   if (DEBUG_REDO_REC)
@@ -34057,14 +34074,17 @@ void Dblqh::writeDirty(Signal* signal,
   lfoPtr.p->noPagesRw = 1;
   lfoPtr.p->lfoState = LogFileOperationRecord::WRITE_DIRTY;
   lfoPtr.p->firstLfoPage = logPagePtr.i;
-  signal->theData[0] = logFilePtr.p->fileRef;
-  signal->theData[1] = logPartPtrP->myRef;
-  signal->theData[2] = lfoPtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
-  signal->theData[4] = logPartPtrP->ptrI;
-  signal->theData[5] = 1;
-  signal->theData[6] = logPagePtr.i;
-  signal->theData[7] = logPartPtrP->prevFilepage;
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = logFilePtr.p->fileRef;
+  req->userReference = logPartPtrP->myRef;
+  req->userPointer = lfoPtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setSyncFlag(req->operationFlag, 1);
+  req->varIndex = logPartPtrP->ptrI;
+  req->numberOfPages = 1;
+  req->data.listOfPair[0].varIndex = logPagePtr.i;
+  req->data.listOfPair[0].fileOffset = logPartPtrP->prevFilepage;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
   ndbrequire(logFilePtr.p->fileRef != RNIL);

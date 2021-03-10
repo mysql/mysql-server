@@ -150,11 +150,6 @@ class FsReadWriteReq;
 /*       VARIOUS CONSTANTS USED AS FLAGS TO THE FILE MANAGER.                */
 /* ------------------------------------------------------------------------- */
 #define ZVAR_NO_LOG_PAGE_WORD 1
-#define ZLIST_OF_PAIRS 0
-#define ZLIST_OF_PAIRS_SYNCH 16
-#define ZARRAY_OF_PAGES 1
-#define ZLIST_OF_MEM_PAGES 2
-#define ZLIST_OF_MEM_PAGES_SYNCH 18
 #define ZCLOSE_NO_DELETE 0
 #define ZCLOSE_DELETE 1
 #define ZPAGE_ZERO 0

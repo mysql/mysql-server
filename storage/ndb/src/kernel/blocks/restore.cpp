@@ -2617,7 +2617,7 @@ Restore::read_data_file(Signal* signal, FilePtr file_ptr)
   {
     file_ptr.p->m_outstanding_reads++;
     req->varIndex = file_ptr.p->m_current_file_page++;
-    req->data.pageData[0] = *it.data;
+    req->data.globalPage.pageNumber = *it.data;
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBA);
     

@@ -881,7 +881,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       // List of memory pages followed by one file page
     case FsReadWriteReq::fsFormatListOfMemPages: { 
       
-      tPageOffset = fsRWReq->data.listOfMemPages.varIndex[fsRWReq->numberOfPages];
+      tPageOffset = fsRWReq->data.listOfMemPages.fileOffset;
       tPageOffset *= tPageSize;
       
       for (unsigned int i = 0; i < fsRWReq->numberOfPages; i++) {
@@ -893,6 +893,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
 	  errorCode = FsRef::fsErrInvalidParameters;
 	  goto error;
 	}//if
+        // NDB_FS_RW_PAGES overkill, at most 15 ! Or more via execute direct?
 	request->par.readWrite.pages[i].buf = &tWA[varIndex * tClusterSize];
 	request->par.readWrite.pages[i].size = tPageSize;
 	request->par.readWrite.pages[i].offset = (off_t)
@@ -905,6 +906,14 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
     case FsReadWriteReq::fsFormatMemAddress:
     {
       jam();
+      ndbassert(fsRWReq->numberOfPages == 1);
+      if (fsRWReq->numberOfPages != 1)
+      {
+        jam();
+        errorCode = FsRef::fsErrInvalidParameters;
+        goto error;
+      }
+
       const Uint32 memoryOffset = fsRWReq->data.memoryAddress.memoryOffset;
       const Uint32 fileOffset = fsRWReq->data.memoryAddress.fileOffset;
       const Uint32 sz = fsRWReq->data.memoryAddress.size;
@@ -912,7 +921,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       request->par.readWrite.pages[0].buf = &tWA[memoryOffset];
       request->par.readWrite.pages[0].size = sz;
       request->par.readWrite.pages[0].offset = (off_t)(fileOffset);
-      request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
+      request->par.readWrite.numberOfPages = 1;
       break;
     }
     default: {
@@ -925,7 +934,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   else if (format == FsReadWriteReq::fsFormatGlobalPage)
   {
     Ptr<GlobalPage> ptr;
-    m_global_page_pool.getPtr(ptr, fsRWReq->data.pageData[0]);
+    m_global_page_pool.getPtr(ptr, fsRWReq->data.globalPage.pageNumber);
     request->par.readWrite.pages[0].buf = (char*)ptr.p;
     request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
     request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;
@@ -935,7 +944,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
   {
     ndbrequire(format == FsReadWriteReq::fsFormatSharedPage);
     Ptr<GlobalPage> ptr;
-    m_shared_page_pool.getPtr(ptr, fsRWReq->data.pageData[0]);
+    m_shared_page_pool.getPtr(ptr, fsRWReq->data.sharedPage.pageNumber);
     request->par.readWrite.pages[0].buf = (char*)ptr.p;
     request->par.readWrite.pages[0].size = ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->numberOfPages;
     request->par.readWrite.pages[0].offset= ((UintPtr)GLOBAL_PAGE_SIZE)*fsRWReq->varIndex;

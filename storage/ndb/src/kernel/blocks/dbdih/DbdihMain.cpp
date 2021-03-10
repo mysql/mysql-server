@@ -26231,16 +26231,20 @@ void Dbdih::readRestorableGci(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::readTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS;
-  signal->theData[4] = ZVAR_NO_WORD;
-  signal->theData[5] = tab->noPages;
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->varIndex = ZVAR_NO_WORD;
+  req->numberOfPages = tab->noPages;
   Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
   for (Uint32 i = 0; i < tab->noPages; i++)
   {
+    // .listOfPair[i].varIndex
     section[(2 * i) + 0] = tab->pageRef[i];
+    // .listOfPair[i].fileOffset
     section[(2 * i) + 1] = i;
   }
   LinearSectionPtr ptr[3];
@@ -27224,18 +27228,23 @@ void Dbdih::writeRestorableGci(Signal* signal, FileRecordPtr filePtr)
 
 void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZLIST_OF_PAIRS_SYNCH;
-  signal->theData[4] = ZVAR_NO_WORD;
-  signal->theData[5] = tab->noPages;
+  FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setSyncFlag(req->operationFlag, 1);
+  req->varIndex = ZVAR_NO_WORD;
+  req->numberOfPages = tab->noPages;
 
   NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
   Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
   for (Uint32 i = 0; i < tab->noPages; i++)
   {
+    // .listOfPair[i].varIndex
     section[(2 * i) + 0] = tab->pageRef[i];
+    // .listOfPair[i].fileOffset
     section[(2 * i) + 1] = i;
   }
   LinearSectionPtr ptr[3];

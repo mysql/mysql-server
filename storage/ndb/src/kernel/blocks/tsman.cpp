@@ -1100,7 +1100,9 @@ Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
   Ptr<GlobalPage> page_ptr;
   
   m_file_pool.getPtr(ptr, req->userPointer);
-  m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
+  ndbrequire(req->getFormatFlag(req->operationFlag) ==
+               req->fsFormatSharedPage);
+  m_shared_page_pool.getPtr(page_ptr, req->data.sharedPage.pageNumber);
   
   Uint32 page_no = req->varIndex;
   Uint32 size = ptr.p->m_extent_size;
@@ -1372,9 +1374,8 @@ Tsman::execFSOPENCONF(Signal* signal)
     req->varIndex = 0;
     req->numberOfPages = 1;
     req->operationFlag = 0;
-    FsReadWriteReq::setFormatFlag(req->operationFlag, 
-				  FsReadWriteReq::fsFormatGlobalPage);
-    req->data.pageData[0] = page_ptr.i;
+    req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatGlobalPage);
+    req->data.globalPage.pageNumber = page_ptr.i;
     sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 
 	       FsReadWriteReq::FixedLength + 1, JBB);
     return;

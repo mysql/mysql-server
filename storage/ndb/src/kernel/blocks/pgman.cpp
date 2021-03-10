@@ -3860,7 +3860,7 @@ Pgman::fsreadreq(Signal* signal, Ptr<Page_entry> ptr)
   req->operationFlag = 0;
   FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatGlobalPage);
-  req->data.pageData[0] = ptr.p->m_real_page_i;
+  req->data.globalPage.pageNumber = ptr.p->m_real_page_i;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
 	     FsReadWriteReq::FixedLength + 1, JBA);
 }
@@ -3957,7 +3957,8 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   req->operationFlag = 0;
   FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatGlobalPage);
-  req->data.pageData[0] = ptr.p->m_real_page_i;
+  req->data.globalPage.pageNumber = ptr.p->m_real_page_i;
+
   
   if (!ERROR_INSERTED(11008))
   {

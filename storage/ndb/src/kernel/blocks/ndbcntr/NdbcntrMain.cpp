@@ -6120,7 +6120,6 @@ Ndbcntr::execFSOPENCONF(Signal *signal)
   ndbabort();
 }
 
-#define ZLIST_OF_PAIRS 0
 void
 Ndbcntr::read_local_sysfile(Signal *signal)
 {
@@ -6128,11 +6127,12 @@ Ndbcntr::read_local_sysfile(Signal *signal)
   req->filePointer = c_local_sysfile.m_file_pointer;
   req->userReference = reference();
   req->userPointer = 0;
-  req->operationFlag = ZLIST_OF_PAIRS;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
   req->numberOfPages = 1;
-  req->data.pageData[0] = 0;
-  req->data.pageData[1] = 0;
+  req->data.listOfPair[0].varIndex = 0;
+  req->data.listOfPair[0].fileOffset = 0;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 }
 
@@ -6143,11 +6143,12 @@ Ndbcntr::write_local_sysfile(Signal *signal)
   req->filePointer = c_local_sysfile.m_file_pointer;
   req->userReference = reference();
   req->userPointer = 0;
-  req->operationFlag = ZLIST_OF_PAIRS;
+  req->operationFlag = 0;
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
   req->numberOfPages = 1;
-  req->data.pageData[0] = 0;
-  req->data.pageData[1] = 0;
+  req->data.listOfPair[0].varIndex = 0;
+  req->data.listOfPair[0].fileOffset = 0;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 }
 

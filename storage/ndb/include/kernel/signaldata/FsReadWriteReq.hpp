@@ -104,8 +104,7 @@ private:
 // Variable sized part. Those will contain 
 // info about memory/file pages to read/write
 //-------------------------------------------------------------  
-  union {
-    UintR pageData[16];        // DATA 6 - 21
+  union { // DATA 6 - 21
     struct {
       Uint32 varIndex;   // In unit cluster size
       Uint32 fileOffset; // In unit page size
@@ -120,9 +119,15 @@ private:
       Uint32 size;
     } memoryAddress;
     struct {
-      Uint32 varIndex[1]; // Size = numberOfPages
       Uint32 fileOffset;
+      Uint32 varIndex[15]; // Size = numberOfPages
     } listOfMemPages;
+    struct {
+      Uint32 pageNumber;
+    } globalPage;
+    struct {
+      Uint32 pageNumber;
+    } sharedPage;
   } data;
 
   static Uint8 getSyncFlag(const UintR & opFlag);
