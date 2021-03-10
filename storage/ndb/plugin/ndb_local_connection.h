@@ -29,7 +29,6 @@
 #include <string>
 
 #include "my_inttypes.h"
-#include "mysql/mysql_lex_string.h"
 
 class THD;
 
@@ -51,11 +50,11 @@ class Ndb_local_connection {
   Ndb_local_connection(THD *thd);
   ~Ndb_local_connection();
 
-  bool truncate_table(const char *db, const char *table,
+  bool truncate_table(const std::string &db, const std::string &table,
                       bool ignore_no_such_table);
 
   bool delete_rows(const std::string &db, const std::string &table,
-                   int ignore_no_such_table, const std::string &where);
+                   bool ignore_no_such_table, const std::string &where);
 
   bool create_util_table(const std::string &table_def_sql);
 
@@ -67,19 +66,13 @@ class Ndb_local_connection {
 
   bool run_acl_statement(const std::string &acl_sql);
 
-  /* Don't use this function for new implementation, backward compat. only */
-  bool raw_run_query(const char *query, size_t query_length,
-                     const int *suppress_errors);
-
  protected:
-  bool execute_query_iso(MYSQL_LEX_STRING sql_text,
-                         const uint *ignore_mysql_errors,
-                         const class Suppressor *suppressor = NULL);
+  bool execute_query_iso(const std::string &sql_query,
+                         const uint *ignore_mysql_errors);
+  bool execute_query(const std::string &sql_query,
+                     const uint *ignore_mysql_errors);
 
   class Ed_result_set *get_results();
-
-  bool execute_query(MYSQL_LEX_STRING sql_text, const uint *ignore_mysql_errors,
-                     const class Suppressor *suppressor = NULL);
 
   bool m_push_warnings;
   THD *m_thd;

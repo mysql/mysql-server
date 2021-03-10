@@ -286,11 +286,8 @@ void ThreadContext::deserialize_users(std::string &str) {
 /* returns false on success */
 bool ThreadContext::exec_sql(const std::string &statement) {
   assert(m_closed);
-  uint ignore_mysql_errors[1] = {0};  // Don't ignore any errors
-  MYSQL_LEX_STRING sql_text = {const_cast<char *>(statement.c_str()),
-                               statement.length()};
   /* execute_query_iso() returns false on success */
-  m_closed = execute_query_iso(sql_text, ignore_mysql_errors, nullptr);
+  m_closed = execute_query_iso(statement, nullptr);
   return m_closed;
 }
 
