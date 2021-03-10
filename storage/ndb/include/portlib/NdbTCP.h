@@ -34,23 +34,10 @@ typedef ndb_socket_t NDB_SOCKET_TYPE;
 
 #define NDB_ADDR_STRLEN 512
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
-/**
- * Convert host name or ip address to in_addr
- *
- * Returns  0 on success
- *         -1 on failure
- *
- * Implemented as:
- *   gethostbyname
- *   if not success
- *      inet_addr
- */
+/*  Convert host name or ip address to in6_addr
+    Returns 0 on success, -1 on failure
+*/
 int Ndb_getInAddr6(struct in6_addr * dst, const char *address);
-int Ndb_getInAddr(struct in_addr * dst, const char *address);
 
 char* Ndb_inet_ntop(int af,
                     const void *src,
@@ -68,9 +55,5 @@ char* Ndb_combine_address_port(char *buf,
                                size_t bufsize,
                                const char *host,
                                Uint16 port);
-
-#ifdef	__cplusplus
-}
-#endif
 
 #endif

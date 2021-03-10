@@ -28,12 +28,6 @@
 
 #include <string.h>
 
-
-/* On some operating systems (e.g. Solaris) INADDR_NONE is not defined */
-#ifndef INADDR_NONE
-#define INADDR_NONE -1                          /* Error value from inet_addr */
-#endif
-
 /* Return codes from getaddrinfo() */
 /* EAI_NODATA is obsolete and has been removed from some platforms */
 #ifndef EAI_NODATA
@@ -116,7 +110,6 @@ static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
   return 0;
 }
 
-extern "C"
 int
 Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 {
@@ -142,32 +135,6 @@ Ndb_getInAddr6(struct in6_addr * dst, const char *address)
 
   return ret;
 }
-
-extern "C"
-int
-Ndb_getInAddr(struct in_addr * dst, const char *address)
-{
-  struct addrinfo hints;
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET; // Only IPv4 address
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_protocol = IPPROTO_TCP;
-
-  struct addrinfo* ai_list;
-  if (getaddrinfo(address, NULL, &hints, &ai_list) != 0)
-  {
-    dst->s_addr = INADDR_NONE;
-    return -1;
-  }
-
-  /* Return sin_addr for the first address returned */
-  struct sockaddr_in* sin = (struct sockaddr_in*)ai_list->ai_addr;
-  memcpy(dst, &sin->sin_addr, sizeof(struct in_addr));
-
-  freeaddrinfo(ai_list);
-  return 0;
-}
-
 
 char*
 Ndb_inet_ntop(int af,
@@ -348,16 +315,15 @@ Ndb_combine_address_port(char *buf,
 #include <NdbTap.hpp>
 
 static void
-CHECK(const char* address, int expected_res, bool is_numeric= false)
+CHECK(const char* address, int expected_res)
 {
-  struct in_addr addr;
-  char *addr_str1, *addr_str2;
+  struct in6_addr addr;
+  char *addr_str1;
   char buf1[NDB_ADDR_STRLEN];
-  char buf2[NDB_ADDR_STRLEN];
 
   fprintf(stderr, "Testing '%s' with length: %u\n", address, (unsigned)strlen(address));
 
-  int res= Ndb_getInAddr(&addr, address);
+  int res= Ndb_getInAddr6(&addr, address);
 
   if (res != expected_res)
   {
@@ -366,62 +332,11 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
     abort();
   }
 
-  if (res != 0)
-  {
-    fprintf(stderr, "> returned -1, checking INADDR_NONE\n");
-
-    // Should return INADDR_NONE when when lookup fails
-    struct in_addr none;
-    none.s_addr = INADDR_NONE;
-    if (memcmp(&addr, &none, sizeof(none)) != 0)
-    {
-      addr_str1 = Ndb_inet_ntop(AF_INET,
-                                static_cast<void*>(&addr),
-                                buf1,
-                                sizeof(buf1));
-      addr_str2 = Ndb_inet_ntop(AF_INET,
-                                static_cast<void*>(&none),
-                                buf2,
-                                sizeof(buf2));
-      fprintf(stderr, "> didn't return INADDR_NONE after failure, "
-             "got: '%s', expected; '%s'\n", addr_str1, addr_str2);
-      abort();
-    }
-    fprintf(stderr, "> ok\n");
-    return;
-  }
-
-  addr_str1 = Ndb_inet_ntop(AF_INET,
+  addr_str1 = Ndb_inet_ntop(AF_INET6,
                             static_cast<void*>(&addr),
                             buf1,
                             sizeof(buf1));
   fprintf(stderr, "> '%s' -> '%s'\n", address, addr_str1);
-
-  if (is_numeric)
-  {
-    // Check that numeric address always map back to itself
-    // ie. compare to value returned by 'inet_aton'
-    fprintf(stderr, "> Checking numeric address against inet_addr\n");
-    struct in_addr addr2;
-    addr2.s_addr = inet_addr(address);
-    addr_str2 = Ndb_inet_ntop(AF_INET,
-                              static_cast<void*>(&addr2),
-                              buf2,
-                              sizeof(buf2));
-    fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, addr_str2);
-
-    if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
-    {
-      addr_str2 = Ndb_inet_ntop(AF_INET,
-                                static_cast<void*>(&addr2),
-                                buf2,
-                                sizeof(buf2));
-      fprintf(stderr, "> numeric address '%s' didn't map to same value as "
-              "inet_addr: '%s'", address, addr_str2);
-      abort();
-    }
-    fprintf(stderr, "> ok\n");
-  }
 }
 
 
@@ -504,7 +419,7 @@ TAPTEST(NdbGetInAddr)
 
   if (can_resolve_hostname("localhost"))
     CHECK("localhost", 0);
-  CHECK("127.0.0.1", 0, true);
+  CHECK("127.0.0.1", 0);
 
   char hostname_buf[256];
   char addr_buf[NDB_ADDR_STRLEN];
@@ -514,21 +429,20 @@ TAPTEST(NdbGetInAddr)
     // Check this machines hostname
     CHECK(hostname_buf, 0);
 
-    struct in_addr addr;
-    Ndb_getInAddr(&addr, hostname_buf);
+    struct in6_addr addr;
+    Ndb_getInAddr6(&addr, hostname_buf);
     // Convert hostname to dotted decimal string ip and check
-    CHECK(Ndb_inet_ntop(AF_INET,
+    CHECK(Ndb_inet_ntop(AF_INET6,
                         static_cast<void*>(&addr),
                         addr_buf,
                         sizeof(addr_buf)),
-                        0,
-                        true);
+                        0);
   }
   CHECK("unknown_?host", -1); // Does not exist
-  CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", -1); // No IPv6
-  CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", -1);
-  CHECK("fe80::200:f8ff:fe21:67cf", -1);
-  CHECK("::1", -1); // the loopback, but still No IPv6
+  CHECK("3ffe:1900:4545:3:200:f8ff:fe21:67cf", 0);
+  CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", 0);
+  CHECK("fe80::200:f8ff:fe21:67cf", 0);
+  CHECK("::1", 0);
 
   // 255 byte hostname which does not exist
   char long_hostname[256];
