@@ -5816,6 +5816,34 @@ handle_error(NdbEventOperation *pOp)
   DBUG_RETURN(0);
 }
 
+ /*
+ *  Handle exceptional events- event buffer inconsistent and full
+ *  by injecting a GAP record into the binlog.
+ */
+static
+void
+handle_gap_epoch(THD *thd,
+                         NdbDictionary::Event::TableEvent event_type,
+                         Uint64 gap_epoch,
+                         injector *inj) {
+  char reason[20];
+  if (event_type == NdbDictionary::Event::TE_INCONSISTENT) {
+    my_snprintf(reason, sizeof(reason), "missing data");
+  }
+  else if (event_type == NdbDictionary::Event::TE_OUT_OF_MEMORY) {
+    my_snprintf(reason, sizeof(reason), "event buffer full");
+  }
+
+  char errmsg[80];
+  my_snprintf(errmsg, sizeof(errmsg),
+           "Detected %s in GCI %llu, "
+           "inserting GAP event",
+           reason, gap_epoch);
+  DBUG_PRINT("info", ("%s", errmsg));
+
+  LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
+  inj->record_incident(thd, binary_log::Incident_event::INCIDENT_LOST_EVENTS, msg);
+}
 
 /*
   Handle _non_ data events from the storage nodes
@@ -6687,6 +6715,231 @@ find_epoch_to_handle(const NdbEventOperation *s_pOp,
   return ndb_latest_received_binlog_epoch;
 }
 
+static
+void
+commit_trans(THD *thd, injector::transaction &trans, Uint64 current_epoch,
+             ndb_binlog_index_row *rows,
+             unsigned trans_row_count,
+             unsigned trans_slave_row_count) {
+  if (!trans.good()) {
+      return;
+  }
+
+  if (!ndb_log_empty_epochs())
+  {
+    /*
+      If
+      - We did not add any 'real' rows to the Binlog AND
+      - We did not apply any slave row updates, only
+      ndb_apply_status updates
+      THEN
+      Don't write the Binlog transaction which just
+      contains ndb_apply_status updates.
+      (For cicular rep with log_apply_status, ndb_apply_status
+      updates will propagate while some related, real update
+      is propagating)
+    */
+    if ((trans_row_count == 0) &&
+        (! (opt_ndb_log_apply_status &&
+            trans_slave_row_count) ))
+    {
+      /* nothing to commit, rollback instead */
+      if (int r= trans.rollback())
+      {
+        sql_print_error("NDB Binlog: "
+                        "Error during ROLLBACK of GCI %u/%u. Error: %d",
+                        uint(current_epoch >> 32), uint(current_epoch), r);
+        /* TODO: Further handling? */
+      }
+      return;
+    }
+  }
+
+  thd->proc_info= "Committing events to binlog";
+  if (int r= trans.commit())
+  {
+    sql_print_error("NDB Binlog: "
+                    "Error during COMMIT of GCI. Error: %d",
+                    r);
+    /* TODO: Further handling? */
+  }
+  injector::transaction::binlog_pos start= trans.start_pos();
+  injector::transaction::binlog_pos next = trans.next_pos();
+  rows->gci= (Uint32)(current_epoch >> 32); // Expose gci hi/lo
+  rows->epoch= current_epoch;
+  rows->start_master_log_file= start.file_name();
+  rows->start_master_log_pos= start.file_pos();
+  if ((next.file_pos() == 0) &&
+      ndb_log_empty_epochs())
+  {
+    /* Empty transaction 'committed' due to log_empty_epochs
+     * therefore no next position
+     */
+    rows->next_master_log_file= start.file_name();
+    rows->next_master_log_pos= start.file_pos();
+  }
+  else
+  {
+    rows->next_master_log_file= next.file_name();
+    rows->next_master_log_pos= next.file_pos();
+  }
+
+  DBUG_PRINT("info", ("COMMIT epoch: %lu", (ulong) current_epoch));
+  if (opt_ndb_log_binlog_index)
+  {
+    if (Ndb_binlog_index_table_util::write_rows(thd, rows))
+    {
+      /*
+        Writing to ndb_binlog_index failed, check if it's because THD have
+        been killed and retry in such case
+      */
+      if (thd->killed)
+      {
+        DBUG_PRINT("error", ("Failed to write to ndb_binlog_index at shutdown, retrying"));
+        Ndb_binlog_index_table_util::write_rows_retry_after_kill(thd, rows);
+      }
+    }
+  }
+  ndb_latest_applied_binlog_epoch= current_epoch;
+}
+
+static
+void
+pass_table_map_before_epoch(Ndb *i_ndb, injector::transaction &trans)
+{
+  Uint32 iter= 0;
+  const NdbEventOperation *gci_op;
+  Uint32 event_types;
+  Uint32 cumulative_any_value;
+
+  while ((gci_op= i_ndb->getNextEventOpInEpoch3(&iter, &event_types, &cumulative_any_value))
+         != NULL)
+  {
+    Ndb_event_data *event_data=
+      (Ndb_event_data *) gci_op->getCustomData();
+    NDB_SHARE *share= (event_data)?event_data->share:NULL;
+    DBUG_PRINT("info", ("per gci_op: 0x%lx  share: 0x%lx  event_types: 0x%x",
+                        (long) gci_op, (long) share, event_types));
+    // workaround for interface returning TE_STOP events
+    // which are normally filtered out below in the nextEvent loop
+    if ((event_types & ~NdbDictionary::Event::TE_STOP) == 0)
+    {
+      DBUG_PRINT("info", ("Skipped TE_STOP on table %s",
+                          gci_op->getEvent()->getTable()->getName()));
+      continue;
+    }
+    // this should not happen
+    if (share == NULL || event_data->shadow_table == NULL)
+    {
+      DBUG_PRINT("info", ("no share or table %s!",
+                          gci_op->getEvent()->getTable()->getName()));
+      continue;
+    }
+    if (share == ndb_apply_status_share)
+    {
+      // skip this table, it is handled specially
+      continue;
+    }
+    TABLE *table= event_data->shadow_table;
+#ifndef NDEBUG
+    const LEX_STRING &name= table->s->table_name;
+#endif
+    if ((event_types & (NdbDictionary::Event::TE_INSERT |
+                        NdbDictionary::Event::TE_UPDATE |
+                        NdbDictionary::Event::TE_DELETE)) == 0)
+    {
+      DBUG_PRINT("info", ("skipping non data event table: %.*s",
+                          (int) name.length, name.str));
+      continue;
+    }
+    bool use_table= true;
+    if (ndbcluster_anyvalue_is_reserved(cumulative_any_value))
+    {
+      /*
+        All events for this table in this epoch are marked as nologging,
+        therefore we do not include the table in the epoch transaction.
+      */
+      if (ndbcluster_anyvalue_is_nologging(cumulative_any_value))
+      {
+        DBUG_PRINT("info", ("Skip binlogging table table: %.*s",
+                            (int) name.length, name.str));
+        use_table= false;
+      }
+    }
+    if (use_table)
+    {
+      DBUG_PRINT("info", ("use_table: %.*s, cols %u",
+                          (int) name.length, name.str,
+                          table->s->fields));
+      injector::transaction::table tbl(table, true);
+      int ret = trans.use_table(::server_id, tbl);
+      assert(ret == 0); NDB_IGNORE_VALUE(ret);
+    }
+  }
+}
+
+static
+void
+initial_work(Ndb *i_ndb) {
+  /* Update our thread-local debug settings based on the global */
+#ifndef NDEBUG
+  /* Get value of global...*/
+  {
+    char buf[256];
+    DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+    //  fprintf(stderr, "Ndb Binlog Injector, setting debug to %s\n",
+    //          buf);
+    DBUG_SET(buf);
+  }
+#endif
+
+  /* initialize some variables for this epoch */
+
+  i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
+  g_ndb_log_slave_updates= opt_log_slave_updates;
+  i_ndb->
+    setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
+  i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
+}
+
+#ifndef NDEBUG
+static
+void
+check_event_list_consistency(Ndb *i_ndb, NdbEventOperation *i_pOp,
+                              const Uint64 current_epoch) {
+  {
+    Ndb_event_data *event_data=
+      (Ndb_event_data *) i_pOp->getCustomData();
+    NDB_SHARE *share= (event_data) ? event_data->share : NULL;
+    DBUG_PRINT("info",
+               ("EVENT TYPE: %d  Epoch: %u/%u last applied: %u/%u  "
+                "share: 0x%lx (%s.%s)", i_pOp->getEventType(),
+                (uint)(current_epoch >> 32),
+                (uint)(current_epoch),
+                (uint)(ndb_latest_applied_binlog_epoch >> 32),
+                (uint)(ndb_latest_applied_binlog_epoch),
+                (long) share,
+                share ? share->db :  "'NULL'",
+                share ? share->table_name : "'NULL'"));
+    assert(share != 0);
+  }
+  // assert that there is consistancy between gci op list
+  // and event list
+  {
+    Uint32 iter= 0;
+    const NdbEventOperation *gci_op;
+    Uint32 event_types;
+    while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
+           != NULL)
+    {
+      if (gci_op == i_pOp)
+        break;
+    }
+    assert(gci_op == i_pOp);
+    assert((event_types & i_pOp->getEventType()) != 0);
+  }
+}
+#endif
 
 void
 Ndb_binlog_thread::do_run()
@@ -6965,7 +7218,7 @@ restart_cluster_failure:
 
         my_thread_yield();
         mysql_mutex_lock(&injector_event_mutex);
-        res= i_ndb->pollEvents(10, &gci);
+        res= i_ndb->pollEvents2(10, &gci);
         mysql_mutex_unlock(&injector_event_mutex);
       }
       if (gci > schema_gci)
@@ -7093,13 +7346,18 @@ restart_cluster_failure:
       // Capture any dynamic changes to max_alloc
       i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
+      if (ndb_log_empty_epochs()) {
+        // Ensure that empty epochs (event type TE_EMPTY) are queued
+        i_ndb->setEventBufferQueueEmptyEpoch(true);
+      }
+
       mysql_mutex_lock(&injector_event_mutex);
       Uint64 latest_epoch= 0;
       const int poll_wait= (ndb_binlog_running) ? tot_poll_wait : 0;
-      const int res= i_ndb->pollEvents(poll_wait, &latest_epoch);
+      const int res= i_ndb->pollEvents2(poll_wait, &latest_epoch);
       (void)res; // Unused except DBUG_PRINT
       mysql_mutex_unlock(&injector_event_mutex);
-      i_pOp = i_ndb->nextEvent();
+      i_pOp = i_ndb->nextEvent2();
       if (ndb_binlog_running)
       {
         ndb_latest_received_binlog_epoch= latest_epoch;
@@ -7256,7 +7514,6 @@ restart_cluster_failure:
       updateInjectorStats(s_ndb, i_ndb);
     }
 
-    Uint64 inconsistent_epoch= 0;
     if (!ndb_binlog_running)
     {
       /*
@@ -7275,341 +7532,151 @@ restart_cluster_failure:
       }
       updateInjectorStats(s_ndb, i_ndb);
     }
+    /*
+     * The logic of  handling the current epoch:
+     * if <current event operation belongs to current_epoch)> {
+     *   if <event_type of the op is a gap> {
+     *     <handle gap epoch>; <get nextEvent2>
+     *   } else {
+     *     if <empty epoch> {
+     *       <handle empty epoch>; <get nextEvent2>
+     *     } else { // handle non-empty epoch
+     *        for <all ops belonging to the current epoch>
+     *          <handle one op> ; <get nextEvent2>
+     *     } // else: handle non-empty epoch
+     *   }   // else: handle non-gap epoch
+     * }     // else if (i_pOp != NULL ..
+    */
+    else if (i_pOp != NULL && i_pOp->getEpoch() == current_epoch) {
 
-    // i_pOp == NULL means an inconsistent epoch or the queue is empty
-    else if (i_pOp == NULL && !i_ndb->isConsistent(inconsistent_epoch))
-    {
-      char errmsg[64];
-      uint end= sprintf(&errmsg[0],
-                        "Detected missing data in GCI %llu, "
-                        "inserting GAP event", inconsistent_epoch);
-      errmsg[end]= '\0';
-      DBUG_PRINT("info",
-                 ("Detected missing data in GCI %llu, "
-                  "inserting GAP event", inconsistent_epoch));
-      LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-      inj->record_incident(thd,
-                           binary_log::Incident_event::INCIDENT_LOST_EVENTS,
-                           msg);
-    }
+      // Handle current_epoch which can be a gap, empty or a non-empty epoch
+      const NdbDictionary::Event::TableEvent event_type = i_pOp->getEventType2();
 
-    /* Handle all events withing 'current_epoch', or possible
-     * log an empty epoch if log_empty_epoch is specified.
-     */
-    else if ((i_pOp != NULL && i_pOp->getEpoch() == current_epoch) ||
-             (ndb_log_empty_epochs() &&
-              current_epoch > ndb_latest_handled_binlog_epoch))
-    {
-      thd->proc_info= "Processing events";
-      ndb_binlog_index_row _row;
-      ndb_binlog_index_row *rows= &_row;
-      injector::transaction trans;
-      unsigned trans_row_count= 0;
-      unsigned trans_slave_row_count= 0;
+      if (event_type == NdbDictionary::Event::TE_INCONSISTENT ||
+          event_type == NdbDictionary::Event::TE_OUT_OF_MEMORY) {
 
-      if (i_pOp == NULL || i_pOp->getEpoch() != current_epoch)
-      {
-        /*
-          Must be an empty epoch since the condition
-          (ndb_log_empty_epochs() &&
-           current_epoch > ndb_latest_handled_binlog_epoch)
-          must be true we write empty epoch into
-          ndb_binlog_index
-        */
-        assert(ndb_log_empty_epochs());
-        assert(current_epoch > ndb_latest_handled_binlog_epoch);
-        DBUG_PRINT("info", ("Writing empty epoch for gci %llu", current_epoch));
-        DBUG_PRINT("info", ("Initializing transaction"));
-        inj->new_trans(thd, &trans);
-        rows= &_row;
-        memset(&_row, 0, sizeof(_row));
-        thd->variables.character_set_client= &my_charset_latin1;
-        goto commit_to_binlog;
+        DBUG_PRINT("info", ("Handle gap epoch"));
+        handle_gap_epoch(thd, event_type, current_epoch, inj);
+
+        i_pOp= i_ndb->nextEvent2();
+
+        // No need to updateInjectorStats(), since these events are
+        // created by the event buffer, not sent by Ndb.
       }
-      else
-      {
-        assert(i_pOp != NULL && i_pOp->getEpoch() == current_epoch);
+
+      else {
+        // Handle empty or non-empty epoch
+        thd->proc_info= "Processing events";
+        ndb_binlog_index_row _row;
+        ndb_binlog_index_row *rows= &_row;
+        injector::transaction trans;
+        unsigned trans_row_count= 0;
+        unsigned trans_slave_row_count= 0;
+
         rows= &_row;
-
-        DBUG_PRINT("info", ("Handling epoch: %u/%u",
-                            (uint)(current_epoch >> 32),
-                            (uint)(current_epoch)));
-        // sometimes get TE_ALTER with invalid table
-        assert(i_pOp->getEventType() == NdbDictionary::Event::TE_ALTER ||
-               ! IS_NDB_BLOB_PREFIX(i_pOp->getEvent()->getTable()->getName()));
-        assert(current_epoch <= ndb_latest_received_binlog_epoch);
-
-        /* Update our thread-local debug settings based on the global */
-#ifndef NDEBUG
-        /* Get value of global...*/
-        {
-          char buf[256];
-          DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
-          //  fprintf(stderr, "Ndb Binlog Injector, setting debug to %s\n",
-          //          buf);
-          DBUG_SET(buf);
-        }
-#endif
-
-        /* initialize some variables for this epoch */
-
-        i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
-        g_ndb_log_slave_updates= opt_log_slave_updates;
-        i_ndb->
-          setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
-        i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
-
         memset(&_row, 0, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
         DBUG_PRINT("info", ("Initializing transaction"));
         inj->new_trans(thd, &trans);
-        trans_row_count= 0;
-        trans_slave_row_count= 0;
-        // pass table map before epoch
-        {
-          Uint32 iter= 0;
-          const NdbEventOperation *gci_op;
-          Uint32 event_types;
-          Uint32 cumulative_any_value;
 
-          while ((gci_op= i_ndb->getNextEventOpInEpoch3(&iter, &event_types, &cumulative_any_value))
-                 != NULL)
+        if (event_type == NdbDictionary::Event::TE_EMPTY) {
+          // Handle empty epoch
+          if (ndb_log_empty_epochs()) {
+            DBUG_PRINT("info", ("Writing empty epoch %u/%u "
+                                "latest_handled_binlog_epoch %u/%u",
+                                (uint)(current_epoch >> 32),
+                                (uint)(current_epoch),
+                                (uint)(ndb_latest_handled_binlog_epoch >> 32),
+                                (uint)(ndb_latest_handled_binlog_epoch)));
+
+            DBUG_PRINT("info", ("Writing empty epoch for gci %llu", current_epoch));
+            commit_trans(thd, trans, current_epoch, rows, trans_row_count,
+                         trans_slave_row_count);
+          }
+
+          i_pOp= i_ndb->nextEvent2();
+
+          // No need to updateInjectorStats(), since this event is
+          // created by the event buffer, not sent by Ndb.
+
+        } else {
+          // Handle non-empty epoch
+          DBUG_PRINT("info", ("Handling epoch: %u/%u",
+                              (uint)(current_epoch >> 32),
+                              (uint)(current_epoch)));
+
+          // sometimes get TE_ALTER with invalid table
+          assert(i_pOp->getEventType() == NdbDictionary::Event::TE_ALTER ||
+                 ! IS_NDB_BLOB_PREFIX(i_pOp->getEvent()->getTable()->getName()));
+
+          /*
+           * ndb_latest_received_binlog_epoch ==0: cluster is restarted after
+           * a cluster failure. Let injector_ndb handle the received events
+           * including TE_NODE_FAILURE and/or TE_CLUSTER_FAILURE.
+           */
+          if (ndb_latest_received_binlog_epoch != 0)
+            assert(current_epoch <= ndb_latest_received_binlog_epoch);
+
+          initial_work(i_ndb);
+          pass_table_map_before_epoch(i_ndb, trans);
+
+          if (trans.good())
           {
-            Ndb_event_data *event_data=
-              (Ndb_event_data *) gci_op->getCustomData();
-            NDB_SHARE *share= (event_data)?event_data->share:NULL;
-            DBUG_PRINT("info", ("per gci_op: 0x%lx  share: 0x%lx  event_types: 0x%x",
-                                (long) gci_op, (long) share, event_types));
-            // workaround for interface returning TE_STOP events
-            // which are normally filtered out below in the nextEvent loop
-            if ((event_types & ~NdbDictionary::Event::TE_STOP) == 0)
+            /* Inject ndb_apply_status WRITE_ROW event */
+            if (!injectApplyStatusWriteRow(trans, current_epoch))
             {
-              DBUG_PRINT("info", ("Skipped TE_STOP on table %s",
-                                  gci_op->getEvent()->getTable()->getName()));
-              continue;
-            }
-            // this should not happen
-            if (share == NULL || event_data->shadow_table == NULL)
-            {
-              DBUG_PRINT("info", ("no share or table %s!",
-                                  gci_op->getEvent()->getTable()->getName()));
-              continue;
-            }
-            if (share == ndb_apply_status_share)
-            {
-              // skip this table, it is handled specially
-              continue;
-            }
-            TABLE *table= event_data->shadow_table;
-#ifndef NDEBUG
-            const LEX_STRING &name= table->s->table_name;
-#endif
-            if ((event_types & (NdbDictionary::Event::TE_INSERT |
-                                NdbDictionary::Event::TE_UPDATE |
-                                NdbDictionary::Event::TE_DELETE)) == 0)
-            {
-              DBUG_PRINT("info", ("skipping non data event table: %.*s",
-                                  (int) name.length, name.str));
-              continue;
-            }
-            if (!trans.good())
-            {
-              DBUG_PRINT("info",
-                         ("Found new data event, initializing transaction"));
-              inj->new_trans(thd, &trans);
-            }
-            {
-              bool use_table= true;
-              if (ndbcluster_anyvalue_is_reserved(cumulative_any_value))
-              {
-                /*
-                   All events for this table in this epoch are marked as nologging,
-                   therefore we do not include the table in the epoch transaction.
-                */
-                if (ndbcluster_anyvalue_is_nologging(cumulative_any_value))
-                {
-                  DBUG_PRINT("info", ("Skip binlogging table table: %.*s",
-                                      (int) name.length, name.str));
-                  use_table= false;
-                }
-              }
-              if (use_table)
-              {
-                DBUG_PRINT("info", ("use_table: %.*s, cols %u",
-                                    (int) name.length, name.str,
-                                    table->s->fields));
-                injector::transaction::table tbl(table, true);
-                int ret = trans.use_table(::server_id, tbl);
-                assert(ret == 0); NDB_IGNORE_VALUE(ret);
-              }
+              sql_print_error("NDB Binlog: Failed to inject apply status write row");
             }
           }
-        }
-        if (trans.good())
-        {
-          /* Inject ndb_apply_status WRITE_ROW event */
-          if (!injectApplyStatusWriteRow(trans, current_epoch))
-          {
-            sql_print_error("NDB Binlog: Failed to inject apply status write row");
-          }
-        }
 
-        do
-        {
-          if (i_pOp->hasError() &&
-              handle_error(i_pOp) < 0)
-            goto err;
+          do
+          {
+            if (i_pOp->hasError() &&
+                handle_error(i_pOp) < 0)
+              goto err;
 
 #ifndef NDEBUG
-          {
-            Ndb_event_data *event_data=
-              (Ndb_event_data *) i_pOp->getCustomData();
-            NDB_SHARE *share= (event_data)?event_data->share:NULL;
-            DBUG_PRINT("info",
-                       ("EVENT TYPE: %d  Epoch: %u/%u last applied: %u/%u  "
-                        "share: 0x%lx (%s.%s)", i_pOp->getEventType(),
-                        (uint)(current_epoch >> 32),
-                        (uint)(current_epoch),
-                        (uint)(ndb_latest_applied_binlog_epoch >> 32),
-                        (uint)(ndb_latest_applied_binlog_epoch),
-                        (long) share,
-                        share ? share->db :  "'NULL'",
-                        share ? share->table_name : "'NULL'"));
-            assert(share != 0);
-          }
-          // assert that there is consistancy between gci op list
-          // and event list
-          {
-            Uint32 iter= 0;
-            const NdbEventOperation *gci_op;
-            Uint32 event_types;
-            while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
-                   != NULL)
-            {
-              if (gci_op == i_pOp)
-                break;
-            }
-            assert(gci_op == i_pOp);
-            assert((event_types & i_pOp->getEventType()) != 0);
-          }
+            check_event_list_consistency(i_ndb, i_pOp, current_epoch);
 #endif
+            if ((unsigned) i_pOp->getEventType() <
+                (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
+              handle_data_event(thd, i_ndb, i_pOp, &rows, trans,
+                                trans_row_count, trans_slave_row_count);
+            else
+            {
+              handle_non_data_event(thd, i_pOp, *rows);
+              DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
+                                  s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
+                                  "<empty>"));
+              DBUG_PRINT("info", ("i_ndb first: %s", i_ndb->getEventOperation() ?
+                                  i_ndb->getEventOperation()->getEvent()->getTable()->getName() :
+                                  "<empty>"));
+            }
 
-          if ((unsigned) i_pOp->getEventType() <
-              (unsigned) NDBEVENT::TE_FIRST_NON_DATA_EVENT)
-            handle_data_event(thd, i_ndb, i_pOp, &rows, trans,
-                              trans_row_count, trans_slave_row_count);
-          else
-          {
-            handle_non_data_event(thd, i_pOp, *rows);
-            DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
-                                s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
-                                "<empty>"));
-            DBUG_PRINT("info", ("i_ndb first: %s", i_ndb->getEventOperation() ?
-                                i_ndb->getEventOperation()->getEvent()->getTable()->getName() :
-                                "<empty>"));
-          }
+            // Capture any dynamic changes to max_alloc
+            i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
-          // Capture any dynamic changes to max_alloc
-          i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
+            i_pOp = i_ndb->nextEvent2();
+          } while (i_pOp && i_pOp->getEpoch() == current_epoch);
 
-          i_pOp = i_ndb->nextEvent();
-        } while (i_pOp && i_pOp->getEpoch() == current_epoch);
-
-        updateInjectorStats(s_ndb, i_ndb);
+          updateInjectorStats(s_ndb, i_ndb);
         
-        /*
-          NOTE: i_pOp is now referring to an event in the next epoch
-          or is == NULL
-        */
+          /*
+            NOTE: i_pOp is now referring to an event in the next epoch
+            or is == NULL
+          */
 
-        while (trans.good())
-        {
-      commit_to_binlog:
-          if (!ndb_log_empty_epochs())
-          {
-            /*
-              If 
-                - We did not add any 'real' rows to the Binlog AND
-                - We did not apply any slave row updates, only
-                  ndb_apply_status updates
-              THEN
-                Don't write the Binlog transaction which just
-                contains ndb_apply_status updates.
-                (For cicular rep with log_apply_status, ndb_apply_status
-                updates will propagate while some related, real update
-                is propagating)
-            */
-            if ((trans_row_count == 0) &&
-                (! (opt_ndb_log_apply_status &&
-                    trans_slave_row_count) ))
-            {
-              /* nothing to commit, rollback instead */
-              if (int r= trans.rollback())
-              {
-                sql_print_error("NDB Binlog: "
-                                "Error during ROLLBACK of GCI %u/%u. Error: %d",
-                                uint(current_epoch >> 32), uint(current_epoch), r);
-                /* TODO: Further handling? */
-              }
-              break;
-            }
-          }
-          thd->proc_info= "Committing events to binlog";
-          if (int r= trans.commit())
-          {
-            sql_print_error("NDB Binlog: "
-                            "Error during COMMIT of GCI. Error: %d",
-                            r);
-            /* TODO: Further handling? */
-          }
-          injector::transaction::binlog_pos start= trans.start_pos();
-          injector::transaction::binlog_pos next = trans.next_pos();
-          rows->gci= (Uint32)(current_epoch >> 32); // Expose gci hi/lo
-          rows->epoch= current_epoch;
-          rows->start_master_log_file= start.file_name();
-          rows->start_master_log_pos= start.file_pos();
-          if ((next.file_pos() == 0) &&
-              ndb_log_empty_epochs())
-          {
-            /* Empty transaction 'committed' due to log_empty_epochs
-             * therefore no next position
-             */
-            rows->next_master_log_file= start.file_name();
-            rows->next_master_log_pos= start.file_pos();
-          }
-          else
-          {
-            rows->next_master_log_file= next.file_name();
-            rows->next_master_log_pos= next.file_pos();
-          }
+          commit_trans(thd, trans, current_epoch, rows, trans_row_count,
+                       trans_slave_row_count);
 
-          DBUG_PRINT("info", ("COMMIT epoch: %lu", (ulong) current_epoch));
-          if (opt_ndb_log_binlog_index)
-          {
-            if (Ndb_binlog_index_table_util::write_rows(thd, rows))
-            {
-              /* 
-                 Writing to ndb_binlog_index failed, check if it's because THD have
-                 been killed and retry in such case
-              */
-              if (thd->killed)
-              {
-                DBUG_PRINT("error", ("Failed to write to ndb_binlog_index at shutdown, retrying"));
-                Ndb_binlog_index_table_util::write_rows_retry_after_kill(thd, rows);
-              }
-            }
-          }
-          ndb_latest_applied_binlog_epoch= current_epoch;
-          break;
-        } //while (trans.good())
-
-        /*
-          NOTE: There are possible more i_pOp available.
-          However, these are from another epoch and should be handled
-          in next iteration of the binlog injector loop.
-        */
-      }
-    } //end: 'handled a 'current_epoch' of i_pOp's
+          /*
+            NOTE: There are possible more i_pOp available.
+            However, these are from another epoch and should be handled
+            in next iteration of the binlog injector loop.
+          */
+        } // else: handle non-empty epoch
+      }   // else: handle non-gap epoch
+    }     // else if (i_pOp != NULL ..
 
     // Notify the schema event handler about post_epoch so it may finish
     // any outstanding business
