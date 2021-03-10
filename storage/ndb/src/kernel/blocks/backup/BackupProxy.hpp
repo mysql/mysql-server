@@ -66,6 +66,7 @@ protected:
   void sendSUM_DUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
   void execEVENT_REP(Signal* );
   void sendSUM_EVENT_REP(Signal*, Uint32 ssId);
+  void execNODE_START_REP(Signal* signal);
 };
 
 
