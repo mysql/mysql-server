@@ -41,23 +41,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 #include "storage/innobase/include/detail/ut/allocator_traits.h"
+#include "storage/innobase/include/detail/ut/helper.h"
 #include "storage/innobase/include/detail/ut/pfs.h"
 
 namespace ut {
 namespace detail {
-
-/** Calculates the smallest multiple of m that is not smaller than n
-    when m is a power of two. In other words, rounds n up to m * k.
-    @param n in: number to round up
-    @param m in: alignment, must be a power of two
-    @return n rounded up to the smallest possible integer multiple of m
- */
-constexpr size_t calc_align(size_t n, size_t m) {
-  // This is a copy pasta from ut0ut.h but consuming that header from
-  // this file bursts the build into flames. Let's at least stick to the
-  // similar name.
-  return (n + (m - 1)) & ~(m - 1);
-}
 
 struct Aligned_alloc_impl {
   /** Block of memory returned by this functor will have an additional
