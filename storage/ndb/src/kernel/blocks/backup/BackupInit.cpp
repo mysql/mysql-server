@@ -59,6 +59,7 @@ Backup::Backup(Block_context& ctx,
     addRecSignal(GSN_STTOR, &Backup::execSTTOR);
     addRecSignal(GSN_DUMP_STATE_ORD, &Backup::execDUMP_STATE_ORD);
     addRecSignal(GSN_READ_NODESCONF, &Backup::execREAD_NODESCONF);
+    addRecSignal(GSN_NODE_START_REP, &Backup::execNODE_START_REP, true);
     addRecSignal(GSN_NODE_FAILREP, &Backup::execNODE_FAILREP);
     addRecSignal(GSN_INCL_NODEREQ, &Backup::execINCL_NODEREQ);
     addRecSignal(GSN_CONTINUEB, &Backup::execCONTINUEB);

@@ -3939,6 +3939,25 @@ Backup::Table::Table(Fragment_pool & fh)
  *
  *****************************************************************************/
 void
+Backup::execNODE_START_REP(Signal* signal)
+{
+  jamEntry();
+  Uint32 started_node = signal->theData[0];
+
+  NodePtr node;
+  for (c_nodes.first(node); node.i != RNIL; c_nodes.next(node)) {
+    jam();
+    const Uint32 node_id = node.p->nodeId;
+    if(node_id == started_node) {
+      jam();
+      node.p->alive = 1;
+      c_aliveNodes.set(started_node);
+      break;
+    }
+  }
+}
+
+void
 Backup::execNODE_FAILREP(Signal* signal)
 {
   jamEntry();
@@ -4234,22 +4253,6 @@ Backup::execINCL_NODEREQ(Signal* signal)
   const Uint32 senderRef = signal->theData[0];
   const Uint32 inclNode  = signal->theData[1];
 
-  NodePtr node;
-  for(c_nodes.first(node); node.i != RNIL; c_nodes.next(node)) {
-    jam();
-    const Uint32 nodeId = node.p->nodeId;
-    if(inclNode == nodeId){
-      jam();
-      
-      ndbrequire(node.p->alive == 0);
-      ndbrequire(!c_aliveNodes.get(nodeId));
-      
-      node.p->alive = 1;
-      c_aliveNodes.set(nodeId);
-      
-      break;
-    }//if
-  }//for
   signal->theData[0] = inclNode;
   signal->theData[1] = reference();
   sendSignal(senderRef, GSN_INCL_NODECONF, signal, 2, JBB);
