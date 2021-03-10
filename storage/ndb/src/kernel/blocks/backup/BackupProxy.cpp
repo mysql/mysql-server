@@ -33,6 +33,7 @@ BackupProxy::BackupProxy(Block_context& ctx) :
   // GSN_STTOR
   addRecSignal(GSN_UTIL_SEQUENCE_CONF, &BackupProxy::execUTIL_SEQUENCE_CONF);
   addRecSignal(GSN_UTIL_SEQUENCE_REF, &BackupProxy::execUTIL_SEQUENCE_REF);
+  addRecSignal(GSN_NODE_START_REP, &BackupProxy::execNODE_START_REP, true);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &BackupProxy::execDUMP_STATE_ORD, true);
   addRecSignal(GSN_EVENT_REP, &BackupProxy::execEVENT_REP);
@@ -212,6 +213,14 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
              signal, reportLen, JBB);
   
   ssRelease<Ss_SUM_DUMP_STATE_ORD>(ssId);
+}
+
+void
+BackupProxy::execNODE_START_REP(Signal *signal)
+{
+    jam();
+    sendSignal(workerRef(0), GSN_NODE_START_REP, signal,
+               signal->getLength(), JBB);
 }
 
 
