@@ -171,7 +171,7 @@ static void btr_search_check_free_space_in_heap(dict_index_t *index) {
   if (heap->free_block == nullptr) {
     buf_block_t *block = buf_block_alloc(nullptr);
 
-    btr_search_x_lock(index);
+    btr_search_x_lock(index, UT_LOCATION_HERE);
 
     if (btr_search_enabled && heap->free_block == nullptr) {
       heap->free_block = block;
@@ -224,7 +224,7 @@ void btr_search_sys_create(ulint hash_size) {
 @param[in]	hash_size	hash index hash table size */
 void btr_search_sys_resize(ulint hash_size) {
   /* Step-1: Lock all search latches in exclusive mode. */
-  btr_search_x_lock_all();
+  btr_search_x_lock_all(UT_LOCATION_HERE);
 
   if (btr_search_enabled) {
     btr_search_x_unlock_all();
@@ -306,7 +306,7 @@ void btr_search_disable(bool need_mutex) {
   }
 
   ut_ad(mutex_own(&dict_sys->mutex));
-  btr_search_x_lock_all();
+  btr_search_x_lock_all(UT_LOCATION_HERE);
 
   if (!btr_search_enabled) {
     if (need_mutex) {
@@ -354,7 +354,7 @@ void btr_search_enable() {
   Ignore it sliently.  */
   if (srv_buf_pool_old_size != srv_buf_pool_size) return;
 
-  btr_search_x_lock_all();
+  btr_search_x_lock_all(UT_LOCATION_HERE);
   btr_search_enabled = true;
   btr_search_x_unlock_all();
 }
@@ -410,7 +410,7 @@ ulint btr_search_info_get_ref_count(const btr_search_t *info,
   ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_S));
   ut_ad(!rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
 
-  btr_search_s_lock(index);
+  btr_search_s_lock(index, UT_LOCATION_HERE);
   ret = info->ref_count;
   btr_search_s_unlock(index);
 
@@ -679,7 +679,7 @@ void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
     btr_search_n_hash_fail++;
 #endif /* UNIV_SEARCH_PERF_STAT */
 
-    btr_search_x_lock(cursor->index);
+    btr_search_x_lock(cursor->index, UT_LOCATION_HERE);
 
     btr_search_update_hash_ref(info, block, cursor);
 
@@ -906,7 +906,7 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
   cursor->flag = BTR_CUR_HASH;
 
   if (!has_search_latch) {
-    btr_search_s_lock(index);
+    btr_search_s_lock(index, UT_LOCATION_HERE);
 
     if (!btr_search_enabled) {
       btr_search_s_unlock(index);
@@ -1428,7 +1428,7 @@ static void btr_search_build_page_hash_index(dict_index_t *index,
   ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S) ||
         rw_lock_own(&(block->lock), RW_LOCK_X));
 
-  btr_search_s_lock(index);
+  btr_search_s_lock(index, UT_LOCATION_HERE);
 
   table = btr_get_search_table(index);
   page = buf_block_get_frame(block);
@@ -1527,7 +1527,7 @@ static void btr_search_build_page_hash_index(dict_index_t *index,
 
   btr_search_check_free_space_in_heap(index);
 
-  btr_search_x_lock(index);
+  btr_search_x_lock(index, UT_LOCATION_HERE);
 
   if (!btr_search_enabled) {
     goto exit_func;
@@ -1596,7 +1596,7 @@ void btr_search_move_or_delete_hash_entries(buf_block_t *new_block,
   ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
   ut_ad(rw_lock_own(&(new_block->lock), RW_LOCK_X));
 
-  btr_search_s_lock(index);
+  btr_search_s_lock(index, UT_LOCATION_HERE);
 
   ut_a(!new_block->index || new_block->index == index);
   ut_a(!block->index || block->index == index);
@@ -1681,7 +1681,7 @@ void btr_search_update_hash_on_delete(btr_cur_t *cursor) {
     mem_heap_free(heap);
   }
 
-  btr_search_x_lock(index);
+  btr_search_x_lock(index, UT_LOCATION_HERE);
   assert_block_ahi_valid(block);
 
   if (block->index) {
@@ -1728,7 +1728,7 @@ void btr_search_update_hash_node_on_insert(btr_cur_t *cursor) {
   ut_a(cursor->index == index);
   ut_a(!dict_index_is_ibuf(index));
 
-  btr_search_x_lock(index);
+  btr_search_x_lock(index, UT_LOCATION_HERE);
 
   if (!block->index) {
     goto func_exit;
@@ -1830,7 +1830,7 @@ void btr_search_update_hash_on_insert(btr_cur_t *cursor) {
     fold = rec_fold(rec, offsets, n_fields, n_bytes, index_fold, index);
   } else {
     if (left_side) {
-      btr_search_x_lock(index);
+      btr_search_x_lock(index, UT_LOCATION_HERE);
 
       locked = TRUE;
 
@@ -1846,7 +1846,7 @@ void btr_search_update_hash_on_insert(btr_cur_t *cursor) {
 
   if (fold != ins_fold) {
     if (!locked) {
-      btr_search_x_lock(index);
+      btr_search_x_lock(index, UT_LOCATION_HERE);
 
       locked = TRUE;
 
@@ -1866,7 +1866,7 @@ check_next_rec:
   if (page_rec_is_supremum(next_rec)) {
     if (!left_side) {
       if (!locked) {
-        btr_search_x_lock(index);
+        btr_search_x_lock(index, UT_LOCATION_HERE);
 
         locked = TRUE;
 
@@ -1883,7 +1883,7 @@ check_next_rec:
 
   if (ins_fold != next_fold) {
     if (!locked) {
-      btr_search_x_lock(index);
+      btr_search_x_lock(index, UT_LOCATION_HERE);
 
       locked = TRUE;
 
@@ -1932,7 +1932,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
 
   rec_offs_init(offsets_);
 
-  btr_search_x_lock_all();
+  btr_search_x_lock_all(UT_LOCATION_HERE);
 
   cell_count = hash_get_n_cells(btr_search_sys->hash_tables[hash_table_id]);
 
@@ -1942,7 +1942,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
     if ((i != 0) && ((i % chunk_size) == 0)) {
       btr_search_x_unlock_all();
       std::this_thread::yield();
-      btr_search_x_lock_all();
+      btr_search_x_lock_all(UT_LOCATION_HERE);
 
       ulint curr_cell_count =
           hash_get_n_cells(btr_search_sys->hash_tables[hash_table_id]);
@@ -2051,7 +2051,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
     if (i != 0) {
       btr_search_x_unlock_all();
       std::this_thread::yield();
-      btr_search_x_lock_all();
+      btr_search_x_lock_all(UT_LOCATION_HERE);
 
       ulint curr_cell_count =
           hash_get_n_cells(btr_search_sys->hash_tables[hash_table_id]);
