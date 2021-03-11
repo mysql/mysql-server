@@ -1338,7 +1338,7 @@ extern ulint fil_n_pending_log_flushes;
 extern ulint fil_n_pending_tablespace_flushes;
 
 /** Number of files currently open */
-extern size_t fil_n_files_open;
+extern std::atomic_size_t fil_n_files_open;
 
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents

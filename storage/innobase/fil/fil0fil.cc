@@ -296,7 +296,7 @@ ulint fil_n_pending_log_flushes = 0;
 ulint fil_n_pending_tablespace_flushes = 0;
 
 /** Number of files currently open */
-size_t fil_n_files_open = 0;
+std::atomic_size_t fil_n_files_open{0};
 
 enum fil_load_status {
   /** The tablespace file(s) were found and valid. */
