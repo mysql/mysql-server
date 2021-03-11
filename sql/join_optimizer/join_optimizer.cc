@@ -1636,7 +1636,7 @@ void ReplaceUpdateValuesWithTempTableFields(
   if (sql_cmd->update_value_list.empty()) return;
 
   auto tmp_field_it = VisibleFields(temp_table_fields).begin();
-  for (Item *orig_field : original_fields) {
+  for (Item *orig_field : VisibleFields(original_fields)) {
     Item *tmp_field = *tmp_field_it++;
     if (orig_field->type() == Item::FIELD_ITEM) {
       Item::Item_field_replacement replacement(
