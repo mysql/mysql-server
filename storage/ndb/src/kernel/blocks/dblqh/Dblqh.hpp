@@ -2251,9 +2251,13 @@ public:
     /**
      * We have to remember the log pages read. 
      * Otherwise we cannot build the linked list after the pages have 
-     * arrived to main memory.  
+     * arrived to main memory.
+     *
+     * readExecSr sends 8 pages that need to be remembered in logPageArray.
+     * readExecLog supports sending up to 9 pages.
      */
-    UintR logPageArray[16];
+    static constexpr unsigned LOG_PAGE_ARRAY_SIZE = 9;
+    UintR logPageArray[LOG_PAGE_ARRAY_SIZE];
     /**
      * A list of the pages that are part of this active operation.
      */

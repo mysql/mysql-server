@@ -31301,18 +31301,19 @@ void Dblqh::buildLinkedLogPageList(Signal* signal,
                                    LogFileOperationRecordPtr lfoPtr,
                                    LogPartRecord *logPartPtrP)
 {
-  LogPageRecordPtr bllLogPagePtr;
-
-  arrGuard(lfoPtr.p->noPagesRw - 1, 16);
-  arrGuard(lfoPtr.p->noPagesRw, 16);
+  const Uint32 page_count = lfoPtr.p->noPagesRw;
+  if (page_count == 0)
+    return;
+  ndbrequire(page_count <= LogFileOperationRecord::LOG_PAGE_ARRAY_SIZE);
   Uint32 prev = RNIL;
-  for (UintR tbllIndex = 0; tbllIndex < lfoPtr.p->noPagesRw; tbllIndex++)
+  for (UintR tbllIndex = 0; ; tbllIndex++)
   {
     jam();
     /* ---------------------------------------------------------------------- 
      *  BUILD LINKED LIST BUT ALSO ENSURE THAT PAGE IS NOT SEEN AS DIRTY 
      *  INITIALLY.
      * --------------------------------------------------------------------- */
+    LogPageRecordPtr bllLogPagePtr;
     bllLogPagePtr.i = lfoPtr.p->logPageArray[tbllIndex];
     ptrCheckGuard(bllLogPagePtr,
                   logPartPtrP->logPageFileSize,
@@ -31328,17 +31329,17 @@ void Dblqh::buildLinkedLogPageList(Signal* signal,
 //     }
 // #endif
 
-    bllLogPagePtr.p->logPageWord[ZPREV_PAGE] = prev;
-    bllLogPagePtr.p->logPageWord[ZNEXT_PAGE] = 
-      lfoPtr.p->logPageArray[tbllIndex + 1];
     bllLogPagePtr.p->logPageWord[ZPOS_DIRTY] = ZNOT_DIRTY;
+    bllLogPagePtr.p->logPageWord[ZPREV_PAGE] = prev;
+    if (tbllIndex + 1 == page_count)
+    {
+      bllLogPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
+      break;
+    }
+    bllLogPagePtr.p->logPageWord[ZNEXT_PAGE] =
+        lfoPtr.p->logPageArray[tbllIndex + 1];
     prev = bllLogPagePtr.i;
   }//for
-  bllLogPagePtr.i = lfoPtr.p->logPageArray[lfoPtr.p->noPagesRw - 1];
-  ptrCheckGuard(bllLogPagePtr,
-                logPartPtrP->logPageFileSize,
-                logPartPtrP->logPageRecord);
-  bllLogPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
 }//Dblqh::buildLinkedLogPageList()
 
 /* ========================================================================= 
@@ -33071,28 +33072,28 @@ void Dblqh::readExecLog(Signal* signal,
                         LogFileRecordPtr logFilePtr,
                         LogPartRecord *logPartPtrP)
 {
-  UintR trelIndex;
-  UintR trelI;
-
   jam();
   jamLine(logPartPtrP->logPartNo);
   seizeLfo(lfoPtr, logPartPtrP);
   initLfo(lfoPtr.p, logFilePtr.i);
-  trelI = logPartPtrP->execSrStopPageNo - logPartPtrP->execSrStartPageNo;
-  arrGuard(trelI + 1, 16);
-  lfoPtr.p->logPageArray[trelI + 1] = logPartPtrP->execSrStartPageNo;
-  for (trelIndex = logPartPtrP->execSrStopPageNo;
-       (trelIndex >= logPartPtrP->execSrStartPageNo) &&
-        (UintR)~trelIndex; trelIndex--)
+  /*
+   * As long as an prepare operation record is less than one page one would
+   * not need read more than two pages if record cross a page boundary.
+   *
+   * Still we support filling the logPageArray (at most 9 pages).
+   */
+  ndbassert(logPartPtrP->execSrStopPageNo >= logPartPtrP->execSrStartPageNo);
+  const Uint32 page_count =
+      1 + logPartPtrP->execSrStopPageNo - logPartPtrP->execSrStartPageNo;
+  ndbrequire(page_count <= LogFileOperationRecord::LOG_PAGE_ARRAY_SIZE);
+  for (unsigned i = page_count; i > 0 ; i--)
   {
     jam();
     LogPageRecordPtr logPagePtr;
     seizeLogpage(logPagePtr, logPartPtrP);
-    arrGuard(trelI, 16);
-    lfoPtr.p->logPageArray[trelI] = logPagePtr.i;
+    lfoPtr.p->logPageArray[i - 1] = logPagePtr.i;
     jamLine(Uint16(logPagePtr.i));
-    trelI--;
-  }//for
+  }
   lfoPtr.p->lfoPageNo = logPartPtrP->execSrStartPageNo;
   lfoPtr.p->noPagesRw = (logPartPtrP->execSrStopPageNo -
 			 logPartPtrP->execSrStartPageNo) + 1;
@@ -33103,17 +33104,12 @@ void Dblqh::readExecLog(Signal* signal,
   signal->theData[3] = ZLIST_OF_MEM_PAGES; // edtjamo TR509 //ZLIST_OF_PAIRS;
   signal->theData[4] = logPartPtrP->ptrI;
   signal->theData[5] = lfoPtr.p->noPagesRw;
-  signal->theData[6] = lfoPtr.p->logPageArray[0];
-  signal->theData[7] = lfoPtr.p->logPageArray[1];
-  signal->theData[8] = lfoPtr.p->logPageArray[2];
-  signal->theData[9] = lfoPtr.p->logPageArray[3];
-  signal->theData[10] = lfoPtr.p->logPageArray[4];
-  signal->theData[11] = lfoPtr.p->logPageArray[5];
-  signal->theData[12] = lfoPtr.p->logPageArray[6];
-  signal->theData[13] = lfoPtr.p->logPageArray[7];
-  signal->theData[14] = lfoPtr.p->logPageArray[8];
-  signal->theData[15] = lfoPtr.p->logPageArray[9];
-  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 16, JBA);
+  for (unsigned i = 0; i < lfoPtr.p->noPagesRw; i++)
+  {
+    signal->theData[6 + i] = lfoPtr.p->logPageArray[i];
+  }
+  signal->theData[6 + lfoPtr.p->noPagesRw] = lfoPtr.p->lfoPageNo;
+  sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 7 + lfoPtr.p->noPagesRw, JBA);
 
   logPartPtrP->m_redoWorkStats.m_pagesRead+= lfoPtr.p->noPagesRw;
 
@@ -37070,6 +37066,7 @@ Dblqh::addCachePages(LogPartRecord::RedoPageCache& cache,
     return;
   }
 
+  ndbrequire(cnt <= LogFileOperationRecord::LOG_PAGE_ARRAY_SIZE);
   for (Uint32 i = 0; i<cnt ; i++)
   {
     jam();
