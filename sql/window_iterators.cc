@@ -1533,9 +1533,10 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
 }  // namespace
 
-WindowingIterator::WindowingIterator(
-    THD *thd, unique_ptr_destroy_only<RowIterator> source,
-    Temp_table_param *temp_table_param, JOIN *join, int output_slice)
+WindowIterator::WindowIterator(THD *thd,
+                               unique_ptr_destroy_only<RowIterator> source,
+                               Temp_table_param *temp_table_param, JOIN *join,
+                               int output_slice)
     : RowIterator(thd),
       m_source(move(source)),
       m_temp_table_param(temp_table_param),
@@ -1545,7 +1546,7 @@ WindowingIterator::WindowingIterator(
   assert(!m_window->needs_buffering());
 }
 
-bool WindowingIterator::Init() {
+bool WindowIterator::Init() {
   if (m_source->Init()) {
     return true;
   }
@@ -1557,7 +1558,7 @@ bool WindowingIterator::Init() {
   return false;
 }
 
-int WindowingIterator::Read() {
+int WindowIterator::Read() {
   SwitchSlice(m_join, m_input_slice);
 
   int err = m_source->Read();
@@ -1579,7 +1580,7 @@ int WindowingIterator::Read() {
   return 0;
 }
 
-BufferingWindowingIterator::BufferingWindowingIterator(
+BufferingWindowIterator::BufferingWindowIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> source,
     Temp_table_param *temp_table_param, JOIN *join, int output_slice)
     : RowIterator(thd),
@@ -1591,7 +1592,7 @@ BufferingWindowingIterator::BufferingWindowingIterator(
   assert(m_window->needs_buffering());
 }
 
-bool BufferingWindowingIterator::Init() {
+bool BufferingWindowIterator::Init() {
   if (m_source->Init()) {
     return true;
   }
@@ -1607,7 +1608,7 @@ bool BufferingWindowingIterator::Init() {
   return false;
 }
 
-int BufferingWindowingIterator::Read() {
+int BufferingWindowIterator::Read() {
   SwitchSlice(m_join, m_output_slice);
 
   if (m_eof) {
@@ -1718,7 +1719,7 @@ int BufferingWindowingIterator::Read() {
   }
 }
 
-int BufferingWindowingIterator::ReadBufferedRow(bool new_partition_or_eof) {
+int BufferingWindowIterator::ReadBufferedRow(bool new_partition_or_eof) {
   bool output_row_ready;
   if (process_buffered_windowing_record(
           thd(), m_temp_table_param, new_partition_or_eof, &output_row_ready)) {

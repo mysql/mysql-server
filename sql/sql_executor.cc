@@ -3019,7 +3019,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     qep_tab->table()->alias = "<temporary>";
 
     if (qep_tab->op_type == QEP_TAB::OT_WINDOWING_FUNCTION) {
-      path = NewWindowingAccessPath(
+      path = NewWindowAccessPath(
           thd, path, qep_tab->tmp_table_param, qep_tab->ref_item_slice,
           qep_tab->tmp_table_param->m_window->needs_buffering());
       if (!qep_tab->tmp_table_param->m_window->short_circuit()) {

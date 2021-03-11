@@ -174,8 +174,8 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
         }
       }
       break;
-    case AccessPath::WINDOWING:
-      WalkAccessPaths(path->windowing().child, join, cross_query_blocks,
+    case AccessPath::WINDOW:
+      WalkAccessPaths(path->window().child, join, cross_query_blocks,
                       std::forward<Func &&>(func), post_order_traversal);
       break;
     case AccessPath::WEEDOUT:
@@ -256,9 +256,10 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func) {
             return func(
                 path->alternative().table_scan_path->table_scan().table);
           case AccessPath::UNQUALIFIED_COUNT:
-            // Should never be below anything that needs GetUsedTables().
+            // Should never be below anything that needs
+            // WalkTablesUnderAccessPath().
             assert(false);
-            return false;
+            return true;
           case AccessPath::AGGREGATE:
           case AccessPath::APPEND:
           case AccessPath::BKA_JOIN:
@@ -276,7 +277,7 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func) {
           case AccessPath::TABLE_VALUE_CONSTRUCTOR:
           case AccessPath::TEMPTABLE_AGGREGATE:
           case AccessPath::WEEDOUT:
-          case AccessPath::WINDOWING:
+          case AccessPath::WINDOW:
           case AccessPath::ZERO_ROWS:
           case AccessPath::ZERO_ROWS_AGGREGATED:
             return false;

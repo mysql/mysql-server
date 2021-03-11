@@ -606,15 +606,15 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       iterator = NewIterator<AppendIterator>(thd, move(children));
       break;
     }
-    case AccessPath::WINDOWING: {
-      const auto &param = path->windowing();
+    case AccessPath::WINDOW: {
+      const auto &param = path->window();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
       if (param.needs_buffering) {
-        iterator = NewIterator<BufferingWindowingIterator>(
+        iterator = NewIterator<BufferingWindowIterator>(
             thd, move(child), param.temp_table_param, join, param.ref_slice);
       } else {
-        iterator = NewIterator<WindowingIterator>(
+        iterator = NewIterator<WindowIterator>(
             thd, move(child), param.temp_table_param, join, param.ref_slice);
       }
       break;

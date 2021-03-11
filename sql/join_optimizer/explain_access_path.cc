@@ -700,10 +700,10 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
         children.push_back({child.path, "", child.join});
       }
       break;
-    case AccessPath::WINDOWING: {
+    case AccessPath::WINDOW: {
       string buf;
-      if (path->windowing().needs_buffering) {
-        Window *window = path->windowing().temp_table_param->m_window;
+      if (path->window().needs_buffering) {
+        Window *window = path->window().temp_table_param->m_window;
         if (window->optimizable_row_aggregates() ||
             window->optimizable_range_aggregates() ||
             window->static_aggregates()) {
@@ -717,7 +717,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
 
       bool first = true;
       for (const Func_ptr &func :
-           *(path->windowing().temp_table_param->items_to_copy)) {
+           *(path->window().temp_table_param->items_to_copy)) {
         if (func.func()->m_is_window_function) {
           if (!first) {
             buf += ", ";
@@ -727,7 +727,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
         }
       }
       description.push_back(move(buf));
-      children.push_back({path->windowing().child});
+      children.push_back({path->window().child});
       break;
     }
     case AccessPath::WEEDOUT: {

@@ -188,7 +188,7 @@ struct AccessPath {
     MATERIALIZE,
     MATERIALIZE_INFORMATION_SCHEMA_TABLE,
     APPEND,
-    WINDOWING,
+    WINDOW,
     WEEDOUT,
     REMOVE_DUPLICATES,
     REMOVE_DUPLICATES_ON_INDEX,
@@ -585,13 +585,13 @@ struct AccessPath {
     assert(type == APPEND);
     return u.append;
   }
-  auto &windowing() {
-    assert(type == WINDOWING);
-    return u.windowing;
+  auto &window() {
+    assert(type == WINDOW);
+    return u.window;
   }
-  const auto &windowing() const {
-    assert(type == WINDOWING);
-    return u.windowing;
+  const auto &window() const {
+    assert(type == WINDOW);
+    return u.window;
   }
   auto &weedout() {
     assert(type == WEEDOUT);
@@ -830,7 +830,7 @@ struct AccessPath {
       Temp_table_param *temp_table_param;
       int ref_slice;
       bool needs_buffering;
-    } windowing;
+    } window;
     struct {
       AccessPath *child;
       SJ_TMP_TABLE *weedout_table;
@@ -1282,15 +1282,15 @@ inline AccessPath *NewAppendAccessPath(
   return path;
 }
 
-inline AccessPath *NewWindowingAccessPath(THD *thd, AccessPath *child,
-                                          Temp_table_param *temp_table_param,
-                                          int ref_slice, bool needs_buffering) {
+inline AccessPath *NewWindowAccessPath(THD *thd, AccessPath *child,
+                                       Temp_table_param *temp_table_param,
+                                       int ref_slice, bool needs_buffering) {
   AccessPath *path = new (thd->mem_root) AccessPath;
-  path->type = AccessPath::WINDOWING;
-  path->windowing().child = child;
-  path->windowing().temp_table_param = temp_table_param;
-  path->windowing().ref_slice = ref_slice;
-  path->windowing().needs_buffering = needs_buffering;
+  path->type = AccessPath::WINDOW;
+  path->window().child = child;
+  path->window().temp_table_param = temp_table_param;
+  path->window().ref_slice = ref_slice;
+  path->window().needs_buffering = needs_buffering;
   return path;
 }
 

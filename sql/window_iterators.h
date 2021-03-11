@@ -32,7 +32,7 @@ class Temp_table_param;
 class Window;
 
 /*
-  WindowingIterator is similar to AggregateIterator, but deals with windowed
+  WindowIterator is similar to AggregateIterator, but deals with windowed
   aggregates (i.e., OVER expressions). It deals specifically with aggregates
   that don't need to buffer rows.
 
@@ -58,10 +58,10 @@ class Window;
   temp_table_param->copy_fields), while w2.bar and w2.baz are evaluated
   from bar() and baz() (through temp_table_param->copy_func).
 
-  WindowingIterator only takes responsibility for resetting the window functions
+  WindowIterator only takes responsibility for resetting the window functions
   on a window boundary; the rest is handled by correct input ordering (typically
   through sorting) and delicate ordering of copy_funcs() calls.
-  (BufferingWindowingIterator, below, has more intricate logic for feeding rows
+  (BufferingWindowIterator, below, has more intricate logic for feeding rows
   into the window functions, and only stopping to output new rows whenever
   process_buffered_windowing_record() signals it is time to do that -- but apart
   from that, the separation of concerns is much the same.)
@@ -84,17 +84,17 @@ class Window;
   Finally, we get to the composite item (#0); in order not to evaluate the
   window functions anew, the references in the add expression must refer to the
   temporary table fields that we just populated, so we need to be in the
-  _output_ slice. When buffering is active (BufferingWindowingIterator), we have
+  _output_ slice. When buffering is active (BufferingWindowIterator), we have
   more phases to deal with; it would be good to have this documented as well.
 
   If we are outputting to a temporary table, we take over responsibility
   for storing the fields from MaterializeIterator, which would otherwise do it.
  */
-class WindowingIterator final : public RowIterator {
+class WindowIterator final : public RowIterator {
  public:
-  WindowingIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
-                    Temp_table_param *temp_table_param,  // Includes the window.
-                    JOIN *join, int output_slice);
+  WindowIterator(THD *thd, unique_ptr_destroy_only<RowIterator> source,
+                 Temp_table_param *temp_table_param,  // Includes the window.
+                 JOIN *join, int output_slice);
 
   bool Init() override;
 
@@ -134,12 +134,12 @@ class WindowingIterator final : public RowIterator {
 };
 
 /**
-  BufferingWindowingIterator is like WindowingIterator, but deals with window
+  BufferingWindowIterator is like WindowIterator, but deals with window
   functions that need to buffer rows.
  */
-class BufferingWindowingIterator final : public RowIterator {
+class BufferingWindowIterator final : public RowIterator {
  public:
-  BufferingWindowingIterator(
+  BufferingWindowIterator(
       THD *thd, unique_ptr_destroy_only<RowIterator> source,
       Temp_table_param *temp_table_param,  // Includes the window.
       JOIN *join, int output_slice);
