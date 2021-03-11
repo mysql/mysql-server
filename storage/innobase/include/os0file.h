@@ -1455,7 +1455,7 @@ bool os_file_close_no_error_handling(os_file_t file);
 /** Gets a file size.
 @param[in]	filename	Full path to the filename to check
 @return file size if OK, else set m_total_size to ~0 and m_alloc_size to
-        errno */
+        errno. */
 os_file_size_t os_file_get_size(const char *filename)
     MY_ATTRIBUTE((warn_unused_result));
 

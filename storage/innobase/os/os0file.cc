@@ -3503,10 +3503,6 @@ os_offset_t os_file_get_size(pfs_os_file_t file) {
   return (file_size);
 }
 
-/** Gets a file size.
-@param[in]	filename	Full path to the filename to check
-@return file size if OK, else set m_total_size to ~0 and m_alloc_size to
-        errno */
 os_file_size_t os_file_get_size(const char *filename) {
   struct stat s;
   os_file_size_t file_size;
@@ -4639,10 +4635,6 @@ os_offset_t os_file_get_size(pfs_os_file_t file) {
   return (os_offset_t(low | (os_offset_t(high) << 32)));
 }
 
-/** Gets a file size.
-@param[in]	filename	Full path to the filename to check
-@return file size if OK, else set m_total_size to ~0 and m_alloc_size to
-        errno */
 os_file_size_t os_file_get_size(const char *filename) {
   struct __stat64 s;
   os_file_size_t file_size;
@@ -4657,16 +4649,13 @@ os_file_size_t os_file_get_size(const char *filename) {
 
     low_size = GetCompressedFileSize(filename, &high_size);
 
-    if (low_size != INVALID_FILE_SIZE) {
+    if (low_size != INVALID_FILE_SIZE || GetLastError() == NO_ERROR) {
       file_size.m_alloc_size = high_size;
       file_size.m_alloc_size <<= 32;
       file_size.m_alloc_size |= low_size;
-
     } else {
-      ib::error(ER_IB_MSG_805)
-          << "GetCompressedFileSize(" << filename << ", ..) failed.";
-
-      file_size.m_alloc_size = (os_offset_t)-1;
+      file_size.m_total_size = ~0;
+      file_size.m_alloc_size = (os_offset_t)errno;
     }
   } else {
     file_size.m_total_size = ~0;
