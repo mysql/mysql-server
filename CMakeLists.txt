@@ -1530,7 +1530,7 @@ ELSE()
   # In case we switch from ON to OFF, we do not want ctest
   # to pick up any obsolete test executables.
   IF(EXISTS "${CMAKE_BINARY_DIR}/CTestTestfile.cmake")
-    FILE(GLOB_RECURSE CTEST_TESTFILES "CTestTestfile.cmake")
+    FILE(GLOB_RECURSE CTEST_TESTFILES "${CMAKE_BINARY_DIR}/CTestTestfile.cmake")
     FILE(REMOVE ${CTEST_TESTFILES})
   ENDIF()
 ENDIF()
