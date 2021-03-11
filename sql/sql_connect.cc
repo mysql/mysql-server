@@ -679,7 +679,7 @@ static int check_connection(THD *thd) {
     int version = SSL_version((SSL *)net->vio->ssl_arg);
     if (version == TLS1_VERSION || version == TLS1_1_VERSION) {
       Security_context *sctx = thd->security_context();
-      LogErr(WARNING_LEVEL, ER_DEPRECARTED_TLS_VERSION_SESSION,
+      LogErr(WARNING_LEVEL, ER_DEPRECATED_TLS_VERSION_SESSION,
              SSL_get_version((SSL *)net->vio->ssl_arg), sctx->priv_user().str,
              sctx->priv_host().str, sctx->host_or_ip().str, sctx->user().str);
     }
