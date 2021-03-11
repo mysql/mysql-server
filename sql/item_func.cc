@@ -127,6 +127,7 @@
 #include "sql/sql_cmd.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exchange.h"  // sql_exchange
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_load.h"       // Sql_cmd_load_table
@@ -7603,7 +7604,6 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref) {
 }
 
 bool Item_func_match::fix_index(const THD *thd) {
-  Item_field *item;
   TABLE *table;
   uint ft_to_key[MAX_KEY], ft_cnt[MAX_KEY], fts = 0, keynr;
   uint max_cnt = 0, mkeys = 0, i;
@@ -7638,7 +7638,8 @@ bool Item_func_match::fix_index(const THD *thd) {
   if (!fts) goto err;
 
   for (i = 0; i < arg_count; i++) {
-    item = (Item_field *)(args[i]->real_item());
+    Item_field *item =
+        down_cast<Item_field *>(unwrap_rollup_group(args[i])->real_item());
     for (keynr = 0; keynr < fts; keynr++) {
       KEY *ft_key = &table->key_info[ft_to_key[keynr]];
       uint key_parts = ft_key->user_defined_key_parts;
