@@ -67,6 +67,6 @@ Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@SESSION.innodb_adaptive_max_sleep_delay);
 ERROR HY000: Variable 'innodb_adaptive_max_sleep_delay' is a GLOBAL variable
 Expected error 'Variable is a GLOBAL variable'
-SELECT innodb_adaptive_max_sleep_delay = @@SESSION.innodb_adaptive_max_sleep_delay;
+SELECT innodb_adaptive_max_sleep_delay;
 ERROR 42S22: Unknown column 'innodb_adaptive_max_sleep_delay' in 'field list'
 SET @@GLOBAL.innodb_adaptive_max_sleep_delay=150000;

@@ -38,14 +38,14 @@ SELECT @@SESSION.innodb_rollback_segments;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@SESSION.innodb_rollback_segments);
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_rollback_segments = @@SESSION.innodb_rollback_segments;
+SELECT innodb_rollback_segments;
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@LOCAL.innodb_rollback_segments;
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT COUNT(@@LOCAL.innodb_rollback_segments);
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_rollback_segments = @@LOCAL.innodb_rollback_segments;
+SELECT innodb_rollback_segments;
 
 --echo #
 --echo # Check if accessing variable with and without GLOBAL point to same variable

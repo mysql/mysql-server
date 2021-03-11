@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.admin_ssl_capath);
 COUNT(@@GLOBAL.admin_ssl_capath)
 0
 0 Expected
-SET admin_ssl_capath = @@SESSION.admin_ssl_capath;
+SET admin_ssl_capath = @@GLOBAL.admin_ssl_capath;
 ERROR HY000: Variable 'admin_ssl_capath' is a GLOBAL variable and should be set with SET GLOBAL
 Expected error 'Variable is a GLOBAL variable'

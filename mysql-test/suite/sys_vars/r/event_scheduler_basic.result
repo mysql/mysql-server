@@ -91,8 +91,10 @@ SET global.event_scheduler = ON;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.event_scheduler = ON' at line 1
 SELECT global.event_scheduler;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT event_scheduler = @@session.event_scheduler;
+SELECT event_scheduler;
 ERROR 42S22: Unknown column 'event_scheduler' in 'field list'
+SELECT @@session.event_scheduler;
+ERROR HY000: Variable 'event_scheduler' is a GLOBAL variable
 SET @@global.event_scheduler = @start_value;
 SELECT @@global.event_scheduler;
 @@global.event_scheduler

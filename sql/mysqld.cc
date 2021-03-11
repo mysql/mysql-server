@@ -4957,14 +4957,14 @@ int init_common_variables() {
   sys_var *var;
   /* Calculate and update default value for thread_cache_size. */
   if ((default_value = 8 + max_connections / 100) > 100) default_value = 100;
-  var = intern_find_sys_var(STRING_WITH_LEN("thread_cache_size"));
+  var = find_static_system_variable("thread_cache_size");
   var->update_default(default_value);
 
   /* Calculate and update default value for host_cache_size. */
   if ((default_value = 128 + max_connections) > 628 &&
       (default_value = 628 + ((max_connections - 500) / 20)) > 2000)
     default_value = 2000;
-  var = intern_find_sys_var(STRING_WITH_LEN("host_cache_size"));
+  var = find_static_system_variable("host_cache_size");
   var->update_default(default_value);
 
   /* Fix thread_cache_size. */
@@ -5693,7 +5693,7 @@ static int setup_error_log_components() {
 
     if (log_builtins_error_stack(opt_log_error_services, false, &pos) < 0) {
       char *problem = opt_log_error_services; /* purecov: begin inspected */
-      const char *var_name = "log_error_services";
+      const std::string var_name = "log_error_services";
 
       /*
         We failed to set the requested configuration. This can happen
@@ -5715,7 +5715,7 @@ static int setup_error_log_components() {
         item and extracting the default value from it).
         If that's impossible, print diagnostics, then exit.
       */
-      sys_var *var = intern_find_sys_var(var_name, strlen(var_name));
+      sys_var *var = find_static_system_variable(var_name);
 
       if (var != nullptr) {
         // We found the system variable, now extract the default value:
@@ -5726,7 +5726,7 @@ static int setup_error_log_components() {
             We managed to set the default pipeline. Now log what was wrong
             about the user-supplied value, then shut down.
           */
-          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name,
+          LogErr(ERROR_LEVEL, ER_CANT_START_ERROR_LOG_SERVICE, var_name.c_str(),
                  problem);
           return 1;
         }
@@ -5749,8 +5749,8 @@ static int setup_error_log_components() {
         size_t len;
 
         len = snprintf(buff, sizeof(buff),
-                       ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE), var_name,
-                       problem);
+                       ER_DEFAULT(ER_CANT_START_ERROR_LOG_SERVICE),
+                       var_name.c_str(), problem);
         len = std::min(len, sizeof(buff) - 1);
 
         // Trust nothing. Write directly. Quit.
@@ -5768,7 +5768,7 @@ static int setup_error_log_components() {
       will render correct results.
     */
 
-    sys_var *var = intern_find_sys_var(STRING_WITH_LEN("log_error_services"));
+    sys_var *var = find_static_system_variable("log_error_services");
     char *default_services = nullptr;
 
     if ((var != nullptr) &&
@@ -7800,7 +7800,7 @@ int mysqld_main(int argc, char **argv)
     update_authentication_policy();
   }
   /* set all persistent options */
-  if (persisted_variables_cache.set_persist_options(false, true)) {
+  if (persisted_variables_cache.set_persisted_options(false)) {
     LogErr(ERROR_LEVEL, ER_CANT_SET_UP_PERSISTED_VALUES);
     flush_error_log_messages();
     return 1;
@@ -8450,7 +8450,7 @@ static void adjust_table_def_size() {
   sys_var *var;
 
   default_value = min<ulong>(400 + table_cache_size / 2, 2000);
-  var = intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
+  var = find_static_system_variable("table_definition_cache");
   assert(var != nullptr);
   var->update_default(default_value);
 
@@ -9764,8 +9764,8 @@ static int mysql_init_variables() {
   refresh_version = 1L; /* Increments on each reload */
   my_stpcpy(server_version, MYSQL_SERVER_VERSION);
   key_caches.clear();
-  if (!(dflt_key_cache = get_or_create_key_cache(
-            default_key_cache_base.str, default_key_cache_base.length))) {
+  if (!(dflt_key_cache = get_or_create_key_cache(std::string_view{
+            default_key_cache_base.str, default_key_cache_base.length}))) {
     LogErr(ERROR_LEVEL, ER_KEYCACHE_OOM);
     return 1;
   }
@@ -10491,7 +10491,8 @@ static void *mysql_getopt_value(const char *keyname, size_t key_length,
     case OPT_KEY_CACHE_DIVISION_LIMIT:
     case OPT_KEY_CACHE_AGE_THRESHOLD: {
       KEY_CACHE *key_cache;
-      if (!(key_cache = get_or_create_key_cache(keyname, key_length))) {
+      if (!(key_cache =
+                get_or_create_key_cache(std::string{keyname, key_length}))) {
         if (error) *error = EXIT_OUT_OF_MEMORY;
         return nullptr;
       }
@@ -10577,8 +10578,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
         actually used) so SELECT @@GLOBAL.log_error_suppression_list will
         render correct results.
       */
-      sys_var *var =
-          intern_find_sys_var(STRING_WITH_LEN("log_error_suppression_list"));
+      sys_var *var = find_static_system_variable("log_error_suppression_list");
       if (var != nullptr) {
         opt_log_error_suppression_list = (char *)var->get_default();
         /*

@@ -81,7 +81,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_compressed_pages);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_log_compressed_pages = @@SESSION.innodb_log_compressed_pages;
+SELECT innodb_log_compressed_pages;
 
 #
 # Cleanup

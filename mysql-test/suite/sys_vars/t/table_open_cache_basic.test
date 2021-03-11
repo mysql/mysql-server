@@ -162,7 +162,9 @@ SET global.table_open_cache = 10;
 --Error ER_UNKNOWN_TABLE
 SELECT global.table_open_cache ;
 --Error ER_BAD_FIELD_ERROR
-SELECT table_open_cache = @@session.table_open_cache ;
+SELECT table_open_cache;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.table_open_cache ;
 
 
 ##############################  

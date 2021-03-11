@@ -156,7 +156,9 @@ SET global.require_secure_transport = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.require_secure_transport;
 --Error ER_BAD_FIELD_ERROR
-SELECT require_secure_transport = @@session.require_secure_transport;
+SELECT require_secure_transport;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.require_secure_transport;
 
 
 ##############################

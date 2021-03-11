@@ -155,7 +155,9 @@ SET global.binlog_order_commits = ON;
 --Error ER_UNKNOWN_TABLE
 SELECT global.binlog_order_commits;
 --Error ER_BAD_FIELD_ERROR
-SELECT binlog_order_commits = @@session.binlog_order_commits;
+SELECT binlog_order_commits;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.binlog_order_commits;
 
 
 

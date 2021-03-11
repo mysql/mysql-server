@@ -49,6 +49,6 @@ COUNT(@@SESSION.error_count)
 SELECT COUNT(@@GLOBAL.error_count);
 ERROR HY000: Variable 'error_count' is a SESSION variable
 Expected error 'Variable is a SESSION variable'
-SELECT COUNT(error_count = @@GLOBAL.error_count);
+SELECT COUNT(error_count);
 ERROR 42S22: Unknown column 'error_count' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

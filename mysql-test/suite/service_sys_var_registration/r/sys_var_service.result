@@ -152,3 +152,43 @@ variable value :
 test_component_sys_var end of init:
 test_component_sys_var deinit:
 test_component_sys_var end of deinit:
+#
+# Coverage/regression tests for component & SP interations
+#
+CREATE PROCEDURE p(x VARCHAR(32)) SET @@GLOBAL.test_component.str_sys_var = x;
+ERROR HY000: Unknown system variable 'test_component.str_sys_var'
+CREATE PROCEDURE p() SELECT @@test_component.str_sys_var;
+ERROR HY000: Unknown system variable 'test_component.str_sys_var'
+INSTALL COMPONENT "file://component_test_sys_var_service";
+CREATE PROCEDURE p1(x VARCHAR(32)) SET @@GLOBAL.test_component.str_sys_var = x;
+CREATE PROCEDURE p2() SELECT @@test_component.str_sys_var;
+CALL p2();
+@@test_component.str_sys_var
+NULL
+CALL p1('test');
+CALL p2();
+@@test_component.str_sys_var
+test
+# Try to uninstall the component and fail with a warning since its busy
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+# Check that the component has been uninstalled
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+ERROR HY000: Component specified by URN 'file://component_test_sys_var_service' to unload has not been loaded before.
+# Variable is not available any more: the component is uninstalling
+CALL p1('test');
+ERROR HY000: Unknown system variable 'test_component.str_sys_var'
+CALL p2();
+ERROR HY000: Unknown system variable 'test_component.str_sys_var'
+# Check that the component is uninstalled
+INSTALL COMPONENT "file://component_test_sys_var_service";
+# Variable is available again
+CALL p2();
+@@test_component.str_sys_var
+NULL
+CALL p1('test');
+CALL p2();
+@@test_component.str_sys_var
+test
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;

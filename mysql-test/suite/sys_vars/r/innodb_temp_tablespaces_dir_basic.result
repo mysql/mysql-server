@@ -52,9 +52,9 @@ SELECT COUNT(@@GLOBAL.innodb_temp_tablespaces_dir);
 COUNT(@@GLOBAL.innodb_temp_tablespaces_dir)
 1
 1 Expected
-SELECT innodb_temp_tablespaces_dir = @@SESSION.innodb_temp_tablespaces_dir;
+SELECT innodb_temp_tablespaces_dir;
 ERROR 42S22: Unknown column 'innodb_temp_tablespaces_dir' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'
 SET innodb_temp_tablespaces_dir = "/tmp";
 ERROR HY000: Variable 'innodb_temp_tablespaces_dir' is a read only variable
 Expected error 'Read only variable'
@@ -70,8 +70,10 @@ Expected error 'Parse error'
 SELECT global.innodb_temp_tablespaces_dir;
 ERROR 42S02: Unknown table 'global' in field list
 Expected error 'Unknown table global in field list'
-SELECT innodb_temp_tablespaces_dir = @@session.innodb_temp_tablespaces_dir;
+SELECT innodb_temp_tablespaces_dir;
 ERROR 42S22: Unknown column 'innodb_temp_tablespaces_dir' in 'field list'
+SELECT @@session.innodb_temp_tablespaces_dir;
+ERROR HY000: Variable 'innodb_temp_tablespaces_dir' is a GLOBAL variable
 SELECT innodb_temp_tablespaces_dir;
 ERROR 42S22: Unknown column 'innodb_temp_tablespaces_dir' in 'field list'
 Expected error 'Unknown column innodb_temp_tablespaces_dir in field list'

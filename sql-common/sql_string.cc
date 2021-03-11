@@ -482,12 +482,6 @@ bool String::append(const char *s, size_t arg_length) {
   return false;
 }
 
-/*
-  Append a 0-terminated ASCII string
-*/
-
-bool String::append(const char *s) { return append(s, (uint)strlen(s)); }
-
 /**
   Append an unsigned longlong to the string.
 */

@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.hostname);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT hostname = @@SESSION.hostname;
---echo Expected error 'Readonly variable'
+SELECT hostname;
+--echo Expected error 'Unknown column'
 
 

@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.system_time_zone);
 COUNT(@@GLOBAL.system_time_zone)
 1
 1 Expected
-SELECT system_time_zone = @@SESSION.system_time_zone;
+SELECT system_time_zone;
 ERROR 42S22: Unknown column 'system_time_zone' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

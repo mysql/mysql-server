@@ -141,7 +141,9 @@ SET global.binlog_expire_logs_seconds = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.binlog_expire_logs_seconds;
 --Error ER_BAD_FIELD_ERROR
-SELECT binlog_expire_logs_seconds = @@session.binlog_expire_logs_seconds;
+SELECT binlog_expire_logs_seconds;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.binlog_expire_logs_seconds;
 
 ##############################
 #   Restore initial value    #

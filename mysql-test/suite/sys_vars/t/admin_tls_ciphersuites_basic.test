@@ -70,5 +70,5 @@ SELECT COUNT(@@GLOBAL.admin_tls_ciphersuites);
 --echo 0 Expected
 
 --Error ER_GLOBAL_VARIABLE
-SET admin_tls_ciphersuites = @@SESSION.admin_tls_ciphersuites;
+SET admin_tls_ciphersuites = @@GLOBAL.admin_tls_ciphersuites;
 --echo Expected error 'Variable is a GLOBAL variable'

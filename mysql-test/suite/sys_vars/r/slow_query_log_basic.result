@@ -86,8 +86,10 @@ SET global.slow_query_log = ON;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.slow_query_log = ON' at line 1
 SELECT global.slow_query_log;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT slow_query_log = @@session.slow_query_log;
+SELECT slow_query_log;
 ERROR 42S22: Unknown column 'slow_query_log' in 'field list'
+SELECT @@session.slow_query_log;
+ERROR HY000: Variable 'slow_query_log' is a GLOBAL variable
 SET @@global.slow_query_log = @start_value;
 SELECT @@global.slow_query_log;
 @@global.slow_query_log

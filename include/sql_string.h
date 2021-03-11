@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <new>
 #include <string>
+#include <string_view>
 
 #include "lex_string.h"
 #include "m_ctype.h"   // my_convert
@@ -495,7 +496,7 @@ class String {
   bool copy(const char *s, size_t arg_length, const CHARSET_INFO *csfrom,
             const CHARSET_INFO *csto, uint *errors);
   bool append(const String &s);
-  bool append(const char *s);
+  bool append(std::string_view s) { return append(s.data(), s.size()); }
   bool append(LEX_STRING *ls) { return append(ls->str, ls->length); }
   bool append(Simple_cstring str) { return append(str.ptr(), str.length()); }
   bool append(const char *s, size_t arg_length);

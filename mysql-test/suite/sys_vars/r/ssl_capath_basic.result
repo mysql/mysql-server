@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.ssl_capath);
 COUNT(@@GLOBAL.ssl_capath)
 0
 0 Expected
-SELECT ssl_capath = @@SESSION.ssl_capath;
+SELECT ssl_capath;
 ERROR 42S22: Unknown column 'ssl_capath' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

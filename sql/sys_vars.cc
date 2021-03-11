@@ -194,7 +194,7 @@ static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
   mysql_mutex_unlock(&LOCK_global_system_variables);
 
   if (!key_cache->key_cache_inited)
-    error = ha_init_key_cache(nullptr, key_cache);
+    error = ha_init_key_cache({}, key_cache);
   else
     error = ha_resize_key_cache(key_cache);
 
@@ -1145,10 +1145,9 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100000 /* max connections */),
     DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
-static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
+static bool check_outside_trx(sys_var *var, THD *thd, set_var *) {
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->name.str);
     return true;
   }
   if (!thd->owned_gtid_is_empty()) {
@@ -1157,8 +1156,7 @@ static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
       thd->owned_gtid.to_string(thd->owned_sid, buf);
     else
       strcpy(buf, "ANONYMOUS");
-    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->var->name.str,
-             buf);
+    my_error(ER_CANT_SET_VARIABLE_WHEN_OWNING_GTID, MYF(0), var->name.str, buf);
     return true;
   }
   return false;
@@ -1167,8 +1165,7 @@ static bool check_outside_trx(sys_var *, THD *thd, set_var *var) {
 static bool check_session_admin_outside_trx_outside_sf(sys_var *self, THD *thd,
                                                        set_var *var) {
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (check_outside_trx(self, thd, var)) return true;
@@ -1188,13 +1185,11 @@ static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd,
                           self->name.str);
   }
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1215,13 +1210,11 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var) {
       thd->get_transaction()->xid_state()->has_state(XID_STATE::XA_PREPARED);
 
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0), self->name.str);
     return true;
   }
   if (!is_prepared_trx && thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return check_session_admin_or_replication_applier(self, thd, var);
@@ -1231,7 +1224,7 @@ static bool check_session_admin_outside_trx_outside_sf_outside_sp(
     sys_var *self, THD *thd, set_var *var) {
   if (check_session_admin_outside_trx_outside_sf(self, thd, var)) return true;
   if (thd->lex->sphead) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1430,8 +1423,7 @@ static bool check_binlog_trx_compression(sys_var *self [[maybe_unused]],
   if (check_session_admin(self, thd, var)) return true;
 
   if (!var->is_global_persist() && thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   return false;
@@ -1730,10 +1722,10 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
       lex_cstring_set(&se_name, res->ptr());
     } else {
       // Use the default value defined by sys_var.
-      lex_cstring_set(&se_name,
-                      pointer_cast<const char *>(
-                          down_cast<Sys_var_plugin *>(self)->global_value_ptr(
-                              thd, nullptr)));
+      lex_cstring_set(
+          &se_name,
+          pointer_cast<const char *>(
+              down_cast<Sys_var_plugin *>(self)->global_value_ptr(thd, {})));
     }
 
     plugin_ref plugin;
@@ -2358,21 +2350,20 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
 
   if ((var->is_global_persist()) &&
       global_system_variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
     return true;
   }
 
   if (var->type == OPT_SESSION &&
       thd->variables.binlog_format != BINLOG_FORMAT_ROW) {
-    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), var->var->name.str);
+    my_error(ER_PREVENTS_VARIABLE_WITHOUT_RBR, MYF(0), self->name.str);
     return true;
   }
   /*
     if in a stored function/trigger, it's too late to change
   */
   if (thd->in_sub_stmt) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   /*
@@ -2380,8 +2371,7 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var) {
     inside a transaction.
   */
   if (thd->in_active_multi_stmt_transaction()) {
-    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
-             var->var->name.str);
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), self->name.str);
     return true;
   }
   /*
@@ -5524,7 +5514,7 @@ static Sys_var_session_special_double Sys_timestamp(
 
 static bool update_last_insert_id(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->first_successful_insert_id_in_prev_stmt =
@@ -5568,7 +5558,7 @@ static Sys_var_session_special Sys_identity(
 */
 static bool update_insert_id(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->force_one_auto_inc_interval(var->save_result.ulonglong_value);
@@ -5588,7 +5578,7 @@ static Sys_var_session_special Sys_insert_id(
 
 static bool update_rand_seed1(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->rand.seed1 = (ulong)var->save_result.ulonglong_value;
@@ -5605,7 +5595,7 @@ static Sys_var_session_special Sys_rand_seed1(
 
 static bool update_rand_seed2(THD *thd, set_var *var) {
   if (!var->value) {
-    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+    my_error(ER_NO_DEFAULT, MYF(0), var->m_var_tracker.get_var_name());
     return true;
   }
   thd->rand.seed2 = (ulong)var->save_result.ulonglong_value;
@@ -6714,6 +6704,7 @@ static Sys_var_charptr Sys_track_session_sys_vars(
             "character_set_connection"),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_track_session_sys_vars),
     ON_UPDATE(update_track_session_sys_vars));
+export sys_var *Sys_track_session_sys_vars_ptr = &Sys_track_session_sys_vars;
 
 static bool update_session_track_schema(sys_var *, THD *thd, enum_var_type) {
   DBUG_TRACE;

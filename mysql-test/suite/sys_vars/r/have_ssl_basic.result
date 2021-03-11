@@ -61,6 +61,6 @@ COUNT(@@GLOBAL.have_ssl)
 Warnings:
 Warning	1287	'@@have_ssl' is deprecated and will be removed in a future release. Please use performance_schema.tls_channel_status table instead.
 1 Expected
-SELECT have_ssl = @@SESSION.have_ssl;
+SELECT have_ssl;
 ERROR 42S22: Unknown column 'have_ssl' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

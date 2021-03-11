@@ -43,7 +43,7 @@ SELECT COUNT(@@GLOBAL.tls_version);
 COUNT(@@GLOBAL.tls_version)
 1
 1 Expected
-SET tls_version = @@SESSION.tls_version;
+SET tls_version = @@GLOBAL.tls_version;
 ERROR HY000: Variable 'tls_version' is a GLOBAL variable and should be set with SET GLOBAL
 Expected error 'Variable is a GLOBAL variable'
 SET @@GLOBAL.tls_version='TLSv1.2';

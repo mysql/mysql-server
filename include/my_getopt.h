@@ -28,8 +28,10 @@
   @file include/my_getopt.h
 */
 
-#include <stdio.h>
 #include <sys/types.h>
+
+#include <cstdio>
+#include <string_view>
 
 #include <mysql/components/services/system_variable_source_type.h> /* enum_variable_source */
 #include "my_config.h"
@@ -167,7 +169,7 @@ ulonglong getopt_double2ulonglong(double);
 double getopt_ulonglong2double(ulonglong);
 int findopt(const char *, uint, const struct my_option **);
 
-bool is_key_cache_variable_suffix(const char *suffix);
+bool is_key_cache_variable_suffix(std::string_view suffix);
 
 bool get_bool_argument(const char *argument, bool *error);
 // Declared here, so we can unit test it.

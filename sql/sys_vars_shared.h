@@ -43,6 +43,8 @@ extern bool throw_bounds_warning(THD *thd, const char *name, bool fixed,
                                  bool is_unsigned, longlong v);
 extern bool throw_bounds_warning(THD *thd, const char *name, bool fixed,
                                  double v);
+extern sys_var *find_static_system_variable(const std::string &name);
+extern sys_var *find_dynamic_system_variable(const std::string &name);
 extern sys_var *intern_find_sys_var(const char *str, size_t length);
 
 /** wrapper to hide a mutex and an rwlock under a common interface */

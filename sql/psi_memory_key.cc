@@ -60,7 +60,6 @@ PSI_memory_key key_memory_MYSQL_LOG_name;
 PSI_memory_key key_memory_MYSQL_RELAY_LOG_basename;
 PSI_memory_key key_memory_MYSQL_RELAY_LOG_index;
 PSI_memory_key key_memory_Mutex_cond_array_Mutex_cond;
-PSI_memory_key key_memory_NAMED_ILINK_name;
 PSI_memory_key key_memory_NET_buff;
 PSI_memory_key key_memory_NET_compress_packet;
 PSI_memory_key key_memory_Owned_gtids_sidno_to_hash;
@@ -199,8 +198,6 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_blob_mem_storage, "Blob_mem_storage::storage",
      PSI_FLAG_MEM_COLLECT, 0, PSI_DOCUMENT_ME},
 
-    {&key_memory_NAMED_ILINK_name, "NAMED_ILINK::name", 0, 0,
-     "Names in the MyISAM key cache."},
     {&key_memory_String_value, "String::value", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Sys_var_charptr_value, "Sys_var_charptr::value", 0, 0,
      PSI_DOCUMENT_ME},

@@ -70,6 +70,7 @@ PFS_variable_cache<Var_type>::PFS_variable_cache(bool external_init)
       m_external_init(external_init),
       m_materialized(false),
       m_show_var_array(PSI_INSTRUMENT_ME),
+      m_sys_var_tracker_array(PSI_INSTRUMENT_ME),
       m_version(0),
       m_query_scope(OPT_DEFAULT),
       m_use_mem_root(false),
@@ -94,15 +95,16 @@ bool PFS_system_variable_cache::init_show_var_array(enum_var_type scope,
   DEBUG_SYNC(m_current_thd, "acquired_LOCK_system_variables_hash");
 
   /* Record the system variable hash version to detect subsequent changes. */
-  m_version = get_system_variable_hash_version();
+  m_version = get_dynamic_system_variable_hash_version();
 
   /* Build the SHOW_VAR array from the system variable hash. */
-  enumerate_sys_vars(&m_show_var_array, true, m_query_scope, strict);
+  System_variable_tracker::enumerate_sys_vars(true, m_query_scope, strict,
+                                              &m_sys_var_tracker_array);
 
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
 
   /* Increase cache size if necessary. */
-  m_cache.reserve(m_show_var_array.size());
+  m_cache.reserve(m_sys_var_tracker_array.size());
 
   m_initialized = true;
   return true;
@@ -166,17 +168,19 @@ int PFS_system_variable_cache::do_materialize_global(void) {
   }
 
   /* Resolve the value for each SHOW_VAR in the array, add to cache. */
-  for (Show_var_array::iterator show_var = m_show_var_array.begin();
-       show_var->value && (show_var != m_show_var_array.end()); show_var++) {
-    sys_var *value = (sys_var *)show_var->value;
-    assert(value);
-
-    /* Match the system variable scope to the target scope. */
-    if (match_scope(value->scope())) {
-      /* Resolve value, convert to text, add to cache. */
-      System_variable system_var(m_current_thd, show_var, m_query_scope);
-      m_cache.push_back(system_var);
-    }
+  for (const System_variable_tracker &i : m_sys_var_tracker_array) {
+    auto f = [this](const System_variable_tracker &, sys_var *sysvar) -> void {
+      /* Match the system variable scope to the target scope. */
+      if (match_scope(sysvar->scope())) {
+        SHOW_VAR show_var{sysvar->name.str, pointer_cast<char *>(sysvar),
+                          SHOW_SYS, SHOW_SCOPE_UNDEF};
+        /* Resolve value, convert to text, add to cache. */
+        System_variable system_var(m_current_thd, &show_var, m_query_scope);
+        m_cache.push_back(system_var);
+      }
+    };
+    (void)i.access_system_variable(m_current_thd, f,
+                                   Suppress_not_found_error::YES);
   }
 
   m_materialized = true;
@@ -211,11 +215,20 @@ int PFS_system_variable_cache::do_materialize_all(THD *unsafe_thd) {
   THD_ptr thd_ptr = get_THD(unsafe_thd);
   if ((m_safe_thd = thd_ptr.get()) != nullptr) {
     DEBUG_SYNC(m_current_thd, "materialize_session_variable_array_THD_locked");
-    for (Show_var_array::iterator show_var = m_show_var_array.begin();
-         show_var->value && (show_var != m_show_var_array.end()); show_var++) {
-      /* Resolve value, convert to text, add to cache. */
-      System_variable system_var(m_safe_thd, show_var, m_query_scope);
-      m_cache.push_back(system_var);
+    for (const System_variable_tracker &i : m_sys_var_tracker_array) {
+      auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
+        SHOW_VAR show_var;
+        show_var.name = sysvar->name.str;
+        show_var.value = (char *)sysvar;
+        show_var.type = SHOW_SYS;
+        show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
+
+        /* Resolve value, convert to text, add to cache. */
+        System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+        m_cache.push_back(system_var);
+      };
+      (void)i.access_system_variable(m_current_thd, f,
+                                     Suppress_not_found_error::YES);
     }
 
     m_materialized = true;
@@ -294,16 +307,23 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread) {
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(pfs_thread);
   if ((m_safe_thd = thd_ptr.get()) != nullptr) {
-    for (Show_var_array::iterator show_var = m_show_var_array.begin();
-         show_var->value && (show_var != m_show_var_array.end()); show_var++) {
-      sys_var *value = (sys_var *)show_var->value;
+    for (const System_variable_tracker &i : m_sys_var_tracker_array) {
+      auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
+        SHOW_VAR show_var;
+        show_var.name = sysvar->name.str;
+        show_var.value = (char *)sysvar;
+        show_var.type = SHOW_SYS;
+        show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
 
-      /* Match the system variable scope to the target scope. */
-      if (match_scope(value->scope())) {
-        /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_safe_thd, show_var, m_query_scope);
-        m_cache.push_back(system_var);
-      }
+        /* Match the system variable scope to the target scope. */
+        if (match_scope(sysvar->scope())) {
+          /* Resolve value, convert to text, add to cache. */
+          System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+          m_cache.push_back(system_var);
+        }
+      };
+      (void)i.access_system_variable(m_current_thd, f,
+                                     Suppress_not_found_error::YES);
     }
 
     m_materialized = true;
@@ -340,17 +360,23 @@ int PFS_system_variable_cache::do_materialize_session(PFS_thread *pfs_thread,
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(pfs_thread);
   if ((m_safe_thd = thd_ptr.get()) != nullptr) {
-    SHOW_VAR *show_var = &m_show_var_array.at(index);
+    if (index < m_sys_var_tracker_array.size()) {
+      auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
+        /* Match the system variable scope to the target scope. */
+        if (match_scope(sysvar->scope())) {
+          SHOW_VAR show_var;
+          show_var.name = sysvar->name.str;
+          show_var.value = (char *)sysvar;
+          show_var.type = SHOW_SYS;
+          show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
 
-    if (show_var && show_var->value && (show_var != m_show_var_array.end())) {
-      sys_var *value = (sys_var *)show_var->value;
-
-      /* Match the system variable scope to the target scope. */
-      if (match_scope(value->scope())) {
-        /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_safe_thd, show_var, m_query_scope);
-        m_cache.push_back(system_var);
-      }
+          /* Resolve value, convert to text, add to cache. */
+          System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+          m_cache.push_back(system_var);
+        }
+      };
+      (void)m_sys_var_tracker_array.at(index).access_system_variable(
+          m_current_thd, f, Suppress_not_found_error::YES);
     }
 
     m_materialized = true;
@@ -386,16 +412,23 @@ int PFS_system_variable_cache::do_materialize_session(THD *unsafe_thd) {
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
   if ((m_safe_thd = thd_ptr.get()) != nullptr) {
-    for (Show_var_array::iterator show_var = m_show_var_array.begin();
-         show_var->value && (show_var != m_show_var_array.end()); show_var++) {
-      sys_var *value = (sys_var *)show_var->value;
+    for (const System_variable_tracker &i : m_sys_var_tracker_array) {
+      auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
+        /* Match the system variable scope to the target scope. */
+        if (match_scope(sysvar->scope())) {
+          SHOW_VAR show_var;
+          show_var.name = sysvar->name.str;
+          show_var.value = (char *)sysvar;
+          show_var.type = SHOW_SYS;
+          show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
 
-      /* Match the system variable scope to the target scope. */
-      if (match_scope(value->scope())) {
-        /* Resolve value, convert to text, add to cache. */
-        System_variable system_var(m_safe_thd, show_var, m_query_scope);
-        m_cache.push_back(system_var);
-      }
+          /* Resolve value, convert to text, add to cache. */
+          System_variable system_var(m_safe_thd, &show_var, m_query_scope);
+          m_cache.push_back(system_var);
+        }
+      };
+      (void)i.access_system_variable(m_current_thd, f,
+                                     Suppress_not_found_error::YES);
     }
 
     m_materialized = true;
@@ -435,11 +468,20 @@ int PFS_system_variable_info_cache::do_materialize_all(THD *unsafe_thd) {
   /* Get and lock a validated THD from the thread manager. */
   THD_ptr thd_ptr = get_THD(unsafe_thd);
   if ((m_safe_thd = thd_ptr.get()) != nullptr) {
-    for (Show_var_array::iterator show_var = m_show_var_array.begin();
-         show_var->value && (show_var != m_show_var_array.end()); show_var++) {
-      /* Resolve value, convert to text, add to cache. */
-      System_variable system_var(m_safe_thd, show_var);
-      m_cache.push_back(system_var);
+    for (const System_variable_tracker &i : m_sys_var_tracker_array) {
+      auto f = [this](const System_variable_tracker &, sys_var *sysvar) {
+        SHOW_VAR show_var;
+        show_var.name = sysvar->name.str;
+        show_var.value = (char *)sysvar;
+        show_var.type = SHOW_SYS;
+        show_var.scope = SHOW_SCOPE_UNDEF; /* not used for sys vars */
+
+        /* Resolve value, convert to text, add to cache. */
+        System_variable system_var(m_safe_thd, &show_var);
+        m_cache.push_back(system_var);
+      };
+      (void)i.access_system_variable(m_current_thd, f,
+                                     Suppress_not_found_error::YES);
     }
 
     m_materialized = true;

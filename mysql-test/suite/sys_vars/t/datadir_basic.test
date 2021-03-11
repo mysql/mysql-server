@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.datadir);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT datadir = @@SESSION.datadir;
---echo Expected error 'Readonly variable'
+SELECT datadir;
+--echo Expected error 'Unknown column'
 
 

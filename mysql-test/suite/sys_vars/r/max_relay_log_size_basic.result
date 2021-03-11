@@ -141,8 +141,10 @@ SET global.max_relay_log_size = 8000;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.max_relay_log_size = 8000' at line 1
 SELECT global.max_relay_log_size;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT max_relay_log_size = @@session.max_relay_log_size;
+SELECT max_relay_log_size;
 ERROR 42S22: Unknown column 'max_relay_log_size' in 'field list'
+SELECT @@session.max_relay_log_size;
+ERROR HY000: Variable 'max_relay_log_size' is a GLOBAL variable
 SET @@global.max_relay_log_size = @start_value;
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size

@@ -1066,7 +1066,7 @@ SIGNAL something SET
 MESSAGE_TEXT = @message_text := 'illegal',
 MYSQL_ERRNO = @sqlcode := 1234;
 end $$
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ':= 'illegal',
 MYSQL_ERRNO = @sqlcode := 1234;
 end' at line 5
 create procedure test_signal()

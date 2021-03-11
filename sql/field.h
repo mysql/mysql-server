@@ -382,7 +382,7 @@ inline bool real_type_with_now_on_update(enum_field_types type) {
 }
 
 /**
-  Convert temporal real types as retuned by field->real_type()
+  Convert temporal real types as returned by field->real_type()
   to field type as returned by field->type().
 
   @param real_type  Real type.

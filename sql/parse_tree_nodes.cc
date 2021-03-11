@@ -38,6 +38,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "scope_guard.h"
+#include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/create_field.h"
 #include "sql/dd/info_schema/show.h"      // build_show_...
@@ -298,185 +299,276 @@ bool PT_order_expr::contextualize(Parse_context *pc) {
   return super::contextualize(pc) || item_initial->itemize(pc, &item_initial);
 }
 
-bool PT_internal_variable_name_1d::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+/**
+  Recognize the transition variable syntax: { OLD | NEW } "." ...
 
-  THD *thd = pc->thd;
-  LEX *lex = thd->lex;
-  sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-  sp_variable *spv;
+  @param pc             Parse context
+  @param opt_prefix     Optional prefix to examine or empty LEX_CSTRING
+  @param prefix         "OLD" or "NEW" to compare with
 
-  value.var = nullptr;
-  value.base_name = ident;
-
-  /* Best effort lookup for system variable. */
-  if (!pctx || !(spv = pctx->find_variable(ident.str, ident.length, false))) {
-    /* Not an SP local variable */
-    if (find_sys_var_null_base(thd, &value)) return true;
-  } else {
-    /*
-      Possibly an SP local variable (or a shadowed sysvar).
-      Will depend on the context of the SET statement.
-    */
-  }
-  return false;
+  @returns true if the OLD transition variable syntax, otherwise false
+*/
+static bool is_transition_variable_prefix(const Parse_context &pc,
+                                          const LEX_CSTRING &opt_prefix,
+                                          const char *prefix) {
+  assert(strcmp(prefix, "OLD") == 0 || strcmp(prefix, "NEW") == 0);
+  sp_head *const sp = pc.thd->lex->sphead;
+  return opt_prefix.str != nullptr && sp != nullptr &&
+         sp->m_type == enum_sp_type::TRIGGER &&
+         my_strcasecmp(system_charset_info, opt_prefix.str, prefix) == 0;
 }
 
-bool PT_internal_variable_name_2d::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
+static bool is_old_transition_variable_prefix(const Parse_context &pc,
+                                              const LEX_CSTRING &opt_prefix) {
+  return is_transition_variable_prefix(pc, opt_prefix, "OLD");
+}
 
+static bool is_new_transition_variable_prefix(const Parse_context &pc,
+                                              const LEX_CSTRING &opt_prefix) {
+  return is_transition_variable_prefix(pc, opt_prefix, "NEW");
+}
+
+/**
+  Recognize any of transition variable syntax: { NEW | OLD } "." ...
+
+  @param pc     Parse context
+  @param name   Optional prefix or empty LEX_CSTRING
+
+  @returns true if the transition variable syntax, otherwise false
+*/
+static bool is_any_transition_variable_prefix(const Parse_context &pc,
+                                              const LEX_CSTRING &opt_prefix) {
+  return is_old_transition_variable_prefix(pc, opt_prefix) ||
+         is_new_transition_variable_prefix(pc, opt_prefix);
+}
+
+/**
+  Try to resolve a name as SP formal parameter or local variable
+
+  @note Doesn't output error messages on failure.
+
+  @param pc     Parse context
+  @param name   Name of probable SP variable
+
+  @returns pointer to SP formal parameter/local variable object on success,
+           otherwise nullptr
+*/
+static sp_variable *find_sp_variable(const Parse_context &pc,
+                                     const LEX_CSTRING &name) {
+  const sp_pcontext *pctx = pc.thd->lex->get_sp_current_parsing_ctx();
+  return pctx ? pctx->find_variable(name.str, name.length, false) : nullptr;
+}
+
+/**
+  Helper action for a SET statement.
+  Used to SET a field of NEW row.
+
+  @param pc                 the parse context
+  @param trigger_field_name the NEW-row field name
+  @param expr_item          the value expression to be assigned
+  @param expr_pos           the value expression query
+
+  @return error status (true if error, false otherwise).
+*/
+
+static bool set_trigger_new_row(Parse_context *pc,
+                                LEX_CSTRING trigger_field_name, Item *expr_item,
+                                const POS &expr_pos) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
 
-  if (check_reserved_words(ident1.str)) {
-    error(pc, pos);
+  assert(expr_item != nullptr);
+
+  if (sp->m_trg_chistics.event == TRG_EVENT_DELETE) {
+    my_error(ER_TRG_NO_SUCH_ROW_IN_TRG, MYF(0), "NEW", "on DELETE");
+    return true;
+  }
+  if (sp->m_trg_chistics.action_time == TRG_ACTION_AFTER) {
+    my_error(ER_TRG_CANT_CHANGE_ROW, MYF(0), "NEW", "after ");
     return true;
   }
 
-  if (sp && sp->m_type == enum_sp_type::TRIGGER &&
-      (!my_strcasecmp(system_charset_info, ident1.str, "NEW") ||
-       !my_strcasecmp(system_charset_info, ident1.str, "OLD"))) {
-    if (ident1.str[0] == 'O' || ident1.str[0] == 'o') {
-      my_error(ER_TRG_CANT_CHANGE_ROW, MYF(0), "OLD", "");
-      return true;
-    }
-    if (sp->m_trg_chistics.event == TRG_EVENT_DELETE) {
-      my_error(ER_TRG_NO_SUCH_ROW_IN_TRG, MYF(0), "NEW", "on DELETE");
-      return true;
-    }
-    if (sp->m_trg_chistics.action_time == TRG_ACTION_AFTER) {
-      my_error(ER_TRG_CANT_CHANGE_ROW, MYF(0), "NEW", "after ");
-      return true;
-    }
-    /* This special combination will denote field of NEW row */
-    value.var = trg_new_row_fake_var;
-    value.base_name = ident2;
-  } else {
-    LEX_CSTRING *domain;
-    LEX_CSTRING *variable;
-    bool is_key_cache_variable = false;
-    sys_var *tmp;
-    if (ident2.str && is_key_cache_variable_suffix(ident2.str)) {
-      is_key_cache_variable = true;
-      domain = &ident2;
-      variable = &ident1;
-      tmp = find_sys_var(thd, domain->str, domain->length);
-    } else {
-      domain = &ident1;
-      variable = &ident2;
-      /*
-        We are getting the component name as domain->str and variable name
-        as variable->str, and we are adding the "." as a separator to find
-        the variable from systam_variable_hash.
-        We are doing this, because we use the structured variable syntax for
-        component variables.
-      */
-      String tmp_name;
-      if (tmp_name.reserve(domain->length + 1 + variable->length + 1) ||
-          tmp_name.append(domain->str) || tmp_name.append(".") ||
-          tmp_name.append(variable->str))
-        return true;  // OOM
-      tmp = find_sys_var(thd, tmp_name.c_ptr(), tmp_name.length());
-    }
-    if (!tmp) return true;
-
-    if (is_key_cache_variable && !tmp->is_struct())
-      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), domain->str);
-
-    value.var = tmp;
-    if (is_key_cache_variable)
-      value.base_name = *variable;
-    else
-      value.base_name = NULL_CSTR;
+  LEX_CSTRING expr_query{};
+  if (lex->is_metadata_used()) {
+    expr_query = make_string(thd, expr_pos.raw.start, expr_pos.raw.end);
+    if (expr_query.str == nullptr) return true;  // OOM
   }
-  return false;
+
+  assert(sp->m_trg_chistics.action_time == TRG_ACTION_BEFORE &&
+         (sp->m_trg_chistics.event == TRG_EVENT_INSERT ||
+          sp->m_trg_chistics.event == TRG_EVENT_UPDATE));
+
+  Item_trigger_field *trg_fld = new (pc->mem_root) Item_trigger_field(
+      POS(), TRG_NEW_ROW, trigger_field_name.str, UPDATE_ACL, false);
+
+  if (trg_fld == nullptr || trg_fld->itemize(pc, (Item **)&trg_fld))
+    return true;
+  assert(trg_fld->type() == Item::TRIGGER_FIELD_ITEM);
+
+  auto *sp_instr = new (pc->mem_root)
+      sp_instr_set_trigger_field(sp->instructions(), lex, trigger_field_name,
+                                 trg_fld, expr_item, expr_query);
+
+  if (sp_instr == nullptr) return true;  // OM
+
+  /*
+    Add this item to list of all Item_trigger_field objects in trigger.
+  */
+  sp->m_cur_instr_trig_field_items.link_in_list(trg_fld,
+                                                &trg_fld->next_trg_field);
+
+  return sp->add_instr(thd, sp_instr);
 }
 
-bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || name->contextualize(pc)) return true;
+/**
+  Helper action for a SET statement.
+  Used to push a system variable into the assignment list.
+  In stored routines detects "SET AUTOCOMMIT" and reject "SET GTID..." stuff.
 
-  THD *thd = pc->thd;
+  @param thd            the current thread
+  @param prefix         left hand side of a qualified name (if any)
+                        or nullptr string
+  @param suffix         the right hand side of a qualified name (if any)
+                        or a whole unqualified name
+  @param var_type       the scope of the variable
+  @param val            the value being assigned to the variable
+
+  @return true if error, false otherwise.
+*/
+static bool add_system_variable_assignment(THD *thd, LEX_CSTRING prefix,
+                                           LEX_CSTRING suffix,
+                                           enum enum_var_type var_type,
+                                           Item *val) {
+  System_variable_tracker var_tracker = System_variable_tracker::make_tracker(
+      to_string_view(prefix), to_string_view(suffix));
+  auto f = [](const System_variable_tracker &t, sys_var *v) -> void {
+    t.cache_medatata(v);
+  };
+  if (var_tracker.access_system_variable(thd, f)) {
+    return true;
+  }
+
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
+  sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
 
-  if (opt_expr != nullptr && opt_expr->itemize(pc, &opt_expr)) return true;
+  /* No AUTOCOMMIT from a stored function or trigger. */
+  if (pctx != nullptr && var_tracker.eq_static_sys_var(Sys_autocommit_ptr))
+    sp->m_flags |= sp_head::HAS_SET_AUTOCOMMIT_STMT;
 
-  const char *expr_start_ptr = nullptr;
+  if (lex->uses_stored_routines() &&
+      (var_tracker.eq_static_sys_var(Sys_gtid_next_ptr) ||
+#ifdef HAVE_GTID_NEXT_LIST
+       var_tracker.eq_static_sys_var(Sys_gtid_next_list_ptr) ||
+#endif
+       var_tracker.eq_static_sys_var(Sys_gtid_purged_ptr))) {
+    my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
+             var_tracker.get_var_name());
+    return true;
+  }
 
-  if (sp) expr_start_ptr = expr_pos.raw.start;
-
-  if (name->value.var == trg_new_row_fake_var) {
-    assert(sp);
-    assert(expr_start_ptr);
-
-    /* We are parsing trigger and this is a trigger NEW-field. */
-
-    LEX_CSTRING expr_query = EMPTY_CSTR;
-
-    if (!opt_expr) {
-      // This is: SET NEW.x = DEFAULT
-      // DEFAULT clause is not supported in triggers.
-
-      error(pc, expr_pos);
+  /*
+    If the set value is a field, change it to a string to allow things like
+    SET table_type=MYISAM;
+  */
+  if (val && val->type() == Item::FIELD_ITEM) {
+    Item_field *item_field = down_cast<Item_field *>(val);
+    if (item_field->table_name != nullptr) {
+      // Reject a dot-separated identified at the RHS of:
+      //    SET <variable_name> = <table_name>.<field_name>
+      my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var_tracker.get_var_name());
       return true;
-    } else if (lex->is_metadata_used()) {
-      expr_query = make_string(thd, expr_start_ptr, expr_pos.raw.end);
-
-      if (!expr_query.str) return true;
     }
+    assert(item_field->field_name != nullptr);
+    val =
+        new Item_string(item_field->field_name, strlen(item_field->field_name),
+                        system_charset_info);  // names are utf8
+    if (val == nullptr) return true;           // OOM
+  }
 
-    if (set_trigger_new_row(pc, name->value.base_name, opt_expr, expr_query))
+  set_var *var = new (thd->mem_root) set_var(var_type, var_tracker, val);
+  if (var == nullptr) return true;
+
+  return lex->var_list.push_back(var);
+}
+
+bool PT_set_variable::contextualize(Parse_context *pc) {
+  if (super::contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
+    return true;
+  }
+
+  THD *const thd = pc->thd;
+  LEX *const lex = thd->lex;
+  const bool is_1d_name = m_opt_prefix.str == nullptr;
+
+  /*
+    1. Reject `SET OLD.<name>` in triggers:
+  */
+  if (is_old_transition_variable_prefix(*pc, m_opt_prefix)) {
+    my_error(ER_TRG_CANT_CHANGE_ROW, MYF(0), "OLD", "");
+    return true;
+  }
+
+  /*
+    2. Process NEW.<name> in triggers:
+  */
+  if (is_new_transition_variable_prefix(*pc, m_opt_prefix)) {
+    if (m_opt_expr == nullptr) {
+      error(pc, m_expr_pos);  // Reject the syntax: SET NEW.<column> = DEFAULT
       return true;
-  } else if (name->value.var) {
-    /* We're not parsing SP and this is a system variable. */
+    }
+    if (set_trigger_new_row(pc, m_name, m_opt_expr, m_expr_pos)) return true;
+    return false;
+  }
 
-    if (set_system_variable(thd, &name->value, lex->option_type, opt_expr))
-      return true;
-  } else {
-    assert(sp);
-    assert(expr_start_ptr);
+  /*
+    3. Process SP local variable assignment:
+  */
 
-    /* We're parsing SP and this is an SP-variable. */
+  if (is_1d_name) {
+    sp_variable *spv = find_sp_variable(*pc, m_name);
+    if (spv != nullptr) {
+      if (m_opt_expr == nullptr) {
+        error(pc,
+              m_expr_pos);  // Reject the syntax: SET <sp var name> = DEFAULT
+        return true;
+      }
 
-    sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-    sp_variable *spv = pctx->find_variable(name->value.base_name.str,
-                                           name->value.base_name.length, false);
+      LEX_CSTRING expr_query{};
+      if (lex->is_metadata_used()) {
+        expr_query = make_string(thd, m_expr_pos.raw.start, m_expr_pos.raw.end);
+        if (expr_query.str == nullptr) return true;  // OOM
+      }
 
-    LEX_CSTRING expr_query = EMPTY_CSTR;
-
-    if (!opt_expr) {
       /*
-        This is: SET x = DEFAULT, where x is a SP-variable.
-        This is not supported.
+        NOTE: every SET-expression has its own LEX-object, even if it is
+        a multiple SET-statement, like:
+
+          SET spv1 = expr1, spv2 = expr2, ...
+
+        Every SET-expression has its own sp_instr_set. Thus, the
+        instruction owns the LEX-object, i.e. the instruction is
+        responsible for destruction of the LEX-object.
       */
 
-      error(pc, expr_pos);
-      return true;
-    } else if (lex->is_metadata_used()) {
-      expr_query = make_string(thd, expr_start_ptr, expr_pos.raw.end);
+      sp_head *const sp = lex->sphead;
+      auto *sp_instr = new (thd->mem_root) sp_instr_set(
+          sp->instructions(), lex, spv->offset, m_opt_expr, expr_query,
+          true);  // The instruction owns its lex.
 
-      if (!expr_query.str) return true;
+      return sp_instr == nullptr || sp->add_instr(thd, sp_instr);
     }
-
-    /*
-      NOTE: every SET-expression has its own LEX-object, even if it is
-      a multiple SET-statement, like:
-
-        SET spv1 = expr1, spv2 = expr2, ...
-
-      Every SET-expression has its own sp_instr_set. Thus, the
-      instruction owns the LEX-object, i.e. the instruction is
-      responsible for destruction of the LEX-object.
-    */
-
-    sp_instr_set *i = new (thd->mem_root)
-        sp_instr_set(sp->instructions(), lex, spv->offset, opt_expr, expr_query,
-                     true);  // The instruction owns its lex.
-
-    if (!i || sp->add_instr(thd, i)) return true;
   }
-  return false;
+
+  /*
+    4. Process assignment of a system variable, including:
+       * Multiple Key Cache variables
+       * plugin variables
+       * component variables
+  */
+  return add_system_variable_assignment(thd, m_opt_prefix, m_name,
+                                        lex->option_type, m_opt_expr);
 }
 
 bool PT_option_value_no_option_type_password_for::contextualize(
@@ -2087,10 +2179,8 @@ Sql_cmd *PT_show_count_base::make_cmd_generic(
   lex->keep_diagnostics = DA_KEEP_DIAGNOSTICS;
 
   Parse_context pc(thd, lex->current_query_block());
-  Item *var = get_system_var(
-      &pc, OPT_SESSION,
-      to_lex_string(diagnostic_variable_name),  // TODO: use LEX_CSTRING
-      {}, false);
+  Item *var =
+      get_system_variable(&pc, OPT_SESSION, diagnostic_variable_name, false);
   if (var == nullptr) {
     assert(false);
     return nullptr;  // should never happen
@@ -3318,40 +3408,40 @@ bool PT_table_locking_clause::raise_error(int error) {
   return true;
 }
 
-bool PT_internal_variable_name_default::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc)) return true;
-
-  sys_var *tmp = find_sys_var(pc->thd, ident.str, ident.length);
-  if (!tmp) return true;
-  if (!tmp->is_struct()) {
-    my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), ident.str);
+bool PT_set_scoped_system_variable::contextualize(Parse_context *pc) {
+  if (super::contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
     return true;
   }
-  value.var = tmp;
-  value.base_name.str = "default";
-  value.base_name.length = 7;
-  return false;
-}
 
-bool PT_option_value_following_option_type::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || name->contextualize(pc) ||
-      (opt_expr != nullptr && opt_expr->itemize(pc, &opt_expr)))
-    return true;
+  const bool is_1d_name = m_opt_prefix.str == nullptr;
 
-  if (name->value.var && name->value.var != trg_new_row_fake_var) {
-    /* It is a system variable. */
-    if (set_system_variable(pc->thd, &name->value, pc->thd->lex->option_type,
-                            opt_expr))
-      return true;
-  } else {
-    /*
-      Not in trigger assigning value to new row,
-      and option_type preceding local variable is illegal.
-    */
-    error(pc, pos);
+  /*
+    Reject transition variable names in the syntax:
+
+        {"GLOBAL" | "SESSION" | "PERSIST" | ...} {"NEW" | "OLD"} "."  <name>
+  */
+  if (is_any_transition_variable_prefix(*pc, m_opt_prefix)) {
+    error(pc, m_pos);
     return true;
   }
-  return false;
+
+  /*
+    Reject SP variable names in the syntax:
+
+        {"GLOBAL" | "SESSION" | ...} <SP variable name>
+
+    Note: we also reject overload system variable names here too.
+    TODO: most likely this reject is fine, since such a use case is confusing,
+          OTOH this is also probable that a rejection of overloaded system
+          variables is too strict, so a warning may be a better alternative.
+  */
+  if (is_1d_name && find_sp_variable(*pc, m_name) != nullptr) {
+    error(pc, m_pos);
+    return true;
+  }
+
+  return add_system_variable_assignment(pc->thd, m_opt_prefix, m_name,
+                                        pc->thd->lex->option_type, m_opt_expr);
 }
 
 bool PT_option_value_no_option_type_user_var::contextualize(Parse_context *pc) {
@@ -3366,23 +3456,21 @@ bool PT_option_value_no_option_type_user_var::contextualize(Parse_context *pc) {
   return thd->lex->var_list.push_back(var);
 }
 
-bool PT_option_value_no_option_type_sys_var::contextualize(Parse_context *pc) {
-  if (super::contextualize(pc) || name->contextualize(pc) ||
-      (opt_expr != nullptr && opt_expr->itemize(pc, &opt_expr)))
+bool PT_set_system_variable::contextualize(Parse_context *pc) {
+  if (super::contextualize(pc) || itemize_safe(pc, &m_opt_expr)) {
     return true;
+  }
 
-  THD *thd = pc->thd;
-  struct sys_var_with_base tmp = name->value;
-  if (tmp.var == trg_new_row_fake_var) {
-    error(pc, down_cast<PT_internal_variable_name_2d *>(name)->pos);
+  /*
+    This is `@@[scope.][prefix.]name, so reject @@[scope].{NEW | OLD}.name:
+  */
+  if (is_any_transition_variable_prefix(*pc, m_opt_prefix)) {
+    error(pc, m_name_pos);
     return true;
   }
-  /* Lookup if necessary: must be a system variable. */
-  if (tmp.var == nullptr) {
-    if (find_sys_var_null_base(thd, &tmp)) return true;
-  }
-  if (set_system_variable(thd, &tmp, type, opt_expr)) return true;
-  return false;
+
+  return add_system_variable_assignment(pc->thd, m_opt_prefix, m_name, m_scope,
+                                        m_opt_expr);
 }
 
 bool PT_option_value_type::contextualize(Parse_context *pc) {
@@ -3429,8 +3517,14 @@ bool PT_transaction_characteristic::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   Item *item = new (pc->mem_root) Item_int(value);
   if (item == nullptr) return true;
-  set_var *var = new (thd->mem_root)
-      set_var(lex->option_type, find_sys_var(thd, name), NULL_CSTR, item);
+  System_variable_tracker var_tracker =
+      System_variable_tracker::make_tracker(name);
+  if (var_tracker.access_system_variable(thd)) {
+    assert(false);
+    return true;  // should never happen / OOM
+  }
+  set_var *var =
+      new (thd->mem_root) set_var(lex->option_type, var_tracker, item);
   if (var == nullptr) return true;
   return lex->var_list.push_back(var);
 }

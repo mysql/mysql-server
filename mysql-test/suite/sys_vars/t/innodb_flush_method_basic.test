@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_flush_method);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_flush_method = @@SESSION.innodb_flush_method;
---echo Expected error 'Readonly variable'
+SELECT innodb_flush_method;
+--echo Expected error 'Unknown column'
 
 

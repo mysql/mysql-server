@@ -82,13 +82,6 @@ extern int HINT_PARSER_parse(THD *thd, Hint_scanner *scanner,
 
 static int lex_one_token(Lexer_yystype *yylval, THD *thd);
 
-/*
-  We are using pointer to this variable for distinguishing between assignment
-  to NEW row field (when parsing trigger definition) and structured variable.
-*/
-
-sys_var *trg_new_row_fake_var = (sys_var *)0x01;
-
 /**
   LEX_STRING constant for null-string to be used in parser and other places.
 */
@@ -494,8 +487,6 @@ void LEX::reset() {
   alter_user_attribute = enum_alter_user_attribute::ALTER_USER_COMMENT_NOT_USED;
   m_is_replication_deprecated_syntax_used = false;
   m_was_replication_command_executed = false;
-
-  plugin_var_bind_list.clear();
 }
 
 /**
@@ -548,19 +539,6 @@ void LEX::release_plugins() {
     plugin_unlock_list(nullptr, plugins.begin(), plugins.size());
     plugins.clear();
   }
-}
-
-bool LEX::add_plugin_var(Item_func_get_system_var *item) {
-  return plugin_var_bind_list.push_back(item);
-}
-
-bool LEX::rebind_plugin_vars(THD *thd) {
-  for (Item_func_get_system_var *item : plugin_var_bind_list) {
-    if (item->bind(thd)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**

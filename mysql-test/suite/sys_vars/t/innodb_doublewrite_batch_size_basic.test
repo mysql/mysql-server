@@ -46,7 +46,7 @@ SELECT COUNT(@@GLOBAL.innodb_doublewrite_batch_size);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_doublewrite_batch_size = @@SESSION.innodb_doublewrite_pages;
---echo Expected error 'Readonly variable'
+SELECT innodb_doublewrite_batch_size;
+--echo Expected error 'Unknown column'
 
 

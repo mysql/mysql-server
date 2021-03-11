@@ -70,7 +70,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_log_wait_for_flush_spin_hwm = @@SESSION.innodb_log_wait_for_flush_spin_hwm;
+SELECT innodb_log_wait_for_flush_spin_hwm;
 
 SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 1000;
 SELECT @@innodb_log_wait_for_flush_spin_hwm;

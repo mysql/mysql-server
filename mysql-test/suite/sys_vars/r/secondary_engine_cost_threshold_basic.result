@@ -94,7 +94,7 @@ SET session.secondary_engine_cost_threshold = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.secondary_engine_cost_threshold = 1' at line 1
 SELECT session.secondary_engine_cost_threshold;
 ERROR 42S02: Unknown table 'session' in field list
-SELECT secondary_engine_cost_threshold = @@session.binlog_expire_logs_seconds;
+SELECT secondary_engine_cost_threshold;
 ERROR 42S22: Unknown column 'secondary_engine_cost_threshold' in 'field list'
 SET @@session.secondary_engine_cost_threshold = @start_value;
 SET @@global.secondary_engine_cost_threshold = @start_value_global;

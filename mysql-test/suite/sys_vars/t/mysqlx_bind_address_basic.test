@@ -55,7 +55,7 @@ SELECT COUNT(@@GLOBAL.mysqlx_bind_address);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT mysqlx_bind_address = @@SESSION.mysqlx_bind_address;
---echo Expected error 'Readonly variable'
+SELECT mysqlx_bind_address;
+--echo Expected error 'Unknown column'
 
 

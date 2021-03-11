@@ -142,7 +142,7 @@ SET global.binlog_expire_logs_auto_purge = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.binlog_expire_logs_auto_purge;
 --Error ER_BAD_FIELD_ERROR
-SELECT binlog_expire_logs_auto_purge = @@session.binlog_expire_logs_auto_purge;
+SELECT binlog_expire_logs_auto_purge = @@global.binlog_expire_logs_auto_purge;
 
 ##############################
 #   Restore initial value    #

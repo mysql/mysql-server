@@ -93,3 +93,49 @@ UNINSTALL COMPONENT "file://component_test_sys_var_service";
 let $MYSQLD_DATADIR= `select @@datadir`;
 cat_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
 remove_file $MYSQLD_DATADIR/test_component_sys_var_service.log;
+
+--echo #
+--echo # Coverage/regression tests for component & SP interations
+--echo #
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p(x VARCHAR(32)) SET @@GLOBAL.test_component.str_sys_var = x;
+
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CREATE PROCEDURE p() SELECT @@test_component.str_sys_var;
+
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+CREATE PROCEDURE p1(x VARCHAR(32)) SET @@GLOBAL.test_component.str_sys_var = x;
+CREATE PROCEDURE p2() SELECT @@test_component.str_sys_var;
+
+CALL p2();
+CALL p1('test');
+CALL p2();
+
+--echo # Try to uninstall the component and fail with a warning since its busy
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+
+--echo # Check that the component has been uninstalled
+--error ER_COMPONENTS_UNLOAD_NOT_LOADED
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+
+--echo # Variable is not available any more: the component is uninstalling
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CALL p1('test');
+--error ER_UNKNOWN_SYSTEM_VARIABLE
+CALL p2();
+
+--echo # Check that the component is uninstalled
+--replace_regex /\.dll/.so/
+eval INSTALL COMPONENT "file://component_test_sys_var_service";
+
+--echo # Variable is available again
+CALL p2();
+CALL p1('test');
+CALL p2();
+
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;

@@ -932,10 +932,8 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
     */
     if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
             ->is_enabled()) {
-      LEX_CSTRING dummy = {STRING_WITH_LEN("")};
-      dummy.length = dummy.length * 1;
       thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
-          ->mark_as_changed(thd, &dummy);
+          ->mark_as_changed(thd, {});
     }
   }
 
@@ -1506,15 +1504,13 @@ done:
     Check if current database tracker is enabled. If so, set the 'changed' flag.
   */
   if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled()) {
-    LEX_CSTRING dummy = {STRING_WITH_LEN("")};
-    dummy.length = dummy.length * 1;
     thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
-        ->mark_as_changed(thd, &dummy);
+        ->mark_as_changed(thd, {});
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
           ->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-        ->mark_as_changed(thd, nullptr);
+        ->mark_as_changed(thd, {});
   return false;
 }
 

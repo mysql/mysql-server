@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.admin_ssl_cert);
 COUNT(@@GLOBAL.admin_ssl_cert)
 0
 0 Expected
-SET admin_ssl_cert = @@SESSION.admin_ssl_cert;
+SET admin_ssl_cert = @@GLOBAL.admin_ssl_cert;
 ERROR HY000: Variable 'admin_ssl_cert' is a GLOBAL variable and should be set with SET GLOBAL
 Expected error 'Variable is a GLOBAL variable'

@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_data_home_dir);
 --echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_data_home_dir = @@SESSION.innodb_data_home_dir;
---echo Expected error 'Readonly variable'
+SELECT innodb_data_home_dir;
+--echo Expected error 'Unknown column'
 
 

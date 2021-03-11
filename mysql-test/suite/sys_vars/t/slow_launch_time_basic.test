@@ -162,7 +162,9 @@ SET global.slow_launch_time = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.slow_launch_time;
 --Error ER_BAD_FIELD_ERROR
-SELECT slow_launch_time = @@session.slow_launch_time;
+SELECT slow_launch_time;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.slow_launch_time;
 
 
 ##############################  

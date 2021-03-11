@@ -164,6 +164,7 @@ struct HASH_LINK {
   uint requests;           /* number of requests for the page      */
 };
 
+// clang-format off
 /* simple states of a block */
 #define BLOCK_ERROR 1           /* an error occurred when performing file i/o */
 #define BLOCK_READ 2            /* file block is in the block buffer         */
@@ -175,6 +176,7 @@ struct HASH_LINK {
 #define BLOCK_IN_EVICTION 128   /* block is selected for eviction            */
 #define BLOCK_IN_FLUSHWRITE 256 /* block is in write to file */
 #define BLOCK_FOR_UPDATE 512    /* block is selected for buffer modification */
+// clang-format on
 
 /* page status, returned by find_key_block */
 #define PAGE_READ 0
@@ -3598,14 +3600,16 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
     0 on success (always because it can't fail)
 */
 
-int reset_key_cache_counters(const char *name [[maybe_unused]],
+int reset_key_cache_counters(std::string_view name [[maybe_unused]],
                              KEY_CACHE *key_cache) {
   DBUG_TRACE;
   if (!key_cache->key_cache_inited) {
-    DBUG_PRINT("info", ("Key cache %s not initialized.", name));
+    DBUG_PRINT("info", ("Key cache %.*s not initialized.",
+                        static_cast<int>(name.size()), name.data()));
     return 0;
   }
-  DBUG_PRINT("info", ("Resetting counters for key cache %s.", name));
+  DBUG_PRINT("info", ("Resetting counters for key cache %.*s.",
+                      static_cast<int>(name.size()), name.data()));
 
   key_cache->global_blocks_changed = 0;   /* Key_blocks_not_flushed */
   key_cache->global_cache_r_requests = 0; /* Key_read_requests */

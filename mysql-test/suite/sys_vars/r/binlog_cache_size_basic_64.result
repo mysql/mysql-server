@@ -119,8 +119,10 @@ SET global.binlog_cache_size = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.binlog_cache_size = 1' at line 1
 SELECT global.binlog_cache_size;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT binlog_cache_size = @@session.binlog_cache_size;
+SELECT binlog_cache_size;
 ERROR 42S22: Unknown column 'binlog_cache_size' in 'field list'
+SELECT @@session.binlog_cache_size;
+ERROR HY000: Variable 'binlog_cache_size' is a GLOBAL variable
 SET @@global.binlog_cache_size = @start_value;
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size

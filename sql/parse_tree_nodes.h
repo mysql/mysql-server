@@ -778,88 +778,48 @@ class PT_query_expression_body : public Parse_tree_node {
   virtual PT_insert_values_list *get_row_value_list() const = 0;
 };
 
-class PT_internal_variable_name : public Parse_tree_node {
- public:
-  sys_var_with_base value;
-};
-
-class PT_internal_variable_name_1d : public PT_internal_variable_name {
-  typedef PT_internal_variable_name super;
-
-  LEX_CSTRING ident;
-
- public:
-  PT_internal_variable_name_1d(LEX_CSTRING ident_arg) : ident(ident_arg) {}
-
-  bool contextualize(Parse_context *pc) override;
-};
-
-/**
-  Parse tree node class for 2-dimentional variable names (example: \@global.x)
-*/
-class PT_internal_variable_name_2d : public PT_internal_variable_name {
-  typedef PT_internal_variable_name super;
-
- public:
-  const POS pos;
-
- private:
-  LEX_CSTRING ident1;
-  LEX_CSTRING ident2;
-
- public:
-  PT_internal_variable_name_2d(const POS &pos, LEX_CSTRING ident1_arg,
-                               LEX_CSTRING ident2_arg)
-      : pos(pos), ident1(ident1_arg), ident2(ident2_arg) {}
-
-  bool contextualize(Parse_context *pc) override;
-};
-
-class PT_internal_variable_name_default : public PT_internal_variable_name {
-  typedef PT_internal_variable_name super;
-
-  LEX_STRING ident;
-
- public:
-  PT_internal_variable_name_default(const LEX_STRING &ident_arg)
-      : ident(ident_arg) {}
-
-  bool contextualize(Parse_context *pc) override;
-};
-
-class PT_option_value_following_option_type : public Parse_tree_node {
+class PT_set_scoped_system_variable : public Parse_tree_node {
   typedef Parse_tree_node super;
 
-  POS pos;
-  PT_internal_variable_name *name;
-  Item *opt_expr;
-
  public:
-  PT_option_value_following_option_type(const POS &pos,
-                                        PT_internal_variable_name *name_arg,
-                                        Item *opt_expr_arg)
-      : pos(pos), name(name_arg), opt_expr(opt_expr_arg) {}
+  PT_set_scoped_system_variable(const POS &pos, const LEX_CSTRING &opt_prefix,
+                                const LEX_CSTRING &name, Item *opt_expr)
+      : m_pos{pos},
+        m_opt_prefix{opt_prefix},
+        m_name{name},
+        m_opt_expr{opt_expr} {}
 
   bool contextualize(Parse_context *pc) override;
+
+ private:
+  const POS m_pos;
+  const LEX_CSTRING m_opt_prefix;
+  const LEX_CSTRING m_name;
+  Item *m_opt_expr;
 };
 
 class PT_option_value_no_option_type : public Parse_tree_node {};
 
-class PT_option_value_no_option_type_internal
-    : public PT_option_value_no_option_type {
+class PT_set_variable : public PT_option_value_no_option_type {
   typedef PT_option_value_no_option_type super;
 
-  PT_internal_variable_name *name;
-  Item *opt_expr;
-  POS expr_pos;
-
  public:
-  PT_option_value_no_option_type_internal(PT_internal_variable_name *name_arg,
-                                          Item *opt_expr_arg,
-                                          const POS &expr_pos_arg)
-      : name(name_arg), opt_expr(opt_expr_arg), expr_pos(expr_pos_arg) {}
+  PT_set_variable(const POS &pos, const LEX_CSTRING &opt_prefix,
+                  const LEX_CSTRING &name, const POS &expr_pos, Item *opt_expr)
+      : m_pos{pos},
+        m_opt_prefix{opt_prefix},
+        m_name{name},
+        m_expr_pos{expr_pos},
+        m_opt_expr{opt_expr} {}
 
   bool contextualize(Parse_context *pc) override;
+
+ private:
+  const POS m_pos;
+  const LEX_CSTRING m_opt_prefix;
+  const LEX_CSTRING m_name;
+  const POS m_expr_pos;
+  Item *m_opt_expr;
 };
 
 class PT_option_value_no_option_type_user_var
@@ -877,21 +837,27 @@ class PT_option_value_no_option_type_user_var
   bool contextualize(Parse_context *pc) override;
 };
 
-class PT_option_value_no_option_type_sys_var
-    : public PT_option_value_no_option_type {
+class PT_set_system_variable : public PT_option_value_no_option_type {
   typedef PT_option_value_no_option_type super;
 
-  enum_var_type type;
-  PT_internal_variable_name *name;
-  Item *opt_expr;
-
  public:
-  PT_option_value_no_option_type_sys_var(enum_var_type type_arg,
-                                         PT_internal_variable_name *name_arg,
-                                         Item *opt_expr_arg)
-      : type(type_arg), name(name_arg), opt_expr(opt_expr_arg) {}
+  PT_set_system_variable(enum_var_type scope, const POS &name_pos,
+                         const LEX_CSTRING &opt_prefix, const LEX_CSTRING &name,
+                         Item *opt_expr)
+      : m_scope{scope},
+        m_name_pos{name_pos},
+        m_opt_prefix{opt_prefix},
+        m_name{name},
+        m_opt_expr{opt_expr} {}
 
   bool contextualize(Parse_context *pc) override;
+
+ private:
+  const enum_var_type m_scope;
+  const POS m_name_pos;
+  const LEX_CSTRING m_opt_prefix;
+  const LEX_CSTRING m_name;
+  Item *m_opt_expr;
 };
 
 class PT_option_value_no_option_type_charset
@@ -992,11 +958,11 @@ class PT_option_value_type : public Parse_tree_node {
   typedef Parse_tree_node super;
 
   enum_var_type type;
-  PT_option_value_following_option_type *value;
+  PT_set_scoped_system_variable *value;
 
  public:
   PT_option_value_type(enum_var_type type_arg,
-                       PT_option_value_following_option_type *value_arg)
+                       PT_set_scoped_system_variable *value_arg)
       : type(type_arg), value(value_arg) {}
 
   bool contextualize(Parse_context *pc) override;
@@ -1123,13 +1089,13 @@ class PT_start_option_value_list_following_option_type_eq
     : public PT_start_option_value_list_following_option_type {
   typedef PT_start_option_value_list_following_option_type super;
 
-  PT_option_value_following_option_type *head;
+  PT_set_scoped_system_variable *head;
   POS head_pos;
   PT_option_value_list_head *opt_tail;
 
  public:
   PT_start_option_value_list_following_option_type_eq(
-      PT_option_value_following_option_type *head_arg, const POS &head_pos_arg,
+      PT_set_scoped_system_variable *head_arg, const POS &head_pos_arg,
       PT_option_value_list_head *opt_tail_arg)
       : head(head_arg), head_pos(head_pos_arg), opt_tail(opt_tail_arg) {}
 
@@ -4774,7 +4740,7 @@ class PT_cache_index_stmt final : public PT_table_ddl_stmt_base {
  public:
   PT_cache_index_stmt(MEM_ROOT *mem_root,
                       Mem_root_array<PT_assign_to_keycache *> *tbl_index_lists,
-                      const LEX_CSTRING &key_cache_name)
+                      LEX_CSTRING key_cache_name)
       : PT_table_ddl_stmt_base(mem_root),
         m_tbl_index_lists(tbl_index_lists),
         m_key_cache_name(key_cache_name) {}
@@ -4791,7 +4757,7 @@ class PT_cache_index_partitions_stmt : public PT_table_ddl_stmt_base {
   PT_cache_index_partitions_stmt(MEM_ROOT *mem_root, Table_ident *table,
                                  PT_adm_partition *partitions,
                                  List<Index_hint> *opt_key_usage_list,
-                                 const LEX_CSTRING &key_cache_name)
+                                 LEX_CSTRING key_cache_name)
       : PT_table_ddl_stmt_base(mem_root),
         m_table(table),
         m_partitions(partitions),

@@ -194,7 +194,9 @@ SET global.max_connect_errors = 8000;
 --Error ER_UNKNOWN_TABLE
 SELECT global.max_connect_errors;
 --Error ER_BAD_FIELD_ERROR
-SELECT max_connect_errors = @@session.max_connect_errors;
+SELECT max_connect_errors;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.max_connect_errors;
 
 
 ##############################  

@@ -40,6 +40,7 @@
 #include <random>  // std::mt19937
 #include <set>
 #include <string>
+#include <string_view>
 
 #include <mysql/components/services/page_track_service.h>
 #include "ft_global.h"  // ft_hints
@@ -6946,7 +6947,7 @@ bool ha_rm_tmp_tables(THD *thd, List<LEX_STRING> *files);
 bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files);
 
 /* key cache */
-extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
+int ha_init_key_cache(std::string_view name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 

@@ -184,7 +184,9 @@ SET global.binlog_stmt_cache_size = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.binlog_stmt_cache_size;
 --Error ER_BAD_FIELD_ERROR
-SELECT binlog_stmt_cache_size = @@session.binlog_stmt_cache_size;
+SELECT binlog_stmt_cache_size;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.binlog_stmt_cache_size;
 
 
 ##############################  

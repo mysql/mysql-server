@@ -403,7 +403,6 @@ create table worklog5743_8(a1 int, a2 TEXT, a3 TEXT) KEY_BLOCK_SIZE=8;
 create index idx1 on worklog5743_1(a2(4000));
 
 -->expecterror ER_UNKNOWN_SYSTEM_VARIABLE
--->expectwarnings ER_UNKNOWN_SYSTEM_VARIABLE
 set global innodb_large_prefix=1;
 
 ## setting back to original value

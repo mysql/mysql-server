@@ -25,7 +25,6 @@ memory/sql/LOG::file_name	File name of slow log and general log.
 memory/sql/MDL_context::acquire_locks	Buffer for sorting lock requests.
 memory/sql/MDL_context::backup_manager	MDL for prepared XA trans with disconnected client.
 memory/sql/MYSQL_LOCK	Table locks per session.
-memory/sql/NAMED_ILINK::name	Names in the MyISAM key cache.
 memory/sql/NET::buff	Buffer in the client protocol communications layer.
 memory/sql/NET::compress_packet	Buffer used when compressing a packet.
 memory/sql/Partition::admin	Buffer for printing messages into the client protocol.

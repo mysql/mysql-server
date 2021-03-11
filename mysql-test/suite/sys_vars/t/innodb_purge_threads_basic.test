@@ -15,8 +15,11 @@ SET @@GLOBAL.innodb_purge_threads=1;
 --echo Expected error 'Read-only variable'
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_purge_threads = @@SESSION.innodb_purge_threads;
---echo Expected error 'Read-only variable'
+SELECT innodb_purge_threads;
+--echo Expected error 'Unknown column'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.innodb_purge_threads;
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_purge_threads = VARIABLE_VALUE

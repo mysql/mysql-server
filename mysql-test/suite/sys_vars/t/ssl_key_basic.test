@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.ssl_key);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT ssl_key = @@SESSION.ssl_key;
---echo Expected error 'Readonly variable'
+SELECT ssl_key;
+--echo Expected error 'Unknown column'
 
 

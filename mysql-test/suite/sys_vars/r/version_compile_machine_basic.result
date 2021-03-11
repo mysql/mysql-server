@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.version_compile_machine);
 COUNT(@@GLOBAL.version_compile_machine)
 1
 1 Expected
-SELECT version_compile_machine = @@SESSION.version_compile_machine;
+SELECT version_compile_machine;
 ERROR 42S22: Unknown column 'version_compile_machine' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

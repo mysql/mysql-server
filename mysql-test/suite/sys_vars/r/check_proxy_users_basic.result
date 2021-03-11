@@ -107,8 +107,10 @@ SET global.check_proxy_users = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.check_proxy_users = 1' at line 1
 SELECT global.check_proxy_users;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT check_proxy_users = @@session.check_proxy_users;
+SELECT check_proxy_users;
 ERROR 42S22: Unknown column 'check_proxy_users' in 'field list'
+SELECT @@session.check_proxy_users;
+ERROR HY000: Variable 'check_proxy_users' is a GLOBAL variable
 SET @@global.check_proxy_users = @start_value;
 SELECT @@global.check_proxy_users;
 @@global.check_proxy_users

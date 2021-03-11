@@ -40,7 +40,7 @@ SELECT COUNT(@@SESSION.mysqlx_ssl_cipher);
 --echo Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@GLOBAL.mysqlx_ssl_cipher);
 --Error ER_BAD_FIELD_ERROR
-SELECT mysqlx_ssl_cipher = @@SESSION.mysqlx_ssl_cipher;
---echo Expected error 'Readonly variable'
+SELECT mysqlx_ssl_cipher;
+--echo Expected error 'Unknown column'
 
 

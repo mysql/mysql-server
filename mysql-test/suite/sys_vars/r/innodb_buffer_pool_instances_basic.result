@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
 COUNT(@@GLOBAL.innodb_buffer_pool_instances)
 1
 1 Expected
-SELECT innodb_buffer_pool_instances = @@SESSION.innodb_buffer_pool_instances;
+SELECT innodb_buffer_pool_instances;
 ERROR 42S22: Unknown column 'innodb_buffer_pool_instances' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

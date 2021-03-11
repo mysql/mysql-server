@@ -70,5 +70,5 @@ SELECT COUNT(@@GLOBAL.admin_ssl_crl);
 --echo 0 Expected
 
 --Error ER_GLOBAL_VARIABLE
-SET admin_ssl_crl = @@SESSION.admin_ssl_crl;
+SET admin_ssl_crl = @@GLOBAL.admin_ssl_crl;
 --echo Expected error 'Variable is a GLOBAL variable'

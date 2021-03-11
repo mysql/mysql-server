@@ -197,7 +197,7 @@ class sys_var_pluginvar : public sys_var {
 
  public:
   bool is_plugin;
-  st_plugin_int *plugin;
+  st_plugin_int *plugin{nullptr};
   SYS_VAR *plugin_var;
   /**
     variable name from whatever is hard-coded in the plugin source
@@ -263,16 +263,18 @@ class sys_var_pluginvar : public sys_var {
   uchar *real_value_ptr(THD *thd, enum_var_type type);
   TYPELIB *plugin_var_typelib(void);
   uchar *do_value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                      LEX_STRING *base);
-  uchar *do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base) {
-    return do_value_ptr(thd, thd, type, base);
+                      std::string_view keycache_name);
+  uchar *do_value_ptr(THD *thd, enum_var_type type,
+                      std::string_view keycache_name) {
+    return do_value_ptr(thd, thd, type, keycache_name);
   }
   const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                 LEX_STRING *base) override {
-    return do_value_ptr(running_thd, target_thd, OPT_SESSION, base);
+                                 std::string_view keycache_name) override {
+    return do_value_ptr(running_thd, target_thd, OPT_SESSION, keycache_name);
   }
-  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) override {
-    return do_value_ptr(thd, OPT_GLOBAL, base);
+  const uchar *global_value_ptr(THD *thd,
+                                std::string_view keycache_name) override {
+    return do_value_ptr(thd, OPT_GLOBAL, keycache_name);
   }
   bool do_check(THD *thd, set_var *var) override;
   void session_save_default(THD *, set_var *) override {}

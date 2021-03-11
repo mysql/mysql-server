@@ -70,5 +70,5 @@ SELECT COUNT(@@GLOBAL.admin_tls_version);
 --echo 1 Expected
 
 --Error ER_GLOBAL_VARIABLE
-SET admin_tls_version = @@SESSION.admin_tls_version;
+SET admin_tls_version = @@GLOBAL.admin_tls_version;
 --echo Expected error 'Variable is a GLOBAL variable'

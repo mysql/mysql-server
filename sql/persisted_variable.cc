@@ -317,104 +317,115 @@ static bool check_boolean_value(const char *value, String &bool_str) {
    @return false Success
 */
 bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
-  char val_buf[1024] = {0};
-  String utf8_str;
-  bool is_null = false;
+  auto f = [this, thd, setvar](const System_variable_tracker &,
+                               sys_var *system_var) -> bool {
+    char val_buf[1024] = {0};
+    String utf8_str;
+    bool is_null = false;
 
-  sys_var *system_var = setvar->var;
+    std::string var_name{setvar->m_var_tracker.get_var_name()};
 
-  const char *var_name =
-      Persisted_variables_cache::get_variable_name(system_var);
+    // 1. Fetch value into local variable var_value.
 
-  // 1. Fetch value into local variable var_value.
-
-  const char *var_value = val_buf;
-  if (setvar->type == OPT_PERSIST_ONLY) {
-    String str(val_buf, sizeof(val_buf), system_charset_info), *res;
-    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-    uint dummy_err;
-    String bool_str;
-    if (setvar->value) {
-      res = setvar->value->val_str(&str);
-      if (system_var->get_var_type() == GET_BOOL) {
-        if (res == nullptr ||
-            check_boolean_value(res->c_ptr_quick(), bool_str)) {
-          my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name,
-                   (res ? res->c_ptr_quick() : "null"));
-          return true;
-        } else {
+    const char *var_value = val_buf;
+    if (setvar->type == OPT_PERSIST_ONLY) {
+      String str(val_buf, sizeof(val_buf), system_charset_info), *res;
+      const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
+      uint dummy_err;
+      String bool_str;
+      if (setvar->value) {
+        res = setvar->value->val_str(&str);
+        if (system_var->get_var_type() == GET_BOOL) {
+          if (res == nullptr ||
+              check_boolean_value(res->c_ptr_quick(), bool_str)) {
+            my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var_name.c_str(),
+                     (res ? res->c_ptr_quick() : "null"));
+            return true;
+          } else {
+            res = &bool_str;
+          }
+        }
+        if (res && res->length()) {
+          /*
+            value held by Item class can be of different charset,
+            so convert to utf8mb4
+          */
+          utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
+                        &dummy_err);
+          var_value = utf8_str.c_ptr_quick();
+        }
+      } else {
+        /* persist default value */
+        system_var->save_default(thd, setvar);
+        system_var->saved_value_to_string(thd, setvar, str.ptr());
+        res = &str;
+        if (system_var->get_var_type() == GET_BOOL) {
+          check_boolean_value(res->c_ptr_quick(), bool_str);
           res = &bool_str;
         }
-      }
-      if (res && res->length()) {
-        /*
-          value held by Item class can be of different charset,
-          so convert to utf8mb4
-        */
         utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
                       &dummy_err);
         var_value = utf8_str.c_ptr_quick();
       }
     } else {
-      /* persist default value */
-      setvar->var->save_default(thd, setvar);
-      setvar->var->saved_value_to_string(thd, setvar, str.ptr());
-      res = &str;
-      if (system_var->get_var_type() == GET_BOOL) {
-        check_boolean_value(res->c_ptr_quick(), bool_str);
-        res = &bool_str;
-      }
-      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
-                    &dummy_err);
+      Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str,
+                                                    &is_null);
       var_value = utf8_str.c_ptr_quick();
     }
-  } else {
-    Persisted_variables_cache::get_variable_value(thd, system_var, &utf8_str,
-                                                  &is_null);
-    var_value = utf8_str.c_ptr_quick();
-  }
 
-  // 2. Store local variable var_value into member st_persist_var object.
+    // 2. Store local variable var_value into member st_persist_var object.
 
-  auto assign_value = [&](const char *name) {
-    struct st_persist_var tmp_var(thd);
+    auto assign_value = [&](const char *name) {
+      struct st_persist_var tmp_var(thd);
 
-    /* structured variables may have basename if specified */
-    tmp_var.key =
-        (setvar->base.str ? string(setvar->base.str).append(".").append(name)
-                          : string(name));
-    tmp_var.value = var_value;
-    tmp_var.is_null = is_null;
+      /* structured variables may have basename if specified */
+      if (setvar->m_var_tracker.is_keycache_var()) {
+        std::string_view cache_name = setvar->m_var_tracker.get_keycache_name();
+        if (!cache_name.empty()) {
+          tmp_var.key.clear();
+          tmp_var.key.append(cache_name).append(".").append(name);
+        } else {
+          tmp_var.key = string(name);
+        }
+      } else {
+        tmp_var.key = string(name);
+      }
+      tmp_var.value = var_value;
+      tmp_var.is_null = is_null;
 
-    /* modification to in-memory must be thread safe */
-    lock();
-    DEBUG_SYNC(thd, "in_set_persist_variables");
-    if ((setvar->type == OPT_PERSIST_ONLY && setvar->var->is_readonly()) ||
-        setvar->var->is_persist_readonly())
-      /* if present update variable with new value else insert into hash */
-      m_persist_ro_variables[tmp_var.key] = tmp_var;
-    else {
-      /*
+      /* modification to in-memory must be thread safe */
+      lock();
+      DEBUG_SYNC(thd, "in_set_persist_variables");
+      if ((setvar->type == OPT_PERSIST_ONLY && system_var->is_readonly()) ||
+          system_var->is_persist_readonly())
+        /* if present update variable with new value else insert into hash */
+        m_persist_ro_variables[tmp_var.key] = tmp_var;
+      else {
+        /*
        if element is present remove it and insert
        it again with new value.
-      */
-      m_persist_variables.erase(tmp_var);
-      m_persist_variables.insert(tmp_var);
-      /* for plugin variables update m_persist_plugin_variables */
-      if (setvar->var->cast_pluginvar()) {
-        m_persist_plugin_variables.erase(tmp_var);
-        m_persist_plugin_variables.insert(tmp_var);
+        */
+        m_persist_variables.erase(tmp_var);
+        m_persist_variables.insert(tmp_var);
+        /* for plugin variables update m_persist_plugin_variables */
+        if (system_var->cast_pluginvar()) {
+          m_persist_plugin_variables.erase(tmp_var);
+          m_persist_plugin_variables.insert(tmp_var);
+        }
       }
-    }
-    unlock();
+      unlock();
+    };
+
+    assign_value(var_name.c_str());
+
+    const char *alias_var_name = get_variable_alias(system_var);
+    if (alias_var_name) assign_value(alias_var_name);
+
+    return false;
   };
 
-  assign_value(var_name);
-
-  const char *alias_var_name = get_variable_alias(system_var);
-  if (alias_var_name) assign_value(alias_var_name);
-
-  return false;
+  return setvar->m_var_tracker.access_system_variable<bool>(thd, f).value_or(
+      true);
 }
 
 /**
@@ -455,29 +466,22 @@ String *Persisted_variables_cache::get_variable_value(THD *thd,
   return str;
 }
 
-/**
-  Retrieve variables name from sys_var
-
-   @param [in] system_var    Pointer to sys_var which is being SET
-   @return
-     Pointer to buffer holding the name
-*/
-const char *Persisted_variables_cache::get_variable_name(
-    const sys_var *system_var) {
-  return system_var->name.str;
-}
-
 const char *Persisted_variables_cache::get_variable_alias(
     const sys_var *system_var) {
   if (system_var->m_persisted_alias)
-    return get_variable_name(system_var->m_persisted_alias);
+    return system_var->m_persisted_alias->name.str;
   return nullptr;
 }
 
-const char *Persisted_variables_cache::get_variable_alias(const char *name) {
-  sys_var *sysvar = intern_find_sys_var(name, strlen(name));
-  if (sysvar) return get_variable_alias(sysvar);
-  return nullptr;
+std::string Persisted_variables_cache::get_variable_alias(const char *name) {
+  auto f = [](const System_variable_tracker &, sys_var *sysvar) -> std::string {
+    const char *ret = get_variable_alias(sysvar);
+    return ret ? ret : std::string{};
+  };
+  return System_variable_tracker::make_tracker(name)
+      .access_system_variable<std::string>(current_thd, f,
+                                           Suppress_not_found_error::YES)
+      .value_or(std::string{});
 }
 
 /**
@@ -671,24 +675,23 @@ bool Persisted_variables_cache::load_persist_file() {
 }
 
 /**
-  set_persist_options() will set the options read from persisted config file
+  set_persisted_options() will set the options read from persisted config file
 
   This function does nothing when --no-defaults is set or if
   persisted_globals_load is set to false
 
    @param [in] plugin_options      Flag which tells what options are being set.
-                                   If set to false non plugin variables are set
-                                   else plugin variables are set
-   @param [in] lock_vars           Lock @ref LOCK_system_variables_hash and
-  release if if true.
+                                   If set to false non dynamically-registered
+                                   system variables are set
+                                   else plugin- and component-registered
+                                   variables are set.
   @return Error state
     @retval true An error occurred
     @retval false Success
+
 */
-bool Persisted_variables_cache::set_persist_options(bool plugin_options,
-                                                    bool lock_vars) {
+bool Persisted_variables_cache::set_persisted_options(bool plugin_options) {
   THD *thd;
-  List<set_var_base> tmp_var_list;
   std::unordered_set<st_persist_var, st_persist_var_hash> *persist_variables =
       nullptr;
   bool result = false, new_thd = false;
@@ -703,15 +706,23 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options,
   */
   if (no_defaults || !persisted_globals_load) return false;
   /*
-    This function is called in only 2 places
-      1. During server startup.
-      2. During install plugin after server has started.
+    This function is called in 3 places
+      1. During server startup, see mysqld_main()
+      2. During install plugin after server has started,
+         see test_plugin_options()
+      3. During component installation after server has started,
+         see mysql_component_sys_variable_imp::register_variable
+
     During server startup before server components are initialized
     current_thd is NULL thus instantiate new temporary THD.
     After server has started we have current_thd so make use of current_thd.
+    TODO(gleb): this is not true (any more?), the function is called during
+    server startup a bit too late so current_thd neither NULL nor
+    current_thd->is_bootstrap_system_thread().
   */
   if (current_thd) {
     thd = current_thd;
+
   } else {
     if (!(thd = new THD)) {
       LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
@@ -731,6 +742,9 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options,
     /* attach this auth id to current security_context */
     thd->set_security_context(ctx.get());
     thd->real_id = my_thread_self();
+#ifndef NDEBUG
+    thd->for_debug_only_is_set_persist_options = true;
+#endif
     new_thd = true;
     alloc_and_copy_thd_dynamic_variables(thd, !plugin_options);
   }
@@ -740,7 +754,6 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options,
   */
   lock();
   assert_lock_owner();
-  if (lock_vars) mysql_rwlock_rdlock(&LOCK_system_variables_hash);
   /*
     Based on plugin_options, we decide on what options to be set. If
     plugin_options is false we set all non plugin variables and then
@@ -754,134 +767,196 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options,
   std::multiset<st_persist_var, sort_tv_by_timestamp> sorted_vars(
       persist_variables->begin(), persist_variables->end());
 
-  for (auto iter = sorted_vars.begin(); iter != sorted_vars.end(); iter++) {
-    Item *res = nullptr;
-    set_var *var = nullptr;
-    sys_var *sysvar = nullptr;
-    string var_name = iter->key;
-
-    LEX_CSTRING base_name = {var_name.c_str(), var_name.length()};
-
-    sysvar = intern_find_sys_var(var_name.c_str(), var_name.length());
-    if (sysvar == nullptr) {
+  for (const st_persist_var &iter : sorted_vars) {
+    const std::string &var_name = iter.key;
+    auto f = [this, thd, &iter, &var_name, plugin_options](
+                 const System_variable_tracker &var_tracker,
+                 sys_var *sysvar) -> bool {
+      Item *res = nullptr;
       /*
-        for plugin variables we report a warning in error log,
+        For aliases with the m_is_persisted_deprecated flag set, the
+        non-alias has its own entry in m_persist_variables.  Therefore,
+        we rely on setting the value for the non-alias and skip setting
+        the value for the alias.
+
+        It would be harmless to set the value also for the alias, except
+        it would generate an extra deprecation warning.  The correct
+        deprecation warning was already generated, if needed, in the
+        previous call to load_aliases().
+      */
+      if (!(get_variable_alias(sysvar) && sysvar->m_is_persisted_deprecated)) {
+        switch (sysvar->show_type()) {
+          case SHOW_INT:
+          case SHOW_LONG:
+          case SHOW_LONGLONG:
+          case SHOW_HA_ROWS:
+            res = new (thd->mem_root)
+                Item_uint(iter.value.c_str(), (uint)iter.value.length());
+            break;
+          case SHOW_SIGNED_INT:
+          case SHOW_SIGNED_LONG:
+          case SHOW_SIGNED_LONGLONG:
+            res = new (thd->mem_root)
+                Item_int(iter.value.c_str(), (uint)iter.value.length());
+            break;
+          case SHOW_CHAR:
+          case SHOW_LEX_STRING:
+          case SHOW_BOOL:
+          case SHOW_MY_BOOL:
+            res = new (thd->mem_root)
+                Item_string(iter.value.c_str(), iter.value.length(),
+                            &my_charset_utf8mb4_bin);
+            break;
+          case SHOW_CHAR_PTR:
+            if (iter.is_null)
+              res = new (thd->mem_root) Item_null();
+            else
+              res = new (thd->mem_root)
+                  Item_string(iter.value.c_str(), iter.value.length(),
+                              &my_charset_utf8mb4_bin);
+            break;
+          case SHOW_DOUBLE:
+            res = new (thd->mem_root)
+                Item_float(iter.value.c_str(), (uint)iter.value.length());
+            break;
+          default:
+            my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
+            return true;
+        }
+
+        set_var *var =
+            new (thd->mem_root) set_var(OPT_GLOBAL, var_tracker, res);
+        List<set_var_base> tmp_var_list;
+        tmp_var_list.push_back(var);
+        LEX *saved_lex = thd->lex, lex_tmp;
+        thd->lex = &lex_tmp;
+        lex_start(thd);
+        if (sql_set_variables(thd, &tmp_var_list, false)) {
+          thd->lex = saved_lex;
+          /*
+           If there is a connection and an error occurred during install
+           plugin then report error at sql layer, else log the error in
+           server log.
+          */
+          if (current_thd && plugin_options) {
+            if (thd->is_error())
+              LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+                     thd->get_stmt_da()->message_text());
+            else
+              my_error(ER_CANT_SET_PERSISTED, MYF(0));
+          } else {
+            if (thd->is_error())
+              LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
+                     thd->get_stmt_da()->message_text());
+            else
+              LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
+          }
+          return true;
+        }
+        thd->lex = saved_lex;
+      }
+      /*
+        Once persisted variables are SET in the server,
+        update variables source/user/timestamp/host from m_persist_variables.
+      */
+      auto it = m_persist_variables.find(iter);
+      if (it != m_persist_variables.end()) {
+        /* persisted variable is found */
+        sysvar->set_source(enum_variable_source::PERSISTED);
+#ifndef NDEBUG
+        bool source_truncated =
+#endif
+            sysvar->set_source_name(m_persist_filename.c_str());
+        assert(!source_truncated);
+        sysvar->set_timestamp(it->timestamp);
+        if (sysvar->set_user(it->user.c_str()))
+          LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_USER_TRUNCATED,
+                 var_name.c_str());
+        if (sysvar->set_host(it->host.c_str()))
+          LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_HOST_TRUNCATED,
+                 var_name.c_str());
+      }
+      return false;
+    };
+
+    /*
+      There are currently 4 groups of code paths to call the current
+      function Persisted_variables_cache::set_persisted_options():
+
+      1. Directly from mysqld_main() with plugin_options=false.
+         Since plugin_options is false, we should not care about LOCK_plugin and
+         LOCK_system_variables_hash.
+
+      2. Indirectly from mysqld_main() with plugin_options=true:
+           mysqld_main() ->
+             init_server_components() ->
+               plugin_register_builtin_and_init_core_se() ->
+                 test_plugin_options()
+
+         plugin_option is true here, but we still don't have to care about
+         LOCK_plugin and LOCK_system_variables_hash since this is a
+         single-threaded environment: current_thd == nullptr.
+
+      3. Indirectly from plugin_add() with plugin_options=true:
+           plugin_add() ->
+             test_plugin_options()
+
+         plugin_option is true here, but sql_plugin.cc always acquire
+         LOCK_plugin and LOCK_system_variables_hash before calling plugin_add(),
+         so we should not try to re-acquire them recursively in
+         Persisted_variables_cache::set_persisted_options().
+
+      4. Directly from mysql_component_sys_variable_imp::register_variable()
+         with plugin_options=true.
+         mysql_component_sys_variable_imp::register_variable() holds
+         LOCK_plugin and LOCK_system_variables_hash for us.
+
+      Thus, set_persisted_options() don't have to care about LOCK_plugin and
+      LOCK_system_variables_hash.
+
+      OTOH, the caller may execute set_persisted_options():
+
+      A. in a single-threaded environment: no THD object, no locks have been
+         acquired, and we don't have to acquire any extra locks.
+
+      B. in a concurrent environments: locks have acquired for us by the caller,
+         current_thd is not nullptr, but
+         current_thd->plugin_lock_recursion_depth and
+         current_thd->system_variable_hash_lock_recursion_depth are
+         unset (i.e. set to zero) because of the nature of callers.
+
+      So, the current function
+      Persisted_variables_cache::set_persisted_options() should never acquire
+      neither LOCK_plugin nor LOCK_system_variables_hash, but, nevertheless
+      whether they are locked or not, to prevent recursive locks in
+      System_variable_tracker::.access_system_variable(), we have to
+      increment/decrement THD::plugin_lock_recursion_depth and
+      THD::system_variable_hash_lock_recursion_depth here:
+    */
+    thd->plugin_lock_recursion_depth++;
+    thd->system_variable_hash_lock_recursion_depth++;
+    std::optional<bool> sv_status =
+        System_variable_tracker::make_tracker(var_name)
+            .access_system_variable<bool>(thd, f,
+                                          Suppress_not_found_error::YES);
+    thd->system_variable_hash_lock_recursion_depth--;
+    thd->plugin_lock_recursion_depth--;
+
+    if (!sv_status.has_value()) {  // not found
+      /*
+        for dynamically-registered variables we report a warning in error log,
         keep track of this variable so that it is set when plugin
         is loaded and continue with remaining persisted variables
       */
-      auto ret = m_persist_plugin_variables.insert(*iter);
-      if (ret.second == true)
+      if (m_persist_plugin_variables.insert(iter).second)
         LogErr(WARNING_LEVEL, ER_UNKNOWN_VARIABLE_IN_PERSISTED_CONFIG_FILE,
                var_name.c_str());
       continue;
-    }
-    /*
-      For aliases with the m_is_persisted_deprecated flag set, the
-      non-alias has its own entry in m_persist_variables.  Therefore,
-      we rely on setting the value for the non-alias and skip setting
-      the value for the alias.
-
-      It would be harmless to set the value also for the alias, except
-      it would generate an extra deprecation warning.  The correct
-      deprecation warning was already generated, if needed, in the
-      previous call to load_aliases().
-    */
-    if (!(get_variable_alias(sysvar) && sysvar->m_is_persisted_deprecated)) {
-      switch (sysvar->show_type()) {
-        case SHOW_INT:
-        case SHOW_LONG:
-        case SHOW_LONGLONG:
-        case SHOW_HA_ROWS:
-          res = new (thd->mem_root)
-              Item_uint(iter->value.c_str(), (uint)iter->value.length());
-          break;
-        case SHOW_SIGNED_INT:
-        case SHOW_SIGNED_LONG:
-        case SHOW_SIGNED_LONGLONG:
-          res = new (thd->mem_root)
-              Item_int(iter->value.c_str(), (uint)iter->value.length());
-          break;
-        case SHOW_CHAR:
-        case SHOW_LEX_STRING:
-        case SHOW_BOOL:
-        case SHOW_MY_BOOL:
-          res = new (thd->mem_root)
-              Item_string(iter->value.c_str(), iter->value.length(),
-                          &my_charset_utf8mb4_bin);
-          break;
-        case SHOW_CHAR_PTR:
-          if (iter->is_null)
-            res = new (thd->mem_root) Item_null();
-          else
-            res = new (thd->mem_root)
-                Item_string(iter->value.c_str(), iter->value.length(),
-                            &my_charset_utf8mb4_bin);
-          break;
-        case SHOW_DOUBLE:
-          res = new (thd->mem_root)
-              Item_float(iter->value.c_str(), (uint)iter->value.length());
-          break;
-        default:
-          my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), sysvar->name.str);
-          result = true;
-          goto err;
-      }
-
-      var = new (thd->mem_root) set_var(OPT_GLOBAL, sysvar, base_name, res);
-      tmp_var_list.push_back(var);
-      LEX *saved_lex = thd->lex, lex_tmp;
-      thd->lex = &lex_tmp;
-      lex_start(thd);
-      if (sql_set_variables(thd, &tmp_var_list, false)) {
-        thd->lex = saved_lex;
-        /*
-         If there is a connection and an error occurred during install
-         plugin then report error at sql layer, else log the error in
-         server log.
-        */
-        if (current_thd && plugin_options) {
-          if (thd->is_error())
-            LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
-                   thd->get_stmt_da()->message_text());
-          else
-            my_error(ER_CANT_SET_PERSISTED, MYF(0));
-        } else {
-          if (thd->is_error())
-            LogErr(ERROR_LEVEL, ER_PERSIST_OPTION_STATUS,
-                   thd->get_stmt_da()->message_text());
-          else
-            LogErr(ERROR_LEVEL, ER_FAILED_TO_SET_PERSISTED_OPTIONS);
-        }
-        result = true;
-        goto err;
-      }
-      tmp_var_list.clear();
-      thd->lex = saved_lex;
-    }
-    /*
-      Once persisted variables are SET in the server,
-      update variables source/user/timestamp/host from m_persist_variables.
-    */
-    auto it = m_persist_variables.find(*iter);
-    if (it != m_persist_variables.end()) {
-      /* persisted variable is found */
-      sysvar->set_source(enum_variable_source::PERSISTED);
-#ifndef NDEBUG
-      bool source_truncated =
-#endif
-          sysvar->set_source_name(m_persist_filename.c_str());
-      assert(!source_truncated);
-      sysvar->set_timestamp(it->timestamp);
-      if (sysvar->set_user(it->user.c_str()))
-        LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_USER_TRUNCATED,
-               var_name.c_str());
-      if (sysvar->set_host(it->host.c_str()))
-        LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_HOST_TRUNCATED,
-               var_name.c_str());
+    } else if (sv_status.value()) {
+      break;  // fatal error
     }
   }
 
-err:
   if (new_thd) {
     /* check for warnings in DA */
     Diagnostics_area::Sql_condition_iterator it =
@@ -914,7 +989,6 @@ err:
     ctx.reset(nullptr);
     delete thd;
   }
-  if (lock_vars) mysql_rwlock_unlock(&LOCK_system_variables_hash);
   unlock();
   return result;
 }
@@ -1343,10 +1417,7 @@ bool Persisted_variables_cache::reset_persisted_variables(THD *thd,
     // If the variable has an alias, erase that too.
     std::string alias_name;
     mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-    {
-      const char *alias = get_variable_alias(name);
-      if (alias) alias_name.assign(alias);
-    }
+    { alias_name = get_variable_alias(name); }
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
     if (!alias_name.empty() && erase_variable(alias_name.c_str())) goto end;
 

@@ -441,7 +441,7 @@ bool Sql_cmd_create_table::execute(THD *thd) {
           thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
               ->is_enabled())
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-            ->mark_as_changed(thd, nullptr);
+            ->mark_as_changed(thd, {});
       my_ok(thd);
     }
   }

@@ -103,8 +103,10 @@ SET global.table_definition_cache = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.table_definition_cache = 1' at line 1
 SELECT global.table_definition_cache;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT table_definition_cache = @@session.table_definition_cache;
+SELECT table_definition_cache;
 ERROR 42S22: Unknown column 'table_definition_cache' in 'field list'
+SELECT @@session.table_definition_cache;
+ERROR HY000: Variable 'table_definition_cache' is a GLOBAL variable
 SET @@global.table_definition_cache = @start_value;
 SELECT IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache);
 IF(@@open_files_limit < 5000, 2000, @@global.table_definition_cache)

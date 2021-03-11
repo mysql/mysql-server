@@ -20,7 +20,7 @@ SELECT @@local.persisted_globals_load;
 SELECT @@session.persisted_globals_load;
 
 --Error ER_BAD_FIELD_ERROR
-SELECT persisted_globals_load = @@SESSION.persisted_globals_load;
+SELECT persisted_globals_load;
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET GLOBAL persisted_globals_load= 1;

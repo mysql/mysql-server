@@ -157,7 +157,9 @@ SET global.event_scheduler = ON;
 --Error ER_UNKNOWN_TABLE
 SELECT global.event_scheduler;
 --Error ER_BAD_FIELD_ERROR
-SELECT event_scheduler = @@session.event_scheduler;
+SELECT event_scheduler;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.event_scheduler;
 
 
 

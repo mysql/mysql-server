@@ -86,8 +86,10 @@ SET global.general_log = ON;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.general_log = ON' at line 1
 SELECT global.general_log;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT general_log = @@session.general_log;
+SELECT general_log;
 ERROR 42S22: Unknown column 'general_log' in 'field list'
+SELECT @@session.general_log;
+ERROR HY000: Variable 'general_log' is a GLOBAL variable
 SET @@global.general_log = @start_value;
 SELECT @@global.general_log;
 @@global.general_log

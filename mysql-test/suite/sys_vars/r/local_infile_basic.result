@@ -91,8 +91,10 @@ SET global.local_infile = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.local_infile = 1' at line 1
 SELECT global.local_infile;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT local_infile = @@session.local_infile;
+SELECT local_infile;
 ERROR 42S22: Unknown column 'local_infile' in 'field list'
+SELECT @@session.local_infile;
+ERROR HY000: Variable 'local_infile' is a GLOBAL variable
 SET @@global.local_infile = @start_value;
 SELECT @@global.local_infile;
 @@global.local_infile

@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.have_compress);
 COUNT(@@GLOBAL.have_compress)
 1
 1 Expected
-SELECT have_compress = @@SESSION.have_compress;
+SELECT have_compress;
 ERROR 42S22: Unknown column 'have_compress' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

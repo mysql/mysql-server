@@ -87,8 +87,10 @@ SET global.flush = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.flush = 1' at line 1
 SELECT global.flush;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT flush = @@session.flush;
+SELECT flush;
 ERROR 42S22: Unknown column 'flush' in 'field list'
+SELECT @@session.flush;
+ERROR HY000: Variable 'flush' is a GLOBAL variable
 SET @@global.flush = @start_value;
 SELECT @@global.flush;
 @@global.flush

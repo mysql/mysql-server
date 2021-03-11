@@ -9,9 +9,11 @@ COUNT(@@innodb_purge_threads)
 SET @@GLOBAL.innodb_purge_threads=1;
 ERROR HY000: Variable 'innodb_purge_threads' is a read only variable
 Expected error 'Read-only variable'
-SELECT innodb_purge_threads = @@SESSION.innodb_purge_threads;
+SELECT innodb_purge_threads;
 ERROR 42S22: Unknown column 'innodb_purge_threads' in 'field list'
-Expected error 'Read-only variable'
+Expected error 'Unknown column'
+SELECT @@SESSION.innodb_purge_threads;
+ERROR HY000: Variable 'innodb_purge_threads' is a GLOBAL variable
 SELECT @@GLOBAL.innodb_purge_threads = VARIABLE_VALUE
 FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_purge_threads';

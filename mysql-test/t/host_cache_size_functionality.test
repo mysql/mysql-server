@@ -116,7 +116,7 @@ SELECT COUNT(@@GLOBAL.Host_Cache_Size);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT Host_Cache_Size = @@SESSION.Host_Cache_Size;
+SELECT Host_Cache_Size;
 --echo Expected error 'Unknown column Host_Cache_Size in field list'
 
 #The below check has been commented out as the IP fetch is different in a P2P connection than BroadBand connection

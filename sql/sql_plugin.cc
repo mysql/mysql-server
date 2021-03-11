@@ -483,8 +483,6 @@ static void plugin_var_memalloc_free(struct System_variables *vars);
 static void restore_pluginvar_names(sys_var *first);
 #define my_intern_plugin_lock(A, B) intern_plugin_lock(A, B)
 #define my_intern_plugin_lock_ci(A, B) intern_plugin_lock(A, B)
-static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref plugin);
-static void intern_plugin_unlock(LEX *lex, plugin_ref plugin);
 static void reap_plugins(void);
 
 // mysql.plugin table definition.
@@ -933,7 +931,7 @@ SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type) {
   return plugin_status(plugin_name, type);
 }
 
-static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc) {
+plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc) {
   st_plugin_int *pi = plugin_ref_to_int(rc);
   DBUG_TRACE;
 
@@ -1085,7 +1083,7 @@ static bool plugin_add(MEM_ROOT *tmp_root, LEX_CSTRING name,
         }
         tmp_plugin_ptr->state = PLUGIN_IS_FREED;
       }
-      mysql_del_sys_var_chain(tmp.system_vars);
+      delete_dynamic_system_variable_chain(tmp.system_vars);
       restore_pluginvar_names(tmp.system_vars);
       plugin_dl_del(dl);
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
@@ -1148,7 +1146,7 @@ static void plugin_del(st_plugin_int *plugin) {
   mysql_mutex_assert_owner(&LOCK_plugin_delete);
   /* Free allocated strings before deleting the plugin. */
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-  mysql_del_sys_var_chain(plugin->system_vars);
+  delete_dynamic_system_variable_chain(plugin->system_vars);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
   restore_pluginvar_names(plugin->system_vars);
   plugin_vars_free_values(plugin->system_vars);
@@ -1199,7 +1197,7 @@ static void reap_plugins(void) {
   mysql_mutex_unlock(&LOCK_plugin_delete);
 }
 
-static void intern_plugin_unlock(LEX *lex, plugin_ref plugin) {
+void intern_plugin_unlock(LEX *lex, plugin_ref plugin) {
   st_plugin_int *pi;
   DBUG_TRACE;
 
@@ -2716,38 +2714,6 @@ void lock_plugin_mutex() { mysql_mutex_lock(&LOCK_plugin); }
 
 void unlock_plugin_mutex() { mysql_mutex_unlock(&LOCK_plugin); }
 
-sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length,
-                         bool throw_error, bool locked) {
-  sys_var *var;
-  sys_var_pluginvar *pi = nullptr;
-  plugin_ref plugin;
-  DBUG_TRACE;
-
-  if (!locked) mysql_mutex_lock(&LOCK_plugin);
-  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  if ((var = intern_find_sys_var(str, length)) &&
-      (pi = var->cast_pluginvar()) && pi->is_plugin) {
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
-    LEX *lex = thd ? thd->lex : nullptr;
-    if (!(plugin = my_intern_plugin_lock(lex, plugin_int_to_ref(pi->plugin))))
-      var = nullptr; /* failed to lock it, it must be uninstalling */
-    else if (!(plugin_state(plugin) & PLUGIN_IS_READY)) {
-      /* initialization not completed */
-      var = nullptr;
-      intern_plugin_unlock(lex, plugin);
-    }
-  } else
-    mysql_rwlock_unlock(&LOCK_system_variables_hash);
-  if (!locked) mysql_mutex_unlock(&LOCK_plugin);
-
-  if (!throw_error && !var) my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), str);
-  return var;
-}
-
-sys_var *find_sys_var(THD *thd, const char *str, size_t length) {
-  return find_sys_var_ex(thd, str, length, false, false);
-}
-
 /*
   returns a bookmark for thd-local variables, creating if neccessary.
   returns null for non thd-local variables.
@@ -3591,7 +3557,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   } /* end for */
   if (chain.first) {
     chain.last->next = nullptr;
-    if (mysql_add_sys_var_chain(chain.first)) {
+    if (add_dynamic_system_variable_chain(chain.first)) {
       LogErr(ERROR_LEVEL, ER_PLUGIN_HAS_CONFLICTING_SYSTEM_VARIABLES,
              tmp->name.str);
       goto err;
@@ -3605,7 +3571,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   */
   if (mysqld_server_started) {
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
-    if (pv && pv->set_persist_options(true, false)) {
+    if (pv && pv->set_persisted_options(true)) {
       LogErr(ERROR_LEVEL, ER_PLUGIN_CANT_SET_PERSISTENT_OPTIONS, tmp->name.str);
       goto err;
     }

@@ -139,7 +139,9 @@ SET global.sync_binlog = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.sync_binlog;
 --Error ER_BAD_FIELD_ERROR
-SELECT sync_binlog = @@session.sync_binlog;
+SELECT sync_binlog;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.sync_binlog;
 
 
 ##############################  

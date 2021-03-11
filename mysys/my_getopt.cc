@@ -113,13 +113,16 @@ void my_getopt_register_get_addr(my_getopt_value func_addr) {
   getopt_get_addr = func_addr;
 }
 
-bool is_key_cache_variable_suffix(const char *suffix) {
-  static std::array<const char *, 4> key_cache_components = {
+bool is_key_cache_variable_suffix(std::string_view suffix) {
+  constexpr static std::array<std::string_view, 4> key_cache_components = {
       {"key_buffer_size", "key_cache_block_size", "key_cache_division_limit",
        "key_cache_age_threshold"}};
 
-  for (auto component : key_cache_components)
-    if (!my_strcasecmp(&my_charset_latin1, component, suffix)) return true;
+  for (auto component : key_cache_components) {
+    if (suffix.size() == component.size() &&
+        !native_strncasecmp(suffix.data(), component.data(), suffix.size()))
+      return true;
+  }
 
   return false;
 }

@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_log_files_in_group);
 COUNT(@@GLOBAL.innodb_log_files_in_group)
 1
 1 Expected
-SELECT innodb_log_files_in_group = @@SESSION.innodb_log_files_in_group;
+SELECT innodb_log_files_in_group;
 ERROR 42S22: Unknown column 'innodb_log_files_in_group' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

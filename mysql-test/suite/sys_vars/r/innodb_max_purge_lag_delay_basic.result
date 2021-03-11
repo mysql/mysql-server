@@ -27,7 +27,7 @@ Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@SESSION.innodb_max_purge_lag_delay);
 ERROR HY000: Variable 'innodb_max_purge_lag_delay' is a GLOBAL variable
 Expected error 'Variable is a GLOBAL variable'
-SELECT innodb_max_purge_lag_delay = @@SESSION.innodb_max_purge_lag_delay;
+SELECT innodb_max_purge_lag_delay;
 ERROR 42S22: Unknown column 'innodb_max_purge_lag_delay' in 'field list'
 set global innodb_max_purge_lag_delay = -1;
 Warnings:

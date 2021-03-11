@@ -137,8 +137,10 @@ SET global.max_prepared_stmt_count = 8000;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.max_prepared_stmt_count = 8000' at line 1
 SELECT global.max_prepared_stmt_count;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT max_prepared_stmt_count = @@session.max_prepared_stmt_count;
+SELECT max_prepared_stmt_count;
 ERROR 42S22: Unknown column 'max_prepared_stmt_count' in 'field list'
+SELECT @@session.max_prepared_stmt_count;
+ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable
 SET @@global.max_prepared_stmt_count = @start_value;
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count

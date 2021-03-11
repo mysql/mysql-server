@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.license);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT license = @@SESSION.license;
---echo Expected error 'Readonly variable'
+SELECT license;
+--echo Expected error 'Unknown column'
 
 

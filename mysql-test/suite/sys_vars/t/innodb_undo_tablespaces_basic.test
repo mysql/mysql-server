@@ -100,5 +100,5 @@ SELECT COUNT(@@GLOBAL.innodb_undo_tablespaces);
 --echo # 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_undo_tablespaces = @@SESSION.innodb_undo_tablespaces;
+SELECT innodb_undo_tablespaces;
 --echo # Expected error 'Unknown column'

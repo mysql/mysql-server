@@ -43,6 +43,6 @@ SELECT COUNT(@@GLOBAL.innodb_undo_directory);
 COUNT(@@GLOBAL.innodb_undo_directory)
 1
 1 Expected
-SELECT innodb_undo_directory = @@SESSION.innodb_undo_directory;
+SELECT innodb_undo_directory;
 ERROR 42S22: Unknown column 'innodb_undo_directory' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

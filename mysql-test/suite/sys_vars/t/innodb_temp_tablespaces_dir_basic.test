@@ -101,8 +101,8 @@ SELECT COUNT(@@GLOBAL.innodb_temp_tablespaces_dir);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_temp_tablespaces_dir = @@SESSION.innodb_temp_tablespaces_dir;
---echo Expected error 'Readonly variable'
+SELECT innodb_temp_tablespaces_dir;
+--echo Expected error 'Unknown column'
 
 --Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET innodb_temp_tablespaces_dir = "/tmp";
@@ -125,7 +125,10 @@ SELECT global.innodb_temp_tablespaces_dir;
 --echo Expected error 'Unknown table global in field list'
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_temp_tablespaces_dir = @@session.innodb_temp_tablespaces_dir;
+SELECT innodb_temp_tablespaces_dir;
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_temp_tablespaces_dir;
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_temp_tablespaces_dir;

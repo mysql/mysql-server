@@ -1830,7 +1830,7 @@ void mysql_sql_stmt_prepare(THD *thd) {
     if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
             ->is_enabled())
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-          ->mark_as_changed(thd, nullptr);
+          ->mark_as_changed(thd, {});
     my_ok(thd, 0L, 0L, "Statement prepared");
   }
 }
@@ -2075,7 +2075,7 @@ void mysql_sql_stmt_close(THD *thd) {
     if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
             ->is_enabled())
       thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-          ->mark_as_changed(thd, nullptr);
+          ->mark_as_changed(thd, {});
     my_ok(thd);
   }
 }

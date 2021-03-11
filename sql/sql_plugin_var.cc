@@ -42,8 +42,8 @@
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_plugin.h"
-#include "sql/strfunc.h"          // find_type
-#include "sql/sys_vars_shared.h"  // intern_find_sys_var
+#include "sql/strfunc.h"  // find_type
+#include "sql/sys_vars_shared.h"
 #include "sql/system_variables.h"
 #include "sql_string.h"
 #include "template_utils.h"
@@ -304,7 +304,7 @@ TYPELIB *sys_var_pluginvar::plugin_var_typelib(void) {
 }
 
 uchar *sys_var_pluginvar::do_value_ptr(THD *running_thd, THD *target_thd,
-                                       enum_var_type type, LEX_STRING *) {
+                                       enum_var_type type, std::string_view) {
   uchar *result;
 
   result = real_value_ptr(target_thd, type);

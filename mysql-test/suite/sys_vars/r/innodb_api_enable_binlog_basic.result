@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_api_enable_binlog);
 COUNT(@@GLOBAL.innodb_api_enable_binlog)
 1
 1 Expected
-SELECT innodb_api_enable_binlog = @@SESSION.innodb_api_enable_binlog;
+SELECT innodb_api_enable_binlog;
 ERROR 42S22: Unknown column 'innodb_api_enable_binlog' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

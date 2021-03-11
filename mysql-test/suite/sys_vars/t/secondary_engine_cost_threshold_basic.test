@@ -124,7 +124,7 @@ SET session.secondary_engine_cost_threshold = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT session.secondary_engine_cost_threshold;
 --Error ER_BAD_FIELD_ERROR
-SELECT secondary_engine_cost_threshold = @@session.binlog_expire_logs_seconds;
+SELECT secondary_engine_cost_threshold;
 
 ##############################
 #   Restore initial value    #

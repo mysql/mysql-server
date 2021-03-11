@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.ssl_cipher);
 --echo 0 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT ssl_cipher = @@SESSION.ssl_cipher;
---echo Expected error 'Readonly variable'
+SELECT ssl_cipher;
+--echo Expected error 'Unknown column'
 
 

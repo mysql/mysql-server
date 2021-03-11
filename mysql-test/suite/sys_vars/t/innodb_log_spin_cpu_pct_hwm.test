@@ -72,7 +72,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_spin_cpu_pct_hwm);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_log_spin_cpu_pct_hwm = @@SESSION.innodb_log_spin_cpu_pct_hwm;
+SELECT innodb_log_spin_cpu_pct_hwm;
 
 SET GLOBAL innodb_log_spin_cpu_pct_hwm = 100;
 SELECT @@innodb_log_spin_cpu_pct_hwm;

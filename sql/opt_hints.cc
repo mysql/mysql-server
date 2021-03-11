@@ -97,8 +97,8 @@ const LEX_CSTRING sys_qb_prefix = {"select#", 7};
 /*
   Compare LEX_CSTRING objects.
 
-  @param s     Pointer to LEX_CSTRING
-  @param t     Pointer to LEX_CSTRING
+  @param s     The 1st string
+  @param t     The 2nd string
   @param cs    Pointer to character set
 
   @return  0 if strings are equal
@@ -106,11 +106,10 @@ const LEX_CSTRING sys_qb_prefix = {"select#", 7};
           -1 if t is greater
 */
 
-int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
+int cmp_lex_string(const LEX_CSTRING &s, const LEX_CSTRING &t,
                    const CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s->str),
-                               s->length, pointer_cast<const uchar *>(t->str),
-                               t->length);
+  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s.str), s.length,
+                               pointer_cast<const uchar *>(t.str), t.length);
 }
 
 bool Opt_hints::get_switch(opt_hints_enum type_arg) const {
@@ -126,7 +125,7 @@ Opt_hints *Opt_hints::find_by_name(const LEX_CSTRING *name_arg,
                                    const CHARSET_INFO *cs) const {
   for (uint i = 0; i < child_array.size(); i++) {
     const LEX_CSTRING *name = child_array[i]->get_print_name();
-    if (!cmp_lex_string(name, name_arg, cs)) return child_array[i];
+    if (!cmp_lex_string(*name, *name_arg, cs)) return child_array[i];
   }
   return nullptr;
 }
@@ -327,11 +326,11 @@ static bool compare_table_name(const Hint_param_table *hint_table,
   const LEX_CSTRING table_name = {table->alias, strlen(table->alias)};
 
   if (table_qb_name && table_qb_name->length > 0 && hint_qb_name->length > 0) {
-    if (cmp_lex_string(hint_qb_name, table_qb_name, system_charset_info))
+    if (cmp_lex_string(*hint_qb_name, *table_qb_name, system_charset_info))
       return true;
   }
 
-  if (cmp_lex_string(hint_table_name, &table_name, system_charset_info))
+  if (cmp_lex_string(*hint_table_name, table_name, system_charset_info))
     return true;
 
   return false;
@@ -553,7 +552,7 @@ void Opt_hints_table::adjust_key_hints(TABLE_LIST *tr) {
     KEY *key_info = table->key_info;
     for (uint j = 0; j < table->s->keys; j++, key_info++) {
       const LEX_CSTRING key_name = {key_info->name, strlen(key_info->name)};
-      if (!cmp_lex_string((*hint)->get_name(), &key_name,
+      if (!cmp_lex_string(*(*hint)->get_name(), key_name,
                           system_charset_info)) {
         (*hint)->set_resolved();
         keyinfo_array[j] = static_cast<Opt_hints_key *>(*hint);
@@ -737,10 +736,10 @@ static void print_hint_from_var(const THD *thd, String *str, set_var *var) {
   @param sys_var_value  Variable value
 */
 
-static void print_hint_specified(String *str, LEX_CSTRING *sys_var_name,
+static void print_hint_specified(String *str, const std::string &sys_var_name,
                                  Item *sys_var_value) {
   str->append(STRING_WITH_LEN("SET_VAR("));
-  str->append(sys_var_name->str, sys_var_name->length);
+  str->append(sys_var_name);
   str->append(STRING_WITH_LEN("="));
   char buff[STRING_BUFFER_USUAL_SIZE];
   String str_buff(buff, sizeof(buff), system_charset_info), *str_res;
@@ -754,16 +753,22 @@ static void print_hint_specified(String *str, LEX_CSTRING *sys_var_name,
   str->append(STRING_WITH_LEN(") "));
 }
 
-bool Sys_var_hint::add_var(THD *thd, sys_var *sys_var, Item *sys_var_value) {
+bool Sys_var_hint::add_var(THD *thd, const System_variable_tracker &var_tracker,
+                           Item *sys_var_value) {
   for (uint i = 0; i < var_list.size(); i++) {
     const Hint_set_var *hint_var = var_list[i];
     set_var *var = hint_var->var;
+    std::string existent_name{var->m_var_tracker.get_var_name()};
+    std::string new_name{var_tracker.get_var_name()};
     /*
       Issue a warning if system variable is already present in hint list.
     */
-    if (!cmp_lex_string(&var->var->name, &sys_var->name, system_charset_info)) {
+    if (!cmp_lex_string(
+            LEX_CSTRING{existent_name.c_str(), existent_name.size()},
+            LEX_CSTRING{new_name.c_str(), new_name.size()},
+            system_charset_info)) {
       String str;
-      print_hint_specified(&str, &var->var->name, sys_var_value);
+      print_hint_specified(&str, existent_name, sys_var_value);
       push_warning_printf(
           thd, Sql_condition::SL_WARNING, ER_WARN_CONFLICTING_HINT,
           ER_THD(thd, ER_WARN_CONFLICTING_HINT), str.c_ptr_safe());
@@ -771,8 +776,8 @@ bool Sys_var_hint::add_var(THD *thd, sys_var *sys_var, Item *sys_var_value) {
     }
   }
 
-  set_var *var = new (thd->mem_root)
-      set_var(OPT_SESSION, sys_var, sys_var->name, sys_var_value);
+  set_var *var =
+      new (thd->mem_root) set_var(OPT_SESSION, var_tracker, sys_var_value);
   if (!var) return true;
 
   Hint_set_var *hint_var = new (thd->mem_root) Hint_set_var(var);
@@ -791,7 +796,12 @@ void Sys_var_hint::update_vars(THD *thd) {
     Hint_set_var *hint_var = var_list[i];
     set_var *var = hint_var->var;
     if (!var->resolve(thd) && !var->check(thd)) {
-      Item *save_value = var->var->copy_value(thd);
+      auto f = [thd](const System_variable_tracker &, sys_var *v) -> Item * {
+        return v->copy_value(thd);
+      };
+      Item *save_value =
+          var->m_var_tracker.access_system_variable<Item *>(thd, f).value_or(
+              nullptr);
       if (!var->update(thd)) hint_var->save_value = save_value;
     }
     thd->pop_internal_handler();

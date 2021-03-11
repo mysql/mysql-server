@@ -7125,44 +7125,16 @@ void Item_user_var_as_out_param::print(const THD *thd, String *str,
   append_identifier(thd, str, name.ptr(), name.length());
 }
 
-Item_func_get_system_var::Item_func_get_system_var(sys_var *var_arg,
-                                                   enum_var_type var_type_arg,
-                                                   LEX_STRING *component_arg,
-                                                   const char *name_arg,
-                                                   size_t name_len_arg)
-    : var(nullptr),
-      var_type(var_type_arg),
-      orig_var_type(var_type_arg),
-      component(*component_arg),
-      cache_present(0),
-      var_tracker(var_arg) {
-  /* copy() will allocate the name */
-  item_name.copy(name_arg, (uint)name_len_arg);
+Item_func_get_system_var::Item_func_get_system_var(
+    const System_variable_tracker &var_tracker, enum_var_type scope)
+    : var_scope{scope}, cache_present{0}, var_tracker{var_tracker} {
+  assert(scope != OPT_DEFAULT);
 }
 
-bool Item_func_get_system_var::resolve_type(THD *thd) {
-  if (var == nullptr) {  // bind sys_var for the 1st time
-    var = var_tracker.bind_system_variable(thd);
-    if (var == nullptr) {
-      return true;
-    }
-    if (var_tracker.is_plugin_var() && thd->lex->add_plugin_var(this))
-      return true;  // OOM
-  }
-
+bool Item_func_get_system_var::resolve_type(THD *) {
   set_nullable(true);
 
-  if (!var->check_scope(var_type)) {
-    if (var_type != OPT_DEFAULT) {
-      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str,
-               var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
-      return true;
-    }
-    /* As there was no local variable, return the global value */
-    var_type = OPT_GLOBAL;
-  }
-
-  switch (var->show_type()) {
+  switch (var_tracker.cached_show_type()) {
     case SHOW_LONG:
     case SHOW_INT:
     case SHOW_HA_ROWS:
@@ -7194,7 +7166,7 @@ bool Item_func_get_system_var::resolve_type(THD *thd) {
       max_length = float_length(decimals);
       break;
     default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
+      my_error(ER_VAR_CANT_BE_READ, MYF(0), var_tracker.get_var_name());
       return true;
   }
   return false;
@@ -7205,36 +7177,11 @@ void Item_func_get_system_var::print(const THD *, String *str,
   str->append(item_name);
 }
 
-enum Item_result Item_func_get_system_var::result_type() const {
-  switch (var->show_type()) {
-    case SHOW_BOOL:
-    case SHOW_MY_BOOL:
-    case SHOW_INT:
-    case SHOW_LONG:
-    case SHOW_LONGLONG:
-    case SHOW_SIGNED_INT:
-    case SHOW_SIGNED_LONG:
-    case SHOW_SIGNED_LONGLONG:
-    case SHOW_HA_ROWS:
-      return INT_RESULT;
-    case SHOW_CHAR:
-    case SHOW_CHAR_PTR:
-    case SHOW_LEX_STRING:
-      return STRING_RESULT;
-    case SHOW_DOUBLE:
-      return REAL_RESULT;
-    default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      return STRING_RESULT;  // keep the compiler happy
-  }
-}
-
 Audit_global_variable_get_event::Audit_global_variable_get_event(
     THD *thd, Item_func_get_system_var *item, uchar cache_type)
     : m_thd(thd), m_item(item), m_val_type(cache_type) {
   // Variable is of GLOBAL scope.
-  bool is_global_var =
-      (m_item->var_type == OPT_GLOBAL && m_item->var->check_scope(OPT_GLOBAL));
+  bool is_global_var = m_item->var_scope == OPT_GLOBAL;
 
   // Event is already audited for the same query.
   bool event_is_audited =
@@ -7271,17 +7218,20 @@ Audit_global_variable_get_event::~Audit_global_variable_get_event() {
     }
 
     mysql_audit_notify(m_thd, AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
-                       m_item->var->name.str, outStr ? outStr->ptr() : nullptr,
+                       m_item->var_tracker.get_var_name(),
+                       outStr ? outStr->ptr() : nullptr,
                        outStr ? outStr->length() : 0);
   }
 }
 
 template <typename T>
-longlong Item_func_get_system_var::get_sys_var_safe(THD *thd) {
-  T value;
+longlong Item_func_get_system_var::get_sys_var_safe(THD *thd, sys_var *var) {
+  T value = {};
   {
     MUTEX_LOCK(lock, &LOCK_global_system_variables);
-    value = *pointer_cast<const T *>(var->value_ptr(thd, var_type, &component));
+    std::string_view keycache_name = var_tracker.get_keycache_name();
+    value =
+        *pointer_cast<const T *>(var->value_ptr(thd, var_scope, keycache_name));
   }
   cache_present |= GET_SYS_VAR_CACHE_LONG;
   used_query_id = thd->query_id;
@@ -7295,7 +7245,6 @@ longlong Item_func_get_system_var::val_int() {
   Audit_global_variable_get_event audit_sys_var(thd, this,
                                                 GET_SYS_VAR_CACHE_LONG);
   assert(fixed);
-  assert(var != nullptr);
 
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_LONG) {
@@ -7319,64 +7268,67 @@ longlong Item_func_get_system_var::val_int() {
     }
   }
 
-  switch (var->show_type()) {
-    case SHOW_INT:
-      return get_sys_var_safe<uint>(thd);
-    case SHOW_LONG:
-      return get_sys_var_safe<ulong>(thd);
-    case SHOW_LONGLONG:
-      return get_sys_var_safe<ulonglong>(thd);
-    case SHOW_SIGNED_INT:
-      return get_sys_var_safe<int>(thd);
-    case SHOW_SIGNED_LONG:
-      return get_sys_var_safe<long>(thd);
-    case SHOW_SIGNED_LONGLONG:
-      return get_sys_var_safe<longlong>(thd);
-    case SHOW_HA_ROWS:
-      return get_sys_var_safe<ha_rows>(thd);
-    case SHOW_BOOL:
-      return get_sys_var_safe<bool>(thd);
-    case SHOW_MY_BOOL:
-      return get_sys_var_safe<bool>(thd);
-    case SHOW_DOUBLE: {
-      double dval = val_real();
+  auto f = [this, thd](const System_variable_tracker &,
+                       sys_var *var) -> longlong {
+    switch (var->show_type()) {
+      case SHOW_INT:
+        return get_sys_var_safe<uint>(thd, var);
+      case SHOW_LONG:
+        return get_sys_var_safe<ulong>(thd, var);
+      case SHOW_LONGLONG:
+        return get_sys_var_safe<ulonglong>(thd, var);
+      case SHOW_SIGNED_INT:
+        return get_sys_var_safe<int>(thd, var);
+      case SHOW_SIGNED_LONG:
+        return get_sys_var_safe<long>(thd, var);
+      case SHOW_SIGNED_LONGLONG:
+        return get_sys_var_safe<longlong>(thd, var);
+      case SHOW_HA_ROWS:
+        return get_sys_var_safe<ha_rows>(thd, var);
+      case SHOW_BOOL:
+        return get_sys_var_safe<bool>(thd, var);
+      case SHOW_MY_BOOL:
+        return get_sys_var_safe<bool>(thd, var);
+      case SHOW_DOUBLE: {
+        double dval = val_real();
 
-      used_query_id = thd->query_id;
-      cached_llval = (longlong)dval;
-      cache_present |= GET_SYS_VAR_CACHE_LONG;
-      return cached_llval;
-    }
-    case SHOW_CHAR:
-    case SHOW_CHAR_PTR:
-    case SHOW_LEX_STRING: {
-      String *str_val = val_str(nullptr);
-      // Treat empty strings as NULL, like val_real() does.
-      if (str_val && str_val->length())
-        cached_llval = longlong_from_string_with_check(
-            system_charset_info, str_val->c_ptr(),
-            str_val->c_ptr() + str_val->length(), unsigned_flag);
-      else {
-        null_value = true;
-        cached_llval = 0;
+        used_query_id = thd->query_id;
+        cached_llval = (longlong)dval;
+        cache_present |= GET_SYS_VAR_CACHE_LONG;
+        return cached_llval;
+      }
+      case SHOW_CHAR:
+      case SHOW_CHAR_PTR:
+      case SHOW_LEX_STRING: {
+        String *str_val = val_str(nullptr);
+        // Treat empty strings as NULL, like val_real() does.
+        if (str_val && str_val->length())
+          cached_llval = longlong_from_string_with_check(
+              system_charset_info, str_val->c_ptr(),
+              str_val->c_ptr() + str_val->length(), unsigned_flag);
+        else {
+          null_value = true;
+          cached_llval = 0;
+        }
+
+        cache_present |= GET_SYS_VAR_CACHE_LONG;
+        return cached_llval;
       }
 
-      cache_present |= GET_SYS_VAR_CACHE_LONG;
-      return cached_llval;
+      default:
+        my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
+        return 0;  // keep the compiler happy
     }
-
-    default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      return 0;  // keep the compiler happy
-  }
+  };
+  return var_tracker.access_system_variable<longlong>(thd, f).value_or(0);
 }
 
 String *Item_func_get_system_var::val_str(String *str) {
+  DEBUG_SYNC(current_thd, "after_error_checking");
   THD *thd = current_thd;
   Audit_global_variable_get_event audit_sys_var(thd, this,
                                                 GET_SYS_VAR_CACHE_STRING);
   assert(fixed);
-
-  assert(var != nullptr);
 
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_STRING) {
@@ -7398,56 +7350,64 @@ String *Item_func_get_system_var::val_str(String *str) {
 
   str = &cached_strval;
   null_value = false;
-  switch (var->show_type()) {
-    case SHOW_CHAR:
-    case SHOW_CHAR_PTR:
-    case SHOW_LEX_STRING: {
-      mysql_mutex_lock(&LOCK_global_system_variables);
-      const char *cptr = var->show_type() == SHOW_CHAR
-                             ? pointer_cast<const char *>(
-                                   var->value_ptr(thd, var_type, &component))
-                             : *pointer_cast<const char *const *>(
-                                   var->value_ptr(thd, var_type, &component));
-      if (cptr) {
-        size_t len = var->show_type() == SHOW_LEX_STRING
-                         ? (pointer_cast<const LEX_STRING *>(
-                                var->value_ptr(thd, var_type, &component)))
-                               ->length
-                         : strlen(cptr);
-        if (str->copy(cptr, len, collation.collation)) {
+
+  auto f = [this, thd, &str](const System_variable_tracker &, sys_var *var) {
+    switch (var->show_type()) {
+      case SHOW_CHAR:
+      case SHOW_CHAR_PTR:
+      case SHOW_LEX_STRING: {
+        mysql_mutex_lock(&LOCK_global_system_variables);
+        const char *cptr =
+            var->show_type() == SHOW_CHAR
+                ? pointer_cast<const char *>(var->value_ptr(
+                      thd, var_scope, var_tracker.get_keycache_name()))
+                : *pointer_cast<const char *const *>(var->value_ptr(
+                      thd, var_scope, var_tracker.get_keycache_name()));
+        if (cptr) {
+          size_t len =
+              var->show_type() == SHOW_LEX_STRING
+                  ? (pointer_cast<const LEX_STRING *>(var->value_ptr(
+                         thd, var_scope, var_tracker.get_keycache_name())))
+                        ->length
+                  : strlen(cptr);
+          if (str->copy(cptr, len, collation.collation)) {
+            null_value = true;
+            str = nullptr;
+          }
+        } else {
           null_value = true;
           str = nullptr;
         }
-      } else {
-        null_value = true;
-        str = nullptr;
+        mysql_mutex_unlock(&LOCK_global_system_variables);
+        break;
       }
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-      break;
+
+      case SHOW_INT:
+      case SHOW_LONG:
+      case SHOW_LONGLONG:
+      case SHOW_SIGNED_INT:
+      case SHOW_SIGNED_LONG:
+      case SHOW_SIGNED_LONGLONG:
+      case SHOW_HA_ROWS:
+      case SHOW_BOOL:
+      case SHOW_MY_BOOL:
+        if (unsigned_flag)
+          str->set((ulonglong)val_int(), collation.collation);
+        else
+          str->set(val_int(), collation.collation);
+        break;
+      case SHOW_DOUBLE:
+        str->set_real(val_real(), decimals, collation.collation);
+        break;
+
+      default:
+        my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
+        str = error_str();
+        break;
     }
-
-    case SHOW_INT:
-    case SHOW_LONG:
-    case SHOW_LONGLONG:
-    case SHOW_SIGNED_INT:
-    case SHOW_SIGNED_LONG:
-    case SHOW_SIGNED_LONGLONG:
-    case SHOW_HA_ROWS:
-    case SHOW_BOOL:
-    case SHOW_MY_BOOL:
-      if (unsigned_flag)
-        str->set((ulonglong)val_int(), collation.collation);
-      else
-        str->set(val_int(), collation.collation);
-      break;
-    case SHOW_DOUBLE:
-      str->set_real(val_real(), decimals, collation.collation);
-      break;
-
-    default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      str = error_str();
-      break;
+  };
+  if (var_tracker.access_system_variable(thd, f)) {
+    str = error_str();
   }
 
   cache_present |= GET_SYS_VAR_CACHE_STRING;
@@ -7461,7 +7421,6 @@ double Item_func_get_system_var::val_real() {
   Audit_global_variable_get_event audit_sys_var(thd, this,
                                                 GET_SYS_VAR_CACHE_DOUBLE);
   assert(fixed);
-  assert(var != nullptr);
 
   if (cache_present && thd->query_id == used_query_id) {
     if (cache_present & GET_SYS_VAR_CACHE_DOUBLE) {
@@ -7485,58 +7444,63 @@ double Item_func_get_system_var::val_real() {
     }
   }
 
-  switch (var->show_type()) {
-    case SHOW_DOUBLE:
-      mysql_mutex_lock(&LOCK_global_system_variables);
-      cached_dval = *pointer_cast<const double *>(
-          var->value_ptr(thd, var_type, &component));
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-      used_query_id = thd->query_id;
-      cached_null_value = null_value;
-      if (null_value) cached_dval = 0;
-      cache_present |= GET_SYS_VAR_CACHE_DOUBLE;
-      return cached_dval;
-    case SHOW_CHAR:
-    case SHOW_LEX_STRING:
-    case SHOW_CHAR_PTR: {
-      mysql_mutex_lock(&LOCK_global_system_variables);
-      const char *cptr = var->show_type() == SHOW_CHAR
-                             ? pointer_cast<const char *>(
-                                   var->value_ptr(thd, var_type, &component))
-                             : *pointer_cast<const char *const *>(
-                                   var->value_ptr(thd, var_type, &component));
-      // Treat empty strings as NULL, like val_int() does.
-      if (cptr && *cptr)
-        cached_dval = double_from_string_with_check(system_charset_info, cptr,
-                                                    cptr + strlen(cptr));
-      else {
-        null_value = true;
-        cached_dval = 0;
+  auto f = [this, thd](const System_variable_tracker &,
+                       sys_var *var) -> double {
+    switch (var->show_type()) {
+      case SHOW_DOUBLE:
+        mysql_mutex_lock(&LOCK_global_system_variables);
+        cached_dval = *pointer_cast<const double *>(
+            var->value_ptr(thd, var_scope, var_tracker.get_keycache_name()));
+        mysql_mutex_unlock(&LOCK_global_system_variables);
+        used_query_id = thd->query_id;
+        cached_null_value = null_value;
+        if (null_value) cached_dval = 0;
+        cache_present |= GET_SYS_VAR_CACHE_DOUBLE;
+        return cached_dval;
+      case SHOW_CHAR:
+      case SHOW_LEX_STRING:
+      case SHOW_CHAR_PTR: {
+        mysql_mutex_lock(&LOCK_global_system_variables);
+        const char *cptr =
+            var->show_type() == SHOW_CHAR
+                ? pointer_cast<const char *>(var->value_ptr(
+                      thd, var_scope, var_tracker.get_keycache_name()))
+                : *pointer_cast<const char *const *>(var->value_ptr(
+                      thd, var_scope, var_tracker.get_keycache_name()));
+        // Treat empty strings as NULL, like val_int() does.
+        if (cptr && *cptr)
+          cached_dval = double_from_string_with_check(system_charset_info, cptr,
+                                                      cptr + strlen(cptr));
+        else {
+          null_value = true;
+          cached_dval = 0;
+        }
+        mysql_mutex_unlock(&LOCK_global_system_variables);
+        used_query_id = thd->query_id;
+        cached_null_value = null_value;
+        cache_present |= GET_SYS_VAR_CACHE_DOUBLE;
+        return cached_dval;
       }
-      mysql_mutex_unlock(&LOCK_global_system_variables);
-      used_query_id = thd->query_id;
-      cached_null_value = null_value;
-      cache_present |= GET_SYS_VAR_CACHE_DOUBLE;
-      return cached_dval;
+      case SHOW_INT:
+      case SHOW_LONG:
+      case SHOW_LONGLONG:
+      case SHOW_SIGNED_INT:
+      case SHOW_SIGNED_LONG:
+      case SHOW_SIGNED_LONGLONG:
+      case SHOW_HA_ROWS:
+      case SHOW_BOOL:
+      case SHOW_MY_BOOL:
+        cached_dval = (double)val_int();
+        cache_present |= GET_SYS_VAR_CACHE_DOUBLE;
+        used_query_id = thd->query_id;
+        cached_null_value = null_value;
+        return cached_dval;
+      default:
+        my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
+        return 0;
     }
-    case SHOW_INT:
-    case SHOW_LONG:
-    case SHOW_LONGLONG:
-    case SHOW_SIGNED_INT:
-    case SHOW_SIGNED_LONG:
-    case SHOW_SIGNED_LONGLONG:
-    case SHOW_HA_ROWS:
-    case SHOW_BOOL:
-    case SHOW_MY_BOOL:
-      cached_dval = (double)val_int();
-      cache_present |= GET_SYS_VAR_CACHE_DOUBLE;
-      used_query_id = thd->query_id;
-      cached_null_value = null_value;
-      return cached_dval;
-    default:
-      my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      return 0;
-  }
+  };
+  return var_tracker.access_system_variable<double>(thd, f).value_or(0);
 }
 
 bool Item_func_get_system_var::eq(const Item *item, bool) const {
@@ -7548,27 +7512,13 @@ bool Item_func_get_system_var::eq(const Item *item, bool) const {
     return false;
   const Item_func_get_system_var *other =
       down_cast<const Item_func_get_system_var *>(item);
-  return (var_tracker == other->var_tracker && var_type == other->var_type);
+  return var_tracker == other->var_tracker;
 }
 
 void Item_func_get_system_var::cleanup() {
   Item_func::cleanup();
   cache_present = 0;
-  var_type = orig_var_type;
   cached_strval.mem_free();
-  if (var_tracker.is_plugin_var()) {
-    var = nullptr;
-  }
-}
-
-bool Item_func_get_system_var::bind(THD *thd) {
-  DEBUG_SYNC(thd, "after_error_checking");
-
-  var = var_tracker.bind_system_variable(thd);
-  if (var == nullptr) {
-    return true;
-  }
-  return false;
 }
 
 bool Item_func_match::itemize(Parse_context *pc, Item **res) {
@@ -8013,10 +7963,9 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
   Return value of an system variable base[.name] as a constant item.
 
   @param pc                     Current parse context
-  @param var_type               global / session
-  @param name                   Name of base or system variable
-  @param component              Component.
-
+  @param var_scope              Global / session
+  @param prefix                 Optional prefix part of the variable name
+  @param suffix                 Trivial name of suffix part of the variable name
   @param unsafe_for_replication If true and if the variable is written to a
                                 binlog then mark the statement as unsafe.
 
@@ -8028,43 +7977,48 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit,
     - #  : constant item
 */
 
-Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
-                     LEX_STRING component, bool unsafe_for_replication) {
+Item *get_system_variable(Parse_context *pc, enum_var_type scope,
+                          const LEX_CSTRING &prefix, const LEX_CSTRING &suffix,
+                          bool unsafe_for_replication) {
   THD *thd = pc->thd;
-  sys_var *var;
-  LEX_STRING *base_name, *component_name;
 
-  if (component.str) {
-    base_name = &component;
-    component_name = &name;
-  } else {
-    base_name = &name;
-    component_name = &component;  // Empty string
-  }
-
-  if (!(var = find_sys_var(thd, base_name->str, base_name->length)))
-    return nullptr;
-  if (component.str) {
-    if (!var->is_struct()) {
-      my_error(ER_VARIABLE_IS_NOT_STRUCT, MYF(0), base_name->str);
-      return nullptr;
+  enum_var_type resolved_scope;
+  bool written_to_binlog_flag = false;
+  auto f = [thd, scope, &resolved_scope, &written_to_binlog_flag](
+               const System_variable_tracker &t, sys_var *v) -> bool {
+    if (scope == OPT_DEFAULT) {
+      if (v->check_scope(OPT_SESSION)) {
+        resolved_scope = OPT_SESSION;
+      } else {
+        /* As there was no local variable, return the global value */
+        assert(v->check_scope(OPT_GLOBAL));
+        resolved_scope = OPT_GLOBAL;
+      }
+    } else if (v->check_scope(scope)) {
+      resolved_scope = scope;
+    } else {
+      my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), v->name.str,
+               scope == OPT_GLOBAL ? "SESSION" : "GLOBAL");
+      return true;
     }
+
+    written_to_binlog_flag = v->is_written_to_binlog(resolved_scope);
+    v->do_deprecated_warning(thd);
+    t.cache_medatata(v);
+    return false;
+  };
+  System_variable_tracker var_tracker = System_variable_tracker::make_tracker(
+      to_string_view(prefix), to_string_view(suffix));
+  if (var_tracker.access_system_variable<bool>(thd, f).value_or(true)) {
+    return nullptr;
   }
-  thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
 
-  component_name->length =
-      min(component_name->length, size_t(MAX_SYS_VAR_LENGTH));
-
-  var->do_deprecated_warning(thd);
-
-  auto *item =
-      new Item_func_get_system_var(var, var_type, component_name, nullptr, 0);
-  if (item == nullptr) return nullptr;  // OOM
-
-  if (unsafe_for_replication && !var->is_written_to_binlog(var_type))
+  if (unsafe_for_replication && !written_to_binlog_flag)
     thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE);
 
-  return item;
+  thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+
+  return new Item_func_get_system_var(var_tracker, resolved_scope);
 }
 
 bool Item_func_row_count::itemize(Parse_context *pc, Item **res) {

@@ -688,13 +688,14 @@ class Sys_var_hint {
     Add variable to hint list.
 
     @param thd            pointer to THD object
-    @param sys_var        pointer to sys_var object
+    @param var_tracker    pointer to System_variable_tracker object
     @param sys_var_value  variable value
 
     @return true if variable is added,
             false otherwise
   */
-  bool add_var(THD *thd, sys_var *sys_var, Item *sys_var_value);
+  bool add_var(THD *thd, const System_variable_tracker &var_tracker,
+               Item *sys_var_value);
   /**
     Find variable in hint list.
 
@@ -790,7 +791,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 bool idx_merge_hint_state(THD *thd, const TABLE *table,
                           bool *use_cheapest_index_merge);
 
-int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
+int cmp_lex_string(const LEX_CSTRING &s, const LEX_CSTRING &t,
                    const CHARSET_INFO *cs);
 
 #endif /* OPT_HINTS_INCLUDED */

@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.character_set_system);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT character_set_system = @@SESSION.character_set_system;
---echo Expected error 'Readonly variable'
+SELECT character_set_system;
+--echo Expected error 'Unknown column'
 
 

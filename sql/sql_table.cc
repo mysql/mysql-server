@@ -17480,7 +17480,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
               ->is_enabled())
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-            ->mark_as_changed(thd, nullptr);
+            ->mark_as_changed(thd, {});
     }
 
     /* Open the table since we need to copy the data. */

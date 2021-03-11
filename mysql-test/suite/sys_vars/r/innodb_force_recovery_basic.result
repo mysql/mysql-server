@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_force_recovery);
 COUNT(@@GLOBAL.innodb_force_recovery)
 1
 1 Expected
-SELECT innodb_force_recovery = @@SESSION.innodb_force_recovery;
+SELECT innodb_force_recovery;
 ERROR 42S22: Unknown column 'innodb_force_recovery' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

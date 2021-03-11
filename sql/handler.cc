@@ -40,6 +40,7 @@
 #include <list>
 #include <random>  // std::uniform_real_distribution
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "keycache.h"
@@ -5544,7 +5545,7 @@ bool default_rm_tmp_tables(handlerton *hton, THD *, List<LEX_STRING> *files) {
 /**
   Init a key cache if it has not been initied before.
 */
-int ha_init_key_cache(const char *, KEY_CACHE *key_cache) {
+int ha_init_key_cache(std::string_view, KEY_CACHE *key_cache) {
   DBUG_TRACE;
 
   if (!key_cache->key_cache_inited) {

@@ -144,7 +144,9 @@ SET global.check_proxy_users = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.check_proxy_users;
 --Error ER_BAD_FIELD_ERROR
-SELECT check_proxy_users = @@session.check_proxy_users;
+SELECT check_proxy_users;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.check_proxy_users;
 
 ##############################
 #   Restore initial value    #

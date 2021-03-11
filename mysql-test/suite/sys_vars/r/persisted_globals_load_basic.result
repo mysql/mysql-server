@@ -15,7 +15,7 @@ SELECT @@local.persisted_globals_load;
 ERROR HY000: Variable 'persisted_globals_load' is a GLOBAL variable
 SELECT @@session.persisted_globals_load;
 ERROR HY000: Variable 'persisted_globals_load' is a GLOBAL variable
-SELECT persisted_globals_load = @@SESSION.persisted_globals_load;
+SELECT persisted_globals_load;
 ERROR 42S22: Unknown column 'persisted_globals_load' in 'field list'
 SET GLOBAL persisted_globals_load= 1;
 ERROR HY000: Variable 'persisted_globals_load' is a read only variable

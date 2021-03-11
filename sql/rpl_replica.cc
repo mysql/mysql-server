@@ -913,7 +913,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
    log search continues to next relay log. If rotate event from master is
    found then the extracted master_log_file and master_log_pos are used to set
    rli->group_master_log_name and rli->group_master_log_pos. If an error has
-   occurred the error code is retuned back.
+   occurred the error code is returned back.
 
    @param rli
           Relay_log_info object to read relay log files and to set

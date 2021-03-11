@@ -144,8 +144,10 @@ SET global.max_binlog_size = 8000;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.max_binlog_size = 8000' at line 1
 SELECT global.max_binlog_size;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT max_binlog_size = @@session.max_binlog_size;
+SELECT max_binlog_size;
 ERROR 42S22: Unknown column 'max_binlog_size' in 'field list'
+SELECT @@session.max_binlog_size;
+ERROR HY000: Variable 'max_binlog_size' is a GLOBAL variable
 SET @@global.max_binlog_size = @start_value;
 SELECT @@global.max_binlog_size;
 @@global.max_binlog_size

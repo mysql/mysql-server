@@ -100,7 +100,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_instances);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_buffer_pool_instances = @@SESSION.innodb_buffer_pool_instances;
---echo Expected error 'Readonly variable'
+SELECT innodb_buffer_pool_instances;
+--echo Expected error 'Unknown column'
 
 

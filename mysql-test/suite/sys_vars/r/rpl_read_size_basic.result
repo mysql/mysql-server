@@ -92,8 +92,10 @@ SET global.rpl_read_size = 8192;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.rpl_read_size = 8192' at line 1
 SELECT global.rpl_read_size;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT rpl_read_size = @@session.rpl_read_size;
+SELECT rpl_read_size;
 ERROR 42S22: Unknown column 'rpl_read_size' in 'field list'
+SELECT @@session.rpl_read_size;
+ERROR HY000: Variable 'rpl_read_size' is a GLOBAL variable
 SET @@global.rpl_read_size = @start_rpl_read_size;
 SELECT @@global.rpl_read_size;
 @@global.rpl_read_size

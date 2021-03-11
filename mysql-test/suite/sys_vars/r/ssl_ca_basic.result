@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.ssl_ca);
 COUNT(@@GLOBAL.ssl_ca)
 1
 1 Expected
-SELECT ssl_ca = @@SESSION.ssl_ca;
+SELECT ssl_ca;
 ERROR 42S22: Unknown column 'ssl_ca' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

@@ -153,7 +153,9 @@ SET global.key_buffer_size = 10;
 --Error ER_UNKNOWN_TABLE
 SELECT global.key_buffer_size;
 --Error ER_BAD_FIELD_ERROR
-SELECT key_buffer_size = @@session.key_buffer_size;
+SELECT key_buffer_size;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.key_buffer_size;
 
 ##############################
 #   Restore initial value    #

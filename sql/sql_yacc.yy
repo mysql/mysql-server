@@ -1425,7 +1425,7 @@ void warn_about_deprecated_binary(THD *thd)
         LEX_HOSTNAME ULONGLONG_NUM select_alias ident opt_ident ident_or_text
         role_ident role_ident_or_text
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
-        NCHAR_STRING opt_component
+        NCHAR_STRING
         BIN_NUM TEXT_STRING_filesystem ident_or_empty
         TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
         TEXT_STRING_validated
@@ -1518,7 +1518,7 @@ void warn_about_deprecated_binary(THD *thd)
         set_function_specification sum_expr
         in_sum_expr grouping_operation
         window_func_call opt_ll_default
-        variable variable_aux bool_pri
+        bool_pri
         predicate bit_expr
         table_wild simple_expr udf_expr
         expr_or_default set_expr_or_default
@@ -1546,6 +1546,8 @@ void warn_about_deprecated_binary(THD *thd)
         signed_literal_or_null
         stable_integer
         param_or_var
+        in_expression_user_variable_assignment
+        rvalue_system_or_user_variable
 
 %type <item_string> window_name opt_existing_window_name
 
@@ -1567,7 +1569,7 @@ void warn_about_deprecated_binary(THD *thd)
         row_value_explicit
 
 %type <var_type>
-        option_type opt_var_type opt_var_ident_type opt_set_var_ident_type
+        option_type opt_var_type opt_rvalue_system_variable_type opt_set_var_ident_type
 
 %type <key_type>
         opt_unique constraint_key_type
@@ -1778,7 +1780,7 @@ void warn_about_deprecated_binary(THD *thd)
 
 %type <query_expression_body> query_expression_body
 
-%type <internal_variable_name> internal_variable_name
+%type <bipartite_name> lvalue_variable rvalue_system_variable
 
 %type <option_value_following_option_type> option_value_following_option_type
 
@@ -4572,26 +4574,8 @@ signal_information_item_list:
 signal_allowed_expr:
           literal_or_null
           { ITEMIZE($1, &$$); }
-        | variable
-          {
-            ITEMIZE($1, &$1);
-
-            if ($1->type() == Item::FUNC_ITEM)
-            {
-              Item_func *item= (Item_func*) $1;
-              if (item->functype() == Item_func::SUSERVAR_FUNC)
-              {
-                /*
-                  Don't allow the following syntax:
-                    SIGNAL/RESIGNAL ...
-                    SET <signal condition item name> = @foo := expr
-                */
-                YYTHD->syntax_error();
-                MYSQL_YYABORT;
-              }
-            }
-            $$= $1;
-          }
+        | rvalue_system_or_user_variable
+          { ITEMIZE($1, &$$); }
         | simple_ident
           { ITEMIZE($1, &$$); }
         ;
@@ -8062,11 +8046,6 @@ opt_ident:
         | ident
         ;
 
-opt_component:
-          /* empty */    { $$= null_lex_str; }
-        | '.' ident      { $$= $2; }
-        ;
-
 string_list:
           text_string
           {
@@ -10484,7 +10463,8 @@ simple_expr:
           }
         | literal_or_null
         | param_marker { $$= $1; }
-        | variable
+        | rvalue_system_or_user_variable
+        | in_expression_user_variable_assignment
         | set_function_specification
         | window_func_call
         | simple_expr OR_OR_SYM simple_expr
@@ -11525,25 +11505,25 @@ grouping_operation:
           }
         ;
 
-variable:
-          '@' variable_aux { $$= $2; }
-        ;
-
-variable_aux:
-          ident_or_text SET_VAR expr
+in_expression_user_variable_assignment:
+          '@' ident_or_text SET_VAR expr
           {
             push_warning(YYTHD, Sql_condition::SL_WARNING,
                          ER_WARN_DEPRECATED_SYNTAX,
                          ER_THD(YYTHD, ER_WARN_DEPRECATED_USER_SET_EXPR));
-            $$= NEW_PTN PTI_variable_aux_set_var(@$, $1, $3);
+            $$ = NEW_PTN PTI_variable_aux_set_var(@$, $2, $4);
           }
-        | ident_or_text
+        ;
+
+rvalue_system_or_user_variable:
+          '@' ident_or_text
           {
-            $$= NEW_PTN PTI_user_variable(@$, $1);
+            $$ = NEW_PTN PTI_user_variable(@$, $2);
           }
-        | '@' opt_var_ident_type ident_or_text opt_component
+        | '@' '@' opt_rvalue_system_variable_type rvalue_system_variable
           {
-            $$= NEW_PTN PTI_variable_aux_3d(@$, $2, $3, @3, $4);
+            $$ = NEW_PTN PTI_get_system_variable(@$, $3,
+                                                 @4, $4.prefix, $4.name);
           }
         ;
 
@@ -15853,7 +15833,7 @@ opt_var_type:
         | SESSION_SYM { $$=OPT_SESSION; }
         ;
 
-opt_var_ident_type:
+opt_rvalue_system_variable_type:
           /* empty */     { $$=OPT_DEFAULT; }
         | GLOBAL_SYM '.'  { $$=OPT_GLOBAL; }
         | LOCAL_SYM '.'   { $$=OPT_SESSION; }
@@ -15871,28 +15851,28 @@ opt_set_var_ident_type:
 
 // Option values with preceding option_type.
 option_value_following_option_type:
-          internal_variable_name equal set_expr_or_default
+          lvalue_variable equal set_expr_or_default
           {
-            $$= NEW_PTN PT_option_value_following_option_type(@$, $1, $3);
+            $$ = NEW_PTN PT_set_scoped_system_variable(
+                @1, $1.prefix, $1.name, $3);
           }
         ;
 
 // Option values without preceding option_type.
 option_value_no_option_type:
-          internal_variable_name        /*$1*/
-          equal                         /*$2*/
-          set_expr_or_default           /*$3*/
+          lvalue_variable equal set_expr_or_default
           {
-            $$= NEW_PTN PT_option_value_no_option_type_internal($1, $3, @3);
+            $$ = NEW_PTN PT_set_variable(@1, $1.prefix, $1.name, @3, $3);
           }
         | '@' ident_or_text equal expr
           {
             $$= NEW_PTN PT_option_value_no_option_type_user_var($2, $4);
           }
-        | '@' '@' opt_set_var_ident_type internal_variable_name equal
+        | '@' '@' opt_set_var_ident_type lvalue_variable equal
           set_expr_or_default
           {
-            $$= NEW_PTN PT_option_value_no_option_type_sys_var($3, $4, $6);
+            $$ = NEW_PTN PT_set_system_variable(
+                $3, @4, $4.prefix, $4.name, $6);
           }
         | character_set old_or_new_charset_name_or_default
           {
@@ -15915,18 +15895,43 @@ option_value_no_option_type:
           }
         ;
 
-internal_variable_name:
+lvalue_variable:
           lvalue_ident
           {
-            $$= NEW_PTN PT_internal_variable_name_1d(to_lex_cstring($1));
+            $$ = Bipartite_name{{}, to_lex_cstring($1)};
           }
         | lvalue_ident '.' ident
           {
-            $$= NEW_PTN PT_internal_variable_name_2d(@$, to_lex_cstring($1), to_lex_cstring($3));
+            /*
+              Reject names prefixed by `GLOBAL.`, `LOCAL.`, or `SESSION.` --
+              if one of those prefixes is there then we are parsing something
+              like `GLOBAL.GLOBAL.foo` or `LOCAL.SESSION.bar` etc.
+            */
+            if (check_reserved_words($1.str)) {
+              YYTHD->syntax_error_at(@1);
+              MYSQL_YYABORT;
+            }
+            $$ = Bipartite_name{to_lex_cstring($1), to_lex_cstring($3)};
           }
         | DEFAULT_SYM '.' ident
           {
-            $$= NEW_PTN PT_internal_variable_name_default($3);
+            $$ = Bipartite_name{{STRING_WITH_LEN("default")}, to_lex_cstring($3)};
+          }
+        ;
+
+rvalue_system_variable:
+          ident_or_text
+          {
+            $$ = Bipartite_name{{}, to_lex_cstring($1)};
+          }
+        | ident_or_text '.' ident
+          {
+            // disallow "SELECT @@global.global.variable"
+            if (check_reserved_words($1.str)) {
+              YYTHD->syntax_error_at(@1);
+              MYSQL_YYABORT;
+            }
+            $$ = Bipartite_name{to_lex_cstring($1), to_lex_cstring($3)};
           }
         ;
 

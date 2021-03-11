@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.innodb_rollback_on_timeout);
 COUNT(@@GLOBAL.innodb_rollback_on_timeout)
 1
 1 Expected
-SELECT innodb_rollback_on_timeout = @@SESSION.innodb_rollback_on_timeout;
+SELECT innodb_rollback_on_timeout;
 ERROR 42S22: Unknown column 'innodb_rollback_on_timeout' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

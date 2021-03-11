@@ -1402,7 +1402,7 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_global_system_variables);
-  if (!(key_cache = get_key_cache(&m_key_cache_name))) {
+  if (!(key_cache = get_key_cache(to_string_view(m_key_cache_name)))) {
     mysql_mutex_unlock(&LOCK_global_system_variables);
     my_error(ER_UNKNOWN_KEY_CACHE, MYF(0), m_key_cache_name.str);
     return true;

@@ -167,7 +167,9 @@ SET global.max_relay_log_size = 8000;
 --Error ER_UNKNOWN_TABLE
 SELECT global.max_relay_log_size;
 --Error ER_BAD_FIELD_ERROR
-SELECT max_relay_log_size = @@session.max_relay_log_size;
+SELECT max_relay_log_size;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.max_relay_log_size;
 
 
 ##############################  

@@ -166,7 +166,9 @@ SET global.expire_logs_days = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.expire_logs_days;
 --Error ER_BAD_FIELD_ERROR
-SELECT expire_logs_days = @@session.expire_logs_days;
+SELECT expire_logs_days;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.expire_logs_days;
 
 ######################################################################## 
 #              END OF expire_logs_days TESTS                           #

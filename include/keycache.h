@@ -31,6 +31,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include <string_view>
+
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
@@ -162,5 +164,6 @@ extern KEY_CACHE *multi_key_cache_search(uchar *key, uint length);
 extern bool multi_key_cache_set(const uchar *key, uint length,
                                 KEY_CACHE *key_cache);
 extern void multi_key_cache_change(KEY_CACHE *old_data, KEY_CACHE *new_data);
-extern int reset_key_cache_counters(const char *name, KEY_CACHE *key_cache);
+extern int reset_key_cache_counters(std::string_view name,
+                                    KEY_CACHE *key_cache);
 #endif /* _keycache_h */

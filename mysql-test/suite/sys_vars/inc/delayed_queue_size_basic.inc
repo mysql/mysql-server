@@ -191,7 +191,9 @@ SET global.delayed_queue_size = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.delayed_queue_size;
 --Error ER_BAD_FIELD_ERROR
-SELECT delayed_queue_size = @@session.delayed_queue_size;
+SELECT delayed_queue_size;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.delayed_queue_size;
 
 
 ##############################  

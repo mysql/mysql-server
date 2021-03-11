@@ -102,7 +102,7 @@ SELECT COUNT(@@GLOBAL.innodb_undo_log_truncate);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_undo_log_truncate = @@SESSION.innodb_undo_log_truncate;
+SELECT innodb_undo_log_truncate;
 
 #
 # Cleanup

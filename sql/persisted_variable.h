@@ -118,7 +118,10 @@ class Persisted_variables_cache {
     Search for persisted config file and if found read persistent options
   */
   bool load_persist_file();
-  bool set_persist_options(bool plugin_options, bool lock_vars);
+  /**
+    Set persisted options
+  */
+  bool set_persisted_options(bool plugin_options);
   /**
     Reset persisted options
   */
@@ -159,13 +162,11 @@ class Persisted_variables_cache {
   /* Helper function to get variable value */
   static String *get_variable_value(THD *thd, sys_var *system_var, String *str,
                                     bool *is_null);
-  /* Helper function to get variable name */
-  static const char *get_variable_name(const sys_var *system_var);
   /**
     If the variable has an alias, return the name for the alias.
   */
   static const char *get_variable_alias(const sys_var *system_var);
-  static const char *get_variable_alias(const char *system_var);
+  static std::string get_variable_alias(const char *name);
   /* Helper function to construct json formatted string */
   static String *construct_json_string(std::string name, std::string value,
                                        ulonglong timestamp, std::string user,

@@ -127,8 +127,8 @@ SELECT COUNT(@@GLOBAL.innodb_read_io_threads);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_read_io_threads = @@SESSION.innodb_read_io_threads;
---echo Expected error 'Readonly variable'
+SELECT innodb_read_io_threads;
+--echo Expected error 'Unknown column'
 
 SELECT COUNT(@@innodb_write_io_threads);
 --echo 1 Expected
@@ -145,7 +145,7 @@ SELECT COUNT(@@GLOBAL.innodb_write_io_threads);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_write_io_threads = @@SESSION.innodb_write_io_threads;
---echo Expected error 'Readonly variable'
+SELECT innodb_write_io_threads;
+--echo Expected error 'Unknown column'
 
 

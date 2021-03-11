@@ -131,8 +131,10 @@ SET global.max_connections = 8000;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.max_connections = 8000' at line 1
 SELECT global.max_connections;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT max_connections = @@session.max_connections;
+SELECT max_connections;
 ERROR 42S22: Unknown column 'max_connections' in 'field list'
+SELECT @@session.max_connections;
+ERROR HY000: Variable 'max_connections' is a GLOBAL variable
 SET @@global.max_connections = @start_value;
 SELECT @@global.max_connections;
 @@global.max_connections

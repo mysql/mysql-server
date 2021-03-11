@@ -60,7 +60,7 @@ SELECT COUNT(@@GLOBAL.tls_version);
 --echo 1 Expected
 
 --Error ER_GLOBAL_VARIABLE
-SET tls_version = @@SESSION.tls_version;
+SET tls_version = @@GLOBAL.tls_version;
 --echo Expected error 'Variable is a GLOBAL variable'
 
 ################################################################################

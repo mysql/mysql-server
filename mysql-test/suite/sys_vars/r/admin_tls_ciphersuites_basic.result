@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.admin_tls_ciphersuites);
 COUNT(@@GLOBAL.admin_tls_ciphersuites)
 0
 0 Expected
-SET admin_tls_ciphersuites = @@SESSION.admin_tls_ciphersuites;
+SET admin_tls_ciphersuites = @@GLOBAL.admin_tls_ciphersuites;
 ERROR HY000: Variable 'admin_tls_ciphersuites' is a GLOBAL variable and should be set with SET GLOBAL
 Expected error 'Variable is a GLOBAL variable'

@@ -48,6 +48,6 @@ SELECT COUNT(@@GLOBAL.have_rtree_keys);
 COUNT(@@GLOBAL.have_rtree_keys)
 1
 1 Expected
-SELECT have_rtree_keys = @@SESSION.have_rtree_keys;
+SELECT have_rtree_keys;
 ERROR 42S22: Unknown column 'have_rtree_keys' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

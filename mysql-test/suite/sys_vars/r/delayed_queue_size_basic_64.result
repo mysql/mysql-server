@@ -172,8 +172,10 @@ SET global.delayed_queue_size = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.delayed_queue_size = 1' at line 1
 SELECT global.delayed_queue_size;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT delayed_queue_size = @@session.delayed_queue_size;
+SELECT delayed_queue_size;
 ERROR 42S22: Unknown column 'delayed_queue_size' in 'field list'
+SELECT @@session.delayed_queue_size;
+ERROR HY000: Variable 'delayed_queue_size' is a GLOBAL variable
 SET @@global.delayed_queue_size = @start_value;
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.

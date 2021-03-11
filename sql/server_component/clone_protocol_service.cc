@@ -191,36 +191,35 @@ DEFINE_METHOD(int, mysql_clone_validate_charsets,
 */
 static int get_utf8_config(THD *thd, std::string config_name,
                            String &utf8_val) {
-  char val_buf[1024];
-  SHOW_VAR show;
-  show.type = SHOW_SYS;
+  auto f = [thd, &utf8_val](const System_variable_tracker &, sys_var *var) {
+    char val_buf[1024];
+    SHOW_VAR show;
+    show.type = SHOW_SYS;
+    show.value = pointer_cast<char *>(var);
+    show.name = var->name.str;
 
-  /* Get system configuration parameter. */
-  mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  auto var = intern_find_sys_var(config_name.c_str(), config_name.length());
-  mysql_rwlock_unlock(&LOCK_system_variables_hash);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    size_t val_length;
+    const CHARSET_INFO *fromcs;
 
-  if (var == nullptr) {
+    const char *value =
+        get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr, &fromcs,
+                         val_buf, &val_length);
+
+    uint dummy_err;
+    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
+    utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+  };
+
+  System_variable_tracker sv =
+      System_variable_tracker::make_tracker(config_name);
+  if (sv.access_system_variable(thd, f, Suppress_not_found_error::YES)) {
     my_error(ER_INTERNAL_ERROR, MYF(0),
              "Clone failed to get system configuration parameter.");
     return (ER_INTERNAL_ERROR);
   }
 
-  show.value = reinterpret_cast<char *>(var);
-  show.name = var->name.str;
-
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  size_t val_length;
-  const CHARSET_INFO *fromcs;
-
-  auto value = get_one_variable(thd, &show, OPT_GLOBAL, SHOW_SYS, nullptr,
-                                &fromcs, val_buf, &val_length);
-
-  uint dummy_err;
-  const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-  utf8_val.copy(value, val_length, fromcs, tocs, &dummy_err);
-
-  mysql_mutex_unlock(&LOCK_global_system_variables);
   return (0);
 }
 

@@ -103,8 +103,10 @@ SET global.table_open_cache = 10;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.table_open_cache = 10' at line 1
 SELECT global.table_open_cache ;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT table_open_cache = @@session.table_open_cache ;
+SELECT table_open_cache;
 ERROR 42S22: Unknown column 'table_open_cache' in 'field list'
+SELECT @@session.table_open_cache ;
+ERROR HY000: Variable 'table_open_cache' is a GLOBAL variable
 SET @@global.table_open_cache = @start_value;
 SELECT IF(@@open_files_limit < 5000, 4000, @start_value);
 IF(@@open_files_limit < 5000, 4000, @start_value)

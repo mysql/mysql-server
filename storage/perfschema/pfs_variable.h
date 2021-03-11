@@ -149,6 +149,10 @@ using std::string;
 
 typedef std::vector<SHOW_VAR> Status_var_array;
 
+/* Number of system variable elements to preallocate. */
+#define SYSTEM_VARIABLE_PREALLOC 200
+typedef Prealloced_array<SHOW_VAR, SYSTEM_VARIABLE_PREALLOC> Show_var_array;
+
 /* Global array of all server and plugin-defined status variables. */
 extern Status_var_array all_status_vars;
 extern bool status_vars_inited;
@@ -254,7 +258,7 @@ class Find_THD_variable : public Find_THD_Impl {
 template <class Var_type>
 class PFS_variable_cache {
  public:
-  typedef Prealloced_array<Var_type, SHOW_VAR_PREALLOC> Variable_array;
+  typedef Prealloced_array<Var_type, SYSTEM_VARIABLE_PREALLOC> Variable_array;
 
   explicit PFS_variable_cache(bool external_init);
 
@@ -432,8 +436,11 @@ class PFS_variable_cache {
   /* True when cache is complete. */
   bool m_materialized;
 
-  /* Array of variables to be materialized. Last element must be null. */
+  /* Array of status variables to be materialized. Last element must be null. */
   Show_var_array m_show_var_array;
+
+  /* Array of system variable descriptors. */
+  System_variable_tracker::Array m_sys_var_tracker_array;
 
   /* Version of global hash/array. Changes when vars added/removed. */
   ulonglong m_version;

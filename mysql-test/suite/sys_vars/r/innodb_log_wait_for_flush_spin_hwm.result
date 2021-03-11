@@ -50,7 +50,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm);
 COUNT(@@GLOBAL.innodb_log_wait_for_flush_spin_hwm)
 1
 1 Expected
-SELECT innodb_log_wait_for_flush_spin_hwm = @@SESSION.innodb_log_wait_for_flush_spin_hwm;
+SELECT innodb_log_wait_for_flush_spin_hwm;
 ERROR 42S22: Unknown column 'innodb_log_wait_for_flush_spin_hwm' in 'field list'
 SET GLOBAL innodb_log_wait_for_flush_spin_hwm = 1000;
 SELECT @@innodb_log_wait_for_flush_spin_hwm;

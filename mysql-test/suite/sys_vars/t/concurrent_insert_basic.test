@@ -171,7 +171,9 @@ SET global.concurrent_insert = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.concurrent_insert;
 --Error ER_BAD_FIELD_ERROR
-SELECT concurrent_insert = @@session.concurrent_insert;
+SELECT concurrent_insert;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.concurrent_insert;
 
 ##############################  
 #   Restore initial value    #

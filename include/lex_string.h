@@ -28,6 +28,7 @@
 
 #ifdef __cplusplus
 #include <string>
+#include <string_view>
 #endif
 
 /*
@@ -51,6 +52,14 @@ static inline std::string to_string(const LEX_STRING &str) {
 
 static inline std::string to_string(const LEX_CSTRING &str) {
   return std::string(str.str, str.length);
+}
+
+static inline std::string_view to_string_view(LEX_STRING str) {
+  return std::string_view{str.str, str.length};
+}
+
+static inline std::string_view to_string_view(LEX_CSTRING str) {
+  return std::string_view{str.str, str.length};
 }
 
 #endif  // defined(__cplusplus)

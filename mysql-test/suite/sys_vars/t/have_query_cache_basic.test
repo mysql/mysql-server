@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.have_query_cache);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT have_query_cache = @@SESSION.have_query_cache;
---echo Expected error 'Readonly variable'
+SELECT have_query_cache;
+--echo Expected error 'Unknown column'
 
 

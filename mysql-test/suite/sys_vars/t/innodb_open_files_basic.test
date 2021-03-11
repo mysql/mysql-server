@@ -99,7 +99,7 @@ SELECT COUNT(@@GLOBAL.innodb_open_files);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT innodb_open_files = @@SESSION.innodb_open_files;
---echo Expected error 'Readonly variable'
+SELECT innodb_open_files;
+--echo Expected error 'Unknown column'
 
 

@@ -35,6 +35,6 @@ Expected error 'Variable is a GLOBAL variable'
 SELECT COUNT(@@GLOBAL.mysqlx_ssl_ca);
 COUNT(@@GLOBAL.mysqlx_ssl_ca)
 1
-SELECT mysqlx_ssl_ca = @@SESSION.mysqlx_ssl_ca;
+SELECT mysqlx_ssl_ca;
 ERROR 42S22: Unknown column 'mysqlx_ssl_ca' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

@@ -3401,26 +3401,23 @@ class Audit_global_variable_get_event {
 };
 
 class Item_func_get_system_var final : public Item_var_func {
-  sys_var *var;
-  enum_var_type var_type, orig_var_type;
-  LEX_STRING component;
+  const enum_var_type var_scope;
   longlong cached_llval;
   double cached_dval;
   String cached_strval;
   bool cached_null_value;
   query_id_t used_query_id;
   uchar cache_present;
-  Sys_var_tracker var_tracker;
+  const System_variable_tracker var_tracker;
 
   template <typename T>
-  longlong get_sys_var_safe(THD *thd);
+  longlong get_sys_var_safe(THD *thd, sys_var *var);
 
   friend class Audit_global_variable_get_event;
 
  public:
-  Item_func_get_system_var(sys_var *var_arg, enum_var_type var_type_arg,
-                           LEX_STRING *component_arg, const char *name_arg,
-                           size_t name_len_arg);
+  Item_func_get_system_var(const System_variable_tracker &,
+                           enum_var_type scope);
   enum Functype functype() const override { return GSYSVAR_FUNC; }
   table_map get_initial_pseudo_tables() const override {
     return INNER_TABLE_BIT;
@@ -3429,7 +3426,10 @@ class Item_func_get_system_var final : public Item_var_func {
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool is_non_const_over_literals(uchar *) override { return true; }
-  enum Item_result result_type() const override;
+  enum Item_result result_type() const override {
+    assert(fixed);
+    return type_to_result(data_type());
+  }
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *) override;
@@ -3441,7 +3441,6 @@ class Item_func_get_system_var final : public Item_var_func {
   bool eq(const Item *item, bool binary_cmp) const override;
 
   void cleanup() override;
-  bool bind(THD *thd);
 };
 
 class JOIN;
@@ -4009,8 +4008,39 @@ class Item_func_internal_is_enabled_role : public Item_int_func {
   }
 };
 
-Item *get_system_var(Parse_context *pc, enum_var_type var_type, LEX_STRING name,
-                     LEX_STRING component, bool unsafe_for_replication);
+/**
+  Create new Item_func_get_system_var object
+
+  @param pc     Parse context
+
+  @param scope  Scope of the variable (GLOBAL, SESSION, PERSISTENT ...)
+
+  @param prefix Empty LEX_CSTRING{} or the left hand side of the composite
+                variable name, e.g.:
+                * component name of the component-registered variable
+                * name of MyISAM Multiple Key Cache.
+
+  @param suffix Name of the variable (if prefix is empty) or the right
+                hand side of the composite variable name, e.g.:
+                * name of the component-registered vairable
+                * property name of MyISAM Multiple Key Cache variable.
+
+  @param unsafe_for_replication force writting this system variable to binlog
+                (if not written yet)
+
+  @returns new item on success, otherwise nullptr
+*/
+Item *get_system_variable(Parse_context *pc, enum_var_type scope,
+                          const LEX_CSTRING &prefix, const LEX_CSTRING &suffix,
+                          bool unsafe_for_replication);
+
+inline Item *get_system_variable(Parse_context *pc, enum_var_type scope,
+                                 const LEX_CSTRING &trivial_name,
+                                 bool unsafe_for_replication) {
+  return get_system_variable(pc, scope, {}, trivial_name,
+                             unsafe_for_replication);
+}
+
 extern bool check_reserved_words(const char *name);
 extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,

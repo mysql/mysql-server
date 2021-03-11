@@ -62,7 +62,7 @@ SET global.binlog_expire_logs_auto_purge = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.binlog_expire_logs_auto_purge = 1' at line 1
 SELECT global.binlog_expire_logs_auto_purge;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT binlog_expire_logs_auto_purge = @@session.binlog_expire_logs_auto_purge;
+SELECT binlog_expire_logs_auto_purge = @@global.binlog_expire_logs_auto_purge;
 ERROR 42S22: Unknown column 'binlog_expire_logs_auto_purge' in 'field list'
 SET @@global.binlog_expire_logs_auto_purge = 1;;
 SELECT @@global.binlog_expire_logs_auto_purge;

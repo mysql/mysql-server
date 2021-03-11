@@ -154,7 +154,9 @@ SET global.general_log = ON;
 --Error ER_UNKNOWN_TABLE
 SELECT global.general_log;
 --Error ER_BAD_FIELD_ERROR
-SELECT general_log = @@session.general_log;
+SELECT general_log;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.general_log;
 
 
 

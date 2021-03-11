@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.error_count);
 --echo Expected error 'Variable is a SESSION variable'
 
 --error ER_BAD_FIELD_ERROR
-SELECT COUNT(error_count = @@GLOBAL.error_count);
---echo Expected error 'Readonly variable'
+SELECT COUNT(error_count);
+--echo Expected error 'Unknown column'
 
 --enable_ps_protocol

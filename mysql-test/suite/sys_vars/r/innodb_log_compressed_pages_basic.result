@@ -61,7 +61,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_compressed_pages);
 COUNT(@@GLOBAL.innodb_log_compressed_pages)
 1
 1 Expected
-SELECT innodb_log_compressed_pages = @@SESSION.innodb_log_compressed_pages;
+SELECT innodb_log_compressed_pages;
 ERROR 42S22: Unknown column 'innodb_log_compressed_pages' in 'field list'
 SET @@global.innodb_log_compressed_pages = @start_global_value;
 SELECT @@global.innodb_log_compressed_pages;

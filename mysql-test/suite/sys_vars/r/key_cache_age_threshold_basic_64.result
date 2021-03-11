@@ -128,8 +128,10 @@ SET global.key_cache_age_threshold = 10;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.key_cache_age_threshold = 10' at line 1
 SELECT global.key_cache_age_threshold;
 ERROR 42S02: Unknown table 'global' in field list
-SELECT key_cache_age_threshold = @@session.key_cache_age_threshold;
+SELECT key_cache_age_threshold;
 ERROR 42S22: Unknown column 'key_cache_age_threshold' in 'field list'
+SELECT @@session.key_cache_age_threshold;
+ERROR HY000: Variable 'key_cache_age_threshold' is a GLOBAL variable
 SET @@global.key_cache_age_threshold = @start_value;
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold

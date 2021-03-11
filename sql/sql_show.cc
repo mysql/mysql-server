@@ -3350,13 +3350,10 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
   const CHARSET_INFO *value_charset;
 
   if (show_type == SHOW_SYS) {
-    LEX_STRING null_lex_str;
-    null_lex_str.str = nullptr;  // For sys_var->value_ptr()
-    null_lex_str.length = 0;
     sys_var *var = ((sys_var *)variable->value);
     show_type = var->show_type();
     value = pointer_cast<const char *>(
-        var->value_ptr(running_thd, target_thd, value_type, &null_lex_str));
+        var->value_ptr(running_thd, target_thd, value_type, {}));
     value_charset = var->charset(target_thd);
   } else {
     value = variable->value;

@@ -98,7 +98,7 @@ SELECT COUNT(@@GLOBAL.have_geometry);
 --echo 1 Expected
 
 --Error ER_BAD_FIELD_ERROR
-SELECT have_geometry = @@SESSION.have_geometry;
---echo Expected error 'Readonly variable'
+SELECT have_geometry;
+--echo Expected error 'Unknown column'
 
 

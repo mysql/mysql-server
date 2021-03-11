@@ -61,6 +61,6 @@ COUNT(@@GLOBAL.default_authentication_plugin)
 Warnings:
 Warning	1287	'@@default_authentication_plugin' is deprecated and will be removed in a future release. Please use authentication_policy instead.
 1 Expected
-SELECT default_authentication_plugin = @@SESSION.default_authentication_plugin;
+SELECT default_authentication_plugin;
 ERROR 42S22: Unknown column 'default_authentication_plugin' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

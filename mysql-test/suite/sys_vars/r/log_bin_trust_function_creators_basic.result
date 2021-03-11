@@ -88,8 +88,10 @@ SELECT local.log_bin_trust_function_creators;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.log_bin_trust_function_creators;
 ERROR 42S02: Unknown table 'session' in field list
-SELECT log_bin_trust_function_creators = @@session.log_bin_trust_function_creators;
+SELECT log_bin_trust_function_creators;
 ERROR 42S22: Unknown column 'log_bin_trust_function_creators' in 'field list'
+SELECT @@session.log_bin_trust_function_creators;
+ERROR HY000: Variable 'log_bin_trust_function_creators' is a GLOBAL variable
 SET @@global.log_bin_trust_function_creators = @start_global_value;
 SELECT @@global.log_bin_trust_function_creators;
 @@global.log_bin_trust_function_creators

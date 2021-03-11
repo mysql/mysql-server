@@ -43,6 +43,6 @@ SELECT COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts);
 COUNT(@@GLOBAL.innodb_adaptive_hash_index_parts)
 1
 1 Expected
-SELECT innodb_adaptive_hash_index_parts = @@SESSION.innodb_adaptive_hash_index_parts;
+SELECT innodb_adaptive_hash_index_parts;
 ERROR 42S22: Unknown column 'innodb_adaptive_hash_index_parts' in 'field list'
-Expected error 'Readonly variable'
+Expected error 'Unknown column'

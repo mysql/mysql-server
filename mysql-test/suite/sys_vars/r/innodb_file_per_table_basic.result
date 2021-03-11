@@ -61,7 +61,7 @@ SELECT COUNT(@@GLOBAL.innodb_file_per_table);
 COUNT(@@GLOBAL.innodb_file_per_table)
 1
 1 Expected
-SELECT innodb_file_per_table = @@SESSION.innodb_file_per_table;
+SELECT innodb_file_per_table;
 ERROR 42S22: Unknown column 'innodb_file_per_table' in 'field list'
 SET @@global.innodb_file_per_table = @start_global_value;
 SELECT @@global.innodb_file_per_table;

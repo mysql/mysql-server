@@ -155,7 +155,9 @@ SET global.slow_query_log = ON;
 --Error ER_UNKNOWN_TABLE
 SELECT global.slow_query_log;
 --Error ER_BAD_FIELD_ERROR
-SELECT slow_query_log = @@session.slow_query_log;
+SELECT slow_query_log;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.slow_query_log;
 
 
 

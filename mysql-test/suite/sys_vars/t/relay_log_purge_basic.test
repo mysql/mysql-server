@@ -149,7 +149,9 @@ SET global.relay_log_purge = 1;
 --Error ER_UNKNOWN_TABLE
 SELECT global.relay_log_purge;
 --Error ER_BAD_FIELD_ERROR
-SELECT relay_log_purge = @@session.relay_log_purge;
+SELECT relay_log_purge;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.relay_log_purge;
 
 
 ##############################  
