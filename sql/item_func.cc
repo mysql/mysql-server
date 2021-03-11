@@ -7689,8 +7689,6 @@ err:
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
   /* We ignore FT_SORTED flag when checking for equality since result is
      equvialent regardless of sorting */
-  assert(item->type() != FUNC_ITEM ||
-         down_cast<const Item_func *>(item)->functype() != MATCH_FUNC);
   if (item->type() != FUNC_ITEM ||
       down_cast<const Item_func *>(item)->functype() != FT_FUNC ||
       (flags | FT_SORTED) !=
