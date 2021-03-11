@@ -616,7 +616,7 @@ void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
       PSI_rwlock_locker *locker;
       PSI_rwlock_locker_state state;
 
-      /* Instrumented to inform we are aquiring a shared rwlock */
+      /* Instrumented to inform we are acquiring a shared rwlock */
       locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
           &state, lock->pfs_psi, PSI_RWLOCK_SHAREDLOCK, file_name,
           static_cast<uint>(line));
@@ -650,7 +650,7 @@ void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
       PSI_rwlock_locker *locker;
       PSI_rwlock_locker_state state;
 
-      /* Instrumented to inform we are aquiring a shared rwlock */
+      /* Instrumented to inform we are acquiring a shared rwlock */
       locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
           &state, lock->pfs_psi, PSI_RWLOCK_SHAREDEXCLUSIVELOCK, file_name,
           static_cast<uint>(line));
@@ -726,7 +726,7 @@ bool pfs_rw_lock_sx_lock_low(
       PSI_rwlock_locker *locker;
       PSI_rwlock_locker_state state;
 
-      /* Instrumented to inform we are aquiring a shared
+      /* Instrumented to inform we are acquiring a shared
       exclusive rwlock */
       locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
           &state, lock->pfs_psi, PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK, file_name,

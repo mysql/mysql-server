@@ -88,8 +88,9 @@ void btr_search_info_update(
 /** X-Lock the search latch (corresponding to given index)
 @param[in]	index	index handler */
 UNIV_INLINE
-void btr_search_x_lock(const dict_index_t *index) {
-  rw_lock_x_lock(btr_get_search_latch(index));
+void btr_search_x_lock(const dict_index_t *index, ut::Location location) {
+  rw_lock_x_lock_inline(btr_get_search_latch(index), 0, location.filename,
+                        location.line);
 }
 
 /** X-Unlock the search latch (corresponding to given index)
@@ -101,9 +102,10 @@ void btr_search_x_unlock(const dict_index_t *index) {
 
 /** Lock all search latches in exclusive mode. */
 UNIV_INLINE
-void btr_search_x_lock_all() {
+void btr_search_x_lock_all(ut::Location location) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_x_lock(btr_search_latches[i]);
+    rw_lock_x_lock_inline(btr_search_latches[i], 0, location.filename,
+                          location.line);
   }
 }
 
@@ -118,8 +120,9 @@ void btr_search_x_unlock_all() {
 /** S-Lock the search latch (corresponding to given index)
 @param[in]	index	index handler */
 UNIV_INLINE
-void btr_search_s_lock(const dict_index_t *index) {
-  rw_lock_s_lock(btr_get_search_latch(index));
+void btr_search_s_lock(const dict_index_t *index, ut::Location location) {
+  rw_lock_s_lock_inline(btr_get_search_latch(index), 0, location.filename,
+                        location.line);
 }
 
 /** S-Unlock the search latch (corresponding to given index)
@@ -131,9 +134,10 @@ void btr_search_s_unlock(const dict_index_t *index) {
 
 /** Lock all search latches in shared mode. */
 UNIV_INLINE
-void btr_search_s_lock_all() {
+void btr_search_s_lock_all(ut::Location location) {
   for (ulint i = 0; i < btr_ahi_parts; ++i) {
-    rw_lock_s_lock(btr_search_latches[i]);
+    rw_lock_s_lock_inline(btr_search_latches[i], 0, location.filename,
+                          location.line);
   }
 }
 

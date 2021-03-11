@@ -164,36 +164,40 @@ void btr_search_update_hash_on_delete(btr_cur_t *cursor);
 bool btr_search_validate();
 
 /** X-Lock the search latch (corresponding to given index)
-@param[in]	index	index handler */
-UNIV_INLINE
-void btr_search_x_lock(const dict_index_t *index);
+@param[in]	index	index handler
+@param[in] location source location */
+UNIV_INLINE void btr_search_x_lock(const dict_index_t *index,
+                                   ut::Location location);
 
 /** X-Unlock the search latch (corresponding to given index)
 @param[in]	index	index handler */
 UNIV_INLINE
 void btr_search_x_unlock(const dict_index_t *index);
 
-/** Lock all search latches in exclusive mode. */
+/** Lock all search latches in exclusive mode.
+@param[in] location source location */
 UNIV_INLINE
-void btr_search_x_lock_all();
+void btr_search_x_lock_all(ut::Location location);
 
 /** Unlock all search latches from exclusive mode. */
 UNIV_INLINE
 void btr_search_x_unlock_all();
 
 /** S-Lock the search latch (corresponding to given index)
-@param[in]	index	index handler */
+@param[in]	index	index handler
+@param[in] location source location */
 UNIV_INLINE
-void btr_search_s_lock(const dict_index_t *index);
+void btr_search_s_lock(const dict_index_t *index, ut::Location location);
 
 /** S-Unlock the search latch (corresponding to given index)
 @param[in]	index	index handler */
 UNIV_INLINE
 void btr_search_s_unlock(const dict_index_t *index);
 
-/** Lock all search latches in shared mode. */
+/** Lock all search latches in shared mode.
+@param[in] location source location */
 UNIV_INLINE
-void btr_search_s_lock_all();
+void btr_search_s_lock_all(ut::Location location);
 
 #ifdef UNIV_DEBUG
 /** Check if thread owns all the search latches.
