@@ -303,7 +303,8 @@ bool Sql_cmd_analyze_table::drop_histogram(THD *thd, TABLE_LIST *table,
 
   for (const auto column : get_histogram_fields())
     fields.emplace(column->ptr(), column->length());
-  return histograms::drop_histograms(thd, *table, fields, results);
+
+  return histograms::drop_histograms(thd, *table, fields, true, results);
 }
 
 /**

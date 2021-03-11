@@ -416,6 +416,34 @@ ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col1 WITH 10 BUCKETS;
 
 DROP TABLE t1;
 
+--echo #
+--echo # ANALYZE ... UPDATE HISTOGRAM and LOCK TABLES.
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (10), (20), (30);
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 (c2) VALUES (10), (20), (30);
+
+--echo #
+--echo # Check that ANALYZE TABLE UPDATE HISTOGRAM fails under LOCK TABLES
+--echo # if table is not locked at least for READ.
+--echo #
+LOCK TABLES t2 READ;
+
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
+
+--echo # There should be no histograms.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
+
+--echo # There should be histograms for t2.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+UNLOCK TABLES;
+DROP TABLES t1, t2;
 
 --echo ################
 --echo # DROP HISTOGRAM
@@ -477,6 +505,13 @@ ANALYZE TABLE foo DROP HISTOGRAM ON foobar;
 
 
 --echo #
+--echo # Temporary table
+--echo #
+CREATE TEMPORARY TABLE temp_table (col1 INT);
+ANALYZE TABLE temp_table DROP HISTOGRAM ON col1;
+DROP TABLE temp_table;
+
+--echo #
 --echo # The same column specified multiple times
 --echo #
 --error ER_DUP_FIELDNAME
@@ -491,6 +526,37 @@ ANALYZE TABLE t1, t2 DROP HISTOGRAM ON col1;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # ANALYZE ... DROP HISTOGRAM and LOCK TABLES.
+--echo #
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 (c2) VALUES (10), (20), (30);
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
+
+--echo #
+--echo # Check that ANALYZE TABLE DROP HISTOGRAM fails under LOCK TABLES
+--echo # if table is not locked at least for READ.
+--echo #
+LOCK TABLES t2 READ;
+
+ANALYZE TABLE t1 DROP HISTOGRAM ON c1;
+
+--echo # We should still have two histograms.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+ANALYZE TABLE t2 DROP HISTOGRAM ON c2;
+
+--echo # There should be only histogram for t1 now.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+
+UNLOCK TABLES;
+DROP TABLES t1, t2;
 
 --echo #####################################
 --echo # HISTOGRAM REMOVAL ON DDL STATEMENTS
