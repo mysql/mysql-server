@@ -26236,20 +26236,20 @@ void Dbdih::readTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   req->userReference = reference();
   req->userPointer = filePtr.i;
   req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfMemPages);
   req->varIndex = ZVAR_NO_WORD;
   req->numberOfPages = tab->noPages;
-  Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
+  Uint32 section[1 + NDB_ARRAY_SIZE(tab->pageRef)];
+  // .listOfMemPages.fileOffset
+  section[0] = 0;
   for (Uint32 i = 0; i < tab->noPages; i++)
   {
-    // .listOfPair[i].varIndex
-    section[(2 * i) + 0] = tab->pageRef[i];
-    // .listOfPair[i].fileOffset
-    section[(2 * i) + 1] = i;
+    // .listOfMemPages.varIndex[i]
+    section[1 + i] = tab->pageRef[i];
   }
   LinearSectionPtr ptr[3];
   ptr[0].p = section;
-  ptr[0].sz = 2 * tab->noPages;
+  ptr[0].sz = 1 + tab->noPages;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 6, JBA, ptr, 1);
 }//Dbdih::readTabfile()
 
@@ -27233,23 +27233,23 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   req->userReference = reference();
   req->userPointer = filePtr.i;
   req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfMemPages);
   req->setSyncFlag(req->operationFlag, 1);
   req->varIndex = ZVAR_NO_WORD;
   req->numberOfPages = tab->noPages;
 
   NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
-  Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
+  Uint32 section[1 + NDB_ARRAY_SIZE(tab->pageRef)];
+  // .listOfMemPages.fileOffset
+  section[0] = 0;
   for (Uint32 i = 0; i < tab->noPages; i++)
   {
-    // .listOfPair[i].varIndex
-    section[(2 * i) + 0] = tab->pageRef[i];
-    // .listOfPair[i].fileOffset
-    section[(2 * i) + 1] = i;
+    // .listOfMemPages.varIndex[i]
+    section[1 + i] = tab->pageRef[i];
   }
   LinearSectionPtr ptr[3];
   ptr[0].p = section;
-  ptr[0].sz = 2 * tab->noPages;
+  ptr[0].sz = 1 + tab->noPages;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 6, JBA, ptr, 1);
 }//Dbdih::writeTabfile()
 

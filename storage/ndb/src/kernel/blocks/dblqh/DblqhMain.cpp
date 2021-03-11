@@ -26320,12 +26320,12 @@ void Dblqh::writeSinglePage(Signal* signal,
   req->userReference = logPartPtrP->myRef;
   req->userPointer = lfoPtr.i;
   req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
   req->setSyncFlag(req->operationFlag, sync);
   req->varIndex = logPartPtrP->ptrI;
   req->numberOfPages = 1;                     /* ONE PAGE WRITTEN */
-  req->data.listOfPair[0].varIndex = logPagePtr.i;
-  req->data.listOfPair[0].fileOffset = pageNo;
+  req->data.arrayOfPages.varIndex = logPagePtr.i;
+  req->data.arrayOfPages.fileOffset = pageNo;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
   if (logFilePtr.p->fileRef == RNIL)
@@ -33410,11 +33410,11 @@ void Dblqh::readSinglePage(Signal* signal,
   req->userReference = cownref;
   req->userPointer = lfoPtr.i;
   req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
   req->varIndex = logPartPtrP->ptrI;
   req->numberOfPages = 1;
-  req->data.listOfPair[0].varIndex = logPagePtr.i;
-  req->data.listOfPair[0].fileOffset = pageNo;
+  req->data.arrayOfPages.varIndex = logPagePtr.i;
+  req->data.arrayOfPages.fileOffset = pageNo;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 
   if (DEBUG_REDO_REC)
@@ -34079,12 +34079,12 @@ void Dblqh::writeDirty(Signal* signal,
   req->userReference = logPartPtrP->myRef;
   req->userPointer = lfoPtr.i;
   req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
   req->setSyncFlag(req->operationFlag, 1);
   req->varIndex = logPartPtrP->ptrI;
   req->numberOfPages = 1;
-  req->data.listOfPair[0].varIndex = logPagePtr.i;
-  req->data.listOfPair[0].fileOffset = logPartPtrP->prevFilepage;
+  req->data.arrayOfPages.varIndex = logPagePtr.i;
+  req->data.arrayOfPages.fileOffset = logPartPtrP->prevFilepage;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 
   ndbrequire(logFilePtr.p->fileRef != RNIL);

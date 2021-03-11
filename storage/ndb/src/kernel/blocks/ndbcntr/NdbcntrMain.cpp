@@ -6128,11 +6128,11 @@ Ndbcntr::read_local_sysfile(Signal *signal)
   req->userReference = reference();
   req->userPointer = 0;
   req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
   req->numberOfPages = 1;
-  req->data.listOfPair[0].varIndex = 0;
-  req->data.listOfPair[0].fileOffset = 0;
+  req->data.arrayOfPages.varIndex = 0;
+  req->data.arrayOfPages.fileOffset = 0;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal, 8, JBA);
 }
 
@@ -6144,11 +6144,11 @@ Ndbcntr::write_local_sysfile(Signal *signal)
   req->userReference = reference();
   req->userPointer = 0;
   req->operationFlag = 0;
-  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatListOfPairs);
+  req->setFormatFlag(req->operationFlag, FsReadWriteReq::fsFormatArrayOfPages);
   req->varIndex = ZVAR_LOCAL_SYSFILE_BAT_INDEX;
   req->numberOfPages = 1;
-  req->data.listOfPair[0].varIndex = 0;
-  req->data.listOfPair[0].fileOffset = 0;
+  req->data.arrayOfPages.varIndex = 0;
+  req->data.arrayOfPages.fileOffset = 0;
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal, 8, JBA);
 }
 
