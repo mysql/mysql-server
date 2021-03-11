@@ -31,7 +31,7 @@ class THD;
 class Temp_table_param;
 class Window;
 
-/**
+/*
   WindowingIterator is similar to AggregateIterator, but deals with windowed
   aggregates (i.e., OVER expressions). It deals specifically with aggregates
   that don't need to buffer rows.
