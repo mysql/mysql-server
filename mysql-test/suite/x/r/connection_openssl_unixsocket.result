@@ -38,7 +38,7 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 #
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user1_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 1]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 1]
@@ -267,7 +267,7 @@ ok
 # III.3
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 5]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 5]
@@ -288,7 +288,7 @@ ok
 # III.5
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 7]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 7]
@@ -310,7 +310,7 @@ ok
 # IV.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user3_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 8]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 8]
@@ -344,7 +344,7 @@ ok
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 14]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 14]
@@ -363,7 +363,7 @@ ok
 # VI.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 15]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 15]
@@ -374,7 +374,7 @@ ok
 # VI.2
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 16]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 16]
@@ -385,7 +385,7 @@ ok
 # VI.3
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 17]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 17]
@@ -406,7 +406,7 @@ ok
 # VII.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user6_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 18]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 18]
@@ -437,7 +437,7 @@ ok
 # VIII.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user7_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 21]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 21]
@@ -475,9 +475,8 @@ Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 # IX.2
-RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
+RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
 Mysqlx_ssl_ctx_verify_depth	-1
 Mysqlx_ssl_ctx_verify_mode	5
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
@@ -485,6 +484,8 @@ Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	-1
 Mysqlx_ssl_verify_mode	5
 0 rows affected
+Verify [Status variable "Mysqlx_ssl_cipher_list" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_cipher_list" needs to have a value of AES256-SHA]
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -512,7 +513,7 @@ ok
 # X.2
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 26]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 26]
@@ -572,7 +573,7 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 #
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user1_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 1]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 1]
@@ -801,7 +802,7 @@ ok
 # III.3
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 5]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 5]
@@ -822,7 +823,7 @@ ok
 # III.5
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 7]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 7]
@@ -844,7 +845,7 @@ ok
 # IV.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user3_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 8]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 8]
@@ -878,7 +879,7 @@ ok
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 14]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 14]
@@ -897,7 +898,7 @@ ok
 # VI.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 15]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 15]
@@ -908,7 +909,7 @@ ok
 # VI.2
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 16]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 16]
@@ -919,7 +920,7 @@ ok
 # VI.3
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 17]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 17]
@@ -940,7 +941,7 @@ ok
 # VII.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user6_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 18]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 18]
@@ -971,7 +972,7 @@ ok
 # VIII.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user7_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 21]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 21]
@@ -1009,9 +1010,8 @@ Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 # IX.2
-RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
+RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
 Mysqlx_ssl_ctx_verify_depth	-1
 Mysqlx_ssl_ctx_verify_mode	5
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
@@ -1019,6 +1019,8 @@ Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	-1
 Mysqlx_ssl_verify_mode	5
 0 rows affected
+Verify [Status variable "Mysqlx_ssl_cipher_list" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_cipher_list" needs to have a value of AES256-SHA]
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -1046,7 +1048,7 @@ ok
 # X.2
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 26]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 26]
@@ -1106,7 +1108,7 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 #
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user1_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 1]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 1]
@@ -1335,7 +1337,7 @@ ok
 # III.3
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 5]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 5]
@@ -1356,7 +1358,7 @@ ok
 # III.5
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 7]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 7]
@@ -1378,7 +1380,7 @@ ok
 # IV.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user3_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 8]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 8]
@@ -1412,7 +1414,7 @@ ok
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 14]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 14]
@@ -1431,7 +1433,7 @@ ok
 # VI.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 15]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 15]
@@ -1442,7 +1444,7 @@ ok
 # VI.2
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 16]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 16]
@@ -1453,7 +1455,7 @@ ok
 # VI.3
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 17]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 17]
@@ -1474,7 +1476,7 @@ ok
 # VII.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user6_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 18]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 18]
@@ -1505,7 +1507,7 @@ ok
 # VIII.1
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user7_mysqlx@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 21]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 21]
@@ -1543,9 +1545,8 @@ Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 # IX.2
-RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
+RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
 Mysqlx_ssl_ctx_verify_depth	-1
 Mysqlx_ssl_ctx_verify_mode	5
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
@@ -1553,6 +1554,8 @@ Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	-1
 Mysqlx_ssl_verify_mode	5
 0 rows affected
+Verify [Status variable "Mysqlx_ssl_cipher_list" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_cipher_list" needs to have a value of AES256-SHA]
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -1580,7 +1583,7 @@ ok
 # X.2
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
 Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
-Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1.2]
 Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
 Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 26]
 Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 26]
