@@ -745,10 +745,6 @@ static bool buf_flush_ready_for_flush_gen(buf_page_t *bpage,
 
   ut_ad(flush_type < BUF_FLUSH_N_TYPES);
 
-  if (bpage->was_stale()) {
-    return true;
-  }
-
   if (!bpage->is_dirty() ||
       (atomic ? bpage->get_io_fix() != BUF_IO_NONE : bpage->was_io_fixed())) {
     return false;
