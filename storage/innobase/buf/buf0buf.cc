@@ -3503,7 +3503,7 @@ dberr_t Buf_fetch_normal::get(buf_block_t *&block) noexcept {
       if (block->page.was_stale()) {
         if (!buf_page_free_stale(m_buf_pool, &block->page, m_hash_lock)) {
           /* The page is during IO and can't be released. We wait some to not go
-           into loop that would consume CPU. This is not something that he will
+           into loop that would consume CPU. This is not something that will be
            hit frequently. */
           std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
@@ -3554,7 +3554,7 @@ dberr_t Buf_fetch_other::get(buf_block_t *&block) noexcept {
       if (block->page.was_stale()) {
         if (!buf_page_free_stale(m_buf_pool, &block->page, m_hash_lock)) {
           /* The page is during IO and can't be released. We wait some to not go
-          into loop that would consume CPU. This is not something that he will
+          into loop that would consume CPU. This is not something that will be
           hit frequently. */
           std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
@@ -5332,9 +5332,9 @@ void buf_page_free_stale_during_write(buf_page_t *bpage,
   mutex_exit(&buf_pool->flush_state_mutex);
 
   /* Free the page. This can fail, if some other thread start to free this stale
-  page during page creation - the buf_page_free_stale will buf fix the page
-  to acquire the LRU mutex, and right before that acquisition happens our
-  thread can be during a flush that will end up on this line.*/
+  page during page creation - the buf_page_free_stale will buf fix the page to
+  acquire the LRU mutex, and right before that acquisition happens our thread
+  can be during a flush that will end up on this line.*/
   if (!buf_LRU_free_page(bpage, true)) {
     mutex_exit(block_mutex);
     mutex_exit(&buf_pool->LRU_list_mutex);
@@ -5500,13 +5500,12 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
 
   ut_a(buf_page_in_file(bpage));
 
-  /* We do not need protect io_fix here by mutex to read
-  it because this is the only function where we can change the value
-  from BUF_IO_READ or BUF_IO_WRITE to some other value, and our code
-  ensures that this is the only thread that handles the i/o for this
-  block. There are other methods that reset the IO to NONE, but they must do
-  that before the IO is requested to OS and must be done as a part of cleanup in
-  thread that was trying to make such IO request. */
+  /* We do not need protect io_fix here by mutex to read it because this is the
+  only function where we can change the value from BUF_IO_READ or BUF_IO_WRITE
+  to some other value, and our code ensures that this is the only thread that
+  handles the i/o for this block. There are other methods that reset the IO to
+  NONE, but they must do that before the IO is requested to OS and must be done
+  as a part of cleanup in thread that was trying to make such IO request. */
 
   ut_ad(bpage->current_thread_has_io_responsibility());
   const auto io_type =

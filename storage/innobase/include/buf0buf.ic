@@ -1015,6 +1015,7 @@ unlock_and_exit:
   if (mode == RW_LOCK_S) {
     rw_lock_s_unlock(hash_lock);
   } else {
+    ut_ad(mode == RW_LOCK_X);
     rw_lock_x_unlock(hash_lock);
   }
 exit:
@@ -1056,10 +1057,11 @@ buf_block_t *buf_block_hash_get_locked(buf_pool_t *buf_pool,
       if (lock_mode == RW_LOCK_S) {
         rw_lock_s_unlock(*lock);
       } else {
+        ut_ad(lock_mode == RW_LOCK_X);
         rw_lock_x_unlock(*lock);
       }
+      *lock = nullptr;
     }
-    *lock = nullptr;
     return (nullptr);
   }
 
