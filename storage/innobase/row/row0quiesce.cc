@@ -484,14 +484,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   if (cfg_version >= IB_EXPORT_CFG_VERSION_V6) {
-    /* Write compression info */
+    /* Write compression type info. */
     uint8_t compression_type =
         static_cast<uint8_t>(fil_get_compression(table->space));
     mach_write_to_1(value, compression_type);
 
     if (fwrite(&value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
       ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
-                  strerror(errno), "while writing space_flags.");
+                  strerror(errno), "while writing compression type info.");
 
       return DB_IO_ERROR;
     }
