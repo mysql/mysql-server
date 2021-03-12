@@ -3271,7 +3271,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   return (err);
 }
 
-/** Read tablespace flags from @<tablespace@>.cfg file
+/** Read tablespace flags and compression type info from @<tablespace@>.cfg
+file.
 @param[in]	file	File to read from
 @param[in]	thd	session
 @param[in,out]	cfg	meta data
@@ -3293,10 +3294,10 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   cfg->m_has_sdi = FSP_FLAGS_HAS_SDI(space_flags);
 
   if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V6) {
-    /* Read the tablespace flags */
+    /* Read the compression type info. */
     if (fread(value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
-                  strerror(errno), "while reading meta-data tablespace flags.");
+                  strerror(errno), "while reading compression type info.");
 
       return DB_IO_ERROR;
     }
