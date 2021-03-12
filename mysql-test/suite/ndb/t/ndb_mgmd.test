@@ -19,3 +19,16 @@
 --replace_result $NDB_MGMD_PORT NDB_MGMD_PORT 98 ERROR_CODE 10048 ERROR_CODE 48 ERROR_CODE 125 ERROR_CODE
 --error 1
 --exec $NDB_MGMD_EXE --defaults-group-suffix=.1.1 --defaults-file=$MYSQLTEST_VARDIR/my.cnf --configdir=$MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1 --mycnf --ndb-nodeid=3 2>&1
+
+--echo Bug32553818
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini > $dump_file 2>&1
+--echo # verify that mgmd fails without initial or reload when started with -f option
+--let $assert_text= Enforce using initial or reload with -f option
+--let $assert_select= ERROR: Cannot start management node without --initial or --reload when config-file\(or -f\) option is specified
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--remove_file $dump_file

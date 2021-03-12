@@ -360,6 +360,13 @@ static int mgmd_main(int argc, char** argv)
     mgmd_exit(1);
   }
 
+  if (opts.config_filename && !(opts.initial || opts.reload)) {
+    fprintf(stderr,
+            "ERROR: Cannot start management node without --initial or --reload "
+            "when config-file(or -f) option is specified.\n");
+    mgmd_exit(1);
+  }
+
   /*validation is added to prevent user using
   wrong short option for --config-file.*/
   if (opt_ndb_connectstring)
