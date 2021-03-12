@@ -2733,6 +2733,7 @@ main(int argc, char** argv)
     if (!logIter.readHeader())
     {
       err << "Failed to read snapshot info from log file. Exiting..." << endl;
+      ndb_free_defaults(argv);
       return NdbRestoreStatus::Failed;
     }
     bool snapshotstart = logIter.isSnapshotstartBackup();
@@ -2740,6 +2741,7 @@ main(int argc, char** argv)
       if (!g_consumers[i]->update_apply_status(metaData, snapshotstart))
       {
         err << "Restore: Failed to restore epoch" << endl;
+        ndb_free_defaults(argv);
         return -1;
       }
   }
@@ -2771,13 +2773,19 @@ main(int argc, char** argv)
       for(Uint32 j= 0; j < g_consumers.size(); j++)
       {
         if (!g_consumers[j]->rebuild_indexes(* table))
+        {
+          ndb_free_defaults(argv);
           return -1;
+        }
       }
     }
     for(Uint32 j= 0; j < g_consumers.size(); j++)
     {
       if (!g_consumers[j]->endOfTablesFK())
+      {
+        ndb_free_defaults(argv);
         return -1;
+      }
     }
   }
 
@@ -2797,6 +2805,7 @@ main(int argc, char** argv)
       table_output[i] = NULL;
     }
   }
+  ndb_free_defaults(argv);
   return NdbRestoreStatus::Ok;
 } // main
 

@@ -109,7 +109,10 @@ int main(int argc, char** argv){
 
   if (handle_options(&argc, &argv, my_long_options,
                      ndb_std_get_one_option))
+  {
+    ndb_free_defaults(argv);
     return NdbToolsProgramExitCode::WRONG_ARGS;
+  }
 
   const char* connect_string = argv[0];
   if (connect_string == 0)
@@ -177,8 +180,12 @@ int main(int argc, char** argv){
   }
 
   if (waitClusterStatus(connect_string, wait_status) != 0)
+  {
+    ndb_free_defaults(argv);
     return NdbToolsProgramExitCode::FAILED;
+  }
 
+  ndb_free_defaults(argv);
   return NdbToolsProgramExitCode::OK;
 }
 
