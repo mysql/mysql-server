@@ -3111,6 +3111,7 @@ buf_page_t *buf_page_get_zip(const page_id_t &page_id,
     bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
     if (bpage) {
       ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
+      ut_ad(!bpage->was_stale());
       break;
     }
 
@@ -4516,6 +4517,7 @@ const buf_block_t *buf_page_try_get_func(const page_id_t &page_id,
 
   buf_page_mutex_enter(block);
   rw_lock_s_unlock(hash_lock);
+  ut_ad(!block->page.was_stale());
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
@@ -4623,6 +4625,8 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
   buf_page_init_low(&block->page);
 
   /* Insert into the hash table of file pages */
+
+  ut_ad(!block->page.was_stale());
 
   hash_page = buf_page_hash_get_low(buf_pool, page_id);
 
@@ -4898,30 +4902,52 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
 
   free_block = buf_LRU_get_free_block(buf_pool);
 
-  mutex_enter(&buf_pool->LRU_list_mutex);
+  for (;;) {
+    mutex_enter(&buf_pool->LRU_list_mutex);
 
-  hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
-  rw_lock_x_lock(hash_lock);
+    hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 
-  block = (buf_block_t *)buf_page_hash_get_low(buf_pool, page_id);
+    rw_lock_x_lock(hash_lock);
 
-  if (block && buf_page_in_file(&block->page) &&
-      !buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
+    block = (buf_block_t *)buf_page_hash_get_low(buf_pool, page_id);
+
+    if (block && buf_page_in_file(&block->page) &&
+        !buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
+      if (block->page.was_stale()) {
+        /* We must release page hash latch. The LRU mutex protects the block
+        from being relocated or freed. */
+        rw_lock_x_unlock(hash_lock);
+
+        if (!buf_page_free_stale(buf_pool, &block->page)) {
+          /* The page is during IO and can't be released. We wait some to not go
+          into loop that would consume CPU. This is not something that will be
+          hit frequently. */
+          mutex_exit(&buf_pool->LRU_list_mutex);
+          std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        /* The hash lock was released, we should try again lookup for the page
+        until it's gone - it should disappear eventually when the IO ends. */
+        continue;
+      }
+
 #ifdef UNIV_IBUF_COUNT_DEBUG
-    ut_a(ibuf_count_get(page_id) == 0);
+      ut_a(ibuf_count_get(page_id) == 0);
 #endif /* UNIV_IBUF_COUNT_DEBUG */
 
-    ut_d(block->page.file_page_was_freed = FALSE);
+      ut_d(block->page.file_page_was_freed = FALSE);
 
-    /* Page can be found in buf_pool */
-    mutex_exit(&buf_pool->LRU_list_mutex);
-    rw_lock_x_unlock(hash_lock);
+      ut_ad(!block->page.was_stale());
 
-    buf_block_free(free_block);
+      /* Page can be found in buf_pool */
+      mutex_exit(&buf_pool->LRU_list_mutex);
+      rw_lock_x_unlock(hash_lock);
 
-    return (buf_page_get(page_id, page_size, rw_latch, mtr));
+      buf_block_free(free_block);
+
+      return (buf_page_get(page_id, page_size, rw_latch, mtr));
+    }
+    break;
   }
-
   /* If we get here, the page was not in buf_pool: init it there */
 
   DBUG_PRINT("ib_buf", ("create page " UINT32PF ":" UINT32PF, page_id.space(),
