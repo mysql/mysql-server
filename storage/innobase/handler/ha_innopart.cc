@@ -2030,17 +2030,17 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
   }
 
   /* Parallel read is not currently supported for sampling. */
-  size_t n_threads = Parallel_reader::available_threads(1);
+  size_t max_threads = Parallel_reader::available_threads(1);
 
-  if (n_threads == 0) {
+  if (max_threads == 0) {
     return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
   Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
-      n_threads, sampling_seed, sampling_percentage, sampling_method));
+      max_threads, sampling_seed, sampling_percentage, sampling_method));
 
   if (sampler == nullptr) {
-    Parallel_reader::release_threads(n_threads);
+    Parallel_reader::release_threads(max_threads);
     return HA_ERR_OUT_OF_MEM;
   }
 

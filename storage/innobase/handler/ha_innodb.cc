@@ -10359,17 +10359,17 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
   }
 
   /* Parallel read is not currently supported for sampling. */
-  size_t n_threads = Parallel_reader::available_threads(1);
+  size_t max_threads = Parallel_reader::available_threads(1);
 
-  if (n_threads == 0) {
+  if (max_threads == 0) {
     return HA_ERR_SAMPLING_INIT_FAILED;
   }
 
   Histogram_sampler *sampler = UT_NEW_NOKEY(Histogram_sampler(
-      n_threads, sampling_seed, sampling_percentage, sampling_method));
+      max_threads, sampling_seed, sampling_percentage, sampling_method));
 
   if (sampler == nullptr) {
-    Parallel_reader::release_threads(n_threads);
+    Parallel_reader::release_threads(max_threads);
     return HA_ERR_OUT_OF_MEM;
   }
 
@@ -16165,10 +16165,11 @@ int ha_innobase::records(ha_rows *num_rows) /*!< out: number of rows */
   m_prebuilt->read_just_key = 1;
   build_template(false);
 
-  size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+  size_t max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
   /* Count the records in the clustered index */
-  ret = row_scan_index_for_mysql(m_prebuilt, index, n_threads, false, &n_rows);
+  ret =
+      row_scan_index_for_mysql(m_prebuilt, index, max_threads, false, &n_rows);
   reset_template();
   switch (ret) {
     case DB_SUCCESS:
@@ -17768,14 +17769,14 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     m_prebuilt->select_lock_type = LOCK_NONE;
 
-    size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
+    size_t max_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
     /* Scan this index. */
     if (dict_index_is_spatial(index)) {
       ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
     } else {
-      ret =
-          row_scan_index_for_mysql(m_prebuilt, index, n_threads, true, &n_rows);
+      ret = row_scan_index_for_mysql(m_prebuilt, index, max_threads, true,
+                                     &n_rows);
     }
 
     DBUG_EXECUTE_IF(

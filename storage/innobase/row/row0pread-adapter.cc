@@ -37,7 +37,7 @@ Created 2018-02-28 by Darshan M N */
 
 Parallel_reader_adapter::Parallel_reader_adapter(size_t max_threads,
                                                  ulint rowlen)
-    : m_parallel_reader(max_threads) {
+    : m_parallel_reader(max_threads, max_threads) {
   m_batch_size = ADAPTER_SEND_BUFFER_SIZE / rowlen;
 }
 
@@ -96,7 +96,9 @@ dberr_t Parallel_reader_adapter::run(void **thread_ctxs, Init_fn init_fn,
   m_load_fn = load_fn;
   m_thread_ctxs = thread_ctxs;
 
-  return m_parallel_reader.run(m_parallel_reader.max_threads());
+  m_parallel_reader.set_n_threads(m_parallel_reader.max_threads());
+
+  return m_parallel_reader.run();
 }
 
 dberr_t Parallel_reader_adapter::init(
