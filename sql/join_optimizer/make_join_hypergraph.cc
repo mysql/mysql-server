@@ -1626,7 +1626,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     Predicate pred;
     pred.condition = condition;
     pred.total_eligibility_set =
-        condition->used_tables() & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT);
+        GetNodeMapFromTableMap(condition->used_tables() & ~PSEUDO_TABLE_BITS,
+                               graph->table_num_to_node_num) |
+        (condition->used_tables() & RAND_TABLE_BIT);
     assert(IsSingleBitSet(pred.total_eligibility_set));
     pred.selectivity = EstimateSelectivity(thd, condition, trace);
     graph->predicates.push_back(pred);

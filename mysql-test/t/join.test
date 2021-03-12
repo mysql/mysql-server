@@ -1553,3 +1553,18 @@ FROM
 SET optimizer_switch=DEFAULT;
 
 DROP TABLE t1, t2, t3, t4;
+
+--echo #
+--echo # Bug #32623894: RESULT MISMATCH SEEN WITH HYPERGRAPH OPTIMIZER
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+INSERT INTO t1 VALUES (0), (0), (0), (1), (1), (0), (1), (0);
+ANALYZE TABLE t1;
+
+--sorted_result
+SELECT * FROM
+  t1, t1 AS t2, t1 AS t3
+  WHERE ((t1.a = 5 AND t3.a < t1.a) OR t1.a > 0) AND t3.a <= t2.a;
+
+DROP TABLE t1;
