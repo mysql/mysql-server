@@ -59,9 +59,13 @@ int main(int argc, char** argv){
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
+  }
   if (argc < 1) {
     usage();
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
@@ -70,17 +74,20 @@ int main(int argc, char** argv){
   if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   if (con.wait_until_ready(30,3) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
   Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
     NDB_ERR(MyNdb.getNdbError());
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   
@@ -96,9 +103,12 @@ int main(int argc, char** argv){
     }
   }
   
-  if(res != 0){
+  if (res != 0)
+  {
+    ndb_free_defaults(argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
   
+  ndb_free_defaults(argv);
   return NDBT_ProgramExit(NDBT_OK);
 }

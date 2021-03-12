@@ -69,10 +69,14 @@ main(int argc, char** argv)
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
     return 1;
+  }
 
   if (argv[0] == 0)
   {
+    ndb_free_defaults(argv);
     return 0;
   }
 
@@ -81,12 +85,14 @@ main(int argc, char** argv)
   if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
+    ndb_free_defaults(argv);
     return 1;
   }
 
   if (con.wait_until_ready(30,0) < 0)
   {
     ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+    ndb_free_defaults(argv);
     return 1;
   }
 
@@ -94,6 +100,7 @@ main(int argc, char** argv)
   if (!info.init())
   {
     ndbout << "Failed to init ndbinfo!" << endl;
+    ndb_free_defaults(argv);
     return 1;
   }
 
@@ -133,6 +140,7 @@ main(int argc, char** argv)
       if (pScan->readTuples() != 0)
       {
         ndbout << "scanOp->readTuples failed" << endl;
+        ndb_free_defaults(argv);
         return 1;
       }
 
@@ -143,6 +151,7 @@ main(int argc, char** argv)
         if (pRec == 0)
         {
           ndbout << "Failed to getValue(" << i << ")" << endl;
+          ndb_free_defaults(argv);
           return 1;
         }
         recAttrs.push_back(pRec);
@@ -151,6 +160,7 @@ main(int argc, char** argv)
       if(pScan->execute() != 0)
       {
         ndbout << "scanOp->execute failed" << endl;
+        ndb_free_defaults(argv);
         return 1;
       }
 
@@ -190,6 +200,7 @@ main(int argc, char** argv)
       NdbSleep_SecSleep(delay);
     }
   }
+  ndb_free_defaults(argv);
   return 0;
 }
 

@@ -341,20 +341,26 @@ int main(int argc, char** argv){
   opt_debug= "d:t:O,/tmp/ndb_show_tables.trace";
 #endif
   bool using_default_database = false;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-			       ndb_std_get_one_option))) {
+  if ((ho_error = handle_options(&argc, &argv, my_long_options,
+                                 ndb_std_get_one_option)))
+  {
+    ndb_free_defaults(argv);
     return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
-  if(_dbname && argc==0) {
+  if(_dbname && argc == 0)
+  {
     ndbout << "-d option given without table name." << endl;
+    ndb_free_defaults(argv);
     return NdbToolsProgramExitCode::WRONG_ARGS;
   }
   if (argc>0)
       _tabname = argv[0];
-  if (argc > 1) {
+  if (argc > 1)
+  {
     ndbout << "Wrong Argument" << endl;
     ndbout << "Please use the option --help for usage." << endl;
+    ndb_free_defaults(argv);
     return NdbToolsProgramExitCode::WRONG_ARGS;
   }
 
@@ -393,6 +399,7 @@ int main(int argc, char** argv){
         ndbout << "Table " << _tabname << ": not found - "
                << dic->getNdbError() << endl;
       }
+      ndb_free_defaults(argv);
       return NdbToolsProgramExitCode::FAILED;
     }
   }
@@ -402,6 +409,7 @@ int main(int argc, char** argv){
   delete ndb;
   delete ndb_cluster_connection;
 
+  ndb_free_defaults(argv);
   return NdbToolsProgramExitCode::OK;
 }
 

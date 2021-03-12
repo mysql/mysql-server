@@ -891,6 +891,8 @@ int main(int argc, char** argv){
     print_conditional_sql(sql);
 
   }
+  delete[] tables;
+  tables = NULL;
 
   delete [] tables;
 
