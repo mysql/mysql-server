@@ -1789,12 +1789,14 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     }
 #endif
   }
+#ifdef ERROR_INSERT
   if (signal->theData[0] == DumpStateOrd::NdbfsErrorInsert)
   {
     UintR error_insert = signal->theData[1];
     UintR file_ptr = signal->theData[2];
     SET_ERROR_INSERT_VALUE2(error_insert, file_ptr);
   }
+#endif
   if(signal->theData[0] == 405)
   {
     for (unsigned i = 0; i < theFiles.size(); i++)
