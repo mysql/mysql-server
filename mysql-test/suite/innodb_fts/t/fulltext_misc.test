@@ -256,3 +256,24 @@ EXECUTE prep_stmt;
 
 DEALLOCATE PREPARE prep_stmt;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#32990422: WL#14422: RESULT MISMATCH WITH FTS FUNCTION
+--echo #
+
+CREATE TABLE t (i INTEGER, x VARCHAR(10), FULLTEXT (x));
+INSERT INTO t VALUES (0, 'a'), (1, 'b'), (0, 'c');
+--sorted_result
+SELECT i = 0 AS a, MATCH(x) AGAINST('d') AS b FROM t GROUP BY a, b;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32996515: WL#14422: RESULT MISMATCH WITH DISTINCT AND GROUP BY ON FTS FUNCTION
+--echo #
+
+CREATE TABLE t (a INTEGER, b VARCHAR(10), FULLTEXT(b));
+INSERT INTO t VALUES (1, 'a'), (2, 'b');
+--sorted_result
+SELECT DISTINCT MATCH (b) AGAINST ('x'), a
+FROM t GROUP BY MATCH (b) AGAINST ('x'), a;
+DROP TABLE t;

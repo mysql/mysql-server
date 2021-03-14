@@ -26,12 +26,14 @@
 #include <stdio.h>
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <initializer_list>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "mem_root_deque.h"
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bit.h"
@@ -407,6 +409,11 @@ secondary_engine_modify_access_path_cost_t SecondaryEngineCostHook(
   } else {
     return secondary_engine->secondary_engine_modify_access_path_cost;
   }
+}
+
+bool IsFullTextFunction(const Item *item) {
+  return item->type() == Item::FUNC_ITEM &&
+         down_cast<const Item_func *>(item)->functype() == Item_func::FT_FUNC;
 }
 
 /**
@@ -2258,11 +2265,6 @@ Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
 }
 
 bool CheckSupportedQuery(THD *thd, JOIN *join) {
-  if (join->query_block->has_ft_funcs() && join->query_block->is_grouped()) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
-             "fulltext search in grouped queries");
-    return true;
-  }
   if (thd->lex->m_sql_cmd->using_secondary_storage_engine() &&
       !Overlaps(EngineFlags(thd),
                 MakeSecondaryEngineFlags(
@@ -2477,6 +2479,180 @@ bool IsMaterializationPath(const AccessPath *path) {
     default:
       return false;
   }
+}
+
+/**
+  Goes through an item tree and collects all the sub-items that should be
+  materialized if full-text search is used in combination with sort-based
+  aggregation.
+
+  This means all expressions in the SELECT list, GROUP BY clause, ORDER BY
+  clause and HAVING clause that are possible to evaluate before aggregation.
+
+  The reason why this materialization is needed, is that
+  Item_func_match::val_real() can only be evaluated if the underlying scan is
+  positioned on the row for which the full-text search score is to be retrieved.
+  In the sort-based aggregation performed by AggregateIterator, the rows are
+  returned with the underlying scan positioned on some other row (typically one
+  in the next group). Even though AggregateIterator restores the contents of the
+  record buffers to what they had when the scan was positioned on that row, it
+  is not enough; the handler needs to be repositioned to make Item_func_match
+  give the correct result. To avoid this, we materialize the results of the
+  MATCH functions before they are seen by AggregateIterator.
+
+  The most important thing to materialize is the MATCH function, but
+  AggregateIterator is not currently prepared for reading some data from a
+  materialized source and other data directly from the base tables, so we have
+  to materialize all expressions that are to be used as input to
+  AggregateIterator.
+
+  The old optimizer does not have special code for materializing MATCH
+  functions. In most cases it does not need it, because it usually performs
+  aggregation by materializing all expressions (not only MATCH) in the SELECT
+  list, the GROUP BY clause and the ORDER BY clause anyway. It does not,
+  however, materialize the non-aggregated expressions in the HAVING clause, so
+  calls to the MATCH function in the HAVING clause may give wrong results with
+  the old optimizer.
+
+  The old optimizer uses the same sort-based aggregation as the hypergraph
+  optimizer for ROLLUP. The lack of materialization of MATCH expressions leads
+  to wrong results also when MATCH is used in the SELECT list or the ORDER BY
+  clause of a ROLLUP query.
+
+  The materialization performed by this function makes the hypergraph optimizer
+  produce correct results for the above mentioned cases where the old optimizer
+  produces wrong results.
+ */
+void CollectItemsToMaterializeForFullTextAggregation(
+    Item *root, mem_root_deque<Item *> *items) {
+  // Walk through the item and materialize those sub-expressions that don't
+  // depend on aggregation. We use CompileItem instead of WalkItem, because the
+  // former allows skipping sub-trees. This is useful, so that we don't need to
+  // materialize every sub-expression if a non-leaf item can be materialized.
+  // We don't use the transformation capability of CompileItem, hence the
+  // transformer argument is a simple identity function.
+  CompileItem(
+      root,
+      [items](Item *item) {
+        // First, unconditionally materialize any call to the MATCH function.
+        // This would usually be done anyways by the "else" branch in the if
+        // statement below. But not if the argument of the MATCH function is a
+        // rollup group item. When the argument is a rollup item, we can either
+        // materialize the inside of the rollup item and get right result for
+        // the rollup group (but not the other groups), or materialize the MATCH
+        // function and get the right result for the non-rollup groups (but not
+        // for the rollup group). We cannot get both right currently. The old
+        // optimizer has the same problem, see bug#32996762.
+        if (item->type() == Item::FUNC_ITEM) {
+          Item_func::Functype type = down_cast<Item_func *>(item)->functype();
+          if (type == Item_func::FT_FUNC || type == Item_func::MATCH_FUNC) {
+            items->push_back(item);
+            return false;
+          }
+        }
+
+        if (item->has_aggregation()) {
+          // Since we materialize before aggregation, we cannot materialize
+          // items that depend on an aggregated value. But we can look inside
+          // the item and materialize those parts of the tree that don't depend
+          // on aggregation.
+          return true;
+        } else if (item->has_rollup_expr()) {
+          // Similarly, we cannot materialize items depending on rollup items,
+          // but we can possibly materialize items inside the rollup item, so
+          // keep looking.
+          return true;
+        } else if (item->type() == Item::REF_ITEM) {
+          // Skip past Item_ref and look at its "real" item.
+          return true;
+        } else if (item->const_for_execution()) {
+          // Constant items don't need materialization (and often they are
+          // materialized/cached in an Item_cache anyways), so we skip such
+          // items and also skip their sub-items.
+          return false;
+        } else {
+          // Otherwise, we have an expression that does not depend on
+          // aggregation to have happened, so we materialize the full expression
+          // and don't look further inside of it.
+          items->push_back(item);
+          return false;
+        }
+      },
+      [](Item *item) { return item; });
+}
+
+/**
+  Creates a temporary table which materializes the results of all full-text
+  functions that need to be accessible after aggregation. This is needed for
+  sort-based aggregation on full-text searched tables if the full-text search
+  score is accessed in the SELECT list, GROUP BY clause, ORDER BY clause or
+  HAVING clause. See #CollectItemsToMaterializeForFullTextAggregation() for more
+  details.
+
+  @param thd the session object
+  @param query_block the query block
+  @param[out] temp_table the created temporary table,
+    or nullptr if there are no MATCH functions that need materialization
+  @param[out] temp_table_param the parameters of the created temporary table
+
+  @returns false on success, true if an error was raised
+ */
+bool CreateTemporaryTableForFullTextFunctions(
+    THD *thd, Query_block *query_block, TABLE **temp_table,
+    Temp_table_param **temp_table_param) {
+  JOIN *join = query_block->join;
+
+  mem_root_deque<Item *> items_to_materialize(thd->mem_root);
+
+  // Materialize all non-aggregate expressions in the SELECT list and
+  // GROUP BY clause.
+  for (Item *item : *join->fields) {
+    CollectItemsToMaterializeForFullTextAggregation(item,
+                                                    &items_to_materialize);
+  }
+
+  // Materialize all non-aggregate expressions in the HAVING clause.
+  if (join->having_cond != nullptr) {
+    CollectItemsToMaterializeForFullTextAggregation(join->having_cond,
+                                                    &items_to_materialize);
+  }
+
+  // Materialize all non-aggregate expressions in the ORDER BY clause.
+  for (ORDER *order = query_block->order_list.first; order != nullptr;
+       order = order->next) {
+    CollectItemsToMaterializeForFullTextAggregation(*order->item,
+                                                    &items_to_materialize);
+  }
+
+  // If we didn't find any full-text functions that needed materialization, we
+  // don't need a temporary table.
+  if (std::none_of(items_to_materialize.begin(), items_to_materialize.end(),
+                   [](Item *item) {
+                     return WalkItem(item, enum_walk::PREFIX,
+                                     std::function(IsFullTextFunction));
+                   })) {
+    *temp_table = nullptr;
+    return false;
+  }
+
+  *temp_table_param = new (thd->mem_root) Temp_table_param;
+  if (*temp_table_param == nullptr) return true;
+  count_field_types(query_block, *temp_table_param, items_to_materialize,
+                    /*reset_with_sum_func=*/false, /*save_sum_fields=*/false);
+
+  *temp_table =
+      create_tmp_table(thd, *temp_table_param, items_to_materialize,
+                       /*group=*/nullptr, /*distinct=*/false,
+                       /*save_sum_fields=*/false, query_block->active_options(),
+                       /*rows_limit=*/HA_POS_ERROR, "<temporary>");
+  if (*temp_table == nullptr) return true;
+
+  // We made a new table, so make sure it gets properly cleaned up
+  // at the end of execution.
+  join->temp_tables.push_back(
+      JOIN::TemporaryTableToCleanup{*temp_table, *temp_table_param});
+
+  return false;
 }
 
 // Estimate the width of each row produced by “query_block”,
@@ -3565,7 +3741,7 @@ static void BuildInterestingOrders(
 // If the AccessPath is a materialization (MATERIALIZE or STREAM)
 // within the same query block, returns its temporary table parameters.
 // If not, return nullptr.
-Temp_table_param *GetMaterialization(AccessPath *path) {
+static Temp_table_param *GetMaterialization(AccessPath *path) {
   if (path->type == AccessPath::STREAM) {
     if (path->stream().table->pos_in_table_list != nullptr) {
       // Materializes a different query block.
@@ -3606,6 +3782,10 @@ Temp_table_param *GetMaterialization(AccessPath *path) {
     - Referenced fields for INSERT ... ON DUPLICATE KEY UPDATE (IODKU);
       also updated as we go.
     - Sort keys (e.g. for ORDER BY).
+    - The HAVING clause, if the materialize node is below an aggregate node.
+      (If the materialization is above aggregation, the HAVING clause has
+      already accomplished its mission of filtering out the uninteresting
+      results, and will not be evaluated anymore.)
 
   Surprisingly enough, we also need to update the materialization parameters
   themselves. Say that we first have a materialization that copies
@@ -3626,8 +3806,8 @@ Temp_table_param *GetMaterialization(AccessPath *path) {
       present its own challenges.
     - Join conditions.
  */
-void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
-                               AccessPath *root_path) {
+static void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+                                      AccessPath *root_path) {
   Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
@@ -3676,6 +3856,27 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
           join->filesorts_to_cleanup.push_back(path->sort().filesort);
           if (!path->sort().filesort->using_addon_fields()) {
             FindTablesToGetRowidFor(path);
+          }
+        } else if (path->type == AccessPath::FILTER) {
+          // Update the HAVING clause. (It also runs on filters for WHERE
+          // clauses, but they typically don't have references to any
+          // materialized expressions.)
+          for (const Func_ptr_array *earlier_replacement :
+               applied_replacements) {
+            path->filter().condition =
+                FindReplacementOrReplaceMaterializedItems(
+                    thd, path->filter().condition, *earlier_replacement,
+                    /*need_exact_match=*/true);
+          }
+        } else if (path->type == AccessPath::REMOVE_DUPLICATES) {
+          Item **group_items = path->remove_duplicates().group_items;
+          for (int i = 0; i < path->remove_duplicates().group_items_size; ++i) {
+            for (const Func_ptr_array *earlier_replacement :
+                 applied_replacements) {
+              group_items[i] = FindReplacementOrReplaceMaterializedItems(
+                  thd, group_items[i], *earlier_replacement,
+                  /*need_exact_match=*/true);
+            }
           }
         }
         return false;
@@ -3924,6 +4125,25 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       *trace += "Applying aggregation for GROUP BY\n";
     }
 
+    // Create a temporary table for materializing the results of full-text
+    // functions, if needed.
+    //
+    // The full-text MATCH function requires the handler to be positioned on the
+    // row that holds the value to perform the full-text search on. It is not
+    // enough to have all the required column values in the record buffer. Since
+    // sort-based aggregation has moved off the original row when a group is
+    // returned, we add a temporary table which materializes the results of any
+    // calls to MATCH that will be needed after aggregation, and stream the rows
+    // through this table before aggregation.
+    TABLE *fulltext_table = nullptr;
+    Temp_table_param *fulltext_param = nullptr;
+    if (query_block->has_ft_funcs()) {
+      if (CreateTemporaryTableForFullTextFunctions(
+              thd, query_block, &fulltext_table, &fulltext_param)) {
+        return nullptr;
+      }
+    }
+
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       const bool rollup = (join->rollup_state != JOIN::RollupState::NONE);
@@ -3931,10 +4151,21 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           query_block->is_explicitly_grouped() && !aggregation_is_unordered &&
           !orderings.DoesFollowOrder(root_path->ordering_state,
                                      group_by_ordering_idx);
+
       if (!group_needs_sort) {
+        AccessPath *child_path = root_path;
+        if (fulltext_table != nullptr) {
+          // Add a streaming path for materializing results from full-text
+          // functions before aggregation.
+          child_path =
+              NewStreamingAccessPath(thd, root_path, join, fulltext_param,
+                                     fulltext_table, /*ref_slice=*/-1);
+          CopyBasicProperties(*root_path, child_path);
+        }
+
         // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
         AccessPath *aggregate_path =
-            NewAggregateAccessPath(thd, root_path, rollup);
+            NewAggregateAccessPath(thd, child_path, rollup);
         EstimateAggregateCost(aggregate_path);
 
         receiver.ProposeAccessPath(aggregate_path, &new_root_candidates,
@@ -3971,9 +4202,19 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         assert(!aggregation_is_unordered);
         sort_path->ordering_state = ordering_state;
 
+        AccessPath *child_path = sort_path;
+        if (fulltext_table != nullptr) {
+          // Add a streaming path for materializing results from full-text
+          // functions before aggregation.
+          child_path =
+              NewStreamingAccessPath(thd, sort_path, join, fulltext_param,
+                                     fulltext_table, /*ref_slice=*/-1);
+          CopyBasicProperties(*sort_path, child_path);
+        }
+
         // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
         AccessPath *aggregate_path =
-            NewAggregateAccessPath(thd, sort_path, rollup);
+            NewAggregateAccessPath(thd, child_path, rollup);
         EstimateAggregateCost(aggregate_path);
 
         char description[256];

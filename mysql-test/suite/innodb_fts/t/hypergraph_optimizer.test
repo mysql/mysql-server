@@ -4,6 +4,11 @@
 # particular interest for the hypergraph optimizer, which are not
 # covered by the other tests.
 
+# Some of the queries give different (wrong) results when running with
+# the old optimizer, so this test only runs with the hypergraph
+# optimizer enabled.
+--source include/have_hypergraph.inc
+
 CREATE TABLE t(x VARCHAR(100), FULLTEXT KEY (x));
 INSERT INTO t VALUES ('abc'), ('xyz'), (NULL), ('abc abc'), ('abc xyz');
 ANALYZE TABLE t;
@@ -19,5 +24,40 @@ SELECT a.x, MATCH (a.x) AGAINST ('abc') AS score_a,
 # Compare MATCH to NULL.
 SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t
   WHERE MATCH (x) AGAINST ('abc') > NULL;
+
+# Some extra coverage for aggregated queries which use FTS. The
+# hypergraph optimizer uses a different strategy than the old
+# optimizer in most cases (sorting before aggregation instead of
+# materialization).
+--sorted_result
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t GROUP BY x;
+--sorted_result
+SELECT x, MATCH (x) AGAINST ('abc') AS score FROM t GROUP BY x, score;
+--sorted_result
+SELECT MATCH (x) AGAINST ('abc') AS score FROM t GROUP BY score;
+--sorted_result
+SELECT x, MATCH (x) AGAINST ('abc')+1 AS score FROM t GROUP BY x;
+--sorted_result
+SELECT x, CONCAT(MATCH (x) AGAINST ('abc'), MAX(x)) AS score FROM t GROUP BY x;
+--sorted_result
+SELECT x FROM t GROUP BY x HAVING MATCH (x) AGAINST ('abc');
+--sorted_result
+SELECT x FROM t GROUP BY x HAVING MATCH (x) AGAINST ('abc') > 0;
+--sorted_result
+SELECT MATCH (x) AGAINST ('abc') AS score FROM t
+  GROUP BY score WITH ROLLUP HAVING score > 0;
+--sorted_result
+SELECT MATCH (x) AGAINST ('abc') AS score FROM t
+  GROUP BY score WITH ROLLUP HAVING score > 0 OR score IS NULL;
+SELECT MATCH (x) AGAINST ('abc') AS score, x FROM t
+  GROUP BY x WITH ROLLUP ORDER BY score, x;
+# Check that ANY_VALUE picks a value from the correct group. The WHERE
+# clause picks rows with distinct scores, so that there is only one
+# row per group, in order to make the result deterministic.
+SELECT ANY_VALUE(x), MATCH (x) AGAINST ('abc') AS score
+  FROM t
+  WHERE x IN ('abc', 'abc abc', 'xyz')
+  GROUP BY score
+  ORDER BY score;
 
 DROP TABLE t;

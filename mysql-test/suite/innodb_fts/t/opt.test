@@ -263,6 +263,7 @@ FLUSH STATUS;
 
 --echo Optimization does not apply for GROUP BY
 --source include/turn_off_only_full_group_by.inc
+--sorted_result
 SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 WHERE MATCH(title, text) AGAINST ('database')
@@ -297,8 +298,8 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo If count optimization applies, EXPLAIN shows
---echo "Select tables optimized away."
-eval EXPLAIN $query;
+--echo "Rows fetched before execution."
+eval EXPLAIN FORMAT=TREE $query;
 FLUSH STATUS;
 eval $query;
 --echo Verify that there was no table access
@@ -310,7 +311,7 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo Optimization applies also to COUNT(expr) as long as expr is not nullable
-eval EXPLAIN $query;
+eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 let $query = 
@@ -319,7 +320,9 @@ FROM wp, t1
 WHERE MATCH(title, text) AGAINST ('database');
 
 --echo Optimization does not apply if not a single table query.
-eval EXPLAIN $query;
+--let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
+--let SEARCH_PATTERN = -> Aggregate
+--source include/search_pattern_on_variable.inc
 eval $query;
 
 let $query = 
@@ -328,7 +331,9 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 
 --echo Optimization does not apply if MATCH is part of an expression
-eval EXPLAIN $query;
+--let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
+--let SEARCH_PATTERN = -> Aggregate
+--source include/search_pattern_on_variable.inc
 eval $query;
 
 let $query = 
@@ -337,7 +342,9 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE) > 0;
 
 --echo Optimization does not apply if MATCH is part of an expression
-eval EXPLAIN $query;
+--let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
+--let SEARCH_PATTERN = -> Aggregate
+--source include/search_pattern_on_variable.inc
 eval $query;
 
 let $query = 
@@ -346,7 +353,9 @@ FROM wp
 WHERE MATCH(title,text) AGAINST ('database' IN NATURAL LANGUAGE MODE);
 
 --echo Optimization does not apply if COUNT expression is nullable
-eval EXPLAIN $query;
+--let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
+--let SEARCH_PATTERN = -> Aggregate
+--source include/search_pattern_on_variable.inc
 eval $query;
 
 #

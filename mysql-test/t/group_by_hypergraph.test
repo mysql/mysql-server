@@ -13,7 +13,7 @@
 #
 # We expect the hypergraph optimizer to set up a plan like this:
 #
-# -> Remove duplicates from input grouped on t1.x, min(t2.x)
+# -> Remove duplicates from input grouped on t.x, `MIN(t2.x)`
 #   -> Stream results
 #       -> Group aggregate: min(t2.x)
 #           -> Sort: t2.x
