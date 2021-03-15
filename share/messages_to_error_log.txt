@@ -11215,7 +11215,7 @@ ER_NOTE_KEYRING_COMPONENT_INITIALIZED
   eng "Keyring component initialized successfully."
 
 ER_KEYRING_COMPONENT_NOT_INITIALIZED
-  eng "Keyring component is not initialized properly. Make sure that configuration is proper and use keyring_reload service to reinitialize the component."
+  eng "The component is not initialized properly. Make sure that configuration is proper and use ALTER INSTANCE RELOAD KEYRING to reinitialize the component."
 
 ER_KEYRING_COMPONENT_EXCEPTION
   eng "Keyring component encountered an exception while executing : '%s' API of service: '%s'"
