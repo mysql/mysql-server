@@ -168,7 +168,7 @@ struct Merge_file_sort::Output_file : private ut::Non_copyable {
 
  private:
   /** Limit is [start, end]. */
-  using Offsets = std::vector<ulint, ut_allocator<ulint>>;
+  using Offsets = std::vector<ulint, ut::allocator<ulint>>;
 
   /** DDL context. */
   ddl::Context &m_ctx;

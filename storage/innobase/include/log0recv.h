@@ -343,7 +343,7 @@ merge them and apply them to in-memory table objects finally */
 class MetadataRecover {
   using PersistentTables = std::map<
       table_id_t, PersistentTableMetadata *, std::less<table_id_t>,
-      ut_allocator<std::pair<const table_id_t, PersistentTableMetadata *>>>;
+      ut::allocator<std::pair<const table_id_t, PersistentTableMetadata *>>>;
 
  public:
   /** Default constructor */
@@ -444,7 +444,7 @@ struct recv_sys_t {
     size_t size;
   };
 
-  using Mlog_records = std::vector<Mlog_record, ut_allocator<Mlog_record>>;
+  using Mlog_records = std::vector<Mlog_record, ut::allocator<Mlog_record>>;
 
   /** While scanning logs for multi-record mini transaction (mtr), we have two
   passes. In first pass, we check if all the logs of the mtr is present in

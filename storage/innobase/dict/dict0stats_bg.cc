@@ -70,7 +70,7 @@ it is enlarged */
 static const ulint RECALC_POOL_INITIAL_SLOTS = 128;
 
 /** Allocator type, used by std::vector */
-typedef ut_allocator<table_id_t> recalc_pool_allocator_t;
+typedef ut::allocator<table_id_t> recalc_pool_allocator_t;
 
 /** The multitude of tables whose stats are to be automatically
 recalculated - an STL vector */

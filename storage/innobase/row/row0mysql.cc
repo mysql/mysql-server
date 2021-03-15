@@ -1955,7 +1955,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   return (DB_SUCCESS);
 }
 
-typedef std::vector<btr_pcur_t, ut_allocator<btr_pcur_t>> cursors_t;
+typedef std::vector<btr_pcur_t, ut::allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
@@ -4441,9 +4441,9 @@ static dberr_t parallel_check_table(trx_t *trx, dict_index_t *index,
   Counter::clear(n_recs);
   Counter::clear(n_corrupt);
 
-  using Tuples = std::vector<dtuple_t *, ut_allocator<dtuple_t *>>;
-  using Heaps = std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>>;
-  using Buf_block_allocator = ut_allocator<const buf_block_t *>;
+  using Tuples = std::vector<dtuple_t *, ut::allocator<dtuple_t *>>;
+  using Heaps = std::vector<mem_heap_t *, ut::allocator<mem_heap_t *>>;
+  using Buf_block_allocator = ut::allocator<const buf_block_t *>;
   using Blocks = std::vector<const buf_block_t *, Buf_block_allocator>;
 
   Heaps heaps;

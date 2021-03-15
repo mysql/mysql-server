@@ -261,7 +261,7 @@ struct Builder {
     RTree_inserter *m_rtree_inserter{};
   };
 
-  using Allocator = ut_allocator<Thread_ctx *>;
+  using Allocator = ut::allocator<Thread_ctx *>;
   using Thread_ctxs = std::vector<Thread_ctx *, Allocator>;
 
   /** Create the tasks to merge Sort the file before we load the file into
@@ -478,7 +478,7 @@ struct Load_cursor : Btree_load::Cursor {
 /** Merge the sorted files. */
 struct Merge_cursor : public Load_cursor {
   /** File cursors to use for the scan. */
-  using File_readers = std::vector<File_reader *, ut_allocator<File_reader *>>;
+  using File_readers = std::vector<File_reader *, ut::allocator<File_reader *>>;
 
   /** Constructor.
   @param[in,out] builder        Index builder.
@@ -572,7 +572,7 @@ struct Merge_cursor : public Load_cursor {
   };
 
   /** File cursors to use for the scan. */
-  using File_cursors = std::vector<File_cursor *, ut_allocator<File_cursor *>>;
+  using File_cursors = std::vector<File_cursor *, ut::allocator<File_cursor *>>;
 
   /** Priority queue for ordering the rows. */
   using Queue = std::priority_queue<File_cursor *, File_cursors, Compare>;

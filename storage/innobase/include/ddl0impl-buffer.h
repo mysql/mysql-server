@@ -39,7 +39,7 @@ namespace ddl {
 /** For DDL memory allocations that use the mem_key_ddl handle. */
 struct PFS_buffer : private ut::Non_copyable {
   using Type = byte;
-  using Allocator = ut_allocator<Type>;
+  using Allocator = ut::allocator<Type>;
 
   /** Constructor. */
   PFS_buffer() = default;
@@ -220,7 +220,7 @@ struct Key_sort_buffer : private ut::Non_copyable {
                                    Dup *dup) noexcept;
 
   using DTuple = dfield_t *;
-  using DTuples = std::vector<DTuple, ut_allocator<DTuple>>;
+  using DTuples = std::vector<DTuple, ut::allocator<DTuple>>;
 
   /** Memory heap where allocated */
   mem_heap_t *m_heap{};

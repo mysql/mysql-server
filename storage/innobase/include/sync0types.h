@@ -876,7 +876,8 @@ class LatchMeta {
 };
 
 typedef LatchMeta<LatchCounter> latch_meta_t;
-typedef std::vector<latch_meta_t *, ut_allocator<latch_meta_t *>> LatchMetaData;
+typedef std::vector<latch_meta_t *, ut::allocator<latch_meta_t *>>
+    LatchMetaData;
 
 /** Note: This is accessed without any mutex protection. It is initialised
 at startup and elements should not be added to or removed from it after
@@ -1207,7 +1208,7 @@ struct sync_allowed_latches : public sync_check_functor_t {
   True if all OK */
   bool m_result;
 
-  typedef std::vector<latch_level_t, ut_allocator<latch_level_t>> latches_t;
+  typedef std::vector<latch_level_t, ut::allocator<latch_level_t>> latches_t;
 
   /** List of latch levels that are allowed to be held */
   latches_t m_latches;

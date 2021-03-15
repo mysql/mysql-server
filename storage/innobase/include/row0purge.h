@@ -208,7 +208,7 @@ struct purge_node_t {
 
  private:
   using LOB_free_set = std::set<Page_free_tuple, Compare_page_free_tuple,
-                                ut_allocator<Page_free_tuple>>;
+                                ut::allocator<Page_free_tuple>>;
 
   /** Set of LOB first pages that are to be freed. */
   LOB_free_set m_lob_pages;

@@ -78,7 +78,7 @@ class RTree_inserter {
  private:
   /** Cache index rows made from a cluster index scan. Usually
   for rows on single cluster index page */
-  using Tuples = std::vector<dtuple_t *, ut_allocator<dtuple_t *>>;
+  using Tuples = std::vector<dtuple_t *, ut::allocator<dtuple_t *>>;
 
   /** Deep copy the fields pointing to the clustered index record.
   @param[in] it                 Deep copy from this tuple onwards. */

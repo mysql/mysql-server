@@ -533,7 +533,7 @@ static hash_table_t *innobase_open_tables;
 
 /** Array of data files of the system tablespace */
 static std::vector<Plugin_tablespace::Plugin_tablespace_file *,
-                   ut_allocator<Plugin_tablespace::Plugin_tablespace_file *>>
+                   ut::allocator<Plugin_tablespace::Plugin_tablespace_file *>>
     innobase_sys_files;
 
 /** Allowed values of innodb_change_buffering */
@@ -14591,7 +14591,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
   2. full PRIMARY KEY columns which don't exist in the secondary index */
 
   std::vector<const dd::Index_element *,
-              ut_allocator<const dd::Index_element *>>
+              ut::allocator<const dd::Index_element *>>
       pk_elements;
 
   for (dd::Index *index : *dd_table->indexes()) {
@@ -18748,7 +18748,7 @@ struct ShowStatus {
     }
   };
 
-  typedef std::vector<Value, ut_allocator<Value>> Values;
+  typedef std::vector<Value, ut::allocator<Value>> Values;
 
   /** Collect the individual latch counts */
   struct GetCount {

@@ -3434,7 +3434,7 @@ struct temp_table_info_t {
   unsigned m_space_id;
 };
 
-typedef std::vector<temp_table_info_t, ut_allocator<temp_table_info_t>>
+typedef std::vector<temp_table_info_t, ut::allocator<temp_table_info_t>>
     temp_table_info_cache_t;
 
 /** Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular

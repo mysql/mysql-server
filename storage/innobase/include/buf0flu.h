@@ -309,7 +309,7 @@ class Flush_observer {
 
  private:
   using Counter = std::atomic_int;
-  using Counters = std::vector<Counter, ut_allocator<Counter>>;
+  using Counters = std::vector<Counter, ut::allocator<Counter>>;
 
   /** Tablespace ID. */
   space_id_t m_space_id{};

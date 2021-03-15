@@ -76,7 +76,7 @@ int innobase_fts_nocase_compare(const CHARSET_INFO *cs, const fts_string_t *s1,
 
 // FIXME: Need to have a generic iterator that traverses the ilist.
 
-typedef std::vector<fts_string_t, ut_allocator<fts_string_t>> word_vector_t;
+typedef std::vector<fts_string_t, ut::allocator<fts_string_t>> word_vector_t;
 
 struct fts_word_freq_t;
 
@@ -207,7 +207,7 @@ struct fts_select_t {
                               the FTS index */
 };
 
-typedef std::vector<ulint, ut_allocator<ulint>> pos_vector_t;
+typedef std::vector<ulint, ut::allocator<ulint>> pos_vector_t;
 
 /** structure defines a set of ranges for original documents, each of which
 has a minimum position and maximum position. Text in such range should

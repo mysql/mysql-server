@@ -6993,7 +6993,7 @@ inline void commit_cache_rebuild(ha_innobase_inplace_ctx *ctx) {
 }
 
 /** Set of column numbers */
-typedef std::set<ulint, std::less<ulint>, ut_allocator<ulint>> col_set;
+typedef std::set<ulint, std::less<ulint>, ut::allocator<ulint>> col_set;
 
 /** Store the column number of the columns in a list belonging
 to indexes which are not being dropped.
@@ -8334,7 +8334,7 @@ int alter_part::create(const char *part_name, dd::Partition *dd_part,
       false, false, 0, 0));
 }
 
-typedef std::vector<alter_part *, ut_allocator<alter_part *>> alter_part_array;
+typedef std::vector<alter_part *, ut::allocator<alter_part *>> alter_part_array;
 
 /** Construct all necessary alter_part_* objects according to the given
 partition states in both old and new tables */

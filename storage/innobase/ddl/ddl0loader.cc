@@ -213,7 +213,7 @@ class Loader::Task_queue {
   }
 
  private:
-  using Tasks = std::deque<Task, ut_allocator<Task>>;
+  using Tasks = std::deque<Task, ut::allocator<Task>>;
 
   /** DDL context. */
   const Context &m_ctx;

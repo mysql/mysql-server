@@ -735,7 +735,7 @@ dberr_t Datafile::find_space_id() {
        page_size <<= 1) {
     /* map[space_id] = count of pages */
     typedef std::map<space_id_t, ulint, std::less<space_id_t>,
-                     ut_allocator<std::pair<const space_id_t, ulint>>>
+                     ut::allocator<std::pair<const space_id_t, ulint>>>
         Pages;
 
     Pages verify;

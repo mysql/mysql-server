@@ -25,95 +25,84 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /** @file include/ut0new.h
- Instrumented memory allocator.
+    Dynamic memory allocation routines and custom allocators specifically
+    crafted to support memory instrumentation through performance schema memory
+    engine (PFS).
+ */
 
- Created May 26, 2014 Vasil Dimov
- *******************************************************/
+/** This file contains a set of libraries providing overloads for regular
+    dynamic allocation routines which allow for opt-in memory instrumentation
+    through performance schema memory engine (PFS).
 
-/** Dynamic memory allocation within InnoDB guidelines.
-All dynamic (heap) memory allocations (malloc(3), strdup(3), etc, "new",
-various std:: containers that allocate memory internally), that are done
-within InnoDB are instrumented. This means that InnoDB uses a custom set
-of functions for allocating memory, rather than calling e.g. "new" directly.
+    In particular, _no_ regular dynamic allocation routines shall be used given
+    that the end goal of instrumentation through PFS is system observability
+    and resource control. In practice this means that we are off the chances to
+    use _any_ standard means of allocating the memory and that we have to
+    provide and re-implement our own PFS-aware variants ourselves.
 
-Here follows a cheat sheet on what InnoDB functions to use whenever a
-standard one would have been used.
+    This does not only apply to direct memory allocation through malloc or new
+    but also to data structures that may allocate dynamic memory under the hood,
+    like the ones from STL. For that reason, STL data structures shall always
+    be used with PFS-enabled custom memory allocator. STL algorithms OTOH
+    also _may_ allocate dynamic memory but they do not provide customization
+    point for user-code to provide custom memory allocation mechanism so there's
+    nothing that we can do about it.
 
-Creating new objects with "new":
---------------------------------
-Standard:
-  new expression
-  or
-  new(std::nothrow) expression
-InnoDB, default instrumentation:
-  ut::new_(expression)
-InnoDB, custom instrumentation, preferred:
-  ut::new_withkey(key, expression)
+    Furthermore, facilities that allow safer memory management such as
+    std::unique_ptr, std::shared_ptr and their respective std::make_unique and
+    std::make_shared functions also have to be re-implemented as such so that
+    they become PFS-aware.
 
-Destroying objects, created with "new":
----------------------------------------
-Standard:
-  delete ptr
-InnoDB:
-  ut::delete_(ptr)
+    Following is the list of currently implemented PFS-enabled dynamic
+    allocation overloads:
+      * Primitive allocation functions:
+          * ut::malloc
+          * ut::zalloc
+          * ut::realloc
+          * ut::free
+          * ut::{malloc | zalloc | realloc}_withkey
+      * Primitive allocation functions for types with extended alignment:
+          * ut::aligned_alloc
+          * ut::aligned_zalloc
+          * ut::aligned_free
+          * ut::{aligned_alloc | aligned_zalloc}_withkey
+      * Primitive allocation functions for page-aligned allocations:
+          * ut::malloc_page
+          * ut::malloc_page_withkey
+          * ut::free_page
+      * Primitive allocation functions for large (huge) page aligned
+        allocations:
+          * ut::malloc_large_page
+          * ut::malloc_large_page_withkey
+          * ut::free_large_page
+      * Primitive allocation functions for large (huge) aligned allocations with
+        fallback to page-aligned allocations:
+          * ut::malloc_large_page(fallback_to_normal_page_t)
+          * ut::malloc_large_page_withkey(fallback_to_normal_page_t)
+          * ut::free_large_page(fallback_to_normal_page_t)
+      * Overloads for C++ new and delete syntax:
+          * ut::new_
+          * ut::new_arr
+          * ut::{new_ | new_arr_}_withkey
+          * ut::delete_
+          * ut::delete_arr
+      * Overloads for C++ new and delete syntax for types with extended
+        alignment:
+          * ut::aligned_new
+          * ut::aligned_new_arr
+          * ut::{aligned_new_ | aligned_new_arr_}_withkey
+          * ut::aligned_delete
+          * ut::aligned_delete_arr
+      * Custom memory allocators:
+          * ut::allocator
+    _withkey variants from above are the PFS-enabled dynamic allocation
+    overloads.
 
-Creating new arrays with "new[]":
----------------------------------
-Standard:
-  new type[num]
-  or
-  new(std::nothrow) type[num]
-InnoDB, default instrumentation:
-  ut::new_arr_withkey<type>(UT_NEW_THIS_FILE_PSI_KEY, ut::Count{num})
-InnoDB, custom instrumentation, preferred:
-  ut::new_arr_withkey<type>(key, ut::Count{num})
-
-Destroying arrays, created with "new[]":
-----------------------------------------
-Standard:
-  delete[] ptr
-InnoDB:
-  ut::delete_arr(ptr)
-
-Declaring a type with a std:: container, e.g. std::vector:
-----------------------------------------------------------
-Standard:
-  std::vector<t>
-InnoDB:
-  std::vector<t, ut_allocator<t> >
-
-Declaring objects of some std:: type:
--------------------------------------
-Standard:
-  std::vector<t> v
-InnoDB, default instrumentation:
-  std::vector<t, ut_allocator<t> > v
-InnoDB, custom instrumentation, preferred:
-  std::vector<t, ut_allocator<t> > v(ut_allocator<t>(key))
-
-Raw block allocation (as usual in C++, consider whether using "new" would
-not be more appropriate):
--------------------------------------------------------------------------
-Standard:
-  malloc(num)
-InnoDB, default instrumentation:
-  ut::malloc_withkey(UT_NEW_THIS_FILE_PSI_KEY, num)
-InnoDB, custom instrumentation, preferred:
-  ut::malloc_withkey(key, num)
-
-Raw block resize:
------------------
-Standard:
-  realloc(ptr, new_size)
-InnoDB:
-  ut::realloc(ptr, new_size)
-
-Raw block deallocation:
------------------------
-Standard:
-  free(ptr)
-InnoDB:
-  ut::free(ptr)
+    Usages of PFS-enabled library functions are trying to resemble already
+    familiar syntax as close as possible. For concrete examples please see
+    particular function documentation but in general it applies that ::foo(x)
+    becomes ut::foo(x) or ut::foo_withkey(key, x) where foo is some allocation
+    function listed above and key is PFS key to instrument the allocation with.
 */
 
 #ifndef ut0new_h
@@ -146,23 +135,23 @@ InnoDB:
 namespace ut {
 
 /** Light-weight and type-safe wrapper around the PSI_memory_key
-that eliminates the possibility of introducing silent bugs
-through the course of implicit conversions and makes them
-show up as compile-time errors.
+    that eliminates the possibility of introducing silent bugs
+    through the course of implicit conversions and makes them
+    show up as compile-time errors.
 
-Without this wrapper it was possible to say:
-  aligned_alloc_withkey(10*sizeof(int), key, 64))
-Which would unfortunately compile just fine but it would silently
-introduce a bug because it confuses the order of 10*sizeof(int) and
-key input arguments. Both of them are unsigned types.
+    Without this wrapper it was possible to say:
+      aligned_alloc_withkey(10*sizeof(int), key, 64))
+    Which would unfortunately compile just fine but it would silently
+    introduce a bug because it confuses the order of 10*sizeof(int) and
+    key input arguments. Both of them are unsigned types.
 
-With the wrapper, aligned_alloc_withkey(10*sizeof(int), key, 64)) now
-results with a compile-time error and the only proper way to accomplish
-the original intent is to use PSI_memory_key_t wrapper like so:
-  aligned_alloc_withkey(PSI_memory_key_t{key}, 10*sizeof(int), 64))
+    With the wrapper, aligned_alloc_withkey(10*sizeof(int), key, 64)) now
+    results with a compile-time error and the only proper way to accomplish
+    the original intent is to use PSI_memory_key_t wrapper like so:
+    aligned_alloc_withkey(PSI_memory_key_t{key}, 10*sizeof(int), 64))
 
-Or by making use of the convenience function to create one:
-  aligned_alloc_withkey(make_psi_memory_key(key), 10*sizeof(int), 64))
+    Or by making use of the convenience function to create one:
+      aligned_alloc_withkey(make_psi_memory_key(key), 10*sizeof(int), 64))
 */
 struct PSI_memory_key_t {
   explicit PSI_memory_key_t(PSI_memory_key key) : m_key(key) {}
@@ -562,435 +551,6 @@ struct force_constexpr {
 #define UT_NEW_THIS_FILE_PSI_KEY ut::make_psi_memory_key(PSI_NOT_INSTRUMENTED)
 
 #endif /* UNIV_PFS_MEMORY */
-
-/** A structure that holds the necessary data for performance schema
-accounting. An object of this type is put in front of each allocated block
-of memory when allocation is done by ut_allocator::allocate(). This is
-because the data is needed even when freeing the memory. Users of
-ut_allocator::allocate_large() are responsible for maintaining this
-themselves.
- To maintain proper alignment of the pointers ut_allocator returns to the
-calling code, this struct is declared with alignas(std::max_align_t). This tells
-the compiler to insert enough padding to the struct to satisfy the strictest
-fundamental alignment requirement. The size of this object then becomes a
-multiple of the alignment requirement, this is implied by the fact that arrays
-are contiguous in memory. This means that when we increment a pointer to
-ut_new_pfx_t the resulting pointer must be aligned to the alignment requirement
-of std::max_align_t. Ref. C++ standard: 6.6.5 [basic.align], 11.3.4 [dcl.array]
-*/
-struct alignas(std::max_align_t) ut_new_pfx_t {
-#ifdef UNIV_PFS_MEMORY
-
-  /** Performance schema key. Assigned to a name at startup via
-  PSI_MEMORY_CALL(register_memory)() and later used for accounting
-  allocations and deallocations with
-  PSI_MEMORY_CALL(memory_alloc)(key, size, owner) and
-  PSI_MEMORY_CALL(memory_free)(key, size, owner). */
-  PSI_memory_key m_key;
-
-  /**
-    Thread owner.
-    Instrumented thread that owns the allocated memory.
-    This state is used by the performance schema to maintain
-    per thread statistics,
-    when memory is given from thread A to thread B.
-  */
-  struct PSI_thread *m_owner;
-
-#endif /* UNIV_PFS_MEMORY */
-
-  /** Size of the allocated block in bytes, including this prepended
-  aux structure (for ut_allocator::allocate()). For example if InnoDB
-  code requests to allocate 100 bytes, and sizeof(ut_new_pfx_t) is 16,
-  then 116 bytes are allocated in total and m_size will be 116.
-  ut_allocator::allocate_large() does not prepend this struct to the
-  allocated block and its users are responsible for maintaining it
-  and passing it later to ut_allocator::deallocate_large(). */
-  size_t m_size;
-};
-
-/** Allocator class for allocating memory from inside std::* containers. */
-template <class T>
-class ut_allocator {
- public:
-  typedef T *pointer;
-  typedef const T *const_pointer;
-  typedef T &reference;
-  typedef const T &const_reference;
-  typedef T value_type;
-  typedef size_t size_type;
-  typedef ptrdiff_t difference_type;
-
-  static_assert(alignof(T) <= alignof(std::max_align_t),
-                "ut_allocator does not support over-aligned types. Use "
-                "aligned_memory or another similar allocator for this type.");
-
-  /** Default constructor.
-  @param[in] key  performance schema key. */
-#ifdef UNIV_PFS_MEMORY
-  explicit ut_allocator(PSI_memory_key key = UT_NEW_THIS_FILE_PSI_KEY())
-      : m_key(key)
-#else
-  explicit ut_allocator(PSI_memory_key key = PSI_NOT_INSTRUMENTED)
-#endif /* UNIV_PFS_MEMORY */
-  {
-  }
-
-  /** Constructor from allocator of another type.
-  @param[in] other  the allocator to copy. */
-  template <class U>
-  ut_allocator(const ut_allocator<U> &other)
-#ifdef UNIV_PFS_MEMORY
-      : m_key(other.get_mem_key())
-#endif /* UNIV_PFS_MEMORY */
-  {
-  }
-
-#ifdef UNIV_PFS_MEMORY
-  /** Get the performance schema key to use for tracing allocations.
-  @return performance schema key */
-  PSI_memory_key get_mem_key() const {
-    /* note: keep this as simple getter as is used by copy constructor */
-    return (m_key);
-  }
-#endif /* UNIV_PFS_MEMORY */
-
-  /** Return the maximum number of objects that can be allocated by
-  this allocator. */
-  size_type max_size() const {
-    const size_type s_max = std::numeric_limits<size_type>::max();
-
-#ifdef UNIV_PFS_MEMORY
-    return ((s_max - sizeof(ut_new_pfx_t)) / sizeof(T));
-#else
-    return (s_max / sizeof(T));
-#endif /* UNIV_PFS_MEMORY */
-  }
-
-  /** Allocate a chunk of memory that can hold 'n_elements' objects of
-  type 'T' and trace the allocation.
-  If the allocation fails this method will throw an exception. This
-  is mandated by the standard and if it returns NULL instead, then
-  STL containers that use it (e.g. std::vector) may get confused.
-  After successful allocation the returned pointer must be passed
-  to ut_allocator::deallocate() when no longer needed.
-  @param[in]  n_elements      number of elements
-  @param[in]  hint            pointer to a nearby memory location,
-                              unused by this implementation
-  @param[in]  key             performance schema key
-  @param[in]  set_to_zero     if true, then the returned memory is
-                              initialized with 0x0 bytes.
-  @return pointer to the allocated memory */
-  pointer allocate(size_type n_elements, const_pointer hint = nullptr,
-                   PSI_memory_key key = PSI_NOT_INSTRUMENTED,
-                   bool set_to_zero = false) {
-    if (n_elements > max_size()) {
-      throw std::bad_array_new_length();
-    }
-
-    void *ptr;
-    size_t total_bytes = n_elements * sizeof(T);
-
-#ifdef UNIV_PFS_MEMORY
-    total_bytes += sizeof(ut_new_pfx_t);
-#endif /* UNIV_PFS_MEMORY */
-
-    for (size_t retries = 1;; retries++) {
-      if (set_to_zero) {
-        ptr = ::calloc(1, total_bytes);
-      } else {
-        ptr = ::malloc(total_bytes);
-      }
-
-      if (ptr != nullptr || retries >= alloc_max_retries) {
-        break;
-      }
-
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-
-    if (ptr == nullptr) {
-      throw std::bad_alloc();
-    }
-
-#ifdef UNIV_PFS_MEMORY
-    ut_new_pfx_t *pfx = static_cast<ut_new_pfx_t *>(ptr);
-    allocate_trace(total_bytes, key, pfx);
-    return (reinterpret_cast<pointer>(pfx + 1));
-#else
-    return (reinterpret_cast<pointer>(ptr));
-#endif /* UNIV_PFS_MEMORY */
-  }
-
-  /** Free a memory allocated by allocate() and trace the deallocation.
-  @param[in,out]	ptr		pointer to memory to free
-  @param[in]	n_elements	number of elements allocated (unused) */
-  void deallocate(pointer ptr, size_type n_elements = 0) {
-    if (ptr == nullptr) {
-      return;
-    }
-
-#ifdef UNIV_PFS_MEMORY
-    ut_new_pfx_t *pfx = reinterpret_cast<ut_new_pfx_t *>(ptr) - 1;
-
-    deallocate_trace(pfx);
-
-    ::free(pfx);
-#else
-    ::free(ptr);
-#endif /* UNIV_PFS_MEMORY */
-  }
-
-  /** Destroy an object pointed by 'p'. */
-  void destroy(pointer p) { p->~T(); }
-
-  /** Return the address of an object. */
-  pointer address(reference x) const { return (&x); }
-
-  /** Return the address of a const object. */
-  const_pointer address(const_reference x) const { return (&x); }
-
-  template <class U>
-  struct rebind {
-    typedef ut_allocator<U> other;
-  };
-
-  /* The following are custom methods, not required by the standard. */
-
-#ifdef UNIV_PFS_MEMORY
-
-  /** realloc(3)-like method.
-  The passed in ptr must have been returned by allocate() and the
-  pointer returned by this method must be passed to deallocate() when
-  no longer needed.
-  @param[in,out]	ptr		old pointer to reallocate
-  @param[in]	n_elements	new number of elements to allocate
-  @param[in]	key		Performance schema key to allocate under
-  @return newly allocated memory */
-  pointer reallocate(void *ptr, size_type n_elements, PSI_memory_key key) {
-    if (n_elements == 0) {
-      deallocate(static_cast<pointer>(ptr));
-      return (nullptr);
-    }
-
-    if (ptr == nullptr) {
-      return (allocate(n_elements, nullptr, key, false));
-    }
-
-    if (n_elements > max_size()) {
-      return (nullptr);
-    }
-
-    ut_new_pfx_t *pfx_old;
-    ut_new_pfx_t *pfx_new;
-    size_t total_bytes;
-
-    pfx_old = reinterpret_cast<ut_new_pfx_t *>(ptr) - 1;
-
-    total_bytes = n_elements * sizeof(T) + sizeof(ut_new_pfx_t);
-
-    for (size_t retries = 1;; retries++) {
-      pfx_new = static_cast<ut_new_pfx_t *>(realloc(pfx_old, total_bytes));
-
-      if (pfx_new != nullptr || retries >= alloc_max_retries) {
-        break;
-      }
-
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-
-    if (pfx_new == nullptr) {
-      return nullptr;
-    }
-
-    /* pfx_new still contains the description of the old block
-    that was presumably freed by realloc(). */
-    deallocate_trace(pfx_new);
-
-    /* pfx_new is set here to describe the new block. */
-    allocate_trace(total_bytes, key, pfx_new);
-
-    return (reinterpret_cast<pointer>(pfx_new + 1));
-  }
-
-  /** Allocate, trace the allocation and construct 'n_elements' objects
-  of type 'T'. If the allocation fails or if some of the constructors
-  throws an exception, then this method will return NULL. It does not
-  throw exceptions. After successful completion the returned pointer
-  must be passed to delete_array() when no longer needed.
-  @param[in]	n_elements	number of elements to allocate
-  @param[in]	key		Performance schema key to allocate under
-  @return pointer to the first allocated object or NULL */
-  pointer new_array(size_type n_elements, PSI_memory_key key) {
-    static_assert(std::is_default_constructible<T>::value,
-                  "Array element type must be default-constructible");
-
-    T *p = allocate(n_elements, nullptr, key, false);
-
-    T *first = p;
-    size_type i;
-
-    try {
-      for (i = 0; i < n_elements; i++) {
-        new (p) T;
-        ++p;
-      }
-    } catch (...) {
-      for (size_type j = 0; j < i; j++) {
-        --p;
-        p->~T();
-      }
-
-      deallocate(first);
-
-      throw;
-    }
-
-    return (first);
-  }
-
-  /** Destroy, deallocate and trace the deallocation of an array created
-  by new_array().
-  @param[in,out]	ptr	pointer to the first object in the array */
-  void delete_array(T *ptr) {
-    if (ptr == nullptr) {
-      return;
-    }
-
-    const size_type n_elements = n_elements_allocated(ptr);
-
-    T *p = ptr + n_elements - 1;
-
-    for (size_type i = 0; i < n_elements; i++) {
-      p->~T();
-      --p;
-    }
-
-    deallocate(ptr);
-  }
-
-#endif /* UNIV_PFS_MEMORY */
-
-  /** Allocate a large chunk of memory that can hold 'n_elements'
-  objects of type 'T' and trace the allocation.
-  @param[in]	n_elements	number of elements
-  @return pointer to the allocated memory or NULL */
-  pointer allocate_large(size_type n_elements) {
-    if (n_elements == 0 || n_elements > max_size()) {
-      return (nullptr);
-    }
-
-    ulint n_bytes = n_elements * sizeof(T) + CPU_PAGE_SIZE;
-
-    auto ptr = os_mem_alloc_large(&n_bytes);
-    if (unlikely(!ptr)) return nullptr;
-
-#ifdef UNIV_PFS_MEMORY
-    ut_new_pfx_t *pfx = reinterpret_cast<ut_new_pfx_t *>(ptr);
-    allocate_trace(n_bytes, PSI_NOT_INSTRUMENTED, pfx);
-#else
-    *reinterpret_cast<size_t *>(ptr) = n_bytes;
-#endif /* UNIV_PFS_MEMORY */
-    return reinterpret_cast<pointer>(static_cast<uint8_t *>(ptr) +
-                                     CPU_PAGE_SIZE);
-  }
-
-  /** Free a memory allocated by allocate_large() and trace the
-  deallocation.
-  @param[in,out]	ptr	pointer to memory to free
-  */
-  void deallocate_large(pointer ptr) {
-    if (unlikely(!ptr)) return;
-
-    auto deduced_alloc_large_ptr = static_cast<uint8_t *>(ptr) - CPU_PAGE_SIZE;
-
-#ifdef UNIV_PFS_MEMORY
-    ut_new_pfx_t *pfx =
-        reinterpret_cast<ut_new_pfx_t *>(deduced_alloc_large_ptr);
-    size_t dealloc_size = pfx->m_size;
-    deallocate_trace(pfx);
-#else
-    size_t dealloc_size = *reinterpret_cast<size_t *>(deduced_alloc_large_ptr);
-#endif /* UNIV_PFS_MEMORY */
-
-    os_mem_free_large(deduced_alloc_large_ptr, dealloc_size);
-  }
-
-  /** Find out the size of large allocation given the pointer to it.
-  @param[in,out] ptr pointer to memory returned by allocate_large()
-  @return Size of the large page that has been allocated. */
-  static size_t large_page_size(pointer ptr) {
-    auto deduced_alloc_large_ptr = static_cast<uint8_t *>(ptr) - CPU_PAGE_SIZE;
-#ifdef UNIV_PFS_MEMORY
-    ut_new_pfx_t *pfx =
-        reinterpret_cast<ut_new_pfx_t *>(deduced_alloc_large_ptr);
-    return pfx->m_size - CPU_PAGE_SIZE;
-#else
-    return *reinterpret_cast<size_t *>(deduced_alloc_large_ptr) - CPU_PAGE_SIZE;
-#endif
-  }
-
- private:
-#ifdef UNIV_PFS_MEMORY
-
-  /** Retrieve the size of a memory block allocated by new_array().
-  @param[in]	ptr	pointer returned by new_array().
-  @return size of memory block */
-  size_type n_elements_allocated(const_pointer ptr) {
-    const ut_new_pfx_t *pfx = reinterpret_cast<const ut_new_pfx_t *>(ptr) - 1;
-
-    const size_type user_bytes = pfx->m_size - sizeof(ut_new_pfx_t);
-
-    ut_ad(user_bytes % sizeof(T) == 0);
-
-    return (user_bytes / sizeof(T));
-  }
-
-  /** Trace a memory allocation.
-  @param[in]	size	number of bytes that were allocated
-  @param[in]	key	Performance Schema key
-  @param[out]	pfx	placeholder to store the info which will be
-                          needed when freeing the memory */
-  void allocate_trace(size_t size, PSI_memory_key key, ut_new_pfx_t *pfx) {
-    if (m_key != PSI_NOT_INSTRUMENTED) {
-      key = m_key;
-    }
-
-    pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, &pfx->m_owner);
-
-    pfx->m_size = size;
-  }
-
-  /** Trace a memory deallocation.
-  @param[in]	pfx	info for the deallocation */
-  void deallocate_trace(const ut_new_pfx_t *pfx) {
-    PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size, pfx->m_owner);
-  }
-#endif /* UNIV_PFS_MEMORY */
-
-  /* Assignment operator, not used, thus disabled (private. */
-  template <class U>
-  void operator=(const ut_allocator<U> &);
-
-#ifdef UNIV_PFS_MEMORY
-  /** Performance schema key. */
-  const PSI_memory_key m_key;
-#endif /* UNIV_PFS_MEMORY */
-};
-
-/** Compare two allocators of the same type.
-As long as the type of A1 and A2 is the same, a memory allocated by A1
-could be freed by A2 even if the pfs mem key is different. */
-template <typename T>
-inline bool operator==(const ut_allocator<T> &lhs, const ut_allocator<T> &rhs) {
-  return (true);
-}
-
-/** Compare two allocators of the same type. */
-template <typename T>
-inline bool operator!=(const ut_allocator<T> &lhs, const ut_allocator<T> &rhs) {
-  return (!(lhs == rhs));
-}
 
 namespace ut {
 
@@ -2429,20 +1989,183 @@ class aligned_array_pointer {
   }
 };
 
-/** Specialization of basic_ostringstream which uses ut_allocator. Please note
-that it's .str() method returns std::basic_string which is not std::string, so
-it has similar API (in particular .c_str()), but you can't assign it to
-regular, std::string. */
-using ostringstream =
-    std::basic_ostringstream<char, std::char_traits<char>, ut_allocator<char>>;
-
-/** Specialization of vector which uses ut_allocator. */
+namespace detail {
 template <typename T>
-using vector = std::vector<T, ut_allocator<T>>;
+struct allocator_base {
+  explicit allocator_base(PSI_memory_key /*key*/) {}
+
+  template <typename U>
+  allocator_base(const allocator_base<U> &other) {}
+
+  void *allocate_impl(size_t n_bytes) { return ut::malloc(n_bytes); }
+};
+
+template <typename T>
+struct allocator_base_pfs {
+  explicit allocator_base_pfs(PSI_memory_key key) : m_key(key) {}
+
+  template <typename U>
+  allocator_base_pfs(const allocator_base_pfs<U> &other)
+      : allocator_base_pfs(other.get_mem_key()) {}
+
+  PSI_memory_key get_mem_key() const { return m_key; }
+
+  void *allocate_impl(size_t n_bytes) {
+    return ut::malloc_withkey(ut::make_psi_memory_key(m_key), n_bytes);
+  }
+
+ private:
+  const PSI_memory_key m_key;
+};
+}  // namespace detail
+
+/** Allocator that allows std::* containers to manage their memory through
+    ut::malloc* and ut::free library functions.
+
+    Main purpose of this custom allocator is to instrument all of the memory
+    allocations and deallocations that are being done by std::* containers under
+    the hood, and have them recorded through the PFS (memory) engine.
+
+    Other than std::* containers, this allocator is of course also suitable for
+    use in any other allocator-aware containers and/or code.
+
+    Given that ut::malloc* and ut::free library functions already handle all
+    the PFS and non-PFS implementation bits and pieces, this allocator is a mere
+    wrapper around them.
+
+    Example which uses default PFS key (mem_key_std) to trace all std::vector
+    allocations and deallocations:
+      std::vector<int, ut::allocator<int>> vec;
+      vec.push_back(...);
+      ...
+      vec.push_back(...);
+
+    Example which uses user-provided PFS key to trace std::vector allocations
+    and deallocations:
+      ut::allocator<int> allocator(some_other_psi_key);
+      std::vector<int, ut::allocator<int>> vec(allocator);
+      vec.push_back(...);
+      ...
+      vec.push_back(...);
+ */
+template <typename T, typename Allocator_base = std::conditional_t<
+                          ut::WITH_PFS_MEMORY, detail::allocator_base_pfs<T>,
+                          detail::allocator_base<T>>>
+class allocator : public Allocator_base {
+ public:
+  using pointer = T *;
+  using const_pointer = const T *;
+  using reference = T &;
+  using const_reference = const T &;
+  using value_type = T;
+  using size_type = size_t;
+  using difference_type = ptrdiff_t;
+
+  static_assert(alignof(T) <= alignof(std::max_align_t),
+                "ut::allocator does not support over-aligned types. Use "
+                "ut::aligned_* API to handle such types.");
+
+  /** Default constructor.
+      @param[in] key  performance schema key.
+    */
+  explicit allocator(PSI_memory_key key = mem_key_std) : Allocator_base(key) {}
+
+  /* Rule-of-five */
+  allocator(const allocator<T, Allocator_base> &) = default;
+  allocator<T, Allocator_base> &operator=(
+      const allocator<T, Allocator_base> &) = default;
+  allocator(allocator<T, Allocator_base> &&) = default;
+  allocator<T, Allocator_base> &operator=(allocator<T, Allocator_base> &&) =
+      default;
+  ~allocator() = default;
+
+  /** Copy-construct a new instance of allocator with type T by using existing
+      instance of allocator constructed with a different type U.
+      @param[in] other  the allocator to copy from.
+    */
+  template <typename U>
+  allocator(const allocator<U, Allocator_base> &other)
+      : Allocator_base(other) {}
+
+  /* NOTE: rebind is deprecated in C++17 and to be removed in C++20 but one of
+     our toolchains, when used in 32-bit setting, still does not support custom
+     allocators that do not provide rebind support explicitly. In future, this
+     part will become redundant and can be removed.
+   */
+  template <typename U>
+  struct rebind {
+    using other = ut::allocator<U, Allocator_base>;
+  };
+
+  /** Equality of allocators instantiated with same types T. */
+  inline bool operator==(const ut::allocator<T, Allocator_base> &other) const {
+    return true;
+  }
+  /** Non-equality of allocators instantiated with same types T. */
+  inline bool operator!=(const ut::allocator<T, Allocator_base> &other) const {
+    return !(*this == other);
+  }
+
+  /** Return the maximum number of objects that can be allocated by
+      this allocator. This number is somewhat lower for PFS-enabled
+      builds because of extra few bytes needed for PFS.
+    */
+  size_type max_size() const {
+    const size_type s_max = std::numeric_limits<size_type>::max();
+    return (s_max - ut::pfs_overhead()) / sizeof(T);
+  }
+
+  /** Allocates chunk of memory that can hold n_elements objects of
+      type T. Returned pointer is always valid. In case underlying
+      allocation function was not able to fulfil the allocation request,
+      this function will throw std::bad_alloc exception. After successful
+      allocation, returned pointer must be passed back to
+      ut::allocator<T>::deallocate() when no longer needed.
+
+      @param[in]  n_elements  number of elements
+      @param[in]  hint        pointer to a nearby memory location,
+                              not used by this implementation
+      @return pointer to the allocated memory
+    */
+  pointer allocate(size_type n_elements, const_pointer hint = nullptr) {
+    if (unlikely(n_elements > max_size())) {
+      throw std::bad_array_new_length();
+    }
+
+    auto ptr = Allocator_base::allocate_impl(n_elements * sizeof(T));
+
+    if (unlikely(!ptr)) {
+      throw std::bad_alloc();
+    }
+
+    return static_cast<pointer>(ptr);
+  }
+
+  /** Releases the memory allocated through ut::allocator<T>::allocate().
+
+      @param[in,out]  ptr         pointer to memory to free
+      @param[in]      n_elements  number of elements allocated (unused)
+   */
+  void deallocate(pointer ptr, size_type n_elements = 0) { ut::free(ptr); }
+};
+
+/** Specialization of basic_ostringstream which uses ut::allocator. Please note
+    that it's .str() method returns std::basic_string which is not std::string,
+    so it has similar API (in particular .c_str()), but you can't assign it to
+    regular, std::string.
+ */
+using ostringstream =
+    std::basic_ostringstream<char, std::char_traits<char>, ut::allocator<char>>;
+
+/** Specialization of vector which uses allocator. */
+template <typename T>
+using vector = std::vector<T, ut::allocator<T>>;
 
 template <typename Key>
-using unordered_set = std::unordered_set<Key, std::hash<Key>,
-                                         std::equal_to<Key>, ut_allocator<Key>>;
+using unordered_set =
+    std::unordered_set<Key, std::hash<Key>, std::equal_to<Key>,
+                       ut::allocator<Key>>;
 
 }  // namespace ut
+
 #endif /* ut0new_h */

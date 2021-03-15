@@ -173,7 +173,7 @@ struct Page {
 /** Pages recovered from the doublewrite buffer */
 class Pages {
  public:
-  using Buffers = std::vector<Page *, ut_allocator<Page *>>;
+  using Buffers = std::vector<Page *, ut::allocator<Page *>>;
 
   /** Default constructor */
   Pages() : m_pages() {}
@@ -291,7 +291,7 @@ class Double_write {
     }
 
     typedef std::tuple<buf_page_t *, const file::Block *, uint32_t> Dblwr_tuple;
-    using Pages = std::vector<Dblwr_tuple, ut_allocator<Dblwr_tuple>>;
+    using Pages = std::vector<Dblwr_tuple, ut::allocator<Dblwr_tuple>>;
 
     /** Collection of pages. */
     Pages m_pages{};
@@ -2316,7 +2316,7 @@ const byte *recv::Pages::find(const page_id_t &page_id) const noexcept {
   if (!dblwr::enabled) {
     return nullptr;
   }
-  using Matches = std::vector<const byte *, ut_allocator<const byte *>>;
+  using Matches = std::vector<const byte *, ut::allocator<const byte *>>;
 
   Matches matches;
   const byte *page = nullptr;

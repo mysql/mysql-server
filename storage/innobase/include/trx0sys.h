@@ -389,7 +389,7 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
 /** @} */
 
 /** List of undo tablespace IDs. */
-class Space_Ids : public std::vector<space_id_t, ut_allocator<space_id_t>> {
+class Space_Ids : public std::vector<space_id_t, ut::allocator<space_id_t>> {
  public:
   void sort() { std::sort(begin(), end()); }
 

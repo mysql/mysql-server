@@ -76,7 +76,7 @@ struct Parallel_cursor : public Cursor {
   [[nodiscard]] virtual bool eof() const noexcept override { return m_eof; }
 
  private:
-  using Heaps = std::vector<mem_heap_t *, ut_allocator<mem_heap_t *>>;
+  using Heaps = std::vector<mem_heap_t *, ut::allocator<mem_heap_t *>>;
 
   /** If true then no more rows to scan. */
   bool m_eof{};
@@ -142,8 +142,8 @@ dberr_t Parallel_cursor::scan(Builders &builders) noexcept {
     }
   }
 
-  using Rows = std::vector<Row, ut_allocator<Row>>;
-  using Row_counters = std::vector<size_t, ut_allocator<size_t>>;
+  using Rows = std::vector<Row, ut::allocator<Row>>;
+  using Row_counters = std::vector<size_t, ut::allocator<size_t>>;
 
   /* Each thread has its own row instance and row count instance. */
   Rows rows{};

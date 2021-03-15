@@ -254,8 +254,8 @@ struct FTS::Inserter {
     ~Handler() = default;
 
     using Buffer = Aligned_buffer;
-    using Files = std::vector<file_t, ut_allocator<file_t>>;
-    using Buffers = std::vector<Buffer *, ut_allocator<Buffer *>>;
+    using Files = std::vector<file_t, ut::allocator<file_t>>;
+    using Buffers = std::vector<Buffer *, ut::allocator<Buffer *>>;
 
     /** Aux index id. */
     size_t m_id{};
@@ -1536,7 +1536,7 @@ dberr_t FTS::check_for_errors() noexcept {
 
 dberr_t FTS::insert(Builder *builder) noexcept {
   Threads threads{};
-  std::vector<dberr_t, ut_allocator<dberr_t>> errs{};
+  std::vector<dberr_t, ut::allocator<dberr_t>> errs{};
 
   errs.assign(FTS_NUM_AUX_INDEX, DB_SUCCESS);
 

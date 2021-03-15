@@ -1248,7 +1248,7 @@ class Arch_Group {
 };
 
 /** A list of archive groups */
-using Arch_Grp_List = std::list<Arch_Group *, ut_allocator<Arch_Group *>>;
+using Arch_Grp_List = std::list<Arch_Group *, ut::allocator<Arch_Group *>>;
 
 /** An iterator for archive group */
 using Arch_Grp_List_Iter = Arch_Grp_List::iterator;
@@ -1415,7 +1415,7 @@ class Arch_Log_Sys {
 };
 
 /** Vector of page archive in memory blocks */
-using Arch_Block_Vec = std::vector<Arch_Block *, ut_allocator<Arch_Block *>>;
+using Arch_Block_Vec = std::vector<Arch_Block *, ut::allocator<Arch_Block *>>;
 
 /** Page archiver in memory data */
 struct ArchPageData {

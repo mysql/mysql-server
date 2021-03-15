@@ -384,7 +384,7 @@ struct Char_Ptr_Compare {
 /** Tablespace files disovered during startup. */
 class Tablespace_files {
  public:
-  using Names = std::vector<std::string, ut_allocator<std::string>>;
+  using Names = std::vector<std::string, ut::allocator<std::string>>;
   using Paths = std::unordered_map<space_id_t, Names>;
   using Undo_num2id = std::unordered_map<space_id_t, space_id_t>;
 
@@ -1290,7 +1290,7 @@ class Fil_shard {
 
 #ifndef UNIV_HOTBACKUP
   using Pair = std::pair<space_id_t, fil_space_t *>;
-  using Deleted_spaces = std::vector<Pair, ut_allocator<Pair>>;
+  using Deleted_spaces = std::vector<Pair, ut::allocator<Pair>>;
 
   /** Deleted tablespaces. All pages for these tablespaces in the buffer pool
   will be passively deleted. They need not be written. Once the reference count
@@ -7015,7 +7015,7 @@ struct MEB_file_name {
 /** Map of dirty tablespaces during recovery */
 using MEB_recv_spaces =
     std::map<space_id_t, MEB_file_name, std::less<space_id_t>,
-             ut_allocator<std::pair<const space_id_t, MEB_file_name>>>;
+             ut::allocator<std::pair<const space_id_t, MEB_file_name>>>;
 
 static MEB_recv_spaces recv_spaces;
 

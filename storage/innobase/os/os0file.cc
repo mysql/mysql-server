@@ -736,7 +736,7 @@ class AIO {
   std::atomic_size_t m_last_slot_used;
 
 #ifdef _WIN32
-  typedef std::vector<HANDLE, ut_allocator<HANDLE>> Handles;
+  typedef std::vector<HANDLE, ut::allocator<HANDLE>> Handles;
 
   /** Pointer to an array of OS native event handles where
   we copied the handles from slots, in the same order. This

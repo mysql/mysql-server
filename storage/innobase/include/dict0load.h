@@ -46,7 +46,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <deque>
 
 /** A stack of table names related through foreign key constraints */
-typedef std::deque<const char *, ut_allocator<const char *>> dict_names_t;
+typedef std::deque<const char *, ut::allocator<const char *>> dict_names_t;
 
 /** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
 enum dict_system_id_t {

@@ -643,7 +643,7 @@ struct Tablespace {
 rollback segments. */
 class Tablespaces {
   using Tablespaces_Vector =
-      std::vector<Tablespace *, ut_allocator<Tablespace *>>;
+      std::vector<Tablespace *, ut::allocator<Tablespace *>>;
 
  public:
   Tablespaces() { init(); }
