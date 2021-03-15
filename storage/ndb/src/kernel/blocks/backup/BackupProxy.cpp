@@ -218,9 +218,12 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
 void
 BackupProxy::execNODE_START_REP(Signal *signal)
 {
-    jam();
-    sendSignal(workerRef(0), GSN_NODE_START_REP, signal,
+  jam();
+  for (Uint32 i = 0; i < c_workers; i++)
+  {
+    sendSignal(workerRef(i), GSN_NODE_START_REP, signal,
                signal->getLength(), JBB);
+  }
 }
 
 
