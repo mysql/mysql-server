@@ -220,6 +220,7 @@ end:
 }
 
 #include "services_required.h"
+#include "test_udf_extension.h"
 #include "udf_extension_test_functions.h"
 
 /**
@@ -234,6 +235,7 @@ static int test_udf_extension_init(MYSQL_PLUGIN /*p */) {
   if (Registry_service::acquire() || Udf_registration::acquire()) {
     goto end;
   }
+  udf_ext::Test_udf_charset_base::udf_charset_base_init();
   /*
     Demonstrates how to set and get the charset extension argument of
     return value. It also demonstrate how to perforn the charset
@@ -375,6 +377,7 @@ static int test_udf_extension_deinit(MYSQL_PLUGIN /* p */) {
   if (Registry_service::acquire() || Udf_registration::acquire()) {
     goto end;
   }
+  udf_ext::Test_udf_charset_base::udf_charset_base_deinit();
   if (Udf_registration::remove("test_result_charset", &was_present) ||
       Udf_registration::remove("test_args_charset", &was_present) ||
       Udf_registration::remove("test_result_collation", &was_present) ||
