@@ -161,6 +161,7 @@ if ($run)
 #             DUPLICATE KEY will appear if we have UNIQUE columns
 #             ER_DUP_KEY, ER_DUP_ENTRY
 --disable_abort_on_error
+--replace_regex /'3-3'/'2-2'/   # Don't care which row is reported.
 INSERT INTO t1 (f_int1, f_int2, f_char1, f_char2, f_charbig)
 SELECT f_int1, f_int1, CAST(f_int1 AS CHAR),
        CAST(f_int1 AS CHAR), 'delete me' FROM t0_template
