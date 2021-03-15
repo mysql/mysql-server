@@ -1675,8 +1675,13 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
   */
   for (Query_block *sel = unit->first_query_block(); sel != nullptr;
        sel = sel->next_query_block()) {
-    if ((subquery_maybe_null = sel->single_visible_field()->is_nullable()))
-      break;
+    Item *only_item = sel->single_visible_field();
+    if (only_item == nullptr) {
+      // There was more than one after all.
+      my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+      return RES_ERROR;
+    }
+    if ((subquery_maybe_null = only_item->is_nullable())) break;
   }
   /*
     If this is an ALL/ANY single-value subquery predicate, try to rewrite
