@@ -137,3 +137,30 @@ INSERT INTO t1 VALUES ('a');
 CREATE TABLE t2 (a INTEGER PRIMARY KEY) PARTITION BY key() PARTITIONS 2;
 SELECT 1 AS a FROM t1 LEFT JOIN t2 ON FALSE GROUP BY a;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32617876: SIG11 IN SORT_PARAM::MAKE_SORTKEY|SQL/FILESORT.CC WITH HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (
+  a LONGBLOB,
+  b INTEGER,
+  c INTEGER
+);
+
+INSERT INTO t1 VALUES (NULL,1,3);
+INSERT INTO t1 VALUES (NULL,1,NULL);
+ANALYZE TABLE t1;
+
+# Set up a sort by row ID, where a temporary table (belonging to the
+# nonmergable derived table) has a NULL-complemented row, but never gets
+# properly initialized, and thus does not actually have a row ID.
+SELECT *
+FROM t1
+LEFT JOIN (
+  t1 AS t2 JOIN t1 AS t3 ON t2.c = t3.b
+  JOIN ( SELECT DISTINCT b FROM t1 ) AS d1
+) ON TRUE
+ORDER BY t1.c;
+
+DROP TABLE t1;

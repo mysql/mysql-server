@@ -1544,7 +1544,13 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
       if (table->is_nullable()) {
         *to++ = table->has_null_row();
       }
-      memcpy(to, table->file->ref, table->file->ref_length);
+      if (table->is_nullable() && table->has_null_row()) {
+        // The contents are not used, but it's nice to have them
+        // defined when writing them to disk nevertheless.
+        memset(to, 0, table->file->ref_length);
+      } else {
+        memcpy(to, table->file->ref, table->file->ref_length);
+      }
       to += table->file->ref_length;
     }
   }
