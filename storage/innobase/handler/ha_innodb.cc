@@ -7592,6 +7592,9 @@ ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
   *charset_no = 0;
 
   switch (dd_type) {
+    //Create separate case for bool and break
+    case dd::enum_column_types::BOOL:
+      return (DATA_INT);
     case dd::enum_column_types::ENUM:
     case dd::enum_column_types::SET:
       /* SQL-layer has its own unsigned flag set to zero, even though
@@ -7640,8 +7643,6 @@ ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
     case dd::enum_column_types::TINY:
     case dd::enum_column_types::SHORT:
     case dd::enum_column_types::INT24:
-    //Create separate case for bool and break
-    case dd::enum_column_types::BOOL:
       /* Types based on Field_num set unsigned flag from value stored
       in the data-dictionary (YEAR being the exception). */
       if (is_unsigned) *unsigned_flag = DATA_UNSIGNED;

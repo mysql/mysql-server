@@ -41,7 +41,7 @@ Resource_groups::Resource_groups() {
                          "resource_group_type enum('SYSTEM', 'USER') NOT NULL");
   m_target_def.add_field(FIELD_RESOURCE_GROUP_ENABLED,
                          "FIELD_RESOURCE_GROUP_ENABLED",
-                         "resource_group_enabled  boolean NOT NULL");
+                         "resource_group_enabled  TINYINT(1) NOT NULL");
   m_target_def.add_field(FIELD_CPU_ID_MASK, "FIELD_CPU_ID_MASK",
                          "cpu_id_mask VARCHAR(1024) NOT NULL");
   m_target_def.add_field(FIELD_THREAD_PRIORITY, "FIELD_THREAD_PRIORITY",
