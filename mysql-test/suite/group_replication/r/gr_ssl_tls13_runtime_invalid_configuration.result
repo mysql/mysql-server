@@ -91,10 +91,16 @@ SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
 ALTER INSTANCE RELOAD TLS;
+Warnings:
+Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
+Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 [connection server2]
 SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
 ALTER INSTANCE RELOAD TLS;
+Warnings:
+Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
+Warning	4038	A deprecated TLS version TLSv1.1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
 include/group_replication_end.inc
