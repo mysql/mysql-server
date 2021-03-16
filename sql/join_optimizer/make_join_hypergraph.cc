@@ -1057,27 +1057,30 @@ table_map FindTESForCondition(table_map used_tables,
       tes |= FindTESForCondition(used_tables, expr->left);
     }
     if (Overlaps(used_tables, expr->right->tables_in_subtree)) {
-      tes |= FindTESForCondition(used_tables, expr->right);
-
       // The predicate needs a table from the right-hand side, but this join can
       // cause that table to become NULL, so we need to delay until the join has
-      // happened. Notwithstanding any reordering on the left side, the join
-      // cannot happen until all the join condition's used tables are in place,
-      // so for non-degenerate conditions, that is a neccessary and sufficient
-      // condition for the predicate to be applied.
+      // happened. We do this by demanding that all tables on the left side have
+      // been joined in, and then at least the tables we need from the right
+      // side (from the SES).
+      //
+      // Note that pruning aggressively on the left-hand side is prone to
+      // failure due to associative rewriting of left joins; e.g., for left
+      // joins and suitable join conditions:
+      //
+      //   (t1 <opA> t2) <opB> t3 <=> t1 <opA> (t2 <opB> t3)
+      //
+      // In particular, this means that if we have a WHERE predicate affecting
+      // t2 and t3 (tested against <opB>), TES still has to be {t1,t2,t3};
+      // if we limited it to {t2,t3}, we would push it below <opA> in the case
+      // of the rewrite, which is wrong. So the entire left side needs to be
+      // included, preventing us to push the condition down into the right side
+      // in any case.
+      tes |= expr->left->tables_in_subtree;
       for (Item *condition : expr->equijoin_conditions) {
         tes |= condition->used_tables();
       }
       for (Item *condition : expr->join_conditions) {
         tes |= condition->used_tables();
-      }
-
-      // If all conditions were degenerate (and not left-degenerate, ie.,
-      // referenced the left-hand side only), simply add all tables from the
-      // left-hand side as required, so that it will not be pushed into the
-      // right-hand side in any case.
-      if (!Overlaps(tes, expr->left->tables_in_subtree)) {
-        tes |= expr->left->tables_in_subtree;
       }
     }
     return tes;

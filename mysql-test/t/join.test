@@ -1568,3 +1568,20 @@ SELECT * FROM
   WHERE ((t1.a = 5 AND t3.a < t1.a) OR t1.a > 0) AND t3.a <= t2.a;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32637680: RESULT MISMATCH SEEN WITH HYPERGRAPH OPTIMIZER IN QUERIES WITH LEFT JOIN
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(10) );
+CREATE TABLE t2 ( a VARCHAR(10) );
+INSERT INTO t1 VALUES ('x');
+ANALYZE TABLE t1, t2;
+
+SELECT *
+  FROM t1
+  LEFT JOIN t2 ON TRUE
+  LEFT JOIN ( t1 AS t1i JOIN t2 AS t2i ON t1i.a = t2i.a ) ON t2.a = t2i.a
+  WHERE t1i.a = '' OR t2i.a = '';
+
+DROP TABLE t1, t2;
