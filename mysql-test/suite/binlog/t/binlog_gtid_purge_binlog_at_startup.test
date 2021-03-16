@@ -42,6 +42,7 @@
 #
 --source include/have_binlog_format_row.inc
 --source include/have_gtid.inc
+--source include/have_debug.inc
 
 --let $saved_debug = `SELECT @@debug`
 
