@@ -24957,6 +24957,7 @@ void Dblqh::timeSup(Signal* signal)
          LogPartRecord::P_FILE_CHANGE_PROBLEM)!= 0)
     {
       jam();
+      unlock_log_part(logPartPtr.p);
       g_eventLogger->info("LDM(%u): Gci record write is waiting for "
                           "the redo log file to be changed: "
                           "logpart: %u log part state: %u "
