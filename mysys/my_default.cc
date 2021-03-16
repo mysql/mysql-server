@@ -1222,8 +1222,8 @@ static mysql_file_getline_ret mysql_file_getline(char *buff, int size,
     while (true) {
       /* Read up to size bytes */
       if (mysql_file_fgets(buff, size, file) == nullptr) {
-        /* fgets failure */
-        return {nullptr, noop_free};
+        /* End of file */
+        return line;
       }
 
       /* Calculate size of line, including null termination */
