@@ -305,6 +305,32 @@ class MDL_checker {
                         enum_mdl_type lock_type) {
     if (!column_statistics) return true; /* purecov: deadcode */
 
+    // Take l_c_t_n into account when constructing the MDL key for table.
+    char schema_name_buf[NAME_LEN + 1];
+    char table_name_buf[NAME_LEN + 1];
+    const char *schema_name = dd::Object_table_definition_impl::fs_name_case(
+        column_statistics->schema_name(), schema_name_buf);
+    const char *table_name = dd::Object_table_definition_impl::fs_name_case(
+        column_statistics->table_name(), table_name_buf);
+
+    /*
+      We don't require any column statistics MDL if thread owns exclusive
+      lock on the table. This allows to save on column statistics MDL in
+      cases like DROP DATABASE that would have required acquiring lots of
+      such locks in extreme cases otherwise.
+
+      In order to be able to do this we have to enforce that thread which
+      acquires locks on statistics for table's column also needs to have
+      at least shared MDL on the table.
+    */
+    if (thd->mdl_context.owns_equal_or_stronger_lock(
+            MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE))
+      return true;
+
+    if (!thd->mdl_context.owns_equal_or_stronger_lock(
+            MDL_key::TABLE, schema_name, table_name, MDL_SHARED))
+      return false;
+
     MDL_key mdl_key;
     column_statistics->create_mdl_key(&mdl_key);
 

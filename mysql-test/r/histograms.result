@@ -497,6 +497,35 @@ JSON_LENGTH(histogram->'$.buckets') <= 255
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2, col1 WITH 10 BUCKETS;
 ERROR 42S21: Duplicate column name 'col1'
 DROP TABLE t1;
+#
+# ANALYZE ... UPDATE HISTOGRAM and LOCK TABLES.
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (10), (20), (30);
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 (c2) VALUES (10), (20), (30);
+#
+# Check that ANALYZE TABLE UPDATE HISTOGRAM fails under LOCK TABLES
+# if table is not locked at least for READ.
+#
+LOCK TABLES t2 READ;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	Table 't1' was not locked with LOCK TABLES
+# There should be no histograms.
+SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
+should_be_0
+0
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'c2'.
+# There should be histograms for t2.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t2	c2
+UNLOCK TABLES;
+DROP TABLES t1, t2;
 ################
 # DROP HISTOGRAM
 ################
@@ -575,6 +604,14 @@ ANALYZE TABLE foo DROP HISTOGRAM ON foobar;
 Table	Op	Msg_type	Msg_text
 test.foo	histogram	Error	No histogram statistics found for column 'foobar'.
 #
+# Temporary table
+#
+CREATE TEMPORARY TABLE temp_table (col1 INT);
+ANALYZE TABLE temp_table DROP HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+test.temp_table	histogram	Error	Cannot create histogram statistics for a temporary table.
+DROP TABLE temp_table;
+#
 # The same column specified multiple times
 #
 ANALYZE TABLE foo DROP HISTOGRAM ON foobar, foobar;
@@ -588,6 +625,43 @@ ANALYZE TABLE t1, t2 DROP HISTOGRAM ON col1;
 Table	Op	Msg_type	Msg_text
 	histogram	Error	Only one table can be specified while modifying histogram statistics.
 DROP TABLE t1, t2;
+#
+# ANALYZE ... DROP HISTOGRAM and LOCK TABLES.
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON c1 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'c1'.
+CREATE TABLE t2 (c2 INT);
+INSERT INTO t2 (c2) VALUES (10), (20), (30);
+ANALYZE TABLE t2 UPDATE HISTOGRAM ON c2 WITH 10 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics created for column 'c2'.
+#
+# Check that ANALYZE TABLE DROP HISTOGRAM fails under LOCK TABLES
+# if table is not locked at least for READ.
+#
+LOCK TABLES t2 READ;
+ANALYZE TABLE t1 DROP HISTOGRAM ON c1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	Table 't1' was not locked with LOCK TABLES
+# We should still have two histograms.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	c1
+test	t2	c2
+ANALYZE TABLE t2 DROP HISTOGRAM ON c2;
+Table	Op	Msg_type	Msg_text
+test.t2	histogram	status	Histogram statistics removed for column 'c2'.
+# There should be only histogram for t1 now.
+SELECT schema_name, table_name, column_name
+FROM information_schema.COLUMN_STATISTICS;
+SCHEMA_NAME	TABLE_NAME	COLUMN_NAME
+test	t1	c1
+UNLOCK TABLES;
+DROP TABLES t1, t2;
 #####################################
 # HISTOGRAM REMOVAL ON DDL STATEMENTS
 #####################################

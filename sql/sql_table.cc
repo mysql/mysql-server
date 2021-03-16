@@ -10128,7 +10128,7 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
       res = histograms::drop_all_histograms(thd, *table, *original_table_def,
                                             results);
     else
-      res = histograms::drop_histograms(thd, *table, columns, results);
+      res = histograms::drop_histograms(thd, *table, columns, false, results);
 
     DBUG_EXECUTE_IF("fail_after_drop_histograms", {
       my_error(ER_UNABLE_TO_DROP_COLUMN_STATISTICS, MYF(0), "dummy_column",
@@ -13027,6 +13027,15 @@ static bool mysql_inplace_alter_table(
       goto rollback;
     }
 
+    // Upgrade to EXCLUSIVE before commit.
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+      goto rollback;
+
+    if (collect_and_lock_fk_tables_for_complex_alter_table(
+            thd, table_list, table_def, alter_ctx, alter_info, db_type, db_type,
+            fk_invalidator))
+      goto rollback;
+
     /*
       Check if this is an ALTER command that will cause histogram statistics to
       become invalid. If that is the case; remove the histogram statistics.
@@ -13036,15 +13045,6 @@ static bool mysql_inplace_alter_table(
     if (alter_table_drop_histograms(thd, table_list, ha_alter_info->alter_info,
                                     ha_alter_info->create_info, columns,
                                     table_def, altered_table_def))
-      goto rollback;
-
-    // Upgrade to EXCLUSIVE before commit.
-    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
-      goto rollback;
-
-    if (collect_and_lock_fk_tables_for_complex_alter_table(
-            thd, table_list, table_def, alter_ctx, alter_info, db_type, db_type,
-            fk_invalidator))
       goto rollback;
 
     /*

@@ -199,3 +199,65 @@ SET LOCAL TRANSACTION READ WRITE;
 INSERT INTO t1 (col1) VALUES (1);
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 16 BUCKETS;
 DROP TABLE t1;
+
+--echo #
+--echo # Additional tests for bug#29634540 "DROP DATABASE OF 1 MILLION
+--echo # TABLES ...".
+--echo #
+--echo # Check that DROP DATABASE statement doesn't acquire metadata locks
+--echo # on column statistics while dropping it.
+--echo #
+--enable_connect_log
+CREATE DATABASE mysqltest;
+CREATE TABLE mysqltest.t1 (i INT);
+INSERT INTO mysqltest.t1 VALUES (1), (2), (3);
+ANALYZE TABLE mysqltest.t1 UPDATE HISTOGRAM ON i WITH 10 BUCKETS;
+CREATE TABLE mysqltest.t2 (j INT);
+--echo # Run DROP DATABASE which will be paused near its end.
+SET DEBUG_SYNC = 'rm_table_no_locks_before_binlog SIGNAL drop_waiting WAIT_FOR drop_resume';
+--send DROP DATABASE mysqltest
+
+--connect(con1, localhost, root,,)
+--echo # Wait until DROP DATABASE gets paused and check what MDL
+--echo # it has acquired. There should be X locks on both tables
+--echo # and no locks on column statistics.
+SET DEBUG_SYNC = 'now WAIT_FOR drop_waiting';
+SELECT object_type, object_schema, object_name, column_name, lock_type
+  FROM performance_schema.metadata_locks
+  WHERE object_schema = "mysqltest"
+  ORDER BY object_type, object_schema, object_name, column_name, lock_type;
+
+--echo #
+--echo # Run concurrent ANALYZE TABLE ... DROP HISTOGRAM on table from
+--echo # database being dropped.
+--send ANALYZE TABLE mysqltest.t1 DROP HISTOGRAM ON i
+
+--connect(con2, localhost, root,,)
+--echo # Check that it will be blocked thanks to table MDL.
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table metadata lock" and
+        info = "ANALYZE TABLE mysqltest.t1 DROP HISTOGRAM ON i";
+--source include/wait_condition.inc
+
+--echo # Unpause DROP DATABASE.
+SET DEBUG_SYNC = 'now SIGNAL drop_resume';
+
+--disconnect con2
+--source include/wait_until_disconnected.inc
+
+--connection con1
+--echo # Reap ANALYZE TABLE ... DROP HISTOGRAM, which should not have
+--echo # found any histograms since database has been dropped.
+--reap
+
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--connection default
+--echo # Reap DROP DATABASE
+--reap
+
+--echo # Clean-up.
+SET DEBUG_SYNC = 'RESET';
+--disable_connect_log
