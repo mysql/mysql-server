@@ -1642,11 +1642,14 @@ void ReplaceUpdateValuesWithTempTableFields(
       Item::Item_field_replacement replacement(
           down_cast<Item_field *>(orig_field)->field,
           down_cast<Item_field *>(tmp_field), query_block);
-      for (Item *&update_item : sql_cmd->update_value_list) {
+      for (Item *&orig_item : sql_cmd->update_value_list) {
         uchar *dummy;
-        update_item = update_item->compile(&Item::visit_all_analyzer, &dummy,
-                                           &Item::replace_item_field,
-                                           pointer_cast<uchar *>(&replacement));
+        Item *new_item = orig_item->compile(
+            &Item::visit_all_analyzer, &dummy, &Item::replace_item_field,
+            pointer_cast<uchar *>(&replacement));
+        if (new_item != orig_item) {
+          query_block->join->thd->change_item_tree(&orig_item, new_item);
+        }
       }
     }
   }
