@@ -208,4 +208,81 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
   }
 }
 
+/**
+  A wrapper around WalkAccessPaths() that collects all tables under
+  “root_path” and calls the given functor, stopping at materializations.
+  This is typically used to know which tables to sort or the like.
+
+  func() must have signature func(TABLE *), and return true upon error.
+ */
+template <class Func>
+void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func) {
+  WalkAccessPaths(
+      root_path, /*join=*/nullptr,
+      WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+      [&](AccessPath *path, const JOIN *) {
+        switch (path->type) {
+          case AccessPath::TABLE_SCAN:
+            return func(path->table_scan().table);
+          case AccessPath::INDEX_SCAN:
+            return func(path->index_scan().table);
+          case AccessPath::REF:
+            return func(path->ref().table);
+          case AccessPath::REF_OR_NULL:
+            return func(path->ref_or_null().table);
+          case AccessPath::EQ_REF:
+            return func(path->eq_ref().table);
+          case AccessPath::PUSHED_JOIN_REF:
+            return func(path->pushed_join_ref().table);
+          case AccessPath::FULL_TEXT_SEARCH:
+            return func(path->full_text_search().table);
+          case AccessPath::CONST_TABLE:
+            return func(path->const_table().table);
+          case AccessPath::MRR:
+            return func(path->mrr().table);
+          case AccessPath::FOLLOW_TAIL:
+            return func(path->follow_tail().table);
+          case AccessPath::INDEX_RANGE_SCAN:
+            return func(path->index_range_scan().table);
+          case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
+            return func(path->dynamic_index_range_scan().table);
+          case AccessPath::STREAM:
+            return func(path->stream().table);
+          case AccessPath::MATERIALIZE:
+            return func(path->materialize().param->table);
+          case AccessPath::MATERIALIZED_TABLE_FUNCTION:
+            return func(path->materialized_table_function().table);
+          case AccessPath::ALTERNATIVE:
+            return func(
+                path->alternative().table_scan_path->table_scan().table);
+          case AccessPath::UNQUALIFIED_COUNT:
+            // Should never be below anything that needs GetUsedTables().
+            assert(false);
+            return false;
+          case AccessPath::AGGREGATE:
+          case AccessPath::APPEND:
+          case AccessPath::BKA_JOIN:
+          case AccessPath::CACHE_INVALIDATOR:
+          case AccessPath::FAKE_SINGLE_ROW:
+          case AccessPath::FILTER:
+          case AccessPath::HASH_JOIN:
+          case AccessPath::LIMIT_OFFSET:
+          case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
+          case AccessPath::NESTED_LOOP_JOIN:
+          case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
+          case AccessPath::REMOVE_DUPLICATES:
+          case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
+          case AccessPath::SORT:
+          case AccessPath::TABLE_VALUE_CONSTRUCTOR:
+          case AccessPath::TEMPTABLE_AGGREGATE:
+          case AccessPath::WEEDOUT:
+          case AccessPath::WINDOWING:
+          case AccessPath::ZERO_ROWS:
+          case AccessPath::ZERO_ROWS_AGGREGATED:
+            return false;
+        }
+        assert(false);
+      });
+}
+
 #endif  // SQL_JOIN_OPTIMIZER_WALK_ACCESS_PATHS_H

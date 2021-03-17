@@ -2022,23 +2022,13 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
 }
 
 /**
-  Create a table array from a table bitmap. temp_table, if given, is the one
-  used if RAND_TABLE_BIT is set (see GetUsedTables() for more information).
-  It can be nullptr if RAND_TABLE_BIT is not set.
+  Find the list of all tables used by this root, stopping at materializations.
+  Used for knowing which tables to sort.
  */
-Mem_root_array<TABLE *> CollectTables(const Query_block *query_block,
-                                      table_map tmap, TABLE *temp_table) {
-  Mem_root_array<TABLE *> tables(query_block->join->thd->mem_root);
-  for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
-       tl = tl->next_leaf) {
-    if (tl->map() & tmap) {
-      tables.push_back(tl->table);
-    }
-  }
-  if (tmap & RAND_TABLE_BIT) {
-    assert(temp_table != nullptr);
-    tables.push_back(temp_table);
-  }
+Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
+  Mem_root_array<TABLE *> tables(thd->mem_root);
+  WalkTablesUnderAccessPath(
+      root_path, [&tables](TABLE *table) { return tables.push_back(table); });
   return tables;
 }
 
@@ -2472,8 +2462,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   Temp_table_param *temp_table_param = nullptr;
 
   Mem_root_array<TABLE *> tables =
-      CollectTables(query_block, GetUsedTables(root_candidates[0]),
-                    /*temp_table=*/nullptr);  // Should be same for all paths.
+      CollectTables(thd, root_candidates[0]);  // Should be same for all paths.
 
   // If we have grouping followed by a sort, we need to bounce via
   // the buffers of a temporary table. See the comments on
@@ -3602,8 +3591,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           continue;
         }
 
-        Mem_root_array<TABLE *> tables = CollectTables(
-            query_block, GetUsedTables(root_path), /*temp_table=*/nullptr);
+        Mem_root_array<TABLE *> tables = CollectTables(thd, root_path);
         Filesort *filesort = new (thd->mem_root) Filesort(
             thd, std::move(tables), /*keep_buffers=*/false,
             sort_ahead_ordering.order,
@@ -3768,11 +3756,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // Create deferred Filesort objects.
   WalkAccessPaths(
       root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, query_block, temp_table](AccessPath *path, const JOIN *) {
+      [thd, query_block](AccessPath *path, const JOIN *) {
         if (path->type == AccessPath::SORT &&
             path->sort().filesort == nullptr) {
-          Mem_root_array<TABLE *> tables =
-              CollectTables(query_block, GetUsedTables(path), temp_table);
+          Mem_root_array<TABLE *> tables = CollectTables(thd, path);
           path->sort().filesort = new (thd->mem_root) Filesort(
               thd, std::move(tables),
               /*keep_buffers=*/false, path->sort().order,

@@ -107,118 +107,20 @@ static RowIterator *FindSingleIteratorOfType(AccessPath *path,
 }
 
 table_map GetUsedTables(const AccessPath *path) {
-  switch (path->type) {
-    case AccessPath::TABLE_SCAN:
-      return path->table_scan().table->pos_in_table_list->map();
-    case AccessPath::INDEX_SCAN:
-      return path->index_scan().table->pos_in_table_list->map();
-    case AccessPath::REF:
-      return path->ref().table->pos_in_table_list->map();
-    case AccessPath::REF_OR_NULL:
-      return path->ref_or_null().table->pos_in_table_list->map();
-    case AccessPath::EQ_REF:
-      return path->eq_ref().table->pos_in_table_list->map();
-    case AccessPath::PUSHED_JOIN_REF:
-      return path->pushed_join_ref().table->pos_in_table_list->map();
-    case AccessPath::FULL_TEXT_SEARCH:
-      return path->full_text_search().table->pos_in_table_list->map();
-    case AccessPath::CONST_TABLE:
-      return path->const_table().table->pos_in_table_list->map();
-    case AccessPath::MRR:
-      return path->mrr().table->pos_in_table_list->map();
-    case AccessPath::FOLLOW_TAIL:
-      return path->follow_tail().table->pos_in_table_list->map();
-    case AccessPath::INDEX_RANGE_SCAN:
-      return path->index_range_scan().table->pos_in_table_list->map();
-    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
-      return path->dynamic_index_range_scan().table->pos_in_table_list->map();
-    case AccessPath::TABLE_VALUE_CONSTRUCTOR:
-    case AccessPath::FAKE_SINGLE_ROW:
-    case AccessPath::ZERO_ROWS:
-    case AccessPath::ZERO_ROWS_AGGREGATED:
-      return 0;
-    case AccessPath::MATERIALIZED_TABLE_FUNCTION:
-      return path->materialized_table_function()
-          .table->pos_in_table_list->map();
-    case AccessPath::UNQUALIFIED_COUNT:
-      // Should never be below anything that needs GetUsedTables().
-      assert(false);
-      return 0;
-    case AccessPath::NESTED_LOOP_JOIN:
-      return GetUsedTables(path->nested_loop_join().outer) |
-             GetUsedTables(path->nested_loop_join().inner);
-    case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
-      return GetUsedTables(
-                 path->nested_loop_semijoin_with_duplicate_removal().outer) |
-             GetUsedTables(
-                 path->nested_loop_semijoin_with_duplicate_removal().inner);
-    case AccessPath::BKA_JOIN:
-      return GetUsedTables(path->bka_join().outer) |
-             GetUsedTables(path->bka_join().inner);
-    case AccessPath::HASH_JOIN:
-      return GetUsedTables(path->hash_join().outer) |
-             GetUsedTables(path->hash_join().inner);
-    case AccessPath::FILTER:
-      return GetUsedTables(path->filter().child);
-    case AccessPath::SORT:
-      return GetUsedTables(path->sort().child);
-    case AccessPath::AGGREGATE:
-      return GetUsedTables(path->aggregate().child);
-    case AccessPath::TEMPTABLE_AGGREGATE:
-      return path->temptable_aggregate().table->pos_in_table_list->map();
-    case AccessPath::LIMIT_OFFSET:
-      return GetUsedTables(path->limit_offset().child);
-    case AccessPath::STREAM:
-      if (path->stream().table->pos_in_table_list != nullptr) {
-        // A derived table.
-        return path->stream().table->pos_in_table_list->map();
-      } else {
-        // Streaming within a JOIN (e.g., for sorting).
-        // The table won't have a map, so the caller will need to
-        // find the table manually.
-        return RAND_TABLE_BIT;
-      }
-    case AccessPath::MATERIALIZE:
-      if (path->materialize().param->table->pos_in_table_list != nullptr) {
-        // A derived table.
-        return path->materialize().param->table->pos_in_table_list->map();
-      } else {
-        // Materialization within a JOIN (e.g., for sorting).
-        // The table won't have a map, so the caller will need to
-        // find the table manually.
-        return RAND_TABLE_BIT;
-      }
-    case AccessPath::MATERIALIZE_INFORMATION_SCHEMA_TABLE:
-      return GetUsedTables(
-          path->materialize_information_schema_table().table_path);
-    case AccessPath::APPEND: {
-      table_map used_tables = 0;
-      for (const AppendPathParameters &child : *path->append().children) {
-        used_tables |= GetUsedTables(child.path);
-      }
-      return used_tables;
-    }
-    case AccessPath::WINDOWING:
-      return GetUsedTables(path->windowing().child);
-    case AccessPath::WEEDOUT:
-      return GetUsedTables(path->weedout().child);
-    case AccessPath::REMOVE_DUPLICATES:
-      return GetUsedTables(path->remove_duplicates().child);
-    case AccessPath::REMOVE_DUPLICATES_ON_INDEX:
-      return GetUsedTables(path->remove_duplicates_on_index().child);
-    case AccessPath::ALTERNATIVE:
-      assert(GetUsedTables(path->alternative().child) ==
-             path->alternative()
-                 .table_scan_path->table_scan()
-                 .table->pos_in_table_list->map());
-      return path->alternative()
-          .table_scan_path->table_scan()
-          .table->pos_in_table_list->map();
-    case AccessPath::CACHE_INVALIDATOR:
-      return GetUsedTables(path->cache_invalidator().child);
-  }
-  assert(false);
-  return 0;
+  table_map tmap = 0;
+  WalkTablesUnderAccessPath(const_cast<AccessPath *>(path),
+                            [&tmap](TABLE *table) {
+                              if (table->pos_in_table_list == nullptr) {
+                                // Materialization within a JOIN (e.g., for
+                                // sorting). The table won't have a map, so the
+                                // caller will need to find the table manually.
+                                tmap |= RAND_TABLE_BIT;
+                              } else {
+                                tmap |= table->pos_in_table_list->map();
+                              }
+                              return false;
+                            });
+  return tmap;
 }
 
 // Mirrors QEP_TAB::pfs_batch_update(), with one addition:
