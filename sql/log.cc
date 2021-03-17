@@ -1701,7 +1701,9 @@ bool log_slow_applicable(THD *thd)
     bool log_this_query=  ((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
                            warn_no_index) &&
                           (thd->get_examined_row_count() >=
-                           thd->variables.min_examined_row_limit);
+                           (global_system_variables.min_examined_row_limit <= 1
+                                ? global_system_variables.min_examined_row_limit
+                                : thd->variables.min_examined_row_limit));
     bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
 
     if (!suppress_logging && log_this_query)

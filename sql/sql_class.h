@@ -3309,7 +3309,8 @@ public:
   void update_server_status()
   {
     ulonglong end_utime_of_query= current_utime();
-    if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+    ulonglong my_long_query_time=global_system_variables.min_examined_row_limit<=1?global_system_variables.long_query_time:variables.long_query_time;
+    if (end_utime_of_query > utime_after_lock + my_long_query_time)
       server_status|= SERVER_QUERY_WAS_SLOW;
   }
   inline ulonglong found_rows(void)
