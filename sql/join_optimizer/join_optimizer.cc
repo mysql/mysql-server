@@ -2074,9 +2074,8 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
   that are not aggregate functions. This is a tiny performance loss,
   but makes things simpler.
 
-  Note that we cannot set up an access path for this temporary table yet;
-  that needs to wait until we know whether the sort decided to use row IDs
-  or not, and Filesort cannot be set up until it knows what tables to sort.
+  Note that we don't set up an access path for this temporary table yet,
+  since there may be multiple access paths sharing this temporary table.
   Thus, that job is deferred to CreateMaterializationPathForSortingAggregates().
  */
 TABLE *CreateTemporaryTableForSortingAggregates(
@@ -2243,8 +2242,9 @@ void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order) {
  */
 AccessPath *CreateMaterializationPathForSortingAggregates(
     THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table,
-    Temp_table_param *temp_table_param, bool using_addon_fields) {
-  if (using_addon_fields) {
+    Temp_table_param *temp_table_param) {
+  // See if later sorts will need row IDs from us or not.
+  if (!SortWillBeOnRowId(temp_table)) {
     // The common case; we can use streaming.
     AccessPath *stream_path =
         NewStreamingAccessPath(thd, path, join, temp_table_param, temp_table,
@@ -2443,12 +2443,10 @@ JoinHypergraph::Node *FindNodeWithTable(JoinHypergraph *graph, TABLE *table) {
 Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     THD *thd, const CostingReceiver &receiver,
     const LogicalOrderings &orderings, bool aggregation_is_unordered,
-    int order_by_ordering_idx, int distinct_ordering_idx, ORDER *distinct_order,
+    int order_by_ordering_idx, int distinct_ordering_idx,
     const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
-    FunctionalDependencySet fd_set, Query_block *query_block,
-    bool need_rowid_from_tables,
-    Prealloced_array<AccessPath *, 4> root_candidates, string *trace,
-    TABLE **temp_table) {
+    FunctionalDependencySet fd_set, Query_block *query_block, bool need_rowid,
+    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
   JOIN *join = query_block->join;
   assert(join->select_distinct || query_block->is_ordered());
 
@@ -2458,11 +2456,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     return root_candidates;
   }
 
-  *temp_table = nullptr;
-  Temp_table_param *temp_table_param = nullptr;
-
-  Mem_root_array<TABLE *> tables =
-      CollectTables(thd, root_candidates[0]);  // Should be same for all paths.
+  bool inserted_temp_table = false;
 
   // If we have grouping followed by a sort, we need to bounce via
   // the buffers of a temporary table. See the comments on
@@ -2475,93 +2469,23 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   // doesn't preserve them (doing so would probably not be worth it for
   // something that's fairly niche).
   //
-  // NOTE: We could need row IDs later without need_rowid_from_tables being set,
-  // but only in certain edge cases; for instance, if we sort only constants
-  // (although filesort should arguably be fixed not to request row IDs
-  // in that case). The test here is really about data being pulled from
-  // individual tables, and should be safe.
-  if (query_block->is_explicitly_grouped() &&
-      (*join->sum_funcs != nullptr ||
-       join->rollup_state != JOIN::RollupState::NONE ||
-       need_rowid_from_tables)) {
-    *temp_table = CreateTemporaryTableForSortingAggregates(thd, query_block,
-                                                           &temp_table_param);
-    // Filesort now only needs to worry about one input -- this temporary
-    // table. This holds whether we are actually materializing or just
-    // using streaming.
-    tables.clear();
-    tables.push_back(*temp_table);
-  }
-
-  // Set up the filesort objects. They have some interactions
-  // around addon fields vs. sort by row ID, so we need to do this
-  // before we decide on iterators.
-  bool need_rowid = false;
-  Filesort *filesort = nullptr;
-  if (query_block->is_ordered()) {
-    Mem_root_array<TABLE *> table_copy(thd->mem_root, tables.begin(),
-                                       tables.end());
-    filesort = new (thd->mem_root)
-        Filesort(thd, std::move(table_copy), /*keep_buffers=*/false,
-                 query_block->order_list.first,
-                 /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
-                 /*remove_duplicates=*/false, /*force_sort_positions=*/false,
-                 /*unwrap_rollup=*/false);
-    join->filesorts_to_cleanup.push_back(filesort);
-    need_rowid = !filesort->using_addon_fields();
-  }
-  Filesort *filesort_for_distinct = nullptr;
-  if (join->select_distinct) {
-    bool force_sort_positions = false;
-    if (filesort != nullptr && !filesort->using_addon_fields()) {
-      // We have the rather unusual situation here that we have two sorts
-      // directly after each other, with no temporary table in-between,
-      // and filesort expects to be able to refer to rows by their position.
-      // Usually, the sort for DISTINCT would be a superset of the sort for
-      // ORDER BY, but not always (e.g. when sorting by some expression),
-      // so we could end up in a situation where the first sort is by addon
-      // fields and the second one is by positions.
-      //
-      // Thus, in this case, we force the first sort to be by positions,
-      // so that the result comes from SortFileIndirectIterator or
-      // SortBufferIndirectIterator. These will both position the cursor
-      // on the underlying temporary table correctly before returning it,
-      // so that the successive filesort will save the right position
-      // for the row.
-      if (trace != nullptr) {
-        *trace +=
-            "Forcing DISTINCT to sort row IDs, since ORDER BY sort does\n";
-      }
-      force_sort_positions = true;
-    }
-
-    if (distinct_order != nullptr) {
-      filesort_for_distinct = new (thd->mem_root)
-          Filesort(thd, std::move(tables),
-                   /*keep_buffers=*/false, distinct_order, HA_POS_ERROR,
-                   /*force_stable_sort=*/false,
-                   /*remove_duplicates=*/true, force_sort_positions,
-                   /*unwrap_rollup=*/false);
-      join->filesorts_to_cleanup.push_back(filesort_for_distinct);
-      if (!filesort_for_distinct->using_addon_fields()) {
-        need_rowid = true;
-      }
-    }
-  }
-
-  // Apply streaming between grouping and us, if needed (see above).
   // NOTE: If we elide the sort due to interesting orderings, this might
   // be redundant. It is fairly harmless, though.
-  if (*temp_table != nullptr) {
+  if (query_block->is_explicitly_grouped() &&
+      (*join->sum_funcs != nullptr ||
+       join->rollup_state != JOIN::RollupState::NONE || need_rowid)) {
+    Temp_table_param *temp_table_param = nullptr;
+    TABLE *temp_table = CreateTemporaryTableForSortingAggregates(
+        thd, query_block, &temp_table_param);
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       root_path = CreateMaterializationPathForSortingAggregates(
-          thd, join, root_path, *temp_table, temp_table_param,
-          /*using_addon_fields=*/!need_rowid);
+          thd, join, root_path, temp_table, temp_table_param);
       receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
+    inserted_temp_table = true;
   }
 
   // Now create iterators for DISTINCT, if applicable.
@@ -2610,40 +2534,38 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         if (!orderings.DoesFollowOrder(ordering_state, distinct_ordering_idx)) {
           continue;
         }
-        AccessPath *sort_path =
-            NewSortAccessPath(thd, root_path, filesort_for_distinct,
-                              /*count_examined_rows=*/false);
-        EstimateSortCost(sort_path);
+        AccessPath sort_path;
+        sort_path.type = AccessPath::SORT;
+        sort_path.count_examined_rows = false;
+        sort_path.sort().child = root_path;
+        sort_path.sort().filesort = nullptr;
+        sort_path.sort().remove_duplicates = true;
+        sort_path.sort().unwrap_rollup = false;
+
         if (aggregation_is_unordered) {
           // Even though we create a sort node for the distinct operation,
           // the engine does not actually sort the rows. (The deduplication
           // flag is the hint in this case.)
-          sort_path->ordering_state = 0;
+          sort_path.ordering_state = 0;
         } else {
-          sort_path->ordering_state = ordering_state;
+          sort_path.ordering_state = ordering_state;
         }
 
-        // Swap out the ordering for the order we're actually using.
-        // filesort_for_distinct was only used for setting row ID status,
-        // and we can keep that information, but we need to use the right
-        // ordering.
-        sort_path->sort().filesort = nullptr;
-        sort_path->sort().remove_duplicates = true;
-        sort_path->sort().unwrap_rollup = false;
-        if (*temp_table != nullptr) {
+        if (inserted_temp_table) {
           ORDER *order_copy = BuildSortAheadOrdering(
               thd, &orderings,
               orderings.ordering(sort_ahead_ordering.ordering_idx));
           ReplaceOrderItemsWithTempTableFields(thd, order_copy);
-          sort_path->sort().order = order_copy;
+          sort_path.sort().order = order_copy;
         } else {
-          sort_path->sort().order = sort_ahead_ordering.order;
+          sort_path.sort().order = sort_ahead_ordering.order;
         }
 
-        if (!filesort_for_distinct->using_addon_fields()) {
-          FindTablesToGetRowidFor(sort_path);
+        if (need_rowid) {
+          FindTablesToGetRowidFor(&sort_path);
         }
-        receiver.ProposeAccessPath(sort_path, &new_root_candidates,
+        EstimateSortCost(&sort_path);
+        receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
       }
     }
@@ -2652,6 +2574,15 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
 
   // Apply ORDER BY, if applicable.
   if (query_block->is_ordered()) {
+    Mem_root_array<TABLE *> tables = CollectTables(
+        thd, root_candidates[0]);  // Should be same for all paths.
+    Filesort *filesort = new (thd->mem_root)
+        Filesort(thd, std::move(tables), /*keep_buffers=*/false,
+                 query_block->order_list.first,
+                 /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
+                 /*remove_duplicates=*/false, /*force_sort_positions=*/false,
+                 /*unwrap_rollup=*/false);
+    join->filesorts_to_cleanup.push_back(filesort);
     if (trace != nullptr) {
       *trace += "Applying sort for ORDER BY\n";
     }
@@ -3044,8 +2975,8 @@ static void BuildInterestingOrders(
     LogicalOrderings *orderings,
     Mem_root_array<SortAheadOrdering> *sort_ahead_orderings,
     int *order_by_ordering_idx, int *group_by_ordering_idx,
-    int *distinct_ordering_idx, ORDER **distinct_order,
-    Mem_root_array<ActiveIndexInfo> *active_indexes, string *trace) {
+    int *distinct_ordering_idx, Mem_root_array<ActiveIndexInfo> *active_indexes,
+    string *trace) {
   // Collect ordering from ORDER BY.
   if (query_block->is_ordered()) {
     table_map used_tables;
@@ -3103,7 +3034,6 @@ static void BuildInterestingOrders(
                     /*order_for_filesort=*/order,
                     /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
                     orderings, sort_ahead_orderings);
-    *distinct_order = order;
   }
 
   // Collect groupings from semijoins (because we might want to do duplicate
@@ -3415,11 +3345,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   int order_by_ordering_idx = -1;
   int group_by_ordering_idx = -1;
   int distinct_ordering_idx = -1;
-  ORDER *distinct_order = nullptr;
   BuildInterestingOrders(thd, &graph, query_block, &orderings,
                          &sort_ahead_orderings, &order_by_ordering_idx,
                          &group_by_ordering_idx, &distinct_ordering_idx,
-                         &distinct_order, &active_indexes, trace);
+                         &active_indexes, trace);
 
   // Run the actual join optimizer algorithm. This creates an access path
   // for the join as a whole (with lowest possible cost, and thus also
@@ -3675,13 +3604,11 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     root_candidates = std::move(new_root_candidates);
   }
 
-  TABLE *temp_table = nullptr;
   if (join->select_distinct || query_block->is_ordered()) {
     root_candidates = ApplyDistinctAndOrder(
         thd, receiver, orderings, aggregation_is_unordered,
-        order_by_ordering_idx, distinct_ordering_idx, distinct_order,
-        sort_ahead_orderings, fd_set, query_block, need_rowid,
-        std::move(root_candidates), trace, &temp_table);
+        order_by_ordering_idx, distinct_ordering_idx, sort_ahead_orderings,
+        fd_set, query_block, need_rowid, std::move(root_candidates), trace);
   }
 
   // Apply LIMIT, if applicable.
