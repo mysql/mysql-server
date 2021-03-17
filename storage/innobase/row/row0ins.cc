@@ -1865,7 +1865,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 /*!< in/out: memory heap that can be emptied */
 {
   ulint n_unique;
-  int cmp;
   ulint n_fields_cmp;
   btr_pcur_t pcur;
   dberr_t err = DB_SUCCESS;
@@ -1902,6 +1901,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       &pcur, mtr);
   allow_duplicates = row_allow_duplicates(thr);
 
+  const bool skip_gap_locks = index->table->skip_gap_locks();
   /* Scan index records and check if there is a duplicate */
 
   do {
@@ -1912,8 +1912,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     found. This means it is possible for another transaction to
     insert a duplicate key value but MDL protection on DD tables
     will prevent insertion of duplicates into unique secondary indexes*/
-    const ulint lock_type =
-        index->table->skip_gap_locks() ? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
+    ulint lock_type = skip_gap_locks ? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
 
     if (page_rec_is_infimum(rec)) {
       continue;
@@ -1922,6 +1921,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     offsets =
         rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &offsets_heap);
 
+    const bool is_supremum = page_rec_is_supremum(rec);
+    const bool is_next =
+        !is_supremum && (cmp_dtuple_rec(entry, rec, index, offsets) < 0);
     if (flags & BTR_NO_LOCKING_FLAG) {
       /* Set no locks when applying log
       in online table rebuild. */
@@ -1935,9 +1937,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 #if 1  // TODO: Remove this code after WL#9509. REPLACE will not be allowed on
        // DD tables
-      if (index->table->skip_gap_locks()) {
+      if (skip_gap_locks) {
         /* Only GAP lock is possible on supremum. */
-        if (page_rec_is_supremum(rec)) {
+        if (is_supremum) {
           continue;
         }
       }
@@ -1949,17 +1951,35 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       err = row_ins_set_rec_lock(LOCK_X, lock_type, block, rec, index, offsets,
                                  thr);
     } else {
-      if (index->table->skip_gap_locks()) {
-        /* Only GAP lock is possible on supremum. */
-        if (page_rec_is_supremum(rec)) {
+      if (skip_gap_locks) {
+        /* Skip GAP lock on supremum */
+        if (is_supremum) {
           continue;
         }
-
-        if (cmp_dtuple_rec(entry, rec, index, offsets) < 0) {
+        /* Skip gap lock on next record. */
+        if (is_next) {
           goto end_scan;
         }
+        lock_type = LOCK_REC_NOT_GAP;
+      } else if (is_supremum) {
+        /* We use next key lock to possibly combine the locks in bitmap.
+        Equivalent to LOCK_GAP. */
+        lock_type = LOCK_ORDINARY;
+      } else if (is_next) {
+        /* Only gap lock is required on next record. */
+        lock_type = LOCK_GAP;
+      } else {
+        /* Next key lock for all equal keys. */
+        lock_type = LOCK_ORDINARY;
       }
-
+      /* We only need to lock locations where duplicates could occur, which
+      means rows which are equal, gaps between them, and gaps on both
+      sides of them. We don't need to lock the first unequal record after the
+      gap, just the gap before it.
+      Note: This function will not be even called, and thus will not lock
+      anything at all in case there wasn't any matching record, which is fine,
+      because the B-tree page latch will be released only after inserting the
+      implicitly locked record, so no protection is needed.*/
       err = row_ins_set_rec_lock(LOCK_S, lock_type, block, rec, index, offsets,
                                  thr);
     }
@@ -1973,13 +1993,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         goto end_scan;
     }
 
-    if (page_rec_is_supremum(rec)) {
+    if (is_supremum) {
       continue;
     }
 
-    cmp = cmp_dtuple_rec(entry, rec, index, offsets);
-
-    if (cmp == 0 && !index->allow_duplicates) {
+    if (!is_next && !index->allow_duplicates) {
       if (row_ins_dupl_error_with_rec(rec, entry, index, offsets)) {
         err = DB_DUPLICATE_KEY;
 
@@ -1997,7 +2015,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         goto end_scan;
       }
     } else {
-      ut_a(cmp < 0 || index->allow_duplicates);
+      ut_a(is_next || index->allow_duplicates);
       goto end_scan;
     }
   } while (btr_pcur_move_to_next(&pcur, mtr));
