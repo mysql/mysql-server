@@ -5125,7 +5125,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   /*
     Execute operation
   */
-  m_rows_inserted++;
   no_uncommitted_rows_update(1);
   if (will_batch) {
     if (uses_blobs) {
@@ -6999,7 +6998,6 @@ int ha_ndbcluster::reset() {
   m_ignore_dup_key = false;
   m_use_write = false;
   m_ignore_no_key = false;
-  m_rows_inserted = (ha_rows)0;
   m_rows_to_insert = (ha_rows)1;
   m_delete_cannot_batch = false;
   m_update_cannot_batch = false;
@@ -7012,8 +7010,6 @@ int ha_ndbcluster::reset() {
 int ha_ndbcluster::flush_bulk_insert(bool allow_batch) {
   NdbTransaction *trans = m_thd_ndb->trans;
   DBUG_TRACE;
-  DBUG_PRINT("info", ("Sending inserts to NDB, rows_inserted: %d",
-                      (int)m_rows_inserted));
   assert(trans);
 
   if (m_thd_ndb->check_trans_option(Thd_ndb::TRANS_TRANSACTIONS_OFF)) {
@@ -7060,7 +7056,6 @@ void ha_ndbcluster::start_bulk_insert(ha_rows rows) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("rows: %d", (int)rows));
 
-  m_rows_inserted = (ha_rows)0;
   if (!m_use_write && m_ignore_dup_key) {
     /*
       compare if expression with that in write_row
@@ -7112,7 +7107,6 @@ int ha_ndbcluster::end_bulk_insert() {
     }
   }
 
-  m_rows_inserted = 0;
   m_rows_to_insert = 1;
   return error;
 }
@@ -11224,7 +11218,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg)
       m_rows_updated(0),
       m_rows_deleted(0),
       m_rows_to_insert((ha_rows)1),
-      m_rows_inserted((ha_rows)0),
       m_delete_cannot_batch(false),
       m_update_cannot_batch(false),
       m_skip_auto_increment(true),
