@@ -74,8 +74,11 @@ BISON_TARGET(ndb_import
   )
 
 # Add target, for easier debugging.
-ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
-
+# The new Xcode build system does not support multiple targets that
+# DEPEND on the same outputs.
+IF(NOT APPLE_XCODE)
+  ADD_CUSTOM_TARGET(GenBison_ndb_import DEPENDS ${BISON_ndb_import_OUTPUTS})
+ENDIF()
 
 OPTION(NDB_UTILS_LINK_DYNAMIC
   "Dynamically link NDB utilities link with shared ndbclient" OFF)
