@@ -568,6 +568,10 @@ struct z_first_page_t {
   @return the total number of pages freed. */
   size_t destroy();
 
+  /** Free all the pages of the zlob except the first page.
+  @return the total number of pages freed. */
+  size_t make_empty();
+
 #ifdef UNIV_DEBUG
  private:
   /** Validate the LOB.  This is a costly function.  We need to avoid using

@@ -1748,7 +1748,7 @@ void IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW {
                              dict_table_is_comp(m_index->table)));
 
   btr_cur_pessimistic_delete(&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0,
-                             false, 0, 0, 0, &m_mtr);
+                             false, 0, 0, 0, &m_mtr, &m_pcur, nullptr);
 
   ut_a(err == DB_SUCCESS);
 

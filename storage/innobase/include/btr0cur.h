@@ -512,19 +512,20 @@ ibool btr_cur_optimistic_delete_func(
                   occur, the cursor stays valid: it points to successor of
                   deleted record on function exit
 @param[in] flags  BTR_CREATE_FLAG or 0
-@param[in] rollback True if performing rollback, false otherwise.
-@param[in] trx_id The current transaction id.
-@param[in] undo_no Undo number of the transaction. This is needed for
-rollback to savepoint of partially updated LOB.
-@param[in] rec_type Undo record type.
-@param[in] mtr Mini-transaction
-@param[in] pcur   Persistent cursor on the record to delete.
+@param[in] rollback     True if performing rollback, false otherwise.
+@param[in] trx_id       The current transaction id.
+@param[in] undo_no      Undo number of the transaction. This is needed for
+                        rollback to savepoint of partially updated LOB.
+@param[in] rec_type     Undo record type.
+@param[in] mtr          The mini transaction
+@param[in] pcur         Persistent cursor on the record to delete.
+@param[in,out] node     purge node or nullptr
 @return true if compression occurred */
 ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
                                  btr_cur_t *cursor, uint32_t flags,
                                  bool rollback, trx_id_t trx_id,
                                  undo_no_t undo_no, ulint rec_type, mtr_t *mtr,
-                                 btr_pcur_t *pcur = nullptr);
+                                 btr_pcur_t *pcur, purge_node_t *node);
 
 /** Parses a redo log record of updating a record in-place.
  @return end of log record or NULL */

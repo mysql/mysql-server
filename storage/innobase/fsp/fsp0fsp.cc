@@ -2187,10 +2187,13 @@ page_no_t fseg_get_nth_frag_page_no(
     mtr_t *mtr MY_ATTRIBUTE((unused)))
 /*!< in/out: mini-transaction */
 {
+#ifdef UNIV_DEBUG
+  const std::size_t n_slots = FSEG_FRAG_ARR_N_SLOTS;
   ut_ad(inode && mtr);
-  ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
+  ut_ad(n < n_slots);
   ut_ad(mtr_memo_contains_page(mtr, inode, MTR_MEMO_PAGE_SX_FIX));
   ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
+#endif /* UNIV_DEBUG */
   return (mach_read_from_4(inode + FSEG_FRAG_ARR + n * FSEG_FRAG_SLOT_SIZE));
 }
 
@@ -3436,7 +3439,8 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
       /* The page is in the fragment pages of the segment */
 
       for (i = 0;; i++) {
-        if (fseg_get_nth_frag_page_no(seg_inode, i, mtr) == page_id.page_no()) {
+        const page_no_t page_no = fseg_get_nth_frag_page_no(seg_inode, i, mtr);
+        if (page_no == page_id.page_no()) {
           fseg_set_nth_frag_page_no(seg_inode, i, FIL_NULL, mtr);
           break;
         }

@@ -76,6 +76,17 @@ function used in an SQL execution graph.
 que_thr_t *row_purge_step(que_thr_t *thr) /*!< in: query thread */
     MY_ATTRIBUTE((warn_unused_result));
 
+using Page_free_tuple = std::tuple<index_id_t, page_id_t>;
+
+struct Compare_page_free_tuple {
+  bool operator()(const Page_free_tuple &lhs,
+                  const Page_free_tuple &rhs) const {
+    const page_id_t &lpage_id = std::get<1>(lhs);
+    const page_id_t &rpage_id = std::get<1>(rhs);
+    return (lpage_id < rpage_id);
+  }
+};
+
 /* Purge node structure */
 
 struct purge_node_t {
@@ -161,6 +172,23 @@ struct purge_node_t {
   /** Undo recs to purge */
   Recs *recs;
 
+  void init() { new (&m_lob_pages) LOB_free_set(); }
+
+  /** Add an LOB page to the list of pages that will be freed at the end of a
+   * purge batch.
+   @param[in]    index       the clust index to which the LOB belongs.
+   @param[in]    page_id     the page_id of the first page of the LOB.
+   @param[in]    page_size   The page size of the tablespace. */
+  void add_lob_page(dict_index_t *index, const page_id_t &page_id) {
+    const index_id_t id(page_id.space(), index->id);
+    const auto tup = std::make_tuple(id, page_id);
+    ut_ad(m_lob_pages.find(tup) == m_lob_pages.end());
+    m_lob_pages.insert(tup);
+  }
+
+  /** Free the LOB first pages at end of purge batch. */
+  void free_lob_pages();
+
   /** Check if undo records of given table_id is there in this purge node.
   @param[in]	table_id	look for undo records of this table id.
   @return true if undo records of table id exists, false otherwise. */
@@ -183,6 +211,13 @@ struct purge_node_t {
      the ref member.*/
   bool validate_pcur();
 #endif
+
+ private:
+  using LOB_free_set = std::set<Page_free_tuple, Compare_page_free_tuple,
+                                ut_allocator<Page_free_tuple>>;
+
+  /** Set of LOB first pages that are to be freed. */
+  LOB_free_set m_lob_pages;
 };
 
 #endif

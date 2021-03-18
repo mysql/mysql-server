@@ -656,13 +656,26 @@ size_t z_first_page_t::free_all_frag_pages_new() {
 }
 
 size_t z_first_page_t::destroy() {
+  size_t n_pages_freed = make_empty();
+  dealloc();
+  n_pages_freed++;
+  return (n_pages_freed);
+}
+
+size_t z_first_page_t::make_empty() {
   size_t n_pages_freed = 0;
   n_pages_freed += free_all_data_pages();
   n_pages_freed += free_all_frag_pages();
   n_pages_freed += free_all_frag_node_pages();
   n_pages_freed += free_all_index_pages();
-  dealloc();
-  n_pages_freed++;
+  flst_base_node_t *flst = free_list();
+  flst_init(flst, m_mtr);
+  flst_base_node_t *ilst = index_list();
+  flst_init(ilst, m_mtr);
+  flst_base_node_t *free_frag_lst = free_frag_list();
+  flst_init(free_frag_lst, m_mtr);
+  flst_base_node_t *frag_lst = frag_list();
+  flst_init(frag_lst, m_mtr);
   return (n_pages_freed);
 }
 

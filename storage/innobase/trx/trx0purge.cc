@@ -32,6 +32,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sys/types.h>
 #include <new>
+#include <unordered_map>
 
 #include "clone0api.h"
 #include "clone0clone.h"
@@ -1983,6 +1984,190 @@ static trx_undo_rec_t *trx_purge_get_next_rec(
   return (rec_copy);
 }
 
+struct Purge_groups_t {
+  Purge_groups_t(std::size_t n_threads, mem_heap_t *heap)
+      : m_grpid_umap{n_threads, mem_heap_allocator<GroupBy::value_type>{heap}},
+        m_groups(n_threads, nullptr,
+                 mem_heap_allocator<purge_node_t::Recs *>(heap)),
+        m_heap(heap),
+        m_total_rec(0) {}
+
+  void init() {
+    const std::size_t n_purge_threads = m_groups.size();
+
+    /* Initialize the grouping vector. */
+    for (std::size_t grpid = 0; grpid < n_purge_threads; ++grpid) {
+      void *ptr;
+      purge_node_t::Recs *recs;
+
+      ptr = mem_heap_alloc(m_heap, sizeof(purge_node_t::Recs));
+
+      /* Call the destructor explicitly in row_purge_end() */
+      recs = new (ptr)
+          purge_node_t::Recs{mem_heap_allocator<purge_node_t::rec_t>{m_heap}};
+
+      m_groups[grpid] = recs;
+    }
+  }
+
+  std::size_t find_smallest_group();
+
+  /** Redistribute the undo records across different groups.  If a group has
+  more records than it should, move all the extra records to the next group.
+  Maximum two passes might be needed. */
+  void distribute();
+
+  std::ostream &print(std::ostream &out) const;
+
+  void assign(que_thr_t **thrs) {
+    const std::size_t n_purge_threads = m_groups.size();
+    for (std::size_t grpid = 0; grpid < n_purge_threads; ++grpid) {
+      purge_node_t *node = static_cast<purge_node_t *>(thrs[grpid]->child);
+      ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
+      ut_ad(node->recs == nullptr);
+      node->recs = m_groups[grpid];
+    }
+  }
+
+#ifdef UNIV_DEBUG
+  bool is_grouping_uniform() const;
+#endif /* UNIV_DEBUG */
+
+  void add(purge_node_t::rec_t &rec) {
+    /* Identify the table id */
+    const table_id_t id = trx_undo_rec_get_table_id(rec.undo_rec);
+    std::size_t grpid;
+
+    GroupBy::iterator lb = m_grpid_umap.find(id);
+    if (lb != m_grpid_umap.end()) {
+      grpid = lb->second;
+    } else {
+      grpid = find_smallest_group();
+      m_grpid_umap.insert(std::make_pair(id, grpid));
+    }
+
+    m_groups[grpid]->push_back(rec);
+    m_total_rec++;
+  }
+
+  using GroupBy = std::unordered_map<
+      table_id_t, std::size_t, std::hash<table_id_t>, std::equal_to<table_id_t>,
+      mem_heap_allocator<std::pair<const table_id_t, std::size_t>>>;
+
+  /** Given a table_id obtain the group id to which it belongs. */
+  GroupBy m_grpid_umap;
+
+  /** Allocator used for the vector below. */
+  using vec_alloc = mem_heap_allocator<purge_node_t::Recs *>;
+
+  /** A vector of groups.  The size of this vector is equal to the number of
+  purge threads.  Each undo record is assigned to one of the groups, based on
+  its table_id. The index into this vector is the group_id. */
+  std::vector<purge_node_t::Recs *, vec_alloc> m_groups;
+
+  /** Memory heap in which memory for unordered_map & vector is allocated.*/
+  mem_heap_t *m_heap;
+
+  /** Total number of undo records parsed and grouped. */
+  std::size_t m_total_rec;
+};
+
+std::size_t Purge_groups_t::find_smallest_group() {
+  std::size_t result = 0;
+  std::size_t n = std::numeric_limits<std::size_t>::max();
+  const std::size_t n_purge_threads = m_groups.size();
+
+  for (std::size_t grpid = 0; grpid < n_purge_threads; ++grpid) {
+    const std::size_t grp_count = m_groups[grpid]->size();
+    if (grp_count < n) {
+      n = grp_count;
+      result = grpid;
+    }
+  }
+  return result;
+}
+
+std::ostream &Purge_groups_t::print(std::ostream &out) const {
+  const std::size_t n_purge_threads = m_groups.size();
+  const std::size_t max_n =
+      (m_total_rec + n_purge_threads - 1) / n_purge_threads;
+  const std::size_t min_n =
+      (max_n > n_purge_threads) ? max_n - n_purge_threads : 0;
+
+  if (m_total_rec > 0) {
+    out << "[n_purge_threads=" << n_purge_threads
+        << ", m_total_rec=" << m_total_rec << ", max=" << max_n
+        << ", min=" << min_n << ", [";
+    for (std::size_t i = 0; i < n_purge_threads; ++i) {
+      out << m_groups[i]->size() << ", ";
+    }
+    out << "]]" << std::endl;
+  }
+  return out;
+}
+
+#ifdef UNIV_DEBUG
+bool Purge_groups_t::is_grouping_uniform() const {
+  const std::size_t n_purge_threads = m_groups.size();
+  const std::size_t max_n =
+      (m_total_rec + n_purge_threads - 1) / n_purge_threads;
+  const std::size_t min_n =
+      (max_n > n_purge_threads) ? max_n - n_purge_threads : 0;
+  bool result = true;
+
+  for (std::size_t grpid = 0; grpid < n_purge_threads; ++grpid) {
+    const std::size_t grp_count = m_groups[grpid]->size();
+    if (grp_count < min_n || grp_count > max_n) {
+      result = false;
+    }
+  }
+  return result;
+}
+#endif /* UNIV_DEBUG */
+
+void Purge_groups_t::distribute() {
+  const std::size_t n_purge_threads = m_groups.size();
+  const std::size_t max_n =
+      (m_total_rec + n_purge_threads - 1) / n_purge_threads;
+
+  for (std::size_t i = 0; i < 2; ++i) {
+    bool need_second_pass = false;
+    for (std::size_t grpid = 0; grpid < n_purge_threads; ++grpid) {
+      std::size_t grp_count = m_groups[grpid]->size();
+      if (grp_count > max_n) {
+        auto from_list = m_groups[grpid];
+        std::size_t target_grpid = grpid + 1;
+        if (target_grpid == n_purge_threads) {
+          target_grpid = 0;
+          /* Undo records are moved to the first group. So a second pass is
+           * needed. */
+          need_second_pass = true;
+        }
+        auto to_list = m_groups[target_grpid];
+        auto from_iter = from_list->begin();
+        std::advance(from_iter, max_n);
+        to_list->splice(to_list->end(), *from_list, from_iter,
+                        from_list->end());
+      } else if (i == 1) {
+        /* In the second pass, stop as soon as we encounter a group with <=
+         * max_n records. */
+        break;
+      }
+    }
+    if (!need_second_pass) {
+      break;
+    }
+  }
+
+#ifdef UNIV_DEBUG
+  if (!is_grouping_uniform()) {
+    print(std::cerr);
+    const bool distribution_failed = false;
+    ut_ad(distribution_failed);
+  }
+#endif /* UNIV_DEBUG */
+}
+
 /** Fetches the next undo log record from the history list to purge. It must
  be released with the corresponding release function.
  @return copy of an undo log record or pointer to trx_purge_ignore_rec,
@@ -2033,10 +2218,6 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
   que_thr_t *thr;
   ulint n_pages_handled = 0;
 
-#ifdef UNIV_DEBUG
-  std::set<table_id_t> all_table_ids;
-#endif /* UNIV_DEBUG */
-
   ut_a(n_purge_threads > 0);
   ut_a(n_purge_threads <= MAX_PURGE_THREADS);
 
@@ -2075,12 +2256,8 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
 
   mem_heap_empty(heap);
 
-  using GroupBy = std::map<
-      table_id_t, purge_node_t::Recs *, std::less<table_id_t>,
-      mem_heap_allocator<std::pair<const table_id_t, purge_node_t::Recs *>>>;
-
-  GroupBy group_by{GroupBy::key_compare{},
-                   mem_heap_allocator<GroupBy::value_type>{heap}};
+  Purge_groups_t purge_groups(n_purge_threads, heap);
+  purge_groups.init();
 
   for (ulint i = 0; n_pages_handled < batch_size; ++i) {
     /* Track the max {trx_id, undo_no} for truncating the
@@ -2103,83 +2280,11 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
       break;
     }
 
-    table_id_t table_id;
-
-    table_id = trx_undo_rec_get_table_id(rec.undo_rec);
-
-#ifdef UNIV_DEBUG
-    all_table_ids.insert(table_id);
-#endif /* UNIV_DEBUG */
-
-    GroupBy::iterator lb = group_by.lower_bound(table_id);
-
-    if (lb != group_by.end() && !(group_by.key_comp()(table_id, lb->first))) {
-      lb->second->push_back(rec);
-
-    } else {
-      using Value = GroupBy::value_type;
-
-      void *ptr;
-      purge_node_t::Recs *recs;
-
-      ptr = mem_heap_alloc(heap, sizeof(purge_node_t::Recs));
-
-      /* Call the destructor explicitly in row_purge_end() */
-      recs = new (ptr)
-          purge_node_t::Recs{mem_heap_allocator<purge_node_t::rec_t>{heap}};
-
-      recs->push_back(rec);
-
-      group_by.insert(lb, Value{table_id, recs});
-    }
+    purge_groups.add(rec);
   }
 
-  /* Objective is to ensure that all the table entries in one
-  batch are handled by the same thread. Ths is to avoid contention
-  on the dict_index_t::lock */
-
-  GroupBy::const_iterator end = group_by.cend();
-
-  for (GroupBy::const_iterator it = group_by.cbegin(); it != end;) {
-    for (ulint i = 0; i < n_purge_threads && it != end; ++i, ++it) {
-      purge_node_t *node;
-
-      node = static_cast<purge_node_t *>(run_thrs[i]->child);
-
-      ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
-
-      if (node->recs == nullptr) {
-        node->recs = it->second;
-      } else {
-        for (auto iter = it->second->begin(); iter != it->second->end();
-             ++iter) {
-          node->recs->push_back(*iter);
-        }
-      }
-    }
-  }
-
-#ifdef UNIV_DEBUG
-  {
-    /* Add validation routine to check whether undo records of same table id
-    is being processed by different purge threads concurrently. */
-
-    for (auto xter = all_table_ids.begin(); xter != all_table_ids.end();
-         ++xter) {
-      table_id_t tid = *xter;
-      std::vector<bool> table_exists;
-
-      for (ulint i = 0; i < n_purge_threads; ++i) {
-        purge_node_t *node = static_cast<purge_node_t *>(run_thrs[i]->child);
-        ut_ad(node->check_duplicate_undo_no());
-        table_exists.push_back(node->is_table_id_exists(tid));
-      }
-
-      ptrdiff_t N = std::count(table_exists.begin(), table_exists.end(), true);
-      ut_ad(N == 0 || N == 1);
-    }
-  }
-#endif /* UNIV_DEBUG */
+  purge_groups.distribute();
+  purge_groups.assign(run_thrs);
 
   ut_ad(trx_purge_check_limit());
 
@@ -2344,6 +2449,20 @@ ulint trx_purge(ulint n_purge_threads, /*!< in: number of purge tasks
   }
   rw_lock_x_unlock(&purge_sys->latch);
 #endif /* UNIV_DEBUG */
+
+  /* The first page of LOBs are freed at the end of a purge batch because
+   * multiple purge threads will access the same LOB as part of the purge
+   * process.  Some purge threads will free only portion of the LOB related to
+   * the partial update of the LOB.  But 1 of the purge thread will free the LOB
+   * completely if it is not needed anymore (either because of full update or
+   * because of deletion).  If the LOB is freed, and a purge thread attempts to
+   * access the LOB, then it is a bug.  To avoid this, we delay the freeing of
+   * the first page of LOB till the end of a purge batch.  */
+  for (thr = UT_LIST_GET_FIRST(purge_sys->query->thrs); thr != nullptr;
+       thr = UT_LIST_GET_NEXT(thrs, thr)) {
+    purge_node_t *node = static_cast<purge_node_t *>(thr->child);
+    node->free_lob_pages();
+  }
 
   /* During upgrade, to know whether purge is empty,
   we rely on purge history length. So truncate the
