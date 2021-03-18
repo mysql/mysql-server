@@ -149,7 +149,7 @@ ROLLBACK;
 
 --echo #
 --echo # Add error supressions.
-CALL mtr.add_suppression("Worker 2 failed executing transaction.*");
+CALL mtr.add_suppression("Worker .* failed executing transaction.*");
 
 --echo #
 --echo # 3.2. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
