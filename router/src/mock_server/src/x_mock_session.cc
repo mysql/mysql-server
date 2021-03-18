@@ -23,6 +23,7 @@
 */
 #include "x_mock_session.h"
 
+#include <memory>
 #include <thread>
 #include <tuple>
 
@@ -180,6 +181,9 @@ MySQLXProtocol::get_notice_message(const unsigned id,
     case Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED: {
       return gr_state_changed_from_json(payload);
     }
+    case Mysqlx::Notice::Frame_Type_SERVER_HELLO:
+      return std::unique_ptr<xcl::XProtocol::Message>(
+          std::make_unique<Mysqlx::Notice::ServerHello>());
     // those we currently not use, if needed add a function encoding json
     // string to the selected message type
     case Mysqlx::Notice::Frame_Type_WARNING:
@@ -224,6 +228,12 @@ MySQLServerMockSessionX::MySQLServerMockSessionX(
 bool MySQLServerMockSessionX::process_handshake() {
   xcl::XProtocol::Client_message_type_id out_msg_id;
   bool done = false;
+
+  protocol_->send_async_notice(
+      {{},                                       // send_offset_ms
+       Mysqlx::Notice::Frame_Type_SERVER_HELLO,  // type
+       false,                                    // is_local
+       {}});                                     // payload
 
   while (!done) {
     auto msg = protocol_->recv_single_message(&out_msg_id);

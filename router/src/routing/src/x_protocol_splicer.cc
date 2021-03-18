@@ -374,6 +374,8 @@ BasicSplicer::State XProtocolSplicer::tls_client_greeting_response() {
 #if 0
   log_debug("%d: << %s", __LINE__, state_to_string(state()));
 #endif
+  // no OK|ERR yet, ask for more data from the server.
+  src_channel->want_recv(1);
   return state();
 }
 
@@ -827,11 +829,10 @@ BasicSplicer::State XProtocolSplicer::xproto_splice_int(
                     xproto_server_message_to_string(message_type));
 #endif
 
-          const uint8_t client_message_type = xproto_client_msg_type_[0];
-
           if (message_type == Mysqlx::ServerMessages::OK ||
               message_type == Mysqlx::ServerMessages::ERROR ||
               message_type == Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK) {
+            const uint8_t client_message_type = xproto_client_msg_type_[0];
             // client command is finished, remove it from the FIFO.
             xproto_client_msg_type_.erase(xproto_client_msg_type_.begin());
 
