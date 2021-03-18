@@ -2121,7 +2121,7 @@ void Fil_shard::file_opened(fil_node_t *file) {
 
     /* Safe to assign the length of the LRU to s_n_spaces_in_lru as
     the thread owns the mutex. */
-    s_n_spaces_in_lru = UT_LIST_GET_LEN(m_LRU);
+    s_n_spaces_in_lru++;
   }
 
   file->is_open = true;
@@ -2144,7 +2144,7 @@ void Fil_shard::remove_from_LRU(fil_node_t *file) {
 
     /* Safe to assign the length of the LRU to s_n_spaces_in_lru as
     the thread owns the mutex. */
-    s_n_spaces_in_lru = UT_LIST_GET_LEN(m_LRU);
+    s_n_spaces_in_lru--;
   }
 }
 
@@ -7465,6 +7465,7 @@ bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
     ut_a(UT_LIST_GET_LEN(m_LRU) > 0);
 
     UT_LIST_REMOVE(m_LRU, file);
+    s_n_spaces_in_lru--;
   }
 
   ++file->n_pending;
@@ -7529,6 +7530,7 @@ void Fil_shard::complete_io(fil_node_t *file, const IORequest &type) {
   if (file->n_pending == 0 && Fil_system::space_belongs_in_LRU(file->space)) {
     /* The file must be put back to the LRU list */
     UT_LIST_ADD_FIRST(m_LRU, file);
+    s_n_spaces_in_lru++;
   }
 }
 
